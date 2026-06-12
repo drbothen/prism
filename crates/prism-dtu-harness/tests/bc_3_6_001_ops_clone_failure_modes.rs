@@ -1091,3 +1091,217 @@ async fn test_BC_3_6_001_slack_unsupported_mode_returns_400() {
         "400 response must match exact Postcondition-5 shape; body={body}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// VP-157 (Phase 2 extension): cyber-sensor clones + generic harness handler
+//
+// F-P29-01 (HIGH) — BC-3.6.001 Postcondition 5 not propagated to:
+//   - Claroty dtu_configure (auth_mode unknown value → silently ACKed as None → 200)
+//   - Armis dtu_configure  (a) auth_mode unknown value → silently ACKed as None → 200;
+//                           (b) failure_mode unknown string → 400 with WRONG body shape
+//   - clone_server dtu_configure_pub (generic: CrowdStrike/Cyberint/Nvd/ThreatIntel)
+//                           auth_mode unknown value → silently ACKed as None → 200
+//
+// Each test:
+//   1. Sends a structurally-valid payload with an unrecognized value for a
+//      value-enumerated field (auth_mode or failure_mode).
+//   2. Asserts HTTP 400.
+//   3. Asserts EXACT body {"error":"unsupported_failure_mode","mode":"<value>"}.
+// ---------------------------------------------------------------------------
+
+/// VP-157 (F-P29-01): Claroty /dtu/configure — unrecognized auth_mode value must return
+/// HTTP 400 with contractual body, NOT silently ACK as FailureMode::None → 200.
+#[tokio::test]
+async fn test_BC_3_6_001_claroty_unsupported_auth_mode_returns_400() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("claroty-unsupported", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = harness
+        .endpoint_for("claroty-unsupported", DtuType::Claroty)
+        .expect("claroty endpoint must exist");
+    let admin_token = harness
+        .admin_token_for("claroty-unsupported", DtuType::Claroty)
+        .expect("claroty admin token must exist")
+        .to_owned();
+    let client = test_client();
+
+    // Structurally-valid payload: `auth_mode` is a known field, value "FutureVariant"
+    // is not in {"reject","none"} — must trigger Postcondition-5 400, not FailureMode::None.
+    let resp = client
+        .post(format!("http://{addr}/dtu/configure"))
+        .header("x-admin-token", &admin_token)
+        .json(&json!({"auth_mode": "FutureVariant"}))
+        .send()
+        .await
+        .expect("configure request must not fail at transport level");
+
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 400,
+        "Claroty /dtu/configure must return 400 for unsupported auth_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008 / F-P29-01)"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "FutureVariant"}),
+        "400 response must match exact Postcondition-5 shape; body={body}"
+    );
+}
+
+/// VP-157 (F-P29-01): Armis /dtu/configure — unrecognized auth_mode value (harness-format path)
+/// must return HTTP 400 with contractual body, NOT silently ACK as FailureMode::None → 200.
+#[tokio::test]
+async fn test_BC_3_6_001_armis_unsupported_auth_mode_returns_400() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("armis-unsupported-auth", |spec| {
+            spec.dtu_types = vec![DtuType::Armis];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = harness
+        .endpoint_for("armis-unsupported-auth", DtuType::Armis)
+        .expect("armis endpoint must exist");
+    let admin_token = harness
+        .admin_token_for("armis-unsupported-auth", DtuType::Armis)
+        .expect("armis admin token must exist")
+        .to_owned();
+    let client = test_client();
+
+    // Harness-format path: `auth_mode` is a known field, value "FutureVariant" is not
+    // in {"reject","none"} — falls through to the else-None arm → silently returns 200.
+    // Must return 400 with the Postcondition-5 body per F-P29-01.
+    let resp = client
+        .post(format!("http://{addr}/dtu/configure"))
+        .header("x-admin-token", &admin_token)
+        .json(&json!({"auth_mode": "FutureVariant"}))
+        .send()
+        .await
+        .expect("configure request must not fail at transport level");
+
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 400,
+        "Armis /dtu/configure must return 400 for unsupported auth_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008 / F-P29-01)"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "FutureVariant"}),
+        "400 response must match exact Postcondition-5 shape; body={body}"
+    );
+}
+
+/// VP-157 (F-P29-01): Armis /dtu/configure — unrecognized native failure_mode string
+/// currently returns 400 but with the WRONG body shape
+/// `{"error":"unknown failure_mode: <other>"}` instead of the contractual
+/// `{"error":"unsupported_failure_mode","mode":"<other>"}`.
+/// This test asserts the CORRECT Postcondition-5 body shape.
+#[tokio::test]
+async fn test_BC_3_6_001_armis_native_unknown_mode_returns_400_correct_body() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("armis-unsupported-native", |spec| {
+            spec.dtu_types = vec![DtuType::Armis];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = harness
+        .endpoint_for("armis-unsupported-native", DtuType::Armis)
+        .expect("armis endpoint must exist");
+    let admin_token = harness
+        .admin_token_for("armis-unsupported-native", DtuType::Armis)
+        .expect("armis admin token must exist")
+        .to_owned();
+    let client = test_client();
+
+    // Armis-native format: `failure_mode` is a known field, value "future_mode" is not
+    // in the recognized set — currently returns wrong body shape. Must return the
+    // contractual {"error":"unsupported_failure_mode","mode":"future_mode"}.
+    let resp = client
+        .post(format!("http://{addr}/dtu/configure"))
+        .header("x-admin-token", &admin_token)
+        .json(&json!({"failure_mode": "future_mode"}))
+        .send()
+        .await
+        .expect("configure request must not fail at transport level");
+
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 400,
+        "Armis /dtu/configure must return 400 for unrecognized failure_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008 / F-P29-01)"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "future_mode"}),
+        "400 response must match exact Postcondition-5 shape (not legacy wrong format); body={body}"
+    );
+}
+
+/// VP-157 (F-P29-01): Generic clone handler (CrowdStrike) /dtu/configure —
+/// unrecognized auth_mode value must return HTTP 400 with contractual body,
+/// NOT silently ACK as FailureMode::None → 200.
+/// The generic `dtu_configure_pub` in clone_server.rs serves CrowdStrike, Cyberint,
+/// Nvd, ThreatIntel, and DemoServer; CrowdStrike is used as the representative clone.
+#[tokio::test]
+async fn test_BC_3_6_001_generic_clone_unsupported_auth_mode_returns_400() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("cs-unsupported", |spec| {
+            spec.dtu_types = vec![DtuType::CrowdStrike];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = harness
+        .endpoint_for("cs-unsupported", DtuType::CrowdStrike)
+        .expect("crowdstrike endpoint must exist");
+    let admin_token = harness
+        .admin_token_for("cs-unsupported", DtuType::CrowdStrike)
+        .expect("crowdstrike admin token must exist")
+        .to_owned();
+    let client = test_client();
+
+    // Structurally-valid payload: `auth_mode` is a known field, value "FutureVariant"
+    // is not in {"reject","none"} — falls through to else-None arm → silently returns 200.
+    // Must return 400 with the Postcondition-5 body per F-P29-01.
+    let resp = client
+        .post(format!("http://{addr}/dtu/configure"))
+        .header("x-admin-token", &admin_token)
+        .json(&json!({"auth_mode": "FutureVariant"}))
+        .send()
+        .await
+        .expect("configure request must not fail at transport level");
+
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 400,
+        "Generic clone (CrowdStrike) /dtu/configure must return 400 for unsupported auth_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008 / F-P29-01)"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "FutureVariant"}),
+        "400 response must match exact Postcondition-5 shape; body={body}"
+    );
+}

@@ -870,6 +870,22 @@ async fn dtu_configure(
         }
     };
 
+    // BC-3.6.001 Postcondition 5: auth_mode carries an enumerated value set.
+    // Any value outside {"reject","none"} is an unsupported mode — return HTTP 400
+    // with the contractual body {"error":"unsupported_failure_mode","mode":"<value>"}.
+    // EC-009: stateless — no mode change on rejection.
+    if let Some(mode_str) = &body.auth_mode {
+        match mode_str.as_str() {
+            "reject" | "none" => {} // handled in mode-determination chain below
+            other => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "unsupported_failure_mode", "mode": other})),
+                );
+            }
+        }
+    }
+
     // Determine failure mode. Check harness-format fields first (used by inject_failure),
     // then fall back to Armis-native `failure_mode` string format (used by direct test calls).
     let mode = if body.clear == Some(true) {
@@ -914,10 +930,13 @@ async fn dtu_configure(
             Some("network_timeout") => FailureMode::NetworkTimeout {
                 after_ms: body.after_ms.unwrap_or(5000),
             },
+            // BC-3.6.001 Postcondition 5: unrecognized native failure_mode string.
+            // Normalize to contractual body {"error":"unsupported_failure_mode","mode":"<value>"}
+            // (previously returned non-contractual {"error":"unknown failure_mode: <value>"}).
             Some(other) => {
                 return (
                     StatusCode::BAD_REQUEST,
-                    Json(json!({"error": format!("unknown failure_mode: {other}")})),
+                    Json(json!({"error": "unsupported_failure_mode", "mode": other})),
                 );
             }
         }

@@ -1035,6 +1035,23 @@ async fn dtu_configure(
         }
     };
 
+    // BC-3.6.001 Postcondition 5: auth_mode carries an enumerated value set.
+    // CrowdStrike accepts {"reject","accept","none"} for auth_mode; any other value
+    // is unsupported — return HTTP 400 with the contractual body.
+    // EC-009: stateless — no state change on rejection.
+    if let Some(mode_str) = &cfg.auth_mode {
+        match mode_str.as_str() {
+            "reject" | "accept" | "none" => {} // handled in mode-determination chain below
+            other => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "unsupported_failure_mode", "mode": other})),
+                )
+                    .into_response();
+            }
+        }
+    }
+
     // Reset request counter when configuring (fresh failure injection).
     state.reset_request_counter();
 
@@ -1066,6 +1083,7 @@ async fn dtu_configure(
     } else if let Some(n) = cfg.unprocessable_at {
         FailureMode::Unprocessable { at_request_n: n }
     } else {
+        // Empty body → clear failure mode (idempotent, EC-006)
         FailureMode::None
     };
 
