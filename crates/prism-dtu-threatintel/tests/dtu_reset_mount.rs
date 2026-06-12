@@ -5,10 +5,10 @@
 // no-auth DTU introspection endpoint that clears all mutable state and returns
 // HTTP 200 `{"status": "ok"}`.
 //
-// ThreatIntelClone currently mounts /dtu/configure but is MISSING /dtu/reset —
-// the HTTP layer of reset is unimplemented (BehavioralClone::reset() exists but
-// Was Red Gate at implementation start; reset endpoint now mounted.
-// POST /dtu/reset returns 404.
+// ThreatIntelClone originally mounted /dtu/configure but was MISSING /dtu/reset —
+// the HTTP layer of reset was unimplemented (BehavioralClone::reset() exists but
+// the Axum route was not wired). This was a Red Gate (TD-WV0-05) at implementation
+// start. The route is now mounted and POST /dtu/reset returns 200 {"status": "ok"}.
 //
 // Acceptance criteria tested here:
 //   1. POST /dtu/reset returns HTTP 200 `{"status": "ok"}` with X-Admin-Token.
