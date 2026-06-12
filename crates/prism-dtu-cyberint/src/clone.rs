@@ -236,8 +236,11 @@ impl CyberintClone {
     /// Internally calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)`
     /// (NOT the forbidden 3-arg `new_with_seed` which would produce stale timestamps).
     ///
-    /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
-    /// compute the current stage index and apply StageMask filtering.
+    /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers
+    /// compute the current stage index and apply StageMask filtering per request.
+    /// `get_alerts` implements the three-way composition: scenario path applies
+    /// BC-2.06.019 PC-4 IOC-reference filtering; seeded path (no timeline) serves
+    /// all generated alert records unchanged (BC-2.06.018). (BPRL-P2-01)
     #[cfg(feature = "fixture-gen")]
     pub fn new_with_scenario(
         seed: u64,

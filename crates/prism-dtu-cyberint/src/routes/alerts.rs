@@ -139,14 +139,24 @@ pub(crate) fn check_auth(
 ///
 /// Returns a paginated list of alerts. Merges current status from `alert_store`.
 ///
-/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P6-HIGH-001):
-/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
-///   serves alert records directly from generated JSON values (no status merge, as
-///   generated records have no corresponding alert_store entries).
-///   A seeded clone with zero generated alert records (e.g. `Archetype::DormantTenant`)
-///   serves an EMPTY list — it does NOT fall back to `alert_fixture` + `alert_store`.
-/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
-///   merges `alert_fixture` with `alert_store` status (static-fixture backward-compatible path).
+/// Three-way composition (ADR-036 §2.3, BC-2.06.018, BC-2.06.019, F-P6-HIGH-001, BPRL-P2-01):
+///
+/// 1. **Scenario path** (`fixture_gen_seeded == true` AND `state.timeline.is_some()`):
+///    Computes `current_stage_index(&timeline, Utc::now().timestamp())`, retrieves the
+///    `StageMask`, then filters `generated_records` to `_surface == "alert"` records,
+///    excluding any that carry a `_ioc_value` field referencing a catalog IOC whose
+///    corresponding mask field (`ioc_ips`, `ioc_domains`, or `ioc_hashes`) is `false`.
+///    BC-2.06.019 PC-4 alert-surface semantics: `ioc_ips/ioc_domains/ioc_hashes=false`
+///    → alert records referencing those catalog IOCs are excluded from the response.
+///
+/// 2. **Seeded path** (`fixture_gen_seeded == true`, no timeline):
+///    Serves alert-surface records (`_surface == "alert"`) from `generated_records`
+///    without stage filtering (Story-A behavior, BC-2.06.018).
+///    A seeded clone with zero generated alert records (e.g. `Archetype::DormantTenant`)
+///    serves an EMPTY list — it does NOT fall back to `alert_fixture` + `alert_store`.
+///
+/// 3. **Static-fixture path** (`fixture_gen_seeded == false`, `new()` / non-seeded):
+///    Merges `alert_fixture` with `alert_store` status (backward-compatible path).
 pub async fn get_alerts(
     State(state): State<Arc<CyberintState>>,
     headers: HeaderMap,
@@ -188,6 +198,87 @@ pub async fn get_alerts(
         // Correct discriminator: `_surface == "alert"` — the generator stamps this tag on
         // every surface independently (generate_alerts → "alert", generate_cves → "cve",
         // generate_iocs → "ioc", generate_asm_assets → "asm_asset").
+
+        // Scenario path: apply StageMask projection (BC-2.06.019 PC-4 / BPRL-P2-01).
+        // Must nest INSIDE fixture_gen_seeded=true (three-way composition requirement).
+        // DormantTenant guard: branching on fixture_gen_seeded, NOT is_empty().
+        if let Some(ref timeline) = state.timeline {
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+
+            // Pre-compute catalog IOC sets for O(1) membership tests.
+            let catalog_ioc_ips: std::collections::HashSet<&str> = timeline
+                .entities
+                .ioc_ips
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            let catalog_ioc_domains: std::collections::HashSet<&str> = timeline
+                .entities
+                .ioc_domains
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            let catalog_ioc_hashes: std::collections::HashSet<&str> = timeline
+                .entities
+                .ioc_hashes
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
+            let data: Vec<serde_json::Value> = state
+                .generated_records
+                .iter()
+                .filter(|rec| {
+                    // Surface discriminator: only alert records.
+                    if rec.get("_surface").and_then(|v| v.as_str()) != Some("alert") {
+                        return false;
+                    }
+
+                    // BC-2.06.019 PC-4 alert-surface semantics:
+                    // Alert records that carry a `_ioc_value` field referencing a catalog IOC
+                    // are excluded when the corresponding mask field is false.
+                    //
+                    // `_ioc_type`: "ip" | "domain" | "hash" selects which catalog set and
+                    // which mask field to consult. Records without `_ioc_value` are not IOC-
+                    // referencing and always pass through (non-referencing alerts unaffected).
+                    if let Some(ioc_value) = rec.get("_ioc_value").and_then(|v| v.as_str()) {
+                        let ioc_type = rec
+                            .get("_ioc_type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("ip");
+                        let passes = match ioc_type {
+                            "ip" => mask.ioc_ips || !catalog_ioc_ips.contains(ioc_value),
+                            "domain" => {
+                                mask.ioc_domains || !catalog_ioc_domains.contains(ioc_value)
+                            }
+                            "hash" => mask.ioc_hashes || !catalog_ioc_hashes.contains(ioc_value),
+                            // Unknown IOC type — pass through (not a catalog IOC).
+                            _ => true,
+                        };
+                        if !passes {
+                            return false;
+                        }
+                    }
+
+                    true
+                })
+                .cloned()
+                .collect();
+
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "data": data,
+                    "next_cursor": serde_json::Value::Null,
+                })),
+            )
+                .into_response();
+        }
+
+        // Seeded path (no scenario): serve all alert-surface records (Story-A behavior).
         let data: Vec<serde_json::Value> = state
             .generated_records
             .iter()
