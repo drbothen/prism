@@ -117,6 +117,18 @@ fn shuffle_ids_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 /// Paginated detection ID list. Loads IDs from `fixtures/detections-ids.json`.
 /// Registers returned IDs in session registry under `X-DTU-Session-Id`.
 /// Returns HTTP 401 if `Authorization` header is absent or empty.
+///
+/// Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, BPRL-P4-02):
+/// - Scenario path (`fixture_gen_seeded=true && timeline.is_some()`): apply StageMask.
+///   Detections whose `device_id` equals the primary CrowdStrike device are withheld
+///   while `stage_idx == 0` (mirror of hosts.rs `stage_idx > 0` guard).
+///   Detections referencing lateral devices are withheld when `mask.lateral_devices=false`.
+///   Non-catalog detections are always visible.
+/// - Seeded path (`fixture_gen_seeded=true && timeline.is_none()`): all generated IDs.
+/// - Static path (`fixture_gen_seeded=false`): embedded fixture.
+///
+/// Detections route added to BC-2.06.019 PC-4 coverage matrix per D-1109.
+/// Use fixture_gen_seeded (not generated_detections.is_empty()) — DormantTenant guard.
 pub async fn list_detection_ids(
     State(state): State<Arc<CrowdstrikeState>>,
     Query(params): Query<DetectionListParams>,
@@ -157,21 +169,79 @@ pub async fn list_detection_ids(
         .map(crate::state::CrowdstrikeState::parse_fql_time_bounds)
         .unwrap_or((None, None));
 
-    // Dual-path: serve generated detection IDs when clone was built via new_with_seed (ADR-036 §2.3).
-    // Use fixture_gen_seeded (not generated_detections.is_empty()) so DormantTenant (seeded=true,
-    // 0 detections) serves empty — not the static fixture. F-P10-HIGH-001 / F-P6-HIGH-001 / ADR-036 v2.2.
+    // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, BPRL-P4-02):
+    // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask.
+    // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated IDs.
+    // - Static path (fixture_gen_seeded=false): embedded fixture.
+    // Use fixture_gen_seeded (not generated_detections.is_empty()) — DormantTenant guard.
+    // F-P10-HIGH-001 / F-P6-HIGH-001 / ADR-036 v2.2.
     // Generated records are immutable after construction — no lock needed.
     #[cfg(feature = "fixture-gen")]
     let all_ids: Vec<String> = if state.fixture_gen_seeded {
-        state
-            .generated_detections
-            .iter()
-            .filter_map(|rec| {
-                rec.get("detection_id")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_owned())
-            })
-            .collect()
+        if let Some(ref timeline) = state.timeline {
+            // Scenario path: apply StageMask projection (BC-2.06.019 PC-4 / BPRL-P4-02).
+            // Mirror hosts.rs list_host_ids scenario logic exactly.
+            // Detections referencing the primary device are withheld at stage 0 (Baseline)
+            // because the primary device itself is withheld from hosts.rs at stage 0.
+            // Narrative coherence: a detection cannot reference a device that doesn't exist yet.
+            // Detections route added to PC-4 coverage matrix per D-1109.
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            let primary_id = &timeline.entities.primary_device_id_cs;
+            let lateral_ids: std::collections::HashSet<&str> = timeline
+                .entities
+                .lateral_device_ids_cs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
+            // Build a lookup map from detection_id → device_id for the stage filter.
+            let det_device_map: std::collections::HashMap<&str, &str> = state
+                .generated_detections
+                .iter()
+                .filter_map(|rec| {
+                    let det_id = rec.get("detection_id").and_then(|v| v.as_str())?;
+                    let dev_id = rec.get("device_id").and_then(|v| v.as_str())?;
+                    Some((det_id, dev_id))
+                })
+                .collect();
+
+            state
+                .generated_detections
+                .iter()
+                .filter_map(|rec| {
+                    let det_id = rec.get("detection_id").and_then(|v| v.as_str())?;
+                    let dev_id = det_device_map.get(det_id).copied().unwrap_or("");
+                    // Apply StageMask: mirror hosts.rs primary_device guard.
+                    // stage_idx > 0 guard: BC-2.06.019 PC-4 / BPRL-P4-02.
+                    let visible = if dev_id == primary_id {
+                        mask.primary_device && stage_idx > 0
+                    } else if lateral_ids.contains(dev_id) {
+                        mask.lateral_devices
+                    } else {
+                        true
+                    };
+                    if visible {
+                        Some(det_id.to_owned())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            // Seeded path (no scenario): all generated detection IDs (Story-A behavior).
+            state
+                .generated_detections
+                .iter()
+                .filter_map(|rec| {
+                    rec.get("detection_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_owned())
+                })
+                .collect()
+        }
     } else {
         load_detection_ids()
     };
@@ -320,6 +390,12 @@ pub async fn list_detection_ids(
 /// Batch detection detail fetch. Body: `{"ids": ["det-001", ...]}`.
 /// Looks up IDs in session registry; returns matching records from
 /// `fixtures/detections-detail.json`. Returns HTTP 400 if `ids` is empty.
+///
+/// Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, BPRL-P4-02):
+/// In scenario mode (`timeline.is_some()`), the details lookup map is filtered
+/// by StageMask before assembly — mirroring hosts.rs `get_host_details` logic.
+/// Detections referencing the primary device are withheld at stage 0 (Baseline).
+/// Detections route added to BC-2.06.019 PC-4 coverage matrix per D-1109.
 pub async fn get_detection_summaries(
     State(state): State<Arc<CrowdstrikeState>>,
     headers: HeaderMap,
@@ -349,21 +425,67 @@ pub async fn get_detection_summaries(
             .into_response();
     }
 
-    // Dual-path: use generated detection records when clone was built via new_with_seed (ADR-036 §2.3).
-    // Use fixture_gen_seeded (not generated_detections.is_empty()) so DormantTenant (seeded=true,
-    // 0 detections) serves empty — not the static fixture. F-P10-HIGH-001 / F-P6-HIGH-001 / ADR-036 v2.2.
+    // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, BPRL-P4-02):
+    // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): filter by StageMask.
+    //   Detections referencing the primary device are withheld at stage 0 (Baseline).
+    //   Mirrors hosts.rs get_host_details scenario_stage_ctx logic exactly.
+    //   Detections route added to PC-4 coverage matrix per D-1109.
+    // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated records.
+    // - Static path (fixture_gen_seeded=false): embedded fixture.
+    // Use fixture_gen_seeded (not generated_detections.is_empty()) — DormantTenant guard.
+    // F-P10-HIGH-001 / F-P6-HIGH-001 / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
     let details: std::collections::HashMap<String, serde_json::Value> = if state.fixture_gen_seeded
     {
-        state
-            .generated_detections
-            .iter()
-            .filter_map(|rec| {
-                rec.get("detection_id")
-                    .and_then(|v| v.as_str())
-                    .map(|id| (id.to_owned(), rec.clone()))
-            })
-            .collect()
+        if let Some(ref timeline) = state.timeline {
+            // Scenario path: filter by StageMask projection (BC-2.06.019 PC-4 / BPRL-P4-02).
+            // Mirror hosts.rs get_host_details fixture-build filtering exactly.
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            let primary_id = &timeline.entities.primary_device_id_cs;
+            let lateral_ids: std::collections::HashSet<&str> = timeline
+                .entities
+                .lateral_device_ids_cs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
+            state
+                .generated_detections
+                .iter()
+                .filter_map(|rec| {
+                    let det_id = rec.get("detection_id").and_then(|v| v.as_str())?;
+                    let dev_id = rec.get("device_id").and_then(|v| v.as_str()).unwrap_or("");
+                    // Apply StageMask based on the referenced device_id.
+                    // stage_idx > 0 guard: BC-2.06.019 PC-4 / BPRL-P4-02.
+                    let visible = if dev_id == primary_id {
+                        mask.primary_device && stage_idx > 0
+                    } else if lateral_ids.contains(dev_id) {
+                        mask.lateral_devices
+                    } else {
+                        true
+                    };
+                    if visible {
+                        Some((det_id.to_owned(), rec.clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            // Seeded path (no scenario): all generated detection records.
+            state
+                .generated_detections
+                .iter()
+                .filter_map(|rec| {
+                    rec.get("detection_id")
+                        .and_then(|v| v.as_str())
+                        .map(|id| (id.to_owned(), rec.clone()))
+                })
+                .collect()
+        }
     } else {
         load_detection_details()
     };

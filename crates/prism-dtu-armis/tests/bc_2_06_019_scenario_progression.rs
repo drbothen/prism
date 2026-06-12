@@ -258,3 +258,211 @@ async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
         .await
         .expect("stage-1 server stop must succeed");
 }
+
+/// RED GATE TEST 8 — test_BPRL_P4_02_armis_alerts_stage_guard_primary_device
+///
+/// BC-2.06.019 PC-4 / BPRL-P4-02 coverage-matrix extension (D-1109).
+///
+/// Armis alerts route (GET /api/v1/alerts) and search route (GET /api/v1/search?aql=in:alerts)
+/// must mirror the devices.rs stage-guard:
+/// at stage 0 (Baseline, elapsed < 60s), alert records whose `device_id` equals the PRIMARY
+/// scenario device MUST be withheld.
+/// At stage 2 (elapsed ≈ 200s), the primary device is visible (mask.primary_device=true,
+/// stage_idx > 0), so primary-device alerts MUST appear.
+///
+/// FAIL mode (without alerts stage guard):
+/// The alerts route currently returns ALL generated alerts regardless of stage. At stage 0,
+/// alert 0 has device_id == primary_device_id_armis (generator links alert[n] to
+/// dev-{slug}-{seed}-{n}, so alert 0 → device 0 = primary). Without stage-guard filtering,
+/// alert 0 appears at stage 0 even though the primary device is withheld from devices.rs —
+/// narrative incoherence (an alert references a device that doesn't exist yet).
+///
+/// HTTP-level load-bearing test (BPRL-P4-02, SID-1):
+/// - Stage 0 (scenario_start = now - 10s): alert referencing primary device ABSENT.
+/// - Stage 2 (scenario_start = now - 200s): alert referencing primary device PRESENT.
+#[tokio::test]
+async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
+    let org = deadbeef_org();
+    let seed: u64 = 100;
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+    let primary_id = catalog.primary_device_id_armis.clone();
+
+    let client = prism_dtu_common::build_test_client();
+
+    // -------------------------------------------------------------------------
+    // Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s)
+    // At request time: current_stage_index returns 0 (Baseline).
+    // BPRL-P4-02: primary device is NOT visible at stage 0 (devices.rs stage_idx > 0 guard).
+    // Alerts referencing the primary device must ALSO be withheld at stage 0.
+    // -------------------------------------------------------------------------
+    let now = chrono::Utc::now().timestamp();
+    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0
+
+    let timeline_stage0 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage0,
+        &[],
+    ));
+    let time_anchor_stage0 = chrono::DateTime::from_timestamp(start_stage0, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let clone_stage0 = ArmisClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org.clone(),
+        Arc::clone(&timeline_stage0),
+        time_anchor_stage0,
+    )
+    .expect("new_with_scenario must succeed for stage-0 server");
+
+    let mut clone_stage0 = clone_stage0;
+    clone_stage0
+        .start()
+        .await
+        .expect("stage-0 ArmisClone start must succeed");
+
+    let base_url_stage0 = clone_stage0.base_url();
+    let token_stage0 = clone_stage0.admin_token().to_owned();
+
+    // GET /api/v1/alerts — fetch all alerts at stage 0.
+    let resp0 = client
+        .get(format!("{base_url_stage0}/api/v1/alerts"))
+        .header("Authorization", format!("Bearer {token_stage0}"))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts (stage 0) must reach the server");
+
+    assert_eq!(
+        resp0.status().as_u16(),
+        200,
+        "Stage 0: GET /api/v1/alerts must return HTTP 200; got {}",
+        resp0.status().as_u16()
+    );
+
+    let body0: serde_json::Value = resp0
+        .json()
+        .await
+        .expect("stage-0 alerts response must be JSON");
+    let alerts0 = body0["data"]["alerts"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    // BPRL-P4-02 / BC-2.06.019 PC-4: at stage 0, NO alert referencing the primary device
+    // must appear (primary device not yet surfaced at Baseline).
+    let primary_alert_stage0 = alerts0.iter().find(|rec| {
+        rec.get("device_id")
+            .and_then(|v| v.as_str())
+            .map(|id| id == primary_id)
+            .unwrap_or(false)
+    });
+
+    assert!(
+        primary_alert_stage0.is_none(),
+        "BPRL-P4-02 / BC-2.06.019 PC-4: at stage 0 (Baseline, elapsed ≈ 10s), \
+         no alert referencing primary device '{}' must appear at GET /api/v1/alerts; \
+         got alert: {:?}. \
+         [RED GATE: alerts route missing stage-guard for primary device — \
+         serves alert at stage 0 before primary device is visible from devices.rs; \
+         alerts route added to PC-4 coverage matrix per D-1109]",
+        primary_id,
+        primary_alert_stage0
+    );
+
+    clone_stage0
+        .stop()
+        .await
+        .expect("stage-0 server stop must succeed");
+
+    // -------------------------------------------------------------------------
+    // Stage 2 server (scenario_start = now - 200s → elapsed ≈ 200s ≥ 180s, < 360s)
+    // At request time: current_stage_index returns 2 (LateralMovement).
+    // BPRL-P4-02: at stage 2 the primary device IS visible (mask.primary_device=true,
+    // stage_idx=2 > 0). Alerts referencing the primary device MUST appear.
+    // -------------------------------------------------------------------------
+    let now = chrono::Utc::now().timestamp();
+    let start_stage2: i64 = now - 200; // elapsed ≈ 200s → stage 2
+
+    let timeline_stage2 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage2,
+        &[],
+    ));
+    let time_anchor_stage2 = chrono::DateTime::from_timestamp(start_stage2, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let mut clone_stage2 = ArmisClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org,
+        Arc::clone(&timeline_stage2),
+        time_anchor_stage2,
+    )
+    .expect("new_with_scenario must succeed for stage-2 server");
+
+    clone_stage2
+        .start()
+        .await
+        .expect("stage-2 ArmisClone start must succeed");
+
+    let base_url_stage2 = clone_stage2.base_url();
+    let token_stage2 = clone_stage2.admin_token().to_owned();
+
+    // GET /api/v1/alerts — fetch alerts at stage 2.
+    let resp2 = client
+        .get(format!("{base_url_stage2}/api/v1/alerts"))
+        .header("Authorization", format!("Bearer {token_stage2}"))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts (stage 2) must reach the server");
+
+    assert_eq!(
+        resp2.status().as_u16(),
+        200,
+        "Stage 2: GET /api/v1/alerts must return HTTP 200; got {}",
+        resp2.status().as_u16()
+    );
+
+    let body2: serde_json::Value = resp2
+        .json()
+        .await
+        .expect("stage-2 alerts response must be JSON");
+    let alerts2 = body2["data"]["alerts"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    assert!(
+        !alerts2.is_empty(),
+        "Stage 2: GET /api/v1/alerts must return non-empty alerts at LateralMovement stage; \
+         primary device is visible (mask.primary_device=true, stage_idx=2 > 0). \
+         BPRL-P4-02 / BC-2.06.019 PC-4"
+    );
+
+    // BPRL-P4-02 / BC-2.06.019 PC-4: at stage 2, at least one alert referencing the
+    // primary device MUST appear (primary device visible since stage_idx=2 > 0).
+    let primary_alert_stage2 = alerts2.iter().find(|rec| {
+        rec.get("device_id")
+            .and_then(|v| v.as_str())
+            .map(|id| id == primary_id)
+            .unwrap_or(false)
+    });
+
+    assert!(
+        primary_alert_stage2.is_some(),
+        "BPRL-P4-02 / BC-2.06.019 PC-4: at stage 2 (LateralMovement, elapsed ≈ 200s), \
+         at least one alert referencing primary device '{}' MUST appear at GET /api/v1/alerts \
+         (primary device visible since mask.primary_device=true, stage_idx=2 > 0); \
+         got alerts: {:?}. BPRL-P4-02 / BC-2.06.019 PC-4",
+        primary_id,
+        alerts2
+    );
+
+    clone_stage2
+        .stop()
+        .await
+        .expect("stage-2 server stop must succeed");
+}
