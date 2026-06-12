@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.755"
+version: "7.756"
 producer: state-manager
-timestamp: 2026-06-12T06:00:00Z
+timestamp: 2026-06-12T07:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,11 +17,11 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "939f36ce"
-bc_index_version: "6.27"
-vp_index_version: "1.78"
-story_index_version: "v2.351"
+bc_index_version: "6.31"
+vp_index_version: "1.79"
+story_index_version: "v2.356"
 arch_index_version: "2.133"
-error_taxonomy_version: "1.76"
+error_taxonomy_version: "1.78"
 total_stories: 197
 active_contracts: 232
 draft_contracts: 5
@@ -35,7 +35,7 @@ workspace_test_count: 3746
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1103 — REVIEW CYCLE COMPLETE (3/3 lanes merged). DTU PR #182 (fix/review-2026-06-10-dtu-fleet) squash-merged → develop@939f36ce (2026-06-12T05:18Z); PR-LEVEL cascade CONVERGED 3/3 strict in 3 passes; pr-reviewer APPROVE; security MAY PROCEED (items 22/23/25 dispositions accepted); CI 43/43. Register burst COMPLETE: all 25 items (1–18, 20–25) resolved or tagged [follow-up] per routing rules; lessons s/t/u/v appended; develop_head → 939f36ce; workspace_test_count 3746; version pins confirmed at CURRENT values. POL-14: fix-PR cycle — no draft BCs in behavioral_contracts frontmatter; idempotent no-op (active_contracts unchanged 232, draft_contracts unchanged 5). NEXT: T5 — S-DEMO-DTU-LIVE-SCENARIO-001-B materialize + deliver per D-1090 autonomy envelope (story-writer dispatch → remove-uncertainty → 12-gate TDD; see SESSION-HANDOFF §RESUME T5). STATE v7.753→v7.754."
+current_step: "D-1105 — T5 LOCAL cascade pass 5 (B-P5-03) closed. BC-INDEX rows 119/120 synced to v2.4; frontmatter sync. BC-INDEX v6.30→v6.31. T5 passes 1-5 complete; findings B-P1-01..B-P5-05 all closed; head 6a1a8fb0; streak 0/3; pass 6 next. STATE v7.755→v7.756."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -86,7 +86,7 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-12 (D-1103 — REVIEW CYCLE COMPLETE: DTU PR #182 → develop@939f36ce (2026-06-12T05:18Z); all 3 fix-PRs merged (QRY #183, MCP #184, DTU #182); register burst complete (25 items); NEXT = T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B); STATE v7.753→v7.754) |
+| **Last Updated** | 2026-06-12 (D-1105 — B-P5-03 closed: BC-INDEX rows 119/120 synced to v2.4; frontmatter sync bc_index/error_taxonomy/vp_index/story_index; STATE v7.755→v7.756) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **RESUMING T5 after review cycle complete**. Phase B + Phase C COMPLETE. T4-A DONE (PR #181). Review cycle COMPLETE: 3 fix-PRs merged (#183 QRY, #184 MCP, #182 DTU). Register burst COMPLETE. NEXT: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B materialize + deliver) → T6 (S-DEMO-MULTI-TENANT-DTU-001). Draft/deferred: S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
 | **Current Step** | D-1103 — REVIEW CYCLE COMPLETE (3/3 merged). DTU PR #182 → develop@`939f36ce` (2026-06-12T05:18Z). Register burst COMPLETE (25 items). POL-14 idempotent (fix-PR cycle, no BC promotions). NEXT: T5 — S-DEMO-DTU-LIVE-SCENARIO-001-B materialize + deliver per D-1090 envelope. STATE v7.754. |
 
@@ -154,6 +154,7 @@ _D-735 through D-1098 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (an
 | D-1102 | state-manager | 2026-06-12 | MCP MERGED (PR #184 → develop@c200d5a2; PR-LEVEL 11p 3/3 strict; CI 43/43; BC-INDEX v6.26). DTU LOCAL CONVERGED 3/3 strict (pass 33 head 80749dbb; 33 passes total). Register-burst checklist extended to 25 items. NEXT: DTU merge-reconciliation → PR #182 → PR-LEVEL cascade → merge → register burst → RESUME T5. STATE v7.752→v7.753. |
 | D-1103 | state-manager | 2026-06-12 | REVIEW CYCLE COMPLETE (3/3 lanes merged). DTU PR #182 → develop@939f36ce (2026-06-12T05:18Z; PR-LEVEL 3/3 strict; CI 43/43). Register burst COMPLETE (25 items). POL-14 idempotent (fix-PR). develop_head 939f36ce. workspace_test_count 3746. NEXT: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B materialize per D-1090). STATE v7.753→v7.754. |
 | D-1104 | product-owner | 2026-06-12 | PO GOVERNANCE BURST (D-1103 register-burst items 4/10/11/20/24). POL-23/27/32 normalizations + story stubs + auth_type LOCKED ruling. BC-INDEX v6.26→v6.27. STORY-INDEX v2.348→v2.351 (+3 stories; total_stories 194→197). STATE v7.754→v7.755. NEXT: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B per D-1090). |
+| D-1105 | state-manager | 2026-06-12 | T5 LOCAL PASS-5 B-P5-03 CLOSURE + FRONTMATTER SYNC. BC-INDEX rows 119/120 stale story-version pins synced to v2.4 (was v2.3/v2.2). POL-29 sweep: only hits in owned rows — no story-file or BC-body edits needed. BC-INDEX v6.30→v6.31. STATE frontmatter synced: bc_index_version 6.27→6.31, error_taxonomy_version 1.76→1.78, vp_index_version 1.78→1.79, story_index_version v2.351→v2.356. T5 LOCAL cascade: passes 1-5; findings B-P1-01..B-P5-05 all closed; head 6a1a8fb0; streak 0/3; pass 6 next. STATE v7.755→v7.756. |
 
 ## Decisions Log
 
@@ -173,6 +174,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1105 | 2026-06-12 | state-manager | **T5 LOCAL PASS-5 B-P5-03 CLOSURE + FRONTMATTER SYNC.** Single atomic burst (TD-VSDD-053). **(1) B-P5-03 closure:** BC-INDEX rows 119 (BC-2.06.019) and 120 (BC-2.06.020) carried stale anchor-story version pins `v2.3` and `v2.2` respectively; synced to `v2.4` following story-writer bursts e801a372 (v2.3) → 29b0d0ab (v2.4). BC-INDEX frontmatter v6.30→v6.31; changelog row added. **(2) POL-29 sweep:** `grep -rn 'S-DEMO-DTU-LIVE-SCENARIO-001-B.*v2\.[0-3]' .factory/specs/` — ONLY hits were rows 119/120 in BC-INDEX.md (state-manager domain); one additional hit in ARCH-INDEX.md line 184 is a historical burst-narrative description (not a ready-version pin, append-only, not state-manager domain — no edit). Story files and BC body prose are NOT state-manager domain; no hits there. **(3) STATE frontmatter drifted during T5 cascade:** bc_index_version 6.27→6.31 (v6.28/v6.29/v6.30/v6.31 occurred in story-writer/PO/state-manager bursts without frontmatter sync); error_taxonomy_version 1.76→1.78 (v1.77 PO burst OBS-1; v1.78 PO burst B-P5-02); vp_index_version 1.78→1.79 (VP-019-I registered during OBS-1 burst); story_index_version v2.351→v2.356 (story-writer burst v2.352 + subsequent increments). **(4) T5 LOCAL cascade status (informational):** passes 1-5; findings B-P1-01..B-P5-05 all closed; head 6a1a8fb0; streak 0/3; pass 6 next. STATE v7.755→v7.756. factory-artifacts PUSHED. | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: state-manager (B-P5-03 bookkeeping; frontmatter sync; POL-29 sweep evidence recorded). |
 | D-1104 | 2026-06-12 | product-owner | **PO GOVERNANCE BURST — D-1103 register-burst follow-up items 4, 10, 11, 20, 24.** (See shorter row in pipeline-steps table above.) BC-INDEX v6.26→v6.27. STORY-INDEX v2.348→v2.351 (+3 stories; total_stories 194→197). LOCKED decision 4: cyberint `auth_type=cookie_roundtrip` (PO ruling; main-tree correction delegated to implementer). STATE v7.754→v7.755. factory-artifacts PUSHED. | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: product-owner (D-1103 follow-up routing; LOCKED decision 4; governance burst). |
 | D-1101 | 2026-06-12 | state-manager | **PAUSE CHECKPOINT (user physically relocating; session pausing). (i) MCP merge-reconciliation COMPLETE:** develop@f88b10e3 merged INTO fix/review-2026-06-10-mcp-boot — merge commit 1f5c1a06 + post-merge fix 08fdc38c (WriteExecutor::new 6th CacheInvalidator param in test helper). Union-resolution verified: E-QUERY-007 sweep ZERO (033 flip survives), E-INT-002/003 ZERO (prose-only survives), prism-customer-config ZERO (retirement survives). Full gate green 4140/4140 (45 skipped), EXPECTED=50 pass. MCP head NOW 08fdc38c. CAUTION recorded: merge agent initially dropped QRY's wire_config_swap_cache_flush during conflict resolution and re-inserted it from develop — PR-LEVEL pass-1 MUST include directed probe verifying the P1-03 cache-flush listener chain survived merge intact (boot.rs wire_config_swap_cache_flush present + invoked + integration tests green). NEXT: push branch → PR → PR-LEVEL 3-CLEAN strict (with directed probe) → pr-reviewer → security → CI → squash-merge SECOND. **(ii) DTU pass 22 CLEAN(strict)=YES:** BC v0.8 triangle contradiction-free, P20-04/P21-02 closures verified, SAP-1/SAP-2 clean. Streak 1/3; head 0ed1f976 unchanged. NEXT pass 23 (then 24 → if both clean, LOCAL CONVERGED → merge-base reconciliation vs f88b10e3 → push to PR #182 → un-park → PR-LEVEL cascade → merge LAST). SESSION-HANDOFF §RESUME SNAPSHOT retitled D-1101 (supersedes D-1100). factory-artifacts PUSHED (D-1066). STATE v7.751→v7.752. |
 | D-1102 | 2026-06-12 | state-manager | **(i) MCP MERGED: PR #184 (fix/review-2026-06-10-mcp-boot) squash-merged → develop@c200d5a2** (2026-06-12T03:37Z). PR-LEVEL cascade CONVERGED 3/3 strict (11 passes total): PRL-P2-01 MED E-CACHE-001 mis-cite → `facce40d`; PRL-P4-01 MED reload_config WriteTool reclassification → `b9c9e845` + PO burst `1e84599f` (BC-2.05.001 v1.4, BC-2.16.002 v1.77, BC-INDEX v6.26); PRL-P7-01 MED vacuous reload_config test fixture → `8dd38fec`; PRL-P8-01 MED sibling vacuous add_sensor_spec fixture → `8917cff3`. Security-polish `2984d10d` (SEC-003 params-guard test, SEC-004 CWE-209 plugin-sandbox error-detail redaction ×3 arms, SEC-005 symlink structural analysis, SEC-006 client_id format); delta-verification CLEAN; pr-reviewer APPROVE; CI 43/43 green. **(ii) DTU LOCAL cascade CONVERGED 3/3 strict at pass 33** (head `80749dbb`; 33 passes total): P23-01 HIGH Armis tombstone seed `568b01c4`; P23-02 MED search-route scoping `6c91ac3a`; P24 LOW anchor alignment `9b4c669a`; P26-01/02 MED POL-27 modified:violations `30cb5d8f`; F-P29-01 HIGH Postcondition-5 sibling propagation ×6 clones `b6424d47`; F-P30-01 MED generic-handler routing `80749dbb`. Merge-reconciliation vs develop@c200d5a2 in flight → un-park PR #182 → PR-LEVEL cascade → merge LAST. (iii) QRY worktree + local branch cleaned (remote already auto-deleted). (iv) Register-burst checklist EXTENDED: item 15 (+9 E-CACHE-001 doc cites), item 18 (+s/t/u/v), items 20/21/22 NEW. SESSION-HANDOFF §RESUME SNAPSHOT D-1102 note appended. factory-artifacts PUSHED (D-1066). STATE v7.752→v7.753. | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: orchestrator (MCP PR-LEVEL cascade; DTU LOCAL convergence); pr-reviewer (APPROVE); security-reviewer (delta-verification CLEAN); state-manager (D-1102 burst). |
