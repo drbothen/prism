@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.773"
+version: "7.774"
 producer: state-manager
 timestamp: 2026-06-12T21:00:00Z
 inputs: []
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1124 — pass 18 CLOSED (convergence pass found BPRL-P18-01 MED demo-evidence BC-anchor drift; closed 5d5484d0). BPRL-P18-01: 3 fabricated/inverted anchors in AC-019 evidence (PC-8↔PC-9 inverted; INV-CYBERINT-CVE-PIVOT-001 fabricated→INV-CYBERINT-ALERT-CVE-CORRELATION-001; CveCorrelationCatalog fabricated→ScenarioEntityCatalog). All code/spec/BCs/tests CORRECT — evidence-prose only. Feature HEAD 5d5484d0 = remote. Streak RESET 2/3→0/3. PASS 19 NEXT — re-materialize diff via gh pr diff 185 (diff CHANGED; do NOT reuse stale /tmp diffs). STATE v7.772→v7.773."
+current_step: "D-1125 — pass 19 CLOSED (BPRL-P19-01 MED AC-019 evidence coverage overstatement: tape only ran cyberint tests post-BPRL-P12-01 relocation, omitting VP-020-K in demo-server; re-recorded with both commands; 0863184a; evidence now accurately covers all 4 VP-020 tests). Streak 0/3. PASS 20 NEXT at 0863184a — diff CHANGED; re-materialize via gh pr diff 185. STATE v7.773→v7.774."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -86,7 +86,7 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-13 (D-1124 — pass 18 convergence pass: BPRL-P18-01 MED demo-evidence anchor drift fixed (5d5484d0); streak RESET 2/3→0/3; pass 19 NEXT at 5d5484d0; STATE v7.772→v7.773) |
+| **Last Updated** | 2026-06-13 (D-1125 — pass 19 CLOSED: BPRL-P19-01 MED AC-019 evidence coverage overstatement fixed via re-record (0863184a); all 4 VP-020 tests now demonstrated; streak 0/3; pass 20 NEXT; STATE v7.773→v7.774) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **RESUMING T5 after review cycle complete**. Phase B + Phase C COMPLETE. T4-A DONE (PR #181). Review cycle COMPLETE: 3 fix-PRs merged (#183 QRY, #184 MCP, #182 DTU). Register burst COMPLETE. NEXT: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B materialize + deliver) → T6 (S-DEMO-MULTI-TENANT-DTU-001). Draft/deferred: S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
 | **Current Step** | D-1122 — pass 16 CLEAN(strict)=YES; CLEAN(PR-merge)=YES. Streak 1/3. Zero findings (exhaustive spec-consistency audit; code UNCHANGED 7ddc0a51). Pass 17 NEXT (diff UNCHANGED; no CI push). STATE v7.771. |
 
@@ -149,11 +149,11 @@ Build sequence (6 core + 3 optional; D-1082 complete roadmap): (1) S-DEMO-MULTI-
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-1098 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs). D-1095 through D-1098 rotated at D-1103. D-1101 rotated at D-1108. D-1102 through D-1104 rotated at D-1111. D-1108 rotated at D-1112. D-1109/D-1110 rotated at D-1113. D-1111 rotated at D-1114. D-1112 rotated at D-1115. D-1110/D-1113/D-1114 rotated at D-1116. D-1115/D-1116 rotated at D-1117. D-1114/D-1115/D-1116 rotated at D-1118. D-1115 rotated at D-1119. D-1116 rotated at D-1120. D-1117 rotated at D-1121. D-1118 rotated at D-1122. D-1119 rotated at D-1123. D-1120 rotated at D-1124._
+_D-735 through D-1098 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs). D-1095 through D-1098 rotated at D-1103. D-1101 rotated at D-1108. D-1102 through D-1104 rotated at D-1111. D-1108 rotated at D-1112. D-1109/D-1110 rotated at D-1113. D-1111 rotated at D-1114. D-1112 rotated at D-1115. D-1110/D-1113/D-1114 rotated at D-1116. D-1115/D-1116 rotated at D-1117. D-1114/D-1115/D-1116 rotated at D-1118. D-1115 rotated at D-1119. D-1116 rotated at D-1120. D-1117 rotated at D-1121. D-1118 rotated at D-1122. D-1119 rotated at D-1123. D-1120 rotated at D-1124. D-1121 rotated at D-1125._
+| D-1125 | state-manager | 2026-06-13 | T5 PR-LEVEL pass 19 CLOSED — BPRL-P19-01 MED AC-019 evidence coverage overstatement. BPRL-P12-01 (D-1118) relocated VP-020-K (`test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd`) from `prism-dtu-cyberint` to `prism-dtu-demo-server`, but AC-019 tape command remained `-p prism-dtu-cyberint` only — so it ran 3 of 4 VP-020 tests (I/J/L) and never showed VP-020-K; evidence-report claimed all 4 pass. Z13 evidence-anchor re-audit of all 6 tapes + full evidence-report found only this one issue (rest clean). CLEAN(strict)=no; CLEAN(PR-merge)=yes. Closed by demo-recorder commit 0863184a: AC-019 re-recorded with both commands — cyberint (VP-020-I/J/L; 3 PASS) + demo-server (VP-020-K; 1 PASS) = 4 total; VHS re-render succeeded; evidence-report corrected to two-crate split (cyberint=3 VP-020-I/J/L, demo-server=10 incl VP-020-K). Streak 0/3. Pass 20 NEXT at 0863184a (diff CHANGED — re-materialize via `gh pr diff 185`). Lesson z14 appended. STATE v7.773→v7.774. |
 | D-1124 | state-manager | 2026-06-13 | T5 PR-LEVEL pass 18 CLOSED — BPRL-P18-01 MED demo-evidence BC-anchor drift. Convergence pass (streak 2/3) found 3 fabricated/inverted BC identifiers in AC-019 evidence artifacts (`.tape` header + `evidence-report.md` line 89): PC-8↔PC-9 labels inverted; fabricated invariant `INV-CYBERINT-CVE-PIVOT-001` (→canonical `INV-CYBERINT-ALERT-CVE-CORRELATION-001`); fabricated type `CveCorrelationCatalog` (→canonical `ScenarioEntityCatalog`). All code/tests/ACs/BCs/story CORRECT — evidence-prose only. All convergence-positive checks PASS (19-AC traceability, POL-12, all BC PCs/INVs with RGT coverage, demo evidence 19/19). Closed by demo-recorder commit 5d5484d0: all 3 anchors corrected in both files; `rg` confirms fabricated names gone; NO re-render (anchors were header-comment-only). Feature HEAD 5d5484d0 = remote (pushed). Streak RESET 2/3→0/3. Pass 19 NEXT — re-materialize diff via `gh pr diff 185` (diff CHANGED; do NOT reuse stale /tmp diffs). Lesson z13 appended. STATE v7.772→v7.773. |
 | D-1123 | state-manager | 2026-06-13 | T5 PR-LEVEL pass 17 CLEAN(strict)=YES; CLEAN(PR-merge)=YES. ZERO findings. Full holdout behavioral trace (5 attack stages x 6 clones: Armis/Claroty/CrowdStrike/Cyberint/NVD/ThreatIntel) + cross-BC consistency (BC-2.06.019 v1.7 ↔ BC-2.06.020 v1.4 shared catalog/seed) + build_clone_pairs guard order (E-DEMO-002→006→003→004 + all 6 constructors) + POL-12 stub-residue PASS + SAP-1 PASS + S-7.01 SEC-001 sibling-drift PASS. Novelty LOW — "genuinely coherent end-to-end." Feature HEAD 7ddc0a51 CODE UNCHANGED (no push). Streak 1/3→2/3. STATE v7.771→v7.772. |
 | D-1122 | state-manager | 2026-06-13 | T5 PR-LEVEL pass 16 CLEAN(strict)=YES; CLEAN(PR-merge)=YES. ZERO findings. Exhaustive D-1117 spec-consistency audit + full code sweep (SAP-1 PASS; forbidden patterns PASS; POL-22 PASS; demo evidence 19/19 PASS). Sub-threshold item dispositioned (story line-47 "~16 tests" tilde-qualified estimate in frozen 7-point rationale; NOT a count-of-record surface; below OBS threshold; anchored to PIVOT-003). Feature HEAD 7ddc0a51 CODE UNCHANGED (no push). Streak 0/3→1/3. STATE v7.770→v7.771. |
-| D-1121 | state-manager | 2026-06-13 | T5 PR-LEVEL pass 15 CLOSED — BPRL-P15-01 MED SPEC-ONLY. Story B Phase-6 gate instruction "all 19 Red Gate tests pass" → "all 23 Red Gate tests pass". Story B v2.12→v2.13. BC-INDEX v6.39→v6.40. STORY-INDEX v2.365→v2.366. Lesson z12 appended. Streak 0/3. STATE v7.769→v7.770. |
 
 ## Decisions Log
 
@@ -333,25 +333,26 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-13 — D-1124: pass 18 CLOSED BPRL-P18-01 MED demo-evidence anchor drift; streak 0/3; pass 19 next at 5d5484d0; STATE v7.773)
+## Session Resume Checkpoint (2026-06-13 — D-1125: pass 19 CLOSED BPRL-P19-01 MED AC-019 evidence coverage overstatement; streak 0/3; pass 20 next at 0863184a; STATE v7.774)
 
-_Previous checkpoint (D-1121; STATE v7.770) superseded by D-1124 burst. SESSION-HANDOFF.md §RESUME SNAPSHOT to be updated as D-1124._
+_Previous checkpoint (D-1124; STATE v7.773) superseded by D-1125 burst. SESSION-HANDOFF.md §RESUME SNAPSHOT to be updated as D-1125._
 
-**STATE v7.773. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) — PR-LEVEL cascade in progress. PR #185 OPEN; HEAD=REMOTE=5d5484d0 (CHANGED from 7ddc0a51 — D-1124 demo-recorder commit corrected AC-019 evidence anchors). BPRL-P18-01 MED CLOSED (D-1124; AC-019 evidence anchors corrected: PC-8=scenario catalog / PC-9=baseline namespace; INV-CYBERINT-ALERT-CVE-CORRELATION-001; ScenarioEntityCatalog). PR-LEVEL streak 0/3 (RESET by BPRL-P18-01). NEXT: PR-LEVEL adversarial pass 19 at 5d5484d0 (diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse stale /tmp diffs). develop HEAD: 939f36ce. BC-INDEX v6.40 (250/232/5/6). STORY-INDEX v2.366 (200). VP-INDEX v1.79 (158). policies v1.33.**
+**STATE v7.774. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) — PR-LEVEL cascade in progress. PR #185 OPEN; HEAD=REMOTE=0863184a (CHANGED from 5d5484d0 — D-1125 demo-recorder commit re-recorded AC-019 with both crate commands to show all 4 VP-020 tests). BPRL-P19-01 MED CLOSED (D-1125; AC-019 evidence now accurately covers VP-020-K under prism-dtu-demo-server; cyberint command shows 3 VP-020-I/J/L, demo-server command shows VP-020-K). PR-LEVEL streak 0/3. NEXT: PR-LEVEL adversarial pass 20 at 0863184a (diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse stale /tmp diffs). develop HEAD: 939f36ce. BC-INDEX v6.40 (250/232/5/6). STORY-INDEX v2.366 (200). VP-INDEX v1.79 (158). policies v1.33.**
 
-**Carry-forward do-not-reflag additions (D-1124 adds; prior carry forward):**
-- D-1119 carry-forward: Stale doc-comment in `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs` (~lines 16–20) referencing the deleted same-named cyberint test — adjudicated cosmetic; anchored to PIVOT-003. DO NOT raise as a finding in pass 19 or any subsequent pass.
+**Carry-forward do-not-reflag additions (D-1125 adds; prior carry forward):**
+- D-1119 carry-forward: Stale doc-comment in `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs` (~lines 16–20) referencing the deleted same-named cyberint test — adjudicated cosmetic; anchored to PIVOT-003. DO NOT raise as a finding in pass 20 or any subsequent pass.
 - D-1120 carry-forward: BPRL-P14-01 CLOSED — BC-2.06.020 v1.4 PC-9 `0..10000`; `^CVE-9999-\d{4}$` consistent. DO NOT re-raise.
 - D-1121 carry-forward: BPRL-P15-01 CLOSED — story B Phase-6 gate instruction reads "all 23 Red Gate tests pass". DO NOT re-raise.
-- D-1124 ADD: BPRL-P18-01 CLOSED — AC-019 evidence anchors corrected (PC-8=scenario catalog/PC-9=baseline namespace, INV-CYBERINT-ALERT-CVE-CORRELATION-001, ScenarioEntityCatalog). DO NOT re-raise "inverted PC-8/PC-9 labels", "INV-CYBERINT-CVE-PIVOT-001 not found", or "CveCorrelationCatalog not found".
+- D-1124 carry-forward: BPRL-P18-01 CLOSED — AC-019 evidence anchors corrected (PC-8=scenario catalog/PC-9=baseline namespace, INV-CYBERINT-ALERT-CVE-CORRELATION-001, ScenarioEntityCatalog). DO NOT re-raise "inverted PC-8/PC-9 labels", "INV-CYBERINT-CVE-PIVOT-001 not found", or "CveCorrelationCatalog not found".
+- D-1125 ADD: BPRL-P19-01 CLOSED — AC-019 re-recorded with both crate commands; evidence-report accurately reflects two-crate split (cyberint=VP-020-I/J/L, demo-server=VP-020-K). DO NOT re-raise "AC-019 tape command only runs cyberint tests", "VP-020-K not shown in evidence", or "evidence-report overstates VP-020 coverage".
 
 **RESUME PROTOCOL (run on fresh session start):**
-0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT D-1124.
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT D-1125.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING — must pass before reading any state).
 2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
-3. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `5d5484d0`.
-4. Verify `gh pr checks 185` — confirm CI status on 5d5484d0.
-5. Verify `grep "^version:" .factory/STATE.md` shows `"7.773"`.
+3. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `0863184a`.
+4. Verify `gh pr checks 185` — confirm CI status on 0863184a.
+5. Verify `grep "^version:" .factory/STATE.md` shows `"7.774"`.
 6. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone.
-7. Apply lessons (a)–(z13) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-8. **NEXT ACTION: PR-LEVEL pass 19** — fresh adversary on PR #185 at HEAD 5d5484d0; diff CHANGED (re-materialize via `gh pr diff 185`); streak 0/3; do-not-reflag list = all prior closures + BPRL-P18-01 + all prior BPRL closures. See SESSION-HANDOFF §4 for full do-not-reflag list.
+7. Apply lessons (a)–(z14) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+8. **NEXT ACTION: PR-LEVEL pass 20** — fresh adversary on PR #185 at HEAD 0863184a; diff CHANGED (re-materialize via `gh pr diff 185`); streak 0/3; do-not-reflag list = all prior closures + BPRL-P19-01 + all prior BPRL closures. See SESSION-HANDOFF §4 for full do-not-reflag list.

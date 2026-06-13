@@ -1024,3 +1024,42 @@ Demo-recorder agents author `.tape` scripts and `evidence-report.md` files in a 
 **Outcome:**
 
 BPRL-P18-01 closed by demo-recorder commit 5d5484d0: all 3 anchors corrected in both files. `rg INV-CYBERINT-CVE-PIVOT-001 docs/` = zero; `rg INV-CYBERINT-ALERT-CVE-CORRELATION-001 docs/` = present. `rg CveCorrelationCatalog docs/` = zero; `rg ScenarioEntityCatalog docs/` = present. NO re-render (anchors were header-comment-only, never displayed in `.webm`/`.gif`). Streak RESET 2/3→0/3. Pass 19 NEXT at 5d5484d0.
+
+---
+
+## (z14) [process-gap] Demo-evidence run-commands must be re-validated whenever a covered test RELOCATES crates — BPRL-P12-01 moved VP-020-K but the AC-019 tape command and evidence-report coverage claim were not swept
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1125 (BPRL-P19-01 pass-19 finding + closure)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [demo-evidence] [test-relocation] [sibling-sweep] [TD-VSDD-060] [streak-reset]
+**Classification:** PROCESS-GAP — the test-relocation/rename sweep (TD-VSDD-060 sibling sweep) fixed story RGT rows and code callsites when VP-020-K moved from prism-dtu-cyberint to prism-dtu-demo-server (BPRL-P12-01 D-1118), but the sweep did not extend to demo-evidence `.tape` run-commands and the corresponding evidence-report corpus tables, resulting in 7 passes of overstated VP-020 coverage.
+
+**Description:**
+
+PR-LEVEL pass 19 applied the z13 evidence-anchor re-audit (lesson z13) to all 6 tapes and the full `evidence-report.md`. All tapes were clean on BC-anchor identity. One finding surfaced in the run-command coverage:
+
+BPRL-P19-01 MED (partial-fix regression): BPRL-P12-01 (D-1118) correctly relocated `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` (VP-020-K) from `prism-dtu-cyberint` to `prism-dtu-demo-server` — the prior test was a false-green (it never called `NvdState::lookup_and_count`). The code fix was correct. However, the AC-019 tape command (`AC-019-cyberint-cve-pivot.tape`) was not updated: it continued to run only `-p prism-dtu-cyberint`. After the relocation, this command exercised VP-020-I, VP-020-J, and VP-020-L (3 tests) but did not invoke VP-020-K (now in `prism-dtu-demo-server`). The `evidence-report.md` continued to state 4/4 VP-020 coverage, overstating the demonstrated coverage by 1 test for passes 13-19 (7 passes of stale coverage claim).
+
+**Why it survived 7 passes (passes 13-18):**
+
+After BPRL-P12-01 closure (D-1118), adversary passes 13-17 verified: (1) VP-020-K test exists in `prism-dtu-demo-server`; (2) VP-020-K is listed in the story RGT table; (3) evidence file count 19/19; (4) evidence-report states 4/4 VP-020. None of these checks re-ran the tape command to verify it EXECUTED VP-020-K. The tape command string itself was not re-examined after the relocation. Pass 18 (z13 evidence-anchor re-audit) verified BC identifier correctness but not run-command coverage scope.
+
+Pass 19 was the first pass to apply the z13 re-audit INCLUDING run-command coverage verification — checking that the tape command actually reaches the test(s) it claims to cover.
+
+**Canonical rule (codified):**
+
+**TD-VSDD-060 sibling sweep extension for demo-evidence:** When a test is RELOCATED to a different crate (or renamed), the sibling sweep MUST include:
+
+1. Story RGT rows — update crate/test-name references (already in D-1118 scope)
+2. Code callsites — update if the test helper or test binary was renamed (already in D-1118 scope)
+3. **Demo-evidence `.tape` run-commands** — verify that `-p <crate> -E test(<test_name>)` in every affected tape correctly targets the NEW crate/test location. A tape that ran the test in the OLD crate must be updated to run it in the NEW crate.
+4. **Evidence-report corpus tables** — verify that per-crate test counts and VP-NNN attribution rows match the NEW location (e.g., if VP-020-K moved from cyberint to demo-server, the evidence-report coverage table must show demo-server=VP-020-K, not cyberint=VP-020-K).
+
+**Standing adversary probe addition (extending z13):**
+
+> **Evidence run-command scope verification.** For each VP or RGT listed in the evidence-report as "PASS": (1) identify which `.tape` demonstrates it; (2) read the tape's `cargo nextest run` command; (3) verify the `-p <crate>` argument matches the crate that ACTUALLY contains the test (use `rg 'fn <test_name>' crates/` to confirm); (4) verify the `-E test(<test_name>)` filter matches the actual test function name. A tape command that targets the wrong crate (due to a relocation not being swept) = MEDIUM finding (coverage overstatement). This probe is now part of the z13 evidence-anchor re-audit and should run on every pass where test-relocation changes appear in the diff or do-not-reflag history.
+
+**Outcome:**
+
+BPRL-P19-01 closed by demo-recorder commit 0863184a: AC-019 re-recorded with both commands — `-p prism-dtu-cyberint` (VP-020-I/J/L; 3 PASS) + `-p prism-dtu-demo-server -E test(cyberint_alert_cve_resolves_in_nvd)` (VP-020-K; 1 PASS). VHS re-render succeeded; `.webm`/`.gif` show all 4 green. Evidence-report corrected to accurate two-crate split (cyberint=3 VP-020-I/J/L, demo-server=10 incl VP-020-K). Streak 0/3. Pass 20 NEXT at 0863184a.
