@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.781"
+version: "7.782"
 producer: state-manager
 timestamp: 2026-06-13T16:00:00Z
 inputs: []
@@ -36,7 +36,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1132 — zero-context resume hardening burst. STATE compacted (214KB→slim). SESSION-HANDOFF hardened with full do-not-reflag list + T5 cascade ledger. Task ledger T5 pointer updated. PR-LEVEL pass 25 NEXT at 15bedc12 (diff CHANGED — re-materialize via `gh pr diff 185`). Streak 0/3. STATE v7.781."
+current_step: "D-1133 — demo-scope durability burst. DEMO-SCOPE.md created (.factory/objectives/DEMO-SCOPE.md). Wired into SESSION-HANDOFF §ACTIVE OBJECTIVE + resume protocol step 2 + STATE frontmatter demo_scope_doc + task ledger header. Streak 0/3 UNCHANGED. PR-LEVEL pass 25 NEXT at 15bedc12. STATE v7.782."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174. Lane 4: S-DEMO-003 PR#176. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -65,6 +65,7 @@ dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 active_objective: "multi-client SOC-analyst live demo (real per-client data; TDE deferred) — see SESSION-HANDOFF §ACTIVE OBJECTIVE"
 task_ledger: ".factory/objectives/multi-client-soc-demo-tasks.md"
+demo_scope_doc: ".factory/objectives/DEMO-SCOPE.md"
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 user_directive_remove_uncertainty: "Run dclaude:remove-uncertainty on every implementation story BOTH immediately after story-writer materializes/writes it AND again before TDD delivery (D-1110 extension 2026-06-12)."
 policy_registry_source_of_truth: .factory/policies.yaml
@@ -96,7 +97,7 @@ pre_compact_snapshot_at: "2026-06-13"
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-13 (D-1132 — zero-context resume hardening: STATE compacted, SESSION-HANDOFF hardened, task ledger updated; streak 0/3 unchanged; STATE v7.780→v7.781) |
+| **Last Updated** | 2026-06-13 (D-1133 — demo-scope durability burst: DEMO-SCOPE.md created, wired into resume protocol + STATE frontmatter + task ledger; streak 0/3 unchanged; STATE v7.781→v7.782) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185, streak 0/3, pass 25 NEXT at 15bedc12). Phase B + Phase C COMPLETE. Review cycle COMPLETE. T4-A DONE (PR #181). |
 | **Current Step** | T5 PR-LEVEL pass 25 at HEAD 15bedc12 (diff CHANGED — re-materialize via `gh pr diff 185`). Streak 0/3 (BPRL-P24-01 LOW prose-correction D-1131). STATE v7.781. |
 
@@ -150,11 +151,11 @@ pre_compact_snapshot_at: "2026-06-13"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1127 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive-D1055-D1123.md._
-| D-1128 | state-manager | 2026-06-13 | BPRL-P22-01 MED SPEC-ONLY CLOSED — BC-2.06.020 VP Anchors prose A..H/8→A..L/12. BC-2.06.020 v1.5. Story B v2.14. Streak RESET 2/3→0/3. |
 | D-1129 | state-manager | 2026-06-13 | CONSISTENCY-SWEEP CLOSURE — DRIFT-1/2/3 closed. STORY-INDEX PIVOT-003 v1.5. Story B §Tasks/FSR/build_clone_pairs Cyberint 6-arg corrected. Lesson z16. |
 | D-1130 | state-manager | 2026-06-13 | PASS-23 CLEAN(strict)=YES streak 1/3. DRIFT-2/3 re-derivation + VP-020-K case-sound + PC-8/PC-9 + E-DEMO-002 guard order + SAP-1. Novelty LOW. |
 | D-1131 | state-manager | 2026-06-13 | BPRL-P24-01 LOW [process-gap] CLOSED — DTU perimeter `tests/external/perimeter-violation/` prose corrected to structural Cargo/E0432. BC-2.06.020 v1.6. Story B v2.16. Code 15bedc12. Streak RESET 0/3. Pass 25 NEXT. |
-| D-1132 | state-manager | 2026-06-13 | ZERO-CONTEXT RESUME HARDENING (D-1132). STATE compacted (214KB→slim): decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF hardened: full do-not-reflag list (40+ items) consolidated + T5 cascade ledger (LOCAL 1-13 + PR-LEVEL 1-24) + post-3/3 sequence verbatim. Task ledger T5 pointer updated (PR #185, streak 0/3, pass 25 NEXT at 15bedc12). Lesson z18 appended. State v7.780→v7.781. Streak 0/3 UNCHANGED. |
+| D-1132 | state-manager | 2026-06-13 | ZERO-CONTEXT RESUME HARDENING (D-1132). STATE compacted (214KB→slim): decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF hardened: full do-not-reflag list (40+ items) consolidated + T5 cascade ledger (LOCAL 1-13 + PR-LEVEL 1-24) + post-3/3 sequence verbatim. Task ledger T5 pointer updated. Lesson z18 appended. State v7.780→v7.781. Streak 0/3 UNCHANGED. |
+| D-1133 | state-manager | 2026-06-13 | DEMO-SCOPE DURABILITY BURST (D-1133). DEMO-SCOPE.md created at `.factory/objectives/DEMO-SCOPE.md` — authoritative full demo scope (6-sensor fleet, unfolding-attack T5, enrichment correlation + honest in-prism-enrich gap, PIVOT chain, build sequence). Wired: SESSION-HANDOFF §ACTIVE OBJECTIVE pointer + resume protocol step 2; STATE frontmatter `demo_scope_doc`; task ledger scope-source header. Lesson z19 appended. STATE v7.781→v7.782. Streak 0/3 UNCHANGED. |
 
 ## Decisions Log
 
@@ -162,6 +163,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1133 | state-manager | 2026-06-13 | **DEMO-SCOPE DURABILITY BURST (D-1133).** DEMO-SCOPE.md created at `.factory/objectives/DEMO-SCOPE.md` as the single source of truth for the full demo narrative scope (6-sensor fleet status, unfolding-attack T5 center-piece, enrichment correlation at data layer + honest gap: in-prism `enrich` pivot not yet wired, PIVOT-001/002/003 chain designed, build sequence T1→T14). Wired into: SESSION-HANDOFF.md §ACTIVE OBJECTIVE (top pointer) + FRESH-SESSION RESUME PROTOCOL step 2; STATE.md frontmatter `demo_scope_doc`; task ledger header (scope-source-of-truth reference). Lesson z19: demo/project SCOPE must live in ONE authoritative durable artifact referenced from resume protocol — task ledger lists TASKS but does not convey the demo NARRATIVE + gaps a zero-context restart needs. No spec/code/count change. Streak 0/3 UNCHANGED. STATE v7.781→v7.782. | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1132 | state-manager | 2026-06-13 | **ZERO-CONTEXT RESUME HARDENING (D-1132).** STATE compacted (214KB→slim). Decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF §RESUME SNAPSHOT hardened with (1) full consolidated do-not-reflag list (40+ items verbatim), (2) T5 cascade ledger (LOCAL passes 1-13 converged; PR-LEVEL passes 1-24 with outcome), (3) post-3/3 convergence sequence verbatim, (4) exact next action (pass 25 at 15bedc12). Task ledger CURRENT POINTER updated: T5 = PR #185 PR-LEVEL cascade streak 0/3 pass 25 NEXT at 15bedc12; D-1117 enhancement arc recorded; D-1107 capability-discovery block + PIVOT-001/002/003 chain recorded. Lesson z18 appended: proactively run zero-context-resume hardening burst at deep cascade depth (20+ passes, large do-not-reflag list, bloated STATE). Streak 0/3 UNCHANGED. STATE v7.780→v7.781. | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1131 | state-manager | 2026-06-13 | **PASS-24 CLOSURE BURST (D-1131).** BPRL-P24-01 LOW [process-gap] closed — `tests/external/perimeter-violation/` false-coverage prose corrected across 4 surfaces to structural Cargo/E0432 framing. BC-2.06.020 v1.5→v1.6. Story B v2.15→v2.16. Implementer 15bedc12. PIVOT-003 v1.7→v1.8. BC-INDEX v6.42→v6.43. STORY-INDEX v2.368→v2.369. Lesson z17. Streak RESET 1/3→0/3. Pass 25 NEXT at 15bedc12 (diff changed). STATE v7.779→v7.780. | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1130 | state-manager | 2026-06-13 | **PASS-23 CLEAN(strict)=YES streak 0/3→1/3.** Zero findings. 8-axis re-derivation: DRIFT-2/3 independent re-confirmation (Cyberint 6-arg); VP-020-K case-sound; PC-8 cyclic; PC-9 baseline CVE-9999-{:04}; E-DEMO-002 guard order; SAP-1 PASS; all BPRL-P1..P22 + DRIFT-1/2/3 re-confirmed. Novelty LOW. CODE UNCHANGED 0863184a. STATE v7.778→v7.779. | wave-5-e-demo-fidelity | 2026-06-13 |
@@ -254,21 +256,21 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-13 — D-1132: zero-context hardening; pass 25 NEXT at 15bedc12; STATE v7.781)
+## Session Resume Checkpoint (2026-06-13 — D-1133: demo-scope durability; pass 25 NEXT at 15bedc12; STATE v7.782)
 
-_Previous checkpoint (D-1130; STATE v7.779) superseded by D-1131/D-1132 bursts. SESSION-HANDOFF.md §RESUME SNAPSHOT updated to D-1132._
+_Previous checkpoint (D-1132; STATE v7.781) superseded by D-1133 burst. SESSION-HANDOFF.md §ACTIVE OBJECTIVE updated with DEMO-SCOPE.md pointer._
 
-**STATE v7.781. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) — PR-LEVEL cascade in progress. PR #185 OPEN; HEAD=REMOTE=15bedc12 (D-1131: 1 commit above 0863184a; threatintel test perimeter-claim comment corrected to structural Cargo/E0432 framing). Pass 24 BPRL-P24-01 LOW [process-gap] CLOSED. Streak 0/3. NEXT: PR-LEVEL adversarial pass 25 at 15bedc12 (diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse any cached diff from passes 20-24). develop HEAD: 939f36ce. Story B v2.16. BC-INDEX v6.43. STORY-INDEX v2.369 (200). VP-INDEX v1.79 (158). policies v1.33. error-taxonomy v1.78.**
+**STATE v7.782. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) — PR-LEVEL cascade in progress. PR #185 OPEN; HEAD=REMOTE=15bedc12. Pass 24 BPRL-P24-01 LOW [process-gap] CLOSED. Streak 0/3. NEXT: PR-LEVEL adversarial pass 25 at 15bedc12 (diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse any cached diff from passes 20-24). develop HEAD: 939f36ce. Story B v2.16. BC-INDEX v6.43. STORY-INDEX v2.369 (200). VP-INDEX v1.79 (158). policies v1.33. error-taxonomy v1.78. demo_scope_doc: .factory/objectives/DEMO-SCOPE.md (NEW D-1133).**
 
 **Full do-not-reflag list and cascade ledger: see SESSION-HANDOFF.md §4 and §3.**
 
 **RESUME PROTOCOL (run on fresh session start):**
-0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1132).
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1133). Read `.factory/objectives/DEMO-SCOPE.md` (authoritative full demo scope).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING — must pass before reading any state).
 2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
 3. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `15bedc12`.
 4. Verify `gh pr checks 185` — confirm CI status on 15bedc12.
-5. Verify `grep "^version:" .factory/STATE.md` shows `"7.781"`.
+5. Verify `grep "^version:" .factory/STATE.md` shows `"7.782"`.
 6. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone.
 7. Apply lessons (a)–(z18) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
 8. **NEXT ACTION: PR-LEVEL pass 25** — fresh adversary on PR #185 at HEAD 15bedc12; diff CHANGED (re-materialize via `gh pr diff 185`; do NOT reuse /tmp/pr185-pass20.diff); streak 0/3; do-not-reflag list = all closures BPRL-P1..P24 + DRIFT-1/2/3 + D-1117 enhancements. See SESSION-HANDOFF.md §4 for full verbatim list.

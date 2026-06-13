@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.781"
+version: "7.782"
 status: current
-timestamp: 2026-06-13T16:00:00Z
+timestamp: 2026-06-13T18:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -17,6 +17,8 @@ timestamp: 2026-06-13T16:00:00Z
 ---
 
 ## §ACTIVE OBJECTIVE — Multi-Client SOC-Analyst Live Demo (NORTH STAR)
+
+> **FULL DEMO SCOPE (authoritative — read this to know everything the demo includes, what is built, and what the honest gaps are): `.factory/objectives/DEMO-SCOPE.md`**
 
 > **READ THIS FIRST.** This section persists the current priority goal so fresh sessions never drift onto unrelated pipeline machinery (D-1072, user-directed 2026-06-09). **UNCHANGED by the 2026-06-10 review cycle — the review is an interruption at T5, not a goal change.**
 
@@ -96,7 +98,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
-2. Read §ACTIVE OBJECTIVE (North Star) FIRST. Then read STATE.md frontmatter (`current_step`, D-1131 decision row).
+2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (authoritative demo scope: what is built, what is in convergence, what the honest gaps are). Then read STATE.md frontmatter (`current_step`, D-1131 decision row).
 3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
 4. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `15bedc12` (= remote; D-1131: 1 commit above 0863184a; implementer corrected threatintel test perimeter-claim comment to structural Cargo/E0432 framing).
 5. `gh pr checks 185` — confirm CI status on 15bedc12.

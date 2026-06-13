@@ -13,6 +13,8 @@ related:
 
 # Task Ledger — Multi-Client SOC-Analyst Live Demo
 
+> **SCOPE SOURCE OF TRUTH: `.factory/objectives/DEMO-SCOPE.md`** — the authoritative full demo scope narrative (what is built, what is in convergence, and what the honest gaps are). This ledger is the granular TASK tracker; DEMO-SCOPE.md is the NARRATIVE scope. Read DEMO-SCOPE.md first if you need to understand what the demo includes or where we stand overall.
+
 ## Objective
 
 Deliver a multi-client SOC-analyst LIVE DEMO — multiple clients, different sensor combos, REAL per-client data with scenario progression, prism federation, MCP→Claude, end-to-end SOC investigation. TDE deferred.

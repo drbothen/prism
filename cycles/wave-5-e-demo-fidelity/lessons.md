@@ -1264,3 +1264,42 @@ BC-2.06.020 v1.5→v1.6: INV-PERIMETER-COMPLIANCE-001 body + Architecture Anchor
 
 **Outcome (D-1132):**
 STATE.md compacted from 214KB/367 lines to 28KB/274 lines. Decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF hardened with full do-not-reflag list (40+ items verbatim) in §4 and T5 cascade ledger (LOCAL 1-13 + PR-LEVEL 1-24) in §3. Task ledger CURRENT POINTER updated to T5 PR-LEVEL cascade pass 25. STATE v7.780→v7.781.
+
+---
+
+## z19 — Demo/project SCOPE must live in ONE authoritative durable artifact referenced from the resume protocol (D-1133 2026-06-13)
+
+**Trigger:** At PR-LEVEL pass 24 of the T5 cascade (24 passes deep), the full demo scope — what is built, what is in convergence, what the honest gaps are, the build sequence, and what the demo can show today — existed only as fragmented prose across SESSION-HANDOFF.md §ACTIVE OBJECTIVE, the task ledger §Progress Summary + §CURRENT POINTER, and various D-NNN decision rows. No single file answered the question "what is the demo?" for a zero-context restart without reading 3+ documents.
+
+**Pattern identified:**
+
+The task ledger (`multi-client-soc-demo-tasks.md`) is a granular TASK tracker — it answers "what is the next action?" and "what is the story sequence?". It does NOT answer "what does the demo include at a narrative level?" or "what are the honest gaps the user needs to understand?". These are two distinct documents serving two distinct purposes, but only one existed.
+
+The result: at deep cascade depth, a zero-context restart reading the task ledger knew what T5 was doing but could not answer:
+- Does the `enrich` pivot work end-to-end in prism today? (No — honest gap)
+- What exactly does the demo show after T5 merges? (A specific set of capabilities)
+- What is the full build sequence to the capstone? (T1→T14)
+- Where do the enrichment PIVOT-001/002/003 stories slot? (After capability-discovery block)
+
+**Codified rule (z19 — demo-scope durability):**
+
+> **Any project with a multi-month demo build roadmap MUST maintain a separate demo-scope artifact** that captures:
+> 1. The frame (what the demo IS — the analyst experience, the demo boundaries)
+> 2. What is BUILT and MERGED (with merge PR + SHA + BC status)
+> 3. What is IN CONVERGENCE (with PR#, HEAD SHA, streak, honest status)
+> 4. What is SCOPED but NOT YET BUILT — the HONEST GAPS (named, with design refs)
+> 5. What the demo CAN SHOW today (post-current-merge, no wishful thinking)
+> 6. The full build sequence (ordered, with dependency arrows)
+>
+> This artifact must be:
+> - Referenced from the FRESH-SESSION RESUME PROTOCOL (step 2: "read DEMO-SCOPE.md")
+> - Referenced from §ACTIVE OBJECTIVE at the very top
+> - Referenced from the task ledger header
+> - Registered in STATE.md frontmatter (`demo_scope_doc` key)
+>
+> The task ledger remains the granular TASK tracker. The demo-scope artifact is the NARRATIVE scope. Both are required; neither replaces the other.
+>
+> Update the demo-scope artifact when: a story merges (promote to MERGED), a new story enters convergence (add to IN CONVERGENCE), a gap is closed by implementation (remove from SCOPED-NOT-BUILT), or a new design/scoped story is added (add to SCOPED-NOT-BUILT with design ref).
+
+**Outcome (D-1133):**
+`.factory/objectives/DEMO-SCOPE.md` created (v1.0). Contains: frame, 6-sensor fleet MERGED status with PR#/SHAs, T5 unfolding-attack IN CONVERGENCE with BC versions, honest `enrich`-pivot gap with PIVOT-001/002/003 chain, capability-discovery block, T6/T11/T13 gaps, "what demo can show today" section, full build sequence T1→T14. Wired into SESSION-HANDOFF.md §ACTIVE OBJECTIVE top pointer + resume protocol step 2; STATE.md frontmatter `demo_scope_doc`; task ledger scope-source header. STATE v7.781→v7.782.
