@@ -43,6 +43,31 @@ use serde_json::{json, Value};
 /// Records from all 4 surfaces are concatenated into `FixtureSet::records` with
 /// a `_surface` provenance field to identify origin.
 pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> FixtureSet {
+    generate_inner(org_id, archetype, opts, None)
+}
+
+/// Generate a `FixtureSet` with scenario catalog CVE IDs (PC-8 / BC-2.06.020).
+///
+/// Identical to `generate` but passes `catalog_cves` to `generate_cves` so every
+/// CVE-surface record's `cve_id` is drawn from the catalog (cyclic assignment).
+///
+/// The RNG stream draw count is IDENTICAL between `generate` and this function
+/// (BC-3.4.001 determinism — the gen_range draw always happens; see `generate_cves`).
+pub fn generate_with_catalog(
+    org_id: &OrgId,
+    archetype: Archetype,
+    opts: &GenOpts,
+    catalog_cves: &[String],
+) -> FixtureSet {
+    generate_inner(org_id, archetype, opts, Some(catalog_cves))
+}
+
+fn generate_inner(
+    org_id: &OrgId,
+    archetype: Archetype,
+    opts: &GenOpts,
+    catalog_cves: Option<&[String]>,
+) -> FixtureSet {
     let slug = org_slug(org_id);
     let seed = opts.seed;
     let scale = opts.scale;
@@ -75,7 +100,15 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
     let anchor = opts.time_anchor;
     let mut alerts = generate_alerts(&slug, seed, archetype, scale, anchor, &mut rng);
     let asm_assets = generate_asm_assets(&slug, seed, archetype, scale, anchor, &mut rng);
-    let cves = generate_cves(&slug, seed, archetype, scale, anchor, &mut rng);
+    let cves = generate_cves(
+        &slug,
+        seed,
+        archetype,
+        scale,
+        anchor,
+        &mut rng,
+        catalog_cves,
+    );
     let iocs = generate_iocs(&slug, seed, archetype, scale, &mut rng);
 
     // SchemaDrift: mark alert surface[0] as intentionally invalid (AC-003).
@@ -322,6 +355,19 @@ fn generate_asm_assets(
 /// Generate CVE records.
 ///
 /// CVE record primary ID follows the format `alert-{org_slug}-{seed}-{index}` (AC-004).
+///
+/// `catalog_cves`: when `Some(&[String])`, every record's `cve_id`/`cve_name` is drawn
+/// from the catalog (cyclic assignment: `catalog_cves[i % len]`). This is the PC-8 scenario
+/// path (BC-2.06.020 INV-CYBERINT-ALERT-CVE-CORRELATION-001).
+///
+/// When `None` (baseline/non-scenario path), the `CVE-9999-` collision-safe namespace is
+/// used (PC-9 / BC-2.06.020 INV-CYBERINT-ALERT-CVE-CORRELATION-001 baseline clause).
+///
+/// CRITICAL determinism rule: the RNG draw `rng.gen_range(0u32..10000)` is performed
+/// unconditionally in both paths to preserve the primary ChaCha20 stream draw count.
+/// In scenario mode the drawn value is discarded in favour of the catalog entry, but the
+/// draw still happens so all subsequent RNG-derived fields remain bit-identical between
+/// baseline and scenario runs (BC-3.4.001).
 fn generate_cves(
     org_slug: &str,
     seed: u64,
@@ -329,6 +375,7 @@ fn generate_cves(
     scale: f64,
     time_anchor: chrono::DateTime<chrono::Utc>,
     rng: &mut rand_chacha::ChaCha20Rng,
+    catalog_cves: Option<&[String]>,
 ) -> Vec<Value> {
     let (_, _, cve_baseline, _) = baselines(archetype);
     let count = (cve_baseline as f64 * scale).floor() as usize;
@@ -337,7 +384,14 @@ fn generate_cves(
     for i in 0..count {
         let score: f64 = rng.gen_range(0.0..10.0);
         let cve_id = format!("alert-{}-{}-{}", org_slug, seed, i);
-        let cve_name = format!("CVE-2024-{:04}", rng.gen_range(1000u32..9999));
+        // PC-9: unconditional RNG draw to preserve primary ChaCha20 stream draw count
+        // (BC-3.4.001 determinism — draw count must be identical in both paths).
+        let baseline_cve_name = format!("CVE-9999-{:04}", rng.gen_range(0u32..10000));
+        // PC-8 / PC-9 selection: scenario catalog wins; baseline uses CVE-9999- namespace.
+        let cve_name = match catalog_cves {
+            Some(cves) if !cves.is_empty() => cves[i % cves.len()].clone(),
+            _ => baseline_cve_name,
+        };
 
         // P1-02: anchor-derived per-record timestamps (RNG-free stable_offset;
         // primary ChaCha20 stream unchanged). published 0..90 days before the

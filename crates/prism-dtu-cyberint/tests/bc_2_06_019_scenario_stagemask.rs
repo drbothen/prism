@@ -96,6 +96,7 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
         org.clone(),
         Arc::clone(&timeline_stage0),
         time_anchor_stage0,
+        &catalog,
     )
     .expect("new_with_scenario must succeed");
 
@@ -231,6 +232,7 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
         org.clone(),
         Arc::clone(&timeline_stage3),
         time_anchor_stage3,
+        &catalog,
     )
     .expect("new_with_scenario for stage-3 must succeed");
 
@@ -338,7 +340,11 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
     let catalog = build_scenario_entity_catalog(seed, &org);
     let catalog_ioc_ip = catalog.ioc_ips[0].clone();
 
-    let timeline = Arc::new(build_default_incident_timeline(catalog, start_stage0, &[]));
+    let timeline = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage0,
+        &[],
+    ));
 
     let time_anchor = chrono::DateTime::from_timestamp(start_stage0, 0)
         .expect("valid timestamp")
@@ -350,6 +356,7 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
         org.clone(),
         Arc::clone(&timeline),
         time_anchor,
+        &catalog,
     )
     .expect("new_with_scenario must succeed");
 
@@ -483,7 +490,11 @@ async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
     let catalog = build_scenario_entity_catalog(seed, &org);
     let catalog_ioc_ip = catalog.ioc_ips[0].clone();
 
-    let timeline = Arc::new(build_default_incident_timeline(catalog, start_stage3, &[]));
+    let timeline = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage3,
+        &[],
+    ));
     let time_anchor = chrono::DateTime::from_timestamp(start_stage3, 0)
         .expect("valid timestamp")
         .with_timezone(&chrono::Utc);
@@ -494,6 +505,7 @@ async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
         org.clone(),
         Arc::clone(&timeline),
         time_anchor,
+        &catalog,
     )
     .expect("new_with_scenario must succeed");
 

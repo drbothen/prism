@@ -765,7 +765,10 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             let cfg = &config.clones.cyberint;
             let scenario_active = cfg.scenario.as_ref().map(|s| s.enabled).unwrap_or(false);
             if scenario_active {
-                if let (Some((archetype, Some(org_id))), Some((timeline_arc, _, time_anchor))) = (
+                if let (
+                    Some((archetype, Some(org_id))),
+                    Some((timeline_arc, catalog, time_anchor)),
+                ) = (
                     validated_gen.get("cyberint").cloned(),
                     scenario_ctx.as_ref(),
                 ) {
@@ -776,6 +779,7 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                             org_id,
                             std::sync::Arc::clone(timeline_arc),
                             *time_anchor,
+                            catalog,
                         )
                         .context("failed to construct CyberintClone::new_with_scenario")?,
                     )
