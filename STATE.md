@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.787"
+version: "7.788"
 producer: state-manager
 timestamp: 2026-06-13T22:00:00Z
 inputs: []
@@ -17,9 +17,9 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "f7400f83"
-bc_index_version: "6.44"
+bc_index_version: "6.45"
 vp_index_version: "1.79"
-story_index_version: "v2.371"
+story_index_version: "v2.372"
 arch_index_version: "2.133"
 error_taxonomy_version: "1.78"
 total_stories: 200
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1144 — T6 remove-uncertainty re-run COMPLETE (2026-06-13). S-DEMO-MULTI-TENANT-DTU-001 v1.3 ready; EXPECTED gate re-baselined 49→52→59 target (ci.yml ground-truth EXPECTED=52 post-001-A/001-B growth; +7 delta unchanged). U-RERUN-001 HIGH (stale EXPECTED 49→56 claim corrected to 52→59) + U-RERUN-002 MED (stale no-prism-dtu-* import claim) both FIXED by story-writer. All version pins + signatures confirmed unchanged. NEXT: vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001 (12-gate TDD). STATE v7.787."
+current_step: "D-1145 — T6 API-gap D-1075-API-GAP-001 ADJUDICATED (2026-06-13). Architect adjudication Option A (production-grade, no deferral): start_instances return type amended HashMap<String,SocketAddr>→MultiInstanceServers lifecycle handle (#[non_exhaustive]) owning shutdown_tx + task_handles; servers.socket_map() + servers.shutdown() + Drop graceful drain (axum with_graceful_shutdown); mirrors MultiInstanceHarness. Story v1.3→v1.4, BC-2.06.017 v1.1→v1.2. EXPECTED re-baselined: implementer/test-writer MUST use EXPECTED=52→60 (+8 total: 7 prior arms from D-1144 + 1 new E0639 MultiInstanceServers struct arm). NEXT: implementer lands MultiInstanceServers + amended start_instances + new compile-fail arm + ci.yml EXPECTED 52→60; test-writer updates tests; then resume Step 4.5 LOCAL adversary. STATE v7.788."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-13"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-13 (D-1144 T6 remove-uncertainty re-run COMPLETE; S-DEMO-MULTI-TENANT-DTU-001 v1.3 ready; EXPECTED re-baselined 52→59; STATE v7.787)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-13 (D-1145 T6 API-gap D-1075-API-GAP-001 adjudicated Option A; start_instances→MultiInstanceServers; story v1.4, BC-2.06.017 v1.2; EXPECTED 52→60; STATE v7.788)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment.** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T6 IN PROGRESS** (S-DEMO-MULTI-TENANT-DTU-001 v1.3; D-1144 remove-uncertainty DONE; NEXT: vsdd-factory:deliver-story). T1–T5+T4-A DONE.
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment.** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T6 IN PROGRESS** (S-DEMO-MULTI-TENANT-DTU-001 v1.4; D-1145 API-gap adjudicated; NEXT: implementer+test-writer then LOCAL adversary). T1–T5+T4-A DONE.
 
 ## Phase Progress
 
@@ -108,7 +108,8 @@ _D-735 through D-1129 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and
 | D-1133 | state-manager | 2026-06-13 | DEMO-SCOPE DURABILITY BURST (D-1133). DEMO-SCOPE.md created at `.factory/objectives/DEMO-SCOPE.md`. Wired into SESSION-HANDOFF + STATE + task ledger. Lesson z19. STATE v7.781→v7.782. |
 | D-1138 | state-manager | 2026-06-13 | T5 PR-LEVEL PASSES 25-27 CHECKPOINT. Hook-bypass governance (D-1134). BPRL-P25-01 MED CLOSED (D-1135). BPRL-P26-01 MED/PG CLOSED (D-1136). Pass 27 CLEAN(strict)=YES (D-1137). Streak 0/3→1/3. PR #186 OPEN. STATE v7.782→v7.783. |
 | D-1139 | state-manager | 2026-06-13 | POST-MERGE BURST — PR #185 squash-merged develop@7fd35b77. T5 PR-LEVEL CONVERGED 3/3 strict (passes 27/28/29). POL-14: BC-2.06.019 v1.7 + BC-2.06.020 v1.6 draft→active (active 232→234, draft 5→3). SEC-006/007/008 dispositions. T6 pointer advanced. Lesson z20. STATE v7.783→v7.784. |
-| D-1144 | state-manager | 2026-06-13 | **T6 REMOVE-UNCERTAINTY RE-RUN COMPLETE (D-1144).** Mandatory pre-TDD `dclaude:remove-uncertainty` re-run on S-DEMO-MULTI-TENANT-DTU-001 (D-1110 extension + user_directive_remove_uncertainty). 1 HIGH U-RERUN-001: stale EXPECTED count — story said bump `49→56`; ground-truth ci.yml now `EXPECTED=52` (grew via S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014 + 001-B); re-baselined to `52→59` (+7 delta unchanged: 6 E0639 struct arms + 1 E0004 enum arm); FIXED at story lines 609, 677, 735. 1 MED U-RERUN-002: stale "crate currently does NOT import any prism-dtu-* crate" — now imports prism-dtu-common (Story A); REWORDED. All version pins confirmed (axum 0.7, tokio 1/full, tempfile 3, anyhow 1, reqwest 0.12); BehavioralClone::start_on signature confirmed; HarnessError #[non_exhaustive] confirmed; new files absent as expected; DemoHarness confirmed. Story bumped v1.2→v1.3 (status remains ready). STORY-INDEX v2.370→v2.371. develop_head UNCHANGED f7400f83. No code change (spec only). NEXT: vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001. STATE v7.786→v7.787. | wave-5-e-demo-fidelity | 2026-06-13 |
+| D-1144 | state-manager | 2026-06-13 | **T6 REMOVE-UNCERTAINTY RE-RUN COMPLETE (D-1144).** Mandatory pre-TDD `dclaude:remove-uncertainty` re-run on S-DEMO-MULTI-TENANT-DTU-001. 1 HIGH U-RERUN-001 + 1 MED U-RERUN-002 found and fixed; EXPECTED re-baselined 52→59; story v1.2→v1.3. STORY-INDEX v2.370→v2.371. STATE v7.786→v7.787. |
+| D-1145 | state-manager | 2026-06-13 | **T6 API-GAP ADJUDICATION D-1075-API-GAP-001 (D-1145).** `start_instances` zombie-server/port-leak gap found during TDD. Architect adjudicated Option A: return type amended HashMap→`MultiInstanceServers` (#[non_exhaustive] lifecycle handle; socket_map()/shutdown()/Drop graceful drain). Story v1.3→v1.4; BC-2.06.017 v1.1→v1.2; EXPECTED re-baselined 59→60 (+1 MultiInstanceServers E0639 arm; total 8 arms = 7 E0639 + 1 E0004). STORY-INDEX v2.371→v2.372. BC-INDEX v6.44→v6.45. develop_head UNCHANGED f7400f83. NEXT: implementer+test-writer land code; then LOCAL adversary Step 4.5. STATE v7.787→v7.788. | wave-5-e-demo-fidelity | 2026-06-13 |
 
 ## Decisions Log
 
@@ -116,6 +117,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1145 | state-manager | 2026-06-13 | **T6 API-GAP ADJUDICATION D-1075-API-GAP-001 (D-1145).** During T6 TDD implementation, `start_instances` (architect-locked D-1075 API) was found to have no external graceful-shutdown mechanism: returned only `HashMap<String,SocketAddr>`, leaking demo-server instances as detached tasks until process exit (zombie-server/port leak). Red Gate test `test_BC_2_06_017_demo_server_multi_instance_shutdown_clean` was unsatisfiable under the locked API. Architect adjudicated D-1075-API-GAP-001 → **Option A** (production-grade, no deferral): amend locked API so `start_instances` returns new `#[non_exhaustive] MultiInstanceServers` lifecycle handle owning single shared `shutdown_tx` + `task_handles`, with `servers.socket_map()` accessor + `servers.shutdown()` + Drop graceful drain (axum `with_graceful_shutdown`). Mirrors already-correct MultiInstanceHarness pattern. Eliminates the leak; makes the shutdown test satisfiable. User explicitly affirmed adding graceful shutdown. Spec amendments: (A) story-writer: S-DEMO-MULTI-TENANT-DTU-001 v1.3→v1.4 (`start_instances` return type HashMap→MultiInstanceServers; new type block in §Locked API; AC-001/AC-002/Story-Level-Goal → `servers.socket_map()`; EXPECTED re-baselined 59→60 [+1 MultiInstanceServers E0639 arm; now 8 arms = 7 E0639 + 1 E0004]; status remains ready). (B) product-owner: BC-2.06.017 v1.1→v1.2 (Postcondition 1 amended to Ok(MultiInstanceServers) lifecycle handle + shutdown/Drop semantics; EC-017-005 generalized to both handles; Postconditions 2-7 + invariants unchanged). Code + test changes are NEXT (implementer lands MultiInstanceServers + amended start_instances + compile-fail arm; ci.yml EXPECTED 52→60; test-writer updates tests). STORY-INDEX v2.371→v2.372. BC-INDEX v6.44→v6.45. develop_head UNCHANGED f7400f83. | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1144 | state-manager | 2026-06-13 | **T6 REMOVE-UNCERTAINTY RE-RUN COMPLETE (D-1144).** Mandatory pre-TDD `dclaude:remove-uncertainty` re-run on S-DEMO-MULTI-TENANT-DTU-001 (D-1110 extension + user_directive_remove_uncertainty). 1 HIGH U-RERUN-001: stale EXPECTED count — story said bump `49→56`; ground-truth ci.yml EXPECTED=52 (grew via S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014 + 001-B since 2026-06-09); re-baselined to `52→59` (+7 delta unchanged: 6 E0639 struct arms + 1 E0004 enum arm); FIXED at story lines 609, 677, 735. 1 MED U-RERUN-002: stale "crate currently does NOT import any prism-dtu-* crate" claim — now imports prism-dtu-common (Story A); REWORDED. CONFIRMED UNCHANGED: all version pins (axum 0.7, tokio 1/full, tempfile 3, anyhow 1, reqwest 0.12); BehavioralClone::start_on no-tls signature; HarnessError #[non_exhaustive]; new files absent; DemoHarness present. Story bumped v1.2→v1.3 (status remains ready; CLEARED FOR TDD DELIVERY). STORY-INDEX v2.370→v2.371. develop_head UNCHANGED f7400f83. No code change (story spec only). | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1143 | state-manager | 2026-06-13 | **PR #186 MERGED + T6 START (D-1143).** `maintenance/lefthook-docs-only-pre-push` squash-merged to develop at `f7400f83` (2026-06-13T21:38:48Z). lefthook.yml only — fail-closed docs-only pre-push skip for `just check` gate. pr-reviewer found 3 fail-closed holes (B1/B2/B3); devops-engineer fixed all 3 (commit 7990965a; 35/35 hardened test cases); pr-reviewer re-review APPROVE; human-approved; CI 43-green; squash-merged. D-1134 bypass-exception remediation RESOLVED/CLOSED. No open PRs. T6 IN PROGRESS: S-DEMO-MULTI-TENANT-DTU-001 (ready v1.2; BC-2.06.017 draft; 8 pts). Mandatory first step: `dclaude:remove-uncertainty` re-run (D-1110 extension). develop_head 7fd35b77→f7400f83. STATE v7.784→v7.785. | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1142 | state-manager | 2026-06-13 | SEC-008: ThreatIntelClone poisoned-mutex `.expect` LOW — ACCEPTED (clippy-allowed startup pattern). | wave-5-e-demo-fidelity | 2026-06-13 |
@@ -184,17 +186,17 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · **decisions-archive-D1124-D1138.md** · **drift-items-resolved.md** · **phase-5-deferred-findings.md** · frontmatter-cascade-archive.md · session-handoff-archive.md · convergence-trajectory.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-_No open PRs. Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass remediation RESOLVED). D-1144: T6 remove-uncertainty DONE; S-DEMO-MULTI-TENANT-DTU-001 v1.3 cleared for TDD delivery._
+_No open PRs. Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass remediation RESOLVED). D-1145: T6 API-gap D-1075-API-GAP-001 adjudicated Option A — MultiInstanceServers; story v1.4, BC-2.06.017 v1.2, EXPECTED 52→60._
 
-## Session Resume Checkpoint (D-1144 — 2026-06-13; STATE v7.787)
+## Session Resume Checkpoint (D-1145 — 2026-06-13; STATE v7.788)
 
-**STATE v7.787. CURRENT POSITION: T6 — S-DEMO-MULTI-TENANT-DTU-001 v1.3 ready; remove-uncertainty DONE (D-1144). EXPECTED gate re-baselined: implementer/test-writer MUST use `EXPECTED=52→59` (+7 delta: 6 E0639 struct arms + 1 E0004 enum arm) per D-1144 U-RERUN-001. U-RERUN-002 FIXED (prism-dtu-common already imported). develop HEAD: f7400f83 (UNCHANGED — story spec only). BC-INDEX v6.44 (active 234 / draft 3 / retired 6). STORY-INDEX v2.371 (200 stories). VP-INDEX v1.79 (158). policies v1.33. error-taxonomy v1.78. demo_scope_doc: .factory/objectives/DEMO-SCOPE.md. No open PRs.**
+**STATE v7.788. CURRENT POSITION: T6 — S-DEMO-MULTI-TENANT-DTU-001 v1.4 in progress; API-gap D-1075-API-GAP-001 adjudicated (D-1145). EXPECTED gate re-baselined: implementer/test-writer MUST use `EXPECTED=52→60` (+8 total: 7 E0639 struct arms + 1 E0004 enum arm) per D-1145. `MultiInstanceServers` (#[non_exhaustive]) is the new `start_instances` return type; `servers.socket_map()` replaces HashMap access; `servers.shutdown()` + Drop graceful drain required. develop HEAD: f7400f83 (UNCHANGED — spec only). BC-INDEX v6.45 (active 234 / draft 3 / retired 6). STORY-INDEX v2.372 (200 stories). VP-INDEX v1.79 (158). policies v1.33. error-taxonomy v1.78. demo_scope_doc: .factory/objectives/DEMO-SCOPE.md. No open PRs.**
 
 **RESUME PROTOCOL (run on fresh session start):**
-0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1144). Read `.factory/objectives/DEMO-SCOPE.md` (authoritative full demo scope).
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1145). Read `.factory/objectives/DEMO-SCOPE.md` (authoritative full demo scope).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING — must pass before reading any state).
 2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `f7400f83`.
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.787"`.
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.788"`.
 4. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone. Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` may be cleaned up (merged).
 5. Apply lessons (a)–(z20) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-6. **NEXT ACTION: T6 — `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001`** — remove-uncertainty DONE (D-1144); proceed directly to 12-gate TDD delivery: worktree-manage → test-writer → implementer → LOCAL 3-CLEAN strict → demo-recorder → push → pr-manager → PR-LEVEL 3-CLEAN strict → pr-reviewer APPROVE → security CLEAR → CI → squash-merge → state-manager post-merge burst. KEY for implementer/test-writer: ci.yml EXPECTED=52 today; this story adds +7 new arms → EXPECTED=59 at merge.
+6. **NEXT ACTION: T6 — implementer lands `MultiInstanceServers` + amended `start_instances` + new E0639 compile-fail arm + `ci.yml EXPECTED 52→60`; test-writer updates `test_BC_2_06_017_demo_server_multi_instance_shutdown_clean` and all callers of `start_instances` to use `servers.socket_map()`; then LOCAL adversary Step 4.5.** KEY: story v1.4 (D-1145); BC-2.06.017 v1.2; EXPECTED=60 at merge (NOT 59).

@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.1"
+version: "1.2"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -73,16 +73,29 @@ unchanged and all existing single-instance callers continue to work without modi
 ### Postcondition 1 — Multi-instance bind (demo-server)
 
 Given a `MultiInstanceConfig` with N `InstanceEntry` items (N ≥ 1), when the
-multi-instance bind function runs:
+multi-instance bind function (`start_instances`) runs:
 
-- Each `InstanceEntry` starts exactly one clone instance via the existing
-  `BehavioralClone::start_on(entry.bind, shutdown_tx.subscribe(), tls)` API.
+- Each `InstanceEntry` starts exactly one clone instance via
+  `BehavioralClone::start_on(entry.bind, shutdown_tx.subscribe(), tls)`, where
+  `shutdown_tx` is a SINGLE shared `broadcast::Sender<()>` owned by the returned
+  lifecycle handle (NOT a per-instance channel).
 - The OS assigns an ephemeral port for entries specifying `127.0.0.1:0`; the resulting
   `SocketAddr` is captured immediately after bind.
-- The function returns `Ok(HashMap<String, SocketAddr>)` where:
-  - Each key is `entry.name` (the name string from `InstanceEntry`).
-  - Each value is the OS-assigned bound `SocketAddr` for that instance.
-  - All N instances are returned in one map; no entries are silently dropped.
+- The function returns `Ok(MultiInstanceServers)` — a lifecycle handle that:
+  - Owns the single shared `shutdown_tx: broadcast::Sender<()>` and all N task handles.
+  - Exposes `servers.socket_map() -> &HashMap<String, SocketAddr>` where:
+    - Each key is `entry.name` (the name string from `InstanceEntry`).
+    - Each value is the OS-assigned bound `SocketAddr` for that instance.
+    - All N instances are present in the map; no entries are silently dropped.
+  - Triggers graceful shutdown of ALL instances when either:
+    - `servers.shutdown()` is called explicitly, OR
+    - the `MultiInstanceServers` value is dropped.
+  - Graceful shutdown uses axum's `with_graceful_shutdown` pattern: the shared
+    `shutdown_tx` sends a signal, all instances drain in-flight requests, and then
+    their bound ports are released. This guarantees no zombie/leaked instances on the
+    success path — the success-path analogue of Postcondition 6's "no partial-bound
+    zombie instances on bind failure" guarantee, and consistent with EC-017-005
+    (which applies to both `MultiInstanceHarness` Drop and `MultiInstanceServers` Drop).
 - All N instances begin serving requests before the function returns.
 - Each instance is addressable independently — a request to instance A's `SocketAddr`
   is served by instance A's clone; instance B's `SocketAddr` is served by instance B's
@@ -245,7 +258,7 @@ of new non-exhaustive public types.
 | EC-017-002 | `MultiInstanceConfig` with zero `InstanceEntry` items | Returns `Ok(HashMap::new())` — empty map, no error, no spawned tasks. A zero-instance config is a valid no-op. |
 | EC-017-003 | Same `(org_slug, sensor_id)` pair appears in two `HarnessEntry` items | `Err(HarnessError::DuplicateKey { org_slug, sensor_id })` — explicit error surfacing misconfiguration; last-wins is forbidden (see Postcondition 7 rationale) |
 | EC-017-004 | Overlay TOML written for an org slug not registered in `OrgRegistry` | `SpecLoader::load_all` emits `E-SPEC-022` (BC-2.06.015); this is correct behavior — test code must register all orgs used in overlays. The harness itself does not validate org registration (it is not permitted to import prism-spec-engine) |
-| EC-017-005 | `MultiInstanceHarness` dropped while in-flight requests are outstanding | Async drop races with in-flight requests; the shutdown signal drains in-flight requests using the shutdown-timeout pattern (per story risk mitigation). All in-flight requests complete or receive connection-closed before the bound port is released |
+| EC-017-005 | `MultiInstanceHarness` or `MultiInstanceServers` dropped while in-flight requests are outstanding (applies to both handles) | Async drop races with in-flight requests; the shutdown signal drains in-flight requests using the shutdown-timeout pattern (per story risk mitigation). All in-flight requests complete or receive connection-closed before the bound port is released |
 | EC-017-006 | DTU clone instance crashes mid-test | Subsequent requests to that instance's `SocketAddr` receive `ConnectionRefused` or equivalent error. This is NOT a silent cross-tenant leakage event — the requesting org receives a structured error; INV-ISOLATION-001 is not violated (zero requests can reach a crashed instance) |
 | EC-017-007 | Test misconfiguration: org A overlay points to instance B socket | All of org A's requests go to instance B. The leakage test `test_multi_tenant_routing_zero_cross_tenant_leakage` correctly FAILS — detecting the misconfiguration. This is correct-by-design: the test validates overlay correctness, not the harness |
 | EC-017-008 | 10+ named instances in `MultiInstanceConfig` (large multi-tenant scenario) | All instances bind successfully; no hard cap enforced by this BC; memory and bind time increase linearly; test execution time increases proportionally |
@@ -351,3 +364,4 @@ is warranted.
 |---------|-------|------|--------|--------|
 | 1.0 | D-TBD (S-DEMO-MULTI-TENANT-DTU-001 PO authorship) | 2026-06-09 | product-owner | Initial draft. Resolves S-7.01 Spec-First Gate for S-DEMO-MULTI-TENANT-DTU-001. Covers: MultiInstanceConfig/InstanceEntry demo-server API (Postcondition 1), MultiInstanceHarness harness API (Postcondition 2), overlay TOML integration (Postcondition 3), INV-ISOLATION-001 no-cross-tenant-leakage invariant (Postcondition 4), INV-COMPAT-001 single-instance backward-compat invariant (Postcondition 5), multi-error aggregation on bind failure (Postcondition 6 / INV-ERR-003-COMPAT), and EC-017-003 duplicate-key-returns-error semantics (Postcondition 7). Flag 2 decision: BC-2.06.014 NOT amended — rationale in §Flag 2 Decision Notes. EC-003 decision: error-return on duplicate key (Postcondition 7). |
 | 1.1 | D-1075 (architect reconciliation — remove-uncertainty scan, S-DEMO-MULTI-TENANT-DTU-001 ledger T3 hardening) | 2026-06-09 | product-owner | Two accuracy fixes grounded in real `BehavioralClone::start_on` signature (clone.rs lines 71-84). No semantic or invariant changes. **Amendment 1 (Postcondition 5 / TV-017-008):** Corrected `start_on` prose signature from erroneous `(bind: SocketAddr, shutdown: Receiver<()>, tls: bool)` to actual `(&mut self, bind: SocketAddr, shutdown: Option<broadcast::Receiver<()>>, tls: Option<Arc<RustlsConfig>> / Option<()>) -> anyhow::Result<SocketAddr>`; updated TV-017-008 call site from `start_on(..., false)` to `start_on(..., Some(rx), None)`. INV-COMPAT-001 semantics unchanged — the correction confirms the signature IS already `Option`-typed, not that it changed. **Amendment 2 (Error table / Postcondition 6):** Disambiguated inner aggregate error type names to avoid cross-crate name collision: demo-server uses `DemoBindError { instance_name: String, source: std::io::Error }` in `MultiInstanceBindError::BindFailure(Vec<DemoBindError>)`; harness uses `BindError { org_slug: String, sensor_id: String, source: std::io::Error }` in `HarnessError::BindFailure(Vec<BindError>)`. Variant names (HarnessError::DuplicateKey, HarnessError::BindFailure, MultiInstanceBindError::DuplicateName, MultiInstanceBindError::BindFailure) confirmed correct per architect. |
+| 1.2 | D-1075-API-GAP-001 (architect adjudication, S-DEMO-MULTI-TENANT-DTU-001 TDD) | 2026-06-13 | product-owner | Postcondition 1 amended: `start_instances` returns `Ok(MultiInstanceServers)` lifecycle handle (was `Ok(HashMap<String,SocketAddr>)`). Handle owns single shared `shutdown_tx: broadcast::Sender<()>` + all N task handles; `servers.socket_map() -> &HashMap<String, SocketAddr>` accessor exposes bound addresses; `servers.shutdown()` / Drop trigger graceful drain (axum `with_graceful_shutdown`) then port release, eliminating success-path zombie/leaked instances. This is the success-path analogue of Postcondition 6 ("no partial-bound zombie instances on bind failure") and is consistent with EC-017-005 (parenthetical added: "applies to both `MultiInstanceHarness` Drop and `MultiInstanceServers` Drop"). No change to Postconditions 2-7, other ECs, INV-COMPAT-001, INV-ISOLATION-001, INV-ERR-003-COMPAT, INV-PERIMETER-001, or INV-NONEXHAUSTIVE-001. |
