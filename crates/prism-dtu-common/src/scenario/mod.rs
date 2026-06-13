@@ -426,16 +426,27 @@ fn gen_ioc_hashes(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
 
 /// Generate N CVE ID strings from RNG.
 ///
-/// Format: `"CVE-{year}-{n}"` where year and n are RNG-derived.
+/// Format: `"CVE-9999-{seq:05}"` — year `9999` is never used by the real NVD
+/// (SEC-001 / CWE-1336-adjacent: prior `CVE-202x` format could produce IDs that
+/// collide with real advisories, e.g. CVE-2021-44228 = Log4Shell).
+///
+/// # Draw-order note (SEC-001)
+///
+/// `gen_device_cves` is the LAST consumer of the secondary RNG stream in
+/// `build_scenario_entity_catalog` (called after `gen_ioc_ips`, `gen_ioc_domains`,
+/// `gen_ioc_hashes` — see lines 367-370).  Nothing draws from the secondary stream
+/// after this function returns, so reducing from 2 draws to 1 draw per CVE does NOT
+/// shift any other generator's output.  This is safe.
+///
+/// # Correlation
+///
+/// These IDs are inserted directly into `ScenarioEntityCatalog.device_cves`.
+/// `NvdClone::new_with_scenario` injects every `catalog.device_cves` entry into
+/// its `cve_registry` with `base_score = 8.1 / base_severity = "HIGH"`, so
+/// end-to-end resolution is guaranteed without any additional synchronisation.
 fn gen_device_cves(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
     (0..count)
-        .map(|_| {
-            format!(
-                "CVE-{}-{}",
-                2020u32 + (rng.gen::<u32>() % 5),
-                rng.gen::<u32>() % 100000
-            )
-        })
+        .map(|_| format!("CVE-9999-{:05}", rng.gen::<u32>() % 100000))
         .collect()
 }
 
@@ -1082,6 +1093,64 @@ mod tests {
             org_slug_from_org_id(&org_b),
             "org_slug_from_org_id must only use first 4 bytes; \
              different bytes 4-15 with same bytes 0-3 must yield the same slug"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // SEC-001 — test_sec_001_device_cves_use_unambiguous_synthetic_year
+    //
+    // SEC-001 / CWE-1336-adjacent: gen_device_cves must emit CVE-9999-NNNNN IDs
+    // (year 9999, never used by real NVD) so that synthetic IDs cannot collide
+    // with real advisories (e.g. CVE-2021-44228 = Log4Shell).
+    //
+    // Also verifies end-to-end correlation invariant: every device CVE in the
+    // catalog starts with the synthetic prefix.  The full NVD resolution test
+    // (catalog CVE → NvdState lookup returns HIGH) lives in
+    // prism-dtu-nvd/tests/bc_2_06_020_nvd_enrichment.rs (test 14), which shares
+    // the same catalog produced here.
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_sec_001_device_cves_use_unambiguous_synthetic_year() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+
+        // Must have at least 1 CVE (gen count = 3 per build_scenario_entity_catalog call).
+        assert!(
+            !catalog.device_cves.is_empty(),
+            "SEC-001: device_cves must be non-empty (count=3 per gen_device_cves call)"
+        );
+
+        // Every generated CVE must start with the unambiguous-synthetic prefix "CVE-9999-".
+        for (i, cve) in catalog.device_cves.iter().enumerate() {
+            assert!(
+                cve.starts_with("CVE-9999-"),
+                "SEC-001: device_cves[{i}] = '{cve}' must start with 'CVE-9999-'; \
+                 year 9999 is never used by real NVD so synthetic IDs cannot collide \
+                 with real advisories (e.g. CVE-2021-44228 = Log4Shell). \
+                 Fix: gen_device_cves must emit CVE-9999-{{seq:05}} format."
+            );
+
+            // Sequence part must be a valid 1-5 digit decimal number.
+            let seq_part = cve.trim_start_matches("CVE-9999-");
+            assert!(
+                seq_part.chars().all(|c| c.is_ascii_digit()),
+                "SEC-001: device_cves[{i}] = '{cve}' — sequence part '{seq_part}' \
+                 must contain only decimal digits"
+            );
+        }
+
+        // Determinism: same (seed, org) → same CVE IDs (secondary RNG stream is deterministic).
+        let catalog2 = build_scenario_entity_catalog(42, &org);
+        assert_eq!(
+            catalog.device_cves, catalog2.device_cves,
+            "SEC-001: device_cves must be deterministic for same (seed, org_id)"
+        );
+
+        // Different seed → different CVE IDs (independence).
+        let catalog_other = build_scenario_entity_catalog(43, &org);
+        assert_ne!(
+            catalog.device_cves, catalog_other.device_cves,
+            "SEC-001: different seeds must produce different device_cves (RNG independence)"
         );
     }
 }
