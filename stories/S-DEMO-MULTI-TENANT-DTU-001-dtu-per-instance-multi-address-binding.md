@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-03T00:00:00Z"
 created: "2026-06-03"
-modified: "2026-06-09T12:00:00Z"
+modified: "2026-06-13T22:30:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -103,7 +103,7 @@ phase: 3
 
 **Story ID:** S-DEMO-MULTI-TENANT-DTU-001
 **Status:** ready
-**Version:** v1.2
+**Version:** v1.3
 **Wave:** 5
 **Priority:** P2
 **Points:** 8
@@ -595,8 +595,9 @@ Well within 20-30% context budget.
    The test that invokes `SpecLoader::load_all` calls `write_overlay_temp_dir` directly.
 
 6a. **Wire non-exhaustive-violation compile-fail gate (U-006):** The
-    `tests/external/non-exhaustive-violation/` crate currently does NOT import any
-    `prism-dtu-*` crate. The implementer MUST:
+    `tests/external/non-exhaustive-violation/` crate currently imports ONLY `prism-dtu-common`
+    (added by S-DEMO-DTU-LIVE-SCENARIO-001-A); `prism-dtu-demo-server` and `prism-dtu-harness`
+    are NOT yet deps. The implementer MUST:
     - (a) Add `prism-dtu-demo-server` and `prism-dtu-harness` as dependencies of the
       `non-exhaustive-violation` crate in its `Cargo.toml`.
     - (b) Add 6 struct-literal violation arms in `struct_violations.rs`:
@@ -605,7 +606,7 @@ Well within 20-30% context budget.
       Each arm must cause an E0639 compile error, proving `#[non_exhaustive]` is present.
     - (c) Add 1 match-arm violation in `enum_violations.rs` for `MultiInstanceBindError`
       (from demo-server), causing E0004.
-    - (d) Bump `EXPECTED=49` → `EXPECTED=56` in `.github/workflows/ci.yml`.
+    - (d) Bump `EXPECTED=52` → `EXPECTED=59` in `.github/workflows/ci.yml`.
     - Verify `just check` green after the bump (the gate counts must match exactly).
 
 7. **Implement the multi-tenant routing isolation test** (`test_multi_tenant_routing_zero_cross_tenant_leakage`):
@@ -673,7 +674,7 @@ binding. Key lessons from predecessor stories:
 | `HarnessError` is EXTENDED, not replaced — extend the existing enum in `error.rs` | D-1075 (architect OQ-2 resolution) | Additive variants only: `DuplicateKey` + `BindFailure` |
 | `BehavioralClone::start_on` signature MUST NOT change | BC-2.06.017 INV-COMPAT-001 | Existing S-6.07–6.10 parity tests compile unchanged |
 | Multi-instance API is ADDITIVE only | BC-2.06.017 INV-COMPAT-001 | No removal of existing single-instance test helpers |
-| New public structs require `#[non_exhaustive]` | CLAUDE.md + BC-2.06.017 INV-NONEXHAUSTIVE-001 | `ci.yml EXPECTED` bumped 49→56 (U-006); `non-exhaustive-violation` crate Cargo.toml gains `prism-dtu-demo-server` + `prism-dtu-harness` deps; 6 E0639 struct arms + 1 E0004 enum arm added |
+| New public structs require `#[non_exhaustive]` | CLAUDE.md + BC-2.06.017 INV-NONEXHAUSTIVE-001 | `ci.yml EXPECTED` bumped 52→59 (U-006; base re-baselined 49→52 per D-1143 remove-uncertainty re-run — 001-A AC-014 + 001-B grew the gate to 52); `non-exhaustive-violation` crate Cargo.toml gains `prism-dtu-demo-server` + `prism-dtu-harness` deps; 6 E0639 struct arms + 1 E0004 enum arm added |
 | `non-exhaustive-violation` crate must import `prism-dtu-demo-server` + `prism-dtu-harness` | U-006 (D-1075 reconciliation) | These crates are NOT currently imported by the gate crate; implementer must add them and wire violation arms before declaring done |
 | `axum = "0.7"` and `tokio = { version = "1", features = ["full"] }` literal per-crate pins | U-008 (D-1075 reconciliation) | No `[workspace.dependencies]` entry exists; do NOT write "workspace version"; check sibling crates for current pins |
 | `tempfile = "3"` in `[dev-dependencies]` only; no `tempfile` import in `src/` | U-005 (D-1075 reconciliation) | Caller owns `TempDir`; passes `dir.path()` to `write_overlay_temp_dir` |
@@ -731,7 +732,7 @@ version" for these two. For all other crates, verify workspace path/version befo
 | MODIFY | `tests/external/non-exhaustive-violation/Cargo.toml` | **ADD** `prism-dtu-demo-server` + `prism-dtu-harness` as dependencies of this crate (U-006: these crates are NOT currently imported; the implementer must add them). |
 | MODIFY | `tests/external/non-exhaustive-violation/src/struct_violations.rs` | Add 6 struct-literal violation arms for: `MultiInstanceConfig`, `InstanceEntry`, `DemoBindError` (demo-server) + `MultiInstanceHarness`, `HarnessEntry`, `BindError` (harness). Each arm causes E0639 compile failure proving `#[non_exhaustive]` is present. |
 | MODIFY | `tests/external/non-exhaustive-violation/src/enum_violations.rs` | Add 1 match-arm violation for `MultiInstanceBindError` (demo-server). Causes E0004 compile failure. Note: `HarnessError` match arm ALREADY EXISTS — do NOT add a duplicate; only check that existing arm still compiles (new variants are covered by existing wildcard or by adding new arms if the existing match is exhaustive). |
-| MODIFY | `.github/workflows/ci.yml` | Bump `EXPECTED=49` → `EXPECTED=56` (7 new gate errors: 6 E0639 struct-literal arms + 1 E0004 match arm; detail: 5 structs from demo-server/harness + BindError struct = 6 structs = 6 E0639; MultiInstanceBindError enum = 1 E0004). |
+| MODIFY | `.github/workflows/ci.yml` | Bump `EXPECTED=52` → `EXPECTED=59` (7 new gate errors: 6 E0639 struct-literal arms + 1 E0004 match arm; detail: 5 structs from demo-server/harness + BindError struct = 6 structs = 6 E0639; MultiInstanceBindError enum = 1 E0004). |
 | CREATE | `crates/prism-dtu-demo-server/tests/multi_instance_tests.rs` | Red Gate tests for demo-server multi-instance (per §Red Gate Test Plan). |
 | CREATE | `crates/prism-dtu-harness/tests/multi_instance_harness_tests.rs` | Red Gate tests for harness multi-instance (per §Red Gate Test Plan). Uses `ArmisClone`/`ClarotyClone` from `[dev-dependencies]`. |
 
@@ -784,3 +785,4 @@ version" for these two. For all other crates, verify workspace path/version befo
 | 1.0 | 2026-06-03 | story-writer | Initial materialization from [planned stub] per D-849 + AC-009 of S-CONFIG-MULTI-TENANT-OVERRIDE-001. Scope: prism-dtu-demo-server multi-address binding + prism-dtu-harness MultiInstanceHarness API + per-org overlay integration + 15 Red Gate tests. 9 ACs, 8 pts, P2. Status draft — BCs pending PO authorship per S-7.01 gate. OQ-1/OQ-2/OQ-3 flagged for dispatch-time resolution. |
 | 1.1 | 2026-06-09 | story-writer | Finalized for S-7.01 gate clearance. Changes: (1) behavioral_contracts: [] → [BC-2.06.017] (D-1074 PO authorship); (2) subsystems: [SS-17] → [SS-01] (D-1075 architect POL-6 correction — SS-01 Sensor Adapters owns prism-dtu-* crates, not SS-17 WASM Plugin Runtime); (3) file placement corrected per D-1075 architect OQ-1 — MultiInstanceConfig/InstanceEntry in prism-dtu-demo-server/src/multi_instance.rs (NOT server.rs, NOT prism-dtu-common); (4) harness API corrected per D-1075 architect OQ-2 — HarnessEntry uses Box<dyn BehavioralClone>; canonical start/socket_map signatures applied; HarnessError extended with DuplicateKey + BindFailure (NOT new error type); (5) EC-003 updated — explicit HarnessError::DuplicateKey error instead of last-wins (D-1074 PO decision); (6) AC traces updated — BC-TBD placeholders replaced with canonical BC-2.06.017 postcondition/invariant names; (7) OQ-1/OQ-2/OQ-3 marked RESOLVED with D-1074/D-1075 citations; (8) §New-BC Flags section replaced with §BC Flag 2 Resolution (resolved); (9) status: draft → ready; inputs updated to reflect actual prism-dtu-demo-server files (lib.rs/harness.rs/config.rs — no server.rs). |
 | 1.2 | 2026-06-09 | story-writer | D-1075 reconciliation — architect remove-uncertainty scan U-001..U-008 applied. BC reference updated to BC-2.06.017 v1.1 throughout. **U-001:** AC-007 and Task-5 corrected to real `start_on` signature (`&mut self`, `Option<broadcast::Receiver<()>>`, `Option<()>` tls); bind-loop call form `entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?` added verbatim; `iter_mut()` requirement stated. **U-002:** Library table: `prism-dtu-armis`/`prism-dtu-claroty` reclassified from `[dependencies]` to `[dev-dependencies]` (test-only); `src/` code never names clone types; INV-PERIMETER-001 non-breach note added. **U-003+U-007:** Error type disambiguation — `DemoBindError { instance_name, source }` (demo-server) vs `BindError { org_slug, sensor_id, source }` (harness); both new `#[non_exhaustive]` structs added to Architecture Mapping + File Structure + EC-001/EC-003/EC-009. `MultiInstanceBindError` enum added to Architecture Mapping. **U-004:** `MultiInstanceHarness` locked field layout (`socket_map: HashMap<(String,String),SocketAddr>`, `shutdown_tx: broadcast::Sender<()>`, `task_handles: Vec<JoinHandle<()>>`); key is plain `(String,String)` test-infra key (not production OrgKey); `impl Drop` graceful pattern; admin-token map omission noted; AC-004/Story-Level-Goal/Red-Gate-Plan updated; EC-005 aligned. **U-005:** `overlay_wiring` function signature locked (`&MultiInstanceHarness, &std::path::Path`) -> `std::io::Result<()>`; `tempfile` = `[dev-dependencies]` `"3"` literal pin; no tempfile in `src/`. **U-006:** EXPECTED 49→56 (7 new gate errors: 6 E0639 + 1 E0004); explicit Task-6a for non-exhaustive-violation crate wiring (Cargo.toml deps + struct_violations.rs arms + enum_violations.rs arm + ci.yml bump). **U-008:** `axum = "0.7"` and `tokio = { version = "1", features = ["full"] }` literal per-crate pins replacing "workspace version" guidance throughout Library table and Task-3. **Also:** §Locked API (D-1075 reconciliation) subsection added to Architecture Mapping with verbatim canonical Rust signatures for all new types. Token budget updated to ~42,500 (~17% of 256K). Status remains `ready`. |
+| 1.3 | 2026-06-13 | story-writer | D-1143 remove-uncertainty re-run (mandatory pre-TDD per D-1110). Re-baselined non-exhaustive gate count: `EXPECTED` 49→52 base (001-A AC-014 + 001-B grew the gate to 52 since v1.2); target now 52→59 (+7 unchanged: 6 E0639 + 1 E0004). Corrected stale Task-6a preamble: non-exhaustive-violation crate now imports prism-dtu-common (Story A) — demo-server/harness still to be added. All version pins (axum 0.7, tokio 1/full, tempfile 3, anyhow 1, reqwest 0.12), start_on signature, and HarnessError #[non_exhaustive] re-CONFIRMED unchanged. Status remains `ready`. |
