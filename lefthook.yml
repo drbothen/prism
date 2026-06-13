@@ -17,6 +17,42 @@ pre-commit:
 pre-push:
   commands:
     check:
+      # Human-directed optimisation (2026-06-13): docs/asset-only pushes skip the full
+      # `just check` workspace gate (~20 min, 4273 tests) because they cannot affect
+      # build correctness.  This is a FAIL-CLOSED design:
+      #
+      #   - Skip is triggered ONLY when the push file set is non-empty AND every file
+      #     matches the narrow docs/asset allowlist below (positive allowlist, not denylist).
+      #   - Empty file set → gate RUNS (fail-closed: can't determine content, don't skip).
+      #   - Any file NOT matching the allowlist → gate RUNS (code/build file present).
+      #   - Detection failure (git error) → gate RUNS (fail-closed).
+      #
+      # Allowlist covers: *.md, *.tape, *.webm, *.gif, *.png, *.jpg, *.jpeg, *.svg,
+      # *.ico, docs/**, LICENSE*, NOTICE, .mailmap — non-buildable assets only.
+      # Everything else (*.rs, Cargo.toml, Cargo.lock, *.sh, Justfile, lefthook.yml,
+      # .github/workflows/*, rust-toolchain.toml, *.toml, etc.) triggers the full gate.
+      skip:
+        - run: |
+            # Collect push file set. @{push} resolves when a remote tracking branch
+            # exists; fall back to HEAD~1 for branches not yet pushed upstream.
+            FILES=$(git diff --name-only "@{push}..HEAD" 2>/dev/null \
+                    || git diff --name-only "HEAD~1..HEAD" 2>/dev/null \
+                    || true)
+            # Fail-closed: if file set is empty we cannot determine content — run gate.
+            [ -n "$FILES" ] || exit 1
+            # Docs/asset allowlist (positive allowlist — not a denylist).
+            # Matches: *.md *.tape *.webm *.gif *.png *.jpg *.jpeg *.svg *.ico
+            #          docs/** LICENSE LICENSE-* NOTICE .mailmap
+            # Anything else (*.rs, Cargo.toml, *.sh, Justfile, lefthook.yml,
+            # .github/**, rust-toolchain.toml, *.toml, etc.) is a non-match → gate runs.
+            DOCS_PATTERN='^(docs/|LICENSE$|LICENSE-|NOTICE$|\.mailmap$|[^/]+\.(md|tape|webm|gif|png|jpg|jpeg|svg|ico)$)'
+            # grep -vE prints lines that do NOT match the allowlist.
+            # If any such lines exist (non-docs files), the pipeline exit code is 0
+            # for grep -v, so we invert: non-empty non-docs output → skip=false (exit 1).
+            NON_DOCS=$(printf '%s\n' "$FILES" | grep -vE "$DOCS_PATTERN" || true)
+            # If there are any non-docs files, exit 1 → skip is NOT triggered → gate runs.
+            [ -z "$NON_DOCS" ] || exit 1
+            # All files matched the docs allowlist → exit 0 → lefthook skips the command.
       run: just check
 
 # pre-tag hook: runs semver-checks, audit, and deny before every `git tag` invocation.
