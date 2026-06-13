@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.020"
-version: "1.5"
+version: "1.6"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -445,9 +445,14 @@ Adding `fixture-gen = ["prism-dtu-common/fixture-gen"]` to `prism-dtu-threatinte
 and `prism-dtu-nvd/Cargo.toml` is the required Cargo change (per ADR-036 v2.0 §2.3);
 neither crate currently has `chrono` or `fixture-gen` declared.
 
-The `tests/external/perimeter-violation/` compile-fail gate (established by S-PLUGIN-PREREQ-A)
-continues to hold after these constructors are added. No new perimeter-violation exclusions
-are required.
+The DTU perimeter is enforced **structurally**: `prism-dtu-threatintel` and `prism-dtu-nvd`
+declare no dependency on `prism-spec-engine`, `prism-sensors`, or `prism-query` in their
+`Cargo.toml` files, so any forbidden `use` statement is an ordinary E0432 compile error caught
+by the standard workspace build. The `tests/external/perimeter-violation/` gate (established
+by S-PLUGIN-PREREQ-A, BC-2.11.006) covers the **prism-query pub-API perimeter only** and does
+NOT reference the DTU crates; it is irrelevant to this invariant. No separate compile-fail gate
+exists or is needed for the DTU perimeter — Cargo dependency declarations ARE the enforcement
+mechanism.
 
 ### INV-CONSTRUCTION-TIME-INJECTION-001 — Registry Injection Occurs Only at Construction Time
 
@@ -542,7 +547,7 @@ correct implementation.
 - `crates/prism-dtu-nvd/src/state.rs` — `cve_registry: HashMap<String, CveRecord>` (IMMUTABLE, not Mutex-wrapped) — injection target; `CveRecord` with `metrics.cvss_metric_v31[0].cvss_data.base_score: f64 >= 7.0` and `.base_severity: String = "HIGH"` is the injected value type. Lookup via `NvdState::lookup_and_count(&self, cve_id: &str) -> Option<CveRecord>` (not a clone-level method).
 - `crates/prism-dtu-common/src/scenario/mod.rs` — `ScenarioEntityCatalog` definition and `gen_device_cves` (ADR-036 §2.2); `catalog.device_cves` uses `CVE-9999-{:05}` format per `gen_device_cves` doc comment (line 429: `"CVE-9999-{seq:05}"`) and SEC-001 test (`gen_device_cves must emit CVE-9999-{{seq:05}} format`); 5-digit suffix; distinct from the Cyberint BASELINE generator (`crates/prism-dtu-cyberint/src/generator.rs:389`) which uses `CVE-9999-{:04}` (4-digit) per PC-9/`^CVE-9999-\d{4}$`/TV-020-011; scenario-mode Cyberint CVEs are drawn FROM this 5-digit catalog (PC-8), so scenario-mode `cve_id` values are 5-digit; baseline-mode Cyberint CVEs are 4-digit; both are collision-safe (`CVE-9999-` namespace); TV-020-012 confirms catalog IDs are 5-digit (`"CVE-9999-00001"` etc.); these are the CVE IDs injected into NVD (PC-3) and drawn by Cyberint in scenario mode (PC-8)
 - `crates/prism-dtu-cyberint/src/generator.rs` — `generate_cves`: line ~340 generates `cve_name`; v1.3 amends this to use `CVE-9999-` namespace in baseline mode and `catalog.device_cves` in scenario mode (INV-CYBERINT-ALERT-CVE-CORRELATION-001)
-- `tests/external/perimeter-violation/` — compile-fail gate enforcing `INV-PERIMETER-001`; `new_with_scenario` constructors must not introduce forbidden dependencies
+- `tests/external/perimeter-violation/` — compile-fail gate that enforces the **prism-query pub-API perimeter** (BC-2.11.006) ONLY; this crate depends on `prism-query` + `prism-core` and does NOT reference any `prism-dtu-*` crate. The DTU perimeter required by `INV-PERIMETER-001` is enforced structurally: `prism-dtu-threatintel/Cargo.toml` and `prism-dtu-nvd/Cargo.toml` declare no dependency on `prism-spec-engine`, `prism-sensors`, or `prism-query`, making any forbidden `use` an ordinary E0432 compile error in the workspace build.
 
 ## Story Anchor
 
@@ -556,6 +561,7 @@ VP-020-A through VP-020-L (above) — verified by integration/unit tests in S-DE
 
 | Version | Change |
 |---------|--------|
+| v1.6 | BPRL-P24-01 2026-06-13 — INV-PERIMETER-COMPLIANCE-001 + Architecture Anchors enforcement-mechanism prose corrected. The DTU perimeter (threatintel/nvd must not import prism-spec-engine/prism-sensors/prism-query) is enforced **structurally** via Cargo.toml dependency declarations + ordinary E0432 compile errors in the workspace build. The previous prose incorrectly stated that `tests/external/perimeter-violation/` "continues to hold after these constructors are added"; that gate covers the prism-query pub-API perimeter only (BC-2.11.006) and does not reference the DTU crates. Architecture Anchors bullet for `tests/external/perimeter-violation/` corrected to describe its actual scope (prism-query only) and explicitly state that the DTU perimeter is Cargo-structural. Invariant SEMANTICS (no forbidden imports in threatintel/nvd) are UNCHANGED. User-directed prose-correction; no gate build. |
 | v1.5 | BPRL-P22-01 2026-06-13 — exhaustive summary-count sweep (no behavior change). VP Anchors prose: `VP-020-A through VP-020-H` → `VP-020-A through VP-020-L`; `all 8 VPs` → `all 12 VPs`. (Orchestrator-caught: the pass-22 sweep had mis-changed the catalog `{:05}` to `{:04}` by conflating it with the Cyberint baseline generator; reverted — catalog `gen_device_cves` is 5-digit per `gen_device_cves` doc comment line 429 + SEC-001 test + TV-020-012; only the Cyberint BASELINE generator at `generator.rs:389` is 4-digit per PC-9/`^CVE-9999-\d{4}$`/TV-020-011; these are two distinct generators with different digit widths.) All other count/range statements in the document are correct: PC-1..9 (9 postconditions), INVs (7 invariants), TV-020-001..015 (15 test vectors), EC-020-001..015 (15 edge cases), VP-020-A..L (12 VPs) — confirmed by exhaustive grep sweep per POL-32. |
 | v1.4 | BPRL-P14-01 2026-06-13 — spec-internal contradiction fix (no behavior change; code was already correct). PC-9 range literal `rng.gen_range(0..100000)` → `rng.gen_range(0..10000)`. Implementer-directive code block range literal `rng.gen_range(0u32..100000)` → `rng.gen_range(0u32..10000)`. Both now consistent with INV-CYBERINT-ALERT-CVE-CORRELATION-001 baseline clause (`^CVE-9999-\d{4}$`), TV-020-011 (`Every cve_id matches ^CVE-9999-\d{4}$`), and the `{:04}` format specifier. The old `100000` upper bound allowed 5-digit suffixes (n ≥ 10000) for ~90% of draws, violating the `\d{4}` invariant. `rng.gen_range(0..10000)` is bounded to [0, 9999] → `{:04}` always produces exactly 4 digits. Shipped code at `generator.rs:389` was already correct (`0u32..10000`). |
 | v1.3 | D-1117 2026-06-12 — Cyberint alert CVE ↔ NVD correlation + collision-safety (human-directed, production-grade). Added: Description paragraph scoping Cyberint CVE namespace contract. Postcondition 8 (scenario mode: all Cyberint `cve_id` fields drawn from `catalog.device_cves`; cyclic assignment for record count > catalog size; explicit harness wiring change in `harness.rs` and `generator.rs`). Postcondition 9 (baseline/non-scenario mode: `CVE-9999-` namespace required; intentionally non-pivotable; single-line fix for `generator.rs` line 340). INV-CYBERINT-ALERT-CVE-CORRELATION-001 (scenario-mode CVE membership + NVD resolution + universal collision-safety in all modes). Edge cases EC-020-012 through EC-020-015. Test vectors TV-020-011 through TV-020-015. Verification properties VP-020-I through VP-020-L. Architecture Anchors extended with `prism-dtu-cyberint/src/generator.rs` and `prism-dtu-common/src/scenario/mod.rs`. `crates:` frontmatter extended with `prism-dtu-cyberint`. `inputs:` frontmatter extended with `crates/prism-dtu-cyberint/src/generator.rs` and `crates/prism-dtu-common/src/scenario/mod.rs`. H1 title updated to reflect Cyberint scope. |

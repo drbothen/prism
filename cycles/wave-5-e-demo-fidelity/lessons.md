@@ -1184,3 +1184,52 @@ The 2 implementation-misdirecting 5-arg→6-arg task drifts (DRIFT-2/3) were par
 **Outcome:**
 
 D-1129 consistency-sweep closed DRIFT-1/2/3. Story B v2.14→v2.15. BC-INDEX v6.41→v6.42 (annotation-only). CODE UNCHANGED 0863184a. Streak 0/3 UNCHANGED (consistency gate, not adversary pass). Estimated 2–3 adversary passes avoided (each would have found one of DRIFT-1/2/3 and reset the streak). PR-LEVEL pass 23 dispatched next.
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-B: D-1131 — named-enforcement-mechanism claims must be verified to actually exercise what they police; structural Cargo enforcement is categorically distinct from compile-fail gate enforcement (BPRL-P24-01 codification)
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1131
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [enforcement-mechanism-citation] [named-citation-must-resolve] [perimeter-enforcement] [structural-cargo]
+**Classification:** PROCESS-GAP — named enforcement-mechanism citation (`tests/external/perimeter-violation/`) did not actually cover the perimeter it was cited for; the `prism-query` perimeter-violation gate was conflated with the DTU perimeter.
+
+**Entry label:** z17
+
+**What happened:**
+
+PR-LEVEL pass 24 found BPRL-P24-01 LOW [process-gap]: multiple artifacts (AC-016 in story B, BC-2.06.020 INV-PERIMETER-COMPLIANCE-001, Architecture Anchors, and RGT row 16) cited `tests/external/perimeter-violation/` as the enforcement mechanism for `INV-PERIMETER-COMPLIANCE-001` (DTU perimeter: `prism-dtu-threatintel` and `prism-dtu-nvd` must not import `prism-spec-engine`, `prism-sensors`, or `prism-query`).
+
+This was false. The `tests/external/perimeter-violation/` compile-fail crate:
+- Was established by S-PLUGIN-PREREQ-A (BC-2.11.006) to enforce the **prism-query pub-API perimeter**.
+- Depends on `prism-query` + `prism-core`.
+- Contains **zero dependency on any `prism-dtu-*` crate** — it cannot enforce the DTU perimeter.
+
+The DTU perimeter is enforced by an entirely different mechanism: **structural Cargo enforcement**. `prism-dtu-threatintel/Cargo.toml` and `prism-dtu-nvd/Cargo.toml` declare no dependency on the forbidden crates. Any attempt to `use` a type from those crates produces an ordinary E0432 compile error in the standard workspace build.
+
+**Why these two enforcement mechanisms are categorically distinct:**
+
+The `prism-query` perimeter required a dedicated compile-fail gate because a Cargo dependency on `prism-query` itself is legitimate (many crates depend on it), but certain **pub-API surface patterns** within it are forbidden. The violation is invisible to Cargo dependency declarations — the dep is correct, but the usage pattern is wrong. The compile-fail gate catches the usage pattern the standard build cannot.
+
+The DTU perimeter situation is different: `prism-dtu-threatintel` and `prism-dtu-nvd` simply do not have (and must not have) a Cargo dependency on the forbidden crates. Any violation immediately shows as a missing-crate E0432 in the standard build. No separate gate is needed.
+
+The conflation of these two enforcement mechanisms was a reasoning error: both involve "don't use crate X from context Y," but the enforcement mechanisms are structurally different based on whether the Cargo dep is legitimately present or must be absent.
+
+**Human ratification:**
+
+User ratified that structural Cargo/E0432 enforcement is adequate for the DTU perimeter. Building a new compile-fail gate for the DTU perimeter was explicitly rejected — Cargo dependency declarations ARE the enforcement mechanism for this class of perimeter.
+
+**Codified rule (extended from z13-class "anchor must resolve"):**
+
+> **Enforcement-mechanism citations in spec text and test comments must be verified to actually cover the cited target.**
+>
+> The z13-class rule ("named identifiers in specs must exist") is extended to enforcement mechanisms:
+> 1. When a spec, AC, test comment, or Architecture Anchors bullet cites a named test/gate/mechanism as the enforcement of an invariant, the author MUST verify that the named mechanism actually exercises the boundary it polices.
+> 2. **Named cite + wrong scope = false-coverage.** This is a process-gap finding even when the invariant itself holds via a different mechanism.
+> 3. Before citing `tests/external/perimeter-violation/` specifically: its scope is the prism-query pub-API perimeter (BC-2.11.006) ONLY. It does NOT reference DTU crates. For DTU crate perimeters, the enforcement mechanism is Cargo dependency declarations (absent dep → E0432).
+> 4. For structural-Cargo enforced perimeters, the correct citation is: "This constraint is enforced structurally: `<crate>/Cargo.toml` declares no dependency on `<forbidden-crate>`, so any forbidden `use` statement is an ordinary E0432 compile error caught by the standard workspace build." No gate citation is needed or appropriate.
+
+**Outcome:**
+
+BC-2.06.020 v1.5→v1.6: INV-PERIMETER-COMPLIANCE-001 body + Architecture Anchors corrected. Story B v2.15→v2.16: AC-016 + Architecture Compliance + Phase-6 gate item + RGT row 16 corrected. PIVOT-003 v1.7→v1.8: BC-2.06.020 pin synced. Code: implementer commit 15bedc12 — threatintel test comment corrected. Feature HEAD 15bedc12. Streak RESET 1/3→0/3 (LOW finding, but CLEAN(strict)=NO per BC-5.39.001). PR-LEVEL pass 25 NEXT at 15bedc12 (diff changed; re-materialize via `gh pr diff 185`).

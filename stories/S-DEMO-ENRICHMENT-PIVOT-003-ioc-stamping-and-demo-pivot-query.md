@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-12"
-modified: "2026-06-13T00:00:00Z"
+modified: "2026-06-13T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -135,7 +135,7 @@ faithfully demonstrates the production enrichment pivot workflow.
 | BC | Title | Key Clauses |
 |----|-------|-------------|
 | BC-2.06.019 v1.7 | Demo-Server Scenario Progression — Per-Sensor IOC-Surface Masking | PC-4 Per-Sensor IOC-Surface Matrix: Cyberint alerts and CrowdStrike detections carry real-schema IOC fields; Armis/Claroty permanently excluded; `_ioc_value` synthetic filter removed atomically; Route Coverage Table updated |
-| BC-2.06.020 v1.5 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001: scenario IOCs in ScenarioEntityCatalog resolve as Malicious in ThreatIntel; INV-CROSS-DTU-ENTITY-COHERENCE-001: entity IDs coherent across DTU clones; INV-CYBERINT-ALERT-CVE-CORRELATION-001: Cyberint CVE records use catalog IDs in scenario mode, CVE-9999- namespace in all modes |
+| BC-2.06.020 v1.6 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001: scenario IOCs in ScenarioEntityCatalog resolve as Malicious in ThreatIntel; INV-CROSS-DTU-ENTITY-COHERENCE-001: entity IDs coherent across DTU clones; INV-CYBERINT-ALERT-CVE-CORRELATION-001: Cyberint CVE records use catalog IDs in scenario mode, CVE-9999- namespace in all modes |
 
 **VP Citation (U24):** VP-019-A (pure function reproducibility), VP-019-B (stage monotonicity),
 VP-019-C (StageMask completeness), VP-019-G, VP-019-H are BC-2.06.019-internal sub-properties
@@ -370,7 +370,7 @@ REMOVED ROWS (U20 — routes do not exist in actual router):
 | BC-2.06.019 v1.7 (full — authoritative for IOC matrix, Interim State, Route Coverage Table) | ~7,500 |
 | `prism-dtu-crowdstrike/src/generator.rs` make_detection() function + fixtures/detections-detail.json (U19) | ~800 |
 | `prism-dtu-armis/src/generator.rs` (device_cves_first projection, U17/Ruling 1b) | ~600 |
-| BC-2.06.020 v1.5 (enrichment correlation context) | ~3,600 |
+| BC-2.06.020 v1.6 (enrichment correlation context) | ~3,600 |
 | `prism-dtu-cyberint/src/types.rs` (pre + post this story) | ~1,000 |
 | `prism-dtu-cyberint/src/routes/alerts.rs` | ~800 |
 | `prism-dtu-crowdstrike/src/types.rs` | ~1,000 |
@@ -615,6 +615,7 @@ Column in TOML with no DTU equivalent = **P1 CRITICAL**. `_ioc_value` in route h
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.8 | 2026-06-13 | BPRL-P24-01: BC-2.06.020 v1.5→v1.6 pin-sync (DTU-perimeter enforcement prose corrected: structural Cargo/E0432, not the prism-query perimeter-violation gate). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Historical changelog rows left untouched. version 1.7→1.8. |
 | v1.7 | 2026-06-13 | BC-2.06.020 v1.4→v1.5 pin-sync (BPRL-P22-01: VP Anchors prose A-H→A-L / 8→12 VPs; no behavior change). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Historical changelog rows left untouched. version 1.6→1.7. |
 | v1.6 | 2026-06-13 | Pin-sync — BC-2.06.020 v1.3→v1.4 (BPRL-P14-01 RNG range literal correction; POL-23). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Historical changelog rows left untouched. version 1.5→1.6. |
 | v1.5 | 2026-06-12 | Pin-sync — BC-2.06.020 v1.2→v1.3 (D-1117 Cyberint CVE correlation + SEC-001 collision-safety; POL-23). Two live pin sites updated: §Behavioral Contracts BC table row (updated title and added INV-CYBERINT-ALERT-CVE-CORRELATION-001 to key clauses) and §Token Budget BC-2.06.020 context row (~3,000→~3,600). Historical changelog rows left untouched. version 1.4→1.5. |

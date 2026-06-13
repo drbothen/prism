@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.15"
+version: "2.16"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-13T00:00:00Z"
+modified: "2026-06-13T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -144,7 +144,7 @@ different seeds produce coherent but disjoint entity catalogs (INV-CROSS-DTU-ENT
 | BC | Title | Key Invariants |
 |----|-------|----------------|
 | BC-2.06.019 v1.7 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement | INV-PROGRESSION-REPRODUCIBILITY-001, INV-STAGE-MONOTONICITY-001, INV-STAGE-MASK-COMPLETENESS-001, INV-SCENARIO-DISABLED-COMPAT-001, INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 |
-| BC-2.06.020 v1.5 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001, INV-NVD-CVE-CORRELATION-001, INV-CYBERINT-ALERT-CVE-CORRELATION-001, INV-CROSS-DTU-ENTITY-COHERENCE-001, INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001, INV-PERIMETER-COMPLIANCE-001, INV-CONSTRUCTION-TIME-INJECTION-001 |
+| BC-2.06.020 v1.6 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001, INV-NVD-CVE-CORRELATION-001, INV-CYBERINT-ALERT-CVE-CORRELATION-001, INV-CROSS-DTU-ENTITY-COHERENCE-001, INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001, INV-PERIMETER-COMPLIANCE-001, INV-CONSTRUCTION-TIME-INJECTION-001 |
 
 ---
 
@@ -347,7 +347,7 @@ Given a ThreatIntel clone constructed with `new_with_scenario` and a non-scenari
 when a lookup is issued for `"192.0.2.1"`,
 then the response is identical to `ThreatIntelClone::new().lookup("192.0.2.1")` — scenario injection is strictly additive.
 
-AND the compile-fail gate `tests/external/perimeter-violation/` passes with zero new violations after `new_with_scenario` constructors are added. Specifically: neither `prism-dtu-threatintel` nor `prism-dtu-nvd` may import from `prism-spec-engine`, `prism-sensors`, or `prism-query`. `prism-core` is on the allow-list (BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 explicit note).
+AND neither `prism-dtu-threatintel` nor `prism-dtu-nvd` may import from `prism-spec-engine`, `prism-sensors`, or `prism-query` after `new_with_scenario` constructors are added (`prism-core` is on the allow-list per BC-2.06.020 INV-PERIMETER-COMPLIANCE-001). This constraint is enforced STRUCTURALLY: `prism-dtu-threatintel` and `prism-dtu-nvd` declare no dependency on the forbidden crates in their `Cargo.toml` entries, so any forbidden `use` statement is an ordinary E0432 compile error caught by the standard `cargo build`. The compile-fail gate at `tests/external/perimeter-violation/` enforces the `prism-query` pub-API perimeter (BC-2.11.006) only — it has no dependency on or knowledge of the DTU crates and does NOT enforce the DTU perimeter.
 
 Red Gate: `test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate`
 
@@ -447,7 +447,7 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 | 13 | `test_BC_2_06_020_threatintel_ioc_correlation_all_types` | prism-dtu-threatintel | BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 / PC-1, PC-2 | unit |
 | 14 | `test_BC_2_06_020_nvd_cve_correlation_high_cvss_base_score` | prism-dtu-nvd | BC-2.06.020 INV-NVD-CVE-CORRELATION-001 / PC-3, PC-4 | unit |
 | 15 | `test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones` | prism-dtu-demo-server | BC-2.06.020 INV-CROSS-DTU-ENTITY-COHERENCE-001 / PC-5 | integration |
-| 16 | `test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate` | prism-dtu-threatintel + tests/external/perimeter-violation | BC-2.06.020 INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001 + INV-PERIMETER-COMPLIANCE-001 / PC-6 | unit + compile-fail |
+| 16 | `test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate` | prism-dtu-threatintel | BC-2.06.020 INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001 + INV-PERIMETER-COMPLIANCE-001 / PC-6 — passthrough assertion is unit test; perimeter compliance verified structurally via `cargo build` (no forbidden `Cargo.toml` dep → E0432 on violation; `tests/external/perimeter-violation/` covers `prism-query` perimeter only) | unit |
 | 17 | `test_dormant_tenant_seeded_empty_records_not_static_fallback` | prism-dtu-armis (or prism-dtu-crowdstrike) | DormantTenant regression: `fixture_gen_seeded=true + generated_records=[]` must NOT fall back to static JSON — it must return empty response, not static-fixture data | unit |
 | 18 | `test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction` | prism-dtu-demo-server | BC-2.06.019 EC-019-012: archetype/fixture_set contradiction (`compromised_endpoint` × `DormantTenant`, and `healthy` archetype with scenario enabled) returns E-DEMO-003 before any constructor called; guard position: E-DEMO-002 → E-DEMO-006 → **E-DEMO-003** → E-DEMO-004 | unit |
 | 19 | `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones` | prism-dtu-demo-server | BC-2.06.019 PRE-6 / EC-019-013 / TV-019-015: two scenario-enabled clones with same seed but different org_ids returns E-DEMO-006 containing both clone names and org_id values before any constructor called; guard position: E-DEMO-002 → **E-DEMO-006** → E-DEMO-003 → E-DEMO-004 | unit |
@@ -462,10 +462,10 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file, v2.14) | ~9 000 |
+| Story spec (this file, v2.16) | ~9 000 |
 | ADR-036 v2.3 (full) | ~5 800 |
 | BC-2.06.019 v1.7 (full) | ~3 200 |
-| BC-2.06.020 v1.5 (full) | ~3 600 |
+| BC-2.06.020 v1.6 (full) | ~3 600 |
 | Story A spec (substrate context; confirmed merged) | ~3 000 |
 | prism-dtu-common/src/scenario/mod.rs (from Story A + extensions) | ~1 500 |
 | prism-dtu-demo-server/src/{harness,config}.rs (post-Story-A state) | ~2 000 |
@@ -579,7 +579,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Run `cargo check -p prism-dtu-claroty` and `cargo check -p prism-dtu-cyberint` WITHOUT `--features fixture-gen` — both must compile with zero errors (chrono feature-gate verification, MEDIUM-C item)
 - [ ] Sibling-sweep for forbidden 3-arg path in scenario context: `grep -rn "new_with_seed\b" crates/prism-dtu-*/src/clone.rs` — any occurrence inside a `new_with_scenario` body is a violation (must use `new_with_seed_anchored`)
 - [ ] Run `just check` — all 23 Red Gate tests pass; zero clippy warnings; fmt clean
-- [ ] Verify compile-fail gate (test 16) passes with zero new perimeter violations
+- [ ] Verify DTU perimeter (test 16): `cargo build -p prism-dtu-threatintel -p prism-dtu-nvd` compiles with zero E0432 errors involving `prism-spec-engine`, `prism-sensors`, or `prism-query` (structural Cargo enforcement per INV-PERIMETER-COMPLIANCE-001; the `tests/external/perimeter-violation/` compile-fail gate covers `prism-query` perimeter only and is unrelated to this check)
 - [ ] Confirm all 4 `ScenarioConfig` fields consumed in `build_clone_pairs` — zero dead code warnings on `scenario.enabled`, `scenario.archetype`, `scenario.scenario_start_secs`, `scenario.stage_duration_secs`
 
 ---
@@ -620,7 +620,7 @@ is the direct predecessor — merged PR #181 develop@c287b00d (D-1089 2026-06-10
 | `IncidentTimeline`, `IncidentStage` MUST carry `#[non_exhaustive]` as public types in `prism-dtu-common` | CLAUDE.md §Conventions #[non_exhaustive] discipline | ci.yml EXPECTED bump + non-exhaustive-violation/ rows |
 | `IncidentTimeline` threaded via `Arc` (NOT `Arc<Mutex<...>>`) — read-only after construction | ADR-036 v2.3 §2.3 | Adversary: grep for Mutex<IncidentTimeline> |
 | `NvdState.cve_registry` is an immutable `HashMap` (NOT Mutex-wrapped); built entirely at construction time | ADR-036 v2.3 §2.3 + BC-2.06.020 PC-3 | Adversary: grep for Mutex<.*cve_registry> |
-| `new_with_scenario` for ThreatIntel/NVD must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query` | BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 + ADR-036 v2.3 §2.5 | Compile-fail gate `tests/external/perimeter-violation/` |
+| `new_with_scenario` for ThreatIntel/NVD must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query` | BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 + ADR-036 v2.3 §2.5 | Structural Cargo enforcement: forbidden crates absent from `prism-dtu-threatintel`/`prism-dtu-nvd` `Cargo.toml`; any forbidden `use` is a standard E0432 compile error. The `tests/external/perimeter-violation/` gate covers `prism-query` perimeter only (BC-2.11.006). |
 | CVSS path: `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` (field `cvss_metric_v31` is `Option<Vec<CvssMetricV31>>` — unwrap the Option) and `.base_severity: String` — implementer MUST read `crates/prism-dtu-nvd/src/types.rs` | ADR-036 v2.3 §1.3 + §2.3 | Adversary: read types.rs before review; check test assertions |
 | `stage_duration_secs` config array has exactly 4 entries for the 5-stage timeline (stages 1-4 thresholds; stage 0 always 0) | ADR-036 v2.3 §2.2 + BC-2.06.019 PC-2 | Tests 3, 10 |
 | E-DEMO-002, E-DEMO-006, E-DEMO-003, and E-DEMO-004 all detected BEFORE any clone constructor is called in `build_clone_pairs`; canonical guard order: E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype / archetype×fixture_set contradiction) → E-DEMO-004 (missing org_id) | ADR-036 v2.3 §2.4 + BC-2.06.019 PRE-5 / PRE-6 + error-taxonomy v1.78 | Tests 9, 10, 18, 19 |
@@ -763,6 +763,7 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.16 | 2026-06-13 | BPRL-P24-01: AC-016 perimeter-enforcement prose corrected (structural Cargo/E0432, not the prism-query perimeter-violation gate); BC-2.06.020 v1.5→v1.6 pin-sync. Invariant requirement unchanged; counts unchanged (19 ACs / 23 RGT). |
 | v2.15 | 2026-06-13 | Consistency-validator DRIFT-2/3: CyberintClone::new_with_scenario 5-arg→6-arg (+`catalog: &ScenarioEntityCatalog`) in three sites: (1) Phase-2 Cyberint constructor task — signature updated to 6-arg with note that `catalog` is threaded to `generate_with_catalog` for PC-8 CVE correlation (AC-019/VP-020-K pivot chain); (2) Phase-4 `build_clone_pairs` Cyberint call — `new_with_scenario(…, &catalog)` 6-arg with explicit note; (3) FSR table row for `crates/prism-dtu-cyberint/src/clone.rs` — description updated to 6-arg with `catalog: &ScenarioEntityCatalog` and PC-8 annotation. Aligns task/FSR with AC-019, BC-2.06.020 PC-8, STORY-INDEX D-1117 entry, and shipped code (`crates/prism-dtu-cyberint/src/clone.rs` new_with_scenario 6-arg). Other 4 operational clones (Armis/CrowdStrike/Claroty/ThreatIntel/NVD) 5-arg descriptions unchanged. No behavior/count change (19 ACs / 23 RGT). |
 | v2.14 | 2026-06-13 | BC-2.06.020 v1.4→v1.5 pin-sync (BPRL-P22-01: VP Anchors prose A-H→A-L / 8→12 VPs; no behavior change). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Story spec self-reference v2.12→v2.14. counts unchanged (19 ACs / 23 RGT). |
 | v2.13 | 2026-06-13 | BPRL-P15-01 closure: Phase-6 gate instruction stale RGT count 19→23 (canonical count per frontmatter/table/STORY-INDEX). Exhaustive count-prose sweep (TD-VSDD-060): all other `\b19\b` hits classified as test-index labels, AC-count (correct), or historical changelog rows — no additional fixes required. No behavior/count change; red_gate_tests stays 23, acceptance_criteria_count stays 19. |
