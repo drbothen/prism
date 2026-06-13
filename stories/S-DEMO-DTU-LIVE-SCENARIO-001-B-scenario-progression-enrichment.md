@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.12"
+version: "2.13"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -578,7 +578,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Run SAP-1 probe (CLAUDE.md §SAP-1): `rg 'event_type\s*=' crates/ --type rust` — verify any new `event_type` emissions have BC-2.16.002 catalog rows; if NO new emissions added, state explicitly in PR description
 - [ ] Run `cargo check -p prism-dtu-claroty` and `cargo check -p prism-dtu-cyberint` WITHOUT `--features fixture-gen` — both must compile with zero errors (chrono feature-gate verification, MEDIUM-C item)
 - [ ] Sibling-sweep for forbidden 3-arg path in scenario context: `grep -rn "new_with_seed\b" crates/prism-dtu-*/src/clone.rs` — any occurrence inside a `new_with_scenario` body is a violation (must use `new_with_seed_anchored`)
-- [ ] Run `just check` — all 19 Red Gate tests pass; zero clippy warnings; fmt clean
+- [ ] Run `just check` — all 23 Red Gate tests pass; zero clippy warnings; fmt clean
 - [ ] Verify compile-fail gate (test 16) passes with zero new perimeter violations
 - [ ] Confirm all 4 `ScenarioConfig` fields consumed in `build_clone_pairs` — zero dead code warnings on `scenario.enabled`, `scenario.archetype`, `scenario.scenario_start_secs`, `scenario.stage_duration_secs`
 
@@ -763,6 +763,7 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.13 | 2026-06-13 | BPRL-P15-01 closure: Phase-6 gate instruction stale RGT count 19→23 (canonical count per frontmatter/table/STORY-INDEX). Exhaustive count-prose sweep (TD-VSDD-060): all other `\b19\b` hits classified as test-index labels, AC-count (correct), or historical changelog rows — no additional fixes required. No behavior/count change; red_gate_tests stays 23, acceptance_criteria_count stays 19. |
 | v2.12 | 2026-06-13 | BPRL-P14-01 closure: AC-019 baseline RNG range literal 0..100000→0..10000 (matches ^CVE-9999-\d{4}$ invariant + code); BC-2.06.020 v1.3→v1.4 pin-sync. No behavior change; counts unchanged (19 ACs / 23 RGT). |
 | v2.11 | 2026-06-13 | BPRL-P12-01 closure: VP-020-K integration test relocated cyberint→demo-server (genuine NvdState::lookup_and_count end-to-end pivot; redundant duplicate-named cyberint membership test removed); red_gate_tests 23 UNCHANGED. AC-019 bullet updated: crate cite changed from `prism-dtu-cyberint` (or `prism-dtu-demo-server`) → definitively `prism-dtu-demo-server` with test file `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`. RGT table row 22 crate column: `prism-dtu-cyberint` → `prism-dtu-demo-server`; test file added inline. FSR table: new CREATE row for `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`. Token Budget story spec v2.10→v2.11. No BC version change (BC-2.06.020 stays v1.3). version 2.10→2.11. |
 | v2.10 | 2026-06-12 | D-1117 — AC-019 added: Cyberint alert CVE correlation + SEC-001 collision-safety; BC-2.06.020 v1.2→v1.3. AC-019 covers: (a) scenario mode — every Cyberint CVE-surface record's `cve_id` ∈ `catalog.device_cves` (cyclic when record count > catalog size); end-to-end pivot chain: `cve_id → NvdState::lookup_and_count → base_score >= 7.0`; (b) baseline/non-scenario mode — `cve_id` uses `CVE-9999-` namespace (collision-safe; intentionally non-pivotable; NVD 404 is correct); (c) universal: no real-year (`CVE-20xx-*`) CVE IDs emitted from any generation path. Four Red Gate tests added (verbatim names from implementer commit f0b6b8c7): `test_BC_2_06_020_cyberint_baseline_cve_uses_cve_9999_namespace` (TV-020-011/VP-020-I), `test_BC_2_06_020_cyberint_scenario_cve_ids_from_catalog` (TV-020-012/VP-020-J), `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` (TV-020-013/VP-020-K), `test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment` (TV-020-014/VP-020-L). SEC-001 note: `catalog.device_cves` uses `CVE-9999-{:05}` per `gen_device_cves`; `test_sec_001_device_cves_use_unambiguous_synthetic_year` covers catalog side; AC-019 covers Cyberint generator side. BC table row + Token Budget updated v1.2→v1.3. verification_properties extended with VP-020-I..L. acceptance_criteria_count 18→19; red_gate_tests 19→23. version 2.9→2.10. |

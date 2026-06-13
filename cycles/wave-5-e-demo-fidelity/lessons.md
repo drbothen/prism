@@ -938,3 +938,43 @@ This probe costs one arithmetic check per range+regex pair. It should be part of
 **Outcome:**
 
 BC-2.06.020 v1.3→v1.4: PC-9 implementer directive `0..100000`→`0..10000`. Story B v2.11→v2.12: AC-019 literal `0..100000`→`0..10000`; BC-2.06.020 pin v1.3→v1.4; 19 ACs / 23 RGTs UNCHANGED. PIVOT-003 v1.5→v1.6: BC-2.06.020 pin v1.3→v1.4. Feature HEAD 7ddc0a51 CODE UNCHANGED. BC-INDEX v6.38→v6.39. STORY-INDEX v2.364→v2.365. PR-LEVEL streak RESET 1/3→0/3. Pass 15 NEXT.
+
+---
+
+## (z12) [process-gap] Count-bump bursts must sweep ALL prose carriers of the RGT count, including task-checklist gate instructions and verifier-facing directives — not just frontmatter and the RGT table
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1121 (BPRL-P15-01 SPEC-ONLY: story B Phase-6 gate instruction stale "19 Red Gate tests")
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [count-propagation] [gate-instruction] [sweep-discipline]
+**Classification:** PROCESS-GAP — a count-bump burst (D-1117: red_gate_tests 19→23) updated the frontmatter `red_gate_tests` field and the Phase-6 gate table (now 23 rows), but did not update a prose gate instruction in the same story that said "all 19 Red Gate tests pass." Two consecutive passes (pass 14 = D-1120 BPRL-P14-01 RNG literal, pass 15 = D-1121 BPRL-P15-01 gate instruction) each found stale literals/counts in directive and checklist PROSE that the canonical count-bump missed.
+
+**(z12) [process-gap] When a story's `red_gate_tests` count is bumped, the sweep MUST include task-checklist gate instructions ("all N Red Gate tests pass"), implementer-directive literals, Phase-N gate task bodies, and verifier-facing prose — not just frontmatter + the RGT table rows.** The RGT table is authoritative, but prose gate instructions that cite "all N tests" are used by agents to DRIVE verification workflows. A stale count in a gate instruction allows a literal verifier to declare a gate passed after running fewer tests than required.
+
+**What happened:** D-1117 raised `red_gate_tests` from 19 to 23 by adding AC-019 and VP-020-I..VP-020-L. The burst correctly updated:
+- `red_gate_tests: 23` (frontmatter)
+- The RGT table (new rows RGT-20 through RGT-23 added)
+- `acceptance_criteria_count: 19` updated to `19` (AC count correctly unchanged)
+
+But it did NOT update:
+- The Phase-6 gate instruction prose (line ~581): "Verify all 19 Red Gate tests pass in the fresh worktree" — this stale count persisted through passes 12, 13, 14 undetected and was finally caught at pass 15.
+
+**Root cause:** The D-1117 sweep focused on the frontmatter + the explicit RGT table body. Gate instruction prose in task checklists ("all N Red Gate tests pass") is a third category of count carrier that was not in the sweep scope. Similarly, the z11 lesson (D-1120) found that implementer directive literals in BC prose were also missed by the canonical count-bump sweep. Both passes 14 and 15 found the same class of miss: count literals embedded in directive/checklist prose outside the frontmatter and explicit table.
+
+**Canonical rule (codified):**
+
+**Standing sweep discipline for any count-bump burst affecting `red_gate_tests` or `acceptance_criteria_count`:** Before declaring the bump complete, run a grep for the OLD count value (`\bN\b`) across the ENTIRE story file. For each hit, classify it:
+
+1. **Frontmatter field** (e.g., `red_gate_tests: 19`): update.
+2. **Table row or header** (e.g., `## 23 Red Gate Tests`): update.
+3. **Changelog entry** (historical immutable): leave.
+4. **Task-checklist gate instruction** (e.g., "Verify all 19 Red Gate tests pass"): update.
+5. **Implementer directive literal** (e.g., `rng.gen_range(0..10000)`): cross-check against spec invariants (lesson z11 scope).
+6. **AC body count** (e.g., "acceptance_criteria_count is 19"): update if this count is being bumped.
+7. **RGT row index labels** (RGT-1 through RGT-19): leave (these are row IDs, not counts).
+
+Categories 4 and 5 are the most-frequently-missed because they look like narrative prose, not structured data. The sweep must not stop after updating frontmatter and the table.
+
+**Outcome:**
+
+Story B v2.12→v2.13: Phase-6 gate instruction "19"→"23". Exhaustive `\b19\b`/`\b18\b` classification sweep confirmed this was the sole stale gate-count prose; all other `19` occurrences are AC count (correct, unchanged) or RGT row-index labels (correct, unchanged) or historical changelog entries (immutable). red_gate_tests stays 23; acceptance_criteria_count stays 19. Feature HEAD 7ddc0a51 CODE UNCHANGED. BC-INDEX v6.39→v6.40. STORY-INDEX v2.365→v2.366. Streak 0/3. Pass 16 NEXT.
