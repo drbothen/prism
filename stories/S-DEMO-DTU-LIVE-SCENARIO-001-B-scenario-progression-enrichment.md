@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.5"
+version: "2.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-12T23:00:00Z"
+modified: "2026-06-12T19:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -143,7 +143,7 @@ different seeds produce coherent but disjoint entity catalogs (INV-CROSS-DTU-ENT
 
 | BC | Title | Key Invariants |
 |----|-------|----------------|
-| BC-2.06.019 v1.3 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement | INV-PROGRESSION-REPRODUCIBILITY-001, INV-STAGE-MONOTONICITY-001, INV-STAGE-MASK-COMPLETENESS-001, INV-SCENARIO-DISABLED-COMPAT-001, INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 |
+| BC-2.06.019 v1.5 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement | INV-PROGRESSION-REPRODUCIBILITY-001, INV-STAGE-MONOTONICITY-001, INV-STAGE-MASK-COMPLETENESS-001, INV-SCENARIO-DISABLED-COMPAT-001, INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 |
 | BC-2.06.020 v1.2 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD | INV-THREATINTEL-IOC-CORRELATION-001, INV-NVD-CVE-CORRELATION-001, INV-CROSS-DTU-ENTITY-COHERENCE-001, INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001, INV-PERIMETER-COMPLIANCE-001, INV-CONSTRUCTION-TIME-INJECTION-001 |
 
 ---
@@ -429,7 +429,7 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 |------|-----------------|
 | Story spec (this file, v2.3) | ~8 200 |
 | ADR-036 v2.3 (full) | ~5 800 |
-| BC-2.06.019 v1.3 (full) | ~3 200 |
+| BC-2.06.019 v1.5 (full) | ~3 200 |
 | BC-2.06.020 v1.2 (full) | ~3 000 |
 | Story A spec (substrate context; confirmed merged) | ~3 000 |
 | prism-dtu-common/src/scenario/mod.rs (from Story A + extensions) | ~1 500 |
@@ -727,6 +727,8 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.7 | 2026-06-12 | Micro-sweep — BC-2.06.019 v1.4→v1.5 pin-sync (BPRL-P5-01 Route Coverage Table corrections + PC-4 5-arg prose; POL-23). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget row. No AC changes; acceptance_criteria_count 18 UNCHANGED; red_gate_tests 19 UNCHANGED. version 2.6→2.7. |
+| v2.6 | 2026-06-12 | Pin-sync — BC-2.06.019 v1.3→v1.4 per D-1109. PC-4 amended: per-sensor IOC-surface matrix (Cyberint/CrowdStrike detections YES but deferred to S-DEMO-ENRICHMENT-PIVOT-003; Armis/Claroty permanently excluded); IOC-stamping deferred to S-DEMO-ENRICHMENT-PIVOT-003; detections/armis-alerts stage-guards added in-PR at bc0f36c5. Two live pin sites updated: §Behavioral Contracts BC table row (v1.3→v1.4) and §Token Budget row (v1.3→v1.4). No AC changes; acceptance_criteria_count 18 UNCHANGED; red_gate_tests 19 UNCHANGED. version 2.5→2.6. |
 | v2.5 | 2026-06-12 | Pin-sync — BC-2.06.020 v1.1→v1.2 (B-P7-02 closure). OBS-2 micro-burst (BC-INDEX v6.29) bumped BC-2.06.020 v1.1→v1.2 after the story body was last pinned at v2.4; v2.4 propagated the BC-2.06.019 v1.2→v1.3 bump but missed the 020 bump. Both live pin sites updated: §Behavioral Contracts BC table row (line 147) and §Token Budget row. No AC changes; acceptance_criteria_count 18 UNCHANGED; red_gate_tests 19 UNCHANGED. version 2.4→2.5. STORY-INDEX row v2.4→v2.5. |
 | v2.4 | 2026-06-12 | Micro-amendment — LOCAL pass-5 findings B-P5-02 (story half) + B-P5-04. B-P5-02: AC-010 BC cite corrected — PO burst a45130fd renumbered BC-2.06.019 preconditions contiguous 1-8 (PRE-6=org_id guard, PRE-7=archetype guard, PRE-8=build-before-start); AC-010 trace was `precondition 6` (archetype guard) → corrected to `precondition 7`. POL-29 sweep confirmed: all remaining `precondition 6` / `PRE-6` cites in story body correctly reference the org_id guard (unchanged). B-P5-04: ArmisClone::new_with_scenario corrected from `-> Self` (infallible) to `-> anyhow::Result<Self>` (fallible) — Armis new_with_seed_anchored is fallible; this flows through to new_with_scenario. Fixed everywhere: risk_mitigations line 69 (expanded fallible list: NVD + Armis + Cyberint), risk_mitigations line 80 (per-clone return-type table: CrowdStrike/Claroty `-> Self`; Armis/Cyberint/NVD `-> anyhow::Result<Self>`; ThreatIntel `-> Self`), AC-007 body (added `fallible, -> anyhow::Result<Self>` qualifier), Phase 2 task (Armis constructor return type), FSR row for prism-dtu-armis/src/clone.rs. CrowdStrike/Claroty/ThreatIntel `-> Self` are correct and unchanged. BC-2.06.019 version pin bumped v1.2→v1.3 in BC table and Token Budget (PO burst a45130fd). error-taxonomy pin bumped v1.77→v1.78 in AC-018 and Architecture Compliance Rules (PO burst a45130fd). acceptance_criteria_count 18 UNCHANGED; red_gate_tests 19 UNCHANGED; version 2.3→2.4. |
 | v2.3 | 2026-06-12 | Micro-amendment — PO burst 13c1b17a OBS-1 work-order: BC-2.06.019 v1.2 PRE-6 org_id-equality guard added. AC-018 (traced to BC-2.06.019 PRE-6 / EC-019-013 / TV-019-015): `build_clone_pairs` rejects scenario-enabled clones with mismatched `org_id` values → `Err` containing `"E-DEMO-006"` with both clone names and org_id values, BEFORE any clone constructor. Verbatim message from error-taxonomy v1.77: `"demo-server: E-DEMO-006: scenario clones '{clone_a}' (org_id={org_id_a}) and '{clone_b}' (org_id={org_id_b}) have different org_ids; cross-DTU coherence requires all scenario-enabled clones to share the same org_id"`. Full guard order updated everywhere it appears (AC-017, Architecture Compliance Rules, Phase-4 tasks, NIT-1 verification): `E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype) → E-DEMO-004 (missing org_id)`. Red Gate test 19 (`test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones`) added. EC-015 (EC-019-013) added to Edge Cases table. BC-2.06.019 version pin bumped v1.1→v1.2 in BC table. VP-019-I added to verification_properties frontmatter. Token Budget story-spec ~7 700→~8 200; BC-2.06.019 ~3 000→~3 200; test-stubs 18→19 × 40 lines; total ~36 400→~37 200. acceptance_criteria_count 17→18; red_gate_tests 18→19; version 2.2→2.3. STORY-INDEX row synced v2.2→v2.3. |

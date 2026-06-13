@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
-version: "1.3"
+version: "1.5"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-09"
+modified: "2026-06-12"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -170,13 +170,18 @@ This function:
 There is NO background mutator task, NO `Arc<AtomicU64>` stage counter, NO `Mutex<StageIndex>`
 in any clone state struct. Each request independently computes the current stage.
 
-### Postcondition 4 — Generator-backed clones hold `Option<Arc<IncidentTimeline>>` and project per-request
+### Postcondition 4 — Per-Sensor IOC-Surface Masking and Route-Level Stage Guards
 
 Each generator-backed clone (Armis, CrowdStrike, Claroty, Cyberint) that is constructed
 via the scenario path gains:
 
 - An `Option<Arc<IncidentTimeline>>` field in its state struct (e.g., `ArmisState.timeline`,
-  `CrowdstrikeState.timeline`). Constructed via `<CloneType>::new_with_scenario(seed, archetype, org_id, Arc<IncidentTimeline>)`.
+  `CrowdstrikeState.timeline`). Constructed via the 5-arg form
+  `<CloneType>::new_with_scenario(seed, archetype, org_id, Arc<IncidentTimeline>, time_anchor: DateTime<Utc>)`.
+  Return types differ per clone: CrowdStrike and Claroty return `-> Self`; Armis, Cyberint, and NVD
+  return `-> anyhow::Result<Self>` (ADR-036 v2.3 §2.4). The `time_anchor` is derived ONCE in
+  `build_clone_pairs` (typically from `Utc::now()` or config-provided epoch) so all clones in the
+  same client config share the same timestamp anchor for era-coherent generated fixtures.
 - Route handlers implementing the scenario path:
   1. Acquire the `Arc<IncidentTimeline>` from state.
   2. Call `current_stage_index(&timeline, Utc::now().timestamp())` → `stage_idx`.
@@ -186,16 +191,83 @@ via the scenario path gains:
   5. The `FixtureSet` itself is generated ONCE at construction time (same as BC-2.06.018 §PC-1).
      No re-generation occurs per request. The stage mask is a filter over immutable data.
 
-The filtering semantics per entity type:
+#### General Filtering Semantics (Non-IOC Entity Types)
+
 - `primary_device=false`: the device with ID `catalog.primary_device_id` is excluded from
   `/api/v1/devices` (Armis), `/devices/v2` (CrowdStrike), and equivalent device endpoint responses.
 - `lateral_devices=false`: devices with IDs in `catalog.lateral_devices` are excluded.
-- `ioc_hashes=false`: alert and detection records referencing `catalog.ioc_hashes` are excluded.
-- `ioc_ips=false`, `ioc_domains=false`: alert/detection records referencing those IOCs are excluded.
 - `device_cves=false`: CVE-related enrichment fields on device records are omitted or set to `[]`.
 - `primary_device=true` at `Containment` stage: `containment_status` field for the primary device
   is `"contained"` (the pre-built `FixtureSet` record already carries this value per the
   `CompromisedEndpoint` generator; the Containment stage makes it visible).
+
+#### Per-Sensor IOC-Surface Matrix
+
+The `StageMask.ioc_*` fields govern IOC visibility only for sensors whose real API surfaces
+native IOC data. Which sensors carry IOC fields is determined by the per-sensor IOC-surface
+matrix below, which is the authoritative enumeration for this BC and for the story spec of
+S-DEMO-ENRICHMENT-PIVOT-003.
+
+| Sensor | IOC-Surface | Real-Schema Field Path(s) | IOC Types Supported | Implementation Story | Fidelity Basis |
+|--------|-------------|---------------------------|---------------------|---------------------|----------------|
+| Cyberint alerts | YES (deferred) | `ioc.value` (single inline), `iocs[].value` (list), `alert_data.ip`, `alert_data.domain`, `alert_data.url` | ip, domain, url, hash | S-DEMO-ENRICHMENT-PIVOT-003 | Real Cyberint API populates `ioc`/`iocs[]` and typed `alert_data.*` observables per real-API research (research-agent 2026-06-12: Cyberint portal docs, ThreatQ/Elastic field maps) |
+| CrowdStrike detections | YES (deferred) | `behaviors[].ioc_value` (on detection records, NOT on host/device records) | hash, domain, filename, registry, cmdline — NOT ipv4/ipv6 (IPs only appear on streaming NetworkAccesses shape, not detection records) | S-DEMO-ENRICHMENT-PIVOT-003 | Real FalconPy SDK / CrowdStrike Detect API `behaviors[]` array carries `ioc_type`/`ioc_value`/`ioc_source`/`ioc_description` per real-API research (research-agent 2026-06-12: falconpy SDK, XSOAR/Elastic field maps) |
+| CrowdStrike devices (hosts) | NO | — | — | — | Host/device records do not carry IOC fields; IOCs live on detection records only |
+| Armis alerts | NO (permanent) | — | — | — | Armis alert payloads are reference-only (deviceIds, activityUUIDs, endpoints). No structured IOC fields in the real Armis API. Fabricating IOC fields would violate the DTU=True-DTU fidelity principle (ADR-031). This exclusion is permanent — not a deferral. |
+| Claroty xDome alerts | NO (permanent) | — | — | — | Claroty alerts carry IP addresses only as free text in `alert_name`; no structured IOC schema in the real API. Fabricating structured IOC fields would violate ADR-031. This exclusion is permanent — not a deferral. |
+
+**IOC filtering semantics for sensors WITH IOC surface (Cyberint, CrowdStrike detections):**
+
+- `ioc_hashes=false`: detection records where `behaviors[].ioc_value` matches a value in
+  `catalog.ioc_hashes` (CrowdStrike), or alert records where `ioc.value` / `iocs[].value` matches
+  a hash-type IOC in `catalog.ioc_hashes` (Cyberint), are withheld from the response.
+- `ioc_ips=false`: Cyberint alert records where `ioc.value`, `iocs[].value`, or `alert_data.ip`
+  matches a value in `catalog.ioc_ips` are withheld. CrowdStrike detections: not applicable
+  (CrowdStrike `behaviors[]` does not carry ipv4/ipv6 IOC types).
+- `ioc_domains=false`: Cyberint alert records where `ioc.value`, `iocs[].value`, or
+  `alert_data.domain` matches a value in `catalog.ioc_domains` are withheld. CrowdStrike
+  detections: `behaviors[].ioc_value` with `ioc_type = "domain"` matching `catalog.ioc_domains`
+  are withheld.
+
+**Sensors WITHOUT IOC surface (Armis, Claroty): IOC masking does not apply.** The `ioc_*`
+StageMask fields are ignored for these sensors at all stages; they have no IOC-bearing records
+to filter.
+
+#### Interim State (Until S-DEMO-ENRICHMENT-PIVOT-003)
+
+Until S-DEMO-ENRICHMENT-PIVOT-003 ships:
+
+- The Cyberint alerts route (`crates/prism-dtu-cyberint/src/routes/alerts.rs`) contains a
+  synthetic `_ioc_value` / `_ioc_type` filter that matches a non-real field injected only by
+  injection tests. This filter is a forward-provision stub: it is exercised only by those
+  injection tests and has no effect on real-schema alert records (which carry no `_ioc_value`
+  field). It does NOT represent the real Cyberint IOC schema.
+- CrowdStrike detections route (added in commit `bc0f36c5`) carries the `stage_idx > 0` guard
+  (see Route Coverage Table below) but does NOT yet stamp `behaviors[].ioc_*` fields on
+  fixture records. The IOC-field stamping is deferred to S-DEMO-ENRICHMENT-PIVOT-003.
+- S-DEMO-ENRICHMENT-PIVOT-003 removes the `_ioc_value` synthetic filter atomically when it
+  adds the real-schema `ioc` / `iocs[]` / `alert_data.*` fields to the Cyberint `Alert` struct.
+  The synthetic filter and the real-schema filter MUST NOT coexist — the story removes the
+  synthetic one in the same commit that adds the real one.
+
+#### Route Coverage Table
+
+Every DTU clone route that is governed by a `StageMask` field is enumerated here. This table is
+the authoritative cross-reference between StageMask fields and their implementation sites.
+**Standing rule:** any future story adding or modifying a StageMask-relevant route MUST extend
+or update this table in the same commit. Failure to do so is a process-gap finding of severity
+HIGH (consistent with BPRL-P4-01 root-cause: the detection route was not enumerated, causing
+the production-inert filter to be undetected for one full review cycle).
+
+| StageMask Field | DTU Clone | Route File | Route Path | Guard Mechanism | Status |
+|-----------------|-----------|------------|------------|-----------------|--------|
+| `primary_device`, `lateral_devices` | prism-dtu-armis | `routes/devices.rs` | `GET /api/v1/devices` | `stage_idx > 0` for primary; `mask.lateral_devices` for lateral | ACTIVE (pre-bc0f36c5, B-P1-01) |
+| `primary_device`, `lateral_devices` | prism-dtu-armis | `routes/search.rs` | `GET /api/v1/search` | `stage_idx > 0` for primary; `mask.lateral_devices` for lateral (added commit bc0f36c5) | ACTIVE |
+| `primary_device`, `lateral_devices` | prism-dtu-armis | `routes/alerts.rs` | `GET /api/v1/alerts` | `stage_idx > 0` for primary; `mask.lateral_devices` for lateral (added commit bc0f36c5) | ACTIVE |
+| `primary_device`, `lateral_devices` | prism-dtu-crowdstrike | `routes/hosts.rs` | `GET /devices/queries/devices/v1` and `GET /devices/entities/devices/v2` | `stage_idx > 0` for primary; `mask.lateral_devices` for lateral | ACTIVE (pre-bc0f36c5, B-P1-01) |
+| `ioc_hashes`, `ioc_ips`, `ioc_domains` | prism-dtu-cyberint | `routes/alerts.rs` | `GET /api/v1/alerts` (also registered for POST via same handler — confirmed routes/alerts.rs) | Synthetic `_ioc_value` filter (interim) → replaced by real-schema filter in S-DEMO-ENRICHMENT-PIVOT-003 | INTERIM — see §Interim State |
+| `ioc_hashes` | prism-dtu-crowdstrike | `routes/detections.rs` | `GET /detects/queries/detects/v1` (list IDs) and `POST /detects/entities/summaries/GET/v1` (batch summaries — confirmed routes/mod.rs) | `stage_idx > 0` guard on both list and summary routes (added commit bc0f36c5); IOC-field stamping deferred to S-DEMO-ENRICHMENT-PIVOT-003 | STAGE-GUARD ACTIVE, IOC-STAMP DEFERRED |
+| (no IOC surface) | prism-dtu-claroty | `routes/alerts.rs` | `POST /api/v1/alerts` (confirmed clone.rs) | EXEMPT — no structured IOC fields in real Claroty API; device_id not emitted on alert records; relation via separate endpoint | PERMANENT EXEMPT |
 
 ### Postcondition 5 — Operator `scenario_start_secs` synchronizes cross-DTU timelines
 
@@ -473,6 +545,8 @@ VP-019-A through VP-019-I (above) — verified by integration/unit tests in S-DE
 
 | Version | Change |
 |---------|--------|
+| v1.5 | PO fix-burst 2026-06-12 (BPRL-P5-01) — Route Coverage Table corrected to match commit-verified router ground truth. (1) DELETED phantom row `prism-dtu-crowdstrike / routes/alerts_search.rs / GET /alerts/queries/alerts/v2 (in:alerts branch)` — no such file or route exists in prism-dtu-crowdstrike (routes/: mod.rs, oauth.rs, writes.rs, hosts.rs, detections.rs); "in:alerts" is Armis AQL terminology mis-attributed to CrowdStrike. (2) CORRECTED crowdstrike detections summary row: route corrected from `GET /detects/entities/summaries/v1` (wrong method + path) to `POST /detects/entities/summaries/GET/v1` (confirmed routes/mod.rs). (3) ADDED missing Armis search row: `routes/search.rs / GET /api/v1/search / stage_idx > 0 + mask.lateral_devices guard` — StageMask-relevant route guarded in commit bc0f36c5 but never enumerated (exact POL-33 omission class). (4) TIGHTENED lateral wording: all rows now state `mask.lateral_devices` (the actual guard mechanism) instead of `stage_idx >= 2` (behaviorally equivalent but imprecise). (5) Corrected CrowdStrike device rows to accurate route paths: `GET /devices/queries/devices/v1` and `GET /devices/entities/devices/v2` (confirmed routes/mod.rs + hosts.rs). (6) Corrected Claroty alerts path from `GET /xdome/api/v1/alerts` to `POST /api/v1/alerts` (confirmed clone.rs). (7) PC-4 prose updated: 4-arg `new_with_scenario(seed, archetype, org_id, Arc<IncidentTimeline>)` → 5-arg form `(seed, archetype, org_id, Arc<IncidentTimeline>, time_anchor: DateTime<Utc>)` per ADR-036 v2.3; per-clone return type split noted (CrowdStrike `-> Self`; Armis/Cyberint/NVD `-> anyhow::Result<Self>`) per code-verified signatures in clone.rs. |
+| v1.4 | PO burst 2026-06-12 (D-1109, WO-D1109) — PC-4 redesigned from a single blanket IOC-on-alert clause to a full per-sensor IOC-surface matrix. Root cause: BPRL-P4-01 (MED) — BC-2.06.019 v1.3 PC-4's IOC filter was production-inert because no DTU generator stamped IOC fields using real API schema field names; the Cyberint `_ioc_value` filter matched only a synthetic injected field. Resolution: (1) Replaced blanket clause with the Per-Sensor IOC-Surface Matrix (research-agent 2026-06-12: falconpy SDK, Cyberint portal docs, ThreatQ/XSOAR/Elastic field maps); Cyberint alerts (real fields: `ioc.value`, `iocs[].value`, `alert_data.ip/domain/url`) and CrowdStrike detections (`behaviors[].ioc_value`; hash/domain/filename/registry/cmdline; NOT ipv4/ipv6) carry IOC data per real API; Armis and Claroty permanently excluded on ADR-031 fidelity grounds. (2) Added Interim State clause: `_ioc_value` synthetic filter acknowledged as forward-provision stub; removed atomically in S-DEMO-ENRICHMENT-PIVOT-003 when real-schema fields land. (3) Added Route Coverage Table (BPRL-P4-02 process-gap codification, per WO-D1109 §Question 4): enumerates every StageMask-relevant DTU route × guard mechanism × status; standing rule added requiring table update in same commit as any future StageMask-relevant route addition. BPRL-P4-02 fix (commit bc0f36c5) codified: stage-guards on crowdstrike detections list/summary routes and armis alerts/search in:alerts branch now appear in the table. |
 | v1.3 | PO micro-burst 2026-06-12 — B-P5-01 precondition renumbering correction. The v1.2 insertion of PRE-6 (org_id equality guard) displaced the archetype and build-before-start preconditions but the body labels were incorrectly written as PRE-8 and PRE-9, skipping PRE-7. Corrected: archetype precondition → PRE-7 (was mislabeled 8), build-before-start → PRE-8 (was mislabeled 9). The v1.2 changelog claim "Renumbered former PRE-6→PRE-8 … PRE-7→PRE-9" is annotated `[corrected at v1.3]` below. No semantic change to any precondition. B-P5-02 (taxonomy half): error-taxonomy.md E-DEMO-003 row updated from "§Precondition 6" to "§Precondition 7" (archetype is PRE-7 post-renumber). |
 | v1.2 | PO micro-burst 2026-06-12 — OBS-1 org_id-equality gap closed. Added PRE-6 (org_id equality guard across scenario-enabled clones; E-DEMO-006; detection before E-DEMO-003; rationale: silent INV-CROSS-DTU-ENTITY-COHERENCE-001 incoherence is SOUL.md §4 class). Renumbered former PRE-6→PRE-8 (archetype) and PRE-7→PRE-9 (build_clone_pairs before start_all) [corrected at v1.3: body labels were written as 8 and 9, skipping 7; correct labels are PRE-7 (archetype) and PRE-8 (build-before-start)]. Added E-DEMO-006 error code section with full format table. Added EC-019-013 (org_id mismatch edge case). Added TV-019-015 (E-DEMO-006 test vector). Added VP-019-I (E-DEMO-006 unit test). OBS-2 anchor drift fixed: Stories traceability row, Story Anchor section, and VP Anchors section updated to include S-DEMO-DTU-LIVE-SCENARIO-001-B. Guard order in PRE-6: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004. |
 | v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Pinned `stage_duration_secs` 4-entry convention (ADR-036 v2.0 §1.3, §2.1): added explicit 4-entry table showing array-index-to-stage mapping in §Postcondition 2; stage 0 (Baseline) always activates at 0s and is NOT represented in the array. Corrected EC-019-006 which incorrectly described 4 entries as an E-DEMO-003 error — 4 entries IS the correct count for `CompromisedEndpoint`; added EC-019-006b (3 entries → error) and EC-019-006c (5 entries → error) to document the actual error cases. Confirmed `activates_after_secs: u64` as the authoritative `IncidentStage` field name (NOT "duration") per ADR-036 v2.0 §2.2. All stage threshold values (60/180/360/600) unchanged. lifecycle_status remains draft. Invariant semantics unchanged. |

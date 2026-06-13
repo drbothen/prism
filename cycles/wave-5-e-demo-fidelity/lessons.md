@@ -712,3 +712,32 @@ This is an upstream vsdd-factory / pr-manager prompt improvement: the pr-manager
 **(z2) Research-agent self-verification discipline: perplexity deep-research returns hallucinated content; primary-source re-grounding is mandatory.** During the D-1110 remove-uncertainty cycle, 2 of the perplexity deep-research calls returned hallucinated content: fabricated version numbers (citing a DataFusion 47 API that does not exist; citing a wasmtime 44 post_return signature that was wrong) and a fabricated pull-request reference. The research-agent detected these by cross-checking against Context7/docs.rs primary sources and discarded both hallucinated results. Final fixes were grounded on primary sources. Antidote: **research-agent validation protocol** — for any claim about a library API version, function signature, or behavioral property: (a) run perplexity; (b) independently verify the critical claim against at least one primary source (Context7 library docs, official docs.rs, official GitHub releases, or first-party changelog); (c) if perplexity claim and primary source disagree, the primary source wins; (d) if primary source cannot be found, the claim is marked as UNVERIFIED and must be flagged in the story for architect review. Hallucinated research that bypasses step (b) is a P1 story-guidance defect. [follow-up: update research-agent dispatch instructions to mandate primary-source cross-check for all API-shape claims].
 
 **(z3) [process-gap] Long pre-push hooks (~15 min `just check`) orphan subagent-launched pushes — orchestrator must track pushes as foreground tasks.** Multiple instances during the Story B PR-LEVEL cascade of push commands launched by sub-agents that timed out or were terminated while the pre-push `just check` hook was still running (~15 min cold). This leaves the push outcome unknown until the next verification step. This is the same class as lesson-y (background-gate orphan) but specifically at the `git push` command level (the pre-push hook is the long-running gate, not a separate CI step). Antidote: **ALL `git push` commands for feature branches with `just check` pre-push hooks MUST be run from orchestrator-context foreground Bash with `timeout: 600000`.** The pattern `git -C .worktrees/<story> push origin feature/<branch>` executed in a Monitor-equipped orchestrator Bash call is the canonical form. Sub-agent dispatches for push operations are FORBIDDEN when the pre-push hook runs `just check`. [follow-up: file upstream issue against vsdd-factory pr-manager skill to specify orchestrator-foreground push discipline; add to story-delivery dispatch templates; candidate for factory-dispatcher hook to warn on Agent-dispatched push operations].
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-B: POL-25 dual-carrier propagation — BC and story carrying the same table must be swept together (D-1111 pass-5 closure codification)
+
+**Date recorded:** 2026-06-12
+**D-NNN anchor:** D-1111 (PR-LEVEL pass 5 closure burst)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [pol-25] [dual-carrier] [cite-pin-sweep] [bc-story-parity]
+**Classification:** PROCESS-GAP — BC-side table defect survived adversary passes 1-4 because the correction to the story copy (PIVOT-003 U20 fix) did not propagate to the BC copy (authored pre-scan from the same assumed-route claims).
+
+**(z4) [process-gap] POL-25 dual-carrier table propagation — when a table/claim exists in BOTH a BC and a story, a correction to one MUST sweep the other in the same burst.** BC-2.06.019 v1.4 Route Coverage Table was authored in the same session that produced the PIVOT-003 U20 uncertainty-scan fixes. The PIVOT-003 U20 fix correctly grounded the story's route-coverage table against actual DTU router source. However, the BC-2.06.019 v1.4 table was authored earlier in the same session (before the U20 scan results were available) using pre-scan assumed-route claims. The U20 fix swept the story copy but the BC copy — authored concurrently from the same pre-scan assumptions — kept the errors.
+
+Result: four defects in the BC table survived passes 1-4 unchallenged, finally caught at pass 5 when the adversary cross-checked the table directly against router source rather than trusting the BC prose.
+
+**Root cause:** The story and the BC both carry a Route Coverage Table (the story as implementation guidance; the BC as the normative contract). When the story-writer corrects the story's table after an uncertainty scan, the BC table — authored from the same assumptions — is a sibling document that MUST be swept in the same burst. The uncertainty scan output is a list of corrections to assumptions; those corrections must propagate to ALL documents that encode those assumptions, not just the one currently being edited.
+
+**Correct response (codified rule — POL-25 dual-carrier sweep):**
+
+When a correction is applied to a table or claim that appears in BOTH a BC file and a story file:
+
+1. **Always enumerate ALL carrier documents** before declaring the correction complete. Search: `grep -rn '<claim-pattern>' .factory/specs/behavioral-contracts/ .factory/stories/` — both directories.
+2. **Apply the correction to ALL carrier documents in the same burst.** A correction to the story copy without sweeping the BC copy (or vice versa) is an incomplete fix.
+3. **Log the carrier inventory in the commit/burst message** — e.g., "sweep found 2 carriers: BC-2.06.019 v1.4 Route Coverage Table + PIVOT-003 story body table; both corrected."
+4. **For uncertainty-scan fix cycles specifically:** when story-writer applies U20-class fixes (grounding endpoint/route/field claims against source), the scan output must enumerate which BCs carry the same claims. The story-writer MUST read the governing BC(s) and verify the BC table does not also encode the now-corrected assumption.
+
+**Outcome:**
+
+Closed at D-1111: BC-2.06.019 v1.5 corrects the table; story B v2.7 + PIVOT-003 v1.2 pin sweeps applied. Lesson codified here for future session application.
