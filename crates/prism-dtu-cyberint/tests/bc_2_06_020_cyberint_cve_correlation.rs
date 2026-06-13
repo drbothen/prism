@@ -281,19 +281,25 @@ fn test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment() {
 // TV-020-013 / VP-020-K — Cyberint→NVD membership pivot guard (unit-level)
 // ---------------------------------------------------------------------------
 
-/// TV-020-013 (unit-level catalog-membership pivot guard):
+/// TV-020-013 (unit-level Half-B catalog-membership pivot guard):
 ///
 /// BC-2.06.020 §PC-8 + INV-CYBERINT-ALERT-CVE-CORRELATION-001.
 ///
 /// Verifies that every Cyberint scenario CVE record's cve_id is a member of
 /// catalog.device_cves — i.e. the IDs that NvdClone::new_with_scenario(&catalog)
-/// will inject into the NVD registry. The actual NVD HTTP resolution is tested in
-/// prism-dtu-demo-server/tests/ (where both cyberint and nvd crates are available).
+/// will inject into the NVD registry.
 ///
-/// This unit-level test guards the "catalog membership" half of the pivot chain:
+/// The GENUINE end-to-end NVD pivot (calling NvdState::lookup_and_count for each
+/// Cyberint CVE and asserting Some(record) with base_score >= 7.0) is tested in
+/// prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs
+/// (test `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd`) — that crate has
+/// both prism-dtu-cyberint and prism-dtu-nvd available as dependencies.
+///
+/// This unit-level test guards the "catalog membership" Half-B of the pivot chain:
 /// catalog.device_cves ⊆ NVD registry (by NVD PC-3 injection), and
 /// Cyberint CVE records ⊆ catalog.device_cves (this test).
 /// Together these form the complete chain per INV-CYBERINT-ALERT-CVE-CORRELATION-001.
+/// The load-bearing lookup_and_count assertion (VP-020-K) lives in the demo-server test.
 ///
 /// LOAD-BEARING: if Cyberint generates any cve_id outside catalog.device_cves,
 /// this test FAILS before any pivot attempt.

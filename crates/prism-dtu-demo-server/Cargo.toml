@@ -191,6 +191,13 @@ name = "bc_2_06_018_archetype_differential"
 path = "tests/bc_2_06_018_archetype_differential.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# BPRL-P12-01: genuine Cyberint→NVD end-to-end pivot integration test (VP-020-K/TV-020-013)
+# RGT #22 — S-DEMO-DTU-LIVE-SCENARIO-001-B v2.10
+[[test]]
+name = "bc_2_06_020_cyberint_nvd_pivot"
+path = "tests/bc_2_06_020_cyberint_nvd_pivot.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"
@@ -199,6 +206,7 @@ time = "0.3"
 rustls = { version = "0.23", features = ["aws-lc-rs"] }
 serial_test = "3"
 tempfile = "3"
+chrono = { version = "0.4", features = ["serde"] }
 
 [lints]
 workspace = true
