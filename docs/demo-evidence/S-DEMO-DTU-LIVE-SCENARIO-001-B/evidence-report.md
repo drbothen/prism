@@ -2,8 +2,8 @@
 
 **Story:** Scenario Progression + Enrichment Correlation — Unfolding-Attack Live Demo
 **Story ID:** S-DEMO-DTU-LIVE-SCENARIO-001-B
-**Version:** 2.5
-**Git HEAD at recording:** 785adc4b
+**Version:** 2.6
+**Git HEAD at recording:** f0b6b8c7
 **Branch:** develop (worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B`)
 **Recorded:** 2026-06-12
 **Recording tool:** VHS 0.10.0 (terminal recording)
@@ -14,7 +14,7 @@
 
 ## Summary
 
-All 18 acceptance criteria are covered across 5 recordings. Every recording captures
+All 19 acceptance criteria are covered across 6 recordings. Every recording captures
 actual `cargo nextest` output against the live compiled codebase — not test harness output
 or synthetic logs. Each recording demonstrates the relevant test passing.
 
@@ -79,6 +79,22 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 
 ---
 
+### AC-019 — Cyberint CVE ↔ NVD Correlation
+
+**Artifact:** `AC-019-cyberint-cve-pivot.gif` / `.webm` / `.tape`
+
+**Covers:**
+| AC | Description | BC Clause | VP | Test Name |
+|----|-------------|-----------|-----|-----------|
+| AC-019 | `CyberintClone::new_with_scenario`: baseline alerts use `CVE-9999-*` namespace (not real CVE IDs); scenario alerts draw CVE IDs from `CveCorrelationCatalog`; cyclic catalog assignment distributes CVEs round-robin; end-to-end pivot: scenario CVE resolves in `NvdClone` with `base_score>=7.0`, `base_severity="HIGH"` | BC-2.06.020 PC-8 (CVE namespace isolation) / PC-9 (scenario CVE injection) / INV-CYBERINT-CVE-PIVOT-001 | VP-020-I (baseline namespace), VP-020-J (catalog CVE IDs), VP-020-K (NVD HIGH pivot), VP-020-L (cyclic assignment) | `test_BC_2_06_020_cyberint_baseline_cve_uses_cve_9999_namespace` / `test_BC_2_06_020_cyberint_scenario_cve_ids_from_catalog` / `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` / `test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment` |
+
+**Recording shows:**
+- `prism-dtu-cyberint` (features: `dtu,fixture-gen`): all 4 VP-020-I..L Red Gate tests PASS in ~14ms (pure unit tests, no HTTP server startup).
+- VP-020-K (`test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd`): the end-to-end pivot test — builds a `CyberintClone` with scenario entities drawn from `NvdClone`, verifies the scenario alert's `cve_id` resolves in the NVD catalog with `base_score>=7.0` and `base_severity="HIGH"`.
+- Filter used: `-E 'test(BC_2_06_020_cyberint)'` — matches exactly these 4 tests, zero others.
+
+---
+
 ### AC-009-010-017-018 — Guard Rails
 
 **Artifact:** `AC-009-010-017-018-guard-rails.gif` / `.webm` / `.tape`
@@ -139,8 +155,9 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 | AC-016 | AC-013-014-016-enrichment-correlation | PASS | Non-scenario passthrough additive; perimeter gate passes |
 | AC-017 | AC-009-010-017-018-guard-rails | PASS | E-DEMO-003 for healthy+scenario.enabled + compromised_endpoint×dormant |
 | AC-018 | AC-009-010-017-018-guard-rails | PASS | E-DEMO-006 for mismatched org_ids; both names + both org_ids in Err |
+| AC-019 | AC-019-cyberint-cve-pivot | PASS | VP-020-I..L: baseline CVE-9999-* namespace; scenario CVE from catalog; cyclic assignment; NVD HIGH pivot (base_score>=7.0) |
 
-**Total: 18/18 ACs covered. All PASS.**
+**Total: 19/19 ACs covered. All PASS.**
 
 ---
 
@@ -154,8 +171,9 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 | `prism-dtu-demo-server` | `fixture-gen` | 9 (guard rails + disabled compat + cross-DTU) | Yes |
 | `prism-dtu-threatintel` | `dtu,fixture-gen` | 3 (BC_2_06_020 filter) | Yes |
 | `prism-dtu-nvd` | `dtu,fixture-gen` | 1 (BC_2_06_020 filter) | Yes |
+| `prism-dtu-cyberint` | `dtu,fixture-gen` | 4 (BC_2_06_020_cyberint filter — VP-020-I..L) | Yes |
 
-Full workspace `just check` passes at HEAD 785adc4b (verified by LOCAL adversary 3-CLEAN convergence at T5).
+Full workspace `just check` passes at HEAD f0b6b8c7 (verified by LOCAL adversary 3-CLEAN convergence at T5).
 
 ---
 
