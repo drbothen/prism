@@ -198,6 +198,12 @@ name = "bc_2_06_020_cyberint_nvd_pivot"
 path = "tests/bc_2_06_020_cyberint_nvd_pivot.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# S-DEMO-MULTI-TENANT-DTU-001 Red Gate: multi-instance demo-server tests (BC-2.06.017)
+[[test]]
+name = "multi_instance_tests"
+path = "tests/multi_instance_tests.rs"
+required-features = ["dtu"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"

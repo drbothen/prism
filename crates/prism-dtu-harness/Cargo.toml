@@ -39,6 +39,10 @@ rand_chacha = "0.3"
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu"] }
+prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features = ["dtu"] }
+prism-spec-engine = { path = "../prism-spec-engine" }
+tempfile = "3"
 
 [[test]]
 name = "logical_isolation_test"
@@ -97,6 +101,12 @@ required-features = ["dtu"]
 [[test]]
 name = "failure_scope_test"
 path = "tests/failure_scope_test.rs"
+required-features = ["dtu"]
+
+# S-DEMO-MULTI-TENANT-DTU-001 Red Gate: multi-instance harness tests (BC-2.06.017)
+[[test]]
+name = "multi_instance_harness_tests"
+path = "tests/multi_instance_harness_tests.rs"
 required-features = ["dtu"]
 
 [lints]

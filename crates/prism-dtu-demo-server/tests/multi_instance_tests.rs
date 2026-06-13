@@ -1,0 +1,562 @@
+//! S-DEMO-MULTI-TENANT-DTU-001 — Red Gate tests for `prism-dtu-demo-server`
+//! multi-instance binding (BC-2.06.017 Postconditions 1, 5, 6, 7).
+//!
+//! ## Red Gate discipline (SID-1)
+//!
+//! Forward-failing tests (multi-instance behavior) MUST FAIL because `start_instances`
+//! is `todo!()`. They will panic at the todo — that panic IS the red. The assertions
+//! are real: once implemented they verify actual distinct SocketAddrs and live HTTP
+//! responses.
+//!
+//! The two backward-compat / parity tests (marked "REGRESSION GUARD") MUST PASS in
+//! the current state — the single-instance `start_on` path is unchanged.
+//!
+//! ## Test naming
+//!
+//! `test_BC_2_06_017_*` pattern throughout (Factory TDD spec; BC-2.06.017).
+
+#![allow(clippy::expect_used, clippy::unwrap_used, non_snake_case)]
+
+use std::time::Duration;
+
+use prism_dtu_demo_server::{
+    start_instances, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
+};
+
+/// Build a reqwest client with a 10-second timeout.
+///
+/// All test HTTP clients must use an explicit timeout (CLAUDE.md § reqwest timeout rule).
+fn test_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .expect("test client build must succeed")
+}
+
+/// Ephemeral loopback bind address for test instances.
+fn ephemeral() -> std::net::SocketAddr {
+    "127.0.0.1:0".parse().unwrap()
+}
+
+// ============================================================================
+// AC-001 / TV-017-002: MultiInstanceConfig accepted without error (empty case)
+//
+// test_demo_server_zero_instances_returns_empty_map
+// BC-2.06.017 EC-017-002: empty config → Ok(HashMap::new()), no panic.
+// ============================================================================
+
+/// EC-017-002: Empty `MultiInstanceConfig` returns empty socket map; no panic.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
+///
+/// WHEN IMPLEMENTED: `Ok(HashMap::new())` must be returned with no spawned tasks.
+///
+/// (BC-2.06.017 EC-017-002 / Postcondition 1)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_zero_instances_returns_empty_map() {
+    let cfg = MultiInstanceConfig::new(vec![]);
+
+    let result = start_instances(cfg, |_entry| {
+        panic!("factory must not be called for zero-instance config")
+    })
+    .await;
+
+    // Once implemented: empty config → Ok with empty map, no error.
+    let map = result.expect(
+        "Empty MultiInstanceConfig must return Ok(HashMap::new()) — not Err() \
+         (BC-2.06.017 EC-017-002)",
+    );
+    assert!(
+        map.is_empty(),
+        "Empty MultiInstanceConfig must yield an empty socket map; got {map:?} \
+         (BC-2.06.017 EC-017-002)"
+    );
+}
+
+// ============================================================================
+// AC-001 / TV-017-001: MultiInstanceConfig accepted and returns non-empty map
+//
+// test_demo_server_multi_instance_bind_config_accepted
+// BC-2.06.017 Postcondition 1: N ≥ 1 instances → Ok(map) with N entries.
+// ============================================================================
+
+/// AC-001: `MultiInstanceConfig` accepted without panic/error; returns non-empty map.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
+///
+/// WHEN IMPLEMENTED: Two armis instances bind at distinct ephemeral SocketAddrs;
+/// the returned map has exactly 2 entries.
+///
+/// (BC-2.06.017 Postcondition 1)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_multi_instance_bind_config_accepted() {
+    let cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("armis-acme", ephemeral()),
+        InstanceEntry::new("armis-contoso", ephemeral()),
+    ]);
+
+    let result = start_instances(cfg, |_entry| {
+        Box::new(
+            prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
+        )
+    })
+    .await;
+
+    // Once implemented: two-entry config → Ok with two distinct SocketAddrs.
+    let map = result.expect(
+        "MultiInstanceConfig with 2 ArmisClone instances must return Ok(map) \
+         (BC-2.06.017 Postcondition 1 — multi-instance bind configuration accepted)",
+    );
+
+    assert_eq!(
+        map.len(),
+        2,
+        "Returned map must have exactly 2 entries — one per InstanceEntry; got {map:?} \
+         (BC-2.06.017 Postcondition 1 — all N instances returned; none silently dropped)"
+    );
+    assert!(
+        map.contains_key("armis-acme"),
+        "Map must contain key 'armis-acme'; got keys: {:?} \
+         (BC-2.06.017 Postcondition 1)",
+        map.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        map.contains_key("armis-contoso"),
+        "Map must contain key 'armis-contoso'; got keys: {:?} \
+         (BC-2.06.017 Postcondition 1)",
+        map.keys().collect::<Vec<_>>()
+    );
+}
+
+// ============================================================================
+// AC-002 / TV-017-001: Two armis instances at distinct ports
+//
+// test_demo_server_two_armis_instances_bind_distinct_ports
+// BC-2.06.017 Postcondition 1: map["armis-acme"] != map["armis-contoso"]
+// ============================================================================
+
+/// AC-002: Two `ArmisClone` instances start at distinct `SocketAddr`s.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
+///
+/// WHEN IMPLEMENTED: OS assigns two distinct ephemeral ports; neither equals the other;
+/// both are valid loopback addresses.
+///
+/// (BC-2.06.017 Postcondition 1 / TV-017-001)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_two_armis_instances_bind_distinct_ports() {
+    let cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("armis-acme", ephemeral()),
+        InstanceEntry::new("armis-contoso", ephemeral()),
+    ]);
+
+    let map = start_instances(cfg, |_entry| {
+        Box::new(
+            prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
+        )
+    })
+    .await
+    .expect("Two-armis-instance bind must succeed (BC-2.06.017 Postcondition 1)");
+
+    let addr_acme = map["armis-acme"];
+    let addr_contoso = map["armis-contoso"];
+
+    assert_ne!(
+        addr_acme, addr_contoso,
+        "armis-acme and armis-contoso must bind to DISTINCT SocketAddrs; both got {addr_acme} \
+         (BC-2.06.017 Postcondition 1 / TV-017-001: map[\"armis-acme\"] != map[\"armis-contoso\"])"
+    );
+    assert!(
+        addr_acme.ip().is_loopback(),
+        "armis-acme must bind on loopback; got {addr_acme} \
+         (BC-2.06.017 Postcondition 1)"
+    );
+    assert!(
+        addr_contoso.ip().is_loopback(),
+        "armis-contoso must bind on loopback; got {addr_contoso} \
+         (BC-2.06.017 Postcondition 1)"
+    );
+    assert_ne!(
+        addr_acme.port(),
+        0,
+        "armis-acme bound port must be non-zero (BC-2.06.017 Postcondition 1)"
+    );
+    assert_ne!(
+        addr_contoso.port(),
+        0,
+        "armis-contoso bound port must be non-zero (BC-2.06.017 Postcondition 1)"
+    );
+}
+
+// ============================================================================
+// AC-003: Two claroty instances at distinct ports
+//
+// test_demo_server_two_claroty_instances_bind_distinct_ports
+// BC-2.06.017 Postcondition 1: same semantics as AC-002 but for ClarotyClone.
+// ============================================================================
+
+/// AC-003: Two `ClarotyClone` instances start at distinct sockets.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
+///
+/// WHEN IMPLEMENTED: Two distinct ephemeral ports; both serve `POST /api/v1/audit_log/get`.
+///
+/// (BC-2.06.017 Postcondition 1 — each instance addressable independently)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_two_claroty_instances_bind_distinct_ports() {
+    let cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("claroty-acme", ephemeral()),
+        InstanceEntry::new("claroty-contoso", ephemeral()),
+    ]);
+
+    let map = start_instances(cfg, |_entry| {
+        Box::new(prism_dtu_claroty::ClarotyClone::new())
+    })
+    .await
+    .expect("Two-claroty-instance bind must succeed (BC-2.06.017 Postcondition 1)");
+
+    let addr_acme = map["claroty-acme"];
+    let addr_contoso = map["claroty-contoso"];
+
+    assert_ne!(
+        addr_acme, addr_contoso,
+        "claroty-acme and claroty-contoso must bind to DISTINCT SocketAddrs; both got {addr_acme} \
+         (BC-2.06.017 Postcondition 1)"
+    );
+    assert_ne!(
+        addr_acme.port(),
+        0,
+        "claroty-acme port must be non-zero (BC-2.06.017 Postcondition 1)"
+    );
+    assert_ne!(
+        addr_contoso.port(),
+        0,
+        "claroty-contoso port must be non-zero (BC-2.06.017 Postcondition 1)"
+    );
+}
+
+// ============================================================================
+// AC-002 (sub): Instance A responds independently to HTTP requests
+//
+// test_demo_server_instance_a_responds_independently
+// BC-2.06.017 Postcondition 1: request to instance A's SocketAddr → served by A's clone.
+// ============================================================================
+
+/// AC-002: Request to instance A socket returns HTTP response from instance A's router.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
+///
+/// WHEN IMPLEMENTED: GET /api/v1/search on armis-acme's SocketAddr returns HTTP 403
+/// (no Bearer), confirming instance A's router is live and independent.
+///
+/// (BC-2.06.017 Postcondition 1 — each instance is addressable independently)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_instance_a_responds_independently() {
+    let cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("armis-acme", ephemeral()),
+        InstanceEntry::new("armis-contoso", ephemeral()),
+    ]);
+
+    let map = start_instances(cfg, |_entry| {
+        Box::new(
+            prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
+        )
+    })
+    .await
+    .expect("Two armis instances must bind successfully (BC-2.06.017 Postcondition 1)");
+
+    let addr_a = map["armis-acme"];
+    let client = test_client();
+
+    // Instance A must serve GET /api/v1/search (Armis search route).
+    // 403 (no bearer) confirms the instance A router is live at addr_a.
+    let resp = client
+        .get(format!("http://{addr_a}/api/v1/search"))
+        .send()
+        .await
+        .expect("HTTP GET to instance A must succeed at transport level");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        403,
+        "Instance A (armis-acme at {addr_a}) must return 403 on GET /api/v1/search \
+         without Bearer — 403 confirms the instance is live and serving requests \
+         (BC-2.06.017 Postcondition 1: request to instance A's SocketAddr is served by A's clone)"
+    );
+}
+
+// ============================================================================
+// AC-002 (sub): Instance B responds independently to HTTP requests
+//
+// test_demo_server_instance_b_responds_independently
+// BC-2.06.017 Postcondition 1: request to instance B's SocketAddr → served by B's clone.
+// ============================================================================
+
+/// AC-002: Request to instance B socket returns HTTP response from instance B's router.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
+///
+/// WHEN IMPLEMENTED: Instance B at its own SocketAddr serves GET /api/v1/search → 403
+/// (no Bearer), proving instance B is independently reachable.
+///
+/// (BC-2.06.017 Postcondition 1 — instance B's SocketAddr is served by B's clone)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_instance_b_responds_independently() {
+    let cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("armis-acme", ephemeral()),
+        InstanceEntry::new("armis-contoso", ephemeral()),
+    ]);
+
+    let map = start_instances(cfg, |_entry| {
+        Box::new(
+            prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
+        )
+    })
+    .await
+    .expect("Two armis instances must bind successfully (BC-2.06.017 Postcondition 1)");
+
+    let addr_b = map["armis-contoso"];
+    let client = test_client();
+
+    // Instance B must independently serve requests on its own distinct SocketAddr.
+    let resp = client
+        .get(format!("http://{addr_b}/api/v1/search"))
+        .send()
+        .await
+        .expect("HTTP GET to instance B must succeed at transport level");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        403,
+        "Instance B (armis-contoso at {addr_b}) must return 403 on GET /api/v1/search \
+         without Bearer — 403 confirms instance B is independently reachable \
+         (BC-2.06.017 Postcondition 1: instance B's SocketAddr is served by B's clone)"
+    );
+}
+
+// ============================================================================
+// AC-002: Multi-instance shutdown clean (Postcondition 1 + EC-017-005)
+//
+// test_demo_server_multi_instance_shutdown_clean
+// BC-2.06.017 EC-017-005: shutdown signal → ports released; no zombie instances.
+// ============================================================================
+
+/// AC-002: Both instances shut down cleanly when shutdown signal is sent.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
+///
+/// WHEN IMPLEMENTED:
+/// 1. Two armis instances start and serve /dtu/health → HTTP 200.
+/// 2. A shutdown signal is broadcast.
+/// 3. After the graceful drain window, both sockets are released.
+/// 4. Subsequent connection attempts to both addrs return transport errors.
+///
+/// (BC-2.06.017 EC-017-005 / Postcondition 1)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_multi_instance_shutdown_clean() {
+    use tokio::sync::broadcast;
+
+    // Create a shared shutdown channel for both instances.
+    let (shutdown_tx, _) = broadcast::channel::<()>(2);
+    let shutdown_tx_for_factory = shutdown_tx.clone();
+
+    let cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("armis-acme", ephemeral()),
+        InstanceEntry::new("armis-contoso", ephemeral()),
+    ]);
+
+    // The factory subscribes each clone to the same shutdown channel.
+    // Once implemented, start_instances will pass the receiver to start_on.
+    let map = start_instances(cfg, move |_entry| {
+        let _rx = shutdown_tx_for_factory.subscribe();
+        Box::new(
+            prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
+        )
+    })
+    .await
+    .expect("Two armis instances must start cleanly (shutdown test)");
+
+    let addr_a = map["armis-acme"];
+    let addr_b = map["armis-contoso"];
+    let client = test_client();
+
+    // Verify both are live before shutdown (non-vacuous pre-condition).
+    let resp_a = client
+        .get(format!("http://{addr_a}/dtu/health"))
+        .send()
+        .await
+        .expect("Instance A health must be reachable before shutdown");
+    assert_eq!(
+        resp_a.status().as_u16(),
+        200,
+        "Instance A must respond HTTP 200 to /dtu/health before shutdown"
+    );
+
+    let resp_b = client
+        .get(format!("http://{addr_b}/dtu/health"))
+        .send()
+        .await
+        .expect("Instance B health must be reachable before shutdown");
+    assert_eq!(
+        resp_b.status().as_u16(),
+        200,
+        "Instance B must respond HTTP 200 to /dtu/health before shutdown"
+    );
+
+    // Send shutdown signal — start_instances must wire this to axum graceful shutdown.
+    let _ = shutdown_tx.send(());
+
+    // Allow axum's graceful drain window (500ms is generous for idle clones).
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    // After shutdown: ports released — requests must fail at transport level.
+    let after_a = client
+        .get(format!("http://{addr_a}/dtu/health"))
+        .send()
+        .await;
+    assert!(
+        after_a.is_err(),
+        "Instance A at {addr_a} must NOT be reachable after shutdown \
+         (BC-2.06.017 EC-017-005: graceful shutdown releases port; no zombie instances). \
+         Expected transport-level error; got: {:?}",
+        after_a.map(|r| r.status())
+    );
+
+    let after_b = client
+        .get(format!("http://{addr_b}/dtu/health"))
+        .send()
+        .await;
+    assert!(
+        after_b.is_err(),
+        "Instance B at {addr_b} must NOT be reachable after shutdown \
+         (BC-2.06.017 EC-017-005: both instances shut down cleanly; no port leak). \
+         Expected transport-level error; got: {:?}",
+        after_b.map(|r| r.status())
+    );
+}
+
+// ============================================================================
+// AC-007 / REGRESSION GUARD: Single-instance backward compatibility
+//
+// test_single_instance_parity_test_still_passes_after_multi_instance_addition
+// BC-2.06.017 INV-COMPAT-001: existing start_on callers unchanged.
+//
+// THIS TEST MUST PASS BEFORE IMPLEMENTATION (backward-compat guard).
+// ============================================================================
+
+/// REGRESSION GUARD — AC-007: Existing single-instance parity test still passes.
+///
+/// This test exercises the UNCHANGED single-instance `start_on` calling convention
+/// to verify that adding `multi_instance.rs` to the crate does NOT break the
+/// existing single-instance path.
+///
+/// MUST PASS in the current state (before `start_instances` is implemented).
+///
+/// (BC-2.06.017 INV-COMPAT-001 / TV-017-008)
+#[tokio::test]
+async fn test_BC_2_06_017_single_instance_parity_test_still_passes_after_multi_instance_addition() {
+    use prism_dtu_common::BehavioralClone;
+
+    // Direct single-instance call — unchanged pattern, must compile and run as-is.
+    let mut clone =
+        prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed (INV-COMPAT-001)");
+
+    let bound_addr = clone
+        .start_on(
+            "127.0.0.1:0".parse().unwrap(),
+            None, // shutdown: Option<broadcast::Receiver<()>>
+            None, // tls: Option<()> (no-tls path per cfg(not(tls)))
+        )
+        .await
+        .expect(
+            "ArmisClone::start_on must succeed on ephemeral port \
+             (BC-2.06.017 INV-COMPAT-001 — existing callers unmodified)",
+        );
+
+    assert_ne!(
+        bound_addr.port(),
+        0,
+        "Single-instance ArmisClone::start_on must bind to a non-zero ephemeral port \
+         (BC-2.06.017 INV-COMPAT-001 / TV-017-008)"
+    );
+    assert!(
+        bound_addr.ip().is_loopback(),
+        "Single-instance ArmisClone::start_on must bind on loopback; got {bound_addr} \
+         (BC-2.06.017 INV-COMPAT-001 / TV-017-008)"
+    );
+
+    // Verify instance is serving requests (non-vacuous compat check).
+    let client = test_client();
+    let resp = client
+        .get(format!("http://{bound_addr}/dtu/health"))
+        .send()
+        .await
+        .expect("Single-instance ArmisClone must serve /dtu/health (INV-COMPAT-001)");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "Single-instance ArmisClone /dtu/health must return HTTP 200 \
+         (BC-2.06.017 INV-COMPAT-001 — existing start_on path unchanged after multi-instance addition)"
+    );
+
+    // Clean up.
+    clone
+        .stop()
+        .await
+        .expect("ArmisClone::stop must succeed (INV-COMPAT-001)");
+}
+
+// ============================================================================
+// DUPLICATE-NAME ERROR: EC-017-009 / Postcondition 7 / TV-017-006
+// ============================================================================
+
+/// EC-017-009 / Postcondition 7: Duplicate `InstanceEntry::name` → DuplicateName error.
+///
+/// RED GATE: `start_instances` is `todo!()` — will panic before returning the error.
+///
+/// WHEN IMPLEMENTED: Returns `Err(MultiInstanceBindError::DuplicateName { name: "dup" })`
+/// before any bind attempt; factory must not be called.
+///
+/// (BC-2.06.017 Postcondition 7 / EC-017-009 / TV-017-006)
+#[tokio::test]
+async fn test_BC_2_06_017_demo_server_duplicate_instance_name_returns_error() {
+    let cfg = MultiInstanceConfig::new(vec![
+        InstanceEntry::new("dup", ephemeral()),
+        InstanceEntry::new("dup", ephemeral()),
+    ]);
+
+    let result = start_instances(cfg, |_entry| {
+        panic!(
+            "factory must NOT be called for duplicate-name config \
+             (BC-2.06.017 Postcondition 7: DuplicateName returned before any bind)"
+        )
+    })
+    .await;
+
+    match result {
+        Err(MultiInstanceBindError::DuplicateName { name }) => {
+            assert_eq!(
+                name, "dup",
+                "DuplicateName error must name the conflicting instance; \
+                 expected name='dup', got name='{name}' \
+                 (BC-2.06.017 EC-017-009 / TV-017-006)"
+            );
+        }
+        Err(MultiInstanceBindError::BindFailure(failures)) => panic!(
+            "Expected MultiInstanceBindError::DuplicateName; got BindFailure with {} errors \
+             (BC-2.06.017 EC-017-009: DuplicateName must be returned BEFORE any bind attempt, \
+             so BindFailure is wrong here): {failures:?}",
+            failures.len()
+        ),
+        Err(_) => panic!(
+            "Expected MultiInstanceBindError::DuplicateName; got unexpected variant \
+             (BC-2.06.017 EC-017-009 / TV-017-006)"
+        ),
+        Ok(map) => panic!(
+            "Duplicate-name config must return Err(DuplicateName), not Ok; \
+             got map with {} entries (BC-2.06.017 Postcondition 7: silent last-wins is forbidden)",
+            map.len()
+        ),
+    }
+}

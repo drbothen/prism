@@ -56,6 +56,24 @@ pub struct HarnessEntry {
     pub clone: Box<dyn BehavioralClone>,
 }
 
+impl HarnessEntry {
+    /// Construct a `HarnessEntry` with the given org slug, sensor ID, and clone.
+    ///
+    /// This is the canonical constructor for external callers (required because
+    /// `#[non_exhaustive]` prevents struct-literal construction outside this crate).
+    pub fn new(
+        org_slug: impl Into<String>,
+        sensor_id: impl Into<String>,
+        clone: Box<dyn BehavioralClone>,
+    ) -> Self {
+        Self {
+            org_slug: org_slug.into(),
+            sensor_id: sensor_id.into(),
+            clone,
+        }
+    }
+}
+
 /// Multi-instance harness managing N DTU clone instances started at distinct
 /// ephemeral socket addresses, keyed by `(org_slug, sensor_id)` pairs.
 ///

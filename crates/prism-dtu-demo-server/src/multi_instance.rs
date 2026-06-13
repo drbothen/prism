@@ -53,6 +53,29 @@ pub struct InstanceEntry {
     pub bind: SocketAddr,
 }
 
+impl MultiInstanceConfig {
+    /// Construct a `MultiInstanceConfig` with the given instances.
+    ///
+    /// This is the canonical constructor for external callers (required because
+    /// `#[non_exhaustive]` prevents struct-literal construction outside this crate).
+    pub fn new(instances: Vec<InstanceEntry>) -> Self {
+        Self { instances }
+    }
+}
+
+impl InstanceEntry {
+    /// Construct an `InstanceEntry` with the given name and bind address.
+    ///
+    /// This is the canonical constructor for external callers (required because
+    /// `#[non_exhaustive]` prevents struct-literal construction outside this crate).
+    pub fn new(name: impl Into<String>, bind: std::net::SocketAddr) -> Self {
+        Self {
+            name: name.into(),
+            bind,
+        }
+    }
+}
+
 /// Error returned by [`start_instances`].
 ///
 /// Two variants:
@@ -62,6 +85,7 @@ pub struct InstanceEntry {
 ///   aggregation per BC-2.06.017 INV-ERR-003-COMPAT / Postcondition 6).
 ///
 /// (BC-2.06.017 Postconditions 6–7)
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum MultiInstanceBindError {
     /// Two [`InstanceEntry`] items share the same `name` string.
@@ -84,6 +108,7 @@ pub enum MultiInstanceBindError {
 ///
 /// (BC-2.06.017 Postcondition 6 + v1.1 Amendment 2 — name disambiguation from
 /// the harness-side `BindError` type)
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct DemoBindError {
     /// The `InstanceEntry::name` of the instance that failed to bind.
