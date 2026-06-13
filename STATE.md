@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.758"
+version: "7.759"
 producer: state-manager
-timestamp: 2026-06-12T09:00:00Z
+timestamp: 2026-06-12T18:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,17 +17,17 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "939f36ce"
-bc_index_version: "6.31"
+bc_index_version: "6.32"
 vp_index_version: "1.79"
-story_index_version: "v2.357"
+story_index_version: "v2.359"
 arch_index_version: "2.133"
 error_taxonomy_version: "1.78"
-total_stories: 197
+total_stories: 200
 active_contracts: 232
 draft_contracts: 5
 retired_contracts: 6
 prd_version: "1.12"
-policies_version: "1.32"
+policies_version: "1.33"
 subsystem_count: 22
 vp_count: 157
 bc_count_corrected: 250
@@ -35,7 +35,7 @@ workspace_test_count: 3746
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1108 — T5 PR-LEVEL cascade pass 3 CLOSED. BPRL-P3-01 MED (CLAUDE.md 50→52 ratified in-PR per D-1108; supersedes D-1106 post-merge plan) + BPRL-P3-OBS-1 (cyberint fail-closed ioc_type) + BPRL-P3-OBS-2 (crowdstrike containment-precedence doc) ALL FIXED in commits 2323cf37+13efc875. Sibling sweep 13efc875 (TD-VSDD-060/POL-29): check-non-exhaustive.sh + struct_violations.rs EXPECTED 50→52. Story B HEAD 13efc875 = remote. Streak 0/3. Pass 4 NEXT. STATE v7.757→v7.758."
+current_step: "D-1109/D-1110 — T5 PR-LEVEL cascade pass 4 CLOSED. BPRL-P4-01 MED CLOSED-BY-DEFERRAL (BC-2.06.019 v1.3→v1.4 per-sensor IOC-surface matrix + Interim State clause + Route Coverage Table; IOC-surface work anchored to S-DEMO-ENRICHMENT-PIVOT-003). BPRL-P4-02 LOW CLOSED (crowdstrike detections list+summaries stage-guard; armis alerts in:alerts guard; claroty alerts exempt; SID-1 test; commit bc0f36c5). BPRL-P4-PG-01 process-gap CLOSED (BC v1.4 Route Coverage Table + POL-33 registered). BC-2.06.019 v1.4. WO-D1109 v1.1. 3 PIVOT stories + remove-uncertainty (25/25 closed) DONE per D-1110. Story B HEAD bc0f36c5 = remote. Streak 0/3. Pass 5 NEXT. STATE v7.758→v7.759."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -55,7 +55,7 @@ dtu_strategy_decided: 2026-04-20
 active_objective: "multi-client SOC-analyst live demo (real per-client data; TDE deferred) — see SESSION-HANDOFF §ACTIVE OBJECTIVE"
 task_ledger: ".factory/objectives/multi-client-soc-demo-tasks.md"
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
-user_directive_remove_uncertainty: "Run dclaude:remove-uncertainty on every implementation story BEFORE TDD delivery (caught 6 real story-guidance defects on S-DEMO-CLAROTY-TRAILING-SLASH-001 — D-1059/D-1060). Standing directive 2026-06-08."
+user_directive_remove_uncertainty: "Run dclaude:remove-uncertainty on every implementation story BOTH immediately after story-writer materializes/writes it AND again before TDD delivery (D-1110 extension 2026-06-12 — extends D-1061; PIVOT-001/002/003 validated same-day per D-1110: 25 uncertainties found+fixed including 4 demonstrably-wrong claims; 2 perplexity deep-research hallucinations detected+discarded, re-grounded on primary sources). Original standing directive 2026-06-08 (D-1059/D-1060 first evidence)."
 policy_registry_source_of_truth: .factory/policies.yaml
 sprint_state_path: ".factory/stories/sprint-state.yaml"
 historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations, wave-0-plugin-prereqs]
@@ -86,9 +86,9 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-12 (D-1108 — T5 PR-LEVEL pass 3 closed: BPRL-P3-01 MED CLAUDE.md 50→52 ratified in-PR (D-1108 supersedes D-1106 post-merge plan); BPRL-P3-OBS-1/OBS-2 fixed; sibling sweep 13efc875; story B HEAD 13efc875 = remote; streak 0/3; pass 4 next; STATE v7.757→v7.758) |
+| **Last Updated** | 2026-06-12 (D-1109/D-1110 — T5 PR-LEVEL pass 4 closed: BPRL-P4-01 MED CLOSED-BY-DEFERRAL (BC-2.06.019 v1.4 per-sensor IOC-surface matrix + Interim State + Route Coverage Table; IOC-surface → S-DEMO-ENRICHMENT-PIVOT-003); BPRL-P4-02 LOW fixed bc0f36c5 (crowdstrike detections + armis alerts stage-guards); POL-33 registered; 3 PIVOT stories + remove-uncertainty 25/25; D-1110 directive extended; story B HEAD bc0f36c5 = remote; streak 0/3; pass 5 next; STATE v7.758→v7.759) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **RESUMING T5 after review cycle complete**. Phase B + Phase C COMPLETE. T4-A DONE (PR #181). Review cycle COMPLETE: 3 fix-PRs merged (#183 QRY, #184 MCP, #182 DTU). Register burst COMPLETE. NEXT: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B materialize + deliver) → T6 (S-DEMO-MULTI-TENANT-DTU-001). Draft/deferred: S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
-| **Current Step** | D-1108 — T5 PR-LEVEL cascade pass 3 CLOSED. PR #185 OPEN; HEAD=REMOTE=13efc875. LOCAL 3/3 strict CONVERGED. PR-LEVEL: pass 1 CLEAN (BPRL-P1-01 LOW); pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed 2323cf37+13efc875; streak 0/3. D-1108 CLAUDE.md 50→52 ratified in-PR (supersedes D-1106 post-merge plan). NEXT: PR-LEVEL pass 4. STATE v7.758. |
+| **Current Step** | D-1109/D-1110 — T5 PR-LEVEL cascade pass 4 CLOSED. PR #185 OPEN; HEAD=REMOTE=bc0f36c5. LOCAL 3/3 strict CONVERGED. PR-LEVEL: pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed 2323cf37+13efc875; pass 4 BPRL-P4-01 CLOSED-BY-DEFERRAL (BC-2.06.019 v1.4) + BPRL-P4-02 LOW fixed bc0f36c5 + BPRL-P4-PG-01 closed (POL-33); streak 0/3. BC-2.06.019 v1.4 (D-1109). WO-D1109 v1.1. 3 PIVOT stories v1.1 (remove-uncertainty D-1110 25/25). NEXT: PR-LEVEL pass 5. STATE v7.759. |
 
 ## Active Objective (North Star)
 
@@ -154,6 +154,8 @@ _D-735 through D-1098 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (an
 | D-1103 | state-manager | 2026-06-12 | REVIEW CYCLE COMPLETE (3/3 lanes merged). DTU PR #182 → develop@939f36ce (2026-06-12T05:18Z; PR-LEVEL 3/3 strict; CI 43/43). Register burst COMPLETE (25 items). POL-14 idempotent (fix-PR). develop_head 939f36ce. workspace_test_count 3746. NEXT: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B materialize per D-1090). STATE v7.753→v7.754. |
 | D-1104 | product-owner | 2026-06-12 | PO GOVERNANCE BURST (D-1103 register-burst items 4/10/11/20/24). POL-23/27/32 normalizations + story stubs + auth_type LOCKED ruling. BC-INDEX v6.26→v6.27. STORY-INDEX v2.348→v2.351 (+3 stories; total_stories 194→197). STATE v7.754→v7.755. NEXT: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B per D-1090). |
 | D-1106 | state-manager | 2026-06-12 | PAUSE-CHECKPOINT — T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) in PR-LEVEL cascade. PR #185 OPEN; HEAD=REMOTE=4eadb027. LOCAL CONVERGED 3/3 strict (13 passes). PR-LEVEL: pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; streak 0/3. D-1107 scope-in. Lessons w/x/y. STATE v7.756→v7.757. |
+| D-1110 | state-manager | 2026-06-12 | USER DIRECTIVE EXTENDED — `dclaude:remove-uncertainty` runs on EVERY story BOTH immediately after story-writer writes it AND again before TDD delivery. Extends D-1061. PIVOT-001/002/003 validated same-day: 25 uncertainties found + fixed (4 demonstrably-wrong claims corrected; 2 perplexity deep-research hallucinations detected + discarded, re-grounded on primary sources). Stories advance v1.0→v1.1. STORY-INDEX v2.358→v2.359. STATE v7.758→v7.759 (combined D-1109/D-1110 burst). |
+| D-1109 | state-manager | 2026-06-12 | T5 PR-LEVEL pass 4 CLOSED. BPRL-P4-01 MED CLOSED-BY-DEFERRAL (user: design-faithful path; infusion is flagship feature — IOC-surface deferred to S-DEMO-ENRICHMENT-PIVOT-003; BC-2.06.019 v1.3→v1.4: per-sensor IOC-surface matrix + Interim State clause + Route Coverage Table added; H1 UNCHANGED). BPRL-P4-02 LOW CLOSED (crowdstrike detections list+summaries stage-0 guard added; armis alerts in:alerts guard added; claroty alerts exempt; SID-1 test added; commit bc0f36c5; `just check` PASS). BPRL-P4-PG-01 process-gap CLOSED (BC-2.06.019 v1.4 Route Coverage Table + POL-33 registered). SAP-1 PASS; POL-22 A+C PASS. Pass-2/3 fixes verified load-bearing (not paper-fixes). CLEAN(strict)=no; CLEAN(PR-merge)=no. Streak 0/3. WO-D1109 v1.1 (architect: enrich grammar = function-call form; PluginInfusionSource trait impl not free function; guest crates at crates/plugins/ excluded from workspace; Justfile wasm-tools pipeline canonical). 3 PIVOT stories drafted (v1.0) by story-writer. D-1110 remove-uncertainty cycle applied same day (25/25 uncertainties closed; stories v1.0→v1.1). BC-INDEX v6.31→v6.32. STORY-INDEX v2.357→v2.359. policies v1.32→v1.33. Story B HEAD bc0f36c5 = remote. Pass 5 NEXT. STATE v7.758→v7.759. |
 | D-1108 | state-manager | 2026-06-12 | T5 PR-LEVEL pass 3 CLOSED. BPRL-P3-01 MED (CLAUDE.md 50→52 ratified in-PR per D-1108 human decision — supersedes D-1106 post-merge plan) + BPRL-P3-OBS-1 (cyberint fail-closed ioc_type match + test) + BPRL-P3-OBS-2 (crowdstrike containment-precedence doc comment) all fixed commits 2323cf37+13efc875. Sibling sweep 13efc875 (TD-VSDD-060/POL-29): scripts/check-non-exhaustive.sh + struct_violations.rs EXPECTED 50→52; zero live EXPECTED=50 sites (historical 001-A evidence reports point-in-time, untouched). `just check` PASS (897s + 930s). Story B HEAD 13efc875 = remote. Streak 0/3. Pass 4 NEXT. STATE v7.757→v7.758. |
 
 ## Decisions Log
@@ -175,6 +177,8 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1110 | 2026-06-12 | state-manager | **D-1110 USER DIRECTIVE EXTENDED.** `dclaude:remove-uncertainty` now runs BOTH immediately after story-writer writes/materializes a story AND again before TDD delivery. Extends D-1061. Evidence from PIVOT-001/002/003 same-day validation: scanner found 25 uncertainties (4 demonstrably-wrong: reqwest/tokio-in-WASM-guest non-viability; nonexistent threatintel `/threatintel/lookup` + nvd `/nvd/cves/{id}` endpoints; nonexistent crowdstrike types.rs Behavior struct). Research-agent validated on primary sources (DataFusion 53 `invoke_with_args` only, `AsyncScalarUDFImpl` since 49.0; wasmtime 44 TypedFunc + mandatory post_return). 2 perplexity deep-research calls returned hallucinated content — detected and discarded; re-grounded on Context7/docs.rs. Architect 4 rulings applied. Story-writer fixed all 25 — PIVOT-001/002/003 v1.0→v1.1. STATE v7.758→v7.759 (combined D-1109/D-1110 burst per TD-VSDD-053). | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: user (D-1110 standing directive extension; durable frontmatter key updated). |
+| D-1109 | 2026-06-12 | state-manager | **T5 PR-LEVEL PASS 4 CLOSURE BURST (D-1109/D-1110).** Single atomic commit (TD-VSDD-053). **(1) BPRL-P4-01 MED:** User direction — design-faithful path; infusion is flagship feature that needs to be correct. IOC-surface work deferred OUT of PR #185 into S-DEMO-ENRICHMENT-PIVOT-001/002/003 chain. BC-2.06.019 v1.3→v1.4 amended by PO: per-sensor IOC-surface matrix (Cyberint/CrowdStrike YES but deferred to PIVOT-003; Armis/Claroty permanently excluded), Interim State clause ("Story B delivers StageMask column-projection and route guard; production IOC-surface stamping deferred"), Route Coverage Table (StageMask field × clone × route file × HTTP route × guard mechanism × status). H1 UNCHANGED. **DO NOT REFLAG** in pass 5+: CLOSED-BY-DEFERRAL with explicit BC-2.06.019 v1.4 Interim State + anchored to S-DEMO-ENRICHMENT-PIVOT-003. **(2) BPRL-P4-02 LOW:** Fixed in commit bc0f36c5 — crowdstrike detections list+summaries `stage_idx >= 1` guard; armis alerts `in:alerts` guard added (sibling sweep); claroty alerts exempt (no device_id emitted at stage 0); SID-1 unit test `test_BC_2_06_019_detections_stage_0_returns_empty` added; `just check` PASS. **(3) BPRL-P4-PG-01 process-gap:** CLOSED — BC-2.06.019 v1.4 Route Coverage Table + POL-33 `route_coverage_table_required_for_stagemask_changes` registered (policies v1.32→v1.33). **(4) WO-D1109 v1.1:** Architect 4 rulings (enrich grammar = function-call form; PluginInfusionSource trait impl not free function; guest crates at crates/plugins/ excluded from workspace; Justfile wasm-tools pipeline canonical). **(5) 3 PIVOT stories drafted** by story-writer (PIVOT-001 v1.0, PIVOT-002 v1.0, PIVOT-003 v1.0; STORY-INDEX v2.357→v2.358; total_stories 197→200). S-1.14-REDO annotated with forward-subset cross-reference. **(6) D-1110 remove-uncertainty cycle** applied same-day: 25 uncertainties found + fixed (PIVOT-001/002/003 v1.0→v1.1); STORY-INDEX v2.358→v2.359. **(7) SAP-1 PASS; POL-22 A+C PASS.** Pass-2/3 fixes verified load-bearing. CLEAN(strict)=no; CLEAN(PR-merge)=no. Streak 0/3. **(8) Pass report written:** cycles/wave-5-e-demo-fidelity/S-DEMO-DTU-LIVE-SCENARIO-001-B/adversarial-review/pr-pass-4.md. **(9) Story B branch HEAD:** bc0f36c5 = remote. **(10) BC-INDEX v6.31→v6.32; STORY-INDEX v2.357→v2.359; policies v1.32→v1.33.** STATE v7.758→v7.759. NEXT: PR-LEVEL pass 5. | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: state-manager (D-1109 burst; D-1109 human decision design-faithful path; D-1110 user directive extension). |
 | D-1106 | 2026-06-12 | state-manager | **PAUSE-CHECKPOINT — USER CLEARING SESSION.** Single atomic burst (TD-VSDD-053). **(1) T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) PR-LEVEL cascade status:** PR #185 OPEN; HEAD=REMOTE=4eadb027; story v2.5 (18 ACs / 19+ RG tests); BC-2.06.019 v1.3 + BC-2.06.020 v1.2; LOCAL CONVERGED 3/3 strict (13 passes; trajectory P1:4→P2:1→P3:1→P4:1+2obs→P5:5+2obs→P6:0→P7:2→P8:0→P9:1→P10:1→P11:0→P12:0→P13:0). Key LOCAL closures: B-P1-01/02 CRIT (route projection missing + vacuous tests), B-P2-01 HIGH (Claroty dev- join key), B-P3-01 (EC-019-012 contradiction guard), B-P4-01 (guard order E-003 hoist), E-DEMO-006 org_id guard (PO OBS-1 ruling: BC-2.06.019 v1.2 PRE-6), B-P5 set (renumber/signature/UUID-canon/Arc-threading), B-P7 (rustdoc + 020 pin), B-P9-01/F-P10-01 ([[test]] required-features). Demo evidence 18/18 ACs (commit 10f7978f). PR-LEVEL: pass 1 4 directed probes PASS + BPRL-P1-01 LOW (stale 3-guard comment) closed 45323267; pass 2 BPRL-P2-01 MED (cyberint alerts StageMask projection unimplemented; spec-wins per §FSR+BC PC-4) closed 4eadb027; streak 0/3. **(2) D-1107 USER DECISION (2026-06-12):** capability-discovery block opted INTO demo scope: S-5.02→S-5.03→S-5.04 (S-3.13 parallel after PO authors BCs). Updated build sequence: T5→T6(ready v1.2)→T8(architect+PO reconcile first)→capability-discovery block→T11(pending launcher-lifecycle decision)→T13. remove-uncertainty required on all 4 opted-in stories before TDD (standing D-1061). **(3) STORY-INDEX:** v2.356→v2.357 (per D-1106 STORY-INDEX current). **(4) Lessons w/x/y appended** to cycles/wave-5-e-demo-fidelity/lessons.md. **(5) SESSION-HANDOFF §RESUME SNAPSHOT** rewritten as D-1106 (superseding D-1101/D-1102/D-1103 notes; D-1103 snapshot archived to session-handoff-archive.md). STATE v7.756→v7.757. factory-artifacts PUSH follows. | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: state-manager (D-1106 pause-checkpoint burst; bookkeeping only). |
 | D-1105 | 2026-06-12 | state-manager | **T5 LOCAL PASS-5 B-P5-03 CLOSURE + FRONTMATTER SYNC.** Single atomic burst (TD-VSDD-053). **(1) B-P5-03 closure:** BC-INDEX rows 119 (BC-2.06.019) and 120 (BC-2.06.020) carried stale anchor-story version pins `v2.3` and `v2.2` respectively; synced to `v2.4` following story-writer bursts e801a372 (v2.3) → 29b0d0ab (v2.4). BC-INDEX frontmatter v6.30→v6.31; changelog row added. **(2) POL-29 sweep:** `grep -rn 'S-DEMO-DTU-LIVE-SCENARIO-001-B.*v2\.[0-3]' .factory/specs/` — ONLY hits were rows 119/120 in BC-INDEX.md (state-manager domain); one additional hit in ARCH-INDEX.md line 184 is a historical burst-narrative description (not a ready-version pin, append-only, not state-manager domain — no edit). Story files and BC body prose are NOT state-manager domain; no hits there. **(3) STATE frontmatter drifted during T5 cascade:** bc_index_version 6.27→6.31 (v6.28/v6.29/v6.30/v6.31 occurred in story-writer/PO/state-manager bursts without frontmatter sync); error_taxonomy_version 1.76→1.78 (v1.77 PO burst OBS-1; v1.78 PO burst B-P5-02); vp_index_version 1.78→1.79 (VP-019-I registered during OBS-1 burst); story_index_version v2.351→v2.356 (story-writer burst v2.352 + subsequent increments). **(4) T5 LOCAL cascade status (informational):** passes 1-5; findings B-P1-01..B-P5-05 all closed; head 6a1a8fb0; streak 0/3; pass 6 next. STATE v7.755→v7.756. factory-artifacts PUSHED. | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: state-manager (B-P5-03 bookkeeping; frontmatter sync; POL-29 sweep evidence recorded). |
 | D-1104 | 2026-06-12 | product-owner | **PO GOVERNANCE BURST — D-1103 register-burst follow-up items 4, 10, 11, 20, 24.** (See shorter row in pipeline-steps table above.) BC-INDEX v6.26→v6.27. STORY-INDEX v2.348→v2.351 (+3 stories; total_stories 194→197). LOCKED decision 4: cyberint `auth_type=cookie_roundtrip` (PO ruling; main-tree correction delegated to implementer). STATE v7.754→v7.755. factory-artifacts PUSHED. | wave-5-e-demo-fidelity | 2026-06-12 | Decided by: product-owner (D-1103 follow-up routing; LOCKED decision 4; governance burst). |
@@ -318,19 +322,19 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-12 — D-1108: T5 PR-LEVEL pass 3 closed; STATE v7.758)
+## Session Resume Checkpoint (2026-06-12 — D-1109/D-1110: T5 PR-LEVEL pass 4 closed; STATE v7.759)
 
-_Previous checkpoint (D-1106; STATE v7.757) superseded by D-1108 burst. SESSION-HANDOFF.md §RESUME SNAPSHOT updated as D-1108._
+_Previous checkpoint (D-1108; STATE v7.758) superseded by D-1109/D-1110 burst. SESSION-HANDOFF.md §RESUME SNAPSHOT updated as D-1109/D-1110._
 
-**STATE v7.758. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) in PR-LEVEL cascade — PR #185 OPEN; head 13efc875 = remote. LOCAL CONVERGED 3/3 strict (13 passes). PR-LEVEL: pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed 2323cf37+13efc875; streak 0/3. D-1108 CLAUDE.md 50→52 ratified in-PR (supersedes D-1106 post-merge plan). NEXT: PR-LEVEL pass 4. develop HEAD: 939f36ce. BC-INDEX v6.31 (250/232/5/6). STORY-INDEX v2.357 (197). VP-INDEX v1.79 (158).**
+**STATE v7.759. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) in PR-LEVEL cascade — PR #185 OPEN; head bc0f36c5 = remote. LOCAL CONVERGED 3/3 strict (13 passes). PR-LEVEL: pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 3xfindings closed 2323cf37+13efc875; pass 4 BPRL-P4-01 CLOSED-BY-DEFERRAL (BC-2.06.019 v1.4) + BPRL-P4-02 fixed bc0f36c5 + BPRL-P4-PG-01 closed (POL-33); streak 0/3. NEXT: PR-LEVEL pass 5. develop HEAD: 939f36ce. BC-INDEX v6.32 (250/232/5/6). STORY-INDEX v2.359 (200). VP-INDEX v1.79 (158). policies v1.33.**
 
 **RESUME PROTOCOL (run on fresh session start):**
-0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT D-1108.
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT D-1109/D-1110.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING — must pass before reading any state).
 2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
-3. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `13efc875`.
-4. Verify `gh pr checks 185` — confirm CI status on 13efc875.
-5. Verify `grep "^version:" .factory/STATE.md` shows `"7.758"`.
+3. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `bc0f36c5`.
+4. Verify `gh pr checks 185` — confirm CI status on bc0f36c5.
+5. Verify `grep "^version:" .factory/STATE.md` shows `"7.759"`.
 6. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone.
-7. Apply lessons (a)–(y) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-8. **NEXT ACTION: PR-LEVEL pass 3** — fresh adversary; do-not-reflag list = all LOCAL closures + BPRL-P1-01 + BPRL-P2-01 + adjudications per §RESUME SNAPSHOT D-1106 in SESSION-HANDOFF.md.
+7. Apply lessons (a)–(z3) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+8. **NEXT ACTION: PR-LEVEL pass 5** — fresh adversary on PR #185 at HEAD bc0f36c5; do-not-reflag list = all LOCAL closures + BPRL-P1-01 + BPRL-P2-01 + BPRL-P3-01/OBS-1/OBS-2 + BPRL-P4-01 (closed-by-deferral) + BPRL-P4-02 (closed bc0f36c5) + BPRL-P4-PG-01 (closed POL-33) — see SESSION-HANDOFF §4.

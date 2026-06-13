@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.31"
+version: "6.32"
 status: draft
 producer: story-writer
 timestamp: 2026-06-12T00:00:00Z
@@ -116,7 +116,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
 | BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | active — v1.6 (D-1089 2026-06-10: POL-14 draft→active; anchor story S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d; full 8-archetype archetype-driven seeding delivered; fixture_gen_seeded sentinel; per-client distinct data proven INV-DISTINCT-DATA-001) |
-| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.3 (B-P5-01 2026-06-12: precondition renumbering correction — archetype PRE-7, build-before-start PRE-8; v1.2 body had mislabeled them 8/9 skipping 7; v1.2: OBS-1 PRE-6 org_id-equality guard + E-DEMO-006 + EC-019-013 + TV-019-015 + VP-019-I); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.4 (B-P5-03 2026-06-12) |
+| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.4 (D-1109 2026-06-12: BPRL-P4-01 per-sensor IOC-surface matrix + Interim State clause + Route Coverage Table; H1 UNCHANGED; IOC-surface work anchored to S-DEMO-ENRICHMENT-PIVOT-003; v1.3: precondition renumbering; v1.2: OBS-1 PRE-6 org_id guard); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.6 (D-1109 2026-06-12) |
 | BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.2 (OBS-2 2026-06-12: Story Anchor/VP Anchors/Traceability propagate S-DEMO-DTU-LIVE-SCENARIO-001-B); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.4 (B-P5-03 2026-06-12) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.32 (2026-06-12, D-1109/D-1110 closure burst — BC-2.06.019 v1.3→v1.4 per-sensor IOC-surface matrix + Route Coverage Table + Interim State clause):** state-manager | **BC-2.06.019 v1.3→v1.4** (D-1109, BPRL-P4-01 adjudication — design-faithful path). PO amended BC-2.06.019 per D-1109 human decision: per-sensor IOC-surface matrix added to PC-4; Interim State clause added documenting Story B delivers StageMask column-projection and route guard while production IOC-surface stamping (Cyberint `ioc`/`iocs[]`/`alert_data`; CrowdStrike `behaviors[].ioc_*`) is deferred to S-DEMO-ENRICHMENT-PIVOT-003; Route Coverage Table added (StageMask field × clone × route file × HTTP route × guard mechanism × status); H1 title UNCHANGED (do not reflag H1 change). Counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.31→v6.32.
 
 **v6.31 (2026-06-12, state-manager micro-burst — B-P5-03 stale story-version pin sync):** state-manager | POL-11/POL-26/POL-29/POL-32 compliance. Rows 119 and 120 carried stale `anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.3` and `ready v2.2` annotations respectively; both synced to `ready v2.4` (current after story-writer bursts e801a372 v2.3 → 29b0d0ab v2.4). POL-29 sweep: `grep -rn 'S-DEMO-DTU-LIVE-SCENARIO-001-B.*v2\.[0-3]' .factory/specs/` — only hits were these two rows (rows 119/120 in BC-INDEX.md); no other spec file pinned a stale version. Story files and BC body prose are NOT state-manager domain — no hits in those paths require action. Counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.30→v6.31.
 

@@ -23,8 +23,14 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.32"
+  version: "1.33"
   changelog:
+    - version: "1.33"
+      date: 2026-06-12
+      burst: D-1109-D-1110-closure-burst
+      decision: D-1109
+      findings: [BPRL-P4-01, BPRL-P4-PG-01]
+      change: "v1.32 → v1.33 2026-06-12 — POL-33 route_coverage_table_required_for_stagemask_changes registered. Codified from BPRL-P4-01 root cause (WO-D1109 §Q4, D-1109, BC-2.06.019 v1.4). Severity: HIGH. Scope: [bc, story, source-code]. Any BC/story/source commit introducing or modifying a StageMask-relevant DTU route handler MUST update the Route Coverage Table in the same artifact/commit (table enumerates StageMask field, clone, route file, HTTP route, guard mechanism, status)."
     - version: "1.32"
       date: 2026-06-10
       burst: spec-steward-P2-02-Direction-A-micro-burst
@@ -728,6 +734,34 @@ policies:
       - "When fixing a non-monotonic table, reorder ALL rows to descending order and add a new top-row citing the hygiene-cleanup finding ID. The cleanup row's version = previous_highest_version + 1."
       - "Missing rows should be added as tombstone rows with content prefixed '[TOMBSTONE — row was absent from changelog]' and content reconstructed from external cites (BC-INDEX, STORY-INDEX, adjacent changelog rows) if available."
       - "Shell verification one-liner for a single file: grep '^|' <file> | grep -E '\\| [0-9]+\\.[0-9]+ \\|' | awk -F'|' '{print $2}' | sed 's/ //g' | awk 'NR>1{if($1>prev) print \"OUT-OF-ORDER: \"prev\" then \"$1; prev=$1} NR==1{prev=$1}' — empty output = PASS."
+
+  - id: 33
+    name: route_coverage_table_required_for_stagemask_changes
+    description: |
+      Any BC, story, or source-code commit that introduces or modifies a StageMask-relevant
+      DTU route handler MUST update the Route Coverage Table in the same artifact/commit.
+      The Route Coverage Table enumerates, for each affected route: StageMask field name,
+      clone crate, route file path, HTTP route pattern, guard mechanism (e.g., stage_idx >= N),
+      and current status (GUARDED / UNGUARDED / EXEMPT with rationale).
+      Failure = HIGH process-gap (BPRL-P4-PG-01 precedent: no coverage table for
+      crowdstrike detections + armis alerts + cyberint alerts + claroty alerts stage guards
+      across 4 route handlers meant a guard gap at detections rode to PR-LEVEL pass 4
+      undetected — caught only by full-route adversarial sweep).
+    adopted: D-1109-2026-06-12
+    severity: HIGH
+    enforced_by: [adversary-prompt, product-owner-self-check, state-manager]
+    scope: [bc, story, source-code]
+    lint_hook: null
+    references_finding: BPRL-P4-PG-01
+    references_decision: D-1109
+    references_bc: BC-2.06.019-v1.4
+    verification_steps:
+      - "For any PR diff or fix-burst that touches a file matching `crates/prism-dtu-*/src/routes/*.rs` AND introduces or modifies StageMask-related logic (stage_idx, StageMask enum, stage guard): verify the governing BC's §Postconditions (or dedicated Route Coverage Table section) contains a Route Coverage Table."
+      - "Read the Route Coverage Table: for each row verify columns (StageMask field, clone, route file, HTTP route, guard mechanism, status) are populated with specific values — not placeholders."
+      - "For each UNGUARDED row: verify there is an explicit rationale for why the route is exempt (e.g., 'no device_id emitted at stage 0 — claroty alerts schema')."
+      - "If any route handler in the diff is absent from the table → HIGH process-gap. The fix: add the row to the table in the same commit as the route change."
+      - "When a new clone's routes are added (new `prism-dtu-<sensor>/src/routes/` file with StageMask logic): all routes in that file must appear in the coverage table before the PR can merge."
+      - "Adversary must run `rg 'stage_idx|StageMask' crates/prism-dtu-*/src/routes/ --type rust --files-with-matches` to enumerate ALL route files with StageMask references, then cross-check each against the Route Coverage Table."
 
   - id: 31
     name: vp_proof_harness_skeleton_symbol_validation
