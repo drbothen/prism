@@ -781,3 +781,34 @@ This pattern was instantiated in BC-2.06.019 v1.6. It is the fix for the recurre
 4. **PO authorship of inventory evidence notes in BCs carries the same evidence standards as adversary pass reports.** Prose in a BC that describes tool output is a testable factual claim, not spec prose.
 
 This lesson extends z2's research-agent scope to all agents that write artifact prose containing tool-output claims.
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-B: PR-LEVEL pass 8 — shared-anchor-story index rows must be swept as a CLASS (D-1114 pass-8 closure codification)
+
+**Date recorded:** 2026-06-12
+**D-NNN anchor:** D-1114 (PR-LEVEL pass 8 closure burst)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [bc-index] [story-version-pin] [sibling-sweep] [index-annotation]
+**Classification:** PROCESS-GAP — BC-INDEX row for one BC updated but sibling row for a co-anchored BC missed when story version advanced.
+
+**(z8) [process-gap] Shared-anchor-story index rows must be swept as a CLASS — when any burst bumps a story version, grep every index for ALL rows citing that story ID.** D-1113 burst advanced story B v2.8→v2.9 and correctly updated BC-INDEX row 119 (BC-2.06.019 — the BC that was the subject of the amendment). Row 120 (BC-2.06.020 — a second BC also anchored to story B) still carried `ready v2.4 (B-P5-03 2026-06-12)` and was not swept. The root cause is that the update logic was "row for the amended BC" rather than "all rows citing this story ID."
+
+**Root cause:** Each BC-INDEX row carries an independent story-version pin annotation. When the D-1113 burst bumped the BC-2.06.019 row annotation (row 119) as part of the BC amendment, it did not apply the exhaustive-inventory principle (lesson z5) to the index annotation context: enumerate all rows in the index that reference this story, not just the row for the BC being amended.
+
+**The analogous precedent existed:** The v6.31 micro-burst (B-P5-03) explicitly swept BOTH rows 119 and 120 together when both annotations were stale at the same version. D-1113 was a BC-amendment burst (row 119 was the amendment target) — and the same-class sweep was not applied to row 120 despite both BCs being anchored to the same story.
+
+**Correct response (codified rule):**
+
+When any burst advances a story version:
+
+1. **Grep every index for ALL rows citing that story ID.** Not just the row for the BC being amended. Command: `grep -n "<story-id> ready v" .factory/specs/behavioral-contracts/BC-INDEX.md` (table section only — exclude changelog lines).
+2. **Update every stale version pin found** — even rows for BCs that were not the subject of the burst.
+3. **Apply the same sweep to VP-INDEX and ARCH-INDEX** for completeness (though these currently carry ID-only references without version pins; the sweep confirms zero additional hits).
+4. **Record the sweep evidence** in the burst: "rows found: N; rows stale: M; rows fixed: M."
+
+This is the index-annotation extension of the exhaustive-inventory principle from lesson z5 (Route Coverage Table requires enumerate-before-correct). The same logic applies: enumerate all index rows for the subject story before declaring the annotation sweep complete.
+
+**Outcome:**
+
+BC-INDEX row-120 fixed in D-1114 burst. BC-INDEX v6.36. Story B HEAD bc0f36c5 UNCHANGED (index-row annotation only; no code change).
