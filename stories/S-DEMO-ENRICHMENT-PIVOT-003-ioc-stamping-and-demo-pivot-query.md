@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -135,7 +135,7 @@ faithfully demonstrates the production enrichment pivot workflow.
 | BC | Title | Key Clauses |
 |----|-------|-------------|
 | BC-2.06.019 v1.7 | Demo-Server Scenario Progression — Per-Sensor IOC-Surface Masking | PC-4 Per-Sensor IOC-Surface Matrix: Cyberint alerts and CrowdStrike detections carry real-schema IOC fields; Armis/Claroty permanently excluded; `_ioc_value` synthetic filter removed atomically; Route Coverage Table updated |
-| BC-2.06.020 v1.2 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel | INV-THREATINTEL-IOC-CORRELATION-001: scenario IOCs in ScenarioEntityCatalog resolve as Malicious in ThreatIntel; INV-CROSS-DTU-ENTITY-COHERENCE-001: entity IDs coherent across DTU clones |
+| BC-2.06.020 v1.3 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001: scenario IOCs in ScenarioEntityCatalog resolve as Malicious in ThreatIntel; INV-CROSS-DTU-ENTITY-COHERENCE-001: entity IDs coherent across DTU clones; INV-CYBERINT-ALERT-CVE-CORRELATION-001: Cyberint CVE records use catalog IDs in scenario mode, CVE-9999- namespace in all modes |
 
 **VP Citation (U24):** VP-019-A (pure function reproducibility), VP-019-B (stage monotonicity),
 VP-019-C (StageMask completeness), VP-019-G, VP-019-H are BC-2.06.019-internal sub-properties
@@ -370,7 +370,7 @@ REMOVED ROWS (U20 — routes do not exist in actual router):
 | BC-2.06.019 v1.7 (full — authoritative for IOC matrix, Interim State, Route Coverage Table) | ~7,500 |
 | `prism-dtu-crowdstrike/src/generator.rs` make_detection() function + fixtures/detections-detail.json (U19) | ~800 |
 | `prism-dtu-armis/src/generator.rs` (device_cves_first projection, U17/Ruling 1b) | ~600 |
-| BC-2.06.020 v1.2 (enrichment correlation context) | ~3,000 |
+| BC-2.06.020 v1.3 (enrichment correlation context) | ~3,600 |
 | `prism-dtu-cyberint/src/types.rs` (pre + post this story) | ~1,000 |
 | `prism-dtu-cyberint/src/routes/alerts.rs` | ~800 |
 | `prism-dtu-crowdstrike/src/types.rs` | ~1,000 |
@@ -615,6 +615,7 @@ Column in TOML with no DTU equivalent = **P1 CRITICAL**. `_ioc_value` in route h
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.5 | 2026-06-12 | Pin-sync — BC-2.06.020 v1.2→v1.3 (D-1117 Cyberint CVE correlation + SEC-001 collision-safety; POL-23). Two live pin sites updated: §Behavioral Contracts BC table row (updated title and added INV-CYBERINT-ALERT-CVE-CORRELATION-001 to key clauses) and §Token Budget BC-2.06.020 context row (~3,000→~3,600). Historical changelog rows left untouched. version 1.4→1.5. |
 | v1.4 | 2026-06-12 | Micro-sweep — BC-2.06.019 v1.6→v1.7 pin-sync (BPRL-P7-01 inventory-prose correction; POL-23). All body-level BC-2.06.019 v1.6 citations updated to v1.7 (frontmatter comment block, §Narrative, §Architecture Compliance Rules, §Acceptance Criteria AC traces, §Token Budget, §Tasks, §Forbidden Dependencies, §Edge Cases). version 1.3→1.4. |
 | v1.3 | 2026-06-12 | Micro-sweep — BC-2.06.019 v1.5→v1.6 pin-sync (BPRL-P6-01 Claroty devices Route Coverage row + exhaustive inventory verification note; POL-23). All body-level BC-2.06.019 v1.5 citations updated to v1.6 (frontmatter comment block, §Narrative, §Architecture Compliance Rules, §Acceptance Criteria AC traces, §Token Budget, §Tasks, §Forbidden Dependencies, §Edge Cases). version 1.2→1.3. |
 | v1.2 | 2026-06-12 | Micro-sweep — BC-2.06.019 v1.4→v1.5 pin-sync (BPRL-P5-01 Route Coverage Table corrections + PC-4 5-arg prose; POL-23). All body-level BC-2.06.019 v1.4 citations updated to v1.5 (frontmatter comment block, §Narrative, §Architecture Compliance Rules, §Acceptance Criteria AC traces, §Token Budget, §Tasks, §Forbidden Dependencies, §Edge Cases). version 1.1→1.2. |

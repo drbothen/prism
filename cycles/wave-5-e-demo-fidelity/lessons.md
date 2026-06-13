@@ -812,3 +812,43 @@ This is the index-annotation extension of the exhaustive-inventory principle fro
 **Outcome:**
 
 BC-INDEX row-120 fixed in D-1114 burst. BC-INDEX v6.36. Story B HEAD bc0f36c5 UNCHANGED (index-row annotation only; no code change).
+
+---
+
+### [production-grade] S-DEMO-DTU-LIVE-SCENARIO-001-B: D-1117 — synthetic IDs on any pivotable surface must be collision-safe AND resolve in enrichment target; single-source catalog derivation is the mechanism (D-1117 post-pass-11 enhancement codification)
+
+**Date recorded:** 2026-06-12
+**D-NNN anchor:** D-1117 (SEC-001 + cyberint CVE↔NVD correlation mid-cascade enhancement)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [production-grade] [security] [synthetic-ids] [enrichment-correlation] [cve-namespace] [catalog-derivation] [standing-probe]
+**Classification:** PRODUCTION-GRADE — security-reviewer SEC-001 (CWE-1336-adjacent) caught this after 3/3 PR-LEVEL convergence. Reached the human as a mandatory fix, not an optional refinement.
+
+**(z9) [production-grade] Synthetic IDs emitted on ANY pivotable surface must satisfy TWO properties: (1) collision-safe vs the real namespace, and (2) resolve end-to-end in the enrichment target.** The single-source-of-truth catalog derivation mechanism is the correct implementation pattern for property (2).
+
+**What happened:** Story B reached 3/3 PR-LEVEL CLEAN(strict) at pass 11 (HEAD bc0f36c5). Security-reviewer SEC-001 then raised two related issues:
+
+1. **CVE namespace collision (SEC-001):** `gen_device_cves` in `prism-dtu-common/src/scenario/mod.rs` used format `"CVE-{year:04}-{seq:04}"` where year was derived from test data — could produce `CVE-202X-NNNNN` values indistinguishable from real NVD CVE IDs. If a scenario device CVE happened to match a real NVD record, the demo would silently serve incorrect enrichment (wrong CVSS score, wrong vendor, wrong severity). Fix: change format to `CVE-9999-{:05}` (year 9999 = sentinel namespace; NVD does not and cannot assign year-9999 CVEs).
+
+2. **Cyberint CVE↔NVD correlation gap:** Scenario-mode Cyberint alert records emitted `cve_id` values (via `generate_cves`) that were independently generated and did NOT match the CVE IDs injected into the NVD DTU (which came from `catalog.device_cves`). The end-to-end pivot chain `Cyberint alert → cve_id → NVD lookup → HIGH CVSS record` was broken: the adversary querying Cyberint CVEs and then pivoting to NVD would get "not found." Fix: `CyberintClone::new_with_scenario` gains a `&catalog` parameter; `generate_cves` in scenario mode draws `cve_id` values from `catalog.device_cves` (cyclic assignment) rather than independently generating them. The SAME catalog provides the CVE IDs injected into NVD (PC-3) and the CVE IDs emitted by Cyberint (PC-8) — single source guarantees the pivot chain.
+
+**Why this was missed until after convergence:**
+
+The LOCAL and PR-LEVEL adversary passes focused on behavioral correctness of the StageMask mechanism, guard order, route coverage, and spec-code consistency. CVE ID format and enrichment cross-DTU correlation were not in the adversary probe checklist. The security-reviewer applies a separate threat-modeling lens (CWE-1336-adjacent: realistic synthetic data must not collide with real external identifiers).
+
+**Canonical rule (codified):**
+
+For ANY fixture generator or scenario generator that emits identifiers shaped like real external namespace values (CVE-*, IOC-*, IP addresses, domain names, hashes):
+
+1. **Collision-safety check:** Does the synthetic ID format guarantee it cannot match a real external record? If not, use a sentinel namespace (e.g. year=9999 for CVEs; reserved CIDR blocks for IPs; `.invalid` TLD for domains).
+2. **Enrichment resolution check:** If the ID appears on a pivotable surface (i.e., an analyst would reasonably pivot from this ID to another DTU), does a corresponding record exist in the enrichment DTU? If not, either: (a) derive both from the same catalog source (preferred), or (b) explicitly document the surface as non-pivotable (BC PC-9 pattern for baseline mode).
+3. **The catalog derivation mechanism:** Use a single shared catalog object that is materialized once per scenario session. Both the data-surface generator (e.g., Cyberint CVE emitter) and the enrichment-data injector (e.g., NVD injection into catalog) consume the same catalog values. This guarantees correlation without tight coupling between DTU clones.
+
+**Standing probe suggestion (for adversary dispatch templates):**
+
+Add to the adversary probe checklist for any story touching fixture generators or DTU scenario generators:
+
+> **SAP-NEW: synthetic-ID collision + cross-DTU correlation.** For every field that emits a CVE-*, IOC-*, or similarly-shaped external-namespace value: (1) verify the format uses a sentinel namespace guaranteeing no collision with real records; (2) if the field appears on a pivotable query surface, verify a corresponding record exists in the enrichment DTU by tracing back to the shared catalog. A synthetic ID that looks real but doesn't resolve in the expected enrichment DTU is a production-grade defect, not a test gap.
+
+**Outcome:**
+
+3 commits on feature/S-DEMO-DTU-LIVE-SCENARIO-001-B (HEAD f75f3159): 0b6ee048 (CVE-9999-{:05} collision-safety), f0b6b8c7 (catalog CVE threading + 4 new tests; just check PASS 4273 tests), f75f3159 (AC-019 demo evidence; evidence count 18/18→19/19). BC-2.06.020 v1.2→v1.3 (PC-8+PC-9+INV-CYBERINT-ALERT-CVE-CORRELATION-001). Story B v2.9→v2.10 (AC-019). PR-LEVEL streak RESET 0/3 per BC-5.39.001 D-779. Re-converge from pass 12 at HEAD f75f3159.
