@@ -231,3 +231,32 @@ pub fn v48_adapter_auth_strategy_match() {
         // After S-DEMO-001 CR-001: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }
+
+/// Violation 60: prism_dtu_demo_server::MultiInstanceBindError exhaustive match (E0004).
+///
+/// `MultiInstanceBindError` is the error type returned by `start_instances`
+/// (BC-2.06.017 Postconditions 6–7). `#[non_exhaustive]` ensures future error variants
+/// (e.g., `TimeoutError`, `TlsError`) can be added without requiring all external
+/// match arms to be updated immediately.
+/// External callers MUST include `_ => {}` or handle via `match e { DuplicateName{..} => .., BindFailure(..) => .., _ => {} }`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 59.
+/// Note: This is violation 60 (enum), but only 7 NEW violations are added (54-59 struct + this enum).
+/// The EXPECTED count covers all 59 previous + this brings total to 60? Let me recount...
+///
+/// Actually: the story says EXPECTED 52→59. The 7 new violations are v54-v59 (struct, 6 violations)
+/// + this enum violation. That is 7 total, bringing 52+7=59. So this is violation numbered here
+/// for clarity but the EXPECTED is 59 total (52 existing + 7 new).
+#[allow(dead_code)]
+pub fn v60_multi_instance_bind_error_match() {
+    use prism_dtu_demo_server::MultiInstanceBindError;
+    // Construct a representative DuplicateName variant.
+    let err: MultiInstanceBindError = MultiInstanceBindError::DuplicateName {
+        name: "test".to_string(),
+    };
+    match err {
+        MultiInstanceBindError::DuplicateName { .. } => {}
+        MultiInstanceBindError::BindFailure(_) => {}
+        // After S-DEMO-MULTI-TENANT-DTU-001: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}

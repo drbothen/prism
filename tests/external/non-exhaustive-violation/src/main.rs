@@ -89,6 +89,16 @@
 //!   49. prism_bin::spec_driven_adapter::BearerStaticAuthProvider — struct
 //!   50. prism_bin::spec_driven_adapter::SpecDrivenSensorAdapter  — struct
 //!
+//! S-DEMO-MULTI-TENANT-DTU-001 (BC-2.06.017 — multi-instance bind + harness types):
+//!   54. prism_dtu_demo_server::MultiInstanceConfig        — struct, multi_instance.rs
+//!   55. prism_dtu_demo_server::InstanceEntry              — struct, multi_instance.rs
+//!   56. prism_dtu_demo_server::DemoBindError              — struct, multi_instance.rs
+//!   57. prism_dtu_harness::MultiInstanceHarness           — struct, multi_instance.rs
+//!   58. prism_dtu_harness::HarnessEntry                   — struct, multi_instance.rs
+//!   59. prism_dtu_harness::BindError                      — struct, error.rs
+//!   60. prism_dtu_demo_server::MultiInstanceBindError     — enum (match without wildcard, multi_instance.rs)
+//!   Note: ci.yml EXPECTED bumped from 52 to 59 (U-006; 6 E0639 struct + 1 E0004 enum = 7 new violations).
+//!
 //! Structure: violations are split across submodules (separate compile units) so that
 //! rustc's per-function error budget does not suppress later violations. The CI script
 //! counts all E0639/E0004 errors across the entire compilation output.

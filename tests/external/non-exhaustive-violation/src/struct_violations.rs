@@ -685,3 +685,113 @@ pub fn v53_incident_stage() {
     };
     let _ = _stage;
 }
+
+/// Violation 54: prism_dtu_demo_server::multi_instance::MultiInstanceConfig struct literal (E0639).
+///
+/// `MultiInstanceConfig` is the multi-instance bind configuration for
+/// `prism-dtu-demo-server` (BC-2.06.017 Postcondition 1). `#[non_exhaustive]`
+/// ensures future fields (e.g., bind_timeout, tls_config) can be added without
+/// breaking external struct literals. External callers MUST use `MultiInstanceConfig::new(...)`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 59.
+#[allow(dead_code)]
+pub fn v54_multi_instance_config() {
+    let _cfg = prism_dtu_demo_server::MultiInstanceConfig {
+        instances: vec![],
+    };
+    let _ = _cfg;
+}
+
+/// Violation 55: prism_dtu_demo_server::multi_instance::InstanceEntry struct literal (E0639).
+///
+/// `InstanceEntry` is a single named DTU clone bind entry within a `MultiInstanceConfig`
+/// (BC-2.06.017 Postcondition 1). `#[non_exhaustive]` ensures future fields (e.g.,
+/// per-instance TLS config) can be added without breaking external struct literals.
+/// External callers MUST use `InstanceEntry::new(name, bind)`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v55_instance_entry() {
+    let _entry = prism_dtu_demo_server::InstanceEntry {
+        name: "test".to_string(),
+        bind: "127.0.0.1:0".parse().unwrap(),
+    };
+    let _ = _entry;
+}
+
+/// Violation 56: prism_dtu_demo_server::multi_instance::DemoBindError struct literal (E0639).
+///
+/// `DemoBindError` is a single bind failure within `MultiInstanceBindError::BindFailure`
+/// (BC-2.06.017 Postcondition 6). `#[non_exhaustive]` ensures future diagnostic fields
+/// can be added. External callers construct instances via the error-path of `start_instances`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v56_demo_bind_error() {
+    let _err = prism_dtu_demo_server::DemoBindError {
+        instance_name: "test".to_string(),
+        source: std::io::Error::other("test"),
+    };
+    let _ = _err;
+}
+
+/// Violation 57: prism_dtu_harness::multi_instance::MultiInstanceHarness struct literal (E0639).
+///
+/// `MultiInstanceHarness` is the multi-instance test harness managing N DTU clone instances
+/// at distinct socket addresses (BC-2.06.017 Postcondition 2). `#[non_exhaustive]` ensures
+/// future fields can be added. External callers MUST use `MultiInstanceHarness::start(entries)`.
+///
+/// Struct fields are private; the struct literal below triggers BOTH E0616 (private fields)
+/// and E0639 (#[non_exhaustive] — cannot create non-exhaustive struct expression).
+/// The CI gate counts E0639; both errors fire when a non-exhaustive struct with private
+/// fields is constructed via struct literal from an external crate.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v57_multi_instance_harness() {
+    // Triggers E0639 (#[non_exhaustive]) + E0616 (private fields socket_map, shutdown_tx, task_handles).
+    let _h = prism_dtu_harness::MultiInstanceHarness {
+        socket_map: todo!(),
+        shutdown_tx: todo!(),
+        task_handles: todo!(),
+    };
+    let _ = _h;
+}
+
+/// Violation 58: prism_dtu_harness::multi_instance::HarnessEntry struct literal (E0639).
+///
+/// `HarnessEntry` pairs an `(org_slug, sensor_id)` identity with a `Box<dyn BehavioralClone>`
+/// (BC-2.06.017 Postcondition 2). `#[non_exhaustive]` ensures future fields (e.g., bind_addr)
+/// can be added. External callers MUST use `HarnessEntry::new(org_slug, sensor_id, clone)`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v58_harness_entry() {
+    use prism_dtu_harness::HarnessEntry;
+    use prism_dtu_common::BehavioralClone;
+    let _entry = HarnessEntry {
+        org_slug: "acme".to_string(),
+        sensor_id: "armis".to_string(),
+        clone: todo!() as Box<dyn BehavioralClone>,
+    };
+    let _ = _entry;
+}
+
+/// Violation 59: prism_dtu_harness::error::BindError struct literal (E0639).
+///
+/// `BindError` is a single clone bind failure within `HarnessError::BindFailure`
+/// (BC-2.06.017 Postcondition 6). `#[non_exhaustive]` ensures future diagnostic fields
+/// (e.g., instance address, retry count) can be added without breaking external consumers.
+/// External callers receive `BindError` via the error-path of `MultiInstanceHarness::start`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v59_bind_error() {
+    use prism_dtu_harness::BindError;
+    let _err = BindError {
+        org_slug: "acme".to_string(),
+        sensor_id: "armis".to_string(),
+        source: std::io::Error::other("test"),
+    };
+    let _ = _err;
+}

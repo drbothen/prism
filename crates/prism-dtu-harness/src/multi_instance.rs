@@ -96,11 +96,10 @@ impl HarnessEntry {
 /// (BC-2.06.017 Postcondition 2)
 #[non_exhaustive]
 pub struct MultiInstanceHarness {
-    // Fields suppressed until implementer populates them in `start()`.
-    // All three are architect-locked (D-1075) and used by the implementation.
-    #[allow(dead_code)]
     socket_map: HashMap<(String, String), SocketAddr>,
     shutdown_tx: broadcast::Sender<()>,
+    /// Watcher task handles — held for lifetime management (D-1075 locked field layout).
+    /// Never read explicitly; dropped via RAII when harness is dropped (matches DemoHarness).
     #[allow(dead_code)]
     task_handles: Vec<JoinHandle<()>>,
 }
@@ -130,11 +129,122 @@ impl MultiInstanceHarness {
     /// ```
     ///
     /// (BC-2.06.017 Postcondition 2)
-    pub async fn start(_entries: Vec<HarnessEntry>) -> Result<Self, HarnessError> {
-        todo!(
-            "S-DEMO-MULTI-TENANT-DTU-001: MultiInstanceHarness::start not yet implemented \
-             (BC-2.06.017 Postcondition 2 — TDD Red Gate stub)"
-        )
+    pub async fn start(entries: Vec<HarnessEntry>) -> Result<Self, HarnessError> {
+        // --- Duplicate-key check (BC-2.06.017 Postcondition 7 / EC-017-003) ---
+        // Must happen BEFORE any bind attempts.
+        let mut seen_keys = std::collections::HashSet::new();
+        for entry in &entries {
+            let key = (entry.org_slug.clone(), entry.sensor_id.clone());
+            if !seen_keys.insert(key) {
+                return Err(HarnessError::DuplicateKey {
+                    org_slug: entry.org_slug.clone(),
+                    sensor_id: entry.sensor_id.clone(),
+                });
+            }
+        }
+
+        // Shared broadcast channel: capacity = number of entries (minimum 1).
+        // Each clone subscribes once via shutdown_tx.subscribe() at bind time.
+        // When impl Drop fires shutdown_tx.send(()), all clone receivers wake → graceful shutdown.
+        let (shutdown_tx, _) = broadcast::channel::<()>(entries.len().max(1));
+
+        // --- Multi-error aggregation bind loop (INV-ERR-003-COMPAT) ---
+        // Attempt ALL binds before returning any error.
+        struct BoundEntry {
+            key: (String, String),
+            addr: SocketAddr,
+            task_handle: JoinHandle<()>,
+        }
+
+        let mut bound: Vec<BoundEntry> = Vec::with_capacity(entries.len());
+        let mut failures: Vec<crate::error::BindError> = Vec::new();
+
+        // OS-assigned ephemeral port on loopback — SocketAddr literal for zero port.
+        // Using a const SocketAddr avoids parsing at runtime (no expect() needed).
+        const EPHEMERAL_LOOPBACK: SocketAddr =
+            SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 0);
+
+        // Use into_iter() to consume entries (U-001: start_on takes &mut self).
+        let mut entries = entries;
+        for entry in entries.iter_mut() {
+            let shutdown_rx = shutdown_tx.subscribe();
+
+            match entry
+                .clone
+                .start_on(EPHEMERAL_LOOPBACK, Some(shutdown_rx), None)
+                .await
+            {
+                Ok(addr) => {
+                    // Spawn a watcher task that keeps the clone alive until the
+                    // shutdown channel fires or closes (matching DemoHarness pattern).
+                    // The task holds no extra tx — shutdown fires via the shared shutdown_tx
+                    // stored on the harness struct (sent in impl Drop).
+                    // When shutdown_tx.send(()) fires (Drop), the clone's receiver wakes.
+                    // The watcher task just keeps the clone object alive.
+                    let key = (entry.org_slug.clone(), entry.sensor_id.clone());
+
+                    // We need to keep the clone alive past start_on. Since the clone is
+                    // held by entry (entries is a Vec<HarnessEntry> that we own), we
+                    // cannot move it into a task. Instead, the server is already running
+                    // as a spawned tokio task inside the clone's start_on implementation.
+                    // The server shuts down when its shutdown_rx fires (sent by Drop).
+                    // We only need to track the address; the clone is dropped at end of
+                    // this function — but that's fine because the server's JoinHandle is
+                    // held inside the clone's server_handle field, which keeps the server
+                    // running even after the clone struct is dropped.
+                    //
+                    // Actually: ArmisClone::drop does NOT stop the server. The server
+                    // JoinHandle is stored in clone.server_handle: Option<JoinHandle<()>>.
+                    // When the clone is dropped, the JoinHandle is dropped → task DETACHES.
+                    // The server continues running until its shutdown_rx fires.
+                    //
+                    // So: we can safely drop entry after start_on; the server keeps running.
+                    // The task_handle here is a no-op watcher to match the DemoHarness pattern;
+                    // we store a dummy task since the real server handle is inside the clone.
+                    let task_handle = tokio::spawn(async {
+                        // This dummy task just completes immediately.
+                        // The real server task is managed inside the clone's server_handle.
+                        // The server shuts down when shutdown_tx.send(()) fires in Drop.
+                    });
+
+                    bound.push(BoundEntry {
+                        key,
+                        addr,
+                        task_handle,
+                    });
+                }
+                Err(e) => {
+                    let io_err = std::io::Error::other(e);
+                    failures.push(crate::error::BindError {
+                        org_slug: entry.org_slug.clone(),
+                        sensor_id: entry.sensor_id.clone(),
+                        source: io_err,
+                    });
+                }
+            }
+        }
+
+        // --- Error path: send shutdown to all successful binds, return aggregated failures ---
+        if !failures.is_empty() {
+            let _ = shutdown_tx.send(());
+            // Allow brief drain for any successfully-started clones.
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            return Err(HarnessError::BindFailure(failures));
+        }
+
+        // --- Success path: build socket_map and task_handles ---
+        let mut socket_map = HashMap::with_capacity(bound.len());
+        let mut task_handles = Vec::with_capacity(bound.len());
+        for entry in bound {
+            socket_map.insert(entry.key, entry.addr);
+            task_handles.push(entry.task_handle);
+        }
+
+        Ok(Self {
+            socket_map,
+            shutdown_tx,
+            task_handles,
+        })
     }
 
     /// Return the per-`(org_slug, sensor_id)` socket address map.
@@ -145,10 +255,7 @@ impl MultiInstanceHarness {
     ///
     /// (BC-2.06.017 Postcondition 2 — `socket_map()` returns `&HashMap<(String,String),SocketAddr>`)
     pub fn socket_map(&self) -> &HashMap<(String, String), SocketAddr> {
-        todo!(
-            "S-DEMO-MULTI-TENANT-DTU-001: MultiInstanceHarness::socket_map not yet implemented \
-             (BC-2.06.017 Postcondition 2 — TDD Red Gate stub)"
-        )
+        &self.socket_map
     }
 }
 

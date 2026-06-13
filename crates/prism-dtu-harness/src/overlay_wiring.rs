@@ -53,11 +53,34 @@ use crate::multi_instance::MultiInstanceHarness;
 /// (BC-2.06.017 Postcondition 3 — after this function + `SpecLoader::load_all`,
 /// `ResolvedSensorSpec` entries for each org carry the correct distinct `base_url`)
 pub fn write_overlay_temp_dir(
-    _harness: &MultiInstanceHarness,
-    _dir: &std::path::Path,
+    harness: &MultiInstanceHarness,
+    dir: &std::path::Path,
 ) -> std::io::Result<()> {
-    todo!(
-        "S-DEMO-MULTI-TENANT-DTU-001: write_overlay_temp_dir not yet implemented \
-         (BC-2.06.017 Postcondition 3 — TDD Red Gate stub)"
-    )
+    // For each (org_slug, sensor_id) → SocketAddr in the harness socket_map,
+    // write:  {dir}/customers/{org_slug}/{sensor_id}.sensor.toml
+    // with content (raw TOML string — INV-PERIMETER-001: no spec-engine imports here):
+    //   extends = "{sensor_id}"
+    //   instance_id = "{sensor_id}@{org_slug}"
+    //   base_url = "http://{socket_addr}"
+    //
+    // `extends` links this overlay to the TYPE spec (required by OverlayLoader).
+    // `instance_id` must equal `{sensor_id}@{org_slug}` (INV-SCALAR-003).
+    // `base_url` routes this org's sensor queries to the correct DTU instance.
+    //
+    // (BC-2.06.017 Postcondition 3 / BC-2.06.012)
+    for ((org_slug, sensor_id), socket_addr) in harness.socket_map() {
+        // Create the per-org customer directory.
+        let customer_dir = dir.join("customers").join(org_slug);
+        std::fs::create_dir_all(&customer_dir)?;
+
+        // Write the overlay TOML file.
+        let toml_path = customer_dir.join(format!("{sensor_id}.sensor.toml"));
+        let toml_content = format!(
+            "extends = \"{sensor_id}\"\n\
+             instance_id = \"{sensor_id}@{org_slug}\"\n\
+             base_url = \"http://{socket_addr}\"\n"
+        );
+        std::fs::write(&toml_path, toml_content)?;
+    }
+    Ok(())
 }
