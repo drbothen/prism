@@ -289,9 +289,13 @@ fn test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate() {
     // prism-dtu-threatintel must NOT import from prism-spec-engine, prism-sensors,
     // or prism-query (INV-PERIMETER-COMPLIANCE-001). new_with_scenario constructor
     // in clone.rs uses only prism-dtu-common types (ScenarioEntityCatalog, FixtureKey).
-    // The compile-fail gate at tests/external/perimeter-violation/ enforces this.
-    // Since no new perimeter-violating imports were added by this story's stubs,
-    // the compile-fail gate remains satisfied.
+    // Perimeter compliance (INV-PERIMETER-COMPLIANCE-001) is enforced STRUCTURALLY:
+    // prism-dtu-threatintel's Cargo.toml declares no dependency on prism-spec-engine,
+    // prism-sensors, or prism-query, so any forbidden `use` of those crates is an
+    // ordinary E0432 compile error caught by the standard build.
+    // (The `tests/external/perimeter-violation/` compile-fail crate covers the
+    // prism-query pub-API perimeter only — BC-2.11.006 — and does not reference
+    // the DTU crates.)
 }
 
 // ---------------------------------------------------------------------------
