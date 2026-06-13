@@ -978,3 +978,49 @@ Categories 4 and 5 are the most-frequently-missed because they look like narrati
 **Outcome:**
 
 Story B v2.12→v2.13: Phase-6 gate instruction "19"→"23". Exhaustive `\b19\b`/`\b18\b` classification sweep confirmed this was the sole stale gate-count prose; all other `19` occurrences are AC count (correct, unchanged) or RGT row-index labels (correct, unchanged) or historical changelog entries (immutable). red_gate_tests stays 23; acceptance_criteria_count stays 19. Feature HEAD 7ddc0a51 CODE UNCHANGED. BC-INDEX v6.39→v6.40. STORY-INDEX v2.365→v2.366. Streak 0/3. Pass 16 NEXT.
+
+---
+
+## (z13) [process-gap] Demo-evidence artifacts (.tape headers + evidence-report prose) must be semantic-anchor-audited like specs — the demo-recorder hallucinated 3 BC identifiers that survived 17 passes
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1124 (BPRL-P18-01 pass-18 convergence pass finding + closure)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [demo-evidence] [bc-anchor] [hallucination] [demo-recorder] [adversary-probe]
+**Classification:** PROCESS-GAP — demo-recorder hallucinated 3 BC identifiers in AC-019 evidence artifacts; these fabricated/inverted anchors survived passes 1-17 because evidence-artifact BC-anchor verification was not in the standing adversary probe list.
+
+**Description:**
+
+PR-LEVEL pass 18 (the convergence pass at streak 2/3) surfaced BPRL-P18-01 MED: three fabricated or inverted BC identifiers in the AC-019 demo-evidence artifacts:
+
+1. **PC-8 and PC-9 labels inverted.** The evidence prose described PC-8 as "baseline namespace isolation" and PC-9 as "scenario catalog assignment." The canonical BC-2.06.020 v1.4 definitions are the reverse: PC-8 = scenario catalog assignment (Cyberint scenario alerts draw `cve_id` from `catalog.device_cves`); PC-9 = baseline namespace isolation (non-pivotable `CVE-9999-{:04}` format).
+
+2. **Fabricated invariant `INV-CYBERINT-CVE-PIVOT-001`.** The evidence cited this as the governing invariant for the CVE pivot chain. This string does not exist anywhere in `.factory/specs/behavioral-contracts/` or `crates/`. The canonical identifier is `INV-CYBERINT-ALERT-CVE-CORRELATION-001` (BC-2.06.020 §Invariants, introduced at D-1117).
+
+3. **Fabricated type `CveCorrelationCatalog`.** The evidence referenced this as the Rust struct holding per-device CVE assignments. This type does not exist in the codebase. The canonical name is `ScenarioEntityCatalog` (`prism-dtu-common/src/scenario/mod.rs`, introduced D-1117). Grep confirms zero occurrences in `crates/`.
+
+All underlying code, tests, ACs, BCs, and story were correct. The three fabricated identifiers existed only in the evidence-artifact prose.
+
+**Why they survived 17 passes:**
+
+Passes 1-17 applied adversarial scrutiny to: code implementation, spec-code consistency, BC semantic correctness, invariant coverage by RGTs, SAP-1/SAP-2 probes, forbidden-pattern sweeps, and behavioral tracing. None of these probes extends to the demo-evidence artifact prose (`.tape` header comments, `evidence-report.md` narrative). The adversary checked "19/19 AC evidence files present" (file-count PASS) but did not verify that BC identifiers cited WITHIN those files resolve to real anchors in the authoritative BC corpus.
+
+**Root cause:**
+
+Demo-recorder agents author `.tape` scripts and `evidence-report.md` files in a context focused on the demo narrative — what happens in the terminal, what the analyst sees. BC anchor identifiers (invariant names, type names, postcondition labels) in header comments are peripheral to the demo recording task. The demo-recorder hallucinated plausible-looking identifiers rather than verifying against the actual BC file. This is the same hallucination class as z2 (research-agent fabricating Perplexity output) and z7 (PO fabricating grep-scan claims in BC prose) — an agent stating a factual claim about an external artifact without verifying it.
+
+**Canonical rule (codified):**
+
+**Demo-recorder self-check (REQUIRED before declaring evidence COMPLETE):**
+
+1. For every BC identifier cited in a `.tape` header comment or `evidence-report.md` narrative (invariant names, type names, postcondition labels, error code labels): run `grep -r "<identifier>" .factory/specs/behavioral-contracts/ crates/` and verify it returns at least one hit.
+2. For every `PC-N` or `PRE-N` label cited in evidence prose: verify the label direction (PC-8 vs PC-9) against the actual BC postconditions section — do not infer from memory or neighboring text.
+3. The demo-recorder self-check must produce a brief anchor-verification summary: "All BC identifiers in AC-NNN evidence verified: [list]. Zero fabricated names."
+
+**Standing adversary probe addition (for all passes on stories with evidence artifacts):**
+
+> **Evidence-artifact BC-anchor verification.** For every demo-evidence artifact at `docs/demo-evidence/<story>/`: (1) read the `.tape` header comment and `evidence-report.md` narrative; (2) for every BC identifier (PC-N, PRE-N, INV-*, type names cited as canonical Rust types, error codes): run `grep -r "<identifier>" .factory/specs/behavioral-contracts/ crates/` and confirm at least one hit; (3) verify PC-N labels match the canonical direction in the BC postconditions section. A BC identifier in evidence prose that greps to zero in the authoritative corpus = MEDIUM finding (evidence-anchor drift). This probe is distinct from the file-count check (19/19 files present) — it verifies CONTENT correctness of the files that are present.
+
+**Outcome:**
+
+BPRL-P18-01 closed by demo-recorder commit 5d5484d0: all 3 anchors corrected in both files. `rg INV-CYBERINT-CVE-PIVOT-001 docs/` = zero; `rg INV-CYBERINT-ALERT-CVE-CORRELATION-001 docs/` = present. `rg CveCorrelationCatalog docs/` = zero; `rg ScenarioEntityCatalog docs/` = present. NO re-render (anchors were header-comment-only, never displayed in `.webm`/`.gif`). Streak RESET 2/3→0/3. Pass 19 NEXT at 5d5484d0.
