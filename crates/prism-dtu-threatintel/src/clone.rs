@@ -86,6 +86,51 @@ impl ThreatIntelClone {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Story B: new_with_scenario stub (BC-2.06.020 / ADR-036 v2.3 §2.3)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "fixture-gen")]
+impl ThreatIntelClone {
+    /// Construct a `ThreatIntelClone` with scenario IOCs pre-populated as `Malicious`.
+    ///
+    /// Infallible. Mirrors `ThreatIntelClone::new()` construction, then inserts all
+    /// `entities.ioc_ips`, `entities.ioc_domains`, and `entities.ioc_hashes` into
+    /// `fixture_registry` as `FixtureKey::Malicious`.
+    ///
+    /// Must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query`
+    /// (INV-PERIMETER-COMPLIANCE-001 / BC-2.06.020).
+    ///
+    pub fn new_with_scenario(entities: &prism_dtu_common::ScenarioEntityCatalog) -> Self {
+        // Construct with the default fixture registry, then inject all scenario IOCs.
+        // BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001: scenario injection is additive —
+        // default entries (e.g. "45.55.100.1" = Malicious) are preserved.
+        let clone = Self::new();
+        {
+            #[allow(clippy::expect_used)]
+            let mut registry = clone
+                .state
+                .fixture_registry
+                .lock()
+                .expect("fixture_registry poisoned");
+
+            // Insert all IOC IPs as Malicious (BC-2.06.020 PC-1).
+            for ip in &entities.ioc_ips {
+                registry.insert(ip.clone(), crate::types::FixtureKey::Malicious);
+            }
+            // Insert all IOC domains as Malicious (BC-2.06.020 PC-1).
+            for domain in &entities.ioc_domains {
+                registry.insert(domain.clone(), crate::types::FixtureKey::Malicious);
+            }
+            // Insert all IOC hashes as Malicious (BC-2.06.020 PC-2).
+            for hash in &entities.ioc_hashes {
+                registry.insert(hash.clone(), crate::types::FixtureKey::Malicious);
+            }
+        }
+        clone
+    }
+}
+
 impl Default for ThreatIntelClone {
     fn default() -> Self {
         Self::new()

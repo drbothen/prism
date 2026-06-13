@@ -17,6 +17,222 @@
 
 use super::generator::{seeded_rng as gen_seeded_rng, OrgId};
 
+// ---------------------------------------------------------------------------
+// Story B: IncidentTimeline layer (BC-2.06.019 / ADR-036 v2.3 §2.2)
+// ---------------------------------------------------------------------------
+
+/// A single stage in the incident timeline.
+///
+/// `#[non_exhaustive]` per CLAUDE.md §Conventions (public type in prism-dtu-common).
+/// `IncidentStage` is a public type added by S-DEMO-DTU-LIVE-SCENARIO-001-B.
+///
+/// ADR-036 v2.3 §2.2: `name` is a static string; `activates_after_secs` is the
+/// elapsed-time threshold at which this stage becomes current.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub struct IncidentStage {
+    /// Human-readable stage name (e.g. `"Baseline"`, `"Recon"`, …).
+    pub name: &'static str,
+    /// Seconds after `scenario_start_epoch_secs` at which this stage activates.
+    /// Stage 0 (Baseline) always has `activates_after_secs = 0`.
+    pub activates_after_secs: u64,
+    /// Which entity categories are visible at this stage.
+    pub visible_entity_mask: StageMask,
+}
+
+/// Which entity categories are visible at a given stage.
+///
+/// NOT `#[non_exhaustive]` — internal struct, must be exhaustively constructible
+/// within `prism-dtu-common` (BC-2.06.019 INV-STAGE-MASK-COMPLETENESS-001).
+/// ADR-036 v2.3 §2.2 code snippet erroneously marks this `#[non_exhaustive]`;
+/// BC-2.06.019 wins per CLAUDE.md Source-of-Truth Precedence for contract semantics.
+#[derive(Clone, Debug)]
+pub struct StageMask {
+    /// Primary compromised device is visible.
+    pub primary_device: bool,
+    /// Lateral-movement target devices are visible.
+    pub lateral_devices: bool,
+    /// IOC IPv4 addresses are visible.
+    pub ioc_ips: bool,
+    /// IOC domain names are visible.
+    pub ioc_domains: bool,
+    /// IOC SHA256 file hashes are visible.
+    pub ioc_hashes: bool,
+    /// CVE IDs assigned to the primary device are visible.
+    pub device_cves: bool,
+}
+
+/// Temporal incident timeline for a single demo client.
+///
+/// `#[non_exhaustive]` per CLAUDE.md §Conventions (public type in prism-dtu-common).
+/// `IncidentTimeline` is a public type added by S-DEMO-DTU-LIVE-SCENARIO-001-B.
+///
+/// # ADR-036 v2.3 §2.2 — read-only after construction
+///
+/// `IncidentTimeline` is threaded as `Arc<IncidentTimeline>` (NOT `Arc<Mutex<...>>`).
+/// Route handlers call `current_stage_index` with this reference on every request.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub struct IncidentTimeline {
+    /// Shared entity catalog used by all DTUs for this client.
+    pub entities: ScenarioEntityCatalog,
+    /// Ordered stage list; index 0 is always Baseline (`activates_after_secs = 0`).
+    pub stages: Vec<IncidentStage>,
+    /// Unix epoch seconds at which the scenario started.
+    pub scenario_start_epoch_secs: i64,
+}
+
+/// Compute the current stage index given the timeline and the current wall-clock epoch.
+///
+/// **Pure function** — no side effects, no shared mutable state, no tokio spawn.
+/// ADR-036 v2.3 §2.1 mandates: concurrent callers always get the same result for
+/// the same `(timeline, now_epoch_secs)` pair.
+///
+/// # Formula (ADR-036 v2.2 §2.2)
+///
+/// ```text
+/// elapsed = max(0, now_epoch_secs - timeline.scenario_start_epoch_secs) as u64;
+/// stage   = last index i where timeline.stages[i].activates_after_secs <= elapsed
+/// ```
+///
+/// Stage index saturates at `stages.len() - 1` (EC-019-004 / EC-002).
+pub fn current_stage_index(timeline: &IncidentTimeline, now_epoch_secs: i64) -> usize {
+    // Clamp negative elapsed to 0 (EC-019-003 / EC-001: clock skew / future start).
+    let elapsed = now_epoch_secs
+        .saturating_sub(timeline.scenario_start_epoch_secs)
+        .max(0) as u64;
+
+    // ADR-036 v2.2 §2.2 formula: last index i where stages[i].activates_after_secs <= elapsed.
+    // Stage index saturates at stages.len() - 1 (EC-019-004 / EC-002: far-future elapsed).
+    let mut stage = 0usize;
+    for (i, s) in timeline.stages.iter().enumerate() {
+        if s.activates_after_secs <= elapsed {
+            stage = i;
+        }
+    }
+    stage
+}
+
+/// Build the default `CompromisedEndpoint` `IncidentTimeline` from a catalog and thresholds.
+///
+/// `stage_duration_secs`: 4-entry array for stages 1-4 activation thresholds.
+/// Stage 0 (Baseline) always activates at 0 — no array entry.
+/// When empty, defaults to `[60, 180, 360, 600]` (BC-2.06.019 §Postcondition 2).
+pub fn build_default_incident_timeline(
+    catalog: ScenarioEntityCatalog,
+    start_secs: i64,
+    stage_duration_secs: &[u64],
+) -> IncidentTimeline {
+    // Default thresholds for stages 1-4 (stage 0 always activates at 0).
+    // BC-2.06.019 §Postcondition 2 canonical table.
+    const DEFAULT_THRESHOLDS: &[u64] = &[60, 180, 360, 600];
+
+    // B-P1-04: validate slice length before indexing.
+    // Production path: callers pass `&[]` (→ DEFAULT_THRESHOLDS, always 4 entries)
+    // or a validated 4-entry slice from the E-DEMO-003 harness guard.
+    // A non-empty slice with fewer than 4 entries would panic at thresholds[3].
+    // Production-grade fix: fall back to defaults when the slice is wrong-length,
+    // logging the deviation so it's diagnosable. The harness E-DEMO-003 guard prevents
+    // wrong-length slices from reaching this function in normal operation; this guard
+    // is defense-in-depth against future callers that bypass harness validation.
+    let thresholds: &[u64] = if stage_duration_secs.is_empty() {
+        DEFAULT_THRESHOLDS
+    } else if stage_duration_secs.len() == 4 {
+        stage_duration_secs
+    } else {
+        // Non-empty but wrong length: fall back to defaults.
+        // The harness E-DEMO-003 guard should have caught this; reaching here is a
+        // caller bug. Log at error level so it's diagnosable in production (SAP-1:
+        // no new event_type emissions needed — this uses the "dtu.scenario" target
+        // with a plain error! emission, no event_type field).
+        tracing::error!(
+            target: "dtu.scenario",
+            got_len = stage_duration_secs.len(),
+            expected_len = 4usize,
+            "build_default_incident_timeline: stage_duration_secs has wrong length; \
+             falling back to DEFAULT_THRESHOLDS [60, 180, 360, 600]. \
+             Caller must provide exactly 4 entries or an empty slice. \
+             B-P1-04 / BC-2.06.019"
+        );
+        DEFAULT_THRESHOLDS
+    };
+
+    // Build 5 stages per BC-2.06.019 §Postcondition 2 table:
+    // Stage 0 (Baseline, 0s):          primary_device=true; all others false
+    // Stage 1 (Recon, thresholds[0]):   primary_device=true; rest false
+    // Stage 2 (LateralMovement, [1]):   primary_device+lateral_devices+ioc_hashes=true
+    // Stage 3 (Exfil, [2]):             primary+lateral+ioc_ips+ioc_domains+ioc_hashes=true
+    // Stage 4 (Containment, [3]):       all 6 fields true
+    let stages = vec![
+        IncidentStage {
+            name: "Baseline",
+            activates_after_secs: 0,
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: false,
+                ioc_ips: false,
+                ioc_domains: false,
+                ioc_hashes: false,
+                device_cves: false,
+            },
+        },
+        IncidentStage {
+            name: "Recon",
+            activates_after_secs: thresholds[0],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: false,
+                ioc_ips: false,
+                ioc_domains: false,
+                ioc_hashes: false,
+                device_cves: false,
+            },
+        },
+        IncidentStage {
+            name: "LateralMovement",
+            activates_after_secs: thresholds[1],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: true,
+                ioc_ips: false,
+                ioc_domains: false,
+                ioc_hashes: true,
+                device_cves: false,
+            },
+        },
+        IncidentStage {
+            name: "Exfil",
+            activates_after_secs: thresholds[2],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: true,
+                ioc_ips: true,
+                ioc_domains: true,
+                ioc_hashes: true,
+                device_cves: false,
+            },
+        },
+        IncidentStage {
+            name: "Containment",
+            activates_after_secs: thresholds[3],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: true,
+                ioc_ips: true,
+                ioc_domains: true,
+                ioc_hashes: true,
+                device_cves: true,
+            },
+        },
+    ];
+
+    IncidentTimeline {
+        entities: catalog,
+        stages,
+        scenario_start_epoch_secs: start_secs,
+    }
+}
+
 /// Shared entity catalog for one client's incident scenario.
 ///
 /// Produced once at harness construction time from `(seed, org_id)`.
@@ -62,6 +278,13 @@ pub struct ScenarioEntityCatalog {
     /// Secondary device IDs involved in lateral movement (Armis format).
     pub lateral_device_ids_armis: Vec<String>,
 
+    // NOTE: No separate Claroty-specific device ID fields.
+    // Claroty's stage-gating coherence key is `device_id` = "dev-{slug}-{seed}-{n}"
+    // — identical to `primary_device_id_cs` / `lateral_device_ids_cs`.
+    // The `asset_id` field ("ASSET-{slug}-{seed}-{n}") is a Claroty-specific additive
+    // record field, but it is NOT the cross-DTU JOIN key.
+    // BC-2.06.020 PC-5 / INV-CROSS-DTU-ENTITY-COHERENCE-001 / BC-3.4.004 TV-3.4.004-01.
+    // Route handlers for Claroty filter on `device_id` using `primary_device_id_cs`.
     /// IOC IPv4 addresses introduced during Exfil stage.
     ///
     /// Derived from the secondary RNG stream (`gen_seeded_rng(seed.wrapping_add(1), &org_id)`).
@@ -129,7 +352,7 @@ pub fn build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntit
     let primary_device_id_armis = format!("dev-{org_slug}-{seed}-0");
     let primary_hostname = format!("host-{org_slug}-{seed}");
 
-    // Lateral device IDs (indices 1..=3)
+    // Lateral device IDs (indices 1..=3) — per-DTU format
     let lateral_device_ids_cs: Vec<String> = (1..=3)
         .map(|n| format!("dev-{org_slug}-{seed}-{n}"))
         .collect();
@@ -203,21 +426,32 @@ fn gen_ioc_hashes(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
 
 /// Generate N CVE ID strings from RNG.
 ///
-/// Format: `"CVE-{year}-{n}"` where year and n are RNG-derived.
+/// Format: `"CVE-9999-{seq:05}"` — year `9999` is never used by the real NVD
+/// (SEC-001 / CWE-1336-adjacent: prior `CVE-202x` format could produce IDs that
+/// collide with real advisories, e.g. CVE-2021-44228 = Log4Shell).
+///
+/// # Draw-order note (SEC-001)
+///
+/// `gen_device_cves` is the LAST consumer of the secondary RNG stream in
+/// `build_scenario_entity_catalog` (called after `gen_ioc_ips`, `gen_ioc_domains`,
+/// `gen_ioc_hashes` — see lines 367-370).  Nothing draws from the secondary stream
+/// after this function returns, so reducing from 2 draws to 1 draw per CVE does NOT
+/// shift any other generator's output.  This is safe.
+///
+/// # Correlation
+///
+/// These IDs are inserted directly into `ScenarioEntityCatalog.device_cves`.
+/// `NvdClone::new_with_scenario` injects every `catalog.device_cves` entry into
+/// its `cve_registry` with `base_score = 8.1 / base_severity = "HIGH"`, so
+/// end-to-end resolution is guaranteed without any additional synchronisation.
 fn gen_device_cves(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
     (0..count)
-        .map(|_| {
-            format!(
-                "CVE-{}-{}",
-                2020u32 + (rng.gen::<u32>() % 5),
-                rng.gen::<u32>() % 100000
-            )
-        })
+        .map(|_| format!("CVE-9999-{:05}", rng.gen::<u32>() % 100000))
         .collect()
 }
 
 // ---------------------------------------------------------------------------
-// Unit tests (tests 1-2 in Red Gate Test Plan)
+// Unit tests (Red Gate tests for BC-2.06.018 and BC-2.06.019)
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -235,6 +469,467 @@ mod tests {
             0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00,
         ])
+    }
+
+    // ---------------------------------------------------------------------------
+    // RED GATE TEST 1 — test_BC_2_06_019_timeline_types_non_exhaustive_and_structure
+    //
+    // BC-2.06.019 PRE-3 / ADR-036 v2.2 §2.2
+    // Verifies: IncidentTimeline is #[non_exhaustive] with correct fields,
+    // IncidentStage is #[non_exhaustive] with correct fields,
+    // StageMask is NOT #[non_exhaustive] (internal, exhaustively constructible).
+    //
+    // FAIL mode: build_default_incident_timeline returns only 1 stage (Baseline),
+    // so the assertion stages.len() == 5 will FAIL.
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_BC_2_06_019_timeline_types_non_exhaustive_and_structure() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+
+        let timeline = build_default_incident_timeline(catalog, 1_000_000, &[]);
+
+        // IncidentTimeline must have fields: entities, stages, scenario_start_epoch_secs
+        assert_eq!(
+            timeline.scenario_start_epoch_secs, 1_000_000,
+            "IncidentTimeline.scenario_start_epoch_secs must round-trip the provided start_secs"
+        );
+
+        // Default CompromisedEndpoint timeline must have exactly 5 stages.
+        // FAIL: stub returns 1 stage (Baseline only).
+        assert_eq!(
+            timeline.stages.len(),
+            5,
+            "Default CompromisedEndpoint timeline must have exactly 5 stages \
+             (Baseline, Recon, LateralMovement, Exfil, Containment); \
+             got {} — BC-2.06.019 §Postcondition 2 / ADR-036 v2.2 §2.2",
+            timeline.stages.len()
+        );
+
+        // Stage 0 must be Baseline at 0 seconds.
+        assert_eq!(
+            timeline.stages[0].name, "Baseline",
+            "stages[0].name must be 'Baseline'; got '{}'",
+            timeline.stages[0].name
+        );
+        assert_eq!(
+            timeline.stages[0].activates_after_secs, 0,
+            "stages[0].activates_after_secs must be 0 (Baseline always starts at 0)"
+        );
+
+        // StageMask must be exhaustively constructible (NOT #[non_exhaustive]).
+        // This compiles only if StageMask has no #[non_exhaustive] attribute.
+        let _mask = StageMask {
+            primary_device: true,
+            lateral_devices: false,
+            ioc_ips: false,
+            ioc_domains: false,
+            ioc_hashes: false,
+            device_cves: false,
+        };
+    }
+
+    // ---------------------------------------------------------------------------
+    // RED GATE TEST 2 — test_BC_2_06_019_stage_index_pure_function_reproducible
+    //
+    // BC-2.06.019 INV-PROGRESSION-REPRODUCIBILITY-001 / PC-3
+    // Verifies: same (timeline, now_epoch_secs) → same stage from multiple calls.
+    //
+    // FAIL mode: with a timeline with default stages [0, 60, 180, 360, 600] and
+    // now = start + 90, current_stage_index returns 0 (Baseline) but should be 1 (Recon).
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_BC_2_06_019_stage_index_pure_function_reproducible() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+        let start_secs: i64 = 1_000_000;
+
+        let timeline = build_default_incident_timeline(catalog, start_secs, &[60, 180, 360, 600]);
+
+        let now = start_secs + 90; // elapsed = 90s → should be stage 1 (Recon)
+
+        let result1 = current_stage_index(&timeline, now);
+        let result2 = current_stage_index(&timeline, now);
+        let result3 = current_stage_index(&timeline, now);
+
+        // Reproducibility: all calls return same value.
+        assert_eq!(
+            result1, result2,
+            "current_stage_index must be reproducible: call 1 returned {result1}, call 2 returned {result2}"
+        );
+        assert_eq!(
+            result2, result3,
+            "current_stage_index must be reproducible: call 2 returned {result2}, call 3 returned {result3}"
+        );
+
+        // At elapsed=90s with stages [0, 60, 180, 360, 600], stage 1 (Recon) activates.
+        // FAIL: stub returns 0.
+        assert_eq!(
+            result1, 1,
+            "at elapsed=90s with default thresholds, stage must be 1 (Recon; activates at 60s); \
+             got {result1} — BC-2.06.019 INV-PROGRESSION-REPRODUCIBILITY-001 / PC-3"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RED GATE TEST 3 — test_BC_2_06_019_stage_boundary_5_thresholds_correct
+    //
+    // BC-2.06.019 PC-2, PC-3 / TV-019-001..005
+    // Verifies: stage boundary correctness for all 6 canonical test vectors.
+    //
+    // FAIL mode: stub returns 0 for all inputs; TV-019-002..005 will FAIL.
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_BC_2_06_019_stage_boundary_5_thresholds_correct() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+        let start: i64 = 2_000_000;
+
+        let timeline = build_default_incident_timeline(catalog, start, &[]);
+
+        // TV-019-001: elapsed = 0s → stage 0 (Baseline)
+        assert_eq!(
+            current_stage_index(&timeline, start),
+            0,
+            "TV-019-001: at elapsed=0s, stage must be 0 (Baseline); got {}",
+            current_stage_index(&timeline, start)
+        );
+
+        // TV-019-001b: elapsed = 30s → stage 0 (elapsed 30 < 60)
+        assert_eq!(
+            current_stage_index(&timeline, start + 30),
+            0,
+            "TV-019-001b: at elapsed=30s (< 60), stage must be 0 (Baseline); got {}",
+            current_stage_index(&timeline, start + 30)
+        );
+
+        // TV-019-002: elapsed = 90s → stage 1 (Recon; elapsed 90 >= 60)
+        // FAIL: stub returns 0.
+        assert_eq!(
+            current_stage_index(&timeline, start + 90),
+            1,
+            "TV-019-002: at elapsed=90s (>= 60), stage must be 1 (Recon); got {} \
+             — BC-2.06.019 PC-2 / TV-019-002",
+            current_stage_index(&timeline, start + 90)
+        );
+
+        // TV-019-003: elapsed = 200s → stage 2 (LateralMovement; >= 180)
+        assert_eq!(
+            current_stage_index(&timeline, start + 200),
+            2,
+            "TV-019-003: at elapsed=200s (>= 180), stage must be 2 (LateralMovement); got {} \
+             — BC-2.06.019 PC-2 / TV-019-003",
+            current_stage_index(&timeline, start + 200)
+        );
+
+        // TV-019-004: elapsed = 400s → stage 3 (Exfil; >= 360)
+        assert_eq!(
+            current_stage_index(&timeline, start + 400),
+            3,
+            "TV-019-004: at elapsed=400s (>= 360), stage must be 3 (Exfil); got {} \
+             — BC-2.06.019 PC-2 / TV-019-004",
+            current_stage_index(&timeline, start + 400)
+        );
+
+        // TV-019-005: elapsed = 700s → stage 4 (Containment; >= 600; saturates)
+        assert_eq!(
+            current_stage_index(&timeline, start + 700),
+            4,
+            "TV-019-005: at elapsed=700s (>= 600), stage must be 4 (Containment); got {} \
+             — BC-2.06.019 PC-2 / TV-019-005",
+            current_stage_index(&timeline, start + 700)
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RED GATE TEST 4 — test_BC_2_06_019_stage_index_monotonic_over_time
+    //
+    // BC-2.06.019 INV-STAGE-MONOTONICITY-001
+    // Verifies: stage index never decreases over monotonically increasing time.
+    //
+    // FAIL mode: stub always returns 0 — the monotonicity assertion itself passes
+    // (0 >= 0 is always true), but the final assertion that we eventually reach
+    // stage 4 FAILS (we never advance beyond 0).
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_BC_2_06_019_stage_index_monotonic_over_time() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+        let start: i64 = 3_000_000;
+
+        let timeline = build_default_incident_timeline(catalog, start, &[]);
+
+        // Sample 50 time points spanning all stages.
+        let time_points: Vec<i64> = (0..=700i64)
+            .step_by(14)
+            .map(|delta| start + delta)
+            .collect();
+
+        let mut prev_stage = 0usize;
+        for now in &time_points {
+            let stage = current_stage_index(&timeline, *now);
+            assert!(
+                stage >= prev_stage,
+                "INV-STAGE-MONOTONICITY-001 violated: stage went from {prev_stage} to {stage} \
+                 at now={now} (elapsed={}) — BC-2.06.019",
+                now - start
+            );
+            prev_stage = stage;
+        }
+
+        // Verify we actually reached stage 4 (Containment) at end.
+        // FAIL: stub always returns 0.
+        let final_stage = current_stage_index(&timeline, start + 700);
+        assert_eq!(
+            final_stage, 4,
+            "At elapsed=700s, stage must have reached 4 (Containment); got {final_stage} \
+             — INV-STAGE-MONOTONICITY-001 requires advancement to all stages"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RED GATE TEST 5 — test_BC_2_06_019_clock_skew_clamped_to_baseline
+    //
+    // BC-2.06.019 EC-019-003 / TV-019-006
+    // Verifies: now < start → elapsed clamped to 0 → stage 0, no panic.
+    //
+    // FAIL mode: stub returns 0 which is correct for stage but the test also checks
+    // a future elapsed > 0 returns > 0 which the stub fails.
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_BC_2_06_019_clock_skew_clamped_to_baseline() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+        let start: i64 = 1_500_000;
+
+        let timeline = build_default_incident_timeline(catalog, start, &[]);
+
+        // TV-019-006: clock skew — now is before start (future start)
+        let skewed_now = start - 100; // 100 seconds before start
+        let stage = current_stage_index(&timeline, skewed_now);
+        assert_eq!(
+            stage, 0,
+            "TV-019-006: clock-skewed now (now={skewed_now} < start={start}) must return \
+             stage 0 (Baseline); got {stage}. elapsed = max(0, now-start) must clamp to 0. \
+             BC-2.06.019 EC-019-003"
+        );
+
+        // Extreme past — should still return 0, not panic.
+        let extreme_past = i64::MIN / 2;
+        let extreme_stage = current_stage_index(&timeline, extreme_past);
+        assert_eq!(
+            extreme_stage, 0,
+            "Extreme past clock skew must return stage 0 without panic; got {extreme_stage}"
+        );
+
+        // Validate that elapsed > threshold does advance the stage (proving the clamp is
+        // conditional, not always-zero). FAIL: stub always returns 0.
+        let future_now = start + 90;
+        let future_stage = current_stage_index(&timeline, future_now);
+        assert_eq!(
+            future_stage, 1,
+            "At elapsed=90s (> 60s threshold), stage must be 1 (Recon); got {future_stage} \
+             — this validates the clamp does not suppress all advancement"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RED GATE TEST 6 — test_BC_2_06_019_stage_mask_completeness_all_6_fields
+    //
+    // BC-2.06.019 INV-STAGE-MASK-COMPLETENESS-001 / PC-2 table
+    // Verifies: each of the 5 stages has all 6 StageMask bool fields explicitly set
+    // per the BC-2.06.019 §Postcondition 2 canonical table.
+    //
+    // FAIL mode: stub builds only 1 stage (Baseline), so index access at stages[1..4]
+    // will panic (index out of bounds). The test will FAIL (panic = test failure).
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_BC_2_06_019_stage_mask_completeness_all_6_fields() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+        let timeline = build_default_incident_timeline(catalog, 0, &[]);
+
+        // Require at least 5 stages to avoid panic; stub only has 1 → will panic = FAIL.
+        assert_eq!(
+            timeline.stages.len(),
+            5,
+            "Timeline must have exactly 5 stages for mask completeness check; got {}",
+            timeline.stages.len()
+        );
+
+        // Stage 0 (Baseline): primary_device=true; all others false.
+        let m0 = &timeline.stages[0].visible_entity_mask;
+        assert!(
+            m0.primary_device,
+            "Stage 0 Baseline: primary_device must be true"
+        );
+        assert!(
+            !m0.lateral_devices,
+            "Stage 0 Baseline: lateral_devices must be false"
+        );
+        assert!(!m0.ioc_ips, "Stage 0 Baseline: ioc_ips must be false");
+        assert!(
+            !m0.ioc_domains,
+            "Stage 0 Baseline: ioc_domains must be false"
+        );
+        assert!(!m0.ioc_hashes, "Stage 0 Baseline: ioc_hashes must be false");
+        assert!(
+            !m0.device_cves,
+            "Stage 0 Baseline: device_cves must be false"
+        );
+
+        // Stage 1 (Recon): primary_device=true; rest false.
+        let m1 = &timeline.stages[1].visible_entity_mask;
+        assert!(
+            m1.primary_device,
+            "Stage 1 Recon: primary_device must be true"
+        );
+        assert!(
+            !m1.lateral_devices,
+            "Stage 1 Recon: lateral_devices must be false"
+        );
+        assert!(!m1.ioc_ips, "Stage 1 Recon: ioc_ips must be false");
+        assert!(!m1.ioc_domains, "Stage 1 Recon: ioc_domains must be false");
+        assert!(!m1.ioc_hashes, "Stage 1 Recon: ioc_hashes must be false");
+        assert!(!m1.device_cves, "Stage 1 Recon: device_cves must be false");
+
+        // Stage 2 (LateralMovement): primary_device=true; lateral_devices=true; ioc_hashes=true; rest false.
+        let m2 = &timeline.stages[2].visible_entity_mask;
+        assert!(
+            m2.primary_device,
+            "Stage 2 LateralMovement: primary_device must be true"
+        );
+        assert!(
+            m2.lateral_devices,
+            "Stage 2 LateralMovement: lateral_devices must be true"
+        );
+        assert!(
+            !m2.ioc_ips,
+            "Stage 2 LateralMovement: ioc_ips must be false"
+        );
+        assert!(
+            !m2.ioc_domains,
+            "Stage 2 LateralMovement: ioc_domains must be false"
+        );
+        assert!(
+            m2.ioc_hashes,
+            "Stage 2 LateralMovement: ioc_hashes must be true"
+        );
+        assert!(
+            !m2.device_cves,
+            "Stage 2 LateralMovement: device_cves must be false"
+        );
+
+        // Stage 3 (Exfil): primary + lateral + ioc_ips + ioc_domains + ioc_hashes; device_cves=false.
+        let m3 = &timeline.stages[3].visible_entity_mask;
+        assert!(
+            m3.primary_device,
+            "Stage 3 Exfil: primary_device must be true"
+        );
+        assert!(
+            m3.lateral_devices,
+            "Stage 3 Exfil: lateral_devices must be true"
+        );
+        assert!(m3.ioc_ips, "Stage 3 Exfil: ioc_ips must be true");
+        assert!(m3.ioc_domains, "Stage 3 Exfil: ioc_domains must be true");
+        assert!(m3.ioc_hashes, "Stage 3 Exfil: ioc_hashes must be true");
+        assert!(!m3.device_cves, "Stage 3 Exfil: device_cves must be false");
+
+        // Stage 4 (Containment): all 6 fields true.
+        let m4 = &timeline.stages[4].visible_entity_mask;
+        assert!(
+            m4.primary_device,
+            "Stage 4 Containment: primary_device must be true"
+        );
+        assert!(
+            m4.lateral_devices,
+            "Stage 4 Containment: lateral_devices must be true"
+        );
+        assert!(m4.ioc_ips, "Stage 4 Containment: ioc_ips must be true");
+        assert!(
+            m4.ioc_domains,
+            "Stage 4 Containment: ioc_domains must be true"
+        );
+        assert!(
+            m4.ioc_hashes,
+            "Stage 4 Containment: ioc_hashes must be true"
+        );
+        assert!(
+            m4.device_cves,
+            "Stage 4 Containment: device_cves must be true"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RED GATE TEST 12 — test_BC_2_06_019_secondary_rng_independence_no_primary_shift
+    //
+    // BC-2.06.019 INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 / PC-1
+    // Verifies: the secondary RNG stream (seed.wrapping_add(1), org_id) used for
+    // catalog derivation does NOT consume state from the primary generator stream.
+    // Two catalogs built from the same (seed, org_id) must be identical.
+    //
+    // NOTE: This is a property test — catalog determinism is what we can verify
+    // at the unit level. The full independence test (that fixture records are byte-
+    // identical between scenario-enabled and non-scenario paths) requires the clone
+    // constructors and is covered by the harness integration tests.
+    //
+    // FAIL mode: this test should PASS (catalog is deterministic). However, the
+    // broader independence invariant (no primary shift) will be validated by the
+    // implementer's integration test in the demo-server harness after implementation.
+    // We write this as a compile-and-run guard that confirms secondary RNG determinism.
+    // The test is designed to FAIL if the secondary stream is non-deterministic.
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_BC_2_06_019_secondary_rng_independence_no_primary_shift() {
+        let org = deadbeef_org();
+        let seed: u64 = 100;
+
+        // Build two catalogs with the same (seed, org_id) — must be identical.
+        let catalog1 = build_scenario_entity_catalog(seed, &org);
+        let catalog2 = build_scenario_entity_catalog(seed, &org);
+
+        assert_eq!(
+            catalog1.ioc_ips, catalog2.ioc_ips,
+            "build_scenario_entity_catalog must be deterministic: same (seed, org_id) \
+             must produce identical ioc_ips (INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001)"
+        );
+        assert_eq!(
+            catalog1.ioc_domains, catalog2.ioc_domains,
+            "build_scenario_entity_catalog must produce identical ioc_domains"
+        );
+        assert_eq!(
+            catalog1.device_cves, catalog2.device_cves,
+            "build_scenario_entity_catalog must produce identical device_cves"
+        );
+        assert_eq!(
+            catalog1.primary_device_id_cs, catalog2.primary_device_id_cs,
+            "build_scenario_entity_catalog must produce identical primary_device_id_cs"
+        );
+
+        // Cross-seed: different seeds must produce different catalogs (independence).
+        let catalog_other = build_scenario_entity_catalog(seed.wrapping_add(1), &org);
+        assert_ne!(
+            catalog1.ioc_ips, catalog_other.ioc_ips,
+            "Different seeds must produce different ioc_ips \
+             (secondary RNG stream independence)"
+        );
+
+        // Verify the secondary stream uses seed.wrapping_add(1): seed=u64::MAX should
+        // not panic (wraps to 0). EC-011: gen_seeded_rng(0, &org_id) is valid.
+        let max_seed_catalog = build_scenario_entity_catalog(u64::MAX, &org);
+        assert!(
+            !max_seed_catalog.ioc_ips.is_empty(),
+            "seed=u64::MAX: secondary stream (wrapping_add(1) = 0) must still produce \
+             non-empty ioc_ips — EC-011 / ADR-036 v2.2"
+        );
+
+        // The deeper test — primary generator stream independence — requires the
+        // new_with_scenario constructor to be implemented (Story B implementation).
+        // The clone-level test will verify that fixture records from scenario-enabled
+        // and disabled paths are byte-identical. For now, we confirm catalog determinism
+        // as the necessary (but not sufficient) condition.
+        // FAIL: the above assertions pass with the stub, but the integration-level
+        // test is in test 11 (demo-server unit test) which will FAIL.
     }
 
     /// RG-1: test_BC_2_06_018_scenario_catalog_secondary_rng_and_canonical_ids
@@ -398,6 +1093,64 @@ mod tests {
             org_slug_from_org_id(&org_b),
             "org_slug_from_org_id must only use first 4 bytes; \
              different bytes 4-15 with same bytes 0-3 must yield the same slug"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // SEC-001 — test_sec_001_device_cves_use_unambiguous_synthetic_year
+    //
+    // SEC-001 / CWE-1336-adjacent: gen_device_cves must emit CVE-9999-NNNNN IDs
+    // (year 9999, never used by real NVD) so that synthetic IDs cannot collide
+    // with real advisories (e.g. CVE-2021-44228 = Log4Shell).
+    //
+    // Also verifies end-to-end correlation invariant: every device CVE in the
+    // catalog starts with the synthetic prefix.  The full NVD resolution test
+    // (catalog CVE → NvdState lookup returns HIGH) lives in
+    // prism-dtu-nvd/tests/bc_2_06_020_nvd_enrichment.rs (test 14), which shares
+    // the same catalog produced here.
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_sec_001_device_cves_use_unambiguous_synthetic_year() {
+        let org = deadbeef_org();
+        let catalog = build_scenario_entity_catalog(42, &org);
+
+        // Must have at least 1 CVE (gen count = 3 per build_scenario_entity_catalog call).
+        assert!(
+            !catalog.device_cves.is_empty(),
+            "SEC-001: device_cves must be non-empty (count=3 per gen_device_cves call)"
+        );
+
+        // Every generated CVE must start with the unambiguous-synthetic prefix "CVE-9999-".
+        for (i, cve) in catalog.device_cves.iter().enumerate() {
+            assert!(
+                cve.starts_with("CVE-9999-"),
+                "SEC-001: device_cves[{i}] = '{cve}' must start with 'CVE-9999-'; \
+                 year 9999 is never used by real NVD so synthetic IDs cannot collide \
+                 with real advisories (e.g. CVE-2021-44228 = Log4Shell). \
+                 Fix: gen_device_cves must emit CVE-9999-{{seq:05}} format."
+            );
+
+            // Sequence part must be a valid 1-5 digit decimal number.
+            let seq_part = cve.trim_start_matches("CVE-9999-");
+            assert!(
+                seq_part.chars().all(|c| c.is_ascii_digit()),
+                "SEC-001: device_cves[{i}] = '{cve}' — sequence part '{seq_part}' \
+                 must contain only decimal digits"
+            );
+        }
+
+        // Determinism: same (seed, org) → same CVE IDs (secondary RNG stream is deterministic).
+        let catalog2 = build_scenario_entity_catalog(42, &org);
+        assert_eq!(
+            catalog.device_cves, catalog2.device_cves,
+            "SEC-001: device_cves must be deterministic for same (seed, org_id)"
+        );
+
+        // Different seed → different CVE IDs (independence).
+        let catalog_other = build_scenario_entity_catalog(43, &org);
+        assert_ne!(
+            catalog.device_cves, catalog_other.device_cves,
+            "SEC-001: different seeds must produce different device_cves (RNG independence)"
         );
     }
 }

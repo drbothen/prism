@@ -177,5 +177,25 @@ name = "f_p15_alerts_route_output"
 path = "tests/f_p15_alerts_route_output.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: Red Gate test 7 (BC-2.06.019 PC-4)
+# HTTP-level StageMask projection — primary device absent/present per stage
+[[test]]
+name = "bc_2_06_019_scenario_progression"
+path = "tests/bc_2_06_019_scenario_progression.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: Red Gate test 17 (DormantTenant regression guard)
+# Three-way composition invariant: scenario path must apply StageMask
+[[test]]
+name = "dormant_tenant_seeded_regression"
+path = "tests/dormant_tenant_seeded_regression.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# TD-VSDD-060 sibling-sweep: X-Org-Id guard test for search endpoint was missing [[test]] entry
+[[test]]
+name = "f_p2_med_001_search_org_id_guard"
+path = "tests/f_p2_med_001_search_org_id_guard.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

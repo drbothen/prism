@@ -99,5 +99,12 @@ name = "td_wv0_08_reset_requires_admin_token"
 path = "tests/td_wv0_08_reset_requires_admin_token.rs"
 required-features = ["dtu"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: Red Gate test 14 (BC-2.06.020)
+# NVD CVE enrichment correlation — new_with_scenario must inject scenario CVEs
+[[test]]
+name = "bc_2_06_020_nvd_enrichment"
+path = "tests/bc_2_06_020_nvd_enrichment.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

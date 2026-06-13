@@ -160,5 +160,17 @@ name = "f_p3_route_output_tests"
 path = "tests/f_p3_route_output_tests.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# BPRL-P2-01: BC-2.06.019 PC-4 — Cyberint alerts route StageMask projection
+[[test]]
+name = "bc_2_06_019_scenario_stagemask"
+path = "tests/bc_2_06_019_scenario_stagemask.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# D-1117 BC-2.06.020 v1.3 PC-8/PC-9 — Cyberint CVE correlation + collision-safety
+[[test]]
+name = "bc_2_06_020_cyberint_cve_correlation"
+path = "tests/bc_2_06_020_cyberint_cve_correlation.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

@@ -160,20 +160,64 @@ pub async fn list_host_ids(
         }
     }
 
-    // Dual-path: serve generated device IDs when clone was built via new_with_seed (ADR-036 §2.3).
-    // Use fixture_gen_seeded (not generated_devices.is_empty()) so DormantTenant (seeded=true,
-    // 0 devices) serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
+    // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, B-P1-01):
+    // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask.
+    // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated IDs.
+    // - Static path (fixture_gen_seeded=false): load_host_ids() from embedded fixture.
+    // Use fixture_gen_seeded (not generated_devices.is_empty()) — DormantTenant guard.
+    // F-P6-HIGH-001 / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
     let all_ids: Vec<String> = if state.fixture_gen_seeded {
-        state
-            .generated_devices
-            .iter()
-            .filter_map(|rec| {
-                rec.get("device_id")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_owned())
-            })
-            .collect()
+        if let Some(ref timeline) = state.timeline {
+            // Scenario path: apply StageMask projection (BC-2.06.019 PC-4).
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            let primary_id = &timeline.entities.primary_device_id_cs;
+            let lateral_ids: std::collections::HashSet<&str> = timeline
+                .entities
+                .lateral_device_ids_cs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
+            state
+                .generated_devices
+                .iter()
+                .filter_map(|rec| {
+                    rec.get("device_id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|id| {
+                            // Stage 0 (Baseline): primary device not yet visible.
+                            // stage_idx > 0 guard: BC-2.06.019 PC-4 / TV-019-007.
+                            let visible = if id == primary_id {
+                                mask.primary_device && stage_idx > 0
+                            } else if lateral_ids.contains(id) {
+                                mask.lateral_devices
+                            } else {
+                                true
+                            };
+                            if visible {
+                                Some(id.to_owned())
+                            } else {
+                                None
+                            }
+                        })
+                })
+                .collect()
+        } else {
+            // Seeded path (no scenario): serve all generated IDs (Story-A behavior).
+            state
+                .generated_devices
+                .iter()
+                .filter_map(|rec| {
+                    rec.get("device_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_owned())
+                })
+                .collect()
+        }
     } else {
         load_host_ids()
     };
@@ -330,21 +374,91 @@ pub async fn get_host_details(
 
     let org_id = extract_org_id(&headers);
 
-    // Dual-path: use generated device records when clone was built via new_with_seed (ADR-036 §2.3).
-    // Use fixture_gen_seeded (not generated_devices.is_empty()) so DormantTenant (seeded=true,
-    // 0 devices) serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
+    // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, B-P1-01):
+    // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask +
+    //   containment_status override to "normal" for pre-containment stages (stage < 4).
+    //   AC-008 / TV-019-011: containment_status="contained" only visible at stage 4.
+    // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated records.
+    // - Static path (fixture_gen_seeded=false): load from embedded fixture.
+    // Use fixture_gen_seeded (not is_empty()) — DormantTenant guard. F-P6-HIGH-001 / ADR-036 v2.2.
+
+    // For the scenario path we also need stage context for containment_status override.
+    // Compute once and reuse in both the fixture-build and the resource-assembly steps.
+    // Tuple: (stage_idx, primary_id, lateral_ids, mask_primary_device, mask_lateral_devices)
+    #[cfg(feature = "fixture-gen")]
+    let scenario_stage_ctx: Option<(
+        usize,
+        String,
+        std::collections::HashSet<String>,
+        bool,
+        bool,
+    )> = if state.fixture_gen_seeded {
+        if let Some(ref timeline) = state.timeline {
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            let mask_primary = mask.primary_device;
+            let mask_lateral = mask.lateral_devices;
+            let primary_id = timeline.entities.primary_device_id_cs.clone();
+            let lateral_ids: std::collections::HashSet<String> = timeline
+                .entities
+                .lateral_device_ids_cs
+                .iter()
+                .cloned()
+                .collect();
+            Some((
+                stage_idx,
+                primary_id,
+                lateral_ids,
+                mask_primary,
+                mask_lateral,
+            ))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     #[cfg(feature = "fixture-gen")]
     let fixture: std::collections::HashMap<String, serde_json::Value> = if state.fixture_gen_seeded
     {
-        state
-            .generated_devices
-            .iter()
-            .filter_map(|rec| {
-                rec.get("device_id")
-                    .and_then(|v| v.as_str())
-                    .map(|id| (id.to_owned(), rec.clone()))
-            })
-            .collect()
+        if let Some((stage_idx, ref primary_id, ref lateral_ids, mask_primary, mask_lateral)) =
+            scenario_stage_ctx
+        {
+            // Scenario path: filter by StageMask before building the lookup map.
+            state
+                .generated_devices
+                .iter()
+                .filter_map(|rec| {
+                    let id = rec.get("device_id").and_then(|v| v.as_str())?;
+                    let visible = if id == primary_id {
+                        mask_primary && stage_idx > 0
+                    } else if lateral_ids.contains(id) {
+                        mask_lateral
+                    } else {
+                        true
+                    };
+                    if visible {
+                        Some((id.to_owned(), rec.clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            // Seeded path (no scenario): all generated devices.
+            state
+                .generated_devices
+                .iter()
+                .filter_map(|rec| {
+                    rec.get("device_id")
+                        .and_then(|v| v.as_str())
+                        .map(|id| (id.to_owned(), rec.clone()))
+                })
+                .collect()
+        }
     } else {
         load_host_details()
     };
@@ -405,6 +519,33 @@ pub async fn get_host_details(
                 }
             }
             // If not in containment_store: fixture's own containment_status remains.
+
+            // Scenario path: AC-008 / TV-019-011 — containment_status must be "normal"
+            // at pre-containment stages (stage < 4). The generator pre-builds the primary
+            // device record with containment_status="contained"; without this override,
+            // the stage-2 assertion ("must NOT be 'contained'") would fail.
+            // At stage 4 (Containment), all mask fields are true and we serve as-is.
+            // Stage index 4 = Containment (activates_after_secs = 600).
+            //
+            // Precedence rule (BC-2.06.019 PC-4, BPRL-P3-OBS-2): in scenario mode
+            // (scenario_stage_ctx.is_some()), stage-driven containment projection takes
+            // precedence over operator-driven `containment_store` entries for the primary
+            // device at stage < 4. This is by design — the demo narrative controls
+            // containment visibility through the stage timeline; operator-driven containment
+            // actions (PATCH /devices/entities/devices/actions/v2) are visible only at
+            // stage 4 ('Containment', activates_after_secs=600) when the mask permits it.
+            // Non-primary devices and non-scenario requests are not subject to this override.
+            #[cfg(feature = "fixture-gen")]
+            if let Some((stage_idx, ref primary_id, _, _, _)) = scenario_stage_ctx {
+                if id == *primary_id && stage_idx < 4 {
+                    if let Some(obj) = record.as_object_mut() {
+                        obj.insert(
+                            "containment_status".to_owned(),
+                            serde_json::Value::String("normal".to_owned()),
+                        );
+                    }
+                }
+            }
 
             Some(record)
         })

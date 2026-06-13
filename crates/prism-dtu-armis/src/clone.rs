@@ -209,6 +209,59 @@ impl ArmisClone {
         })
     }
 
+    // -----------------------------------------------------------------------
+    // Story B: new_with_scenario constructor (BC-2.06.019 / ADR-036 v2.3 §2.4)
+    // -----------------------------------------------------------------------
+
+    /// Construct an `ArmisClone` with the scenario timeline layer.
+    ///
+    /// Gated `#[cfg(feature = "fixture-gen")]` because the signature references
+    /// `Archetype`, `OrgId`, and `IncidentTimeline` which are only available
+    /// under that feature (pre-existing gate omission fixed in B-P5-OBS-1).
+    ///
+    /// 5-arg form per ADR-036 v2.3 §2.4. Internally calls
+    /// `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (NOT the 3-arg
+    /// `new_with_seed` which anchors at demo_time_anchor() = 2026-01-01, producing
+    /// stale timestamps for a June 2026 demo).
+    ///
+    /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
+    /// compute the current stage index and apply StageMask filtering.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_scenario(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+        timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        time_anchor: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<Self> {
+        // Call new_with_seed_anchored (NOT the 3-arg new_with_seed) to use the
+        // caller-supplied time_anchor for era-coherent generated timestamps.
+        // ADR-036 v2.3 §2.3 mandates this; the 3-arg path is FORBIDDEN here.
+        let mut clone = Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor)?;
+        // Attach the timeline BEFORE any other reference can be taken.
+        //
+        // Structural threading (B-P5-OBS-1): use Arc::try_unwrap to reclaim the state
+        // struct (refcount=1 immediately post-construction), set timeline, then re-wrap.
+        // This is safe because new_with_seed_anchored just returned the only Arc clone;
+        // no other thread can hold a reference at this point.
+        //
+        // Prefer try_unwrap over get_mut to avoid silent-drop risk: if a future refactor
+        // creates a second Arc clone before this point, try_unwrap returns Err with the
+        // original Arc, which we catch with expect() so the bug is loud.
+        //
+        // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
+        let mut state = Arc::try_unwrap(clone.state).unwrap_or_else(|_| {
+            panic!(
+                "ArmisClone::new_with_scenario: Arc refcount must be 1 immediately after \
+                 new_with_seed_anchored; a second Arc clone would indicate a refactor \
+                 invariant violation (B-P5-OBS-1)"
+            )
+        });
+        state.timeline = Some(Arc::clone(&timeline));
+        clone.state = Arc::new(state);
+        Ok(clone)
+    }
+
     /// Return the base URL for the bound server (e.g. `"http://127.0.0.1:12345"`).
     ///
     /// Delegates to the trait's `base_url()` which checks `is_tls_active()`.

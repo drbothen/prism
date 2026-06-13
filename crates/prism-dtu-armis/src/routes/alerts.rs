@@ -84,24 +84,69 @@ pub async fn get_alerts(
     let size = params.size.unwrap_or(25).max(1) as usize;
     let offset = ((page - 1) as usize) * size;
 
-    // F-P15-MED-001: dual-path — use fixture_gen_seeded (NOT .is_empty()) as sentinel.
-    // DormantTenant (seeded=true, 0 records) must serve EMPTY, not the static fixture.
-    // Mirrors the pattern used in search.rs (lines ~198-222) and Claroty/Cyberint alert routes.
+    // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, BPRL-P4-02 sibling sweep):
+    // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask.
+    //   Alert records whose `device_id` equals the primary Armis device are withheld at
+    //   stage 0 (Baseline) — mirrors devices.rs paginate_devices `stage_idx > 0` guard.
+    //   Alert records referencing lateral devices are withheld when mask.lateral_devices=false.
+    //   Non-catalog alerts (no device_id or device not in catalog) always pass through.
+    //   Detections route added to BC-2.06.019 PC-4 coverage matrix per D-1109.
+    // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated alert records.
+    //   DormantTenant (seeded=true, 0 records) serves EMPTY — not the static fixture.
+    // - Static path (fixture_gen_seeded=false): state.alert_fixture (backward-compatible).
+    // Use fixture_gen_seeded (NOT .is_empty()) as sentinel. F-P15-MED-001 / F-P6-HIGH-001.
     #[cfg(feature = "fixture-gen")]
     if state.fixture_gen_seeded {
         // Serve generated alert records partitioned by "alert_id" presence.
         // Generated records use Armis-native shapes; raw serde_json::Value is correct
         // (adapter reads by $.data.alerts response_path and accepts any JSON object).
-        let generated_alerts: Vec<&serde_json::Value> = state
-            .generated_records
-            .iter()
-            .filter(|rec| rec.get("alert_id").is_some())
-            .collect();
-        let total = generated_alerts.len() as u32;
-        let page_alerts: Vec<serde_json::Value> = if offset >= generated_alerts.len() {
+        let all_alerts: Vec<&serde_json::Value> = if let Some(ref timeline) = state.timeline {
+            // Scenario path: apply StageMask projection.
+            // Mirror devices.rs paginate_devices scenario logic exactly.
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            let primary_id = &timeline.entities.primary_device_id_armis;
+            let lateral_ids: std::collections::HashSet<&str> = timeline
+                .entities
+                .lateral_device_ids_armis
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            state
+                .generated_records
+                .iter()
+                .filter(|rec| rec.get("alert_id").is_some())
+                .filter(|rec| {
+                    let dev_id = rec.get("device_id").and_then(|v| v.as_str()).unwrap_or("");
+                    if dev_id.is_empty() {
+                        // No device_id — non-catalog alert, always visible.
+                        return true;
+                    }
+                    if dev_id == primary_id {
+                        // stage_idx > 0 guard: BC-2.06.019 PC-4 / BPRL-P4-02 sibling sweep.
+                        mask.primary_device && stage_idx > 0
+                    } else if lateral_ids.contains(dev_id) {
+                        mask.lateral_devices
+                    } else {
+                        true
+                    }
+                })
+                .collect()
+        } else {
+            // Seeded path (no scenario): all generated alert records.
+            state
+                .generated_records
+                .iter()
+                .filter(|rec| rec.get("alert_id").is_some())
+                .collect()
+        };
+        let total = all_alerts.len() as u32;
+        let page_alerts: Vec<serde_json::Value> = if offset >= all_alerts.len() {
             vec![]
         } else {
-            generated_alerts
+            all_alerts
                 .iter()
                 .skip(offset)
                 .take(size)

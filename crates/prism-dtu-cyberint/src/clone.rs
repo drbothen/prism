@@ -223,6 +223,88 @@ impl CyberintClone {
         })
     }
 
+    // -----------------------------------------------------------------------
+    // Story B: new_with_scenario constructor (BC-2.06.019 / ADR-036 v2.3 §2.4)
+    // -----------------------------------------------------------------------
+
+    /// Construct a `CyberintClone` with the scenario timeline layer and catalog CVE injection.
+    ///
+    /// 6-arg fallible form per ADR-036 v2.3 §2.4 + BC-2.06.020 PC-8.
+    /// Gated `#[cfg(feature = "fixture-gen")]` because `chrono::DateTime<Utc>` is only
+    /// available under `fixture-gen` in this crate (dep:chrono gating in Cargo.toml).
+    ///
+    /// Internally calls `generate_with_catalog` so every CVE-surface record's `cve_id`
+    /// is drawn from `catalog.device_cves` (cyclic assignment) instead of a synthetic
+    /// `CVE-9999-*` baseline value. The RNG draw count is preserved (BC-3.4.001).
+    ///
+    /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers
+    /// compute the current stage index and apply StageMask filtering per request.
+    /// `get_alerts` implements the three-way composition: scenario path applies
+    /// BC-2.06.019 PC-4 IOC-reference filtering; seeded path (no timeline) serves
+    /// all generated alert records unchanged (BC-2.06.018). (BPRL-P2-01)
+    ///
+    /// BC-2.06.020 PC-8 + INV-CYBERINT-ALERT-CVE-CORRELATION-001: every `cve_id` on
+    /// every CVE-surface record will be a member of `catalog.device_cves`, enabling
+    /// the analyst pivot `enrich nvd(cve_id)` to resolve against the NVD registry for
+    /// every CVE visible on the Cyberint surface.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_scenario(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+        timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        time_anchor: chrono::DateTime<chrono::Utc>,
+        catalog: &prism_dtu_common::ScenarioEntityCatalog,
+    ) -> anyhow::Result<Self> {
+        use crate::generator::generate_with_catalog;
+        use prism_dtu_common::GenOpts;
+
+        // Generate fixture data with catalog CVEs (PC-8 correlation path).
+        // The RNG draw count in generate_with_catalog is IDENTICAL to generate()
+        // (BC-3.4.001 determinism — the gen_range draw always happens in generate_cves).
+        let opts = GenOpts {
+            seed,
+            time_anchor,
+            ..GenOpts::default()
+        };
+        let fixture = generate_with_catalog(&org_id, archetype, &opts, &catalog.device_cves);
+
+        // Load static fixtures (required for alert_fixture / alert_store initialization).
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let alerts: Vec<Alert> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let alerts_page2: Vec<Alert> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
+        let threats: Vec<serde_json::Value> =
+            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let instance_org_id = OrgId::new();
+        let mut state = CyberintState::with_org_id_and_admin_token(
+            instance_org_id,
+            alerts,
+            alerts_page2,
+            threats,
+            admin_token.clone(),
+        );
+        state.generated_records = fixture.records;
+        state.fixture_gen_seeded = true;
+
+        // Attach the timeline so route handlers apply StageMask filtering.
+        // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
+        state.timeline = Some(Arc::clone(&timeline));
+
+        Ok(Self {
+            state: Arc::new(state),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+            org_id: instance_org_id,
+        })
+    }
+
     /// Return the base URL for this clone (e.g. `http://127.0.0.1:PORT`).
     ///
     /// Delegates to the trait's `base_url()` which checks `is_tls_active()`.
