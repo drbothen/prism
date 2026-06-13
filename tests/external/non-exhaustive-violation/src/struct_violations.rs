@@ -4,13 +4,15 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-53 (37 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61 (38 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=52 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
 //! S-DEMO-DTU-LIVE-SCENARIO-001-B BPRL-P3-01 sibling sweep).
 //! v52 (IncidentTimeline) and v53 (IncidentStage) are LIVE E0639 violations added
 //! by S-DEMO-DTU-LIVE-SCENARIO-001-B. ci.yml EXPECTED bumped from 50 to 52.
+//! v61 (MultiInstanceServers) added by S-DEMO-MULTI-TENANT-DTU-001 (D-1075-API-GAP-001).
+//! ci.yml EXPECTED bumped from 59 to 60.
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -794,4 +796,31 @@ pub fn v59_bind_error() {
         source: std::io::Error::other("test"),
     };
     let _ = _err;
+}
+
+/// Violation 61 (60th type): prism_dtu_demo_server::multi_instance::MultiInstanceServers
+/// struct literal (E0639).
+///
+/// `MultiInstanceServers` is the lifecycle handle returned by `start_instances`, owning
+/// the shared `shutdown_tx: broadcast::Sender<()>` and all N watcher task handles
+/// (BC-2.06.017 Postcondition 1 v1.2, D-1075-API-GAP-001). `#[non_exhaustive]` ensures
+/// future fields (e.g., per-instance health monitors, metrics handles) can be added
+/// without breaking external struct literals. Fields are private; external callers
+/// MUST use `start_instances(cfg, factory).await` — direct struct literal construction
+/// MUST NOT compile (E0639 + E0616 for private fields).
+///
+/// Struct fields are private; the struct literal below triggers BOTH E0616 (private fields)
+/// and E0639 (#[non_exhaustive]). The CI gate counts E0639.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (D-1075-API-GAP-001). ci.yml EXPECTED bumped
+/// from 59 to 60.
+#[allow(dead_code)]
+pub fn v61_multi_instance_servers() {
+    // Triggers E0639 (#[non_exhaustive]) + E0616 (private fields socket_map, shutdown_tx, task_handles).
+    let _servers = prism_dtu_demo_server::MultiInstanceServers {
+        socket_map: todo!(),
+        shutdown_tx: todo!(),
+        task_handles: todo!(),
+    };
+    let _ = _servers;
 }
