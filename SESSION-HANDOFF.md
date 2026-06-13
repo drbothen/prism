@@ -1,17 +1,17 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.776"
+version: "7.777"
 status: current
 timestamp: 2026-06-13T10:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1127 BURST (2026-06-13) — pass 21 CLEAN(strict)=YES; CLEAN(PR-merge)=YES. Streak 2/3. Zero findings. 8 independent re-derivation axes all PASS (stage-timing 6 TVs, 5×6 StageMask, E-DEMO-001..006, ADR-036 v2.3 constructor-sig all 6 clones, BC frontmatter crates:, AC-019 cyclic-catalog, SAP-1, all BPRL-P1..P20 closures). Novelty LOW — "genuinely converged." PASS 22 (convergence pass) NEXT at 0863184a — diff unchanged. STATE v7.776.**
+> **D-1128 BURST (2026-06-13) — pass 22 CLOSED. BPRL-P22-01 MED SPEC-ONLY VP-Anchors stale: BC-2.06.020 §VP Anchors prose had `VP-020-A..H` / `all 8 VPs` but VP table defines A..L / 12 VPs. Orchestrator caught+reverted a catalog-format regression in the PO fix sweep (gen_device_cves {:05} vs Cyberint-baseline {:04} are TWO DISTINCT GENERATORS by design — do NOT raise digit-width difference as inconsistency). BC-2.06.020 v1.5; story B v2.14; PIVOT-003 v1.7. CODE UNCHANGED 0863184a. Streak RESET 2/3→0/3. PASS 23 NEXT at 0863184a — diff unchanged. STATE v7.777.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1127 below, then STATE.md frontmatter. D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117/D-1118/D-1119/D-1120/D-1121/D-1122/D-1123/D-1124/D-1125/D-1126 notes SUPERSEDED — D-1109/D-1110 snapshot archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md.
-> develop HEAD `939f36ce` (unchanged). Story B HEAD `0863184a` = remote = PR #185 latest push (D-1125: 1 commit; demo-recorder re-recorded AC-019 with both crate commands to cover VP-020-K). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.776.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1128 below, then STATE.md frontmatter. D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117/D-1118/D-1119/D-1120/D-1121/D-1122/D-1123/D-1124/D-1125/D-1126/D-1127 notes SUPERSEDED — D-1109/D-1110 snapshot archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md.
+> develop HEAD `939f36ce` (unchanged). Story B HEAD `0863184a` = remote = PR #185 latest push (D-1125: 1 commit; demo-recorder re-recorded AC-019 with both crate commands to cover VP-020-K). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.777.
 
 ---
 
@@ -64,7 +64,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 |-------|----------|--------|-----|-----|------------|-------|
 | 1 — parallel/independent | **S-DEMO-MULTI-TENANT-DTU-001** | **ready v1.2** (T1+T2+T3 DONE D-1076; remove-uncertainty 8 closed; S-7.01 CLEARED) | 8 | BC-2.06.017 (draft) | S-CONFIG-MULTI-TENANT-OVERRIDE-001 (SATISFIED) | READY FOR TDD DELIVERY at T6 — deliverable independent of Story A/B; deliver after T4-A+T5 complete |
 | 2 — DONE | **S-DEMO-DTU-LIVE-SCENARIO-001-A** | **MERGED** (T4-A; PR #181 develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active) | 8 | BC-2.06.018 (active) | S-CONFIG-MULTI-TENANT-OVERRIDE-001 (SATISFIED) | T4-A DONE — Story B unblocked |
-| 3 — **CURRENT** | **S-DEMO-DTU-LIVE-SCENARIO-001-B** | **PR-LEVEL cascade** (T5 CURRENT — PR #185 OPEN; HEAD=REMOTE=0863184a; LOCAL 3/3 strict; PR-LEVEL streak 2/3, pass 22 (convergence) NEXT; D-1127) | 7 | BC-2.06.019 v1.7 + BC-2.06.020 v1.4 (both draft) | S-DEMO-DTU-LIVE-SCENARIO-001-A (SATISFIED) | After 3-CLEAN strict → pr-reviewer APPROVE → security → CI → squash-merge → post-merge burst (POL-14; CLAUDE.md 50→52 DONE in-PR D-1108) |
+| 3 — **CURRENT** | **S-DEMO-DTU-LIVE-SCENARIO-001-B** | **PR-LEVEL cascade** (T5 CURRENT — PR #185 OPEN; HEAD=REMOTE=0863184a; LOCAL 3/3 strict; PR-LEVEL streak 0/3, pass 23 NEXT; D-1128) | 7 | BC-2.06.019 v1.7 + BC-2.06.020 v1.5 (both draft) | S-DEMO-DTU-LIVE-SCENARIO-001-A (SATISFIED) | After 3-CLEAN strict → pr-reviewer APPROVE → security → CI → squash-merge → post-merge burst (POL-14; CLAUDE.md 50→52 DONE in-PR D-1108) |
 | 4 | **S-DEMO-004** | **registered** (STORY-INDEX row v2.342; T8 needs architect+PO: depends_on edge + AC-006 data-distinctness via real seeding; then story-writer + remove-uncertainty) | TBD | TBD (needs PO authorship) | S-DEMO-MULTI-TENANT-DTU-001 + data layer (001-A/B) | T8 architect+PO produce the formal story file |
 | 5 | **S-DEMO-LAUNCHER-CONSOLIDATION-001** | **draft stub** (D-1029; depends_on S-DEMO-003 SATISFIED; story-writer materialization + human launcher-lifecycle decision needed) | 0 stub (TBD) | -- | S-DEMO-003 (SATISFIED) | T11 story-writer materialization → T12 delivery |
 | 6 — capstone | **Multi-client SOC-analyst narrative story** (not yet named or authored) | **not-authored** (no story file, no STORY-INDEX row; owner: product-owner + story-writer; after data layer + tooling exist) | TBD | TBD | Orders 3+4+5 complete | T13 → T14 demo recording; the demo's capstone deliverable |
@@ -73,16 +73,16 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **D-1107 SCOPE-IN** | **S-5.04** | not-started (wave 5) | 5 | -- | S-5.03, S-DEMO-001 | Sensor Health Subsystem — **OPTED IN (D-1107)**; remove-uncertainty before TDD |
 | **D-1107 SCOPE-IN** | **S-3.13** | not-started (wave 3) | 3 | 3 proxy (needs PO BCs) | S-3.02, S-1.12 | Dynamic Table Availability — **OPTED IN (D-1107)**; parallel after PO authors dedicated BCs; remove-uncertainty before TDD |
 
-**NEXT CONCRETE ACTION: T5 — PR-LEVEL pass 22 (convergence pass) for PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) at HEAD 0863184a (diff UNCHANGED — reuse /tmp/pr185-pass20.diff or `gh pr diff 185`; no CI push). Streak 2/3 (passes 20+21 CLEAN(strict) D-1126/D-1127). D-1090 autonomy grant still active.**
+**NEXT CONCRETE ACTION: T5 — PR-LEVEL pass 23 for PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) at HEAD 0863184a (diff UNCHANGED — reuse /tmp/pr185-pass20.diff or `gh pr diff 185`; no CI push). Streak 0/3 (pass 22 CLOSED BPRL-P22-01 D-1128). D-1090 autonomy grant still active.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (PR-LEVEL cascade; PR #185 OPEN; streak 2/3; pass 22 (convergence) NEXT — D-1127). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.3. BC-INDEX v6.40. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.366. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7. BC-2.06.020 v1.4. STATE v7.776.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (PR-LEVEL cascade; PR #185 OPEN; streak 0/3; pass 23 NEXT — D-1128). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.3. BC-INDEX v6.41. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.367. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7. BC-2.06.020 v1.5. STATE v7.777.**
 
 ---
 
-## §RESUME SNAPSHOT — D-1127 (2026-06-13 — pass 21 CLEAN(strict)=YES streak 2/3; pass 22 (convergence) next at 0863184a; STATE v7.776)
+## §RESUME SNAPSHOT — D-1128 (2026-06-13 — pass 22 CLOSED BPRL-P22-01 SPEC-ONLY VP-Anchors stale; streak RESET 2/3→0/3; pass 23 next at 0863184a; STATE v7.777)
 
-> **D-1127: T5 PR-LEVEL cascade in progress. S-DEMO-DTU-LIVE-SCENARIO-001-B in PR-LEVEL cascade. PR #185 OPEN; HEAD=REMOTE=0863184a (UNCHANGED — diff unchanged since pass 20; code logic unchanged since pass 13). Pass 21 CLEAN(strict)=YES; CLEAN(PR-merge)=YES. 8 independent re-derivation axes all PASS (stage-timing math 6 TVs, 5×6 StageMask, E-DEMO-001..006, ADR-036 v2.3 constructor-sig all 6 clones, BC frontmatter crates: cross-check, AC-019 cyclic-catalog determinism, SAP-1, all BPRL-P1..P20 closures). Novelty LOW. Streak 2/3. STATE v7.776. NEXT = PR-LEVEL pass 22 (convergence pass) at HEAD 0863184a — diff unchanged; reuse /tmp/pr185-pass20.diff; NO CI push. If CLEAN → 3/3 → pr-reviewer RE-RUN + security-reviewer RE-RUN on 0863184a → CI green → admin squash-merge → POL-14 burst.**
-> _D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117/D-1118/D-1119/D-1120/D-1121/D-1122/D-1123/D-1124/D-1125/D-1126 notes SUPERSEDED — D-1109/D-1110 snapshot archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
+> **D-1128: T5 PR-LEVEL cascade in progress. S-DEMO-DTU-LIVE-SCENARIO-001-B in PR-LEVEL cascade. PR #185 OPEN; HEAD=REMOTE=0863184a (UNCHANGED — diff unchanged since pass 20; code logic unchanged since pass 13). Pass 22 CLOSED — BPRL-P22-01 MED SPEC-ONLY: BC-2.06.020 §VP Anchors prose had `VP-020-A through VP-020-H` / `all 8 VPs`; correct is VP-020-A through VP-020-L / 12 VPs (D-1117 extended VP table+frontmatter to A..L but missed prose summary; same class as P14/P15 summary-count misses). ORCHESTRATOR-CAUGHT: PO fix sweep had also mis-changed `gen_device_cves` catalog format `{:05}` to `{:04}` by conflating it with the Cyberint baseline generator; reverted (two distinct generators by design — catalog=5-digit per mod.rs:449+SEC-001+TV-020-012; baseline=4-digit per generator.rs:389+PC-9+TV-020-011). BC-2.06.020 v1.5. Story B v2.14. PIVOT-003 v1.7. CODE UNCHANGED 0863184a. CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Streak RESET 2/3→0/3. STATE v7.777. NEXT = PR-LEVEL pass 23 at HEAD 0863184a — diff unchanged; reuse /tmp/pr185-pass20.diff; NO CI push. If CLEAN → 1/3; need 2 more CLEAN → then pr-reviewer RE-RUN + security-reviewer RE-RUN on 0863184a → CI green → admin squash-merge → POL-14 burst.**
+> _D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117/D-1118/D-1119/D-1120/D-1121/D-1122/D-1123/D-1124/D-1125/D-1126/D-1127 notes SUPERSEDED — D-1109/D-1110 snapshot archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
 
 ---
 
@@ -93,7 +93,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
 4. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `0863184a` (= remote; D-1125: 1 commit above 5d5484d0; demo-recorder re-recorded AC-019 to cover VP-020-K).
 5. `gh pr checks 185` — confirm CI status on 0863184a.
-6. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.776"`.
+6. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.777"`.
 7. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). Story B worktree: `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` (ACTIVE — PR-LEVEL cascade in progress).
 8. Apply lessons (a)–(z14) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
 9. **NEXT ACTION:** PR-LEVEL pass 22 (convergence pass) at HEAD 0863184a (streak 2/3; passes 20+21 CLEAN(strict) D-1126/D-1127; diff UNCHANGED — reuse /tmp/pr185-pass20.diff or `gh pr diff 185`; no CI push; do-not-reflag: all prior closures incl BPRL-P19-01; see §4 below).
@@ -105,11 +105,11 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | Field | Value |
 |-------|-------|
 | **Mode** | brownfield |
-| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185 OPEN, streak 2/3; pass 22 (convergence) NEXT at 0863184a) |
+| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185 OPEN, streak 0/3; pass 23 NEXT at 0863184a) |
 | **develop HEAD** | `939f36ce` (DTU PR #182 squash-merged 2026-06-12T05:18Z; unchanged since D-1103) |
-| **STATE version** | v7.776 |
-| **BC-INDEX version** | v6.40 (total 250; active 232; draft 5; retired 6; BC-2.06.019 v1.7; BC-2.06.020 v1.4; rows 119/120 story pin v2.13) |
-| **STORY-INDEX version** | v2.366 (total_stories 200) |
+| **STATE version** | v7.777 |
+| **BC-INDEX version** | v6.41 (total 250; active 232; draft 5; retired 6; BC-2.06.019 v1.7; BC-2.06.020 v1.5; rows 119/120 story pin v2.14) |
+| **STORY-INDEX version** | v2.367 (total_stories 200) |
 | **VP-INDEX version** | v1.79 (158 registered) |
 | **ARCH-INDEX version** | v2.133 |
 | **error-taxonomy version** | v1.78 (E-DEMO-006 new) |
@@ -141,7 +141,8 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 9. ~~T5 PR-LEVEL pass 17~~ DONE (D-1123: CLEAN(strict)=YES; CLEAN(PR-merge)=YES — zero findings; full behavioral trace 5 stages x 6 clones + cross-BC + wiring + SAP-1 + S-7.01; novelty LOW; streak 1/3→2/3).
 9. ~~T5 PR-LEVEL pass 20~~ DONE (D-1126: CLEAN(strict)=YES; CLEAN(PR-merge)=YES; zero findings; BPRL-P19-01 closure verified; streak 0/3→1/3).
 9. ~~T5 PR-LEVEL pass 21~~ DONE (D-1127: CLEAN(strict)=YES; CLEAN(PR-merge)=YES; zero findings; 8 independent re-derivation axes all PASS; novelty LOW; streak 1/3→2/3).
-9. **CURRENT: T5 PR-LEVEL pass 22 (convergence pass)** — streak 2/3; diff UNCHANGED at 0863184a (reuse /tmp/pr185-pass20.diff; no CI push); do-not-reflag list in §4 below.
+9. ~~T5 PR-LEVEL pass 22~~ DONE (D-1128: BPRL-P22-01 MED SPEC-ONLY VP-Anchors prose A..H/8→A..L/12; BC-2.06.020 v1.5; story B v2.14; orchestrator caught+reverted catalog-format regression; CLEAN(strict)=no; streak RESET 2/3→0/3).
+9. **CURRENT: T5 PR-LEVEL pass 23** — streak 0/3; diff UNCHANGED at 0863184a (reuse /tmp/pr185-pass20.diff; no CI push); do-not-reflag list in §4 below.
 9. After 3-CLEAN strict → pr-reviewer re-run APPROVE on 0863184a (MUST re-run — code changed via D-1117/P12/P14/P15/P18/P19 since pass-11 reviews on bc0f36c5) → security-reviewer re-run MAY PROCEED on 0863184a (MUST re-run same reason) → CI green → squash-merge → post-merge burst (POL-14: BC-2.06.019 + BC-2.06.020 draft→active; CLAUDE.md EXPECTED 50→52 DONE in-PR D-1108 — no post-merge edit needed).
 10. T6 → T8 → capability-discovery block (D-1107) → S-DEMO-ENRICHMENT-PIVOT-001/002/003 chain → T11 → T13 capstone.
 
@@ -153,13 +154,13 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 
 | Field | Value |
 |-------|-------|
-| **Story version** | v2.13 (19 ACs / 23 Red Gate tests; D-1121 BPRL-P15-01 SPEC-ONLY: Phase-6 gate instruction "19 RGTs"→"23 RGTs"; CODE UNCHANGED 7ddc0a51) |
+| **Story version** | v2.14 (19 ACs / 23 Red Gate tests; D-1128 BPRL-P22-01 SPEC-ONLY: BC-2.06.020 pin v1.4→v1.5; 3 pin sites; CODE UNCHANGED 0863184a) |
 | **BC-2.06.019** | v1.7 (D-1113 fabricated inventory-note prose corrected; D-1112 Claroty devices Route Coverage row + exhaustive inventory note; v1.5: D-1111 Route Coverage Table corrected + PC-4 5-arg prose; v1.4: D-1109 per-sensor IOC-surface matrix + Interim State clause + Route Coverage Table; PRE-6 org_id guard per PO OBS-1 ruling) |
-| **BC-2.06.020** | v1.4 (D-1120 SPEC-ONLY: PC-9 implementer directive 0..100000→0..10000; v1.3: D-1117: PC-8 catalog-ID assignment for scenario Cyberint CVEs; PC-9 baseline non-pivotable CVE-9999-{:04}; INV-CYBERINT-ALERT-CVE-CORRELATION-001; VP-020-I..L; EC-020-012..015; TV-020-011..015; draft) |
+| **BC-2.06.020** | v1.5 (D-1128 BPRL-P22-01 SPEC-ONLY: VP Anchors prose A..H/8→A..L/12; catalog {:05} preserved; v1.4: D-1120 SPEC-ONLY: PC-9 implementer directive 0..100000→0..10000; v1.3: D-1117: PC-8 catalog-ID assignment for scenario Cyberint CVEs; PC-9 baseline non-pivotable CVE-9999-{:04}; INV-CYBERINT-ALERT-CVE-CORRELATION-001; VP-020-I..L; EC-020-012..015; TV-020-011..015; draft) |
 | **ADR-036** | v2.3 (time_anchor 5-arg ruling) |
 | **Demo evidence** | 19/19 ACs COMPLETE (commit f75f3159; VHS; docs/demo-evidence/S-DEMO-DTU-LIVE-SCENARIO-001-B/; AC-019 re-recorded 0863184a: both crate commands; all 4 VP-020 tests demonstrated) |
 | **LOCAL cascade** | CONVERGED 3/3 strict (13 passes at pre-D-1117 code; D-1117 adds 3 commits; D-1118 adds 2 more commits) |
-| **PR-LEVEL streak** | 1/3 (pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed; pass 4 BPRL-P4-01 CLOSED-BY-DEFERRAL + BPRL-P4-02 closed + BPRL-P4-PG-01 closed; pass 5 BPRL-P5-01 HIGH closed BC-2.06.019 v1.5; pass 6 BPRL-P6-01 HIGH closed BC-2.06.019 v1.6; pass 7 BPRL-P7-01 MED closed BC-2.06.019 v1.7; pass 8 BPRL-P8-01 MED closed BC-INDEX row-120 sync; pass 9 CLEAN(strict)=YES streak 1/3 [INVALIDATED D-1117]; pass 10 CLEAN(strict)=YES streak 2/3 [INVALIDATED D-1117]; pass 11 CLEAN(strict)=YES streak 3/3 [INVALIDATED D-1117]; pass 12 BPRL-P12-01 MED closed D-1118 (VP-020-K false-green); pass 13 CLEAN(strict)=YES streak 1/3 D-1119; pass 14 BPRL-P14-01 HIGH SPEC-ONLY closed D-1120 (BC-2.06.020 v1.4 RNG range literal); pass 15 BPRL-P15-01 MED SPEC-ONLY closed D-1121 (story B Phase-6 gate "19 RGTs"→"23 RGTs"); pass 16 CLEAN(strict)=YES streak 1/3 D-1122 (exhaustive audit zero findings); pass 17 CLEAN(strict)=YES streak 2/3 D-1123 (behavioral trace 5 stages x 6 clones + cross-BC + wiring + SAP-1 + S-7.01; novelty LOW); pass 18 BPRL-P18-01 MED closed D-1124 (AC-019 evidence BC-anchor drift: 3 fabricated/inverted identifiers; evidence-only fix 5d5484d0; streak RESET 2/3→0/3); pass 19 BPRL-P19-01 MED closed D-1125 (AC-019 tape omitted VP-020-K after BPRL-P12-01 relocation; re-recorded 0863184a; all 4 VP-020 tests now demonstrated; streak 0/3); pass 20 CLEAN(strict)=YES CLEAN(PR-merge)=YES streak 1/3 D-1126 (BPRL-P19-01 closure verified; core-invariant re-confirmation BPRL-P14-01/VP-020-K load-bearing/SAP-1/EXPECTED=52; zero findings; novelty LOW); pass 21 CLEAN(strict)=YES CLEAN(PR-merge)=YES streak 2/3 D-1127 (8 independent re-derivation axes all PASS — stage-timing 6 TVs, 5×6 StageMask, E-DEMO-001..006, ADR-036 v2.3 constructor-sig all 6 clones, BC frontmatter crates:, AC-019 cyclic-catalog, SAP-1, all BPRL-P1..P20 closures; novelty LOW — "genuinely converged"); **streak 2/3; pass 22 (convergence) NEXT at 0863184a**) |
+| **PR-LEVEL streak** | 0/3 (pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed; pass 4 BPRL-P4-01 CLOSED-BY-DEFERRAL + BPRL-P4-02 closed + BPRL-P4-PG-01 closed; pass 5 BPRL-P5-01 HIGH closed BC-2.06.019 v1.5; pass 6 BPRL-P6-01 HIGH closed BC-2.06.019 v1.6; pass 7 BPRL-P7-01 MED closed BC-2.06.019 v1.7; pass 8 BPRL-P8-01 MED closed BC-INDEX row-120 sync; pass 9 CLEAN(strict)=YES streak 1/3 [INVALIDATED D-1117]; pass 10 CLEAN(strict)=YES streak 2/3 [INVALIDATED D-1117]; pass 11 CLEAN(strict)=YES streak 3/3 [INVALIDATED D-1117]; pass 12 BPRL-P12-01 MED closed D-1118 (VP-020-K false-green); pass 13 CLEAN(strict)=YES streak 1/3 D-1119; pass 14 BPRL-P14-01 HIGH SPEC-ONLY closed D-1120 (BC-2.06.020 v1.4 RNG range literal); pass 15 BPRL-P15-01 MED SPEC-ONLY closed D-1121 (story B Phase-6 gate "19 RGTs"→"23 RGTs"); pass 16 CLEAN(strict)=YES streak 1/3 D-1122 (exhaustive audit zero findings); pass 17 CLEAN(strict)=YES streak 2/3 D-1123 (behavioral trace 5 stages x 6 clones + cross-BC + wiring + SAP-1 + S-7.01; novelty LOW); pass 18 BPRL-P18-01 MED closed D-1124 (AC-019 evidence BC-anchor drift: 3 fabricated/inverted identifiers; evidence-only fix 5d5484d0; streak RESET 2/3→0/3); pass 19 BPRL-P19-01 MED closed D-1125 (AC-019 tape omitted VP-020-K after BPRL-P12-01 relocation; re-recorded 0863184a; all 4 VP-020 tests now demonstrated; streak 0/3); pass 20 CLEAN(strict)=YES CLEAN(PR-merge)=YES streak 1/3 D-1126 (BPRL-P19-01 closure verified; core-invariant re-confirmation BPRL-P14-01/VP-020-K load-bearing/SAP-1/EXPECTED=52; zero findings; novelty LOW); pass 21 CLEAN(strict)=YES CLEAN(PR-merge)=YES streak 2/3 D-1127 (8 independent re-derivation axes all PASS — stage-timing 6 TVs, 5×6 StageMask, E-DEMO-001..006, ADR-036 v2.3 constructor-sig all 6 clones, BC frontmatter crates:, AC-019 cyclic-catalog, SAP-1, all BPRL-P1..P20 closures; novelty LOW — "genuinely converged"); pass 22 BPRL-P22-01 MED SPEC-ONLY closed D-1128 (BC-2.06.020 VP Anchors prose A..H/8→A..L/12; BC-2.06.020 v1.5; story B v2.14; orchestrator caught+reverted catalog-format regression; streak RESET 2/3→0/3); **streak 0/3; pass 23 NEXT at 0863184a**) |
 | **Branch HEAD** | 0863184a = remote (D-1125 demo-recorder AC-019 re-record: both crate commands, VP-020-K covered) |
 
 **LOCAL cascade trajectory (13 passes at pre-D-1117 code):** P1:4 → P2:1 → P3:1 → P4:1+2obs → P5:5+2obs → P6:0 → P7:2 → P8:0 → P9:1 → P10:1 → P11:0 → P12:0 → P13:0
@@ -191,9 +192,9 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 
 ---
 
-### 4. §PR-LEVEL PASS 21 — DISPATCH INSTRUCTIONS
+### 4. §PR-LEVEL PASS 22 — DISPATCH INSTRUCTIONS
 
-**Dispatch fresh adversary for PR-LEVEL pass 22 (convergence pass; streak 2/3; passes 20+21 CLEAN(strict) D-1126/D-1127; diff UNCHANGED at 0863184a — reuse /tmp/pr185-pass20.diff or `gh pr diff 185`; no CI push).**
+**Dispatch fresh adversary for PR-LEVEL pass 23 (streak 0/3; pass 22 CLOSED BPRL-P22-01 D-1128; diff UNCHANGED at 0863184a — reuse /tmp/pr185-pass20.diff or `gh pr diff 185`; no CI push).**
 
 **Ground truth:**
 - Branch: `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; REMOTE HEAD `0863184a`; PR #185
@@ -201,12 +202,13 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 - ALL code reads use `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B/` absolute path
 - Verify `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H %s'` matches `0863184a` before citing any line numbers
 - BC-2.06.019 is v1.7 — use the v1.7 Route Coverage Table (8 rows, exhaustive); do NOT cite v1.6 or earlier inventory-note prose
-- BC-2.06.020 is v1.4 — use v1.4; includes PC-8, PC-9 (range `0..10000`), INV-CYBERINT-ALERT-CVE-CORRELATION-001, VP-020-I..L; do NOT cite v1.3 range `0..100000`
-- BC-INDEX rows 119/120 anchor story pin is `ready v2.13 (D-1121 2026-06-13)` — do NOT cite v2.12 or earlier annotations
-- Story B is v2.13 — Phase-6 gate instruction reads "all 23 Red Gate tests pass"; do NOT cite "19 Red Gate tests" in the gate instruction
-- Streak is 2/3; this is pass 22 (convergence pass)
+- BC-2.06.020 is v1.5 — use v1.5; includes PC-8, PC-9 (range `0..10000`), INV-CYBERINT-ALERT-CVE-CORRELATION-001, VP-020-I..L, VP Anchors prose `VP-020-A through VP-020-L` / `all 12 VPs`; do NOT cite v1.4 or earlier; do NOT cite `0..100000` or `VP-020-A through VP-020-H`
+- BC-INDEX rows 119/120 anchor story pin is `ready v2.14 (D-1128 2026-06-13)` — do NOT cite v2.13 or earlier annotations
+- Story B is v2.14 — BC-2.06.020 pin is v1.5; Phase-6 gate instruction reads "all 23 Red Gate tests pass"
+- Streak is 0/3; this is pass 23
+- IMPORTANT do-not-raise: catalog `gen_device_cves` uses `CVE-9999-{:05}` (5-digit); Cyberint baseline generator uses `CVE-9999-{:04}` (4-digit) — these are TWO DISTINCT GENERATORS by design; the digit-width difference is intentional; DO NOT raise this as an inconsistency
 
-**Full do-not-reflag list for pass 22 (do NOT raise these as new findings):**
+**Full do-not-reflag list for pass 23 (do NOT raise these as new findings):**
 
 All LOCAL closures listed in §3 above, plus:
 - BPRL-P1-01 closed (stale 3-guard comment; 45323267)
@@ -247,6 +249,7 @@ All LOCAL closures listed in §3 above, plus:
 - **PASS-16 SUB-THRESHOLD DISPOSITION (D-1122) — DO NOT REFLAG:** Story line ~47 points-justification comment contains "Red Gate test suite (~16 tests, FAIL-first): 1 pt" — a tilde-qualified estimate in the FROZEN 7-point breakdown rationale. `points: 7` has never changed. Live RGT count (23) is consistent across: frontmatter `red_gate_tests: 23`, 23-row RGT table, Phase-6 gate instruction "all 23 Red Gate tests pass", STORY-INDEX. The `~16 tests` annotation is NOT a count-of-record surface; it is a tilde-qualified effort estimate in frozen authoring-time rationale, analogous to historical changelog prose. Pass-16 adversary adjudicated this below-OBS threshold. Anchored as opportunistic cleanup to S-DEMO-ENRICHMENT-PIVOT-003. **DO NOT raise as a finding in pass 21 or any subsequent pass.**
 - **BPRL-P18-01 CLOSED (D-1124):** AC-019 demo-evidence artifacts (`AC-019-cyberint-cve-pivot.tape` header + `evidence-report.md` line 89) contained 3 fabricated/inverted BC anchors: PC-8↔PC-9 labels inverted (canonical: PC-8=scenario catalog assignment / PC-9=baseline namespace isolation); fabricated invariant `INV-CYBERINT-CVE-PIVOT-001` (canonical: `INV-CYBERINT-ALERT-CVE-CORRELATION-001`); fabricated type `CveCorrelationCatalog` (canonical: `ScenarioEntityCatalog`). All 3 corrected in demo-recorder commit 5d5484d0. `rg` confirms fabricated names gone, canonical present. NO re-render (anchors were header-comment-only). **DO NOT re-raise "inverted PC-8/PC-9 labels in evidence", "INV-CYBERINT-CVE-PIVOT-001 not found", or "CveCorrelationCatalog not found" — CLOSED.**
 - **BPRL-P19-01 CLOSED (D-1125):** AC-019 tape command (`-p prism-dtu-cyberint` only) omitted VP-020-K after BPRL-P12-01 relocated `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` to `prism-dtu-demo-server`. Evidence-report claimed all 4 VP-020 tests pass but tape only showed 3 (VP-020-I/J/L). Re-recorded in demo-recorder commit 0863184a: both commands — `-p prism-dtu-cyberint` (VP-020-I/J/L; 3 PASS) + `-p prism-dtu-demo-server -E test(cyberint_alert_cve_resolves_in_nvd)` (VP-020-K; 1 PASS). VHS re-render succeeded; evidence-report corrected to two-crate split (cyberint=3 VP-020-I/J/L, demo-server=10 incl VP-020-K). **DO NOT re-raise "AC-019 tape command only runs cyberint tests", "VP-020-K not shown in evidence", or "evidence-report overstates VP-020 coverage as 4/4 when tape only shows 3" — CLOSED.**
+- **BPRL-P22-01 CLOSED (D-1128 SPEC-ONLY):** BC-2.06.020 §VP Anchors prose had `VP-020-A through VP-020-H` / `all 8 VPs` — stale from before D-1117 added VP-020-I..L. Corrected in BC-2.06.020 v1.5: `VP-020-A through VP-020-L` / `all 12 VPs`. Story B v2.14 (BC-2.06.020 pin v1.4→v1.5; 3 sites). PIVOT-003 v1.7 (2 sites). **DO NOT re-raise "VP Anchors prose says VP-020-H", "only 8 VPs listed in VP Anchors", or "prose says all 8 VPs but table has 12" — CLOSED. ALSO DO NOT raise "catalog uses {:05} vs {:04} inconsistency" — these are two DISTINCT generators by design (gen_device_cves catalog=5-digit per mod.rs:449+SEC-001+TV-020-012; Cyberint baseline=4-digit per generator.rs:389+PC-9+TV-020-011) — the digit-width difference is INTENTIONAL.**
 
 **Post-convergence sequence (after 3-CLEAN strict):**
 1. pr-reviewer → APPROVE
@@ -291,7 +294,7 @@ All LOCAL closures listed in §3 above, plus:
 |----------|--------|--------|
 | `.worktrees/S-3.09` | FROZEN | Leave alone |
 | `.worktrees/W3-FIX-S307-001` | BLOCKED/superseded | Leave alone |
-| `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` | ACTIVE (PR-LEVEL cascade) | PR-LEVEL pass 22 (convergence) NEXT; streak 2/3 (passes 20+21 CLEAN(strict) D-1126/D-1127); HEAD 0863184a (UNCHANGED — diff unchanged; reuse /tmp/pr185-pass20.diff) |
+| `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` | ACTIVE (PR-LEVEL cascade) | PR-LEVEL pass 23 NEXT; streak 0/3 (pass 22 CLOSED BPRL-P22-01 D-1128); HEAD 0863184a (UNCHANGED — diff unchanged; reuse /tmp/pr185-pass20.diff) |
 
 ---
 
@@ -312,7 +315,7 @@ gh pr checks 185
 
 # 5. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.775"
+# Expected: version: "7.777"
 
 # 6. Confirm parked worktrees
 ls /Users/jmagady/Dev/prism/.worktrees/

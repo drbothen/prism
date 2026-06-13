@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.13"
+version: "2.14"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -144,7 +144,7 @@ different seeds produce coherent but disjoint entity catalogs (INV-CROSS-DTU-ENT
 | BC | Title | Key Invariants |
 |----|-------|----------------|
 | BC-2.06.019 v1.7 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement | INV-PROGRESSION-REPRODUCIBILITY-001, INV-STAGE-MONOTONICITY-001, INV-STAGE-MASK-COMPLETENESS-001, INV-SCENARIO-DISABLED-COMPAT-001, INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 |
-| BC-2.06.020 v1.4 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001, INV-NVD-CVE-CORRELATION-001, INV-CYBERINT-ALERT-CVE-CORRELATION-001, INV-CROSS-DTU-ENTITY-COHERENCE-001, INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001, INV-PERIMETER-COMPLIANCE-001, INV-CONSTRUCTION-TIME-INJECTION-001 |
+| BC-2.06.020 v1.5 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001, INV-NVD-CVE-CORRELATION-001, INV-CYBERINT-ALERT-CVE-CORRELATION-001, INV-CROSS-DTU-ENTITY-COHERENCE-001, INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001, INV-PERIMETER-COMPLIANCE-001, INV-CONSTRUCTION-TIME-INJECTION-001 |
 
 ---
 
@@ -462,10 +462,10 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file, v2.12) | ~9 000 |
+| Story spec (this file, v2.14) | ~9 000 |
 | ADR-036 v2.3 (full) | ~5 800 |
 | BC-2.06.019 v1.7 (full) | ~3 200 |
-| BC-2.06.020 v1.4 (full) | ~3 600 |
+| BC-2.06.020 v1.5 (full) | ~3 600 |
 | Story A spec (substrate context; confirmed merged) | ~3 000 |
 | prism-dtu-common/src/scenario/mod.rs (from Story A + extensions) | ~1 500 |
 | prism-dtu-demo-server/src/{harness,config}.rs (post-Story-A state) | ~2 000 |
@@ -763,6 +763,7 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.14 | 2026-06-13 | BC-2.06.020 v1.4→v1.5 pin-sync (BPRL-P22-01: VP Anchors prose A-H→A-L / 8→12 VPs; no behavior change). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Story spec self-reference v2.12→v2.14. counts unchanged (19 ACs / 23 RGT). |
 | v2.13 | 2026-06-13 | BPRL-P15-01 closure: Phase-6 gate instruction stale RGT count 19→23 (canonical count per frontmatter/table/STORY-INDEX). Exhaustive count-prose sweep (TD-VSDD-060): all other `\b19\b` hits classified as test-index labels, AC-count (correct), or historical changelog rows — no additional fixes required. No behavior/count change; red_gate_tests stays 23, acceptance_criteria_count stays 19. |
 | v2.12 | 2026-06-13 | BPRL-P14-01 closure: AC-019 baseline RNG range literal 0..100000→0..10000 (matches ^CVE-9999-\d{4}$ invariant + code); BC-2.06.020 v1.3→v1.4 pin-sync. No behavior change; counts unchanged (19 ACs / 23 RGT). |
 | v2.11 | 2026-06-13 | BPRL-P12-01 closure: VP-020-K integration test relocated cyberint→demo-server (genuine NvdState::lookup_and_count end-to-end pivot; redundant duplicate-named cyberint membership test removed); red_gate_tests 23 UNCHANGED. AC-019 bullet updated: crate cite changed from `prism-dtu-cyberint` (or `prism-dtu-demo-server`) → definitively `prism-dtu-demo-server` with test file `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`. RGT table row 22 crate column: `prism-dtu-cyberint` → `prism-dtu-demo-server`; test file added inline. FSR table: new CREATE row for `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`. Token Budget story spec v2.10→v2.11. No BC version change (BC-2.06.020 stays v1.3). version 2.10→2.11. |

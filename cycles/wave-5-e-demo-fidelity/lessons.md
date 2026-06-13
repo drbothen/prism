@@ -1063,3 +1063,73 @@ Pass 19 was the first pass to apply the z13 re-audit INCLUDING run-command cover
 **Outcome:**
 
 BPRL-P19-01 closed by demo-recorder commit 0863184a: AC-019 re-recorded with both commands — `-p prism-dtu-cyberint` (VP-020-I/J/L; 3 PASS) + `-p prism-dtu-demo-server -E test(cyberint_alert_cve_resolves_in_nvd)` (VP-020-K; 1 PASS). VHS re-render succeeded; `.webm`/`.gif` show all 4 green. Evidence-report corrected to accurate two-crate split (cyberint=3 VP-020-I/J/L, demo-server=10 incl VP-020-K). Streak 0/3. Pass 20 NEXT at 0863184a.
+
+---
+
+## (z15) [process-gap × 2] (a) FOURTH same-class summary-count propagation miss — D-1117-style multi-entity amendments MUST sweep every PROSE summary stating a count/range; (b) same-prefix-different-format as intentional-until-proven-otherwise — a "consistency fix" that unifies two distinct generators is a regression
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1128 (BPRL-P22-01 pass-22 finding + closure)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [summary-count-propagation] [multi-entity-amendment] [same-prefix-format] [regression-guard] [streak-reset]
+**Classification:** TWO PROCESS GAPS captured in one lesson entry (same burst, closely related patterns)
+
+### Process gap (a): FOURTH summary-count propagation miss in the same cascade
+
+**Pattern recurrence (4 instances in passes 1–22):**
+
+| Pass | Finding | Root cause |
+|------|---------|-----------|
+| P14 | BPRL-P14-01 — BC-2.06.020 PC-9 RNG range literal `0..100000` vs `\d{4}` invariant (5-digit upper bound violated the 4-digit format constraint) | D-1117 added the `^CVE-9999-\d{4}$` invariant but did not sweep the PC-9 range literal |
+| P15 | BPRL-P15-01 — story B Phase-6 gate instruction "all 19 Red Gate tests" stale | D-1117 raised `red_gate_tests` to 23 but did not sweep the gate instruction prose |
+| P22 | BPRL-P22-01 — BC-2.06.020 VP Anchors prose "VP-020-A through VP-020-H" / "all 8 VPs" stale | D-1117 extended the VP table to A..L and the frontmatter array to 12 but did not sweep the VP Anchors prose summary |
+
+All three P14/P15/P22 misses share the same root cause: a **multi-entity amendment** (D-1117 added VP-020-I..L, EC-020-012..015, TV-020-011..015, PC-8, PC-9 all in one burst) did not sweep every prose surface that STATES A COUNT OR RANGE of the amended entity set. The sweep covered the primary structures (VP table rows, frontmatter arrays, story RGT table) but missed secondary prose summaries (the "all N VPs" sentence in §VP Anchors; the "N Red Gate tests" in the Phase-6 gate instruction; the range literal in the implementer directive).
+
+**Codified rule (PO pre-commit checklist item):**
+
+> **Multi-entity amendment prose sweep.** When adding or removing members of an entity set (VPs, TVs, ECs, BCs, preconditions, postconditions, Red Gate tests), after updating the primary structures (tables, arrays, frontmatter), run a secondary sweep for prose surfaces that STATE A COUNT OR RANGE of the entity set:
+>
+> - "all N VPs" / "VP-NNN-A through VP-NNN-Z" summaries
+> - "all N Red Gate tests pass" / "N Red Gate tests" in gate instructions
+> - Range literals in implementer directives that encode count-dependent values (e.g., `rng.gen_range(0..N)` where N is derived from a format constraint tied to the entity count)
+> - Summary sentences in §Description paragraphs ("these N postconditions", "the N invariants")
+>
+> This sweep is MANDATORY for every multi-entity amendment. Failure mode: secondary prose survives with stale count, producing a spec-internal contradiction that the adversary must catch at the next pass (streak reset).
+>
+> **Search pattern:** after the amendment, grep the entire BC/story for every integer N where N equals the old entity count. Classify each hit as either a count-of-record surface (requires update) or frozen-rationale prose (intentionally unchanged). Log the classification in the commit message.
+
+### Process gap (b): same-prefix-different-format means INTENTIONAL-UNTIL-PROVEN-OTHERWISE
+
+**What happened:**
+
+During the PO's VP Anchors sweep (BPRL-P22-01 fix), the sweep also encountered the Architecture Anchors paragraph (line 543) which cited both:
+- `CVE-9999-{:05}` — the `gen_device_cves` catalog generator (5-digit; `crates/prism-dtu-common/src/scenario/mod.rs`)
+- `CVE-9999-{:04}` — the Cyberint baseline generator (4-digit; `crates/prism-dtu-cyberint/src/generator.rs:389`)
+
+The sweep mis-read the two formats as inconsistent and "harmonized" them by changing the catalog reference from `{:05}` to `{:04}`. This was a regression: the two generators have different digit widths by design — the catalog produces 5-digit IDs that NVD pre-populates (TV-020-012 confirms `"CVE-9999-00001"` etc.), while the Cyberint baseline produces 4-digit IDs that are intentionally non-pivotable (PC-9, `^CVE-9999-\d{4}$`).
+
+The orchestrator caught the regression before commit by verifying against:
+1. `mod.rs:449` doc comment: `"CVE-9999-{seq:05}"` (5-digit)
+2. SEC-001 test: `gen_device_cves must emit CVE-9999-{{seq:05}} format`
+3. TV-020-012: catalog IDs are `"CVE-9999-00001"` etc. (5-digit)
+4. `generator.rs:389` actual code: `CVE-9999-{:04}` (4-digit)
+
+**Codified rule (adversary/PO standing probe):**
+
+> **Same-prefix-different-format = INTENTIONAL-UNTIL-PROVEN-OTHERWISE.**
+>
+> When two artifacts share a namespace prefix (e.g., `CVE-9999-`) but differ in a format detail (e.g., `{:04}` vs `{:05}`), a "consistency fix" that unifies them is a REGRESSION until proven otherwise.
+>
+> Before harmonizing any same-prefix-different-format pair:
+> 1. Identify the CODE source for EACH format: read the actual generator/format-string at the cited file+function location
+> 2. Identify the governing TEST for EACH format: find the unit test or TV that pins the specific digit/format constraint
+> 3. Identify the governing BC CLAUSE for EACH format: read the postcondition or invariant that defines the format requirement
+> 4. If the code, test, and BC clause for the two formats are DISTINCT and CONSISTENT with each other (not contradictory), the difference is by design — do NOT harmonize
+> 5. Only proceed with harmonization if the code/test/BC evidence shows they SHOULD be the same format and the difference is a bug
+>
+> **Escalation rule:** if any of the three verification sources (code / test / BC clause) is missing or ambiguous, route to the orchestrator before modifying.
+
+**Outcome:**
+
+BPRL-P22-01 closed by PO BC-2.06.020 v1.4→v1.5 (VP Anchors prose corrected A..H/8→A..L/12; catalog-format regression reverted; exhaustive summary-count sweep confirmed all other counts correct). Story B v2.13→v2.14 (BC-2.06.020 pin v1.4→v1.5; 3 sites). PIVOT-003 v1.6→v1.7 (BC-2.06.020 pin v1.4→v1.5; 2 sites). Feature HEAD UNCHANGED 0863184a. Streak RESET 2/3→0/3. Pass 23 NEXT.
