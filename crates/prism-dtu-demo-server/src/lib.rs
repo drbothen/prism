@@ -24,4 +24,5 @@ pub use config::DemoConfig;
 pub use harness::{ClonePair, DemoHarness, StartReport};
 pub use multi_instance::{
     start_instances, DemoBindError, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
+    MultiInstanceServers,
 };

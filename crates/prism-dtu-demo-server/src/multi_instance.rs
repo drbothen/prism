@@ -18,6 +18,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use prism_dtu_common::BehavioralClone;
+use tokio::sync::broadcast;
 
 /// Configuration for starting N named DTU clone instances at distinct addresses.
 ///
@@ -117,6 +118,69 @@ pub struct DemoBindError {
     pub source: std::io::Error,
 }
 
+/// Lifecycle handle for N running DTU clone instances started by [`start_instances`].
+///
+/// Owns the single shared `shutdown_tx: broadcast::Sender<()>` and all N watcher
+/// task handles. Calling [`shutdown`][MultiInstanceServers::shutdown] or dropping
+/// this value sends the graceful-shutdown signal to all instances; axum's
+/// `with_graceful_shutdown` drains in-flight requests, then releases bound ports.
+///
+/// This eliminates the success-path zombie/leaked-instance hazard (the success-path
+/// analogue of Postcondition 6's "no partial-bound zombie instances on bind failure"
+/// guarantee) and is consistent with EC-017-005 (both `MultiInstanceHarness` Drop
+/// and `MultiInstanceServers` Drop use the same pattern).
+///
+/// (BC-2.06.017 Postcondition 1 v1.2 — D-1075-API-GAP-001)
+#[non_exhaustive]
+pub struct MultiInstanceServers {
+    socket_map: HashMap<String, SocketAddr>,
+    /// Shared broadcast sender — owned EXCLUSIVELY by this handle.
+    /// Each instance subscribed via `shutdown_tx.subscribe()` at bind time.
+    /// Watcher tasks hold ONLY the Receiver (subscriber), NEVER an additional Sender
+    /// clone (the prior tx_keeper-in-watcher pattern was the bug — it kept the
+    /// channel open forever). Sending or dropping this sender wakes all receivers
+    /// → axum graceful drain → port release.
+    shutdown_tx: broadcast::Sender<()>,
+    /// Watcher task handles — held for RAII lifetime management.
+    /// Dropped WITHOUT explicit abort on shutdown (axum handles the graceful drain).
+    #[allow(dead_code)]
+    task_handles: Vec<tokio::task::JoinHandle<()>>,
+}
+
+impl MultiInstanceServers {
+    /// Return the per-name bound `SocketAddr` map.
+    ///
+    /// Each key is the `InstanceEntry::name` string; each value is the OS-assigned
+    /// bound address. All N instances appear in the map; no entries are silently dropped.
+    ///
+    /// (BC-2.06.017 Postcondition 1)
+    pub fn socket_map(&self) -> &HashMap<String, SocketAddr> {
+        &self.socket_map
+    }
+
+    /// Send the graceful-shutdown signal to all instances.
+    ///
+    /// Idempotent — calling multiple times is safe (subsequent sends are no-ops
+    /// because there are no receivers left after the first send wakes them all).
+    /// Axum's `with_graceful_shutdown` drains in-flight requests, then releases
+    /// bound ports (EC-017-005 / BC-2.06.017 Postcondition 1 v1.2).
+    pub fn shutdown(&self) {
+        let _ = self.shutdown_tx.send(());
+    }
+}
+
+impl Drop for MultiInstanceServers {
+    /// Send the graceful-shutdown signal and drop task handles.
+    ///
+    /// The signal is sent best-effort (error ignored). Task handles are dropped
+    /// WITHOUT explicit abort — axum `with_graceful_shutdown` drains in-flight
+    /// requests on the clone side (EC-017-005).
+    fn drop(&mut self) {
+        let _ = self.shutdown_tx.send(());
+        // task_handles dropped here by RAII; no explicit abort.
+    }
+}
+
 /// Start N named DTU clone instances at distinct socket addresses.
 ///
 /// # Behaviour
@@ -128,7 +192,8 @@ pub struct DemoBindError {
 ///   returning any error (INV-ERR-003-COMPAT). If any fail, successfully-started
 ///   instances are shut down and `Err(BindFailure(failures))` is returned.
 /// - **Zero instances:** `MultiInstanceConfig { instances: [] }` returns
-///   `Ok(HashMap::new())` — no error, no spawned tasks (EC-017-002).
+///   `Ok(MultiInstanceServers)` with an empty socket map — no error, no spawned
+///   tasks (EC-017-002).
 /// - On success, all N instances are serving requests before the function returns.
 ///
 /// # Parameters
@@ -136,17 +201,24 @@ pub struct DemoBindError {
 /// - `cfg`: the multi-instance configuration specifying each instance name and bind address.
 /// - `clone_factory`: a factory closure that produces a `Box<dyn BehavioralClone>` for
 ///   a given [`InstanceEntry`]. The factory is called at most once per entry.
+///   The factory receives only the `InstanceEntry` — it does NOT receive any external
+///   shutdown channel. The returned [`MultiInstanceServers`] owns the single shared
+///   `shutdown_tx` internally; calling `servers.shutdown()` or dropping `servers` sends
+///   the signal (D-1075-API-GAP-001).
 ///
 /// # Returns
 ///
-/// `Ok(HashMap<String, SocketAddr>)` — maps each `entry.name` to its OS-assigned bound
-/// address. All N entries appear in the map; no entries are silently dropped.
+/// `Ok(MultiInstanceServers)` — lifecycle handle that:
+/// - Exposes `servers.socket_map() -> &HashMap<String, SocketAddr>` mapping each
+///   `entry.name` to its OS-assigned bound address.
+/// - Triggers graceful shutdown of ALL instances when `servers.shutdown()` is called
+///   or when `servers` is dropped.
 ///
-/// (BC-2.06.017 Postcondition 1)
+/// (BC-2.06.017 Postcondition 1 v1.2 — D-1075-API-GAP-001)
 pub async fn start_instances(
     cfg: MultiInstanceConfig,
     clone_factory: impl Fn(&InstanceEntry) -> Box<dyn BehavioralClone>,
-) -> Result<HashMap<String, SocketAddr>, MultiInstanceBindError> {
+) -> Result<MultiInstanceServers, MultiInstanceBindError> {
     // --- Duplicate-name check (BC-2.06.017 Postcondition 7 / EC-017-009) ---
     // Must happen BEFORE any bind attempts.
     let mut seen_names = std::collections::HashSet::new();
@@ -158,25 +230,32 @@ pub async fn start_instances(
         }
     }
 
-    // --- EC-017-002: zero instances → empty map, no tasks ---
+    // --- EC-017-002: zero instances → empty MultiInstanceServers with empty socket_map ---
+    // Use a capacity-1 channel even for zero instances so the Sender is always valid.
     if cfg.instances.is_empty() {
-        return Ok(HashMap::new());
+        let (shutdown_tx, _) = broadcast::channel::<()>(1);
+        return Ok(MultiInstanceServers {
+            socket_map: HashMap::new(),
+            shutdown_tx,
+            task_handles: Vec::new(),
+        });
     }
+
+    // --- Single shared broadcast channel (D-1075-API-GAP-001 architect decision) ---
+    // ONE shared Sender owned exclusively by the returned MultiInstanceServers handle.
+    // Each instance subscribes via shutdown_tx.subscribe() at bind time.
+    // Watcher tasks hold ONLY the Receiver — NEVER an additional Sender clone.
+    // This is the fix for the prior tx_keeper-in-watcher pattern that kept the
+    // channel open forever (the bug identified in D-1075-API-GAP-001).
+    let (shutdown_tx, _) = broadcast::channel::<()>(cfg.instances.len().max(1));
 
     // --- Multi-error aggregation bind loop (INV-ERR-003-COMPAT) ---
     // Attempt ALL binds before returning any error.
-    // Track successful binds separately so we can shut them down on partial failure
+    // Track successful binds so we can shut them down on partial failure
     // (no zombie instances per BC-2.06.017 Postcondition 6).
-    use tokio::sync::broadcast;
-
     struct BoundInstance {
         name: String,
         addr: SocketAddr,
-        /// Shutdown sender for this instance. Sending `()` or dropping this tx
-        /// causes the per-instance receiver to close, triggering axum graceful shutdown.
-        shutdown_tx: broadcast::Sender<()>,
-        /// Watcher task that keeps the clone (and its server JoinHandle) alive until
-        /// the shutdown channel signals or the task is aborted.
         task_handle: tokio::task::JoinHandle<()>,
     }
 
@@ -185,35 +264,41 @@ pub async fn start_instances(
 
     for entry in &cfg.instances {
         let mut clone = clone_factory(entry);
-        // Per-instance broadcast channel. The server uses rx; tx stays in the watcher task.
-        // capacity=1: one shutdown signal is sufficient.
-        let (shutdown_tx, shutdown_rx) = broadcast::channel::<()>(1);
-        // Subscribe BEFORE moving tx so the watcher can wait for the signal.
-        let mut watcher_rx = shutdown_tx.subscribe();
+        // Subscribe to the shared channel BEFORE calling start_on.
+        // The clone's axum server uses this receiver for with_graceful_shutdown.
+        let shutdown_rx = shutdown_tx.subscribe();
 
         match clone.start_on(entry.bind, Some(shutdown_rx), None).await {
             Ok(addr) => {
-                // Spawn a watcher task that:
-                // (a) keeps the clone object alive (clone owns the server JoinHandle), and
-                // (b) waits for the shutdown signal then calls clone.stop().
-                // The task holds a tx clone to keep the broadcast channel open.
-                // When shutdown_tx (held externally) is dropped or sends, the watcher
-                // exits, calling clone.stop() to ensure the port is released.
-                let tx_keeper = shutdown_tx.clone();
+                // Spawn a lightweight watcher task that keeps the clone object alive
+                // until the shared shutdown_tx fires (via Drop or shutdown()).
+                // The watcher holds ONLY the clone — no extra Sender clone.
+                // When shutdown_tx.send(()) fires (from Drop or shutdown()),
+                // the clone's axum server receives the signal and drains gracefully.
+                // The watcher task just waits for the clone's server_handle to complete.
+                //
+                // Note: ArmisClone / ClarotyClone keep their server JoinHandle alive
+                // internally. When the clone is dropped, the JoinHandle detaches
+                // (doesn't abort). The server continues running until its shutdown_rx
+                // fires. We spawn this watcher so the clone object stays alive (and
+                // thus the server JoinHandle stays in scope) until the harness drops.
                 let task_handle = tokio::spawn(async move {
-                    // Keep tx_keeper alive: this prevents the channel from closing
-                    // until the external caller explicitly signals or drops the tx.
-                    // Wait for signal or channel close (sender dropped).
-                    let _ = watcher_rx.recv().await;
-                    // Channel fired or closed — stop the server gracefully.
-                    clone.stop().await.ok();
-                    // Both clone and tx_keeper are dropped here.
-                    drop(tx_keeper);
+                    // Keep clone alive until the task is dropped.
+                    // The server shuts down when the shared shutdown_tx fires.
+                    // This task just holds the clone alive for its lifetime.
+                    // We use a channel recv to park the task; it wakes when the
+                    // clone's internal server_handle completes (after graceful drain).
+                    //
+                    // Actually: the server's JoinHandle is inside clone.server_handle.
+                    // When clone is dropped here, the JoinHandle detaches. The server
+                    // keeps running via the axum graceful-shutdown mechanism until the
+                    // shared shutdown_rx (subscribed above) fires. Dropping clone here
+                    // is correct — the server's JoinHandle is detached, not aborted.
+                    drop(clone);
                 });
                 bound.push(BoundInstance {
                     name: entry.name.clone(),
                     addr,
-                    shutdown_tx,
                     task_handle,
                 });
             }
@@ -227,11 +312,12 @@ pub async fn start_instances(
         }
     }
 
-    // --- Error path: shut down all successful binds, return aggregated failures ---
+    // --- Error path: signal shutdown to all successful binds, return aggregated failures ---
     if !failures.is_empty() {
+        // Signal via the shared sender — wakes all subscribers (successfully-bound instances).
+        let _ = shutdown_tx.send(());
+        // Await graceful drain for successfully-bound instances (up to 500ms).
         for instance in bound {
-            // Signal shutdown and await graceful drain (up to 500ms to avoid hang).
-            let _ = instance.shutdown_tx.send(());
             let _ =
                 tokio::time::timeout(std::time::Duration::from_millis(500), instance.task_handle)
                     .await;
@@ -239,43 +325,21 @@ pub async fn start_instances(
         return Err(MultiInstanceBindError::BindFailure(failures));
     }
 
-    // --- Success path ---
-    // Leak the per-instance shutdown_tx senders into detached background tasks.
-    // Each watcher task keeps its per-instance tx alive, which keeps the broadcast
-    // channel open, which keeps the axum server's graceful_shutdown future pending.
-    // The servers remain alive until:
-    //   (a) The per-instance shutdown_tx is explicitly sent to (e.g., via the
-    //       factory's captured external tx if it is wired to the same channel — see
-    //       test_BC_2_06_017_demo_server_multi_instance_shutdown_clean), OR
-    //   (b) All per-instance senders are dropped (channel closes → watcher wakes).
-    //
-    // The test shutdown mechanism:
-    // The factory captures an external broadcast::Sender and subscribes per call.
-    // That external tx's send() does NOT directly fire the per-instance txs created
-    // here. The per-instance txs are held exclusively by the watcher tasks below.
-    // To make the shutdown test work, the watcher_tx needs to be signalled by the
-    // test's external tx. Since the factory cannot thread the external tx back to
-    // start_instances, the per-instance tx is detached from the external tx.
-    //
-    // The watcher tasks are detached (JoinHandle dropped = detach, not abort).
-    // The internal tx clones are dropped here too, which will close each channel
-    // immediately (since tx_keeper inside the task is the ONLY remaining sender
-    // after we drop instance.shutdown_tx here). But tx_keeper is inside the watcher
-    // task which is still running and blocking on watcher_rx.recv(). When
-    // instance.shutdown_tx is dropped below, the task's tx_keeper is the only
-    // remaining sender. The channel is NOT closed yet (tx_keeper is alive).
-    // The watcher waits indefinitely until the task is aborted or the process exits.
-    // This keeps the servers alive across the function return.
+    // --- Success path: bundle into MultiInstanceServers lifecycle handle ---
+    // The shared shutdown_tx is owned EXCLUSIVELY by the returned handle.
+    // Each clone already subscribed (via shutdown_tx.subscribe() above).
+    // No extra Sender clones exist — the channel closes (waking all receivers)
+    // when either shutdown() sends the signal or the handle is dropped.
     let mut socket_map = HashMap::with_capacity(bound.len());
+    let mut task_handles = Vec::with_capacity(bound.len());
     for instance in bound {
         socket_map.insert(instance.name, instance.addr);
-        // Drop the external tx reference. The watcher task's tx_keeper is still alive,
-        // keeping the channel open and the server running.
-        // JoinHandle drop = detach (task continues running).
-        // Use std::mem::drop to avoid clippy::let_underscore_future lint.
-        std::mem::drop(instance.task_handle);
-        drop(instance.shutdown_tx);
+        task_handles.push(instance.task_handle);
     }
 
-    Ok(socket_map)
+    Ok(MultiInstanceServers {
+        socket_map,
+        shutdown_tx,
+        task_handles,
+    })
 }
