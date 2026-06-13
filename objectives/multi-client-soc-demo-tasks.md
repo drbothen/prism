@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.16"
+version: "1.17"
 producer: state-manager
 status: active
-timestamp: 2026-06-13T20:17:43Z
+timestamp: 2026-06-13T21:45:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -36,13 +36,13 @@ Deliver a multi-client SOC-analyst LIVE DEMO — multiple clients, different sen
 
 ## Progress Summary
 
-Foundations: COMPLETE (reused). Build: 5/15 tasks done; T4 DONE; T4-A DONE (D-1089: PR #181 MERGED develop@c287b00d). **T5 DONE (D-1139: PR #185 MERGED develop@7fd35b77 2026-06-13; LOCAL 13-pass 3-CLEAN strict + PR-LEVEL 29-pass 3-CLEAN strict CONVERGED; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 active).** **CURRENT TASK: T6 — S-DEMO-MULTI-TENANT-DTU-001 (ready v1.2; remove-uncertainty MANDATORY RE-RUN → TDD delivery).**
+Foundations: COMPLETE (reused). Build: 5/15 tasks done; T4 DONE; T4-A DONE (D-1089: PR #181 MERGED develop@c287b00d). **T5 DONE (D-1139: PR #185 MERGED develop@7fd35b77 2026-06-13; LOCAL 13-pass 3-CLEAN strict + PR-LEVEL 29-pass 3-CLEAN strict CONVERGED; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 active).** **PR #186 MERGED develop@f7400f83 2026-06-13 (D-1143; lefthook fail-closed docs-only pre-push; D-1134 bypass remediation RESOLVED). No open PRs.** **CURRENT TASK: T6 IN PROGRESS — S-DEMO-MULTI-TENANT-DTU-001 (ready v1.2; remove-uncertainty MANDATORY RE-RUN → TDD delivery).**
 
 **6 core stories in scope (2 delivery-ready; 1 draft; 1 draft/stub needing architect-PO; 1 draft stub; 1 not-authored narrative capstone) + 3 optional capability-discovery stories. See §Complete Story Roadmap below.**
 
 ## CURRENT POINTER
 
-**T6: S-DEMO-MULTI-TENANT-DTU-001 — READY FOR TDD DELIVERY (D-1139 2026-06-13).** T5 DONE: PR #185 squash-merged develop@7fd35b77 2026-06-13; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 active per POL-14. T6 unblocked (was gated on T4-A+T5 completion — now both satisfied). Story ready v1.2; BC-2.06.017 draft v1.1; 8 pts; remove-uncertainty run at D-1076 (MUST RE-RUN before TDD per D-1110 extension + user_directive_remove_uncertainty). D-989 + D-1090 autonomy grant ACTIVE.
+**T6 IN PROGRESS: S-DEMO-MULTI-TENANT-DTU-001 (D-1143 2026-06-13).** T5 DONE: PR #185 squash-merged develop@7fd35b77 2026-06-13. PR #186 MERGED develop@f7400f83 2026-06-13 (D-1134 bypass remediation RESOLVED; no open PRs). T6 unblocked (was gated on T4-A+T5 completion — both satisfied; D-1134 bypass obligation now also cleared). Story ready v1.2; BC-2.06.017 draft v1.1; 8 pts; remove-uncertainty run at D-1076 (MUST RE-RUN before TDD per D-1110 extension + user_directive_remove_uncertainty). D-989 + D-1090 autonomy grant ACTIVE.
 
 ## NEXT ACTION (verbatim, for cold resume)
 
@@ -171,6 +171,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.17 | 2026-06-13 | state-manager | D-1143: PR #186 MERGED develop@f7400f83 (lefthook fail-closed docs-only pre-push; 43-green CI; 35/35 test cases; D-1134 bypass-exception remediation RESOLVED/CLOSED). No open PRs. T6 CURRENT POINTER updated to IN PROGRESS. Progress Summary and CURRENT POINTER updated. develop HEAD 7fd35b77→f7400f83. STATE v7.784→v7.785. Ledger version 1.16→1.17. |
 | 1.16 | 2026-06-13 | state-manager | D-1139: T5 DONE — PR #185 squash-merged develop@7fd35b77. T5 status in-progress→done. T6 status blocked→in-progress. CURRENT POINTER advanced to T6 (S-DEMO-MULTI-TENANT-DTU-001; remove-uncertainty MANDATORY RE-RUN → TDD delivery). Story Roadmap row 3 updated to merged. Progress Summary updated (5/15 tasks done). BC-2.06.019 v1.7 + BC-2.06.020 v1.6 draft→active (POL-14). develop HEAD 939f36ce→7fd35b77. BC-INDEX v6.43→v6.44. STORY-INDEX v2.369→v2.370. STATE v7.783→v7.784. Ledger version 1.15→1.16. |
 | 1.15 | 2026-06-13 | state-manager | D-1132: Zero-context resume hardening. T5 pointer updated (streak 0/3). No task status changes. Ledger version 1.14→1.15. |
 | 1.14 | 2026-06-10 | state-manager | D-1091: Review-cycle mid-cycle checkpoint. T5 PAUSED — user-directed full-codebase review (2026-06-10) interrupted T5 before story-writer dispatch. CURRENT POINTER + NEXT ACTION gated on review-cycle completion (3 fix-branch cascades to 3-CLEAN strict → PINNED merges QRY→MCP→DTU → 16-item register burst per SESSION-HANDOFF §5). T5 sequence content UNCHANGED (resumes verbatim after register burst per D-1090 envelope). No task status changes. STATE v7.741→v7.742. Ledger version 1.13→1.14. |

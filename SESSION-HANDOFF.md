@@ -1,17 +1,17 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.784"
+version: "7.785"
 status: current
-timestamp: 2026-06-13T20:17:43Z
+timestamp: 2026-06-13T21:45:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1139 BURST (2026-06-13) — POST-MERGE STATE BURST. PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) squash-merged develop@7fd35b77 2026-06-13. T5 PR-LEVEL cascade CONVERGED 3/3 strict (passes 27/28/29 zero-findings). POL-14: BC-2.06.019 v1.7 + BC-2.06.020 v1.6 draft→active (active 232→234, draft 5→3). T5 DONE. ACTIVE OBJECTIVE POINTER: T6 (S-DEMO-MULTI-TENANT-DTU-001; remove-uncertainty re-run → TDD delivery). PR #186 OPEN (lefthook docs-only; awaiting human review). STATE v7.784.**
+> **D-1143 BURST (2026-06-13) — PR #186 MERGED + T6 START. PR #186 (`maintenance/lefthook-docs-only-pre-push`) squash-merged develop@f7400f83 2026-06-13. D-1134 bypass-exception remediation RESOLVED/CLOSED. No open PRs. T6 IN PROGRESS: S-DEMO-MULTI-TENANT-DTU-001 (ready v1.2; remove-uncertainty re-run NEXT → TDD delivery). STATE v7.785.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1139 below, then STATE.md frontmatter. All prior D-1101..D-1138 notes SUPERSEDED.
-> develop HEAD `7fd35b77` (PR #185 squash-merge 2026-06-13; prior: `939f36ce`). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1139 burst). STATE v7.784.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1143 below, then STATE.md frontmatter. All prior D-1101..D-1142 notes SUPERSEDED.
+> develop HEAD `f7400f83` (PR #186 squash-merge 2026-06-13; prior: `7fd35b77`). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1143 burst). STATE v7.785.
 
 ---
 
@@ -77,34 +77,34 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 **NEXT CONCRETE ACTION: T6 — S-DEMO-MULTI-TENANT-DTU-001 (ready v1.2; BC-2.06.017 draft; 8 pts). Step 1: `dclaude:remove-uncertainty` (MANDATORY re-run per D-1110 + user_directive_remove_uncertainty). Step 2: `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001`. D-989 + D-1090 autonomy grant still active.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T6 (S-DEMO-MULTI-TENANT-DTU-001; remove-uncertainty re-run → TDD per-story delivery — D-1139). T1+T2+T3+T4+T4-A+T5 DONE. ADR-036 v2.3. BC-INDEX v6.44. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.370. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.784.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T6 IN PROGRESS (S-DEMO-MULTI-TENANT-DTU-001; dclaude:remove-uncertainty re-run → TDD per-story delivery — D-1143). T1+T2+T3+T4+T4-A+T5 DONE. PR #186 MERGED develop@f7400f83 (D-1134 bypass remediation RESOLVED). ADR-036 v2.3. BC-INDEX v6.44. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.370. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.785.**
 
 ---
 
-## §RESUME SNAPSHOT — D-1139 (2026-06-13 — PR #185 MERGED develop@7fd35b77; T5 DONE; T6 NEXT; STATE v7.784)
+## §RESUME SNAPSHOT — D-1143 (2026-06-13 — PR #186 MERGED develop@f7400f83; D-1134 remediation RESOLVED; T6 IN PROGRESS; STATE v7.785)
 
-> **D-1139: Post-merge state burst. PR #185 squash-merged. T5 COMPLETE. All prior notes superseded.**
+> **D-1143: PR #186 merged. D-1134 bypass-exception remediation closed. T6 in progress. All prior notes superseded.**
 >
-> **T5 DONE.** S-DEMO-DTU-LIVE-SCENARIO-001-B squash-merged to develop at `7fd35b77` (2026-06-13T20:17:43Z; prior develop HEAD `939f36ce`). T5 PR-LEVEL cascade CONVERGED 3/3 strict (passes 27/28/29 all zero-findings). pr-reviewer APPROVE + security-reviewer MAY PROCEED (re-run at dd84c76c). CI 43-green. PR description corrected to 19/19 ACs.
+> **PR #186 MERGED.** `maintenance/lefthook-docs-only-pre-push` squash-merged to develop at `f7400f83` (2026-06-13T21:38:48Z; prior develop HEAD `7fd35b77`). lefthook.yml only — fail-closed docs-only pre-push skip for `just check` gate. pr-reviewer found 3 fail-closed holes (B1 multi-commit-first-push range, B2 extension-blind docs/ branch, B3 unanchored LICENSE-); devops-engineer fixed all 3 (commit 7990965a; 35/35 hardened test cases + adversarial-filename probes); pr-reviewer re-review APPROVE; human-approved; CI 43-green. Remote branch + worktree cleaned up.
 >
-> POL-14 promotions complete: BC-2.06.019 v1.7 draft→active; BC-2.06.020 v1.6 draft→active. active_contracts 232→234; draft_contracts 5→3. BC-INDEX v6.43→v6.44. STORY-INDEX v2.369→v2.370.
+> **D-1134 bypass-exception remediation RESOLVED/CLOSED.** The one-time `git push --no-verify` exception (docs-only commit dd84c76c) recorded in D-1134 now has its durable fix merged in PR #186. No residual bypass obligation.
 >
-> Security LOW dispositions (D-1140/D-1141/D-1142): SEC-006 (Arc::try_unwrap) pre-adjudicated intentional/do-not-reflag; SEC-007 (`CrowdstrikeClone::new_with_scenario` missing explicit cfg gate) compiler-enforced-safe, anchored to S-DEMO-ENRICHMENT-PIVOT-003; SEC-008 (`ThreatIntelClone` poisoned-mutex .expect) accepted clippy-allowed startup pattern.
+> **No open PRs.**
 >
-> PR #186 OPEN (`maintenance/lefthook-docs-only-pre-push` commit `bfe5c02b`) — awaiting human review; do NOT merge without human approval.
+> **T6 IN PROGRESS.** S-DEMO-MULTI-TENANT-DTU-001 (ready v1.2; BC-2.06.017 draft; 8 pts; SS-01; CAP-036). develop HEAD: f7400f83.
 >
-> **EXACT NEXT ACTION: T6 — S-DEMO-MULTI-TENANT-DTU-001** (ready v1.2; BC-2.06.017 draft; 8 pts). Step 1: `dclaude:remove-uncertainty` (MANDATORY re-run per D-1110 extension; run immediately before TDD). Step 2: `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001` (full 12-gate per-story delivery). STATE v7.784.
-> _All prior D-1101..D-1138 notes SUPERSEDED — archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
+> **EXACT NEXT ACTION: T6 — S-DEMO-MULTI-TENANT-DTU-001.** Step 1: `dclaude:remove-uncertainty` (MANDATORY re-run per D-1110 extension + user_directive_remove_uncertainty; story last re-uncertainty'd at D-1076 2026-06-09; re-run immediately before TDD). Step 2: `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001` (full 12-gate per-story delivery). STATE v7.785.
+> _All prior D-1101..D-1142 notes SUPERSEDED — archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
 
 ---
 
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
-2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (authoritative demo scope: what is built, what is in convergence, what the honest gaps are). Then read STATE.md frontmatter (`current_step`, D-1139 decision rows).
-3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `7fd35b77`.
-4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.784"`.
-5. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` may be cleaned up (PR merged).
+2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (authoritative demo scope: what is built, what is in convergence, what the honest gaps are). Then read STATE.md frontmatter (`current_step`, D-1143 decision rows).
+3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `f7400f83`.
+4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.785"`.
+5. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` may be cleaned up (merged).
 6. Apply lessons (a)–(z20) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
 7. **NEXT ACTION: T6 — S-DEMO-MULTI-TENANT-DTU-001** (ready v1.2; BC-2.06.017 draft; 8 pts). Run `dclaude:remove-uncertainty` FIRST (mandatory re-run per D-1110 extension), then `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001`.
 
@@ -115,9 +115,9 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | Field | Value |
 |-------|-------|
 | **Mode** | brownfield |
-| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 DONE (PR #185 MERGED develop@7fd35b77 2026-06-13). T6 NEXT: S-DEMO-MULTI-TENANT-DTU-001. |
-| **develop HEAD** | `7fd35b77` (PR #185 squash-merge 2026-06-13; prior: `939f36ce`) |
-| **STATE version** | v7.784 |
+| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 DONE. T6 IN PROGRESS: S-DEMO-MULTI-TENANT-DTU-001 (remove-uncertainty re-run next). |
+| **develop HEAD** | `f7400f83` (PR #186 squash-merge 2026-06-13; prior: `7fd35b77`) |
+| **STATE version** | v7.785 |
 | **BC-INDEX version** | v6.44 (total 250; active 234; draft 3; retired 6; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
 | **STORY-INDEX version** | v2.370 (total_stories 200; S-DEMO-DTU-LIVE-SCENARIO-001-B merged) |
 | **VP-INDEX version** | v1.79 (158 registered) |
@@ -126,9 +126,9 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **ADR-036 version** | v2.3 (time_anchor 5-arg ruling) |
 | **policies version** | v1.33 (POL-33 route_coverage_table_required_for_stagemask_changes) |
 | **prd version** | v1.12 |
-| **Open PRs** | 1 — PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) MERGED develop@7fd35b77 2026-06-13. PR #186 (maintenance/lefthook-docs-only-pre-push) OPEN; awaiting human review; do NOT merge without human approval. |
+| **Open PRs** | None. PR #185 MERGED develop@7fd35b77 (T5 DONE). PR #186 MERGED develop@f7400f83 (D-1143; D-1134 bypass remediation RESOLVED). |
 | **Story B branch** | `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; MERGED at develop@7fd35b77 (2026-06-13) |
-| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1139 burst) |
+| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1143 burst) |
 
 ---
 
@@ -263,7 +263,7 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 
 ### 4. §T6 DISPATCH INSTRUCTIONS (S-DEMO-MULTI-TENANT-DTU-001)
 
-**T5 DONE. T6 is the active objective. PR #185 merged develop@7fd35b77 2026-06-13. Dispatch sequence:**
+**T5 DONE. T6 IN PROGRESS. PR #185 merged develop@7fd35b77 (T5). PR #186 merged develop@f7400f83 (D-1134 remediation; no open PRs). Dispatch sequence:**
 
 **STEP 1 (MANDATORY FIRST): `dclaude:remove-uncertainty` on S-DEMO-MULTI-TENANT-DTU-001** — re-run per D-1110 extension + user_directive_remove_uncertainty. Story was materialized + remove-uncertainty run at T1-T3 / D-1076. Must re-run immediately before TDD delivery. Story file: `.factory/stories/S-DEMO-MULTI-TENANT-DTU-001-dtu-per-instance-multi-address-binding.md` (ready v1.2; BC-2.06.017 draft v1.1; 8 pts; SS-01; CAP-036).
 
@@ -381,7 +381,7 @@ All LOCAL closures listed in §3 above, plus:
 |----------|--------|--------|
 | `.worktrees/S-3.09` | FROZEN | Leave alone |
 | `.worktrees/W3-FIX-S307-001` | BLOCKED/superseded | Leave alone |
-| `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` | ACTIVE (PR-LEVEL cascade) | PR-LEVEL pass 28 NEXT; streak 1/3 (pass 27 CLEAN D-1137); HEAD dd84c76c (same diff as pass 27) |
+| `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` | MERGED — may be cleaned up | PR #185 merged develop@7fd35b77 2026-06-13 |
 
 ---
 
@@ -391,12 +391,12 @@ All LOCAL closures listed in §3 above, plus:
 # 1. Factory worktree health (BLOCKING preflight)
 # Use: vsdd-factory:factory-worktree-health skill
 
-# 2. Verify develop HEAD == 7fd35b77
+# 2. Verify develop HEAD == f7400f83
 git log --oneline origin/develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.784"
+# Expected: version: "7.785"
 
 # 4. Confirm parked worktrees
 ls /Users/jmagady/Dev/prism/.worktrees/
