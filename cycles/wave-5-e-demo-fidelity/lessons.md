@@ -1233,3 +1233,34 @@ User ratified that structural Cargo/E0432 enforcement is adequate for the DTU pe
 **Outcome:**
 
 BC-2.06.020 v1.5→v1.6: INV-PERIMETER-COMPLIANCE-001 body + Architecture Anchors corrected. Story B v2.15→v2.16: AC-016 + Architecture Compliance + Phase-6 gate item + RGT row 16 corrected. PIVOT-003 v1.7→v1.8: BC-2.06.020 pin synced. Code: implementer commit 15bedc12 — threatintel test comment corrected. Feature HEAD 15bedc12. Streak RESET 1/3→0/3 (LOW finding, but CLEAN(strict)=NO per BC-5.39.001). PR-LEVEL pass 25 NEXT at 15bedc12 (diff changed; re-materialize via `gh pr diff 185`).
+
+
+---
+
+## z18 — Proactively compact STATE and harden SESSION-HANDOFF at deep cascade depth (D-1132 2026-06-13)
+
+**Trigger:** At PR-LEVEL pass 24 (24+ cascade passes, 214KB STATE.md, 40+ do-not-reflag items), a fresh session reading SESSION-HANDOFF.md could not complete a zero-context resume without risk of re-litigating closed findings or missing the exact next action.
+
+**Pattern:** Deep adversarial cascades accumulate three types of state-bloat that impede zero-context resume:
+1. STATE.md grows to 200KB+ with per-decision verbose narratives that truncate on first Read, preventing the state-manager from reading the complete current state without multiple offset calls.
+2. The do-not-reflag list fragments across multiple §RESUME SNAPSHOT sections and individual decision-log bodies — no single consolidated verbatim list exists for a fresh adversary to load.
+3. The task ledger CURRENT POINTER still points to a pre-cascade action (e.g., "story-writer dispatch") even though the task is now deep into delivery.
+
+**Codified rule (z18 — zero-context resume hygiene):**
+
+> **At the following triggers, run a proactive zero-context resume hardening burst BEFORE the next cascade pass:**
+> - Cascade depth ≥ 20 PR-LEVEL passes, OR
+> - STATE.md exceeds 100KB, OR
+> - Do-not-reflag list has ≥ 20 items AND is fragmented across multiple STATE.md sections.
+>
+> The burst must:
+> 1. **Compact STATE.md:** Archive D-1055..D-current-minus-8 decision rows to a new decisions-archive-D{start}-D{end}.md file. Keep only the last 8 decision rows in STATE.md with short summaries (1-3 lines each). Target: STATE.md under 300 lines.
+> 2. **Consolidate do-not-reflag list:** In SESSION-HANDOFF.md §4, ensure the full verbatim list is in one place under a clear heading. No fragmentation across §2, §3, individual D-NNN notes. A fresh adversary must be able to load the complete list from a single section.
+> 3. **Add cascade ledger:** Add a compact pass-by-pass table (pass# | type | result | streak | key event) to SESSION-HANDOFF.md §3 so the history is reconstructable without reading individual pass reports.
+> 4. **Update task ledger CURRENT POINTER:** The pointer must reflect the current actual delivery state (e.g., "PR-LEVEL cascade ACTIVE; pass 25 NEXT at HEAD 15bedc12") not the pre-delivery plan.
+> 5. **Update SESSION-HANDOFF resume protocol:** Version numbers, HEAD SHAs, and exact next action must be current.
+>
+> The burst is a STATE-HYGIENE action — streak UNCHANGED, no spec/code changes, single atomic commit per TD-VSDD-053.
+
+**Outcome (D-1132):**
+STATE.md compacted from 214KB/367 lines to 28KB/274 lines. Decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF hardened with full do-not-reflag list (40+ items verbatim) in §4 and T5 cascade ledger (LOCAL 1-13 + PR-LEVEL 1-24) in §3. Task ledger CURRENT POINTER updated to T5 PR-LEVEL cascade pass 25. STATE v7.780→v7.781.

@@ -1,17 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.780"
+version: "7.781"
 status: current
-timestamp: 2026-06-13T14:00:00Z
+timestamp: 2026-06-13T16:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1131 BURST (2026-06-13) — PR-LEVEL pass 24 BPRL-P24-01 LOW [process-gap] CLOSED. CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Streak RESET 1/3→0/3. User directed prose-correction (structural Cargo/E0432 enforcement framing) over gate-build. BC-2.06.020 v1.6 (INV-PERIMETER-COMPLIANCE-001 + Architecture Anchors prose corrected); story B v2.16 (AC-016 + Architecture Compliance row + Phase-6 gate item + RGT row 16 corrected); implementer commit 15bedc12 (threatintel test comment fixed). Pass-25 NEXT at HEAD 15bedc12 (diff changed — re-materialize via `gh pr diff 185`). STATE v7.780.**
+> **D-1132 BURST (2026-06-13) — ZERO-CONTEXT RESUME HARDENING. STATE compacted (214KB→28KB). SESSION-HANDOFF hardened: full do-not-reflag list (40+ items verbatim) consolidated in §4; T5 cascade ledger (LOCAL 1–13 + PR-LEVEL 1–24) added to §3. Task ledger T5 pointer updated. Streak 0/3 UNCHANGED. STATE v7.781.**
+> D-1131: PR-LEVEL pass 24 BPRL-P24-01 LOW [process-gap] CLOSED. User directed prose-correction (structural Cargo/E0432 enforcement framing). BC-2.06.020 v1.6; story B v2.16; implementer commit 15bedc12. Pass 25 NEXT at HEAD 15bedc12 (diff changed — re-materialize via `gh pr diff 185`).
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1131 below, then STATE.md frontmatter. D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117/D-1118/D-1119/D-1120/D-1121/D-1122/D-1123/D-1124/D-1125/D-1126/D-1127/D-1128/D-1129/D-1130 notes SUPERSEDED — D-1109/D-1110 snapshot archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md.
-> develop HEAD `939f36ce` (unchanged). Story B HEAD `15bedc12` = remote = PR #185 latest push (D-1131: 1 commit above 0863184a; implementer corrected threatintel test perimeter-claim comment to structural Cargo/E0432 framing). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.780.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1132 below, then STATE.md frontmatter. All prior D-1101..D-1131 notes SUPERSEDED — D-1109/D-1110 snapshot archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md.
+> develop HEAD `939f36ce` (unchanged since D-1103). Story B HEAD `15bedc12` = remote = PR #185 latest push (D-1131: 1 commit above 0863184a). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.781.
 
 ---
 
@@ -75,14 +76,20 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 **NEXT CONCRETE ACTION: T5 — PR-LEVEL pass 25 for PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) at HEAD 15bedc12 (diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse /tmp/pr185-pass20.diff; no CI push). Streak 0/3 (pass 24 BPRL-P24-01 LOW prose-correction D-1131). D-1090 autonomy grant still active.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (PR-LEVEL cascade; PR #185 OPEN; streak 0/3; pass 25 NEXT — D-1131). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.3. BC-INDEX v6.43. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.369. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7. BC-2.06.020 v1.6. STATE v7.780.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (PR-LEVEL cascade; PR #185 OPEN; streak 0/3; pass 25 NEXT at 15bedc12 — D-1132). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.3. BC-INDEX v6.43. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.369. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7. BC-2.06.020 v1.6. STATE v7.781.**
 
 ---
 
-## §RESUME SNAPSHOT — D-1131 (2026-06-13 — pass 24 BPRL-P24-01 LOW CLOSED; streak RESET 0/3; pass 25 NEXT at 15bedc12; STATE v7.780)
+## §RESUME SNAPSHOT — D-1132 (2026-06-13 — zero-context hardening; pass 25 NEXT at 15bedc12; STATE v7.781)
 
-> **D-1131: T5 PR-LEVEL cascade in progress. S-DEMO-DTU-LIVE-SCENARIO-001-B in PR-LEVEL cascade. PR #185 OPEN; HEAD=REMOTE=15bedc12 (1 commit above 0863184a — threatintel test perimeter-claim comment corrected to structural Cargo/E0432 framing by implementer). Pass 24 BPRL-P24-01 LOW [process-gap] CLOSED — CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Finding: AC-016 + BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 + Architecture Anchors + threatintel test comment all falsely claimed `tests/external/perimeter-violation/` enforces the DTU perimeter; that gate covers prism-query pub-API perimeter (BC-2.11.006) ONLY. DTU perimeter IS held structurally (Cargo/E0432). User decision: prose-correction (structural enforcement framing), NOT gate-build. Closures: implementer 15bedc12 (test comment); BC-2.06.020 v1.6 (PO: INV-PERIMETER-COMPLIANCE-001 + Architecture Anchors corrected); story B v2.16 (story-writer: AC-016 + Architecture Compliance row + Phase-6 gate item + RGT row 16 type unit+compile-fail→unit). STREAK RESET 0/3. STATE v7.780. NEXT = PR-LEVEL pass 25 at HEAD 15bedc12 — diff CHANGED by commit 15bedc12; re-materialize via `gh pr diff 185` (do NOT reuse /tmp/pr185-pass20.diff). Do-not-reflag carry forward: all prior closures + BPRL-P24-01 (see §4). Do NOT raise any finding previously closed in passes 1–24.**
-> _D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117/D-1118/D-1119/D-1120/D-1121/D-1122/D-1123/D-1124/D-1125/D-1126/D-1127/D-1128/D-1129/D-1130 notes SUPERSEDED — D-1109/D-1110 snapshot archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
+> **D-1132: Zero-context resume hardening burst. STATE compacted 214KB→28KB. SESSION-HANDOFF hardened for true zero-context resume. All prior notes superseded.**
+>
+> **T5 PR-LEVEL cascade in progress. S-DEMO-DTU-LIVE-SCENARIO-001-B in PR-LEVEL cascade. PR #185 OPEN; HEAD=REMOTE=15bedc12. Streak 0/3. Pass 25 NEXT.**
+>
+> Pass 24 BPRL-P24-01 LOW [process-gap] CLOSED (D-1131): `tests/external/perimeter-violation/` false-coverage prose corrected across 4 surfaces (AC-016, BC-2.06.020 INV-PERIMETER-COMPLIANCE-001, Architecture Anchors, threatintel test comment) to structural Cargo/E0432 framing. DTU perimeter IS held structurally — the forbidden deps simply don't appear in Cargo.toml. User decision: prose-correction, NOT gate-build. BC-2.06.020 v1.6; story B v2.16; implementer 15bedc12. STREAK RESET 1/3→0/3.
+>
+> **EXACT NEXT ACTION:** Dispatch fresh adversary for PR-LEVEL pass 25 at HEAD 15bedc12. Re-materialize diff via `gh pr diff 185 > /tmp/pr185-pass25.diff` (diff CHANGED by 15bedc12 — do NOT reuse any /tmp/pr185-pass*.diff from passes 20-24). See §4 for complete dispatch instructions and do-not-reflag list. STATE v7.781.
+> _All prior D-1101..D-1131 notes SUPERSEDED — D-1109/D-1110 snapshot archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
 
 ---
 
@@ -93,10 +100,10 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
 4. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `15bedc12` (= remote; D-1131: 1 commit above 0863184a; implementer corrected threatintel test perimeter-claim comment to structural Cargo/E0432 framing).
 5. `gh pr checks 185` — confirm CI status on 15bedc12.
-6. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.780"`.
+6. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.781"`.
 7. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). Story B worktree: `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` (ACTIVE — PR-LEVEL cascade in progress).
-8. Apply lessons (a)–(z17) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-9. **NEXT ACTION:** PR-LEVEL pass 25 at HEAD 15bedc12 (streak 0/3; diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse /tmp/pr185-pass20.diff; no CI push; do-not-reflag: all prior closures incl BPRL-P1..P24 + DRIFT-1/2/3; see §4 below).
+8. Apply lessons (a)–(z18) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+9. **NEXT ACTION:** PR-LEVEL pass 25 at HEAD 15bedc12 (streak 0/3; diff CHANGED — re-materialize via `gh pr diff 185 > /tmp/pr185-pass25.diff`; do NOT reuse /tmp/pr185-pass20.diff or any cached pass-20-through-24 diff; no CI push; do-not-reflag: all prior closures incl BPRL-P1..P24 + DRIFT-1/2/3 + D-1117 enhancements; see §4 below).
 
 ---
 
@@ -107,7 +114,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185 OPEN, streak 0/3; pass 25 NEXT at 15bedc12) |
 | **develop HEAD** | `939f36ce` (DTU PR #182 squash-merged 2026-06-12T05:18Z; unchanged since D-1103) |
-| **STATE version** | v7.780 |
+| **STATE version** | v7.781 |
 | **BC-INDEX version** | v6.43 (total 250; active 232; draft 5; retired 6; BC-2.06.019 v1.7; BC-2.06.020 v1.6; rows 119/120 story pin v2.16) |
 | **STORY-INDEX version** | v2.369 (total_stories 200) |
 | **VP-INDEX version** | v1.79 (158 registered) |
@@ -165,6 +172,53 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 | **PR-LEVEL streak** | 0/3 (pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed; pass 4 BPRL-P4-01 CLOSED-BY-DEFERRAL + BPRL-P4-02 closed + BPRL-P4-PG-01 closed; pass 5 BPRL-P5-01 HIGH closed BC-2.06.019 v1.5; pass 6 BPRL-P6-01 HIGH closed BC-2.06.019 v1.6; pass 7 BPRL-P7-01 MED closed BC-2.06.019 v1.7; pass 8 BPRL-P8-01 MED closed BC-INDEX row-120 sync; pass 9 CLEAN(strict)=YES streak 1/3 [INVALIDATED D-1117]; pass 10 CLEAN(strict)=YES streak 2/3 [INVALIDATED D-1117]; pass 11 CLEAN(strict)=YES streak 3/3 [INVALIDATED D-1117]; pass 12 BPRL-P12-01 MED closed D-1118 (VP-020-K false-green); pass 13 CLEAN(strict)=YES streak 1/3 D-1119; pass 14 BPRL-P14-01 HIGH SPEC-ONLY closed D-1120 (BC-2.06.020 v1.4 RNG range literal); pass 15 BPRL-P15-01 MED SPEC-ONLY closed D-1121 (story B Phase-6 gate "19 RGTs"→"23 RGTs"); pass 16 CLEAN(strict)=YES streak 1/3 D-1122 (exhaustive audit zero findings); pass 17 CLEAN(strict)=YES streak 2/3 D-1123 (behavioral trace 5 stages x 6 clones + cross-BC + wiring + SAP-1 + S-7.01; novelty LOW); pass 18 BPRL-P18-01 MED closed D-1124 (AC-019 evidence BC-anchor drift: 3 fabricated/inverted identifiers; evidence-only fix 5d5484d0; streak RESET 2/3→0/3); pass 19 BPRL-P19-01 MED closed D-1125 (AC-019 tape omitted VP-020-K after BPRL-P12-01 relocation; re-recorded 0863184a; all 4 VP-020 tests now demonstrated; streak 0/3); pass 20 CLEAN(strict)=YES CLEAN(PR-merge)=YES streak 1/3 D-1126 (BPRL-P19-01 closure verified; core-invariant re-confirmation BPRL-P14-01/VP-020-K load-bearing/SAP-1/EXPECTED=52; zero findings; novelty LOW); pass 21 CLEAN(strict)=YES CLEAN(PR-merge)=YES streak 2/3 D-1127 (8 independent re-derivation axes all PASS — stage-timing 6 TVs, 5×6 StageMask, E-DEMO-001..006, ADR-036 v2.3 constructor-sig all 6 clones, BC frontmatter crates:, AC-019 cyclic-catalog, SAP-1, all BPRL-P1..P20 closures; novelty LOW — "genuinely converged"); pass 22 BPRL-P22-01 MED SPEC-ONLY closed D-1128 (BC-2.06.020 VP Anchors prose A..H/8→A..L/12; BC-2.06.020 v1.5; story B v2.14; orchestrator caught+reverted catalog-format regression; streak RESET 2/3→0/3); consistency-sweep D-1129 (3 MAJOR drifts closed: DRIFT-1 PIVOT-003 pin v1.3→v1.5; DRIFT-2/3 Cyberint new_with_scenario 5-arg→6-arg in §Tasks/FSR/build_clone_pairs; story B v2.15; streak 0/3 UNCHANGED — consistency gate); pass 23 CLEAN(strict)=YES CLEAN(PR-merge)=YES streak 1/3 D-1130 (DRIFT-2/3 re-derivation + VP-020-K case-sound + PC-8 cyclic + PC-9 baseline + E-DEMO-002 guard order + SAP-1; all BPRL-P1..P22 + DRIFT-1/2/3 re-confirmed; novelty LOW; artifact cluster converged); pass 24 BPRL-P24-01 LOW [process-gap] closed D-1131 (false-coverage: `tests/external/perimeter-violation/` cited for DTU perimeter; covers prism-query BC-2.11.006 only; DTU perimeter IS Cargo-structural; user-directed prose-correction; BC-2.06.020 v1.6; story B v2.16; code 15bedc12; streak RESET 1/3→0/3); **streak 0/3; pass 25 NEXT at 15bedc12**) |
 | **Branch HEAD** | 15bedc12 = remote (D-1131: 1 commit above 0863184a; implementer corrected threatintel test perimeter-claim comment to structural Cargo/E0432 framing) |
 
+**T5 CASCADE LEDGER (complete pass-by-pass history — for zero-context reconstruction):**
+
+| Pass | Type | Result | Streak | Key Event |
+|------|------|--------|--------|-----------|
+| L-1 | LOCAL | 4 findings | 0/3 | B-P1-01 CRIT route-projection + B-P1-02 CRIT vacuous tests |
+| L-2 | LOCAL | 1 finding | 0/3 | B-P2-01 HIGH Claroty dev-join key split |
+| L-3 | LOCAL | 1 finding | 0/3 | B-P3-01 stage-0 guard (BC stage-0 tension ruling) |
+| L-4 | LOCAL | 1+2obs | 0/3 | B-P4-01 E-DEMO-003 hoist; obs: E-DEMO-006 org_id guard (PO OBS-1 ruling → PRE-6) |
+| L-5 | LOCAL | 5+2obs | 0/3 | B-P5 set: renumber, signature alignment, UUID canonicalization, Arc-threading |
+| L-6 | LOCAL | 0 (CLEAN) | 1/3 | — |
+| L-7 | LOCAL | 2 findings | 0/3 | B-P7-01 rustdoc accuracy; B-P7-02 BC-2.06.020 pin alignment |
+| L-8 | LOCAL | 0 (CLEAN) | 1/3 | — |
+| L-9 | LOCAL | 1 finding | 0/3 | B-P9-01 [[test]] required-features |
+| L-10 | LOCAL | 1 finding | 0/3 | F-P10-01 required-features DTU-conditional tests |
+| L-11 | LOCAL | 0 (CLEAN) | 1/3 | — |
+| L-12 | LOCAL | 0 (CLEAN) | 2/3 | — |
+| L-13 | LOCAL | 0 (CLEAN) | **3/3 CONVERGED** | LOCAL 3-CLEAN strict. Then D-1117 added 3 code commits. |
+| PRL-1 | PR-LEVEL | 1 finding LOW | 0/3 | BPRL-P1-01 stale 3-guard comment; closed 45323267 |
+| PRL-2 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P2-01 cyberint alerts StageMask; closed 4eadb027 |
+| PRL-3 | PR-LEVEL | 1 MED + 2 OBS | 0/3 | BPRL-P3-01 CLAUDE.md 50→52 in-PR (human decision D-1108); OBS-1/2 fixed 2323cf37+13efc875 |
+| PRL-4 | PR-LEVEL | 1 MED+1 LOW+1 PG | 0/3 | BPRL-P4-01 CLOSED-BY-DEFERRAL (IOC masking → PIVOT-003); BPRL-P4-02 bc0f36c5; BPRL-P4-PG-01 POL-33 |
+| PRL-5 | PR-LEVEL | 1 finding HIGH | 0/3 | BPRL-P5-01 Route Coverage Table defects; BC-2.06.019 v1.5 |
+| PRL-6 | PR-LEVEL | 1 finding HIGH | 0/3 | BPRL-P6-01 Claroty devices row missing; BC-2.06.019 v1.6 |
+| PRL-7 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P7-01 fabricated grep-claim; BC-2.06.019 v1.7 |
+| PRL-8 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P8-01 BC-INDEX row-120 stale pin v2.4→v2.9 |
+| PRL-9 | PR-LEVEL | 0 (CLEAN) | 1/3 | — |
+| PRL-10 | PR-LEVEL | 0 (CLEAN) | 2/3 | — |
+| PRL-11 | PR-LEVEL | 0 (CLEAN) | **3/3** [INVALIDATED D-1117] | D-1117 code change followed: SEC-001 fix + cyberint CVE↔NVD correlation. Streak 3/3→0/3. |
+| — | D-1117 | CODE CHANGE | 0/3 | SEC-001 CVE-9999-{:05}; CyberintClone new_with_scenario gains &catalog; BC-2.06.020 v1.3 PC-8+PC-9+INV-CYBERINT-ALERT-CVE-CORRELATION-001+VP-020-I..L; error-taxonomy v1.78 E-DEMO-006; code advances 13efc875→f0b6b8c7 |
+| PRL-12 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P12-01 VP-020-K false-green; genuine demo-server integration test 9219ce76; dedup 7ddc0a51 |
+| PRL-13 | PR-LEVEL | 0 (CLEAN) | 1/3 | — |
+| PRL-14 | PR-LEVEL | 1 finding HIGH | 0/3 | BPRL-P14-01 SPEC-ONLY PC-9 0..100000→0..10000; BC-2.06.020 v1.4; story B v2.12 |
+| PRL-15 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P15-01 SPEC-ONLY Phase-6 gate "19 RGTs"→"23 RGTs"; story B v2.13 |
+| PRL-16 | PR-LEVEL | 0 (CLEAN) | 1/3 | Exhaustive D-1117 audit; story line-47 "~16 tests" adjudicated below-OBS |
+| PRL-17 | PR-LEVEL | 0 (CLEAN) | 2/3 | Full behavioral trace 5 stages x 6 clones + cross-BC + SAP-1 + S-7.01 |
+| PRL-18 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P18-01 AC-019 evidence 3 fabricated/inverted BC anchors; demo-recorder 5d5484d0 |
+| PRL-19 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P19-01 AC-019 tape omitted VP-020-K; re-recorded 0863184a (both crate commands) |
+| PRL-20 | PR-LEVEL | 0 (CLEAN) | 1/3 | BPRL-P19-01 closure verified; core invariants + SAP-1 + EXPECTED=52 |
+| PRL-21 | PR-LEVEL | 0 (CLEAN) | 2/3 | 8-axis independent re-derivation; novelty LOW — "genuinely converged" |
+| PRL-22 | PR-LEVEL | 1 finding MED | 0/3 | BPRL-P22-01 SPEC-ONLY VP Anchors prose A..H/8→A..L/12; BC-2.06.020 v1.5; story B v2.14 |
+| — | D-1129 | CONSISTENCY-SWEEP | 0/3 | DRIFT-1/2/3: STORY-INDEX PIVOT-003 pin v1.5; Cyberint 6-arg in §Tasks/FSR/build_clone_pairs; story B v2.15 |
+| PRL-23 | PR-LEVEL | 0 (CLEAN) | 1/3 | DRIFT-2/3 re-derivation; VP-020-K case-sound; PC-8/PC-9; E-DEMO-002; SAP-1 |
+| PRL-24 | PR-LEVEL | 1 finding LOW | 0/3 | BPRL-P24-01 [process-gap] DTU perimeter prose corrected to Cargo/E0432; BC-2.06.020 v1.6; story B v2.16; code 15bedc12 |
+| **PRL-25** | **PR-LEVEL** | **NEXT** | **0/3** | **At HEAD 15bedc12; diff CHANGED — re-materialize via `gh pr diff 185 > /tmp/pr185-pass25.diff`** |
+
+**Pass report files:** `cycles/wave-5-e-demo-fidelity/S-DEMO-DTU-LIVE-SCENARIO-001-B/adversarial-review/pr-pass-NN.md` (NN = pass number).
+
 **LOCAL cascade trajectory (13 passes at pre-D-1117 code):** P1:4 → P2:1 → P3:1 → P4:1+2obs → P5:5+2obs → P6:0 → P7:2 → P8:0 → P9:1 → P10:1 → P11:0 → P12:0 → P13:0
 
 **Key LOCAL closures (do not reflag):**
@@ -196,7 +250,7 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 
 ### 4. §PR-LEVEL PASS 25 — DISPATCH INSTRUCTIONS
 
-**Dispatch fresh adversary for PR-LEVEL pass 25 (streak 0/3; pass 24 BPRL-P24-01 LOW CLOSED D-1131; diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse /tmp/pr185-pass20.diff; no CI push).**
+**Dispatch fresh adversary for PR-LEVEL pass 25 (streak 0/3; pass 24 BPRL-P24-01 LOW CLOSED D-1131; diff CHANGED — re-materialize via `gh pr diff 185 > /tmp/pr185-pass25.diff`; do NOT reuse any cached /tmp/pr185-pass*.diff from passes 20–24; no CI push).**
 
 **Ground truth:**
 - Branch: `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; REMOTE HEAD `15bedc12`; PR #185
@@ -210,7 +264,7 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 - Streak is 0/3; this is pass 25
 - IMPORTANT do-not-raise: catalog `gen_device_cves` uses `CVE-9999-{:05}` (5-digit); Cyberint baseline generator uses `CVE-9999-{:04}` (4-digit) — these are TWO DISTINCT GENERATORS by design; the digit-width difference is intentional; DO NOT raise this as an inconsistency
 
-**Full do-not-reflag list for pass 24 (do NOT raise these as new findings):**
+**Full do-not-reflag list for pass 25 and all subsequent passes (do NOT raise these as new findings):**
 
 All LOCAL closures listed in §3 above, plus:
 - BPRL-P1-01 closed (stale 3-guard comment; 45323267)
@@ -257,12 +311,12 @@ All LOCAL closures listed in §3 above, plus:
 - **PASS-23 D-1130 RE-CONFIRMATIONS (do NOT re-raise as new findings in pass 25):** All BPRL-P1..P22 closures re-confirmed independently. VP-020-K case-sound by double-uppercase-normalize in registry+lookup. PC-8 cyclic catalog assignment (`catalog.device_cves[i % len]`). PC-9 baseline `CVE-9999-{:04}` non-pivotable per design. E-DEMO-002 prescan guard order confirmed. SAP-1 PASS. Artifact cluster assessed as fully converged.
 - **BPRL-P24-01 CLOSED (D-1131 prose-correction):** INV-PERIMETER-COMPLIANCE-001 enforcement-mechanism claim was false across 4 surfaces (AC-016 body / BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 body / BC Architecture Anchors bullet / threatintel test comment): all cited `tests/external/perimeter-violation/` as enforcing the DTU perimeter. That gate covers the **prism-query pub-API perimeter only** (BC-2.11.006) and has zero dependency on any DTU crate. The DTU perimeter (`prism-dtu-threatintel` and `prism-dtu-nvd` must not import `prism-spec-engine`, `prism-sensors`, or `prism-query`) IS held STRUCTURALLY: the forbidden deps simply don't appear in `Cargo.toml`, so any violation is a standard E0432 compile error in the workspace build. User decision: prose-correction (structural framing), NOT a new compile-fail gate. All 4 surfaces corrected: BC-2.06.020 v1.6 (PO); story B v2.16 (story-writer); test comment (implementer commit 15bedc12). **DO NOT re-raise "DTU perimeter gate missing", "no compile-fail test for DTU perimeter", "tests/external/perimeter-violation/ should cover DTU crates", or "INV-PERIMETER-COMPLIANCE-001 not enforced by a dedicated gate" — user ratified structural Cargo/E0432 enforcement as adequate; prose-correction over gate-build.**
 
-**Post-convergence sequence (after 3-CLEAN strict):**
-1. pr-reviewer → APPROVE
-2. security-reviewer → MAY PROCEED
-3. CI green on final head
-4. squash-merge to develop
-5. Post-merge state-manager burst: POL-14 (BC-2.06.019 + BC-2.06.020 draft→active); STORY-INDEX status update; STATE bump. (CLAUDE.md EXPECTED 50→52 is DONE — merged in-PR per D-1108; no post-merge edit needed.)
+**Post-convergence sequence (after 3-CLEAN strict at 15bedc12 or later head):**
+1. pr-reviewer RE-RUN → APPROVE (MUST re-run — code changed via D-1117/PRL-12/PRL-14/PRL-15/PRL-18/PRL-19/PRL-24 since pass-11 reviews on bc0f36c5; prior reviews are stale)
+2. security-reviewer RE-RUN → MAY PROCEED (MUST re-run — same reason; prior security review on bc0f36c5 is stale)
+3. CI green on final head (verify `gh pr checks 185`)
+4. Admin squash-merge to develop
+5. Post-merge state-manager burst: POL-14 (BC-2.06.019 v1.7 + BC-2.06.020 v1.6 draft→active); STORY-INDEX status update; STATE bump. (CLAUDE.md EXPECTED 50→52 is DONE — merged in-PR per D-1108; no post-merge human edit needed.)
 
 ---
 
@@ -313,7 +367,7 @@ All LOCAL closures listed in §3 above, plus:
 # 2. Verify develop HEAD == 939f36ce
 git log --oneline origin/develop | head -1
 
-# 3. Verify story B HEAD == 15bedc12
+# 3. Verify story B HEAD == 15bedc12 (= remote; D-1131: 1 commit above 0863184a)
 git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H %s'
 
 # 4. Check CI on PR #185
@@ -321,14 +375,18 @@ gh pr checks 185
 
 # 5. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.780"
+# Expected: version: "7.781"
 
 # 6. Confirm parked worktrees
 ls /Users/jmagady/Dev/prism/.worktrees/
 # Expected: S-3.09 + W3-FIX-S307-001 + S-DEMO-DTU-LIVE-SCENARIO-001-B
 
-# 7. Confirm factory-artifacts pushed (expect D-1131 burst commit at HEAD)
+# 7. Confirm factory-artifacts pushed (expect D-1132 burst commit at HEAD)
 git -C /Users/jmagady/Dev/prism/.factory log -1 --format='%h %s'
+
+# 8. Re-materialize PR diff for pass 25 (diff CHANGED at 15bedc12 — do NOT reuse cached)
+gh pr diff 185 > /tmp/pr185-pass25.diff
+wc -l /tmp/pr185-pass25.diff
 ```
 
 ---
