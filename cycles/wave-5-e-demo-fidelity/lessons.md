@@ -896,3 +896,45 @@ This is a false-green: the test passes vacuously because it is testing a strictl
 **Outcome:**
 
 Genuine integration test added at `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs::test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` (9219ce76): constructs CyberintClone + NvdClone::new_with_scenario(&catalog), calls NvdState::lookup_and_count for all 10 CVE records from the scenario catalog, asserts Some(record) + base_score >= 7.0/HIGH + non-vacuous request_count >= 1. Redundant cyberint membership duplicate removed (7ddc0a51). VP-020-K now uniquely names the demo-server integration test. just check PASS 4273 tests. Story B v2.10→v2.11 (RGT #22 crate corrected). BC-INDEX rows 119/120 annotation swept v2.9/v2.10 → v2.11 (D-1118). PR-LEVEL streak 0/3. Pass 13 NEXT.
+
+---
+
+## (z11) [process-gap] Concrete code literals embedded in implementer directives and AC bodies must be cross-checked against the verifying test vectors and format invariants IN THE SAME SPEC DOCUMENT
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1120 (BPRL-P14-01 SPEC-ONLY: BC-2.06.020 v1.4 RNG range literal fix)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [spec-self-contradiction] [literal-consistency] [implementer-directive]
+**Classification:** PROCESS-GAP — a concrete code literal (`0..100000`) in a spec's implementer directive contradicted the spec's own format invariant (`^CVE-9999-\d{4}$`) and test vector (TV-020-011 asserts `\d{4}`). The shipped code was correct (`0..10000`). The defect lived only in the spec's prose. 13 passes did not catch it because passes verified behavior-resolves (does the code satisfy the contract?), not directive-literal-vs-test-consistency (does the directive tell an implementer to write code that satisfies the contract?).
+
+**(z11) [process-gap] When a spec document contains BOTH a concrete code literal (range, constant, format string) in an implementer directive or AC body AND a verifying regex, test vector, or invariant in the same document, the adversary MUST explicitly cross-check that values produced by the literal satisfy the verifying pattern.** The shipped code being correct is NOT sufficient evidence that the directive is correct — a future implementer reading only the directive would produce broken code.
+
+**What happened:** BC-2.06.020 v1.3 contained three parallel surfaces:
+
+1. `INV-CYBERINT-ALERT-CVE-CORRELATION-001` (invariant section): asserts all synthetic CVEs MUST match `^CVE-9999-\d{4}$` (exactly 4 digits after the dash).
+2. TV-020-011 (test vector): asserts the generated CVE ID matches `^CVE-9999-\d{4}$`.
+3. PC-9 (implementer directive): states `rng.gen_range(0..100000)` — exclusive upper bound 100000, producing values 0–99999. Values >= 10000 yield 5-digit strings (e.g., `CVE-9999-99999`), violating `\d{4}` ~90% of the time with uniform random.
+
+Story B AC-019 propagated the same `0..100000` literal from the BC implementer directive.
+
+The shipped code at `prism-dtu-common/src/scenario/mod.rs` correctly used `0..10000`, satisfying `\d{4}`. The implementer noticed the inconsistency and fixed it in code. But the spec was never corrected — so the spec contains a self-contradiction that would mislead a future implementer doing a re-implementation, a spec audit, or a test-vector re-derivation.
+
+**Root cause:** Spec authorship (BC-2.06.020 v1.3 was PO-authored at D-1117) produced the `0..100000` literal without mechanically checking that values in `[0, 100000)` satisfy `\d{4}`. The adversary over 13 passes verified behavioral outcomes (does the code satisfy the contract?) but never ran the cross-check "does the directive literal produce values satisfying the spec's own regex?". These are distinct checks:
+
+- Behavioral check: `gen_device_cves` uses `0..10000` in code; the regex in the test passes; the test is non-vacuous. PASS.
+- Directive-literal-vs-invariant check: `0..100000` in the spec directive; `\d{4}` in the same spec's invariant; are values from `[0, 100000)` guaranteed to match `\d{4}`? NO (values 10000–99999 produce 5 digits).
+
+**Canonical rule (codified):**
+
+**Standing adversary probe — for any spec that embeds a concrete code literal (RNG range, modulus, constant) AND a verifying regex/format invariant in the SAME document:** Cross-check the literal against the invariant. Specifically: if the literal is `N..M` and the invariant is `\d{k}`, verify that `M - 1` has exactly `k` digits (i.e., `M <= 10^k`). If `M > 10^k`, the literal is inconsistent with the invariant.
+
+Examples of the check:
+- `0..10000` with `\d{4}`: max value 9999, exactly 4 digits. CONSISTENT.
+- `0..100000` with `\d{4}`: max value 99999, 5 digits. INCONSISTENT — flag as SPEC-ONLY finding.
+- `0..1000` with `\d{4}`: max value 999, only 3 digits (would be zero-padded to 4; CHECK format string — `{:04}` produces 4-digit zero-padded output for all values; CONSISTENT if using `{:04}`).
+
+This probe costs one arithmetic check per range+regex pair. It should be part of every adversary pass on specs that define synthetic-ID generation contracts.
+
+**Outcome:**
+
+BC-2.06.020 v1.3→v1.4: PC-9 implementer directive `0..100000`→`0..10000`. Story B v2.11→v2.12: AC-019 literal `0..100000`→`0..10000`; BC-2.06.020 pin v1.3→v1.4; 19 ACs / 23 RGTs UNCHANGED. PIVOT-003 v1.5→v1.6: BC-2.06.020 pin v1.3→v1.4. Feature HEAD 7ddc0a51 CODE UNCHANGED. BC-INDEX v6.38→v6.39. STORY-INDEX v2.364→v2.365. PR-LEVEL streak RESET 1/3→0/3. Pass 15 NEXT.

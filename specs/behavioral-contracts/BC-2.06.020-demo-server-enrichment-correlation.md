@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.020"
-version: "1.3"
+version: "1.4"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-12"
+modified: "2026-06-13"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -278,7 +278,7 @@ When a `CyberintClone` is constructed via the non-scenario path (i.e., `new()`,
 `new_with_seed()`, or `new_with_access_token()` — no `ScenarioEntityCatalog` available):
 
 - The `cve_id` field on every Cyberint CVE-surface alert record MUST use the format
-  `"CVE-9999-{n:04}"` where `n` is drawn from `rng.gen_range(0..100000)`.
+  `"CVE-9999-{n:04}"` where `n` is drawn from `rng.gen_range(0..10000)`.
 - The `CVE-9999-` prefix uses year 9999, which is never used by the real NVD advisory
   database (SEC-001 sentinel; `gen_device_cves` in `prism-dtu-common/src/scenario/mod.rs`
   uses the same sentinel for the same reason).
@@ -294,7 +294,7 @@ When a `CyberintClone` is constructed via the non-scenario path (i.e., `new()`,
 // BEFORE (collision-unsafe):
 let cve_name = format!("CVE-2024-{:04}", rng.gen_range(1000u32..9999));
 // AFTER (collision-safe):
-let cve_name = format!("CVE-9999-{:04}", rng.gen_range(0u32..100000));
+let cve_name = format!("CVE-9999-{:04}", rng.gen_range(0u32..10000));
 ```
 This single-line fix applies to ALL non-scenario code paths. It is unconditional — the
 `CVE-9999-` namespace is required whether or not a scenario is active, to prevent any
@@ -556,6 +556,7 @@ VP-020-A through VP-020-H (above) — verified by integration/unit tests in S-DE
 
 | Version | Change |
 |---------|--------|
+| v1.4 | BPRL-P14-01 2026-06-13 — spec-internal contradiction fix (no behavior change; code was already correct). PC-9 range literal `rng.gen_range(0..100000)` → `rng.gen_range(0..10000)`. Implementer-directive code block range literal `rng.gen_range(0u32..100000)` → `rng.gen_range(0u32..10000)`. Both now consistent with INV-CYBERINT-ALERT-CVE-CORRELATION-001 baseline clause (`^CVE-9999-\d{4}$`), TV-020-011 (`Every cve_id matches ^CVE-9999-\d{4}$`), and the `{:04}` format specifier. The old `100000` upper bound allowed 5-digit suffixes (n ≥ 10000) for ~90% of draws, violating the `\d{4}` invariant. `rng.gen_range(0..10000)` is bounded to [0, 9999] → `{:04}` always produces exactly 4 digits. Shipped code at `generator.rs:389` was already correct (`0u32..10000`). |
 | v1.3 | D-1117 2026-06-12 — Cyberint alert CVE ↔ NVD correlation + collision-safety (human-directed, production-grade). Added: Description paragraph scoping Cyberint CVE namespace contract. Postcondition 8 (scenario mode: all Cyberint `cve_id` fields drawn from `catalog.device_cves`; cyclic assignment for record count > catalog size; explicit harness wiring change in `harness.rs` and `generator.rs`). Postcondition 9 (baseline/non-scenario mode: `CVE-9999-` namespace required; intentionally non-pivotable; single-line fix for `generator.rs` line 340). INV-CYBERINT-ALERT-CVE-CORRELATION-001 (scenario-mode CVE membership + NVD resolution + universal collision-safety in all modes). Edge cases EC-020-012 through EC-020-015. Test vectors TV-020-011 through TV-020-015. Verification properties VP-020-I through VP-020-L. Architecture Anchors extended with `prism-dtu-cyberint/src/generator.rs` and `prism-dtu-common/src/scenario/mod.rs`. `crates:` frontmatter extended with `prism-dtu-cyberint`. `inputs:` frontmatter extended with `crates/prism-dtu-cyberint/src/generator.rs` and `crates/prism-dtu-common/src/scenario/mod.rs`. H1 title updated to reflect Cyberint scope. |
 | v1.2 | PO micro-burst 2026-06-12 — OBS-2 anchor drift fixed. Stories traceability row, Story Anchor section, and VP Anchors section updated to include S-DEMO-DTU-LIVE-SCENARIO-001-B (frontmatter `anchored_stories` already included -B per D-1090 v6.28 backlink; body sections were stale). INV-CROSS-DTU-ENTITY-COHERENCE-001 now receives downstream enforcement from BC-2.06.019 PRE-6 / E-DEMO-006 guard (org_id equality) — no change to this BC's invariant text required (the invariant remains structurally enforced by generator determinism; the new guard prevents the misconfiguration that would silently violate it). |
 | v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Replaced `NvdClone::lookup()` (which does not exist) with `NvdState::lookup_and_count(&self, cve_id) -> Option<CveRecord>` in Precondition 3, Postcondition 4, INV-NVD-CVE-CORRELATION-001, VP-020-D, and Architecture Anchors. Corrected CVSS access path to `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` and `.base_severity: String` (NOT `.severity`) per `crates/prism-dtu-nvd/src/types.rs` CvssData struct; updated all occurrences. Noted `NvdState.cve_registry` is IMMUTABLE `HashMap` (not Mutex-wrapped); `new_with_scenario` builds the initial map including scenario CVEs at construction and never mutates after. Clarified `NvdClone::new_with_scenario` is FALLIBLE (`anyhow::Result<Self>`) mirroring `NvdClone::new()`. Noted `ThreatIntelClone::new_with_scenario` is INFALLIBLE (`Self`) mirroring `ThreatIntelClone::new()`. Updated INV-CROSS-DTU-ENTITY-COHERENCE-001 to use split `primary_device_id_cs` / `primary_device_id_armis` fields from `ScenarioEntityCatalog` (ADR-036 v2.0 §2.2); documented Armis's explicit `org_slug: &str` injection pattern. Extended INV-PERIMETER-COMPLIANCE-001 to explicitly confirm `prism-core` is on the INV-PERIMETER-001 allow-list (transitive via `prism-dtu-common/fixture-gen`); noted required Cargo.toml additions for `prism-dtu-threatintel` and `prism-dtu-nvd`. Postcondition 5 updated to reference `primary_device_id_cs` for CrowdStrike/Claroty and `primary_device_id_armis` for Armis. lifecycle_status remains draft. Invariant semantics (threshold values, IOC resolution, additive injection) unchanged. |
