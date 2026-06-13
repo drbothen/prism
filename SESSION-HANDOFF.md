@@ -1,17 +1,17 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.766"
+version: "7.767"
 status: current
-timestamp: 2026-06-12T22:00:00Z
+timestamp: 2026-06-13T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1117 BURST (2026-06-12) — SEC-001 CVE-9999 collision-safety + cyberint CVE↔NVD correlation.** Human-directed mid-cascade enhancement after pass 11 3/3. BC-2.06.020 v1.2→v1.3. Story B v2.9→v2.10 (AC-019; 19 ACs; 19/19 evidence). PR-LEVEL convergence RESET 3/3→0/3. HEAD f75f3159. Pass 12 NEXT. STATE v7.766.
+> **D-1118 BURST (2026-06-13) — BPRL-P12-01 MED closed.** VP-020-K false-green (catalog-membership proxy) replaced with genuine cyberint→NVD integration test at demo-server (9219ce76). Cyberint membership duplicate removed (7ddc0a51). Story B v2.10→v2.11. HEAD 7ddc0a51. Streak 0/3. Pass 13 NEXT. STATE v7.767.
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1117 below, then STATE.md frontmatter. D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116 notes SUPERSEDED — D-1109/D-1110 snapshot archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md.
-> develop HEAD `939f36ce` (unchanged). Story B HEAD `f75f3159` = remote = PR #185 latest push (D-1117: 3 commits added post-pass-11). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.766.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1118 below, then STATE.md frontmatter. D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117 notes SUPERSEDED — D-1109/D-1110 snapshot archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md.
+> develop HEAD `939f36ce` (unchanged). Story B HEAD `7ddc0a51` = remote = PR #185 latest push (D-1118: 2 commits added post-pass-12). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.767.
 
 ---
 
@@ -73,30 +73,30 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **D-1107 SCOPE-IN** | **S-5.04** | not-started (wave 5) | 5 | -- | S-5.03, S-DEMO-001 | Sensor Health Subsystem — **OPTED IN (D-1107)**; remove-uncertainty before TDD |
 | **D-1107 SCOPE-IN** | **S-3.13** | not-started (wave 3) | 3 | 3 proxy (needs PO BCs) | S-3.02, S-1.12 | Dynamic Table Availability — **OPTED IN (D-1107)**; parallel after PO authors dedicated BCs; remove-uncertainty before TDD |
 
-**NEXT CONCRETE ACTION: T5 — PR-LEVEL pass 12 for PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) at HEAD f75f3159 (D-1117: 3 commits added post-pass-11; diff has changed). Passes 9/10/11 CLEAN(strict)=YES but INVALIDATED by D-1117 code change — re-converge from scratch. See §RESUME SNAPSHOT D-1117 §4 below for dispatch instructions and full do-not-reflag list. D-1090 autonomy grant still active.**
+**NEXT CONCRETE ACTION: T5 — PR-LEVEL pass 13 for PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) at HEAD 7ddc0a51 (D-1118: 2 commits added post-pass-12; diff has changed). Re-materialize diff via `gh pr diff 185` before dispatching adversary. See §RESUME SNAPSHOT D-1118 §4 below for dispatch instructions and full do-not-reflag list. D-1090 autonomy grant still active.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (PR-LEVEL cascade; PR #185 OPEN; streak 0/3 RESET; pass 12 NEXT — D-1117). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.3. BC-INDEX v6.37. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.363. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7. BC-2.06.020 v1.3 (D-1117: PC-8+PC-9+INV-CYBERINT-ALERT-CVE-CORRELATION-001). STATE v7.766.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (PR-LEVEL cascade; PR #185 OPEN; streak 0/3; pass 13 NEXT — D-1118). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.3. BC-INDEX v6.38. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.364. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7. BC-2.06.020 v1.3. STATE v7.767.**
 
 ---
 
-## §RESUME SNAPSHOT — D-1117 (2026-06-12 — SEC-001 CVE-9999 + cyberint CVE↔NVD correlation; convergence RESET 0/3)
+## §RESUME SNAPSHOT — D-1118 (2026-06-13 — BPRL-P12-01 closed; genuine VP-020-K integration test + dedup; story B v2.11; streak 0/3)
 
-> **D-1117: T5 PR-LEVEL convergence RESET. S-DEMO-DTU-LIVE-SCENARIO-001-B in PR-LEVEL cascade. PR #185 OPEN; HEAD=REMOTE=f75f3159 (D-1117: 3 commits added post-pass-11 — 0b6ee048 CVE-9999 collision-safety, f0b6b8c7 cyberint catalog CVE threading, f75f3159 AC-019 evidence). Human-directed mid-cascade enhancement (SEC-001 CWE-1336-adjacent): (a) `gen_device_cves` format CVE-202x-* → CVE-9999-{:05} (collision-safe); (b) `CyberintClone::new_with_scenario` gained `&catalog` parameter (6-arg) to draw `cve_id` values from `catalog.device_cves` (cyclic assignment) — scenario-mode Cyberint CVEs now end-to-end correlate to NVD. BC-2.06.020 v1.2→v1.3 (PC-8+PC-9+INV-CYBERINT-ALERT-CVE-CORRELATION-001+VP-020-I..L+EC-020-012..015+TV-020-011..015). Story B v2.9→v2.10 (AC-019; 19 ACs; 23 RGTs). PIVOT-003 v1.4→v1.5. Demo evidence 19/19. just check PASS 4273 tests. PR-LEVEL: passes 1–11 summarized below; passes 9/10/11 were CLEAN(strict)=YES but INVALIDATED by D-1117 code change. Streak RESET 0/3. BC-INDEX v6.37. STORY-INDEX v2.363. STATE v7.766. NEXT = PR-LEVEL pass 12 at HEAD f75f3159.**
-> _D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116 notes SUPERSEDED — D-1109/D-1110 snapshot archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
+> **D-1118: T5 PR-LEVEL cascade in progress. S-DEMO-DTU-LIVE-SCENARIO-001-B in PR-LEVEL cascade. PR #185 OPEN; HEAD=REMOTE=7ddc0a51 (D-1118: 2 commits added post-pass-12 — 9219ce76 genuine VP-020-K demo-server integration test, 7ddc0a51 dedup cyberint membership test removed). BPRL-P12-01 MED CLOSED: VP-020-K / TV-020-013 (`test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd`) was a false-green — lived in wrong crate (prism-dtu-cyberint), never called NvdState::lookup_and_count, cited a nonexistent demo-server test file. Genuine integration test now at `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`; cyberint membership duplicate removed. SEC-001 determinism + cyberint draw-count parity independently re-verified CLEAN. just check PASS 4273 tests. Story B v2.10→v2.11 (RGT #22 crate corrected; AC-019 body; FSR row; red_gate_tests 23 UNCHANGED). BC-INDEX v6.38 (rows 119/120 annotation swept v2.11). STORY-INDEX v2.364. STATE v7.767. NEXT = PR-LEVEL pass 13 at HEAD 7ddc0a51 (re-materialize diff via `gh pr diff 185` — diff changed by 2 commits).**
+> _D-1101/D-1102/D-1103/D-1108/D-1109/D-1110/D-1111/D-1112/D-1113/D-1114/D-1115/D-1116/D-1117 notes SUPERSEDED — D-1109/D-1110 snapshot archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
 
 ---
 
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
-2. Read §ACTIVE OBJECTIVE (North Star) FIRST. Then read STATE.md frontmatter (`current_step`, D-1117 decision row).
+2. Read §ACTIVE OBJECTIVE (North Star) FIRST. Then read STATE.md frontmatter (`current_step`, D-1118 decision row).
 3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
-4. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `f75f3159` (= remote; pushed 2026-06-12 D-1117).
-5. `gh pr checks 185` — confirm CI status on f75f3159.
-6. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.766"`.
+4. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `7ddc0a51` (= remote; pushed 2026-06-13 D-1118).
+5. `gh pr checks 185` — confirm CI status on 7ddc0a51.
+6. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.767"`.
 7. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). Story B worktree: `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` (ACTIVE — PR-LEVEL cascade in progress).
-8. Apply lessons (a)–(z9) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-9. **NEXT ACTION:** PR-LEVEL pass 12 at HEAD f75f3159 (streak 0/3 RESET by D-1117; diff includes 3 new commits — see §4 below).
+8. Apply lessons (a)–(z10) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+9. **NEXT ACTION:** PR-LEVEL pass 13 at HEAD 7ddc0a51 (streak 0/3; BPRL-P12-01 closed D-1118; re-materialize diff via `gh pr diff 185` — see §4 below).
 
 ---
 
@@ -105,20 +105,20 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | Field | Value |
 |-------|-------|
 | **Mode** | brownfield |
-| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185 OPEN, streak 0/3 RESET; pass 12 NEXT) |
+| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185 OPEN, streak 0/3; pass 13 NEXT) |
 | **develop HEAD** | `939f36ce` (DTU PR #182 squash-merged 2026-06-12T05:18Z; unchanged since D-1103) |
-| **STATE version** | v7.766 |
-| **BC-INDEX version** | v6.37 (total 250; active 232; draft 5; retired 6; BC-2.06.019 v1.7; BC-2.06.020 v1.3) |
-| **STORY-INDEX version** | v2.363 (total_stories 200) |
+| **STATE version** | v7.767 |
+| **BC-INDEX version** | v6.38 (total 250; active 232; draft 5; retired 6; BC-2.06.019 v1.7; BC-2.06.020 v1.3; rows 119/120 story pin v2.11) |
+| **STORY-INDEX version** | v2.364 (total_stories 200) |
 | **VP-INDEX version** | v1.79 (158 registered) |
 | **ARCH-INDEX version** | v2.133 |
 | **error-taxonomy version** | v1.78 (E-DEMO-006 new) |
 | **ADR-036 version** | v2.3 (time_anchor 5-arg ruling) |
 | **policies version** | v1.33 (POL-33 route_coverage_table_required_for_stagemask_changes) |
 | **prd version** | v1.12 |
-| **Open PRs** | 1 — PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) OPEN; PR-LEVEL cascade pass 12 NEXT; streak 0/3 RESET (D-1117) |
-| **Story B branch** | `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; HEAD = REMOTE = `f75f3159` |
-| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1117 burst) |
+| **Open PRs** | 1 — PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) OPEN; PR-LEVEL cascade pass 13 NEXT; streak 0/3 (BPRL-P12-01 MED closed D-1118) |
+| **Story B branch** | `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; HEAD = REMOTE = `7ddc0a51` |
+| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1118 burst) |
 
 ---
 
@@ -133,7 +133,8 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 5. ~~T5 PR-LEVEL pass 2~~ DONE (BPRL-P2-01 MED cyberint alerts StageMask projection; closed 4eadb027).
 6. ~~T5 PR-LEVEL pass 3~~ DONE (BPRL-P3-01 MED CLAUDE.md 50→52 in-PR; BPRL-P3-OBS-1/OBS-2 fixed; closed 2323cf37+13efc875; D-1108).
 7. ~~T5 PR-LEVEL pass 4~~ DONE (BPRL-P4-01 MED CLOSED-BY-DEFERRAL D-1109; BPRL-P4-02 LOW fixed bc0f36c5; BPRL-P4-PG-01 closed POL-33; BC-2.06.019 v1.4; D-1109/D-1110).
-8. **CURRENT: T5 PR-LEVEL pass 12** — streak 0/3 RESET by D-1117 (code changed post-pass-11); do-not-reflag list in §4 below (includes BPRL-P1 through BPRL-P11 + SEC-001 closed + D-1117 cyberint CVE correlation closed; BPRL-P4-01 IOC-on-alert STILL stands). Diff at HEAD f75f3159 includes 3 new commits + BC-2.06.020 v1.3 spec.
+8. ~~T5 PR-LEVEL pass 12~~ DONE (BPRL-P12-01 MED closed D-1118 — VP-020-K false-green replaced with genuine demo-server integration test; cyberint membership duplicate removed; feature HEAD 7ddc0a51).
+9. **CURRENT: T5 PR-LEVEL pass 13** — streak 0/3; re-materialize diff via `gh pr diff 185` (diff changed by 2 commits); do-not-reflag list in §4 below (includes all prior closures + BPRL-P12-01 CLOSED; BPRL-P4-01 IOC-on-alert STILL stands).
 9. After 3-CLEAN strict → pr-reviewer APPROVE → security CLEAR → CI green → squash-merge → post-merge burst (POL-14: BC-2.06.019 + BC-2.06.020 draft→active).
 10. T6 → T8 → capability-discovery block (D-1107) → S-DEMO-ENRICHMENT-PIVOT-001/002/003 chain → T11 → T13 capstone.
 
@@ -145,14 +146,14 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 
 | Field | Value |
 |-------|-------|
-| **Story version** | v2.10 (19 ACs / 23 Red Gate tests; AC-019 Cyberint CVE↔NVD pivot at stage >= 4; D-1117) |
+| **Story version** | v2.11 (19 ACs / 23 Red Gate tests; AC-019 Cyberint CVE↔NVD pivot at stage >= 4; RGT #22 crate corrected cyberint→demo-server; D-1118) |
 | **BC-2.06.019** | v1.7 (D-1113 fabricated inventory-note prose corrected; D-1112 Claroty devices Route Coverage row + exhaustive inventory note; v1.5: D-1111 Route Coverage Table corrected + PC-4 5-arg prose; v1.4: D-1109 per-sensor IOC-surface matrix + Interim State clause + Route Coverage Table; PRE-6 org_id guard per PO OBS-1 ruling) |
 | **BC-2.06.020** | v1.3 (D-1117: PC-8 catalog-ID assignment for scenario Cyberint CVEs; PC-9 baseline non-pivotable CVE-9999-{:04}; INV-CYBERINT-ALERT-CVE-CORRELATION-001; VP-020-I..L; EC-020-012..015; TV-020-011..015; draft) |
 | **ADR-036** | v2.3 (time_anchor 5-arg ruling) |
 | **Demo evidence** | 19/19 ACs COMPLETE (commit f75f3159; VHS; docs/demo-evidence/S-DEMO-DTU-LIVE-SCENARIO-001-B/) |
-| **LOCAL cascade** | CONVERGED 3/3 strict (13 passes at pre-D-1117 code; D-1117 adds 3 commits; new LOCAL re-run recommended before PR-LEVEL pass 12 if orchestrator deems necessary) |
-| **PR-LEVEL streak** | 0/3 RESET (pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed 2323cf37+13efc875; pass 4 BPRL-P4-01 CLOSED-BY-DEFERRAL + BPRL-P4-02 fixed bc0f36c5 + BPRL-P4-PG-01 closed; pass 5 BPRL-P5-01 HIGH closed BC-2.06.019 v1.5; pass 6 BPRL-P6-01 HIGH closed BC-2.06.019 v1.6; pass 7 BPRL-P7-01 MED closed BC-2.06.019 v1.7; pass 8 BPRL-P8-01 MED closed BC-INDEX row-120 sync; pass 9 CLEAN(strict)=YES streak 1/3 [INVALIDATED]; pass 10 CLEAN(strict)=YES streak 2/3 [INVALIDATED]; pass 11 CLEAN(strict)=YES streak 3/3 [INVALIDATED — D-1117 code change post-pass-11]; **streak RESET 0/3; pass 12 NEXT at f75f3159**) |
-| **Branch HEAD** | f75f3159 = remote |
+| **LOCAL cascade** | CONVERGED 3/3 strict (13 passes at pre-D-1117 code; D-1117 adds 3 commits; D-1118 adds 2 more commits) |
+| **PR-LEVEL streak** | 0/3 (pass 1 CLEAN; pass 2 BPRL-P2-01 MED closed 4eadb027; pass 3 BPRL-P3-01 MED + 2 OBS closed; pass 4 BPRL-P4-01 CLOSED-BY-DEFERRAL + BPRL-P4-02 closed + BPRL-P4-PG-01 closed; pass 5 BPRL-P5-01 HIGH closed BC-2.06.019 v1.5; pass 6 BPRL-P6-01 HIGH closed BC-2.06.019 v1.6; pass 7 BPRL-P7-01 MED closed BC-2.06.019 v1.7; pass 8 BPRL-P8-01 MED closed BC-INDEX row-120 sync; pass 9 CLEAN(strict)=YES streak 1/3 [INVALIDATED D-1117]; pass 10 CLEAN(strict)=YES streak 2/3 [INVALIDATED D-1117]; pass 11 CLEAN(strict)=YES streak 3/3 [INVALIDATED D-1117]; pass 12 BPRL-P12-01 MED closed D-1118 (VP-020-K false-green); **streak 0/3; pass 13 NEXT at 7ddc0a51**) |
+| **Branch HEAD** | 7ddc0a51 = remote |
 
 **LOCAL cascade trajectory (13 passes at pre-D-1117 code):** P1:4 → P2:1 → P3:1 → P4:1+2obs → P5:5+2obs → P6:0 → P7:2 → P8:0 → P9:1 → P10:1 → P11:0 → P12:0 → P13:0
 
@@ -181,22 +182,21 @@ Active objective: **multi-client SOC-analyst live demo**. T5 in PR-LEVEL cascade
 
 ---
 
-### 4. §PR-LEVEL PASS 12 — DISPATCH INSTRUCTIONS
+### 4. §PR-LEVEL PASS 13 — DISPATCH INSTRUCTIONS
 
-**Dispatch fresh adversary for PR-LEVEL pass 12 (re-converge after D-1117 code change; streak 0/3 RESET).**
+**Dispatch fresh adversary for PR-LEVEL pass 13 (streak 0/3; BPRL-P12-01 closed; diff changed by 2 commits).**
 
 **Ground truth:**
-- Branch: `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; REMOTE HEAD `f75f3159`; PR #185
-- Adversary reads PR diff via `gh pr diff 185` (diff now includes 3 new commits vs pass 11 diff)
+- Branch: `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; REMOTE HEAD `7ddc0a51`; PR #185
+- Adversary reads PR diff via `gh pr diff 185` (diff changed by 2 commits vs pass 12 diff — re-materialize before reviewing)
 - ALL code reads use `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B/` absolute path
-- Verify `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H %s'` matches `f75f3159` before citing any line numbers
+- Verify `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H %s'` matches `7ddc0a51` before citing any line numbers
 - BC-2.06.019 is v1.7 — use the v1.7 Route Coverage Table (8 rows, exhaustive); do NOT cite v1.6 or earlier inventory-note prose
-- BC-2.06.020 is now v1.3 (D-1117) — use v1.3; includes PC-8, PC-9, INV-CYBERINT-ALERT-CVE-CORRELATION-001, VP-020-I..L; do NOT cite v1.2 prose
-- BC-INDEX row-120 anchor story pin is `ready v2.10 (D-1117 2026-06-12)` — do NOT cite v2.4 or v2.9 annotations
-- Passes 9/10/11 result: CLEAN(strict)=YES — INVALIDATED by D-1117 code change; do NOT count toward streak
-- Streak is 0/3; this is pass 12; re-converge from scratch
+- BC-2.06.020 is v1.3 — use v1.3; includes PC-8, PC-9, INV-CYBERINT-ALERT-CVE-CORRELATION-001, VP-020-I..L
+- BC-INDEX rows 119/120 anchor story pin is `ready v2.11 (D-1118 2026-06-13)` — do NOT cite v2.9/v2.10 annotations
+- Streak is 0/3; this is pass 13
 
-**Full do-not-reflag list for pass 12 (do NOT raise these as new findings):**
+**Full do-not-reflag list for pass 13 (do NOT raise these as new findings):**
 
 All LOCAL closures listed in §3 above, plus:
 - BPRL-P1-01 closed (stale 3-guard comment; 45323267)
@@ -211,7 +211,7 @@ All LOCAL closures listed in §3 above, plus:
 - BPRL-P5-01 closed: BC-2.06.019 v1.4→v1.5 Route Coverage Table corrected. Story B v2.7. PIVOT-003 v1.2.
 - BPRL-P6-01 closed: BC-2.06.019 v1.5→v1.6 Claroty devices row + exhaustive inventory note. Story B v2.8. PIVOT-003 v1.3.
 - BPRL-P7-01 closed: BC-2.06.019 v1.6→v1.7 fabricated inventory-note prose corrected. Story B v2.9. PIVOT-003 v1.4.
-- BPRL-P8-01 closed: BC-INDEX row-120 story-version pin sync v2.4→v2.9 (D-1114); now updated to v2.10 (D-1117). **DO NOT REFLAG.**
+- BPRL-P8-01 closed: BC-INDEX row-120 story-version pin sync v2.4→v2.9 (D-1114); updated to v2.10 (D-1117); now updated to v2.11 (D-1118). **DO NOT REFLAG.**
 - BPRL-P9: pass 9 had ZERO findings — no do-not-reflag entries.
 - BPRL-P10: pass 10 had ZERO findings — no do-not-reflag entries. Novel angles (scenario-state concurrency, RNG determinism, stage-boundary saturation, Cargo.lock unification, required-features isolation, rustdoc text-fenced non-doctest) all verified PASS — do NOT re-probe as fresh findings.
 - BPRL-P11: pass 11 had ZERO findings — no do-not-reflag entries (pass INVALIDATED by D-1117 code change; closures still stand).
@@ -230,6 +230,7 @@ All LOCAL closures listed in §3 above, plus:
 - BC stage-0 tension (`stage_idx > 0` guard) — by-design per PO ruling
 - Armis key-presence discriminator (P10-01) — NO-ACTION adjudication; human ratification requested
 - Baseline (non-scenario) `CVE-9999-{:04}` format — intentionally non-pivotable (PC-9 by-design; Cyberint baseline doesn't correlate to NVD; ONLY scenario-mode is required to correlate per PC-8)
+- **BPRL-P12-01 CLOSED (D-1118):** VP-020-K / TV-020-013 was a false-green (test in wrong crate `prism-dtu-cyberint`; never called `NvdState::lookup_and_count`; doc comment cited nonexistent demo-server test). Genuine integration test now at `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs::test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` (9219ce76). Cyberint membership duplicate removed (7ddc0a51). **DO NOT re-raise "cyberint resolves test is only membership", "duplicate test name `_resolves_in_nvd`", or "no demo-server integration test for NVD pivot" — all CLOSED.**
 
 **Post-convergence sequence (after 3-CLEAN strict):**
 1. pr-reviewer → APPROVE
@@ -274,7 +275,7 @@ All LOCAL closures listed in §3 above, plus:
 |----------|--------|--------|
 | `.worktrees/S-3.09` | FROZEN | Leave alone |
 | `.worktrees/W3-FIX-S307-001` | BLOCKED/superseded | Leave alone |
-| `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` | ACTIVE (PR-LEVEL cascade) | PR-LEVEL pass 12 NEXT; streak 0/3 RESET (D-1117); HEAD f75f3159 |
+| `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` | ACTIVE (PR-LEVEL cascade) | PR-LEVEL pass 13 NEXT; streak 0/3 (BPRL-P12-01 D-1118); HEAD 7ddc0a51 |
 
 ---
 
@@ -287,7 +288,7 @@ All LOCAL closures listed in §3 above, plus:
 # 2. Verify develop HEAD == 939f36ce
 git log --oneline origin/develop | head -1
 
-# 3. Verify story B HEAD == f75f3159
+# 3. Verify story B HEAD == 7ddc0a51
 git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H %s'
 
 # 4. Check CI on PR #185
@@ -295,7 +296,7 @@ gh pr checks 185
 
 # 5. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.766"
+# Expected: version: "7.767"
 
 # 6. Confirm parked worktrees
 ls /Users/jmagady/Dev/prism/.worktrees/

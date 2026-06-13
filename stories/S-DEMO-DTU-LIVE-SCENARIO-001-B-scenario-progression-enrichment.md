@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.10"
+version: "2.11"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-12T21:00:00Z"
+modified: "2026-06-13T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -419,7 +419,7 @@ Given any `CyberintClone` in any mode, when all generated CVE-surface alert reco
 Red Gate tests (verbatim names from implementer commit f0b6b8c7):
 - `test_BC_2_06_020_cyberint_baseline_cve_uses_cve_9999_namespace` — crate: `prism-dtu-cyberint`; traces to BC-2.06.020 PC-9 / INV-CYBERINT-ALERT-CVE-CORRELATION-001 baseline mode / TV-020-011 / VP-020-I
 - `test_BC_2_06_020_cyberint_scenario_cve_ids_from_catalog` — crate: `prism-dtu-cyberint`; traces to BC-2.06.020 PC-8 / INV-CYBERINT-ALERT-CVE-CORRELATION-001 scenario mode / TV-020-012 / VP-020-J
-- `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` — crate: `prism-dtu-cyberint` (or `prism-dtu-demo-server`); traces to BC-2.06.020 PC-8 + INV-CYBERINT-ALERT-CVE-CORRELATION-001 + INV-NVD-CVE-CORRELATION-001 / TV-020-013 / VP-020-K
+- `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` — crate: `prism-dtu-demo-server`; test file: `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`; traces to BC-2.06.020 PC-8 + INV-CYBERINT-ALERT-CVE-CORRELATION-001 + INV-NVD-CVE-CORRELATION-001 / TV-020-013 / VP-020-K
 - `test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment` — crate: `prism-dtu-cyberint`; traces to BC-2.06.020 EC-020-012 / TV-020-014 / VP-020-L
 
 SEC-001 note: the `catalog.device_cves` field (source: `gen_device_cves` in `prism-dtu-common/src/scenario/mod.rs`) already uses `CVE-9999-{:05}` format per SEC-001. The existing test `test_sec_001_device_cves_use_unambiguous_synthetic_year` in `prism-dtu-common` verifies the catalog side. AC-019 covers the complementary Cyberint generator side: (a) scenario path draws from that catalog, (b) baseline path independently uses `CVE-9999-` on line ~340 of `generator.rs`.
@@ -453,7 +453,7 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 | 19 | `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones` | prism-dtu-demo-server | BC-2.06.019 PRE-6 / EC-019-013 / TV-019-015: two scenario-enabled clones with same seed but different org_ids returns E-DEMO-006 containing both clone names and org_id values before any constructor called; guard position: E-DEMO-002 → **E-DEMO-006** → E-DEMO-003 → E-DEMO-004 | unit |
 | 20 | `test_BC_2_06_020_cyberint_baseline_cve_uses_cve_9999_namespace` | prism-dtu-cyberint | BC-2.06.020 PC-9 / INV-CYBERINT-ALERT-CVE-CORRELATION-001 (baseline mode) / TV-020-011 / VP-020-I: all generated CVE records from non-scenario CyberintClone use `CVE-9999-` namespace; no real-year CVE IDs emitted (regression against pre-fix `CVE-2024-*` behavior) | unit |
 | 21 | `test_BC_2_06_020_cyberint_scenario_cve_ids_from_catalog` | prism-dtu-cyberint | BC-2.06.020 PC-8 / INV-CYBERINT-ALERT-CVE-CORRELATION-001 (scenario mode) / TV-020-012 / VP-020-J: all scenario-mode Cyberint CVE records' `cve_id` values are members of `catalog.device_cves`; no out-of-catalog CVE ID introduced | unit |
-| 22 | `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` | prism-dtu-cyberint | BC-2.06.020 PC-8 + INV-CYBERINT-ALERT-CVE-CORRELATION-001 + INV-NVD-CVE-CORRELATION-001 / TV-020-013 / VP-020-K: for each `cve_id` in scenario Cyberint records, `NvdState::lookup_and_count(cve_id)` returns `Some(record)` with `base_score >= 7.0`; end-to-end pivot chain | integration |
+| 22 | `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` | prism-dtu-demo-server | BC-2.06.020 PC-8 + INV-CYBERINT-ALERT-CVE-CORRELATION-001 + INV-NVD-CVE-CORRELATION-001 / TV-020-013 / VP-020-K: for each `cve_id` in scenario Cyberint records, `NvdState::lookup_and_count(cve_id)` returns `Some(record)` with `base_score >= 7.0`; end-to-end pivot chain; test file: `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs` | integration |
 | 23 | `test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment` | prism-dtu-cyberint | BC-2.06.020 EC-020-012 / TV-020-014 / VP-020-L: `CompromisedEndpoint` archetype produces 10 CVE records against 3-entry catalog; all `cve_id` values are in catalog; cyclic assignment distributes records over 3 catalog entries without overflow or repetition of an out-of-catalog ID | unit |
 
 ---
@@ -462,7 +462,7 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file, v2.10) | ~9 000 |
+| Story spec (this file, v2.11) | ~9 000 |
 | ADR-036 v2.3 (full) | ~5 800 |
 | BC-2.06.019 v1.7 (full) | ~3 200 |
 | BC-2.06.020 v1.3 (full) | ~3 600 |
@@ -685,6 +685,7 @@ Versions pinned from `dependency-graph.md` and `rust-toolchain.toml`. Do NOT inv
 | `crates/prism-dtu-demo-server/src/harness.rs` | MODIFY (Story A: E-DEMO-004/005 present) | Add scenario coordination: E-DEMO-002/E-DEMO-006/E-DEMO-003 guards (in canonical order), `scenario.enabled/archetype/scenario_start_secs/stage_duration_secs` consumption, catalog derivation, IncidentTimeline construction, Arc threading |
 | `.github/workflows/ci.yml` | MODIFY | Bump `EXPECTED=N` by count of new `#[non_exhaustive]` pub types (at minimum +2: `IncidentTimeline`, `IncidentStage`; read live value first) |
 | `tests/external/non-exhaustive-violation/` | MODIFY | Add violation rows for new `#[non_exhaustive]` types |
+| `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs` | CREATE | VP-020-K integration test: `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` — genuine end-to-end NvdState::lookup_and_count pivot; BPRL-P12-01 closure relocation from prism-dtu-cyberint |
 
 ---
 
@@ -762,6 +763,7 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.11 | 2026-06-13 | BPRL-P12-01 closure: VP-020-K integration test relocated cyberint→demo-server (genuine NvdState::lookup_and_count end-to-end pivot; redundant duplicate-named cyberint membership test removed); red_gate_tests 23 UNCHANGED. AC-019 bullet updated: crate cite changed from `prism-dtu-cyberint` (or `prism-dtu-demo-server`) → definitively `prism-dtu-demo-server` with test file `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`. RGT table row 22 crate column: `prism-dtu-cyberint` → `prism-dtu-demo-server`; test file added inline. FSR table: new CREATE row for `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs`. Token Budget story spec v2.10→v2.11. No BC version change (BC-2.06.020 stays v1.3). version 2.10→2.11. |
 | v2.10 | 2026-06-12 | D-1117 — AC-019 added: Cyberint alert CVE correlation + SEC-001 collision-safety; BC-2.06.020 v1.2→v1.3. AC-019 covers: (a) scenario mode — every Cyberint CVE-surface record's `cve_id` ∈ `catalog.device_cves` (cyclic when record count > catalog size); end-to-end pivot chain: `cve_id → NvdState::lookup_and_count → base_score >= 7.0`; (b) baseline/non-scenario mode — `cve_id` uses `CVE-9999-` namespace (collision-safe; intentionally non-pivotable; NVD 404 is correct); (c) universal: no real-year (`CVE-20xx-*`) CVE IDs emitted from any generation path. Four Red Gate tests added (verbatim names from implementer commit f0b6b8c7): `test_BC_2_06_020_cyberint_baseline_cve_uses_cve_9999_namespace` (TV-020-011/VP-020-I), `test_BC_2_06_020_cyberint_scenario_cve_ids_from_catalog` (TV-020-012/VP-020-J), `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` (TV-020-013/VP-020-K), `test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment` (TV-020-014/VP-020-L). SEC-001 note: `catalog.device_cves` uses `CVE-9999-{:05}` per `gen_device_cves`; `test_sec_001_device_cves_use_unambiguous_synthetic_year` covers catalog side; AC-019 covers Cyberint generator side. BC table row + Token Budget updated v1.2→v1.3. verification_properties extended with VP-020-I..L. acceptance_criteria_count 18→19; red_gate_tests 19→23. version 2.9→2.10. |
 | v2.9 | 2026-06-12 | Micro-sweep — BC-2.06.019 v1.6→v1.7 pin-sync (BPRL-P7-01 inventory-prose correction; POL-23). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget row. No AC changes; acceptance_criteria_count 18 UNCHANGED; red_gate_tests 19 UNCHANGED. version 2.8→2.9. |
 | v2.8 | 2026-06-12 | Micro-sweep — BC-2.06.019 v1.5→v1.6 pin-sync (BPRL-P6-01 Claroty devices Route Coverage row + exhaustive inventory verification note; POL-23). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget row. No AC changes; acceptance_criteria_count 18 UNCHANGED; red_gate_tests 19 UNCHANGED. version 2.7→2.8. |

@@ -852,3 +852,47 @@ Add to the adversary probe checklist for any story touching fixture generators o
 **Outcome:**
 
 3 commits on feature/S-DEMO-DTU-LIVE-SCENARIO-001-B (HEAD f75f3159): 0b6ee048 (CVE-9999-{:05} collision-safety), f0b6b8c7 (catalog CVE threading + 4 new tests; just check PASS 4273 tests), f75f3159 (AC-019 demo evidence; evidence count 18/18→19/19). BC-2.06.020 v1.2→v1.3 (PC-8+PC-9+INV-CYBERINT-ALERT-CVE-CORRELATION-001). Story B v2.9→v2.10 (AC-019). PR-LEVEL streak RESET 0/3 per BC-5.39.001 D-779. Re-converge from pass 12 at HEAD f75f3159.
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-B: D-1118 — a named/traced integration test must actually exercise the integration boundary, not a weaker proxy; cross-crate end-to-end tests belong in the crate that depends on both sides (BPRL-P12-01 codification)
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1118 (BPRL-P12-01 false-green detection + genuine VP-020-K integration test delivery)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [test-fidelity] [integration-boundary] [false-green] [cross-crate-test]
+**Classification:** PROCESS-GAP — adversary pass 12 caught a test that was named, traced, and categorized as an integration test but implemented as a catalog-membership unit test that never exercised the actual integration boundary it claimed to test.
+
+**(z10) [process-gap] A test named `_resolves_in_nvd`, traced to a VP tagged `integration`, and cited in a doc comment as "the end-to-end pivot test" MUST actually call the NVD lookup function and assert a non-vacuous response — not merely check that the input catalog contains the expected IDs.** Cross-crate end-to-end tests belong in the crate that depends on BOTH sides of the boundary; a test in `prism-dtu-cyberint` cannot constitute an end-to-end test of the Cyberint→NVD pivot chain because it cannot import `NvdState`.
+
+**What happened:** `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` in `crates/prism-dtu-cyberint/` was:
+
+1. Named as if it tests NVD resolution (`_resolves_in_nvd`)
+2. Traced to TV-020-013 (tagged `integration`) and VP-020-K
+3. Accompanied by a doc comment claiming "the actual NVD resolution path is tested in prism-dtu-demo-server/tests/"
+
+But the test body:
+- Only verified that `catalog.cyberint_scenario.alerts` contained CVE IDs from `catalog.device_cves`
+- Never constructed an `NvdState`
+- Never called `NvdState::lookup_and_count`
+- The "prism-dtu-demo-server/tests/" file cited in the doc comment did not exist
+
+This is a false-green: the test passes vacuously because it is testing a strictly weaker property (catalog membership) than what it claims to test (NVD resolution). A test that never calls the function it claims to test is not a test of that function.
+
+**Root cause:** The test was authored in the wrong crate. `prism-dtu-cyberint` cannot import `prism-dtu-nvd` (that would be a crate-level circular dependency). The correct crate for a test that exercises BOTH Cyberint and NVD is `prism-dtu-demo-server`, which already depends on both. The story spec (RGT #22) named the test correctly but listed the crate as `prism-dtu-cyberint` — the implementer placed the test in that crate, which forced the membership-only implementation. The error was in the story spec's crate assignment, not just test authorship.
+
+**Canonical rule (codified):**
+
+1. **Named/traced property must match asserted property.** If a test is named `_resolves_in_X` and traced to a TV/VP tagged `integration`, it MUST assert that the resolution call returned a meaningful result (e.g., `Some(record)` with a non-trivial field). A membership check (`contains`, `is_some` on a pre-loaded map) does not constitute resolution.
+
+2. **Cross-crate end-to-end tests belong in the crate with access to both sides.** If the integration test requires importing both `CyberintClone` and `NvdState`, the test file MUST live in a crate that depends on both (`prism-dtu-demo-server`, an integration test harness). Placing an "integration" test in one of the two sides and then claiming "the other side is tested elsewhere" is a deferred false-green: it shifts the problem while marking the TC as closed.
+
+3. **If a doc comment says "tested in X/tests/Y.rs", verify that file exists.** A nonexistent cross-reference is a process-gap finding regardless of whether the test body passes. The adversary MUST check `ls` or `find` for the cited path.
+
+**Standing probe (for adversary dispatch templates):**
+
+> **For every TV/VP tagged `integration`:** (1) Verify the test file lives in a crate that imports BOTH sides of the boundary it claims to test; (2) verify the test body calls the actual integration function (not a proxy/membership check); (3) if the test doc comment cites a cross-crate test as "also tested in X", verify that file exists on disk via `find`/`ls`.
+
+**Outcome:**
+
+Genuine integration test added at `crates/prism-dtu-demo-server/tests/bc_2_06_020_cyberint_nvd_pivot.rs::test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` (9219ce76): constructs CyberintClone + NvdClone::new_with_scenario(&catalog), calls NvdState::lookup_and_count for all 10 CVE records from the scenario catalog, asserts Some(record) + base_score >= 7.0/HIGH + non-vacuous request_count >= 1. Redundant cyberint membership duplicate removed (7ddc0a51). VP-020-K now uniquely names the demo-server integration test. just check PASS 4273 tests. Story B v2.10→v2.11 (RGT #22 crate corrected). BC-INDEX rows 119/120 annotation swept v2.9/v2.10 → v2.11 (D-1118). PR-LEVEL streak 0/3. Pass 13 NEXT.
