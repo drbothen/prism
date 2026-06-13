@@ -3,8 +3,8 @@ document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
 version: "1.7"
-status: draft
-lifecycle_status: draft
+status: active
+lifecycle_status: active
 producer: product-owner
 timestamp: 2026-06-09T00:00:00Z
 phase: 1a

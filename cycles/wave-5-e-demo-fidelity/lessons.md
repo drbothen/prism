@@ -1303,3 +1303,31 @@ The result: at deep cascade depth, a zero-context restart reading the task ledge
 
 **Outcome (D-1133):**
 `.factory/objectives/DEMO-SCOPE.md` created (v1.0). Contains: frame, 6-sensor fleet MERGED status with PR#/SHAs, T5 unfolding-attack IN CONVERGENCE with BC versions, honest `enrich`-pivot gap with PIVOT-001/002/003 chain, capability-discovery block, T6/T11/T13 gaps, "what demo can show today" section, full build sequence T1→T14. Wired into SESSION-HANDOFF.md §ACTIVE OBJECTIVE top pointer + resume protocol step 2; STATE.md frontmatter `demo_scope_doc`; task ledger scope-source header. STATE v7.781→v7.782.
+
+---
+
+## Lesson z20 — Perimeter-Prose Multi-Surface Sweep: Exhaustive Surface Enumeration Required on Correction (D-1139, 2026-06-13)
+
+**Symptom:** BPRL-P24-01 (LOW/process-gap, D-1131) corrected the false-coverage `tests/external/perimeter-violation/` framing in 4 surfaces (AC-016 body / BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 body / BC Architecture Anchors / threatintel test comment). Pass 25 then found 2 additional uncorrected surfaces (threatintel test MODULE-level comment + rustdoc / evidence-report line-195). Pass 26 found 3 MORE uncorrected surfaces (evidence-report lines 74+155 + tape line 9). Three consecutive adversary passes (P24/P25/P26) each found one or more under-enumerated siblings. Full convergence only reached at pass 27 after an exhaustive grep confirmed ZERO residual.
+
+**Root cause:** When correcting a claim that appears across MULTIPLE surface types, the fix sweep must enumerate ALL surface types before declaring the correction complete. The P24 fix correctly identified the claim and fixed the first-encountered instances, but did NOT systematically ask: "what are ALL the types of surfaces this claim could appear in?" — code comments, module-level rustdoc, test-file prose, evidence-report markdown, and VHS tape files are all DISTINCT surface types, each requiring an independent sweep.
+
+**Surfaces that must be checked for any cross-cutting prose correction:**
+1. BC file body (invariant prose, architecture-anchors section)
+2. Story file (AC body, architecture-compliance rows, phase-6 gate instructions, RGT type column)
+3. Test file MODULE-LEVEL comments (the `//!` prefix rustdoc at the top of a test file — distinct from per-item `///` comments)
+4. Test file PER-ITEM comments (`///` rustdoc + `//` inline comments on individual test functions)
+5. Demo evidence report markdown (`docs/demo-evidence/STORY/evidence-report.md` — every section independently)
+6. VHS tape files (`docs/demo-evidence/STORY/*.tape` — all tape files, not just the one most recently recorded)
+
+**Fix discipline:** When correcting cross-cutting prose, the fixer MUST:
+1. Grep ALL six surface types (not just the ones the adversary named in the finding)
+2. Confirm zero residual in all six before declaring fix complete
+3. Commit all surface corrections in a SINGLE commit (sibling-sweep TD-VSDD-060 applies)
+4. The exhaustive grep output should be cited in the commit message as evidence of completeness
+
+**POL-29 extension candidate:** The current POL-29 sibling-sweep scope covers spec files and index files. This lesson demonstrates that prose/evidence surfaces (test file comments, evidence-report markdown, tape files) are a distinct sweep class that POL-29 does not currently address. Recommend: note as POL-29 extension candidate. Defer formal POL amendment to session-review unless a recurrence is observed in a subsequent story.
+
+**Outcome (D-1139):** Full convergence confirmed at P27 (exhaustive grep ZERO residual). Lesson codified here to prevent recurrence in future stories that touch perimeter-compliance prose or any other cross-cutting claim spanning code + spec + evidence + tape surfaces.
+
+**Tag:** `cross-surface-prose-sweep` `perimeter-prose` `sibling-sweep` `evidence-surface`
