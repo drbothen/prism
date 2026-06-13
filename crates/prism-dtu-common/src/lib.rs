@@ -26,7 +26,10 @@ pub mod generator;
 #[cfg(feature = "fixture-gen")]
 pub mod scenario;
 #[cfg(feature = "fixture-gen")]
-pub use scenario::{build_scenario_entity_catalog, org_slug_from_org_id, ScenarioEntityCatalog};
+pub use scenario::{
+    build_default_incident_timeline, build_scenario_entity_catalog, current_stage_index,
+    org_slug_from_org_id, IncidentStage, IncidentTimeline, ScenarioEntityCatalog, StageMask,
+};
 #[cfg(any(test, feature = "dtu"))]
 pub mod layers;
 #[cfg(any(test, feature = "dtu"))]

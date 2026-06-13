@@ -187,24 +187,66 @@ pub async fn get_search(
         // AC-003: alert AQL → paginated AlertRecord results.
         // §8.3: apply AQL time filtering BEFORE pagination (pushdown-redesign.md).
         //
-        // F-P2-CRIT-001: dual-path — when generated_records is non-empty, serve
-        // generated alert records as raw serde_json::Value (Claroty pattern).
-        // Generated records use camelCase Armis-native shapes; the adapter reads
-        // by response_path "$.data.results" so raw Value is correct here.
-        // Partition by "alert_id" presence (generator.rs::build_alert always emits "alert_id").
-        // Use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant
-        // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
+        // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, BPRL-P4-02 sibling sweep):
+        // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask.
+        //   Alert records whose `device_id` equals the primary Armis device are withheld at
+        //   stage 0 — mirrors devices.rs `stage_idx > 0` guard.
+        //   Detections route added to BC-2.06.019 PC-4 coverage matrix per D-1109.
+        // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated alerts.
+        //   DormantTenant (seeded=true, 0 records) serves empty — not the static fixture.
+        // - Static path (fixture_gen_seeded=false): state.alert_fixture.
+        //
+        // F-P2-CRIT-001: serve generated alert records as raw serde_json::Value.
+        // Use fixture_gen_seeded (not generated_records.is_empty()) — DormantTenant guard.
+        // F-P6-HIGH-001.
         #[cfg(feature = "fixture-gen")]
         if state.fixture_gen_seeded {
-            // P2-02 (review 2026-06-10 cascade pass-2): apply the SAME AQL
-            // after:/before: window filtering as the static branch
-            // (alert_in_time_window) — the seeded branch previously bypassed
-            // it, so every bounded window returned ALL seeded records.
+            // P2-02 (review 2026-06-10 cascade pass-2): apply AQL time-window filtering.
             // Filters on the flat `created_at` key (P2-01 mirror of `time`).
-            let generated_alerts: Vec<&serde_json::Value> = state
-                .generated_records
-                .iter()
-                .filter(|rec| rec.get("alert_id").is_some())
+            let stage_filtered: Vec<&serde_json::Value> = if let Some(ref timeline) = state.timeline
+            {
+                // Scenario path: apply StageMask projection (BC-2.06.019 PC-4 / BPRL-P4-02).
+                // Mirror devices.rs paginate_devices scenario logic exactly.
+                use prism_dtu_common::current_stage_index;
+                let now = chrono::Utc::now().timestamp();
+                let stage_idx = current_stage_index(timeline, now);
+                let mask = &timeline.stages[stage_idx].visible_entity_mask;
+                let primary_id = &timeline.entities.primary_device_id_armis;
+                let lateral_ids: std::collections::HashSet<&str> = timeline
+                    .entities
+                    .lateral_device_ids_armis
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect();
+                state
+                    .generated_records
+                    .iter()
+                    .filter(|rec| rec.get("alert_id").is_some())
+                    .filter(|rec| {
+                        let dev_id = rec.get("device_id").and_then(|v| v.as_str()).unwrap_or("");
+                        if dev_id.is_empty() {
+                            return true;
+                        }
+                        if dev_id == primary_id {
+                            // stage_idx > 0 guard: BC-2.06.019 PC-4 / BPRL-P4-02 sibling sweep.
+                            mask.primary_device && stage_idx > 0
+                        } else if lateral_ids.contains(dev_id) {
+                            mask.lateral_devices
+                        } else {
+                            true
+                        }
+                    })
+                    .collect()
+            } else {
+                // Seeded path (no scenario): all generated alert records.
+                state
+                    .generated_records
+                    .iter()
+                    .filter(|rec| rec.get("alert_id").is_some())
+                    .collect()
+            };
+            let generated_alerts: Vec<&serde_json::Value> = stage_filtered
+                .into_iter()
                 .filter(|rec| {
                     generated_in_time_window(
                         rec,

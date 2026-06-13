@@ -95,7 +95,7 @@ pub struct ScenarioConfig {
     #[serde(default)]
     pub enabled: bool,
 
-    /// Scenario archetype string. Only `"compromised_endpoint"` is supported in v1.
+    /// Scenario archetype string. Valid values: `"compromised_endpoint"`, `"healthy"`.
     ///
     /// Unrecognized values produce E-DEMO-003 at construction time.
     #[serde(default = "default_scenario_archetype")]

@@ -238,8 +238,14 @@ pub async fn list_devices(
 
     let params = body.map(|Json(b)| b).unwrap_or_default();
 
-    // Dual-path: serve from generated_records when available (ADR-036 §2.3, BC-2.06.018).
-    // Generated records are immutable after construction — no lock needed.
+    // Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, B-P1-01):
+    // - Scenario path (fixture_gen_seeded=true && timeline.is_some()): apply StageMask.
+    //   Primary device visible when mask.primary_device && stage_idx > 0.
+    //   Lateral devices visible when mask.lateral_devices.
+    //   Non-catalog records always visible.
+    // - Seeded path (fixture_gen_seeded=true && timeline.is_none()): all generated records.
+    //   DormantTenant (seeded=true, 0 records) → empty (NOT static fixture).
+    // - Static path (fixture_gen_seeded=false): load from devices fixture.
     //
     // F-P4-CRIT-001: filter to device-surface records only.
     // The generator (CompromisedEndpoint) emits both device records and alert
@@ -247,22 +253,59 @@ pub async fn list_devices(
     // device-surface records here.
     //
     // F3 / DTU-05 (review 2026-06-10): filter on the authoritative `_surface`
-    // discriminator stamped by the generator — NOT key-presence heuristics like
-    // `asset_id present AND alert_id absent`, the same fragile pattern class
-    // behind Cyberint's F-P3-CRIT-001 cross-surface leak. Mirrors prism-dtu-cyberint
-    // exactly (the tag is served as-is; Cyberint does not strip it either).
+    // discriminator stamped by the generator — NOT key-presence heuristics.
     //
-    // Dual-path sentinel: use `fixture_gen_seeded` (not generated_records.is_empty()) so that
+    // Sentinel: use `fixture_gen_seeded` (not generated_records.is_empty()) so that
     // DormantTenant (seeded=true, 0 records) serves empty — not the static fixture.
-    // F-P6-HIGH-001 fix: emptiness check was wrong for archetypes that generate 0 records.
+    // F-P6-HIGH-001 fix / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
     let mut devices: Vec<serde_json::Value> = if state.fixture_gen_seeded {
-        state
-            .generated_records
-            .iter()
-            .filter(|rec| rec.get("_surface").and_then(|v| v.as_str()) == Some("device"))
-            .cloned()
-            .collect()
+        if let Some(ref timeline) = state.timeline {
+            // Scenario path: apply StageMask projection (BC-2.06.019 PC-4).
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            // Claroty stage-gating uses `device_id` (the canonical `dev-` key) as the
+            // coherence field — the same value as `primary_device_id_cs` in the catalog.
+            // BC-2.06.020 PC-5 / INV-CROSS-DTU-ENTITY-COHERENCE-001 / BC-3.4.004 TV-3.4.004-01.
+            // `asset_id` (ASSET- prefix) is an additive Claroty-specific field on each record
+            // but is NOT the stage-gating key.
+            let primary_id = &timeline.entities.primary_device_id_cs;
+            let lateral_ids: std::collections::HashSet<&str> = timeline
+                .entities
+                .lateral_device_ids_cs
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
+            state
+                .generated_records
+                .iter()
+                .filter(|rec| rec.get("_surface").and_then(|v| v.as_str()) == Some("device"))
+                .filter(|rec| {
+                    let device_id = rec.get("device_id").and_then(|v| v.as_str()).unwrap_or("");
+                    if device_id == primary_id {
+                        // Stage 0: primary device not yet surfaced.
+                        // stage_idx > 0 guard per BC-2.06.019 PC-4 / TV-019-007.
+                        mask.primary_device && stage_idx > 0
+                    } else if lateral_ids.contains(device_id) {
+                        mask.lateral_devices
+                    } else {
+                        true
+                    }
+                })
+                .cloned()
+                .collect()
+        } else {
+            // Seeded path (no scenario): all device-surface generated records.
+            state
+                .generated_records
+                .iter()
+                .filter(|rec| rec.get("_surface").and_then(|v| v.as_str()) == Some("device"))
+                .cloned()
+                .collect()
+        }
     } else {
         load_devices_fixture()
     };

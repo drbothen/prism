@@ -341,6 +341,201 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     use prism_dtu_threatintel::ThreatIntelClone;
 
     // ---------------------------------------------------------------------------
+    // B-P1-03 + B-P4-01 fix: Architecture Compliance Rules (story spec AC-017):
+    // guard order is E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+    //
+    // This block (E-DEMO-002 prescan) runs first, before the E-DEMO-003 prescan
+    // and before `validated_gen` (which checks E-DEMO-004), so that seed-mismatch
+    // is detected first even when org_id and/or scenario archetype are also invalid.
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    {
+        let all_gen_clones_prescan: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+        let scenario_seeds: Vec<(&'static str, u64)> = all_gen_clones_prescan
+            .iter()
+            .filter_map(|(name, cfg)| {
+                if !cfg.enabled {
+                    return None;
+                }
+                let sc = cfg.scenario.as_ref()?;
+                if !sc.enabled {
+                    return None;
+                }
+                Some((*name, cfg.seed))
+            })
+            .collect();
+        if scenario_seeds.len() >= 2 {
+            let (first_name, first_seed) = scenario_seeds[0];
+            for (name, seed) in &scenario_seeds[1..] {
+                if *seed != first_seed {
+                    anyhow::bail!(
+                        "demo-server: E-DEMO-002: scenario clones '{}' (seed={}) and '{}' \
+                         (seed={}) have different seeds; cross-DTU coherence requires all \
+                         scenario-enabled clones to share the same seed",
+                        first_name,
+                        first_seed,
+                        name,
+                        seed
+                    );
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // BC-2.06.019 PRE-6: E-DEMO-006 (org_id mismatch across scenario-enabled clones)
+    // prescan runs AFTER E-DEMO-002 (seed mismatch) and BEFORE E-DEMO-003 (bad
+    // archetype). Canonical guard order: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004.
+    //
+    // Compare org_ids only for scenario-enabled clones where org_id is Some(_).
+    // Clones with org_id=None are absent from the equality check — their missing
+    // org_id will surface as E-DEMO-004 later (that is a distinct error class).
+    // Rationale: the ScenarioEntityCatalog is derived from the first scenario-enabled
+    // clone's (seed, org_id). A second clone with a different org_id generates device
+    // IDs using dev-{slug_B}-{seed}-0, which cannot equal catalog.primary_device_id
+    // derived from slug_A — causing INV-CROSS-DTU-ENTITY-COHERENCE-001 (BC-2.06.020)
+    // cross-DTU join to return empty with no diagnostic (SOUL.md §4 silent partial-
+    // failure). This guard prevents silent incoherence at construction time.
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    {
+        let all_gen_clones_e006_prescan: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+        // Collect (name, org_id_str, parsed_bytes) for scenario-enabled clones with a
+        // present org_id that is a parseable UUID.
+        // Clones with org_id=None are excluded from equality (E-DEMO-004 handles them).
+        // Clones with an unparseable org_id string are also excluded here and will
+        // surface as E-DEMO-005 (invalid UUID) during the validated_gen phase below.
+        // Comparison is on PARSED UUID bytes to be case/format-insensitive:
+        // "deadbeef-..." and "DEADBEEF-..." round-trip to the same 16-byte OrgId, so they
+        // must NOT trigger E-DEMO-006. The guard's invariant is byte-based, not string-based.
+        // (BC-2.06.019 PRE-6 rationale comment above, B-P5-05 fix.)
+        let scenario_org_ids: Vec<(&'static str, &str, [u8; 16])> = all_gen_clones_e006_prescan
+            .iter()
+            .filter_map(|(name, cfg)| {
+                if !cfg.enabled {
+                    return None;
+                }
+                let sc = cfg.scenario.as_ref()?;
+                if !sc.enabled {
+                    return None;
+                }
+                // Only participate when org_id is present.
+                let org_id_str = cfg.org_id.as_deref()?;
+                // Parse to UUID bytes; skip (don't bail) if unparseable — E-DEMO-005
+                // will fire for this clone in the validated_gen phase.
+                let uuid = uuid::Uuid::parse_str(org_id_str).ok()?;
+                Some((*name, org_id_str, *uuid.as_bytes()))
+            })
+            .collect();
+        if scenario_org_ids.len() >= 2 {
+            let (first_name, first_org_id_str, first_bytes) = scenario_org_ids[0];
+            for (name, org_id_str, bytes) in &scenario_org_ids[1..] {
+                if *bytes != first_bytes {
+                    anyhow::bail!(
+                        "demo-server: E-DEMO-006: scenario clones '{}' (org_id={}) and '{}' \
+                         (org_id={}) have different org_ids; cross-DTU coherence requires all \
+                         scenario-enabled clones to share the same org_id",
+                        first_name,
+                        first_org_id_str,
+                        name,
+                        org_id_str
+                    );
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // B-P4-01 fix: E-DEMO-003 (bad scenario archetype) must fire BEFORE E-DEMO-004
+    // (missing org_id). Architecture Compliance Rules (story spec): guard order is
+    // E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+    //
+    // This prescan runs BEFORE `validated_gen` (which checks E-DEMO-004) so that
+    // unrecognized/unsupported/contradictory scenario archetypes are detected first
+    // even when org_id is also missing.
+    // Mirrors the E-DEMO-002 prescan pattern above (lines 351-388).
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    {
+        let gen_clones_e003_prescan: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+        for (name, cfg) in &gen_clones_e003_prescan {
+            if !cfg.enabled {
+                continue;
+            }
+            let sc = match cfg.scenario.as_ref() {
+                Some(s) if s.enabled => s,
+                _ => continue,
+            };
+            // Validate scenario.archetype string; unrecognized → E-DEMO-003.
+            let scenario_archetype = match sc.archetype.as_str() {
+                "compromised_endpoint" => prism_dtu_common::Archetype::CompromisedEndpoint,
+                "healthy" => prism_dtu_common::Archetype::HealthyOtEnvironment,
+                other => anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                     '{}'; valid values: compromised_endpoint, healthy",
+                    name,
+                    other
+                ),
+            };
+            // Direction 1: only CompromisedEndpoint supports scenario progression.
+            if !matches!(
+                scenario_archetype,
+                prism_dtu_common::Archetype::CompromisedEndpoint
+            ) {
+                anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                     '{}'; valid values: compromised_endpoint, healthy",
+                    name,
+                    sc.archetype.as_str()
+                );
+            }
+            // Direction 2: scenario.archetype must agree with fixture_set-derived archetype.
+            // fixture_set_to_archetype is callable without org_id (no E-DEMO-004 risk).
+            // If fixture_set is invalid, E-DEMO-001 fires here (before E-DEMO-003/004) —
+            // that is the correct order since an invalid fixture_set makes the comparison moot.
+            let fixture_archetype = fixture_set_to_archetype(&cfg.fixture_set, name)?;
+            if fixture_archetype != scenario_archetype {
+                anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                     '{}'; valid values: compromised_endpoint, healthy",
+                    name,
+                    sc.archetype.as_str()
+                );
+            }
+            // Stage count validation (moved here from scenario_ctx as part of B-P5-OBS-2
+            // single-source-of-truth): 0 = use defaults (allowed); non-zero must be exactly 4.
+            // CompromisedEndpoint requires exactly 4 stage_duration_secs entries.
+            let expected_stages: usize = 4; // CompromisedEndpoint (only supported archetype)
+            if !sc.stage_duration_secs.is_empty() && sc.stage_duration_secs.len() != expected_stages
+            {
+                anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': stage_duration_secs has {} \
+                     entries but archetype '{}' requires exactly {}",
+                    name,
+                    sc.stage_duration_secs.len(),
+                    sc.archetype.as_str(),
+                    expected_stages
+                );
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
     // Story A: Validate ALL generator-backed clone configs BEFORE constructing any clone
     // (INV-CONSTRUCTION-TIME-FAILURE-001 — errors surface before constructors are called)
     //
@@ -384,19 +579,137 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         map
     };
 
+    // ---------------------------------------------------------------------------
+    // Story B: Scenario context builder.
+    //
+    // The E-DEMO-002 (seed mismatch) and E-DEMO-003 (unrecognized archetype /
+    // wrong stage_duration_secs length) guards have already fired as prescans
+    // above (lines ~351-509). Any remaining scenario-enabled clones here have
+    // already passed those checks. This block only builds the shared
+    // `scenario_ctx` (Arc<IncidentTimeline> + ScenarioEntityCatalog) used by
+    // construction blocks below. (B-P5-OBS-2: removed dead duplicate guards.)
+    //
+    // (BC-2.06.019 / INV-CONSTRUCTION-TIME-FAILURE-001)
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    let scenario_ctx: Option<(
+        std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        prism_dtu_common::ScenarioEntityCatalog,
+        chrono::DateTime<chrono::Utc>,
+    )> = {
+        use prism_dtu_common::{build_default_incident_timeline, build_scenario_entity_catalog};
+
+        // Collect all scenario-enabled generator-backed clones (name, seed).
+        // archetype_str and stage_duration_secs were needed by the E-DEMO-003 guard
+        // which now lives exclusively in the prescan above. Only name and seed are
+        // needed here to build the scenario context. (B-P5-OBS-2)
+        let all_gen_clones: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+
+        let scenario_enabled: Vec<(&'static str, u64)> = all_gen_clones
+            .iter()
+            .filter_map(|(name, cfg)| {
+                if !cfg.enabled {
+                    return None;
+                }
+                let sc = cfg.scenario.as_ref()?;
+                if !sc.enabled {
+                    return None;
+                }
+                Some((*name, cfg.seed))
+            })
+            .collect();
+
+        if scenario_enabled.is_empty() {
+            None
+        } else {
+            // All E-DEMO-002/003/006 guards have already fired as prescans above.
+            // Build the shared scenario context from the verified inputs.
+            // (B-P5-OBS-2 single-source-of-truth: guards live in prescans only.)
+            // Use the first scenario-enabled clone's config for seed + org_id.
+            // (E-DEMO-002 guarantees all seeds match; E-DEMO-004 guarantees org_id present.)
+            let (first_sc_name, scenario_seed) = &scenario_enabled[0];
+            let first_cfg = match *first_sc_name {
+                "crowdstrike" => &config.clones.crowdstrike,
+                "armis" => &config.clones.armis,
+                "claroty" => &config.clones.claroty,
+                _ => &config.clones.cyberint,
+            };
+            let sc_config = first_cfg.scenario.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("internal: scenario config missing after enable check")
+            })?;
+
+            // Parse org_id from the first scenario-enabled clone.
+            let org_id_str = first_cfg.org_id.as_deref().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "demo-server: E-DEMO-004: clone '{}': scenario.enabled requires \
+                         org_id to be set (UUID string)",
+                    first_sc_name
+                )
+            })?;
+            let org_id = parse_org_id(org_id_str, first_sc_name)?;
+
+            // Build entity catalog from seed + org_id.
+            let catalog = build_scenario_entity_catalog(*scenario_seed, &org_id);
+
+            // Derive scenario_start_epoch_secs: config value or current system time.
+            let scenario_start_secs: i64 = sc_config
+                .scenario_start_secs
+                .unwrap_or_else(|| chrono::Utc::now().timestamp());
+
+            // Build the IncidentTimeline.
+            let timeline = build_default_incident_timeline(
+                catalog.clone(),
+                scenario_start_secs,
+                &sc_config.stage_duration_secs,
+            );
+            let timeline_arc = std::sync::Arc::new(timeline);
+
+            // time_anchor for generators: use scenario_start_secs as the anchor epoch.
+            // BC-2.06.019 §2.3: time_anchor is derived once from scenario_start_secs.
+            let time_anchor =
+                chrono::DateTime::from_timestamp(scenario_start_secs, 0).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "demo-server: scenario_start_secs={} is out of valid timestamp range",
+                        scenario_start_secs
+                    )
+                })?;
+
+            Some((timeline_arc, catalog, time_anchor))
+        }
+    };
+
     let mut pairs = Vec::new();
 
     if config.clones.crowdstrike.enabled {
         #[cfg(feature = "fixture-gen")]
         let pair_clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.crowdstrike;
-            // Look up the pre-validated (archetype, org_id) from the validation map.
-            // If the entry is present with an OrgId, use new_with_seed; otherwise new().
-            if let Some((archetype, Some(org_id))) = validated_gen.get("crowdstrike").cloned() {
-                // new_with_seed calls generate() at construction time (ADR-036 §2.3).
-                // Generated timestamps anchor at demo_time_anchor() (review-2026-06-10
-                // P1-01). Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) wires
-                // scenario_start_secs → time_anchor via new_with_seed_anchored.
+            let scenario_active = cfg.scenario.as_ref().map(|s| s.enabled).unwrap_or(false);
+            if scenario_active {
+                if let (Some((archetype, Some(org_id))), Some((timeline_arc, _, time_anchor))) = (
+                    validated_gen.get("crowdstrike").cloned(),
+                    scenario_ctx.as_ref(),
+                ) {
+                    // Story B: scenario path — call new_with_scenario (BC-2.06.019 §2.3).
+                    Box::new(CrowdstrikeClone::new_with_scenario(
+                        cfg.seed,
+                        archetype,
+                        org_id,
+                        std::sync::Arc::clone(timeline_arc),
+                        *time_anchor,
+                    ))
+                } else {
+                    Box::new(CrowdstrikeClone::new())
+                }
+            } else if let Some((archetype, Some(org_id))) =
+                validated_gen.get("crowdstrike").cloned()
+            {
+                // Story A: seeded path — new_with_seed (ADR-036 §2.3).
                 Box::new(CrowdstrikeClone::new_with_seed(cfg.seed, archetype, org_id))
             } else {
                 Box::new(CrowdstrikeClone::new())
@@ -414,8 +727,22 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         #[cfg(feature = "fixture-gen")]
         let pair_clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.claroty;
-            // Look up the pre-validated (archetype, org_id) from the validation map.
-            if let Some((archetype, Some(org_id))) = validated_gen.get("claroty").cloned() {
+            let scenario_active = cfg.scenario.as_ref().map(|s| s.enabled).unwrap_or(false);
+            if scenario_active {
+                if let (Some((archetype, Some(org_id))), Some((timeline_arc, _, time_anchor))) =
+                    (validated_gen.get("claroty").cloned(), scenario_ctx.as_ref())
+                {
+                    Box::new(ClarotyClone::new_with_scenario(
+                        cfg.seed,
+                        archetype,
+                        org_id,
+                        std::sync::Arc::clone(timeline_arc),
+                        *time_anchor,
+                    ))
+                } else {
+                    Box::new(ClarotyClone::new())
+                }
+            } else if let Some((archetype, Some(org_id))) = validated_gen.get("claroty").cloned() {
                 Box::new(ClarotyClone::new_with_seed(cfg.seed, archetype, org_id))
             } else {
                 Box::new(ClarotyClone::new())
@@ -436,8 +763,30 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         #[cfg(feature = "fixture-gen")]
         let clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.cyberint;
-            // Look up the pre-validated (archetype, org_id) from the validation map.
-            if let Some((archetype, Some(org_id))) = validated_gen.get("cyberint").cloned() {
+            let scenario_active = cfg.scenario.as_ref().map(|s| s.enabled).unwrap_or(false);
+            if scenario_active {
+                if let (
+                    Some((archetype, Some(org_id))),
+                    Some((timeline_arc, catalog, time_anchor)),
+                ) = (
+                    validated_gen.get("cyberint").cloned(),
+                    scenario_ctx.as_ref(),
+                ) {
+                    Box::new(
+                        CyberintClone::new_with_scenario(
+                            cfg.seed,
+                            archetype,
+                            org_id,
+                            std::sync::Arc::clone(timeline_arc),
+                            *time_anchor,
+                            catalog,
+                        )
+                        .context("failed to construct CyberintClone::new_with_scenario")?,
+                    )
+                } else {
+                    Box::new(CyberintClone::new().context("failed to construct CyberintClone")?)
+                }
+            } else if let Some((archetype, Some(org_id))) = validated_gen.get("cyberint").cloned() {
                 Box::new(
                     CyberintClone::new_with_seed(cfg.seed, archetype, org_id)
                         .context("failed to construct CyberintClone::new_with_seed")?,
@@ -472,9 +821,26 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         #[cfg(feature = "fixture-gen")]
         let pair_clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.armis;
-            // Look up the pre-validated (archetype, org_id) from the validation map.
-            // org_slug is derived internally by new_with_seed (no longer a constructor arg).
-            if let Some((archetype, Some(org_id))) = validated_gen.get("armis").cloned() {
+            let scenario_active = cfg.scenario.as_ref().map(|s| s.enabled).unwrap_or(false);
+            if scenario_active {
+                if let (Some((archetype, Some(org_id))), Some((timeline_arc, _, time_anchor))) =
+                    (validated_gen.get("armis").cloned(), scenario_ctx.as_ref())
+                {
+                    Box::new(
+                        ArmisClone::new_with_scenario(
+                            cfg.seed,
+                            archetype,
+                            org_id,
+                            std::sync::Arc::clone(timeline_arc),
+                            *time_anchor,
+                        )
+                        .context("failed to construct ArmisClone::new_with_scenario")?,
+                    )
+                } else {
+                    Box::new(ArmisClone::new().context("failed to construct ArmisClone")?)
+                }
+            } else if let Some((archetype, Some(org_id))) = validated_gen.get("armis").cloned() {
+                // org_slug is derived internally by new_with_seed (no longer a constructor arg).
                 Box::new(
                     ArmisClone::new_with_seed(cfg.seed, archetype, org_id)
                         .context("failed to construct ArmisClone::new_with_seed")?,
@@ -493,16 +859,41 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     }
 
     if config.clones.threatintel.enabled {
-        let mut pair = ClonePair::new("threatintel", Box::new(ThreatIntelClone::new()));
+        #[cfg(feature = "fixture-gen")]
+        let threatintel_clone: Box<dyn BehavioralClone> = {
+            // In scenario mode, inject all scenario IOCs into the fixture registry.
+            if let Some((_, catalog, _)) = &scenario_ctx {
+                Box::new(ThreatIntelClone::new_with_scenario(catalog))
+            } else {
+                Box::new(ThreatIntelClone::new())
+            }
+        };
+        #[cfg(not(feature = "fixture-gen"))]
+        let threatintel_clone: Box<dyn BehavioralClone> = Box::new(ThreatIntelClone::new());
+
+        let mut pair = ClonePair::new("threatintel", threatintel_clone);
         pair.continue_on_error = config.clones.threatintel.continue_on_error;
         pairs.push(pair);
     }
 
     if config.clones.nvd.enabled {
-        let mut pair = ClonePair::new(
-            "nvd",
-            Box::new(NvdClone::new().context("failed to construct NvdClone")?),
-        );
+        #[cfg(feature = "fixture-gen")]
+        let nvd_clone: Box<dyn BehavioralClone> = {
+            // In scenario mode, inject synthetic CVE records for device_cves.
+            if let Some((_, catalog, _)) = &scenario_ctx {
+                Box::new(
+                    NvdClone::new_with_scenario(catalog)
+                        .context("failed to construct NvdClone::new_with_scenario")?,
+                )
+            } else {
+                Box::new(NvdClone::new().context("failed to construct NvdClone")?)
+            }
+        };
+        #[cfg(not(feature = "fixture-gen"))]
+        let nvd_clone: Box<dyn BehavioralClone> =
+            Box::new(NvdClone::new().context("failed to construct NvdClone")?);
+
+        let mut pair = ClonePair::new("nvd", nvd_clone);
         pair.continue_on_error = config.clones.nvd.continue_on_error;
         pairs.push(pair);
     }

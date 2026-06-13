@@ -152,6 +152,57 @@ impl ClarotyClone {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Story B: new_with_scenario constructor (BC-2.06.019 / ADR-036 v2.3 §2.4)
+    // -----------------------------------------------------------------------
+
+    /// Construct a `ClarotyClone` with the scenario timeline layer.
+    ///
+    /// 5-arg form per ADR-036 v2.3 §2.4. Gated `#[cfg(feature = "fixture-gen")]`
+    /// because `chrono::DateTime<Utc>` is only available under `fixture-gen`
+    /// in this crate (dep:chrono gating in Cargo.toml).
+    ///
+    /// Internally calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)`
+    /// (NOT the forbidden 3-arg `new_with_seed` which would produce stale timestamps).
+    ///
+    /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
+    /// compute the current stage index and apply StageMask filtering.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_scenario(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+        timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        time_anchor: chrono::DateTime<chrono::Utc>,
+    ) -> Self {
+        // Call new_with_seed_anchored (NOT the 3-arg new_with_seed) to use the
+        // caller-supplied time_anchor for era-coherent generated timestamps.
+        // ADR-036 v2.3 §2.3 mandates this; the 3-arg path is FORBIDDEN here.
+        let mut clone = Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor);
+        // Attach the timeline BEFORE any other reference can be taken.
+        //
+        // Structural threading (B-P5-OBS-1): use Arc::try_unwrap to reclaim the state
+        // struct (refcount=1 immediately post-construction), set timeline, then re-wrap.
+        // This is safe because new_with_seed_anchored just returned the only Arc clone;
+        // no other thread can hold a reference at this point.
+        //
+        // Prefer try_unwrap over get_mut to avoid silent-drop risk: if a future refactor
+        // creates a second Arc clone before this point, try_unwrap returns Err with the
+        // original Arc, which we catch with expect() so the bug is loud.
+        //
+        // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
+        let mut state = Arc::try_unwrap(clone.state).unwrap_or_else(|_| {
+            panic!(
+                "ClarotyClone::new_with_scenario: Arc refcount must be 1 immediately after \
+                 new_with_seed_anchored; a second Arc clone would indicate a refactor \
+                 invariant violation (B-P5-OBS-1)"
+            )
+        });
+        state.timeline = Some(Arc::clone(&timeline));
+        clone.state = Arc::new(state);
+        clone
+    }
+
     /// Create with explicit configuration.
     pub fn with_config(config: StubConfig) -> Self {
         let admin_token = uuid::Uuid::new_v4().to_string();

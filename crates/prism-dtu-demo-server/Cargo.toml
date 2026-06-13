@@ -29,6 +29,9 @@ fixture-gen = [
     "prism-dtu-claroty/fixture-gen",
     "prism-dtu-cyberint/fixture-gen",
     "prism-dtu-common/fixture-gen",
+    "prism-dtu-threatintel/fixture-gen",
+    "prism-dtu-nvd/fixture-gen",
+    "dep:chrono",
 ]
 tls = [
     "dep:axum-server",
@@ -61,6 +64,9 @@ prism-dtu-nvd = { path = "../prism-dtu-nvd", version = "0.1.0" }
 # S-DEMO-DTU-LIVE-SCENARIO-001-A: uuid for parsing org_id strings; prism-core for OrgId type
 # (BC-2.06.018 E-DEMO-005 guard in build_clone_pairs — ADR-036 §6)
 uuid = { version = "1", features = ["v4"] }
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: chrono required for scenario time_anchor derivation
+# (build_clone_pairs scenario context — BC-2.06.019 §2.3; gated under fixture-gen)
+chrono = { version = "0.4", features = ["serde"], optional = true }
 prism-core = { path = "../../crates/prism-core" }
 
 
@@ -172,6 +178,26 @@ name = "td_wv1_04_binary_tls_e2e"
 path = "tests/td_wv1_04_binary_tls_e2e.rs"
 required-features = ["dtu", "tls"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: Red Gate tests 9-11, 15 (BC-2.06.019)
+# Cross-DTU coherence + guard-order test (E-DEMO-002 before E-DEMO-004)
+[[test]]
+name = "bc_2_06_019_scenario_progression"
+path = "tests/bc_2_06_019_scenario_progression.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# TD-VSDD-060 sibling-sweep: differential archetype test was missing [[test]] entry
+[[test]]
+name = "bc_2_06_018_archetype_differential"
+path = "tests/bc_2_06_018_archetype_differential.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# BPRL-P12-01: genuine Cyberint→NVD end-to-end pivot integration test (VP-020-K/TV-020-013)
+# RGT #22 — S-DEMO-DTU-LIVE-SCENARIO-001-B v2.10
+[[test]]
+name = "bc_2_06_020_cyberint_nvd_pivot"
+path = "tests/bc_2_06_020_cyberint_nvd_pivot.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"
@@ -180,6 +206,7 @@ time = "0.3"
 rustls = { version = "0.23", features = ["aws-lc-rs"] }
 serial_test = "3"
 tempfile = "3"
+chrono = { version = "0.4", features = ["serde"] }
 
 [lints]
 workspace = true
