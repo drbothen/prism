@@ -21,6 +21,7 @@ use std::time::Duration;
 
 use prism_dtu_demo_server::{
     start_instances, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
+    MultiInstanceServers,
 };
 
 /// Build a reqwest client with a 10-second timeout.
@@ -61,11 +62,12 @@ async fn test_BC_2_06_017_demo_server_zero_instances_returns_empty_map() {
     })
     .await;
 
-    // Once implemented: empty config → Ok with empty map, no error.
-    let map = result.expect(
-        "Empty MultiInstanceConfig must return Ok(HashMap::new()) — not Err() \
+    // Once implemented: empty config → Ok(MultiInstanceServers) with empty socket_map, no error.
+    let servers = result.expect(
+        "Empty MultiInstanceConfig must return Ok(MultiInstanceServers) — not Err() \
          (BC-2.06.017 EC-017-002)",
     );
+    let map = servers.socket_map();
     assert!(
         map.is_empty(),
         "Empty MultiInstanceConfig must yield an empty socket map; got {map:?} \
@@ -102,27 +104,28 @@ async fn test_BC_2_06_017_demo_server_multi_instance_bind_config_accepted() {
     })
     .await;
 
-    // Once implemented: two-entry config → Ok with two distinct SocketAddrs.
-    let map = result.expect(
-        "MultiInstanceConfig with 2 ArmisClone instances must return Ok(map) \
+    // Once implemented: two-entry config → Ok(MultiInstanceServers) with two distinct SocketAddrs.
+    let servers = result.expect(
+        "MultiInstanceConfig with 2 ArmisClone instances must return Ok(MultiInstanceServers) \
          (BC-2.06.017 Postcondition 1 — multi-instance bind configuration accepted)",
     );
+    let map = servers.socket_map();
 
     assert_eq!(
         map.len(),
         2,
-        "Returned map must have exactly 2 entries — one per InstanceEntry; got {map:?} \
+        "Returned socket_map must have exactly 2 entries — one per InstanceEntry; got {map:?} \
          (BC-2.06.017 Postcondition 1 — all N instances returned; none silently dropped)"
     );
     assert!(
         map.contains_key("armis-acme"),
-        "Map must contain key 'armis-acme'; got keys: {:?} \
+        "socket_map must contain key 'armis-acme'; got keys: {:?} \
          (BC-2.06.017 Postcondition 1)",
         map.keys().collect::<Vec<_>>()
     );
     assert!(
         map.contains_key("armis-contoso"),
-        "Map must contain key 'armis-contoso'; got keys: {:?} \
+        "socket_map must contain key 'armis-contoso'; got keys: {:?} \
          (BC-2.06.017 Postcondition 1)",
         map.keys().collect::<Vec<_>>()
     );
@@ -150,13 +153,14 @@ async fn test_BC_2_06_017_demo_server_two_armis_instances_bind_distinct_ports() 
         InstanceEntry::new("armis-contoso", ephemeral()),
     ]);
 
-    let map = start_instances(cfg, |_entry| {
+    let servers = start_instances(cfg, |_entry| {
         Box::new(
             prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
         )
     })
     .await
     .expect("Two-armis-instance bind must succeed (BC-2.06.017 Postcondition 1)");
+    let map = servers.socket_map();
 
     let addr_acme = map["armis-acme"];
     let addr_contoso = map["armis-contoso"];
@@ -209,11 +213,12 @@ async fn test_BC_2_06_017_demo_server_two_claroty_instances_bind_distinct_ports(
         InstanceEntry::new("claroty-contoso", ephemeral()),
     ]);
 
-    let map = start_instances(cfg, |_entry| {
+    let servers = start_instances(cfg, |_entry| {
         Box::new(prism_dtu_claroty::ClarotyClone::new())
     })
     .await
     .expect("Two-claroty-instance bind must succeed (BC-2.06.017 Postcondition 1)");
+    let map = servers.socket_map();
 
     let addr_acme = map["claroty-acme"];
     let addr_contoso = map["claroty-contoso"];
@@ -257,13 +262,15 @@ async fn test_BC_2_06_017_demo_server_instance_a_responds_independently() {
         InstanceEntry::new("armis-contoso", ephemeral()),
     ]);
 
-    let map = start_instances(cfg, |_entry| {
+    // servers MUST stay in scope through the HTTP assertions — dropping servers triggers shutdown.
+    let servers = start_instances(cfg, |_entry| {
         Box::new(
             prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
         )
     })
     .await
     .expect("Two armis instances must bind successfully (BC-2.06.017 Postcondition 1)");
+    let map = servers.socket_map();
 
     let addr_a = map["armis-acme"];
     let client = test_client();
@@ -283,6 +290,9 @@ async fn test_BC_2_06_017_demo_server_instance_a_responds_independently() {
          without Bearer — 403 confirms the instance is live and serving requests \
          (BC-2.06.017 Postcondition 1: request to instance A's SocketAddr is served by A's clone)"
     );
+
+    // Explicit drop annotation so the liveness intent is clear to the reader.
+    drop(servers);
 }
 
 // ============================================================================
@@ -307,13 +317,15 @@ async fn test_BC_2_06_017_demo_server_instance_b_responds_independently() {
         InstanceEntry::new("armis-contoso", ephemeral()),
     ]);
 
-    let map = start_instances(cfg, |_entry| {
+    // servers MUST stay in scope through the HTTP assertions — dropping servers triggers shutdown.
+    let servers = start_instances(cfg, |_entry| {
         Box::new(
             prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
         )
     })
     .await
     .expect("Two armis instances must bind successfully (BC-2.06.017 Postcondition 1)");
+    let map = servers.socket_map();
 
     let addr_b = map["armis-contoso"];
     let client = test_client();
@@ -332,6 +344,9 @@ async fn test_BC_2_06_017_demo_server_instance_b_responds_independently() {
          without Bearer — 403 confirms instance B is independently reachable \
          (BC-2.06.017 Postcondition 1: instance B's SocketAddr is served by B's clone)"
     );
+
+    // Explicit drop annotation so the liveness intent is clear to the reader.
+    drop(servers);
 }
 
 // ============================================================================
@@ -341,46 +356,47 @@ async fn test_BC_2_06_017_demo_server_instance_b_responds_independently() {
 // BC-2.06.017 EC-017-005: shutdown signal → ports released; no zombie instances.
 // ============================================================================
 
-/// AC-002: Both instances shut down cleanly when shutdown signal is sent.
+/// AC-002: Both instances shut down cleanly when `servers.shutdown()` is called.
 ///
 /// RED GATE: `start_instances` is `todo!()` — will panic at call site.
 ///
 /// WHEN IMPLEMENTED:
 /// 1. Two armis instances start and serve /dtu/health → HTTP 200.
-/// 2. A shutdown signal is broadcast.
-/// 3. After the graceful drain window, both sockets are released.
-/// 4. Subsequent connection attempts to both addrs return transport errors.
+/// 2. `servers.shutdown()` is called explicitly (the explicit-shutdown path of
+///    the `MultiInstanceServers` lifecycle handle — D-1075-API-GAP-001).
+/// 3. After the graceful drain window (~500ms), both sockets are released.
+/// 4. Subsequent connection attempts to both addrs fail at transport level
+///    (port released; no zombie instances).
 ///
-/// (BC-2.06.017 EC-017-005 / Postcondition 1)
+/// The factory receives the InstanceEntry only — it does NOT wire any external
+/// broadcast channel. The `MultiInstanceServers` handle owns the single shared
+/// `shutdown_tx` internally; `servers.shutdown()` sends the signal. This removes
+/// the dead-code `_rx` pattern from the prior API design.
+///
+/// (BC-2.06.017 EC-017-005 / Postcondition 1 v1.2 — D-1075-API-GAP-001)
 #[tokio::test]
 async fn test_BC_2_06_017_demo_server_multi_instance_shutdown_clean() {
-    use tokio::sync::broadcast;
-
-    // Create a shared shutdown channel for both instances.
-    let (shutdown_tx, _) = broadcast::channel::<()>(2);
-    let shutdown_tx_for_factory = shutdown_tx.clone();
-
     let cfg = MultiInstanceConfig::new(vec![
         InstanceEntry::new("armis-acme", ephemeral()),
         InstanceEntry::new("armis-contoso", ephemeral()),
     ]);
 
-    // The factory subscribes each clone to the same shutdown channel.
-    // Once implemented, start_instances will pass the receiver to start_on.
-    let map = start_instances(cfg, move |_entry| {
-        let _rx = shutdown_tx_for_factory.subscribe();
+    // Factory receives only the InstanceEntry — no external shutdown channel needed.
+    // MultiInstanceServers owns the shared shutdown_tx internally.
+    let servers = start_instances(cfg, |_entry| {
         Box::new(
             prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed in factory"),
         )
     })
     .await
-    .expect("Two armis instances must start cleanly (shutdown test)");
+    .expect("Two armis instances must start cleanly (BC-2.06.017 EC-017-005 shutdown test)");
 
+    let map = servers.socket_map();
     let addr_a = map["armis-acme"];
     let addr_b = map["armis-contoso"];
     let client = test_client();
 
-    // Verify both are live before shutdown (non-vacuous pre-condition).
+    // Pre-condition: verify both are live before shutdown (non-vacuous assertion).
     let resp_a = client
         .get(format!("http://{addr_a}/dtu/health"))
         .send()
@@ -389,7 +405,8 @@ async fn test_BC_2_06_017_demo_server_multi_instance_shutdown_clean() {
     assert_eq!(
         resp_a.status().as_u16(),
         200,
-        "Instance A must respond HTTP 200 to /dtu/health before shutdown"
+        "Instance A must respond HTTP 200 to /dtu/health before shutdown \
+         (BC-2.06.017 EC-017-005: pre-shutdown live check)"
     );
 
     let resp_b = client
@@ -400,23 +417,28 @@ async fn test_BC_2_06_017_demo_server_multi_instance_shutdown_clean() {
     assert_eq!(
         resp_b.status().as_u16(),
         200,
-        "Instance B must respond HTTP 200 to /dtu/health before shutdown"
+        "Instance B must respond HTTP 200 to /dtu/health before shutdown \
+         (BC-2.06.017 EC-017-005: pre-shutdown live check)"
     );
 
-    // Send shutdown signal — start_instances must wire this to axum graceful shutdown.
-    let _ = shutdown_tx.send(());
+    // Trigger graceful shutdown via the explicit API path (D-1075-API-GAP-001).
+    // MultiInstanceServers::shutdown() sends the shared shutdown_tx signal to all
+    // instances; axum's with_graceful_shutdown drains in-flight requests, then
+    // releases the bound port (BC-2.06.017 Postcondition 1 v1.2).
+    servers.shutdown();
 
     // Allow axum's graceful drain window (500ms is generous for idle clones).
     tokio::time::sleep(Duration::from_millis(500)).await;
 
-    // After shutdown: ports released — requests must fail at transport level.
+    // Post-condition: ports released — requests must fail at transport level.
+    // Connection-refused or similar transport error; NOT a 5xx from a live server.
     let after_a = client
         .get(format!("http://{addr_a}/dtu/health"))
         .send()
         .await;
     assert!(
         after_a.is_err(),
-        "Instance A at {addr_a} must NOT be reachable after shutdown \
+        "Instance A at {addr_a} must NOT be reachable after servers.shutdown() \
          (BC-2.06.017 EC-017-005: graceful shutdown releases port; no zombie instances). \
          Expected transport-level error; got: {:?}",
         after_a.map(|r| r.status())
@@ -428,11 +450,15 @@ async fn test_BC_2_06_017_demo_server_multi_instance_shutdown_clean() {
         .await;
     assert!(
         after_b.is_err(),
-        "Instance B at {addr_b} must NOT be reachable after shutdown \
+        "Instance B at {addr_b} must NOT be reachable after servers.shutdown() \
          (BC-2.06.017 EC-017-005: both instances shut down cleanly; no port leak). \
          Expected transport-level error; got: {:?}",
         after_b.map(|r| r.status())
     );
+
+    // servers is still in scope here; the explicit shutdown() already fired.
+    // Drop is idempotent — the handle drops cleanly without double-signaling.
+    drop(servers);
 }
 
 // ============================================================================
@@ -553,10 +579,11 @@ async fn test_BC_2_06_017_demo_server_duplicate_instance_name_returns_error() {
             "Expected MultiInstanceBindError::DuplicateName; got unexpected variant \
              (BC-2.06.017 EC-017-009 / TV-017-006)"
         ),
-        Ok(map) => panic!(
-            "Duplicate-name config must return Err(DuplicateName), not Ok; \
-             got map with {} entries (BC-2.06.017 Postcondition 7: silent last-wins is forbidden)",
-            map.len()
+        Ok(servers) => panic!(
+            "Duplicate-name config must return Err(DuplicateName), not Ok(MultiInstanceServers); \
+             got servers with socket_map of {} entries \
+             (BC-2.06.017 Postcondition 7: silent last-wins is forbidden)",
+            servers.socket_map().len()
         ),
     }
 }
