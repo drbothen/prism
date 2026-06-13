@@ -192,7 +192,7 @@ Per CLAUDE.md §SAP-1: `rg 'event_type\s*=' crates/ --type rust` — zero new `e
 | `IncidentTimeline` + `IncidentStage` carry `#[non_exhaustive]` | ci.yml EXPECTED=52 gate passes |
 | `IncidentTimeline` threaded via `Arc` (NOT `Arc<Mutex<…>>`) | AC-007/008 integration tests spin up live HTTP servers with `Arc<IncidentTimeline>` |
 | `NvdState.cve_registry` immutable `HashMap` (NOT Mutex-wrapped) | AC-014 tests confirm lookup is read-only post-construction |
-| Perimeter gate: threatintel/nvd do NOT import spec-engine/sensors/query | AC-016 perimeter test passes; compile-fail gate at `tests/external/perimeter-violation/` |
+| Perimeter gate: threatintel/nvd do NOT import spec-engine/sensors/query | AC-016 perimeter test passes; INV-PERIMETER-COMPLIANCE-001 is enforced STRUCTURALLY — `prism-dtu-threatintel` and `prism-dtu-nvd` declare no dependency on `prism-spec-engine`, `prism-sensors`, or `prism-query` in their `Cargo.toml`, so any forbidden `use` is an ordinary E0432 compile error caught by the standard workspace build. (`tests/external/perimeter-violation/` covers the `prism-query` pub-API perimeter only — BC-2.11.006 — and does not reference the DTU crates.) |
 | Guard order: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004 | Guard order tests PASS (AC-009/018 tested first, then AC-010/017 after) |
 | `new_with_scenario` calls `new_with_seed_anchored` (4-arg, NOT 3-arg `new_with_seed`) | AC-007/008 produce era-coherent June 2026 timestamps; `time_anchor` from `scenario_start_epoch_secs` |
 | Route handlers branch on `fixture_gen_seeded` flag, NOT `generated_records.is_empty()` | AC-015 cross-DTU test exercises DormantTenant guard path via test vector setup |
