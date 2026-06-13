@@ -1133,3 +1133,54 @@ The orchestrator caught the regression before commit by verifying against:
 **Outcome:**
 
 BPRL-P22-01 closed by PO BC-2.06.020 v1.4→v1.5 (VP Anchors prose corrected A..H/8→A..L/12; catalog-format regression reverted; exhaustive summary-count sweep confirmed all other counts correct). Story B v2.13→v2.14 (BC-2.06.020 pin v1.4→v1.5; 3 sites). PIVOT-003 v1.6→v1.7 (BC-2.06.020 pin v1.4→v1.5; 2 sites). Feature HEAD UNCHANGED 0863184a. Streak RESET 2/3→0/3. Pass 23 NEXT.
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-B: D-1129 — proactive consistency-validator sweep after multi-burst spec-churn cycle flushes drift in ONE pass instead of one-per-adversary-pass (D-1129 consistency-sweep codification)
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1129
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [consistency-sweep] [proactive] [spec-text-drift] [adversary-cascade-efficiency]
+**Classification:** PROCESS-GAP — three adversary passes (P14/P15/P22) each found one spec-text drift from the same D-1117 burst; a dedicated consistency-validator sweep found 3 MORE drifts at once.
+
+**Entry label:** z16
+
+**What happened:**
+
+After PR-LEVEL pass 22 (which found BPRL-P22-01, the 4th spec-text drift from the D-1117 burst), the orchestrator ran a proactive consistency-validator sweep over the D-1117 spec cluster before dispatching pass 23. This sweep found 3 ADDITIONAL drifts that the adversary cascade hadn't yet reached:
+
+1. **DRIFT-1 (STORY-INDEX PIVOT-003 inline `2 BCs:` annotation stale at v1.3):** The v1.3→v1.5 BC-2.06.020 version advances (D-1120, D-1128) swept the §Behavioral Contracts BC table row and the §Token Budget BC context row inside PIVOT-003, and updated the PIVOT-003 §Changelog annotation in the STORY-INDEX Full Story List row. They did NOT sweep the trailing `2 BCs: BC-2.06.019+BC-2.06.020 v1.3` annotation at the end of the PIVOT-003 Full Story List row — a distinct annotation class.
+
+2. **DRIFT-2 (story B §Tasks Phase-2 Cyberint task stale 5-arg new_with_scenario):** D-1117 f0b6b8c7 added `catalog: &ScenarioEntityCatalog` as the 6th argument to `CyberintClone::new_with_scenario` per AC-019 + BC-2.06.020 PC-8. The §Tasks Phase-2 Cyberint implementation prose still described the 5-arg constructor — misdirecting any implementer reading the task prose.
+
+3. **DRIFT-3 (story B §FSR clone.rs row + Phase-4 build_clone_pairs call stale 5-arg):** Same root cause as DRIFT-2 — the FSR table row description and the build_clone_pairs call illustration in §Tasks Phase-4 also carried the stale 5-arg signature.
+
+The code was ALWAYS correct (0863184a shipped the correct 6-arg constructor). Only spec prose was misdirecting.
+
+**Why this matters:**
+
+After 3 consecutive adversary passes (P14/P15/P22) each finding one spec-text drift from the same D-1117 burst, the cascade was in a "whack-a-mole" dynamic where each pass found one more drift from the same amendment but the streak kept resetting. A single dedicated consistency sweep found all remaining drifts from the same root cause class at once.
+
+The 2 implementation-misdirecting 5-arg→6-arg task drifts (DRIFT-2/3) were particularly high-value to catch proactively — if an implementer of S-DEMO-ENRICHMENT-PIVOT-003 had read the stale task prose, they would have written incorrect 5-arg Cyberint calls that fail at runtime.
+
+**Codified rule (orchestrator process discipline):**
+
+> **Proactive consistency-validator sweep after multi-burst spec-churn cycle.**
+>
+> After any cycle with >= 3 spec-amendment bursts on the same BC/story cluster (evidence: 3 streak resets from the same root-cause amendment), the orchestrator SHOULD run a dedicated consistency-validator sweep over the changed-spec cluster BEFORE resuming the adversary 3-CLEAN cascade.
+>
+> The consistency sweep MUST cover:
+> 1. All inline annotations in STORY-INDEX Full Story List rows (the `2 BCs:` trailing annotation, the story version in the summary cell)
+> 2. All §Tasks prose (constructor signatures, argument lists, field names)
+> 3. All §File Structure Reference table rows (constructor signatures, argument counts)
+> 4. All call-site illustrations in multi-phase task sequences
+> 5. The BC-INDEX rows 119/120 anchor story pin annotations
+>
+> **When to trigger:** >= 3 adversary findings from the same amendment burst in < 5 passes. This is the signal that the amendment's propagation was incomplete and a systematic sweep is more efficient than continuing adversary passes.
+>
+> **What the sweep is NOT:** It is not an adversary pass. It does not advance or reset the 3-CLEAN streak. It is a consistency gate — a focused document audit that ensures all annotation classes were swept by prior fix-bursts.
+
+**Outcome:**
+
+D-1129 consistency-sweep closed DRIFT-1/2/3. Story B v2.14→v2.15. BC-INDEX v6.41→v6.42 (annotation-only). CODE UNCHANGED 0863184a. Streak 0/3 UNCHANGED (consistency gate, not adversary pass). Estimated 2–3 adversary passes avoided (each would have found one of DRIFT-1/2/3 and reset the streak). PR-LEVEL pass 23 dispatched next.
