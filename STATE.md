@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.782"
+version: "7.783"
 producer: state-manager
 timestamp: 2026-06-13T16:00:00Z
 inputs: []
@@ -17,7 +17,7 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "939f36ce"
-story_b_head: "15bedc12"
+story_b_head: "dd84c76c"
 bc_index_version: "6.43"
 vp_index_version: "1.79"
 story_index_version: "v2.369"
@@ -36,14 +36,14 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1133 — demo-scope durability burst. DEMO-SCOPE.md created (.factory/objectives/DEMO-SCOPE.md). Wired into SESSION-HANDOFF §ACTIVE OBJECTIVE + resume protocol step 2 + STATE frontmatter demo_scope_doc + task ledger header. Streak 0/3 UNCHANGED. PR-LEVEL pass 25 NEXT at 15bedc12. STATE v7.782."
+current_step: "D-1138 — T5 PR-LEVEL pass 27 CLEAN(strict)=YES streak 1/3 at HEAD dd84c76c. BPRL-P25-01 + BPRL-P26-01 CLOSED. Perimeter-prose fully converged 6 surfaces / 3 passes (P24/P25-26/P27). PR #186 OPEN (lefthook docs-only skip). One-time hook-bypass exception governance recorded (D-1134). Streak 0/3→1/3. Pass 28 NEXT. STATE v7.783."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174. Lane 4: S-DEMO-003 PR#176. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── T5 CASCADE STATE (CURRENT) ──
 t5_pr: "PR #185 (S-DEMO-DTU-LIVE-SCENARIO-001-B) OPEN"
-t5_streak: "0/3"
-t5_pass_next: 25
+t5_streak: "1/3"
+t5_pass_next: 28
 t5_bc_019: "BC-2.06.019 v1.7"
 t5_bc_020: "BC-2.06.020 v1.6"
 t5_story_b: "v2.16"
@@ -97,15 +97,15 @@ pre_compact_snapshot_at: "2026-06-13"
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-13 (D-1133 — demo-scope durability burst: DEMO-SCOPE.md created, wired into resume protocol + STATE frontmatter + task ledger; streak 0/3 unchanged; STATE v7.781→v7.782) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185, streak 0/3, pass 25 NEXT at 15bedc12). Phase B + Phase C COMPLETE. Review cycle COMPLETE. T4-A DONE (PR #181). |
-| **Current Step** | T5 PR-LEVEL pass 25 at HEAD 15bedc12 (diff CHANGED — re-materialize via `gh pr diff 185`). Streak 0/3 (BPRL-P24-01 LOW prose-correction D-1131). STATE v7.781. |
+| **Last Updated** | 2026-06-13 (D-1138 — T5 PR-LEVEL pass 27 CLEAN(strict)=YES; BPRL-P25-01 + BPRL-P26-01 CLOSED; streak 0/3→1/3; PR #186 OPEN; STATE v7.782→v7.783) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — T5 PR-LEVEL cascade (PR #185, streak 1/3, pass 28 NEXT at HEAD dd84c76c). Phase B + Phase C COMPLETE. Review cycle COMPLETE. T4-A DONE (PR #181). |
+| **Current Step** | T5 PR-LEVEL streak 1/3 at HEAD dd84c76c; pass 28 NEXT (review-only, same HEAD). STATE v7.783. |
 
 ## Active Objective (North Star)
 
 **NORTH STAR: Deliver a MULTI-CLIENT SOC-ANALYST LIVE DEMO** — multiple DTU clients, each with a different sensor combination and genuinely different per-client data; prism federates into each client's DTUs; prism MCP wired into Claude (stdio); end-to-end SOC-analyst investigation workflow demonstrated. Scenario progresses deterministically over time (same seed + clock-offset → same timeline). Enrichment DTUs (ThreatIntel + NVD) serve scenario-correlated data.
 
-**Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE. Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md §CURRENT POINTER` = T5 (PR-LEVEL cascade; PR #185 OPEN; streak 0/3; pass 25 NEXT at 15bedc12 — D-1131). T1+T2+T3+T4+T4-A DONE.**
+**Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE. Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md §CURRENT POINTER` = T5 (PR-LEVEL cascade; PR #185 OPEN; streak 1/3; pass 28 NEXT at dd84c76c — D-1138). T1+T2+T3+T4+T4-A DONE.**
 
 ## Phase Progress
 
@@ -142,7 +142,7 @@ pre_compact_snapshot_at: "2026-06-13"
 | **5: Wave 5 Phase C** | **COMPLETE** | — | 2026-06-09 | PRs #177–#180 | develop@64d34967; all 4 lanes merged |
 | **5: S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A)** | **MERGED** | 2026-06-09 | 2026-06-10 | PR #181 develop@c287b00d | LOCAL 18-pass 3-CLEAN strict + PR-LEVEL 3-pass 3-CLEAN strict; BC-2.06.018 v1.6 active |
 | **Review cycle fix-PRs (#183/#184/#182)** | **MERGED** | 2026-06-10 | 2026-06-12 | PRs #183→#184→#182 | QRY #183 develop@f88b10e3; MCP #184 develop@c200d5a2; DTU #182 develop@939f36ce; all CI 43/43 GREEN |
-| **5: S-DEMO-DTU-LIVE-SCENARIO-001-B (T5)** | **IN PROGRESS** | 2026-06-12 | — | PR #185 OPEN (streak 0/3; pass 25 NEXT at 15bedc12) | LOCAL 13-pass 3-CLEAN; PR-LEVEL passes 1–24 complete; BPRL-P24-01 closed D-1131 |
+| **5: S-DEMO-DTU-LIVE-SCENARIO-001-B (T5)** | **IN PROGRESS** | 2026-06-12 | — | PR #185 OPEN (streak 1/3; pass 28 NEXT at dd84c76c) | LOCAL 13-pass 3-CLEAN; PR-LEVEL passes 1–27 complete; BPRL-P24-01/P25-01/P26-01 closed; perimeter-prose converged |
 
 ## Current Phase Steps
 
@@ -150,12 +150,12 @@ pre_compact_snapshot_at: "2026-06-13"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-1127 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive-D1055-D1123.md._
-| D-1129 | state-manager | 2026-06-13 | CONSISTENCY-SWEEP CLOSURE — DRIFT-1/2/3 closed. STORY-INDEX PIVOT-003 v1.5. Story B §Tasks/FSR/build_clone_pairs Cyberint 6-arg corrected. Lesson z16. |
+_D-735 through D-1129 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive-D1055-D1123.md._
 | D-1130 | state-manager | 2026-06-13 | PASS-23 CLEAN(strict)=YES streak 1/3. DRIFT-2/3 re-derivation + VP-020-K case-sound + PC-8/PC-9 + E-DEMO-002 guard order + SAP-1. Novelty LOW. |
 | D-1131 | state-manager | 2026-06-13 | BPRL-P24-01 LOW [process-gap] CLOSED — DTU perimeter `tests/external/perimeter-violation/` prose corrected to structural Cargo/E0432. BC-2.06.020 v1.6. Story B v2.16. Code 15bedc12. Streak RESET 0/3. Pass 25 NEXT. |
 | D-1132 | state-manager | 2026-06-13 | ZERO-CONTEXT RESUME HARDENING (D-1132). STATE compacted (214KB→slim): decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF hardened: full do-not-reflag list (40+ items) consolidated + T5 cascade ledger (LOCAL 1-13 + PR-LEVEL 1-24) + post-3/3 sequence verbatim. Task ledger T5 pointer updated. Lesson z18 appended. State v7.780→v7.781. Streak 0/3 UNCHANGED. |
 | D-1133 | state-manager | 2026-06-13 | DEMO-SCOPE DURABILITY BURST (D-1133). DEMO-SCOPE.md created at `.factory/objectives/DEMO-SCOPE.md` — authoritative full demo scope (6-sensor fleet, unfolding-attack T5, enrichment correlation + honest in-prism-enrich gap, PIVOT chain, build sequence). Wired: SESSION-HANDOFF §ACTIVE OBJECTIVE pointer + resume protocol step 2; STATE frontmatter `demo_scope_doc`; task ledger scope-source header. Lesson z19 appended. STATE v7.781→v7.782. Streak 0/3 UNCHANGED. |
+| D-1138 | state-manager | 2026-06-13 | T5 PR-LEVEL PASSES 25-27 CHECKPOINT (D-1134..D-1138). Hook-bypass governance recorded (D-1134). BPRL-P25-01 MED CLOSED (D-1135): perimeter-prose residual in threatintel test + evidence-report line-195 (6f6e744e + 69c53cb9). BPRL-P26-01 MED/PG CLOSED (D-1136): evidence-report lines 74+155 + tape line 9 (dd84c76c). Pass 27 CLEAN(strict)=YES (D-1137). Streak 0/3→1/3. PR #186 OPEN lefthook docs-only pre-push (D-1138). Pass 28 NEXT at dd84c76c. STATE v7.782→v7.783. |
 
 ## Decisions Log
 
@@ -163,6 +163,11 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1138 | state-manager | 2026-06-13 | **PR #186 OPEN — lefthook docs-only pre-push improvement (D-1138).** Branch `maintenance/lefthook-docs-only-pre-push`, commit `bfe5c02b`. Adds fail-closed `skip:` script that skips `just check` for provably docs/asset-only pushes and runs the full gate otherwise. 17/17 boundary cases pass. Targets `develop`; NOT merged — awaiting human review (changes safety tooling). This is the durable remediation for the one-time bypass exception recorded in D-1134. Do NOT merge without human approval. | wave-5-e-demo-fidelity | 2026-06-13 |
+| D-1137 | state-manager | 2026-06-13 | **T5 PR-LEVEL PASS 27 CLEAN(strict)=YES — STREAK 0/3→1/3 (D-1137).** Zero findings at HEAD `dd84c76c`. Adversary probed 9 novel non-perimeter angles (all PASS). Perimeter-prose surface fully converged across 6 surfaces / 3 passes (P24 D-1131 / P25-26 D-1135-D-1136 / P27 D-1137). CLEAN(strict)=yes; CLEAN(PR-merge)=yes. Streak advances 0/3→1/3. Pass 28 NEXT at same HEAD dd84c76c (review-only — no code or spec change; same diff). | wave-5-e-demo-fidelity | 2026-06-13 |
+| D-1136 | state-manager | 2026-06-13 | **BPRL-P26-01 MED/process-gap CLOSED (D-1136).** Pass-25 fix (D-1135) missed `evidence-report.md` lines 74 & 155 + `AC-013-014-016-enrichment-correlation.tape` line 9 — all still cited "perimeter gate passes" / compile-fail framing. Swept to structural framing — demo-recorder commit `dd84c76c`. This commit contains only 2 markdown/tape files (evidence-report.md + AC-013-014-016-enrichment-correlation.tape). User authorized ONE-TIME `git push --no-verify` for this docs-only commit (D-1134; durable remediation PR #186 D-1138). Orchestrator ran exhaustive grep confirming ZERO residual `perimeter.*gate passes`/`compile-fail gate` false-framing in demo-evidence (only legitimate "gate passes" is `ci.yml EXPECTED=52` at line 192). Spec layer (story B v2.16, BC-2.06.020 v1.6, PIVOT-003 v1.8) confirmed already-correct — no version bump. Streak RESET 0/3 (process-gap finding resets streak). | wave-5-e-demo-fidelity | 2026-06-13 |
+| D-1135 | state-manager | 2026-06-13 | **BPRL-P25-01 MED CLOSED (D-1135).** T5 PR-LEVEL pass 25 — partial-fix propagation gap from D-1131 perimeter prose-correction. Two residual false-framing sites: (1) `crates/prism-dtu-threatintel/tests/bc_2_06_020_enrichment_correlation.rs` module comment + rustdoc still cited `tests/external/perimeter-violation/` as enforcing the DTU perimeter; (2) `docs/demo-evidence/S-DEMO-DTU-LIVE-SCENARIO-001-B/evidence-report.md` line ~195 perimeter row still said "perimeter gate passes". Corrected to structural Cargo/E0432 framing: implementer commit `6f6e744e` (test comments) + demo-recorder commit `69c53cb9` (evidence-report row). Streak RESET 0/3. | wave-5-e-demo-fidelity | 2026-06-13 |
+| D-1134 | state-manager | 2026-06-13 | **ONE-TIME HOOK-BYPASS EXCEPTION — GOVERNANCE AUDIT TRAIL (D-1134).** For markdown/tape-only commit `dd84c76c` (story B: 2 files — `evidence-report.md` + `AC-013-014-016-enrichment-correlation.tape`), the user explicitly authorized a ONE-TIME exception to TD-FACTORY-HOOK-BYPASS-001 / the "NEVER --no-verify" git rule. Rationale: the full `just check` pre-push gate (4273-test workspace harness) provides no value for a provably docs-only change (0 Rust files touched). Push executed with `git push --no-verify`. EXCEPTION SCOPE: this single push ONLY. The NEVER-bypass rule remains in force for all other commits. Durable remediation: PR #186 (`maintenance/lefthook-docs-only-pre-push`, commit `bfe5c02b`) — adds fail-closed `skip:` script that skips `just check` for docs/asset-only pushes automatically (D-1138). | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1133 | state-manager | 2026-06-13 | **DEMO-SCOPE DURABILITY BURST (D-1133).** DEMO-SCOPE.md created at `.factory/objectives/DEMO-SCOPE.md` as the single source of truth for the full demo narrative scope (6-sensor fleet status, unfolding-attack T5 center-piece, enrichment correlation at data layer + honest gap: in-prism `enrich` pivot not yet wired, PIVOT-001/002/003 chain designed, build sequence T1→T14). Wired into: SESSION-HANDOFF.md §ACTIVE OBJECTIVE (top pointer) + FRESH-SESSION RESUME PROTOCOL step 2; STATE.md frontmatter `demo_scope_doc`; task ledger header (scope-source-of-truth reference). Lesson z19: demo/project SCOPE must live in ONE authoritative durable artifact referenced from resume protocol — task ledger lists TASKS but does not convey the demo NARRATIVE + gaps a zero-context restart needs. No spec/code/count change. Streak 0/3 UNCHANGED. STATE v7.781→v7.782. | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1132 | state-manager | 2026-06-13 | **ZERO-CONTEXT RESUME HARDENING (D-1132).** STATE compacted (214KB→slim). Decisions D-1055..D-1123 archived to decisions-archive-D1055-D1123.md. SESSION-HANDOFF §RESUME SNAPSHOT hardened with (1) full consolidated do-not-reflag list (40+ items verbatim), (2) T5 cascade ledger (LOCAL passes 1-13 converged; PR-LEVEL passes 1-24 with outcome), (3) post-3/3 convergence sequence verbatim, (4) exact next action (pass 25 at 15bedc12). Task ledger CURRENT POINTER updated: T5 = PR #185 PR-LEVEL cascade streak 0/3 pass 25 NEXT at 15bedc12; D-1117 enhancement arc recorded; D-1107 capability-discovery block + PIVOT-001/002/003 chain recorded. Lesson z18 appended: proactively run zero-context-resume hardening burst at deep cascade depth (20+ passes, large do-not-reflag list, bloated STATE). Streak 0/3 UNCHANGED. STATE v7.780→v7.781. | wave-5-e-demo-fidelity | 2026-06-13 |
 | D-1131 | state-manager | 2026-06-13 | **PASS-24 CLOSURE BURST (D-1131).** BPRL-P24-01 LOW [process-gap] closed — `tests/external/perimeter-violation/` false-coverage prose corrected across 4 surfaces to structural Cargo/E0432 framing. BC-2.06.020 v1.5→v1.6. Story B v2.15→v2.16. Implementer 15bedc12. PIVOT-003 v1.7→v1.8. BC-INDEX v6.42→v6.43. STORY-INDEX v2.368→v2.369. Lesson z17. Streak RESET 1/3→0/3. Pass 25 NEXT at 15bedc12 (diff changed). STATE v7.779→v7.780. | wave-5-e-demo-fidelity | 2026-06-13 |
@@ -256,21 +261,28 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-13 — D-1133: demo-scope durability; pass 25 NEXT at 15bedc12; STATE v7.782)
+## Open PRs
 
-_Previous checkpoint (D-1132; STATE v7.781) superseded by D-1133 burst. SESSION-HANDOFF.md §ACTIVE OBJECTIVE updated with DEMO-SCOPE.md pointer._
+| PR | Branch | Status | Notes |
+|----|--------|--------|-------|
+| #185 | feature/S-DEMO-DTU-LIVE-SCENARIO-001-B | OPEN | T5 PR-LEVEL cascade; streak 1/3; pass 28 NEXT at HEAD dd84c76c |
+| #186 | maintenance/lefthook-docs-only-pre-push | OPEN | Durable lefthook docs-only pre-push improvement; awaiting human review — changes safety tooling |
 
-**STATE v7.782. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) — PR-LEVEL cascade in progress. PR #185 OPEN; HEAD=REMOTE=15bedc12. Pass 24 BPRL-P24-01 LOW [process-gap] CLOSED. Streak 0/3. NEXT: PR-LEVEL adversarial pass 25 at 15bedc12 (diff CHANGED — re-materialize via `gh pr diff 185`; do NOT reuse any cached diff from passes 20-24). develop HEAD: 939f36ce. Story B v2.16. BC-INDEX v6.43. STORY-INDEX v2.369 (200). VP-INDEX v1.79 (158). policies v1.33. error-taxonomy v1.78. demo_scope_doc: .factory/objectives/DEMO-SCOPE.md (NEW D-1133).**
+## Session Resume Checkpoint (2026-06-13 — D-1138: pass 27 CLEAN streak 1/3; pass 28 NEXT at dd84c76c; STATE v7.783)
+
+_Previous checkpoint (D-1133; STATE v7.782) superseded by D-1138 burst._
+
+**STATE v7.783. CURRENT POSITION: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) — PR-LEVEL cascade in progress. PR #185 OPEN; HEAD=REMOTE=dd84c76c. BPRL-P25-01 + BPRL-P26-01 CLOSED. Pass 27 CLEAN(strict)=YES. Streak 1/3. NEXT: PR-LEVEL adversarial pass 28 at dd84c76c (same diff — no code or spec change since P27; re-materialize via `gh pr diff 185`). develop HEAD: 939f36ce. Story B v2.16. BC-2.06.020 v1.6. BC-INDEX v6.43. STORY-INDEX v2.369 (200). VP-INDEX v1.79 (158). policies v1.33. error-taxonomy v1.78. demo_scope_doc: .factory/objectives/DEMO-SCOPE.md. One-time bypass exception for dd84c76c docs-only push recorded D-1134; PR #186 open for durable remediation.**
 
 **Full do-not-reflag list and cascade ledger: see SESSION-HANDOFF.md §4 and §3.**
 
 **RESUME PROTOCOL (run on fresh session start):**
-0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1133). Read `.factory/objectives/DEMO-SCOPE.md` (authoritative full demo scope).
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1138). Read `.factory/objectives/DEMO-SCOPE.md` (authoritative full demo scope).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING — must pass before reading any state).
 2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce`.
-3. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `15bedc12`.
-4. Verify `gh pr checks 185` — confirm CI status on 15bedc12.
-5. Verify `grep "^version:" .factory/STATE.md` shows `"7.782"`.
+3. Verify story B: `git -C .worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B log -1 --format='%H'` → expect `dd84c76c`.
+4. Verify `gh pr checks 185` — confirm CI status on dd84c76c.
+5. Verify `grep "^version:" .factory/STATE.md` shows `"7.783"`.
 6. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone.
-7. Apply lessons (a)–(z18) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-8. **NEXT ACTION: PR-LEVEL pass 25** — fresh adversary on PR #185 at HEAD 15bedc12; diff CHANGED (re-materialize via `gh pr diff 185`; do NOT reuse /tmp/pr185-pass20.diff); streak 0/3; do-not-reflag list = all closures BPRL-P1..P24 + DRIFT-1/2/3 + D-1117 enhancements. See SESSION-HANDOFF.md §4 for full verbatim list.
+7. Apply lessons (a)–(z19) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+8. **NEXT ACTION: PR-LEVEL pass 28** — fresh adversary on PR #185 at HEAD dd84c76c; streak 1/3; do-not-reflag list = all closures BPRL-P1..P27 + DRIFT-1/2/3 + D-1117 enhancements + perimeter-prose converged ruling. See SESSION-HANDOFF.md §4 for full verbatim list.
