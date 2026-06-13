@@ -176,9 +176,13 @@ fn test_BC_2_06_020_threatintel_ioc_correlation_all_types() {
 // (as Malicious) AND the non-scenario IP is also present (as default lookup),
 // confirming both assertions hold simultaneously.
 //
-// Perimeter gate: compile-fail gate in tests/external/perimeter-violation/ must
-// continue to pass with zero new violations. This is verified by CI compilation;
-// we add a comment documenting the constraint.
+// Perimeter gate: prism-dtu-threatintel must NOT import from prism-spec-engine,
+// prism-sensors, or prism-query (INV-PERIMETER-COMPLIANCE-001). Compliance is
+// enforced STRUCTURALLY: prism-dtu-threatintel's Cargo.toml declares no dependency
+// on those crates, so any forbidden `use` is an ordinary E0432 compile error caught
+// by the standard build. (The `tests/external/perimeter-violation/` compile-fail
+// crate covers the prism-query pub-API perimeter only — BC-2.11.006 — and does
+// not reference the DTU crates.)
 // ---------------------------------------------------------------------------
 
 /// RED GATE TEST 16 — test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate
@@ -193,9 +197,12 @@ fn test_BC_2_06_020_threatintel_ioc_correlation_all_types() {
 /// scenario IOC assertion which fails because the stub doesn't inject IOCs.
 ///
 /// Perimeter gate: prism-dtu-threatintel must NOT import from prism-spec-engine,
-/// prism-sensors, or prism-query (INV-PERIMETER-COMPLIANCE-001). This is enforced
-/// by the compile-fail gate at tests/external/perimeter-violation/. Since we add
-/// no new imports violating the perimeter, the compile-fail gate is satisfied.
+/// prism-sensors, or prism-query (INV-PERIMETER-COMPLIANCE-001). Compliance is
+/// enforced STRUCTURALLY: prism-dtu-threatintel's Cargo.toml declares no dependency
+/// on those crates, so any forbidden `use` is an ordinary E0432 compile error caught
+/// by the standard build. (The `tests/external/perimeter-violation/` compile-fail
+/// crate covers the prism-query pub-API perimeter only — BC-2.11.006 — and does
+/// not reference the DTU crates.)
 /// prism-core is on the allow-list (explicit note in BC-2.06.020 INV-PERIMETER-COMPLIANCE-001).
 #[test]
 fn test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate() {
