@@ -16,8 +16,12 @@
 
 pub mod config;
 pub mod harness;
+pub mod multi_instance;
 pub mod tls;
 
 // Re-export primary types for test usage.
 pub use config::DemoConfig;
 pub use harness::{ClonePair, DemoHarness, StartReport};
+pub use multi_instance::{
+    start_instances, DemoBindError, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
+};
