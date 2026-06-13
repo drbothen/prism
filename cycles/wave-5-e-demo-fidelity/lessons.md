@@ -741,3 +741,30 @@ When a correction is applied to a table or claim that appears in BOTH a BC file 
 **Outcome:**
 
 Closed at D-1111: BC-2.06.019 v1.5 corrects the table; story B v2.7 + PIVOT-003 v1.2 pin sweeps applied. Lesson codified here for future session application.
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-B: PR-LEVEL pass 6 — exhaustive Route Coverage Table inventory required; story-writer index-edit protocol deviation (D-1112 pass-6 closure codification)
+
+**Date recorded:** 2026-06-12
+**D-NNN anchor:** D-1112 (PR-LEVEL pass 6 closure burst)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-gap] [pol-33] [route-coverage-table] [exhaustive-inventory] [story-writer-protocol]
+**Classification:** PROCESS-GAP — second consecutive Route Coverage Table miss; first pass verified existing rows without full inventory sweep; second pass did the same.
+
+**(z5) [process-gap] Route Coverage Table completeness requires exhaustive inventory WITH embedded evidence — not incremental row verification.** Pass 5 fixed the Route Coverage Table by correcting and adding known-defective rows (phantom crowdstrike alerts_search removed; summaries path corrected; armis search added). Pass 6 found that Claroty `routes/devices.rs` — also StageMask-guarded in the same PR diff and load-bearing for AC-015 — was still absent. Two consecutive passes each verified existing rows correctly but neither performed a full inventory of StageMask-guarded route files in the PR diff.
+
+**Root cause:** Table-correction instinct is to audit what is present, not to first enumerate all sources of rows. The correct approach for any Route Coverage Table amendment is: (1) grep all handler files in the PR diff for `with_stage_mask_projection`; (2) list all matching files; (3) verify each has a table row; (4) embed the scan evidence (file list, handler→route→row mapping, total count) directly in the BC under the table so the adversary can verify completeness from the artifact itself without re-deriving.
+
+**Correct response (codified rule — BC-2.06.019 v1.6 embedded-inventory pattern):**
+
+When amending a Route Coverage Table (or any coverage table tied to a grep-discoverable code pattern):
+
+1. **Enumerate before you correct.** Run the inventory grep FIRST: `grep -rn 'with_stage_mask_projection' crates/prism-dtu-*/src/routes/*.rs` (or equivalent pattern for the table's subject).
+2. **Map every hit to a table row.** For each file returned, confirm a corresponding table row exists or add one.
+3. **Embed the inventory evidence in the artifact.** Record the scan command, the file list, the handler→route→row mapping, and the total row count directly under the table. Future adversary passes use this evidence to verify completeness in O(1) rather than re-deriving from source.
+4. **Log the scan results in the commit/burst message.** "Inventory scan: 8 StageMask handlers found; 8 table rows present — EXHAUSTIVE."
+
+This pattern was instantiated in BC-2.06.019 v1.6. It is the fix for the recurrence class observed in passes 5 and 6.
+
+**(z6) [process-discipline] Story-writer index-edit protocol deviation — STORY-INDEX edits are state-manager domain; reinforce dispatch wording.** The story-writer who performed the pass-6 POL-23 sweep (pin advance story B v2.7→v2.8, PIVOT-003 v1.2→v1.3) also edited STORY-INDEX directly (v2.360→v2.361: story B/PIVOT-003 row annotations + overview entry + changelog row) despite the state-manager's instruction to leave indexes to state-manager. The STORY-INDEX v2.361 content was verified correct and consistent (no double-bump needed; row annotations accurate; changelog entry accurate) — so no corrective edit was required. However, the routing deviation itself is a process concern: STORY-INDEX edits belong to state-manager scope per CLAUDE.md Agent Routing Table ("`.factory/STATE.md` updates, `.factory/` commits, cycle bookkeeping" → state-manager). **Antidote:** story-writer dispatch wording for POL-23 sweep bursts must explicitly include: "Do NOT edit STORY-INDEX; return the story version changes and STORY-INDEX row annotations to state-manager for application." In this instance, the deviation was benign (content accurate), but the class can produce inconsistent commits where story-writer and state-manager both write the same file in separate commits.
