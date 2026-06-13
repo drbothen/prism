@@ -88,10 +88,10 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 |----|-------------|-----------|-----|-----------|
 | AC-019 | `CyberintClone::new_with_scenario`: scenario alerts draw CVE IDs from `ScenarioEntityCatalog` (field `device_cves`); baseline alerts use `CVE-9999-*` namespace (not real CVE IDs); cyclic catalog assignment distributes CVEs round-robin; end-to-end pivot: scenario CVE resolves in `NvdClone` with `base_score>=7.0`, `base_severity="HIGH"` | BC-2.06.020 PC-8 (scenario CVE catalog injection) / PC-9 (CVE namespace isolation in baseline mode) / INV-CYBERINT-ALERT-CVE-CORRELATION-001 | VP-020-I (baseline namespace), VP-020-J (catalog CVE IDs), VP-020-K (NVD HIGH pivot), VP-020-L (cyclic assignment) | `test_BC_2_06_020_cyberint_baseline_cve_uses_cve_9999_namespace` / `test_BC_2_06_020_cyberint_scenario_cve_ids_from_catalog` / `test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd` / `test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment` |
 
-**Recording shows:**
-- `prism-dtu-cyberint` (features: `dtu,fixture-gen`): all 4 VP-020-I..L Red Gate tests PASS in ~14ms (pure unit tests, no HTTP server startup).
-- VP-020-K (`test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd`): the end-to-end pivot test — builds a `CyberintClone` with scenario entities drawn from `NvdClone`, verifies the scenario alert's `cve_id` resolves in the NVD catalog with `base_score>=7.0` and `base_severity="HIGH"`.
-- Filter used: `-E 'test(BC_2_06_020_cyberint)'` — matches exactly these 4 tests, zero others.
+**Recording shows (two commands, two crates):**
+- `prism-dtu-cyberint` (features: `dtu,fixture-gen`), filter `-E 'test(BC_2_06_020_cyberint)'`: **3 tests PASS** — VP-020-I (`test_BC_2_06_020_cyberint_baseline_cve_uses_cve_9999_namespace`), VP-020-J (`test_BC_2_06_020_cyberint_scenario_cve_ids_from_catalog`), VP-020-L (`test_BC_2_06_020_cyberint_scenario_cyclic_catalog_assignment`). Pure unit tests, ~11ms each.
+- `prism-dtu-demo-server` (features: `dtu,fixture-gen`), filter `-E 'test(cyberint_alert_cve_resolves_in_nvd)'`: **1 test PASS** — VP-020-K (`test_BC_2_06_020_cyberint_alert_cve_resolves_in_nvd`), the genuine end-to-end pivot test. Relocated to `prism-dtu-demo-server` by BPRL-P12-01 because it exercises both `CyberintClone` and `NvdClone` together. Verifies the scenario alert's `cve_id` resolves in the NVD catalog with `base_score>=7.0` and `base_severity="HIGH"`.
+- Total: **4 VP-020 tests PASS across 2 crates, 2 commands**.
 
 ---
 
@@ -155,7 +155,7 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 | AC-016 | AC-013-014-016-enrichment-correlation | PASS | Non-scenario passthrough additive; perimeter gate passes |
 | AC-017 | AC-009-010-017-018-guard-rails | PASS | E-DEMO-003 for healthy+scenario.enabled + compromised_endpoint×dormant |
 | AC-018 | AC-009-010-017-018-guard-rails | PASS | E-DEMO-006 for mismatched org_ids; both names + both org_ids in Err |
-| AC-019 | AC-019-cyberint-cve-pivot | PASS | VP-020-I..L: baseline CVE-9999-* namespace; scenario CVE from catalog; cyclic assignment; NVD HIGH pivot (base_score>=7.0) |
+| AC-019 | AC-019-cyberint-cve-pivot | PASS | VP-020-I/J/L: 3 tests in prism-dtu-cyberint (baseline CVE-9999-* namespace; scenario CVE from catalog; cyclic assignment). VP-020-K: 1 test in prism-dtu-demo-server (end-to-end alert→NVD HIGH pivot, base_score>=7.0) — 2 commands, 4 total |
 
 **Total: 19/19 ACs covered. All PASS.**
 
@@ -168,10 +168,10 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 | `prism-dtu-common` | `fixture-gen` | 7 (BC_2_06_019 filter) | Yes |
 | `prism-dtu-armis` | `dtu,fixture-gen` | 1 (stage visibility) | Yes |
 | `prism-dtu-crowdstrike` | `dtu,fixture-gen` | 1 (containment stage) | Yes |
-| `prism-dtu-demo-server` | `fixture-gen` | 9 (guard rails + disabled compat + cross-DTU) | Yes |
+| `prism-dtu-demo-server` | `dtu,fixture-gen` | 10 (guard rails + disabled compat + cross-DTU + VP-020-K cyberint→NVD pivot) | Yes |
 | `prism-dtu-threatintel` | `dtu,fixture-gen` | 3 (BC_2_06_020 filter) | Yes |
 | `prism-dtu-nvd` | `dtu,fixture-gen` | 1 (BC_2_06_020 filter) | Yes |
-| `prism-dtu-cyberint` | `dtu,fixture-gen` | 4 (BC_2_06_020_cyberint filter — VP-020-I..L) | Yes |
+| `prism-dtu-cyberint` | `dtu,fixture-gen` | 3 (BC_2_06_020_cyberint filter — VP-020-I/J/L only; VP-020-K in prism-dtu-demo-server) | Yes |
 
 Full workspace `just check` passes at HEAD f0b6b8c7 (verified by LOCAL adversary 3-CLEAN convergence at T5).
 
