@@ -71,7 +71,7 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 |----|-------------|-----------|-----------|
 | AC-013 | `ThreatIntelClone::new_with_scenario(entities)` (infallible): all scenario IOCs (ioc_ips, ioc_domains, ioc_hashes) resolve as `known_malicious=true`, `threat_score>=75`; `fixture_registry` Mutex pre-populated at construction | BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 / PC-1, PC-2 | `test_BC_2_06_020_threatintel_ioc_correlation_all_types` |
 | AC-014 | `NvdClone::new_with_scenario(entities)` (fallible): scenario CVEs resolve via `NvdState::lookup_and_count`; `cvss_metric_v31[0].cvss_data.base_score=8.1>=7.0`, `base_severity="HIGH"`; `cve_registry` immutable HashMap built at construction (NOT Mutex-wrapped) | BC-2.06.020 INV-NVD-CVE-CORRELATION-001 / PC-3, PC-4 | `test_BC_2_06_020_nvd_cve_correlation_high_cvss_base_score` |
-| AC-016 | Non-scenario passthrough: non-scenario IP `"192.0.2.1"` resolves identically to `new().lookup("192.0.2.1")` (additive injection); perimeter compile-fail gate passes — neither `prism-dtu-threatintel` nor `prism-dtu-nvd` imports `prism-spec-engine`, `prism-sensors`, or `prism-query` | BC-2.06.020 INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001 + INV-PERIMETER-COMPLIANCE-001 / PC-6 | `test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate` + `test_BC_2_06_020_ac013_lookup_response_fields` |
+| AC-016 | Non-scenario passthrough: non-scenario IP `"192.0.2.1"` resolves identically to `new().lookup("192.0.2.1")` (additive injection); perimeter compliance holds structurally — neither `prism-dtu-threatintel` nor `prism-dtu-nvd` declares a `prism-spec-engine`/`prism-sensors`/`prism-query` dependency, so any forbidden `use` is an E0432 compile error | BC-2.06.020 INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001 + INV-PERIMETER-COMPLIANCE-001 / PC-6 | `test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate` + `test_BC_2_06_020_ac013_lookup_response_fields` |
 
 **Recording shows:**
 - `prism-dtu-threatintel` (features: `dtu,fixture-gen`): 3 tests PASS (AC-013 IOC correlation, AC-016 passthrough, AC-016 response fields)
@@ -152,7 +152,7 @@ Demo modality: VHS terminal recordings of `cargo nextest` runs against live DTU 
 | AC-013 | AC-013-014-016-enrichment-correlation | PASS | ThreatIntel IOC injection: all 3 types (ip/domain/hash) → known_malicious=true, score>=75 |
 | AC-014 | AC-013-014-016-enrichment-correlation | PASS | NVD CVE injection: base_score=8.1>=7.0, base_severity="HIGH"; immutable HashMap |
 | AC-015 | AC-007-008-015-stage-visibility-money-shot | PASS | dev-deadbeef-100-0 consistent across Armis+CrowdStrike+Claroty at stage 1 |
-| AC-016 | AC-013-014-016-enrichment-correlation | PASS | Non-scenario passthrough additive; perimeter gate passes |
+| AC-016 | AC-013-014-016-enrichment-correlation | PASS | Non-scenario passthrough additive; perimeter compliance holds (structural Cargo/E0432) |
 | AC-017 | AC-009-010-017-018-guard-rails | PASS | E-DEMO-003 for healthy+scenario.enabled + compromised_endpoint×dormant |
 | AC-018 | AC-009-010-017-018-guard-rails | PASS | E-DEMO-006 for mismatched org_ids; both names + both org_ids in Err |
 | AC-019 | AC-019-cyberint-cve-pivot | PASS | VP-020-I/J/L: 3 tests in prism-dtu-cyberint (baseline CVE-9999-* namespace; scenario CVE from catalog; cyclic assignment). VP-020-K: 1 test in prism-dtu-demo-server (end-to-end alert→NVD HIGH pivot, base_score>=7.0) — 2 commands, 4 total |

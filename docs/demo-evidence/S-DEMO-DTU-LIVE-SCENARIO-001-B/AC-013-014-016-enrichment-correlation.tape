@@ -6,7 +6,7 @@
 #              resolve as known_malicious=true, threat_score>=75
 #   AC-014 — NvdClone::new_with_scenario: scenario CVEs resolve with
 #              cvss_metric_v31[0].cvss_data.base_score>=7.0, base_severity="HIGH"
-#   AC-016 — Non-scenario IOC passthrough is strictly additive; perimeter gate passes
+#   AC-016 — Non-scenario IOC passthrough is strictly additive; perimeter compliance holds (structural Cargo/E0432)
 #              (neither threatintel nor nvd imports spec-engine/sensors/query)
 #
 # Traces to: BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 (postconditions 1,2),
