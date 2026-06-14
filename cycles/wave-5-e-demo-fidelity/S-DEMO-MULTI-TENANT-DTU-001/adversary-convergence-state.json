@@ -79,5 +79,25 @@
   },
   "all_findings_through_pass_11": "CLOSED",
   "note": "LOCAL adversary 3-CLEAN-strict convergence reached at passes 9/10/11. Substantive findings across cascade: F-P1-HIGH-001 (isolation paper-fix → server-side counter), F-P3-MED-001/F-P5-MED-003 (overlay-format spec gap + newtype doc), F-P8-HIGH-001 (undocumented prism-dtu-armis scope). Code stable since Pass-1 commit 9b4f4154; long doc/spec-accuracy tail across passes 2-8. Story v1.10, BC-2.06.017 v1.7.",
-  "next": "Step-5 demo-recording per-AC → push feature branch → pr-manager 9-step PR lifecycle (PR-LEVEL adversarial convergence) → merge"
+  "pr_level": {
+    "pr_number": 187,
+    "protocol": "BC-5.39.001 3-CLEAN-strict PR-LEVEL",
+    "passes_completed": 10,
+    "clean_strict_streak": 3,
+    "status": "CONVERGED",
+    "converged_at_pass": 10,
+    "clean_passes": [8, 9, 10],
+    "substantive_findings": [
+      "F-PR3-HIGH-001 AC-006 routing-bypass paper-fix (real, closed via prism-sensors E2E test)",
+      "SEC-001/002 TOML-injection+path-traversal (closed)",
+      "SEC-006 error-disclosure (closed)"
+    ],
+    "hygiene_findings": [
+      "F-PR2 changelog order",
+      "F-PR4 citation symbols",
+      "OBS-PR4 volatile-SHA",
+      "OBS-PR6/7 gate-count comments"
+    ],
+    "next": "push 2746f878 → CI green → squash-merge → cleanup → post-merge POL-14 promotion"
+  }
 }
