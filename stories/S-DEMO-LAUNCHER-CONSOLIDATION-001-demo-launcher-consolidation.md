@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.0"
+version: "2.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -116,11 +116,42 @@ risk_mitigations:
     (nested). These are DIFFERENT sidecar files (or the same file — implementer's choice, but
     demo-run.sh must poll and parse the correct format). demo-run.sh must be updated to expect
     the nested format when it calls start-multi."
-  - "clone_factory closure must use the same construction paths as build_clone_pairs: seeded
-    (new_with_seed when scenario.enabled=true), static-JSON (new() otherwise). The closure
-    receives (org_slug, sensor_id) and must map them to the correct BehavioralClone constructor.
-    The implementer must read harness.rs build_clone_pairs for the complete construction sequence
-    including E-DEMO-002/003/004/005/006 guard order."
+  - "clone_factory closure REQUIRES the `fixture-gen` Cargo feature. The seeded constructors
+    (CrowdstrikeClone::new_with_seed, ClarotyClone::new_with_seed, ArmisClone::new_with_seed,
+    CyberintClone::new_with_seed) are defined ONLY under `#[cfg(feature = \"fixture-gen\")]`.
+    The `#[cfg(not(feature = \"fixture-gen\"))]` fallback arm in harness.rs build_clone_pairs
+    calls plain `new()` which ignores the seed entirely — org-a and org-c CrowdStrike would
+    serve IDENTICAL static data despite seed=100 vs seed=200, silently violating
+    INV-DISTINCT-DATA-001 at runtime while still passing the socket-distinctness Red Gate.
+    This silent-fallback is FORBIDDEN per the production-grade default. Therefore:
+    (a) `build_multi_clone_factory` MUST be compiled and run ONLY with `feature = \"fixture-gen\"`
+        enabled. If invoked without it, the function MUST HARD-ERROR with a clear panic or
+        compile_error! — NOT silently fall back to unseeded `new()`.
+    (b) A `#[cfg(not(feature = \"fixture-gen\"))] compile_error!` guard or a runtime
+        `panic!(\"start-multi requires the fixture-gen feature; rebuild with --features dtu,fixture-gen\")`
+        at the top of `build_multi_clone_factory` is acceptable; the implementer must choose
+        one and document the rationale in a comment.
+    (c) The implementer must read harness.rs build_clone_pairs for the complete construction
+        sequence including E-DEMO-002/003/004/005/006 guard order. The fixture-gen path uses
+        `new_with_seed`; the static-JSON path uses `new()`. `start-multi` ONLY supports the
+        seeded path (fixture-gen required)."
+  - "Cyberint seed AND access-token composite construction for start-multi: `new_with_seed`
+    does NOT apply `initial_access_token` — the seeded constructor accepts (seed, archetype,
+    org_id) only. To satisfy BOTH seed-based data distinctness AND access-token auth, the
+    `build_multi_clone_factory` closure must use the composite pattern:
+    (1) Call `CyberintClone::new_with_seed(seed, archetype, org_id)` to produce the seeded clone.
+    (2) If `org_cfg.initial_access_token.is_some()`, immediately call
+        `clone.configure(serde_json::json!({\"access_token\": token})).await` (via the
+        `BehavioralClone::configure` trait method). This routes through
+        `CyberintState::apply_config` → `register_access_token`, placing the token in the
+        `access_token_allowlist` BEFORE the clone starts serving requests.
+    (3) These two mechanisms compose cleanly: `configure()` is post-construction and
+        `new_with_seed` leaves the allowlist empty, so the call is additive.
+    The composite call MUST occur inside `cmd_start_multi` AFTER `start_instances` resolves
+    (or inside the factory closure before returning the Box, before `start_on` is called —
+    implementer's choice; document which approach is used with a comment citing this
+    risk_mitigation entry). The existing `new_with_access_token` constructor is NOT used in
+    the seeded path because it hard-codes static-fixture loading without a seed."
   - "demo.toml multi-org seed alignment: seeds used in scripts/demo.toml clones must match the
     seeds used in the S-DEMO-004 test harness (seed=100 for org-a, seed=200 for org-c) to satisfy
     INV-DISTINCT-DATA-001. Read S-DEMO-004 risk_mitigations block for the authoritative seed values."
@@ -162,7 +193,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.0
+**Version:** v2.1
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -263,15 +294,22 @@ StartMulti {
        name = "{org_slug}-{sensor_id}"  (e.g. "org-a-crowdstrike")
        bind = "{multi_cfg.harness.bind}:0".parse()
        instances.push(InstanceEntry::new(name, bind))
-4. Build clone_factory closure:
+4. Build clone_factory closure (REQUIRES fixture-gen feature — hard-error if absent):
    |entry: &InstanceEntry| -> Box<dyn BehavioralClone> {
-     parse entry.name → (org_slug, sensor_id)
+     parse entry.name → (org_slug, sensor_id) using harness::parse_org_id convention
      look up OrgConfig from multi_cfg.orgs[org_slug]
-     construct the correct BehavioralClone for sensor_id using seed from OrgConfig
-     (static-JSON path: CrowdstrikeClone::new(), ArmisClone::new(), etc.
-      seeded path when scenario-enabled: use new_with_seed as in build_clone_pairs)
+     derive archetype via harness::fixture_set_to_archetype(org_cfg.seed)
+     construct OrgId: OrgId(*uuid::Uuid::parse_str(&org_cfg.org_id)?.as_bytes())
+     // start-multi ALWAYS uses the seeded path (fixture-gen required, no static-JSON fallback)
+     construct clone via new_with_seed(org_cfg.seed, archetype, org_id)
+       using prism_dtu_common::demo_time_anchor() as the time anchor
+     // Cyberint composite path (GAP-2): new_with_seed does NOT set access_token;
+     //   call configure() post-construction to register the token in the allowlist.
+     //   These two mechanisms compose cleanly: configure() is additive to the allowlist.
      if sensor_id == "cyberint" && org_cfg.initial_access_token.is_some():
-       call configure({ "access_token": token }) on the clone
+       clone.configure(serde_json::json!({"access_token": token}))
+         — must be called synchronously before returning the Box; use a runtime
+           handle or block_on if needed (or refactor to async factory if simpler)
      return Box::new(clone)
    }
 5. Call start_instances(multi_cfg_for_factory, clone_factory).await
@@ -700,8 +738,14 @@ from the operator CLI)
 `prism-dtu-demo-server --help` lists `start-multi` as a subcommand.
 `prism-dtu-demo-server start-multi --help` lists `--config <PATH>` as the only argument.
 
-**Verification:** `cargo run -p prism-dtu-demo-server --features dtu -- start-multi --help`
+**Verification:** `cargo run -p prism-dtu-demo-server --features dtu,fixture-gen -- start-multi --help`
 exits 0 and prints the expected help text.
+
+**Note:** `fixture-gen` is REQUIRED alongside `dtu` for any `start-multi` invocation.
+Omitting `fixture-gen` must produce a hard error (compile_error! or runtime panic) — NOT
+silently fall back to unseeded clones that would violate INV-DISTINCT-DATA-001. The
+`--help` check alone does not exercise the factory, but all remaining `start-multi`
+verifications MUST use `--features dtu,fixture-gen`.
 
 ---
 
@@ -762,8 +806,10 @@ Given: `build_multi_clone_factory(&cfg)` returns a factory closure.
 
 Then:
 - Passing an entry with name `"org-a-crowdstrike"` produces a `CrowdstrikeClone` (static-JSON path).
-- Passing an entry with name `"org-b-cyberint"` produces a `CyberintClone` (with `initial_access_token`
-  configured if `[orgs.org-b].initial_access_token` is set).
+- Passing an entry with name `"org-b-cyberint"` produces a `CyberintClone` constructed via
+  `new_with_seed` (seeded data distinctness) AND, if `[orgs.org-b].initial_access_token` is set,
+  has the token registered in `access_token_allowlist` via a follow-up `configure({"access_token": token})`
+  call (GAP-2 composite path). The `new_with_access_token` constructor is NOT used in the seeded path.
 - Passing an entry with an unrecognized sensor name panics or returns an error (not silently
   constructing a wrong clone type).
 
@@ -950,7 +996,8 @@ Architecture section files referenced:
 | `cmd_start_multi` MUST call the EXISTING `start_instances(MultiInstanceConfig, clone_factory)` | Do not reimplement multi-instance binding logic; `start_instances` is already tested and correct per BC-2.06.017. |
 | Sidecar file for `start-multi` MUST be `.prism-dtu-demo-server.urls-multi.json` (nested format) | Distinct from the flat `.prism-dtu-demo-server.urls.json` written by `start`; prevents format confusion. |
 | InstanceEntry name convention MUST be `"{org_slug}-{sensor_id}"` | Enables the `clone_factory` closure to recover (org_slug, sensor_id) by splitting on `-` at the first occurrence of a known sensor name. |
-| `build_multi_clone_factory` MUST be a separately named, testable function | RG-004 tests it directly; if it is an inline closure in `cmd_start_multi`, the test cannot call it. Extract as `pub(crate) fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> impl Fn(&InstanceEntry) -> Box<dyn BehavioralClone>`. |
+| `build_multi_clone_factory` MUST be a separately named, testable function | RG-004 tests it directly; if it is an inline closure in `cmd_start_multi`, the test cannot call it. Extract as `pub(crate) fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> impl Fn(&InstanceEntry) -> Box<dyn BehavioralClone>`. This function is `#[cfg(feature = "fixture-gen")]`-only; it MUST NOT exist in the `#[cfg(not(feature = "fixture-gen"))]` compilation unit — use `compile_error!` or a gated `pub(crate)` fn signature to enforce this. |
+| `build_multi_clone_factory` MUST reuse the existing fixture-gen-gated helpers from `harness.rs` | Use `harness::parse_org_id` and `harness::fixture_set_to_archetype` (both `#[cfg(feature = "fixture-gen")]`-gated public helpers) for OrgId construction and archetype mapping respectively. Use `prism_dtu_common::Archetype` for the archetype type. Construct OrgId from a UUID via `OrgId(*uuid.as_bytes())` — matching the pattern used in S-DEMO-004 harness. Call `prism_dtu_common::demo_time_anchor()` for the time anchor parameter to `new_with_seed`. Do NOT reinvent any of these utilities inline. |
 | `start_multi_for_config` MUST be extracted as a testable async fn | RG-005 tests socket isolation at the async fn level; if the bind logic is only in `cmd_start_multi` (which also reads config files and handles signals), the test cannot call it without subprocess overhead. Extract as `pub(crate) async fn start_multi_for_config(cfg: &MultiOrgDemoConfig) -> anyhow::Result<MultiInstanceServers>`. |
 | `demo-setup.sh` MUST NOT write per-org `base_url` overlay TOMLs | DTU ports are ephemeral; overlay generation belongs in `demo-run.sh` after the sidecar is parsed. |
 | `demo-run.sh` MUST write N×M overlay TOMLs BEFORE printing the `prism start` command | prism spec loader reads overlays at boot step 4c; missing overlay = wrong base_url. |
@@ -1048,8 +1095,11 @@ Estimate is ~32% of a 200k-token context window. Slightly over the 20-30% target
   `crates/prism-dtu-demo-server/tests/`.
 - [ ] Add `test_start_multi_stands_up_per_org_distinct_sockets` (RG-005) to
   `crates/prism-dtu-demo-server/tests/`.
-- [ ] Run `cargo nextest run -p prism-dtu-demo-server --features dtu --no-fail-fast`;
+- [ ] Run `cargo nextest run -p prism-dtu-demo-server --features dtu,fixture-gen --no-fail-fast`;
   confirm ALL 5 RG tests FAIL (Red Gate — `todo!()` stubs not yet replaced).
+  NOTE: `fixture-gen` is required alongside `dtu`; RG-004 and RG-005 call
+  `build_multi_clone_factory` which is a fixture-gen-only function; omitting it
+  will produce a compile error or hard panic, not silent wrong-data.
 - [ ] Density check: 5 failing tests / ~10-12 non-trivial function bodies >= 0.5. PASS.
 
 ### Phase 3 (implementer): Add config.rs structs
@@ -1076,7 +1126,7 @@ Estimate is ~32% of a 200k-token context window. Slightly over the 20-30% target
   load `MultiOrgDemoConfig`, call `start_multi_for_config`, write nested sidecar,
   wait for SIGTERM/SIGINT via `wait_for_shutdown_signal_multi` (adapt existing
   `wait_for_shutdown_signal` to accept `&MultiInstanceServers` and call `servers.shutdown()`).
-- [ ] Run `cargo nextest run -p prism-dtu-demo-server --features dtu --no-fail-fast`;
+- [ ] Run `cargo nextest run -p prism-dtu-demo-server --features dtu,fixture-gen --no-fail-fast`;
   ALL 5 RG tests must now be GREEN.
 - [ ] Run `just iter prism-dtu-demo-server`; all tests GREEN.
 
@@ -1085,8 +1135,11 @@ Estimate is ~32% of a 200k-token context window. Slightly over the 20-30% target
 - [ ] Add `[orgs.org-a]`, `[orgs.org-b]`, `[orgs.org-c]` sections as specified above.
 - [ ] Confirm that `cargo run -p prism-dtu-demo-server --features dtu -- start --config configs/demo.toml`
   still starts (backward compatibility AC-006 — `configs/demo.toml` does NOT have `[orgs.*]`).
-- [ ] Confirm that `cargo run -p prism-dtu-demo-server --features dtu -- start-multi --config scripts/demo.toml`
-  starts (new subcommand).
+  NOTE: `start` does NOT require `fixture-gen`; the single-org seeded path is not used here.
+- [ ] Confirm that `cargo run -p prism-dtu-demo-server --features dtu,fixture-gen -- start-multi --config scripts/demo.toml`
+  starts (new subcommand). `fixture-gen` is REQUIRED for `start-multi` — the seeded
+  constructors are only available under that feature and `build_multi_clone_factory`
+  must hard-error (panic or compile_error!) if it is absent.
 
 ### Phase 6 (implementer): Retire `scripts/start-demo.sh`
 
@@ -1101,6 +1154,15 @@ Estimate is ~32% of a 200k-token context window. Slightly over the 20-30% target
   - Replace sidecar poll from `.prism-dtu-demo-server.urls.json` to `.prism-dtu-demo-server.urls-multi.json`.
   - Replace flat sidecar parsing with nested `{org_slug: {sensor: url}}` Python block.
   - Generate N×M overlay TOMLs in `customers/<org_slug>/<sensor>.sensor.toml`.
+  - IMPLEMENTER NOTE (GAP-3): `demo-run.sh` must thread `DEMO_RUN_DIR` into BOTH the sidecar
+    poll path AND the Python overlay-generation block. The demo-server writes
+    `.prism-dtu-demo-server.urls-multi.json` to its current working directory (cwd); the
+    script `cd`s into `DEMO_RUN_DIR` before launching the server, so the sidecar poll path
+    must use `${DEMO_RUN_DIR}/.prism-dtu-demo-server.urls-multi.json` (absolute path) or the
+    `open()` call in the Python heredoc must use the same absolute path — not a bare filename
+    that would resolve relative to a different cwd. One-line fix: set `SIDECAR="${DEMO_RUN_DIR}/.prism-dtu-demo-server.urls-multi.json"`
+    and reference `${SIDECAR}` everywhere, including inside the Python heredoc via
+    `os.environ["DEMO_RUN_DIR"]`.
   - Run `shellcheck scripts/demo-run.sh`.
 - [ ] Update `scripts/demo-setup.sh`:
   - Replace single-org prism.toml generation with N-org `[[orgs]]` generation.
@@ -1181,7 +1243,8 @@ escalate to the architect — do not silently fall back to Option-1.
 |------|--------|-------------|
 | `crates/prism-dtu-demo-server/src/config.rs` | MODIFY | Add `MultiOrgDemoConfig`, `OrgConfig` structs with `#[serde(deny_unknown_fields)]` + `#[non_exhaustive]` + `from_file`/`from_str` methods (~40-60 lines). |
 | `crates/prism-dtu-demo-server/src/main.rs` | MODIFY | Add `StartMulti` variant to `Commands` enum; add `cmd_start_multi` + `build_multi_clone_factory` + `start_multi_for_config` + `write_multi_url_sidecar` (~80-120 lines net). |
-| `crates/prism-dtu-demo-server/tests/` | CREATE | New integration test file (e.g., `multi_org.rs`) containing RG-004 and RG-005. |
+| `crates/prism-dtu-demo-server/tests/` | CREATE | New integration test file (e.g., `multi_org.rs`) containing RG-004 and RG-005. The corresponding `[[test]]` entry in `crates/prism-dtu-demo-server/Cargo.toml` MUST specify `required-features = ["dtu", "fixture-gen"]` — matching the precedent of `bc_2_06_018_archetype_differential` and `bc_2_06_019_scenario_progression` in that crate's Cargo.toml. Without `required-features`, the test compiles without `fixture-gen` and `build_multi_clone_factory` will hard-error at runtime. |
+| `crates/prism-dtu-demo-server/Cargo.toml` | MODIFY | Add `[[test]]` entry for `multi_org.rs` with `required-features = ["dtu", "fixture-gen"]`. |
 | `scripts/start-demo.sh` | DELETE | Retire the `exec`-form standalone launcher. |
 | `scripts/demo.toml` | MODIFY | Add `[orgs.org-a]`, `[orgs.org-b]`, `[orgs.org-c]` sections; existing `[harness]` + `[clones.*]` stay for `start` backward compatibility. |
 | `scripts/demo-setup.sh` | MODIFY | Generalize from 1 org to N orgs: N-org prism.toml, N×M `prism credential set` calls. |
@@ -1205,7 +1268,7 @@ escalate to the architect — do not silently fall back to Option-1.
 | `anyhow` | workspace version | All `cmd_start_multi` error propagation uses `anyhow::Result`. |
 | `tokio` | workspace version | `cmd_start_multi` is an `async fn`; signal handling via `tokio::signal`. |
 | `prism-dtu-common` | workspace | `BehavioralClone` trait; returned by `build_multi_clone_factory` factory. |
-| `prism-dtu-crowdstrike`, `prism-dtu-armis`, `prism-dtu-claroty`, `prism-dtu-cyberint` | workspace | Clone constructors called by `build_multi_clone_factory`. |
+| `prism-dtu-crowdstrike`, `prism-dtu-armis`, `prism-dtu-claroty`, `prism-dtu-cyberint` | workspace | Clone constructors called by `build_multi_clone_factory`. **REQUIRED Cargo feature: `fixture-gen`** — the seeded `new_with_seed` constructors are `#[cfg(feature = "fixture-gen")]` gated on all four crates. `start-multi` must be built/run with `--features dtu,fixture-gen`. Omitting `fixture-gen` must hard-error (compile_error! or runtime panic) — NOT silently fall back to unseeded `new()` which would produce identical data across orgs and violate INV-DISTINCT-DATA-001. |
 | `prism` (binary) | post-S-DEMO-003 | `prism credential set`, `prism credential delete`, shell scripts. |
 | `prism-dtu-demo-server` (binary) | this story | New `start-multi` subcommand. |
 | `cargo` | per `rust-toolchain.toml` | Build step in `demo-setup.sh`. |
@@ -1226,3 +1289,4 @@ Option-2. Do not raise the question again.
 |---------|------|--------|---------|
 | 1.0 | 2026-06-14 | story-writer | Initial materialization from D-1029 draft stub. Full spec with 10 ACs, consolidation decision (retire start-demo.sh), 3-org model, N×M overlay and credential generalization, all 6 context-engineering sections. status: ready. tdd_mode: facade (scripts-only). |
 | 2.0 | 2026-06-14 | story-writer | Option-2 architect-approved conversion: facade→Rust-touching. Adds StartMulti CLI subcommand + MultiOrgDemoConfig structs in prism-dtu-demo-server. crates_touched: [] → [prism-dtu-demo-server]. tdd_mode: facade → tdd. points: 5 → 8. ACs expanded from 10 to 13 (3 new Rust subcommand ACs added; existing script ACs renumbered). 5 Red Gate tests specified (RG-001..RG-005). §File Structure updated with Rust crate MODIFY rows. demo-run.sh simplified to one start-multi call. Option-1 (N×M shell processes) retired. |
+| 2.1 | 2026-06-14 | story-writer | Pre-TDD gap closure (3 gaps). GAP-1 (IMPORTANT): `fixture-gen` feature is REQUIRED for `start-multi`; `build_multi_clone_factory` must hard-error (compile_error! or runtime panic) if built without it — no silent fallback to unseeded `new()` which would violate INV-DISTINCT-DATA-001. All `start-multi` cargo commands updated to `--features dtu,fixture-gen`. `multi_org.rs` Cargo.toml `[[test]]` must specify `required-features = ["dtu", "fixture-gen"]`. Architecture Compliance Rules updated: `build_multi_clone_factory` must reuse `harness::parse_org_id`, `harness::fixture_set_to_archetype`, `prism_dtu_common::Archetype`, `demo_time_anchor()`. GAP-2 (MINOR): Cyberint composite path documented: `new_with_seed(...)` then `configure({"access_token": token})` post-construction — these compose cleanly via `CyberintState::apply_config` → `register_access_token`; no architect escalation needed. GAP-3 (NOTE): `DEMO_RUN_DIR` must be threaded into sidecar poll + Python paths in demo-run.sh to avoid cwd-relative path mismatch. Status: ready. Points: 8 (unchanged). |

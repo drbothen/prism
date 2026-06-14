@@ -2,7 +2,7 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.4"
+version: "1.5"
 timestamp: 2026-06-14T00:00:00Z
 project: prism
 ---
@@ -145,16 +145,17 @@ ThreatIntel + NVD are seeded with correlated data and the DTU clones **return it
 
 **D-1164 resolution:** The user has chosen Full Option A — build the entire infusion framework before demo recording. Enrichment must run through the REAL prism code path with DTU clones as the only substituted element.
 
-**The FULL Option-A infusion chain (REQUIRED, demo-critical-path):**
+**The FULL Option-A infusion chain (REQUIRED, demo-critical-path) — 4 stories (D-1168 architect verdict: S-1.15 DROPPED from demo lane):**
 
-Designed in WO-D1109 at `.factory/specs/architecture/work-orders/WO-D1109-enrichment-pivot.md`. Five stories in linear dependency order:
-- **S-1.15** (~6pt; partial-merge) — WASM plugin runtime (`PluginInfusionSource` delegates to it). FOUNDATIONAL.
+Designed in WO-D1109 at `.factory/specs/architecture/work-orders/WO-D1109-enrichment-pivot.md`. Four stories in linear dependency order (S-1.15 REMOVED from demo enrichment lane — see §S-1.15 DROP below):
 - **S-1.14-REDO** (~8pt; draft/blocked) — Full infusion engine: InfusionLoader + 3-tier cache + all source types (MMDB/CSV/JSON + plugin). FOUNDATIONAL. (`S-DEMO-ENRICHMENT-PIVOT-001` is its `forward_subset_implemented_by`.)
-- **S-DEMO-ENRICHMENT-PIVOT-001** (~5pt; draft v1.1) — plugin-type `InfusionLoader::parse` + `PluginInfusionSource` + DataFusion `ScalarUDF` registration in prism-query.
+- **S-DEMO-ENRICHMENT-PIVOT-001** (~5pt; ready v1.3) — plugin-type `InfusionLoader::parse` + `PluginInfusionSource` + DataFusion `ScalarUDF` registration in prism-query.
 - **S-DEMO-ENRICHMENT-PIVOT-002** (~8pt; draft v1.1) — `threatintel.infusion.toml` + `nvd.infusion.toml` grounded vs DTU route surfaces + two WASM `.prx` plugin crates (`prism-threatintel-infusion`, `prism-nvd-infusion`) calling DTU HTTP endpoints.
 - **S-DEMO-ENRICHMENT-PIVOT-003** (~8pt; draft v1.8) — real IOC/CVE field stamping in Cyberint/CrowdStrike DTU fixtures + validation of canonical pivot queries `| enrich threat_intel(ioc_value)` / `| enrich nvd(device_cves_first)` against demo server at scenario stage >= 3.
 
 WASM toolchain risk ACCEPTED with documented contingency per D-1164: if WASM blocks, `PluginInfusionSource::enrich_single` may fall back to a direct `reqwest` HTTP call to the DTU endpoint, TD-anchored to S-1.14-REDO/S-1.15 for replacement. This is a human-directed deferral per Canonical Principle Rule 3.
+
+**§S-1.15 DROP from demo enrichment lane (D-1168 architect verdict):** S-1.15's remaining work is `fire_alert`/`fire_case`/`fire_report` action-plugin dispatch (TD-PLUGIN-P0-008). This is write-back/TDE (DEFERRED), NOT enrichment. `enrich_single` (the enrichment path) is already operational on develop. The enrichment lane needs NO S-1.15 work. S-1.15 is tracked alongside S-4.08 as deferred-TDE, NOT demo-blocking. S-1.15 as a story STILL EXISTS in STORY-INDEX (total_stories unchanged); it is only removed from the demo enrichment lane set.
 
 This is **THE FLAGSHIP `enrich` FEATURE**. Slots AFTER the capability-discovery block, BEFORE T11 launcher and T13 capstone. Closes TD-PLUGIN-P0-002 (P0) upon merge.
 
@@ -172,9 +173,9 @@ All four require `dclaude:remove-uncertainty` before TDD delivery (D-1110 standi
 
 ### T11 — Launcher Consolidation
 
-**Story:** `S-DEMO-LAUNCHER-CONSOLIDATION-001` (draft stub; depends_on S-DEMO-003 SATISFIED)
+**Story:** `S-DEMO-LAUNCHER-CONSOLIDATION-001` (ready v2.1; depends_on S-DEMO-003 SATISFIED)
 
-Pending human launcher-lifecycle decision. Story-writer materialization needed.
+Option-2 Rust executed (D-1167/D-1168): `StartMulti` CLI subcommand wiring `start_instances`/`MultiInstanceConfig`; `MultiOrgDemoConfig`/`OrgConfig` structs; nested `{org_slug:{sensor:url}}` sidecar; 13 ACs; 8 pts; tdd_mode tdd; 5 Red Gate tests; `fixture-gen` feature required (HARD-ERROR if absent — GAP-1 closure); Cyberint `new_with_seed`+`configure({access_token})` composite (GAP-2 closure); DEMO_RUN_DIR note (GAP-3); new `[[test]] required-features=["dtu","fixture-gen"]` guard. remove-uncertainty NEXT.
 
 ### T13 — Capstone
 
@@ -220,7 +221,7 @@ T1–T4 DONE
 
 All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consolidation / narrative capstone) MUST scope against DTU clones, not live services. Story specs, acceptance criteria, and Red Gate tests must ground against DTU clone routes, not production vendor endpoints.
 
-**Corollary — infusion/WASM enrichment (D-1164 SUPERSEDES D-1163 corollary):** Per user decision D-1164 (2026-06-14), the FULL infusion framework (Option A) is REQUIRED before the demo is recorded. Real enrichment must flow through the REAL prism code path the same structural way sensors do: `| enrich` PrismQL pipe → DataFusion UDF → InfusionRegistry → PluginInfusionSource → WASM plugin → DTU HTTP endpoint. DTU clones are the ONLY substituted element — this is fully consistent with the DTU-EVERYTHING invariant (the DTUs ARE the endpoints; the prism enrichment code is real). Story B's demo-server-side enrichment correlation (BC-2.06.020) remains correct and on develop, but is acknowledged as NOT sensor-parity-real: it pre-seeds ThreatIntel/NVD DTU registries from `ScenarioEntityCatalog` without executing any prism enrichment code path. D-1164 supersedes and completes Story B's work via the FULL Option-A infusion framework. TD-PLUGIN-P0-002 (P0 open — infusion 100% `unimplemented!()`) is scheduled for closure by this work (S-1.14-REDO + S-1.15 + S-DEMO-ENRICHMENT-PIVOT-001/002/003). WASM toolchain risk ACCEPTED with contingency: if WASM blocks, `PluginInfusionSource::enrich_single` may fall back to a direct `reqwest` HTTP call to the DTU endpoint, TD-anchored to S-1.14-REDO/S-1.15 for replacement. **The PIVOT-001/002/003 enrichment chain is REQUIRED BEFORE T13 capstone/T14 recording.** Five Option-A stories: S-1.15 (WASM plugin runtime) + S-1.14-REDO (full infusion engine) + S-DEMO-ENRICHMENT-PIVOT-001 (plugin-type UDF, ~5pt) + S-DEMO-ENRICHMENT-PIVOT-002 (2 WASM `.prx` plugins + infusion.toml, ~8pt) + S-DEMO-ENRICHMENT-PIVOT-003 (IOC stamping + pivot-query validation, ~8pt).
+**Corollary — infusion/WASM enrichment (D-1164 SUPERSEDES D-1163 corollary):** Per user decision D-1164 (2026-06-14), the FULL infusion framework (Option A) is REQUIRED before the demo is recorded. Real enrichment must flow through the REAL prism code path the same structural way sensors do: `| enrich` PrismQL pipe → DataFusion UDF → InfusionRegistry → PluginInfusionSource → WASM plugin → DTU HTTP endpoint. DTU clones are the ONLY substituted element — this is fully consistent with the DTU-EVERYTHING invariant (the DTUs ARE the endpoints; the prism enrichment code is real). Story B's demo-server-side enrichment correlation (BC-2.06.020) remains correct and on develop, but is acknowledged as NOT sensor-parity-real: it pre-seeds ThreatIntel/NVD DTU registries from `ScenarioEntityCatalog` without executing any prism enrichment code path. D-1164 supersedes and completes Story B's work via the FULL Option-A infusion framework. TD-PLUGIN-P0-002 (P0 open — infusion 100% `unimplemented!()`) is scheduled for closure by this work (S-1.14-REDO + S-1.15 + S-DEMO-ENRICHMENT-PIVOT-001/002/003). WASM toolchain risk ACCEPTED with contingency: if WASM blocks, `PluginInfusionSource::enrich_single` may fall back to a direct `reqwest` HTTP call to the DTU endpoint, TD-anchored to S-1.14-REDO/S-1.15 for replacement. **The PIVOT-001/002/003 enrichment chain is REQUIRED BEFORE T13 capstone/T14 recording.** Four Option-A stories (D-1168: S-1.15 DROPPED from demo enrichment lane — deferred-TDE with S-4.08; TD-PLUGIN-P0-008): S-1.14-REDO (full infusion engine) + S-DEMO-ENRICHMENT-PIVOT-001 (plugin-type UDF, ~5pt) + S-DEMO-ENRICHMENT-PIVOT-002 (2 WASM `.prx` plugins + infusion.toml, ~8pt) + S-DEMO-ENRICHMENT-PIVOT-003 (IOC stamping + pivot-query validation, ~8pt).
 
 **Cross-ref:** Task ledger `.factory/objectives/multi-client-soc-demo-tasks.md` §PREREQ-CONFIRMED block (D-1163).
 

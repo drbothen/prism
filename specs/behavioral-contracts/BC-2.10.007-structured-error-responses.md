@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-14"  # v1.5: R3 reconciliation — lock canonical ToolError nested shape + complete field set; 429 retry_after_seconds wiring note
+modified: "2026-06-14"  # v1.6: Clarify SensorRateLimited shape — required u64 (not Option), field `sensor` (not `sensor_id`); retry_after_seconds always populated for rate-limits, null only for non-retryable/non-rate-limit errors
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -76,7 +76,7 @@ Error responses use the **nested** MCP structured content shape. The story-spec 
 | `message` | `String` | Always | Human-readable error description. Upstream sensor messages MUST NOT be interpolated here (DI-006). |
 | `category` | `String` | Always | One of: `"transient"`, `"authentication"`, `"validation"`, `"not_found"`, `"permission"`, `"upstream_error"`, `"configuration"`, `"safety"` |
 | `retryable` | `bool` | Always | `true` for transient errors (rate limit, timeout, network); `false` for permanent (invalid params, auth invalid) |
-| `retry_after_seconds` | `u64 \| null` | Always | Populated from sensor `Retry-After` header when known (see 429 wiring note); `null` when not applicable. MUST be `null` (not absent) when no delay is known — consistent client-side handling requires the field to always be present. |
+| `retry_after_seconds` | `u64 \| null` | Always | For `SensorRateLimited` errors: ALWAYS a non-null `u64` equal to `retry_after_ms / 1000` (the `PrismError::SensorRateLimited` variant carries `retry_after_ms: u64` — a required field, never `Option`). For non-retryable and non-rate-limit errors (validation, auth, internal, etc.): ALWAYS `null`. MUST be `null` (not absent) when no delay applies — consistent client-side handling requires the field to always be present in JSON. |
 | `suggestion` | `String` | Always | Short actionable string, e.g., `"Check credential_ref in prism.toml"` |
 | `source` | `String` | Always | Origin of the error: `"prism_mcp"` for MCP-layer validation failures; `"crowdstrike_falcon_api"`, `"claroty_api"`, `"armis_api"`, `"cyberint_api"` for sensor errors; `"prism_config"` for configuration errors |
 | `original_params_valid` | `bool` | Always | `true` if the tool parameters were structurally valid (error was not caused by bad input shape — e.g., sensor unavailable); `false` if bad parameters caused the error |
@@ -86,16 +86,36 @@ Error responses use the **nested** MCP structured content shape. The story-spec 
 
 The `_meta` object in `structuredContent` MUST include `trust_level: "internal"` to indicate that error data is Prism-generated (not upstream sensor data).
 
-### 429 rate-limit wiring — `retry_after_seconds` source
+### 429 rate-limit wiring — `retry_after_seconds` source and mapping contract
 
-`retry_after_seconds` is populated from:
-1. `SensorError::RateLimited { retry_after_ms }` in `crates/prism-sensors/src/adapter.rs` (the sensor layer parses the `Retry-After` HTTP header and stores milliseconds).
-2. `PrismError::SensorRateLimited { sensor, retry_after_ms }` in `crates/prism-core/src/error.rs` carries the value upward to the MCP layer.
+**`PrismError::SensorRateLimited` shape (canonical — see `crates/prism-core/src/error.rs`):**
+
+```rust
+SensorRateLimited { sensor: String, retry_after_ms: u64 }
+```
+
+The field is named `sensor` (NOT `sensor_id`) and `retry_after_ms` is a REQUIRED `u64` (NOT `Option<u64>`). A rate-limit error ALWAYS carries a retry value — there is no "unknown retry delay" path for this variant.
+
+**`retry_after_seconds` population rules:**
+
+| Error variant | `retry_after_seconds` in JSON |
+|---------------|-------------------------------|
+| `PrismError::SensorRateLimited { retry_after_ms, .. }` | `retry_after_ms / 1000` (always a non-null `u64`) |
+| All other variants (non-rate-limit, non-retryable) | `null` (present-as-null, never absent) |
+
+The `null` value for non-rate-limit errors is what exercises the "null-not-absent" invariant — `SensorRateLimited` always produces a numeric value, never `null`.
+
+**`to_error_data_with_retry` helper contract:**
+
+The helper function (or equivalent inline mapping in `error_response.rs`) MUST:
+- Return `Some(retry_after_ms / 1000)` when the error is `PrismError::SensorRateLimited { retry_after_ms, .. }` — binding `retry_after_ms` directly (it is a plain `u64`, no `Option` unwrap needed).
+- Return `None` for all other `PrismError` variants.
+- The JSON serializer renders `Some(n)` as a `u64` JSON number and `None` as explicit JSON `null` (not field omission).
 
 **Implementer note for S-5.02:** The `error_mapping.rs` currently maps `PrismError::SensorRateLimited` to opaque `-32000 INTERNAL_ERROR`. The implementer must:
-- Add an explicit arm for `PrismError::SensorRateLimited { retry_after_ms, .. }` in `map_prism_error` that returns `-32000 INTERNAL_ERROR` with `retry_after_ms` threaded into the `structuredContent.error.retry_after_seconds` field (converted from ms to seconds: `retry_after_ms / 1000`).
-- The `error_response.rs` module (to be created) must accept an optional `retry_after_ms: Option<u64>` from the error variant and populate `retry_after_seconds` accordingly.
-- `retry_after_seconds` MUST be `null` in JSON (not absent) when `retry_after_ms` is `None`.
+- Add an explicit arm for `PrismError::SensorRateLimited { sensor, retry_after_ms }` in `map_prism_error` (bind both fields; `sensor` is used for the error `source` field, `retry_after_ms` is divided by 1000 for `retry_after_seconds`).
+- The `error_response.rs` module (to be created) must accept `retry_after_seconds: Option<u64>` (from the helper above) and serialize `None` as JSON `null` — the field MUST NOT be omitted.
+- For non-`SensorRateLimited` variants, pass `retry_after_seconds: None` → serializes as `null`.
 
 ## Invariants
 - DI-004: Audit completeness -- error responses still generate an AuditEntry with the error code and category
@@ -142,6 +162,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | S-5.02-red-gate-clarification | 2026-06-14 | product-owner | Contract clarification (not a semantic change): aligned `retry_after_seconds` wiring with actual `PrismError::SensorRateLimited` shape (`{ sensor: String, retry_after_ms: u64 }` — required u64, not `Option<u64>`; field `sensor` not `sensor_id`). Replaced v1.5's `Option<u64>` / `None` framing with explicit table: SensorRateLimited ALWAYS produces non-null `retry_after_ms / 1000`; all other variants produce JSON `null`. Added `to_error_data_with_retry` helper contract. Updated `retry_after_seconds` field-spec row to distinguish rate-limit vs non-rate-limit cases. External JSON contract unchanged (field always present, null-not-absent). No code change required — the code shape was already correct; the BC was the imprecise artifact. |
 | 1.5 | S-5.02-pre-TDD-reconciliation | 2026-06-14 | product-owner | R3 reconciliation: Locked canonical ToolError shape as NESTED (not flat) with complete 9-field `structuredContent.error` object specification. Fields: code, message, category, retryable, retry_after_seconds (always-present, null-not-absent), suggestion, source, original_params_valid, upstream_message. Added `_meta.trust_level: "internal"` spec. Added 429 wiring note: SensorError::RateLimited → PrismError::SensorRateLimited { retry_after_ms } → retry_after_seconds (ms/1000); implementer must add explicit SensorRateLimited arm in map_prism_error and wire retry_after_ms through error_response.rs. Story-spec flat-7-field framing superseded by this BC's nested shape. |
 | 1.4 | MCP-cascade-pass-1 | 2026-06-10 | product-owner | Version bump at review cycle; no content change from 1.3. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
