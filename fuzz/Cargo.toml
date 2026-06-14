@@ -65,3 +65,20 @@ name = "vp037_alias_fuzz"
 path = "fuzz_targets/vp037_alias_fuzz.rs"
 test = false
 doc = false
+
+# Transitive dep version pins: alloc-stdlib 0.2.3 pulls alloc-no-stdlib 3.0.0, which
+# breaks brotli 8.0.x and brotli-decompressor 5.0.x compilation under both rustc
+# stable 1.95.0 and nightly with E0277 (StandardAlloc: alloc::Allocator<T> not
+# satisfied). The main workspace Cargo.lock pins alloc-stdlib 0.2.2 + alloc-no-stdlib
+# 2.0.4 + brotli-decompressor 5.0.0 + brotli 8.0.2 (all known-good), but fuzz/Cargo.lock
+# is gitignored so each CI run fresh-resolves to the latest versions.
+# These pins replicate the known-good resolution from the main workspace lockfile.
+# Remove when alloc-no-stdlib 3.x / alloc-stdlib 0.2.3 compatibility is fixed upstream.
+[dependencies.brotli]
+version = "=8.0.2"
+
+[dependencies.brotli-decompressor]
+version = "=5.0.0"
+
+[dependencies.alloc-stdlib]
+version = "=0.2.2"

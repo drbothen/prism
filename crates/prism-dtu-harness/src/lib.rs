@@ -30,9 +30,13 @@ pub mod clones;
 pub mod crash_monitor;
 pub mod error;
 pub mod harness;
+pub mod multi_instance;
+pub mod overlay_wiring;
 pub mod types;
 
 pub use builder::HarnessBuilder;
-pub use error::HarnessError;
+pub use error::{BindError, HarnessError};
 pub use harness::Harness;
+pub use multi_instance::{HarnessEntry, MultiInstanceHarness};
+pub use overlay_wiring::write_overlay_temp_dir;
 pub use types::{CustomerSpec, DtuType, IsolationMode, OrgKey};

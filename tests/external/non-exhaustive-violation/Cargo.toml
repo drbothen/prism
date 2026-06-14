@@ -47,6 +47,12 @@ serde_json = "1"
 # This dep addition is required before the ScenarioEntityCatalog import row can resolve
 # (the crate currently declares no prism-dtu-* deps; this dep is new for Story A).
 prism-dtu-common = { path = "../../../crates/prism-dtu-common", features = ["fixture-gen"] }
+# S-DEMO-MULTI-TENANT-DTU-001 (U-006): prism-dtu-demo-server + prism-dtu-harness pub types carry
+# #[non_exhaustive] (violations 54-61: 7 E0639 struct [v54–v59 + v61: MultiInstanceConfig,
+# InstanceEntry, DemoBindError, MultiInstanceHarness, HarnessEntry, BindError, MultiInstanceServers]
+# + 1 E0004 enum [v60: MultiInstanceBindError] → 8 new total; gate 52→60).
+prism-dtu-demo-server = { path = "../../../crates/prism-dtu-demo-server" }
+prism-dtu-harness = { path = "../../../crates/prism-dtu-harness", features = ["dtu"] }
 
 # Empty workspace table: opts this crate out of the parent workspace resolver.
 [workspace]

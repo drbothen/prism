@@ -16,8 +16,9 @@
 //!
 //! GREEN: After AC-5 + fix-burst-2 + fix-burst-4 + F-LP22 + post-PREREQ-E +
 //!   PLUGIN-MIGRATION-001-E + S-CONFIG-MULTI-TENANT-OVERRIDE-001 + S-5.01-FOLLOWUP-MCP-BOOT +
-//!   S-DEMO-001, `#[non_exhaustive]` is applied to all 49 types.
-//! `cargo check -p non-exhaustive-violation` exits non-zero with >=49 E0639/E0004 errors.
+//!   S-DEMO-001 + S-DEMO-DTU-LIVE-SCENARIO-001-A + S-DEMO-DTU-LIVE-SCENARIO-001-B +
+//!   S-DEMO-MULTI-TENANT-DTU-001, `#[non_exhaustive]` is applied to all 60 types.
+//! `cargo check -p non-exhaustive-violation` exits non-zero with >=60 E0639/E0004 errors.
 //!
 //! Target types (all 36 — AC-5 original 14 + fix-burst-2 sibling sweep 15 + fix-burst-4
 //!   types::SensorSpec + F-LP22 PluginError + post-PREREQ-E WriteToolInvalidationMap +
@@ -88,6 +89,16 @@
 //!   48. prism_bin::spec_driven_adapter::AdapterAuthStrategy      — enum (match without wildcard)
 //!   49. prism_bin::spec_driven_adapter::BearerStaticAuthProvider — struct
 //!   50. prism_bin::spec_driven_adapter::SpecDrivenSensorAdapter  — struct
+//!
+//! S-DEMO-MULTI-TENANT-DTU-001 (BC-2.06.017 — multi-instance bind + harness types):
+//!   54. prism_dtu_demo_server::MultiInstanceConfig        — struct, multi_instance.rs
+//!   55. prism_dtu_demo_server::InstanceEntry              — struct, multi_instance.rs
+//!   56. prism_dtu_demo_server::DemoBindError              — struct, multi_instance.rs
+//!   57. prism_dtu_harness::MultiInstanceHarness           — struct, multi_instance.rs
+//!   58. prism_dtu_harness::HarnessEntry                   — struct, multi_instance.rs
+//!   59. prism_dtu_harness::BindError                      — struct, error.rs
+//!   60. prism_dtu_demo_server::MultiInstanceBindError     — enum (match without wildcard, multi_instance.rs)
+//!   Note: ci.yml EXPECTED bumped from 52 to 60 (U-006 + D-1075-API-GAP-001; 7 E0639 struct + 1 E0004 enum = 8 new violations).
 //!
 //! Structure: violations are split across submodules (separate compile units) so that
 //! rustc's per-function error budget does not suppress later violations. The CI script

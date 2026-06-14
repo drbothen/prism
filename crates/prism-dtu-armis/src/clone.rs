@@ -13,11 +13,39 @@
 //! When `Some(cfg)` and the `tls` feature is active, the clone binds via
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
+//!
+//! # Per-Instance Request Counter (AC-006 / INV-ISOLATION-001)
+//!
+//! `ArmisState::request_counter` is an `AtomicU64` incremented by a tower
+//! middleware layer injected at the outermost router position in `build_router()`.
+//! The counter fires for EVERY HTTP request the clone receives — vendor API routes
+//! AND DTU-internal routes alike — before FailureLayer or any route handler runs.
+//!
+//! Test code reads the counter via `clone.request_count()` (which delegates to
+//! `Arc::clone(&clone.state).received_request_count()`) OR via `GET /dtu/request-count`
+//! which returns the count as a plain decimal integer body.
+//!
+//! Both access paths are load-bearing for AC-006's isolation assertion:
+//!
+//! ```text
+//! // After dispatching N requests to clone A only:
+//! assert_eq!(clone_a.request_count(), N);   // server-side counter on A
+//! assert_eq!(clone_b.request_count(), 0);   // zero requests reached B's router
+//! ```
+//!
+//! See `ArmisState::received_request_count()` and `GET /dtu/request-count` route in
+//! `routes/dtu.rs` for the accessible interfaces.
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::SocketAddr,
+    sync::{atomic::Ordering, Arc},
+};
 
 use async_trait::async_trait;
 use axum::{
+    extract::Request,
+    middleware::Next,
+    response::Response,
     routing::{delete, get, post},
     Router,
 };
@@ -29,13 +57,32 @@ use crate::{
     routes::{
         alerts::get_alerts,
         devices::{get_device_activity, get_device_risk, get_or_post_devices, post_devices},
-        dtu::{get_aql_log, get_health, post_configure, post_reset},
+        dtu::{get_aql_log, get_health, get_request_count, post_configure, post_reset},
         search::get_search,
         tags::{delete_device_tag, post_device_tag},
     },
     state::ArmisState,
     types::{ActivityRecord, AlertRecord, DeviceRecord},
 };
+
+/// Tower middleware that increments `ArmisState::request_counter` on every incoming request.
+///
+/// Injected at the outermost router position in `ArmisClone::build_router()` so it fires
+/// before FailureLayer and all route handlers. This gives a LOAD-BEARING server-side count
+/// of every HTTP request received by THIS clone instance's router.
+///
+/// Used by AC-006 / INV-ISOLATION-001 multi-tenant isolation tests:
+/// `ArmisClone::request_count()` reads the same counter from outside the router.
+///
+/// (BC-2.06.017 AC-006 / INV-ISOLATION-001)
+async fn count_request_middleware(
+    state: axum::extract::State<Arc<ArmisState>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    state.request_counter.fetch_add(1, Ordering::SeqCst);
+    next.run(request).await
+}
 
 /// L2-fidelity behavioral clone of the Armis Centrix API.
 pub struct ArmisClone {
@@ -280,6 +327,30 @@ impl ArmisClone {
         self.state.instance_org_id
     }
 
+    /// Return the number of HTTP requests received by this clone's router since
+    /// construction (or last `reset()`).
+    ///
+    /// This is the server-side per-instance request counter for AC-006 / INV-ISOLATION-001.
+    /// The counter is incremented by `count_request_middleware` on EVERY request that reaches
+    /// this instance's axum router — before FailureLayer and all route handlers run.
+    ///
+    /// # Multi-tenant isolation usage
+    ///
+    /// ```text
+    /// // Dispatch 5 requests to clone_a (acme instance), 0 to clone_b (contoso instance).
+    /// assert_eq!(clone_a.request_count(), 5);  // 5 requests received by A's router
+    /// assert_eq!(clone_b.request_count(), 0);  // zero cross-tenant leakage
+    /// ```
+    ///
+    /// Alternatively, read via HTTP: `GET http://{clone_addr}/dtu/request-count` returns
+    /// the count as a plain decimal integer body (useful when the clone object is not
+    /// directly accessible from the test scope).
+    ///
+    /// (BC-2.06.017 AC-006 / INV-ISOLATION-001)
+    pub fn request_count(&self) -> u64 {
+        self.state.received_request_count()
+    }
+
     fn build_router(&self) -> Router {
         let failure_layer = FailureLayer::shared(Arc::clone(&self.state.failure_mode));
 
@@ -307,6 +378,9 @@ impl ArmisClone {
             .layer(failure_layer);
 
         // DTU-internal routes — NOT wrapped by FailureLayer; always reachable.
+        // The per-instance request counter middleware is applied at the OUTERMOST layer
+        // so it fires for EVERY request — vendor API + internal routes alike — before
+        // FailureLayer and before any route handler (AC-006 / INV-ISOLATION-001).
         Router::new()
             .merge(vendor_router)
             .route("/dtu/configure", post(post_configure))
@@ -314,7 +388,18 @@ impl ArmisClone {
             .route("/dtu/health", get(get_health))
             // Armis-specific introspection: AQL capture log
             .route("/dtu/aql-log", get(get_aql_log))
+            // Per-instance request counter endpoint (AC-006 / INV-ISOLATION-001).
+            // Returns the count as a plain decimal integer body.
+            // Both this endpoint AND ArmisClone::request_count() read the same AtomicU64.
+            .route("/dtu/request-count", get(get_request_count))
             .with_state(self.state.clone())
+            // Counting middleware: outermost layer — fires before all other middleware.
+            // Increments ArmisState::request_counter on every HTTP request received.
+            // Load-bearing for AC-006 / INV-ISOLATION-001 multi-tenant isolation proof.
+            .layer(axum::middleware::from_fn_with_state(
+                self.state.clone(),
+                count_request_middleware,
+            ))
     }
 }
 

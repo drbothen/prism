@@ -4,13 +4,16 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-53 (37 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61 (44 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
-//! ci.yml EXPECTED=52 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
-//! S-DEMO-DTU-LIVE-SCENARIO-001-B BPRL-P3-01 sibling sweep).
+//! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
+//! S-DEMO-DTU-LIVE-SCENARIO-001-B BPRL-P3-01 sibling sweep; gate was 52 when v51
+//! was first added, subsequently bumped to 60 by S-DEMO-MULTI-TENANT-DTU-001).
 //! v52 (IncidentTimeline) and v53 (IncidentStage) are LIVE E0639 violations added
 //! by S-DEMO-DTU-LIVE-SCENARIO-001-B. ci.yml EXPECTED bumped from 50 to 52.
+//! v61 (MultiInstanceServers) added by S-DEMO-MULTI-TENANT-DTU-001 (D-1075-API-GAP-001).
+//! ci.yml EXPECTED bumped from 59 to 60.
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -622,7 +625,8 @@ pub fn v50_spec_driven_sensor_adapter() {
 /// foreign crate (this violation crate uses `features=["fixture-gen"]`). Because
 /// `ScenarioEntityCatalog` is `#[non_exhaustive]`, the struct literal fails with E0639
 /// (non-exhaustive type constructed outside its defining crate), which is the intended gate
-/// violation counted in `ci.yml EXPECTED=52`.
+/// violation counted in `ci.yml EXPECTED=60` (gate was 52 when v51 was first added by
+/// S-DEMO-DTU-LIVE-SCENARIO-001-A; subsequently bumped to 60 by S-DEMO-MULTI-TENANT-DTU-001).
 ///
 /// Added: S-DEMO-DTU-LIVE-SCENARIO-001-A (AC-014).
 #[allow(dead_code)]
@@ -684,4 +688,144 @@ pub fn v53_incident_stage() {
         visible_entity_mask: todo!(),
     };
     let _ = _stage;
+}
+
+/// Violation 54: prism_dtu_demo_server::multi_instance::MultiInstanceConfig struct literal (E0639).
+///
+/// `MultiInstanceConfig` is the multi-instance bind configuration for
+/// `prism-dtu-demo-server` (BC-2.06.017 Postcondition 1). `#[non_exhaustive]`
+/// ensures future fields (e.g., bind_timeout, tls_config) can be added without
+/// breaking external struct literals. External callers MUST use `MultiInstanceConfig::new(...)`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 60.
+/// (52 base + 7 E0639 struct violations [v54–v59: MultiInstanceConfig, InstanceEntry,
+/// DemoBindError, MultiInstanceHarness, HarnessEntry, BindError; v61: MultiInstanceServers]
+/// + 1 E0004 enum violation [v60: MultiInstanceBindError in enum_violations.rs] = 60 total.)
+#[allow(dead_code)]
+pub fn v54_multi_instance_config() {
+    let _cfg = prism_dtu_demo_server::MultiInstanceConfig {
+        instances: vec![],
+    };
+    let _ = _cfg;
+}
+
+/// Violation 55: prism_dtu_demo_server::multi_instance::InstanceEntry struct literal (E0639).
+///
+/// `InstanceEntry` is a single named DTU clone bind entry within a `MultiInstanceConfig`
+/// (BC-2.06.017 Postcondition 1). `#[non_exhaustive]` ensures future fields (e.g.,
+/// per-instance TLS config) can be added without breaking external struct literals.
+/// External callers MUST use `InstanceEntry::new(name, bind)`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v55_instance_entry() {
+    let _entry = prism_dtu_demo_server::InstanceEntry {
+        name: "test".to_string(),
+        bind: "127.0.0.1:0".parse().unwrap(),
+    };
+    let _ = _entry;
+}
+
+/// Violation 56: prism_dtu_demo_server::multi_instance::DemoBindError struct literal (E0639).
+///
+/// `DemoBindError` is a single bind failure within `MultiInstanceBindError::BindFailure`
+/// (BC-2.06.017 Postcondition 6). `#[non_exhaustive]` ensures future diagnostic fields
+/// can be added. External callers construct instances via the error-path of `start_instances`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v56_demo_bind_error() {
+    let _err = prism_dtu_demo_server::DemoBindError {
+        instance_name: "test".to_string(),
+        source: std::io::Error::other("test"),
+    };
+    let _ = _err;
+}
+
+/// Violation 57: prism_dtu_harness::multi_instance::MultiInstanceHarness struct literal (E0639).
+///
+/// `MultiInstanceHarness` is the multi-instance test harness managing N DTU clone instances
+/// at distinct socket addresses (BC-2.06.017 Postcondition 2). `#[non_exhaustive]` ensures
+/// future fields can be added. External callers MUST use `MultiInstanceHarness::start(entries)`.
+///
+/// Struct fields are private; the struct literal below triggers BOTH E0616 (private fields)
+/// and E0639 (#[non_exhaustive] — cannot create non-exhaustive struct expression).
+/// The CI gate counts E0639; both errors fire when a non-exhaustive struct with private
+/// fields is constructed via struct literal from an external crate.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v57_multi_instance_harness() {
+    // Triggers E0639 (#[non_exhaustive]) + E0616 (private fields socket_map, shutdown_tx, task_handles).
+    let _h = prism_dtu_harness::MultiInstanceHarness {
+        socket_map: todo!(),
+        shutdown_tx: todo!(),
+        task_handles: todo!(),
+    };
+    let _ = _h;
+}
+
+/// Violation 58: prism_dtu_harness::multi_instance::HarnessEntry struct literal (E0639).
+///
+/// `HarnessEntry` pairs an `(org_slug, sensor_id)` identity with a `Box<dyn BehavioralClone>`
+/// (BC-2.06.017 Postcondition 2). `#[non_exhaustive]` ensures future fields (e.g., bind_addr)
+/// can be added. External callers MUST use `HarnessEntry::new(org_slug, sensor_id, clone)`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v58_harness_entry() {
+    use prism_dtu_harness::HarnessEntry;
+    use prism_dtu_common::BehavioralClone;
+    let _entry = HarnessEntry {
+        org_slug: "acme".to_string(),
+        sensor_id: "armis".to_string(),
+        clone: todo!() as Box<dyn BehavioralClone>,
+    };
+    let _ = _entry;
+}
+
+/// Violation 59: prism_dtu_harness::error::BindError struct literal (E0639).
+///
+/// `BindError` is a single clone bind failure within `HarnessError::BindFailure`
+/// (BC-2.06.017 Postcondition 6). `#[non_exhaustive]` ensures future diagnostic fields
+/// (e.g., instance address, retry count) can be added without breaking external consumers.
+/// External callers receive `BindError` via the error-path of `MultiInstanceHarness::start`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006).
+#[allow(dead_code)]
+pub fn v59_bind_error() {
+    use prism_dtu_harness::BindError;
+    let _err = BindError {
+        org_slug: "acme".to_string(),
+        sensor_id: "armis".to_string(),
+        source: std::io::Error::other("test"),
+    };
+    let _ = _err;
+}
+
+/// Violation 61 (60th type): prism_dtu_demo_server::multi_instance::MultiInstanceServers
+/// struct literal (E0639).
+///
+/// `MultiInstanceServers` is the lifecycle handle returned by `start_instances`, owning
+/// the shared `shutdown_tx: broadcast::Sender<()>` and all N watcher task handles
+/// (BC-2.06.017 Postcondition 1 v1.2, D-1075-API-GAP-001). `#[non_exhaustive]` ensures
+/// future fields (e.g., per-instance health monitors, metrics handles) can be added
+/// without breaking external struct literals. Fields are private; external callers
+/// MUST use `start_instances(cfg, factory).await` — direct struct literal construction
+/// MUST NOT compile (E0639 + E0616 for private fields).
+///
+/// Struct fields are private; the struct literal below triggers BOTH E0616 (private fields)
+/// and E0639 (#[non_exhaustive]). The CI gate counts E0639.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (D-1075-API-GAP-001). ci.yml EXPECTED bumped
+/// from 59 to 60.
+#[allow(dead_code)]
+pub fn v61_multi_instance_servers() {
+    // Triggers E0639 (#[non_exhaustive]) + E0616 (private fields socket_map, shutdown_tx, task_handles).
+    let _servers = prism_dtu_demo_server::MultiInstanceServers {
+        socket_map: todo!(),
+        shutdown_tx: todo!(),
+        task_handles: todo!(),
+    };
+    let _ = _servers;
 }
