@@ -27,8 +27,8 @@ use tokio::sync::broadcast;
 /// `Err(MultiInstanceBindError::DuplicateName { name })` before any bind attempts
 /// (BC-2.06.017 Postcondition 7).
 ///
-/// A zero-length `instances` vec is valid and returns `Ok(HashMap::new())`
-/// with no spawned tasks (BC-2.06.017 EC-017-002).
+/// A zero-length `instances` vec is valid and returns `Ok(MultiInstanceServers)`
+/// with an empty `socket_map()` — no error, no spawned tasks (BC-2.06.017 EC-017-002).
 ///
 /// (BC-2.06.017 Postcondition 1 — multi-instance bind configuration accepted)
 #[non_exhaustive]
