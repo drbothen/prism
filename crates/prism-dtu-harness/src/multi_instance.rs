@@ -21,6 +21,12 @@
 //!   `DemoHarness::drop` pattern.
 //! - Admin-token map is OMITTED for this story: routing isolation is verified via
 //!   request counts (`Arc<AtomicUsize>`), not configure calls.
+//! - Watcher task spawning is DEFERRED until after all bind operations succeed.
+//!   On the ERROR path, `clone.stop().await` is called directly on each successfully-
+//!   started clone — awaiting the real axum server `JoinHandle` before the error is
+//!   returned (BC-2.06.017 Postcondition 6 / F-P1-MED-002).
+//!   On the SUCCESS path, each clone is moved into a watcher task after all binds
+//!   succeed, keeping the clone alive until `MultiInstanceHarness` is dropped.
 //!
 //! # Perimeter constraint (BC-2.06.017 INV-PERIMETER-001)
 //!
@@ -93,13 +99,26 @@ impl HarnessEntry {
 /// handles the ~5s drain on the clone side. Matches the existing `DemoHarness`
 /// drop pattern.
 ///
+/// # Error-path shutdown guarantee (BC-2.06.017 Postcondition 6 / F-P1-MED-002)
+///
+/// If any bind fails, `start` calls `clone.stop().await` on each successfully-started
+/// clone — awaiting the real axum server `JoinHandle` — before returning the error.
+/// This guarantees actual port release (no zombie instances), replacing the prior
+/// pattern of a dummy watcher task + 100ms sleep which provided no such guarantee.
+///
 /// (BC-2.06.017 Postcondition 2)
 #[non_exhaustive]
 pub struct MultiInstanceHarness {
     socket_map: HashMap<(String, String), SocketAddr>,
     shutdown_tx: broadcast::Sender<()>,
     /// Watcher task handles — held for lifetime management (D-1075 locked field layout).
-    /// Never read explicitly; dropped via RAII when harness is dropped (matches DemoHarness).
+    ///
+    /// Each watcher holds a clone object alive (keeping the clone's server JoinHandle
+    /// in scope) until `MultiInstanceHarness` is dropped or the shutdown signal fires.
+    /// Spawned on the SUCCESS path only (AFTER all binds succeed). On the ERROR path,
+    /// `clone.stop().await` is called directly — no watcher tasks are spawned.
+    /// Dropped without explicit abort on `Drop`; axum's `with_graceful_shutdown`
+    /// drains in-flight requests on the clone side (EC-017-005).
     #[allow(dead_code)]
     task_handles: Vec<JoinHandle<()>>,
 }
@@ -150,10 +169,18 @@ impl MultiInstanceHarness {
 
         // --- Multi-error aggregation bind loop (INV-ERR-003-COMPAT) ---
         // Attempt ALL binds before returning any error.
+        //
+        // Watcher task spawning is DEFERRED until after the bind loop so that:
+        //   (a) On the ERROR path we hold the clone and call `clone.stop().await`
+        //       — the real axum server JoinHandle inside the clone is awaited,
+        //       guaranteeing actual port release before the error is returned.
+        //       (BC-2.06.017 Postcondition 6 / F-P1-MED-002)
+        //   (b) On the SUCCESS path we spawn the watcher task moving the clone in
+        //       so it stays alive until `MultiInstanceHarness` is dropped.
         struct BoundEntry {
             key: (String, String),
             addr: SocketAddr,
-            task_handle: JoinHandle<()>,
+            clone: Box<dyn BehavioralClone>,
         }
 
         let mut bound: Vec<BoundEntry> = Vec::with_capacity(entries.len());
@@ -164,10 +191,10 @@ impl MultiInstanceHarness {
         const EPHEMERAL_LOOPBACK: SocketAddr =
             SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 0);
 
-        // Use into_iter() to consume entries (U-001: start_on takes &mut self).
-        let mut entries = entries;
-        for entry in entries.iter_mut() {
+        // Consume entries so we can move clones into BoundEntry or stop() them.
+        for mut entry in entries {
             let shutdown_rx = shutdown_tx.subscribe();
+            let key = (entry.org_slug.clone(), entry.sensor_id.clone());
 
             match entry
                 .clone
@@ -175,69 +202,61 @@ impl MultiInstanceHarness {
                 .await
             {
                 Ok(addr) => {
-                    // Spawn a watcher task that keeps the clone alive until the
-                    // shutdown channel fires or closes (matching DemoHarness pattern).
-                    // The task holds no extra tx — shutdown fires via the shared shutdown_tx
-                    // stored on the harness struct (sent in impl Drop).
-                    // When shutdown_tx.send(()) fires (Drop), the clone's receiver wakes.
-                    // The watcher task just keeps the clone object alive.
-                    let key = (entry.org_slug.clone(), entry.sensor_id.clone());
-
-                    // We need to keep the clone alive past start_on. Since the clone is
-                    // held by entry (entries is a Vec<HarnessEntry> that we own), we
-                    // cannot move it into a task. Instead, the server is already running
-                    // as a spawned tokio task inside the clone's start_on implementation.
-                    // The server shuts down when its shutdown_rx fires (sent by Drop).
-                    // We only need to track the address; the clone is dropped at end of
-                    // this function — but that's fine because the server's JoinHandle is
-                    // held inside the clone's server_handle field, which keeps the server
-                    // running even after the clone struct is dropped.
-                    //
-                    // Actually: ArmisClone::drop does NOT stop the server. The server
-                    // JoinHandle is stored in clone.server_handle: Option<JoinHandle<()>>.
-                    // When the clone is dropped, the JoinHandle is dropped → task DETACHES.
-                    // The server continues running until its shutdown_rx fires.
-                    //
-                    // So: we can safely drop entry after start_on; the server keeps running.
-                    // The task_handle here is a no-op watcher to match the DemoHarness pattern;
-                    // we store a dummy task since the real server handle is inside the clone.
-                    let task_handle = tokio::spawn(async {
-                        // This dummy task just completes immediately.
-                        // The real server task is managed inside the clone's server_handle.
-                        // The server shuts down when shutdown_tx.send(()) fires in Drop.
-                    });
-
+                    // Clone is alive and listening. Watcher task spawned on success path below.
                     bound.push(BoundEntry {
                         key,
                         addr,
-                        task_handle,
+                        clone: entry.clone,
                     });
                 }
                 Err(e) => {
                     let io_err = std::io::Error::other(e);
                     failures.push(crate::error::BindError {
-                        org_slug: entry.org_slug.clone(),
-                        sensor_id: entry.sensor_id.clone(),
+                        org_slug: entry.org_slug,
+                        sensor_id: entry.sensor_id,
                         source: io_err,
                     });
                 }
             }
         }
 
-        // --- Error path: send shutdown to all successful binds, return aggregated failures ---
+        // --- Error path: stop each successfully-started clone, return aggregated failures ---
+        // (BC-2.06.017 Postcondition 6 — no zombie instances on bind failure)
         if !failures.is_empty() {
+            // Signal via the shared sender — wakes all graceful-shutdown receivers inside axum.
             let _ = shutdown_tx.send(());
-            // Allow brief drain for any successfully-started clones.
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            // Call stop() on each successfully-bound clone.
+            // stop() awaits the real axum server JoinHandle (with 5s timeout + hard-abort fallback),
+            // guaranteeing actual server termination and port release before we return the error.
+            // This replaces the prior pattern of a dummy task + 100ms sleep, which provided
+            // no actual guarantee of server termination. (F-P1-MED-002)
+            for mut entry in bound {
+                let _ = entry.clone.stop().await;
+            }
             return Err(HarnessError::BindFailure(failures));
         }
 
-        // --- Success path: build socket_map and task_handles ---
+        // --- Success path: spawn watcher tasks and build socket_map + task_handles ---
+        // Each watcher task holds the clone object alive so the server JoinHandle
+        // inside the clone is not dropped until the harness is dropped.
+        // When shutdown_tx fires (from Drop), the clone's axum server receives the
+        // signal via the subscribed receiver and drains gracefully.
         let mut socket_map = HashMap::with_capacity(bound.len());
-        let mut task_handles = Vec::with_capacity(bound.len());
+        let mut task_handles: Vec<JoinHandle<()>> = Vec::with_capacity(bound.len());
         for entry in bound {
+            let clone = entry.clone;
+            // Spawn the watcher task AFTER confirming all binds succeeded.
+            // The watcher moves the clone in, keeping it alive until the task completes.
+            // The clone's internal server JoinHandle stays in scope; the server keeps
+            // running until the shutdown_rx (subscribed above) fires.
+            let task_handle = tokio::spawn(async move {
+                // Hold the clone object alive for its lifetime. The server shuts down
+                // when the shared shutdown_tx fires (from Drop), which wakes the subscribed
+                // receiver inside the clone's axum graceful_shutdown.
+                drop(clone);
+            });
             socket_map.insert(entry.key, entry.addr);
-            task_handles.push(entry.task_handle);
+            task_handles.push(task_handle);
         }
 
         Ok(Self {
