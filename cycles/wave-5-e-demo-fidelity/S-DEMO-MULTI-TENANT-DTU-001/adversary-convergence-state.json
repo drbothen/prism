@@ -4,7 +4,8 @@
   "passes_completed": 5,
   "clean_strict_streak": 0,
   "last_pass": 5,
-  "last_classification": "SPEC-ACCURACY",
+  "consistency_audit": "DONE — 10 findings all CLOSED (2 BLOCKER B-001/B-002 overlay_wiring docs closed D-1149; 7 MAJOR M-001..M-007 closed D-1146..D-1149/D-1150; 1 MINOR N-001 closed D-1149); BC v1.6, story v1.9; BC version citations now version-agnostic (permanent fix, ends version-drift class per TD-VSDD-091); code UNCHANGED since Pass-1 commit 9b4f4154; just check GREEN",
+  "last_classification": "CONSISTENCY-AUDIT",
   "findings_pass_1": {
     "CRIT": 0,
     "HIGH": 1,
@@ -38,6 +39,6 @@
     "OBS": 0
   },
   "all_findings_through_pass_5": "CLOSED",
-  "note": "code stable since Pass-1; passes 2-5 doc/spec/CI accuracy sweeps; comprehensive grep-sweeps applied Pass-4 to eliminate sibling classes. Pass-5: story iter_mut() BC-version-citation drift at 8 sites (BC now v1.5) → story-writer swept all to v1.5 + BC-table amendment history; H1 'v1.4' vs frontmatter v1.7 desync → story-writer made H1 version-agnostic; F-P5-MED-003 SUBSTANTIVE spec-implementation gap — BC/story described overlay as base_url-only but code writes 3 REQUIRED fields (extends, instance_id, base_url) per OverlayLoader/INV-SCALAR-003 → product-owner BC v1.4→v1.5 (Postcondition 2 + TV-017-009) + story-writer (AC-005/§File-Structure/Task-6). SAP-1 clean; gate exact 60; INV-PERIMETER-001 clean. Code UNCHANGED since Pass-1 (all spec-doc fixes). just check unaffected (no code touched this pass).",
-  "next": "consistency-audit then pass-6"
+  "note": "code stable since Pass-1; passes 2-5 doc/spec/CI accuracy sweeps; comprehensive grep-sweeps applied Pass-4 to eliminate sibling classes. Pass-5: BC-version-citation drift at 8 story sites (BC now v1.5) → story-writer swept all to v1.5 + BC-table amendment history; H1 'v1.4' vs frontmatter v1.7 desync → story-writer made H1 version-agnostic; F-P5-MED-003 SUBSTANTIVE spec-implementation gap — BC/story described overlay as base_url-only but code writes 3 REQUIRED fields (extends, instance_id, base_url) per OverlayLoader/INV-SCALAR-003 → product-owner BC v1.4→v1.5 (Postcondition 2 + TV-017-009) + story-writer (AC-005/§File-Structure/Task-6). SAP-1 clean; gate exact 60; INV-PERIMETER-001 clean. Code UNCHANGED since Pass-1 (all spec-doc fixes). Consistency audit (D-1150): 10 cross-doc findings all CLOSED; BC version citations now version-agnostic (ends version-drift citation class permanently per TD-VSDD-091). BC v1.6 / story v1.9 post-audit.",
+  "next": "pass-6"
 }

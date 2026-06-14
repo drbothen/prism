@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.5"
+version: "1.6"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -64,7 +64,7 @@ unchanged and all existing single-instance callers continue to work without modi
 - `prism-dtu-harness` does NOT depend on `prism-spec-engine`, `prism-sensors`, or
   `prism-query` (forbidden dependency perimeter per story §Forbidden Dependencies).
 - Each `HarnessEntry` in the `entries: Vec<HarnessEntry>` argument carries:
-  `org_slug: &str`, `sensor_id: &str`, and `clone: Box<dyn BehavioralClone>`.
+  `org_slug: String`, `sensor_id: String`, and `clone: Box<dyn BehavioralClone>`.
 - The calling test has registered each `org_slug` in `OrgRegistry` before invoking
   `SpecLoader::load_all` with the overlay temp directory.
 
@@ -249,7 +249,8 @@ directly in the test crate (which may depend on `prism-spec-engine`), not via th
 ### INV-NONEXHAUSTIVE-001 — All New Public Types Are `#[non_exhaustive]`
 
 `MultiInstanceConfig`, `InstanceEntry`, `MultiInstanceHarness`, `HarnessEntry`,
-`MultiInstanceBindError`, `HarnessError`, and any other public struct or enum added by
+`MultiInstanceBindError`, `HarnessError`, `DemoBindError`, `BindError`,
+`MultiInstanceServers`, and any other public struct or enum added by
 this story carry `#[non_exhaustive]`. The `ci.yml EXPECTED` count for the
 `tests/external/non-exhaustive-violation/` compile-fail gate is incremented by the count
 of new non-exhaustive public types.
@@ -311,7 +312,7 @@ of new non-exhaustive public types.
 ## Architecture Anchors
 
 - ADR-029 §At query time: per-org `base_url` overlay consumed by `FanOutTarget` at HTTP dispatch (this BC provides the test infrastructure to prove that claim end-to-end against real sockets).
-- ADR-029 §D1: `MultiInstanceConfig` / `InstanceEntry` in `prism-dtu-demo-server/src/server.rs` or `multi_instance.rs`; `MultiInstanceHarness` in `prism-dtu-harness/src/multi_instance.rs`.
+- ADR-029 §D1: `MultiInstanceConfig` / `InstanceEntry` in `prism-dtu-demo-server/src/multi_instance.rs`; `MultiInstanceHarness` in `prism-dtu-harness/src/multi_instance.rs`.
 - ADR-031 §D5: parity tests for every sensor MUST assert real API endpoint routing — this BC's overlay integration test is the DTU-level parity assertion for multi-tenant endpoint routing.
 - ADR-031 §D7: scope extension — harness clones are in-scope for DTU=true-DTU; `prism-dtu-harness` behavioral clones must exercise real socket routing.
 - CLAUDE.md §`#[non_exhaustive]` discipline: INV-NONEXHAUSTIVE-001 codifies the CLAUDE.md requirement that all new public structs in `prism-dtu-*` crates carry `#[non_exhaustive]`.
@@ -382,3 +383,4 @@ is warranted.
 | 1.3 | F-P1-MED-001 (LOCAL adversary Pass-1, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | EC-017-002 + TV-017-002 return-type sweep: Ok(HashMap::new()) → Ok(MultiInstanceServers) with empty socket_map() (v1.2 changed Postcondition 1 return type but missed these two siblings; POL-29 within-FB sweep). No semantic change. |
 | 1.4 | F-P3-MED-001 (LOCAL adversary Pass-3, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | Postcondition 2 socket_map key type swept `(OrgSlug, SensorId)` → `(String, String)` to match U-004/D-1075 architect decision, AC-004, the story Locked API, and the implemented code. Stale newtype prose was never swept when U-004 chose plain test-infra strings. Annotation added: "lightweight test-infra key per U-004 / D-1075; intentionally distinct from the production OrgKey = (OrgId, DtuType)". No semantic change. |
 | 1.5 | F-P5-MED-003 (LOCAL adversary Pass-5, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | Postcondition 3 + TV-017-009 overlay-format spec gap closed: overlay TOML requires 3 fields (extends, instance_id, base_url), not base_url-only. extends binds overlay to TYPE spec (OverlayLoader requirement); instance_id = {sensor_id}@{org_slug} (INV-SCALAR-003). Spec brought into alignment with the load-bearing overlay_wiring implementation + AC-005 test (which asserts zero OverlayLoader errors). Raw-TOML-string / INV-PERIMETER-001 unchanged. |
+| 1.6 | consistency-audit (S-DEMO-MULTI-TENANT-DTU-001 pre-Pass-6) | 2026-06-13 | product-owner | Three spec-code alignment fixes: M-001 Preconditions HarnessEntry fields &str→String (owned, per D-1075/code); M-002 Architecture Anchors removed stale "server.rs" alternative (D-1075: no server.rs); N-001 INV-NONEXHAUSTIVE-001 explicit list completed (added DemoBindError, BindError, MultiInstanceServers — previously catch-all-only). No semantic change. |
