@@ -58,6 +58,19 @@ enum Commands {
     /// Send SIGTERM to a backgrounded harness PID (reads `.prism-dtu-demo-server.pid`).
     Stop,
 
+    /// Start all orgs' clone fleets using the multi-instance API.
+    ///
+    /// Requires `--features dtu,fixture-gen` — the seeded clone constructors
+    /// (`new_with_seed`) are `#[cfg(feature = "fixture-gen")]`-gated. Omitting
+    /// `fixture-gen` causes a hard error (compile_error! or runtime panic) to
+    /// prevent silent fallback to unseeded `new()` which would violate
+    /// INV-DISTINCT-DATA-001 (org-a and org-c would serve identical data).
+    StartMulti {
+        /// Path to the multi-org demo config TOML (e.g. `scripts/demo.toml`).
+        #[arg(long, short = 'c', value_name = "PATH")]
+        config: std::path::PathBuf,
+    },
+
     /// Convenience wrapper: POST to a clone's own `/dtu/configure` endpoint.
     Configure {
         /// Clone name (e.g. `crowdstrike`, `cyberint`).
@@ -73,6 +86,17 @@ const PID_FILE: &str = ".prism-dtu-demo-server.pid";
 /// Name of the URL map sidecar file written in cwd by `start`.
 const URL_FILE: &str = ".prism-dtu-demo-server.urls.json";
 
+/// Name of the nested URL map sidecar file written in cwd by `start-multi`.
+///
+/// Format: `{org_slug: {sensor_id: url}}` — distinct from the flat `URL_FILE`
+/// format `{name: url}` written by `start` (BC-2.06.017 / AC-003).
+///
+/// Red Gate stub: not yet wired into `cmd_start_multi` (todo!()). The
+/// `#[allow(dead_code)]` suppresses the lint until the implementer completes
+/// the real body in S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3.
+#[allow(dead_code)]
+const URL_MULTI_FILE: &str = ".prism-dtu-demo-server.urls-multi.json";
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -84,6 +108,7 @@ async fn main() -> anyhow::Result<()> {
             bind_any,
             deterministic_logging,
         } => cmd_start(config, tls, bind_any, deterministic_logging).await,
+        Commands::StartMulti { config } => cmd_start_multi(config).await,
         Commands::Stop => cmd_stop(),
         Commands::Configure { clone, json } => cmd_configure(clone, json).await,
     }
@@ -349,6 +374,52 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
 
     tracing::info!("Harness stopped cleanly.");
 }
+
+// ---------------------------------------------------------------------------
+// `start-multi` subcommand — S-DEMO-LAUNCHER-CONSOLIDATION-001
+// ---------------------------------------------------------------------------
+
+/// Entry point for `prism-dtu-demo-server start-multi`.
+///
+/// Loads `MultiOrgDemoConfig` from `config_path`, starts all org clone fleets
+/// via `start_multi_for_config`, writes the nested sidecar, then waits for shutdown.
+///
+/// # fixture-gen requirement
+///
+/// This function calls `build_multi_clone_factory` which is `#[cfg(feature = "fixture-gen")]`-only.
+/// Building without `fixture-gen` will produce a compile error or runtime panic — NEVER a silent
+/// fallback to unseeded `new()` (which would violate INV-DISTINCT-DATA-001).
+async fn cmd_start_multi(_config_path: std::path::PathBuf) -> anyhow::Result<()> {
+    todo!(
+        "cmd_start_multi: not yet implemented — Red Gate stub \
+         (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
+    )
+}
+
+/// Write the NESTED URL sidecar file `.prism-dtu-demo-server.urls-multi.json`.
+///
+/// Format: `{org_slug: {sensor_id: url}}` — distinct from the flat format written by `start`.
+///
+/// The sidecar is written atomically (tmp + rename) to prevent demo-run.sh from
+/// reading a partial file during the poll loop.
+///
+/// Red Gate stub: body is `todo!()`. The `#[allow(dead_code)]` suppresses the lint
+/// until the implementer wires this into `cmd_start_multi` (Phase 3).
+#[allow(dead_code)]
+fn write_multi_url_sidecar(
+    _servers: &prism_dtu_demo_server::MultiInstanceServers,
+    _cfg: &prism_dtu_demo_server::MultiOrgDemoConfig,
+) -> anyhow::Result<()> {
+    todo!(
+        "write_multi_url_sidecar: not yet implemented — Red Gate stub \
+         (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
+    )
+}
+
+// `build_multi_clone_factory` and `start_multi_for_config` live in
+// `prism_dtu_demo_server::multi_org_cmd` (library crate) so that integration tests
+// in `tests/multi_org.rs` can access them. `cmd_start_multi` delegates to them.
+// See `src/multi_org_cmd.rs` for the stub implementations.
 
 // ---------------------------------------------------------------------------
 // `stop` subcommand

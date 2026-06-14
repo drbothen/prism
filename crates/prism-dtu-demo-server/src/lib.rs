@@ -17,12 +17,17 @@
 pub mod config;
 pub mod harness;
 pub mod multi_instance;
+pub mod multi_org_cmd;
 pub mod tls;
 
 // Re-export primary types for test usage.
-pub use config::DemoConfig;
+pub use config::{DemoConfig, MultiOrgDemoConfig, OrgConfig};
 pub use harness::{ClonePair, DemoHarness, StartReport};
 pub use multi_instance::{
     start_instances, DemoBindError, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
     MultiInstanceServers,
 };
+// S-DEMO-LAUNCHER-CONSOLIDATION-001: testable extracted functions for `start-multi`.
+// Re-exported so integration tests in tests/multi_org.rs can call them directly
+// without subprocess overhead (Architecture Compliance Rule).
+pub use multi_org_cmd::{build_multi_clone_factory, start_multi_for_config};

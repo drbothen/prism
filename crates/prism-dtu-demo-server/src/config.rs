@@ -244,6 +244,102 @@ impl DemoConfig {
 }
 
 // ---------------------------------------------------------------------------
+// S-DEMO-LAUNCHER-CONSOLIDATION-001: MultiOrgDemoConfig + OrgConfig
+//
+// These are NEW top-level config types for `start-multi`. They MUST NOT modify
+// DemoConfig (which has #[serde(deny_unknown_fields)] with 6 fixed ClonesConfig
+// fields and cannot accept [orgs.*] without a parse error).
+//
+// Architecture Compliance Rule: MultiOrgDemoConfig is parsed ONLY by cmd_start_multi.
+// The `start` subcommand continues to parse DemoConfig only.
+// ---------------------------------------------------------------------------
+
+/// Top-level config for `start-multi`. Loaded from `scripts/demo.toml`.
+///
+/// Separate from `DemoConfig` to avoid `deny_unknown_fields` clash — `DemoConfig`
+/// has a fixed 6-sensor `ClonesConfig`; adding `[orgs.*]` to it would fail parsing.
+///
+/// # Architecture Compliance (S-DEMO-LAUNCHER-CONSOLIDATION-001)
+///
+/// `MultiOrgDemoConfig` is parsed ONLY in `cmd_start_multi`. The existing `start`
+/// subcommand and `DemoConfig` are UNTOUCHED.
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MultiOrgDemoConfig {
+    /// Global harness settings (reuses existing `HarnessConfig`).
+    #[serde(default)]
+    pub harness: HarnessConfig,
+    /// Per-org DTU clone fleet configs, keyed by org slug (e.g. `"org-a"`).
+    ///
+    /// Corresponds to the `[orgs.<slug>]` TOML section.
+    pub orgs: std::collections::HashMap<String, OrgConfig>,
+}
+
+/// Configuration for one org's DTU clone fleet.
+///
+/// Corresponds to a `[orgs.<slug>]` TOML subsection within `MultiOrgDemoConfig`.
+///
+/// All fields use `deny_unknown_fields` — typo'd keys are a parse error.
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OrgConfig {
+    /// UUID v7 hyphenated string for this org (e.g. `"0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"`).
+    pub org_id: String,
+    /// Sensor IDs for this org's DTU fleet (e.g. `["crowdstrike", "armis"]`).
+    ///
+    /// Valid values: `"crowdstrike"`, `"armis"`, `"claroty"`, `"cyberint"`.
+    pub sensors: Vec<String>,
+    /// RNG seed for deterministic, distinct fixture generation (INV-DISTINCT-DATA-001).
+    ///
+    /// org-a: 100, org-c: 200 (matching S-DEMO-004 seed assignments per the spec).
+    pub seed: u64,
+    /// Cyberint-only: initial access token registered in the clone's allowlist via
+    /// `configure({"access_token": token})` post-construction (GAP-2 composite path).
+    ///
+    /// When `None`, the Cyberint clone's allowlist is empty at startup.
+    #[serde(default)]
+    pub initial_access_token: Option<String>,
+}
+
+impl MultiOrgDemoConfig {
+    /// Load configuration from a TOML file at `path`.
+    ///
+    /// Mirrors the `DemoConfig::from_file` pattern.
+    ///
+    /// # Red Gate stub
+    ///
+    /// Body is `todo!()` until the implementer provides the real implementation
+    /// (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3). Tests RG-001 and RG-002 call
+    /// `from_str` and will FAIL with "not yet implemented" at the Red Gate phase.
+    pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
+        let _ = path;
+        todo!(
+            "MultiOrgDemoConfig::from_file: not yet implemented — Red Gate stub \
+             (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
+        )
+    }
+
+    /// Parse configuration from a TOML string.
+    ///
+    /// Mirrors the `DemoConfig::from_str` inherent method pattern.
+    ///
+    /// # Red Gate stub
+    ///
+    /// Body is `todo!()` until the implementer provides the real implementation.
+    /// Tests RG-001 and RG-002 FAIL here (panic with "not yet implemented").
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(toml_str: &str) -> anyhow::Result<Self> {
+        let _ = toml_str;
+        todo!(
+            "MultiOrgDemoConfig::from_str: not yet implemented — Red Gate stub \
+             (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
 // F10 / finding ⑫ (2026-06-10 review): deny_unknown_fields strictness tests
 // ---------------------------------------------------------------------------
 
