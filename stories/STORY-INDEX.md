@@ -395,8 +395,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.06 | Case Management [v1.13 ADR-017] | prism-operations | 9 | VP-052, VP-053, VP-054, VP-060, VP-138, VP-145 | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | VP-145 | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework [v1.23 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
-| S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
-| S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
+| S-5.01 | Server Bootstrap and Tool Registration [effective-merged-by: S-5.01-FOLLOWUP-MCP-BOOT PR #163 develop@e898c3c9 2026-05-29 — dep gate SATISFIED via metadata reconciliation D-1163] | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
+| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] | prism-mcp | 3 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | VP-050 | 2 | S-5.02 |
 | S-5.04 | Sensor Health Subsystem [depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession; v1.6] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |

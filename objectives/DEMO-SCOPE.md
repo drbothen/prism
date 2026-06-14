@@ -2,7 +2,7 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.2"
+version: "1.3"
 timestamp: 2026-06-14T00:00:00Z
 project: prism
 ---
@@ -204,6 +204,20 @@ T1–T4 DONE
   → T13 capstone (multi-client SOC-analyst narrative story) [LAST before recording]
   → T14 demo recording
 ```
+
+---
+
+## Binding Demo Invariant — DTU-EVERYTHING (D-1163, user reaffirmation 2026-06-14)
+
+> **This invariant is authoritative and binding on ALL remaining demo stories.**
+
+**DTU-EVERYTHING: For the live demo, ALL data sources run on prism DTU behavioral clones — every sensor (CrowdStrike/Armis/Claroty/Cyberint) AND every enrichment source (ThreatIntel/NVD). NO real third-party API connections in the demo.**
+
+All remaining demo stories (S-5.02 / S-5.03 / S-5.04 / S-3.13 / launcher consolidation / narrative capstone) MUST scope against DTU clones, not live services. Story specs, acceptance criteria, and Red Gate tests must ground against DTU clone routes, not production vendor endpoints.
+
+**Corollary — infusion/WASM enrichment:** The prism `infusion` plugin/UDF framework (WASM enrichment plugins) is `unimplemented!()` / deferred (S-1.14/S-1.15, TD-PLUGIN-P0-002 open). This is NOT on the demo critical path because demo enrichment is DTU-clone-served (Story B / BC-2.06.020), not infusion-plugin-served. The PIVOT-001/002/003 infusion chain delivers the analyst-visible `| enrich` pivot AFTER the capability-discovery block, using design-faithful infusion — NOT a demo workaround.
+
+**Cross-ref:** Task ledger `.factory/objectives/multi-client-soc-demo-tasks.md` §PREREQ-CONFIRMED block (D-1163).
 
 ---
 
