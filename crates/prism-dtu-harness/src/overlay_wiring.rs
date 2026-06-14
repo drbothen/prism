@@ -62,9 +62,11 @@ fn validate_harness_key(field: &str, value: &str) -> std::io::Result<()> {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 format!(
-                    "overlay_wiring: {field} contains disallowed character {ch:?} in {value:?}; \
-                     only ASCII alphanumeric, '-', and '_' are permitted \
-                     (SEC-001 TOML-injection / SEC-002 path-traversal defense)"
+                    "overlay_wiring: {field} contains disallowed character {ch:?} \
+                     (input redacted; length {}); \
+                     allowed charset is [A-Za-z0-9_-], length 1..=64 \
+                     (SEC-001 TOML-injection / SEC-002 path-traversal defense)",
+                    value.len()
                 ),
             ));
         }
