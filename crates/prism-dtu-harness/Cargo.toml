@@ -17,10 +17,18 @@ name = "prism_dtu_harness"
 # `fixture-gen` enables Archetype, GenOpts, and seeded_rng from prism-dtu-common.
 # Required by S-3.3.05 override fields (`CustomerSpec::archetype: Option<Archetype>`).
 dtu = ["prism-dtu-common/dtu", "prism-dtu-common/fixture-gen"]
+# `tls` propagates TLS support from prism-dtu-common to this crate.
+# Required so that #[cfg(feature = "tls")] in test code correctly mirrors the
+# BehavioralClone::start_on trait's cfg-gated third parameter under --all-features.
+# Pattern mirrors prism-dtu-armis Cargo.toml (same tls = [...] declaration).
+tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0" }
 prism-core = { path = "../prism-core" }
+# Optional: activated by the `tls` feature to expose axum_server::tls_rustls types
+# in cfg(feature = "tls") gated code (mirrors prism-dtu-armis pattern).
+axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 tokio = { version = "1", features = ["full"] }
 axum = "0.7"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -39,6 +47,17 @@ rand_chacha = "0.3"
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# dev-deps for multi-instance harness tests (S-DEMO-MULTI-TENANT-DTU-001 Red Gate).
+# `tls` is intentionally NOT included: these tests use plain HTTP ephemeral binds only.
+# Including `tls` here activates prism-dtu-common/tls workspace-wide via feature propagation,
+# which makes the BehavioralClone trait emit Option<Arc<RustlsConfig>> for all crates, but
+# prism-dtu-crowdstrike and siblings without `tls` explicitly activated still emit Option<()>
+# in their start_on impls — causing E0053 in the no-default-features CI job. Using only `dtu`
+# keeps prism-dtu-common/tls inactive in no-default-features builds.
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu"] }
+prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features = ["dtu"] }
+prism-spec-engine = { path = "../prism-spec-engine" }
+tempfile = "3"
 
 [[test]]
 name = "logical_isolation_test"
@@ -97,6 +116,12 @@ required-features = ["dtu"]
 [[test]]
 name = "failure_scope_test"
 path = "tests/failure_scope_test.rs"
+required-features = ["dtu"]
+
+# S-DEMO-MULTI-TENANT-DTU-001 Red Gate: multi-instance harness tests (BC-2.06.017)
+[[test]]
+name = "multi_instance_harness_tests"
+path = "tests/multi_instance_harness_tests.rs"
 required-features = ["dtu"]
 
 [lints]

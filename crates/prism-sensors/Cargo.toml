@@ -36,6 +36,12 @@ futures = "0.3"
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
 proptest = "1"
 tempfile = "3"
+# F-PR3-HIGH-001: end-to-end FanOutTarget DTU routing isolation test.
+# Permitted dep direction: prism-sensors [dev-dep] → prism-dtu-harness (NOT the reverse).
+# prism-dtu-harness does NOT depend on prism-sensors — no dep cycle.
+prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
+prism-dtu-armis = { path = "../prism-dtu-armis", features = ["dtu"] }
+prism-dtu-common = { path = "../prism-dtu-common", features = ["dtu"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

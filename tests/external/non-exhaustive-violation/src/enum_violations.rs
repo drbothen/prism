@@ -4,7 +4,7 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 48 (14 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60 (16 total E0004 expected).
 //!
 //! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
 //!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
@@ -229,5 +229,33 @@ pub fn v48_adapter_auth_strategy_match() {
         AdapterAuthStrategy::BearerStatic => {}
         AdapterAuthStrategy::StaticCookie(_) => {}
         // After S-DEMO-001 CR-001: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 60: prism_dtu_demo_server::MultiInstanceBindError exhaustive match (E0004).
+///
+/// `MultiInstanceBindError` is the error type returned by `start_instances`
+/// (BC-2.06.017 Postconditions 6–7). `#[non_exhaustive]` ensures future error variants
+/// (e.g., `TimeoutError`, `TlsError`) can be added without requiring all external
+/// match arms to be updated immediately.
+/// External callers MUST include `_ => {}` or handle via
+/// `match e { DuplicateName{..} => .., BindFailure(..) => .., _ => {} }`.
+///
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 60.
+/// This is violation 60 of 60: 7 E0639 struct violations (v54–v59 + v61 in struct_violations.rs;
+/// v54–v59 are MultiInstanceConfig, InstanceEntry, DemoBindError, MultiInstanceHarness,
+/// HarnessEntry, BindError; v61 is MultiInstanceServers, added by D-1075-API-GAP-001)
+/// + this 1 E0004 enum violation (v60) = 8 new violations total, bringing the gate from 52 → 60.
+#[allow(dead_code)]
+pub fn v60_multi_instance_bind_error_match() {
+    use prism_dtu_demo_server::MultiInstanceBindError;
+    // Construct a representative DuplicateName variant.
+    let err: MultiInstanceBindError = MultiInstanceBindError::DuplicateName {
+        name: "test".to_string(),
+    };
+    match err {
+        MultiInstanceBindError::DuplicateName { .. } => {}
+        MultiInstanceBindError::BindFailure(_) => {}
+        // After S-DEMO-MULTI-TENANT-DTU-001: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

@@ -10,8 +10,11 @@
 # (BC-2.01.013 AC-5 / F-LP2-OBS-001 S-PLUGIN-PREREQ-C)
 # S-DEMO-DTU-LIVE-SCENARIO-001-A: bumped 49→50 for ScenarioEntityCatalog (AC-014, ADR-036 §2.2).
 # S-DEMO-DTU-LIVE-SCENARIO-001-B: bumped 50→52 for IncidentTimeline + IncidentStage (AC-014 pattern, BPRL-P3-01 sibling sweep).
+# S-DEMO-MULTI-TENANT-DTU-001: bumped 52→60 for MultiInstanceConfig, InstanceEntry, DemoBindError,
+#   MultiInstanceBindError (U-006), MultiInstanceServers (D-1075-API-GAP-001), MultiInstanceHarness,
+#   HarnessEntry, BindError.
 
-EXPECTED=52
+EXPECTED=60
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

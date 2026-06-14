@@ -7,9 +7,12 @@
 //! - `POST /dtu/reset` — reset all mutable state (tag store + AQL log)
 //! - `GET /dtu/health` — liveness check (no state access; safe for readiness polling)
 //! - `GET /dtu/aql-log` — return all AQL strings received since last reset
+//! - `GET /dtu/request-count` — per-instance HTTP request counter (AC-006 / INV-ISOLATION-001)
 //!
 //! Per ADR-002 §6: the first three are required for every L2 clone.
 //! `GET /dtu/aql-log` is an Armis-specific introspection route (R-DTU-002 mitigation).
+//! `GET /dtu/request-count` is the HTTP accessor for the per-instance counter used by
+//! multi-tenant isolation tests when clone objects are not in direct test scope.
 
 use std::sync::Arc;
 
@@ -115,4 +118,46 @@ pub async fn get_aql_log(State(state): State<Arc<ArmisState>>) -> impl IntoRespo
     let aql_strings = state.aql_log();
     let body = AqlLogResponse { aql_strings };
     (StatusCode::OK, Json(body)).into_response()
+}
+
+/// `GET /dtu/request-count`
+///
+/// Returns the number of HTTP requests received by this clone's router since
+/// construction (or last reset), as a plain decimal integer body.
+///
+/// This is the HTTP-accessible form of the per-instance request counter used for
+/// AC-006 / INV-ISOLATION-001 multi-tenant isolation proofs. It reads the same
+/// `ArmisState::request_counter` (`AtomicU64`) that `ArmisClone::request_count()`
+/// exposes as a Rust method.
+///
+/// # Response format
+///
+/// Plain text decimal integer, e.g. `"42"`. HTTP 200 always.
+///
+/// # Multi-tenant isolation usage
+///
+/// When clone objects are not directly accessible from test scope (e.g., in
+/// `start_instances`-based tests where the clone is moved into the server task),
+/// tests can read the counter via HTTP instead of via `clone.request_count()`:
+///
+/// ```text
+/// let count_a: u64 = client
+///     .get(format!("http://{addr_a}/dtu/request-count"))
+///     .send().await?.text().await?.parse()?;
+/// let count_b: u64 = client
+///     .get(format!("http://{addr_b}/dtu/request-count"))
+///     .send().await?.text().await?.parse()?;
+/// assert_eq!(count_a, 10);
+/// assert_eq!(count_b, 0);  // zero cross-tenant leakage
+/// ```
+///
+/// Note: the counter includes ALL requests to this instance — including calls to
+/// `/dtu/health`, `/dtu/request-count` itself, and other DTU-internal routes.
+/// Test code must account for this when asserting exact counts (e.g., by reading
+/// the counter BEFORE sending vendor-API requests, or by using the count delta).
+///
+/// (BC-2.06.017 AC-006 / INV-ISOLATION-001)
+pub async fn get_request_count(State(state): State<Arc<ArmisState>>) -> impl IntoResponse {
+    let count = state.received_request_count();
+    (StatusCode::OK, count.to_string()).into_response()
 }
