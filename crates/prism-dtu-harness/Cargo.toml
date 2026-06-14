@@ -17,10 +17,18 @@ name = "prism_dtu_harness"
 # `fixture-gen` enables Archetype, GenOpts, and seeded_rng from prism-dtu-common.
 # Required by S-3.3.05 override fields (`CustomerSpec::archetype: Option<Archetype>`).
 dtu = ["prism-dtu-common/dtu", "prism-dtu-common/fixture-gen"]
+# `tls` propagates TLS support from prism-dtu-common to this crate.
+# Required so that #[cfg(feature = "tls")] in test code correctly mirrors the
+# BehavioralClone::start_on trait's cfg-gated third parameter under --all-features.
+# Pattern mirrors prism-dtu-armis Cargo.toml (same tls = [...] declaration).
+tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0" }
 prism-core = { path = "../prism-core" }
+# Optional: activated by the `tls` feature to expose axum_server::tls_rustls types
+# in cfg(feature = "tls") gated code (mirrors prism-dtu-armis pattern).
+axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 tokio = { version = "1", features = ["full"] }
 axum = "0.7"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -39,8 +47,13 @@ rand_chacha = "0.3"
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu"] }
-prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features = ["dtu"] }
+# `tls` feature included alongside `dtu` so that when prism-dtu-harness/tls is activated
+# (e.g. via --all-features), prism-dtu-common/tls is consistently activated in all crates
+# sharing the same Cargo resolution unit. Without `tls` here, armis/claroty see
+# prism-dtu-common/tls active (from the harness) but their own cfg(feature="tls") is false,
+# making their start_on impl produce Option<()> instead of Option<Arc<RustlsConfig>>.
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu", "tls"] }
+prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features = ["dtu", "tls"] }
 prism-spec-engine = { path = "../prism-spec-engine" }
 tempfile = "3"
 
