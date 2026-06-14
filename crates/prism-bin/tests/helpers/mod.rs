@@ -100,7 +100,7 @@ const DTU_E2E_CLAROTY_BEARER_TOKEN: &str = "dtu-e2e-claroty-bearer-token";
 /// Values are `"http://127.0.0.1:<port>"` strings.
 ///
 /// DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
-/// AdapterRegistry layer only (AC-013 scope clarification).
+/// AdapterRegistry layer only.
 #[derive(Debug, Default)]
 pub struct DtuPorts {
     pub urls: HashMap<String, String>,
@@ -359,9 +359,7 @@ pub fn write_demo_config(config_dir: &Path, dtu_ports: &DtuPorts) -> Result<(), 
 /// DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
 /// AdapterRegistry layer only. Two different orgs that both have CrowdStrike
 /// point to the same DTU clone port — they receive the same fixture data.
-/// This is by design (AC-013).
-///
-/// AC-011 expected result: `AdapterRegistry.len() == 8` (2+2+4 entries).
+/// This is by design (S-DEMO-002 scope; per-org DTU isolation is S-DEMO-004 scope).
 pub fn write_multi_org_demo_config(config_dir: &Path, dtu_ports: &DtuPorts) -> Result<(), String> {
     // Fixed UUIDv7 values for deterministic multi-org tests.
     // BC-2.21.001: org_id must be UUID v7.
@@ -710,7 +708,7 @@ impl McpStdioHandle {
     /// as `Err`. Instead it returns `Ok(full_response_json)` so callers can inspect
     /// the `"error"` field.  Only I/O and parse failures are returned as `Err`.
     ///
-    /// Used by AC-012 (cross-org isolation): the `query` handler returns a
+    /// Used by AC-005 (S-DEMO-004 cross-org isolation): the `query` handler returns a
     /// JSON-RPC error (code -32602) when `resolve_source_refs` raises E-QUERY-032
     /// (sensor not registered for the requesting org); the test must capture that
     /// error object and verify it carries the E-QUERY-032 signal — it must NOT panic.
@@ -809,7 +807,7 @@ impl McpStdioHandle {
 
     /// Send `tools/call` for the `query` MCP tool scoped to a specific org.
     ///
-    /// Used by AC-012/AC-013 to query from a specific org context (BC-2.11.001 scoping).
+    /// Used by AC-002..AC-009 (S-DEMO-004) to query from a specific org context (BC-2.11.001 scoping).
     /// The org scope is passed via `clients: [org_slug]` (array of strings) — NOT `org_slug`.
     /// `QueryToolParams` uses `clients: Option<Vec<String>>` and has `#[serde(deny_unknown_fields)]`;
     /// passing `org_slug` would be rejected at deserialization before isolation logic runs.
@@ -823,7 +821,7 @@ impl McpStdioHandle {
 
     /// Send `tools/call` for the `query` tool scoped to an org, expecting a JSON-RPC error.
     ///
-    /// Used exclusively by AC-012 (cross-org isolation). When `resolve_source_refs`
+    /// Used exclusively by AC-005 (S-DEMO-004 cross-org isolation). When `resolve_source_refs`
     /// raises E-QUERY-032 (sensor not registered for the requesting org), the MCP server
     /// emits a JSON-RPC error response with code -32602.
     /// `tool_query_scoped` (which calls `send_request`) would propagate this as `Err` and
@@ -1265,12 +1263,16 @@ pub struct BackgroundHarness {
     /// Extracted socket_map from MultiInstanceHarness — (org_slug, sensor_id) → SocketAddr.
     /// Exposed via socket_map() for use by write_multi_org_overlays.
     socket_map: std::collections::HashMap<(String, String), std::net::SocketAddr>,
-    /// Shutdown signal sender. When dropped (with BackgroundHarness), closes the channel,
-    /// which causes the background thread to exit and drop the harness + runtime.
-    _shutdown_tx: std::sync::mpsc::SyncSender<()>,
-    /// Background thread handle. Dropped without join (the thread will exit when shutdown_tx
-    /// is dropped, which signals the harness to shut down via its broadcast channel).
-    _thread: std::thread::JoinHandle<()>,
+    /// Shutdown signal sender. Wrapped in `Option<_>` so the explicit `Drop` impl
+    /// can take ownership (to drop it first) before joining the thread.
+    ///
+    /// The sender is always `Some` except after `Drop::drop` has taken it.
+    _shutdown_tx: Option<std::sync::mpsc::SyncSender<()>>,
+    /// Background thread handle. `Option<_>` so that `Drop::drop` can take
+    /// ownership for the join call (O-02: deterministic teardown).
+    ///
+    /// Always `Some` except after `Drop::drop` has taken it.
+    _thread: Option<std::thread::JoinHandle<()>>,
 }
 
 impl BackgroundHarness {
@@ -1282,24 +1284,30 @@ impl BackgroundHarness {
     }
 }
 
-// These helpers are STUBS for the Red Gate. Each body contains `todo!()` so
-// the suite COMPILES but every test that calls them FAILS (RED) until the
-// implementer fills in the bodies.
-//
-// Implementer instructions:
-//   - start_multi_org_harness: call MultiInstanceHarness::start(entries) with 8
-//     HarnessEntry items (one per (org_slug, sensor_id) pair), constructed via
-//     HarnessEntry::new(org_slug, sensor_id, clone) where each clone is built
-//     with new_with_seed(seed, archetype, org_id) using DISTINCT per-org seeds.
-//     Return (harness, tempdir).
-//   - write_multi_org_overlays: call write_overlay_temp_dir(&harness, tempdir.path())
-//     to produce per-org TOML overlay files from the socket_map.
-//   - write_multi_org_prism_toml: write a 3-org prism.toml (org-a, org-b, org-c)
-//     pointing spec_dir at the tempdir/specs directory that contains the overlay
-//     files written by write_multi_org_overlays. The org_id UUIDs MUST match the
-//     ones used in start_multi_org_harness (same fixed UUIDs).
-//   - launch_prism_bin_multi_org: wraps launch_prism_bin with the 3-org credential
-//     env vars for org-a/org-b/org-c (same PRISM_CLIENTS_* pattern as launch_prism_bin).
+impl Drop for BackgroundHarness {
+    fn drop(&mut self) {
+        // O-02: deterministic teardown.
+        //
+        // ORDERING IS CRITICAL:
+        //   1. Drop `_shutdown_tx` FIRST — this closes the sync_channel, causing
+        //      the background thread's `shutdown_rx.recv()` to return `Err(RecvError)`.
+        //      The thread then exits (dropping the harness + axum servers).
+        //   2. Join `_thread` AFTER — by then the thread is already exiting/exited,
+        //      so join returns quickly. Ensures the axum DTU clone servers have
+        //      fully drained before the test harness tears down.
+        //
+        // Without this explicit ordering, a naive `Drop` impl that called `join()`
+        // first would deadlock because `_shutdown_tx` would still be alive (not yet
+        // dropped by field-drop, which runs after `Drop::drop` returns).
+        drop(self._shutdown_tx.take()); // closes channel → thread exits
+        if let Some(handle) = self._thread.take() {
+            let _ = handle.join(); // wait for thread to finish
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-004 multi-org harness helpers (GREEN — implemented)
 //
 // Seeds (fixed per story risk_mitigations):
 //   org-a crowdstrike: 100  |  org-a armis: 110
@@ -1319,6 +1327,7 @@ impl BackgroundHarness {
 //
 // Story: S-DEMO-004
 // BCs: BC-3.2.001, BC-2.06.017, BC-2.06.018
+// ---------------------------------------------------------------------------
 
 /// Fixed UUIDv7 org IDs used in all S-DEMO-004 multi-org tests (BC-2.21.001).
 ///
@@ -1551,8 +1560,8 @@ pub async fn start_multi_org_harness() -> (BackgroundHarness, TempDir) {
 
     let bg_harness = BackgroundHarness {
         socket_map,
-        _shutdown_tx: shutdown_tx,
-        _thread: thread,
+        _shutdown_tx: Some(shutdown_tx),
+        _thread: Some(thread),
     };
 
     (bg_harness, tempdir)
@@ -1614,7 +1623,7 @@ pub fn write_multi_org_overlays(
 /// # Pattern
 /// Mirrors `write_org_config()` — see the S-DEMO-002 helper for the established pattern.
 ///
-/// # Red Gate stub (S-DEMO-004)
+/// Story: S-DEMO-004 AC-001..AC-010
 pub fn write_multi_org_prism_toml(tempdir: &TempDir) -> Result<(), String> {
     let config_dir = tempdir.path();
     let specs_dir = config_dir.join("specs");
@@ -1793,6 +1802,167 @@ pub async fn launch_prism_bin_multi_org(
                 if Instant::now() >= deadline {
                     return Err(format!(
                         "prism-bin multi-org MCP server did not become ready within 30s (EC-002): {e}"
+                    ));
+                }
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+        }
+    }
+}
+
+/// Launch `prism start` for multi-org tests and capture stderr for boot-event assertion.
+///
+/// Identical to `launch_prism_bin_multi_org` except:
+/// - `RUST_LOG=boot=info` (instead of `off`) so that the `boot.step9a.adapter_registry_populated`
+///   tracing event is emitted to stderr.
+/// - `PRISM_LOG_FORMAT=json` so each event is a machine-readable JSON object on its own line.
+/// - `stderr(Stdio::piped())` — stderr is captured.
+/// - A background thread buffers the subprocess stderr into a `Vec<u8>` shared via
+///   `Arc<Mutex<_>>`. The caller MUST poll the arc AFTER MCP readiness is established —
+///   at that point all boot-phase log lines (including step9a) have been emitted.
+///
+/// Returns `(prism_guard, mcp_handle, stderr_buf)`.
+///
+/// The caller asserts on `stderr_buf` after MCP readiness, then drops everything.
+///
+/// # AC-001 / BC-2.22.001 use case
+///
+/// The `boot.step9a.adapter_registry_populated` event carries `sensor_count` (total across
+/// all orgs) and `org_count`. The event is emitted once per boot (in JSON format, one line).
+/// The test parses all lines for the event and asserts `sensor_count == 8` (2+2+4).
+///
+/// # E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+pub async fn launch_prism_bin_multi_org_with_stderr(
+    config_dir: &Path,
+) -> Result<
+    (
+        SubprocessGuard,
+        McpStdioHandle,
+        std::sync::Arc<std::sync::Mutex<Vec<u8>>>,
+    ),
+    String,
+> {
+    let prism_bin = locate_binary("prism")?;
+
+    let stderr_buf: std::sync::Arc<std::sync::Mutex<Vec<u8>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+
+    let mut child = std::process::Command::new(&prism_bin)
+        .arg("start")
+        .arg("--config-dir")
+        .arg(config_dir)
+        // Env var placeholders (same as launch_prism_bin_multi_org).
+        .env("CLAROTY_INSTANCE_URL", "http://placeholder.claroty.invalid")
+        .env("ARMIS_INSTANCE_URL", "http://placeholder.armis.invalid")
+        .env("CYBERINT_ENVIRONMENT", "demo")
+        .env("CROWDSTRIKE_BASE_URL", "http://127.0.0.1")
+        // org-a credentials
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        // org-b credentials
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // org-c credentials
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // M-01: capture boot-phase events at info level; suppress all non-boot targets.
+        // "boot=info" enables just the "boot" tracing target (used by spec_driven_adapter.rs
+        // step9a_populate_adapter_registry) without flooding stdout with debug-level frames.
+        // Other targets stay silent so the test does not time out waiting for an MCP response
+        // mixed with verbose log output.
+        .env("RUST_LOG", "boot=info")
+        // JSON log format: one event per line — easy to parse for boot.step9a assertion.
+        .env("PRISM_LOG_FORMAT", "json")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn prism-bin '{}': {e}", prism_bin.display()))?;
+
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or("prism-bin stdin not available after spawn")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("prism-bin stdout not available after spawn")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("prism-bin stderr not available after spawn")?;
+
+    let guard = SubprocessGuard::new(child, "prism-multi-org-with-stderr");
+
+    // Spawn a background thread to drain prism's stderr into `stderr_buf`.
+    //
+    // Without this drain, the subprocess can block when its stderr OS pipe buffer
+    // fills (~64 KiB on Linux/macOS), causing MCP polling to time out.
+    // The thread holds an Arc clone of `stderr_buf`; the test reads it after
+    // MCP readiness is established (by which time all boot-phase events are emitted).
+    let buf_clone = std::sync::Arc::clone(&stderr_buf);
+    std::thread::spawn(move || {
+        use std::io::Read as _;
+        let mut buf = Vec::new();
+        let mut stderr_reader = stderr;
+        // Read to EOF (the subprocess closes stderr when it exits).
+        // We accumulate all bytes; the test consumes them after MCP handshake.
+        let _ = stderr_reader.read_to_end(&mut buf);
+        if let Ok(mut locked) = buf_clone.lock() {
+            locked.extend_from_slice(&buf);
+        }
+    });
+
+    let mut handle = McpStdioHandle {
+        stdin,
+        stdout: std::io::BufReader::new(stdout),
+        next_id: 1,
+    };
+
+    // Poll for MCP server readiness (same 30s timeout as launch_prism_bin_multi_org).
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        match handle.initialize() {
+            Ok(_) => return Ok((guard, handle, stderr_buf)),
+            Err(e) => {
+                if Instant::now() >= deadline {
+                    return Err(format!(
+                        "prism-bin multi-org MCP server did not become ready within 30s \
+                         (EC-002, launch_prism_bin_multi_org_with_stderr): {e}"
                     ));
                 }
                 tokio::time::sleep(Duration::from_millis(200)).await;

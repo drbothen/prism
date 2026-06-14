@@ -22,13 +22,11 @@
 //!
 //! 8 DTU clone instances total (BC-2.06.017 Postcondition 2).
 //!
-//! # Red Gate mechanism
+//! # Test gating (AC-010)
 //!
-//! All tests call stub helpers from `helpers/mod.rs` that have `todo!()` bodies.
-//! The test FILE compiles; every test PANICS at the `todo!()` invocation (RED).
-//! The implementer fills in the helper bodies to reach GREEN.
-//! Per AC-010: `cargo nextest run -p prism-bin` (no profile) SKIPS all of these
-//! (they are `#[ignore]`'d), satisfying AC-010.
+//! All tests are `#[ignore]` — `cargo nextest run -p prism-bin` (no profile) SKIPS them.
+//! They run only when the `e2e-multi-org` nextest profile is active (which sets
+//! `run-ignored = "ignored-only"` via `.config/nextest.toml`), satisfying AC-010.
 //!
 //! # Test → AC → BC Mapping
 //!
@@ -148,51 +146,121 @@ fn looks_like_device_id(s: &str) -> bool {
 ///   - org-b: 2 adapters (Claroty + Cyberint)
 ///   - org-c: 4 adapters (all 4 sensors)
 ///
-/// Verified via `boot.step9a.adapter_registry_populated` event log assertion.
-/// (traces to BC-2.22.001 boot sequencing; BC-2.10.001 client_id routing)
+/// Verified via `boot.step9a.adapter_registry_populated` event log assertion
+/// (sensor_count field). Uses `RUST_LOG=boot=info` + `PRISM_LOG_FORMAT=json` with
+/// stderr capture to parse the structured JSON event from the subprocess.
 ///
-/// RED GATE TEST (one of 4 designated Red Gate tests per story frontmatter).
+/// (traces to BC-2.22.001 boot sequencing; BC-2.10.001 client_id routing)
 ///
 /// // E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
 #[tokio::test]
 #[ignore = "E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile."]
 async fn test_BC_2_22_001_multi_org_boot_registers_8_adapters() {
-    // Step 1: Start MultiInstanceHarness with 8 clone entries (stub → todo!() RED).
+    // Step 1: Start MultiInstanceHarness with 8 clone entries.
     let (harness, tempdir) = helpers::start_multi_org_harness().await;
 
-    // Step 2: Write per-org overlay TOML files from the harness socket_map (stub → todo!() RED).
+    // Step 2: Write per-org overlay TOML files from the harness socket_map.
     helpers::write_multi_org_overlays(&harness, &tempdir).expect("write_multi_org_overlays failed");
 
-    // Step 3: Write 3-org prism.toml (stub → todo!() RED).
+    // Step 3: Write 3-org prism.toml.
     helpers::write_multi_org_prism_toml(&tempdir).expect("write_multi_org_prism_toml failed");
 
-    // Step 4: Launch prism-bin (stub → todo!() RED).
-    let (prism_guard, mut mcp) = helpers::launch_prism_bin_multi_org(tempdir.path())
-        .await
-        .expect("prism-bin did not boot for multi-org config (EC-002)");
+    // Step 4: Launch prism-bin with stderr capture (RUST_LOG=boot=info, PRISM_LOG_FORMAT=json).
+    // The `with_stderr` variant captures subprocess stderr so we can assert the
+    // boot.step9a.adapter_registry_populated event count directly.
+    let (prism_guard, mut mcp, stderr_buf) =
+        helpers::launch_prism_bin_multi_org_with_stderr(tempdir.path())
+            .await
+            .expect("prism-bin did not boot for multi-org config (EC-002)");
 
-    // Step 5: MCP initialize handshake.
-    mcp.initialize().expect("MCP initialize handshake failed");
-
-    // Step 6: Assert tools/list contains `query`.
+    // Step 5: Assert tools/list contains `query` (MCP server is up).
     let tools = mcp.tools_list().expect("tools/list failed");
     assert!(
         tools.iter().any(|t| t["name"] == "query"),
         "AC-001: tools/list must contain 'query'; got: {tools:?}"
     );
 
-    // Step 7: Assert boot.step9a.adapter_registry_populated log shows 8 total adapters.
-    // The log event is emitted during boot step 9A and carries adapter counts per org.
-    // In the subprocess model we cannot intercept structured logs directly; instead we
-    // verify via a sentinel query that exercises all 8 adapter slots (see AC-002..AC-004).
-    // The 8-adapter count is validated indirectly through the full AC-002..AC-004 suite:
-    // if any of the 8 slots were missing, those queries would return errors instead of data.
+    // Step 6: Assert boot.step9a.adapter_registry_populated shows sensor_count == 8.
     //
-    // AC-001 SUCCESS CRITERION: prism-bin started without error AND MCP tools list is responsive.
-    // Per-adapter validation is covered by AC-002 (org-a), AC-003 (org-b), AC-004 (org-c).
-
+    // By the time MCP initialize + tools/list succeeds, all boot steps (including 9A)
+    // have completed and their log events have been emitted to stderr. The background
+    // stderr-reader thread has been draining the pipe; we give it a brief moment to
+    // flush any remaining bytes before reading.
+    //
+    // We drop the MCP handle first (closes stdin → prism begins graceful shutdown →
+    // closes its stderr), then wait for the drain thread to finish via a short poll.
     drop(mcp);
     drop(prism_guard);
+
+    // Wait up to 3 seconds for the stderr drain thread to finish (the subprocess closes
+    // stderr on exit; the thread reads to EOF then releases the lock).
+    let drain_deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        // Check if the buffer has content (non-empty = drain thread has written something).
+        // We stop as soon as the prism process exits (stderr EOF) and the thread writes.
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        if let Ok(buf) = stderr_buf.lock() {
+            if !buf.is_empty() {
+                break;
+            }
+        }
+        if std::time::Instant::now() >= drain_deadline {
+            break; // proceed even if empty — assertion below will surface the failure
+        }
+    }
+
+    // Parse the captured stderr lines and find boot.step9a.adapter_registry_populated.
+    let stderr_text = {
+        let buf = stderr_buf.lock().expect("stderr_buf mutex poisoned");
+        String::from_utf8_lossy(&buf).into_owned()
+    };
+
+    // Each line is a JSON object (PRISM_LOG_FORMAT=json). Scan all lines for the event.
+    let mut found_sensor_count: Option<u64> = None;
+    for line in stderr_text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        if let Ok(obj) = serde_json::from_str::<serde_json::Value>(line) {
+            // Tracing JSON format: {"fields":{"event_type":"...","sensor_count":N,...},...}
+            let event_type = obj
+                .get("fields")
+                .and_then(|f| f.get("event_type"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if event_type == "boot.step9a.adapter_registry_populated" {
+                // The emitted field is sensor_count as u64; tracing-subscriber JSON may
+                // serialize it as a number or as a string — accept both.
+                let count = obj
+                    .get("fields")
+                    .and_then(|f| f.get("sensor_count"))
+                    .and_then(|v| v.as_u64().or_else(|| v.as_str()?.parse().ok()));
+                if let Some(c) = count {
+                    found_sensor_count = Some(c);
+                    // Keep scanning: if the event fires more than once, we want the last
+                    // (non-zero) value; the empty-catalog path emits sensor_count=0.
+                    if c > 0 {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    assert_eq!(
+        found_sensor_count,
+        Some(8),
+        "AC-001 / BC-2.22.001: boot.step9a.adapter_registry_populated must report \
+         sensor_count = 8 (org-a:2 + org-b:2 + org-c:4). \
+         Got: {found_sensor_count:?}. \
+         If None: the event was not found in stderr — check RUST_LOG=boot=info and \
+         PRISM_LOG_FORMAT=json are being applied to the subprocess. \
+         If wrong count: a spurious or missing adapter registration was detected. \
+         Captured stderr ({} bytes, first 2000 chars):\n{}",
+        stderr_text.len(),
+        &stderr_text[..stderr_text.len().min(2000)]
+    );
+
     drop(harness);
     drop(tempdir);
 }

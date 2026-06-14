@@ -197,7 +197,7 @@ path = "tests/adv_p02_e2e_pushdown_pipeline_test.rs"
 
 # S-DEMO-004: Multi-org × multi-sensor isolation smoke test.
 # AC-001..AC-010, BCs: BC-3.2.001, BC-2.06.014, BC-2.06.017, BC-2.06.018, BC-2.11.005,
-#              BC-2.01.013, BC-2.10.001, BC-2.11.007
+#              BC-2.01.013, BC-2.10.001, BC-2.09.008, BC-2.22.001
 # All tests are #[ignore] by default; un-gated via 'e2e-multi-org' nextest profile.
 [[test]]
 name = "e2e_multi_org"
