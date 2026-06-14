@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.54"
+version: "6.55"
 status: draft
 producer: state-manager
 timestamp: 2026-06-14T05:00:00Z
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.55 (2026-06-14, D-1165 — S-5.02 BC reconciliation burst: BC-2.10.004 v2.7→v2.8 / BC-2.10.007 v1.4→v1.5 / BC-2.10.011 v1.4→v1.5):** product-owner | S-5.02 pre-TDD spec reconciliation. Three BCs amended for capability-discovery story readiness: (1) BC-2.10.004 v2.7→v2.8 — 3-case `client_id` taxonomy: E-MCP-001 (missing/malformed), E-CFG-100 (not-registered client); documents E-AUTH-003 namespace-collision caveat. (2) BC-2.10.007 v1.4→v1.5 — nested 9-field structuredContent.error schema documented. (3) BC-2.10.011 v1.4→v1.5 — tri-state capability model + hierarchical capability-path list_capabilities model. All 3 BCs remain lifecycle_status:active/status:draft (POL-14 auto-promotes at anchor-story merge). No lifecycle flips this burst. active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.54→v6.55.
 
 **v6.54 (2026-06-14, D-1158 — BC-2.06.017 v1.10 draft→active POL-14 promotion):** state-manager | POL-14 auto-promotion: anchor story S-DEMO-MULTI-TENANT-DTU-001 squash-merged PR #187 to develop@664566e9 2026-06-14. BC-2.06.017 lifecycle_status: draft→active; status: draft→active. BC-INDEX row 117 updated to "active (promoted draft→active D-1158 per POL-14; anchor story S-DEMO-MULTI-TENANT-DTU-001 merged PR #187 develop@664566e9 2026-06-14) — v1.10". active_contracts 234→235, draft_contracts 3→2. total_contracts: 250 UNCHANGED (250/235/2/0/7/6 = 250). BC-INDEX v6.53→v6.54.
 

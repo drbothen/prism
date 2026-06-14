@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.7"
+version: "2.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-10"  # v2.7: ADR-038 D6 sweep — client-not-found error code E-CFG-001 → E-CFG-100; variant label → PrismError::ClientNotFound
+modified: "2026-06-14"  # v2.8: R1 reconciliation — lock 3-case client_id error taxonomy; validate_client_ids implementer note; canonical MCP error-code table
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -71,10 +71,25 @@ Every tool call carries explicit client scoping — there is no session-level "a
 - Write operations always require a specific (non-null) client_id
 
 ## Error Cases
-| Error | Condition | Behavior |
-|-------|-----------|----------|
-| `PrismError::InvalidInput` | `client_id` or `clients` entry contains invalid characters | Structured error: `code: "E-MCP-001"`, `message: "Invalid client_id format"`, `allowed_pattern: "[a-zA-Z0-9_-]+"` |
-| `PrismError::ClientNotFound` | Non-null `client_id` not found in config | Structured error: `code: "E-CFG-100"`, `message: "Client '{id}' not found"`, `suggestion: "Check TOML config for available clients"` |
+
+Three distinct conditions govern client_id failures. All three produce `isError: true` MCP tool responses with the structured error shape from BC-2.10.007.
+
+| Case | Condition | PrismError Variant | MCP Error Code | Message Format | `original_params_valid` |
+|------|-----------|-------------------|---------------|----------------|------------------------|
+| (a) Missing / empty | `client_id` field absent or `""` | (validated pre-dispatch; see implementer note below) | `E-MCP-001` | `"Invalid client_id format: ''"` | `false` |
+| (b) Malformed / invalid characters | `client_id` present but fails `[a-zA-Z0-9_-]{1,64}` validation | (validated pre-dispatch; see implementer note below) | `E-MCP-001` | `"Invalid client_id format: '{value}'"` — value is the exact invalid string received | `false` |
+| (c) Well-formed but not registered | `client_id` passes format validation but is unknown in runtime config | `PrismError::ClientNotFound { client_id }` | `E-CFG-100` | `"E-CFG-100: client '{client_id}' not found in configuration"` | `true` |
+
+**Implementer note — `validate_client_ids` wiring required for S-5.02:**
+The merged `validate_client_ids` in `crates/prism-mcp/src/server.rs` (lines 1215–1231) correctly enforces format cases (a) and (b) but emits a raw `rmcp::ErrorData` with no `E-MCP-001` prefix in the message string. The implementer must bring this up to the ratified contract:
+1. `validate_client_ids` message MUST include the `E-MCP-001` error code prefix: `"E-MCP-001: invalid client_id format: '{id}'"`.
+2. The structured error response emitted for cases (a) and (b) MUST follow BC-2.10.007's `structuredContent.error` shape with `code: "E-MCP-001"`, `category: "validation"`, `retryable: false`, `original_params_valid: false`.
+3. Case (c) is handled by `PrismError::ClientNotFound` → `error_mapping.rs` → `-32602 INVALID_PARAMS` with display `"E-CFG-100: client '{client_id}' not found in configuration"`. The BC-2.10.007 structured error shape must carry `code: "E-CFG-100"`, `category: "configuration"`, `retryable: false`, `original_params_valid: true` (params were structurally valid — the client just does not exist).
+
+**Error-taxonomy alignment:**
+- `E-MCP-001` maps to "Invalid client_id format: '{value}'" per error-taxonomy.md §MCP. This is the canonical code for cases (a) and (b).
+- `E-CFG-100` maps to "E-CFG-100: client '{client_id}' not found in configuration" per error-taxonomy.md §CFG-100..106. This is the canonical code for case (c).
+- `PrismError::InvalidClientId { reason }` in prism-core displays as `"E-AUTH-003: invalid client ID: {reason}"`. This code is NOT used by `validate_client_ids` and must NOT be used here — `E-AUTH-003` in error-taxonomy.md is the sensor-layer bearer-token rejection error, creating a namespace collision in the Rust display. The `validate_client_ids` MCP-layer path correctly bypasses `PrismError::InvalidClientId` and must be kept on the `E-MCP-001` path.
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -112,6 +127,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.8 | S-5.02-pre-TDD-reconciliation | 2026-06-14 | product-owner | R1 reconciliation: Replaced single-row Error Cases table with canonical 3-case taxonomy table covering (a) missing/empty client_id → E-MCP-001 / original_params_valid=false, (b) malformed/invalid-char client_id → E-MCP-001 / original_params_valid=false, (c) well-formed but unregistered client_id → E-CFG-100 / original_params_valid=true. Added implementer note on validate_client_ids message wiring (must prefix E-MCP-001), BC-2.10.007 structured shape requirements per case, and E-AUTH-003 namespace-collision warning (InvalidClientId Rust Display must NOT be used at MCP layer). Aligns with error-taxonomy.md §MCP E-MCP-001 and §CFG-100..106 E-CFG-100. |
 | 2.7 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Cases row "Non-null `client_id` not found in config" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Error-column variant label corrected `PrismError::Config` (nonexistent variant) → `PrismError::ClientNotFound` (the ADR-038 D3 variant whose doc comment cites this BC). Condition text and response shape otherwise unchanged. Per ADR-038 (error-taxonomy v1.66). |
 | 2.5 | pass-15-remediation | 2026-04-27 | product-owner | VP-001 label updated TenantId → OrgSlug (ADR-006); DI-033 added to L2 Invariants. |
 | 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
