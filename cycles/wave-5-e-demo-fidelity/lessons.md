@@ -1441,3 +1441,51 @@ Consider a `state-manager` pre-commit hook that: (a) reads every changelog table
 **Outcome (D-1154):**
 
 story-writer reversed story changelog → v1.11→v1.12 (newest v1.12 at top; v1.0 at bottom). product-owner reversed BC-2.06.017 changelog → v1.7→v1.8 (newest v1.8 at top; v1.0 at bottom). STORY-INDEX v2.378→v2.379. BC-INDEX v6.50→v6.51. D-1154 decision recorded. Pass 3 NEXT.
+
+---
+
+## z23 — LOCAL Convergence Missed a HIGH Paper-Fix in the Story's PRIMARY Value Proposition: Spec-vs-Perimeter Contradiction Forces Tautological Test (D-1155, 2026-06-14)
+
+**Date recorded:** 2026-06-14
+**D-NNN anchor:** D-1155 (PR-LEVEL Pass-3 F-PR3-HIGH-001 HIGH finding + in-scope combined fix; feature HEAD 41d093fe)
+**Story:** S-DEMO-MULTI-TENANT-DTU-001
+**Tags:** [process-gap] [codified] [paper-fix] [spec-perimeter-contradiction] [tautological-test] [pr-level-fresh-context] [value-proposition-proof]
+**Classification:** PROCESS-GAP — LOCAL adversarial convergence (11 passes) missed a HIGH paper-fix in the story's PRIMARY value proposition; caught by PR-LEVEL fresh-context perimeter.
+
+**What happened:**
+
+The S-DEMO-MULTI-TENANT-DTU-001 LOCAL cascade (11 passes, D-1146 through D-1153) reached 3-CLEAN strict convergence. The LOCAL adversary F-P1-HIGH-001 fix-burst (Pass-1) closed a paper-fix by adding server-side AtomicU64 request counters to ArmisClone and rewriting the isolation tests to use server-side delta assertions.
+
+PR-LEVEL Pass-3 (fresh context, D-1155) found that these isolation tests — while correctly proving DISTINCT-LISTENER socket-level isolation — did NOT prove the story's PRIMARY value proposition: that `fan_out_with_overlay_map` in `prism-sensors/src/fanout.rs` correctly routes each org-slug's query to the appropriate per-client DTU instance based on `FanOutTarget.base_url`.
+
+**ROOT CAUSE — Spec-vs-Perimeter Contradiction:**
+
+BC-2.06.017 v1.8 Postcondition 4 referenced `FanOutTarget→base_url` routing as the proof mechanism. But INV-PERIMETER-001 forbids `prism-dtu-harness` and `prism-dtu-demo-server` from importing `prism-sensors` (where `FanOutTarget` is defined). This is a structural contradiction: the spec demanded a proof that the test crate's perimeter structurally forbade. Rather than surfacing this contradiction, the LOCAL cascade silently degraded to a TCP-level tautology (two separate sockets on separate ports receive separate requests — of course they do). The LOCAL adversary accepted this weaker proof without recognizing the spec-vs-perimeter conflict.
+
+**Why 11 LOCAL passes missed it:**
+
+- The LOCAL adversary accumulated context across passes and anchored on Pass-1's F-P1-HIGH-001 closure rationale ("server-side counter added; isolation proven"). Fresh-context passes are supposed to re-derive from first principles but context accumulation across 11 passes can anchor on prior verdicts.
+- The spec-vs-perimeter contradiction requires cross-crate analysis: seeing BOTH that Postcondition 4 claims FanOutTarget routing AND that INV-PERIMETER-001 forbids the test crate from importing FanOutTarget. This cross-crate reasoning was harder for the LOCAL adversary with accumulated context.
+- PR-LEVEL fresh context, with no prior pass context, immediately identified the structural contradiction: "the spec says prove FanOutTarget routing, but the test crate can't import FanOutTarget — so what is it actually proving?"
+
+**Resolution:**
+
+Combined fix: BC-2.06.017 v1.8→v1.9 (Postcondition 4 narrowed to DISTINCT-LISTENER scope; cross-ref to real FanOutTarget routing proofs in prism-sensors/tests/) + new integration test `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs::test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` (drives REAL fan_out_with_overlay_map end-to-end; permitted dep direction prism-sensors→prism-dtu-harness/armis/common) + story v1.12→v1.13 (AC-006 narrowed; crates_touched += prism-sensors; Architecture Mapping + RGT rows added). Feature HEAD: 41d093fe. just check GREEN.
+
+**Canonical rules (codified — three mitigations):**
+
+**Mitigation 1 — Spec-vs-Perimeter contradiction probe (adversary standing probe):**
+
+> When an isolation/routing AC names a production dispatch function (e.g., `FanOutTarget`, `fan_out_with_overlay_map`) that lives in a crate the test crate's perimeter FORBIDS importing: the adversary MUST flag the spec-vs-perimeter contradiction as a HIGH finding before accepting any in-crate proxy test as "isolation proven." The correct response is: (a) narrow the spec's claimed proof mechanism to what the in-crate test CAN prove (socket-level isolation); AND (b) add an end-to-end test in the crate that OWNS the production dispatch path (prism-sensors, which CAN import DTU harness as a dev-dep).
+
+**Mitigation 2 — Paper-fix resistance: ACs must name the EXACT production code path (adversary probe):**
+
+> When an AC claims to prove a behavioral property (e.g., "FanOutTarget routes to correct DTU"), the adversary MUST verify that the test invokes the EXACT production function named in the AC, not a hand-built equivalent. If the test invokes a proxy (e.g., harness internal socket addressing) rather than the named production path (e.g., `fan_out_with_overlay_map`), this is a paper-fix — the proof is for a different property than what the AC claims. Severity: HIGH (the story's primary value proposition is unproven).
+
+**Mitigation 3 — Cross-crate end-to-end proofs belong in the crate that owns the production path:**
+
+> Tests that exercise a production path spanning multiple crates (e.g., `fan_out_with_overlay_map` → overlay wiring → per-instance DTU routing) belong in the crate that OWNS the production path (here: `prism-sensors`), accessed via permitted dev-dep direction. Placing an "isolation test" in one side of the boundary (prism-dtu-harness) and testing socket-level separation is a valid UNIT test but does NOT constitute an end-to-end proof of the cross-crate dispatch behavior.
+
+**Outcome (D-1155):**
+
+F-PR3-HIGH-001 CLOSED. BC-2.06.017 v1.9. Story v1.13. New prism-sensors integration test added (41d093fe). BC-INDEX v6.51→v6.52. STORY-INDEX v2.379→v2.380. PR-LEVEL streak 0/3. Pass-4 NEXT. Lesson codified.

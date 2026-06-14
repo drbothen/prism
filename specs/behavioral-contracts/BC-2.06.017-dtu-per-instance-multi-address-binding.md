@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.8"
+version: "1.9"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-13"
+modified: "2026-06-14"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -141,23 +141,22 @@ Given two harness instances `(acme, armis)` and `(contoso, armis)` started via
 
 ### Postcondition 4 — No-cross-tenant-leakage (INV-ISOLATION-001)
 
-Given the two-instance setup from Postcondition 3, when `FanOutTarget` dispatches
-queries for org `acme` against sensor `armis`:
+Given two harness instances with distinct `SocketAddr`s S_A and S_B, when HTTP requests
+addressed to S_A are dispatched, they reach S_A exclusively; zero requests addressed to
+S_A reach S_B (symmetrically for S_B). Verification: server-side per-instance request
+counter via `GET /dtu/request-count`.
 
-- ALL HTTP requests dispatched under `(acme, armis)` are routed to S_A exclusively.
-- Zero HTTP requests dispatched under `(acme, armis)` reach S_B.
+Note: this is the **DISTINCT-LISTENER ISOLATION** proof. The proof that `FanOutTarget`
+consumes per-org `base_url` at HTTP dispatch is provided by
+`test_F_LP2_CRIT_001_fan_out_with_overlay_map_routes_to_overlay_url` in
+`prism-sensors/src/fanout.rs` (S-CONFIG-MULTI-TENANT-OVERRIDE-001); the DTU-grounded
+two-instance end-to-end routing proof is
+`test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` in
+`crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` (F-PR3-HIGH-001 fix).
 
-Symmetrically, when `FanOutTarget` dispatches queries for org `contoso`:
-
-- ALL HTTP requests dispatched under `(contoso, armis)` are routed to S_B exclusively.
-- Zero HTTP requests dispatched under `(contoso, armis)` reach S_A.
-
-**This is the multi-tenant routing isolation proof.** It is the DTU-grounded equivalent
-of S-CONFIG-MULTI-TENANT-OVERRIDE-001 AC-008 (paper-fix resistance) — proving that
-per-org `base_url` is consumed by the live HTTP dispatch layer, not merely stored in the
-spec map. Verification requires counting actual HTTP requests received by each clone's
-router (e.g., via an in-clone request counter, `Arc<AtomicUsize>` injected at start
-time, or axum extension state).
+**This is the distinct-listener isolation proof at the DTU level.** The end-to-end
+`FanOutTarget` routing proof lives in
+`prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` (F-PR3-HIGH-001 combined fix).
 
 **INV-ISOLATION-001 Verification Mechanism (prism-dtu-armis):** The no-cross-tenant-leakage
 invariant is verified via a server-side per-instance request counter added to
@@ -309,7 +308,8 @@ of new non-exhaustive public types.
 
 | VP ID | Description |
 |-------|-------------|
-| (none yet) | `test_multi_tenant_routing_zero_cross_tenant_leakage` — integration test that starts two `ArmisClone` instances via `MultiInstanceHarness`, constructs per-org overlays, runs `FanOutTarget` dispatches for both orgs, and asserts cross-tenant request count == 0 in each direction. This is the canonical INV-ISOLATION-001 verification. |
+| (none yet) | `test_multi_tenant_routing_zero_cross_tenant_leakage` — integration test that starts two `ArmisClone` instances via `MultiInstanceHarness`, constructs per-org overlays, and asserts distinct-listener TCP isolation: HTTP requests addressed to S_A reach S_A exclusively; zero requests addressed to S_A reach S_B (symmetrically for S_B). Verification via server-side per-instance `GET /dtu/request-count`. This is the canonical INV-ISOLATION-001 **distinct-listener isolation** verification at the DTU harness level. |
+| (none yet) | FanOutTarget→base_url routing dispatch proof: provided by `test_F_LP2_CRIT_001_fan_out_with_overlay_map_routes_to_overlay_url` in `prism-sensors/src/fanout.rs` (S-CONFIG-MULTI-TENANT-OVERRIDE-001, PR #155). DTU-grounded two-instance end-to-end routing proof (FanOutTarget + real DTU sockets): `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` in `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` (F-PR3-HIGH-001 fix-burst). These live outside this BC's harness crates by design (INV-PERIMETER-001). |
 | (none yet) | Compile-time test: existing single-instance `start_on` callers compile without modification after multi-instance API is added (INV-COMPAT-001 verification). |
 
 ## Related BCs
@@ -323,7 +323,7 @@ of new non-exhaustive public types.
 
 ## Architecture Anchors
 
-- ADR-029 §At query time: per-org `base_url` overlay consumed by `FanOutTarget` at HTTP dispatch (this BC provides the test infrastructure to prove that claim end-to-end against real sockets).
+- ADR-029 §At query time: proof that per-org `base_url` reaches `FanOutTarget` HTTP dispatch is delivered by `test_F_LP2_CRIT_001_fan_out_with_overlay_map_routes_to_overlay_url` in `prism-sensors/src/fanout.rs` (S-CONFIG-MULTI-TENANT-OVERRIDE-001, PR #155). The INV-PERIMETER-001 perimeter means this story's harness tests cannot exercise `FanOutTarget` directly; that is by design. The harness tests prove distinct-listener TCP isolation. The cross-layer E2E proof (harness DTU sockets + `FanOutTarget` dispatch) is delivered by `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` in `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` (F-PR3-HIGH-001 fix-burst).
 - ADR-029 §D1: `MultiInstanceConfig` / `InstanceEntry` in `prism-dtu-demo-server/src/multi_instance.rs`; `MultiInstanceHarness` in `prism-dtu-harness/src/multi_instance.rs`.
 - ADR-031 §D5: parity tests for every sensor MUST assert real API endpoint routing — this BC's overlay integration test is the DTU-level parity assertion for multi-tenant endpoint routing.
 - ADR-031 §D7: scope extension — harness clones are in-scope for DTU=true-DTU; `prism-dtu-harness` behavioral clones must exercise real socket routing.
@@ -389,6 +389,7 @@ is warranted.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | F-PR3-HIGH-001 (PR-LEVEL adversary, architect-adjudicated) | 2026-06-14 | product-owner | Narrowed Postcondition 4 + AC-006-anchored invariant + VP-catalog from "FanOutTarget dispatches" framing to the true DISTINCT-LISTENER isolation scope the harness tests actually prove; cross-referenced the FanOutTarget→base_url routing proofs (prism-sensors fanout test_F_LP2_CRIT_001 + new prism-sensors/tests E2E). §Architecture Anchors note added (architect). INV-ISOLATION-001 invariant unchanged; only in-harness verification scope clarified. No product-value reduction (routing proven in prism-sensors). |
 | 1.8 | F-PR2-MED-001 (PR-LEVEL adversary, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-14 | product-owner | Reordered §Changelog table to monotonic-descending (newest-first) per POL-32 — was ascending since v1.0. No content change to any prior row; ordering only. |
 | 1.7 | F-P8-HIGH-001 (LOCAL adversary Pass-8, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | crates: array += prism-dtu-armis (the INV-ISOLATION-001 proof depends on the prism-dtu-armis server-side request counter / GET /dtu/request-count route added by the F-P1-HIGH-001 isolation-counter fix). Postcondition 4 verification note added documenting the server-side counter proof mechanism: each ArmisClone instance maintains an AtomicU64 counter incremented by count_request_middleware on every received request; GET /dtu/request-count exposes the count; the isolation proof reads each instance's received-request count and asserts wrong-instance count == 0. Spec↔code scope sync; no contract semantic change. |
 | 1.6 | consistency-audit (S-DEMO-MULTI-TENANT-DTU-001 pre-Pass-6) | 2026-06-13 | product-owner | Three spec-code alignment fixes: M-001 Preconditions HarnessEntry fields &str→String (owned, per D-1075/code); M-002 Architecture Anchors removed stale "server.rs" alternative (D-1075: no server.rs); N-001 INV-NONEXHAUSTIVE-001 explicit list completed (added DemoBindError, BindError, MultiInstanceServers — previously catch-all-only). No semantic change. |
