@@ -1,15 +1,14 @@
-//! S-DEMO-MULTI-TENANT-DTU-001 — Red Gate tests for `prism-dtu-demo-server`
+//! S-DEMO-MULTI-TENANT-DTU-001 — Verified tests for `prism-dtu-demo-server`
 //! multi-instance binding (BC-2.06.017 Postconditions 1, 5, 6, 7).
 //!
-//! ## Red Gate discipline (SID-1)
+//! ## Test discipline (SID-1)
 //!
-//! Forward-failing tests (multi-instance behavior) MUST FAIL because `start_instances`
-//! is `todo!()`. They will panic at the todo — that panic IS the red. The assertions
-//! are real: once implemented they verify actual distinct SocketAddrs and live HTTP
-//! responses.
+//! All multi-instance tests are GREEN-STATE assertions that exercise the fully
+//! implemented `start_instances`. They verify actual distinct SocketAddrs and live
+//! HTTP responses from each independently-bound clone instance.
 //!
-//! The two backward-compat / parity tests (marked "REGRESSION GUARD") MUST PASS in
-//! the current state — the single-instance `start_on` path is unchanged.
+//! The backward-compat / parity tests (marked "REGRESSION GUARD") verify that the
+//! single-instance `start_on` path remains unchanged alongside the multi-instance API.
 //!
 //! ## Test naming
 //!
@@ -47,10 +46,8 @@ fn ephemeral() -> std::net::SocketAddr {
 
 /// EC-017-002: Empty `MultiInstanceConfig` returns empty socket map; no panic.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: `Ok(MultiInstanceServers)` with empty `socket_map()` must be returned
-/// with no spawned tasks.
+/// Verifies `start_instances` with an empty config returns `Ok(MultiInstanceServers)`
+/// with an empty `socket_map()` and no spawned tasks.
 ///
 /// (BC-2.06.017 EC-017-002 / Postcondition 1)
 #[tokio::test]
@@ -84,10 +81,8 @@ async fn test_BC_2_06_017_demo_server_zero_instances_returns_empty_map() {
 
 /// AC-001: `MultiInstanceConfig` accepted without panic/error; returns non-empty map.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: Two armis instances bind at distinct ephemeral SocketAddrs;
-/// the returned map has exactly 2 entries.
+/// Verifies `start_instances` with two armis entries returns a socket map with
+/// exactly 2 entries, one per InstanceEntry, with keys `armis-acme` and `armis-contoso`.
 ///
 /// (BC-2.06.017 Postcondition 1)
 #[tokio::test]
@@ -140,10 +135,8 @@ async fn test_BC_2_06_017_demo_server_multi_instance_bind_config_accepted() {
 
 /// AC-002: Two `ArmisClone` instances start at distinct `SocketAddr`s.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: OS assigns two distinct ephemeral ports; neither equals the other;
-/// both are valid loopback addresses.
+/// Verifies `start_instances` assigns two distinct OS-allocated ephemeral loopback ports
+/// to `armis-acme` and `armis-contoso`; both ports are non-zero.
 ///
 /// (BC-2.06.017 Postcondition 1 / TV-017-001)
 #[tokio::test]
@@ -201,11 +194,9 @@ async fn test_BC_2_06_017_demo_server_two_armis_instances_bind_distinct_ports() 
 
 /// AC-003: Two `ClarotyClone` instances start at distinct sockets.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: Two distinct ephemeral ports; both serve `POST /api/v1/audit_log/get`.
-///
-/// (BC-2.06.017 Postcondition 1 — each instance addressable independently)
+/// Verifies `start_instances` binds two `ClarotyClone` instances at distinct ephemeral
+/// loopback ports; both ports are non-zero and each instance serves its own routes
+/// independently (BC-2.06.017 Postcondition 1 — each instance addressable independently).
 #[tokio::test]
 async fn test_BC_2_06_017_demo_server_two_claroty_instances_bind_distinct_ports() {
     let cfg = MultiInstanceConfig::new(vec![
@@ -249,10 +240,8 @@ async fn test_BC_2_06_017_demo_server_two_claroty_instances_bind_distinct_ports(
 
 /// AC-002: Request to instance A socket returns HTTP response from instance A's router.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: GET /api/v1/search on armis-acme's SocketAddr returns HTTP 403
-/// (no Bearer), confirming instance A's router is live and independent.
+/// Verifies GET /api/v1/search on `armis-acme`'s SocketAddr returns HTTP 403 (no Bearer),
+/// confirming instance A's router is live and independently reachable at its own address.
 ///
 /// (BC-2.06.017 Postcondition 1 — each instance is addressable independently)
 #[tokio::test]
@@ -304,10 +293,8 @@ async fn test_BC_2_06_017_demo_server_instance_a_responds_independently() {
 
 /// AC-002: Request to instance B socket returns HTTP response from instance B's router.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: Instance B at its own SocketAddr serves GET /api/v1/search → 403
-/// (no Bearer), proving instance B is independently reachable.
+/// Verifies instance B (`armis-contoso`) at its own distinct SocketAddr serves
+/// GET /api/v1/search → 403 (no Bearer), proving instance B is independently reachable.
 ///
 /// (BC-2.06.017 Postcondition 1 — instance B's SocketAddr is served by B's clone)
 #[tokio::test]
@@ -358,9 +345,7 @@ async fn test_BC_2_06_017_demo_server_instance_b_responds_independently() {
 
 /// AC-002: Both instances shut down cleanly when `servers.shutdown()` is called.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED:
+/// Verifies the full lifecycle:
 /// 1. Two armis instances start and serve /dtu/health → HTTP 200.
 /// 2. `servers.shutdown()` is called explicitly (the explicit-shutdown path of
 ///    the `MultiInstanceServers` lifecycle handle — D-1075-API-GAP-001).
@@ -670,10 +655,9 @@ async fn test_BC_2_06_017_demo_server_bind_failure_aggregates_all_errors() {
 
 /// EC-017-009 / Postcondition 7: Duplicate `InstanceEntry::name` → DuplicateName error.
 ///
-/// RED GATE: `start_instances` is `todo!()` — will panic before returning the error.
-///
-/// WHEN IMPLEMENTED: Returns `Err(MultiInstanceBindError::DuplicateName { name: "dup" })`
-/// before any bind attempt; factory must not be called.
+/// Verifies `start_instances` returns
+/// `Err(MultiInstanceBindError::DuplicateName { name: "dup" })`
+/// before any bind attempt; the factory closure must not be called.
 ///
 /// (BC-2.06.017 Postcondition 7 / EC-017-009 / TV-017-006)
 #[tokio::test]

@@ -1,20 +1,17 @@
-//! S-DEMO-MULTI-TENANT-DTU-001 — Red Gate tests for `prism-dtu-harness`
+//! S-DEMO-MULTI-TENANT-DTU-001 — Verified tests for `prism-dtu-harness`
 //! `MultiInstanceHarness` (BC-2.06.017 Postconditions 2, 3, 4, 5, 7 +
 //! INV-ISOLATION-001, INV-COMPAT-001).
 //!
-//! ## Red Gate discipline (SID-1)
+//! ## Test discipline (SID-1)
 //!
-//! Forward-failing tests (multi-instance behavior) MUST FAIL because
-//! `MultiInstanceHarness::start` and `socket_map` are `todo!()`. They will
-//! panic at the todo — that panic IS the red.
-//!
-//! The assertions are real behavior assertions: once implemented they verify:
+//! All multi-instance tests are GREEN-STATE assertions that exercise the fully
+//! implemented `MultiInstanceHarness::start` and `socket_map`. They verify:
 //! - Distinct SocketAddrs per `(org_slug, sensor_id)` entry.
 //! - Per-org overlay TOML files with distinct `base_url` values.
 //! - Zero cross-tenant HTTP request leakage (INV-ISOLATION-001).
 //!
-//! The single backward-compat test (marked REGRESSION GUARD) MUST PASS in the
-//! current state — the single-instance `start_on` path is unchanged.
+//! The backward-compat test (marked REGRESSION GUARD) verifies that the
+//! single-instance `start_on` path remains unchanged alongside the multi-instance API.
 //!
 //! ## Test naming
 //!
@@ -52,12 +49,9 @@ fn test_client() -> reqwest::Client {
 /// AC-004: `MultiInstanceHarness` returns `HashMap<(String,String),SocketAddr>` with
 /// correct `(org_slug, sensor_id)` string keys (U-004 lightweight test-infra key).
 ///
-/// RED GATE: `MultiInstanceHarness::start` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: Two entries for `(acme, armis)` and `(contoso, armis)` with
-/// distinct SocketAddrs; keys are plain `(String, String)`, NOT newtypes.
-///
-/// (BC-2.06.017 Postcondition 2 / TV-017-003)
+/// Verifies `MultiInstanceHarness::start` produces a socket map with exactly two entries
+/// for `(acme, armis)` and `(contoso, armis)` with keys as plain `(String, String)`,
+/// NOT newtypes (BC-2.06.017 Postcondition 2 / TV-017-003).
 #[tokio::test]
 async fn test_BC_2_06_017_harness_multi_instance_builds_per_org_socket_map() {
     let entries = vec![
@@ -111,11 +105,9 @@ async fn test_BC_2_06_017_harness_multi_instance_builds_per_org_socket_map() {
 
 /// AC-004: Two orgs for the same sensor type → two distinct `SocketAddr` values.
 ///
-/// RED GATE: `MultiInstanceHarness::start` is `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED: OS assigns distinct ephemeral ports; both are valid loopback addrs.
-///
-/// (BC-2.06.017 Postcondition 2 / TV-017-003)
+/// Verifies `MultiInstanceHarness::start` assigns distinct OS-allocated ephemeral ports
+/// to `(acme, armis)` and `(contoso, armis)`; both addresses are valid loopback addrs
+/// with non-zero ports (BC-2.06.017 Postcondition 2 / TV-017-003).
 #[tokio::test]
 async fn test_BC_2_06_017_harness_distinct_org_slots_different_sockets() {
     let entries = vec![
@@ -177,16 +169,13 @@ async fn test_BC_2_06_017_harness_distinct_org_slots_different_sockets() {
 
 /// AC-005: Per-org overlay TOML files carry distinct `base_url` for each instance.
 ///
-/// RED GATE: `MultiInstanceHarness::start`, `socket_map`, and `write_overlay_temp_dir`
-/// are all `todo!()` — will panic at call site.
-///
-/// WHEN IMPLEMENTED:
+/// Verifies the full overlay pipeline:
 /// - `write_overlay_temp_dir` writes `customers/acme/armis.sensor.toml` with
 ///   `base_url = "http://127.0.0.1:{acme_port}"`.
 /// - `write_overlay_temp_dir` writes `customers/contoso/armis.sensor.toml` with
 ///   `base_url = "http://127.0.0.1:{contoso_port}"`.
 /// - `OverlayLoader::load_overlays` resolves these into `ResolvedSensorSpec` entries
-///   with distinct `base_url` values.
+///   with distinct `base_url` values corresponding to each instance's bound socket.
 ///
 /// (BC-2.06.017 Postcondition 3 / TV-017-009)
 #[tokio::test]
@@ -844,9 +833,8 @@ async fn test_BC_2_06_017_single_instance_path_unaffected_by_multi_instance_addi
 
 /// EC-017-003 / Postcondition 7: Duplicate `(org_slug, sensor_id)` → DuplicateKey error.
 ///
-/// RED GATE: `MultiInstanceHarness::start` is `todo!()` — will panic before returning error.
-///
-/// WHEN IMPLEMENTED: Returns `Err(HarnessError::DuplicateKey { org_slug: "acme", sensor_id: "armis" })`
+/// Verifies `MultiInstanceHarness::start` returns
+/// `Err(HarnessError::DuplicateKey { org_slug: "acme", sensor_id: "armis" })`
 /// before any clone instance is started. Silent last-wins is forbidden.
 ///
 /// (BC-2.06.017 Postcondition 7 / EC-017-003 / TV-017-007)
@@ -910,7 +898,7 @@ async fn test_BC_2_06_017_harness_duplicate_key_returns_error() {
 // BC-2.06.017 Postcondition 6: all bind operations attempted before error returned;
 // successfully-started instances stopped before error returned (no zombie instances).
 //
-// F-P1-MED-003: previously missing Red Gate test for bind-failure aggregation path.
+// F-P1-MED-003: bind-failure aggregation path added during implementation (was missing from initial test set).
 // ============================================================================
 
 /// EC-017-001 / Postcondition 6 / TV-017-005: bind failure aggregates errors and
