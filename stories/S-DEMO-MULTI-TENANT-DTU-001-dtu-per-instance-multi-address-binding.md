@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-03T00:00:00Z"
 created: "2026-06-03"
-modified: "2026-06-13T23:55:00Z"
+modified: "2026-06-14T00:15:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -103,7 +103,7 @@ phase: 3
 
 **Story ID:** S-DEMO-MULTI-TENANT-DTU-001
 **Status:** ready
-**Version:** v1.5
+**Version:** v1.6
 **Wave:** 5
 **Priority:** P2
 **Points:** 8
@@ -487,8 +487,14 @@ impl Drop for MultiInstanceHarness {
 }
 
 // Bind-loop call form (no-tls path, &mut self receiver — U-001):
-//   let bound = entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?;
-// Iterate as: for entry in entries.iter_mut()  (NOT &entries)
+//   for mut entry in entries {
+//       let bound = entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?;
+//       /* entry (and its clone) moved into BoundEntry for lifecycle + error-path stop() */
+//   }
+// Entries are consumed by value (moved), NOT iterated by &mut — each clone is moved into
+// the per-instance BoundEntry so the error path can call clone.stop().await for deterministic
+// port release (Postcondition 6). The &mut self receiver requirement (U-001) is satisfied
+// by the `mut entry` binding on the moved value, not by iter_mut().
 
 // ---- prism-dtu-harness/src/overlay_wiring.rs ----
 
@@ -812,3 +818,4 @@ version" for these two. For all other crates, verify workspace path/version befo
 | 1.3 | 2026-06-13 | story-writer | D-1143 remove-uncertainty re-run (mandatory pre-TDD per D-1110). Re-baselined non-exhaustive gate count: `EXPECTED` 49→52 base (001-A AC-014 + 001-B grew the gate to 52 since v1.2); target now 52→59 (+7 unchanged: 6 E0639 + 1 E0004). Corrected stale Task-6a preamble: non-exhaustive-violation crate now imports prism-dtu-common (Story A) — demo-server/harness still to be added. All version pins (axum 0.7, tokio 1/full, tempfile 3, anyhow 1, reqwest 0.12), start_on signature, and HarnessError #[non_exhaustive] re-CONFIRMED unchanged. Status remains `ready`. |
 | 1.4 | 2026-06-13 | story-writer | Architect adjudication D-1075-API-GAP-001 (Option A — graceful-shutdown lifecycle handle). start_instances return type HashMap→MultiInstanceServers (new #[non_exhaustive] handle owning shutdown_tx + task_handles; .shutdown() + Drop graceful drain; mirrors MultiInstanceHarness; eliminates zombie-server/port leak). Non-exhaustive gate re-baselined 59→60 (+1 MultiInstanceServers E0639). AC-001/AC-002/Story-Level-Goal updated to servers.socket_map() accessor. INV-COMPAT-001 unaffected (start_instances is new). Status remains ready. |
 | 1.5 | 2026-06-13 | story-writer | F-P1-MED-001 (LOCAL adversary Pass-1): EC-002 zero-instances return-type sweep Ok(HashMap::new()) → Ok(MultiInstanceServers) with empty socket_map() (sibling of the v1.4 return-type change). Status remains ready. |
+| 1.6 | 2026-06-14 | story-writer | F-P3-LOW-002 (LOCAL adversary Pass-3): §Locked API bind-loop sketch corrected from illustrative entries.iter_mut() to the implemented by-value `for mut entry in entries` consumption (clones moved into BoundEntry for error-path stop(); satisfies &mut self via moved binding). Doc-accuracy only; no contract change. Status remains ready. |

@@ -1,16 +1,29 @@
 {
   "story_id": "S-DEMO-MULTI-TENANT-DTU-001",
   "protocol": "BC-5.39.001 3-CLEAN-strict",
-  "passes_completed": 1,
+  "passes_completed": 3,
   "clean_strict_streak": 0,
-  "last_pass": 1,
-  "last_classification": "SUBSTANTIVE",
+  "last_pass": 3,
+  "last_classification": "DOC-SWEEP",
   "findings_pass_1": {
     "CRIT": 0,
     "HIGH": 1,
     "MED": 3,
     "LOW": 3
   },
-  "all_pass_1_findings": "CLOSED",
-  "next": "pass-2"
+  "findings_pass_2": {
+    "CRIT": 0,
+    "HIGH": 0,
+    "MED": 2,
+    "LOW": 1
+  },
+  "findings_pass_3": {
+    "CRIT": 0,
+    "HIGH": 0,
+    "MED": 1,
+    "LOW": 2
+  },
+  "all_findings_through_pass_3": "CLOSED",
+  "note": "Severity decaying HIGH→MED→MED/LOW; code stable; remaining were doc/spec-prose sweeps. Pass-2: success-path watcher comments (4 sites) + ArmisClone false mirrors-ClarotyState claim + stale Arc comment. Pass-3: BC-2.06.017 Postcondition 2 newtype (OrgSlug,SensorId) contradicted by U-004/D-1075/code → product-owner BC v1.3→v1.4 (String,String); residual test comment Ok(HashMap::new()) → implementer; iter_mut() vs iter() doc mismatch → implementer (harness) + story-writer (story v1.5→v1.6). SAP-1 clean all passes; INV-PERIMETER-001 clean; gate exact 60; just check GREEN.",
+  "next": "pass-4"
 }

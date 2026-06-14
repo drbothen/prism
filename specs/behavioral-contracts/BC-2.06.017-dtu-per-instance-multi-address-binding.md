@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.3"
+version: "1.4"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-09"
+modified: "2026-06-13"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -107,7 +107,7 @@ Given `MultiInstanceHarness::start(entries).await` with M `HarnessEntry` items (
 
 - Each entry starts exactly one clone via `entry.clone.start_on(ephemeral_addr, shutdown, tls)`.
 - The function returns `Ok(MultiInstanceHarness)` where:
-  - `harness.socket_map()` returns `&HashMap<(OrgSlug, SensorId), SocketAddr>`.
+  - `harness.socket_map()` returns `&HashMap<(String, String), SocketAddr>` (plain `(org_slug, sensor_id)` strings — lightweight test-infra key per U-004 / D-1075; intentionally distinct from the production `OrgKey = (OrgId, DtuType)`, which is NOT used here).
   - Each `(org_slug, sensor_id)` key maps to the OS-assigned `SocketAddr` for that entry.
 - The returned `socket_map` can be consumed to construct per-org TOML overlay files
   (format: `base_url = "http://{socket_addr}"`) via the overlay wiring helper
@@ -366,3 +366,4 @@ is warranted.
 | 1.1 | D-1075 (architect reconciliation — remove-uncertainty scan, S-DEMO-MULTI-TENANT-DTU-001 ledger T3 hardening) | 2026-06-09 | product-owner | Two accuracy fixes grounded in real `BehavioralClone::start_on` signature (clone.rs lines 71-84). No semantic or invariant changes. **Amendment 1 (Postcondition 5 / TV-017-008):** Corrected `start_on` prose signature from erroneous `(bind: SocketAddr, shutdown: Receiver<()>, tls: bool)` to actual `(&mut self, bind: SocketAddr, shutdown: Option<broadcast::Receiver<()>>, tls: Option<Arc<RustlsConfig>> / Option<()>) -> anyhow::Result<SocketAddr>`; updated TV-017-008 call site from `start_on(..., false)` to `start_on(..., Some(rx), None)`. INV-COMPAT-001 semantics unchanged — the correction confirms the signature IS already `Option`-typed, not that it changed. **Amendment 2 (Error table / Postcondition 6):** Disambiguated inner aggregate error type names to avoid cross-crate name collision: demo-server uses `DemoBindError { instance_name: String, source: std::io::Error }` in `MultiInstanceBindError::BindFailure(Vec<DemoBindError>)`; harness uses `BindError { org_slug: String, sensor_id: String, source: std::io::Error }` in `HarnessError::BindFailure(Vec<BindError>)`. Variant names (HarnessError::DuplicateKey, HarnessError::BindFailure, MultiInstanceBindError::DuplicateName, MultiInstanceBindError::BindFailure) confirmed correct per architect. |
 | 1.2 | D-1075-API-GAP-001 (architect adjudication, S-DEMO-MULTI-TENANT-DTU-001 TDD) | 2026-06-13 | product-owner | Postcondition 1 amended: `start_instances` returns `Ok(MultiInstanceServers)` lifecycle handle (was `Ok(HashMap<String,SocketAddr>)`). Handle owns single shared `shutdown_tx: broadcast::Sender<()>` + all N task handles; `servers.socket_map() -> &HashMap<String, SocketAddr>` accessor exposes bound addresses; `servers.shutdown()` / Drop trigger graceful drain (axum `with_graceful_shutdown`) then port release, eliminating success-path zombie/leaked instances. This is the success-path analogue of Postcondition 6 ("no partial-bound zombie instances on bind failure") and is consistent with EC-017-005 (parenthetical added: "applies to both `MultiInstanceHarness` Drop and `MultiInstanceServers` Drop"). No change to Postconditions 2-7, other ECs, INV-COMPAT-001, INV-ISOLATION-001, INV-ERR-003-COMPAT, INV-PERIMETER-001, or INV-NONEXHAUSTIVE-001. |
 | 1.3 | F-P1-MED-001 (LOCAL adversary Pass-1, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | EC-017-002 + TV-017-002 return-type sweep: Ok(HashMap::new()) → Ok(MultiInstanceServers) with empty socket_map() (v1.2 changed Postcondition 1 return type but missed these two siblings; POL-29 within-FB sweep). No semantic change. |
+| 1.4 | F-P3-MED-001 (LOCAL adversary Pass-3, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | Postcondition 2 socket_map key type swept `(OrgSlug, SensorId)` → `(String, String)` to match U-004/D-1075 architect decision, AC-004, the story Locked API, and the implemented code. Stale newtype prose was never swept when U-004 chose plain test-infra strings. Annotation added: "lightweight test-infra key per U-004 / D-1075; intentionally distinct from the production OrgKey = (OrgId, DtuType)". No semantic change. |
