@@ -238,15 +238,13 @@ pub fn v48_adapter_auth_strategy_match() {
 /// (BC-2.06.017 Postconditions 6–7). `#[non_exhaustive]` ensures future error variants
 /// (e.g., `TimeoutError`, `TlsError`) can be added without requiring all external
 /// match arms to be updated immediately.
-/// External callers MUST include `_ => {}` or handle via `match e { DuplicateName{..} => .., BindFailure(..) => .., _ => {} }`.
+/// External callers MUST include `_ => {}` or handle via
+/// `match e { DuplicateName{..} => .., BindFailure(..) => .., _ => {} }`.
 ///
-/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 59.
-/// Note: This is violation 60 (enum), but only 7 NEW violations are added (54-59 struct + this enum).
-/// The EXPECTED count covers all 59 previous + this brings total to 60? Let me recount...
-///
-/// Actually: the story says EXPECTED 52→59. The 7 new violations are v54-v59 (struct, 6 violations)
-/// + this enum violation. That is 7 total, bringing 52+7=59. So this is violation numbered here
-/// for clarity but the EXPECTED is 59 total (52 existing + 7 new).
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 60.
+/// This is violation 60 of 60: 7 E0639 struct violations (v54–v60 in struct_violations.rs,
+/// which includes `MultiInstanceServers` added by D-1075-API-GAP-001) + this 1 E0004 enum
+/// violation = 8 new violations total, bringing the gate from 52 → 60.
 #[allow(dead_code)]
 pub fn v60_multi_instance_bind_error_match() {
     use prism_dtu_demo_server::MultiInstanceBindError;

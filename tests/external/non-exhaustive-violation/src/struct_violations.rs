@@ -695,7 +695,10 @@ pub fn v53_incident_stage() {
 /// ensures future fields (e.g., bind_timeout, tls_config) can be added without
 /// breaking external struct literals. External callers MUST use `MultiInstanceConfig::new(...)`.
 ///
-/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 59.
+/// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 60.
+/// (52 base + 7 E0639 struct violations [v54–v60: MultiInstanceConfig, InstanceEntry,
+/// DemoBindError, MultiInstanceHarness, HarnessEntry, BindError, MultiInstanceServers]
+/// + 1 E0004 enum violation [MultiInstanceBindError] = 60 total.)
 #[allow(dead_code)]
 pub fn v54_multi_instance_config() {
     let _cfg = prism_dtu_demo_server::MultiInstanceConfig {
