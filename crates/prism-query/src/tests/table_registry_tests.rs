@@ -17,6 +17,9 @@
 //! 15 tests / 15 functions = 1.0 (≥ 0.5 required per story §Red Gate Test Names).
 //!
 //! Story: S-3.13
+// Test-code lint allowances: `expect()` in test assertions is the established project
+// pattern for test setup (see alias_tests.rs, bc_gap_fill_tests.rs, integration_tests.rs).
+#![allow(clippy::expect_used, clippy::unwrap_used, non_snake_case)]
 
 use prism_core::PrismError;
 use prism_spec_engine::{
