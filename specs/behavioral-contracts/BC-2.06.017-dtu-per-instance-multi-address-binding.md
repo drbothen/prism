@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.9"
+version: "1.10"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -286,7 +286,7 @@ of new non-exhaustive public types.
 | EC-017-004 | Overlay TOML written for an org slug not registered in `OrgRegistry` | `SpecLoader::load_all` emits `E-SPEC-022` (BC-2.06.015); this is correct behavior — test code must register all orgs used in overlays. The harness itself does not validate org registration (it is not permitted to import prism-spec-engine) |
 | EC-017-005 | `MultiInstanceHarness` or `MultiInstanceServers` dropped while in-flight requests are outstanding (applies to both handles) | Async drop races with in-flight requests; the shutdown signal drains in-flight requests using the shutdown-timeout pattern (per story risk mitigation). All in-flight requests complete or receive connection-closed before the bound port is released |
 | EC-017-006 | DTU clone instance crashes mid-test | Subsequent requests to that instance's `SocketAddr` receive `ConnectionRefused` or equivalent error. This is NOT a silent cross-tenant leakage event — the requesting org receives a structured error; INV-ISOLATION-001 is not violated (zero requests can reach a crashed instance) |
-| EC-017-007 | Test misconfiguration: org A overlay points to instance B socket | All of org A's requests go to instance B. The leakage test `test_multi_tenant_routing_zero_cross_tenant_leakage` correctly FAILS — detecting the misconfiguration. This is correct-by-design: the test validates overlay correctness, not the harness |
+| EC-017-007 | Test misconfiguration: org A overlay points to instance B socket | All of org A's requests go to instance B. The leakage test `test_BC_2_06_017_multi_tenant_routing_zero_cross_tenant_leakage` correctly FAILS — detecting the misconfiguration. This is correct-by-design: the test validates overlay correctness, not the harness |
 | EC-017-008 | 10+ named instances in `MultiInstanceConfig` (large multi-tenant scenario) | All instances bind successfully; no hard cap enforced by this BC; memory and bind time increase linearly; test execution time increases proportionally |
 | EC-017-009 | Two `InstanceEntry` items with the same name string | `Err(MultiInstanceBindError::DuplicateName { name })` returned before any bind attempt (see Postcondition 7) |
 
@@ -308,7 +308,7 @@ of new non-exhaustive public types.
 
 | VP ID | Description |
 |-------|-------------|
-| (none yet) | `test_multi_tenant_routing_zero_cross_tenant_leakage` — integration test that starts two `ArmisClone` instances via `MultiInstanceHarness`, constructs per-org overlays, and asserts distinct-listener TCP isolation: HTTP requests addressed to S_A reach S_A exclusively; zero requests addressed to S_A reach S_B (symmetrically for S_B). Verification via server-side per-instance `GET /dtu/request-count`. This is the canonical INV-ISOLATION-001 **distinct-listener isolation** verification at the DTU harness level. |
+| (none yet) | `test_BC_2_06_017_multi_tenant_routing_zero_cross_tenant_leakage` — integration test that starts two `ArmisClone` instances via `MultiInstanceHarness`, constructs per-org overlays, and asserts distinct-listener TCP isolation: HTTP requests addressed to S_A reach S_A exclusively; zero requests addressed to S_A reach S_B (symmetrically for S_B). Verification via server-side per-instance `GET /dtu/request-count`. This is the canonical INV-ISOLATION-001 **distinct-listener isolation** verification at the DTU harness level. |
 | (none yet) | FanOutTarget→base_url routing dispatch proof: provided by `test_F_LP2_CRIT_001_fan_out_with_overlay_map_routes_to_overlay_url` in `prism-sensors/src/fanout.rs` (S-CONFIG-MULTI-TENANT-OVERRIDE-001, PR #155). DTU-grounded two-instance end-to-end routing proof (FanOutTarget + real DTU sockets): `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` in `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` (F-PR3-HIGH-001 fix-burst). These live outside this BC's harness crates by design (INV-PERIMETER-001). |
 | (none yet) | Compile-time test: existing single-instance `start_on` callers compile without modification after multi-instance API is added (INV-COMPAT-001 verification). |
 
@@ -389,6 +389,7 @@ is warranted.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | F-PR4-MED-001 (PR-LEVEL adversary) | 2026-06-14 | product-owner | Corrected harness-test citation symbols: added the missing `test_BC_2_06_017_` infix to all `multi_tenant_routing` test references (EC-017-007, VP catalog) so they grep-resolve to the actual functions. Citation-accuracy only; no semantic change. |
 | 1.9 | F-PR3-HIGH-001 (PR-LEVEL adversary, architect-adjudicated) | 2026-06-14 | product-owner | Narrowed Postcondition 4 + AC-006-anchored invariant + VP-catalog from "FanOutTarget dispatches" framing to the true DISTINCT-LISTENER isolation scope the harness tests actually prove; cross-referenced the FanOutTarget→base_url routing proofs (prism-sensors fanout test_F_LP2_CRIT_001 + new prism-sensors/tests E2E). §Architecture Anchors note added (architect). INV-ISOLATION-001 invariant unchanged; only in-harness verification scope clarified. No product-value reduction (routing proven in prism-sensors). |
 | 1.8 | F-PR2-MED-001 (PR-LEVEL adversary, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-14 | product-owner | Reordered §Changelog table to monotonic-descending (newest-first) per POL-32 — was ascending since v1.0. No content change to any prior row; ordering only. |
 | 1.7 | F-P8-HIGH-001 (LOCAL adversary Pass-8, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | crates: array += prism-dtu-armis (the INV-ISOLATION-001 proof depends on the prism-dtu-armis server-side request counter / GET /dtu/request-count route added by the F-P1-HIGH-001 isolation-counter fix). Postcondition 4 verification note added documenting the server-side counter proof mechanism: each ArmisClone instance maintains an AtomicU64 counter incremented by count_request_middleware on every received request; GET /dtu/request-count exposes the count; the isolation proof reads each instance's received-request count and asserts wrong-instance count == 0. Spec↔code scope sync; no contract semantic change. |

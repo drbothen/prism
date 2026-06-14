@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.13"
+version: "1.14"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-03T00:00:00Z"
 created: "2026-06-03"
-modified: "2026-06-14T04:00:00Z"
+modified: "2026-06-14T04:30:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -105,7 +105,7 @@ phase: 3
 
 **Story ID:** S-DEMO-MULTI-TENANT-DTU-001
 **Status:** ready
-**Version:** v1.13
+**Version:** v1.14
 **Wave:** 5
 **Priority:** P2
 **Points:** 8
@@ -172,7 +172,7 @@ After this story merges:
    end-to-end proof that `FanOutTarget` consumes the per-org `base_url` overlay to route to the
    correct DTU instance lives in
    `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs::test_fan_out_with_overlay_map_routes_to_correct_dtu_instance`
-   (commit 41d093fe; PASSES; the harness cannot import `FanOutTarget` per INV-PERIMETER-001).
+   (PASSES; the harness cannot import `FanOutTarget` per INV-PERIMETER-001).
 
 4. All existing single-instance DTU parity tests continue to pass (backward compatibility).
 
@@ -213,7 +213,7 @@ is `127.0.0.1:0`) and the bound `SocketAddr` is exposed to callers via
 (traces to BC-2.06.017 postcondition 1 — multi-instance bind configuration accepted;
 each `InstanceEntry` starts exactly one clone instance via `BehavioralClone::start_on`)
 
-Red Gate test: `test_demo_server_multi_instance_bind_config_accepted`
+Red Gate test: `test_BC_2_06_017_demo_server_multi_instance_bind_config_accepted`
 
 ### AC-002: Two armis instances start on distinct ephemeral ports
 Given `MultiInstanceConfig { instances: [InstanceEntry { name: "armis-acme", bind: "127.0.0.1:0" }, InstanceEntry { name: "armis-contoso", bind: "127.0.0.1:0" }] }`,
@@ -224,7 +224,7 @@ value has `servers.socket_map()` returning two entries with distinct addresses
 (traces to BC-2.06.017 postcondition 1 — OS assigns ephemeral ports; all N instances
 returned in one map with no entries silently dropped)
 
-Red Gate test: `test_demo_server_two_armis_instances_bind_distinct_ports`
+Red Gate test: `test_BC_2_06_017_demo_server_two_armis_instances_bind_distinct_ports`
 
 ### AC-003: Two claroty instances start on distinct ephemeral ports
 Same as AC-002 but for `ClarotyClone`. Two separate Claroty instances start on distinct
@@ -233,7 +233,7 @@ instance's fixture data independently.
 (traces to BC-2.06.017 postcondition 1 — each instance addressable independently;
 request to instance A's SocketAddr is served by instance A's clone)
 
-Red Gate test: `test_demo_server_two_claroty_instances_bind_distinct_ports`
+Red Gate test: `test_BC_2_06_017_demo_server_two_claroty_instances_bind_distinct_ports`
 
 ### AC-004: prism-dtu-harness MultiInstanceHarness builds per-org SocketAddr map
 `prism-dtu-harness` exposes a `MultiInstanceHarness` (defined in the new file
@@ -249,7 +249,7 @@ This API is usable from integration tests without requiring `prism-dtu-demo-serv
 (traces to BC-2.06.017 Postcondition 2 — `start(entries).await` starts each entry;
 `socket_map()` returns the per-(org, sensor) address map)
 
-Red Gate test: `test_harness_multi_instance_builds_per_org_socket_map`
+Red Gate test: `test_BC_2_06_017_harness_multi_instance_builds_per_org_socket_map`
 
 ### AC-005: Per-org base_url overlay integrates with MultiInstanceHarness output
 Given two `ArmisClone` instances at distinct sockets (from `MultiInstanceHarness`), and
@@ -278,7 +278,7 @@ writes 3-field overlays (extends + instance_id + base_url) per BC-2.06.017 Postc
 + TV-017-009; after `SpecLoader::load_all`, `ResolvedSensorSpec` for `(acme, armis)` has
 `base_url = "http://S_A"` and for `(contoso, armis)` has `base_url = "http://S_B"` with S_A ≠ S_B)
 
-Red Gate test: `test_multi_instance_overlay_loads_distinct_base_urls`
+Red Gate test: `test_BC_2_06_017_multi_instance_overlay_loads_distinct_base_urls`
 
 ### AC-006: Distinct-listener isolation — requests addressed to S_A reach S_A exclusively; requests addressed to S_B reach S_B exclusively
 Given two `ArmisClone` instances at distinct sockets S_A (acme) and S_B (contoso), when
@@ -305,7 +305,7 @@ each DTU instance socket receives only the requests addressed to it. The end-to-
 that `FanOutTarget` consumes the per-org `base_url` overlay to route to the CORRECT DTU
 instance lives in
 `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs::test_fan_out_with_overlay_map_routes_to_correct_dtu_instance`
-(commit 41d093fe; PASSES). The harness cannot import `FanOutTarget` per INV-PERIMETER-001
+(PASSES). The harness cannot import `FanOutTarget` per INV-PERIMETER-001
 — by design. The two tests are complementary and together constitute the complete routing
 isolation proof.
 
@@ -313,7 +313,7 @@ isolation proof.
 requests_received_by_instance(S_A, addressed_to=S_B) = 0 and
 requests_received_by_instance(S_B, addressed_to=S_A) = 0 for any two distinct sockets)
 
-Red Gate test: `test_multi_tenant_routing_zero_cross_tenant_leakage`
+Red Gate test: `test_BC_2_06_017_multi_tenant_routing_zero_cross_tenant_leakage`
 
 ### AC-007: Single-instance path unchanged (backward compatibility)
 Existing single-instance callers of `ArmisClone::start_on(bind, ...)`,
@@ -349,7 +349,7 @@ that call `start_on` internally; `start_on` itself is never modified.
 (traces to BC-2.06.017 INV-COMPAT-001 — single-instance backward compatibility;
 compile-time enforced by existing S-6.07–6.10 tests compiling unchanged)
 
-Red Gate test: `test_single_instance_path_unaffected_by_multi_instance_addition`
+Red Gate test: `test_BC_2_06_017_single_instance_path_unaffected_by_multi_instance_addition`
 
 ### AC-008: Module-doc and pub API documentation updated
 Both `prism-dtu-demo-server` and `prism-dtu-harness` module-doc (or `README.md` equivalents)
@@ -376,22 +376,22 @@ discipline — SID-1). Test crate: `prism-dtu-demo-server/tests/` and
 
 | Test Name | AC | Crate | Description |
 |-----------|-----|-------|-------------|
-| `test_demo_server_multi_instance_bind_config_accepted` | AC-001 | prism-dtu-demo-server | `MultiInstanceConfig` accepted without panic/error; returns non-empty instance map |
-| `test_demo_server_two_armis_instances_bind_distinct_ports` | AC-002 | prism-dtu-demo-server | Two `ArmisClone` instances start at distinct `SocketAddr`s; neither is the same as the other |
-| `test_demo_server_two_claroty_instances_bind_distinct_ports` | AC-003 | prism-dtu-demo-server | Two `ClarotyClone` instances start at distinct sockets; independent `POST /api/v1/alerts/` responses |
-| `test_demo_server_instance_a_responds_independently` | AC-002 | prism-dtu-demo-server | Request to instance A socket returns instance A fixture data (not instance B) |
-| `test_demo_server_instance_b_responds_independently` | AC-002 | prism-dtu-demo-server | Request to instance B socket returns instance B fixture data (not instance A) |
-| `test_demo_server_multi_instance_shutdown_clean` | AC-002 | prism-dtu-demo-server | Both instances shut down cleanly when `shutdown` signal sent; no port leak |
-| `test_demo_server_zero_instances_returns_empty_map` | AC-001 | prism-dtu-demo-server | Empty `MultiInstanceConfig` returns empty socket map; no panic |
-| `test_harness_multi_instance_builds_per_org_socket_map` | AC-004 | prism-dtu-harness | `MultiInstanceHarness` returns `HashMap<(String,String),SocketAddr>` with correct `(org_slug, sensor_id)` string keys (U-004); `ArmisClone`/`ClarotyClone` from `[dev-dependencies]` |
-| `test_harness_distinct_org_slots_different_sockets` | AC-004 | prism-dtu-harness | Two orgs for the same sensor type → two distinct `SocketAddr` values; key type is plain `(String, String)` |
-| `test_multi_instance_overlay_loads_distinct_base_urls` | AC-005 | prism-dtu-harness | `ResolvedSensorSpec` map for `(acme, armis)` and `(contoso, armis)` have distinct `base_url` values |
-| `test_multi_tenant_routing_zero_cross_tenant_leakage` | AC-006 | prism-dtu-harness | Requests addressed to S_A → 0 at S_B; requests addressed to S_B → 0 at S_A (distinct-listener isolation via server-side GET /dtu/request-count counter) |
-| `test_multi_tenant_routing_acme_instance_receives_acme_requests` | AC-006 | prism-dtu-harness | All requests addressed to S_A arrive at S_A (exact count match via server-side counter) |
-| `test_multi_tenant_routing_contoso_instance_receives_contoso_requests` | AC-006 | prism-dtu-harness | All requests addressed to S_B arrive at S_B (exact count match via server-side counter) |
-| `test_single_instance_path_unaffected_by_multi_instance_addition` | AC-007 | prism-dtu-harness | Existing single-instance `ArmisClone::start_on` call pattern compiles + works unchanged |
-| `test_single_instance_parity_test_still_passes_after_multi_instance_addition` | AC-007 | prism-dtu-demo-server | Existing single-instance S-DEMO-002-style test still green after multi-instance API added |
-| `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` | AC-006 (end-to-end) | prism-sensors | **End-to-end FanOutTarget routing isolation proof (F-PR3-HIGH-001).** Drives the real `fan_out_with_overlay_map` production dispatch through the overlay base_url against two live ArmisClone DTU instances; asserts org A's `FanOutTarget` dispatch reaches only S_A and org B's dispatch reaches only S_B. PASSES (commit 41d093fe). Lives in `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` — cannot live in harness due to INV-PERIMETER-001. This test is the genuine proof that `FanOutTarget` consumes per-org base_url for routing; complements the in-harness distinct-listener isolation proof above. |
+| `test_BC_2_06_017_demo_server_multi_instance_bind_config_accepted` | AC-001 | prism-dtu-demo-server | `MultiInstanceConfig` accepted without panic/error; returns non-empty instance map |
+| `test_BC_2_06_017_demo_server_two_armis_instances_bind_distinct_ports` | AC-002 | prism-dtu-demo-server | Two `ArmisClone` instances start at distinct `SocketAddr`s; neither is the same as the other |
+| `test_BC_2_06_017_demo_server_two_claroty_instances_bind_distinct_ports` | AC-003 | prism-dtu-demo-server | Two `ClarotyClone` instances start at distinct sockets; independent `POST /api/v1/alerts/` responses |
+| `test_BC_2_06_017_demo_server_instance_a_responds_independently` | AC-002 | prism-dtu-demo-server | Request to instance A socket returns instance A fixture data (not instance B) |
+| `test_BC_2_06_017_demo_server_instance_b_responds_independently` | AC-002 | prism-dtu-demo-server | Request to instance B socket returns instance B fixture data (not instance A) |
+| `test_BC_2_06_017_demo_server_multi_instance_shutdown_clean` | AC-002 | prism-dtu-demo-server | Both instances shut down cleanly when `shutdown` signal sent; no port leak |
+| `test_BC_2_06_017_demo_server_zero_instances_returns_empty_map` | AC-001 | prism-dtu-demo-server | Empty `MultiInstanceConfig` returns empty socket map; no panic |
+| `test_BC_2_06_017_harness_multi_instance_builds_per_org_socket_map` | AC-004 | prism-dtu-harness | `MultiInstanceHarness` returns `HashMap<(String,String),SocketAddr>` with correct `(org_slug, sensor_id)` string keys (U-004); `ArmisClone`/`ClarotyClone` from `[dev-dependencies]` |
+| `test_BC_2_06_017_harness_distinct_org_slots_different_sockets` | AC-004 | prism-dtu-harness | Two orgs for the same sensor type → two distinct `SocketAddr` values; key type is plain `(String, String)` |
+| `test_BC_2_06_017_multi_instance_overlay_loads_distinct_base_urls` | AC-005 | prism-dtu-harness | `ResolvedSensorSpec` map for `(acme, armis)` and `(contoso, armis)` have distinct `base_url` values |
+| `test_BC_2_06_017_multi_tenant_routing_zero_cross_tenant_leakage` | AC-006 | prism-dtu-harness | Requests addressed to S_A → 0 at S_B; requests addressed to S_B → 0 at S_A (distinct-listener isolation via server-side GET /dtu/request-count counter) |
+| `test_BC_2_06_017_multi_tenant_routing_acme_instance_receives_acme_requests` | AC-006 | prism-dtu-harness | All requests addressed to S_A arrive at S_A (exact count match via server-side counter) |
+| `test_BC_2_06_017_multi_tenant_routing_contoso_instance_receives_contoso_requests` | AC-006 | prism-dtu-harness | All requests addressed to S_B arrive at S_B (exact count match via server-side counter) |
+| `test_BC_2_06_017_single_instance_path_unaffected_by_multi_instance_addition` | AC-007 | prism-dtu-harness | Existing single-instance `ArmisClone::start_on` call pattern compiles + works unchanged |
+| `test_BC_2_06_017_single_instance_parity_test_still_passes_after_multi_instance_addition` | AC-007 | prism-dtu-demo-server | Existing single-instance S-DEMO-002-style test still green after multi-instance API added |
+| `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` | AC-006 (end-to-end) | prism-sensors | **End-to-end FanOutTarget routing isolation proof (F-PR3-HIGH-001).** Drives the real `fan_out_with_overlay_map` production dispatch through the overlay base_url against two live ArmisClone DTU instances; asserts org A's `FanOutTarget` dispatch reaches only S_A and org B's dispatch reaches only S_B. PASSES. Lives in `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` — cannot live in harness due to INV-PERIMETER-001. This test is the genuine proof that `FanOutTarget` consumes per-org base_url for routing; complements the in-harness distinct-listener isolation proof above. |
 
 ---
 
@@ -704,7 +704,7 @@ Well within 20-30% context budget.
     - (d) Bump `EXPECTED=52` → `EXPECTED=60` in `.github/workflows/ci.yml`.
     - Verify `just check` green after the bump (the gate counts must match exactly).
 
-7. **Implement the multi-tenant routing isolation test** (`test_multi_tenant_routing_zero_cross_tenant_leakage`):
+7. **Implement the multi-tenant routing isolation test** (`test_BC_2_06_017_multi_tenant_routing_zero_cross_tenant_leakage`):
    - Start two `ArmisClone` instances via `MultiInstanceHarness`.
    - Construct per-org overlays via `overlay_wiring::write_overlay_temp_dir`.
    - Run `FanOutTarget` dispatches for both orgs.
@@ -833,7 +833,7 @@ version" for these two. For all other crates, verify workspace path/version befo
 | MODIFY | `crates/prism-dtu-armis/src/state.rs` | Add `pub request_counter: AtomicU64` field + `pub fn received_request_count(&self) -> u64` accessor + reset in `reset_all()`. AC-006 server-side isolation counter (independent of Claroty FailureLayer). Scope added by F-P1-HIGH-001 fix; recorded here per F-P8-HIGH-001 scope-sync. |
 | MODIFY | `crates/prism-dtu-armis/src/clone.rs` | Add `count_request_middleware` axum layer (outermost in `build_router`, increments `request_counter` on every request) + `pub fn request_count(&self) -> u64` method + `GET /dtu/request-count` DTU control-plane route (sibling to `/dtu/health`, `/dtu/configure`, `/dtu/reset`). AC-006 load-bearing isolation-proof instrumentation. Scope added by F-P1-HIGH-001 fix; recorded here per F-P8-HIGH-001 scope-sync. |
 | MODIFY | `crates/prism-dtu-armis/src/routes/dtu.rs` | Add `get_request_count` handler returning plain decimal count for `GET /dtu/request-count`. AC-006 load-bearing isolation-proof instrumentation. Scope added by F-P1-HIGH-001 fix; recorded here per F-P8-HIGH-001 scope-sync. |
-| CREATE | `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` | The genuine end-to-end FanOutTarget→DTU-socket routing isolation proof: `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` drives the real `fan_out_with_overlay_map` production dispatch through the overlay base_url against two live ArmisClone DTU instances; PASSES (commit 41d093fe). F-PR3-HIGH-001. This test cannot live in the harness because the harness cannot import `FanOutTarget` per INV-PERIMETER-001. |
+| CREATE | `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` | The genuine end-to-end FanOutTarget→DTU-socket routing isolation proof: `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` drives the real `fan_out_with_overlay_map` production dispatch through the overlay base_url against two live ArmisClone DTU instances; PASSES. F-PR3-HIGH-001. This test cannot live in the harness because the harness cannot import `FanOutTarget` per INV-PERIMETER-001. |
 | MODIFY | `crates/prism-sensors/Cargo.toml` | `[dev-dependencies]` += `prism-dtu-harness`, `prism-dtu-armis`, `prism-dtu-common` (test-only; permitted INV-PERIMETER-001 direction). F-PR3-HIGH-001. |
 
 ---
@@ -882,6 +882,7 @@ version" for these two. For all other crates, verify workspace path/version befo
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.14 | 2026-06-14 | story-writer | F-PR4-MED-001: corrected harness-test citation symbols (added test_BC_2_06_017_ infix so all references grep-resolve). OBS-PR4-1: removed volatile commit-SHA pin (41d093fe) from AC/Architecture-Mapping prose per TD-VSDD-091 (function-name anchor retained). Citation-accuracy/anti-volatile-pin only; no contract change. Status remains ready. |
 | 1.13 | 2026-06-14 | story-writer | F-PR3-HIGH-001 (PR-LEVEL adversary, architect-adjudicated): narrowed AC-006 + Story-Level-Goal from "FanOutTarget dispatches" overclaim to the true distinct-listener isolation scope the harness tests prove; added the genuine end-to-end FanOutTarget→DTU-socket routing isolation test in crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs (PASSES, load-bearing); crates_touched += prism-sensors; Architecture Mapping + File Structure rows added. Aligned with BC-2.06.017 v1.9. No product-value reduction (routing now genuinely proven). Status remains ready. |
 | 1.12 | 2026-06-14 | story-writer | PR-LEVEL adversary F-PR2-MED-001: reordered §Changelog table to monotonic-descending order (newest-first) per POL-32 — was ascending since v1.0. No content change to any prior row; ordering only. Status remains ready. |
 | 1.11 | 2026-06-14 | story-writer | PR-LEVEL adversary OBS-2: clarified risk_mitigations reqwest-timeout wording — production clients use 30s (this story adds none); test harness clients use explicit non-default 10s per established convention (review_2026_06_10_deny_unknown.rs + harness_clone_parity_test.rs). Binding requirement is explicit non-default timeout (never infinite/default), which is satisfied. Architecture Compliance Rules row updated to match. Doc-accuracy only; no contract change. Status remains ready. |
