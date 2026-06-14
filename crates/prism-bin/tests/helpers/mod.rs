@@ -1256,40 +1256,148 @@ pub async fn start_multi_org_harness() -> (
     prism_dtu_harness::multi_instance::MultiInstanceHarness,
     TempDir,
 ) {
-    todo!(
-        "S-DEMO-004: implement start_multi_org_harness — \
-         call MultiInstanceHarness::start(entries) with 8 HarnessEntry items \
-         (org-a crowdstrike seed=100, org-a armis seed=110, \
-          org-b claroty seed=120, org-b cyberint seed=130, \
-          org-c crowdstrike seed=200, org-c armis seed=210, \
-          org-c claroty seed=220, org-c cyberint seed=230). \
-         Each entry: HarnessEntry::new(org_slug, sensor_id, Box::new(clone)) \
-         where clone = SensorClone::new_with_seed(seed, Archetype::HealthyOtEnvironment, org_id). \
-         ArmisClone::new_with_seed and CyberintClone::new_with_seed return anyhow::Result — use ?. \
-         Also write overlay files via write_overlay_temp_dir(&harness, tempdir.path()). \
-         Return (harness, tempdir)."
-    )
+    use prism_dtu_armis::ArmisClone;
+    use prism_dtu_claroty::ClarotyClone;
+    use prism_dtu_common::{Archetype, OrgId};
+    use prism_dtu_crowdstrike::CrowdstrikeClone;
+    use prism_dtu_cyberint::CyberintClone;
+    use prism_dtu_harness::multi_instance::HarnessEntry;
+
+    // Parse org UUIDs into OrgId([u8; 16]) — pattern from harness.rs parse_org_id.
+    let make_org_id = |uuid_str: &str| -> OrgId {
+        let uuid = uuid::Uuid::parse_str(uuid_str).expect("org UUID must be valid");
+        OrgId(*uuid.as_bytes())
+    };
+
+    let org_id_a = make_org_id(ORG_A_ID);
+    let org_id_b = make_org_id(ORG_B_ID);
+    let org_id_c = make_org_id(ORG_C_ID);
+
+    let archetype = Archetype::HealthyOtEnvironment;
+
+    // Build 8 HarnessEntry items — one per (org_slug, sensor_id) pair.
+    // HarnessEntry is #[non_exhaustive]; MUST use HarnessEntry::new() (not struct-literal).
+    // ArmisClone::new_with_seed and CyberintClone::new_with_seed are fallible — propagate
+    // via .expect() (test code; panic is acceptable per #[allow(unwrap_used)] in lints).
+    // OrgId is Clone (not Copy) — clone when reusing across multiple constructors.
+    // Archetype is Copy — no clone needed.
+    let entries: Vec<HarnessEntry> = vec![
+        // org-a: CrowdStrike (seed=100) — infallible constructor
+        HarnessEntry::new(
+            ORG_A_SLUG,
+            "crowdstrike",
+            Box::new(CrowdstrikeClone::new_with_seed(
+                SEED_ORG_A_CROWDSTRIKE,
+                archetype,
+                org_id_a.clone(),
+            )),
+        ),
+        // org-a: Armis (seed=110) — fallible constructor
+        HarnessEntry::new(
+            ORG_A_SLUG,
+            "armis",
+            Box::new(
+                ArmisClone::new_with_seed(SEED_ORG_A_ARMIS, archetype, org_id_a)
+                    .expect("ArmisClone::new_with_seed for org-a must succeed"),
+            ),
+        ),
+        // org-b: Claroty (seed=120) — infallible constructor
+        HarnessEntry::new(
+            ORG_B_SLUG,
+            "claroty",
+            Box::new(ClarotyClone::new_with_seed(
+                SEED_ORG_B_CLAROTY,
+                archetype,
+                org_id_b.clone(),
+            )),
+        ),
+        // org-b: Cyberint (seed=130) — fallible constructor
+        HarnessEntry::new(
+            ORG_B_SLUG,
+            "cyberint",
+            Box::new(
+                CyberintClone::new_with_seed(SEED_ORG_B_CYBERINT, archetype, org_id_b)
+                    .expect("CyberintClone::new_with_seed for org-b must succeed"),
+            ),
+        ),
+        // org-c: CrowdStrike (seed=200) — infallible constructor; DISTINCT seed from org-a (100≠200)
+        HarnessEntry::new(
+            ORG_C_SLUG,
+            "crowdstrike",
+            Box::new(CrowdstrikeClone::new_with_seed(
+                SEED_ORG_C_CROWDSTRIKE,
+                archetype,
+                org_id_c.clone(),
+            )),
+        ),
+        // org-c: Armis (seed=210) — fallible constructor
+        HarnessEntry::new(
+            ORG_C_SLUG,
+            "armis",
+            Box::new(
+                ArmisClone::new_with_seed(SEED_ORG_C_ARMIS, archetype, org_id_c.clone())
+                    .expect("ArmisClone::new_with_seed for org-c must succeed"),
+            ),
+        ),
+        // org-c: Claroty (seed=220) — infallible constructor
+        HarnessEntry::new(
+            ORG_C_SLUG,
+            "claroty",
+            Box::new(ClarotyClone::new_with_seed(
+                SEED_ORG_C_CLAROTY,
+                archetype,
+                org_id_c.clone(),
+            )),
+        ),
+        // org-c: Cyberint (seed=230) — fallible constructor
+        HarnessEntry::new(
+            ORG_C_SLUG,
+            "cyberint",
+            Box::new(
+                CyberintClone::new_with_seed(SEED_ORG_C_CYBERINT, archetype, org_id_c)
+                    .expect("CyberintClone::new_with_seed for org-c must succeed"),
+            ),
+        ),
+    ];
+
+    let tempdir = TempDir::new().expect("failed to create temp dir for multi-org harness");
+
+    let harness = prism_dtu_harness::multi_instance::MultiInstanceHarness::start(entries)
+        .await
+        .expect("MultiInstanceHarness::start must succeed for all 8 clone entries");
+
+    (harness, tempdir)
 }
 
 /// Write per-org overlay TOML files from the harness socket_map into `tempdir/specs/customers/`.
 ///
-/// Calls `prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(&harness, tempdir.path())`.
-/// Second arg is `&std::path::Path` (use `tempdir.path()`, NOT `&tempdir`).
+/// Calls `prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(&harness, specs_dir)` where
+/// `specs_dir = tempdir.path().join("specs")`. The second arg to `write_overlay_temp_dir` is
+/// `&std::path::Path` — we pass `specs_dir.as_path()`.
 ///
 /// The overlay files are written under `{tempdir}/specs/customers/{org_slug}/{sensor_id}.sensor.toml`
-/// per BC-2.06.017 Postcondition 3 (overlay integration end-to-end).
+/// per BC-2.06.017 Postcondition 3 (overlay integration end-to-end). The `specs` directory is
+/// created if not present. prism.toml sets `spec_dir = {tempdir}/specs` so the overlay walk
+/// resolves to the correct customer sub-directory.
 ///
 /// # Red Gate stub (S-DEMO-004)
 pub fn write_multi_org_overlays(
     harness: &prism_dtu_harness::multi_instance::MultiInstanceHarness,
     tempdir: &TempDir,
 ) -> Result<(), String> {
-    todo!(
-        "S-DEMO-004: implement write_multi_org_overlays — \
-         call prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(harness, tempdir.path()). \
-         The second arg is &Path (use tempdir.path(), NOT &tempdir — &TempDir does not coerce to &Path). \
-         Returns Ok(()) once all 8 overlay TOML files are written under \
-         tempdir/specs/customers/{{org_slug}}/{{sensor_id}}.sensor.toml."
+    // Create {tempdir}/specs if not yet present (write_overlay_temp_dir writes
+    // {specs_dir}/customers/{org}/{sensor}.sensor.toml).
+    let specs_dir = tempdir.path().join("specs");
+    std::fs::create_dir_all(&specs_dir)
+        .map_err(|e| format!("Failed to create specs dir '{}': {e}", specs_dir.display()))?;
+
+    prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(harness, specs_dir.as_path()).map_err(
+        |e| {
+            format!(
+                "write_overlay_temp_dir failed for multi-org harness \
+                 (BC-2.06.017 Postcondition 3): {e}"
+            )
+        },
     )
 }
 
@@ -1298,27 +1406,75 @@ pub fn write_multi_org_overlays(
 /// Writes:
 ///   - `{tempdir}/prism.toml` with 3 `[[orgs]]` entries (org-a, org-b, org-c)
 ///     using the fixed UUIDv7 IDs from ORG_A_ID / ORG_B_ID / ORG_C_ID.
-///   - Sets `spec_dir`, `state_dir`, `plugin_dir` paths within the tempdir.
+///   - Sets `spec_dir = {tempdir}/specs`, `state_dir`, `plugin_dir` paths within the tempdir.
 ///
-/// The per-org overlay TOML files are already written by `write_multi_org_overlays`;
-/// this function writes the top-level prism.toml that references the specs dir.
+/// The per-org overlay TOML files are already written by `write_multi_org_overlays` under
+/// `{tempdir}/specs/customers/{org_slug}/{sensor_id}.sensor.toml`; this function writes the
+/// top-level prism.toml that references `{tempdir}/specs` as `spec_dir`.
 ///
 /// Also copies canonical TYPE specs from the workspace sensor specs directory
 /// (`crates/prism-sensors/specs/`) into `{tempdir}/specs/`, stages the
 /// crowdstrike-oauth2 plugin, and creates the `state/` and `plugins/` directories.
 ///
+/// # Pattern
+/// Mirrors `write_org_config()` — see the S-DEMO-002 helper for the established pattern.
+///
 /// # Red Gate stub (S-DEMO-004)
 pub fn write_multi_org_prism_toml(tempdir: &TempDir) -> Result<(), String> {
-    todo!(
-        "S-DEMO-004: implement write_multi_org_prism_toml — \
-         write prism.toml with 3 [[orgs]] entries using ORG_A_ID/ORG_A_SLUG, \
-         ORG_B_ID/ORG_B_SLUG, ORG_C_ID/ORG_C_SLUG. \
-         Copy canonical TYPE specs from workspace crates/prism-sensors/specs/ into \
-         tempdir/specs/. Stage crowdstrike-oauth2 plugin via stage_crowdstrike_plugin(). \
-         The overlay files are written separately by write_multi_org_overlays; \
-         this function only writes the top-level config. \
-         Pattern: see write_org_config() in this file."
-    )
+    let config_dir = tempdir.path();
+    let specs_dir = config_dir.join("specs");
+    let state_dir = config_dir.join("state");
+    let plugins_dir = config_dir.join("plugins");
+
+    // Create required directories (specs_dir may already exist from write_multi_org_overlays).
+    for dir in [&specs_dir, &state_dir, &plugins_dir] {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| format!("Failed to create directory '{}': {e}", dir.display()))?;
+    }
+
+    // Stage the crowdstrike-oauth2 plugin (required by crowdstrike.sensor.toml auth_plugin field).
+    // Without this, boot step 7.5b raises BootError::UnknownAuthPlugin before MCP binds (EC-002).
+    stage_crowdstrike_plugin(&plugins_dir)?;
+
+    // Copy canonical TYPE specs from workspace into temp specs_dir.
+    let workspace_specs = workspace_sensor_specs_dir();
+    for sensor_id in ["crowdstrike", "armis", "claroty", "cyberint"] {
+        let src = workspace_specs.join(format!("{sensor_id}.sensor.toml"));
+        let dst = specs_dir.join(format!("{sensor_id}.sensor.toml"));
+        std::fs::copy(&src, &dst).map_err(|e| {
+            format!(
+                "Failed to copy sensor spec '{}' → '{}': {e}",
+                src.display(),
+                dst.display()
+            )
+        })?;
+    }
+
+    // Build [[orgs]] TOML section for all 3 orgs.
+    // org_id UUIDs MUST match those used in start_multi_org_harness() / new_with_seed() calls
+    // so device ID 8hex prefixes derive consistently from the same UUID bytes.
+    let orgs_toml = format!(
+        "\n[[orgs]]\norg_id = \"{ORG_A_ID}\"\norg_slug = \"{ORG_A_SLUG}\"\n\
+         \n[[orgs]]\norg_id = \"{ORG_B_ID}\"\norg_slug = \"{ORG_B_SLUG}\"\n\
+         \n[[orgs]]\norg_id = \"{ORG_C_ID}\"\norg_slug = \"{ORG_C_SLUG}\"\n"
+    );
+
+    // Write prism.toml — Windows-safe path serialization via {:?} (matches write_org_config pattern).
+    let prism_toml = format!(
+        "# Generated by S-DEMO-004 multi-org E2E test harness — do not edit manually.\n\
+         spec_dir   = {:?}\n\
+         state_dir  = {:?}\n\
+         plugin_dir = {:?}\n\
+         {}\n",
+        specs_dir.display(),
+        state_dir.display(),
+        plugins_dir.display(),
+        orgs_toml.trim()
+    );
+
+    let prism_toml_path = config_dir.join("prism.toml");
+    std::fs::write(&prism_toml_path, &prism_toml)
+        .map_err(|e| format!("Failed to write prism.toml: {e}"))
 }
 
 /// Launch `prism start` with per-org credential env vars for the 3-org multi-tenant test.
@@ -1335,22 +1491,116 @@ pub fn write_multi_org_prism_toml(tempdir: &TempDir) -> Result<(), String> {
 /// sensor placeholder env vars (CLAROTY_INSTANCE_URL, ARMIS_INSTANCE_URL,
 /// CYBERINT_ENVIRONMENT) following the same pattern as launch_prism_bin().
 ///
-/// # Red Gate stub (S-DEMO-004)
-/// // E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+/// # E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
 pub async fn launch_prism_bin_multi_org(
     config_dir: &Path,
 ) -> Result<(SubprocessGuard, McpStdioHandle), String> {
-    todo!(
-        "S-DEMO-004: implement launch_prism_bin_multi_org — \
-         spawn prism-bin with PRISM_CLIENTS_ORG_A_*, PRISM_CLIENTS_ORG_B_*, \
-         PRISM_CLIENTS_ORG_C_* env vars for all active sensors. \
-         Org slug → env prefix: 'org-a' → 'ORG_A', 'org-b' → 'ORG_B', 'org-c' → 'ORG_C'. \
-         Follow the same pattern as launch_prism_bin() above. \
-         Also set RUST_LOG=off, CROWDSTRIKE_BASE_URL=http://127.0.0.1, \
-         CLAROTY_INSTANCE_URL=http://placeholder.claroty.invalid, \
-         ARMIS_INSTANCE_URL=http://placeholder.armis.invalid, \
-         CYBERINT_ENVIRONMENT=demo."
-    )
+    let prism_bin = locate_binary("prism")?;
+
+    // Env prefix per org slug (ADR-032 / BC-2.06.003 v1.3):
+    //   "org-a" → replace '-' with '_' → "org_a" → uppercase → "ORG_A"
+    //   "org-b" → "ORG_B"
+    //   "org-c" → "ORG_C"
+    //
+    // Full env var: PRISM_CLIENTS_{PREFIX}_SENSORS_{SENSOR}_{REF}
+
+    let mut child = std::process::Command::new(&prism_bin)
+        .arg("start")
+        .arg("--config-dir")
+        .arg(config_dir)
+        // TYPE-spec ${env.VAR} interpolation placeholders (same as launch_prism_bin).
+        // Per-org overlays replace base_url with the actual DTU clone URL before any HTTP call.
+        .env("CLAROTY_INSTANCE_URL", "http://placeholder.claroty.invalid")
+        .env("ARMIS_INSTANCE_URL", "http://placeholder.armis.invalid")
+        .env("CYBERINT_ENVIRONMENT", "demo")
+        // CROWDSTRIKE_BASE_URL: SEC-003 validates this against the plugin's allowed_urls at step 7.5b.
+        // DTU-safe manifest has allowed_urls = ["api.crowdstrike.com", "127.0.0.1"].
+        // Using "http://127.0.0.1" satisfies SEC-003; per-org overlay replaces it for actual DTU calls.
+        .env("CROWDSTRIKE_BASE_URL", "http://127.0.0.1")
+        // ---------- org-a credentials (sensors: crowdstrike + armis) ----------
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        // ---------- org-b credentials (sensors: claroty + cyberint) ----------
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // ---------- org-c credentials (all 4 sensors) ----------
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // Suppress tracing output on stdout so MCP JSON-RPC protocol is not corrupted
+        // by log lines (same rationale as launch_prism_bin).
+        .env("RUST_LOG", "off")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn prism-bin '{}': {e}", prism_bin.display()))?;
+
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or("prism-bin stdin not available after spawn")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("prism-bin stdout not available after spawn")?;
+
+    let guard = SubprocessGuard::new(child, "prism-multi-org");
+
+    let mut handle = McpStdioHandle {
+        stdin,
+        stdout: std::io::BufReader::new(stdout),
+        next_id: 1,
+    };
+
+    // Poll for MCP server readiness (same pattern as launch_prism_bin — 30s timeout).
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        match handle.initialize() {
+            Ok(_) => return Ok((guard, handle)),
+            Err(e) => {
+                if Instant::now() >= deadline {
+                    return Err(format!(
+                        "prism-bin multi-org MCP server did not become ready within 30s (EC-002): {e}"
+                    ));
+                }
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+        }
+    }
 }
 
 fn locate_binary(name: &str) -> Result<PathBuf, String> {
