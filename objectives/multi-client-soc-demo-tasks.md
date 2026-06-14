@@ -2,7 +2,7 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.23"
+version: "1.24"
 producer: state-manager
 status: active
 timestamp: 2026-06-14T00:00:00Z
@@ -38,7 +38,7 @@ Deliver a multi-client SOC-analyst LIVE DEMO — multiple clients, different sen
 
 Foundations: COMPLETE (reused). Build: 8/15 tasks done; T4 DONE; T4-A DONE; T5 DONE; T6 DONE; T8 DONE (D-1160 2026-06-14: architect+PO+story-writer+remove-uncertainty completed; S-DEMO-004 ready v1.5; 7 BCs; 6 depends_on edges all SATISFIED). T9 DONE (D-1160: S-DEMO-004 finalized to ready v1.5; remove-uncertainty D-1110 first run applied). **D-1110 PRE-TDD remove-uncertainty RE-RUN DONE/CLEAR (D-1161 2026-06-14: 5/6 confirmed-correct; 1 dev-dep framing fix — `prism-dtu-common` MODIFY `["dtu"]`→`["dtu","fixture-gen"]`; S-DEMO-004 v1.5→v1.6; PRE-TDD verdict CLEAR).** No open PRs. **CURRENT TASK: T10 (per-story delivery of S-DEMO-004 v1.6; PRE-TDD CLEAR; NEXT: vsdd-factory:worktree-manage create S-DEMO-004 → test-writer).**
 
-**10 core stories in scope (3 merged; 1 delivery-ready; 1 draft stub; 1 not-authored narrative capstone; 4 capability-discovery REQUIRED per D-1162 2026-06-14) + prereq-verifications for S-5.01 and S-1.12. See §Complete Story Roadmap below.**
+**~15 core stories in scope (3 merged; 1 delivery-ready; 1 draft stub; 1 not-authored narrative capstone; 4 capability-discovery REQUIRED per D-1162 2026-06-14; 5 enrichment REQUIRED per D-1164 2026-06-14) + prereq-verifications for S-5.01 and S-1.12. See §Complete Story Roadmap below and §ENRICHMENT-REAL (D-1164).**
 
 ## CURRENT POINTER
 
@@ -85,6 +85,75 @@ Also fold in the 2 Story-A NIT follow-ups during materialization:
 **(3) 12-gate delivery** — vsdd-factory:worktree-manage create S-DEMO-DTU-LIVE-SCENARIO-001-B → vsdd-factory:test-writer → vsdd-factory:implementer → LOCAL adversary 3-CLEAN strict (BC-5.39.001) → demo-recorder → push (timeout: 600000 or run_in_background; pre-push gate ~14 min cold) → pr-manager PR → PR-LEVEL 3-CLEAN strict (adversary uses absolute worktree path + directory sanity-check guard) + pr-reviewer APPROVE + security CLEAR → CI → squash-merge → state-manager post-merge burst (POL-14: BC-2.06.019+020 draft→active).
 
 T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; BC-2.06.017) is independently deliverable in parallel after T5 materialize step starts (remove-uncertainty already COMPLETE from D-1076).
+
+---
+
+## §ENRICHMENT-REAL (D-1164 — 2026-06-14, User-Directed Scope Decision)
+
+> **USER DECISION D-1164 (2026-06-14):** FULL Option-A infusion framework is REQUIRED before demo recording. Enrichment (ThreatIntel/NVD) must flow through the REAL prism code path the same structural way sensors do. DTU clones are the ONLY substituted element. The demo-server-side `build_clone_pairs` pre-seeding (Story B / BC-2.06.020) is acknowledged as NOT sensor-parity-real — it is SUPERSEDED/COMPLETED by this work. **This block CLOSES TD-PLUGIN-P0-002 (P0 — infusion 100% `unimplemented!()`) upon merge.**
+
+### The Real Enrichment Code Path (Required)
+
+```
+PrismQL  | enrich threat_intel(ioc_value)
+             ↓
+         DataFusion ScalarUDF (registered by prism-query)
+             ↓
+         InfusionRegistry (prism-spec-engine)
+             ↓
+         PluginInfusionSource::enrich_single
+             ↓
+         WASM plugin (.prx) via wasmtime
+             ↓
+         DTU HTTP endpoint (prism-dtu-threatintel / prism-dtu-nvd)
+```
+
+DTU clones are the ONLY substituted element — fully consistent with DTU-EVERYTHING invariant.
+
+### WASM Toolchain Risk + Accepted Contingency
+
+WASM toolchain risk ACCEPTED per D-1164. Contingency (human-directed per Canonical Principle Rule 3): if WASM blocks, `PluginInfusionSource::enrich_single` may fall back to a direct `reqwest` HTTP call to the DTU endpoint. This contingency is TD-anchored to S-1.14-REDO/S-1.15 for replacement at the point those stories complete.
+
+### Required Stories (5 total, REQUIRED, demo-critical-path before T13/T14)
+
+Dependency chain: S-1.15 and S-1.14-REDO are FOUNDATIONAL and can proceed in parallel with the capability-discovery block (T15a-d). PIVOT-001→002→003 is a strict linear chain that follows both foundational stories.
+
+| Story | Role | Status | Points | Depends-on |
+|-------|------|--------|--------|------------|
+| **S-1.15** | WASM plugin runtime — `PluginInfusionSource` delegates to it | partial-merge (VP-040..043) | 6 | S-1.11 (SATISFIED) |
+| **S-1.14-REDO** | Full infusion engine: InfusionLoader + 3-tier cache + all source types (MMDB/CSV/JSON + plugin) | draft/BLOCKED (awaits Wave 0+1 plugin foundation per D-333) | 8 (TBD) | S-WAVE5-PREP-01 (SATISFIED), S-3.02-FOLLOWUP-RUNTIME (SATISFIED) |
+| **S-DEMO-ENRICHMENT-PIVOT-001** | plugin-type `InfusionLoader::parse` + `PluginInfusionSource` + DataFusion `ScalarUDF` registration in prism-query | draft v1.1 | 5 | S-1.14 (via S-1.14-REDO) |
+| **S-DEMO-ENRICHMENT-PIVOT-002** | `threatintel.infusion.toml` + `nvd.infusion.toml` grounded vs DTU routes + `prism-threatintel-infusion` + `prism-nvd-infusion` WASM `.prx` crates | draft v1.1 | 8 | S-DEMO-ENRICHMENT-PIVOT-001 |
+| **S-DEMO-ENRICHMENT-PIVOT-003** | real IOC/CVE field stamping in Cyberint/CrowdStrike DTU fixtures + canonical `\| enrich` pivot-query validation at scenario stage >= 3 | draft v1.8 | 8 | S-DEMO-ENRICHMENT-PIVOT-002 |
+
+**Total enrichment scope: ~35 pts. All 5 stories are REQUIRED before T13 capstone and T14 demo recording.**
+
+### Sequencing (within overall demo roadmap)
+
+```
+T10 S-DEMO-004 [CURRENT] → capability-discovery block (T15a-d) [REQUIRED]
+                         → S-1.15 + S-1.14-REDO [FOUNDATIONAL; parallelizable with T15a-d]
+                         → S-DEMO-ENRICHMENT-PIVOT-001 [after S-1.14-REDO]
+                         → S-DEMO-ENRICHMENT-PIVOT-002 [after PIVOT-001]
+                         → S-DEMO-ENRICHMENT-PIVOT-003 [after PIVOT-002]
+                         → T11 launcher consolidation [parallelizable with enrichment chain]
+                         → T13 capstone [LAST — after ALL enrichment stories merged]
+                         → T14 demo recording
+```
+
+PIVOT-001→002→003 slots AFTER the capability-discovery block and AFTER S-1.14-REDO, parallelizable with the launcher (T11). PIVOT-001/002/003 depend on S-1.14-REDO but NOT on the capability-discovery stories — they can run in parallel once S-1.14-REDO merges.
+
+### Pre-Enrichment Architect Planning Task (REQUIRED before enrichment delivery begins)
+
+Because Full Option A is chosen, the architect MUST determine the exact build order and specifically whether PIVOT-001's subset scope folds into S-1.14-REDO (to avoid double-implementing the plugin-type loader). PIVOT-001 is formally registered as the `forward_subset_implemented_by` of S-1.14-REDO in STORY-INDEX. The architect must adjudicate whether to:
+- Deliver S-1.14-REDO first (complete full infusion engine) and fold PIVOT-001 into it, OR
+- Deliver PIVOT-001 as the minimal plugin-bridge prerequisite ahead of the full S-1.14-REDO redo
+
+This planning task must complete BEFORE the enrichment delivery sequence begins.
+
+### SESSION-HANDOFF Reconciliation Note
+
+SESSION-HANDOFF.md §ACTIVE OBJECTIVE already lists the PIVOT chain "between capability-discovery and T11" as planned enrichment work. This ledger's §ENRICHMENT-REAL block now brings the ledger into agreement: the canonical placement is REQUIRED (not optional) before T13, sequenced after S-DEMO-004 (T10) + capability-discovery block (T15a-d), parallelizable with the launcher (T11), and dependent on S-1.14-REDO + S-1.15 foundational work completing first.
 
 ---
 
@@ -181,6 +250,12 @@ Status vocab: `not-started` | `in-progress` | `blocked` | `done`
 | T15b | **not-started** (REQUIRED — D-1162) | story-writer + per-story delivery | T15a | S-5.03 | S-5.03 delivered: Resources and Prompts; HARD prereq of T15c (S-5.04 depends_on S-5.03); remove-uncertainty first; 12-gate TDD. |
 | T15c | **not-started** (REQUIRED — D-1162) | story-writer + per-story delivery | T15b | S-5.04 | S-5.04 delivered: Sensor health subsystem (per-client sensor status); remove-uncertainty first; 12-gate TDD. |
 | T15d | **not-started** (REQUIRED — D-1162) | story-writer + per-story delivery | S-1.12 verify (see §Notes PREREQ-VERIFICATION) | S-3.13 | S-3.13 delivered: Dynamic per-org table availability; PO authors dedicated BCs before ready; parallel with T15a-b-c after PO dispatch; remove-uncertainty first; 12-gate TDD. |
+| **T16-ARCH-PLAN** | **not-started** (REQUIRED before enrichment delivery) | architect | T10, T15a-d (or parallel) | architect planning (no story file) | Architect determines exact build order for Full Option-A enrichment: adjudicate whether PIVOT-001 scope folds into S-1.14-REDO (avoid double-implementing plugin-type loader). Ruling MUST precede T16a dispatch. |
+| **T16-FOUND-A** | **not-started** (REQUIRED — D-1164) | per-story delivery | T16-ARCH-PLAN | S-1.15 | S-1.15 WASM plugin runtime delivered: `PluginInfusionSource` delegating to wasmtime; partial-merge unimplemented stubs replaced; VP-040/041/042/043 green; 12-gate TDD + remove-uncertainty. |
+| **T16-FOUND-B** | **not-started** (REQUIRED — D-1164) | per-story delivery | T16-ARCH-PLAN, T16-FOUND-A | S-1.14-REDO | S-1.14-REDO infusion engine delivered: InfusionLoader + InfusionRegistry + 3-tier cache + MMDB/CSV/JSON + plugin source types; closes TD-PLUGIN-P0-002 (P0) upon merge; 12-gate TDD + remove-uncertainty. |
+| **T16a** | **not-started** (REQUIRED — D-1164) | per-story delivery | T16-FOUND-B | S-DEMO-ENRICHMENT-PIVOT-001 | PIVOT-001 delivered: plugin-type `InfusionLoader::parse` + `PluginInfusionSource` + DataFusion `ScalarUDF` registration in prism-query; 12-gate TDD + remove-uncertainty. |
+| **T16b** | **not-started** (REQUIRED — D-1164) | per-story delivery | T16a | S-DEMO-ENRICHMENT-PIVOT-002 | PIVOT-002 delivered: `threatintel.infusion.toml` + `nvd.infusion.toml` grounded vs DTU route surfaces; `prism-threatintel-infusion` + `prism-nvd-infusion` WASM `.prx` plugin crates calling DTU HTTP endpoints; 12-gate TDD + remove-uncertainty. |
+| **T16c** | **not-started** (REQUIRED — D-1164) | per-story delivery | T16b | S-DEMO-ENRICHMENT-PIVOT-003 | PIVOT-003 delivered: real IOC/CVE field stamping in Cyberint/CrowdStrike DTU fixtures + canonical `\| enrich threat_intel(ioc_value)` / `\| enrich nvd(device_cves_first)` pivot-query validation at demo server scenario stage >= 3; TD-PLUGIN-P0-002 CLOSED (all infusion code merged). 12-gate TDD + remove-uncertainty. |
 
 ---
 
@@ -208,6 +283,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.24 | 2026-06-14 | state-manager | D-1164: USER SCOPE DECISION — FULL Option-A infusion framework REQUIRED before demo recording (real sensor-parity enrichment). (1) §ENRICHMENT-REAL block added: 5 Option-A stories (S-1.15 + S-1.14-REDO + PIVOT-001/002/003) enumerated as REQUIRED demo-critical-path before T13/T14; dependency structure, sequencing, WASM-risk/reqwest-contingency, and pre-enrichment architect planning task recorded. (2) Progress Summary updated: core demo story count 10 → ~15. (3) TASK LEDGER: T16-ARCH-PLAN + T16-FOUND-A + T16-FOUND-B + T16a + T16b + T16c added (all not-started, REQUIRED per D-1164). (4) SESSION-HANDOFF reconciliation: canonical placement recorded — enrichment-real block REQUIRED before T13, after T10+T15a-d, parallelizable with T11. (5) Ledger note: closes TD-PLUGIN-P0-002 (P0) upon PIVOT-003/T16c merge. CURRENT POINTER = T10 UNCHANGED. develop_head 664566e9 UNCHANGED. active_contracts/draft_contracts/total_stories UNCHANGED (stories already registered). BC-INDEX UNTOUCHED. Ledger version 1.23→1.24. |
 | 1.23 | 2026-06-14 | state-manager | D-1163: PREREQ-CONFIRMED burst — (1) S-5.01→S-5.02 dep gate SATISFIED via metadata reconciliation: S-5.01 `effective_merged_by` S-5.01-FOLLOWUP-MCP-BOOT (PR #163 develop@e898c3c9) annotated in story file v1.9→v1.10; S-5.02 `depends_on` repointed to S-5.01-FOLLOWUP-MCP-BOOT (v1.4→v1.5); STORY-INDEX S-5.01+S-5.02 rows annotated; stale "proxy BCs; no dedicated BC yet" note on S-5.02 CORRECTED (BC-2.10.004/007/011 are dedicated authored/active BCs — no PO authorship needed before TDD). (2) S-1.12→S-3.13 dep gate SATISFIED — S-3.13 integrates via MERGED ConfigManager surface, not HotReloadWatcher; no added scope. (3) Net: core demo story count stays 10. (4) DTU-EVERYTHING binding invariant recorded: DEMO-SCOPE.md §Binding Demo Invariant added (v1.2→v1.3); cross-ref in this ledger §Notes. CURRENT POINTER = T10 UNCHANGED. develop_head 664566e9 UNCHANGED. active_contracts/draft_contracts/total_stories/BC-INDEX UNCHANGED. Ledger version 1.22→1.23.  |
 | 1.22 | 2026-06-14 | state-manager | D-1162: USER SCOPE DECISION — capability-discovery stories promoted optional→REQUIRED (2026-06-14). User stated S-5.02/S-3.13/S-5.04 "are not optional." S-5.03 added as transitive HARD prereq of S-5.04 (S-5.04 depends_on S-5.03→S-5.02→S-5.01). §Complete Story Roadmap: S-5.02/S-5.03/S-5.04/S-3.13 moved from "optional" to REQUIRED rows 7-10. §TASK LEDGER: T15 replaced by T15a (S-5.02)/T15b (S-5.03)/T15c (S-5.04)/T15d (S-3.13) all REQUIRED. Delivery ordering recorded in §Notes: Chain A S-5.01-verify→S-5.02→S-5.03→S-5.04; Chain B S-1.12-verify→S-3.13 (parallel after PO BCs). PREREQ-VERIFICATION obligations recorded for S-5.01 (effective delivery via PR #163 S-5.01-FOLLOWUP-MCP-BOOT; formal story row still not-started) and S-1.12 (partial-merge; S-1.12-FOLLOWUP BLOCKED). Core demo stories 6→10 (S-DEMO-004+launcher+narrative+S-5.02+S-5.03+S-5.04+S-3.13). CURRENT POINTER = T10 UNCHANGED. develop HEAD UNCHANGED 664566e9. active_contracts/draft_contracts/total_stories UNCHANGED (no new stories authored — these stories already have STORY-INDEX rows). Ledger version 1.21→1.22. |
 | 1.21 | 2026-06-14 | state-manager | D-1161: T10 PRE-TDD remove-uncertainty RE-RUN DONE/CLEAR (2026-06-14). D-1110 second run on S-DEMO-004 v1.5: 5 of 6 prior fixes CONFIRMED-CORRECT; 1 residual mis-framing caught — prism-bin Cargo.toml `prism-dtu-common` dev-dep framed as ADD with `["fixture-gen"]` but is ALREADY present with `["dtu"]` and must be MODIFY to `["dtu","fixture-gen"]` (independent features). Story-writer applied one-line correction v1.5→v1.6. PRE-TDD verdict CLEAR. T10 CURRENT POINTER sub-step advanced from "PRE-TDD re-run" to "vsdd-factory:worktree-manage create S-DEMO-004 → test-writer". T10 status not-started→in-progress. §Complete Story Roadmap row 4 updated to ready v1.6. Progress Summary updated (D-1110 PRE-TDD DONE/CLEAR note added). STORY-INDEX v2.383→v2.384. develop HEAD UNCHANGED 664566e9. active_contracts/draft_contracts UNCHANGED (235/2). Ledger version 1.20→1.21. |
