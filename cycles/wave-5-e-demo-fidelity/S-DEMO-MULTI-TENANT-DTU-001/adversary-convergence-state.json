@@ -1,10 +1,13 @@
 {
   "story_id": "S-DEMO-MULTI-TENANT-DTU-001",
   "protocol": "BC-5.39.001 3-CLEAN-strict",
-  "passes_completed": 8,
-  "clean_strict_streak": 0,
-  "last_pass": 8,
-  "last_classification": "HIGH-SCOPE-DRIFT",
+  "passes_completed": 11,
+  "clean_strict_streak": 3,
+  "last_pass": 11,
+  "status": "CONVERGED",
+  "converged_at_pass": 11,
+  "clean_passes": [9, 10, 11],
+  "last_classification": "CONVERGED",
   "findings_pass_1": {
     "CRIT": 0,
     "HIGH": 1,
@@ -50,7 +53,31 @@
     "HIGH": 1,
     "note": "F-P8-HIGH-001 — F-P1-HIGH-001 fix-burst expanded production code into prism-dtu-armis/src/ (state.rs request_counter AtomicU64; clone.rs count_request_middleware + request_count() + GET /dtu/request-count; routes/dtu.rs get_request_count handler) but story crates_touched + Architecture Mapping + File Structure Reference + Token Budget + BC crates: array never recorded it. Partial-fix-regression class (S-7.01): code scope grew, spec sibling surfaces not swept. Counter itself is legitimate (DTU clone instrumenting itself for AC-006 isolation proof; /dtu/* control plane; NOT INV-PERIMETER-001 breach). FIXED: story-writer v1.9→v1.10 (crates_touched += prism-dtu-armis; Architecture Mapping + File Structure rows; AC-006 proof note; perimeter assertion clarified); product-owner BC v1.6→v1.7 (crates: array += prism-dtu-armis; Postcondition 4 verification-mechanism note). No code change."
   },
-  "all_findings_through_pass_8": "CLOSED",
-  "note": "code stable since Pass-1 commit 9b4f4154; passes 2-8 doc/spec/CI accuracy sweeps. Pass-8: 1 HIGH finding (F-P8-HIGH-001 — prism-dtu-armis/src undocumented from F-P1 fix-burst) — spec sibling sync fix (story v1.10, BC v1.7); streak RESET 1→0. Need 3 consecutive CLEAN from pass-9.",
-  "next": "pass-9 (need passes 9+10+11 all CLEAN-strict for 3/3 convergence)"
+  "findings_pass_9": {
+    "CRIT": 0,
+    "HIGH": 0,
+    "MED": 0,
+    "LOW": 0,
+    "OBS": 0,
+    "note": "CLEAN(strict)=YES — bidirectional F-P8-HIGH-001 fix verification complete; crate-scope completeness re-checked; all axes CLEAN; streak 0→1/3"
+  },
+  "findings_pass_10": {
+    "CRIT": 0,
+    "HIGH": 0,
+    "MED": 0,
+    "LOW": 0,
+    "OBS": 0,
+    "note": "CLEAN(strict)=YES — full fresh re-derivation; zero findings; locked-API conformance verified; isolation proof load-bearing; gate EXPECTED=60 exact; perimeter intact; anchoring correct; streak 1→2/3"
+  },
+  "findings_pass_11": {
+    "CRIT": 0,
+    "HIGH": 0,
+    "MED": 0,
+    "LOW": 0,
+    "OBS": 0,
+    "note": "CLEAN(strict)=YES — third consecutive clean pass; novelty ZERO; BC-5.39.001 3-CLEAN LOCAL convergence satisfied; streak 2→3/3 CONVERGED"
+  },
+  "all_findings_through_pass_11": "CLOSED",
+  "note": "LOCAL adversary 3-CLEAN-strict convergence reached at passes 9/10/11. Substantive findings across cascade: F-P1-HIGH-001 (isolation paper-fix → server-side counter), F-P3-MED-001/F-P5-MED-003 (overlay-format spec gap + newtype doc), F-P8-HIGH-001 (undocumented prism-dtu-armis scope). Code stable since Pass-1 commit 9b4f4154; long doc/spec-accuracy tail across passes 2-8. Story v1.10, BC-2.06.017 v1.7.",
+  "next": "Step-5 demo-recording per-AC → push feature branch → pr-manager 9-step PR lifecycle (PR-LEVEL adversarial convergence) → merge"
 }
