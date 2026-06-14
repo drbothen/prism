@@ -47,13 +47,15 @@ rand_chacha = "0.3"
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-# `tls` feature included alongside `dtu` so that when prism-dtu-harness/tls is activated
-# (e.g. via --all-features), prism-dtu-common/tls is consistently activated in all crates
-# sharing the same Cargo resolution unit. Without `tls` here, armis/claroty see
-# prism-dtu-common/tls active (from the harness) but their own cfg(feature="tls") is false,
-# making their start_on impl produce Option<()> instead of Option<Arc<RustlsConfig>>.
-prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu", "tls"] }
-prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features = ["dtu", "tls"] }
+# dev-deps for multi-instance harness tests (S-DEMO-MULTI-TENANT-DTU-001 Red Gate).
+# `tls` is intentionally NOT included: these tests use plain HTTP ephemeral binds only.
+# Including `tls` here activates prism-dtu-common/tls workspace-wide via feature propagation,
+# which makes the BehavioralClone trait emit Option<Arc<RustlsConfig>> for all crates, but
+# prism-dtu-crowdstrike and siblings without `tls` explicitly activated still emit Option<()>
+# in their start_on impls — causing E0053 in the no-default-features CI job. Using only `dtu`
+# keeps prism-dtu-common/tls inactive in no-default-features builds.
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu"] }
+prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features = ["dtu"] }
 prism-spec-engine = { path = "../prism-spec-engine" }
 tempfile = "3"
 
