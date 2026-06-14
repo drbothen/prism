@@ -1,43 +1,46 @@
 #!/usr/bin/env bash
-# scripts/demo-run.sh — Start the Prism DTU demo server + wait for it to be ready.
+# scripts/demo-run.sh — Start the Prism DTU demo server (multi-org) + wait for it to be ready.
 #
 # USAGE
 #   bash scripts/demo-run.sh [--config-dir DIR]
 #
 # WHAT IT DOES
-#   1. Starts prism-dtu-demo-server in the background on four ephemeral ports
-#   2. Polls .prism-dtu-demo-server.urls.json for up to 30s (EC-004)
+#   1. Starts prism-dtu-demo-server start-multi in the background (one process, all orgs)
+#   2. Polls .prism-dtu-demo-server.urls-multi.json for up to 30s (EC-006)
 #   3. Generates per-org overlay TOMLs with the ephemeral base_url for each sensor
 #      (written AFTER ports are known — see §Overlay generation below)
-#   4. Prints the DTU clone URLs (CrowdStrike, Armis, Claroty, Cyberint)
+#   4. Prints the DTU clone URLs ({org_slug: {sensor_id: url}})
 #   5. Prints the command to start prism-bin
 #
-# OVERLAY GENERATION (F-HIGH-201 fix)
+# OVERLAY GENERATION
 #   DTU ports are ephemeral (port = 0 in demo.toml); only known after the DTU server
-#   starts and writes its urls.json sidecar. This script reads that sidecar and writes
-#   per-org sensor overlay files at:
-#     ${DEMO_CONFIG_DIR}/specs/customers/demo-org/<sensor>.sensor.toml
-#   Each overlay contains:
-#     extends     = "<sensor>"
-#     instance_id = "<sensor>@demo-org"
+#   starts and writes its urls-multi.json nested sidecar. This script reads that sidecar
+#   and writes N×M overlay files at:
+#     ${DEMO_CONFIG_DIR}/specs/customers/<org_slug>/<sensor_id>.sensor.toml
+#   Each overlay contains exactly:
+#     extends     = "<sensor_id>"
+#     instance_id = "<sensor_id>@<org_slug>"
 #     base_url    = "http://127.0.0.1:<port>"
-#   This is the same BC-2.06.012 / ADR-029 hybrid overlay format used by the E2E test
-#   harness (crates/prism-bin/tests/helpers/mod.rs write_sensor_overlay).
-#   prism's spec loader derives customers_dir = spec_dir + "/customers" at boot time
-#   (crates/prism-bin/src/boot.rs step4c).
+#   Per BC-2.06.013 (scalar-only overlay enforcement): no auth_type, no table fields.
+#   Per BC-2.06.012: overlays are read by prism at boot step 4c (customers_dir).
+#   Per BC-2.06.014: each (org_id, sensor_id) resolves to its own DTU clone endpoint.
+#
+# NESTED SIDECAR FORMAT (BC-2.06.017)
+#   {org_slug: {sensor_id: url}} — written by start-multi to urls-multi.json.
+#   Distinct from the flat {name: url} sidecar written by the `start` subcommand.
 #
 # OUTPUTS
-#   A urls.json sidecar at ${DEMO_CONFIG_DIR}/run/.prism-dtu-demo-server.urls.json
+#   A urls-multi.json sidecar at ${DEMO_CONFIG_DIR}/run/.prism-dtu-demo-server.urls-multi.json
 #   A PID file at ${DEMO_CONFIG_DIR}/run/.prism-dtu-demo-server.pid
-#   Per-sensor overlays at ${DEMO_CONFIG_DIR}/specs/customers/demo-org/<sensor>.sensor.toml
+#   N×M overlay TOMLs at ${DEMO_CONFIG_DIR}/specs/customers/<org_slug>/<sensor_id>.sensor.toml
 #
 # Run demo-teardown.sh to stop the server and clean up.
 #
-# AC-003: DTU server starts in background; ports printed within 30s.
-# AC-009: demo queries return data rows (requires overlay generation to wire base_url).
+# EC-004: prism.toml must exist before starting DTU; exits 1 if missing.
+# EC-006: DTU server must write sidecar within 30s; exits 1 with actionable message.
 # AC-008: passes shellcheck with zero errors/warnings.
 #
-# Story: S-DEMO-003
+# Stories: S-DEMO-003 | S-DEMO-LAUNCHER-CONSOLIDATION-001
 
 set -euo pipefail
 
@@ -70,7 +73,9 @@ done
 DEMO_RUN_DIR="${DEMO_CONFIG_DIR}/run"
 DTU_BIN="${REPO_ROOT}/target/release/prism-dtu-demo-server"
 DTU_CONFIG="${REPO_ROOT}/scripts/demo.toml"
-URLS_FILE="${DEMO_RUN_DIR}/.prism-dtu-demo-server.urls.json"
+# Nested sidecar written by `start-multi` (BC-2.06.017): {org_slug: {sensor_id: url}}.
+# Distinct from the flat .prism-dtu-demo-server.urls.json written by `start`.
+URLS_MULTI_FILE="${DEMO_RUN_DIR}/.prism-dtu-demo-server.urls-multi.json"
 
 # ---------------------------------------------------------------------------
 # Verify prerequisites
@@ -82,6 +87,7 @@ if [[ ! -f "${DTU_BIN}" ]]; then
     exit 1
 fi
 
+# EC-004: prism.toml must exist before starting DTU server.
 if [[ ! -f "${DEMO_CONFIG_DIR}/prism.toml" ]]; then
     echo "ERROR: prism.toml not found at ${DEMO_CONFIG_DIR}/prism.toml" >&2
     echo "       Run: bash scripts/demo-setup.sh" >&2
@@ -90,20 +96,20 @@ fi
 
 mkdir -p "${DEMO_RUN_DIR}"
 
-# Clean up any stale URL file from a previous run.
-rm -f "${URLS_FILE}"
+# Clean up any stale sidecar file from a previous run.
+rm -f "${URLS_MULTI_FILE}"
 
 # ---------------------------------------------------------------------------
-# Start DTU demo server in background
+# Start DTU demo server in background (single start-multi process — all orgs)
 # ---------------------------------------------------------------------------
 
-echo "==> Starting prism-dtu-demo-server..."
+echo "==> Starting prism-dtu-demo-server start-multi (all orgs)..."
 
-# The demo server writes .prism-dtu-demo-server.urls.json in its working
+# The demo server writes .prism-dtu-demo-server.urls-multi.json in its working
 # directory. We cd into DEMO_RUN_DIR so the file lands there.
 (
     cd "${DEMO_RUN_DIR}"
-    "${DTU_BIN}" start --config "${DTU_CONFIG}" \
+    "${DTU_BIN}" start-multi --config "${DTU_CONFIG}" \
         >> "${DEMO_RUN_DIR}/dtu-server.log" 2>&1 &
     echo "$!" > "${DEMO_RUN_DIR}/.prism-dtu-demo-server.pid"
 )
@@ -112,92 +118,103 @@ DTU_PID=$(cat "${DEMO_RUN_DIR}/.prism-dtu-demo-server.pid" 2>/dev/null || echo "
 echo "    DTU server started (PID ${DTU_PID})"
 
 # ---------------------------------------------------------------------------
-# Poll for URLs file (EC-004: 30s timeout)
+# Poll for nested URLs file (EC-006: 30s timeout)
 # ---------------------------------------------------------------------------
 
 echo "==> Waiting for DTU clones to bind (up to 30s)..."
 
 POLL_TIMEOUT=30
 POLL_ELAPSED=0
-while [[ ! -f "${URLS_FILE}" ]]; do
+while [[ ! -f "${URLS_MULTI_FILE}" ]]; do
     sleep 1
     POLL_ELAPSED=$((POLL_ELAPSED + 1))
     if [[ "${POLL_ELAPSED}" -ge "${POLL_TIMEOUT}" ]]; then
-        echo "ERROR: DTU server did not start within ${POLL_TIMEOUT}s." >&2
+        echo "ERROR: demo-server start-multi did not write sidecar within ${POLL_TIMEOUT}s." >&2
         echo "       Check ${DEMO_RUN_DIR}/dtu-server.log for details." >&2
         echo "       Common cause: port conflict — stop other services on the demo ports." >&2
         exit 1
     fi
 done
 
-echo "    URLs file ready after ${POLL_ELAPSED}s"
+echo "    Nested sidecar ready after ${POLL_ELAPSED}s"
 
 # ---------------------------------------------------------------------------
-# Print DTU clone URLs
+# Print DTU clone URLs (nested {org_slug: {sensor_id: url}})
 # ---------------------------------------------------------------------------
 
 echo ""
 echo "==> DTU clone URLs:"
-# Parse JSON with python3 (available on all macOS/Linux demo targets).
+# Parse nested JSON with python3 (available on all macOS/Linux demo targets).
 if command -v python3 &>/dev/null; then
-    python3 - "${URLS_FILE}" << 'PYEOF'
+    python3 - "${URLS_MULTI_FILE}" << 'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f:
-    urls = json.load(f)
-for name, url in sorted(urls.items()):
-    print(f"    {name:15s}: {url}")
+    nested = json.load(f)
+for org_slug in sorted(nested.keys()):
+    for sensor_id, url in sorted(nested[org_slug].items()):
+        print(f"    {org_slug}/{sensor_id:15s}: {url}")
 PYEOF
 else
-    cat "${URLS_FILE}"
+    cat "${URLS_MULTI_FILE}"
 fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Generate per-org overlay TOMLs (F-HIGH-201)
+# Generate per-org overlay TOMLs (N×M, BC-2.06.012 / BC-2.06.013 / BC-2.06.014)
 #
-# DTU ports are ephemeral — only known now (after urls.json is ready).
+# DTU ports are ephemeral — only known now (after urls-multi.json is ready).
 # prism's spec loader reads customers_dir = spec_dir + "/customers" at boot step 4c
 # (crates/prism-bin/src/boot.rs). Each sensor overlay sets base_url to the DTU port.
 # Overlay format: BC-2.06.012 / ADR-029 scalar-only hybrid instance overlay.
+#
+# GAP-3: DEMO_RUN_DIR is threaded into the Python block via os.environ so the Python
+# process can open the sidecar from the correct location without hardcoding the path.
+# The heredoc uses single-quotes ('PYEOF') so shell does NOT expand ${...} inside —
+# os.environ["DEMO_RUN_DIR"] and os.environ["DEMO_CONFIG_DIR"] are read at runtime.
 # ---------------------------------------------------------------------------
 
 DEMO_SPECS_DIR="${DEMO_CONFIG_DIR}/specs"
 DEMO_CUSTOMERS_DIR="${DEMO_SPECS_DIR}/customers"
-DEMO_ORG_SLUG="demo-org"
-DEMO_ORG_OVERLAY_DIR="${DEMO_CUSTOMERS_DIR}/${DEMO_ORG_SLUG}"
 
 echo "==> Generating per-org sensor overlays (base_url → DTU ports)..."
 
-mkdir -p "${DEMO_ORG_OVERLAY_DIR}"
+# Export vars for the Python block (GAP-3: nested heredoc reads from env, not from
+# shell variable interpolation, so DEMO_RUN_DIR is correctly threaded in).
+export DEMO_RUN_DIR
+export DEMO_CONFIG_DIR
 
-# Parse urls.json and write one overlay per sensor.
-# urls.json format: {"crowdstrike": "http://127.0.0.1:PORT", "armis": "...", ...}
-python3 - "${URLS_FILE}" "${DEMO_ORG_OVERLAY_DIR}" "${DEMO_ORG_SLUG}" << 'PYEOF'
-import json, sys, os
+python3 - << 'PYEOF'
+import json, os, sys
 
-urls_file   = sys.argv[1]
-overlay_dir = sys.argv[2]
-org_slug    = sys.argv[3]
+urls_multi_file = os.path.join(os.environ["DEMO_RUN_DIR"], ".prism-dtu-demo-server.urls-multi.json")
+customers_dir   = os.path.join(os.environ["DEMO_CONFIG_DIR"], "specs", "customers")
 
-with open(urls_file) as f:
-    urls = json.load(f)
+with open(urls_multi_file) as f:
+    nested = json.load(f)  # {"org-a": {"crowdstrike": "http://...", ...}, ...}
 
-for sensor_id, base_url in urls.items():
-    overlay_path = os.path.join(overlay_dir, f"{sensor_id}.sensor.toml")
-    content = (
-        f"# Per-org overlay for {sensor_id} sensor — {org_slug} (DTU demo)\n"
-        f"# BC-2.06.012 / ADR-029: scalar-only overlay; no schema fields.\n"
-        f"# Generated by demo-run.sh after DTU server starts (ephemeral port).\n"
-        f"extends     = \"{sensor_id}\"\n"
-        f"instance_id = \"{sensor_id}@{org_slug}\"\n"
-        f"base_url    = \"{base_url}\"\n"
-    )
-    with open(overlay_path, "w") as out:
-        out.write(content)
-    print(f"    Overlay written: {overlay_path}")
+for org_slug, sensor_map in nested.items():
+    org_dir = os.path.join(customers_dir, org_slug)
+    os.makedirs(org_dir, exist_ok=True)
+    for sensor_id, base_url in sensor_map.items():
+        overlay_path = os.path.join(org_dir, f"{sensor_id}.sensor.toml")
+        # BC-2.06.013: scalar-only overlay — no auth_type, no table sections.
+        # BC-2.06.012: prism reads this at boot step 4c via customers_dir.
+        # BC-2.06.014: each (org_slug, sensor_id) has a distinct base_url.
+        content = (
+            f"# Per-org overlay for {sensor_id} sensor — {org_slug} (DTU demo)\n"
+            f"# BC-2.06.013: scalar-only overlay; no schema fields or auth_type.\n"
+            f"# Generated by demo-run.sh after DTU server starts (ephemeral port).\n"
+            f'extends     = "{sensor_id}"\n'
+            f'instance_id = "{sensor_id}@{org_slug}"\n'
+            f'base_url    = "{base_url}"\n'
+        )
+        with open(overlay_path, "w") as out:
+            out.write(content)
+        print(f"    Overlay written: {overlay_path}")
+
 PYEOF
 
-echo "    Sensor overlays ready at ${DEMO_ORG_OVERLAY_DIR}/"
+echo "    Sensor overlays ready at ${DEMO_CUSTOMERS_DIR}/"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -210,19 +227,15 @@ echo ""
 #   fires and boot hard-aborts (exit 2) before the per-org overlay can replace
 #   base_url with the actual DTU clone URL.
 #
-#   CROWDSTRIKE_BASE_URL must be "http://127.0.0.1" (not just any URL): the
-#   crowdstrike-oauth2 plugin manifest allowed_urls = ["api.crowdstrike.com",
-#   "127.0.0.1"] — SEC-003 validates the TYPE spec base_url host against this
-#   list at step 7.5b (before the per-org overlay replaces it). The demo-setup.sh
-#   manifest already includes "127.0.0.1".
+#   CROWDSTRIKE_BASE_URL must be "http://127.0.0.1": the crowdstrike-oauth2 plugin
+#   manifest allowed_urls = ["api.crowdstrike.com", "127.0.0.1"] — SEC-003 validates
+#   the TYPE spec base_url host against this list at step 7.5b.
 #
 #   ARMIS_INSTANCE_URL and CLAROTY_INSTANCE_URL are resolved by env_resolver at
-#   step 4a (E-SPEC-024 guard). The per-org overlay replaces base_url at step 4c,
-#   so the TYPE-level value is never used for actual HTTP requests.
+#   step 4a (E-SPEC-024 guard). Per-org overlays replace base_url at step 4c.
 #
 #   CYBERINT_ENVIRONMENT is interpolated into the base_url template:
-#   "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io" → "https://demo.cyberint.io"
-#   at step 4a. The per-org overlay replaces base_url at step 4c before any request.
+#   "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io" at step 4a.
 #
 #   Values mirrored from the proven E2E test harness:
 #   crates/prism-bin/tests/helpers/mod.rs (the authoritative env-var source-of-truth).

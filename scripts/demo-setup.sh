@@ -8,10 +8,10 @@
 #   1. Verify prerequisites (cargo)
 #   2. Build prism and prism-dtu-demo-server (release profile)
 #   3. Create demo config directory structure
-#   4. Copy sensor TOML specs to ~/.config/prism-demo/specs/
-#   5. Copy crowdstrike-oauth2.prx plugin + write crowdstrike-oauth2.manifest.toml (DTU-safe SEC-003 allowlist) to ~/.config/prism-demo/plugins/
-#   6. Write ~/.config/prism-demo/prism.toml (valid PrismConfig)
-#   7. Bootstrap dummy credentials in the OS keyring via `prism credential set`
+#   4. Copy sensor TOML specs to <DIR>/specs/
+#   5. Copy crowdstrike-oauth2.prx plugin + write crowdstrike-oauth2.manifest.toml
+#   6. Write <DIR>/prism.toml (3-org: org-a, org-b, org-c)
+#   7. Bootstrap N×M dummy credentials in OS keyring via `prism credential set`
 #   8. Print next-step instructions
 #
 # IDEMPOTENCY
@@ -19,10 +19,22 @@
 #   Keyring writes overwrite existing entries.
 #   TOML and spec files are overwritten.
 #
-# EC-003: If crowdstrike-oauth2.prx is not found, exits 1 with an actionable message.
-# AC-008: This script passes shellcheck with zero errors/warnings.
+# CREDENTIAL TABLE (N=3 orgs, M=variable sensors per org — 10 total):
+#   org-a: crowdstrike (client_id, client_secret), armis (bearer_token)        — 3
+#   org-b: claroty (bearer_token), cyberint (api_key)                           — 2
+#   org-c: crowdstrike (client_id, client_secret), armis (bearer_token),
+#          claroty (bearer_token), cyberint (api_key)                           — 5
+#   Total: 10
 #
-# Story: S-DEMO-003 | BCs: BC-2.06.001, BC-2.03.007
+# Cyberint api_key values MUST match initial_access_token in scripts/demo.toml:
+#   org-b: "demo-cyberint-api-key-org-b"   (matches [orgs.org-b].initial_access_token)
+#   org-c: "demo-cyberint-api-key-org-c"   (matches [orgs.org-c].initial_access_token)
+#
+# EC-003: If crowdstrike-oauth2.prx is not found, exits 1 with an actionable message.
+# AC-008: passes shellcheck with zero errors/warnings.
+# AD-017: all credential values are piped via stdin, never passed as CLI argv.
+#
+# Stories: S-DEMO-003 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | BCs: BC-2.06.001, BC-2.03.007
 
 set -euo pipefail
 
@@ -57,11 +69,15 @@ done
 DEMO_SPECS_DIR="${DEMO_CONFIG_DIR}/specs"
 DEMO_STATE_DIR="${DEMO_CONFIG_DIR}/state"
 DEMO_PLUGINS_DIR="${DEMO_CONFIG_DIR}/plugins"
-DEMO_ORG_SLUG="demo-org"
 
-# Canonical org_id UUID v7 — matches generate_demo_prism_toml() in credential_cli.rs.
-# Must be a real UUID v7 (time-ordered, version 7) to pass boot step 3.
-DEMO_ORG_ID="0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c"
+# 3-org UUIDs — must be valid UUID v7 (time-ordered) to pass boot step 3.
+# Must match [orgs.*].org_id in scripts/demo.toml.
+ORG_A_SLUG="org-a"
+ORG_A_ID="0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
+ORG_B_SLUG="org-b"
+ORG_B_ID="0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0001"
+ORG_C_SLUG="org-c"
+ORG_C_ID="0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
 
 # Plugin artifact path (committed by S-PLUGIN-CI-001)
 PLUGIN_ARTIFACT="${REPO_ROOT}/crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx"
@@ -87,8 +103,8 @@ fi
 echo "==> [2/8] Building prism (release)..."
 cargo build --release -p prism-bin 2>&1
 
-echo "    Building prism-dtu-demo-server (release)..."
-cargo build --release -p prism-dtu-demo-server --features dtu 2>&1
+echo "    Building prism-dtu-demo-server (release, features: dtu,fixture-gen)..."
+cargo build --release -p prism-dtu-demo-server --features dtu,fixture-gen 2>&1
 
 # ---------------------------------------------------------------------------
 # Step 3: Create config directory structure
@@ -100,6 +116,10 @@ mkdir -p "${DEMO_SPECS_DIR}"
 mkdir -p "${DEMO_STATE_DIR}"
 mkdir -p "${DEMO_PLUGINS_DIR}"
 mkdir -p "${DEMO_CONFIG_DIR}/run"
+# Create org-slug subdirectories under customers/ (overlays written later by demo-run.sh)
+mkdir -p "${DEMO_SPECS_DIR}/customers/${ORG_A_SLUG}"
+mkdir -p "${DEMO_SPECS_DIR}/customers/${ORG_B_SLUG}"
+mkdir -p "${DEMO_SPECS_DIR}/customers/${ORG_C_SLUG}"
 
 # ---------------------------------------------------------------------------
 # Step 4: Copy sensor TOML specs
@@ -153,38 +173,53 @@ MANIFESTEOF
 echo "    crowdstrike-oauth2.manifest.toml written (DTU-safe SEC-003 allowlist)"
 
 # ---------------------------------------------------------------------------
-# Step 6: Write prism.toml
+# Step 6: Write multi-org prism.toml (3 orgs: org-a, org-b, org-c)
+#
+# BC-2.06.001: generated prism.toml must be schema-valid (N [[orgs]] entries).
 # ---------------------------------------------------------------------------
 
-echo "==> [6/8] Writing ${DEMO_CONFIG_DIR}/prism.toml..."
+echo "==> [6/8] Writing ${DEMO_CONFIG_DIR}/prism.toml (3-org: org-a, org-b, org-c)..."
 
 cat > "${DEMO_CONFIG_DIR}/prism.toml" << TOMLEOF
-spec_dir = "${DEMO_SPECS_DIR}"
-state_dir = "${DEMO_STATE_DIR}"
+spec_dir   = "${DEMO_SPECS_DIR}"
+state_dir  = "${DEMO_STATE_DIR}"
 plugin_dir = "${DEMO_PLUGINS_DIR}"
 
 [[orgs]]
-org_id = "${DEMO_ORG_ID}"
-org_slug = "${DEMO_ORG_SLUG}"
+org_id   = "${ORG_A_ID}"
+org_slug = "${ORG_A_SLUG}"
+
+[[orgs]]
+org_id   = "${ORG_B_ID}"
+org_slug = "${ORG_B_SLUG}"
+
+[[orgs]]
+org_id   = "${ORG_C_ID}"
+org_slug = "${ORG_C_SLUG}"
 TOMLEOF
 
-echo "    prism.toml written"
+echo "    prism.toml written (3 [[orgs]] entries)"
 
 # ---------------------------------------------------------------------------
-# Step 7: Bootstrap credentials (dummy values for DTU demo)
+# Step 7: Bootstrap N×M credentials (dummy values for DTU demo)
+#
+# 10 total credentials — one per (org_slug, sensor, credential_name) combination.
+# AD-017: values piped via stdin (rpassword reads from piped stdin in non-TTY mode).
+# Cyberint api_key values MUST match initial_access_token in scripts/demo.toml.
 # ---------------------------------------------------------------------------
 
-echo "==> [7/8] Bootstrapping demo credentials in OS keyring..."
+echo "==> [7/8] Bootstrapping demo credentials in OS keyring (10 total)..."
 echo "    (Values are dummy credentials safe for DTU use only)"
 echo "    NOTE: If the keyring is unavailable, set env vars instead."
 echo "          See docs/DEMO-RUNBOOK.md §Troubleshooting for details."
 
 # Helper to set a credential — reads from stdin (AD-017 compliant).
-# Usage: set_cred <sensor> <name> <value>
+# Usage: set_cred <org_slug> <sensor> <name> <value>
 set_cred() {
-    local sensor="$1"
-    local name="$2"
-    local value="$3"
+    local org_slug="$1"
+    local sensor="$2"
+    local name="$3"
+    local value="$4"
     # AD-017: the value is piped via stdin, never passed as a CLI arg.
     # rpassword reads from piped stdin in non-TTY mode.
     if printf '%s\n' "${value}" | "${PRISM_BIN}" \
@@ -192,38 +227,44 @@ set_cred() {
         credential set \
         --sensor "${sensor}" \
         --name "${name}" \
-        --org-slug "${DEMO_ORG_SLUG}" \
+        --org-slug "${org_slug}" \
         2>/dev/null; then
-        echo "    Stored: prism/${sensor}/${name}"
+        echo "    Stored: prism/${org_slug}/${sensor}/${name}"
     else
-        # BC-2.06.003 Tier 2 canonical env var format: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}
-        # where {ID} = org slug uppercased with hyphens → underscores (ADR-032).
+        # BC-2.06.003 Tier 2 canonical env var format:
+        # PRISM_CLIENTS_{ORG_UPPER}_SENSORS_{SENSOR_UPPER}_{NAME_UPPER}
+        # where org slug uppercased with hyphens → underscores (ADR-032).
         local org_upper
-        org_upper="$(echo "${DEMO_ORG_SLUG}" | tr '[:lower:]-' '[:upper:]_')"
+        org_upper="$(printf '%s' "${org_slug}" | tr '[:lower:]-' '[:upper:]_')"
         local sensor_upper
-        sensor_upper="$(echo "${sensor}" | tr '[:lower:]-' '[:upper:]_')"
+        sensor_upper="$(printf '%s' "${sensor}" | tr '[:lower:]-' '[:upper:]_')"
         local name_upper
-        name_upper="$(echo "${name}" | tr '[:lower:]-' '[:upper:]_')"
-        echo "    WARN: keyring write failed for prism/${sensor}/${name}" \
+        name_upper="$(printf '%s' "${name}" | tr '[:lower:]-' '[:upper:]_')"
+        echo "    WARN: keyring write failed for prism/${org_slug}/${sensor}/${name}" \
              "(use env var PRISM_CLIENTS_${org_upper}_SENSORS_${sensor_upper}_${name_upper} as fallback)" >&2
     fi
 }
 
-# CrowdStrike: OAuth2 client credentials (oauth2_client_credentials auth_type)
-set_cred "crowdstrike" "client_id" "demo-cs-client-id"
-set_cred "crowdstrike" "client_secret" "demo-cs-client-secret"
+# org-a: crowdstrike (client_id, client_secret), armis (bearer_token) — 3 credentials
+set_cred "${ORG_A_SLUG}" "crowdstrike" "client_id"     "demo-cs-client-id-org-a"
+set_cred "${ORG_A_SLUG}" "crowdstrike" "client_secret" "demo-cs-client-secret-org-a"
+set_cred "${ORG_A_SLUG}" "armis"       "bearer_token"  "demo-armis-bearer-token-org-a"
 
-# Armis: bearer_static auth_type — credential name matches spec [[credential_refs]]
-set_cred "armis" "bearer_token" "demo-armis-bearer-token"
+# org-b: claroty (bearer_token), cyberint (api_key) — 2 credentials
+# Cyberint api_key MUST match [orgs.org-b].initial_access_token in scripts/demo.toml.
+set_cred "${ORG_B_SLUG}" "claroty"   "bearer_token" "demo-claroty-bearer-token-org-b"
+set_cred "${ORG_B_SLUG}" "cyberint"  "api_key"      "demo-cyberint-api-key-org-b"
 
-# Claroty: bearer_static auth_type — credential name matches spec [[credential_refs]]
-set_cred "claroty" "bearer_token" "demo-claroty-bearer-token"
+# org-c: crowdstrike (client_id, client_secret), armis (bearer_token),
+#        claroty (bearer_token), cyberint (api_key) — 5 credentials
+# Cyberint api_key MUST match [orgs.org-c].initial_access_token in scripts/demo.toml.
+set_cred "${ORG_C_SLUG}" "crowdstrike" "client_id"     "demo-cs-client-id-org-c"
+set_cred "${ORG_C_SLUG}" "crowdstrike" "client_secret" "demo-cs-client-secret-org-c"
+set_cred "${ORG_C_SLUG}" "armis"       "bearer_token"  "demo-armis-bearer-token-org-c"
+set_cred "${ORG_C_SLUG}" "claroty"     "bearer_token"  "demo-claroty-bearer-token-org-c"
+set_cred "${ORG_C_SLUG}" "cyberint"    "api_key"       "demo-cyberint-api-key-org-c"
 
-# Cyberint: cookie_roundtrip auth_type — credential name matches spec [[credential_refs]]
-# The value MUST match initial_access_token in scripts/demo.toml (DTU allowlist seed).
-set_cred "cyberint" "api_key" "demo-cyberint-api-key"
-
-echo "    Credentials bootstrapped"
+echo "    Credentials bootstrapped (10 entries)"
 
 # ---------------------------------------------------------------------------
 # Step 8: Print instructions
@@ -234,7 +275,7 @@ echo "==> [8/8] Setup complete!"
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Start the DTU demo server and prism:"
+echo "  1. Start the DTU demo server and generate per-org overlays:"
 echo "       bash scripts/demo-run.sh"
 echo ""
 echo "  2. Add prism to Claude Code (see docs/DEMO-RUNBOOK.md §Connecting Claude Code)"

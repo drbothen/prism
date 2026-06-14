@@ -38,6 +38,13 @@ pub type CloneFactoryFn<'a> = Box<dyn Fn(&InstanceEntry) -> Box<dyn BehavioralCl
 /// `(org_slug, sensor_id)` (derived from `entry.name` via the `"{org_slug}-{sensor_id}"`
 /// convention) to the correct seeded clone constructor.
 ///
+/// # Entry name convention
+///
+/// `entry.name` is `"{org_slug}-{sensor_id}"` (e.g. `"org-a-crowdstrike"`). Because
+/// org slugs may contain `-` (e.g. `"org-a"`), we detect the sensor_id by matching the
+/// known sensor names as suffixes: `crowdstrike`, `armis`, `claroty`, `cyberint`.
+/// The org_slug is everything before the last `-{sensor_id}` suffix.
+///
 /// # fixture-gen hard-requirement (GAP-1)
 ///
 /// This function requires `feature = "fixture-gen"`. Without it, the `#[cfg(not(feature))]`
@@ -47,31 +54,140 @@ pub type CloneFactoryFn<'a> = Box<dyn Fn(&InstanceEntry) -> Box<dyn BehavioralCl
 ///
 /// # Reuses harness.rs helpers (Architecture Compliance)
 ///
-/// The implementer MUST use:
+/// Uses:
 /// - `crate::harness::parse_org_id(str, name)` → `OrgId`
-/// - `crate::harness::fixture_set_to_archetype(fixture_set, name)` → `Archetype`
+/// - `crate::harness::fixture_set_to_archetype("default", name)` → `Archetype`
 /// - `prism_dtu_common::demo_time_anchor()` for the time anchor
 /// - `new_with_seed(seed, archetype, org_id)` seeded constructors on all 4 clone crates
 ///
-/// # Red Gate stub
+/// # Cyberint composite path (GAP-2)
 ///
-/// Body is `todo!()`. RG-004 FAILS with "not yet implemented" at the Red Gate phase.
+/// `CyberintClone::new_with_seed` does NOT set `initial_access_token`. To satisfy BOTH
+/// seed-based data distinctness AND access-token auth, the factory uses the composite pattern:
+/// 1. Call `new_with_seed(seed, archetype, org_id)` to produce the seeded clone.
+/// 2. If `org_cfg.initial_access_token.is_some()`, call `configure({"access_token": token})`
+///    synchronously via `tokio::runtime::Handle::current().block_on(...)`.
+///    The factory closure is synchronous but `configure` is async — block_on is the
+///    minimum-change approach that avoids refactoring `CloneFactoryFn` to async.
+///
+/// # EC-008 / EC-009
+///
+/// Unrecognized sensor names or entry names that do not match the `{org_slug}-{sensor_id}`
+/// convention result in a panic with an actionable message (programming error, not user error).
 #[cfg(feature = "fixture-gen")]
 pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_> {
-    // Red Gate stub: todo!() causes RG-004 to FAIL.
-    // Implementer: replace with the real dispatch closure that:
-    //   1. Splits entry.name on the LAST '-' before a known sensor name to get (org_slug, sensor_id)
-    //   2. Looks up OrgConfig from cfg.orgs[org_slug]
-    //   3. Calls harness::parse_org_id(org_cfg.org_id, entry.name)
-    //   4. Calls harness::fixture_set_to_archetype("default", entry.name) for the archetype
-    //   5. Constructs the clone via new_with_seed(org_cfg.seed, archetype, org_id)
-    //   6. For Cyberint: if initial_access_token.is_some(), calls configure({"access_token": token})
-    let _ = cfg;
-    todo!(
-        "build_multi_clone_factory: not yet implemented — Red Gate stub \
-         (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3). \
-         Implementer: replace this todo!() with the real dispatch closure."
-    )
+    use prism_dtu_armis::ArmisClone;
+    use prism_dtu_claroty::ClarotyClone;
+    use prism_dtu_common::BehavioralClone;
+    use prism_dtu_crowdstrike::CrowdstrikeClone;
+    use prism_dtu_cyberint::CyberintClone;
+
+    // Known sensor names in suffix-search order. The name convention is
+    // "{org_slug}-{sensor_id}" where both parts may contain '-' themselves
+    // (e.g. "org-a-crowdstrike"). We match by stripping known sensor suffixes.
+    const SENSORS: &[&str] = &["crowdstrike", "armis", "claroty", "cyberint"];
+
+    Box::new(move |entry: &InstanceEntry| -> Box<dyn BehavioralClone> {
+        let entry_name = &entry.name;
+
+        // Parse (org_slug, sensor_id) from entry.name by matching known sensor suffixes.
+        // Try each sensor as a suffix "-{sensor_id}"; first match wins.
+        let (org_slug, sensor_id) = SENSORS
+            .iter()
+            .find_map(|&sensor| {
+                let suffix = format!("-{sensor}");
+                entry_name
+                    .strip_suffix(suffix.as_str())
+                    .map(|slug| (slug, sensor))
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "start-multi: EC-009: InstanceEntry name '{entry_name}' does not match \
+                     the '{{org_slug}}-{{sensor_id}}' convention. \
+                     Valid sensor suffixes: crowdstrike, armis, claroty, cyberint. \
+                     This is a programming error in cmd_start_multi (entries are built there)."
+                )
+            });
+
+        // Look up OrgConfig from cfg.orgs.
+        let org_cfg = cfg.orgs.get(org_slug).unwrap_or_else(|| {
+            panic!(
+                "start-multi: EC-009: org_slug '{org_slug}' (derived from entry '{entry_name}') \
+                 not found in MultiOrgDemoConfig.orgs. \
+                 This is a programming error — entries must be built from the config's org keys."
+            )
+        });
+
+        // Derive OrgId from org_cfg.org_id (UUID string).
+        // SAFETY: parse_org_id returns Err only for invalid UUIDs; we use expect() with an
+        //         actionable message because this is a programming error path (config was
+        //         validated by from_str with deny_unknown_fields before we get here).
+        #[allow(clippy::expect_used)]
+        let org_id = crate::harness::parse_org_id(&org_cfg.org_id, entry_name)
+            .expect("org_id in OrgConfig must be a valid UUID (validated at config parse time)");
+
+        // Derive Archetype from "default" fixture_set (start-multi always uses the seeded path).
+        // SAFETY: "default" is a known-valid fixture_set; expect() is appropriate here.
+        #[allow(clippy::expect_used)]
+        let archetype = crate::harness::fixture_set_to_archetype("default", entry_name)
+            .expect("'default' is a valid fixture_set; this expect cannot fail");
+
+        let seed = org_cfg.seed;
+
+        // Dispatch to the correct seeded constructor based on sensor_id (EC-008).
+        // Each new_with_seed constructor uses demo_time_anchor() internally for the time anchor.
+        match sensor_id {
+            "crowdstrike" => {
+                // CrowdstrikeClone::new_with_seed is infallible.
+                Box::new(CrowdstrikeClone::new_with_seed(seed, archetype, org_id))
+            }
+            "claroty" => {
+                // ClarotyClone::new_with_seed is infallible.
+                Box::new(ClarotyClone::new_with_seed(seed, archetype, org_id))
+            }
+            "armis" => {
+                // ArmisClone::new_with_seed is fallible (returns Result).
+                #[allow(clippy::expect_used)]
+                Box::new(ArmisClone::new_with_seed(seed, archetype, org_id).expect(
+                    "ArmisClone::new_with_seed must succeed for valid seed/archetype/org_id",
+                ))
+            }
+            "cyberint" => {
+                // GAP-2 composite path:
+                //   1. new_with_seed → seeded clone (no access_token yet)
+                //   2. if initial_access_token.is_some() → configure({"access_token": token})
+                //
+                // configure() is async; the factory closure is synchronous. We use
+                // block_on(current runtime handle) which is safe here because:
+                //   - start_instances calls the factory from a tokio multi-thread executor
+                //   - block_on within a tokio::spawn task (not within async fn directly)
+                //     is allowed when we have a handle to the current runtime.
+                #[allow(clippy::expect_used)]
+                let clone = CyberintClone::new_with_seed(seed, archetype, org_id).expect(
+                    "CyberintClone::new_with_seed must succeed for valid seed/archetype/org_id",
+                );
+
+                if let Some(token) = &org_cfg.initial_access_token {
+                    // GAP-2: register the access token in the clone's allowlist pre-start.
+                    // clone implements BehavioralClone::configure (async); block_on here.
+                    #[allow(clippy::expect_used)]
+                    tokio::runtime::Handle::current()
+                        .block_on(clone.configure(serde_json::json!({"access_token": token})))
+                        .expect("CyberintClone::configure(access_token) must succeed");
+                }
+
+                Box::new(clone)
+            }
+            other => {
+                // EC-008: unrecognized sensor name is a programming error.
+                panic!(
+                    "start-multi: EC-008: unrecognized sensor '{other}' in entry '{entry_name}'; \
+                     valid values: crowdstrike, armis, claroty, cyberint. \
+                     Update MultiOrgDemoConfig validation if new sensors are added."
+                )
+            }
+        }
+    })
 }
 
 /// Fallback stub for `build_multi_clone_factory` when `fixture-gen` is absent.
@@ -100,15 +216,45 @@ pub fn build_multi_clone_factory(_cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'s
 /// - Calls `start_instances(multi_cfg, clone_factory).await` from `crate::multi_instance`.
 /// - Returns `Ok(MultiInstanceServers)` with a socket_map keyed by `"{org_slug}-{sensor_id}"`.
 ///
-/// # Red Gate stub
+/// # Entry name convention
 ///
-/// Body is `todo!()`. RG-005 FAILS with "not yet implemented" at the Red Gate phase.
+/// Each `InstanceEntry` name is `"{org_slug}-{sensor_id}"` (e.g. `"org-a-crowdstrike"`).
+/// The `build_multi_clone_factory` closure reconstructs `(org_slug, sensor_id)` from this
+/// name by stripping known sensor suffixes (Architecture Compliance Rule).
+///
+/// # Bind address
+///
+/// Each instance binds to `"{cfg.harness.bind}:0"` — port 0 means OS-assigned ephemeral
+/// port, which `start_instances` resolves to a real `SocketAddr` in the returned
+/// `MultiInstanceServers::socket_map()`.
 pub async fn start_multi_for_config(
-    _cfg: &MultiOrgDemoConfig,
+    cfg: &MultiOrgDemoConfig,
 ) -> anyhow::Result<MultiInstanceServers> {
-    todo!(
-        "start_multi_for_config: not yet implemented — Red Gate stub \
-         (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3). \
-         Implementer: replace this todo!() with the real bind logic."
-    )
+    use crate::multi_instance::{InstanceEntry, MultiInstanceConfig};
+
+    // Build MultiInstanceConfig entries named "{org_slug}-{sensor_id}".
+    // The iteration order of a HashMap is not deterministic, but the binding order
+    // does not matter — all N entries must bind before this returns Ok.
+    let mut instances = Vec::new();
+    for (org_slug, org_cfg) in &cfg.orgs {
+        for sensor_id in &org_cfg.sensors {
+            let name = format!("{org_slug}-{sensor_id}");
+            let bind_str = format!("{}:0", cfg.harness.bind);
+            let bind: std::net::SocketAddr = bind_str
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Invalid bind address '{}': {}", bind_str, e))?;
+            instances.push(InstanceEntry::new(name, bind));
+        }
+    }
+
+    let multi_cfg = MultiInstanceConfig::new(instances);
+
+    // Build the clone factory. This requires feature="fixture-gen" — the
+    // #[cfg(not(feature="fixture-gen"))] arm panics (GAP-1 enforcement).
+    let factory = build_multi_clone_factory(cfg);
+
+    // Start all instances and return the lifecycle handle.
+    crate::multi_instance::start_instances(multi_cfg, factory)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to start multi-org clone instances: {:?}", e))
 }

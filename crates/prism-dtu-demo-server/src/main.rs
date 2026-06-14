@@ -91,10 +91,8 @@ const URL_FILE: &str = ".prism-dtu-demo-server.urls.json";
 /// Format: `{org_slug: {sensor_id: url}}` — distinct from the flat `URL_FILE`
 /// format `{name: url}` written by `start` (BC-2.06.017 / AC-003).
 ///
-/// Red Gate stub: not yet wired into `cmd_start_multi` (todo!()). The
-/// `#[allow(dead_code)]` suppresses the lint until the implementer completes
-/// the real body in S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3.
-#[allow(dead_code)]
+/// Written atomically (tmp + rename) by `write_multi_url_sidecar` to prevent
+/// demo-run.sh from reading a partial file during the poll loop (GAP-3).
 const URL_MULTI_FILE: &str = ".prism-dtu-demo-server.urls-multi.json";
 
 #[tokio::main]
@@ -386,14 +384,43 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
 ///
 /// # fixture-gen requirement
 ///
-/// This function calls `build_multi_clone_factory` which is `#[cfg(feature = "fixture-gen")]`-only.
-/// Building without `fixture-gen` will produce a compile error or runtime panic — NEVER a silent
-/// fallback to unseeded `new()` (which would violate INV-DISTINCT-DATA-001).
-async fn cmd_start_multi(_config_path: std::path::PathBuf) -> anyhow::Result<()> {
-    todo!(
-        "cmd_start_multi: not yet implemented — Red Gate stub \
-         (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
-    )
+/// This function calls `build_multi_clone_factory` (via `start_multi_for_config`) which is
+/// `#[cfg(feature = "fixture-gen")]`-only. Building without `fixture-gen` produces a runtime
+/// panic — NEVER a silent fallback to unseeded `new()` (which would violate INV-DISTINCT-DATA-001).
+async fn cmd_start_multi(config_path: std::path::PathBuf) -> anyhow::Result<()> {
+    // 1. Initialise tracing (deterministic_logging=false for multi-org mode).
+    init_tracing(false);
+
+    // 2. Load MultiOrgDemoConfig.
+    let cfg = prism_dtu_demo_server::config::MultiOrgDemoConfig::from_file(&config_path)
+        .map_err(|e| anyhow::anyhow!("Failed to load multi-org config {:?}: {}", config_path, e))?;
+
+    // 3. Start all org clone fleets. This calls build_multi_clone_factory (fixture-gen required)
+    //    which will panic if fixture-gen is absent (GAP-1 enforcement).
+    let servers = prism_dtu_demo_server::start_multi_for_config(&cfg)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to start multi-org clone fleet: {}", e))?;
+
+    // 4. Write PID file (same atomic tmp+rename helper used by cmd_start).
+    write_pid_file()?;
+
+    // 5. Write NESTED URL sidecar: {org_slug: {sensor_id: url}}.
+    //    Written to URL_MULTI_FILE (distinct from the flat URL_FILE written by `start`).
+    write_multi_url_sidecar(&servers, &cfg)?;
+
+    // 6. Print nested URL table to stdout.
+    let socket_map = servers.socket_map();
+    println!("start-multi: {} instances running", socket_map.len());
+    let mut entries: Vec<_> = socket_map.iter().collect();
+    entries.sort_by_key(|(name, _)| name.as_str());
+    for (name, addr) in &entries {
+        println!("  {name}: http://{addr}");
+    }
+
+    // 7. Wait for SIGTERM/SIGINT, then gracefully shut down.
+    wait_for_shutdown_signal_multi(&servers).await;
+
+    Ok(())
 }
 
 /// Write the NESTED URL sidecar file `.prism-dtu-demo-server.urls-multi.json`.
@@ -401,25 +428,106 @@ async fn cmd_start_multi(_config_path: std::path::PathBuf) -> anyhow::Result<()>
 /// Format: `{org_slug: {sensor_id: url}}` — distinct from the flat format written by `start`.
 ///
 /// The sidecar is written atomically (tmp + rename) to prevent demo-run.sh from
-/// reading a partial file during the poll loop.
+/// reading a partial file during the poll loop (GAP-3 sidecar-availability guarantee).
 ///
-/// Red Gate stub: body is `todo!()`. The `#[allow(dead_code)]` suppresses the lint
-/// until the implementer wires this into `cmd_start_multi` (Phase 3).
-#[allow(dead_code)]
+/// # Format
+///
+/// ```json
+/// {
+///   "org-a": {"crowdstrike": "http://127.0.0.1:PORT", "armis": "http://127.0.0.1:PORT"},
+///   "org-b": {"claroty": "http://127.0.0.1:PORT", "cyberint": "http://127.0.0.1:PORT"},
+///   ...
+/// }
+/// ```
+///
+/// The flat sidecar format (`{name: url}` where name is `"org-a-crowdstrike"`) is NOT used here.
+/// `demo-run.sh` parses the nested format to generate per-org overlay TOMLs (BC-2.06.012/013/014).
 fn write_multi_url_sidecar(
-    _servers: &prism_dtu_demo_server::MultiInstanceServers,
-    _cfg: &prism_dtu_demo_server::MultiOrgDemoConfig,
+    servers: &prism_dtu_demo_server::MultiInstanceServers,
+    cfg: &prism_dtu_demo_server::MultiOrgDemoConfig,
 ) -> anyhow::Result<()> {
-    todo!(
-        "write_multi_url_sidecar: not yet implemented — Red Gate stub \
-         (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
-    )
+    use std::collections::HashMap;
+
+    // Build nested map: {org_slug → {sensor_id → url}}.
+    // The socket_map keys are "{org_slug}-{sensor_id}" — split by matching known sensor suffixes.
+    // We rebuild the nested structure from the configured org/sensor assignments and socket_map.
+    let socket_map = servers.socket_map();
+
+    let mut nested: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for (org_slug, org_cfg) in &cfg.orgs {
+        let sensor_urls: HashMap<String, String> = org_cfg
+            .sensors
+            .iter()
+            .filter_map(|sensor_id| {
+                let entry_name = format!("{org_slug}-{sensor_id}");
+                socket_map
+                    .get(&entry_name)
+                    .map(|addr| (sensor_id.clone(), format!("http://{addr}")))
+            })
+            .collect();
+        nested.insert(org_slug.clone(), sensor_urls);
+    }
+
+    let json = serde_json::to_string(&nested)
+        .map_err(|e| anyhow::anyhow!("Failed to serialise nested URL map: {}", e))?;
+
+    let tmp_path = format!("{URL_MULTI_FILE}.tmp");
+    std::fs::write(&tmp_path, &json)
+        .map_err(|e| anyhow::anyhow!("Failed to write nested URL sidecar tmp: {}", e))?;
+    std::fs::rename(&tmp_path, URL_MULTI_FILE)
+        .map_err(|e| anyhow::anyhow!("Failed to rename nested URL sidecar: {}", e))?;
+
+    Ok(())
+}
+
+/// Wait for SIGINT or SIGTERM, then gracefully shut down all multi-org clone instances.
+///
+/// Mirrors `wait_for_shutdown_signal` but operates on `MultiInstanceServers` instead of
+/// `DemoHarness`. Removes both the PID file and the nested URL sidecar on shutdown.
+async fn wait_for_shutdown_signal_multi(servers: &prism_dtu_demo_server::MultiInstanceServers) {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        // SAFETY: failure to install a signal handler is a fatal setup error; panic is correct.
+        #[allow(clippy::expect_used)]
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                tracing::info!("start-multi: Received SIGINT — initiating graceful shutdown");
+            }
+            _ = sigterm.recv() => {
+                tracing::info!("start-multi: Received SIGTERM — initiating graceful shutdown");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        // SAFETY: failure to install a signal handler is a fatal setup error; panic is correct.
+        #[allow(clippy::expect_used)]
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl-C handler");
+        tracing::info!("start-multi: Received Ctrl-C — initiating graceful shutdown");
+    }
+
+    // Send graceful shutdown signal to all instances.
+    servers.shutdown();
+
+    // Remove sidecar files.
+    let _ = std::fs::remove_file(PID_FILE);
+    let _ = std::fs::remove_file(URL_MULTI_FILE);
+
+    tracing::info!("start-multi: All instances signalled for graceful shutdown.");
 }
 
 // `build_multi_clone_factory` and `start_multi_for_config` live in
 // `prism_dtu_demo_server::multi_org_cmd` (library crate) so that integration tests
 // in `tests/multi_org.rs` can access them. `cmd_start_multi` delegates to them.
-// See `src/multi_org_cmd.rs` for the stub implementations.
+// See `src/multi_org_cmd.rs` for the implementations.
 
 // ---------------------------------------------------------------------------
 // `stop` subcommand

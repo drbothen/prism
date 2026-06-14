@@ -1,16 +1,22 @@
-# scripts/demo.toml — DTU demo server configuration for S-DEMO-003.
+# scripts/demo.toml — DTU demo server configuration.
 #
-# Enables all 4 sensor DTU clones on ephemeral ports (port = 0) so there are
-# no port conflicts between demo runs. The actual ports are written to
-# .prism-dtu-demo-server.urls.json in $DEMO_RUN_DIR after the server starts.
-# demo-run.sh reads that file after the DTU server starts and writes per-org
-# overlay TOMLs (specs/customers/demo-org/<sensor>.sensor.toml) with the
-# correct ephemeral base_url for each sensor clone.
+# This file serves DUAL purpose:
+#   1. [harness] + [clones.*] sections: used by `start` subcommand (backward-compat S-DEMO-003).
+#      Enables all 4 sensor DTU clones on ephemeral ports (port = 0).
+#      The actual ports are written to .prism-dtu-demo-server.urls.json after the server starts.
+#   2. [orgs.*] sections: used by `start-multi` subcommand (S-DEMO-LAUNCHER-CONSOLIDATION-001).
+#      Each org gets its own DTU clone fleet; seeds differ to satisfy INV-DISTINCT-DATA-001.
+#
+# NOTE: DemoConfig (used by `start`) has deny_unknown_fields and ignores [orgs.*] because
+#       `start` loads configs/demo.toml (not scripts/demo.toml). When scripts/demo.toml is
+#       passed to `start`, the [orgs.*] section causes a parse error — use configs/demo.toml
+#       with `start`. Use scripts/demo.toml only with `start-multi`.
 #
 # Usage:
-#   prism-dtu-demo-server start --config scripts/demo.toml
+#   prism-dtu-demo-server start --config configs/demo.toml         (single-org S-DEMO-003)
+#   prism-dtu-demo-server start-multi --config scripts/demo.toml   (multi-org S-DEMO-LAUNCHER-CONSOLIDATION-001)
 #
-# Story: S-DEMO-003 | AC-003
+# Stories: S-DEMO-003 | S-DEMO-LAUNCHER-CONSOLIDATION-001
 
 [harness]
 bind = "127.0.0.1"
@@ -60,3 +66,31 @@ continue_on_error = false
 # reads it and injects Cookie: access_token=<value> on each fetch request.
 # ADR-031 §D3-a: Cyberint uses static cookie auth (no HTTP login step).
 initial_access_token = "demo-cyberint-api-key"
+
+# ---------------------------------------------------------------------------
+# Multi-org fleet config for `start-multi` (S-DEMO-LAUNCHER-CONSOLIDATION-001)
+#
+# Seed assignments match S-DEMO-004 test harness (INV-DISTINCT-DATA-001):
+#   org-a: seed=100 | org-b: seed=150 | org-c: seed=200
+# org-a and org-c both have CrowdStrike; distinct seeds ensure distinct data.
+#
+# Cyberint initial_access_token values must match the api_key credentials
+# set by demo-setup.sh (AD-017: values piped via stdin, not CLI argv).
+# ---------------------------------------------------------------------------
+
+[orgs.org-a]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
+sensors = ["crowdstrike", "armis"]
+seed = 100
+
+[orgs.org-b]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0001"
+sensors = ["claroty", "cyberint"]
+seed = 150
+initial_access_token = "demo-cyberint-api-key-org-b"
+
+[orgs.org-c]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
+sensors = ["crowdstrike", "armis", "claroty", "cyberint"]
+seed = 200
+initial_access_token = "demo-cyberint-api-key-org-c"

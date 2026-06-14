@@ -2,9 +2,9 @@
 
 This runbook guides an MSSP analyst or demo operator through standing up the Prism DTU demo
 environment, connecting Claude Code as an MCP client, and issuing live PrismQL queries against
-all four sensor DTU clones (CrowdStrike, Armis, Claroty, Cyberint).
+all sensor DTU clones across three demo orgs (org-a, org-b, org-c).
 
-Story: S-DEMO-003 | ACs: AC-004, AC-006
+Stories: S-DEMO-003 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | ACs: AC-009, AC-011
 
 ---
 
@@ -40,13 +40,22 @@ bash scripts/demo-setup.sh
 What the script does:
 
 1. **Checks** prerequisites (`cargo` must be available)
-2. **Builds** `prism` and `prism-dtu-demo-server` in release mode
-3. **Creates** `~/.config/prism-demo/` with `specs/`, `state/`, `plugins/`, and `run/` subdirectories
+2. **Builds** `prism` and `prism-dtu-demo-server` (release mode, features: `dtu,fixture-gen`)
+3. **Creates** `~/.config/prism-demo/` with `specs/`, `specs/customers/{org-a,org-b,org-c}/`, `state/`, `plugins/`, and `run/` subdirectories
 4. **Copies** the four sensor TOML specs (`crowdstrike`, `armis`, `claroty`, `cyberint`) to `~/.config/prism-demo/specs/`
 5. **Copies** `crowdstrike-oauth2.prx` plugin artifact to `~/.config/prism-demo/plugins/`
-6. **Writes** `~/.config/prism-demo/plugins/crowdstrike-oauth2.manifest.toml` — a DTU-safe plugin manifest that extends `allowed_urls` with `"127.0.0.1"` so the SEC-003 OAuth2 token-endpoint host check passes against the local DTU clone (the production plugin manifest at `api.crowdstrike.com` is not modified)
-7. **Writes** `~/.config/prism-demo/prism.toml` with the demo org (`org_slug = "demo-org"`, UUID v7 `org_id`)
-8. **Stores** dummy credentials in the OS keyring for all four sensors via `prism credential set`; prints next-step instructions
+6. **Writes** `~/.config/prism-demo/plugins/crowdstrike-oauth2.manifest.toml` — a DTU-safe plugin manifest that extends `allowed_urls` with `"127.0.0.1"` so the SEC-003 OAuth2 token-endpoint host check passes against the local DTU clone
+7. **Writes** `~/.config/prism-demo/prism.toml` with **3 `[[orgs]]` entries**: org-a, org-b, org-c (UUID v7 `org_id` values matching `scripts/demo.toml [orgs.*]`)
+8. **Stores** 10 dummy credentials in the OS keyring via `prism credential set` (N×M: one per org × sensor combo) and prints next-step instructions
+
+### 3-Org Demo Environment
+
+| Org | Sensors | Credentials |
+|-----|---------|-------------|
+| org-a | crowdstrike, armis | 3 (client_id, client_secret, bearer_token) |
+| org-b | claroty, cyberint | 2 (bearer_token, api_key) |
+| org-c | crowdstrike, armis, claroty, cyberint | 5 (all sensors) |
+| **Total** | | **10 credentials** |
 
 Override the config directory if needed:
 
@@ -65,21 +74,36 @@ bash scripts/demo-run.sh
 ```
 
 The script:
-1. Starts `prism-dtu-demo-server` in the background on four ephemeral ports (port = 0 in demo.toml; no port conflicts between runs)
-2. Polls for the URL sidecar file (`~/.config/prism-demo/run/.prism-dtu-demo-server.urls.json`) for up to 30 seconds
-3. Prints the CrowdStrike, Armis, Claroty, and Cyberint DTU URLs (parsed from the urls.json sidecar)
-4. **Generates per-org sensor overlays** — reads the urls.json sidecar and writes `~/.config/prism-demo/specs/customers/demo-org/<sensor>.sensor.toml` for each of the four sensors. Each overlay sets `base_url = "http://127.0.0.1:<ephemeral-port>"` so prism routes its fetch requests to the local DTU clone instead of the real sensor API. This step is required for AC-009 ("demo queries return data rows"). prism's spec loader derives the overlay directory as `spec_dir + "/customers"` at boot step 4c.
-5. Prints the exact command to start `prism`
+
+1. **Starts** `prism-dtu-demo-server start-multi --config scripts/demo.toml` in the background (one process manages all 3 orgs × N sensors = 8 DTU clone instances on ephemeral ports)
+2. **Polls** for the nested sidecar `~/.config/prism-demo/run/.prism-dtu-demo-server.urls-multi.json` for up to 30 seconds (EC-006)
+3. **Prints** the DTU clone URLs grouped by org slug:
+   ```
+   org-a/crowdstrike    : http://127.0.0.1:<port>
+   org-a/armis          : http://127.0.0.1:<port>
+   org-b/claroty        : http://127.0.0.1:<port>
+   org-b/cyberint       : http://127.0.0.1:<port>
+   org-c/crowdstrike    : http://127.0.0.1:<port>
+   org-c/armis          : http://127.0.0.1:<port>
+   org-c/claroty        : http://127.0.0.1:<port>
+   org-c/cyberint       : http://127.0.0.1:<port>
+   ```
+4. **Generates N×M overlay TOMLs** — reads the nested `{org_slug: {sensor_id: url}}` sidecar and writes 8 files at `~/.config/prism-demo/specs/customers/<org_slug>/<sensor_id>.sensor.toml`. Each overlay sets `base_url = "http://127.0.0.1:<ephemeral-port>"` so prism routes fetch requests to the correct per-org DTU clone. Per BC-2.06.013, each overlay contains only three scalar fields (`extends`, `instance_id`, `base_url`). prism reads these at boot step 4c via `customers_dir = spec_dir + "/customers"`.
+5. **Prints** the exact command to start `prism`
 
 Start `prism` in a **new terminal** using the command printed by `demo-run.sh`:
 
 ```bash
+CROWDSTRIKE_BASE_URL=http://127.0.0.1 \
+ARMIS_INSTANCE_URL=http://127.0.0.1 \
+CLAROTY_INSTANCE_URL=http://127.0.0.1 \
+CYBERINT_ENVIRONMENT=demo \
 target/release/prism --config-dir ~/.config/prism-demo start
 # (use the exact command printed by demo-run.sh — it includes the full absolute path)
 ```
 
 `prism start` boots all 11 boot steps and emits `boot.step9a.adapter_registry_populated`
-with `sensor_count=4, org_count=1` when all DTU adapters are registered. It then accepts
+with `sensor_count=4, org_count=3` when all DTU adapters are registered. It then accepts
 MCP connections via stdio transport.
 
 ---
@@ -111,7 +135,7 @@ Add `prism` as an MCP server in your Claude Code settings:
 
 Replace `/Users/YOUR_USERNAME` with your actual home directory path (use `echo $HOME` to find it).
 
-**Why these env vars are required** (E-SPEC-024 at boot step 4a):
+**Why these 4 env vars are required** (E-SPEC-024 at boot step 4a):
 The four sensor TYPE specs use `${env.VAR}` tokens in their `base_url` fields.
 Prism resolves these tokens at boot step 4a (env resolution, before step 4c overlay
 loading). If any variable is absent or empty, the boot process hard-aborts with exit
@@ -124,17 +148,27 @@ plugin manifest's `allowed_urls` includes `["api.crowdstrike.com", "127.0.0.1"]`
 validates the TYPE spec `base_url` host against this list at step 7.5b. The DTU-safe
 manifest written by `demo-setup.sh` already includes `127.0.0.1`.
 
-**Exact shell invocation** (substitute your path):
+**Tier-2 env var fallback names** (if keyring is unavailable — BC-2.06.003 ADR-032):
 
 ```bash
-CROWDSTRIKE_BASE_URL=http://127.0.0.1 \
-ARMIS_INSTANCE_URL=http://127.0.0.1 \
-CLAROTY_INSTANCE_URL=http://127.0.0.1 \
-CYBERINT_ENVIRONMENT=demo \
-prism --config-dir ~/.config/prism-demo start
+# org-a (3 credentials)
+PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID="demo-cs-client-id-org-a"
+PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_SECRET="demo-cs-client-secret-org-a"
+PRISM_CLIENTS_ORG_A_SENSORS_ARMIS_BEARER_TOKEN="demo-armis-bearer-token-org-a"
+
+# org-b (2 credentials)
+PRISM_CLIENTS_ORG_B_SENSORS_CLAROTY_BEARER_TOKEN="demo-claroty-bearer-token-org-b"
+PRISM_CLIENTS_ORG_B_SENSORS_CYBERINT_API_KEY="demo-cyberint-api-key-org-b"
+
+# org-c (5 credentials)
+PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_ID="demo-cs-client-id-org-c"
+PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET="demo-cs-client-secret-org-c"
+PRISM_CLIENTS_ORG_C_SENSORS_ARMIS_BEARER_TOKEN="demo-armis-bearer-token-org-c"
+PRISM_CLIENTS_ORG_C_SENSORS_CLAROTY_BEARER_TOKEN="demo-claroty-bearer-token-org-c"
+PRISM_CLIENTS_ORG_C_SENSORS_CYBERINT_API_KEY="demo-cyberint-api-key-org-c"
 ```
 
-Verify the MCP connection from Claude Code:
+**Verify the MCP connection from Claude Code:**
 
 ```
 /mcp list
@@ -150,13 +184,13 @@ Once connected, issue PrismQL queries via the `query` MCP tool (the canonical to
 `FROM x LIMIT n` is pipe syntax and is rejected — use SQL form `SELECT * FROM x LIMIT n`).
 Use `/mcp` in Claude Code to invoke MCP tools.
 
-**CrowdStrike — recent detections:**
+**CrowdStrike — recent detections (org-a):**
 
 ```sql
 SELECT * FROM crowdstrike_detections LIMIT 5
 ```
 
-Expected output: OCSF-normalized Arrow batch with columns `sensor`, `_time`, and detection fields.
+Expected output: OCSF-normalized Arrow batch with columns `sensor`, `_time`, and detection fields. When multiple orgs (org-a, org-c) have CrowdStrike enabled, prism fans out to both and returns rows from each distinct DTU clone.
 
 **Armis — device inventory:**
 
@@ -164,7 +198,7 @@ Expected output: OCSF-normalized Arrow batch with columns `sensor`, `_time`, and
 SELECT * FROM armis_devices LIMIT 5
 ```
 
-Expected output: OCSF-normalized rows with device attributes.
+Expected output: OCSF-normalized rows with device attributes from org-a and org-c Armis DTU clones.
 
 **Claroty — OT asset inventory:**
 
@@ -172,7 +206,7 @@ Expected output: OCSF-normalized rows with device attributes.
 SELECT * FROM claroty_devices LIMIT 5
 ```
 
-Expected output: OCSF-normalized rows with OT asset metadata.
+Expected output: OCSF-normalized rows with OT asset metadata from org-b and org-c Claroty clones.
 
 **Cyberint — threat intelligence alerts:**
 
@@ -180,10 +214,11 @@ Expected output: OCSF-normalized rows with OT asset metadata.
 SELECT * FROM cyberint_alerts LIMIT 5
 ```
 
-Expected output: OCSF-normalized alert rows.
+Expected output: OCSF-normalized alert rows from org-b and org-c Cyberint clones.
 
-All queries fan out to the appropriate DTU clone running on localhost. No real external
-API calls are made during demo mode.
+All queries fan out to the appropriate DTU clones running on localhost. No real external
+API calls are made during demo mode. Each org's DTU clone is seeded with a distinct `seed`
+value (org-a=100, org-b=150, org-c=200) so each org's data is distinct.
 
 ---
 
@@ -196,7 +231,7 @@ non-zero. The credential is NOT stored. This is the **write path** error.
 
 **Error code:** `E-CRED-004` (`PrismError::CredentialStoreError`, displayed as
 `"E-CRED-004: credential store error (backend=...): {reason}"`), surfaced by
-`handle_credential_set` in `credential_cli.rs` — AC-006(a) of S-DEMO-003 (EC-001).
+`handle_credential_set` in `credential_cli.rs`.
 
 **Cause:** The OS keyring service is unavailable at credential-set time (headless
 server, Docker container, missing Gnome Keyring on Linux, or locked macOS Keychain).
@@ -216,34 +251,19 @@ Then re-run `prism credential set ...`.
 
 **Fallback (CI / headless):** Use environment variables instead of the keyring.
 Prism resolves credentials from env vars before checking the keyring (Tier 1/2 in
-the four-tier resolution chain — BC-2.06.003). The canonical format is:
-`PRISM_CLIENTS_{ORG_SLUG_UPPER}_SENSORS_{SENSOR_UPPER}_{REF_UPPER}`
-where `{ORG_SLUG_UPPER}` is the org slug in SCREAMING_SNAKE_CASE (hyphens → underscores).
-For the demo org `demo-org` (`DEMO_ORG`):
-```bash
-export PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID="demo-cs-client-id"
-export PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET="demo-cs-client-secret"
-export PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN="demo-armis-bearer-token"
-export PRISM_CLIENTS_DEMO_ORG_SENSORS_CLAROTY_BEARER_TOKEN="demo-claroty-bearer-token"
-export PRISM_CLIENTS_DEMO_ORG_SENSORS_CYBERINT_API_KEY="demo-cyberint-api-key"
-```
-NOTE: The old format `DEMO_ORG_*` is RETIRED (ADR-032 / BC-2.06.003 v1.3). Use only
-the `PRISM_CLIENTS_*` format above.
+the four-tier resolution chain — BC-2.06.003). See the 10 `PRISM_CLIENTS_*` env vars
+listed in §4 above for all fallback names.
 
 ### (b) Keyring read failure at query time — E-CRED-008
 
 **Symptom:** A query against a demo sensor fails at authentication time with:
 `BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: ..." }`.
-This is the **read path** error — the credential was previously stored (or was
-expected to be) but the OS keyring is inaccessible during Tier-3 resolution.
+This is the **read path** error — the credential was previously stored but the OS keyring
+is inaccessible during Tier-3 resolution.
 
-**Error code:** `E-CRED-008` (surfaced by `resolution.rs` Tier-3 keyring backend
-when the OS keyring is inaccessible — AC-006(b) of S-DEMO-003 (EC-001b)). There is
-no Tier-4 fallthrough: if the keyring is unavailable at read time, the error is
+**Error code:** `E-CRED-008` (surfaced by `resolution.rs` Tier-3 keyring backend).
+There is no Tier-4 fallthrough: if the keyring is unavailable at read time, the error is
 hard-returned with no credential value leak.
-
-**Cause:** The OS keyring service became unavailable between credential-set and
-query time (daemon restart, session lock, headless re-entry).
 
 **Fix (macOS):** Unlock the macOS Keychain:
 ```bash
@@ -256,14 +276,12 @@ eval "$(dbus-launch --sh-syntax)"
 gnome-keyring-daemon --start --components=secrets
 ```
 
-**Alternative:** Use the `PRISM_CLIENTS_*` environment variable fallback described
-in §6 Troubleshooting (a) above — Tier-1/Tier-2 resolution takes precedence over the
-keyring, so env vars will satisfy the read path even when the keyring is unavailable.
+**Alternative:** Use the `PRISM_CLIENTS_*` environment variable fallback (Tier 2). See §4 for all 10 names.
 
 ### (c) Port already in use
 
-**Symptom:** `demo-run.sh` exits with "DTU server did not start within 30s" or the DTU log
-shows `Address already in use (os error 98)`.
+**Symptom:** `demo-run.sh` exits with "demo-server start-multi did not write sidecar
+within 30s" or the DTU log shows `Address already in use (os error 98)`.
 
 **Cause:** A previous DTU server is still running, or another process holds the port.
 
@@ -274,22 +292,22 @@ shows `Address already in use (os error 98)`.
    cat ~/.config/prism-demo/run/.prism-dtu-demo-server.pid | xargs kill 2>/dev/null || true
    ```
 
-2. Find and kill other processes on the DTU ports. The demo uses **ephemeral ports**
-   (bound at runtime), so read the actual port numbers from the urls.json sidecar
-   that `demo-run.sh` writes:
+2. The demo uses **ephemeral ports** (bound at runtime). Read the actual port numbers
+   from the nested sidecar if it was written:
    ```bash
-   URLS=~/.config/prism-demo/run/.prism-dtu-demo-server.urls.json
+   URLS=~/.config/prism-demo/run/.prism-dtu-demo-server.urls-multi.json
    if [[ -f "$URLS" ]]; then
-     grep -oP '(?<=:)\d+(?=")' "$URLS" \
-       | xargs -I{} lsof -ti :{} 2>/dev/null \
-       | sort -u \
-       | xargs kill -9 2>/dev/null || true
-   else
-     echo "urls.json not found — no ephemeral ports to clear"
+     python3 -c "
+import json, sys
+with open('$URLS') as f:
+    nested = json.load(f)
+for org, sensors in nested.items():
+    for sensor, url in sensors.items():
+        port = url.rsplit(':', 1)[-1]
+        print(port)
+" | sort -u | xargs -I{} lsof -ti :{} 2>/dev/null | sort -u | xargs kill -9 2>/dev/null || true
    fi
    ```
-   If `demo-run.sh` was run with a custom `--config-dir`, replace
-   `~/.config/prism-demo` with that directory.
 
 3. Re-run `demo-run.sh`.
 
@@ -331,17 +349,14 @@ bash scripts/demo-teardown.sh
 
 What the script does:
 
-1. Reads `org_id` from `~/.config/prism-demo/prism.toml` (required for OrgId-keyed keyring delete)
-2. Kills the DTU demo server (via PID file at `~/.config/prism-demo/run/.prism-dtu-demo-server.pid`)
-3. Deletes the 5 demo OS keyring entries under the OrgId-UUID-keyed namespace
-   `{org_id_uuid}/{sensor}/{name}` via `prism credential delete` (matching the write path used by
-   `prism credential set` → `CredentialStoreOrgId::set_by_org`, ADR-034 §D3). Credential names:
-   `crowdstrike/client_id`, `crowdstrike/client_secret`, `armis/bearer_token`,
-   `claroty/bearer_token`, `cyberint/api_key`.
-   **Keyring deletes run BEFORE config-dir removal because `prism credential delete` reads
-   `prism.toml` for OrgId resolution — removing the config dir first would make `prism.toml`
-   unavailable and cause all 5 deletes to fail (F-P10-HIGH-001 invariant).**
-4. Removes `~/.config/prism-demo/` entirely (all config, specs, state, plugins, logs)
+1. **Kills** the single `prism-dtu-demo-server start-multi` process (via PID file at `~/.config/prism-demo/run/.prism-dtu-demo-server.pid`)
+2. **Deletes** all 10 demo OS keyring entries via `prism credential delete` (OrgId-keyed namespace; ADR-034 §D3). Keyring deletes run **BEFORE** `rm -rf` so `prism.toml` is still available for OrgId resolution (F-P10-HIGH-001 invariant).
+   - org-a: `crowdstrike/client_id`, `crowdstrike/client_secret`, `armis/bearer_token`
+   - org-b: `claroty/bearer_token`, `cyberint/api_key`
+   - org-c: `crowdstrike/client_id`, `crowdstrike/client_secret`, `armis/bearer_token`, `claroty/bearer_token`, `cyberint/api_key`
+3. **Removes** `~/.config/prism-demo/` entirely (all config, specs, state, plugins, logs)
+
+If no PID file is found (EC-005), the server kill is skipped and teardown continues idempotently.
 
 The binary artifacts (`target/release/prism`, `target/release/prism-dtu-demo-server`) are NOT
 removed — run `cargo clean` separately if needed.

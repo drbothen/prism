@@ -307,35 +307,22 @@ impl MultiOrgDemoConfig {
     /// Load configuration from a TOML file at `path`.
     ///
     /// Mirrors the `DemoConfig::from_file` pattern.
-    ///
-    /// # Red Gate stub
-    ///
-    /// Body is `todo!()` until the implementer provides the real implementation
-    /// (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3). Tests RG-001 and RG-002 call
-    /// `from_str` and will FAIL with "not yet implemented" at the Red Gate phase.
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
-        let _ = path;
-        todo!(
-            "MultiOrgDemoConfig::from_file: not yet implemented — Red Gate stub \
-             (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
-        )
+        let contents = std::fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("Failed to read multi-org config {:?}: {}", path, e))?;
+        Self::from_str(&contents)
     }
 
     /// Parse configuration from a TOML string.
     ///
+    /// Uses `deny_unknown_fields` on all nested structs — a typo'd key is a parse error,
+    /// not a silently-ignored default (BC-2.06.001 invariant).
+    ///
     /// Mirrors the `DemoConfig::from_str` inherent method pattern.
-    ///
-    /// # Red Gate stub
-    ///
-    /// Body is `todo!()` until the implementer provides the real implementation.
-    /// Tests RG-001 and RG-002 FAIL here (panic with "not yet implemented").
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(toml_str: &str) -> anyhow::Result<Self> {
-        let _ = toml_str;
-        todo!(
-            "MultiOrgDemoConfig::from_str: not yet implemented — Red Gate stub \
-             (S-DEMO-LAUNCHER-CONSOLIDATION-001 Phase 3)"
-        )
+        toml::from_str(toml_str)
+            .map_err(|e| anyhow::anyhow!("Invalid TOML in multi-org demo config: {}", e))
     }
 }
 
