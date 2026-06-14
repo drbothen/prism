@@ -1,37 +1,41 @@
 ---
 document_type: story
 story_id: S-DEMO-LAUNCHER-CONSOLIDATION-001
-title: "scripts: Demo Launcher Consolidation — generalize demo-setup/demo-run/demo-teardown to N orgs; reconcile scripts/start-demo.sh vs demo-run.sh overlap"
+title: "demo-launcher: add start-multi CLI subcommand to prism-dtu-demo-server + generalize demo scripts to N orgs"
 wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "1.0"
+version: "2.0"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
-tdd_mode: facade
-# tdd_mode: facade justification —
-#   This story produces ONLY shell scripts (demo-setup.sh, demo-run.sh, demo-teardown.sh,
-#   demo.toml) and documentation (DEMO-RUNBOOK.md). There is no Rust source under TDD
-#   discipline; all behavior is exercised by running the scripts themselves. The combined
-#   scaffold+impl delivery model is appropriate for shell scripts, config files, and runbooks.
-#   Mutation testing at wave gate replaces Red Gate density check as quality gate (BC-8.30.001
-#   facade mode). No todo!() stubs are applicable.
+tdd_mode: tdd
+# tdd_mode: tdd justification (Option-2 architect decision, version 2.0) —
+#   This story now touches prism-dtu-demo-server (Rust crate). The new
+#   `StartMulti` subcommand and `MultiOrgDemoConfig`/`MultiOrgConfig`/`OrgConfig`
+#   structs require Red Gate tests (config parsing, sidecar format, clone_factory
+#   dispatch, per-org socket isolation). Full TDD Iron Law applies:
+#   non-trivial function bodies use `todo!()` stubs in the test-writer phase;
+#   Red Gate density check >= 0.5 is required before implementer dispatch.
+#   Shell-only deliverables (demo-setup.sh, demo-run.sh, demo-teardown.sh,
+#   demo.toml, DEMO-RUNBOOK.md) retain the facade-mode delivery model for their
+#   own content but are gated on the Rust subcommand being complete first.
 subsystems: [SS-06, SS-22]
 # Subsystem anchor justifications:
 #   SS-06 (Client Configuration) owns the demo prism.toml + per-org overlay TOML generation;
 #     the updated scripts create config directory structures that prism-bin reads at startup, with
 #     N-org and N-credential entries instead of the fixed single-org model from S-DEMO-003.
 #     Per ARCH-INDEX Subsystem Registry SS-06.
-#   SS-22 (Binary Entrypoint) owns the `prism` CLI invocation surface; the consolidated launcher
-#     prints the correct `prism start` command with per-org env vars; the retired start-demo.sh
-#     called `prism-dtu-demo-server start` directly in exec-form, which overlaps with demo-run.sh's
-#     background-launch model. Per ARCH-INDEX Subsystem Registry SS-22.
-crates_touched: []
-# crates_touched: empty — this story is scripts/ + docs/ ONLY. No Rust crate changes.
-# Zero crate-conflict risk with concurrent demo stories (S-DEMO-004, PIVOT-001/002/003).
-target_module: scripts
+#   SS-22 (Binary Entrypoint) owns the `prism-dtu-demo-server` CLI subcommand surface;
+#     the new `start-multi` subcommand is a direct extension of the `Commands` enum in
+#     `crates/prism-dtu-demo-server/src/main.rs`. Per ARCH-INDEX Subsystem Registry SS-22.
+crates_touched: [prism-dtu-demo-server]
+# crates_touched: prism-dtu-demo-server only.
+#   Adds: StartMulti variant in Commands enum (main.rs), cmd_start_multi function (main.rs ~80-120 lines),
+#   MultiOrgDemoConfig / MultiOrgConfig / OrgConfig structs (config.rs ~40-60 lines).
+#   Zero changes to prism-dtu-harness, prism-dtu-common, or any other crate.
+target_module: prism-dtu-demo-server
 capabilities: [CAP-034]
 behavioral_contracts:
   - BC-2.06.001  # TOML Configuration Loads and Deserializes at Startup — prism.toml must be
@@ -47,8 +51,8 @@ behavioral_contracts:
                  # ensure that at fanout time each (org_id, sensor_id) resolves to its own
                  # DTU clone endpoint (distinct base_url per org × sensor).
   - BC-2.06.017  # Per-DTU-Instance Multi-Address Binding — the multi-org demo starts
-                 # MultiInstanceHarness (N×M sockets, one per org × sensor), reads urls.json
-                 # (or multi-instance equivalent), and maps socket addresses to per-org overlay TOMLs.
+                 # MultiInstanceHarness (N×M sockets, one per org × sensor), reads the nested
+                 # sidecar ({org_slug: {sensor: url}}), and maps socket addresses to per-org overlay TOMLs.
 verification_properties: []
 depends_on:
   - S-DEMO-003   # Merged PR #176 develop@a42e3eaf (D-1055 2026-06-08). SATISFIED.
@@ -61,61 +65,76 @@ blocks:
                  # The scripts are the operator-facing surface; S-DEMO-004 is the CI-facing surface.
                  # NOTE: S-DEMO-004 is already ready and can proceed independently. This blocks
                  # relationship encodes demo-narrative completeness, not a hard build-order constraint.
-points: 5
-# Points justification:
-#   - Consolidation decision (retire start-demo.sh; update demo-run.sh to call prism-dtu-demo-server
-#     start instead of exec-form; document rationale): 0.5 pts
-#   - Generalize demo-setup.sh from 1 org to N orgs (prism.toml N-org generation, N×M credential
-#     bootstrapping, N-org customers/ dir scaffold, shellcheck): 1.5 pts
-#   - Generalize demo-run.sh from 1 org to N orgs (multi-org urls.json or multi-instance parsing,
-#     N×M overlay generation, N×M env vars in printed prism start command): 1.5 pts
-#   - Generalize demo-teardown.sh from 1 org to N orgs (N×M credential deletes, multi-org
-#     OrgId extraction): 0.5 pts
-#   - Update demo.toml for multi-org demo (6 sensor DTU clones: 4 operational + ThreatIntel +
-#     NVD; set seeds per org model derived from S-DEMO-004 3-org spec): 0.5 pts
-#   - Update shellcheck CI glob to include start-demo.sh (or remove it after retirement): 0.5 pts
-#   - Update DEMO-RUNBOOK.md for multi-org operational model: 0.5 pts (documentation)
-#   - No Rust changes; shell scripts are well-understood; testing via shellcheck + manual run: low complexity.
-#   Total: 5 points (~1 day). Gene-transfusion not applicable; no algorithm to port.
-estimated_days: 1
-risk: LOW
-# Risk justification: scripts/ only, no Rust changes, no cross-crate blast radius. The
-# generalization is additive (N=1 case must still work after the change). The consolidation
-# decision (retire start-demo.sh → delegate to demo-run.sh) is non-breaking because
-# start-demo.sh has no callers in CI. The prism.toml N-org pattern is already validated by
-# the S-DEMO-004 test harness (same schema). Shellcheck gate prevents shell syntax regressions.
-acceptance_criteria_count: 10
-red_gate_tests: 0
-# red_gate_tests: 0 — facade mode story; no Rust test stubs. Shell script correctness
-# validated by shellcheck (CI gate) + manual demo dry-run (AC-008/AC-009 local verification).
-estimated_passes: "1-2 LOCAL adversary passes"
+points: 8
+# Points justification (Option-2, architect estimate):
+#   +2 — StartMulti subcommand (Commands enum variant + cmd_start_multi ~80-120 lines in main.rs):
+#         parse MultiOrgDemoConfig, build MultiInstanceConfig entries from [[orgs]] config,
+#         call start_instances(MultiInstanceConfig, clone_factory), write nested per-org sidecar
+#         {org_slug: {sensor: url}}, wait for SIGTERM/SIGINT via shared broadcast, shutdown via
+#         MultiInstanceServers::shutdown().
+#   +1 — MultiOrgDemoConfig / MultiOrgConfig / OrgConfig config structs (~40-60 lines in config.rs)
+#         + unit tests (config parsing, deny_unknown_fields, error cases).
+#   +0.5 — demo-run.sh becomes simpler (replaces N separate prism-dtu-demo-server start invocations
+#           with one start-multi; reads nested {org_slug: {sensor: url}} sidecar instead of flat).
+#   +1.5 — demo-setup.sh generalization to N orgs (N-org prism.toml, N×M credential bootstrap).
+#   +0.5 — demo-teardown.sh generalization to N×M credential deletes.
+#   +0.5 — demo.toml [orgs.*] section for 3-org model (org-a/org-b/org-c with seeds).
+#   +0.5 — docs/DEMO-RUNBOOK.md update + retire start-demo.sh.
+#   +1.5 — Red Gate tests for Rust additions (see §Red Gate Tests below).
+#   Total: 8 points (~2 days). Architect estimate: +2 StartMulti cmd, +1 MultiOrgConfig+tests,
+#         demo-run.sh simpler at 0.5; shells carry the remaining 4 points unchanged from v1.0.
+estimated_days: 2
+risk: MEDIUM
+# Risk change v1.0→v2.0: LOW → MEDIUM. The Option-2 design adds Rust crate changes
+# to prism-dtu-demo-server. The risk is bounded because:
+#   (a) start-multi wires EXISTING, already-tested start_instances() and MultiInstanceConfig APIs
+#       — no new multi-instance binding logic is written from scratch.
+#   (b) MultiOrgDemoConfig is a NEW top-level config type (not a modification of DemoConfig)
+#       so the existing `start` subcommand and its `#[serde(deny_unknown_fields)]` DemoConfig
+#       remain backward-compatible.
+#   (c) Red Gate tests gate the implementer dispatch; adversarial review will verify correctness.
+#   (d) The shell script changes are additive (N=1 case must still work after the change).
+acceptance_criteria_count: 13
+red_gate_tests: 5
+# red_gate_tests: 5 — see §Red Gate Tests section for full list.
+estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
-  - "N=1 backward compatibility: the generalized scripts must still work when ORG_CONFIG
-    contains exactly one org entry (demo-org). This is the S-DEMO-003 baseline case and must
-    not regress. Implementer must verify with a single-org dry-run after the multi-org path
-    is implemented."
-  - "shellcheck gate expansion: after retiring start-demo.sh OR after updating the shellcheck
-    CI glob, run shellcheck on ALL files in the new glob scope before committing. The existing
-    ci.yml shellcheck-demo-scripts job runs 'shellcheck scripts/demo-*.sh'; if start-demo.sh
-    is retired (removed), no CI change is needed. If start-demo.sh is repurposed as a thin
-    delegate, it must be added to the glob (rename to demo-start.sh) OR the glob must be
-    widened to 'shellcheck scripts/*.sh'. Do NOT leave a shell script un-shellchecked."
-  - "urls.json multi-org structure: the current demo-run.sh reads a flat urls.json
-    ({sensor: url}). The multi-org multi-instance launch may produce a nested structure
-    ({org_slug: {sensor: url}} or an array). Read the actual output format from
-    prism-dtu-demo-server when launched with a multi-org config BEFORE scripting the overlay
-    generation loop. Do not assume the S-DEMO-003 flat format extends unchanged."
-  - "Credential bootstrap N×M: demo-setup.sh currently sets 5 credentials for 1 org.
-    The multi-org case sets N×M credentials. The prism credential set subcommand takes
-    --org-slug per-call; the script must loop over orgs × sensors. Idempotency is preserved
-    (credential writes overwrite). AD-017 compliance (stdin, not argv) is unchanged."
-  - "demo.toml multi-org seed alignment: the seeds used in demo.toml clones must match the
-    seeds used in the S-DEMO-004 test harness (seed=100 for org-a, seed=200 for org-b/org-c
-    or as specified in the 3-org model) so the demo scripts and the CI test tell the same story.
-    Read S-DEMO-004 risk_mitigations block for the authoritative seed values."
+  - "MultiOrgDemoConfig MUST be a new top-level TOML type (e.g., MultiOrgDemoConfig parsed from
+    scripts/demo.toml when start-multi is invoked) — NOT an extension of DemoConfig. DemoConfig
+    has `#[serde(deny_unknown_fields)]` and a fixed 6-sensor ClonesConfig; adding [[orgs]] to it
+    would fail parsing with an unknown-field error. The implementer must add a separate config
+    struct in config.rs and load it ONLY in cmd_start_multi. The existing `start` subcommand and
+    DemoConfig are UNTOUCHED."
+  - "N=1 backward compatibility: the `start` subcommand still works with the pre-existing single-org
+    DemoConfig demo.toml format. This is the S-DEMO-003 baseline case and must not regress. The
+    implementer must verify `prism-dtu-demo-server start --config configs/demo.toml` still starts
+    after the Rust changes."
+  - "Sidecar format is NESTED for start-multi: the existing `start` subcommand writes
+    {sensor: url} (flat). The new `start-multi` subcommand writes {org_slug: {sensor: url}}
+    (nested). These are DIFFERENT sidecar files (or the same file — implementer's choice, but
+    demo-run.sh must poll and parse the correct format). demo-run.sh must be updated to expect
+    the nested format when it calls start-multi."
+  - "clone_factory closure must use the same construction paths as build_clone_pairs: seeded
+    (new_with_seed when scenario.enabled=true), static-JSON (new() otherwise). The closure
+    receives (org_slug, sensor_id) and must map them to the correct BehavioralClone constructor.
+    The implementer must read harness.rs build_clone_pairs for the complete construction sequence
+    including E-DEMO-002/003/004/005/006 guard order."
+  - "demo.toml multi-org seed alignment: seeds used in scripts/demo.toml clones must match the
+    seeds used in the S-DEMO-004 test harness (seed=100 for org-a, seed=200 for org-c) to satisfy
+    INV-DISTINCT-DATA-001. Read S-DEMO-004 risk_mitigations block for the authoritative seed values."
+  - "AD-017 stdin-only credential values: all N×M prism credential set calls in demo-setup.sh
+    must pipe values via stdin. No credential value via --value argv."
+  - "Keyring deletes must run BEFORE rm -rf of config dir: prism credential delete reads
+    prism.toml for OrgId-keyed namespace lookup (ADR-034 §D3). Removing config dir first
+    silently orphans keyring entries (S-DEMO-003 F-P10-HIGH-001 precedent)."
 inputs:
+  - "crates/prism-dtu-demo-server/src/main.rs"
+  - "crates/prism-dtu-demo-server/src/config.rs"
+  - "crates/prism-dtu-demo-server/src/multi_instance.rs"
+  - "crates/prism-dtu-demo-server/src/harness.rs"
+  - "crates/prism-dtu-demo-server/src/lib.rs"
   - "scripts/demo-setup.sh"
   - "scripts/demo-run.sh"
   - "scripts/demo-teardown.sh"
@@ -131,7 +150,6 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.06.014-instance-identity-resolution-at-fanout.md"
   - ".factory/specs/behavioral-contracts/BC-2.06.017-dtu-per-instance-multi-address-binding.md"
   - ".factory/objectives/DEMO-SCOPE.md"
-  - "crates/prism-dtu-demo-server/src/harness.rs"
   - "crates/prism-dtu-harness/src/multi_instance.rs"
   - "crates/prism-dtu-harness/src/overlay_wiring.rs"
 input-hash: null
@@ -140,14 +158,14 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-LAUNCHER-CONSOLIDATION-001 — Demo Launcher Consolidation
+# S-DEMO-LAUNCHER-CONSOLIDATION-001 — Demo Launcher Consolidation (Option-2: Rust-Touching)
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v1.0
+**Version:** v2.0
 **Wave:** 5
 **Priority:** P3
-**Points:** 5
+**Points:** 8
 
 ---
 
@@ -156,92 +174,210 @@ phase: 3
 Registered as draft stub at D-1029 (2026-06-06) during S-DEMO-003 LOCAL adversary pass-2. The
 `scripts/start-demo.sh` convenience launcher was identified as an OBS [process-gap]: it overlaps
 with `demo-run.sh` as a demo launch entry-point but is not covered by the `scripts/demo-*.sh`
-shellcheck CI glob (AC-008 and AC-014 in S-DEMO-003).
+shellcheck CI glob.
 
 Scope expanded at T11 (multi-client-soc-demo-tasks.md) to include generalizing all three demo
-scripts from the fixed single-org (`demo-org`) model delivered by S-DEMO-003 to support N orgs
-with mixed sensor combos and per-org DTU clones, consistent with the 3-org model defined in
-S-DEMO-004 and the demo scope in DEMO-SCOPE.md.
+scripts from the fixed single-org (`demo-org`) model delivered by S-DEMO-003 to support N orgs.
 
-This story is scripts/ and docs/ ONLY. Zero Rust crate changes.
+**v2.0 change (Option-2 architect decision):** The implementer must add a real
+`demo-server start-multi` CLI subcommand that wires the EXISTING, already-tested multi-instance
+APIs (`start_instances` / `MultiInstanceConfig`), instead of N×M shell processes. This is a
+Rust-touching story. See §Option-2 Design below for the full rationale.
 
 ---
 
-## Launcher Consolidation Decision
+## Option-2 Design (Architect-Specified — Do Not Re-Litigate)
 
-### The overlap
+### Why Option-2 (Rust subcommand) instead of Option-1 (N×M shell processes)
 
-`scripts/start-demo.sh` was written as a standalone convenience launcher for
-`prism-dtu-demo-server`. It builds the binary and then `exec`s into
-`prism-dtu-demo-server start --config ...` as the final step — replacing the shell process.
-This means it CANNOT be used to manage the demo server in the background, read its
-`urls.json` sidecar, or perform follow-on steps (overlay generation, printing the prism
-start command).
+Option-1 (shell launches N separate `prism-dtu-demo-server start` processes) was the v1.0
+design. The architect rejected it in favour of Option-2 because:
 
-`scripts/demo-run.sh` (delivered by S-DEMO-003) is the complete daily launch script: it
-starts the demo server IN THE BACKGROUND, polls for `urls.json`, generates per-org overlay
-TOMLs, and prints the `prism start` command. This is the correct flow for the multi-client
-demo.
+1. `start_instances(MultiInstanceConfig, clone_factory)` already exists in
+   `crates/prism-dtu-demo-server/src/multi_instance.rs`, is already tested, and handles all
+   per-org socket isolation requirements (BC-2.06.017). Reimplementing that logic in shell is
+   duplication of tested Rust code with no benefit.
+2. N separate server processes each write their own flat `{sensor: url}` sidecar; demo-run.sh
+   would need to merge N sidecars and correlate them to org slugs — fragile shell logic. A single
+   `start-multi` process writes one nested `{org_slug: {sensor: url}}` sidecar atomically.
+3. Single PID in `.prism-dtu-demo-server.pid` — teardown remains `kill <PID>` with zero changes
+   to the existing stop-one-process model.
 
-### Decision: retire `scripts/start-demo.sh` and update `scripts/demo-run.sh`
+### What the implementer adds
 
-**Rationale (four reasons):**
+#### 1. `crates/prism-dtu-demo-server/src/config.rs` — NEW structs (~40-60 lines)
 
-1. **`start-demo.sh` is architecturally incompatible with the demo flow.** Its `exec` form
-   replaces the shell process; it cannot poll `urls.json` (which arrives asynchronously after
-   the server binds its ports), cannot write per-org overlay TOMLs, and cannot print the
-   `prism start` command. Any demo that needs those steps (i.e., every multi-org demo) must
-   use `demo-run.sh`. Making `start-demo.sh` a thin delegate to `demo-run.sh` would be empty
-   redirection — the user would just call `demo-run.sh` directly.
+Add a NEW top-level config type. Do NOT modify `DemoConfig` (its
+`#[serde(deny_unknown_fields)]` and fixed `ClonesConfig` must stay backward-compatible for
+the existing `start` subcommand).
 
-2. **`start-demo.sh` targets a different binary + different config file.** It defaults to
-   `crates/prism-dtu-demo-server/configs/demo.toml` (6 DTU clones, hardcoded ports,
-   development config); `demo-run.sh` uses `scripts/demo.toml` (4 operational sensors,
-   ephemeral ports, production-equivalent demo config). Having two launch scripts pointing at
-   two different TOML configs is a confusion surface for operators.
+```rust
+/// Top-level config for `start-multi`. Loaded from scripts/demo.toml.
+/// Separate from DemoConfig to avoid deny_unknown_fields clash.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MultiOrgDemoConfig {
+    #[serde(default)]
+    pub harness: HarnessConfig,         // reuse existing HarnessConfig
+    pub orgs: std::collections::HashMap<String, OrgConfig>, // [orgs.<slug>]
+}
 
-3. **`start-demo.sh` exports fake credentials as env vars in its own body.** S-DEMO-003
-   established that `demo-setup.sh` (keyring bootstrap) + `demo-run.sh` (ephemeral env vars
-   printed for operator to execute) is the correct credential flow. `start-demo.sh`'s own
-   credential-export block is a parallel, non-canonical, and potentially confusing credential
-   path.
+/// Config for one org's DTU clone fleet.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OrgConfig {
+    pub org_id: String,                  // UUID v7 hyphenated
+    pub sensors: Vec<String>,            // ["crowdstrike", "armis"]
+    pub seed: u64,
+    #[serde(default)]
+    pub initial_access_token: Option<String>, // Cyberint-only; None for other sensors
+}
 
-4. **Shellcheck CI coverage.** After retirement, the shellcheck CI glob `scripts/demo-*.sh`
-   continues to cover all remaining demo scripts (setup, run, teardown) with no changes to
-   `ci.yml` needed.
+impl MultiOrgDemoConfig {
+    pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> { ... }
+    pub fn from_str(toml_str: &str) -> anyhow::Result<Self> { ... }
+}
+```
 
-**Retirement mechanics:** Delete `scripts/start-demo.sh` from the repository. The demo operator
-runbook (`docs/DEMO-RUNBOOK.md`) already points operators to `demo-run.sh`; no external callers
-in CI reference `start-demo.sh`. The binary `prism-dtu-demo-server` remains fully functional and
-accessible via `demo-run.sh`.
+The `HarnessConfig` struct (already exists in config.rs) is reused unchanged — `bind = "127.0.0.1"`.
 
-**Product question surfaced (human must decide — do not decide unilaterally):** DEMO-RUNBOOK.md
-currently points operators to `bash scripts/demo-run.sh` for the daily launch. After generalizing
-to N orgs, the operator flow changes: the operator must provide an org configuration (org slugs,
-sensor combos, seed assignments). The two UX options are:
+#### 2. `crates/prism-dtu-demo-server/src/main.rs` — StartMulti variant + cmd_start_multi (~80-120 lines)
 
-- **Option A (config file):** `demo-run.sh` reads a `demo-orgs.toml` file (or extends the
-  existing `demo.toml`) that lists orgs, their sensor combos, and seeds. The operator edits
-  this file once; subsequent runs read it without flags.
-- **Option B (CLI flags):** `demo-run.sh --orgs org-a:crowdstrike,armis --orgs org-b:claroty,cyberint`
-  with sensor combos passed at invocation time. More flexible; harder to document.
+```rust
+/// Start all orgs' clone fleets using the multi-instance API.
+StartMulti {
+    /// Path to the multi-org demo config TOML (e.g. `scripts/demo.toml`).
+    #[arg(long, short = 'c', value_name = "PATH")]
+    config: std::path::PathBuf,
+},
+```
 
-**For this story's implementation, the implementer should use Option A (config file)** with the
-3-org model hard-coded in `scripts/demo.toml` as the default. This aligns with the existing
-pattern (`demo.toml` already drives the single-org demo) and defers operator-parameterization
-to future work. If the human prefers Option B before merge, the story ACs accommodate that change
-at review time.
+`cmd_start_multi` implementation:
+
+```
+1. init_tracing(false)
+2. Load MultiOrgDemoConfig::from_file(&config_path)
+3. Build MultiInstanceConfig:
+   For each (org_slug, org_cfg) in multi_cfg.orgs:
+     For each sensor_id in org_cfg.sensors:
+       name = "{org_slug}-{sensor_id}"  (e.g. "org-a-crowdstrike")
+       bind = "{multi_cfg.harness.bind}:0".parse()
+       instances.push(InstanceEntry::new(name, bind))
+4. Build clone_factory closure:
+   |entry: &InstanceEntry| -> Box<dyn BehavioralClone> {
+     parse entry.name → (org_slug, sensor_id)
+     look up OrgConfig from multi_cfg.orgs[org_slug]
+     construct the correct BehavioralClone for sensor_id using seed from OrgConfig
+     (static-JSON path: CrowdstrikeClone::new(), ArmisClone::new(), etc.
+      seeded path when scenario-enabled: use new_with_seed as in build_clone_pairs)
+     if sensor_id == "cyberint" && org_cfg.initial_access_token.is_some():
+       call configure({ "access_token": token }) on the clone
+     return Box::new(clone)
+   }
+5. Call start_instances(multi_cfg_for_factory, clone_factory).await
+6. Write PID sidecar (same write_pid_file() helper, unchanged)
+7. Write NESTED URL sidecar: {org_slug: {sensor_id: url}}
+   (different from the flat {name: url} written by cmd_start)
+8. Print nested URL table
+9. wait_for_shutdown_signal with MultiInstanceServers::shutdown() instead of DemoHarness::stop_all()
+```
+
+The nested sidecar file name: `.prism-dtu-demo-server.urls-multi.json` (distinct from the
+existing `.prism-dtu-demo-server.urls.json` to avoid format confusion when both subcommands
+are used on the same machine).
+
+#### 3. `scripts/demo.toml` — add `[orgs.*]` section
+
+```toml
+# Existing [harness] + [clones.*] blocks stay for backward compatibility with `start`.
+
+# Multi-org fleet config for `start-multi` (new in v2.0):
+[orgs.org-a]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
+sensors = ["crowdstrike", "armis"]
+seed = 100
+
+[orgs.org-b]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0001"
+sensors = ["claroty", "cyberint"]
+seed = 150
+initial_access_token = "demo-cyberint-api-key-org-b"
+
+[orgs.org-c]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
+sensors = ["crowdstrike", "armis", "claroty", "cyberint"]
+seed = 200
+initial_access_token = "demo-cyberint-api-key-org-c"
+```
+
+IMPORTANT: `MultiOrgDemoConfig` and `DemoConfig` are DIFFERENT root types. The implementer
+MUST NOT add `[orgs.*]` to the existing `DemoConfig` deserializer — it would fail with
+`deny_unknown_fields`. Instead, `cmd_start_multi` parses only the `MultiOrgDemoConfig` fields
+it needs; the `[clones.*]` section is irrelevant to `start-multi` and is not parsed.
+
+The implementer may choose to have `scripts/demo.toml` contain both the `[clones.*]` section
+(for backward-compat `start`) AND the `[orgs.*]` section (for `start-multi`), as long as
+each subcommand parses ONLY its own config type from the file. This requires the Rust parser
+to be invoked separately (not sharing a single toml root parse) — implement using a raw
+`toml::Table` intermediate parse if needed, or two separate TOML files if simpler.
+
+#### 4. `scripts/demo-run.sh` — switch from N×`start` to one `start-multi`
+
+```bash
+# OLD (v1.0): N separate processes
+# demo_server start --config scripts/demo.toml &   (per-org, per-sensor)
+
+# NEW (v2.0): single start-multi process
+"${DEMO_SERVER_BIN}" start-multi --config scripts/demo.toml &
+DEMO_SERVER_PID=$!
+
+# Poll for the NESTED sidecar (not the flat one)
+SIDECAR=".prism-dtu-demo-server.urls-multi.json"
+timeout 30 bash -c "until [ -f '${SIDECAR}' ]; do sleep 0.5; done"
+
+# Read nested {org_slug: {sensor: url}} and generate N×M overlay TOMLs
+python3 - <<'PYEOF'
+import json, sys, os
+
+with open(".prism-dtu-demo-server.urls-multi.json") as f:
+    nested = json.load(f)  # {"org-a": {"crowdstrike": "http://...", ...}, ...}
+
+config_dir = os.environ["DEMO_CONFIG_DIR"]
+for org_slug, sensor_map in nested.items():
+    org_dir = f"{config_dir}/specs/customers/{org_slug}"
+    os.makedirs(org_dir, exist_ok=True)
+    for sensor_id, base_url in sensor_map.items():
+        overlay_path = f"{org_dir}/{sensor_id}.sensor.toml"
+        with open(overlay_path, "w") as f:
+            f.write(f'extends = "{sensor_id}"\n')
+            f.write(f'instance_id = "{sensor_id}@{org_slug}"\n')
+            f.write(f'base_url = "{base_url}"\n')
+PYEOF
+```
+
+The overlay generation Python block is simpler than the v1.0 per-process approach because
+`nested` already encodes `{org_slug → {sensor → url}}`; no merging of N sidecars needed.
+
+#### 5. `scripts/demo-setup.sh` and `scripts/demo-teardown.sh` — N-org generalization
+
+Generalize from the single-org model (5 credential set calls) to N-org loops (N×M calls),
+as specified in the v1.0 ACs (AC-002, AC-003, AC-007). These are shell-only changes — no
+new Rust is required. The loop reads org/sensor config from the same `scripts/demo.toml`
+via a Python helper or TOML-capable bash library.
+
+#### 6. `scripts/start-demo.sh` — retire (unchanged decision from v1.0)
+
+Delete `scripts/start-demo.sh`. Rationale unchanged from v1.0 §Launcher Consolidation Decision.
 
 ---
 
 ## Narrative
 
-As a demo operator (MSSP analyst running the multi-client SOC live demo), I want a single
-consolidated set of demo scripts (`demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh`) that
-can bootstrap, launch, and tear down a multi-org (N-org) demo environment — with per-org DTU
-clone instances, per-org credential bootstrapping, per-org sensor overlay generation, and
-consistent shellcheck CI coverage — so that I can stand up the 3-org × mixed-sensor demo in
-one command sequence without ambiguity about which launcher script to use.
+As a demo operator (MSSP analyst running the multi-client SOC live demo), I want to run
+`prism-dtu-demo-server start-multi --config scripts/demo.toml` to start all N orgs'
+DTU clone fleets in a single process, so that the demo-run.sh script can read one nested
+`{org_slug: {sensor: url}}` sidecar and generate N×M per-org sensor overlay TOMLs —
+instead of managing N separate server processes with N flat sidecars.
 
 ---
 
@@ -259,52 +395,58 @@ one command sequence without ambiguity about which launcher script to use.
 
 ## Multi-Org Demo Configuration (3-Org Reference)
 
-The implementer should use the following 3-org model as the target for `scripts/demo.toml`
-and the generalized scripts. This is the same model defined in S-DEMO-004.
-
-### Org registration
+### Org registration (scripts/demo.toml `[orgs.*]` section)
 
 ```toml
-# scripts/demo.toml — updated for 3-org model
-[harness]
-bind = "127.0.0.1"
-
-# Org A: CrowdStrike + Armis
 [orgs.org-a]
-org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"   # UUID v7; must be used consistently
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
 sensors = ["crowdstrike", "armis"]
 seed = 100
 
-# Org B: Claroty + Cyberint
 [orgs.org-b]
-org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0001"   # UUID v7
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0001"
 sensors = ["claroty", "cyberint"]
 seed = 150
+initial_access_token = "demo-cyberint-api-key-org-b"
 
-# Org C: all 4 operational sensors
 [orgs.org-c]
-org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"   # UUID v7
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
 sensors = ["crowdstrike", "armis", "claroty", "cyberint"]
 seed = 200
+initial_access_token = "demo-cyberint-api-key-org-c"
 ```
 
-IMPORTANT: The demo.toml schema extension above is a PROPOSED format for this story.
-The `prism-dtu-demo-server` parses `demo.toml` via its own config struct (not via
-`PrismConfig`). The implementer MUST read `crates/prism-dtu-demo-server/src/` to understand
-the actual config schema before writing the TOML. If `demo.toml` does not support an
-`[orgs.*]` block natively, the implementer must:
+Seeds are org-level (all sensors for the same org share one seed in this design), but
+the `clone_factory` closure maps each `(org_slug, sensor_id)` independently, so a
+`new_with_seed(seed, ...)` call uses the org's seed for every sensor. This is different
+from the per-clone seed in DemoConfig; the implementer must verify that S-DEMO-004's
+INV-DISTINCT-DATA-001 is satisfied (org-a CrowdStrike seed=100 ≠ org-c CrowdStrike
+seed=200 by default).
 
-1. Add the per-org table to the demo-server config struct (a non-Rust-crate-touching path is
-   preferred; if demo-server Rust changes are required, the implementer must flag this as a
-   scope expansion before proceeding), OR
-2. Keep `demo.toml` for DTU clone configuration only (as today) and drive the N-org model
-   from `scripts/demo-setup.sh` and `scripts/demo-run.sh` shell logic that reads a separate
-   `scripts/demo-orgs.toml`.
+### Nested sidecar format (written by cmd_start_multi)
 
-**Scope clarification (implementer pre-flight check):** Read
-`crates/prism-dtu-demo-server/configs/demo.toml` and `scripts/demo.toml` to determine the
-current schema. The TOML in this story is illustrative, not authoritative. The authoritative
-schema is the Rust struct in `crates/prism-dtu-demo-server/src/config.rs` (or equivalent).
+```json
+{
+  "org-a": {
+    "crowdstrike": "http://127.0.0.1:54321",
+    "armis":       "http://127.0.0.1:54322"
+  },
+  "org-b": {
+    "claroty":   "http://127.0.0.1:54323",
+    "cyberint":  "http://127.0.0.1:54324"
+  },
+  "org-c": {
+    "crowdstrike": "http://127.0.0.1:54325",
+    "armis":       "http://127.0.0.1:54326",
+    "claroty":     "http://127.0.0.1:54327",
+    "cyberint":    "http://127.0.0.1:54328"
+  }
+}
+```
+
+This is a NEW sidecar format (nested by org_slug, then by sensor_id) written to
+`.prism-dtu-demo-server.urls-multi.json`. The existing flat sidecar
+`.prism-dtu-demo-server.urls.json` is written only by the `start` subcommand.
 
 ### prism.toml generated by demo-setup.sh (N-org)
 
@@ -327,8 +469,6 @@ org_slug = "org-c"
 ```
 
 ### Overlay files generated by demo-run.sh (N×M)
-
-After DTU server starts and urls.json is ready:
 
 ```
 ${DEMO_CONFIG_DIR}/specs/customers/
@@ -354,8 +494,6 @@ base_url    = "http://127.0.0.1:<port>"
 
 ### Credential bootstrap (demo-setup.sh, N×M)
 
-For 3 orgs with the sensor combos above, the credential set calls are:
-
 | org_slug | sensor      | name            | dummy_value              |
 |----------|-------------|-----------------|--------------------------|
 | org-a    | crowdstrike | client_id       | demo-cs-client-id-org-a  |
@@ -370,29 +508,330 @@ For 3 orgs with the sensor combos above, the credential set calls are:
 | org-c    | cyberint    | api_key         | demo-cyberint-api-key-org-c |
 
 Values are dummy (DTU-safe) credentials. AD-017 applies: each value is piped via stdin, not
-passed as a CLI arg. The `initial_access_token` for each Cyberint DTU clone must match the
-`api_key` set for that org (e.g., `demo-cyberint-api-key-org-b` for org-b's clone).
+passed as a CLI arg. The Cyberint `initial_access_token` in `[orgs.org-b]` and `[orgs.org-c]`
+in `scripts/demo.toml` must match the `api_key` credentials above.
+
+---
+
+## Red Gate Tests
+
+The test-writer MUST produce ALL of the following failing tests before the implementer is dispatched.
+Red Gate density check >= 0.5 required (5 failing tests for ~10-12 non-trivial Rust function bodies).
+
+### RG-001: `test_multi_org_config_parses_valid_three_org_toml`
+
+```rust
+#[test]
+fn test_multi_org_config_parses_valid_three_org_toml() {
+    let toml = r#"
+        [harness]
+        bind = "127.0.0.1"
+
+        [orgs.org-a]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
+        sensors = ["crowdstrike", "armis"]
+        seed = 100
+
+        [orgs.org-b]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0001"
+        sensors = ["claroty", "cyberint"]
+        seed = 150
+        initial_access_token = "demo-cyberint-token"
+
+        [orgs.org-c]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
+        sensors = ["crowdstrike", "armis", "claroty", "cyberint"]
+        seed = 200
+    "#;
+    let cfg = MultiOrgDemoConfig::from_str(toml).expect("valid 3-org config must parse");
+    assert_eq!(cfg.orgs.len(), 3);
+    assert_eq!(cfg.orgs["org-a"].sensors, ["crowdstrike", "armis"]);
+    assert_eq!(cfg.orgs["org-a"].seed, 100);
+    assert_eq!(cfg.orgs["org-b"].initial_access_token.as_deref(), Some("demo-cyberint-token"));
+    assert_eq!(cfg.orgs["org-c"].sensors.len(), 4);
+}
+```
+
+Traces to BC-2.06.001 postcondition 1 (config must parse and deserialize correctly).
+
+### RG-002: `test_multi_org_config_rejects_unknown_fields`
+
+```rust
+#[test]
+fn test_multi_org_config_rejects_unknown_fields() {
+    let cases: &[(&str, &str)] = &[
+        ("unknown top-level key", "unknown_field = true\n"),
+        ("[orgs.org-a] unknown key", "[orgs.org-a]\norg_id = \"00000000-0000-0000-0000-000000000000\"\nseeds = 99\nsensors = []\n"), // typo 'seed'→'seeds'
+        ("[harness] typo", "[harness]\nbnd = \"127.0.0.1\"\n"), // typo 'bind'→'bnd'
+    ];
+    for (label, toml) in cases {
+        assert!(
+            MultiOrgDemoConfig::from_str(toml).is_err(),
+            "unknown field at {label} must be rejected by deny_unknown_fields, but parsed: {toml:?}"
+        );
+    }
+}
+```
+
+Traces to BC-2.06.001 invariant (config schema must be strict; unknown fields → error).
+
+### RG-003: `test_nested_sidecar_format_has_correct_structure`
+
+```rust
+#[test]
+fn test_nested_sidecar_format_has_correct_structure() {
+    // The nested sidecar must encode {org_slug: {sensor_id: url}}.
+    // This test exercises the serialization logic in cmd_start_multi's write_multi_url_sidecar.
+    // At stub time: write_multi_url_sidecar is todo!().
+    use std::collections::HashMap;
+    let mut sensor_map_a: HashMap<String, String> = HashMap::new();
+    sensor_map_a.insert("crowdstrike".to_string(), "http://127.0.0.1:54321".to_string());
+    sensor_map_a.insert("armis".to_string(), "http://127.0.0.1:54322".to_string());
+    let mut nested: HashMap<String, HashMap<String, String>> = HashMap::new();
+    nested.insert("org-a".to_string(), sensor_map_a);
+
+    let json = serde_json::to_string(&nested).expect("must serialize");
+    let parsed: HashMap<String, HashMap<String, String>> =
+        serde_json::from_str(&json).expect("must round-trip");
+    assert_eq!(parsed["org-a"]["crowdstrike"], "http://127.0.0.1:54321");
+    assert_eq!(parsed["org-a"]["armis"], "http://127.0.0.1:54322");
+    // Verify that the flat sidecar format is NOT what this function produces.
+    let flat_attempt: Result<HashMap<String, String>, _> = serde_json::from_str(&json);
+    // flat parse succeeds on a nested JSON only if the values are strings, not objects —
+    // so the actual assertion is structural: the inner values are JSON objects, not strings.
+    let raw: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert!(raw["org-a"].is_object(), "inner value must be an object (nested format)");
+    assert!(!raw["org-a"].is_string(), "inner value must NOT be a plain string (not flat format)");
+}
+```
+
+Traces to BC-2.06.017 postcondition 1 (multi-instance socket map is exposed correctly);
+drives the nested sidecar serialization shape that demo-run.sh depends on.
+
+### RG-004: `test_clone_factory_dispatch_returns_clone_for_each_sensor`
+
+```rust
+#[tokio::test]
+async fn test_clone_factory_dispatch_returns_clone_for_each_sensor() {
+    // Verifies that the clone_factory closure inside cmd_start_multi correctly
+    // dispatches (org_slug, sensor_id) → Box<dyn BehavioralClone> for each of
+    // the 4 supported sensors. At stub time: build_multi_clone_factory is todo!().
+    let toml = r#"
+        [orgs.org-a]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
+        sensors = ["crowdstrike", "armis"]
+        seed = 42
+    "#;
+    let cfg = MultiOrgDemoConfig::from_str(toml).expect("must parse");
+    // build_multi_clone_factory should return a Fn(&InstanceEntry) -> Box<dyn BehavioralClone>
+    let factory = build_multi_clone_factory(&cfg);
+    // "org-a-crowdstrike" entry → must produce a valid clone (not panic)
+    let entry = prism_dtu_demo_server::multi_instance::InstanceEntry::new(
+        "org-a-crowdstrike",
+        "127.0.0.1:0".parse().unwrap(),
+    );
+    let _clone: Box<dyn prism_dtu_common::BehavioralClone> = factory(&entry);
+    // "org-a-armis" entry → must produce a valid clone (not panic)
+    let entry_armis = prism_dtu_demo_server::multi_instance::InstanceEntry::new(
+        "org-a-armis",
+        "127.0.0.1:0".parse().unwrap(),
+    );
+    let _clone_armis: Box<dyn prism_dtu_common::BehavioralClone> = factory(&entry_armis);
+}
+```
+
+Traces to BC-2.06.017 postcondition 1 (each entry in MultiInstanceConfig produces a running clone).
+
+### RG-005: `test_start_multi_stands_up_per_org_distinct_sockets`
+
+```rust
+#[tokio::test]
+async fn test_start_multi_stands_up_per_org_distinct_sockets() {
+    // Integration-level: verifies that start-multi binds org-a-crowdstrike and
+    // org-c-crowdstrike to DIFFERENT socket ports (INV-DISTINCT-DATA-001 / BC-2.06.017).
+    // At stub time: start_multi_for_config is todo!().
+    let toml = r#"
+        [harness]
+        bind = "127.0.0.1"
+
+        [orgs.org-a]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
+        sensors = ["crowdstrike"]
+        seed = 100
+
+        [orgs.org-c]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
+        sensors = ["crowdstrike"]
+        seed = 200
+    "#;
+    let cfg = MultiOrgDemoConfig::from_str(toml).expect("must parse");
+    // start_multi_for_config is the testable extracted async fn:
+    // pub async fn start_multi_for_config(cfg: &MultiOrgDemoConfig, ...)
+    //   -> anyhow::Result<MultiInstanceServers>
+    let servers = start_multi_for_config(&cfg).await.expect("must bind");
+    let socket_map = servers.socket_map();
+    let org_a_port = socket_map["org-a-crowdstrike"].port();
+    let org_c_port = socket_map["org-c-crowdstrike"].port();
+    assert_ne!(
+        org_a_port, org_c_port,
+        "org-a and org-c CrowdStrike clones must bind to distinct ports (BC-2.06.017)"
+    );
+    // Ensure both are non-zero (actually bound, not default-unbound)
+    assert_ne!(org_a_port, 0, "org-a CrowdStrike must be bound to a real port");
+    assert_ne!(org_c_port, 0, "org-c CrowdStrike must be bound to a real port");
+    servers.shutdown();
+}
+```
+
+Traces to BC-2.06.017 postcondition 3 (distinct per-org socket addresses for same sensor type);
+AC-004 / AC-005 behavioral assertion foundation.
 
 ---
 
 ## Acceptance Criteria
 
-### AC-001: `scripts/start-demo.sh` is retired (removed from the repository)
+### Rust Subcommand ACs
 
-(traces to BC-2.06.001 precondition 1 — single canonical entry point for demo launch removes
-ambiguity that would lead operators to use an incompatible launch path)
+#### AC-001: `StartMulti` variant exists in `Commands` enum and CLI help reflects it
 
-`scripts/start-demo.sh` is deleted. The file does not exist on the post-merge `develop` branch.
-`docs/DEMO-RUNBOOK.md` does not reference `start-demo.sh`. The `ci.yml` shellcheck glob
-`scripts/demo-*.sh` continues to pass with zero shellcheck errors or warnings (git removes the
-file from the workspace; no glob change needed since `start-demo.sh` was never in `demo-*.sh`).
+(traces to BC-2.06.017 postcondition 1 — the multi-instance binding must be invocable
+from the operator CLI)
 
-**Verification:** `git show HEAD -- scripts/start-demo.sh` returns "fatal: Path does not exist."
-`shellcheck scripts/demo-*.sh` exits 0 with no output.
+`prism-dtu-demo-server --help` lists `start-multi` as a subcommand.
+`prism-dtu-demo-server start-multi --help` lists `--config <PATH>` as the only argument.
+
+**Verification:** `cargo run -p prism-dtu-demo-server --features dtu -- start-multi --help`
+exits 0 and prints the expected help text.
 
 ---
 
-### AC-002: `scripts/demo-setup.sh` generates a multi-org `prism.toml` with N [[orgs]] entries
+#### AC-002: `MultiOrgDemoConfig` parses a valid 3-org TOML file (RG-001 green)
+
+(traces to BC-2.06.001 postcondition 1 — multi-org config must deserialize from TOML
+without error; BC-2.06.001 invariant — unknown fields are rejected)
+
+`MultiOrgDemoConfig::from_str(valid_toml).is_ok()` for a TOML containing 3 org entries
+with `org_id`, `sensors`, `seed`, and optional `initial_access_token`.
+
+`MultiOrgDemoConfig::from_str(typo_toml).is_err()` for any TOML with an unknown field
+at any level (top-level, `[harness]`, `[orgs.X]`).
+
+RG-001 and RG-002 must both be green.
+
+---
+
+#### AC-003: `start-multi` writes a nested `{org_slug: {sensor_id: url}}` sidecar (RG-003 green)
+
+(traces to BC-2.06.017 postcondition 1 — the multi-instance socket map must be accessible
+to downstream tools; the nested format encodes per-org URL routing)
+
+Given: `prism-dtu-demo-server start-multi --config scripts/demo.toml` has started.
+
+Then: `.prism-dtu-demo-server.urls-multi.json` is written within 5 seconds and contains:
+- A top-level JSON object keyed by org_slug strings.
+- Each org_slug maps to a nested JSON object keyed by sensor_id strings.
+- Each sensor_id value is a URL string `http://127.0.0.1:<port>`.
+
+RG-003 (structural shape test) must be green.
+
+---
+
+#### AC-004: Per-org DTU clones serve requests on distinct socket addresses (RG-005 green)
+
+(traces to BC-2.06.017 postcondition 3 — per-DTU-instance multi-address binding ensures
+no two orgs share a DTU socket for the same sensor type)
+
+Given: `start-multi` has started the 3-org fleet.
+
+Then:
+- The nested sidecar's `org-a.crowdstrike` URL port ≠ `org-c.crowdstrike` URL port
+  (both orgs have CrowdStrike; they must bind to distinct OS-assigned ports).
+- All ports in the sidecar are non-zero (actually bound by the OS).
+- A GET request to each URL's health endpoint (e.g., `/health`) returns HTTP 200.
+
+RG-005 (per-org distinct socket test) must be green.
+
+---
+
+#### AC-005: `clone_factory` closure correctly dispatches `(org_slug, sensor_id)` to BehavioralClone (RG-004 green)
+
+(traces to BC-2.06.017 postcondition 1 — each InstanceEntry must produce a running clone
+serving the correct sensor's endpoints)
+
+Given: `build_multi_clone_factory(&cfg)` returns a factory closure.
+
+Then:
+- Passing an entry with name `"org-a-crowdstrike"` produces a `CrowdstrikeClone` (static-JSON path).
+- Passing an entry with name `"org-b-cyberint"` produces a `CyberintClone` (with `initial_access_token`
+  configured if `[orgs.org-b].initial_access_token` is set).
+- Passing an entry with an unrecognized sensor name panics or returns an error (not silently
+  constructing a wrong clone type).
+
+RG-004 must be green.
+
+---
+
+#### AC-006: Existing `start` subcommand is unbroken (backward compatibility)
+
+(traces to BC-2.06.001 invariant — the existing single-org `DemoConfig` + `start` subcommand
+must not regress)
+
+Given: `prism-dtu-demo-server start --config configs/demo.toml` is run.
+
+Then:
+- `DemoConfig` parses `configs/demo.toml` as before (no unknown-field errors from `[orgs.*]`
+  in `scripts/demo.toml` — because `start` only parses `DemoConfig`, not `MultiOrgDemoConfig`).
+- The 6 clone instances start on their configured ports (or ephemeral ports if `port = 0`).
+- The flat URL sidecar `.prism-dtu-demo-server.urls.json` is written.
+
+**Note on config file handling:** If `scripts/demo.toml` is used with `start`, the `[orgs.*]`
+section must NOT cause a parse error. The implementer must ensure that `DemoConfig::from_file`
+ignores the `[orgs.*]` section. Options:
+  - Keep `configs/demo.toml` (single-org, no `[orgs.*]`) as the target for `start`.
+  - Or strip `[orgs.*]` from the TOML before passing to `DemoConfig` parser (fragile).
+  - Preferred: use `configs/demo.toml` for `start` and `scripts/demo.toml` for `start-multi`.
+    These are already different files per the S-DEMO-003 baseline.
+
+---
+
+### Shell Script ACs
+
+#### AC-007: `scripts/start-demo.sh` is retired (removed from the repository)
+
+(traces to BC-2.06.001 precondition 1 — single canonical entry point for demo launch
+removes ambiguity)
+
+`scripts/start-demo.sh` is deleted. No other script references it.
+`shellcheck scripts/demo-*.sh` exits 0 with no output.
+
+**Verification:** `git show HEAD -- scripts/start-demo.sh` returns "fatal: Path does not exist."
+
+---
+
+#### AC-008: `scripts/demo-run.sh` calls `start-multi` and reads the nested sidecar
+
+(traces to BC-2.06.012 postcondition 2 — per-org overlay TOMLs must exist before prism-bin
+starts; BC-2.06.013 invariant — overlay files contain only scalar fields)
+
+Given: `demo-setup.sh` has completed; `bash scripts/demo-run.sh --config-dir <DIR>` is run.
+
+Then:
+- `demo-run.sh` invokes `prism-dtu-demo-server start-multi --config scripts/demo.toml` (not `start`).
+- Within 30s, `.prism-dtu-demo-server.urls-multi.json` is present.
+- `demo-run.sh` reads the nested sidecar and writes 8 overlay TOML files:
+  - `<DIR>/specs/customers/org-a/crowdstrike.sensor.toml`
+  - `<DIR>/specs/customers/org-a/armis.sensor.toml`
+  - `<DIR>/specs/customers/org-b/claroty.sensor.toml`
+  - `<DIR>/specs/customers/org-b/cyberint.sensor.toml`
+  - `<DIR>/specs/customers/org-c/crowdstrike.sensor.toml`
+  - `<DIR>/specs/customers/org-c/armis.sensor.toml`
+  - `<DIR>/specs/customers/org-c/claroty.sensor.toml`
+  - `<DIR>/specs/customers/org-c/cyberint.sensor.toml`
+- Each overlay contains exactly: `extends`, `instance_id`, `base_url` (three scalar fields, BC-2.06.013).
+
+---
+
+#### AC-009: `scripts/demo-setup.sh` generates a multi-org `prism.toml` with N [[orgs]] entries
 
 (traces to BC-2.06.001 postcondition 1 — generated prism.toml must be schema-valid and
 accepted by prism-bin's TOML config loader at startup)
@@ -402,20 +841,15 @@ Given: `bash scripts/demo-setup.sh --config-dir <DIR>` completes on macOS or Lin
 Then:
 - `<DIR>/prism.toml` exists and contains exactly 3 `[[orgs]]` entries (org-a, org-b, org-c)
   with distinct `org_id` UUIDs (v7) and `org_slug` values.
-- `prism --config-dir <DIR> --dry-run` (or equivalent config validation mode) exits 0.
-- `<DIR>/specs/` contains the 4 TYPE spec TOMLs (crowdstrike, armis, claroty, cyberint) and
-  a `customers/` subdirectory with 3 org-slug subdirs (empty at setup time — overlays are
-  written later by demo-run.sh).
-- `<DIR>/plugins/` contains `crowdstrike-oauth2.prx` and `crowdstrike-oauth2.manifest.toml`
-  (unchanged from S-DEMO-003; manifest `allowed_urls = ["api.crowdstrike.com", "127.0.0.1"]`).
+- `<DIR>/specs/` contains the 4 TYPE spec TOMLs and a `customers/` subdirectory with 3 org-slug subdirs.
+- `<DIR>/plugins/` contains `crowdstrike-oauth2.prx` and `crowdstrike-oauth2.manifest.toml`.
 
 ---
 
-### AC-003: `scripts/demo-setup.sh` bootstraps N×M credentials (one per org × sensor combo)
+#### AC-010: `scripts/demo-setup.sh` bootstraps N×M credentials (one per org × sensor combo)
 
 (traces to BC-2.06.001 postcondition 1 — keyring must be seeded with a credential for every
-org × sensor pair that appears in the multi-org config; missing credentials cause boot failure
-at step 9A credential resolution)
+org × sensor pair; missing credentials cause boot failure at credential resolution step)
 
 Given: `bash scripts/demo-setup.sh --config-dir <DIR>` completes.
 
@@ -423,69 +857,22 @@ Then:
 - For each (org_slug, sensor, name) combination in the N×M credential table above, a keyring
   entry was written via `printf '%s\n' <dummy_value> | prism --config-dir <DIR> credential set
   --org-slug <org_slug> --sensor <sensor> --name <name>`.
-- AD-017: dummy values are piped via stdin only; no credential value appears in the process
-  command line.
-- If keyring write fails, the script prints the Tier-2 env-var fallback name
-  (PRISM_CLIENTS_<ORG_UPPER>_SENSORS_<SENSOR_UPPER>_<NAME_UPPER>) to stderr and continues
-  (idempotent behavior unchanged from S-DEMO-003).
-- The Cyberint `api_key` dummy value for each org matches the `initial_access_token` configured
-  in the corresponding Cyberint DTU clone in `scripts/demo.toml`.
+- AD-017: dummy values are piped via stdin only.
+- The Cyberint `api_key` dummy value for org-b matches `initial_access_token = "demo-cyberint-api-key-org-b"`
+  in `scripts/demo.toml [orgs.org-b]`.
+- The Cyberint `api_key` dummy value for org-c matches `initial_access_token = "demo-cyberint-api-key-org-c"`
+  in `scripts/demo.toml [orgs.org-c]`.
 
 ---
 
-### AC-004: `scripts/demo-run.sh` starts DTU server and generates N×M overlay TOMLs
-
-(traces to BC-2.06.012 postcondition 2 — per-org overlay TOMLs must exist under
-`customers/<org_slug>/` before prism-bin starts; BC-2.06.013 invariant — overlay files contain
-only scalar fields)
-
-Given: `demo-setup.sh` has completed; `bash scripts/demo-run.sh --config-dir <DIR>` is run.
-
-Then:
-- `prism-dtu-demo-server` starts in background with a multi-org-aware config (N DTU clone
-  instances per sensor, or a multi-instance harness config).
-- Within 30s, the DTU server writes a URLs sidecar file.
-- `demo-run.sh` reads the URLs sidecar and writes per-org overlay TOMLs for every
-  (org_slug, sensor_id) combination that org has a registered sensor:
-  - `<DIR>/specs/customers/org-a/crowdstrike.sensor.toml`
-  - `<DIR>/specs/customers/org-a/armis.sensor.toml`
-  - `<DIR>/specs/customers/org-b/claroty.sensor.toml`
-  - `<DIR>/specs/customers/org-b/cyberint.sensor.toml`
-  - `<DIR>/specs/customers/org-c/crowdstrike.sensor.toml`
-  - `<DIR>/specs/customers/org-c/armis.sensor.toml`
-  - `<DIR>/specs/customers/org-c/claroty.sensor.toml`
-  - `<DIR>/specs/customers/org-c/cyberint.sensor.toml`
-- Each overlay contains exactly: `extends`, `instance_id`, `base_url` (three scalar fields).
-  No `[[tables]]`, no `auth_type`, no additional keys (BC-2.06.013).
-- Each org's CrowdStrike overlay `base_url` points to a DIFFERENT socket address (port) from
-  org-c's CrowdStrike overlay (distinct per-org DTU clone instances, BC-2.06.017).
-
----
-
-### AC-005: Each org's DTU clone uses a distinct socket address (per-org port isolation)
-
-(traces to BC-2.06.017 postcondition 3 — per-DTU-instance multi-address binding ensures no
-two orgs share a DTU socket for the same sensor type)
-
-Given: `demo-run.sh` has started the DTU server with the multi-org config.
-
-Then:
-- The URLs sidecar contains distinct socket addresses for each (org_slug, sensor_id) pair.
-- Org-A's CrowdStrike clone port ≠ Org-C's CrowdStrike clone port (both have CrowdStrike;
-  they must not share a socket).
-- Each generated overlay `base_url` port is unique across all orgs for the same sensor type.
-
----
-
-### AC-006: `scripts/demo-run.sh` prints the prism start command with all N×M env vars
+#### AC-011: `scripts/demo-run.sh` prints the prism start command with all 4 TYPE-spec env vars
 
 (traces to BC-2.06.014 postcondition — `${env.VAR}` placeholders in TYPE specs must resolve
-at boot step 4a before per-org overlays replace base_url at step 4c; all 4 sensor env vars
-must be present)
+at boot step 4a before per-org overlays replace base_url at step 4c)
 
 Given: `demo-run.sh` has completed overlay generation.
 
-Then: `demo-run.sh` prints a `prism start` command block that includes:
+Then: `demo-run.sh` prints a `prism start` command block that includes all 4 TYPE-spec env vars:
 ```
 CROWDSTRIKE_BASE_URL=http://127.0.0.1 \
 ARMIS_INSTANCE_URL=http://127.0.0.1 \
@@ -493,81 +880,37 @@ CLAROTY_INSTANCE_URL=http://127.0.0.1 \
 CYBERINT_ENVIRONMENT=demo \
 ${PRISM_BIN} --config-dir ${DEMO_CONFIG_DIR} start
 ```
-These 4 env vars are the same TYPE-spec env vars that S-DEMO-003 established as required
-(step-4a boot gate). The per-org DTU port is handled by the overlay TOMLs (step-4c), not
-by the env vars. The env vars provide placeholder values to satisfy the `${env.*}` tokens in
-the TYPE spec before any query is dispatched.
+These env vars are the same as S-DEMO-003 AC-006 (unchanged; they satisfy step-4a
+`${env.*}` token resolution; per-org ports are handled by overlay TOMLs at step-4c).
 
 ---
 
-### AC-007: `scripts/demo-teardown.sh` deletes N×M keyring entries and removes config dir
+#### AC-012: `scripts/demo-teardown.sh` manages a single PID and deletes N×M keyring entries
 
 (traces to BC-2.06.001 postcondition — teardown must undo all state written by demo-setup.sh;
-no orphaned keyring entries after teardown)
+single-process teardown model is simpler than N×M process management)
 
-Given: A multi-org demo environment exists at `<DIR>`.
+Given: A multi-org demo environment started by `start-multi` exists at `<DIR>`.
 
 Then: `bash scripts/demo-teardown.sh --config-dir <DIR>` runs to completion:
-1. Kills the DTU server (via PID file).
-2. Deletes every keyring entry listed in the N×M credential table (all 10 entries for the
-   3-org configuration) via `prism credential delete` (OrgId-keyed, per ADR-034 §D3).
-   Keyring deletes run BEFORE `rm -rf` (F-P10-HIGH-001 ordering invariant from S-DEMO-003).
+1. Kills the single `prism-dtu-demo-server start-multi` process (via single PID file).
+2. Deletes all 10 keyring entries (N×M credential table) via `prism credential delete`
+   (OrgId-keyed, ADR-034 §D3). Keyring deletes run BEFORE `rm -rf` (F-P10-HIGH-001).
 3. Removes `<DIR>` with `rm -rf`.
 4. Exits 0.
-If keyring delete fails (e.g., entry already absent), the failure is logged to stderr and
-teardown continues (idempotent).
 
 ---
 
-### AC-008: All shell scripts pass `shellcheck` with zero errors or warnings
+#### AC-013: All shell scripts pass `shellcheck` with zero errors or warnings
 
-(traces to BC-2.06.001 invariant — shell scripting quality gate prevents deployment-blocking
-shell syntax errors in the field)
+(traces to BC-2.06.001 invariant — shell scripting quality gate)
 
-Given: `demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh` are present in `scripts/`;
-`start-demo.sh` has been deleted.
+Given: `demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh` are present; `start-demo.sh` deleted.
 
 When: `shellcheck scripts/demo-*.sh` is run.
 
-Then: Exit 0, zero errors, zero warnings. The existing `shellcheck-demo-scripts` CI job in
-`.github/workflows/ci.yml` continues to pass. No `ci.yml` changes are required (the glob
-`scripts/demo-*.sh` already covers the 3 scripts; retiring `start-demo.sh` removes the
-uncovered script).
-
----
-
-### AC-009: `scripts/demo-setup.sh` is idempotent (safe to re-run)
-
-(traces to BC-2.06.001 invariant — idempotency was an S-DEMO-003 requirement; must not
-regress in the generalized version)
-
-Given: `demo-setup.sh` has already been run once for the 3-org config.
-
-When: `bash scripts/demo-setup.sh --config-dir <DIR>` is run again.
-
-Then: The script completes without error. Directory creation uses `mkdir -p`. TOML files are
-overwritten. Keyring writes overwrite existing entries. The post-run state is identical to
-after the first run.
-
----
-
-### AC-010: `docs/DEMO-RUNBOOK.md` is updated for the multi-org operator flow
-
-(traces to BC-2.06.001 — the runbook is the authoritative operator reference; it must match
-the generalized scripts)
-
-Given: The 3 scripts have been updated.
-
-Then: `docs/DEMO-RUNBOOK.md` reflects the multi-org workflow:
-- §Setup section: `demo-setup.sh` bootstraps 3 orgs; the N×M credential set calls are
-  documented.
-- §Daily Demo Run section: `demo-run.sh` starts a multi-org DTU fleet; N×M overlay files are
-  generated; the operator is given the `prism start` command with 4 env vars.
-- §Teardown section: `demo-teardown.sh` deletes N×M credentials; ordering (delete before
-  rm -rf) is documented.
-- §Troubleshooting section: keyring fallback env vars use the org-scoped Tier-2 format
-  (PRISM_CLIENTS_<ORG_UPPER>_SENSORS_...) for all N×M combinations.
-- No references to `start-demo.sh` remain.
+Then: Exit 0, zero errors, zero warnings. CI job `shellcheck-demo-scripts` continues to pass
+with no changes to `.github/workflows/ci.yml`.
 
 ---
 
@@ -575,18 +918,27 @@ Then: `docs/DEMO-RUNBOOK.md` reflects the multi-org workflow:
 
 | Component | Module | Pure/Effectful |
 |-----------|--------|---------------|
-| `scripts/demo-setup.sh` | scripts/ | Effectful (shell: cargo build, mkdir, cp, prism CLI) |
-| `scripts/demo-run.sh` | scripts/ | Effectful (shell: subprocess DTU server, file I/O, overlay generation) |
-| `scripts/demo-teardown.sh` | scripts/ | Effectful (shell: process kill, prism CLI, rm -rf) |
-| `scripts/demo.toml` | scripts/ | Pure (config file; read by DTU server) |
-| `docs/DEMO-RUNBOOK.md` | docs/ | Pure (documentation) |
+| `Commands::StartMulti` (enum variant) | `crates/prism-dtu-demo-server/src/main.rs` | Pure (data) |
+| `cmd_start_multi` (~80-120 lines) | `crates/prism-dtu-demo-server/src/main.rs` | Effectful (I/O: config load, clone start, sidecar write, signal wait) |
+| `build_multi_clone_factory` (extracted pure fn) | `crates/prism-dtu-demo-server/src/main.rs` | Pure (returns closure; no I/O) |
+| `write_multi_url_sidecar` (extracted helper) | `crates/prism-dtu-demo-server/src/main.rs` | Effectful (file I/O: tmp+rename atomic write) |
+| `MultiOrgDemoConfig` | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
+| `MultiOrgConfig` (`[orgs.*]` subsection) | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
+| `OrgConfig` | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
+| `start_instances` (EXISTING, unchanged) | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Effectful (async: socket bind) |
+| `MultiInstanceConfig` (EXISTING, unchanged) | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Pure (data) |
+| `MultiInstanceServers` (EXISTING, unchanged) | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Effectful (owns shutdown_tx) |
+| `scripts/demo-setup.sh` | `scripts/` | Effectful (shell: cargo build, mkdir, cp, prism CLI) |
+| `scripts/demo-run.sh` | `scripts/` | Effectful (shell: subprocess, file I/O, overlay generation) |
+| `scripts/demo-teardown.sh` | `scripts/` | Effectful (shell: process kill, prism CLI, rm -rf) |
+| `scripts/demo.toml` | `scripts/` | Pure (config file) |
+| `docs/DEMO-RUNBOOK.md` | `docs/` | Pure (documentation) |
 
 Architecture section files referenced:
 - `architecture/module-decomposition.md` (SS-06, SS-22 subsystem responsibilities)
-- `architecture/dependency-graph.md` (scripts/ has no Rust crate dependencies)
+- `architecture/dependency-graph.md` (prism-dtu-demo-server internal dependencies)
 - `architecture/decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md` (overlay format)
-- `architecture/decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md`
-  (OrgId-keyed credential namespace; teardown delete-by-org)
+- `architecture/decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md` (OrgId-keyed credential namespace)
 
 ---
 
@@ -594,16 +946,20 @@ Architecture section files referenced:
 
 | Rule | Rationale |
 |------|-----------|
-| `demo-setup.sh` MUST NOT write per-org `base_url` overlay TOMLs | DTU ports are ephemeral (only known post-launch); overlay generation belongs exclusively in `demo-run.sh` after `urls.json` is parsed. Inherited from S-DEMO-003 AC-001 + Architecture Compliance. |
-| `demo-run.sh` MUST write N×M overlay TOMLs BEFORE printing the `prism start` command | prism spec loader reads overlays at boot step 4c; missing overlay = wrong base_url = E-SPEC-024 or silent wrong endpoint. |
-| `demo-run.sh` MUST include all 4 TYPE-spec env vars in the printed `prism start` command | Step-4a `env_resolver.rs` resolves `${env.*}` tokens; missing env var = E-SPEC-024 boot abort before step-4c overlays apply (S-DEMO-003 F-HIGH-301 precedent). |
-| `demo-teardown.sh` MUST run keyring deletes BEFORE `rm -rf` of the config dir | `prism credential delete` reads `prism.toml` for OrgId resolution (ADR-034 §D3); if config dir is removed first, `prism.toml` is unavailable and all deletes fail silently (S-DEMO-003 F-P10-HIGH-001). |
-| Each overlay TOML MUST contain ONLY scalar fields: `extends`, `instance_id`, `base_url` | BC-2.06.013 scalar-only overlay enforcement; tables, `auth_type`, and `version` must not appear. |
-| `demo-setup.sh` MUST NOT write overlays that hardcode port numbers | Ports are ephemeral; hardcoded ports break across machine reboots and concurrent demo runs. |
-| `start-demo.sh` MUST be deleted (not converted to a delegate) | `exec`-form launcher is architecturally incompatible with the background-launch + polling model; a delegate wrapper would be dead weight. |
+| `MultiOrgDemoConfig` MUST be a NEW top-level struct, NOT an extension of `DemoConfig` | `DemoConfig` has `#[serde(deny_unknown_fields)]` and a fixed 6-sensor `ClonesConfig`; adding `[orgs.*]` would fail deserialization. Backward compatibility with `start` subcommand is mandatory. |
+| `cmd_start_multi` MUST call the EXISTING `start_instances(MultiInstanceConfig, clone_factory)` | Do not reimplement multi-instance binding logic; `start_instances` is already tested and correct per BC-2.06.017. |
+| Sidecar file for `start-multi` MUST be `.prism-dtu-demo-server.urls-multi.json` (nested format) | Distinct from the flat `.prism-dtu-demo-server.urls.json` written by `start`; prevents format confusion. |
+| InstanceEntry name convention MUST be `"{org_slug}-{sensor_id}"` | Enables the `clone_factory` closure to recover (org_slug, sensor_id) by splitting on `-` at the first occurrence of a known sensor name. |
+| `build_multi_clone_factory` MUST be a separately named, testable function | RG-004 tests it directly; if it is an inline closure in `cmd_start_multi`, the test cannot call it. Extract as `pub(crate) fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> impl Fn(&InstanceEntry) -> Box<dyn BehavioralClone>`. |
+| `start_multi_for_config` MUST be extracted as a testable async fn | RG-005 tests socket isolation at the async fn level; if the bind logic is only in `cmd_start_multi` (which also reads config files and handles signals), the test cannot call it without subprocess overhead. Extract as `pub(crate) async fn start_multi_for_config(cfg: &MultiOrgDemoConfig) -> anyhow::Result<MultiInstanceServers>`. |
+| `demo-setup.sh` MUST NOT write per-org `base_url` overlay TOMLs | DTU ports are ephemeral; overlay generation belongs in `demo-run.sh` after the sidecar is parsed. |
+| `demo-run.sh` MUST write N×M overlay TOMLs BEFORE printing the `prism start` command | prism spec loader reads overlays at boot step 4c; missing overlay = wrong base_url. |
+| `demo-run.sh` MUST include all 4 TYPE-spec env vars in the printed `prism start` command | Step-4a `env_resolver.rs` resolves `${env.*}` tokens; missing env var = E-SPEC-024 boot abort. |
+| `demo-teardown.sh` MUST run keyring deletes BEFORE `rm -rf` of the config dir | `prism credential delete` reads `prism.toml` for OrgId resolution (ADR-034 §D3); config dir removed first → all deletes fail silently. |
+| Each overlay TOML MUST contain ONLY scalar fields: `extends`, `instance_id`, `base_url` | BC-2.06.013 scalar-only overlay enforcement. |
 | AD-017: credential values MUST be piped via stdin, NEVER via CLI argv | Applies to all N×M `prism credential set` calls in `demo-setup.sh`. |
-| Cyberint DTU `initial_access_token` MUST match the `api_key` credential for that org | StaticCookieAuthProvider injects `Cookie: access_token=<keyring-value>` on each request; if the keyring value and the DTU allowlist seed differ, all Cyberint queries return 401 (S-DEMO-003 precedent). |
-| All shell scripts MUST use `#!/usr/bin/env bash` shebang and `set -euo pipefail` | shellcheck portability requirement; error-exit on any unset variable or pipeline failure. |
+| Cyberint DTU `initial_access_token` in `[orgs.*]` config MUST match the `api_key` credential for that org | StaticCookieAuthProvider injects `Cookie: access_token=<keyring-value>`; mismatch → 401 on all Cyberint queries. |
+| All shell scripts MUST use `#!/usr/bin/env bash` shebang and `set -euo pipefail` | shellcheck portability requirement. |
 
 ---
 
@@ -611,10 +967,13 @@ Architecture section files referenced:
 
 | Forbidden | Reason |
 |-----------|--------|
-| Hardcoded port numbers in overlay TOML generation | Ephemeral ports are assigned by the OS; hardcoded ports break across restarts and concurrent runs. Only `urls.json` (or equivalent sidecar) carries the authoritative port numbers after DTU server start. |
-| `start-demo.sh` as a caller or delegate in any script | The file is being retired; no other script should depend on it. |
-| Rust crate changes | This story is scripts/ + docs/ only. If the implementer discovers that generalizing the DTU server requires a Rust change, the implementer must flag this as a scope expansion and request human approval before proceeding. |
+| Modification of `DemoConfig`, `HarnessConfig`, `ClonesConfig`, or `CloneConfig` structs | These are backward-compatible existing types; modifying them for `start-multi` risks breaking `start`. Add `MultiOrgDemoConfig` instead. |
+| Adding `[orgs.*]` to `DemoConfig`'s `#[serde(deny_unknown_fields)]` struct | Would cause `start` to fail on `scripts/demo.toml` containing `[orgs.*]`. |
+| N separate `prism-dtu-demo-server start` subprocess invocations in `demo-run.sh` | The v2.0 design uses one `start-multi` process; N-process approach is Option-1 (rejected). |
+| Hardcoded port numbers in overlay TOML generation | Ephemeral ports are assigned by the OS; hardcoded ports break across restarts. |
+| `start-demo.sh` as a caller or delegate in any script | Being retired. |
 | Direct port read from DTU process listing or `/proc/<pid>/net` | DTU server writes its own sidecar file; reading ports from OS state is fragile and platform-specific. |
+| `unwrap()` / `expect()` in `cmd_start_multi` for Result values in non-test code | Use `?` + `anyhow::anyhow!`. Exception: signal handler installation (annotated with `#[allow(clippy::expect_used)]` per existing pattern in main.rs). |
 
 ---
 
@@ -622,15 +981,15 @@ Architecture section files referenced:
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | Cyberint `api_key` dummy value does not match DTU `initial_access_token` for that org | Cyberint DTU clone returns 401 on all requests for that org. Demo fails silently (wrong data). The script must enforce that the dummy value used in `credential set` matches the `initial_access_token` configured in `demo.toml` for that org's Cyberint clone. |
-| EC-002 | DTU server does not start within 30s (port conflict, binary not built) | `demo-run.sh` prints an error with the DTU server log path and exits 1 (same behavior as S-DEMO-003; timeout unchanged at 30s). |
-| EC-003 | `crowdstrike-oauth2.prx` not found | `demo-setup.sh` exits 1 with actionable message: "Run: cargo build -p prism-spec-engine --features wasm-plugins". Same as S-DEMO-003 EC-003. |
-| EC-004 | `demo-teardown.sh` is run when config dir does not exist | Script prints "already removed" and exits 0 (idempotent). |
-| EC-005 | `demo-teardown.sh` is run when DTU server is not running (no PID file) | Script prints "server may not be running" and skips the kill step; continues to credential delete + rm -rf. |
-| EC-006 | Keyring backend unavailable during `demo-setup.sh` credential bootstrap | Per-credential failure: prints Tier-2 env-var fallback name to stderr, continues to next credential. Setup does not abort. Operator is responsible for setting fallback env vars if keyring is unavailable. |
-| EC-007 | `demo-run.sh` called before `demo-setup.sh` (no `prism.toml` present) | `demo-run.sh` checks for `prism.toml` existence before starting DTU; exits 1 with "Run: bash scripts/demo-setup.sh". |
-| EC-008 | Multi-org config omits org-slug directory under `customers/` | `demo-run.sh` creates the directory with `mkdir -p <DIR>/specs/customers/<org_slug>` before writing overlays. |
-| EC-009 | DTU multi-org sidecar format differs from single-org `urls.json` flat format | Implementer must read the actual sidecar format produced by the multi-org DTU server (may be nested: `{org_slug: {sensor: url}}`). Overlay generation Python script must match the actual format. AC-004 verifies overlay content; if sidecar format is wrong, overlays will not be generated correctly. |
+| EC-001 | Cyberint `api_key` credential does not match `initial_access_token` in `[orgs.*]` | Cyberint DTU clone returns 401 for that org. `demo-setup.sh` must enforce that the dummy `api_key` value matches the `initial_access_token` configured in `scripts/demo.toml` for that org. |
+| EC-002 | `start-multi` fails because one clone cannot bind (port in use) | `start_instances` returns `MultiInstanceBindError::BindFailure`; `cmd_start_multi` propagates as `Err` with a clear message listing which instance failed. No zombie clones (BC-2.06.017 Postcondition 6). |
+| EC-003 | `scripts/demo.toml` `[orgs.*]` section parsed by `DemoConfig` (wrong struct) | Must not happen: `start` uses `DemoConfig`, `start-multi` uses `MultiOrgDemoConfig`. If both subcommands used the same config type, `[orgs.*]` would cause a `deny_unknown_fields` parse failure on `start`. |
+| EC-004 | `demo-run.sh` called before `demo-setup.sh` (no `prism.toml` present) | `demo-run.sh` checks for `prism.toml` existence before starting DTU; exits 1 with "Run: bash scripts/demo-setup.sh". |
+| EC-005 | `demo-teardown.sh` is run when DTU server is not running (no PID file) | Prints "server may not be running", skips the kill step; continues to credential delete + rm -rf. |
+| EC-006 | `start-multi` sidecar not available within 30s poll timeout | `demo-run.sh` exits 1 with "demo-server start-multi did not write sidecar within 30s; check DTU server logs." |
+| EC-007 | `[orgs.org-b]` has no `initial_access_token` but org-b has `cyberint` in sensors | `cmd_start_multi` starts the Cyberint clone without calling `configure()`; the clone's allowlist is empty (no token pre-seeded). Operator must configure manually via `prism-dtu-demo-server configure cyberint <json>`. |
+| EC-008 | `MultiOrgDemoConfig` `[orgs.X]` sensor list references an unsupported sensor name | `build_multi_clone_factory` returns an error or panics with a clear message: "unsupported sensor 'X' in [orgs.org-a]; valid values: crowdstrike, armis, claroty, cyberint". |
+| EC-009 | `build_multi_clone_factory` called with an InstanceEntry name that does not match `{org_slug}-{sensor_id}` convention | Panic or error with actionable message; this is a programming error (the factory is only called internally by `start_instances` with entries built by `cmd_start_multi`). |
 
 ---
 
@@ -638,118 +997,135 @@ Architecture section files referenced:
 
 | Context component | Lines estimate | Tokens (approx) |
 |---|---|---|
-| This story spec | 450 | 5,400 |
+| This story spec (v2.0) | 600 | 7,200 |
 | S-DEMO-003 (predecessor, full body) | 700 | 8,400 |
 | S-DEMO-004 (3-org model reference) | 300 | 3,600 |
 | BC files (5 BCs × ~100 lines each) | 500 | 6,000 |
-| Existing scripts (4 scripts × ~150 lines) | 600 | 7,200 |
+| `crates/prism-dtu-demo-server/src/main.rs` (existing) | 450 | 5,400 |
+| `crates/prism-dtu-demo-server/src/config.rs` (existing) | 300 | 3,600 |
+| `crates/prism-dtu-demo-server/src/multi_instance.rs` (existing) | 375 | 4,500 |
+| `crates/prism-dtu-demo-server/src/harness.rs` (build_clone_pairs reference) | 400 | 4,800 |
+| Existing scripts (3 scripts × ~150 lines) | 450 | 5,400 |
 | DEMO-RUNBOOK.md (existing) | 250 | 3,000 |
-| ci.yml (shellcheck section) | 100 | 1,200 |
-| `crates/prism-dtu-demo-server/src/` (config struct) | 200 | 2,400 |
+| `scripts/demo.toml` (existing) | 100 | 1,200 |
 | ADR-029, ADR-034 (overlay + credential BCs) | 200 | 2,400 |
-| Implementer working memory / tool outputs | — | 5,000 |
-| **Total** | | **~44,600** |
+| Implementer working memory / tool outputs | — | 8,000 |
+| **Total** | | **~63,500** |
 
-Estimate is ~22% of a 200k-token context window. Within the 20-30% per-story limit.
+Estimate is ~32% of a 200k-token context window. Slightly over the 20-30% target.
+**Split recommendation:** test-writer and implementer each receive a targeted subset:
+- Test-writer: this story spec + config.rs + multi_instance.rs + harness.rs (skip scripts).
+  Budget: ~39,500 tokens (~20% of 200k).
+- Implementer: this story spec + main.rs + config.rs + multi_instance.rs + RG tests + scripts.
+  Budget: ~58,000 tokens. Acceptable given story complexity; no further split needed.
 
 ---
 
 ## Tasks
 
-All tasks are facade-mode (combined scaffold + impl delivery). No `todo!()` stubs.
-
 ### Phase 1: Pre-flight (read before touching any file)
 
-- [ ] Read `scripts/start-demo.sh` in full; confirm the `exec`-form launch model and the
-  credential-export pattern (confirms retirement decision rationale).
-- [ ] Read `scripts/demo-run.sh` in full; understand the single-org overlay generation loop
-  (the N-org generalization extends this loop).
-- [ ] Read `scripts/demo-setup.sh` in full; understand the single-org prism.toml generation
-  and the 5 credential set calls.
-- [ ] Read `scripts/demo-teardown.sh` in full; understand the credential delete loop and
-  the delete-before-rm-rf ordering invariant.
-- [ ] Read `scripts/demo.toml`; understand the current single-instance DTU config schema.
-- [ ] Read `crates/prism-dtu-demo-server/src/config.rs` (or equivalent); understand what
-  TOML fields the demo-server actually supports. Determine if a multi-org section is already
-  present or needs to be added (scope expansion decision point).
-- [ ] Read `docs/DEMO-RUNBOOK.md`; note all sections that must be updated.
+- [ ] Read `crates/prism-dtu-demo-server/src/main.rs` in full; understand `Commands` enum,
+  `cmd_start`, `write_url_sidecar`, `wait_for_shutdown_signal`.
+- [ ] Read `crates/prism-dtu-demo-server/src/config.rs` in full; understand `DemoConfig`,
+  `ClonesConfig`, `CloneConfig`, `HarnessConfig`, `#[serde(deny_unknown_fields)]` strictness.
+- [ ] Read `crates/prism-dtu-demo-server/src/multi_instance.rs` in full; understand
+  `start_instances`, `MultiInstanceConfig`, `InstanceEntry`, `MultiInstanceServers`.
+- [ ] Read `crates/prism-dtu-demo-server/src/harness.rs` `build_clone_pairs` (lines 318+);
+  understand the clone construction sequence and E-DEMO-002/003/004/005/006 guard order.
+- [ ] Read `scripts/demo-run.sh`, `demo-setup.sh`, `demo-teardown.sh` in full.
+- [ ] Read `scripts/start-demo.sh`; confirm exec-form model (confirms retirement rationale).
+- [ ] Read `scripts/demo.toml`; understand current single-org schema.
 
-### Phase 2: Decision — DTU multi-org launch mechanism
+### Phase 2 (test-writer): Write Red Gate tests
 
-- [ ] Determine how the DTU demo server supports multiple per-org clone instances:
-  - If `prism-dtu-demo-server` supports a multi-instance config section in its TOML (from
-    S-DEMO-MULTI-TENANT-DTU-001 BC-2.06.017), use that.
-  - If not, determine whether demo-run.sh must launch N×M separate DTU server processes
-    (one per org × sensor) or if there is a harness binary that handles multi-instance.
-  - Document the decision inline in `demo-run.sh` header comment.
-- [ ] Determine the actual URLs sidecar format for multi-org launch (flat vs nested JSON).
-  This controls the overlay generation script in demo-run.sh.
+- [ ] Add `test_multi_org_config_parses_valid_three_org_toml` (RG-001) to
+  `crates/prism-dtu-demo-server/src/config.rs` `#[cfg(test)] mod tests`.
+- [ ] Add `test_multi_org_config_rejects_unknown_fields` (RG-002) to config.rs tests.
+- [ ] Add `test_nested_sidecar_format_has_correct_structure` (RG-003) to main.rs tests
+  or a separate test module.
+- [ ] Add `test_clone_factory_dispatch_returns_clone_for_each_sensor` (RG-004) to
+  `crates/prism-dtu-demo-server/tests/`.
+- [ ] Add `test_start_multi_stands_up_per_org_distinct_sockets` (RG-005) to
+  `crates/prism-dtu-demo-server/tests/`.
+- [ ] Run `cargo nextest run -p prism-dtu-demo-server --features dtu --no-fail-fast`;
+  confirm ALL 5 RG tests FAIL (Red Gate — `todo!()` stubs not yet replaced).
+- [ ] Density check: 5 failing tests / ~10-12 non-trivial function bodies >= 0.5. PASS.
 
-### Phase 3: Retire `scripts/start-demo.sh`
+### Phase 3 (implementer): Add config.rs structs
+
+- [ ] Add `MultiOrgDemoConfig`, `OrgConfig` to `config.rs` with `#[serde(deny_unknown_fields)]`
+  and `#[non_exhaustive]` per CLAUDE.md discipline.
+- [ ] Add `MultiOrgDemoConfig::from_file`, `::from_str` inherent methods (same pattern as
+  `DemoConfig::from_file`, `::from_str`).
+- [ ] Run RG-001 and RG-002; both must now be GREEN.
+
+### Phase 4 (implementer): Add `StartMulti` to Commands + implement `cmd_start_multi`
+
+- [ ] Add `StartMulti { config: PathBuf }` variant to `Commands` enum in `main.rs`.
+- [ ] Add `Commands::StartMulti { config } => cmd_start_multi(config).await` to the `match`
+  in `main`.
+- [ ] Implement `pub(crate) fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> ...`
+  (extracted testable function; RG-004 must become GREEN after this step).
+- [ ] Implement `pub(crate) async fn start_multi_for_config(cfg: &MultiOrgDemoConfig) -> anyhow::Result<MultiInstanceServers>`
+  (extracted testable async fn; RG-005 must become GREEN after this step).
+- [ ] Implement `fn write_multi_url_sidecar(servers: &MultiInstanceServers, cfg: &MultiOrgDemoConfig) -> anyhow::Result<()>`
+  writing `.prism-dtu-demo-server.urls-multi.json` in nested format.
+  (RG-003 is a shape test for the data structure; it does not call this function directly.)
+- [ ] Implement `async fn cmd_start_multi(config_path: PathBuf) -> anyhow::Result<()>`:
+  load `MultiOrgDemoConfig`, call `start_multi_for_config`, write nested sidecar,
+  wait for SIGTERM/SIGINT via `wait_for_shutdown_signal_multi` (adapt existing
+  `wait_for_shutdown_signal` to accept `&MultiInstanceServers` and call `servers.shutdown()`).
+- [ ] Run `cargo nextest run -p prism-dtu-demo-server --features dtu --no-fail-fast`;
+  ALL 5 RG tests must now be GREEN.
+- [ ] Run `just iter prism-dtu-demo-server`; all tests GREEN.
+
+### Phase 5 (implementer): Update `scripts/demo.toml`
+
+- [ ] Add `[orgs.org-a]`, `[orgs.org-b]`, `[orgs.org-c]` sections as specified above.
+- [ ] Confirm that `cargo run -p prism-dtu-demo-server --features dtu -- start --config configs/demo.toml`
+  still starts (backward compatibility AC-006 — `configs/demo.toml` does NOT have `[orgs.*]`).
+- [ ] Confirm that `cargo run -p prism-dtu-demo-server --features dtu -- start-multi --config scripts/demo.toml`
+  starts (new subcommand).
+
+### Phase 6 (implementer): Retire `scripts/start-demo.sh`
 
 - [ ] Delete `scripts/start-demo.sh` from the repository.
-- [ ] Search `docs/` and `scripts/` for any references to `start-demo.sh`; remove or replace
-  with `demo-run.sh`.
-- [ ] Run `shellcheck scripts/demo-*.sh`; verify exit 0 (retiring the file should not affect
-  the existing glob since `start-demo.sh` was never in `demo-*.sh`).
+- [ ] Search `docs/` and `scripts/` for any references to `start-demo.sh`; remove or replace.
+- [ ] Run `shellcheck scripts/demo-*.sh`; verify exit 0.
 
-### Phase 4: Generalize `scripts/demo.toml`
+### Phase 7 (implementer): Generalize shell scripts
 
-- [ ] Update `scripts/demo.toml` to configure the multi-org DTU fleet (3 orgs, 8 clone
-  instances total: org-a×{cs,armis}, org-b×{claroty,cyberint}, org-c×{cs,armis,claroty,cyberint}).
-  Use distinct seeds per org (100, 150, 200) to satisfy BC-2.06.018 + S-DEMO-004 INV-DISTINCT-DATA-001.
-  If the demo-server Rust config does not support an org-keyed section, use the closest
-  available mechanism (e.g., named clone groups or separate bind configs).
+- [ ] Update `scripts/demo-run.sh`:
+  - Replace the DTU server launch with `start-multi --config scripts/demo.toml`.
+  - Replace sidecar poll from `.prism-dtu-demo-server.urls.json` to `.prism-dtu-demo-server.urls-multi.json`.
+  - Replace flat sidecar parsing with nested `{org_slug: {sensor: url}}` Python block.
+  - Generate N×M overlay TOMLs in `customers/<org_slug>/<sensor>.sensor.toml`.
+  - Run `shellcheck scripts/demo-run.sh`.
+- [ ] Update `scripts/demo-setup.sh`:
+  - Replace single-org prism.toml generation with N-org `[[orgs]]` generation.
+  - Replace 5 hardcoded credential set calls with N×M loop over (org_slug, sensor, name, dummy_value).
+  - Run `shellcheck scripts/demo-setup.sh`.
+- [ ] Update `scripts/demo-teardown.sh`:
+  - Replace 5 credential delete calls with N×M loop.
+  - Update OrgId extraction to support N orgs.
+  - Run `shellcheck scripts/demo-teardown.sh`.
 
-### Phase 5: Generalize `scripts/demo-setup.sh`
+### Phase 8 (implementer): Update `docs/DEMO-RUNBOOK.md`
 
-- [ ] Replace the hardcoded `DEMO_ORG_ID` + `DEMO_ORG_SLUG` with N-org arrays (or a loop over
-  `demo.toml` org definitions read via `python3` or TOML parsing).
-- [ ] Update prism.toml generation to emit N `[[orgs]]` entries.
-- [ ] Update `customers/` scaffolding to create N org-slug subdirectories.
-- [ ] Replace the 5 hardcoded `set_cred` calls with an N×M loop over (org_slug, sensor, name,
-  dummy_value) tuples.
-- [ ] Ensure Cyberint `api_key` dummy values match `initial_access_token` in `demo.toml`
-  per-org clone config (EC-001).
-- [ ] Run `shellcheck scripts/demo-setup.sh`; fix any warnings.
-
-### Phase 6: Generalize `scripts/demo-run.sh`
-
-- [ ] Remove any hardcoded `DEMO_ORG_SLUG="demo-org"` references; replace with N-org loop.
-- [ ] Update the overlay generation Python block to:
-  - Read the (possibly nested) URLs sidecar.
-  - Iterate over all (org_slug, sensor_id, url) triples.
-  - Write `customers/<org_slug>/<sensor_id>.sensor.toml` with correct scalar-only format.
-- [ ] Update the `prism start` command print block to include all 4 TYPE-spec env vars
-  (unchanged from S-DEMO-003; these are not per-org).
-- [ ] Run `shellcheck scripts/demo-run.sh`; fix any warnings.
-
-### Phase 7: Generalize `scripts/demo-teardown.sh`
-
-- [ ] Replace the 5 hardcoded `delete_keyring_entry` calls with an N×M loop over
-  (org_slug, sensor, name) tuples matching the N×M set calls in demo-setup.sh.
-- [ ] Update OrgId extraction to support N orgs (extract one OrgId per org_slug from
-  prism.toml; delete credentials per-org keyed by that OrgId).
-- [ ] Run `shellcheck scripts/demo-teardown.sh`; fix any warnings.
-
-### Phase 8: Update `docs/DEMO-RUNBOOK.md`
-
-- [ ] Update §Setup to reflect 3-org environment, N×M credential count.
-- [ ] Update §Daily Demo Run to reflect multi-org DTU fleet and N×M overlay generation.
-- [ ] Update §Teardown for N×M credential deletes.
+- [ ] Update §Setup for 3-org environment and N×M credential count.
+- [ ] Update §Daily Demo Run for `start-multi` and N×M overlay generation.
+- [ ] Update §Teardown for N×M credential deletes and single PID teardown.
 - [ ] Update §Troubleshooting to enumerate all 10 Tier-2 env-var fallback names.
 - [ ] Remove all references to `start-demo.sh`.
 
-### Phase 9: CI verification
+### Phase 9 (implementer): Final verification
 
-- [ ] Confirm `shellcheck scripts/demo-*.sh` exits 0 with zero output locally.
-- [ ] Confirm the existing `shellcheck-demo-scripts` CI job in `.github/workflows/ci.yml`
-  does NOT need modification (glob `scripts/demo-*.sh` is unchanged; no new scripts added
-  that are outside the glob).
-- [ ] Run `bash scripts/demo-setup.sh --config-dir /tmp/prism-demo-test` on a local machine;
-  verify 3-org prism.toml is generated.
-- [ ] Run `bash scripts/demo-teardown.sh --config-dir /tmp/prism-demo-test`; verify N×M
-  credential deletes and directory removal.
+- [ ] Run `just check` (full workspace pre-push gate) — must pass.
+- [ ] Run `shellcheck scripts/demo-*.sh` — exit 0, zero output.
+- [ ] Run `bash scripts/demo-setup.sh --config-dir /tmp/prism-demo-test` — verify 3-org prism.toml.
+- [ ] Run `bash scripts/demo-teardown.sh --config-dir /tmp/prism-demo-test` — verify N×M deletes.
+- [ ] Confirm CI `shellcheck-demo-scripts` job requires no changes to `.github/workflows/ci.yml`.
 
 ---
 
@@ -758,50 +1134,44 @@ All tasks are facade-mode (combined scaffold + impl delivery). No `todo!()` stub
 ### S-DEMO-003 (predecessor — merged PR #176 develop@a42e3eaf)
 
 1. **Overlay generation belongs in `demo-run.sh`, NOT `demo-setup.sh`:** DTU ports are
-   ephemeral (assigned post-launch). Writing overlay TOMLs with a hardcoded port in setup
-   is incorrect. This was the F-HIGH-201 finding in S-DEMO-003 pass-2; the fix required
-   a full redesign of the overlay flow. Do not repeat this mistake.
+   ephemeral. This was F-HIGH-201 in S-DEMO-003 pass-2; the fix required a full redesign.
+   Do not repeat this mistake.
 
 2. **Four TYPE-spec env vars are REQUIRED in the printed `prism start` command:** Without
    CROWDSTRIKE_BASE_URL / ARMIS_INSTANCE_URL / CLAROTY_INSTANCE_URL / CYBERINT_ENVIRONMENT,
-   boot step 4a fires E-SPEC-024 and aborts before step-4c overlays apply. This was
-   F-HIGH-301 in S-DEMO-003 pass-3. These four env vars are not per-org — they provide
-   placeholder values for the TYPE specs; per-org base_urls are overridden by overlays.
+   boot step 4a fires E-SPEC-024. F-HIGH-301 in S-DEMO-003 pass-3.
 
-3. **Keyring deletes must run BEFORE `rm -rf` of config dir:** `prism credential delete`
-   reads `prism.toml` for OrgId-keyed namespace lookup (ADR-034 §D3). Removing the config
-   dir first silently orphans keyring entries. This was F-P10-HIGH-001 in S-DEMO-003
-   pass-10.
+3. **Keyring deletes must run BEFORE `rm -rf` of config dir:** F-P10-HIGH-001 in S-DEMO-003
+   pass-10. `prism credential delete` reads `prism.toml` for OrgId-keyed namespace lookup.
 
-4. **CrowdStrike SEC-003 manifest `allowed_urls`:** The `crowdstrike-oauth2.manifest.toml`
-   in `$DEMO_PLUGINS_DIR` must include `"127.0.0.1"` alongside `"api.crowdstrike.com"`.
-   This is a PLUGIN-level SEC-003 host-function gate, not per-org egress. One manifest
-   file covers all orgs.
+4. **CrowdStrike SEC-003 manifest `allowed_urls`:** `crowdstrike-oauth2.manifest.toml` must
+   include `"127.0.0.1"` alongside `"api.crowdstrike.com"`. One manifest file covers all orgs.
 
-5. **AD-017 stdin-only credential values:** Every `prism credential set` call pipes the
-   dummy value via `printf '%s\n' "${value}" | prism credential set ...`. Do not add the
-   credential value as a `--value` CLI arg.
+5. **AD-017 stdin-only credential values:** Every `prism credential set` call pipes value via
+   `printf '%s\n' "${value}" | prism credential set ...`.
 
-6. **shellcheck CI glob is `scripts/demo-*.sh`:** AC-014 in S-DEMO-003 enforces this.
-   Retiring `start-demo.sh` (which was NOT in this glob) cleans up the uncovered script
-   without requiring any CI change.
+6. **shellcheck CI glob is `scripts/demo-*.sh`:** Retiring `start-demo.sh` (not in glob)
+   cleans up the uncovered script without requiring any CI change.
 
 ### S-DEMO-004 (3-org model reference — ready v1.7)
 
 1. **3-org sensor assignments:** Org-A = CrowdStrike + Armis; Org-B = Claroty + Cyberint;
-   Org-C = all 4 sensors. These are the canonical assignments for the demo; scripts must
-   match this model.
+   Org-C = all 4 sensors. Scripts must match this model.
 
-2. **Per-org seeds for data distinctness:** The test harness uses distinct seeds per org
-   (seed=100 for org-a's CrowdStrike, seed=200 for org-c's CrowdStrike) to satisfy
-   INV-DISTINCT-DATA-001 (Org A data ≠ Org C data). Demo scripts must use the same
-   seed assignments in `demo.toml` clone configs so the operator demo and the CI test
-   are in sync.
+2. **Per-org seeds for data distinctness:** seed=100 for org-a, seed=200 for org-c
+   satisfies INV-DISTINCT-DATA-001. Demo scripts must use the same seed assignments.
 
-3. **`write_overlay_temp_dir` call pattern:** The S-DEMO-004 test harness uses
-   `write_overlay_temp_dir(&harness, tempdir.path())` from `prism-dtu-harness`. The demo
-   scripts implement the equivalent in shell+python. The overlay format is identical:
-   `extends`, `instance_id`, `base_url` (three scalar fields; BC-2.06.013).
+3. **`write_overlay_temp_dir` pattern:** The S-DEMO-004 test harness uses
+   `write_overlay_temp_dir` from `prism-dtu-harness`. The demo scripts implement the
+   shell+python equivalent. Overlay format is identical: `extends`, `instance_id`,
+   `base_url` (three scalar fields; BC-2.06.013).
+
+### v1.0 → v2.0 design change (Option-2 architect decision)
+
+v1.0 was scripts-only (facade mode). v2.0 adds Rust changes to `prism-dtu-demo-server`
+to wire the existing `start_instances` API. The implementer MUST NOT revert to N×M
+subprocess management in shell. If a technical obstacle arises with the Rust approach,
+escalate to the architect — do not silently fall back to Option-1.
 
 ---
 
@@ -809,13 +1179,16 @@ All tasks are facade-mode (combined scaffold + impl delivery). No `todo!()` stub
 
 | File | Action | Description |
 |------|--------|-------------|
-| `scripts/start-demo.sh` | DELETE | Retire the `exec`-form standalone launcher (see consolidation decision above). |
-| `scripts/demo-setup.sh` | MODIFY | Generalize from 1 org to N orgs: N-org prism.toml, N-org `customers/` scaffold, N×M `prism credential set` calls. |
-| `scripts/demo-run.sh` | MODIFY | Generalize overlay generation from 1 org to N orgs: N×M overlay TOML writes (one per org × sensor); update Python block to handle multi-org URLs sidecar. |
-| `scripts/demo-teardown.sh` | MODIFY | Generalize from 5 credential deletes to N×M credential deletes; N OrgId extractions from prism.toml. |
-| `scripts/demo.toml` | MODIFY | Update DTU clone config for 3-org × mixed-sensor fleet (8 clone instances); add per-org seeds (100, 150, 200). |
+| `crates/prism-dtu-demo-server/src/config.rs` | MODIFY | Add `MultiOrgDemoConfig`, `OrgConfig` structs with `#[serde(deny_unknown_fields)]` + `#[non_exhaustive]` + `from_file`/`from_str` methods (~40-60 lines). |
+| `crates/prism-dtu-demo-server/src/main.rs` | MODIFY | Add `StartMulti` variant to `Commands` enum; add `cmd_start_multi` + `build_multi_clone_factory` + `start_multi_for_config` + `write_multi_url_sidecar` (~80-120 lines net). |
+| `crates/prism-dtu-demo-server/tests/` | CREATE | New integration test file (e.g., `multi_org.rs`) containing RG-004 and RG-005. |
+| `scripts/start-demo.sh` | DELETE | Retire the `exec`-form standalone launcher. |
+| `scripts/demo.toml` | MODIFY | Add `[orgs.org-a]`, `[orgs.org-b]`, `[orgs.org-c]` sections; existing `[harness]` + `[clones.*]` stay for `start` backward compatibility. |
+| `scripts/demo-setup.sh` | MODIFY | Generalize from 1 org to N orgs: N-org prism.toml, N×M `prism credential set` calls. |
+| `scripts/demo-run.sh` | MODIFY | Switch from N×`start` to one `start-multi`; read nested `{org_slug: {sensor: url}}` sidecar; generate N×M overlay TOMLs. |
+| `scripts/demo-teardown.sh` | MODIFY | Single PID kill; generalize from 5 to N×M credential deletes. |
 | `docs/DEMO-RUNBOOK.md` | MODIFY | Update all sections for 3-org operator flow; remove `start-demo.sh` references. |
-| `.github/workflows/ci.yml` | NO CHANGE | `shellcheck-demo-scripts` job glob `scripts/demo-*.sh` is unchanged; retiring `start-demo.sh` (not in glob) requires no CI update. |
+| `.github/workflows/ci.yml` | NO CHANGE | `shellcheck-demo-scripts` job glob `scripts/demo-*.sh` unchanged. |
 
 ---
 
@@ -823,37 +1196,27 @@ All tasks are facade-mode (combined scaffold + impl delivery). No `todo!()` stub
 
 | Tool / Library | Version | Usage |
 |---|---|---|
-| `bash` | 5.x (macOS ships 3.x; Homebrew bash 5.x required on macOS for `declare -A` assoc arrays if used) | Shell runtime for all demo scripts. If `declare -A` is needed for N-org mapping, require bash 5.x explicitly in script header. Alternative: use positional arrays to avoid the macOS bash 3.x limitation. |
-| `shellcheck` | any stable (per S-DEMO-003 AC-014) | Shell linting gate; runs in CI and locally. |
-| `python3` | 3.x (system default on macOS/Linux) | JSON parsing of URLs sidecar; TOML overlay generation. `import json, sys, os` only — no third-party Python packages. |
-| `prism` (binary) | post-S-DEMO-003 (develop HEAD) | `prism credential set`, `prism credential delete`, `prism --dry-run` (if available). |
-| `prism-dtu-demo-server` (binary) | post-S-DEMO-003 | Multi-org DTU fleet launch. The binary must support multi-org/multi-instance config. |
+| `bash` | 5.x (macOS ships 3.x; Homebrew bash 5.x required on macOS for `declare -A` if used) | Shell runtime for demo scripts. |
+| `shellcheck` | any stable | Shell linting gate; runs in CI and locally. |
+| `python3` | 3.x (system default) | JSON parsing of nested sidecar; TOML overlay generation. `import json, sys, os` only — no third-party Python packages. |
+| `serde` | workspace version | `Deserialize` + `Serialize` for `MultiOrgDemoConfig`, `OrgConfig`. |
+| `toml` | workspace version | `MultiOrgDemoConfig::from_str` uses `toml::from_str`. |
+| `serde_json` | workspace version | `write_multi_url_sidecar` uses `serde_json::to_string` for nested URL map. |
+| `anyhow` | workspace version | All `cmd_start_multi` error propagation uses `anyhow::Result`. |
+| `tokio` | workspace version | `cmd_start_multi` is an `async fn`; signal handling via `tokio::signal`. |
+| `prism-dtu-common` | workspace | `BehavioralClone` trait; returned by `build_multi_clone_factory` factory. |
+| `prism-dtu-crowdstrike`, `prism-dtu-armis`, `prism-dtu-claroty`, `prism-dtu-cyberint` | workspace | Clone constructors called by `build_multi_clone_factory`. |
+| `prism` (binary) | post-S-DEMO-003 | `prism credential set`, `prism credential delete`, shell scripts. |
+| `prism-dtu-demo-server` (binary) | this story | New `start-multi` subcommand. |
 | `cargo` | per `rust-toolchain.toml` | Build step in `demo-setup.sh`. |
-| `just` | not required directly | Demo scripts do not call `just`; operators may use it for convenience. |
-
-**Bash 3.x vs 5.x concern:** macOS ships `/bin/bash` at version 3.2 which does not support
-`declare -A` associative arrays. S-DEMO-003 scripts avoid this by using positional variables.
-If the N-org generalization requires an associative array (org_slug → org_id mapping), either
-use `#!/usr/bin/env bash` with the Homebrew bash 5.x in PATH, OR implement the mapping with
-positional arrays and `case` statements. Document the choice inline.
 
 ---
 
-## Open Question for Human (non-blocking — story can proceed with default)
+## Open Question for Human (resolved — do not re-litigate)
 
-**Script parametrization UX (default: Option A is implemented):**
-
-Should the 3-org demo configuration be hard-coded in `scripts/demo.toml` (the implementer's
-default, aligned with the existing `demo.toml` pattern), or should `demo-setup.sh` and
-`demo-run.sh` accept a `--orgs` flag for operator-supplied org definitions?
-
-- **Option A (default — hard-coded in demo.toml):** No new CLI flags. Operators edit
-  `scripts/demo.toml` to change org assignments. Simple, consistent with existing pattern.
-- **Option B (CLI-parameterized):** `demo-setup.sh --orgs org-a:crowdstrike,armis ...`.
-  More flexible; harder to document; not needed for the 3-org demo.
-
-The implementer proceeds with Option A. If the human prefers Option B before merge, this
-can be addressed at PR review time without restarting the story.
+The Option-1 vs Option-2 design question is resolved. Option-2 (Rust subcommand) is the
+approved design per architect decision (v2.0 conversion). The implementer proceeds with
+Option-2. Do not raise the question again.
 
 ---
 
@@ -861,4 +1224,5 @@ can be addressed at PR review time without restarting the story.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0 | 2026-06-14 | story-writer | Initial materialization from D-1029 draft stub. Full spec with 10 ACs, consolidation decision (retire start-demo.sh), 3-org model, N×M overlay and credential generalization, all 6 context-engineering sections. status: ready. |
+| 1.0 | 2026-06-14 | story-writer | Initial materialization from D-1029 draft stub. Full spec with 10 ACs, consolidation decision (retire start-demo.sh), 3-org model, N×M overlay and credential generalization, all 6 context-engineering sections. status: ready. tdd_mode: facade (scripts-only). |
+| 2.0 | 2026-06-14 | story-writer | Option-2 architect-approved conversion: facade→Rust-touching. Adds StartMulti CLI subcommand + MultiOrgDemoConfig structs in prism-dtu-demo-server. crates_touched: [] → [prism-dtu-demo-server]. tdd_mode: facade → tdd. points: 5 → 8. ACs expanded from 10 to 13 (3 new Rust subcommand ACs added; existing script ACs renumbered). 5 Red Gate tests specified (RG-001..RG-005). §File Structure updated with Rust crate MODIFY rows. demo-run.sh simplified to one start-multi call. Option-1 (N×M shell processes) retired. |

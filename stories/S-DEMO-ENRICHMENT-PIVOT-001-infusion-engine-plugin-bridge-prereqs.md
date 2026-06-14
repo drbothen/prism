@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -24,14 +24,11 @@ subsystems: [SS-19, SS-11, SS-17]
 target_module: prism-spec-engine
 crates_touched: [prism-spec-engine, prism-query]
 # BC status: LIGHT PO CONFIRMATION REQUIRED (story-writer cannot do PO work)
-# BC-2.19.001 (v1.3, active) and BC-2.19.003 are the authoritative anchors for this
-# FORWARD-SUBSET. BCs exist and bidirectional AC↔BC traces are present. The only PO
-# touch needed before this story is dispatched:
-#   (a) Confirm BC-2.19.001 v1.3 + BC-2.19.003 cover this plugin-path subset scope, AND
-#   (b) Pin the BC table version column: update "v?" → "v1.3" for BC-2.19.001 in the
-#       Behavioral Contracts table below (PO is the source of truth for BC version numbers).
-# This is a confirmation sign-off, NOT new BC authorship. Flag for orchestrator routing
-# to product-owner before dispatching to test-writer.
+# BC-2.19.001 v1.4 (active) and BC-2.19.003 v1.3 are the authoritative anchors for this
+# FORWARD-SUBSET. BCs exist and bidirectional AC↔BC traces are present. PO confirmed
+# version pins at D-1166 (2026-06-14): BC-2.19.001 v1.4 (NullSource gap closed —
+# plugin-type descriptors MUST carry Arc<PluginInfusionSource> not NullSource);
+# BC-2.19.003 v1.3. No further PO sign-off required before test-writer dispatch.
 behavioral_contracts: [BC-2.19.001, BC-2.19.003]
 # BC array propagation note: BC-2.19.001 covers UDF registration (DataFusion scalar UDF
 # per field); BC-2.19.003 covers is_api_backed() gate for plugin-type infusions.
@@ -171,8 +168,8 @@ source types.
 
 | BC | Title | Key Clauses |
 |----|-------|-------------|
-| BC-2.19.001 v1.3 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` entry registered in `SessionContext`. NOTE: "v1.3" is the story-writer's best read from available context — PO must confirm version pin before dispatch (see frontmatter BC status comment). |
-| BC-2.19.003 v? | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | Postcondition: `is_api_backed("threat_score")` returns `true` for plugin-type infusions; detection rule loader rejects with E-RULE-012. NOTE: version "v?" — PO to pin at sign-off. |
+| BC-2.19.001 v1.4 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` entry registered in `SessionContext`. v1.4 amendment: plugin-type `InfusionUdfDescriptor` MUST carry `Arc<PluginInfusionSource>` (not `NullSource`) — confirmed by PO at D-1166 2026-06-14. |
+| BC-2.19.003 v1.3 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | Postcondition: `is_api_backed("threat_score")` returns `true` for plugin-type infusions; detection rule loader rejects with E-RULE-012. PO-confirmed version v1.3 at D-1166 2026-06-14. |
 
 ---
 
@@ -577,6 +574,7 @@ Anticipated emissions (implementer must enumerate actual sites):
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.3 | 2026-06-14 | BC version-pin sync (D-1167 state-manager burst — citation sync only). BC-2.19.001 v1.3 → v1.4 (NullSource gap closed; PO confirmed at D-1166); BC-2.19.003 v? → v1.3 (PO-confirmed at D-1166). Frontmatter BC status comment updated to remove pending-PO language. Behavioral Contracts table rows updated. No AC/scope changes. |
 | v1.2 | 2026-06-14 | Pre-TDD scan corrections (verified against develop@664566e9). (1) Correction 1 — post_return RETRACTED: plugin/mod.rs ~L970 removed post_return as deprecated in wasmtime >=44; risk_mitigations + AC-004 + Library table + Architecture Mapping updated to reflect UNTYPED component::Val path with no post_return. (2) Correction 2 — enrich_single delegation signature fixed: real signature is PluginRuntime::enrich_single(plugin_id, input_value, input_type, config: &PluginConfigMap) -> Result<Option<Value>, PluginError>; PluginInfusionSource must carry plugin_id + config as fields; bridge maps PluginError → InfusionError; AC-004 + task + file-structure updated. (3) Correction 3 — async UDF research applied: DataFusion 53.1.0 confirmed ctx.register_udf(AsyncScalarUDF::new(Arc<dyn AsyncScalarUDFImpl>).into_scalar_udf()) is sufficient; DefaultPhysicalPlanner handles async natively; no analyzer/optimizer rules needed; hallucinated symbols catalogued (AsyncFunctionRule, enable_async_udf, concurrent_async_udf_tasks, GLOBAL_ASYNC_UDF_SEMAPHORE — do not exist); AC-003 rewritten, hallucination list added, anti-false-green hardening added (sentinel value + call counter). (4) Correction 4 — NullSource wiring gap: udf_descriptors() hardwires Arc::new(NullSource) at mod.rs ~L500/535/558/662; net-new Phase 3 task added to replace with real PluginInfusionSource; engine.rs two-site registration noted (execute + new_full paths); S-3.13 merge-coordination note added; file-structure table corrected (is_api_backed already implemented — not net-new). Status: draft → ready. |
 | v1.1 | 2026-06-12 | D-1109 remove-uncertainty closure: U1/U2/U3/U4/U5/U6/U7/U8 applied (scanner + research-agent + architect rulings 1-4, WO-D1109 v1.1). enrich syntax → function-call form throughout; grammar doc AC-006 added. plugin_bridge free-function replaced with PluginInfusionSource::enrich_single trait impl (Ruling 2). TypedFunc::post_return mandatory wiring added. DataFusion ScalarUDFImpl rewritten: invoke_with_args + AsyncScalarUDFImpl::invoke_async_with_args (invoke/invoke_batch removed DF~48). is_api_backed scoped as regression test (already implemented). InfusionError enum replaces invented SpecEngineError variants. Wrong path cite src/plugin_bridge.rs → src/infusion/plugin_bridge.rs fixed. |
 | v1.0 | 2026-06-12 | Initial draft per WO-D1109 §Story 1. Forward-subset of S-1.14-REDO for demo enrichment chain. Depends on S-1.14 partial-merge scaffolding; blocks 002 and 003. BC status: BC-2.19.001 + BC-2.19.003 as nearest anchors pending PO confirmation. Sequencing note added per D-1109 demo objective chain. |
