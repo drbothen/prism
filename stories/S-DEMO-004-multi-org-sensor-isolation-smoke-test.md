@@ -1,12 +1,12 @@
 ---
 document_type: story
 story_id: S-DEMO-004
-title: "prism-bin: Multi-Org × Multi-Sensor Isolation Smoke Test — BC-3.2.001 + ADR-029 demo validation"
+title: "prism-bin: Multi-Org × Multi-Sensor Isolation Smoke Test — BC-3.2.001 + ADR-029 + BC-2.06.017 + BC-2.06.018 demo validation"
 wave: 5
 epic_id: E-DEMO
 priority: P0
-status: draft
-version: "1.1"
+status: ready
+version: "1.5"
 level: "L4"
 producer: architect
 timestamp: "2026-05-29T00:00:00Z"
@@ -34,6 +34,23 @@ behavioral_contracts:
   - BC-2.01.013  # DataSource Trait — spec-driven adapters are per-org; no shared adapter across orgs.
   - BC-2.10.001  # rmcp ServerHandler — `client_id` scoping parameter in tool_query routes to
                  # the correct org's adapters.
+  - BC-2.06.017  # Per-DTU-Instance Multi-Address Binding — MultiInstanceHarness socket_map keyed
+                 # by (org_slug, sensor_id) provides each org a distinct SocketAddr; overlay_wiring
+                 # writes per-org base_url; Postcondition 3 (overlay integration end-to-end) + INV-
+                 # ISOLATION-001 (zero cross-tenant leakage) underpin AC-006 (distinct sockets) and
+                 # AC-007 (per-org Cyberint session isolation) and AC-009 (concurrent no-mix).
+                 # Merged PR #187 2026-06-14 (D-1158). AC-006 traces to PC-3.
+  - BC-2.06.018  # Demo-Server Config-Time Data Seeding — new_with_seed(seed, archetype, org_id)
+                 # wires per-clone seed through build_clone_pairs; INV-DISTINCT-DATA-001 proves that
+                 # distinct (seed_A, org_id_A) vs (seed_C, org_id_C) for two CrowdStrike clone
+                 # instances produces disjoint device/detection ID sets (ids_org_a ∩ ids_org_c = ∅).
+                 # This is the CONTRACT BACKING AC-006's content-level assertion. Canonical ID format
+                 # "dev-{8hex}-{seed}-{n}" where 8hex = hex(org_id.as_bytes()[0..4])
+                 # (ADR-036 v2.0 §2.2) makes disjointness structural. {8hex} is derived from
+                 # org_id UUID bytes, NOT the human slug "org-a" — asserting "dev-org-a-..."
+                 # would match nothing and make ids_a ∩ ids_c = ∅ pass VACUOUSLY (false green).
+                 # Merged PR #181 2026-06-10 (D-1089). AC-006 is the integration-level proof of
+                 # INV-DISTINCT-DATA-001 across two orgs sharing the same sensor type.
 verification_properties:
   - VP-148  # VP-PLUGIN-003 DTU parity — this test extends the parity coverage to the
             # multi-org dimension; each org's adapter must resolve to its org-scoped DTU clone.
@@ -41,6 +58,27 @@ depends_on:
   - S-DEMO-001   # Per-org adapter registration (boot step 9A) must be complete.
   - S-DEMO-002   # Single-org single-sensor E2E smoke test must pass first (build on its foundation).
   - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # Per-org overlay loading must be complete.
+  - S-DEMO-MULTI-TENANT-DTU-001  # BC-2.06.017 multi-address binding — MultiInstanceHarness
+                                  # (socket_map keyed by (org_slug, sensor_id)) is the mechanism
+                                  # this story uses to spawn distinct DTU sockets per org × sensor
+                                  # combo. Must be MERGED before prism-bin tests can call
+                                  # MultiInstanceHarness::start() and write_overlay_temp_dir().
+                                  # MERGED PR #187 develop@664566e9 2026-06-14 (D-1158). SATISFIED.
+  - S-DEMO-DTU-LIVE-SCENARIO-001-A  # BC-2.06.018 config-time seeding — new_with_seed() constructor
+                                     # and CloneConfig.seed wiring are required for AC-006 to assert
+                                     # REAL data distinctness (org-A CrowdStrike ID set ≠ org-C
+                                     # CrowdStrike ID set via INV-DISTINCT-DATA-001). Without seeded
+                                     # generator data, clones return identical fixture JSON and
+                                     # response-content assertions cannot distinguish orgs.
+                                     # MERGED PR #181 develop@c287b00d 2026-06-10 (D-1089). SATISFIED.
+  - S-DEMO-DTU-LIVE-SCENARIO-001-B  # BC-2.06.019 + BC-2.06.020 scenario progression + enrichment
+                                     # correlation — Story B wires the scenario clock and archetype
+                                     # selection that makes AC-006's "different seeds → disjoint ID
+                                     # sets" live across all four generator-backed clone types during
+                                     # a running demo. Also required for AC-009 concurrent-query
+                                     # distinctness: with static fixtures both orgs return identical
+                                     # snapshots; seeded scenarios are structurally disjoint.
+                                     # MERGED PR #185 develop@7fd35b77 2026-06-13 (D-1139). SATISFIED.
 blocks: []
 # Historical edge scrubbed (v1.1, 2026-06-10 story-writer micro-burst): blocks
 # originally carried S-DEMO-003 ("runbook should not ship until multi-org isolation
@@ -74,10 +112,26 @@ estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
-  - "Use distinct DTU clone instances per sensor per org-group: Org A's CrowdStrike DTU runs
-    at port P1; Org B's Claroty DTU runs at port P2. Assertions verify responses from P1 contain
-    org-A-specific fixture data, not org-B data. DTU demo server config creates independent
-    per-sensor clone instances."
+  - "Use MultiInstanceHarness::start(entries) from prism-dtu-harness to spawn all 8 clone
+    instances (org-a×crowdstrike, org-a×armis, org-b×claroty, org-b×cyberint, org-c×crowdstrike,
+    org-c×armis, org-c×claroty, org-c×cyberint) in a single call. Each HarnessEntry MUST be
+    constructed via HarnessEntry::new(org_slug, sensor_id, clone) — NOT the struct-literal form
+    (HarnessEntry is #[non_exhaustive]; E0639 blocks external struct-literal construction). Each
+    clone carries a DISTINCT seed and org_id via new_with_seed(seed, archetype, org_id) — org-a's
+    CrowdStrike gets seed=100, org-c's CrowdStrike gets seed=200, ensuring INV-DISTINCT-DATA-001
+    holds: ids_org_a ∩ ids_org_c = ∅. Note fallibility: ArmisClone::new_with_seed and
+    CyberintClone::new_with_seed return anyhow::Result<Self> (use ?); CrowdstrikeClone and
+    ClarotyClone return Self (infallible). The archetype arg is prism_dtu_common::Archetype enum
+    (e.g. Archetype::HealthyOtEnvironment); org_id is prism_dtu_common::OrgId([u8;16]), constructed
+    OrgId(*uuid::Uuid::parse_str(s)?.as_bytes()). See prism-dtu-demo-server/src/harness.rs
+    build_clone_pairs for the reference pattern. The disjointness is verified by reading response
+    bodies and extracting device/detection ID sets, NOT by asserting on socket addresses alone. The
+    write_overlay_temp_dir(&harness, tempdir.path()) call (note: tempdir.path() returns &Path —
+    NOT &tempdir, which does not coerce to &Path) writes all 8 overlay TOML files from the
+    socket_map keyed by (org_slug, sensor_id). The device IDs extracted from responses will match
+    the format dev-{8hex}-{seed}-{n} where 8hex = hex(org_id.as_bytes()[0..4]) — for example,
+    if org-a's UUID bytes begin 0xDEADBEEF..., then org-a IDs begin dev-deadbeef-100-0; derive
+    the expected prefix from the UUID assigned to that org, NOT from the human slug org-a."
   - "Cross-org isolation probe must use the correct org_id. Test must query Org A using Org B's
     sensor_id explicitly — this must return AdapterNotFound or an explicit isolation error, not
     Org A's data for a different sensor."
@@ -89,9 +143,14 @@ inputs:
   - "crates/prism-bin/tests/helpers/mod.rs"
   - "crates/prism-dtu-demo-server/src/main.rs"
   - "crates/prism-dtu-demo-server/src/harness.rs"
+  - "crates/prism-dtu-harness/src/multi_instance.rs"
+  - "crates/prism-dtu-harness/src/overlay_wiring.rs"
   - ".factory/specs/behavioral-contracts/BC-3.2.001-multi-tenant-isolation.md"
   - ".factory/specs/behavioral-contracts/BC-2.06.014-instance-identity-resolution-at-fanout.md"
+  - ".factory/specs/behavioral-contracts/BC-2.06.017-dtu-per-instance-multi-address-binding.md"
+  - ".factory/specs/behavioral-contracts/BC-2.06.018-dtu-demo-clone-data-seeding.md"
   - ".factory/specs/architecture/decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md"
+  - ".factory/specs/architecture/decisions/ADR-036-deterministic-scenario-progression-engine.md"
   - ".factory/stories/S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md"
   - ".factory/stories/S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md"
   - ".factory/stories/S-CONFIG-MULTI-TENANT-OVERRIDE-001-per-org-sensor-endpoint-overlay-loading.md"
@@ -104,8 +163,8 @@ phase: 3
 # S-DEMO-004 — Multi-Org × Multi-Sensor Isolation Smoke Test
 
 **Story ID:** S-DEMO-004
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.5
 **Wave:** 5
 **Priority:** P0
 **Points:** 8
@@ -154,13 +213,15 @@ After this story merges:
 
 ## Behavioral Contracts
 
-| BC ID | Title |
-|-------|-------|
-| BC-3.2.001 | Multi-Tenant Org Isolation — no cross-org data leakage |
-| BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) → ResolvedSensorSpec |
-| BC-2.11.005 | Ephemeral Materialization — fan_out() materializes per-org; no cross-call state |
-| BC-2.01.013 | DataSource Trait — spec-driven adapters are per-org |
-| BC-2.10.001 | rmcp ServerHandler — client_id scoping parameter routes to correct org's adapters |
+| BC ID | Title | AC Trace |
+|-------|-------|----------|
+| BC-3.2.001 | Multi-Tenant Org Isolation — no cross-org data leakage | AC-005, AC-007, AC-008 |
+| BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) → ResolvedSensorSpec | AC-002, AC-003, AC-006 |
+| BC-2.11.005 | Ephemeral Materialization — fan_out() materializes per-org; no cross-call state | AC-003, AC-009 |
+| BC-2.01.013 | DataSource Trait — spec-driven adapters are per-org | AC-004 |
+| BC-2.10.001 | rmcp ServerHandler — client_id scoping parameter routes to correct org's adapters | AC-001, AC-002 |
+| BC-2.06.017 | Per-DTU-Instance Multi-Address Binding — MultiInstanceHarness + INV-ISOLATION-001 | AC-006 (PC-3: overlay integration end-to-end — write_overlay_temp_dir → distinct SocketAddrs), AC-007 (INV-ISOLATION-001: per-org distinct Cyberint DTU sockets), AC-009 (INV-ISOLATION-001: concurrent no cross-tenant socket dispatch) |
+| BC-2.06.018 | Demo-Server Config-Time Data Seeding — INV-DISTINCT-DATA-001 disjoint ID sets | AC-006 (primary: ids_org_a ∩ ids_org_c = ∅ CONTENT assertion via new_with_seed per-org seeds), AC-009 (secondary: concurrent ids_a ∩ ids_c = ∅ under concurrent dispatch) |
 
 ---
 
@@ -213,12 +274,44 @@ not CS_PORT_ORG_C, even though both orgs have CrowdStrike registered.
 
 ### DTU multi-tenancy scope
 
-**DTU clones do NOT need to support per-tenant data at the protocol level** for this test.
-Each org gets its own independent clone instance (different port = different process-scoped
-state). Org isolation is proven by the port binding, not by in-process tenant partitioning.
-The DTU's per-session `X-Prism-Org-Id` header routing (BC-3.2.003, implemented for Cyberint
-clone) is exercised by the Cyberint queries but is not the primary isolation mechanism tested
-here — port-level isolation is sufficient for the demo scope.
+**RECONCILED (v1.2, architect 2026-06-14, T8 — D-1077 scope expansion)**
+
+The D-1077 user directive requires REAL per-client data segregation, NOT just client-targeting
+or port-binding-only isolation. The merged capability stack (BC-2.06.017 + BC-2.06.018, both
+ACTIVE via PR #187 and PR #181) makes real data distinctness both available and mandatory.
+
+**Multi-instance mechanism (BC-2.06.017):** Each org × sensor pair gets its own DTU socket via
+`MultiInstanceHarness::start(entries)` from `prism-dtu-harness`. The harness binds N clone
+instances at ephemeral ports and returns a `socket_map: HashMap<(String, String), SocketAddr>`
+keyed by `(org_slug, sensor_id)`. The test then calls `overlay_wiring::write_overlay_temp_dir`
+to produce the `customers/org-x/<sensor>.sensor.toml` overlay files from the socket map — each
+overlay carries `extends`, `instance_id = "{sensor_id}@{org_slug}"`, and `base_url`. This is
+the mechanism specified by BC-2.06.017 Postcondition 2 and Postcondition 3. SEPARATE demo-server
+invocations per org are NOT needed and NOT used — a single `MultiInstanceHarness::start()` call
+with all (org_slug, sensor_id) entries handles the full 3-org × mixed-sensor matrix.
+
+**Real seeded data distinctness (BC-2.06.018 + INV-DISTINCT-DATA-001):** Each clone instance
+is constructed with a DISTINCT seed via `new_with_seed(seed: u64, archetype: prism_dtu_common::Archetype, org_id: prism_dtu_common::OrgId)`. Fallibility varies by clone type:
+- `CrowdstrikeClone::new_with_seed` → `Self` (infallible)
+- `ClarotyClone::new_with_seed` → `Self` (infallible)
+- `ArmisClone::new_with_seed` → `anyhow::Result<Self>` (fallible — use `?`)
+- `CyberintClone::new_with_seed` → `anyhow::Result<Self>` (fallible — use `?`)
+`archetype` is the `prism_dtu_common::Archetype` enum (e.g., `Archetype::HealthyOtEnvironment` or `Archetype::CompromisedEndpoint`), NOT a string. `org_id` is `prism_dtu_common::OrgId([u8; 16])`, constructed as `OrgId(*uuid::Uuid::parse_str(s)?.as_bytes())`. Reference pattern: `prism-dtu-demo-server/src/harness.rs` `build_clone_pairs` already demonstrates `OrgId(*uuid.as_bytes())` construction and `?`-propagation of the fallible constructors. The `DemoConfig`/`CloneConfig` carries `org_id: Option<String>` (UUID) and `seed: u64`, wired through `build_clone_pairs` per BC-2.06.018 Postcondition 1. Because `seed_A ≠ seed_B` (or `org_id_A ≠ org_id_B`), INV-DISTINCT-DATA-001 guarantees `ids(org-A CrowdStrike) ∩ ids(org-C CrowdStrike) = ∅`. The isolation proof is on RESPONSE DATA CONTENT (device/detection IDs differ between orgs), not on TCP port binding alone.
+
+**Port binding as a first-order invariant (INV-ISOLATION-001, BC-2.06.017):** The distinct
+sockets also enforce INV-ISOLATION-001 (zero cross-tenant leakage at the network layer). Both
+proofs are required: TCP isolation ensures requests cannot reach the wrong instance; data
+distinctness ensures even if routing were misdirected, the content would reveal the error.
+The `X-Prism-Org-Id` header routing (BC-3.2.003, Cyberint clone) remains an additional
+per-session scoping mechanism exercised by AC-007, but it is no longer the PRIMARY isolation
+proof — that role belongs to the seeded data content assertion in AC-006.
+
+**Consequence for fixture data:** The static JSON fixtures used by the pre-seeding `new()`
+constructors are NOT used for any clone instance under this test. All generator-backed
+clones (CrowdStrike, Armis, Claroty, Cyberint) use `new_with_seed` with per-org seeds. The
+backward-compat default (seed=42, fixture_set="default") is NOT used here because we need
+distinct data between orgs sharing the same sensor type (e.g., org-a and org-c both have
+CrowdStrike, but must serve non-overlapping device ID sets).
 
 ---
 
@@ -232,14 +325,13 @@ Then: AdapterRegistry contains exactly the expected count:
 - org-b: 2 adapters (Claroty + Cyberint)
 - org-c: 4 adapters (all 4 sensors)
 Total: 8 adapters. Verified via `boot.step9a.adapter_registry_populated` event log assertion.
-(traces to BC-2.22.001 boot sequencing postcondition)
-Red Gate test: `test_BC_3_2_001_multi_org_boot_registers_correct_adapter_count`
+(traces to BC-2.22.001 boot sequencing postcondition; BC-2.10.001 rmcp ServerHandler — correct per-org adapter count enables client_id routing at query time)
 
 ### AC-002: Org A queries return data for registered sensors only
 Given: org-a is registered with CrowdStrike + Armis (not Claroty or Cyberint).
 When: `tool_query "FROM crowdstrike_detections LIMIT 5" client_id="org-a"` is sent.
-Then: Returns non-empty data from org-a's CrowdStrike DTU clone (port CS_PORT_ORG_A).
-(traces to BC-2.06.014 instance identity resolution)
+Then: Returns non-empty data from org-a's CrowdStrike DTU clone.
+(traces to BC-2.06.014 instance identity resolution; BC-2.10.001 client_id scoping routes to org-a's adapters)
 
 ### AC-003: Org B queries return data for registered sensors only
 Given: org-b is registered with Claroty + Cyberint (not CrowdStrike or Armis).
@@ -262,21 +354,38 @@ NO data rows are returned; NO data from Org B leaks into Org A's response.
 (traces to BC-3.2.001 invariant: no cross-org data leakage)
 Red Gate test: `test_BC_3_2_001_cross_org_query_returns_isolation_error`
 
-### AC-006: Per-org ADR-029 overlay routing verified (different orgs → different DTU ports)
-Given: Org A and Org C both have CrowdStrike registered, but with different `base_url` overlays
-pointing to CS_PORT_ORG_A and CS_PORT_ORG_C respectively.
-When: `tool_query "FROM crowdstrike_detections LIMIT 5"` is sent for org-a and then for org-c.
-Then: The two requests hit different DTU clone instances (verified via DTU access log or by
-serving org-specific fixture data that differs between the two clone instances).
-(traces to BC-2.06.014 precondition: org-specific ResolvedSensorSpec with overlay base_url)
-Red Gate test: `test_BC_2_06_014_per_org_overlay_routes_to_distinct_dtu_instances`
+### AC-006: Per-org seeded data distinctness — ids_org_a ∩ ids_org_c = ∅ (INV-DISTINCT-DATA-001)
+Given: Org A and Org C both have CrowdStrike registered. In the MultiInstanceHarness setup,
+org-a's CrowdStrike clone is constructed via `new_with_seed(seed_a=100, archetype, org_id_a)`
+and org-c's CrowdStrike clone via `new_with_seed(seed_c=200, archetype, org_id_c)`, where
+`seed_a ≠ seed_c` and `org_id_a ≠ org_id_c`. The overlay TOML files written by
+`write_overlay_temp_dir(&harness, tempdir.path())` route each org to its distinct clone socket. (`tempdir.path()` returns `&std::path::Path`; `&TempDir` does NOT coerce to `&Path` — always use `.path()`.)
+When: `tool_query "FROM crowdstrike_detections LIMIT 50"` is executed for org-a and then
+for org-c (each via the MCP tool_query interface with the appropriate client_id).
+Then: The test READS both response bodies and extracts the set of device/detection IDs
+(canonical format `"dev-{8hex}-{seed}-{n}"` per ADR-036 v2.0 §2.2, where `{8hex} =
+hex(org_id.as_bytes()[0..4])`) from each response. The test asserts:
+  `ids_org_a ∩ ids_org_c = ∅`   (INV-DISTINCT-DATA-001 verified at integration-test level)
+This is a CONTENT-LEVEL assertion on actual response data. The test MUST NOT assert only
+on socket addresses or port numbers. CRITICAL FALSE-GREEN TRAP: the expected ID prefix MUST
+be derived from `hex(org_id.as_bytes()[0..4])` of the UUID assigned to that org — NOT the
+human slug `"org-a"`. Asserting against `"dev-org-a-..."` would match zero IDs, making
+`ids_org_a ∩ ids_org_c = ∅` true VACUOUSLY (both sets empty = disjoint), defeating the proof.
+For example: if org-a's UUID is `deadbeef-...`, assert IDs match regex `dev-deadbeef-100-\d+`.
+`POST /dtu/configure` is NOT used — config-time seeding via `CloneConfig.seed` +
+`CloneConfig.org_id` is the primary path per INV-CONFIGURE-ENDPOINT-SECONDARY-001.
+(traces to BC-2.06.017 Postcondition 3 + BC-2.06.018 INV-DISTINCT-DATA-001 + BC-2.06.014 endpoint-resolution)
+Red Gate test: `test_BC_2_06_018_per_org_seeded_data_is_disjoint`
 
 ### AC-007: Cyberint cookie_roundtrip auth works for org-b and org-c independently
-Given: org-b and org-c both have Cyberint registered but at different DTU ports.
+Given: org-b and org-c both have Cyberint registered. MultiInstanceHarness binds a distinct
+socket for each org's Cyberint clone — `(org-b, cyberint)` at socket S_B and `(org-c, cyberint)`
+at socket S_C (S_B ≠ S_C), per INV-ISOLATION-001 (BC-2.06.017).
 When: `tool_query "FROM cyberint_alerts LIMIT 5"` is sent for each org.
 Then: Each query succeeds with its own session cookie from the respective org's DTU clone;
 the session tokens do not cross between org-b and org-c.
-(traces to BC-3.2.001 session isolation; BC-2.01.013 per-org adapter construction)
+(traces to BC-3.2.001 session isolation; BC-2.01.013 per-org adapter construction;
+BC-2.06.017 INV-ISOLATION-001 per-org distinct Cyberint DTU sockets)
 
 ### AC-008: ResponseEnvelope metadata identifies correct org and sensor
 Given: A successful multi-org query for any org/sensor combination.
@@ -286,11 +395,20 @@ querying org's data — no org identifiers from other orgs appear in the respons
 (traces to BC-2.09.008 response envelope trust annotations)
 
 ### AC-009: Concurrent queries for different orgs do not interfere
-Given: org-a and org-c both query CrowdStrike concurrently (sent within 100ms of each other).
-When: Both responses arrive.
-Then: org-a's response contains only data from CS_PORT_ORG_A; org-c's response contains only
-data from CS_PORT_ORG_C; no row-level mixing occurs.
-(traces to BC-2.11.005 invariant: no cross-call state; ephemeral materialization)
+Given: org-a and org-c both query CrowdStrike concurrently (sent within 100ms of each other),
+using the same MultiInstanceHarness setup as AC-006 (org-a seed=100, org-c seed=200, distinct
+org_ids, distinct sockets S_A and S_C per INV-ISOLATION-001).
+When: Both responses arrive (via `tokio::join!` dispatching both tool_query calls simultaneously).
+Then: org-a's response contains only data from the org-a CrowdStrike clone; org-c's response
+contains only data from the org-c CrowdStrike clone; no row-level mixing occurs — verified by
+asserting `ids_a ∩ ids_c = ∅` on the concurrent response bodies, consistent with AC-006's
+INV-DISTINCT-DATA-001 proof. Port-address cross-reference alone is insufficient; the test MUST
+read and compare the actual device/detection ID sets (`"dev-{8hex}-{seed}-{n}"` format where
+`{8hex} = hex(org_id.as_bytes()[0..4])`) from both concurrent responses. As with AC-006, the
+expected ID prefix must be derived from the org's UUID bytes — NOT the human slug. Asserting
+against `"dev-org-a-..."` would yield empty ID sets and a vacuous false-green.
+(traces to BC-2.11.005 invariant: no cross-call state; ephemeral materialization;
+BC-2.06.018 INV-DISTINCT-DATA-001 concurrent distinctness proof)
 
 ### AC-010: Test is gated behind `#[ignore]` with explicit CI multi-org profile
 Given: Standard nextest profile runs (no DTU server available).
@@ -306,9 +424,42 @@ to execute it. Comment: `// E2E-MULTI-001: requires multi-org DTU setup; un-gate
 | Rule | Source | Enforcement |
 |------|--------|-------------|
 | AdapterRegistry keyed by (OrgId, SensorId) — not (SensorId) alone | BC-3.2.001 | Test AC-005 cross-org probe fails if AdapterRegistry lacks org scope |
-| Per-org ResolvedSensorSpec from overlay must be used — not base spec | ADR-029 §D2 | Test AC-006 verifies DTU port from per-org overlay, not production URL |
+| Per-org ResolvedSensorSpec from overlay must be used — not base spec | ADR-029 §D2 | Test AC-006 verifies data content from per-org seeded clone, not production URL |
+| AC-006 isolation proof is on RESPONSE DATA CONTENT (ID sets), not TCP port binding | BC-2.06.018 INV-DISTINCT-DATA-001 + D-1077 | Test AC-006 must read device/detection IDs from both orgs and assert set intersection = ∅; port-binding-only assertion is INSUFFICIENT |
+| org-a's CrowdStrike seed ≠ org-c's CrowdStrike seed (and similarly for any sensor shared between orgs) | BC-2.06.018 Postcondition 1 + ADR-036 v2.0 §2.2 | Test fixture passes distinct seed and org_id per HarnessEntry — org-a CrowdStrike seed=100, org-c CrowdStrike seed=200 (example; any distinct pair satisfying seed_A ≠ seed_C is valid) |
+| MultiInstanceHarness (BC-2.06.017) is the spawn mechanism — NOT separate demo-server invocations | BC-2.06.017 Postcondition 2 + Open Question 1 (resolved) | Test helper calls MultiInstanceHarness::start(entries) with all 8 (org_slug, sensor_id) pairs; then write_overlay_temp_dir; no separate demo-server processes |
 | No shared mutable state between concurrent org queries | BC-2.11.005 ephemeral | Test AC-009 concurrent probe |
-| Cyberint session cookie scoped to per-org CookieLoginAuthProvider instance | BC-3.2.001 | Test AC-007 org-specific session token |
+| Cyberint session cookie scoped to per-org CookieLoginAuthProvider instance | BC-3.2.001 | Test AC-007 org-specific session token; distinct sockets per BC-2.06.017 INV-ISOLATION-001 |
+| AC-005/AC-006/AC-009 must exercise the REAL prism-bin → fan_out → DTU path (not a self-referential tautology) | T6 paper-fix lesson (z23); INV-PERIMETER-001 scoping | prism-bin tests are NOT perimeter-constrained — see §Architecture Compliance Note below |
+| Canonical device ID format for all ID-set assertions | ADR-036 v2.0 §2.2; BC-2.06.018 INV-DISTINCT-DATA-001 | IDs extracted from responses must match `"dev-{8hex}-{seed}-{n}"` where `8hex = hex(org_id.as_bytes()[0..4])`; never `"dev-acme-..."` or any non-canonical form |
+
+### Architecture Compliance Note — prism-bin perimeter vs prism-dtu-harness perimeter (T6 lesson z23)
+
+During S-DEMO-MULTI-TENANT-DTU-001 (T6), the PR-LEVEL adversary caught that `prism-dtu-harness`
+is subject to INV-PERIMETER-001: it MUST NOT import `prism-spec-engine`, `prism-sensors`, or
+`prism-query`. This means harness-level isolation tests cannot call `FanOutTarget` directly and
+were limited to distinct-listener TCP counting via `GET /dtu/request-count`. The cross-layer
+`FanOutTarget`→`base_url` routing proof lives in `prism-sensors/tests/` (F-PR3-HIGH-001 fix)
+outside the harness perimeter.
+
+`crates/prism-bin/tests/e2e_multi_org.rs` (this story's test) operates under a DIFFERENT rule:
+`prism-bin` is the binary entrypoint crate and its integration tests CAN import and exercise
+the full production stack — `prism-sensors` fan_out, `prism-spec-engine` SpecLoader, and
+`prism-core` types are all available to prism-bin test code. There is no equivalent of
+INV-PERIMETER-001 for prism-bin integration tests.
+
+Therefore, AC-005, AC-006, and AC-009 MUST exercise the real `prism-bin → fan_out → DTU` path
+end-to-end via the MCP `tool_query` interface (spawning prism-bin as a subprocess via
+`SubprocessGuard`, following the S-DEMO-002 pattern). The tests MUST NOT:
+- Drive fan_out() directly without going through prism-bin (that would be testing the unit, not
+  the integration).
+- Self-validate by asserting only on port socket addresses without verifying response data.
+- Skip the MCP `tool_query` layer and call sensor adapters directly (removes the org-scoping
+  logic in `PrismServer`/`client_id` routing from the test scope).
+
+The subprocess E2E pattern ensures the full org-scoping stack (MCP client_id → AdapterRegistry
+lookup by (OrgId, SensorId) → ResolvedSensorSpec overlay → FanOutTarget HTTP dispatch → DTU
+clone response) is traversed by each assertion, not just a subset of it.
 
 ---
 
@@ -317,24 +468,25 @@ to execute it. Comment: `// E2E-MULTI-001: requires multi-org DTU setup; un-gate
 | File | Action | Purpose |
 |------|--------|---------|
 | `crates/prism-bin/tests/e2e_multi_org.rs` | CREATE | Multi-org integration test with all 10 ACs |
-| `crates/prism-bin/tests/helpers/mod.rs` | MODIFY | Add `write_multi_org_config()`, `MultiOrgDtuPorts` helper types |
-| `crates/prism-bin/tests/fixtures/multi-org-prism.toml.template` | CREATE | Template with 3-org config |
-| `.cargo/nextest.toml` | MODIFY | Add `[profile.e2e-multi-org]` that un-ignores E2E-MULTI-001-tagged tests |
+| `crates/prism-bin/tests/helpers/mod.rs` | MODIFY | Add `start_multi_org_harness()` helper that calls `MultiInstanceHarness::start(entries)` with all 8 `HarnessEntry` items constructed via `HarnessEntry::new(org_slug, sensor_id, clone)` (one per (org_slug, sensor_id) pair) and `write_multi_org_overlays(&harness, tempdir.path())` that calls `overlay_wiring::write_overlay_temp_dir(&harness, tempdir.path())` (second arg is `&Path` — use `tempdir.path()`, NOT `&tempdir`); add `write_multi_org_prism_toml(tempdir.path(), &socket_map)` to write the 3-org `prism.toml` and per-org overlay TOML from the socket_map. Note: `write_multi_org_demo_config` and `McpStdioHandle` with `tool_query_scoped` / `tool_query_scoped_expect_rpc_error` already exist in this file from S-DEMO-002; reuse them for per-org `client_id` queries in AC-002/003/005 rather than re-implementing. The retired `MultiOrgDtuPorts` helper struct is NOT used — the `socket_map: &HashMap<(String, String), SocketAddr>` from `harness.socket_map()` is the canonical per-org port registry. |
+| `crates/prism-bin/tests/fixtures/multi-org-prism.toml.template` | CREATE | Template with 3-org prism.toml config (org-a, org-b, org-c with mixed sensor combos) |
+| `.config/nextest.toml` | MODIFY | Add `[profile.e2e-multi-org]` block that un-ignores E2E-MULTI-001-tagged tests. This file already exists (contains `[profile.e2e]` and `[profile.ci]`); the new block must be appended, mirroring the existing `[profile.e2e]` block (the established S-DEMO-002 gating pattern). |
+| `crates/prism-bin/Cargo.toml` | MODIFY | Add dev-dependencies for multi-org seeded harness test. The current `[dev-dependencies]` in prism-bin only has `prism-dtu-armis` and `prism-dtu-crowdstrike` with `features = ["dtu"]` (NOT `fixture-gen`), and has no `prism-dtu-claroty`, `prism-dtu-cyberint`, or `prism-dtu-harness`. Required changes: (1) add `fixture-gen` feature to `prism-dtu-armis` and `prism-dtu-crowdstrike` dev-dep entries (change `features = ["dtu"]` → `features = ["dtu", "fixture-gen"]`); (2) add `prism-dtu-common` dev-dep with `features = ["fixture-gen"]`; (3) add `prism-dtu-claroty` dev-dep with `features = ["dtu", "fixture-gen"]`; (4) add `prism-dtu-cyberint` dev-dep with `features = ["dtu", "fixture-gen"]`; (5) add `prism-dtu-harness` dev-dep with `features = ["dtu"]` (transitively pulls `prism-dtu-common/fixture-gen`). Note: INV-PERIMETER-001 does NOT apply to prism-bin dev-dependencies — prism-bin integration tests are permitted to import the full stack (see §Architecture Compliance Note). |
 
 ---
 
 ## Tasks
 
-1. **Read** S-DEMO-002 test helpers (`crates/prism-bin/tests/helpers/mod.rs`) — understand `SubprocessGuard`, `wait_for_file()`, `write_demo_config()` before extending.
-2. **Read** `crates/prism-dtu-demo-server/src/harness.rs` — understand how to launch multiple clone instances per sensor for different orgs (distinct ports for org-a's CrowdStrike vs org-c's CrowdStrike).
-3. **Write** `write_multi_org_config()` helper — generates the 3-org `prism.toml` + per-org `customers/org-x/*.sensor.toml` overlays using ports from DTU demo server.
-4. **Write Red Gate tests** in `crates/prism-bin/tests/e2e_multi_org.rs` — AC-001, AC-004 shape tests fail RED before S-DEMO-001 merges.
-5. **Implement** multi-org DTU launch helper — spawns DTU server with enough sensor instances to serve 3 orgs × mixed sensors (up to 4 per org × 3 orgs = up to 12 clone instances; demo server should batch these).
+1. **Read** S-DEMO-002 test helpers (`crates/prism-bin/tests/helpers/mod.rs`) — understand `SubprocessGuard`, `wait_for_file()`, `write_demo_config()` before extending. NOTE: this file ALREADY contains `write_multi_org_demo_config` and an `McpStdioHandle` with `tool_query_scoped` / `tool_query_scoped_expect_rpc_error` methods. These are directly useful for the per-org `client_id`-scoped queries in AC-002, AC-003, and AC-005 — reuse them rather than re-implementing the scoped-query logic.
+2. **Read** `crates/prism-dtu-harness/src/multi_instance.rs` and `crates/prism-dtu-harness/src/overlay_wiring.rs` — understand `MultiInstanceHarness::start(entries)`, `HarnessEntry::new(org_slug, sensor_id, clone)` (the canonical constructor — `HarnessEntry` is `#[non_exhaustive]` so struct-literal construction `HarnessEntry { org_slug, sensor_id, clone }` is BLOCKED by E0639; always use `HarnessEntry::new(org_slug: impl Into<String>, sensor_id: impl Into<String>, clone: Box<dyn BehavioralClone>)`), `harness.socket_map()` (returns `&HashMap<(String, String), SocketAddr>` keyed by `(org_slug, sensor_id)` plain strings), and `write_overlay_temp_dir(&harness, tempdir.path())` (writes per-org overlay TOML with the 3-field format: `extends`, `instance_id = "{sensor_id}@{org_slug}"`, `base_url`; note the second argument is `&std::path::Path`, use `tempdir.path()` — NOT `&tempdir`).
+3. **Write** `start_multi_org_harness()` test helper in `crates/prism-bin/tests/helpers/mod.rs` — calls `MultiInstanceHarness::start(entries).await` with 8 `HarnessEntry` items: one per (org_slug, sensor_id) pair. Each `HarnessEntry` MUST be constructed via `HarnessEntry::new(org_slug, sensor_id, clone)` (the canonical constructor — struct-literal form is blocked by `#[non_exhaustive]`). Each clone is constructed via `new_with_seed(seed, archetype, org_id)` with DISTINCT seed and org_id per org (e.g., org-a CrowdStrike seed=100, org-c CrowdStrike seed=200; all per-org seeds must be non-overlapping). See FIX 5 note below for fallibility: `ArmisClone::new_with_seed` and `CyberintClone::new_with_seed` are fallible (return `anyhow::Result<Self>`); use `?` to propagate. `CrowdstrikeClone::new_with_seed` and `ClarotyClone::new_with_seed` are infallible (return `Self`). Calls `write_overlay_temp_dir(&harness, tempdir.path())` (note: `tempdir.path()` not `&tempdir`) to produce the overlay TOML files. Returns the harness handle + temp dir (kept alive for test duration). NOTE: seeds must also satisfy the `MultiInstanceHarness::start` precondition that no duplicate `(org_slug, sensor_id)` keys exist — use exactly 8 distinct entries.
+4. **Write** `write_multi_org_prism_toml(&tempdir, socket_map)` helper — writes the 3-org `prism.toml` (with org_id UUIDs matching those used for seeding) and `customers/org-x/*.sensor.toml` overlay files derived from the socket_map returned by `harness.socket_map()`. Reuses the overlay files already written by `write_overlay_temp_dir` in step 3.
+5. **Write Red Gate tests** in `crates/prism-bin/tests/e2e_multi_org.rs` — AC-001, AC-004 shape tests fail RED before S-DEMO-001 merges; `test_BC_2_06_018_per_org_seeded_data_is_disjoint` (AC-006) fails RED until `new_with_seed` seeded clones are serving in prism-bin subprocess path.
 6. **Implement** cross-org isolation assertion (AC-005) — sends tool_query with org-a's client_id for a sensor not registered to org-a; asserts error response, not data.
-7. **Implement** per-org routing assertion (AC-006) — two orgs with CrowdStrike at different ports; assert response data differs (DTU fixture data seeded differently per clone instance).
-8. **Implement** Cyberint per-org session isolation (AC-007) — two orgs' Cyberint queries; assert CookieLoginAuthProvider constructs per-org sessions independently.
-9. **Implement** concurrent query test (AC-009) — use `tokio::join!` to fire org-a and org-c CrowdStrike queries simultaneously; assert no cross-contamination.
-10. **Add** `[profile.e2e-multi-org]` to `.cargo/nextest.toml`.
+7. **Implement** AC-006 content-level distinctness assertion — sends `tool_query "FROM crowdstrike_detections LIMIT 50"` for org-a and org-c; extracts device/detection ID sets from both response bodies; asserts `ids_org_a ∩ ids_org_c = ∅` (NOT a socket-address assertion). Canonical ID format: `"dev-{8hex}-{seed}-{n}"` where `8hex = hex(org_id.as_bytes()[0..4])` per ADR-036 v2.0 §2.2.
+8. **Implement** Cyberint per-org session isolation (AC-007) — two orgs' Cyberint queries at their distinct MultiInstanceHarness sockets; assert CookieLoginAuthProvider constructs per-org sessions independently (session tokens do not cross between org-b and org-c per INV-ISOLATION-001).
+9. **Implement** concurrent query test (AC-009) — use `tokio::join!` to fire org-a and org-c CrowdStrike queries simultaneously; extract both ID sets from response bodies; assert `ids_a ∩ ids_c = ∅` (same proof as AC-006 under concurrent dispatch).
+10. **Add** `[profile.e2e-multi-org]` to `.config/nextest.toml` (NOT `.cargo/nextest.toml` — that path does not exist; nextest reads `.config/nextest.toml`). Append the new block to the existing file, mirroring the existing `[profile.e2e]` block structure.
 11. **Run** `cargo nextest run -p prism-bin --profile e2e-multi-org` after S-DEMO-001 + S-DEMO-002 merge; all assertions GREEN.
 12. **Run** `just check` — final pre-push gate.
 
@@ -342,18 +494,37 @@ to execute it. Comment: `// E2E-MULTI-001: requires multi-org DTU setup; un-gate
 
 ## Open Questions
 
-1. **DTU demo server instance count:** The demo server `prism-dtu-demo-server` supports
-   spawning multiple sensor clone instances. For 3 orgs with mixed sensors, we need up to
-   8 distinct CrowdStrike/Armis/Claroty/Cyberint instances (2 CS + 2 Armis + 2 Claroty + 2 Cyberint).
-   Confirm that the demo server config supports this (read `harness.rs` first). If not, each
-   org's DTU instances may need to be spawned as separate demo server invocations.
+**RECONCILED (v1.2, architect 2026-06-14, T8) — all questions resolved by the merged capability stack.**
 
-2. **Org-specific fixture data:** To prove AC-006 (per-org routing), the two CrowdStrike DTU
-   clone instances must return distinguishably different data. The DTU clone uses shared fixture
-   files by default. Either (a) seed each clone with different runtime data via `POST /dtu/configure`
-   before the test, or (b) rely on the port-binding proof (org-a's adapter uses CS_PORT_ORG_A;
-   if it were routing to CS_PORT_ORG_C, the request would fail due to port mismatch, not just
-   return different data). Option (b) is simpler and sufficient for the isolation proof.
+1. **DTU demo server instance count — RESOLVED.** The `MultiInstanceHarness` from `prism-dtu-harness`
+   (BC-2.06.017, MERGED PR #187) handles multiple distinct sockets in a single harness call.
+   `MultiInstanceHarness::start(entries)` where `entries` is a `Vec<HarnessEntry>` of
+   `(org_slug, sensor_id, Box<dyn BehavioralClone>)` tuples binds each entry at an ephemeral port
+   and returns a `socket_map: HashMap<(String, String), SocketAddr>`. For this story's 3-org ×
+   mixed-sensor matrix we need 8 entries: (org-a, crowdstrike), (org-a, armis), (org-b, claroty),
+   (org-b, cyberint), (org-c, crowdstrike), (org-c, armis), (org-c, claroty), (org-c, cyberint).
+   All 8 bind in a single `MultiInstanceHarness::start()` call — separate demo-server invocations
+   are NOT required. `write_overlay_temp_dir(&harness, tempdir.path())` writes all 8 overlay TOML files. (Second arg is `&std::path::Path`; use `tempdir.path()` — `&TempDir` does NOT coerce to `&Path`.)
+   Zero-entry configs are valid no-ops per EC-017-002; 8-entry configs are well within bounds
+   per EC-017-008 (no hard cap). Confirmed by BC-2.06.017 Postcondition 2 and TV-017-003.
+
+2. **Org-specific fixture data — RESOLVED. Option (a) — REAL seeded data — is MANDATORY.**
+   The D-1077 user directive requires REAL per-client data segregation; the port-binding-only
+   proof (former Option b) does not satisfy this requirement. The merged seeding substrate
+   (BC-2.06.018 MERGED PR #181, INV-DISTINCT-DATA-001 proven) provides the mechanism.
+   Each clone instance is constructed with `new_with_seed(seed: u64, archetype: prism_dtu_common::Archetype, org_id: prism_dtu_common::OrgId)`
+   where org-a's CrowdStrike seed ≠ org-c's CrowdStrike seed (e.g., assign seed 100 to org-a
+   and seed 200 to org-c). Fallibility: `CrowdstrikeClone::new_with_seed` and
+   `ClarotyClone::new_with_seed` are infallible (return `Self`); `ArmisClone::new_with_seed`
+   and `CyberintClone::new_with_seed` are fallible (return `anyhow::Result<Self>` — propagate
+   with `?`). `archetype` is `prism_dtu_common::Archetype` enum (NOT a string); `org_id` is
+   `prism_dtu_common::OrgId([u8; 16])` constructed as `OrgId(*uuid::Uuid::parse_str(s)?.as_bytes())`.
+   INV-DISTINCT-DATA-001 guarantees `ids(seed=100, org_id_A) ∩ ids(seed=200, org_id_C) = ∅` —
+   the canonical device ID format `"dev-{8hex}-{seed}-{n}"` where `8hex = hex(org_id.as_bytes()[0..4])`
+   (ADR-036 v2.0 §2.2) makes this structurally disjoint across distinct (seed, org_id) pairs.
+   AC-006 asserts on RESPONSE DATA CONTENT (ID-set intersection is empty), not on port binding.
+   `POST /dtu/configure` (secondary override, INV-CONFIGURE-ENDPOINT-SECONDARY-001) is NOT
+   used — config-time seeding via CloneConfig.seed + CloneConfig.org_id is the primary path.
 
 ---
 
@@ -362,7 +533,7 @@ to execute it. Comment: `// E2E-MULTI-001: requires multi-org DTU setup; un-gate
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | Org registered in prism.toml but no `customers/org-x/` overlay directory exists | Boot step 9A uses base spec URL (production URL); demo fails with connection error to production URL. Test must not exercise this case — overlays must always exist for demo orgs. |
-| EC-002 | Two orgs registered with same sensor but same DTU port (config mistake) | Both orgs' adapters resolve to the same DTU clone; data is shared. This is a config error, not a platform bug. Test must use distinct ports per org. |
+| EC-002 | Two orgs registered with same sensor — accidental same DTU socket | Under MultiInstanceHarness, each (org_slug, sensor_id) pair binds to a distinct ephemeral port selected by the OS. The harness returns `Err(HarnessError::DuplicateKey { org_slug, sensor_id })` if the same pair is submitted twice (BC-2.06.017 Postcondition 7). This means the "same socket for two orgs" scenario is structurally prevented at harness-startup time rather than being a silent config error. Test code must never submit duplicate (org_slug, sensor_id) pairs to MultiInstanceHarness::start. |
 | EC-003 | Cross-org query (AC-005) returns empty data instead of AdapterNotFound | Empty data looks like a "soft pass" but is a BC-3.2.001 violation — the isolation error MUST be explicit. AC-005 asserts on the error code, not just "no rows". |
 | EC-004 | Cyberint login step fails for org-b but succeeds for org-c | CookieLoginAuthProvider instances are independent; one failing doesn't affect the other. org-c's Cyberint query proceeds normally. |
 
@@ -395,9 +566,102 @@ isolation-verification obligation transfers to this story's own AC gate before d
 
 ---
 
+## AC-006 Design Directive (T8-architect, 2026-06-14 — for PO in T8-PO + story-writer in T9)
+
+**ARCHITECT DESIGN DIRECTIVE — do NOT implement as prose AC yet. This section states what
+AC-006 MUST prove and which BCs it traces to. The product-owner finalizes AC body in T8-PO;
+the story-writer propagates to behavioral_contracts frontmatter and AC text in T9.**
+
+### What AC-006 must prove
+
+AC-006 must assert REAL seeded-data distinctness between orgs sharing the same sensor type.
+The specific proof target: org-a's CrowdStrike DTU clone and org-c's CrowdStrike DTU clone
+are constructed with distinct `(seed, org_id)` pairs (e.g., seed_a=100, seed_c=200, with
+org_id_a ≠ org_id_c). When `tool_query "FROM crowdstrike_detections LIMIT 50"` is executed
+for org-a and then for org-c, the test collects the set of record IDs (device IDs or
+detection IDs) from each response and asserts:
+
+```
+ids_org_a ∩ ids_org_c = ∅   (INV-DISTINCT-DATA-001)
+```
+
+This is a CONTENT-LEVEL assertion on actual response data, NOT a port-address assertion.
+The canonical device ID format is `"dev-{8hex}-{seed}-{n}"` where `{8hex} = hex(org_id.as_bytes()[0..4])` (ADR-036 v2.0 §2.2), so structural disjointness is guaranteed by the seeding math — but the test must still READ the response bodies and extract IDs rather than asserting only on socket addresses. CRITICAL: `{8hex}` is derived from the org's UUID bytes (e.g., if org-a's UUID bytes begin `0xDEADBEEF...`, IDs begin `dev-deadbeef-100-0`), NOT the human slug `org-a`. Asserting against `dev-org-a-...` would match zero IDs, making `ids_a ∩ ids_c = ∅` pass VACUOUSLY (false green), defeating the INV-DISTINCT-DATA-001 proof.
+
+### BCs AC-006 should trace to
+
+The PO must add to AC-006's traces annotation:
+- `BC-2.06.017` — the `MultiInstanceHarness` / `socket_map` mechanism provides distinct
+  sockets; each org's overlay file points to its own `SocketAddr`. This is Postcondition 3
+  of BC-2.06.017 (overlay integration end-to-end).
+- `BC-2.06.018` — the `new_with_seed(seed, archetype, org_id)` constructor causes each
+  clone to serve deterministically distinct data. INV-DISTINCT-DATA-001 (§Invariants) is
+  the invariant AC-006 verifies at the integration-test level.
+- `BC-2.06.014` — per-org ResolvedSensorSpec routing (the overlay-to-FanOutTarget chain
+  that ensures the correct socket is reached) is the production-side prerequisite.
+
+The current AC-006 traces line reads `(traces to BC-2.06.014 precondition...)`. The PO
+should REPLACE this with: `(traces to BC-2.06.017 Postcondition 3 + BC-2.06.018
+INV-DISTINCT-DATA-001 + BC-2.06.014 endpoint-resolution)`.
+
+### Consequential notes for AC-002, AC-003, and AC-009
+
+These ACs currently assert "Returns non-empty data" without specifying whether that data
+must be seeded-distinct from other orgs. Per the D-1077 mandate:
+
+- **AC-002 (org-a CrowdStrike + Armis):** "non-empty data from org-a's CrowdStrike DTU clone"
+  is still correct as stated, but the PO should note that the returned data is generated from
+  org-a's seed (not the static JSON fallback). The trace should add BC-2.06.018 as a secondary
+  reference. No structural change required — AC-006 carries the cross-org distinctness proof.
+
+- **AC-003 (org-b Claroty + Cyberint):** Same as AC-002. "non-empty data" is correct; add
+  BC-2.06.018 secondary trace if the PO wants coverage completeness. Not a blocker.
+
+- **AC-009 (concurrent queries, org-a vs org-c CrowdStrike):** The existing prose — "org-a's
+  response contains only data from CS_PORT_ORG_A; org-c's response contains only data from
+  CS_PORT_ORG_C; no row-level mixing occurs" — is directionally correct but should be
+  strengthened: "no row-level mixing occurs" should be verified by asserting that the
+  ID sets from the two concurrent responses satisfy `ids_a ∩ ids_c = ∅`, consistent with
+  AC-006. Port-address cross-reference alone is insufficient under D-1077.
+
+### BC-anchor recommendation for PO (behavioral_contracts frontmatter additions)
+
+Add to `behavioral_contracts:` array in the story frontmatter (for PO in T8-PO):
+```yaml
+  - BC-2.06.017  # MultiInstanceHarness multi-address binding — socket_map provides per-org
+                 # distinct DTU sockets; overlay_wiring writes per-org overlay TOML.
+                 # Merged PR #187 2026-06-14 (D-1158). AC-006 traces to PC-3.
+  - BC-2.06.018  # Config-time data seeding — new_with_seed wires per-clone seed→generator;
+                 # INV-DISTINCT-DATA-001 proves disjoint ID sets across distinct (seed, org_id).
+                 # Merged PR #181 2026-06-10 (D-1089). AC-006 is the integration-level proof.
+```
+
+### ADR decision (architect T8)
+
+**No ADR amendment is required.** The reconciliation is fully covered by existing ADRs:
+- ADR-029 governs per-org overlay routing (base_url override per org) — unchanged; still
+  the mechanism by which overlay TOML files route each org's adapter to its own DTU socket.
+- ADR-036 governs the seeding mechanism (new_with_seed, canonical ID format, INV-DISTINCT-DATA-001
+  math). ADR-036 v2.3 (current) is already the authoritative design document; no amendment
+  is needed to extend its scope to S-DEMO-004 — S-DEMO-004 is a consumer of ADR-036, not a
+  modifier of it.
+- BC-2.06.017 (ACTIVE v1.10) and BC-2.06.018 (ACTIVE v1.6) are the canonical contract
+  documents for the mechanisms this story consumes. Both BCs already describe the behavior
+  S-DEMO-004 relies on; referencing them from this story's frontmatter and AC traces is
+  sufficient. No new ADR category (routing, seeding, testing) is opened by this reconciliation.
+
+The story's architecture sections and AC-006 design directive (above) provide the full
+cross-referencing needed for the implementer to understand how to use the merged substrate.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-06-14 | story-writer | Remove-uncertainty spec corrections (6 fixes). FIX-1: `.cargo/nextest.toml` → `.config/nextest.toml` in §File Structure and Task 10 (the `.cargo/` path does not exist; nextest reads `.config/nextest.toml`, which already has `[profile.e2e]` and `[profile.ci]`; new block mirrors existing pattern). FIX-2: Added `crates/prism-bin/Cargo.toml` MODIFY row to §File Structure with full enumeration of required dev-dep changes: `fixture-gen` feature on existing `prism-dtu-armis` + `prism-dtu-crowdstrike`; new dev-deps `prism-dtu-common`, `prism-dtu-claroty`, `prism-dtu-cyberint` (all with `fixture-gen`), `prism-dtu-harness` (with `dtu`). INV-PERIMETER-001 note preserved. FIX-3: `HarnessEntry` construction guidance changed from struct-literal to `HarnessEntry::new(org_slug, sensor_id, clone)` in Task 2, Task 3, and risk_mitigations; `#[non_exhaustive]` + E0639 rationale stated explicitly. FIX-4: All `write_overlay_temp_dir(&harness, &tempdir)` → `write_overlay_temp_dir(&harness, tempdir.path())` in risk_mitigations (1 occurrence), §File Structure helpers/mod.rs row (1 occurrence), Open Questions OQ-1 (1 occurrence); Task 2 and Task 3 already use `.path()` form. FIX-5: `new_with_seed` fallibility and arg types corrected in §DTU multi-tenancy scope and Open Questions OQ-2: `CrowdstrikeClone` and `ClarotyClone` → infallible (`Self`); `ArmisClone` and `CyberintClone` → fallible (`anyhow::Result<Self>`, use `?`); `archetype` is `prism_dtu_common::Archetype` enum; `org_id` is `prism_dtu_common::OrgId([u8;16])` constructed `OrgId(*uuid::Uuid::parse_str(s)?.as_bytes())`; reference pattern `build_clone_pairs` in `prism-dtu-demo-server/src/harness.rs`. FIX-6: Standardized all device-ID format occurrences to `"dev-{8hex}-{seed}-{n}"` where `8hex = hex(org_id.as_bytes()[0..4])`; eliminated all `"dev-{org_slug}-{seed}-{n}"` forms (2 occurrences: frontmatter comment line 48, §AC-006 Design Directive); added false-green trap warning in AC-006 body, AC-009 body, frontmatter comment, §AC-006 Design Directive, risk_mitigations, and OQ-2 — asserting `"dev-org-a-..."` matches zero IDs, making intersection vacuously ∅. BONUS (LOW): Task 1 and §File Structure helpers/mod.rs row updated to note that `write_multi_org_demo_config` and `McpStdioHandle::tool_query_scoped` / `tool_query_scoped_expect_rpc_error` already exist in helpers/mod.rs and should be reused for AC-002/003/005. |
+| 1.4 | 2026-06-14 | story-writer | T9 materialization — AC-trace propagation + real-seeding body propagation + status draft→ready. (1) AC-006 body rewritten: replaced port-binding-only model with content-level INV-DISTINCT-DATA-001 proof: org-a CrowdStrike clone constructed via `new_with_seed(seed_a=100, archetype, org_id_a)` and org-c via `new_with_seed(seed_c=200, archetype, org_id_c)`; test reads response bodies and asserts `ids_org_a ∩ ids_org_c = ∅`; trace updated to `BC-2.06.017 Postcondition 3 + BC-2.06.018 INV-DISTINCT-DATA-001 + BC-2.06.014 endpoint-resolution`; Red Gate test renamed to `test_BC_2_06_018_per_org_seeded_data_is_disjoint`. (2) AC-009 strengthened: "no row-level mixing occurs" extended to assert `ids_a ∩ ids_c = ∅` on concurrent response bodies; added `BC-2.06.018 INV-DISTINCT-DATA-001` as additional trace. (3) AC-007: added `BC-2.06.017 INV-ISOLATION-001 (per-org distinct Cyberint DTU sockets)` trace and clarified distinct-socket setup. (4) §risk_mitigations: first mitigation rewritten to describe MultiInstanceHarness::start + new_with_seed per-org seeding + write_overlay_temp_dir + ids_a ∩ ids_c = ∅ content assertion. (5) §Tasks: tasks 2, 3, 5, 7, 9 rewritten for MultiInstanceHarness API; new task 4 separates prism.toml writing from overlay TOML; retired stale "DTU demo server invocations" language. (6) §File Structure Requirements: `write_multi_org_config()` and `MultiOrgDtuPorts` replaced with `start_multi_org_harness()`, `write_multi_org_overlays()`, `write_multi_org_prism_toml()` reflecting harness API; retired `MultiOrgDtuPorts` struct. (7) EC-002: reconciled "same port config mistake" edge case — now documents that MultiInstanceHarness prevents this structurally via HarnessError::DuplicateKey (BC-2.06.017 Postcondition 7). (8) §Architecture Compliance Rules: added canonical ID format rule referencing ADR-036 v2.0 §2.2; updated AC-006/AC-007/AC-009 rule rows to reference seeding semantics and content-level proofs; updated §Behavioral Contracts table AC-trace columns for BC-2.06.017 and BC-2.06.018. Status set to ready. |
+| 1.3 | 2026-06-14 | product-owner | T8-PO BC anchor addition. (1) `behavioral_contracts:` frontmatter array: added BC-2.06.017 (MultiInstanceHarness multi-address binding; PC-3 + INV-ISOLATION-001 underpin AC-006 distinct-socket claim, AC-007 per-org Cyberint session isolation, AC-009 concurrent no-mix) and BC-2.06.018 (config-time seeding; INV-DISTINCT-DATA-001 is the contract backing AC-006's content-level ids_org_a ∩ ids_org_c = ∅ assertion). (2) §Behavioral Contracts table: added two new rows with AC-trace column. (3) Story body version header updated v1.0→v1.3. BC-2.06.017 and BC-2.06.018 required NO amendment — both BCs already support the AC-006/007/009 claims as written (analysis in T8-PO report). AC-006 trace directive for story-writer T9 recorded in §AC-006 Design Directive (no AC prose touched). |
+| 1.2 | 2026-06-14 | architect | T8 reconciliation against merged capability stack (D-1077 scope expansion execution). Changes: (1) `depends_on` — added 3 missing edges: S-DEMO-MULTI-TENANT-DTU-001 (BC-2.06.017 multi-address binding, PR #187 SATISFIED), S-DEMO-DTU-LIVE-SCENARIO-001-A (BC-2.06.018 seeding, PR #181 SATISFIED), S-DEMO-DTU-LIVE-SCENARIO-001-B (BC-2.06.019+020, PR #185 SATISFIED); inline justification per existing comment convention. (2) `inputs` — added prism-dtu-harness multi_instance.rs + overlay_wiring.rs, BC-2.06.017 + BC-2.06.018, ADR-036. (3) `title` — updated to reflect BC-2.06.017 + BC-2.06.018 anchors. (4) §DTU multi-tenancy scope — complete rewrite: committed to MultiInstanceHarness + real seeded data distinctness (INV-DISTINCT-DATA-001) as the primary isolation proof; port-binding-only approach retired. (5) §Open Questions — both questions fully resolved (OQ-1: MultiInstanceHarness single-call handles all 8 entries; OQ-2: real seeded data mandatory, port-binding insufficient). (6) §Architecture Compliance Rules — added 3 new rules (CONTENT-level AC-006 proof; seed distinctness per org; MultiInstanceHarness as spawn mechanism); added §Architecture Compliance Note documenting prism-bin perimeter vs prism-dtu-harness perimeter (T6 lesson z23). (7) §AC-006 Design Directive — new section: precise spec for what AC-006 must prove (INV-DISTINCT-DATA-001 content assertion), BC-anchor recommendations for PO (BC-2.06.017 PC-3 + BC-2.06.018 INV-DISTINCT-DATA-001 + BC-2.06.014), consequential notes for AC-002/003/009, and ADR decision (no amendment needed — ADR-029 + ADR-036 v2.3 sufficient). AC body prose NOT modified (PO domain, T8-PO). |
 | 1.1 | 2026-06-10 | story-writer | Moot `blocks: [S-DEMO-003]` frontmatter edge scrubbed to `blocks: []` with historical annotation — S-DEMO-003 merged PR #176 (2026-06-08) ahead of this draft story; a merged story cannot be blocked and the stale edge would mislead the wave scheduler. §Dispatch Ordering diagram + narrative annotated historical (isolation-verification obligation transfers to this story's AC gate before demo presentation). Index row already carried the note since STORY-INDEX v2.342; file now matches (story_frontmatter_index_consistency). No AC/scope changes. |
 | 1.0 | 2026-05-29 | architect | Initial draft — addresses multi-client demo scope gap not covered by S-DEMO-002 v1.0 |
