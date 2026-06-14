@@ -42,7 +42,7 @@ fn ephemeral() -> std::net::SocketAddr {
 // AC-001 / TV-017-002: MultiInstanceConfig accepted without error (empty case)
 //
 // test_demo_server_zero_instances_returns_empty_map
-// BC-2.06.017 EC-017-002: empty config → Ok(HashMap::new()), no panic.
+// BC-2.06.017 EC-017-002: empty config → Ok(MultiInstanceServers) with empty socket_map(), no panic.
 // ============================================================================
 
 /// EC-017-002: Empty `MultiInstanceConfig` returns empty socket map; no panic.

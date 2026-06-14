@@ -157,10 +157,14 @@ impl MultiInstanceHarness {
     /// # Bind-loop call form (no-tls path, &mut self receiver — U-001)
     ///
     /// ```ignore
-    /// for entry in entries.iter_mut() {
+    /// for mut entry in entries {
     ///     let bound = entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?;
     /// }
     /// ```
+    ///
+    /// Clones are moved by value into the per-instance bound entry so that the error path
+    /// can call `clone.stop().await` (deterministic port release, Postcondition 6); the
+    /// `&mut self` receiver on `start_on` is satisfied via the moved `mut entry` binding.
     ///
     /// (BC-2.06.017 Postcondition 2)
     pub async fn start(entries: Vec<HarnessEntry>) -> Result<Self, HarnessError> {
