@@ -40,7 +40,7 @@
 //! | `test_BC_2_06_018_per_org_seeded_data_is_disjoint` | AC-006 | BC-2.06.017 PC-3, BC-2.06.018 INV-DISTINCT-DATA-001, BC-2.06.014 |
 //! | `test_BC_3_2_001_cyberint_session_isolation_org_b_and_org_c` | AC-007 | BC-3.2.001, BC-2.01.013, BC-2.06.017 INV-ISOLATION-001 |
 //! | `test_BC_2_09_008_response_envelope_identifies_correct_org_and_sensor` | AC-008 | BC-2.09.008 |
-//! | `test_BC_2_11_005_concurrent_org_queries_do_not_interfere` | AC-009 | BC-2.11.005, BC-2.06.018 INV-DISTINCT-DATA-001 |
+//! | `test_BC_2_11_005_sequential_org_queries_do_not_interfere` | AC-009 | BC-2.11.005, BC-2.06.018 INV-DISTINCT-DATA-001 |
 //! | `test_BC_2_22_001_multi_org_tests_ignored_under_standard_profile` | AC-010 | BC-2.22.001 |
 //!
 //! # Red Gate tests (4 designated per story frontmatter red_gate_tests=4)
@@ -827,18 +827,18 @@ async fn test_BC_2_09_008_response_envelope_identifies_correct_org_and_sensor() 
 }
 
 // ---------------------------------------------------------------------------
-// AC-009 / BC-2.11.005 + BC-2.06.018: Concurrent queries for different orgs
+// AC-009 / BC-2.11.005 + BC-2.06.018: Sequential queries for different orgs
 // ---------------------------------------------------------------------------
 
-/// AC-009 / BC-2.11.005: Concurrent queries for org-a and org-c do not interfere.
+/// AC-009 / BC-2.11.005: Sequential back-to-back queries for org-a and org-c do not interfere.
 ///
-/// Given: org-a and org-c both query CrowdStrike concurrently (within 100ms),
+/// Given: org-a and org-c both query CrowdStrike via sequential back-to-back dispatch,
 ///        using the same MultiInstanceHarness setup as AC-006
 ///        (org-a seed=100, org-c seed=200, distinct org_ids, distinct sockets per INV-ISOLATION-001).
-/// When: Both responses arrive (via concurrent `tokio::join!` dispatching).
+/// When: Both responses arrive (via sequential dispatch over the single stdio channel).
 /// Then: org-a's response contains only data from the org-a CrowdStrike clone;
 ///       org-c's response contains only data from the org-c CrowdStrike clone;
-///       `ids_a ∩ ids_c = ∅` on the concurrent response bodies (INV-DISTINCT-DATA-001).
+///       `ids_a ∩ ids_c = ∅` on both response bodies (INV-DISTINCT-DATA-001).
 ///
 /// ANTI-FALSE-GREEN: same guard as AC-006 — both ID sets must be non-empty before
 /// asserting disjointness. The expected ID format is "dev-{8hex}-{seed}-N" where
@@ -846,12 +846,12 @@ async fn test_BC_2_09_008_response_envelope_identifies_correct_org_and_sensor() 
 /// match zero IDs and make the intersection vacuously empty (false green).
 ///
 /// (traces to BC-2.11.005 ephemeral materialization; BC-2.06.018 INV-DISTINCT-DATA-001
-///  concurrent distinctness proof)
+///  sequential back-to-back distinctness proof)
 ///
 /// // E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
 #[tokio::test]
 #[ignore = "E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile."]
-async fn test_BC_2_11_005_concurrent_org_queries_do_not_interfere() {
+async fn test_BC_2_11_005_sequential_org_queries_do_not_interfere() {
     let (harness, tempdir) = helpers::start_multi_org_harness().await;
     helpers::write_multi_org_overlays(&harness, &tempdir).expect("write_multi_org_overlays failed");
     helpers::write_multi_org_prism_toml(&tempdir).expect("write_multi_org_prism_toml failed");
@@ -862,16 +862,15 @@ async fn test_BC_2_11_005_concurrent_org_queries_do_not_interfere() {
     mcp.initialize().expect("MCP initialize failed");
 
     // NOTE: McpStdioHandle uses a single stdio channel and is not Send/Sync across tasks.
-    // Concurrent dispatch via the MCP stdio protocol requires serialized sends with
-    // the two requests queued back-to-back. We send both requests in rapid succession
-    // (within a single thread) and read both responses. This satisfies the AC-009
-    // requirement of sending within 100ms of each other; the server processes them
-    // concurrently on its end (fan_out() is async).
+    // AC-009 uses sequential back-to-back dispatch: we send both requests in rapid
+    // succession (within a single thread) and read both responses. The server processes
+    // each query independently via fan_out() (async); back-to-back dispatch over a single
+    // stdio channel is the correct model for single-client MCP.
     //
     // Full cross-thread concurrency (tokio::spawn + Arc<Mutex<McpStdioHandle>>) would
     // require making McpStdioHandle Send — a production concern addressed when true
     // parallel MCP client support is added. For the smoke test, back-to-back sends
-    // prove the server handles concurrent query dispatches without cross-org mixing.
+    // prove the server handles sequential org queries without cross-org data mixing.
 
     // Send org-a CrowdStrike query (seed=100).
     // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
@@ -880,7 +879,7 @@ async fn test_BC_2_11_005_concurrent_org_queries_do_not_interfere() {
             "SELECT * FROM crowdstrike_detections LIMIT 50",
             helpers::ORG_A_SLUG,
         )
-        .expect("concurrent org-a CrowdStrike query failed");
+        .expect("sequential org-a CrowdStrike query failed");
 
     // Send org-c CrowdStrike query immediately after (seed=200).
     let result_org_c = mcp
@@ -888,7 +887,7 @@ async fn test_BC_2_11_005_concurrent_org_queries_do_not_interfere() {
             "SELECT * FROM crowdstrike_detections LIMIT 50",
             helpers::ORG_C_SLUG,
         )
-        .expect("concurrent org-c CrowdStrike query failed");
+        .expect("sequential org-c CrowdStrike query failed");
 
     let ids_a = extract_device_ids(&result_org_a);
     let ids_c = extract_device_ids(&result_org_c);
@@ -896,24 +895,24 @@ async fn test_BC_2_11_005_concurrent_org_queries_do_not_interfere() {
     // ANTI-FALSE-GREEN GUARD (same as AC-006).
     assert!(
         !ids_a.is_empty(),
-        "AC-009 ANTI-FALSE-GREEN: concurrent org-a CrowdStrike response must contain \
+        "AC-009 ANTI-FALSE-GREEN: org-a CrowdStrike response must contain \
          device IDs (format: dev-{{8hex}}-100-N). Got empty set. \
          response: {result_org_a:?}"
     );
     assert!(
         !ids_c.is_empty(),
-        "AC-009 ANTI-FALSE-GREEN: concurrent org-c CrowdStrike response must contain \
+        "AC-009 ANTI-FALSE-GREEN: org-c CrowdStrike response must contain \
          device IDs (format: dev-{{8hex}}-200-N). Got empty set. \
          response: {result_org_c:?}"
     );
 
-    // INV-DISTINCT-DATA-001 under concurrent dispatch.
+    // INV-DISTINCT-DATA-001 under sequential back-to-back dispatch.
     let intersection: std::collections::HashSet<_> = ids_a.intersection(&ids_c).collect();
     assert!(
         intersection.is_empty(),
-        "AC-009 / BC-2.11.005 + BC-2.06.018 INV-DISTINCT-DATA-001: concurrent ids_a ∩ ids_c \
-         must be ∅. Got non-empty intersection under concurrent dispatch: {intersection:?}. \
-         This indicates cross-org data mixing during concurrent fan_out() execution. \
+        "AC-009 / BC-2.11.005 + BC-2.06.018 INV-DISTINCT-DATA-001: ids_a ∩ ids_c \
+         must be ∅. Got non-empty intersection under sequential back-to-back dispatch: {intersection:?}. \
+         This indicates cross-org data mixing during back-to-back fan_out() execution. \
          ids_a (sample): {:?}, ids_c (sample): {:?}",
         ids_a.iter().take(3).collect::<Vec<_>>(),
         ids_c.iter().take(3).collect::<Vec<_>>()
