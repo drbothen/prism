@@ -16,8 +16,9 @@
 //!
 //! GREEN: After AC-5 + fix-burst-2 + fix-burst-4 + F-LP22 + post-PREREQ-E +
 //!   PLUGIN-MIGRATION-001-E + S-CONFIG-MULTI-TENANT-OVERRIDE-001 + S-5.01-FOLLOWUP-MCP-BOOT +
-//!   S-DEMO-001, `#[non_exhaustive]` is applied to all 49 types.
-//! `cargo check -p non-exhaustive-violation` exits non-zero with >=49 E0639/E0004 errors.
+//!   S-DEMO-001 + S-DEMO-DTU-LIVE-SCENARIO-001-A + S-DEMO-DTU-LIVE-SCENARIO-001-B +
+//!   S-DEMO-MULTI-TENANT-DTU-001, `#[non_exhaustive]` is applied to all 60 types.
+//! `cargo check -p non-exhaustive-violation` exits non-zero with >=60 E0639/E0004 errors.
 //!
 //! Target types (all 36 — AC-5 original 14 + fix-burst-2 sibling sweep 15 + fix-burst-4
 //!   types::SensorSpec + F-LP22 PluginError + post-PREREQ-E WriteToolInvalidationMap +
