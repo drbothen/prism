@@ -346,7 +346,7 @@ pub fn write_demo_config(config_dir: &Path, dtu_ports: &DtuPorts) -> Result<(), 
 // write_multi_org_demo_config (3-org)
 // ---------------------------------------------------------------------------
 
-/// Write a prism.toml with 3 orgs configured for multi-tenant isolation tests (AC-011..013).
+/// Write a prism.toml with 3 orgs configured for multi-tenant isolation tests (S-DEMO-004 AC-001..AC-010).
 ///
 /// Org layout:
 /// - `demo-org-a` (UUIDv7): CrowdStrike + Armis (2 sensors)
