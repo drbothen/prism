@@ -853,6 +853,19 @@ impl McpStdioHandle {
     }
 
     /// Internal: send `tools/call` for the `query` tool with optional org scoping.
+    ///
+    /// Returns a normalized ResponseEnvelope with:
+    /// - `rows` at the top level (from `results.rows` or `structuredContent.results.rows`)
+    /// - `_meta` at the top level with `data_source` normalized to a string
+    ///   (if the server returns `data_source` as an array, we extract the first element)
+    /// - All other top-level fields preserved for assertion by tests
+    ///
+    /// This normalization is necessary because:
+    /// 1. MCP `tools/call` wraps the result in `{ "content": [...], "structuredContent": {...} }`.
+    /// 2. Prism's `query` tool may return `content[0].text` as a human summary ("N results found")
+    ///    rather than a JSON blob — so we cannot rely on parsing the text field as JSON.
+    /// 3. Tests in `e2e_multi_org.rs` access `result.get("rows")` (top-level) and
+    ///    `result.get("_meta").get("data_source").as_str()` — requiring this normalization.
     fn tool_query_with_params(
         &mut self,
         pql: &str,
@@ -865,7 +878,7 @@ impl McpStdioHandle {
             input["clients"] = serde_json::json!([slug]);
         }
 
-        let result = self.send_request(
+        let raw = self.send_request(
             "tools/call",
             serde_json::json!({
                 "name": "query",
@@ -873,23 +886,77 @@ impl McpStdioHandle {
             }),
         )?;
 
-        // Extract the text content from the MCP tools/call response.
-        // MCP tools/call result shape: { "content": [{ "type": "text", "text": "<json>" }], ... }
-        if let Some(content) = result.get("content") {
-            if let Some(text) = content
-                .as_array()
-                .and_then(|a| a.first())
-                .and_then(|c| c.get("text"))
-                .and_then(|t| t.as_str())
-            {
-                return serde_json::from_str(text).map_err(|e| {
-                    format!("Failed to parse tool_query response text as JSON: {e}; text: {text}")
-                });
-            }
-        }
+        // Prism's query MCP tool embeds the full ResponseEnvelope JSON as a string
+        // inside content[0].text.  The outer MCP `tools/call` result wrapper looks like:
+        //
+        //   raw = {
+        //     "content": [{"type": "text", "text": "<ResponseEnvelope JSON string>"}],
+        //     "structuredContent": { ... },
+        //     "isError": false,
+        //   }
+        //
+        // where the ResponseEnvelope JSON string is:
+        //
+        //   {
+        //     "_meta": { "data_source": ["sensor_name"], "total_results": N, ... },
+        //     "content": [{"type": "text", "text": "N results found"}],
+        //     "results": { "rows": [...], "returned_results": N, ... },
+        //     "structuredContent": { "results": { ... } }
+        //   }
+        //
+        // We pick the richest source available (text_json if it parses, else raw),
+        // then normalize to the shape tests expect:
+        //   { "rows": [...], "_meta": { "data_source": "sensor_name", ... }, ... }
 
-        // Return the raw result if content extraction failed.
-        Ok(result)
+        // Unwrap content[0].text if it's a valid JSON object (the ResponseEnvelope path).
+        let envelope: serde_json::Value = raw
+            .get("content")
+            .and_then(|c| c.as_array())
+            .and_then(|a| a.first())
+            .and_then(|c| c.get("text"))
+            .and_then(|t| t.as_str())
+            .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok())
+            .filter(|v| v.is_object())
+            .unwrap_or(raw);
+
+        // Extract rows: envelope.results.rows (primary) → envelope.structuredContent.results.rows.
+        let rows = envelope
+            .get("results")
+            .and_then(|r| r.get("rows"))
+            .cloned()
+            .or_else(|| {
+                envelope
+                    .get("structuredContent")
+                    .and_then(|sc| sc.get("results"))
+                    .and_then(|r| r.get("rows"))
+                    .cloned()
+            });
+
+        // Normalize _meta.data_source from Array → String (first element).
+        // Tests use `.as_str()` which requires a JSON String, not an Array.
+        let normalized_meta = envelope.get("_meta").cloned().map(|mut meta| {
+            if let Some(ds_array) = meta
+                .get("data_source")
+                .and_then(|ds| ds.as_array())
+                .map(|a| a.to_owned())
+            {
+                if let Some(first) = ds_array.first().and_then(|s| s.as_str()) {
+                    meta["data_source"] = serde_json::Value::String(first.to_string());
+                }
+            }
+            meta
+        });
+
+        // Build normalized result: start from envelope, add top-level `rows` and
+        // replace `_meta` with the normalized version.
+        let mut normalized = envelope;
+        if let Some(rows) = rows {
+            normalized["rows"] = rows;
+        }
+        if let Some(meta) = normalized_meta {
+            normalized["_meta"] = meta;
+        }
+        Ok(normalized)
     }
 }
 
@@ -1159,9 +1226,62 @@ pub async fn launch_prism_bin(
 /// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
 /// The CI e2e profile ensures this; local runs require the manual build step.
 // ---------------------------------------------------------------------------
-// S-DEMO-004: Multi-org harness stubs (Red Gate — todo!() bodies)
+// S-DEMO-004: Multi-org harness helpers
 // ---------------------------------------------------------------------------
 //
+// BackgroundHarness: wraps a MultiInstanceHarness running on a dedicated
+// multi-thread tokio runtime in a background thread. This is REQUIRED because
+// the E2E tests use `#[tokio::test]` (current-thread runtime) and synchronous
+// `std::io::BufReader::read_line` to read prism's stdout. That blocking call
+// starves all tokio tasks in the current-thread runtime, including the in-process
+// DTU clone axum server tasks — causing every sensor HTTP request from prism to
+// time out (30s) because the DTU server cannot accept connections.
+//
+// Root cause: current-thread tokio runtime + blocking `read_line` = deadlock on
+// any in-process async server (DTU clones) that prism is trying to reach.
+//
+// Fix: run the MultiInstanceHarness (and its axum server tasks) on a separate
+// multi-thread tokio runtime in a background thread. The blocking `read_line`
+// can't affect that background runtime. The socket_map is extracted and copied
+// for use from the test thread (write_multi_org_overlays only needs socket addresses).
+
+/// A guard that keeps a `MultiInstanceHarness` alive on a dedicated background
+/// tokio multi-thread runtime, decoupled from the test's current-thread runtime.
+///
+/// `BackgroundHarness` exposes the `socket_map()` extracted at start time.
+/// When dropped, it sends a shutdown signal that terminates the background thread
+/// and its runtime (which in turn shuts down the DTU clone axum servers via the
+/// harness's broadcast shutdown channel).
+///
+/// # Why this is needed (current-thread deadlock prevention)
+///
+/// `#[tokio::test]` uses a current-thread runtime. When the test calls the
+/// synchronous `send_request` / `read_line`, the current thread is blocked.
+/// Since only one thread runs the tokio tasks, the in-process DTU clone axum servers
+/// cannot accept connections while the test is waiting for prism's response.
+/// Running the harness on a SEPARATE multi-thread runtime in a background thread
+/// ensures the DTU clone tasks run independently of any blocking on the test thread.
+pub struct BackgroundHarness {
+    /// Extracted socket_map from MultiInstanceHarness — (org_slug, sensor_id) → SocketAddr.
+    /// Exposed via socket_map() for use by write_multi_org_overlays.
+    socket_map: std::collections::HashMap<(String, String), std::net::SocketAddr>,
+    /// Shutdown signal sender. When dropped (with BackgroundHarness), closes the channel,
+    /// which causes the background thread to exit and drop the harness + runtime.
+    _shutdown_tx: std::sync::mpsc::SyncSender<()>,
+    /// Background thread handle. Dropped without join (the thread will exit when shutdown_tx
+    /// is dropped, which signals the harness to shut down via its broadcast channel).
+    _thread: std::thread::JoinHandle<()>,
+}
+
+impl BackgroundHarness {
+    /// Return the socket_map from the MultiInstanceHarness: (org_slug, sensor_id) → SocketAddr.
+    ///
+    /// Used by `write_multi_org_overlays` to write per-org overlay TOML files.
+    pub fn socket_map(&self) -> &std::collections::HashMap<(String, String), std::net::SocketAddr> {
+        &self.socket_map
+    }
+}
+
 // These helpers are STUBS for the Red Gate. Each body contains `todo!()` so
 // the suite COMPILES but every test that calls them FAILS (RED) until the
 // implementer fills in the bodies.
@@ -1250,15 +1370,24 @@ pub const SEED_ORG_C_CYBERINT: u64 = 230;
 /// Returns (harness, tempdir) — tempdir is kept alive by the caller for the test duration.
 /// The harness socket_map is keyed by (org_slug, sensor_id) plain strings.
 ///
-/// # Red Gate stub (S-DEMO-004)
-/// // E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
-pub async fn start_multi_org_harness() -> (
-    prism_dtu_harness::multi_instance::MultiInstanceHarness,
-    TempDir,
-) {
+/// # E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+///
+/// # Current-thread deadlock prevention
+///
+/// `#[tokio::test]` uses a current-thread runtime. Calling blocking `read_line` on
+/// prism's stdout starves all tasks in that runtime — including any in-process axum
+/// server tasks. To avoid deadlock, this function builds the harness on a SEPARATE
+/// multi-thread tokio runtime in a background thread, then extracts the socket_map
+/// and returns a `BackgroundHarness` guard. The test thread can then block freely.
+///
+/// The function is `async` so test callers can use `.await` (tests use `#[tokio::test]`).
+/// Internally, the background thread + its own multi-thread runtime are set up via
+/// `tokio::task::spawn_blocking`, which offloads the synchronous work to tokio's
+/// blocking thread pool without blocking the test runtime's async executor.
+pub async fn start_multi_org_harness() -> (BackgroundHarness, TempDir) {
     use prism_dtu_armis::ArmisClone;
     use prism_dtu_claroty::ClarotyClone;
-    use prism_dtu_common::{Archetype, OrgId};
+    use prism_dtu_common::{Archetype, BehavioralClone as _, OrgId};
     use prism_dtu_crowdstrike::CrowdstrikeClone;
     use prism_dtu_cyberint::CyberintClone;
     use prism_dtu_harness::multi_instance::HarnessEntry;
@@ -1312,14 +1441,17 @@ pub async fn start_multi_org_harness() -> (
             )),
         ),
         // org-b: Cyberint (seed=130) — fallible constructor
-        HarnessEntry::new(
-            ORG_B_SLUG,
-            "cyberint",
-            Box::new(
-                CyberintClone::new_with_seed(SEED_ORG_B_CYBERINT, archetype, org_id_b)
-                    .expect("CyberintClone::new_with_seed for org-b must succeed"),
-            ),
-        ),
+        // Register the E2E access token before boxing so prism's Cookie header passes auth.
+        // CyberintClone::new_with_seed does NOT pre-register any access token; without this
+        // step the access_token_allowlist is empty and every query returns 0 results (AC-007).
+        HarnessEntry::new(ORG_B_SLUG, "cyberint", {
+            let cy_b = CyberintClone::new_with_seed(SEED_ORG_B_CYBERINT, archetype, org_id_b)
+                .expect("CyberintClone::new_with_seed for org-b must succeed");
+            cy_b.configure(serde_json::json!({"access_token": DTU_E2E_CYBERINT_ACCESS_TOKEN}))
+                .await
+                .expect("CyberintClone configure (org-b access_token) must succeed");
+            Box::new(cy_b) as Box<dyn prism_dtu_common::BehavioralClone>
+        }),
         // org-c: CrowdStrike (seed=200) — infallible constructor; DISTINCT seed from org-a (100≠200)
         HarnessEntry::new(
             ORG_C_SLUG,
@@ -1350,23 +1482,80 @@ pub async fn start_multi_org_harness() -> (
             )),
         ),
         // org-c: Cyberint (seed=230) — fallible constructor
-        HarnessEntry::new(
-            ORG_C_SLUG,
-            "cyberint",
-            Box::new(
-                CyberintClone::new_with_seed(SEED_ORG_C_CYBERINT, archetype, org_id_c)
-                    .expect("CyberintClone::new_with_seed for org-c must succeed"),
-            ),
-        ),
+        // Register the E2E access token before boxing (same reason as org-b above).
+        HarnessEntry::new(ORG_C_SLUG, "cyberint", {
+            let cy_c = CyberintClone::new_with_seed(SEED_ORG_C_CYBERINT, archetype, org_id_c)
+                .expect("CyberintClone::new_with_seed for org-c must succeed");
+            cy_c.configure(serde_json::json!({"access_token": DTU_E2E_CYBERINT_ACCESS_TOKEN}))
+                .await
+                .expect("CyberintClone configure (org-c access_token) must succeed");
+            Box::new(cy_c) as Box<dyn prism_dtu_common::BehavioralClone>
+        }),
     ];
 
     let tempdir = TempDir::new().expect("failed to create temp dir for multi-org harness");
 
-    let harness = prism_dtu_harness::multi_instance::MultiInstanceHarness::start(entries)
-        .await
-        .expect("MultiInstanceHarness::start must succeed for all 8 clone entries");
+    // --- BackgroundHarness: run DTU clones on a dedicated multi-thread runtime ---
+    //
+    // The test uses #[tokio::test] (current-thread runtime). When the test blocks on
+    // synchronous `read_line`, no tokio tasks in that runtime can execute — including
+    // any in-process axum server tasks. To prevent deadlock, start the harness on a
+    // SEPARATE multi-thread tokio runtime in a background thread.
+    //
+    // Channel protocol:
+    //   (a) `socket_tx` / `socket_rx` — tokio oneshot: background thread sends the
+    //       extracted socket_map after the harness starts; async fn `.await`s on it.
+    //   (b) `shutdown_tx` — std SyncSender: when BackgroundHarness is dropped (test
+    //       teardown), this is dropped, closing the channel. The background thread
+    //       receives `Err(RecvError)` from `shutdown_rx.recv()` and exits, dropping
+    //       the harness (which fires MultiInstanceHarness::drop → graceful-shutdown).
+    let (socket_tx, socket_rx) = tokio::sync::oneshot::channel::<
+        std::collections::HashMap<(String, String), std::net::SocketAddr>,
+    >();
+    let (shutdown_tx, shutdown_rx) = std::sync::mpsc::sync_channel::<()>(0);
 
-    (harness, tempdir)
+    let thread = std::thread::spawn(move || {
+        // Build a multi-thread tokio runtime in this background thread.
+        // This runtime owns the DTU clone axum server tasks — it runs independently
+        // of anything happening on the test thread.
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("BackgroundHarness: failed to build multi-thread tokio runtime");
+
+        // Start the harness inside the runtime.
+        let harness = rt
+            .block_on(prism_dtu_harness::multi_instance::MultiInstanceHarness::start(entries))
+            .expect("MultiInstanceHarness::start must succeed for all 8 clone entries");
+
+        // Extract and send the socket_map to the test thread via oneshot.
+        let map = harness.socket_map().clone();
+        // send() is infallible on the happy path (receiver alive until .await completes).
+        let _ = socket_tx.send(map);
+
+        // Keep the harness alive (and thus the axum server tasks running) until
+        // the test is done. Block here waiting for the shutdown signal.
+        // When BackgroundHarness is dropped, shutdown_tx is dropped, closing the
+        // channel, and `recv()` returns Err(RecvError) → we exit, dropping harness.
+        let _ = shutdown_rx.recv(); // Err(RecvError) on shutdown_tx drop = expected
+        // harness dropped here → MultiInstanceHarness::drop fires shutdown_tx.send(())
+        // → axum graceful-shutdown receivers wake → servers drain → thread exits.
+        drop(harness);
+    });
+
+    // Receive the socket_map from the background thread (.await is non-blocking to the
+    // current-thread runtime — it just yields until the background thread sends the map).
+    let socket_map = socket_rx
+        .await
+        .expect("BackgroundHarness: socket_rx must receive socket_map (background thread alive)");
+
+    let bg_harness = BackgroundHarness {
+        socket_map,
+        _shutdown_tx: shutdown_tx,
+        _thread: thread,
+    };
+
+    (bg_harness, tempdir)
 }
 
 /// Write per-org overlay TOML files from the harness socket_map into `tempdir/specs/customers/`.
@@ -1380,25 +1569,31 @@ pub async fn start_multi_org_harness() -> (
 /// created if not present. prism.toml sets `spec_dir = {tempdir}/specs` so the overlay walk
 /// resolves to the correct customer sub-directory.
 ///
-/// # Red Gate stub (S-DEMO-004)
+/// # Note on harness type
+///
+/// Takes `&BackgroundHarness` (not `&MultiInstanceHarness`) because the harness
+/// runs on a background thread's multi-thread tokio runtime to avoid the
+/// current-thread deadlock (see `start_multi_org_harness` doc comment).
 pub fn write_multi_org_overlays(
-    harness: &prism_dtu_harness::multi_instance::MultiInstanceHarness,
+    harness: &BackgroundHarness,
     tempdir: &TempDir,
 ) -> Result<(), String> {
-    // Create {tempdir}/specs if not yet present (write_overlay_temp_dir writes
+    // Create {tempdir}/specs if not yet present (write_overlay_from_socket_map writes
     // {specs_dir}/customers/{org}/{sensor}.sensor.toml).
     let specs_dir = tempdir.path().join("specs");
     std::fs::create_dir_all(&specs_dir)
         .map_err(|e| format!("Failed to create specs dir '{}': {e}", specs_dir.display()))?;
 
-    prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(harness, specs_dir.as_path()).map_err(
-        |e| {
-            format!(
-                "write_overlay_temp_dir failed for multi-org harness \
-                 (BC-2.06.017 Postcondition 3): {e}"
-            )
-        },
+    prism_dtu_harness::overlay_wiring::write_overlay_from_socket_map(
+        harness.socket_map(),
+        specs_dir.as_path(),
     )
+    .map_err(|e| {
+        format!(
+            "write_overlay_from_socket_map failed for multi-org harness \
+             (BC-2.06.017 Postcondition 3): {e}"
+        )
+    })
 }
 
 /// Write a 3-org prism.toml to `tempdir` for the S-DEMO-004 multi-org test.
@@ -1560,8 +1755,11 @@ pub async fn launch_prism_bin_multi_org(
             "PRISM_CLIENTS_ORG_C_SENSORS_CYBERINT_API_KEY",
             DTU_E2E_CYBERINT_ACCESS_TOKEN,
         )
-        // Suppress tracing output on stdout so MCP JSON-RPC protocol is not corrupted
-        // by log lines (same rationale as launch_prism_bin).
+        // Suppress all tracing output so MCP JSON-RPC stdout is not corrupted by log lines.
+        // prism-bin step1_init_tracing uses fmt::layer() which defaults to stdout;
+        // any non-off RUST_LOG level will inject log lines into the MCP stdio stream,
+        // causing McpStdioHandle to read a WARN line instead of the JSON-RPC response
+        // and shift all subsequent reads by one (tools/list reads init response, etc.).
         .env("RUST_LOG", "off")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

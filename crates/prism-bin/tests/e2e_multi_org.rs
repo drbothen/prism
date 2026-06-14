@@ -204,7 +204,7 @@ async fn test_BC_2_22_001_multi_org_boot_registers_8_adapters() {
 /// AC-002 / BC-2.06.014: Org A `tool_query` for CrowdStrike returns non-empty data.
 ///
 /// Given: org-a is registered with CrowdStrike + Armis (not Claroty or Cyberint).
-/// When: `tool_query "FROM crowdstrike_detections LIMIT 5" client_id="org-a"` is sent.
+/// When: `tool_query "SELECT * FROM crowdstrike_detections LIMIT 5" client_id="org-a"` is sent.
 /// Then: Returns non-empty data from org-a's CrowdStrike DTU clone (seed=100).
 ///
 /// (traces to BC-2.06.014 instance identity resolution; BC-2.10.001 client_id scoping)
@@ -223,8 +223,12 @@ async fn test_BC_2_06_014_org_a_crowdstrike_query_returns_data() {
     mcp.initialize().expect("MCP initialize failed");
 
     // AC-002: org-a queries CrowdStrike (a registered sensor).
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let result = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", helpers::ORG_A_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM crowdstrike_detections LIMIT 5",
+            helpers::ORG_A_SLUG,
+        )
         .expect("tool_query_scoped for org-a CrowdStrike failed");
 
     // Assert non-empty result rows.
@@ -252,7 +256,7 @@ async fn test_BC_2_06_014_org_a_crowdstrike_query_returns_data() {
 /// AC-003 / BC-2.06.014: Org B `tool_query` for Claroty returns non-empty data.
 ///
 /// Given: org-b is registered with Claroty + Cyberint (not CrowdStrike or Armis).
-/// When: `tool_query "FROM claroty_assets LIMIT 5" client_id="org-b"` is sent.
+/// When: `tool_query "SELECT * FROM claroty_alerts LIMIT 5" client_id="org-b"` is sent.
 /// Then: Returns non-empty data from org-b's Claroty DTU clone (seed=120).
 ///
 /// (traces to BC-2.06.014; BC-2.11.005 ephemeral materialization)
@@ -271,8 +275,10 @@ async fn test_BC_2_06_014_org_b_claroty_query_returns_data() {
     mcp.initialize().expect("MCP initialize failed");
 
     // AC-003: org-b queries Claroty (a registered sensor).
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
+    // Claroty table name is "claroty_alerts" (sensor_id=claroty, table_name=alerts).
     let result = mcp
-        .tool_query_scoped("FROM claroty_assets LIMIT 5", helpers::ORG_B_SLUG)
+        .tool_query_scoped("SELECT * FROM claroty_alerts LIMIT 5", helpers::ORG_B_SLUG)
         .expect("tool_query_scoped for org-b Claroty failed");
 
     let rows = result
@@ -282,7 +288,7 @@ async fn test_BC_2_06_014_org_b_claroty_query_returns_data() {
         .unwrap_or_default();
     assert!(
         !rows.is_empty(),
-        "AC-003: org-b Claroty query must return non-empty data; got empty rows. \
+        "AC-003: org-b Claroty (claroty_alerts) query must return non-empty data; got empty rows. \
          response: {result:?}"
     );
 
@@ -320,9 +326,13 @@ async fn test_BC_2_01_013_org_c_all_4_sensors_return_independent_data() {
     mcp.initialize().expect("MCP initialize failed");
 
     // AC-004: org-c queries all 4 sensors independently.
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     // CrowdStrike (seed=200)
     let cs_result = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", helpers::ORG_C_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM crowdstrike_detections LIMIT 5",
+            helpers::ORG_C_SLUG,
+        )
         .expect("org-c CrowdStrike query failed");
     let cs_rows = cs_result
         .get("rows")
@@ -334,9 +344,13 @@ async fn test_BC_2_01_013_org_c_all_4_sensors_return_independent_data() {
         "AC-004: org-c CrowdStrike query must return non-empty data; response: {cs_result:?}"
     );
 
-    // Armis (seed=210)
+    // Armis (seed=210): Armis queries require a WHERE aql predicate.
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax.
     let armis_result = mcp
-        .tool_query_scoped("FROM armis_devices LIMIT 5", helpers::ORG_C_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM armis_devices WHERE aql = 'in:devices' LIMIT 5",
+            helpers::ORG_C_SLUG,
+        )
         .expect("org-c Armis query failed");
     let armis_rows = armis_result
         .get("rows")
@@ -348,9 +362,10 @@ async fn test_BC_2_01_013_org_c_all_4_sensors_return_independent_data() {
         "AC-004: org-c Armis query must return non-empty data; response: {armis_result:?}"
     );
 
-    // Claroty (seed=220)
+    // Claroty (seed=220): table name is "claroty_alerts" (sensor_id=claroty, table_name=alerts).
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax.
     let claroty_result = mcp
-        .tool_query_scoped("FROM claroty_assets LIMIT 5", helpers::ORG_C_SLUG)
+        .tool_query_scoped("SELECT * FROM claroty_alerts LIMIT 5", helpers::ORG_C_SLUG)
         .expect("org-c Claroty query failed");
     let claroty_rows = claroty_result
         .get("rows")
@@ -363,8 +378,9 @@ async fn test_BC_2_01_013_org_c_all_4_sensors_return_independent_data() {
     );
 
     // Cyberint (seed=230)
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax.
     let cyberint_result = mcp
-        .tool_query_scoped("FROM cyberint_alerts LIMIT 5", helpers::ORG_C_SLUG)
+        .tool_query_scoped("SELECT * FROM cyberint_alerts LIMIT 5", helpers::ORG_C_SLUG)
         .expect("org-c Cyberint query failed");
     let cyberint_rows = cyberint_result
         .get("rows")
@@ -389,7 +405,7 @@ async fn test_BC_2_01_013_org_c_all_4_sensors_return_independent_data() {
 /// AC-005 / BC-3.2.001: Org A querying Org B's sensor returns an isolation error.
 ///
 /// Given: Org A has CrowdStrike + Armis registered; Cyberint is NOT registered for Org A.
-/// When: `tool_query "FROM cyberint_alerts LIMIT 5" client_id="org-a"` is sent.
+/// When: `tool_query "SELECT * FROM cyberint_alerts LIMIT 5" client_id="org-a"` is sent.
 /// Then: Response envelope contains an error (AdapterNotFound or SensorNotAvailableForOrg);
 ///       NO data rows are returned; NO data from Org B leaks into Org A's response.
 ///
@@ -418,8 +434,12 @@ async fn test_BC_3_2_001_cross_org_query_returns_isolation_error() {
     // Expect a JSON-RPC error (E-QUERY-032 / AdapterNotFound / SensorNotAvailableForOrg).
     // Use tool_query_scoped_expect_rpc_error so we can inspect the error object
     // (tool_query_scoped would propagate the JSON-RPC error as Err and panic on expect()).
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query_scoped_expect_rpc_error("FROM cyberint_alerts LIMIT 5", helpers::ORG_A_SLUG)
+        .tool_query_scoped_expect_rpc_error(
+            "SELECT * FROM cyberint_alerts LIMIT 5",
+            helpers::ORG_A_SLUG,
+        )
         .expect("I/O or parse failure sending isolation probe");
 
     // Assert the response contains a JSON-RPC error field.
@@ -486,7 +506,7 @@ async fn test_BC_3_2_001_cross_org_query_returns_isolation_error() {
 /// AC-006 / BC-2.06.018: ids_org_a ∩ ids_org_c = ∅ (INV-DISTINCT-DATA-001).
 ///
 /// Given: Org A and Org C both have CrowdStrike. org-a clone seed=100, org-c clone seed=200.
-/// When: `tool_query "FROM crowdstrike_detections LIMIT 50"` is executed for org-a and org-c.
+/// When: `tool_query "SELECT * FROM crowdstrike_detections LIMIT 50"` is executed for org-a and org-c.
 /// Then: The test reads both response bodies, extracts device/detection IDs
 ///       (format: "dev-{8hex}-{seed}-{n}" where 8hex = hex(org_id.as_bytes()[0..4])),
 ///       and asserts ids_org_a ∩ ids_org_c = ∅.
@@ -517,13 +537,20 @@ async fn test_BC_2_06_018_per_org_seeded_data_is_disjoint() {
     mcp.initialize().expect("MCP initialize failed");
 
     // Query org-a's CrowdStrike clone (seed=100).
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let result_org_a = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 50", helpers::ORG_A_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM crowdstrike_detections LIMIT 50",
+            helpers::ORG_A_SLUG,
+        )
         .expect("org-a CrowdStrike query failed");
 
     // Query org-c's CrowdStrike clone (seed=200).
     let result_org_c = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 50", helpers::ORG_C_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM crowdstrike_detections LIMIT 50",
+            helpers::ORG_C_SLUG,
+        )
         .expect("org-c CrowdStrike query failed");
 
     // Extract device/detection ID sets from both responses.
@@ -586,7 +613,7 @@ async fn test_BC_2_06_018_per_org_seeded_data_is_disjoint() {
 /// Given: org-b and org-c both have Cyberint registered. MultiInstanceHarness binds a
 ///        distinct socket for each org's Cyberint clone: (org-b, cyberint) at S_B and
 ///        (org-c, cyberint) at S_C (S_B ≠ S_C per INV-ISOLATION-001, BC-2.06.017).
-/// When: `tool_query "FROM cyberint_alerts LIMIT 5"` is sent for each org.
+/// When: `tool_query "SELECT * FROM cyberint_alerts LIMIT 5"` is sent for each org.
 /// Then: Each query succeeds with its own session cookie from the respective org's DTU clone;
 ///       session tokens do not cross between org-b and org-c.
 ///
@@ -624,13 +651,14 @@ async fn test_BC_3_2_001_cyberint_session_isolation_org_b_and_org_c() {
     mcp.initialize().expect("MCP initialize failed");
 
     // org-b Cyberint query (seed=130) — must succeed independently.
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let result_org_b = mcp
-        .tool_query_scoped("FROM cyberint_alerts LIMIT 5", helpers::ORG_B_SLUG)
+        .tool_query_scoped("SELECT * FROM cyberint_alerts LIMIT 5", helpers::ORG_B_SLUG)
         .expect("org-b Cyberint query failed");
 
     // org-c Cyberint query (seed=230) — must succeed independently.
     let result_org_c = mcp
-        .tool_query_scoped("FROM cyberint_alerts LIMIT 5", helpers::ORG_C_SLUG)
+        .tool_query_scoped("SELECT * FROM cyberint_alerts LIMIT 5", helpers::ORG_C_SLUG)
         .expect("org-c Cyberint query failed");
 
     // Both queries must return non-empty data (independent session tokens per org).
@@ -689,8 +717,12 @@ async fn test_BC_2_09_008_response_envelope_identifies_correct_org_and_sensor() 
     mcp.initialize().expect("MCP initialize failed");
 
     // Query org-a CrowdStrike and verify the response envelope.
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let result = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", helpers::ORG_A_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM crowdstrike_detections LIMIT 5",
+            helpers::ORG_A_SLUG,
+        )
         .expect("org-a CrowdStrike query failed");
 
     // BC-2.09.008: response must have `_meta.data_source` identifying the sensor.
@@ -774,13 +806,20 @@ async fn test_BC_2_11_005_concurrent_org_queries_do_not_interfere() {
     // prove the server handles concurrent query dispatches without cross-org mixing.
 
     // Send org-a CrowdStrike query (seed=100).
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let result_org_a = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 50", helpers::ORG_A_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM crowdstrike_detections LIMIT 50",
+            helpers::ORG_A_SLUG,
+        )
         .expect("concurrent org-a CrowdStrike query failed");
 
     // Send org-c CrowdStrike query immediately after (seed=200).
     let result_org_c = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 50", helpers::ORG_C_SLUG)
+        .tool_query_scoped(
+            "SELECT * FROM crowdstrike_detections LIMIT 50",
+            helpers::ORG_C_SLUG,
+        )
         .expect("concurrent org-c CrowdStrike query failed");
 
     let ids_a = extract_device_ids(&result_org_a);

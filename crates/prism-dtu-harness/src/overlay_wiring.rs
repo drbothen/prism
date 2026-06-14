@@ -33,6 +33,9 @@
 //! This format is consumed by `SpecLoader::load_all` overlay walk semantics
 //! (S-CONFIG-MULTI-TENANT-OVERRIDE-001 / BC-2.06.012).
 
+use std::collections::HashMap;
+use std::net::SocketAddr;
+
 use crate::multi_instance::MultiInstanceHarness;
 
 /// Validate that a harness key component (org_slug or sensor_id) is safe to use
@@ -107,30 +110,40 @@ pub fn write_overlay_temp_dir(
     harness: &MultiInstanceHarness,
     dir: &std::path::Path,
 ) -> std::io::Result<()> {
+    // Delegate to the map-key variant; avoids duplicating the write logic.
+    // (BC-2.06.017 Postcondition 3 / BC-2.06.012)
+    write_overlay_from_socket_map(harness.socket_map(), dir)
+}
+
+/// Write per-org sensor overlay TOML files from a pre-extracted socket map.
+///
+/// This is the map-key variant of [`write_overlay_temp_dir`] for callers that
+/// have already extracted the socket addresses from a `MultiInstanceHarness`
+/// (e.g., `BackgroundHarness::socket_map()` which runs the harness on a separate
+/// tokio runtime). Semantics are identical to `write_overlay_temp_dir`.
+///
+/// # Security (SEC-001 / SEC-002)
+///
+/// Both `org_slug` and `sensor_id` are validated before any path join or TOML
+/// string construction. Only ASCII alphanumeric, `-`, and `_` are accepted
+/// (length 1–64). This rejects path components containing `..`, `/`, `"`, newlines,
+/// or TOML structural characters.
+///
+/// (BC-2.06.017 Postcondition 3)
+pub fn write_overlay_from_socket_map(
+    socket_map: &HashMap<(String, String), SocketAddr>,
+    dir: &std::path::Path,
+) -> std::io::Result<()> {
     // Validate ALL entries BEFORE any filesystem mutation (fail-fast, atomicity).
-    for (org_slug, sensor_id) in harness.socket_map().keys() {
+    for (org_slug, sensor_id) in socket_map.keys() {
         validate_harness_key("org_slug", org_slug)?;
         validate_harness_key("sensor_id", sensor_id)?;
     }
 
-    // For each (org_slug, sensor_id) → SocketAddr in the harness socket_map,
-    // write:  {dir}/customers/{org_slug}/{sensor_id}.sensor.toml
-    // with content (raw TOML string — INV-PERIMETER-001: no spec-engine imports here):
-    //   extends = "{sensor_id}"
-    //   instance_id = "{sensor_id}@{org_slug}"
-    //   base_url = "http://{socket_addr}"
-    //
-    // `extends` links this overlay to the TYPE spec (required by OverlayLoader).
-    // `instance_id` must equal `{sensor_id}@{org_slug}` (INV-SCALAR-003).
-    // `base_url` routes this org's sensor queries to the correct DTU instance.
-    //
-    // (BC-2.06.017 Postcondition 3 / BC-2.06.012)
-    for ((org_slug, sensor_id), socket_addr) in harness.socket_map() {
-        // Create the per-org customer directory.
+    for ((org_slug, sensor_id), socket_addr) in socket_map {
         let customer_dir = dir.join("customers").join(org_slug);
         std::fs::create_dir_all(&customer_dir)?;
 
-        // Write the overlay TOML file.
         let toml_path = customer_dir.join(format!("{sensor_id}.sensor.toml"));
         let toml_content = format!(
             "extends = \"{sensor_id}\"\n\

@@ -87,6 +87,11 @@ retries = 1
 slow-timeout = { period = "180s", terminate-after = 1 }
 final-status-level = "all"
 failure-output = "immediate"
+# Restrict to the e2e_multi_org test binary only — prevents E2E-001-tagged tests in
+# e2e_smoke.rs from being un-ignored by --run-ignored ignored-only (those tests require
+# `prism-dtu-demo-server` which is not built in this profile's context).
+# binary(e2e_multi_org) matches the test binary compiled from tests/e2e_multi_org.rs.
+default-filter = "binary(e2e_multi_org)"
 
 [profile.e2e-multi-org.junit]
 path = "junit-multi-org.xml"
