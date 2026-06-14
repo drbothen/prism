@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -49,6 +49,11 @@ This is INV-INFUSE-001.
   - Exactly one `InfusionUdfDescriptor` is produced with: `name`, `input_type`, `output_type`,
     and a reference to the `InfusionSource` lookup function
   - The descriptor is added to `InfusionRegistry::udf_descriptors()` output
+- **Plugin-type source wiring:** When `source.type = "plugin"`, each `InfusionUdfDescriptor`
+  produced by `InfusionLoader::load_all` MUST carry a real `Arc<PluginInfusionSource>` (with
+  `plugin_id` and `config` fields populated from the spec) as its `InfusionSource` — NOT an
+  `Arc<NullSource>` placeholder. A descriptor with `NullSource` silently returns `None` for
+  all enrichment lookups and is considered a loading defect equivalent to `E-INFUSE-003`.
 - `prism-query` (S-3.02) consumes `udf_descriptors()` and registers each as a DataFusion `ScalarUDF`
 - **Duplicate UDF name detection:** If two specs declare the same `[[infusion.fields]]` name
   (e.g., both declare `name = "geoip_country"`), the second spec is rejected with:
@@ -131,6 +136,7 @@ Integration test: `tests/infusion_tests.rs` — "Load `geoip.infusion.toml` → 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-DEMO-ENRICHMENT-PIVOT-001-po-sign-off | 2026-06-14 | product-owner | Closed NullSource gap: added plugin-type source wiring postcondition — plugin-type descriptors MUST carry Arc<PluginInfusionSource> (not NullSource) or loading is a defect equivalent to E-INFUSE-003. Needed for PIVOT-001 AC-003 Phase 3 / NullSource-replacement task. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-048); normalized changelog schema to canonical 5-col form. |
 | 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

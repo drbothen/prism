@@ -5,13 +5,13 @@ title: "Infusion Engine Plugin-Bridge Prerequisites — Forward-Subset of S-1.14
 wave: 5
 epic_id: E-DEMO
 priority: P2
-status: draft
-version: "1.1"
+status: ready
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-12"
-modified: "2026-06-12T18:00:00Z"
+modified: "2026-06-14T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-19, SS-11, SS-17]
 # Subsystem anchor justifications:
@@ -23,12 +23,15 @@ subsystems: [SS-19, SS-11, SS-17]
 #   PluginRuntime::enrich_single which lives in SS-17 scope.
 target_module: prism-spec-engine
 crates_touched: [prism-spec-engine, prism-query]
-# BC status: pending PO authorship
-# The infusion BCs (BC-2.19.*) exist and are the nearest anchors. This story implements
-# a FORWARD-SUBSET of S-1.14-REDO scope: only plugin-type InfusionLoader + plugin_bridge
-# + DataFusion UDF wiring for plugin-type infusions. The full BC-2.19.* contracts govern
-# the complete engine; PO should anchor a story-specific BC or confirm BC-2.19.001/003
-# cover this subset at materialization time.
+# BC status: LIGHT PO CONFIRMATION REQUIRED (story-writer cannot do PO work)
+# BC-2.19.001 (v1.3, active) and BC-2.19.003 are the authoritative anchors for this
+# FORWARD-SUBSET. BCs exist and bidirectional AC↔BC traces are present. The only PO
+# touch needed before this story is dispatched:
+#   (a) Confirm BC-2.19.001 v1.3 + BC-2.19.003 cover this plugin-path subset scope, AND
+#   (b) Pin the BC table version column: update "v?" → "v1.3" for BC-2.19.001 in the
+#       Behavioral Contracts table below (PO is the source of truth for BC version numbers).
+# This is a confirmation sign-off, NOT new BC authorship. Flag for orchestrator routing
+# to product-owner before dispatching to test-writer.
 behavioral_contracts: [BC-2.19.001, BC-2.19.003]
 # BC array propagation note: BC-2.19.001 covers UDF registration (DataFusion scalar UDF
 # per field); BC-2.19.003 covers is_api_backed() gate for plugin-type infusions.
@@ -84,19 +87,23 @@ risk_mitigations:
      (plugin/mod.rs ~904). If S-1.15 PluginRuntime is not operational at dispatch time,
      implement as Err(InfusionError::PluginRuntimeNotAvailable) with annotated todo!(S-1.15) —
      same exemption as S-1.14-REDO AC-9. Document in PR."
-  - "DataFusion UDF registration (U3/U4/U8): implement ScalarUDFImpl with required methods:
-     name/signature/return_type/as_any and invoke_with_args(ScalarFunctionArgs) -> Result<ColumnarValue>.
-     Methods invoke/invoke_batch were REMOVED by DataFusion ~48 — do not cite them.
-     For the network-I/O enrichment path use AsyncScalarUDFImpl::invoke_async_with_args
-     (native async UDFs since DataFusion 49.0) as the primary pattern; block_in_place+block_on
-     is fallback-only (safe ONLY on multi-thread runtime per AD-013; panics on current-thread).
-     Registration: ctx.register_udf(ScalarUDF::from(...)) — no SessionState extension API.
-     Read DataFusion 53.1 docs before implementing."
-  - "wasmtime TypedFunc::post_return (U2): after every successful sync call to
-     Instance::get_typed_func::<(String, String), (Option<String>,)>(store, 'enrich-single')
-     followed by TypedFunc::call, MUST call TypedFunc::post_return on the same store.
-     Skip post_return only on Err paths. This is mandatory per wasmtime 44 TypedFunc ABI
-     (component model post-return convention)."
+  - "DataFusion async UDF registration (U3/U4/U8 — RESEARCH CONFIRMED DF 53.1.0):
+     Implement AsyncScalarUDFImpl with invoke_async_with_args (real enrichment call) and
+     invoke_with_args returning not_impl_err!(...). Register via:
+     ctx.register_udf(AsyncScalarUDF::new(Arc::new(impl)).into_scalar_udf()).
+     NO analyzer/optimizer/physical-optimizer rules are needed — DefaultPhysicalPlanner
+     handles async UDFs natively in DF 53.1. DO NOT use ScalarUDF::from(impl) (sync-only).
+     HALLUCINATED — DO NOT USE: AsyncFunctionRule, async_function_rule.rs, enable_async_udf
+     flag, concurrent_async_udf_tasks option, GLOBAL_ASYNC_UDF_SEMAPHORE — none exist in DF 53.1.
+     block_in_place+block_on is fallback-only (safe ONLY on multi-thread runtime per AD-013).
+     Methods invoke/invoke_batch were REMOVED by DataFusion ~48 — do not cite them."
+  - "wasmtime post_return (U2 — RETRACTED): post_return is NOT called in the merged runtime.
+     plugin/mod.rs ~L970 carries the explicit comment: '// post_return removed — no longer
+     needed in wasmtime >=44 (no-op, deprecated).' Do NOT call TypedFunc::post_return after
+     enrich-single calls. The real runtime uses the UNTYPED component::Val path via
+     instance.get_func(store, 'enrich-single').call(store, params, results) — NOT
+     get_typed_func. Following the pre-merge TypedFunc pattern would reintroduce a removed
+     API; conform to the existing plugin/mod.rs implementation exactly."
   - "is_api_backed() is ALREADY implemented (infusion/mod.rs:619-628) (U6): scope as a
      regression/confirmation test — NOT a red-gate-new test. The implementation exists;
      the test verifies it returns true for plugin-type UDFs. Adjust points note accordingly."
@@ -164,8 +171,8 @@ source types.
 
 | BC | Title | Key Clauses |
 |----|-------|-------------|
-| BC-2.19.001 v? | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` entry registered in `SessionContext` |
-| BC-2.19.003 v? | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | Postcondition: `is_api_backed("threat_score")` returns `true` for plugin-type infusions; detection rule loader rejects with E-RULE-012 |
+| BC-2.19.001 v1.3 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` entry registered in `SessionContext`. NOTE: "v1.3" is the story-writer's best read from available context — PO must confirm version pin before dispatch (see frontmatter BC status comment). |
+| BC-2.19.003 v? | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | Postcondition: `is_api_backed("threat_score")` returns `true` for plugin-type infusions; detection rule loader rejects with E-RULE-012. NOTE: version "v?" — PO to pin at sign-off. |
 
 ---
 
@@ -192,13 +199,61 @@ declared output field, and `registry.udf_descriptors()` returns a non-empty `Vec
 
 Red Gate: `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors`
 
-### AC-003 — DataFusion UDF registration wires plugin descriptors into SessionContext
+### AC-003 — DataFusion async UDF registration wires plugin descriptors into SessionContext
 (traces to BC-2.19.001 postcondition — each field registers as a DataFusion scalar UDF)
 
 Given an `InfusionRegistry` with plugin-type descriptors returned from `load_all`,
 when `register_infusion_udfs(ctx, registry.udf_descriptors())` is called in `prism-query`,
-then each descriptor is registered as a `ScalarUDF` in the `SessionContext`; the UDF
-is callable by name in a DataFusion query plan.
+then each descriptor is registered as a DataFusion scalar UDF in the `SessionContext`
+via `ctx.register_udf(AsyncScalarUDF::new(Arc<dyn AsyncScalarUDFImpl>).into_scalar_udf())`,
+and the UDF is callable by name in a DataFusion query plan.
+
+**RESEARCH RESULT — DataFusion 53.1.0 async UDF path (authoritative):**
+
+`ctx.register_udf(AsyncScalarUDF::new(Arc::new(impl)).into_scalar_udf())` ALONE is sufficient
+to make `invoke_async_with_args` execute. The `AsyncFuncExec` rewrite is built into
+`DefaultPhysicalPlanner`. NO additional analyzer rule, optimizer rule, physical-optimizer
+rule, or config flag is required. prism's `new_with_config_rt` + Tokio multithread
+(AD-013) already satisfy the prerequisites.
+
+Required async UDF trait impl:
+```
+impl AsyncScalarUDFImpl for InfusionAsyncUdf {
+    async fn invoke_async_with_args(&self, args: ScalarFunctionArgs<'_>)
+        -> Result<ColumnarValue> { /* real enrichment call */ }
+
+    // Sync fallback — MUST return not_impl_err! to force async execution path
+    fn invoke_with_args(&self, _args: ScalarFunctionArgs<'_>) -> Result<ColumnarValue> {
+        not_impl_err!("InfusionAsyncUdf: use invoke_async_with_args (async context only)")
+    }
+}
+```
+
+**HALLUCINATED SYMBOLS — DO NOT USE (do not exist in DataFusion 53.1):**
+These were produced by a prior research pass and are confirmed fictional:
+- `AsyncFunctionRule` — does not exist; no such type in datafusion 53.1
+- `async_function_rule.rs` — does not exist as a separate module
+- `enable_async_udf` config flag — does not exist
+- `concurrent_async_udf_tasks` config option — does not exist
+- `GLOBAL_ASYNC_UDF_SEMAPHORE` — does not exist
+
+If a stub returns a constant without calling `invoke_async_with_args`, the INCORRECTLY-wrapped
+async UDF fails LOUDLY with the `not_impl_err!` from `invoke_with_args` — this is the
+genuine false-green risk, not a silent pass. See anti-false-green hardening below.
+
+**Anti-false-green hardening (AC-003):**
+The Red Gate test MUST assert on an async-ONLY observable to prevent a no-op stub from
+passing. The test must:
+1. Register a test async UDF implementation backed by a mock `PluginRuntime`-like call
+   that returns a known sentinel value (e.g., `"CVE-PIVOT-TEST-SENTINEL"`) that can ONLY
+   originate from the async enrichment round-trip — not from any constant or sync path.
+2. Execute a DataFusion query through `SessionContext` that invokes the registered UDF.
+3. Assert the returned `RecordBatch` column contains the sentinel value.
+4. Include a call counter (e.g., `Arc<AtomicUsize>`) in the mock that is asserted > 0 after
+   execution — proving `invoke_async_with_args` was actually called, not `invoke_with_args`.
+
+A stub that hard-codes a return value cannot pass both the sentinel assertion and the counter
+assertion simultaneously.
 
 Red Gate: `test_BC_2_19_001_plugin_udfs_registered_in_session_context`
 
@@ -209,10 +264,22 @@ Given `PluginInfusionSource::enrich_single` (the InfusionSource trait impl in
 `crates/prism-spec-engine/src/infusion/plugin_bridge.rs`, stubs at lines 24-41)
 called with a valid plugin-type `InfusionSpec` and an input value,
 when `PluginRuntime::enrich_single` is available (S-1.15 operational, plugin/mod.rs ~904),
-then `enrich_single` delegates to `PluginRuntime::enrich_single` using
-`Instance::get_typed_func::<(String, String), (Option<String>,)>(store, "enrich-single")` →
-`TypedFunc::call` → process result → `TypedFunc::post_return` (mandatory after every
-successful sync call per wasmtime 44 TypedFunc ABI; skip only on Err).
+then `enrich_single` delegates to `PluginRuntime::enrich_single` using the CONFIRMED
+production signature: `runtime.enrich_single(plugin_id: &str, input_value: &str,
+input_type: &str, config: &PluginConfigMap) -> Result<Option<Value>, PluginError>`.
+
+The `InfusionSource` trait's `enrich_single(&self, input: &str, input_type: &str)` does NOT
+carry `plugin_id` or `PluginConfigMap` — `PluginInfusionSource` must hold them as fields
+(e.g., `plugin_id: String`, `config: PluginConfigMap`) set at construction time in
+`InfusionLoader::load_all`. The bridge maps `PluginError → InfusionError`.
+
+IMPORTANT — DO NOT USE `TypedFunc`:
+The runtime uses the UNTYPED `component::Val` path:
+`instance.get_func(store, "enrich-single").call(store, &params, &mut results)`
+using `wasmtime::component::Val::S32(...)` params. `get_typed_func` is NOT used and
+`TypedFunc::post_return` is explicitly REMOVED (plugin/mod.rs ~L970 comment:
+"post_return removed — no longer needed in wasmtime >=44 (no-op, deprecated)").
+Conform exactly to the existing plugin/mod.rs implementation — do NOT call post_return.
 
 When `PluginRuntime` is not yet available at dispatch time, `enrich_single` returns
 `Err(InfusionError::PluginRuntimeNotAvailable)` (or the closest equivalent variant in the
@@ -326,12 +393,16 @@ Implementation checklist (TDD order — write failing tests before each implemen
 **Phase 2: plugin_bridge (InfusionSource trait impl)**
 
 - [ ] Write failing test 4 (FAIL first): `test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime`
+- [ ] Extend `PluginInfusionSource` struct fields to carry `plugin_id: String` and
+  `config: PluginConfigMap` (required because the `InfusionSource` trait signature only
+  receives `input` and `input_type`; `plugin_id` and config must be captured at construction)
 - [ ] Implement `PluginInfusionSource::enrich_single` (and `enrich_batch`) in
   `crates/prism-spec-engine/src/infusion/plugin_bridge.rs` (stubs at lines 24-41):
   - if S-1.15 PluginRuntime is operational (plugin/mod.rs ~904):
-    delegate using `Instance::get_typed_func::<(String, String), (Option<String>,)>(store, "enrich-single")`
-    → `TypedFunc::call` → process result → call `TypedFunc::post_return` (MANDATORY after
-    every successful call; skip only on Err paths — wasmtime 44 TypedFunc ABI requirement)
+    delegate via `runtime.enrich_single(self.plugin_id, input, input_type, &self.config)`
+    using the UNTYPED `component::Val` path (see AC-004 for confirmed signature).
+    DO NOT use `get_typed_func` or call `post_return` — removed in merged runtime.
+    Map `PluginError → InfusionError` at the boundary.
   - if PluginRuntime not yet operational: `Err(InfusionError::PluginRuntimeNotAvailable)`
     (use the closest variant in the existing InfusionError enum) with `todo!("S-1.15")`
 - [ ] Write regression test for AC-005 (NOT failing-first — already implemented):
@@ -342,17 +413,30 @@ Implementation checklist (TDD order — write failing tests before each implemen
 **Phase 3: DataFusion UDF registration wiring**
 
 - [ ] Write failing test 3 (FAIL first): `test_BC_2_19_001_plugin_udfs_registered_in_session_context`
+  with anti-false-green hardening: mock async impl with sentinel value + call counter (see AC-003)
 - [ ] In `prism-query`, add `register_infusion_udfs(ctx: &SessionContext, descriptors: Vec<InfusionUdfDescriptor>)`:
-  for each descriptor, construct `ScalarUDF::from(InfusionScalarUdf::new(desc))` and call
-  `ctx.register_udf(udf)`. `InfusionScalarUdf` implements DataFusion `ScalarUDFImpl` with
-  required methods: `name()`, `signature()`, `return_type()`, `as_any()`, and
-  `invoke_with_args(ScalarFunctionArgs) -> Result<ColumnarValue>` — do NOT implement
-  `invoke` or `invoke_batch` (removed by DataFusion ~48). For the network-I/O enrichment
-  path implement `AsyncScalarUDFImpl::invoke_async_with_args` as the primary pattern
-  (native async UDFs, DataFusion 49.0+); `block_in_place`+`block_on` is fallback-only and
-  safe ONLY on multi-thread runtime (AD-013). Registration uses
-  `ctx.register_udf(ScalarUDF::from(...))` — no SessionState extension API.
-- [ ] Wire call into `QueryEngine::new` or equivalent construction site (read engine.rs first)
+  for each descriptor, construct an `InfusionAsyncUdf` implementing `AsyncScalarUDFImpl`
+  with: `invoke_async_with_args` (real enrichment call) and `invoke_with_args` returning
+  `not_impl_err!(...)`. Register via `ctx.register_udf(AsyncScalarUDF::new(Arc::new(impl)).into_scalar_udf())`.
+  DO NOT use `ScalarUDF::from(impl)` (sync-only path) for network-I/O UDFs.
+  DO NOT wire `AsyncFunctionRule`, `enable_async_udf`, or any analyzer/optimizer rule —
+  none of these exist in DataFusion 53.1 (see AC-003 hallucination list).
+- [ ] **NullSource replacement (CRITICAL — net-new work):**
+  `udf_descriptors()` in `infusion/mod.rs` hardwires every descriptor's `source` field to
+  `Arc::new(NullSource)` (confirmed at mod.rs lines ~500, ~535, ~558, ~662). For plugin-type
+  descriptors, the loader/registry MUST thread a REAL `PluginInfusionSource` (with populated
+  `plugin_id` and `config` fields) into each descriptor's `source`. Without this, all UDFs
+  are registered but enrich with nothing — NullSource always returns `None`.
+  Implementation: `InfusionLoader::load_all` must construct `Arc<PluginInfusionSource>` and
+  pass it into the descriptor's `source` field when building plugin-type descriptors.
+- [ ] Wire `register_infusion_udfs` call into `prism-query/src/engine.rs` at BOTH
+  SessionContext construction sites: (a) the `execute` path and (b) the `new_full`
+  materialized path (or consolidate into `build_session_context` if one exists). Registering
+  at only one site leaves the other path without enrichment UDFs.
+  MERGE-COORDINATION NOTE: `engine.rs` is also touched by S-3.13 (capability-discovery block).
+  Sequence merges or coordinate with the S-3.13 implementer to avoid conflicts at the
+  SessionContext construction site. Preferred: add `register_infusion_udfs` in
+  `build_session_context` (single site) if that helper exists post-S-3.13.
 - [ ] Verify test 3 passes
 
 **Phase 4: Final gates**
@@ -414,8 +498,8 @@ Implementation checklist (TDD order — write failing tests before each implemen
 |-------|---------|-------|
 | `toml` | 0.8.x (workspace) | Infusion spec TOML parsing |
 | `serde` / `serde_json` | 1.x (workspace) | InfusionSpec deserialization + enrichment result values |
-| `wasmtime` | 44.x (already in prism-spec-engine/Cargo.toml) | PluginRuntime WASM bridge (S-1.15 delegation) via `Instance::get_typed_func` / `TypedFunc::call` + `TypedFunc::post_return` (mandatory after every successful sync call per wasmtime 44 component model ABI) |
-| DataFusion | 53.1 (workspace — confirm exact pin in Cargo.toml before using) | `ScalarUDFImpl` (methods: name/signature/return_type/as_any/invoke_with_args) + `AsyncScalarUDFImpl::invoke_async_with_args` for network I/O; registered via `ctx.register_udf(ScalarUDF::from(...))`. Methods `invoke`/`invoke_batch` removed by DF ~48 — do not use. |
+| `wasmtime` | 44.x (already in prism-spec-engine/Cargo.toml) | PluginRuntime WASM bridge (S-1.15 delegation). The bridge uses the UNTYPED `component::Val` path via `instance.get_func(store, "enrich-single").call(store, params, results)`. DO NOT use `get_typed_func` or `TypedFunc::post_return` — post_return is removed in merged runtime (plugin/mod.rs ~L970: "post_return removed — no longer needed in wasmtime >=44 (no-op, deprecated)"). |
+| DataFusion | 53.1 (workspace — confirm exact pin in Cargo.toml before using) | `AsyncScalarUDFImpl` (primary for network-I/O): `invoke_async_with_args` + sync `invoke_with_args` returning `not_impl_err!`. Registered via `ctx.register_udf(AsyncScalarUDF::new(Arc::new(impl)).into_scalar_udf())` — NO analyzer/optimizer rules required; `DefaultPhysicalPlanner` handles async UDFs natively. Methods `invoke`/`invoke_batch` removed by DF ~48 — do not use. `AsyncFunctionRule`, `enable_async_udf`, `concurrent_async_udf_tasks` do NOT exist. |
 | `tokio` | 1.x (workspace) | Async UDF invocation context |
 
 **MSRV:** Rust stable per `rust-toolchain.toml`.
@@ -427,9 +511,9 @@ Implementation checklist (TDD order — write failing tests before each implemen
 | File | Action | Purpose |
 |------|--------|---------|
 | `crates/prism-spec-engine/src/infusion/loader.rs` | MODIFY | Implement parse/load_all for `source.type = "plugin"` only; unimplemented!() remains for other types (deferred to S-1.14-REDO) |
-| `crates/prism-spec-engine/src/infusion/plugin_bridge.rs` | MODIFY | Implement `PluginInfusionSource::enrich_single` and `enrich_batch` (InfusionSource trait stubs at lines 24-41) delegating to PluginRuntime::enrich_single via TypedFunc + post_return (or annotated todo! if S-1.15 unavailable) |
-| `crates/prism-spec-engine/src/infusion/mod.rs` | MODIFY | Implement `InfusionRegistry::is_api_backed(udf_name: &str) -> bool` |
-| `crates/prism-query/src/engine.rs` | MODIFY | Add `register_infusion_udfs` call at SessionContext construction site |
+| `crates/prism-spec-engine/src/infusion/plugin_bridge.rs` | MODIFY | (1) Add `plugin_id: String` and `config: PluginConfigMap` fields to `PluginInfusionSource`. (2) Implement `enrich_single`/`enrich_batch` (stubs at lines 24-41) delegating via the UNTYPED `component::Val` path to `PluginRuntime::enrich_single`. DO NOT use `TypedFunc` or `post_return`. Map `PluginError → InfusionError`. |
+| `crates/prism-spec-engine/src/infusion/mod.rs` | MODIFY | (1) `InfusionRegistry::is_api_backed` is ALREADY IMPLEMENTED at lines 619-628 — no re-implementation needed. (2) NET-NEW: Replace `Arc::new(NullSource)` with real `Arc<PluginInfusionSource>` in `udf_descriptors()` and `load_all` for plugin-type descriptors (lines ~500, ~535, ~558, ~662 hardwire NullSource today). |
+| `crates/prism-query/src/engine.rs` | MODIFY | Add `register_infusion_udfs` call at BOTH SessionContext construction sites (execute path + new_full/materialized path). Merge-coordinate with S-3.13 (capability-discovery block also modifies engine.rs). |
 | `crates/prism-spec-engine/tests/infusion_tests.rs` | MODIFY | Add Red Gate tests 1, 2, 4, 5 |
 | `crates/prism-query/tests/` or `src/` | MODIFY | Add Red Gate test 3 (UDF registration) |
 
@@ -453,7 +537,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 |-----------|--------|---------------|--------|
 | `InfusionLoader::parse` (plugin path) | `prism-spec-engine` (SS-19) | Pure (TOML parsing + structural validation) | BC-2.19.001 postcondition |
 | `InfusionLoader::load_all` (plugin branch) | `prism-spec-engine` (SS-19) | Effectful (constructs PluginInfusionSource) | BC-2.19.001 postcondition |
-| `PluginInfusionSource::enrich_single` / `enrich_batch` (InfusionSource trait impl) | `prism-spec-engine` (SS-17, SS-19) — `src/infusion/plugin_bridge.rs` | Effectful (WASM runtime call via TypedFunc + post_return, or Err) | WO-D1109 §Q1, Ruling 2 |
+| `PluginInfusionSource::enrich_single` / `enrich_batch` (InfusionSource trait impl) | `prism-spec-engine` (SS-17, SS-19) — `src/infusion/plugin_bridge.rs` | Effectful (delegates via UNTYPED `component::Val` path to PluginRuntime::enrich_single; maps PluginError → InfusionError; post_return NOT called — removed in merged runtime) | WO-D1109 §Q1, Ruling 2 |
 | `InfusionRegistry::is_api_backed` | `prism-spec-engine` (SS-19) | Pure (HashMap lookup) | BC-2.19.003 postcondition |
 | `register_infusion_udfs` | `prism-query` (SS-11) | Effectful (SessionContext mutation) | BC-2.19.001 postcondition |
 
@@ -493,5 +577,6 @@ Anticipated emissions (implementer must enumerate actual sites):
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.2 | 2026-06-14 | Pre-TDD scan corrections (verified against develop@664566e9). (1) Correction 1 — post_return RETRACTED: plugin/mod.rs ~L970 removed post_return as deprecated in wasmtime >=44; risk_mitigations + AC-004 + Library table + Architecture Mapping updated to reflect UNTYPED component::Val path with no post_return. (2) Correction 2 — enrich_single delegation signature fixed: real signature is PluginRuntime::enrich_single(plugin_id, input_value, input_type, config: &PluginConfigMap) -> Result<Option<Value>, PluginError>; PluginInfusionSource must carry plugin_id + config as fields; bridge maps PluginError → InfusionError; AC-004 + task + file-structure updated. (3) Correction 3 — async UDF research applied: DataFusion 53.1.0 confirmed ctx.register_udf(AsyncScalarUDF::new(Arc<dyn AsyncScalarUDFImpl>).into_scalar_udf()) is sufficient; DefaultPhysicalPlanner handles async natively; no analyzer/optimizer rules needed; hallucinated symbols catalogued (AsyncFunctionRule, enable_async_udf, concurrent_async_udf_tasks, GLOBAL_ASYNC_UDF_SEMAPHORE — do not exist); AC-003 rewritten, hallucination list added, anti-false-green hardening added (sentinel value + call counter). (4) Correction 4 — NullSource wiring gap: udf_descriptors() hardwires Arc::new(NullSource) at mod.rs ~L500/535/558/662; net-new Phase 3 task added to replace with real PluginInfusionSource; engine.rs two-site registration noted (execute + new_full paths); S-3.13 merge-coordination note added; file-structure table corrected (is_api_backed already implemented — not net-new). Status: draft → ready. |
 | v1.1 | 2026-06-12 | D-1109 remove-uncertainty closure: U1/U2/U3/U4/U5/U6/U7/U8 applied (scanner + research-agent + architect rulings 1-4, WO-D1109 v1.1). enrich syntax → function-call form throughout; grammar doc AC-006 added. plugin_bridge free-function replaced with PluginInfusionSource::enrich_single trait impl (Ruling 2). TypedFunc::post_return mandatory wiring added. DataFusion ScalarUDFImpl rewritten: invoke_with_args + AsyncScalarUDFImpl::invoke_async_with_args (invoke/invoke_batch removed DF~48). is_api_backed scoped as regression test (already implemented). InfusionError enum replaces invented SpecEngineError variants. Wrong path cite src/plugin_bridge.rs → src/infusion/plugin_bridge.rs fixed. |
 | v1.0 | 2026-06-12 | Initial draft per WO-D1109 §Story 1. Forward-subset of S-1.14-REDO for demo enrichment chain. Depends on S-1.14 partial-merge scaffolding; blocks 002 and 003. BC status: BC-2.19.001 + BC-2.19.003 as nearest anchors pending PO confirmation. Sequencing note added per D-1109 demo objective chain. |

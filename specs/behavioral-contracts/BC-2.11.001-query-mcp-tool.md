@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-10"  # v1.7: MCP cascade P2-04 — interim-status annotation for declared-but-unwired scope params (sensors/sources/time_range rejected -32602 fail-closed)
+modified: "2026-06-14"  # v1.8: S-3.13 pre-TDD — table-availability postcondition + E-QUERY-037 error case added
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -44,6 +44,7 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 - For external tables: Sensor responses are normalized to OCSF, materialized as Arrow RecordBatch, registered as DataFusion MemTable
 - For internal tables (`prism.*` sources): Data is read directly from RocksDB, deserialized into Arrow RecordBatch, and registered as DataFusion tables. No API fan-out or OCSF normalization occurs. Virtual fields `sensor = "prism"` and `source = "{table_name}"` are injected.
 - Both external and internal tables can be queried together in a single PrismQL statement (cross-source joins are supported)
+- **Table availability is validated at plan time (before fan-out).** After AST parse and before any sensor API contact, the planner checks each `source_ref` in the `QueryPlan` against the live `TableRegistry`. If a referenced table is not registered, the query is rejected immediately with `E-QUERY-037` — a structured error carrying `table` (the requested table name), `sensor` (the sensor prefix), `available_sensors` (comma-separated list of currently-registered sensor IDs from `TableRegistry`), `available_tables` (comma-separated list of currently-registered table names), and `did_you_mean` (the top-1 match from edit-distance ≤ 3 comparison against all registered table names, or absent if no close match exists). This check is mode-agnostic: it applies identically to SQL mode, filter mode, and pipe mode queries. No fan-out occurs for a rejected query. The `available_sensors` and `available_tables` fields are read from `TableRegistry::registered_tables()` at error-construction time — not from a static list — so they always reflect the current live configuration. When no sensors are configured, both fields are empty strings and `did_you_mean` is absent.
 - Query is executed via DataFusion; results returned as OCSF-normalized events (external) or native Prism records (internal)
 - **No cross-call pagination for query results.** The ephemeral model means the SessionContext (and all materialized data) cannot be held across calls. Each `query` call re-materializes from scratch (the response cache mitigates re-fetch cost). The `limit` parameter truncates results. If more results exist than `limit`, the response includes `is_truncated: true` and `total_available` (count of all matching records before truncation). The user narrows their query or increases `limit` (up to 1000) to see more results. There is no cursor or offset-based pagination for query results.
 - **Dual limit semantics (tool-level vs SQL-level).** Tool-level `limit` is applied after DataFusion execution (which may include SQL-level LIMIT). `total_available` reflects count after DataFusion execution but before tool-level truncation. SQL LIMIT reduces `total_available`; tool-level limit causes `is_truncated: true`.
@@ -62,6 +63,7 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-QUERY-001` | PrismQL query string cannot be parsed | Structured error with position, context, suggestion, and syntax help |
+| `E-QUERY-037` | Query references a table whose sensor is not currently configured in the live `TableRegistry` (plan-time check, before fan-out) | `PrismError::TableNotAvailable { table, sensor, available_sensors, available_tables, did_you_mean }` surfaced as MCP `-32602` INVALID_PARAMS. Message: `"E-QUERY-037: table '{table}' is not available — sensor '{sensor}' is not configured. Available sensors: [{available_sensors}]. Available tables: [{available_tables}].{did_you_mean}"` where `{did_you_mean}` = `" Did you mean: '{best_match}'?"` (leading space) if edit-distance ≤ 3 match exists, else absent. Check applies in all three query modes (SQL / filter / pipe). No fan-out occurs. Replaces the incorrect E-QUERY-001 reference in S-3.13 ACs. |
 | `E-QUERY-006` | Materialization would exceed 10K records | Structured error with estimated counts and narrowing suggestions (DEC-023) |
 | `E-QUERY-004` | Execution exceeds 30 seconds | Structured error with timeout duration and narrowing suggestions (DEC-026) |
 | `E-QUERY-033` | Tool-level `limit` parameter exceeds the 1000 maximum (`limit` default 25, max 1000) | Pre-execution parameter validation rejection; `PrismError::QueryLimitExceeded { requested, max }` surfaced via `map_prism_error` as MCP `-32602` INVALID_PARAMS with message `"E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)"` (taxonomy v1.70 verbatim shipped display) |
@@ -77,6 +79,10 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 | EC-11-001 | `clients: ["acme"]` but query contains `client_id = "globex"` | Intersection is empty; return empty result set (not error) with metadata explaining intersection was empty |
 | EC-11-002 | All sensors error for a single client in cross-client query | Client's results omitted; other clients' results returned; failed client listed in `sensor_errors` |
 | EC-11-032 | Query matches 500 records but `limit` is 25 | Returns 25 records with `is_truncated: true`, `total_available: 500`. User can re-query with `limit: 500` or narrow the query. No cross-call pagination state is held. |
+| EC-11-033 | Query references `crowdstrike_alerts` when CrowdStrike is not configured but Armis and Claroty are | Returns `E-QUERY-037` with `sensor="crowdstrike"`, `available_sensors="armis, claroty"`, `available_tables="armis_alerts, armis_devices, claroty_devices, ..."`. No fan-out occurs. |
+| EC-11-034 | Query references `crowdstrike_alert` (typo — missing 's') when `crowdstrike_alerts` is registered | Returns `E-QUERY-037` with `did_you_mean="crowdstrike_alerts"` (Levenshtein distance = 1). The suggestion field is present in the error. |
+| EC-11-035 | Query references an unregistered table and no sensors are configured at all | Returns `E-QUERY-037` with `available_sensors=""`, `available_tables=""`, `did_you_mean` absent. |
+| EC-11-036 | SQL mode, filter mode, and pipe mode queries all reference an unregistered table | All three return `E-QUERY-037` — the plan-time table-availability gate is mode-agnostic. |
 
 ## Canonical Test Vectors
 
@@ -89,6 +95,9 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 | `query(query="severity = 'critical'", clients=["nonexistent"])` | `Err(E-MCP-004)` with rejected value | error |
 | `query(query="<64KB+1 string>")` | `Err(E-QUERY-003)` query length exceeded | error |
 | `query(query="severity = 'critical'", limit=25)` with 500 matching records | Returns 25 records, `is_truncated: true`, `total_available: 500` | edge-case |
+| `query(query="SELECT * FROM crowdstrike_alerts")` when CrowdStrike is not configured and Armis+Claroty are | `Err(E-QUERY-037)` with `table="crowdstrike_alerts"`, `sensor="crowdstrike"`, `available_sensors="armis, claroty"`, `available_tables` listing armis and claroty tables, `did_you_mean` absent (no close match) | error (table-availability, EC-11-033) |
+| `query(query="SELECT * FROM crowdstrike_alert")` when `crowdstrike_alerts` is registered | `Err(E-QUERY-037)` with `did_you_mean="crowdstrike_alerts"` (Levenshtein distance 1) | error (table-availability did_you_mean, EC-11-034) |
+| `query(query="SELECT * FROM armis_alerts")` in all three modes (filter: `armis_severity = 'high'`, pipe: `FROM armis_alerts \| ...`) when Armis is not configured | All three return `Err(E-QUERY-037)` with `sensor="armis"` | error (table-availability mode-agnostic, EC-11-036) |
 
 ## Verification Properties
 
@@ -110,6 +119,7 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | S-3.13-pre-TDD | 2026-06-14 | product-owner | S-3.13 pre-TDD error-contract reconciliation. Added plan-time table-availability postcondition: planner validates each `source_ref` against live `TableRegistry` before fan-out; unconfigured-sensor tables return `E-QUERY-037` (new code, error-taxonomy v1.79) with `table`, `sensor`, `available_sensors`, `available_tables`, `did_you_mean` (edit-distance ≤ 3) fields. Added E-QUERY-037 Error Cases row. Replaces the incorrect E-QUERY-001 reference in S-3.13 ACs (E-QUERY-001 = parse error, wrong semantics and wrong fields for a plan-time availability check). Added EC-11-033..036 edge cases covering the unconfigured-sensor, did_you_mean, empty-registry, and mode-agnostic scenarios. Added four canonical test vectors for the new error cases. Story-writer must update S-3.13 body (AC-2/AC-3/AC-8 and error-handling section) to reference E-QUERY-037; BC-INDEX title-column bump noted for state-manager. Architect note (NOT product-owner scope): new `PrismError::TableNotAvailable` variant required in `prism-core/src/error.rs`; edit-distance vs strsim crate decision delegated to architect. |
 | 1.7 | mcp-cascade-P2-04 | 2026-06-10 | product-owner | MCP cascade P2-04: interim-status annotation added under the optional-scoping-parameters precondition for the declared-but-unwired params. Shipped `query` tool (implementer-verified 2026-06-10) wires `clients`/`limit`/`force_refresh` only; `sensors`/`sources`/`time_range` have no engine plumbing and are rejected fail-closed with MCP `-32602` INVALID_PARAMS via `deny_unknown_fields` — never silently ignored. Declarations NOT deleted (POL-1 append-only spirit): they remain the normative target contract; production wiring tracked by the query scope-params story per the 2026-06-10 review (story-writer anchor burst in parallel). No postcondition/error-case/edge-case/vector changes; the annotation marks the affected postconditions as target behavior. |
 | 1.6 | mcp-cascade-P2-01 | 2026-06-10 | product-owner | MCP cascade P2-01 (architect adjudication, error-taxonomy v1.70): added missing Error Cases row for tool-level `limit` > 1000 rejection — code `E-QUERY-033`, surfaced as MCP `-32602` INVALID_PARAMS via `map_prism_error`, Message Format verbatim `"E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)"`. The condition was prose-only in Preconditions/Postconditions ("max 1000") while code (`PrismError::QueryLimitExceeded`) + 9 tests enforce it; the row closes the BC↔taxonomy gap. Default-25/max-1000 semantics unchanged (cross-referenced in the row). No precondition/postcondition/edge-case changes. |
 | 1.5 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Cases row "No matching clients/sensors found" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Condition text and response shape unchanged. Per ADR-038 (error-taxonomy v1.66). |

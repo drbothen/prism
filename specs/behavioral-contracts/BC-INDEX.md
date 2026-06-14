@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.55"
+version: "6.56"
 status: draft
 producer: state-manager
 timestamp: 2026-06-14T05:00:00Z
@@ -152,7 +152,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | draft |
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.7 (MCP cascade P2-04: interim-status annotation — `sensors`/`sources`/`time_range` declared but unwired, rejected `-32602` fail-closed via `deny_unknown_fields`; wiring tracked by query scope-params story per 2026-06-10 review) |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.8 (S-3.13 pre-TDD 2026-06-14: table-availability postcondition + E-QUERY-037 error case added; v1.7: MCP cascade P2-04: interim-status annotation — `sensors`/`sources`/`time_range` declared but unwired, rejected `-32602` fail-closed via `deny_unknown_fields`; wiring tracked by query scope-params story per 2026-06-10 review) |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active |
@@ -245,7 +245,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft — v1.4 (D-1166 2026-06-14: PO added plugin-type source wiring postcondition — plugin-type descriptors MUST carry Arc<PluginInfusionSource> not NullSource; closed NullSource gap for PIVOT-001 AC-003 Phase 3) |
 | BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.56 (2026-06-14, D-1166 consolidation burst):** state-manager | Inline row updates for D-1166 lane-spec finalization. (1) BC-2.11.001 row: v1.7→v1.8 — S-3.13 pre-TDD table-availability postcondition + E-QUERY-037 error case added (BC file already updated in pre-staged diff). (2) BC-2.19.001 row: draft — v1.4 annotation added — PO added plugin-type source wiring postcondition (NullSource gap closed for PIVOT-001 AC-003). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.55→v6.56.
 
 **v6.55 (2026-06-14, D-1165 — S-5.02 BC reconciliation burst: BC-2.10.004 v2.7→v2.8 / BC-2.10.007 v1.4→v1.5 / BC-2.10.011 v1.4→v1.5):** product-owner | S-5.02 pre-TDD spec reconciliation. Three BCs amended for capability-discovery story readiness: (1) BC-2.10.004 v2.7→v2.8 — 3-case `client_id` taxonomy: E-MCP-001 (missing/malformed), E-CFG-100 (not-registered client); documents E-AUTH-003 namespace-collision caveat. (2) BC-2.10.007 v1.4→v1.5 — nested 9-field structuredContent.error schema documented. (3) BC-2.10.011 v1.4→v1.5 — tri-state capability model + hierarchical capability-path list_capabilities model. All 3 BCs remain lifecycle_status:active/status:draft (POL-14 auto-promotes at anchor-story merge). No lifecycle flips this burst. active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.54→v6.55.
 
