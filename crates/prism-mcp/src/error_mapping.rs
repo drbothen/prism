@@ -437,38 +437,88 @@ pub struct StructuredErrorFields {
 
 /// Build the nested BC-2.10.007 `structuredContent.error` envelope as a `CallToolResult`.
 ///
-/// **S-5.02 stub** — returns a placeholder `CallToolResult` with an EMPTY `structuredContent`
-/// object (no `error` key, no `_meta` key).  Tests asserting the full 9-field shape and
-/// `_meta.trust_level: "internal"` will FAIL → Red Gate holds.
+/// Produces the ratified BC-2.10.007 v1.5 wire shape:
+/// ```json
+/// {
+///   "isError": true,
+///   "content": [{"type": "text", "text": "<content_text>"}],
+///   "structuredContent": {
+///     "error": {
+///       "code": "...", "message": "...", "category": "...",
+///       "retryable": false, "retry_after_seconds": null,
+///       "suggestion": "...", "source": "...",
+///       "original_params_valid": false, "upstream_message": null
+///     },
+///     "_meta": {"trust_level": "internal"}
+///   }
+/// }
+/// ```
 ///
-/// The implementer replaces this with the full envelope construction.
+/// `retry_after_seconds` and `upstream_message` are always present in the JSON
+/// as explicit `null` when not applicable (null-not-absent invariant, BC-2.10.007 v1.5).
 ///
 /// # Parameters
 /// - `fields`: the 9 structured error fields per BC-2.10.007 v1.5
 /// - `content_text`: the human-readable `content[].text` string ("`ERROR: [{category}] - ...`")
 pub fn build_structured_error_response(
-    _fields: StructuredErrorFields,
-    _content_text: String,
+    fields: StructuredErrorFields,
+    content_text: String,
 ) -> rmcp::model::CallToolResult {
-    // STUB: returns a structured_error CallToolResult with a placeholder structuredContent
-    // that lacks the `error` key and `_meta` key required by BC-2.10.007 v1.5.
-    // Tests asserting `structuredContent.error.*` and `_meta.trust_level` will FAIL.
-    rmcp::model::CallToolResult::structured_error(
-        serde_json::json!({"_stub": "S-5.02 not implemented"}),
-    )
+    // Build retry_after_seconds and upstream_message as explicit JSON null when None.
+    // serde_json::Value::Null ensures the field is PRESENT in the object as `null`,
+    // not absent (BC-2.10.007 null-not-absent invariant).
+    let retry_after_seconds = match fields.retry_after_seconds {
+        Some(s) => serde_json::Value::Number(s.into()),
+        None => serde_json::Value::Null,
+    };
+    let upstream_message = match fields.upstream_message {
+        Some(msg) => serde_json::Value::String(msg),
+        None => serde_json::Value::Null,
+    };
+
+    let structured_content = serde_json::json!({
+        "error": {
+            "code": fields.code,
+            "message": fields.message,
+            "category": fields.category,
+            "retryable": fields.retryable,
+            "retry_after_seconds": retry_after_seconds,
+            "suggestion": fields.suggestion,
+            "source": fields.source,
+            "original_params_valid": fields.original_params_valid,
+            "upstream_message": upstream_message,
+        },
+        "_meta": {
+            "trust_level": "internal"
+        }
+    });
+
+    // CallToolResult is #[non_exhaustive] — cannot use struct literal from external crate.
+    // Use structured_error() as the constructor, then replace the content vector with
+    // the human-readable content_text instead of the JSON-serialized structured content.
+    let mut result = rmcp::model::CallToolResult::structured_error(structured_content);
+    result.content = vec![rmcp::model::Content::text(content_text)];
+    result
 }
 
 /// Like `to_error_data` but also extracts `retry_after_ms` from `SensorRateLimited`.
 ///
-/// **S-5.02 stub** — always returns `(ErrorData, None)`.  Tests asserting
-/// `retry_after_seconds: 30` will fail (they get `None`) → Red Gate holds.
+/// For `PrismError::SensorRateLimited { retry_after_ms, .. }`, returns
+/// `Some(retry_after_ms)` as the second tuple element so the caller can convert
+/// to `retry_after_seconds` (ms / 1000) for the BC-2.10.007 structured error envelope.
 ///
-/// The implementer splits `SensorRateLimited { retry_after_ms }` out of the multi-arm
-/// sensor group and threads the value through.
+/// For all other `PrismError` variants, returns `None`.
 pub fn to_error_data_with_retry(err: PrismError) -> (ErrorData, Option<u64>) {
-    // STUB: drops retry_after_ms; always returns None.
+    // Extract retry_after_ms BEFORE consuming err via map_prism_error.
+    let retry_after_ms = match &err {
+        PrismError::SensorRateLimited { retry_after_ms, .. } => Some(*retry_after_ms),
+        _ => None,
+    };
     let (code, message) = map_prism_error(err);
-    (ErrorData::new(ErrorCode(code), message, None), None)
+    (
+        ErrorData::new(ErrorCode(code), message, None),
+        retry_after_ms,
+    )
 }
 
 // ---------------------------------------------------------------------------

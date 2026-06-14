@@ -275,6 +275,14 @@ impl WriteExecutor {
         &self.feature_flags
     }
 
+    /// Return a reference to the write endpoint registry.
+    ///
+    /// Used by `PrismServer::list_capabilities` to enumerate registered write capabilities
+    /// (compile-tier Present paths) for the tri-state capability model (BC-2.10.011).
+    pub fn endpoint_registry(&self) -> &Arc<WriteEndpointRegistry> {
+        &self.endpoint_registry
+    }
+
     /// Execute the write pipeline for the given `WritePlan`.
     ///
     /// Runs all six phases:

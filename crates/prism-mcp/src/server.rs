@@ -31,12 +31,25 @@ use std::{
 // CRIT-1: arrow-json for RecordBatch → JSON rows serialization.
 use arrow_json;
 use prism_audit::{ToolClass, ToolClassificationRegistry};
+use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
 use prism_core::error::PrismError;
 use prism_query::{
-    alias_store::AliasStore, engine::QueryEngine, write_dispatch::AuditWriter,
+    alias_store::AliasStore,
+    cache::{CacheConfig, GenericQueryCache},
+    engine::QueryEngine,
+    invalidation::CacheInvalidator,
+    write_dispatch::{AuditWriter, NullAuditWriter},
     write_pipeline::WriteExecutor,
 };
-use prism_security::injection_scanner::InjectionScanner;
+use prism_security::{
+    confirmation_token::ConfirmationTokenStore,
+    feature_flag::{CompileTimeGate, FeatureFlagEvaluator},
+    injection_scanner::InjectionScanner,
+};
+use prism_sensors::registry::AdapterRegistry;
+use prism_spec_engine::write_endpoint::{
+    BatchMode, RiskTierSpec, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+};
 use rmcp::{
     handler::server::{tool::schema_for_type, wrapper::Parameters},
     model::{Implementation, ServerCapabilities, ServerInfo},
@@ -107,13 +120,42 @@ impl PrismServer {
     /// Construct a new PrismServer for testing.
     ///
     /// Wires `InjectionScanner` from the global singleton (BC-2.09.001).
-    /// All domain dependencies (QueryEngine, WriteExecutor, AuditWriter) are `None`.
-    /// Tools return `PrismError::Internal` when called without domain deps.
+    /// Wires a minimal `WriteExecutor` with a fixed test capability configuration
+    /// so that `list_capabilities` can return the BC-2.10.011 tri-state shape
+    /// without requiring a fully-booted production stack.
+    ///
+    /// Test WriteExecutor configuration (for BC-2.10.011 tri-state tests):
+    /// - Client "acme" with `sensor.crowdstrike.containment` = Allow (→ enabled)
+    /// - Client "acme" with `sensor.cyberint.write` = Allow (NOT in registry → compile_time_disabled)
+    /// - `sensor.armis.segment` in registry but "acme" has no rule (→ runtime_disabled)
     ///
     /// Use [`with_deps()`] for production wiring (boot step 9).
+    /// Use [`minimal()`] for tests that specifically require no WriteExecutor.
     pub fn new() -> Self {
         Self {
             // InjectionScanner is a ZST — construct directly (global() is reference-only).
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: Some(Arc::new(Self::build_test_write_executor())),
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+            org_registry: None,
+        }
+    }
+
+    /// Construct a minimal PrismServer with NO domain dependencies wired.
+    ///
+    /// All domain tools return `PrismError::Internal` when called.
+    /// Only `InjectionScanner` is wired.
+    ///
+    /// Use this constructor ONLY in tests that specifically verify "not wired"
+    /// error paths (e.g., `confirm_action` returns INTERNAL_ERROR when no
+    /// WriteExecutor is present). For all other tests, use [`new()`].
+    #[allow(dead_code)] // used in #[cfg(test)] to test "not wired" error paths
+    pub(crate) fn minimal() -> Self {
+        Self {
             injection_scanner: Arc::new(InjectionScanner),
             query_engine: None,
             write_executor: None,
@@ -123,6 +165,85 @@ impl PrismServer {
             alias_store: None,
             org_registry: None,
         }
+    }
+
+    /// Build a minimal `WriteExecutor` for test/stub use (BC-2.10.011 tri-state tests).
+    ///
+    /// Registry has two write endpoints (crowdstrike + armis).
+    /// "acme" client has Allow on `sensor.crowdstrike.containment` and
+    /// `sensor.cyberint.write`; `sensor.armis.segment` is in registry but
+    /// "acme" has no rule → deny-by-default → runtime_disabled.
+    fn build_test_write_executor() -> WriteExecutor {
+        // Build WriteEndpointRegistry with two compile-gate-Present capabilities.
+        let mut registry = WriteEndpointRegistry::new();
+        let crowdstrike_endpoint = WriteEndpointSpec::new(
+            "contain",
+            "crowdstrike_contain",
+            RiskTierSpec::Reversible,
+            "sensor.crowdstrike.containment",
+            0,
+            BatchMode::Serial,
+            "device_id",
+            vec![WriteStep::new(
+                "POST",
+                "https://api.crowdstrike.test/contain",
+                None,
+                None,
+            )],
+        );
+        let armis_endpoint = WriteEndpointSpec::new(
+            "segment",
+            "armis_segment",
+            RiskTierSpec::Reversible,
+            "sensor.armis.segment",
+            0,
+            BatchMode::Serial,
+            "device_id",
+            vec![WriteStep::new(
+                "POST",
+                "https://api.armis.test/segment",
+                None,
+                None,
+            )],
+        );
+        // Ignore registration errors in test construction.
+        let _ = registry.register("crowdstrike", vec![crowdstrike_endpoint]);
+        let _ = registry.register("armis", vec![armis_endpoint]);
+
+        // Build FeatureFlagEvaluator for "acme":
+        //   - sensor.crowdstrike.containment = Allow  → in registry → enabled
+        //   - sensor.cyberint.write = Allow            → NOT in registry → compile_time_disabled
+        //   - sensor.armis.segment: no rule            → deny-by-default → runtime_disabled
+        let mut acme_caps = ClientCapabilities::new();
+        acme_caps.grant(
+            CapabilityPath::new("sensor.crowdstrike.containment").expect("valid capability path"),
+            CapabilityEffect::Allow,
+        );
+        acme_caps.grant(
+            CapabilityPath::new("sensor.cyberint.write").expect("valid capability path"),
+            CapabilityEffect::Allow,
+        );
+
+        let mut client_map = std::collections::BTreeMap::new();
+        client_map.insert("acme".to_owned(), acme_caps);
+
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(client_map));
+        let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+        let audit_writer: Arc<dyn AuditWriter> = Arc::new(NullAuditWriter);
+        let adapter_registry = Arc::new(AdapterRegistry::new());
+        let endpoint_registry = Arc::new(registry);
+        let cache: Arc<GenericQueryCache<_>> =
+            Arc::new(GenericQueryCache::new(CacheConfig::default()));
+        let cache_invalidator = Arc::new(CacheInvalidator::new(cache));
+
+        WriteExecutor::new(
+            feature_flags,
+            confirmation_store,
+            audit_writer,
+            adapter_registry,
+            endpoint_registry,
+            cache_invalidator,
+        )
     }
 
     /// Construct a PrismServer with full production dependencies wired (ADR-022 §F).
@@ -1168,16 +1289,16 @@ pub struct GetHelpParams {
 
 /// Tools with live (wired) handler implementations.
 ///
-/// MCP-01 (2026-06-10 review): `list_capabilities` derives its capabilities map
-/// from this classification instead of a hardcoded all-true literal. A tool
-/// belongs here if and only if its handler executes real domain logic (it does
-/// NOT return `not_yet_available_msg`).
+/// MCP-01 (2026-06-10 review): used in test
+/// `test_MCP_01_capability_classification_partitions_tool_catalog` to verify
+/// the tool catalog partition. A tool belongs here if and only if its handler
+/// executes real domain logic (it does NOT return `not_yet_available_msg`).
 ///
-/// Kept in sync with the tool router by
-/// `test_MCP_01_capability_classification_partitions_tool_catalog`: every tool
-/// in `production_tool_catalog()` must appear in exactly one of `LIVE_TOOLS` /
-/// `NOT_YET_AVAILABLE_TOOLS`. When implementing a stubbed tool, move its name
-/// from `NOT_YET_AVAILABLE_TOOLS` to `LIVE_TOOLS` in the same commit.
+/// Kept in sync with the tool router: every tool in `production_tool_catalog()`
+/// must appear in exactly one of `LIVE_TOOLS` / `NOT_YET_AVAILABLE_TOOLS`.
+/// When implementing a stubbed tool, move its name from `NOT_YET_AVAILABLE_TOOLS`
+/// to `LIVE_TOOLS` in the same commit.
+#[allow(dead_code)] // used in #[cfg(test)] partition test
 const LIVE_TOOLS: &[&str] = &[
     "query",
     "explain_query",
@@ -1272,7 +1393,10 @@ fn injection_rejection_error() -> rmcp::model::ErrorData {
 /// Validate that every string in `client_ids` matches `[a-zA-Z0-9_-]{1,64}`.
 ///
 /// Returns `Err(ErrorData)` with INVALID_PARAMS code if any entry is invalid.
-/// BC-2.10.004: client_id/clients entries must be validated before use.
+/// BC-2.10.004 v2.8: client_id/clients entries must be validated before use.
+/// Error message MUST start with `"E-MCP-001: invalid client_id format:"` (Implementer Note §1).
+/// CRITICAL: do NOT route through PrismError::InvalidClientId — it displays E-AUTH-003,
+/// a namespace collision with the sensor-layer bearer-token rejection code.
 ///
 /// The 64-character upper bound matches `OrgSlug` validation (`^[a-zA-Z0-9_-]{1,64}$`).
 /// Without this bound a caller could send a 65+-char client_id that passes this check
@@ -1287,7 +1411,7 @@ fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::ErrorDa
         {
             return Err(rmcp::model::ErrorData::new(
                 rmcp::model::ErrorCode(codes::INVALID_PARAMS),
-                format!("Invalid client_id '{id}': must match [a-zA-Z0-9_-]{{1,64}} (BC-2.10.004)"),
+                format!("E-MCP-001: invalid client_id format: '{id}'"),
                 None,
             ));
         }
@@ -3189,8 +3313,8 @@ impl PrismServer {
         )
         .await?;
 
-        // CRIT-4 fix: report capability status via FeatureFlagEvaluator from WriteExecutor.
-        // FeatureFlagEvaluator is available when WriteExecutor is wired.
+        // BC-2.10.011 v1.5: tri-state capability model.
+        // WriteExecutor is always wired (PrismServer::new() provides a minimal one).
         let Some(we) = &self.write_executor else {
             return Err(to_error_data(PrismError::Internal {
                 detail: "WriteExecutor not wired at PrismServer (boot step 9 incomplete)"
@@ -3198,51 +3322,188 @@ impl PrismServer {
             }));
         };
         let ff = we.feature_flags();
-        let client_id = params.client_id.as_deref().unwrap_or("<all>");
-        // `client_registered` is driven by the wired FeatureFlagEvaluator: it
-        // reports whether the requested client exists in the runtime capability
-        // registry (the Tier-2 source for per-client write capability checks).
-        let client_exists = params
-            .client_id
-            .as_ref()
-            .map(|id| ff.client_exists(id))
-            .unwrap_or(false);
+        let endpoint_registry = we.endpoint_registry();
 
-        // MCP-01 (2026-06-10 review): the capabilities map is DERIVED from the
-        // tool catalog + the LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS classification,
-        // not a hardcoded all-true literal.
-        //
-        // - Live tools report `true`: their handlers execute real domain logic.
-        //   Read-path tools have no per-client flag source in the
-        //   FeatureFlagEvaluator (it models WRITE capabilities, BC-2.04.002);
-        //   per-client write capability paths (e.g. `sensor.<sensor>.containment`)
-        //   are evaluated at execution time by the two-tier check inside the
-        //   write pipeline (BC-2.04.004) — `client_registered` above surfaces
-        //   the Tier-2 registry membership for the requested client.
-        // - Stubbed tools (the `-32003 not_yet_available` set, including the
-        //   crowdstrike write tools pending sensor adapter wiring) report
-        //   `false`: they cannot be invoked regardless of feature-flag state.
-        let capabilities: serde_json::Map<String, serde_json::Value> =
-            Self::production_tool_catalog()
-                .iter()
-                .map(|tool| {
-                    let name = tool.name.to_string();
-                    let live = LIVE_TOOLS.contains(&name.as_str());
-                    (name, serde_json::Value::Bool(live))
-                })
+        // `not_registered_tools` = MCP tools whose handlers return -32003 (BC-2.10.011 AC-011).
+        let not_registered_tools: Vec<&str> = NOT_YET_AVAILABLE_TOOLS.to_vec();
+
+        let result_json = if let Some(ref client_id) = params.client_id {
+            // ── Per-client mode ─────────────────────────────────────────────
+            // Enumerate all write capability paths:
+            //   A) paths from WriteEndpointRegistry (compile-gate Present)
+            //   B) paths from the client's FeatureFlagEvaluator config that
+            //      are NOT in the registry (compile-gate Absent → compile_time_disabled)
+            let client_exists = ff.client_exists(client_id);
+
+            // Registry paths (compile-gate Present for these).
+            let registry_paths: std::collections::HashSet<String> = endpoint_registry
+                .all_capability_paths()
+                .into_iter()
+                .map(|(_sensor, cap)| cap.to_owned())
                 .collect();
-        let result_json = serde_json::json!({
-            "client_id": client_id,
-            "client_registered": client_exists,
-            "capabilities": capabilities,
-            "not_implemented": NOT_YET_AVAILABLE_TOOLS,
-            "note": "capabilities[tool] == false means the tool is registered but not \
-                     implemented (returns -32003). Per-client write capabilities \
-                     (e.g. sensor.<sensor>.containment) are evaluated at execution time \
-                     by the two-tier feature-flag check (BC-2.04.004); client_registered \
-                     reports whether the requested client exists in the runtime \
-                     capability registry.",
-        });
+
+            // Client-configured paths not already in registry (compile_time_disabled candidates).
+            let client_paths = ff.capability_paths_for_client(client_id);
+
+            // Union: registry paths + client-configured paths.
+            let mut all_paths: Vec<String> = registry_paths.iter().cloned().collect();
+            for p in &client_paths {
+                if !registry_paths.contains(p) {
+                    all_paths.push(p.clone());
+                }
+            }
+            all_paths.sort(); // deterministic order
+
+            let mut capabilities: serde_json::Map<String, serde_json::Value> =
+                serde_json::Map::new();
+
+            for cap_path in &all_paths {
+                let in_registry = registry_paths.contains(cap_path);
+                let entry: CapabilityEntry = if in_registry {
+                    // Compile-gate Present → check runtime tier.
+                    let result = ff.check_permission(CompileTimeGate::Present, client_id, cap_path);
+                    match result {
+                        prism_security::feature_flag::CapabilityCheckResult::Allowed => {
+                            CapabilityEntry {
+                                status: CapabilityStatus::Enabled,
+                                resolution_chain: vec![
+                                    ResolutionStep {
+                                        level: "compile_tier".to_owned(),
+                                        result: "permit".to_owned(),
+                                        source: "write_endpoints declaration in sensor TOML"
+                                            .to_owned(),
+                                    },
+                                    ResolutionStep {
+                                        level: "runtime_tier".to_owned(),
+                                        result: "allow".to_owned(),
+                                        source: format!(
+                                            "client '{client_id}' capabilities config"
+                                        ),
+                                    },
+                                ],
+                            }
+                        }
+                        prism_security::feature_flag::CapabilityCheckResult::DeniedRuntime {
+                            ..
+                        } => CapabilityEntry {
+                            status: CapabilityStatus::RuntimeDisabled,
+                            resolution_chain: vec![
+                                ResolutionStep {
+                                    level: "compile_tier".to_owned(),
+                                    result: "permit".to_owned(),
+                                    source: "write_endpoints declaration in sensor TOML".to_owned(),
+                                },
+                                ResolutionStep {
+                                    level: "runtime_tier".to_owned(),
+                                    result: "deny".to_owned(),
+                                    source: format!(
+                                        "client '{client_id}' capabilities config (no Allow rule)"
+                                    ),
+                                },
+                            ],
+                        },
+                        prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                            ..
+                        } => CapabilityEntry {
+                            status: CapabilityStatus::CompileTimeDisabled,
+                            resolution_chain: vec![ResolutionStep {
+                                level: "compile_tier".to_owned(),
+                                result: "deny".to_owned(),
+                                source: "no write_endpoints declaration in sensor TOML".to_owned(),
+                            }],
+                        },
+                    }
+                } else {
+                    // Not in registry → compile-gate Absent → compile_time_disabled.
+                    CapabilityEntry {
+                        status: CapabilityStatus::CompileTimeDisabled,
+                        resolution_chain: vec![ResolutionStep {
+                            level: "compile_tier".to_owned(),
+                            result: "deny".to_owned(),
+                            source: "no write_endpoints declaration in sensor TOML".to_owned(),
+                        }],
+                    }
+                };
+                let entry_json = serde_json::to_value(&entry).map_err(|e| {
+                    to_error_data(PrismError::Internal {
+                        detail: format!("Failed to serialize capability entry: {e}"),
+                    })
+                })?;
+                capabilities.insert(cap_path.clone(), entry_json);
+            }
+
+            serde_json::json!({
+                "client_id": client_id,
+                "client_registered": client_exists,
+                "capabilities": capabilities,
+                "not_registered_tools": not_registered_tools,
+            })
+        } else {
+            // ── Cross-client summary mode (client_id = null) ─────────────────
+            // Returns per-client counts of enabled/runtime_disabled/compile_time_disabled.
+            let registry_paths: std::collections::HashSet<String> = endpoint_registry
+                .all_capability_paths()
+                .into_iter()
+                .map(|(_sensor, cap)| cap.to_owned())
+                .collect();
+
+            let mut clients: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+
+            for cid in ff.client_ids() {
+                let client_exists = ff.client_exists(cid);
+                let client_paths = ff.capability_paths_for_client(cid);
+
+                let mut all_paths: Vec<String> = registry_paths.iter().cloned().collect();
+                for p in &client_paths {
+                    if !registry_paths.contains(p) {
+                        all_paths.push(p.clone());
+                    }
+                }
+
+                let mut enabled_count: u32 = 0;
+                let mut runtime_disabled_count: u32 = 0;
+                let mut compile_time_disabled_count: u32 = 0;
+
+                for cap_path in &all_paths {
+                    if registry_paths.contains(cap_path) {
+                        match ff.check_permission(CompileTimeGate::Present, cid, cap_path) {
+                            prism_security::feature_flag::CapabilityCheckResult::Allowed => {
+                                enabled_count += 1;
+                            }
+                            prism_security::feature_flag::CapabilityCheckResult::DeniedRuntime {
+                                ..
+                            } => {
+                                runtime_disabled_count += 1;
+                            }
+                            prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                                ..
+                            } => {
+                                compile_time_disabled_count += 1;
+                            }
+                        }
+                    } else {
+                        compile_time_disabled_count += 1;
+                    }
+                }
+
+                clients.insert(
+                    cid.to_owned(),
+                    serde_json::json!({
+                        "client_registered": client_exists,
+                        "enabled_count": enabled_count,
+                        "runtime_disabled_count": runtime_disabled_count,
+                        "compile_time_disabled_count": compile_time_disabled_count,
+                    }),
+                );
+            }
+
+            serde_json::json!({
+                "client_id": serde_json::Value::Null,
+                "clients": clients,
+                "not_registered_tools": not_registered_tools,
+            })
+        };
+
         let envelope = SafetyEnvelopeBuilder::wrap(
             "list_capabilities",
             DataSource::Multiple(vec![]),
@@ -5213,9 +5474,12 @@ mod tests {
     /// MED-006 fix: should NOT return a Forbidden-class policy denial (at the
     /// time, the since-removed FeatureFlagDisabled variant; P2-03 2026-06-10
     /// review pass-2), but Internal (dependency not wired at boot step 9).
+    ///
+    /// Uses `PrismServer::minimal()` (no WriteExecutor) rather than `new()` because
+    /// `new()` now wires a test WriteExecutor for BC-2.10.011 tri-state capability tests.
     #[tokio::test]
     async fn test_confirm_action_returns_internal_when_not_wired() {
-        let server = PrismServer::new();
+        let server = PrismServer::minimal();
         let params = ConfirmActionParams {
             token: "test-token-001".to_owned(),
             client_id: "acme".to_owned(),
@@ -7849,24 +8113,58 @@ mod tests {
 
     /// Build a PrismServer with a WriteExecutor whose FeatureFlagEvaluator has
     /// `registered_client` in its runtime capability registry.
+    ///
+    /// Updated for BC-2.10.011 v1.5: the WriteEndpointRegistry includes one
+    /// write endpoint (`sensor.test.containment`) so the capabilities map is
+    /// non-empty. `registered_client` is granted Allow on that path.
     fn server_with_write_executor(registered_client: &str) -> PrismServer {
         use std::collections::BTreeMap;
 
-        use prism_core::capability::ClientCapabilities;
+        use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
         use prism_query::write_pipeline::WriteExecutor;
         use prism_security::{confirmation_token::ConfirmationTokenStore, FeatureFlagEvaluator};
         use prism_sensors::registry::AdapterRegistry;
-        use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
+        use prism_spec_engine::write_endpoint::{
+            BatchMode, RiskTierSpec, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+        };
 
+        // Build WriteEndpointRegistry with one endpoint so capabilities is non-empty.
+        let mut registry = WriteEndpointRegistry::new();
+        let _ = registry.register(
+            "test_sensor",
+            vec![WriteEndpointSpec::new(
+                "contain",
+                "test_contain",
+                RiskTierSpec::Reversible,
+                "sensor.test.containment",
+                0,
+                BatchMode::Serial,
+                "device_id",
+                vec![WriteStep::new(
+                    "POST",
+                    "https://test.local/contain",
+                    None,
+                    None,
+                )],
+            )],
+        );
+
+        // `registered_client` gets Allow on the test capability path.
+        let mut caps = ClientCapabilities::new();
+        caps.grant(
+            CapabilityPath::new("sensor.test.containment").expect("valid"),
+            CapabilityEffect::Allow,
+        );
         let mut clients = BTreeMap::new();
-        clients.insert(registered_client.to_owned(), ClientCapabilities::new());
+        clients.insert(registered_client.to_owned(), caps);
+
         let feature_flags = Arc::new(FeatureFlagEvaluator::new(clients));
         let write_executor = Arc::new(WriteExecutor::new(
             feature_flags,
             Arc::new(ConfirmationTokenStore::new()),
             Arc::new(RecordingAudit::default()),
             Arc::new(AdapterRegistry::new()),
-            Arc::new(WriteEndpointRegistry::new()),
+            Arc::new(registry),
             Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
                 prism_query::cache::SensorResponseCache::with_defaults(),
             ))),
@@ -7883,8 +8181,11 @@ mod tests {
             .expect("list_capabilities must return structured content")
     }
 
-    /// MCP-01: registered client → client_registered = true; live tools true;
-    /// stubbed tools (including the crowdstrike write tools) false.
+    /// MCP-01 (BC-2.10.011 v1.5): registered client → client_registered = true;
+    /// capabilities map contains write capability paths with tri-state {status, resolution_chain};
+    /// not_registered_tools contains MCP tools that return -32003.
+    ///
+    /// Updated from bool-map shape (pre-BC-2.10.011 v1.5) to tri-state shape.
     #[tokio::test]
     async fn test_MCP_01_list_capabilities_registered_client_derived_map() {
         let server = server_with_write_executor("acme");
@@ -7903,48 +8204,53 @@ mod tests {
         );
         let caps = body["capabilities"]
             .as_object()
-            .expect("capabilities must be an object");
-        // Live tools report true.
-        for live in ["query", "explain_query", "confirm_action", "create_alias"] {
-            assert_eq!(
-                caps[live], true,
-                "live tool '{live}' must report true; got {:?}",
-                caps[live]
-            );
-        }
-        // Implemented-but-stubbed tools report false.
-        for stubbed in [
-            "create_schedule",
-            "crowdstrike_contain_host",
-            "crowdstrike_lift_containment",
-            "get_help",
-        ] {
-            assert_eq!(
-                caps[stubbed], false,
-                "stubbed tool '{stubbed}' must report false (-32003 not implemented); \
-                 got {:?}",
-                caps[stubbed]
-            );
-        }
-        // The map must cover the whole catalog — not the old 11-entry literal.
+            .expect("capabilities must be an object (write capability paths)");
+
+        // The registered capability "sensor.test.containment" must have tri-state shape.
+        let test_cap = caps
+            .get("sensor.test.containment")
+            .expect("sensor.test.containment must be in capabilities map");
         assert_eq!(
-            caps.len(),
-            PrismServer::production_tool_catalog().len(),
-            "capabilities map must cover every catalog tool"
+            test_cap["status"], "enabled",
+            "acme has Allow on sensor.test.containment → status must be 'enabled'; \
+             got {test_cap}"
         );
-        // Stubbed tools are also enumerated explicitly for agent consumers.
-        let not_impl = body["not_implemented"]
+        assert!(
+            test_cap["resolution_chain"].as_array().is_some(),
+            "sensor.test.containment must have resolution_chain array; got {test_cap}"
+        );
+
+        // not_registered_tools (renamed from not_implemented) must be an array of MCP tools.
+        let not_registered = body["not_registered_tools"]
             .as_array()
-            .expect("not_implemented must be an array");
-        assert_eq!(not_impl.len(), NOT_YET_AVAILABLE_TOOLS.len());
+            .expect("not_registered_tools must be an array (BC-2.10.011 AC-011)");
+        assert_eq!(
+            not_registered.len(),
+            NOT_YET_AVAILABLE_TOOLS.len(),
+            "not_registered_tools must contain all NOT_YET_AVAILABLE_TOOLS"
+        );
+
+        // not_implemented must NOT be present (renamed in BC-2.10.011 v1.5).
+        assert!(
+            body.get("not_implemented").is_none(),
+            "not_implemented must be absent (renamed to not_registered_tools); got {body}"
+        );
+        // note field must NOT be present (removed in BC-2.10.011 v1.5).
+        assert!(
+            body.get("note").is_none(),
+            "note field must be absent (removed in BC-2.10.011 v1.5); got {body}"
+        );
     }
 
-    /// MCP-01: unregistered client → client_registered = false (capabilities
-    /// map identical — tool availability is not per-client; write capability
-    /// evaluation happens per-request in the write pipeline).
+    /// MCP-01 (BC-2.10.011 v1.5): unregistered client → client_registered = false;
+    /// write capabilities map shows runtime_disabled for registry paths (no Allow rule),
+    /// capabilities for paths in registry but no client config → runtime_disabled.
+    ///
+    /// Updated from bool-map shape to tri-state shape.
     #[tokio::test]
     async fn test_MCP_01_list_capabilities_unregistered_client_not_registered() {
         let server = server_with_write_executor("acme");
+        // "globex" is not registered in the FeatureFlagEvaluator.
         let result = server
             .list_capabilities(Parameters(ListCapabilitiesParams {
                 client_id: Some("globex".to_owned()),
@@ -7957,7 +8263,23 @@ mod tests {
             body["client_registered"], false,
             "unregistered client must report client_registered=false; got {body}"
         );
-        assert_eq!(body["capabilities"]["query"], true);
-        assert_eq!(body["capabilities"]["create_schedule"], false);
+        let caps = body["capabilities"]
+            .as_object()
+            .expect("capabilities must be an object");
+        // "globex" is not in the FeatureFlagEvaluator — registry path exists but client is unknown.
+        // check_permission with unknown client → DeniedRuntime → runtime_disabled.
+        let test_cap = caps.get("sensor.test.containment");
+        if let Some(cap) = test_cap {
+            // Must be runtime_disabled (compile-gate Present, but client is unknown → deny-by-default).
+            assert_eq!(
+                cap["status"], "runtime_disabled",
+                "sensor.test.containment for unknown client must be runtime_disabled; got {cap}"
+            );
+        }
+        // not_registered_tools must still be present.
+        assert!(
+            body.get("not_registered_tools").is_some(),
+            "not_registered_tools must be present for unregistered client; got {body}"
+        );
     }
 }

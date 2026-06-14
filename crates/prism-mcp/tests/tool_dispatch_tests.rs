@@ -1242,107 +1242,99 @@ fn test_BC_3_2_001_map_prism_error_sensor_not_registered_for_org_to_32602() {
 
 /// BC-2.10.004 v2.8 postcondition case (a): empty string → E-MCP-001 prefix.
 ///
-/// The current `validate_client_ids` emits:
-///   `"Invalid client_id '': must match [a-zA-Z0-9_-]{1,64} (BC-2.10.004)"`
-/// The contract requires the message to START WITH `"E-MCP-001: "`.
+/// `validate_client_ids` with `""` must return an `ErrorData` whose `message` field
+/// starts with `"E-MCP-001: invalid client_id format:"` (BC-2.10.004 v2.8 Implementer Note §1).
 ///
-/// RED: current code lacks the `E-MCP-001: ` prefix → `starts_with` assertion fails.
-#[test]
-fn test_BC_2_10_004_empty_client_id_returns_e_mcp_001_prefix() {
-    use prism_core::error::PrismError;
-    use prism_mcp::error_mapping::{codes, map_prism_error};
+/// Test path: call `list_capabilities` with `client_id: Some("")` so that
+/// `validate_client_ids` fires BEFORE the WriteExecutor check, and inspect the
+/// returned `ErrorData.message`.
+///
+/// GREEN when: validate_client_ids emits `"E-MCP-001: invalid client_id format: ''"`.
+#[tokio::test]
+async fn test_BC_2_10_004_empty_client_id_returns_e_mcp_001_prefix() {
+    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use rmcp::handler::server::wrapper::Parameters;
 
-    // AC-001: validate_client_ids with "" must return an error whose message
-    // starts with "E-MCP-001: invalid client_id format:".
-    // We exercise map_prism_error(McpParameterInvalid) as a proxy for the
-    // validate_client_ids-produced E-MCP-001 path.  The actual validate_client_ids
-    // function is private; we test via error_mapping to confirm the code path
-    // produces the correct prefix.
-    //
-    // The direct assertion is on the message format required by BC-2.10.004 v2.8
-    // Implementer Note §1.  The test below uses the known wrong message to confirm
-    // the Red Gate:  validate_client_ids currently produces the wrong prefix,
-    // so the dedicated assertions here will fail.
-    //
-    // Strategy: construct the exact PrismError variant that validate_client_ids
-    // SHOULD produce for an empty string, then verify the message prefix.
-    // NOTE — this also validates that the E-MCP-001 namespace is NOT re-routed
-    // through PrismError::InvalidClientId (which would produce E-AUTH-003).
-    let err = PrismError::McpParameterInvalid {
-        tool: "validate_client_ids".to_owned(),
-        detail: "E-MCP-001: invalid client_id format: ''".to_owned(),
-    };
-    let (_code, message) = map_prism_error(err);
-    // The formatted message from McpParameterInvalid wraps the detail; strip to the
-    // inner detail to confirm the E-MCP-001 prefix is present.
-    assert!(
-        message.contains("E-MCP-001"),
-        "BC-2.10.004 case (a): validate_client_ids error for empty string \
-         must contain 'E-MCP-001'; got: '{message}'"
-    );
-    // Direct structural test: the BC requires the message prefix not E-AUTH-003.
-    assert!(
-        !message.contains("E-AUTH-003"),
-        "BC-2.10.004 case (a): must NOT route through E-AUTH-003 (InvalidClientId); \
-         got: '{message}'"
-    );
+    let server = PrismServer::new();
+    // Empty string must fail validate_client_ids BEFORE the WriteExecutor check.
+    let err = server
+        .list_capabilities(Parameters(ListCapabilitiesParams::for_client("")))
+        .await
+        .expect_err(
+            "BC-2.10.004 case (a): list_capabilities with empty client_id must return an error",
+        );
 
-    // The critical assertion: validate that the current validate_client_ids in
-    // server.rs returns a message starting with "E-MCP-001: invalid client_id format:".
-    // We embed the required format as a literal so the test documents the contract.
-    // This test will FAIL (Red Gate) because validate_client_ids currently returns:
-    // "Invalid client_id '': must match [a-zA-Z0-9_-]{1,64} (BC-2.10.004)"
-    // It does NOT start with "E-MCP-001: ".
     let required_prefix = "E-MCP-001: invalid client_id format:";
-    // Build the expected message that the implementation MUST produce.
-    // We fabricate the wrong message string to confirm it doesn't match the requirement:
-    let current_wrong_message =
-        "Invalid client_id '': must match [a-zA-Z0-9_-]{1,64} (BC-2.10.004)";
     assert!(
-        current_wrong_message.starts_with(required_prefix),
+        err.message.starts_with(required_prefix),
         "BC-2.10.004 v2.8 AC-001: validate_client_ids error message for empty client_id \
-         must start with '{required_prefix}'; \
-         current implementation produces: '{current_wrong_message}' — RED GATE"
+         must start with '{required_prefix}'; got: '{}'",
+        err.message
+    );
+    assert!(
+        !err.message.contains("E-AUTH-003"),
+        "BC-2.10.004 case (a): must NOT route through E-AUTH-003 (InvalidClientId); \
+         got: '{}'",
+        err.message
     );
 }
 
-/// BC-2.10.004 v2.8 postcondition case (b): malformed (path traversal) → E-MCP-001.
+/// BC-2.10.004 v2.8 postcondition case (b): malformed client_id (path traversal) → E-MCP-001.
 ///
 /// Test vector from story EC-002: `"acme/../../etc"` fails `[a-zA-Z0-9_-]{1,64}` because `/` and `.`
-/// are not in the allowed charset.  Error must carry `"E-MCP-001: "` prefix.
+/// are not in the allowed charset. Error must carry `"E-MCP-001: invalid client_id format:"` prefix.
 ///
-/// RED: current code message lacks the E-MCP-001 prefix.
-#[test]
-fn test_BC_2_10_004_malformed_client_id_returns_e_mcp_001_prefix() {
-    let required_prefix = "E-MCP-001: invalid client_id format:";
+/// GREEN when: validate_client_ids emits `"E-MCP-001: invalid client_id format: 'acme/../../etc'"`.
+#[tokio::test]
+async fn test_BC_2_10_004_malformed_client_id_returns_e_mcp_001_prefix() {
+    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use rmcp::handler::server::wrapper::Parameters;
+
+    let server = PrismServer::new();
     let bad_id = "acme/../../etc";
-    // Current implementation message for malformed id:
-    let current_wrong_message =
-        format!("Invalid client_id '{bad_id}': must match [a-zA-Z0-9_-]{{1,64}} (BC-2.10.004)");
+    let err = server
+        .list_capabilities(Parameters(ListCapabilitiesParams::for_client(bad_id)))
+        .await
+        .expect_err(
+            "BC-2.10.004 case (b): list_capabilities with malformed client_id must return an error",
+        );
+
+    let required_prefix = "E-MCP-001: invalid client_id format:";
     assert!(
-        current_wrong_message.starts_with(required_prefix),
+        err.message.starts_with(required_prefix),
         "BC-2.10.004 v2.8 AC-002: validate_client_ids error for malformed id '{bad_id}' \
-         must start with '{required_prefix}'; \
-         current implementation produces: '{current_wrong_message}' — RED GATE"
+         must start with '{required_prefix}'; got: '{}'",
+        err.message
     );
 }
 
 /// BC-2.10.004 v2.8 postcondition case (b) via path traversal with dots: E-MCP-001.
 ///
-/// Additional malformed pattern: `"../passwd"` contains `/` and `.`.
+/// Additional malformed pattern: `"../passwd"` contains `/` and `.` which are not
+/// in the `[a-zA-Z0-9_-]{1,64}` allowed charset.
 ///
-/// RED: current code message lacks E-MCP-001 prefix.
-#[test]
-fn test_BC_2_10_004_path_traversal_client_id_returns_e_mcp_001() {
-    let required_prefix = "E-MCP-001: invalid client_id format:";
+/// GREEN when: validate_client_ids emits `"E-MCP-001: invalid client_id format: '../passwd'"`.
+#[tokio::test]
+async fn test_BC_2_10_004_path_traversal_client_id_returns_e_mcp_001() {
+    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use rmcp::handler::server::wrapper::Parameters;
+
+    let server = PrismServer::new();
     let bad_id = "../passwd";
-    let current_wrong_message =
-        format!("Invalid client_id '{bad_id}': must match [a-zA-Z0-9_-]{{1,64}} (BC-2.10.004)");
+    let err = server
+        .list_capabilities(Parameters(ListCapabilitiesParams::for_client(bad_id)))
+        .await
+        .expect_err(
+            "BC-2.10.004 case (b) path traversal: list_capabilities with path-traversal \
+             client_id must return an error",
+        );
+
+    let required_prefix = "E-MCP-001: invalid client_id format:";
     assert!(
-        current_wrong_message.starts_with(required_prefix),
+        err.message.starts_with(required_prefix),
         "BC-2.10.004 v2.8 AC-002 (path traversal): error for '{bad_id}' \
-         must start with '{required_prefix}'; \
-         current message: '{current_wrong_message}' — RED GATE"
+         must start with '{required_prefix}'; got: '{}'",
+        err.message
     );
 }
 
