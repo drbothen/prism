@@ -1,9 +1,9 @@
 {
   "story_id": "S-DEMO-MULTI-TENANT-DTU-001",
   "protocol": "BC-5.39.001 3-CLEAN-strict",
-  "passes_completed": 3,
+  "passes_completed": 4,
   "clean_strict_streak": 0,
-  "last_pass": 3,
+  "last_pass": 4,
   "last_classification": "DOC-SWEEP",
   "findings_pass_1": {
     "CRIT": 0,
@@ -23,7 +23,14 @@
     "MED": 1,
     "LOW": 2
   },
-  "all_findings_through_pass_3": "CLOSED",
-  "note": "Severity decaying HIGH→MED→MED/LOW; code stable; remaining were doc/spec-prose sweeps. Pass-2: success-path watcher comments (4 sites) + ArmisClone false mirrors-ClarotyState claim + stale Arc comment. Pass-3: BC-2.06.017 Postcondition 2 newtype (OrgSlug,SensorId) contradicted by U-004/D-1075/code → product-owner BC v1.3→v1.4 (String,String); residual test comment Ok(HashMap::new()) → implementer; iter_mut() vs iter() doc mismatch → implementer (harness) + story-writer (story v1.5→v1.6). SAP-1 clean all passes; INV-PERIMETER-001 clean; gate exact 60; just check GREEN.",
-  "next": "pass-4"
+  "findings_pass_4": {
+    "CRIT": 0,
+    "HIGH": 0,
+    "MED": 2,
+    "LOW": 0,
+    "OBS": 2
+  },
+  "all_findings_through_pass_4": "CLOSED",
+  "note": "code stable since Pass-1; passes 2-4 pure doc/spec/CI-diagnostic sweeps; comprehensive grep-sweeps applied Pass-4 to eliminate sibling classes. Pass-4: story iter_mut() sibling sites not swept by F-P3-LOW-002 (AC-004/AC-007/Task-5) → story-writer v1.6→v1.7 (full grep-sweep, grep-clean); ci.yml failure-branch message 'All 59 types' omitted MultiInstanceServers → implementer (→60 + MultiInstanceServers added); OBS-1 ~15 stale scaffold test comments → test-writer (swept both test files, grep-clean); OBS-2 struct_violations.rs stale v-numbering enumeration → implementer (v54-v59 + v61 corrected). SAP-1 clean; gate exact 60; INV-PERIMETER-001 clean; semantic anchoring consistent.",
+  "next": "pass-5"
 }

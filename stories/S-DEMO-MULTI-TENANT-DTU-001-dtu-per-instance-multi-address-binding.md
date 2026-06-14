@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-03T00:00:00Z"
 created: "2026-06-03"
-modified: "2026-06-14T00:15:00Z"
+modified: "2026-06-14T00:40:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -103,7 +103,7 @@ phase: 3
 
 **Story ID:** S-DEMO-MULTI-TENANT-DTU-001
 **Status:** ready
-**Version:** v1.6
+**Version:** v1.7
 **Wave:** 5
 **Priority:** P2
 **Points:** 8
@@ -235,7 +235,7 @@ Red Gate test: `test_demo_server_two_claroty_instances_bind_distinct_ports`
 `crates/prism-dtu-harness/src/multi_instance.rs`, re-exported from `lib.rs`) that:
 - Accepts `Vec<HarnessEntry>` where `HarnessEntry { org_slug: String, sensor_id: String, clone: Box<dyn BehavioralClone> }`.
 - Starts each clone via `entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?`
-  (no-tls path; `&mut self` receiver requires iterating `entries.iter_mut()` — U-001).
+  (no-tls path; `&mut self` receiver satisfied by consuming `entries` by value — `for mut entry in entries` — U-001).
 - Returns `Ok(MultiInstanceHarness)` where `harness.socket_map()` returns
   `&HashMap<(String, String), SocketAddr>` — key is plain `(org_slug, sensor_id)` Strings,
   NOT `(OrgSlug, SensorId)` newtypes (U-004: lightweight test-infra key, distinct from
@@ -303,8 +303,10 @@ loop. Correct bind-loop call form (no-tls path):
 ```rust
 let bound = entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?;
 ```
-Iterate as `&mut entries` (index access or `iter_mut()`) — do NOT hold a shared `&self`
-reference simultaneously with the `&mut self` call.
+Consume `entries` by value (`for mut entry in entries`) — each clone is moved into its
+per-instance `BoundEntry` so the error path can call `clone.stop().await`; the `&mut self`
+receiver requirement is satisfied by the `mut entry` binding on the moved value (NOT via
+`iter_mut()` over a borrowed collection).
 
 The multi-instance binding API is ADDITIVE — expressed through new structs and functions
 that call `start_on` internally; `start_on` itself is never modified.
@@ -601,9 +603,11 @@ Well within 20-30% context budget.
    // DISTINCT from production OrgKey = (OrgId, DtuType). Do not conflate.
    //
    // Bind-loop call form (no-tls, &mut self receiver — U-001):
-   //   for entry in entries.iter_mut() {
+   //   for mut entry in entries {
    //       let bound = entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?;
+   //       /* entry (and its clone) moved into BoundEntry for lifecycle + error-path stop() */
    //   }
+   // Entries consumed by value (NOT iter_mut() over borrowed collection).
    //
    // impl Drop: send shutdown_tx.send(()); drop task_handles WITHOUT abort.
    // Matches existing DemoHarness drop pattern. Axum with_graceful_shutdown drains 5s.
@@ -819,3 +823,4 @@ version" for these two. For all other crates, verify workspace path/version befo
 | 1.4 | 2026-06-13 | story-writer | Architect adjudication D-1075-API-GAP-001 (Option A — graceful-shutdown lifecycle handle). start_instances return type HashMap→MultiInstanceServers (new #[non_exhaustive] handle owning shutdown_tx + task_handles; .shutdown() + Drop graceful drain; mirrors MultiInstanceHarness; eliminates zombie-server/port leak). Non-exhaustive gate re-baselined 59→60 (+1 MultiInstanceServers E0639). AC-001/AC-002/Story-Level-Goal updated to servers.socket_map() accessor. INV-COMPAT-001 unaffected (start_instances is new). Status remains ready. |
 | 1.5 | 2026-06-13 | story-writer | F-P1-MED-001 (LOCAL adversary Pass-1): EC-002 zero-instances return-type sweep Ok(HashMap::new()) → Ok(MultiInstanceServers) with empty socket_map() (sibling of the v1.4 return-type change). Status remains ready. |
 | 1.6 | 2026-06-14 | story-writer | F-P3-LOW-002 (LOCAL adversary Pass-3): §Locked API bind-loop sketch corrected from illustrative entries.iter_mut() to the implemented by-value `for mut entry in entries` consumption (clones moved into BoundEntry for error-path stop(); satisfies &mut self via moved binding). Doc-accuracy only; no contract change. Status remains ready. |
+| 1.7 | 2026-06-14 | story-writer | F-P4-MED-001 (LOCAL adversary Pass-4): completed the F-P3-LOW-002 sweep — AC-004, AC-007, Task-5 (and any other) residual entries.iter_mut() references corrected to the implemented by-value `for mut entry in entries` consumption. Partial-fix-regression closure (S-7.01/TD-VSDD-060). Doc-accuracy only; no contract change. Status remains ready. |
