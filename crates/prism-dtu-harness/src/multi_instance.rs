@@ -31,7 +31,7 @@
 //!   merely drops its `server_handle: Option<JoinHandle<()>>`, which DETACHES (does not
 //!   abort) the internal axum server task. The server keeps running as a detached task;
 //!   the watcher task itself completes immediately. Shutdown happens only when
-//!   `shutdown_tx.send(())` (via `MultiInstanceHarness::shutdown()` or `Drop`) wakes
+//!   `shutdown_tx.send(())` (sent by `impl Drop` when the `MultiInstanceHarness` is dropped) wakes
 //!   the axum graceful-shutdown receiver each server holds from `shutdown_tx.subscribe()`.
 //!
 //! # Perimeter constraint (BC-2.06.017 INV-PERIMETER-001)
@@ -128,7 +128,7 @@ pub struct MultiInstanceHarness {
     /// running server tasks.
     ///
     /// The servers remain alive as detached tokio tasks. Real shutdown happens only
-    /// when `shutdown_tx.send(())` (from `Drop` or an explicit `shutdown()` call)
+    /// when `shutdown_tx.send(())` (sent by `impl Drop` when the harness is dropped)
     /// wakes the axum graceful-shutdown receiver each server holds from
     /// `shutdown_tx.subscribe()` at bind time.
     ///
