@@ -1569,9 +1569,8 @@ pub async fn start_multi_org_harness() -> (BackgroundHarness, TempDir) {
 
 /// Write per-org overlay TOML files from the harness socket_map into `tempdir/specs/customers/`.
 ///
-/// Calls `prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(&harness, specs_dir)` where
-/// `specs_dir = tempdir.path().join("specs")`. The second arg to `write_overlay_temp_dir` is
-/// `&std::path::Path` — we pass `specs_dir.as_path()`.
+/// Calls `prism_dtu_harness::overlay_wiring::write_overlay_from_socket_map(harness.socket_map(), specs_dir)`
+/// where `specs_dir = tempdir.path().join("specs")`.
 ///
 /// The overlay files are written under `{tempdir}/specs/customers/{org_slug}/{sensor_id}.sensor.toml`
 /// per BC-2.06.017 Postcondition 3 (overlay integration end-to-end). The `specs` directory is

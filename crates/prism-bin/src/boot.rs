@@ -838,13 +838,16 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 /// Format: JSON if `PRISM_LOG_FORMAT=json`; pretty otherwise.
 /// First log line: `tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"))`.
 ///
-/// # Writer: stderr only
+/// # Writer: stderr only (BC-2.10.006 §Postconditions / §Invariants)
 ///
 /// All tracing output goes to **stderr**, never stdout. In `prism start` mode,
-/// stdout is reserved for the MCP JSON-RPC channel — any tracing output on
-/// stdout would corrupt the MCP framing. `tracing-subscriber 0.3.x` defaults to
-/// stdout, so we must explicitly set `with_writer(std::io::stderr)` on every
-/// fmt layer to prevent cross-contamination.
+/// stdout is reserved exclusively for MCP JSON-RPC protocol messages per
+/// BC-2.10.006 §Postconditions ("stdout is reserved exclusively for MCP JSON-RPC
+/// protocol messages; all logging, diagnostics, and metrics are written to stderr")
+/// and §Invariants ("stdout purity: no non-MCP content ever written to stdout").
+/// `tracing-subscriber 0.3.x` defaults to stdout, so we must explicitly set
+/// `with_writer(std::io::stderr)` on every fmt layer to prevent cross-contamination.
+/// This function is the enforcement site for that invariant (BC-2.22.001 §step1).
 pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
     use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 

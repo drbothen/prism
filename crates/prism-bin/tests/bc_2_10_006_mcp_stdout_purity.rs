@@ -1,20 +1,26 @@
-//! Regression test for BC-2.22.001 — MCP stdout channel purity.
+//! Regression test for BC-2.10.006 — MCP stdout channel purity (stdio transport).
 //!
 //! Story: S-DEMO-004
-//! BC: BC-2.22.001 §Writer: stderr only invariant
+//! BC: BC-2.10.006 §Postconditions (stdout purity / stderr-only logging)
 //! Regression: M2-02 / LOCAL adversary pass-2 finding (S-DEMO-004)
 //!
-//! # Invariant
+//! # Invariant (BC-2.10.006 §Postconditions / §Invariants)
 //!
 //! All tracing output MUST go exclusively to stderr. stdout is reserved for the
 //! MCP JSON-RPC channel in `prism start` mode; any tracing bytes on stdout corrupt
 //! the MCP framing and cause every connected client to receive garbled JSON responses.
 //!
-//! # The fix
+//! Invariant source: BC-2.10.006 §Postconditions:
+//!   - "stdout is reserved exclusively for MCP JSON-RPC protocol messages"
+//!   - "All logging, diagnostics, and metrics are written to stderr (via `tracing_subscriber`)"
+//! and BC-2.10.006 §Invariants:
+//!   - "stdout purity: no non-MCP content ever written to stdout"
 //!
-//! boot.rs `step1_init_tracing` calls `.with_writer(std::io::stderr)` on every
-//! `tracing_subscriber::fmt` layer. Without this, `tracing-subscriber 0.3.x`
-//! defaults to `io::stdout`.
+//! # Enforcement site
+//!
+//! The invariant is enforced at boot.rs `step1_init_tracing` (BC-2.22.001 §step1),
+//! which calls `.with_writer(std::io::stderr)` on every `tracing_subscriber::fmt` layer.
+//! Without this, `tracing-subscriber 0.3.x` defaults to `io::stdout`.
 //!
 //! # Test profile
 //!
@@ -67,11 +73,12 @@ fn prism_bin() -> PathBuf {
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.22.001 — MCP stdout channel purity: tracing must never pollute stdout
+// BC-2.10.006 — MCP stdout channel purity: tracing must never pollute stdout
 // ---------------------------------------------------------------------------
 
 /// Story: S-DEMO-004
-/// BC: BC-2.22.001 §Writer: stderr only invariant
+/// BC: BC-2.10.006 §Postconditions (stdout purity / stderr-only logging)
+/// Enforcement site: boot.rs `step1_init_tracing` (BC-2.22.001 §step1)
 /// Regression: M2-02 / LOCAL adversary pass-2 finding (S-DEMO-004)
 ///
 /// # What this test guards
@@ -107,7 +114,7 @@ fn prism_bin() -> PathBuf {
 /// # regression: M2-02 / MCP stdout JSON-RPC channel must stay free of tracing
 /// # (boot.rs with_writer(stderr))
 #[test]
-fn test_BC_2_22_001_tracing_never_pollutes_mcp_stdout() {
+fn test_BC_2_10_006_tracing_never_pollutes_mcp_stdout() {
     // MED-5: isolated per-test dirs to avoid parallel RocksDB LOCK collisions.
     let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
 
@@ -136,7 +143,8 @@ fn test_BC_2_22_001_tracing_never_pollutes_mcp_stdout() {
     assert!(
         !stdout.contains("\"level\""),
         "tracing JSON field 'level' must not appear on stdout; \
-         stdout is reserved for MCP JSON-RPC framing (BC-2.22.001 §Writer: stderr only); \
+         stdout is reserved for MCP JSON-RPC framing \
+         (BC-2.10.006 §Postconditions: stdout purity / stderr-only logging); \
          regression: M2-02 (boot.rs with_writer(stderr) on all fmt layers); \
          stdout captured:\n{stdout}"
     );
@@ -148,6 +156,7 @@ fn test_BC_2_22_001_tracing_never_pollutes_mcp_stdout() {
     assert!(
         !stdout.contains("\"message\""),
         "tracing JSON field 'message' must not appear on stdout; \
+         BC-2.10.006 §Postconditions: all logging to stderr; \
          regression: M2-02 (boot.rs with_writer(stderr)); \
          stdout captured:\n{stdout}"
     );
@@ -159,7 +168,8 @@ fn test_BC_2_22_001_tracing_never_pollutes_mcp_stdout() {
     assert!(
         !stdout.contains("event_type"),
         "tracing structured field 'event_type' must not appear on stdout; \
-         BC-2.22.001 §Writer: stderr only; regression: M2-02; \
+         BC-2.10.006 §Invariants: stdout purity — no non-MCP content ever written to stdout; \
+         regression: M2-02; \
          stdout captured:\n{stdout}"
     );
 
@@ -170,6 +180,7 @@ fn test_BC_2_22_001_tracing_never_pollutes_mcp_stdout() {
     assert!(
         !stdout.contains("  INFO") && !stdout.contains("  WARN") && !stdout.contains("  ERROR"),
         "tracing pretty-format level markers must not appear on stdout; \
+         BC-2.10.006 §Postconditions: all diagnostics to stderr; \
          regression: M2-02 (boot.rs with_writer(stderr)); \
          stdout captured:\n{stdout}"
     );
@@ -188,7 +199,8 @@ fn test_BC_2_22_001_tracing_never_pollutes_mcp_stdout() {
         assert!(
             trimmed.starts_with("{\"jsonrpc\""),
             "non-MCP-JSON-RPC content found on stdout — this is a protocol-channel leak; \
-             BC-2.22.001 §Writer: stderr only; regression: M2-02; \
+             BC-2.10.006 §Invariants: stdout purity — no non-MCP content ever written to stdout; \
+             regression: M2-02; \
              offending line: {trimmed:?}; \
              full stdout:\n{stdout}"
         );
