@@ -1,10 +1,10 @@
 {
   "story_id": "S-DEMO-MULTI-TENANT-DTU-001",
   "protocol": "BC-5.39.001 3-CLEAN-strict",
-  "passes_completed": 4,
+  "passes_completed": 5,
   "clean_strict_streak": 0,
-  "last_pass": 4,
-  "last_classification": "DOC-SWEEP",
+  "last_pass": 5,
+  "last_classification": "SPEC-ACCURACY",
   "findings_pass_1": {
     "CRIT": 0,
     "HIGH": 1,
@@ -30,7 +30,14 @@
     "LOW": 0,
     "OBS": 2
   },
-  "all_findings_through_pass_4": "CLOSED",
-  "note": "code stable since Pass-1; passes 2-4 pure doc/spec/CI-diagnostic sweeps; comprehensive grep-sweeps applied Pass-4 to eliminate sibling classes. Pass-4: story iter_mut() sibling sites not swept by F-P3-LOW-002 (AC-004/AC-007/Task-5) → story-writer v1.6→v1.7 (full grep-sweep, grep-clean); ci.yml failure-branch message 'All 59 types' omitted MultiInstanceServers → implementer (→60 + MultiInstanceServers added); OBS-1 ~15 stale scaffold test comments → test-writer (swept both test files, grep-clean); OBS-2 struct_violations.rs stale v-numbering enumeration → implementer (v54-v59 + v61 corrected). SAP-1 clean; gate exact 60; INV-PERIMETER-001 clean; semantic anchoring consistent.",
-  "next": "pass-5"
+  "findings_pass_5": {
+    "CRIT": 0,
+    "HIGH": 0,
+    "MED": 3,
+    "LOW": 0,
+    "OBS": 0
+  },
+  "all_findings_through_pass_5": "CLOSED",
+  "note": "code stable since Pass-1; passes 2-5 doc/spec/CI accuracy sweeps; comprehensive grep-sweeps applied Pass-4 to eliminate sibling classes. Pass-5: story iter_mut() BC-version-citation drift at 8 sites (BC now v1.5) → story-writer swept all to v1.5 + BC-table amendment history; H1 'v1.4' vs frontmatter v1.7 desync → story-writer made H1 version-agnostic; F-P5-MED-003 SUBSTANTIVE spec-implementation gap — BC/story described overlay as base_url-only but code writes 3 REQUIRED fields (extends, instance_id, base_url) per OverlayLoader/INV-SCALAR-003 → product-owner BC v1.4→v1.5 (Postcondition 2 + TV-017-009) + story-writer (AC-005/§File-Structure/Task-6). SAP-1 clean; gate exact 60; INV-PERIMETER-001 clean. Code UNCHANGED since Pass-1 (all spec-doc fixes). just check unaffected (no code touched this pass).",
+  "next": "consistency-audit then pass-6"
 }

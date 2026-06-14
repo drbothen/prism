@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-03T00:00:00Z"
 created: "2026-06-03"
-modified: "2026-06-14T00:40:00Z"
+modified: "2026-06-14T01:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -99,11 +99,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-MULTI-TENANT-DTU-001 v1.4 — Per-DTU-Instance Multi-Address Binding
+# S-DEMO-MULTI-TENANT-DTU-001 — Per-DTU-Instance Multi-Address Binding
 
 **Story ID:** S-DEMO-MULTI-TENANT-DTU-001
 **Status:** ready
-**Version:** v1.7
+**Version:** v1.8
 **Wave:** 5
 **Priority:** P2
 **Points:** 8
@@ -177,7 +177,7 @@ After this story merges:
 
 | BC | Title | Role |
 |----|-------|------|
-| BC-2.06.017 v1.1 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | Anchoring BC — governs the multi-address bind semantics, the per-instance SocketAddr registry API, overlay TOML integration, INV-ISOLATION-001 no-cross-tenant-leakage invariant, INV-COMPAT-001 backward-compat invariant, INV-ERR-003-COMPAT multi-error aggregation, and duplicate-key error semantics (Postconditions 1–7). v1.1 amendments: corrected start_on signature + disambiguated error type names (DemoBindError vs BindError). |
+| BC-2.06.017 **v1.5** | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | Anchoring BC — governs the multi-address bind semantics, the per-instance SocketAddr registry API, overlay TOML integration, INV-ISOLATION-001 no-cross-tenant-leakage invariant, INV-COMPAT-001 backward-compat invariant, INV-ERR-003-COMPAT multi-error aggregation, and duplicate-key error semantics (Postconditions 1–7). Amendment history: v1.1 (corrected start_on signature + disambiguated error type names DemoBindError vs BindError) → v1.2 (Postcondition 1 return type → MultiInstanceServers) → v1.3 (EC-017-002/TV-017-002 sweep) → v1.4 (Postcondition 2 key type → (String,String)) → v1.5 (Postcondition 2 overlay format → 3 fields: extends + instance_id + base_url). |
 | BC-2.06.014 | Instance Identity Resolution at Fanout | Referenced BC — governs (org_id, sensor_id) → ResolvedSensorSpec lookup and overlay base_url routing at the production fanout layer; this story's integration tests exercise that contract end-to-end against real DTU sockets. BC-2.06.014 is NOT anchored here per PO Flag 2 decision (D-1074): BC-2.06.017 is the test-infrastructure contract; BC-2.06.014 is the production behavior contract. See §BC Flag 2 Resolution. |
 
 ### BC Flag 2 Resolution
@@ -241,7 +241,7 @@ Red Gate test: `test_demo_server_two_claroty_instances_bind_distinct_ports`
   NOT `(OrgSlug, SensorId)` newtypes (U-004: lightweight test-infra key, distinct from
   production `OrgKey = (OrgId, DtuType)`).
 This API is usable from integration tests without requiring `prism-dtu-demo-server`.
-(traces to BC-2.06.017 v1.1 postcondition 2 — `start(entries).await` starts each entry;
+(traces to BC-2.06.017 **v1.5** postcondition 2 — `start(entries).await` starts each entry;
 `socket_map()` returns the per-(org, sensor) address map)
 
 Red Gate test: `test_harness_multi_instance_builds_per_org_socket_map`
@@ -249,17 +249,29 @@ Red Gate test: `test_harness_multi_instance_builds_per_org_socket_map`
 ### AC-005: Per-org base_url overlay integrates with MultiInstanceHarness output
 Given two `ArmisClone` instances at distinct sockets (from `MultiInstanceHarness`), and
 per-org overlays constructed via `overlay_wiring::write_overlay_temp_dir(&harness, &tempdir)`:
+```toml
+# customers/acme/armis.sensor.toml
+extends = "armis"
+instance_id = "armis@acme"
+base_url = "http://127.0.0.1:{acme_port}"
+
+# customers/contoso/armis.sensor.toml
+extends = "armis"
+instance_id = "armis@contoso"
+base_url = "http://127.0.0.1:{contoso_port}"
 ```
-customers/acme/armis.sensor.toml → base_url = "http://127.0.0.1:{acme_port}"
-customers/contoso/armis.sensor.toml → base_url = "http://127.0.0.1:{contoso_port}"
-```
-when `SpecLoader::load_all` processes these overlays (S-CONFIG-MULTI-TENANT-OVERRIDE-001),
-the `ResolvedSensorSpec` map entries for `(acme, armis)` and `(contoso, armis)` carry
-distinct `base_url` values corresponding to the two instances. The overlay wiring helper
-writes raw TOML strings only — it does NOT import `prism-spec-engine` types (INV-PERIMETER-001).
-(traces to BC-2.06.017 postcondition 3 — after `write_overlay_temp_dir` + `SpecLoader::load_all`,
-`ResolvedSensorSpec` for `(acme, armis)` has `base_url = "http://S_A"` and for `(contoso, armis)`
-has `base_url = "http://S_B"` with S_A ≠ S_B)
+Each overlay file contains all three required fields: `extends` (binds the overlay to its
+sensor TYPE spec, required by `OverlayLoader`), `instance_id` (`{sensor_id}@{org_slug}`,
+per INV-SCALAR-003), and `base_url` (`"http://{socket_addr}"`). A `base_url`-only overlay
+file FAILS `OverlayLoader` validation. When `SpecLoader::load_all` processes these overlays
+(S-CONFIG-MULTI-TENANT-OVERRIDE-001), the `ResolvedSensorSpec` map entries for `(acme, armis)`
+and `(contoso, armis)` carry distinct `base_url` values corresponding to the two instances.
+The overlay wiring helper writes raw TOML strings only — it does NOT import `prism-spec-engine`
+types (INV-PERIMETER-001).
+(traces to BC-2.06.017 **v1.5** postcondition 2 + postcondition 3 — `write_overlay_temp_dir`
+writes 3-field overlays (extends + instance_id + base_url) per BC-2.06.017 v1.5 Postcondition 2
++ TV-017-009; after `SpecLoader::load_all`, `ResolvedSensorSpec` for `(acme, armis)` has
+`base_url = "http://S_A"` and for `(contoso, armis)` has `base_url = "http://S_B"` with S_A ≠ S_B)
 
 Red Gate test: `test_multi_instance_overlay_loads_distinct_base_urls`
 
@@ -285,7 +297,7 @@ Existing single-instance callers of `ArmisClone::start_on(bind, ...)`,
 existing parity tests in S-6.07–6.10 and S-DEMO-002 integration tests pass without
 modification.
 
-The real (unchanged) signature per BC-2.06.017 v1.1 Postcondition 5 and INV-COMPAT-001
+The real (unchanged) signature per BC-2.06.017 **v1.5** Postcondition 5 and INV-COMPAT-001
 (no-tls path, which this story targets):
 ```
 async fn start_on(
@@ -296,7 +308,7 @@ async fn start_on(
 ) -> anyhow::Result<SocketAddr>
 ```
 This story does NOT modify `start_on` — the signature statement is here to confirm the
-real signature for the implementer (U-001 correction; BC-2.06.017 v1.1 Amendment 1).
+real signature for the implementer (U-001 correction; BC-2.06.017 **v1.5** Amendment 1).
 
 The `&mut self` receiver means `HarnessEntry.clone` must be held mutably in the bind
 loop. Correct bind-loop call form (no-tls path):
@@ -310,7 +322,7 @@ receiver requirement is satisfied by the `mut entry` binding on the moved value 
 
 The multi-instance binding API is ADDITIVE — expressed through new structs and functions
 that call `start_on` internally; `start_on` itself is never modified.
-(traces to BC-2.06.017 v1.1 INV-COMPAT-001 — single-instance backward compatibility;
+(traces to BC-2.06.017 **v1.5** INV-COMPAT-001 — single-instance backward compatibility;
 compile-time enforced by existing S-6.07–6.10 tests compiling unchanged)
 
 Red Gate test: `test_single_instance_path_unaffected_by_multi_instance_addition`
@@ -500,8 +512,12 @@ impl Drop for MultiInstanceHarness {
 
 // ---- prism-dtu-harness/src/overlay_wiring.rs ----
 
-// Writes dir/customers/{org_slug}/{sensor_id}.sensor.toml with:
-//   base_url = "http://{socket_addr}"
+// Writes dir/customers/{org_slug}/{sensor_id}.sensor.toml with the 3 required fields
+// (BC-2.06.017 v1.5 Postcondition 2 + TV-017-009 + OverlayLoader requirements):
+//   extends = "{sensor_id}"           -- binds overlay to TYPE spec; required by OverlayLoader
+//   instance_id = "{sensor_id}@{org_slug}"  -- per INV-SCALAR-003
+//   base_url = "http://{socket_addr}"  -- per-instance endpoint
+// A base_url-only overlay file FAILS OverlayLoader validation.
 // `tempfile` is a TEST-ONLY [dev-dependency] — the caller owns the TempDir and
 // passes dir.path(). No tempfile import in src/.
 pub fn write_overlay_temp_dir(
@@ -549,7 +565,7 @@ Architecture section references:
 | `tests/external/non-exhaustive-violation/` source (read — for U-006 wiring) | ~1,500 |
 | `.github/workflows/ci.yml` (read — EXPECTED bump) | ~1,000 |
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 story (reference) | ~4,000 |
-| BC-2.06.017 v1.1 (anchoring BC — full read) | ~4,000 |
+| BC-2.06.017 **v1.5** (anchoring BC — full read) | ~4,000 |
 | BC-2.06.014 (reference for overlay base_url contract) | ~2,000 |
 | BC files (2 BCs read at dispatch) | ~6,000 |
 | Test file output (cargo nextest) | ~1,500 |
@@ -622,9 +638,18 @@ Well within 20-30% context budget.
        dir: &std::path::Path,
    ) -> std::io::Result<()>
    ```
-   Writes `dir/customers/{org_slug}/{sensor_id}.sensor.toml` with `base_url = "http://{socket_addr}"`.
-   Writes raw TOML strings only — NO import of `prism-spec-engine` types (INV-PERIMETER-001).
-   NO `tempfile` import in `src/`; the caller (test code) owns the `TempDir` and passes `dir.path()`.
+   Writes `dir/customers/{org_slug}/{sensor_id}.sensor.toml` with the three required fields
+   (per BC-2.06.017 **v1.5** Postcondition 2 + TV-017-009 + OverlayLoader requirements):
+   ```toml
+   extends = "{sensor_id}"
+   instance_id = "{sensor_id}@{org_slug}"
+   base_url = "http://{socket_addr}"
+   ```
+   `extends` binds the overlay to its sensor TYPE spec (required by `OverlayLoader` — a
+   `base_url`-only file FAILS validation). `instance_id` is `{sensor_id}@{org_slug}` per
+   INV-SCALAR-003. `base_url` is `"http://{socket_addr}"`. Writes raw TOML strings only —
+   NO import of `prism-spec-engine` types (INV-PERIMETER-001). NO `tempfile` import in
+   `src/`; the caller (test code) owns the `TempDir` and passes `dir.path()`.
    `tempfile = "3"` (literal pin) is a `[dev-dependency]` of `prism-dtu-harness` only.
    The test that invokes `SpecLoader::load_all` calls `write_overlay_temp_dir` directly.
 
@@ -759,7 +784,7 @@ version" for these two. For all other crates, verify workspace path/version befo
 | MODIFY | `crates/prism-dtu-demo-server/src/lib.rs` | Re-export `multi_instance` module and its public types. |
 | MODIFY | `crates/prism-dtu-demo-server/Cargo.toml` | Verify `axum = "0.7"` and `tokio = { version = "1", features = ["full"] }` pins match siblings (U-008). |
 | CREATE | `crates/prism-dtu-harness/src/multi_instance.rs` | `MultiInstanceHarness` + `HarnessEntry` structs (both `#[non_exhaustive]`) + `start()` + `socket_map()` + `impl Drop`. |
-| CREATE | `crates/prism-dtu-harness/src/overlay_wiring.rs` | `pub fn write_overlay_temp_dir(harness: &MultiInstanceHarness, dir: &std::path::Path) -> std::io::Result<()>` — writes `dir/customers/{org_slug}/{sensor_id}.sensor.toml` with `base_url = "http://{socket_addr}"`. Writes raw TOML strings only; no spec-engine import; no tempfile import in `src/`. |
+| CREATE | `crates/prism-dtu-harness/src/overlay_wiring.rs` | `pub fn write_overlay_temp_dir(harness: &MultiInstanceHarness, dir: &std::path::Path) -> std::io::Result<()>` — writes `dir/customers/{org_slug}/{sensor_id}.sensor.toml` with the 3 required fields per BC-2.06.017 **v1.5** Postcondition 2 + TV-017-009: `extends = "{sensor_id}"`, `instance_id = "{sensor_id}@{org_slug}"`, `base_url = "http://{socket_addr}"`. A base_url-only file FAILS OverlayLoader. Writes raw TOML strings only; no spec-engine import; no tempfile import in `src/`. |
 | MODIFY | `crates/prism-dtu-harness/src/lib.rs` | Export `multi_instance` + `overlay_wiring` modules. |
 | MODIFY | `crates/prism-dtu-harness/src/error.rs` | (a) Add `BindError` struct (`#[non_exhaustive]`; new: adds 1 E0639 to compile-fail count). (b) Extend EXISTING `HarnessError` enum with `DuplicateKey { org_slug: String, sensor_id: String }` + `BindFailure(Vec<BindError>)` variants (HarnessError is ALREADY `#[non_exhaustive]` — new variants add 0 to compile-fail count). |
 | MODIFY | `crates/prism-dtu-harness/Cargo.toml` | Add `prism-dtu-armis` + `prism-dtu-claroty` as `[dev-dependencies]` (test-only); add `tempfile = "3"` as `[dev-dependency]`. Verify `axum`/`tokio` literal pins (U-008). |
@@ -776,15 +801,15 @@ version" for these two. For all other crates, verify workspace path/version befo
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | Requested bind address is already in use (EADDRINUSE) | Multi-error aggregation (INV-ERR-003-COMPAT): all bind operations attempted; all failures collected; successful partial binds shut down. Demo-server returns `Err(MultiInstanceBindError::BindFailure(Vec<DemoBindError>))` where each `DemoBindError { instance_name: String, source: std::io::Error }`. Harness returns `Err(HarnessError::BindFailure(Vec<BindError>))` where each `BindError { org_slug: String, sensor_id: String, source: std::io::Error }`. Does NOT short-circuit at first error. (BC-2.06.017 v1.1 EC-017-001 + Postcondition 6 + INV-ERR-003-COMPAT) |
+| EC-001 | Requested bind address is already in use (EADDRINUSE) | Multi-error aggregation (INV-ERR-003-COMPAT): all bind operations attempted; all failures collected; successful partial binds shut down. Demo-server returns `Err(MultiInstanceBindError::BindFailure(Vec<DemoBindError>))` where each `DemoBindError { instance_name: String, source: std::io::Error }`. Harness returns `Err(HarnessError::BindFailure(Vec<BindError>))` where each `BindError { org_slug: String, sensor_id: String, source: std::io::Error }`. Does NOT short-circuit at first error. (BC-2.06.017 **v1.5** EC-017-001 + Postcondition 6 + INV-ERR-003-COMPAT) |
 | EC-002 | `MultiInstanceConfig` with zero instances | Returns `Ok(MultiInstanceServers)` whose `socket_map()` is empty — no error, no spawned tasks (BC-2.06.017 EC-017-002) |
-| EC-003 | Same `(org_slug, sensor_id)` pair appears in two `HarnessEntry` items | `Err(HarnessError::DuplicateKey { org_slug, sensor_id })` returned immediately before any clone instances started. Same instance `name` duplication in demo-server returns `Err(MultiInstanceBindError::DuplicateName { name })` before any bind attempts. Silent last-wins behavior is FORBIDDEN per BC-2.06.017 v1.1 postcondition 7 + D-1074. Error message must name the conflicting pair verbatim. |
+| EC-003 | Same `(org_slug, sensor_id)` pair appears in two `HarnessEntry` items | `Err(HarnessError::DuplicateKey { org_slug, sensor_id })` returned immediately before any clone instances started. Same instance `name` duplication in demo-server returns `Err(MultiInstanceBindError::DuplicateName { name })` before any bind attempts. Silent last-wins behavior is FORBIDDEN per BC-2.06.017 **v1.5** postcondition 7 + D-1074. Error message must name the conflicting pair verbatim. |
 | EC-004 | Overlay TOML file for org that is NOT in `OrgRegistry` | `SpecLoader::load_all` emits `E-SPEC-022` (S-CONFIG-MULTI-TENANT-OVERRIDE-001 AC-004 / BC-2.06.015); multi-instance harness test must register test orgs in OrgRegistry before calling load_all. |
 | EC-005 | `MultiInstanceHarness` dropped before test asserts isolation | `impl Drop` for `MultiInstanceHarness` calls `self.shutdown_tx.send(())` (best-effort; error ignored) then drops `task_handles` WITHOUT explicit abort. Axum `with_graceful_shutdown` drains in-flight requests within 5s on the clone side (matching existing `DemoHarness::drop` pattern). Test code must ensure assertions happen before the harness goes out of scope. (BC-2.06.017 EC-017-005; U-004 architect-locked drop pattern) |
 | EC-006 | DTU clone instance crashes mid-test | Test receives connection-refused error; not a silent cross-tenant leakage; test fails with clear error (BC-2.06.017 EC-017-006) |
 | EC-007 | org A overlay points to instance B socket (misconfiguration in test) | Requests go to instance B; leakage test fails (correct behavior — misconfiguration is detectable; BC-2.06.017 EC-017-007) |
 | EC-008 | Per-org address map has 10+ entries (larger multi-tenant scenario) | All instances bind successfully; no hard cap; test time increases linearly; memory use increases proportionally (BC-2.06.017 EC-017-008) |
-| EC-009 | Two `InstanceEntry` items with the same `name` string | `Err(MultiInstanceBindError::DuplicateName { name: String })` returned before any bind attempt (BC-2.06.017 v1.1 EC-017-009 / postcondition 7). Inner field is `name: String` matching the `DuplicateName { name: String }` variant shape. |
+| EC-009 | Two `InstanceEntry` items with the same `name` string | `Err(MultiInstanceBindError::DuplicateName { name: String })` returned before any bind attempt (BC-2.06.017 **v1.5** EC-017-009 / postcondition 7). Inner field is `name: String` matching the `DuplicateName { name: String }` variant shape. |
 
 ---
 
@@ -824,3 +849,4 @@ version" for these two. For all other crates, verify workspace path/version befo
 | 1.5 | 2026-06-13 | story-writer | F-P1-MED-001 (LOCAL adversary Pass-1): EC-002 zero-instances return-type sweep Ok(HashMap::new()) → Ok(MultiInstanceServers) with empty socket_map() (sibling of the v1.4 return-type change). Status remains ready. |
 | 1.6 | 2026-06-14 | story-writer | F-P3-LOW-002 (LOCAL adversary Pass-3): §Locked API bind-loop sketch corrected from illustrative entries.iter_mut() to the implemented by-value `for mut entry in entries` consumption (clones moved into BoundEntry for error-path stop(); satisfies &mut self via moved binding). Doc-accuracy only; no contract change. Status remains ready. |
 | 1.7 | 2026-06-14 | story-writer | F-P4-MED-001 (LOCAL adversary Pass-4): completed the F-P3-LOW-002 sweep — AC-004, AC-007, Task-5 (and any other) residual entries.iter_mut() references corrected to the implemented by-value `for mut entry in entries` consumption. Partial-fix-regression closure (S-7.01/TD-VSDD-060). Doc-accuracy only; no contract change. Status remains ready. |
+| 1.8 | 2026-06-14 | story-writer | LOCAL adversary Pass-5: F-P5-MED-001 (swept all stale BC-2.06.017 v1.1 citations → v1.5 final; BC-table amendment history updated: v1.1→v1.2→v1.3→v1.4→v1.5), F-P5-MED-002 (H1 made version-agnostic to stop desync — authoritative version lives in frontmatter + body Version: line), F-P5-MED-003 (AC-005/§Locked-API/Task-6/§File-Structure overlay format corrected from base_url-only → 3 required fields extends+instance_id+base_url per OverlayLoader/INV-SCALAR-003, aligned with BC-2.06.017 v1.5 Postcondition 2 + TV-017-009). Doc-accuracy/spec-alignment only; no contract change. Status remains ready. |

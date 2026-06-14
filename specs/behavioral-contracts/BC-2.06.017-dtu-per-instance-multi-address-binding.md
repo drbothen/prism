@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.4"
+version: "1.5"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -110,9 +110,23 @@ Given `MultiInstanceHarness::start(entries).await` with M `HarnessEntry` items (
   - `harness.socket_map()` returns `&HashMap<(String, String), SocketAddr>` (plain `(org_slug, sensor_id)` strings — lightweight test-infra key per U-004 / D-1075; intentionally distinct from the production `OrgKey = (OrgId, DtuType)`, which is NOT used here).
   - Each `(org_slug, sensor_id)` key maps to the OS-assigned `SocketAddr` for that entry.
 - The returned `socket_map` can be consumed to construct per-org TOML overlay files
-  (format: `base_url = "http://{socket_addr}"`) via the overlay wiring helper
+  via the overlay wiring helper
   (`overlay_wiring::write_overlay_temp_dir(&harness, tempdir)`) **without** importing
   `prism-spec-engine` types — the helper writes raw TOML strings only.
+  Each written overlay file contains exactly three required fields (raw TOML strings,
+  per INV-PERIMETER-001):
+  ```toml
+  extends = "{sensor_id}"
+  instance_id = "{sensor_id}@{org_slug}"
+  base_url = "http://{socket_addr}"
+  ```
+  `extends` is **mandatory** — it binds the overlay to its TYPE spec so that
+  `OverlayLoader` can resolve the base sensor configuration; an overlay without
+  `extends` fails OverlayLoader validation.
+  `instance_id` is **mandatory** and must equal `"{sensor_id}@{org_slug}"` per
+  INV-SCALAR-003 (scalar-value uniqueness invariant).
+  A `base_url`-only overlay (omitting `extends` and `instance_id`) would fail
+  `OverlayLoader::load_overlays` — AC-005 asserts zero OverlayLoader errors.
 
 ### Postcondition 3 — Overlay integration end-to-end
 
@@ -276,7 +290,7 @@ of new non-exhaustive public types.
 | TV-017-006 | Duplicate name error | `MultiInstanceConfig { instances: [InstanceEntry { name: "dup", ... }, InstanceEntry { name: "dup", ... }] }` | `Err(MultiInstanceBindError::DuplicateName { name: "dup" })` before any bind attempt |
 | TV-017-007 | Duplicate harness key error | `MultiInstanceHarness::start([HarnessEntry { org_slug: "acme", sensor_id: "armis" }, HarnessEntry { org_slug: "acme", sensor_id: "armis" }])` | `Err(HarnessError::DuplicateKey { org_slug: "acme", sensor_id: "armis" })` before any clone started |
 | TV-017-008 | Single-instance path unaffected | `ArmisClone::start_on("127.0.0.1:0".parse().unwrap(), Some(rx), None)` called directly (existing pattern; `None` for tls = plain HTTP, `shutdown` is `Option<broadcast::Receiver<()>>`) | Compiles and runs identically to pre-story state; `SocketAddr` returned; no regression |
-| TV-017-009 | Overlay TOML integration (Postcondition 3) | `write_overlay_temp_dir(&harness, &tempdir)` produces `customers/acme/armis.sensor.toml` with `base_url = "http://127.0.0.1:{S_A_port}"` and `customers/contoso/armis.sensor.toml` with `base_url = "http://127.0.0.1:{S_B_port}"` | `SpecLoader::load_all(tempdir.path())` yields `ResolvedSensorSpec` entries for `(acme, armis)` and `(contoso, armis)` with the expected distinct `base_url` values |
+| TV-017-009 | Overlay TOML integration (Postcondition 3) | `write_overlay_temp_dir(&harness, &tempdir)` produces `customers/acme/armis.sensor.toml` with all three required fields — `extends = "armis"`, `instance_id = "armis@acme"`, `base_url = "http://127.0.0.1:{S_A_port}"` — and `customers/contoso/armis.sensor.toml` with `extends = "armis"`, `instance_id = "armis@contoso"`, `base_url = "http://127.0.0.1:{S_B_port}"` | `SpecLoader::load_all(tempdir.path())` (via `OverlayLoader::load_overlays`, which requires `extends` to resolve the TYPE spec and `instance_id` per INV-SCALAR-003) yields zero errors and `ResolvedSensorSpec` entries for `(acme, armis)` and `(contoso, armis)` with the expected distinct `base_url` values; a `base_url`-only overlay missing `extends`/`instance_id` would produce a non-zero error count (AC-005 failure) |
 
 ## Verification Properties
 
@@ -367,3 +381,4 @@ is warranted.
 | 1.2 | D-1075-API-GAP-001 (architect adjudication, S-DEMO-MULTI-TENANT-DTU-001 TDD) | 2026-06-13 | product-owner | Postcondition 1 amended: `start_instances` returns `Ok(MultiInstanceServers)` lifecycle handle (was `Ok(HashMap<String,SocketAddr>)`). Handle owns single shared `shutdown_tx: broadcast::Sender<()>` + all N task handles; `servers.socket_map() -> &HashMap<String, SocketAddr>` accessor exposes bound addresses; `servers.shutdown()` / Drop trigger graceful drain (axum `with_graceful_shutdown`) then port release, eliminating success-path zombie/leaked instances. This is the success-path analogue of Postcondition 6 ("no partial-bound zombie instances on bind failure") and is consistent with EC-017-005 (parenthetical added: "applies to both `MultiInstanceHarness` Drop and `MultiInstanceServers` Drop"). No change to Postconditions 2-7, other ECs, INV-COMPAT-001, INV-ISOLATION-001, INV-ERR-003-COMPAT, INV-PERIMETER-001, or INV-NONEXHAUSTIVE-001. |
 | 1.3 | F-P1-MED-001 (LOCAL adversary Pass-1, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | EC-017-002 + TV-017-002 return-type sweep: Ok(HashMap::new()) → Ok(MultiInstanceServers) with empty socket_map() (v1.2 changed Postcondition 1 return type but missed these two siblings; POL-29 within-FB sweep). No semantic change. |
 | 1.4 | F-P3-MED-001 (LOCAL adversary Pass-3, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | Postcondition 2 socket_map key type swept `(OrgSlug, SensorId)` → `(String, String)` to match U-004/D-1075 architect decision, AC-004, the story Locked API, and the implemented code. Stale newtype prose was never swept when U-004 chose plain test-infra strings. Annotation added: "lightweight test-infra key per U-004 / D-1075; intentionally distinct from the production OrgKey = (OrgId, DtuType)". No semantic change. |
+| 1.5 | F-P5-MED-003 (LOCAL adversary Pass-5, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | Postcondition 3 + TV-017-009 overlay-format spec gap closed: overlay TOML requires 3 fields (extends, instance_id, base_url), not base_url-only. extends binds overlay to TYPE spec (OverlayLoader requirement); instance_id = {sensor_id}@{org_slug} (INV-SCALAR-003). Spec brought into alignment with the load-bearing overlay_wiring implementation + AC-005 test (which asserts zero OverlayLoader errors). Raw-TOML-string / INV-PERIMETER-001 unchanged. |
