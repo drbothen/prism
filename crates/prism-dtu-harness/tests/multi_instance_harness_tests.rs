@@ -493,7 +493,12 @@ async fn test_BC_2_06_017_multi_tenant_routing_zero_cross_tenant_leakage() {
          (the final probe only — zero acme vendor requests leaked to S_B); got delta={delta_b} \
          (BC-2.06.017 INV-ISOLATION-001 / F-P1-HIGH-001: server-side counter on S_B \
          is the LOAD-BEARING isolation proof — if any acme request leaked to B, delta_b > 1 \
-         and this assertion fails). INV-ISOLATION-001 PROVEN SERVER-SIDE.",
+         and this assertion fails). DISTINCT-LISTENER ISOLATION PROVEN SERVER-SIDE \
+         (proves the harness binds distinct listeners and they don't cross-receive; \
+         the FanOutTarget→base_url routing proof lives in \
+         crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs::\
+test_fan_out_with_overlay_map_routes_to_correct_dtu_instance and \
+         prism-sensors/src/fanout.rs::test_F_LP2_CRIT_001_*).",
     );
 
     // --- Phase B: symmetric — prove contoso requests reach S_B only, zero reach S_A ---
@@ -542,7 +547,12 @@ async fn test_BC_2_06_017_multi_tenant_routing_zero_cross_tenant_leakage() {
          (the final probe only — zero contoso vendor requests leaked to S_A); got delta={delta_a2} \
          (BC-2.06.017 INV-ISOLATION-001 / F-P1-HIGH-001: server-side counter on S_A \
          is the LOAD-BEARING isolation proof — if any contoso request leaked to A, delta_a2 > 1 \
-         and this assertion fails). INV-ISOLATION-001 PROVEN SERVER-SIDE (symmetric).",
+         and this assertion fails). DISTINCT-LISTENER ISOLATION PROVEN SERVER-SIDE (symmetric) \
+         (proves the harness binds distinct listeners and they don't cross-receive; \
+         the FanOutTarget→base_url routing proof lives in \
+         crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs::\
+test_fan_out_with_overlay_map_routes_to_correct_dtu_instance and \
+         prism-sensors/src/fanout.rs::test_F_LP2_CRIT_001_*).",
     );
 }
 
