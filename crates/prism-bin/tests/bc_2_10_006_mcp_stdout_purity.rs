@@ -13,7 +13,8 @@
 //! Invariant source: BC-2.10.006 §Postconditions:
 //!   - "stdout is reserved exclusively for MCP JSON-RPC protocol messages"
 //!   - "All logging, diagnostics, and metrics are written to stderr (via `tracing_subscriber`)"
-//! and BC-2.10.006 §Invariants:
+//!
+//! BC-2.10.006 §Invariants:
 //!   - "stdout purity: no non-MCP content ever written to stdout"
 //!
 //! # Enforcement site

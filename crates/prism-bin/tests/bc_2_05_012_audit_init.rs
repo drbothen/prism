@@ -287,16 +287,15 @@ fn test_BC_2_05_012_sentinel_schema_has_required_fields() {
     for (_key, value) in &entries {
         let decoded: Result<(StorageAuditEntry, _), _> =
             bincode::serde::decode_from_slice(value, bincode::config::standard());
-        if let Ok((entry, _)) = decoded {
-            if entry
+        if let Ok((entry, _)) = decoded
+            && entry
                 .payload
                 .get("event_type")
                 .map(|v| v == "boot.audit.initialized")
                 .unwrap_or(false)
-            {
-                found_sentinel = Some(entry);
-                break;
-            }
+        {
+            found_sentinel = Some(entry);
+            break;
         }
     }
 

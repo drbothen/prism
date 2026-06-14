@@ -633,16 +633,15 @@ async fn test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry() {
     for (_key, value) in &entries {
         let decoded: Result<(StorageAuditEntry, _), _> =
             bincode::serde::decode_from_slice(value, bincode::config::standard());
-        if let Ok((entry, _)) = decoded {
-            if entry
+        if let Ok((entry, _)) = decoded
+            && entry
                 .payload
                 .get("event_type")
                 .map(|v| v == "plugin_load_unsigned")
                 .unwrap_or(false)
-            {
-                found_plugin_audit = Some(entry);
-                break;
-            }
+        {
+            found_plugin_audit = Some(entry);
+            break;
         }
     }
 

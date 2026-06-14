@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
+// Items in this helpers module are used selectively by different test binaries
+// (e2e_smoke, e2e_multi_org, plugin_boot_tests, bc_2_10_006_mcp_stdout_purity).
+// Each item is used by at least one binary; the ones not used by all binaries
+// are correctly reported as dead_code by the per-binary perspective.
+#![allow(dead_code)]
 //! Test helpers for S-DEMO-002 E2E subprocess smoke test.
 //!
 //! Provides:
@@ -937,10 +942,9 @@ impl McpStdioHandle {
                 .get("data_source")
                 .and_then(|ds| ds.as_array())
                 .map(|a| a.to_owned())
+                && let Some(first) = ds_array.first().and_then(|s| s.as_str())
             {
-                if let Some(first) = ds_array.first().and_then(|s| s.as_str()) {
-                    meta["data_source"] = serde_json::Value::String(first.to_string());
-                }
+                meta["data_source"] = serde_json::Value::String(first.to_string());
             }
             meta
         });
@@ -1200,29 +1204,29 @@ pub async fn launch_prism_bin(
 // locate_binary
 // ---------------------------------------------------------------------------
 
-/// Locate a workspace binary by name.
-///
-/// Search order:
-/// 1. `CARGO_BIN_EXE_<name>` env var (set by cargo for binaries in the same package).
-///    NOTE: `CARGO_BIN_EXE_*` is only populated for binaries declared in the SAME
-///    package as the integration test binary. Cross-package binaries (`prism`,
-///    `prism-dtu-demo-server`) are NOT set by cargo from within `prism-bin`'s test
-///    harness. The env-var path is kept as a forward-compatibility hook.
-/// 2. Workspace `target/release/<name>` — the release binary is required by
-///    Architecture Compliance Rule 5 (30-second subprocess timeout assumes release
-///    performance). This is the documented precondition for running E2E tests.
-/// 3. Workspace `target/debug/<name>` — fallback ONLY when release is absent.
-///    NOT silent: emits a visible `eprintln!` diagnostic before returning the path.
-///    Debug binaries may cause E2E timeout failures (30s limit assumes release speed).
-/// 4. Returns `Err(...)` with an actionable `cargo build --release` message if
-///    neither release nor debug binary exists.
-///
-/// OBS-1: There is NO silent fallback path. Every binary selection path either
-/// returns `Ok` with a log/diagnostic or returns `Err` with a clear message.
-///
-/// # Precondition
-/// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
-/// The CI e2e profile ensures this; local runs require the manual build step.
+// Locate a workspace binary by name.
+//
+// Search order:
+// 1. `CARGO_BIN_EXE_<name>` env var (set by cargo for binaries in the same package).
+//    NOTE: `CARGO_BIN_EXE_*` is only populated for binaries declared in the SAME
+//    package as the integration test binary. Cross-package binaries (`prism`,
+//    `prism-dtu-demo-server`) are NOT set by cargo from within `prism-bin`'s test
+//    harness. The env-var path is kept as a forward-compatibility hook.
+// 2. Workspace `target/release/<name>` — the release binary is required by
+//    Architecture Compliance Rule 5 (30-second subprocess timeout assumes release
+//    performance). This is the documented precondition for running E2E tests.
+// 3. Workspace `target/debug/<name>` — fallback ONLY when release is absent.
+//    NOT silent: emits a visible `eprintln!` diagnostic before returning the path.
+//    Debug binaries may cause E2E timeout failures (30s limit assumes release speed).
+// 4. Returns `Err(...)` with an actionable `cargo build --release` message if
+//    neither release nor debug binary exists.
+//
+// OBS-1: There is NO silent fallback path. Every binary selection path either
+// returns `Ok` with a log/diagnostic or returns `Err` with a clear message.
+//
+// Precondition:
+// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
+// The CI e2e profile ensures this; local runs require the manual build step.
 // ---------------------------------------------------------------------------
 // S-DEMO-004: Multi-org harness helpers
 // ---------------------------------------------------------------------------

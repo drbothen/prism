@@ -25,8 +25,11 @@
 //! # Test gating (AC-010)
 //!
 //! All tests are `#[ignore]` — `cargo nextest run -p prism-bin` (no profile) SKIPS them.
-//! They run only when the `e2e-multi-org` nextest profile is active (which sets
-//! `run-ignored = "ignored-only"` via `.config/nextest.toml`), satisfying AC-010.
+//! They run only when the `e2e-multi-org` nextest profile is active, satisfying AC-010.
+//! The profile provides timeout and failure-output settings; the `--run-ignored ignored-only`
+//! CLI flag is what actually un-ignores the tests (nextest has no `run-ignored` TOML key —
+//! see the comment in `.config/nextest.toml`). The canonical command is:
+//!   `cargo nextest run -p prism-bin --profile e2e-multi-org --run-ignored ignored-only`
 //!
 //! # Test → AC → BC Mapping
 //!
@@ -84,12 +87,10 @@ fn extract_device_ids(response: &serde_json::Value) -> std::collections::HashSet
 
 fn extract_ids_recursive(value: &serde_json::Value, ids: &mut std::collections::HashSet<String>) {
     match value {
-        serde_json::Value::String(s) => {
-            // Canonical format: "dev-{8hex}-{seed}-{n}" per ADR-036 v2.0 §2.2.
-            // 8hex = exactly 8 lowercase hex digits; seed = decimal u64; n = decimal u64.
-            if looks_like_device_id(s) {
-                ids.insert(s.clone());
-            }
+        // Canonical format: "dev-{8hex}-{seed}-{n}" per ADR-036 v2.0 §2.2.
+        // 8hex = exactly 8 lowercase hex digits; seed = decimal u64; n = decimal u64.
+        serde_json::Value::String(s) if looks_like_device_id(s) => {
+            ids.insert(s.clone());
         }
         serde_json::Value::Array(arr) => {
             for item in arr {
@@ -199,10 +200,10 @@ async fn test_BC_2_22_001_multi_org_boot_registers_8_adapters() {
         // Check if the buffer has content (non-empty = drain thread has written something).
         // We stop as soon as the prism process exits (stderr EOF) and the thread writes.
         std::thread::sleep(std::time::Duration::from_millis(50));
-        if let Ok(buf) = stderr_buf.lock() {
-            if !buf.is_empty() {
-                break;
-            }
+        if let Ok(buf) = stderr_buf.lock()
+            && !buf.is_empty()
+        {
+            break;
         }
         if std::time::Instant::now() >= drain_deadline {
             break; // proceed even if empty — assertion below will surface the failure
