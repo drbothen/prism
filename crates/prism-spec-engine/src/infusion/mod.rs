@@ -553,21 +553,28 @@ impl InfusionRegistry {
     /// Return all currently registered UDF descriptors.
     ///
     /// Consumed by prism-query (S-3.02) to register DataFusion ScalarUDFs.
+    ///
+    /// Uses the stored `InfusionSource` for each entry (BC-2.19.001 v1.4: plugin-type
+    /// descriptors carry a real `PluginInfusionSource` when the registry was populated via
+    /// `load_spec_with_source` or equivalent; entries loaded via bare `load_spec` carry
+    /// the source passed at registration time).
     pub fn udf_descriptors(&self) -> Vec<udf::InfusionUdfDescriptor> {
         let current = self.inner.load();
-        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
         current
             .entries
             .values()
-            .flat_map(|(spec, _)| {
-                spec.fields.iter().map(|field| udf::InfusionUdfDescriptor {
-                    name: field.name.clone(),
-                    input_type: field.input_type.clone(),
-                    output_type: field.output_type.clone(),
-                    infusion_id: spec.infusion_id.clone(),
-                    source: source.clone(),
-                    source_column: field.source_column.clone(),
-                })
+            .flat_map(|(spec, stored_source)| {
+                let source = stored_source.clone();
+                spec.fields
+                    .iter()
+                    .map(move |field| udf::InfusionUdfDescriptor {
+                        name: field.name.clone(),
+                        input_type: field.input_type.clone(),
+                        output_type: field.output_type.clone(),
+                        infusion_id: spec.infusion_id.clone(),
+                        source: source.clone(),
+                        source_column: field.source_column.clone(),
+                    })
             })
             .collect()
     }

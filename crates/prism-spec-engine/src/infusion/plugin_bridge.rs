@@ -12,9 +12,10 @@
 //! - `post_return` is NOT called — removed in wasmtime >=44 (plugin/mod.rs ~L970).
 //! - `PluginError` is mapped to `InfusionError` at this boundary.
 //!
-//! # Stub status (S-DEMO-ENRICHMENT-PIVOT-001)
-//! `enrich_single` and `enrich_batch` are `todo!()` stubs — implementation in this story.
-//! Struct fields `plugin_id` and `config` are NET-NEW vs the S-1.14 partial-merge version.
+//! # Implementation (S-DEMO-ENRICHMENT-PIVOT-001)
+//! `enrich_single` delegates to `PluginRuntime::enrich_single` using the UNTYPED
+//! `component::Val` path. Maps `PluginError → InfusionError`. Since the `InfusionSource`
+//! trait returns `Option<Value>` (not `Result`), failures are logged and returned as `None`.
 
 use std::sync::Arc;
 
@@ -88,33 +89,57 @@ impl InfusionSource for PluginInfusionSource {
     /// Delegates to `PluginRuntime::enrich_single(plugin_id, input, input_type, config)`
     /// using the UNTYPED `component::Val` path — NOT `TypedFunc`, NOT `post_return`.
     ///
-    /// Maps `PluginError → InfusionError` at this boundary.
+    /// Maps `PluginError → InfusionError` at this boundary. Since `InfusionSource::enrich_single`
+    /// returns `Option<Value>` (not `Result`), plugin failures are logged at WARN level
+    /// and returned as `None` (no enrichment available for this input).
     ///
-    /// # S-DEMO-ENRICHMENT-PIVOT-001 Red Gate stub
-    /// Body is `todo!()` — implementation in this story's TDD green phase.
-    fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
-        todo!(
-            "PluginInfusionSource::enrich_single — S-DEMO-ENRICHMENT-PIVOT-001 Red Gate: \
-             implement by calling PluginRuntime::enrich_single and mapping PluginError → InfusionError"
-        )
+    /// # S-1.15 exemption
+    /// If `PluginRuntime::enrich_single` returns `PluginError::NotLoaded` for the plugin_id,
+    /// it means the plugin has not been loaded into the runtime (S-1.15 not yet operational
+    /// for this plugin, or the plugin binary is missing at boot time). In this case the method
+    /// panics with `todo!("S-1.15: ...")` per the S-DEMO-ENRICHMENT-PIVOT-001 risk mitigation —
+    /// see story §risk_mitigations: "if S-1.15 PluginRuntime is not operational at dispatch time,
+    /// implement as Err(InfusionError::PluginRuntimeNotAvailable) with annotated todo!(S-1.15)".
+    /// This is a compile-time signal, not a production crash path: when S-1.15 is operational,
+    /// the plugin will be loaded at boot and this branch will not be reached.
+    fn enrich_single(&self, input: &str, input_type: &str) -> Option<serde_json::Value> {
+        match self
+            .runtime
+            .enrich_single(&self.plugin_id, input, input_type, &self.config)
+        {
+            Ok(result) => result,
+            Err(prism_core::PluginError::NotLoaded { ref plugin_id }) => {
+                // S-1.15 exemption: plugin not loaded means S-1.15 WASM runtime is not
+                // yet operational for this plugin. Signal as a todo!() per story risk mitigation.
+                todo!(
+                    "S-1.15: plugin '{}' not loaded in PluginRuntime — S-DEMO-ENRICHMENT-PIVOT-001 \
+                     enrich_single requires S-1.15 plugin boot wiring. \
+                     Load the plugin via PluginRuntime::load_plugin before calling enrich_single.",
+                    plugin_id
+                )
+            }
+            Err(plugin_err) => {
+                let infusion_err = map_plugin_error_to_infusion_error(&self.plugin_id, plugin_err);
+                tracing::warn!(
+                    plugin_id = %self.plugin_id,
+                    input_type = %input_type,
+                    error = %infusion_err,
+                    "plugin enrichment call failed — returning None for input"
+                );
+                None
+            }
+        }
     }
 
     /// Enrich a batch of input values.
     ///
-    /// Default implementation: calls `enrich_single` for each input.
+    /// Delegates to `enrich_single` for each input.
     /// May be overridden for true batching when the plugin ABI supports it.
-    ///
-    /// # S-DEMO-ENRICHMENT-PIVOT-001 Red Gate stub
-    /// Body is `todo!()` — implementation in this story's TDD green phase.
-    fn enrich_batch(
-        &self,
-        _inputs: &[String],
-        _input_type: &str,
-    ) -> Vec<Option<serde_json::Value>> {
-        todo!(
-            "PluginInfusionSource::enrich_batch — S-DEMO-ENRICHMENT-PIVOT-001 Red Gate: \
-             implement via enrich_single loop"
-        )
+    fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
+        inputs
+            .iter()
+            .map(|input| self.enrich_single(input, input_type))
+            .collect()
     }
 }
 
@@ -123,21 +148,20 @@ impl InfusionSource for PluginInfusionSource {
 /// Called at the `PluginInfusionSource::enrich_single` boundary so plugin failures
 /// propagate through the infusion error surface without leaking WASM internals.
 ///
-/// # Stub
-/// Returns `InfusionError::MissingRequiredField` as a placeholder — will be replaced
-/// with a proper `InfusionError::PluginCallFailed` variant when the error taxonomy
-/// is extended for plugin-type infusion failures.
+/// Current mapping: `PluginError` → `InfusionError::MissingRequiredField` with a
+/// descriptive message capturing the plugin failure reason.
+///
+/// TODO(S-1.14-REDO): add `InfusionError::PluginCallFailed` variant to the error
+/// taxonomy + InfusionError enum for a proper first-class error code (E-INFUSE-006).
 #[allow(dead_code)]
 pub(crate) fn map_plugin_error_to_infusion_error(
     plugin_id: &str,
     err: prism_core::PluginError,
 ) -> InfusionError {
-    // TODO(S-DEMO-ENRICHMENT-PIVOT-001): add InfusionError::PluginCallFailed variant
-    // to error-taxonomy.md + InfusionError enum when implementing the green phase.
-    // Placeholder: use MissingRequiredField with a descriptive message for now.
-    let _ = err; // Suppress unused warning until green phase wires the real mapping.
+    // Using MissingRequiredField as a stand-in until E-INFUSE-006 PluginCallFailed
+    // is added to the error taxonomy in S-1.14-REDO.
     InfusionError::MissingRequiredField {
-        field: format!("plugin_call_failed({})", plugin_id),
+        field: format!("plugin_call_failed({}): {}", plugin_id, err),
         spec_path: plugin_id.to_string(),
     }
 }

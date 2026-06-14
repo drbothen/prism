@@ -243,6 +243,12 @@ pub struct QueryEngine {
     /// and the query executor share the same live AliasStore instance.
     /// (F-PASS9-LOW-1 fix — S-5.01-FOLLOWUP-MCP-BOOT)
     pub(crate) alias_store: Option<Arc<Mutex<AliasStore>>>,
+    /// Infusion registry for plugin-backed enrichment UDFs (BC-2.19.001 / S-DEMO-ENRICHMENT-PIVOT-001).
+    ///
+    /// When `Some`, `execute_inner` and `execute_scheduled_inner` call `register_infusion_udfs`
+    /// on the ephemeral `SessionContext` so analyst queries using `| enrich infusion(field)` resolve.
+    /// When `None`, no enrichment UDFs are registered (query-only / test mode without enrichment).
+    pub(crate) infusion_registry: Option<Arc<prism_spec_engine::InfusionRegistry>>,
 }
 
 impl QueryEngine {
@@ -309,6 +315,7 @@ impl QueryEngine {
             storage: None,
             resolved_spec_map: None,
             alias_store: None,
+            infusion_registry: None,
         }
     }
 
@@ -387,7 +394,22 @@ impl QueryEngine {
             storage: Some(storage),
             resolved_spec_map: Some(resolved_spec_map),
             alias_store: Some(alias_store),
+            infusion_registry: None,
         }
+    }
+
+    /// Set the infusion registry for plugin-backed enrichment UDF registration.
+    ///
+    /// Called from the boot path (S-DEMO-ENRICHMENT-PIVOT-001) after constructing the engine
+    /// to wire in the `InfusionRegistry` populated by `InfusionLoader::load_all`.
+    /// When set, `execute_inner` and `execute_scheduled_inner` call `register_infusion_udfs`
+    /// on each ephemeral `SessionContext` before query execution.
+    pub fn with_infusion_registry(
+        mut self,
+        registry: Arc<prism_spec_engine::InfusionRegistry>,
+    ) -> Self {
+        self.infusion_registry = Some(registry);
+        self
     }
 }
 
@@ -510,6 +532,16 @@ impl QueryEngine {
         // HIGH-001 / ADV-W3MT-P58-HIGH-001: memory_pool_bytes was stored but not consumed.
         // Now wired via `build_session_context` which wraps RuntimeEnvBuilder + GreedyMemoryPool.
         let session_ctx = crate::memory::build_session_context(self.config.memory_pool_bytes)?;
+
+        // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs so
+        // analyst queries using `| enrich infusion(field)` resolve in this ephemeral context.
+        // No-op when `infusion_registry` is `None` (test/MVP mode without enrichment).
+        if let Some(ref registry) = self.infusion_registry {
+            crate::infusion_udf::register_infusion_udfs(&session_ctx, registry.udf_descriptors())
+                .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
+                detail: format!("E-QUERY-INFUSE-001: failed to register infusion UDFs: {e}"),
+            })?;
+        }
 
         // F-LP1-HIGH-3: Capability gate — check BEFORE registering internal tables.
         // Parse-time depth/size checks happen inside PrismQlParser::parse (security.rs).
@@ -698,6 +730,22 @@ impl QueryEngine {
         let session_ctx = Arc::new(crate::memory::build_session_context(
             self.config.memory_pool_bytes,
         )?);
+
+        // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs
+        // for scheduled queries as well (detection-engine enrichment context).
+        if let Some(ref registry) = self.infusion_registry {
+            crate::infusion_udf::register_infusion_udfs(
+                &session_ctx,
+                registry.udf_descriptors(),
+            )
+            .map_err(|e| {
+                prism_core::PrismError::QueryExecutionFailed {
+                    detail: format!(
+                        "E-QUERY-INFUSE-001: failed to register infusion UDFs in scheduled context: {e}"
+                    ),
+                }
+            })?;
+        }
 
         // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
         // Scheduled queries run in system context with no capabilities — this means they

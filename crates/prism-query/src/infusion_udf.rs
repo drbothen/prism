@@ -154,19 +154,101 @@ impl ScalarUDFImpl for InfusionAsyncUdf {
 impl AsyncScalarUDFImpl for InfusionAsyncUdf {
     /// Async enrichment call — the production execution path.
     ///
-    /// Calls `self.descriptor.source.enrich_single(input, input_type)` for each
-    /// row in the input batch and returns the enriched values as a `ColumnarValue`.
+    /// For each row in the input batch, calls `self.descriptor.source.enrich_single(input, input_type)`
+    /// and returns the enriched values as a `StringArray` wrapped in `ColumnarValue::Array`.
     ///
-    /// # S-DEMO-ENRICHMENT-PIVOT-001 Red Gate stub
-    /// Body is `todo!()` — implementation in this story's TDD green phase.
+    /// If the source returns `None` for a row (plugin failure, no enrichment available),
+    /// the row's output is `null` in the output array.
+    ///
+    /// If the source returns `Some(Value)`, the JSON value is serialized to a string.
+    /// For plain strings in the JSON value (the common case for plugin enrichment results),
+    /// the string is returned unwrapped to avoid double-quoting.
+    ///
+    /// # Input argument
+    /// Expects exactly one `Utf8` column as the first argument (enforced by the `Signature`).
+    /// `ColumnarValue::Scalar` inputs are treated as a single-element batch.
     async fn invoke_async_with_args(
         &self,
-        _args: ScalarFunctionArgs,
+        args: ScalarFunctionArgs,
     ) -> DataFusionResult<ColumnarValue> {
-        todo!(
-            "InfusionAsyncUdf::invoke_async_with_args — S-DEMO-ENRICHMENT-PIVOT-001 Red Gate: \
-             implement by calling self.descriptor.source.enrich_single for each row"
-        )
+        use datafusion::arrow::array::{Array, StringArray};
+        use datafusion::common::ScalarValue;
+
+        // Extract the input column — must be the first arg.
+        let input_col = args.args.first().ok_or_else(|| {
+            datafusion::error::DataFusionError::Execution(format!(
+                "InfusionAsyncUdf '{}': expected 1 argument, got 0",
+                self.descriptor.name
+            ))
+        })?;
+
+        // Materialise the input as a list of (index, value) pairs.
+        // For scalar inputs, expand to a single element.
+        let inputs: Vec<Option<String>> = match input_col {
+            ColumnarValue::Array(arr) => {
+                let str_arr = arr.as_any().downcast_ref::<StringArray>().ok_or_else(|| {
+                    datafusion::error::DataFusionError::Execution(format!(
+                        "InfusionAsyncUdf '{}': input column must be Utf8, got {:?}",
+                        self.descriptor.name,
+                        arr.data_type()
+                    ))
+                })?;
+                (0..str_arr.len())
+                    .map(|i| {
+                        if str_arr.is_null(i) {
+                            None
+                        } else {
+                            Some(str_arr.value(i).to_owned())
+                        }
+                    })
+                    .collect()
+            }
+            ColumnarValue::Scalar(scalar) => {
+                // Single scalar — produce a single-element list.
+                let value = match scalar {
+                    ScalarValue::Utf8(opt) => opt.clone(),
+                    ScalarValue::LargeUtf8(opt) => opt.clone(),
+                    ScalarValue::Null => None,
+                    other => {
+                        return Err(datafusion::error::DataFusionError::Execution(format!(
+                            "InfusionAsyncUdf '{}': scalar input must be Utf8 or Null, got {:?}",
+                            self.descriptor.name,
+                            other.data_type()
+                        )));
+                    }
+                };
+                vec![value]
+            }
+        };
+
+        // Enrich each row via the plugin source.
+        let enriched: Vec<Option<String>> = inputs
+            .iter()
+            .map(|opt_input| {
+                let input_str = opt_input.as_deref().unwrap_or("");
+                let result = self
+                    .descriptor
+                    .source
+                    .enrich_single(input_str, &self.descriptor.input_type);
+                result.map(|json_val| {
+                    // If the plugin returns a plain JSON string, unwrap it to avoid
+                    // double-quoting ("value" → value). Other JSON shapes are serialized as-is.
+                    match json_val {
+                        serde_json::Value::String(s) => s,
+                        other => other.to_string(),
+                    }
+                })
+            })
+            .collect();
+
+        // Build the output StringArray (nulls where enrichment returned None).
+        let output = StringArray::from(
+            enriched
+                .iter()
+                .map(|opt| opt.as_deref())
+                .collect::<Vec<_>>(),
+        );
+        Ok(ColumnarValue::Array(Arc::new(output)))
     }
 }
 
