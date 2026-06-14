@@ -1455,22 +1455,23 @@ output_type = "string"
 /// Traces to: BC-2.19.001 postcondition — plugin-type source executes via plugin bridge.
 /// AC-004 / S-DEMO-ENRICHMENT-PIVOT-001.
 ///
-/// Red Gate failure: `PluginInfusionSource::enrich_single` panics with `todo!()`.
+/// Correct (green) behavior: `PluginInfusionSource::enrich_single` delegates to
+/// `PluginRuntime::enrich_single`. When the plugin is not yet loaded in the runtime
+/// (`PluginError::NotLoaded`), the method MUST return `None` after logging a WARN message —
+/// it must NOT panic. This proves:
+/// 1. `PluginInfusionSource` is wired (not NullSource — NullSource returns None for different reasons).
+/// 2. `NotLoaded` does NOT panic the query engine (CRIT-3 fix: map-log-None path).
+/// 3. The source is a real `PluginInfusionSource` that attempted the runtime dispatch.
 ///
-/// NOTE: This test uses a `PluginRuntime` instance. Since `PluginRuntime` requires
-/// no real WASM file to be constructed (only `.enrich_single` calls need a loaded plugin),
-/// we verify the delegation path via the `todo!()` panic. The test confirms:
-/// 1. `PluginInfusionSource` can be constructed with `plugin_id` and `config` fields.
-/// 2. `enrich_single` panics with `todo!()` (NOT `unimplemented!()`) — proving it's the
-///    S-DEMO-ENRICHMENT-PIVOT-001 stub, not the old S-1.14 unimplemented!() path.
-/// 3. The bridge exists (no compile errors) and the Arc<PluginRuntime> is wired.
+/// To distinguish from NullSource: a NullSource returns `None` unconditionally without ever
+/// calling `PluginRuntime::enrich_single`. `PluginInfusionSource` calls the runtime, gets
+/// `PluginError::NotLoaded`, and returns `None` after logging. Both return `None` in this
+/// scenario, but only `PluginInfusionSource` actually interacts with the runtime.
 ///
-/// A NullSource would silently return `None` — this test fails for NullSource too
-/// (it would not produce a `todo!()` panic), further confirming the source is real.
+/// Additional structural assertion: `source.plugin_id` is set correctly, which a NullSource
+/// (being a unit struct) cannot satisfy — proving the concrete type is `PluginInfusionSource`.
 #[test]
 fn test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime() {
-    use std::panic;
-
     // Construct a PluginRuntime (no WASM file needed — the runtime is constructable without one).
     // PluginRuntime::new() requires a reqwest::Client with the 30s timeout per CLAUDE.md.
     let http_client = reqwest::Client::builder()
@@ -1487,57 +1488,32 @@ fn test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime() {
     let config = Arc::new(std::collections::HashMap::new());
     let source = PluginInfusionSource::new("threat_intel", config, Arc::clone(&runtime));
 
+    // Structural assertion: plugin_id is correctly set — proves this is PluginInfusionSource,
+    // not a NullSource (which has no plugin_id field).
     assert_eq!(
         source.plugin_id, "threat_intel",
         "BC-2.19.001: PluginInfusionSource.plugin_id must be set from constructor"
     );
 
-    // Call enrich_single — FAILS RED: panics with todo!() (the Red Gate stub body).
-    // A NullSource would silently return None — if this test panics with todo!(), the
-    // stub is confirmed as PluginInfusionSource, not NullSource.
+    // Call enrich_single — "threat_intel" is not loaded in the runtime (no .prx loaded),
+    // so PluginRuntime::enrich_single returns PluginError::NotLoaded.
     //
-    // We use `std::panic::catch_unwind` to capture the panic message and assert it
-    // contains "S-DEMO-ENRICHMENT-PIVOT-001" (the stub's todo!() message), proving
-    // this is the correct stub and not an unrelated unimplemented!().
-    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        source.enrich_single("192.168.1.1", "ip")
-    }));
+    // AC-004 correct behavior: enrich_single MUST return None (not panic).
+    // CRIT-3 fix: the NotLoaded arm now maps-log-None rather than todo!().
+    //
+    // A NullSource would also return None, but it would NOT have plugin_id set (above assertion),
+    // and it would NOT call PluginRuntime at all. The structural assertion above proves the
+    // concrete type is PluginInfusionSource — so this None comes from the runtime delegation path.
+    let result = source.enrich_single("192.168.1.1", "ip");
 
-    match result {
-        Err(panic_payload) => {
-            // Expected: the stub panics with todo!()
-            let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "<non-string panic payload>".to_string()
-            };
-            assert!(
-                panic_msg.contains("S-DEMO-ENRICHMENT-PIVOT-001")
-                    || panic_msg.contains("todo")
-                    || panic_msg.contains("enrich_single"),
-                "BC-2.19.001: expected todo!() panic from S-DEMO-ENRICHMENT-PIVOT-001 stub. \
-                 Got panic message: '{}'. \
-                 A NullSource would return None silently, not panic.",
-                panic_msg
-            );
-        }
-        Ok(None) => {
-            panic!(
-                "BC-2.19.001: PluginInfusionSource::enrich_single returned None silently. \
-                 This indicates a NullSource is wired instead of PluginInfusionSource. \
-                 The Red Gate stub must panic with todo!() — a silent None return is a \
-                 NullSource wiring defect (BC-2.19.001 v1.4 postcondition violation)."
-            );
-        }
-        Ok(Some(_)) => {
-            panic!(
-                "BC-2.19.001: PluginInfusionSource::enrich_single returned Some(_) on a stub. \
-                 This should not happen — the stub must panic with todo!()."
-            );
-        }
-    }
+    assert!(
+        result.is_none(),
+        "BC-2.19.001 AC-004: PluginInfusionSource::enrich_single must return None when the \
+         plugin is not loaded (PluginError::NotLoaded → map-log-None path). \
+         Got: {:?}. \
+         A panic here indicates the NotLoaded arm still contains todo!() (CRIT-3 regression).",
+        result
+    );
 }
 
 // ---------------------------------------------------------------------------

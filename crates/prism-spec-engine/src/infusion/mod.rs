@@ -9,8 +9,11 @@
 //! - Credential values from `[infusion.credentials]` MUST NOT appear in logs or errors.
 //! - This crate MUST NOT import DataFusion or Arrow.
 //!
-//! # Stubs
-//! All method bodies are `unimplemented!()`. Implementation lives in S-1.14.
+//! # Plugin-type specs (BC-2.19.001 v1.4)
+//! Use `load_spec_with_runtime` (or `load_all_with_runtime`) to populate plugin-type specs
+//! with a real `Arc<PluginInfusionSource>`. Bare `load_spec` uses `NullSource` for all types
+//! and is only appropriate for local-lookup specs (S-1.14-REDO) or tests that do not need
+//! live enrichment.
 
 pub mod cache;
 pub mod enrich_descriptor;
@@ -24,6 +27,8 @@ use std::{collections::HashMap, sync::Arc};
 use arc_swap::ArcSwap;
 use prism_core::InfusionError;
 use serde::{Deserialize, Serialize};
+
+use crate::plugin::{PluginConfigMap, PluginRuntime};
 
 // ---------------------------------------------------------------------------
 // Infusion type
@@ -550,14 +555,69 @@ impl InfusionRegistry {
         Ok(descriptors)
     }
 
+    /// Load and validate a single `InfusionSpec` into the registry, wiring a real
+    /// `Arc<PluginInfusionSource>` for plugin-type specs.
+    ///
+    /// For `InfusionType::Plugin` specs the `PluginInfusionSource` is constructed with:
+    /// - `plugin_id` = `spec.infusion_id` (the plugin ID under which the `.prx` is loaded
+    ///   into the `PluginRuntime`)
+    /// - `config` = empty `PluginConfigMap` (credential values are resolved at call time
+    ///   from env vars per AD-017; the config map is not pre-populated here)
+    /// - `runtime` = the supplied `Arc<PluginRuntime>`
+    ///
+    /// For non-plugin specs, falls back to `NullSource` (S-1.14-REDO will supply the real
+    /// file-backed source for MMDB/CSV/JSON-lookup types).
+    ///
+    /// Returns `Err(InfusionError::DuplicateUdfName)` if any field name conflicts with an
+    /// already-registered UDF (BC-2.19.001 / INV-INFUSE-001 / VP-048).
+    pub fn load_spec_with_runtime(
+        &self,
+        spec: InfusionSpec,
+        runtime: Arc<PluginRuntime>,
+    ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
+        let current = self.inner.load();
+
+        // Validate against current state (pure — does not mutate).
+        let descriptors = self.validate_spec_against(&spec, &current)?;
+
+        // Build the real source for plugin-type specs.
+        let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::Plugin {
+            Arc::new(plugin_bridge::PluginInfusionSource::new(
+                spec.infusion_id.clone(),
+                Arc::new(PluginConfigMap::new()),
+                runtime,
+            ))
+        } else {
+            Arc::new(NullSource)
+        };
+
+        // Build updated inner: clone existing state and add the new spec.
+        let mut new_entries = current.entries.clone();
+        let mut new_udf_to_infusion = current.udf_to_infusion.clone();
+
+        for field in &spec.fields {
+            new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
+        }
+        new_entries.insert(spec.infusion_id.clone(), (spec, source));
+
+        // Atomic swap (AD-007 / CI-002).
+        self.inner.store(Arc::new(InfusionRegistryInner {
+            entries: new_entries,
+            udf_to_infusion: new_udf_to_infusion,
+        }));
+
+        Ok(descriptors)
+    }
+
     /// Return all currently registered UDF descriptors.
     ///
     /// Consumed by prism-query (S-3.02) to register DataFusion ScalarUDFs.
     ///
     /// Uses the stored `InfusionSource` for each entry (BC-2.19.001 v1.4: plugin-type
     /// descriptors carry a real `PluginInfusionSource` when the registry was populated via
-    /// `load_spec_with_source` or equivalent; entries loaded via bare `load_spec` carry
-    /// the source passed at registration time).
+    /// `load_spec_with_runtime`; entries loaded via bare `load_spec` carry `NullSource`
+    /// and are only appropriate for local-lookup specs where S-1.14-REDO will supply the
+    /// real file-backed source).
     pub fn udf_descriptors(&self) -> Vec<udf::InfusionUdfDescriptor> {
         let current = self.inner.load();
         current

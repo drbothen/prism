@@ -15,7 +15,8 @@
 //! # Implementation (S-DEMO-ENRICHMENT-PIVOT-001)
 //! `enrich_single` delegates to `PluginRuntime::enrich_single` using the UNTYPED
 //! `component::Val` path. Maps `PluginError → InfusionError`. Since the `InfusionSource`
-//! trait returns `Option<Value>` (not `Result`), failures are logged and returned as `None`.
+//! trait returns `Option<Value>` (not `Result`), failures (including `NotLoaded`) are logged
+//! at WARN level and returned as `None` — never panics.
 
 use std::sync::Arc;
 
@@ -93,15 +94,13 @@ impl InfusionSource for PluginInfusionSource {
     /// returns `Option<Value>` (not `Result`), plugin failures are logged at WARN level
     /// and returned as `None` (no enrichment available for this input).
     ///
-    /// # S-1.15 exemption
+    /// # NotLoaded handling
     /// If `PluginRuntime::enrich_single` returns `PluginError::NotLoaded` for the plugin_id,
-    /// it means the plugin has not been loaded into the runtime (S-1.15 not yet operational
-    /// for this plugin, or the plugin binary is missing at boot time). In this case the method
-    /// panics with `todo!("S-1.15: ...")` per the S-DEMO-ENRICHMENT-PIVOT-001 risk mitigation —
-    /// see story §risk_mitigations: "if S-1.15 PluginRuntime is not operational at dispatch time,
-    /// implement as Err(InfusionError::PluginRuntimeNotAvailable) with annotated todo!(S-1.15)".
-    /// This is a compile-time signal, not a production crash path: when S-1.15 is operational,
-    /// the plugin will be loaded at boot and this branch will not be reached.
+    /// it means the plugin has not yet been loaded into the runtime (e.g., plugin binary missing at
+    /// boot time, S-1.15 boot-wiring not yet reached, or plugin misnamed in the spec). This is a
+    /// routine runtime error — the method logs at WARN level and returns `Ok(None)` (no enrichment
+    /// available), exactly as all other `PluginError` variants do. A live query MUST NOT panic the
+    /// query engine due to a plugin not being loaded at runtime.
     fn enrich_single(&self, input: &str, input_type: &str) -> Option<serde_json::Value> {
         match self
             .runtime
@@ -109,14 +108,22 @@ impl InfusionSource for PluginInfusionSource {
         {
             Ok(result) => result,
             Err(prism_core::PluginError::NotLoaded { ref plugin_id }) => {
-                // S-1.15 exemption: plugin not loaded means S-1.15 WASM runtime is not
-                // yet operational for this plugin. Signal as a todo!() per story risk mitigation.
-                todo!(
-                    "S-1.15: plugin '{}' not loaded in PluginRuntime — S-DEMO-ENRICHMENT-PIVOT-001 \
-                     enrich_single requires S-1.15 plugin boot wiring. \
-                     Load the plugin via PluginRuntime::load_plugin before calling enrich_single.",
-                    plugin_id
-                )
+                // NotLoaded is a routine runtime error (plugin not in the loaded map —
+                // misnamed/unbooted/failed-load). Log at WARN and return None so the query
+                // engine continues without enrichment for this row.
+                let infusion_err = map_plugin_error_to_infusion_error(
+                    &self.plugin_id,
+                    prism_core::PluginError::NotLoaded {
+                        plugin_id: plugin_id.clone(),
+                    },
+                );
+                tracing::warn!(
+                    plugin_id = %self.plugin_id,
+                    input_type = %input_type,
+                    error = %infusion_err,
+                    "plugin not loaded in PluginRuntime — returning None for input (boot-wiring required)"
+                );
+                None
             }
             Err(plugin_err) => {
                 let infusion_err = map_plugin_error_to_infusion_error(&self.plugin_id, plugin_err);
@@ -153,7 +160,6 @@ impl InfusionSource for PluginInfusionSource {
 ///
 /// TODO(S-1.14-REDO): add `InfusionError::PluginCallFailed` variant to the error
 /// taxonomy + InfusionError enum for a proper first-class error code (E-INFUSE-006).
-#[allow(dead_code)]
 pub(crate) fn map_plugin_error_to_infusion_error(
     plugin_id: &str,
     err: prism_core::PluginError,
