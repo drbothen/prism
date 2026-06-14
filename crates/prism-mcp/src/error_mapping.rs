@@ -396,6 +396,82 @@ pub fn to_error_data(err: PrismError) -> ErrorData {
 }
 
 // ---------------------------------------------------------------------------
+// S-5.02 stub API surface (BC-2.10.007 v1.5 — structured error responses)
+// ---------------------------------------------------------------------------
+//
+// STUB ZONE — these functions expose the correct public signatures required by
+// the BC-2.10.007 / BC-2.10.004 contracts so that `tests/tool_dispatch_tests.rs`
+// Red Gate tests compile.  Bodies intentionally return wrong/placeholder data:
+// the implementer (S-5.02 green phase) replaces these with correct logic.
+// Stubs must NOT use panic-macro aliases forbidden by POL-12 (see tool_dispatch_tests.rs
+// test_AC_10_no_todo_in_production_code which scans src/ for those strings).
+// The preferred approach is a wrong-value stub that compiles but returns incorrect data,
+// causing Red Gate test assertions to fail rather than panicking at runtime.
+
+/// S-5.02 stub — BC-2.10.007 v1.5 wire shape.
+///
+/// The 9 fields required inside `structuredContent.error` plus `_meta.trust_level`.
+/// Implementer populates this from real error data; stub leaves fields at placeholder
+/// values so tests asserting the correct values fail (Red Gate).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StructuredErrorFields {
+    /// Canonical error code (e.g. `"E-MCP-001"`, `"E-CFG-100"`).
+    pub code: String,
+    /// Human-readable error message (never contains raw sensor text — DI-006).
+    pub message: String,
+    /// Error category (`"validation"`, `"configuration"`, `"internal"`, `"sensor"`).
+    pub category: String,
+    /// Whether the caller may retry.
+    pub retryable: bool,
+    /// Seconds to wait before retry; `null` when not applicable (BC-2.10.007 null-not-absent).
+    pub retry_after_seconds: Option<u64>,
+    /// Actionable suggestion for the caller.
+    pub suggestion: String,
+    /// Error source identifier (e.g. `"prism_mcp"`).
+    pub source: String,
+    /// Whether the original request parameters were structurally valid.
+    pub original_params_valid: bool,
+    /// Raw upstream sensor message; `null` for errors originating in Prism (DI-006).
+    pub upstream_message: Option<String>,
+}
+
+/// Build the nested BC-2.10.007 `structuredContent.error` envelope as a `CallToolResult`.
+///
+/// **S-5.02 stub** — returns a placeholder `CallToolResult` with an EMPTY `structuredContent`
+/// object (no `error` key, no `_meta` key).  Tests asserting the full 9-field shape and
+/// `_meta.trust_level: "internal"` will FAIL → Red Gate holds.
+///
+/// The implementer replaces this with the full envelope construction.
+///
+/// # Parameters
+/// - `fields`: the 9 structured error fields per BC-2.10.007 v1.5
+/// - `content_text`: the human-readable `content[].text` string ("`ERROR: [{category}] - ...`")
+pub fn build_structured_error_response(
+    _fields: StructuredErrorFields,
+    _content_text: String,
+) -> rmcp::model::CallToolResult {
+    // STUB: returns a structured_error CallToolResult with a placeholder structuredContent
+    // that lacks the `error` key and `_meta` key required by BC-2.10.007 v1.5.
+    // Tests asserting `structuredContent.error.*` and `_meta.trust_level` will FAIL.
+    rmcp::model::CallToolResult::structured_error(
+        serde_json::json!({"_stub": "S-5.02 not implemented"}),
+    )
+}
+
+/// Like `to_error_data` but also extracts `retry_after_ms` from `SensorRateLimited`.
+///
+/// **S-5.02 stub** — always returns `(ErrorData, None)`.  Tests asserting
+/// `retry_after_seconds: 30` will fail (they get `None`) → Red Gate holds.
+///
+/// The implementer splits `SensorRateLimited { retry_after_ms }` out of the multi-arm
+/// sensor group and threads the value through.
+pub fn to_error_data_with_retry(err: PrismError) -> (ErrorData, Option<u64>) {
+    // STUB: drops retry_after_ms; always returns None.
+    let (code, message) = map_prism_error(err);
+    (ErrorData::new(ErrorCode(code), message, None), None)
+}
+
+// ---------------------------------------------------------------------------
 // Unit tests for error_mapping
 // ---------------------------------------------------------------------------
 

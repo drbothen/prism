@@ -691,6 +691,71 @@ pub struct ListCapabilitiesParams {
     pub client_id: Option<String>,
 }
 
+impl ListCapabilitiesParams {
+    /// Construct params for a single-client capability listing.
+    pub fn for_client(client_id: impl Into<String>) -> Self {
+        Self {
+            client_id: Some(client_id.into()),
+        }
+    }
+
+    /// Construct params for a cross-client summary (client_id = null).
+    pub fn for_all_clients() -> Self {
+        Self { client_id: None }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-5.02 stub types — BC-2.10.011 v1.5 tri-state capability model
+// ---------------------------------------------------------------------------
+//
+// These types expose the correct public API surface for the new `list_capabilities`
+// response shape so that Red Gate tests compile.  The `list_capabilities` handler
+// body is NOT YET UPDATED — it still returns the old bool-map shape — so tests
+// asserting `status`, `resolution_chain`, and `not_registered_tools` will FAIL.
+// The implementer (S-5.02 green phase) wires these types into the handler body.
+
+/// Status of a capability in the tri-state BC-2.10.011 model.
+///
+/// **S-5.02 stub** — type definition only; handler returns old bool-map shape.
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CapabilityStatus {
+    /// Capability is enabled (compile + runtime both permit).
+    Enabled,
+    /// Capability is disabled at runtime (compile permits, runtime denies).
+    RuntimeDisabled,
+    /// Capability is disabled at compile time (no write endpoints declared in TOML).
+    CompileTimeDisabled,
+}
+
+/// One step in the resolution chain for a capability (BC-2.10.011 v1.5).
+///
+/// **S-5.02 stub** — type definition only.
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ResolutionStep {
+    /// Resolution tier: `"compile_tier"` or `"runtime_tier"`.
+    pub level: String,
+    /// Resolution outcome: `"permit"`, `"allow"`, or `"deny"`.
+    pub result: String,
+    /// Human-readable source description (e.g. `"write_endpoints in sensor TOML"`).
+    pub source: String,
+}
+
+/// Entry for a single capability path in the tri-state `list_capabilities` response.
+///
+/// **S-5.02 stub** — type definition only; handler returns old bool-map shape.
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CapabilityEntry {
+    /// Tri-state capability status per BC-2.10.011.
+    pub status: CapabilityStatus,
+    /// Ordered resolution steps that produced `status`.
+    pub resolution_chain: Vec<ResolutionStep>,
+}
+
 /// Parameters for the `confirm_action` tool (BC-2.10.003).
 ///
 /// Confirms an irreversible write operation after the user has reviewed the WRITE plan.
