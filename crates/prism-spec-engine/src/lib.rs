@@ -89,7 +89,12 @@ pub use infusion::{
     InfusionSource, InfusionSourceConfig, InfusionSpec, InfusionType, PipeStageConfig,
     PluginConfig, enrich_descriptor::EnrichStageDescriptor, udf::InfusionUdfDescriptor,
 };
+// S-DEMO-ENRICHMENT-PIVOT-001: infusion plugin-bridge + loader (BC-2.19.001)
+pub use infusion::loader::InfusionLoader;
+pub use infusion::plugin_bridge::PluginInfusionSource;
+// PluginConfigMap re-export for infusion plugin-bridge tests
 pub use interpolation::{InterpolationContext, InterpolationError};
+pub use plugin::PluginConfigMap;
 // S-3.1.05 re-exports
 pub use org_scoped_store::OrgScopedSpecStore;
 // S-CONFIG-MULTI-TENANT-OVERRIDE-001 re-exports (ADR-029)
