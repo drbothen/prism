@@ -242,9 +242,10 @@ pub fn v48_adapter_auth_strategy_match() {
 /// `match e { DuplicateName{..} => .., BindFailure(..) => .., _ => {} }`.
 ///
 /// Added: S-DEMO-MULTI-TENANT-DTU-001 (U-006). ci.yml EXPECTED bumped from 52 to 60.
-/// This is violation 60 of 60: 7 E0639 struct violations (v54–v60 in struct_violations.rs,
-/// which includes `MultiInstanceServers` added by D-1075-API-GAP-001) + this 1 E0004 enum
-/// violation = 8 new violations total, bringing the gate from 52 → 60.
+/// This is violation 60 of 60: 7 E0639 struct violations (v54–v59 + v61 in struct_violations.rs;
+/// v54–v59 are MultiInstanceConfig, InstanceEntry, DemoBindError, MultiInstanceHarness,
+/// HarnessEntry, BindError; v61 is MultiInstanceServers, added by D-1075-API-GAP-001)
+/// + this 1 E0004 enum violation (v60) = 8 new violations total, bringing the gate from 52 → 60.
 #[allow(dead_code)]
 pub fn v60_multi_instance_bind_error_match() {
     use prism_dtu_demo_server::MultiInstanceBindError;
