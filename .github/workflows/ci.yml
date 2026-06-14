@@ -683,7 +683,7 @@ jobs:
           # Violations are split across submodules (enum_violations.rs + struct_violations.rs)
           # so that rustc's per-file error budget does not suppress later violations.
           # Update EXPECTED when adding/removing violations from enum_violations.rs or
-          # struct_violations.rs (current: 35 E0639 struct literals + 15 E0004 enum matches = 50;
+          # struct_violations.rs (current: 44 E0639 struct literals + 16 E0004 enum matches = 60;
           # EXPECTED equals the violation function count exactly).
           # PLUGIN-MIGRATION-001-E added 1 E0639 (plugin::LoadedPlugin).
           # S-CONFIG-MULTI-TENANT-OVERRIDE-001 added 3 E0639 (overlay::SensorInstanceOverlay,

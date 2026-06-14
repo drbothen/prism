@@ -25,6 +25,8 @@
 //! with content:
 //!
 //! ```toml
+//! extends = "{sensor_id}"
+//! instance_id = "{sensor_id}@{org_slug}"
 //! base_url = "http://{socket_addr}"
 //! ```
 //!
@@ -41,6 +43,8 @@ use crate::multi_instance::MultiInstanceHarness;
 /// `{sensor_id}.sensor.toml` containing:
 ///
 /// ```toml
+/// extends = "{sensor_id}"
+/// instance_id = "{sensor_id}@{org_slug}"
 /// base_url = "http://{socket_addr}"
 /// ```
 ///
