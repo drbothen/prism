@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.6"
+version: "1.7"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -21,7 +21,7 @@ removed: null
 removal_reason: null
 anchored_stories: [S-DEMO-MULTI-TENANT-DTU-001]
 verifying_vps: []
-crates: [prism-dtu-demo-server, prism-dtu-harness, prism-dtu-common]
+crates: [prism-dtu-demo-server, prism-dtu-harness, prism-dtu-common, prism-dtu-armis]
 inputs:
   - ".factory/stories/S-DEMO-MULTI-TENANT-DTU-001-dtu-per-instance-multi-address-binding.md"
   - ".factory/specs/behavioral-contracts/BC-2.06.014-instance-identity-resolution-at-fanout.md"
@@ -158,6 +158,18 @@ per-org `base_url` is consumed by the live HTTP dispatch layer, not merely store
 spec map. Verification requires counting actual HTTP requests received by each clone's
 router (e.g., via an in-clone request counter, `Arc<AtomicUsize>` injected at start
 time, or axum extension state).
+
+**INV-ISOLATION-001 Verification Mechanism (prism-dtu-armis):** The no-cross-tenant-leakage
+invariant is verified via a server-side per-instance request counter added to
+`prism-dtu-armis` as part of the F-P1-HIGH-001 isolation-counter fix. Each `ArmisClone`
+instance maintains an `AtomicU64` request counter that is incremented on every received
+HTTP request by an outermost axum middleware (`count_request_middleware`). The counter is
+exposed as a DTU control-plane route: `GET /dtu/request-count` returns the total number
+of requests the instance has received since startup. The isolation proof reads each
+instance's actual received-request count via this route and asserts that the wrong-instance
+count equals zero — i.e., `requests_received_by(S_B, dispatched_for_acme) == 0` and
+`requests_received_by(S_A, dispatched_for_contoso) == 0`. This is why `prism-dtu-armis`
+appears in the `crates:` frontmatter array for this BC.
 
 ### Postcondition 5 — Single-instance backward-compat (INV-COMPAT-001)
 
@@ -384,3 +396,4 @@ is warranted.
 | 1.4 | F-P3-MED-001 (LOCAL adversary Pass-3, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | Postcondition 2 socket_map key type swept `(OrgSlug, SensorId)` → `(String, String)` to match U-004/D-1075 architect decision, AC-004, the story Locked API, and the implemented code. Stale newtype prose was never swept when U-004 chose plain test-infra strings. Annotation added: "lightweight test-infra key per U-004 / D-1075; intentionally distinct from the production OrgKey = (OrgId, DtuType)". No semantic change. |
 | 1.5 | F-P5-MED-003 (LOCAL adversary Pass-5, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | Postcondition 3 + TV-017-009 overlay-format spec gap closed: overlay TOML requires 3 fields (extends, instance_id, base_url), not base_url-only. extends binds overlay to TYPE spec (OverlayLoader requirement); instance_id = {sensor_id}@{org_slug} (INV-SCALAR-003). Spec brought into alignment with the load-bearing overlay_wiring implementation + AC-005 test (which asserts zero OverlayLoader errors). Raw-TOML-string / INV-PERIMETER-001 unchanged. |
 | 1.6 | consistency-audit (S-DEMO-MULTI-TENANT-DTU-001 pre-Pass-6) | 2026-06-13 | product-owner | Three spec-code alignment fixes: M-001 Preconditions HarnessEntry fields &str→String (owned, per D-1075/code); M-002 Architecture Anchors removed stale "server.rs" alternative (D-1075: no server.rs); N-001 INV-NONEXHAUSTIVE-001 explicit list completed (added DemoBindError, BindError, MultiInstanceServers — previously catch-all-only). No semantic change. |
+| 1.7 | F-P8-HIGH-001 (LOCAL adversary Pass-8, S-DEMO-MULTI-TENANT-DTU-001) | 2026-06-13 | product-owner | crates: array += prism-dtu-armis (the INV-ISOLATION-001 proof depends on the prism-dtu-armis server-side request counter / GET /dtu/request-count route added by the F-P1-HIGH-001 isolation-counter fix). Postcondition 4 verification note added documenting the server-side counter proof mechanism: each ArmisClone instance maintains an AtomicU64 counter incremented by count_request_middleware on every received request; GET /dtu/request-count exposes the count; the isolation proof reads each instance's received-request count and asserts wrong-instance count == 0. Spec↔code scope sync; no contract semantic change. |

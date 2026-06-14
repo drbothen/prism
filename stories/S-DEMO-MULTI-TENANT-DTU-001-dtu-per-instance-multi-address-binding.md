@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.9"
+version: "1.10"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-03T00:00:00Z"
 created: "2026-06-03"
-modified: "2026-06-14T01:30:00Z"
+modified: "2026-06-14T02:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -23,7 +23,7 @@ subsystems: [SS-01]
 #   This is the same SS-01 anchor used by sibling story S-DEMO-HARNESS-CLONE-PARITY-001
 #   after its D-1068 F-P3-HIGH-001 POL-6 fix. SS-17 (WASM Plugin Runtime) does NOT own
 #   this story — it is not a WASM plugin concern. Decision: D-1075.
-crates_touched: [prism-dtu-demo-server, prism-dtu-harness]
+crates_touched: [prism-dtu-demo-server, prism-dtu-harness, prism-dtu-armis]
 target_module: prism-dtu-demo-server
 behavioral_contracts: [BC-2.06.017]
 verification_properties: []
@@ -103,7 +103,7 @@ phase: 3
 
 **Story ID:** S-DEMO-MULTI-TENANT-DTU-001
 **Status:** ready
-**Version:** v1.9
+**Version:** v1.10
 **Wave:** 5
 **Priority:** P2
 **Points:** 8
@@ -286,6 +286,22 @@ start time or axum extension state) to count actual HTTP requests received by ea
 This is the core multi-tenant routing isolation proof. It is the DTU-grounded equivalent of
 S-CONFIG-MULTI-TENANT-OVERRIDE-001 AC-008 (paper-fix resistance) — proving that per-org
 `base_url` is consumed by the live HTTP dispatch layer, not merely stored in the spec map.
+
+**Isolation proof mechanism (F-P1-HIGH-001 fix, recorded per F-P8-HIGH-001):** The isolation
+proof is GENUINE — grounded in a server-side request counter added to `prism-dtu-armis/src/`
+during the F-P1-HIGH-001 LOCAL adversary Pass-1 fix (replacing an earlier client-side paper-fix
+attempt). Specifically, `prism-dtu-armis/src/state.rs` gained a `pub request_counter: AtomicU64`
+field (with `received_request_count()` accessor and reset in `reset_all()`), and
+`prism-dtu-armis/src/clone.rs` gained a `count_request_middleware` axum layer (outermost layer
+in `build_router`, increments `request_counter` on every request) + `pub fn request_count(&self)`
+method + a new `GET /dtu/request-count` control-plane route (sibling to `/dtu/health`,
+`/dtu/configure`, `/dtu/reset`), with the handler `get_request_count` in
+`prism-dtu-armis/src/routes/dtu.rs`. This counter is INDEPENDENT of Claroty's `FailureLayer`
+counter. Each Armis instance's per-instance delta on `/dtu/request-count` provides the
+load-bearing proof that zero requests from org A reached org B's instance socket, and vice versa.
+This production code addition to `prism-dtu-armis/src/` is the scope expansion recorded by
+F-P8-HIGH-001 (see Changelog v1.10; crates_touched now includes prism-dtu-armis).
+
 (traces to BC-2.06.017 INV-ISOLATION-001 — requests_received_by_instance(S_A, query_for_org=O_B) = 0
 and requests_received_by_instance(S_B, query_for_org=O_A) = 0 for any two distinct org slugs)
 
@@ -386,6 +402,9 @@ discipline — SID-1). Test crate: `prism-dtu-demo-server/tests/` and
 | Overlay wiring helper | `crates/prism-dtu-harness/src/overlay_wiring.rs` (new file) | Pure (writes TOML strings to caller-supplied `&Path`; no fs side-effects in src/) |
 | `HarnessError` extensions | `crates/prism-dtu-harness/src/error.rs` (existing; extend with `DuplicateKey` + `BindFailure` variants) | N/A (error type; ALREADY `#[non_exhaustive]` — new variants add 0 to compile-fail gate count) |
 | BehavioralClone trait | `crates/prism-dtu-common/src/lib.rs` | Effectful (existing; NOT modified) |
+| `request_counter: AtomicU64` field + `received_request_count()` accessor + reset in `reset_all()` | `crates/prism-dtu-armis/src/state.rs` (MODIFIED — AC-006 isolation counter; F-P1-HIGH-001 fix, F-P8-HIGH-001 scope record) | Effectful (atomic counter; independent of Claroty FailureLayer counter) |
+| `count_request_middleware` (outermost axum layer in `build_router`) + `pub fn request_count(&self)` + `GET /dtu/request-count` route | `crates/prism-dtu-armis/src/clone.rs` (MODIFIED — AC-006 load-bearing isolation-proof instrumentation; F-P1-HIGH-001 fix, F-P8-HIGH-001 scope record) | Effectful (observability middleware + DTU control-plane route; sibling to `/dtu/health`, `/dtu/configure`, `/dtu/reset`) |
+| `get_request_count` handler | `crates/prism-dtu-armis/src/routes/dtu.rs` (MODIFIED — returns plain decimal count for `/dtu/request-count`; F-P1-HIGH-001 fix, F-P8-HIGH-001 scope record) | Effectful (HTTP handler) |
 
 **Critical file placement notes (D-1075):**
 - `prism-dtu-demo-server` does NOT have a `server.rs`. It uses `lib.rs` + `harness.rs` + `config.rs`.
@@ -540,11 +559,17 @@ pub struct BindError {
 ```
 
 **Clone reachability in tests (U-002):**
-`prism-dtu-harness` `src/` code is self-contained: the multi-instance API takes
-`Box<dyn BehavioralClone>` (trait in `prism-dtu-common`, already a runtime dep) and
-NEVER names `ArmisClone` or `ClarotyClone` directly. `ArmisClone`/`ClarotyClone` are
-only referenced in `prism-dtu-harness/tests/` via `[dev-dependencies]`. This does NOT
-breach INV-PERIMETER-001 — dev-deps are test-only; the forbidden list is
+`prism-dtu-harness/src/` and `prism-dtu-demo-server/src/` are self-contained with respect
+to concrete clone types: their multi-instance APIs take `Box<dyn BehavioralClone>` (trait
+in `prism-dtu-common`, already a runtime dep) and NEVER name `ArmisClone` or `ClarotyClone`
+directly. `ArmisClone`/`ClarotyClone` are only referenced in `prism-dtu-harness/tests/`
+via `[dev-dependencies]` — INV-PERIMETER-001 perimeter intact for these two crates.
+
+**Important distinction (F-P8-HIGH-001):** `prism-dtu-armis/src/` itself WAS modified by
+the F-P1-HIGH-001 fix — adding the AC-006 server-side request counter (state.rs, clone.rs,
+routes/dtu.rs). A clone instrumenting its OWN `src/` is NOT an INV-PERIMETER-001 breach:
+`armis` is the clone, not a consumer. The INV-PERIMETER-001 rule forbids harness/demo-server
+src/ from naming clone types — those perimeters remain intact. The forbidden list is
 `prism-spec-engine` / `prism-sensors` / `prism-query`; clone crates are not on it.
 
 Architecture section references:
@@ -737,7 +762,7 @@ binding. Key lessons from predecessor stories:
 | `non-exhaustive-violation` crate must import `prism-dtu-demo-server` + `prism-dtu-harness` | U-006 (D-1075 reconciliation) | These crates are NOT currently imported by the gate crate; implementer must add them and wire violation arms before declaring done |
 | `axum = "0.7"` and `tokio = { version = "1", features = ["full"] }` literal per-crate pins | U-008 (D-1075 reconciliation) | No `[workspace.dependencies]` entry exists; do NOT write "workspace version"; check sibling crates for current pins |
 | `tempfile = "3"` in `[dev-dependencies]` only; no `tempfile` import in `src/` | U-005 (D-1075 reconciliation) | Caller owns `TempDir`; passes `dir.path()` to `write_overlay_temp_dir` |
-| `prism-dtu-armis` + `prism-dtu-claroty` in `[dev-dependencies]` only; never `[dependencies]` | U-002 (D-1075 reconciliation) | `src/` code never names clone types; only `tests/` uses them |
+| `prism-dtu-armis` + `prism-dtu-claroty` in `[dev-dependencies]` of `prism-dtu-harness` only; never `[dependencies]` | U-002 (D-1075 reconciliation) | `prism-dtu-harness/src/` and `prism-dtu-demo-server/src/` never name `ArmisClone`/`ClarotyClone` directly (INV-PERIMETER-001 perimeter intact — only `tests/` consumes them via `Box<dyn BehavioralClone>`). NOTE: `prism-dtu-armis/src/` itself was modified to add the AC-006 server-side request counter instrumentation (F-P1-HIGH-001 fix) — a clone instrumenting its OWN `src/` is NOT an INV-PERIMETER-001 breach (armis is the clone, not a consumer). |
 | No `println!` in production code | CLAUDE.md | `rg 'println!' crates/prism-dtu-demo-server crates/prism-dtu-harness --type rust` must return 0 results |
 | New `event_type` emissions require BC-2.16.002 catalog row | SAP-1 + PG-LP11-001 | Adversary SAP-1 sweep on every pass |
 | reqwest::Client instances must use `.timeout(Duration::from_secs(30))` | CLAUDE.md conventions | Any new HTTP client in this story must have 30s timeout |
@@ -766,8 +791,8 @@ This preserves the perimeter boundary (BC-2.06.017 INV-PERIMETER-001).
 | `tokio` | `{ version = "1", features = ["full"] }` (literal per-crate pin; no workspace entry) | `[dependencies]` | Async multi-instance task spawning |
 | `prism-dtu-common` | workspace path | `[dependencies]` | `BehavioralClone` trait; NOT modified; already a dep of prism-dtu-harness |
 | `prism-core` | workspace path | `[dependencies]` | Already a dep; may be needed for other utilities. NOTE (U-004): `socket_map` key is plain `(String, String)`, NOT `(OrgSlug, SensorId)` newtypes — do not introduce newtype constructors for the key just because this dep exists. |
-| `prism-dtu-armis` | workspace path | `[dev-dependencies]` (test-only) | `ArmisClone` used only in `prism-dtu-harness/tests/`; `src/` code never names it. Does NOT breach INV-PERIMETER-001 (dev-deps are test-only; forbidden list = prism-spec-engine/prism-sensors/prism-query; clone crates are not on it). |
-| `prism-dtu-claroty` | workspace path | `[dev-dependencies]` (test-only) | `ClarotyClone` used only in `prism-dtu-harness/tests/`; same perimeter note as above. |
+| `prism-dtu-armis` | workspace path | `[dev-dependencies]` of `prism-dtu-harness` (test-only) | `ArmisClone` is referenced only in `prism-dtu-harness/tests/` and `prism-dtu-demo-server/tests/`; `prism-dtu-harness/src/` and `prism-dtu-demo-server/src/` never name it (INV-PERIMETER-001 perimeter intact — they use `Box<dyn BehavioralClone>`). Does NOT breach INV-PERIMETER-001 (dev-deps are test-only; forbidden list = prism-spec-engine/prism-sensors/prism-query; clone crates are not on it). NOTE: `prism-dtu-armis` is also listed in `crates_touched` because its OWN `src/` (state.rs, clone.rs, routes/dtu.rs) was modified to add the AC-006 request counter (F-P1-HIGH-001 fix) — a clone instrumenting itself is NOT an INV-PERIMETER-001 breach. |
+| `prism-dtu-claroty` | workspace path | `[dev-dependencies]` of `prism-dtu-harness` (test-only) | `ClarotyClone` referenced only in `prism-dtu-harness/tests/`; `prism-dtu-harness/src/` and `prism-dtu-demo-server/src/` never name it directly. Same INV-PERIMETER-001 non-breach note as above. |
 | `tempfile` | `"3"` (literal pin; matches siblings; no workspace pin exists) | `[dev-dependencies]` (test-only) | Caller owns `TempDir` and passes `dir.path()` to `write_overlay_temp_dir`; no `tempfile` import in `src/`. |
 
 Version source for `axum`/`tokio`: use literal per-crate pins matching sibling crates
@@ -794,6 +819,9 @@ version" for these two. For all other crates, verify workspace path/version befo
 | MODIFY | `.github/workflows/ci.yml` | Bump `EXPECTED=52` → `EXPECTED=60` (8 new gate errors: 7 E0639 struct-literal arms + 1 E0004 match arm; detail: 4 structs from demo-server [MultiInstanceConfig, InstanceEntry, DemoBindError, MultiInstanceServers] + 3 from harness [MultiInstanceHarness, HarnessEntry, BindError] = 7 E0639; MultiInstanceBindError enum = 1 E0004; +1 for MultiInstanceServers lifecycle handle per architect D-1075-API-GAP-001). |
 | CREATE | `crates/prism-dtu-demo-server/tests/multi_instance_tests.rs` | Red Gate tests for demo-server multi-instance (per §Red Gate Test Plan). |
 | CREATE | `crates/prism-dtu-harness/tests/multi_instance_harness_tests.rs` | Red Gate tests for harness multi-instance (per §Red Gate Test Plan). Uses `ArmisClone`/`ClarotyClone` from `[dev-dependencies]`. |
+| MODIFY | `crates/prism-dtu-armis/src/state.rs` | Add `pub request_counter: AtomicU64` field + `pub fn received_request_count(&self) -> u64` accessor + reset in `reset_all()`. AC-006 server-side isolation counter (independent of Claroty FailureLayer). Scope added by F-P1-HIGH-001 fix; recorded here per F-P8-HIGH-001 scope-sync. |
+| MODIFY | `crates/prism-dtu-armis/src/clone.rs` | Add `count_request_middleware` axum layer (outermost in `build_router`, increments `request_counter` on every request) + `pub fn request_count(&self) -> u64` method + `GET /dtu/request-count` DTU control-plane route (sibling to `/dtu/health`, `/dtu/configure`, `/dtu/reset`). AC-006 load-bearing isolation-proof instrumentation. Scope added by F-P1-HIGH-001 fix; recorded here per F-P8-HIGH-001 scope-sync. |
+| MODIFY | `crates/prism-dtu-armis/src/routes/dtu.rs` | Add `get_request_count` handler returning plain decimal count for `GET /dtu/request-count`. AC-006 load-bearing isolation-proof instrumentation. Scope added by F-P1-HIGH-001 fix; recorded here per F-P8-HIGH-001 scope-sync. |
 
 ---
 
@@ -851,3 +879,4 @@ version" for these two. For all other crates, verify workspace path/version befo
 | 1.7 | 2026-06-14 | story-writer | F-P4-MED-001 (LOCAL adversary Pass-4): completed the F-P3-LOW-002 sweep — AC-004, AC-007, Task-5 (and any other) residual entries.iter_mut() references corrected to the implemented by-value `for mut entry in entries` consumption. Partial-fix-regression closure (S-7.01/TD-VSDD-060). Doc-accuracy only; no contract change. Status remains ready. |
 | 1.8 | 2026-06-14 | story-writer | LOCAL adversary Pass-5: F-P5-MED-001 (swept all stale BC-2.06.017 v1.1 citations → v1.5 final; BC-table amendment history updated: v1.1→v1.2→v1.3→v1.4→v1.5), F-P5-MED-002 (H1 made version-agnostic to stop desync — authoritative version lives in frontmatter + body Version: line), F-P5-MED-003 (AC-005/§Locked-API/Task-6/§File-Structure overlay format corrected from base_url-only → 3 required fields extends+instance_id+base_url per OverlayLoader/INV-SCALAR-003, aligned with BC-2.06.017 v1.5 Postcondition 2 + TV-017-009). Doc-accuracy/spec-alignment only; no contract change. Status remains ready. |
 | 1.9 | 2026-06-14 | story-writer | consistency-audit (pre-Pass-6): made ALL inline BC-2.06.017 version citations version-agnostic (dropped vX.Y pins; cite anchors by name) — permanently eliminates the BC-version-drift class (TD-VSDD-091 anti-volatile-pin); authoritative version lives in BC-INDEX + frontmatter array. No contract change. Status remains ready. |
+| 1.10 | 2026-06-14 | story-writer | F-P8-HIGH-001 (LOCAL adversary Pass-8): recorded the prism-dtu-armis/src/ production scope expansion from the F-P1-HIGH-001 isolation-counter fix (crates_touched += prism-dtu-armis; Architecture Mapping rows added for state.rs request_counter field + clone.rs count_request_middleware/request_count()//dtu/request-count route + routes/dtu.rs get_request_count handler; File Structure MODIFY rows added for crates/prism-dtu-armis/src/{state.rs,clone.rs,routes/dtu.rs}; AC-006 proof-mechanism note added explaining the server-side counter replaces the earlier paper-fix). Clarified the harness/demo-server-src-never-names-clone-types assertion (INV-PERIMETER-001 perimeter intact for those two crates) vs the armis-clone-instruments-itself counter (NOT a perimeter breach — armis is the clone, not a consumer). U-002 note in Architecture Mapping + Architecture Compliance Rules row + Library table row all updated for accuracy. Spec↔code scope sync per S-7.01; no code change. Status remains ready. |

@@ -1331,3 +1331,59 @@ The result: at deep cascade depth, a zero-context restart reading the task ledge
 **Outcome (D-1139):** Full convergence confirmed at P27 (exhaustive grep ZERO residual). Lesson codified here to prevent recurrence in future stories that touch perimeter-compliance prose or any other cross-cutting claim spanning code + spec + evidence + tape surfaces.
 
 **Tag:** `cross-surface-prose-sweep` `perimeter-prose` `sibling-sweep` `evidence-surface`
+
+---
+
+## z21 — Code-scope expansion into a new crate/file requires spec-sibling sweep in the SAME fix-burst; undocumented scope growth is a partial-fix regression (D-1152, 2026-06-13)
+
+**Date recorded:** 2026-06-13
+**D-NNN anchor:** D-1152 (Pass-8 F-P8-HIGH-001 HIGH scope-drift finding + closure)
+**Story:** S-DEMO-MULTI-TENANT-DTU-001
+**Tags:** [process-gap] [codified] [code-scope-expansion] [spec-sibling-sweep] [partial-fix-regression] [S-7.01] [TD-VSDD-060] [orchestrator-checklist] [streak-reset]
+**Classification:** PROCESS-GAP — codified as orchestrator scope-expansion checklist item.
+
+**What happened:**
+
+Pass-1 fix-burst for F-P1-HIGH-001 (AC-006/INV-ISOLATION-001 isolation-counter fix) correctly fixed the behavioral defect by adding a server-side `AtomicU64` request counter to `ArmisClone`. This expanded PRODUCTION code into `prism-dtu-armis/src/` (three files: state.rs, clone.rs, routes/dtu.rs). The counter itself is legitimate and load-bearing (DTU clone instrumenting itself for isolation proof; `/dtu/*` control-plane route; NOT an INV-PERIMETER-001 breach).
+
+However, the same fix-burst did NOT sweep the spec sibling surfaces that enumerate crate scope:
+
+- `crates_touched` frontmatter in the story: never added `prism-dtu-armis`
+- Story Architecture Mapping table: no row for prism-dtu-armis
+- Story File Structure Reference: no rows for `prism-dtu-armis/src/*.rs`
+- Story Token Budget: crate list did not include prism-dtu-armis
+- BC-2.06.017 `crates:` frontmatter array: `prism-dtu-armis` absent
+
+A fresh-context adversary at Pass-8 (the next pass where streak had advanced to 1/3) saw this mismatch and correctly classified it as a partial-fix regression per S-7.01: code scope grew, spec sibling surfaces not swept. Streak RESET 1/3 → 0/3.
+
+**Root cause:**
+
+The orchestrator routing for F-P1-HIGH-001 dispatched: (a) implementer — add counter to ArmisClone; (b) test-writer — rewrite isolation tests to server-side delta assertion. These two agents correctly closed the behavioral defect. Neither the orchestrator routing instruction nor the fix-burst protocol included: (c) story-writer — sweep `crates_touched` + Architecture Mapping + File Structure + Token Budget for any new crate/file touched; (d) product-owner — sweep BC `crates:` array for new crates touched.
+
+The omission was a routing gap in the fix-burst scope, not a defect in the agents' work. The agents fixed what they were dispatched to fix. The additional spec-sibling sweep was never dispatched.
+
+**Cost:** Streak RESET 1/3 → 0/3 at Pass-8. Pass-9 must now start a fresh 3-consecutive-clean run.
+
+**Canonical rule (codified — orchestrator scope-expansion checklist):**
+
+> **When an adversarial fix-burst EXPANDS code scope into a new crate or new file (e.g., adds production code to a crate not previously touched by the story), the orchestrator MUST in the SAME fix-burst dispatch spec-sibling surface sweeps:**
+>
+> 1. **story-writer:** sweep `crates_touched` frontmatter + Architecture Mapping table + File Structure Reference table + Token Budget crate list. Add rows/entries for every new crate or file created.
+> 2. **product-owner:** sweep BC `crates:` frontmatter array + any BC postconditions/invariants that enumerate crate scope. Add the new crate to `crates:`.
+> 3. **Commit code-scope expansion + spec-sibling sweeps in the SAME fix-burst commit** (single atomic commit per TD-VSDD-053). An undocumented code-scope expansion is a partial-fix regression (S-7.01) that a later fresh-context adversary WILL surface as a HIGH (cost: streak reset).
+>
+> **Trigger for this checklist:** any fix-burst where the implementer creates or modifies files outside the story's documented `crates_touched` list. Before the implementer commits, the orchestrator checks: "are all modified crates/files in `crates_touched`?" If no, dispatch the spec-sibling sweep as part of the same burst.
+>
+> **Scope-expansion check command:** `git diff --name-only HEAD` → for each file in a crate not in `crates_touched`, add it to the sweep scope.
+
+**Mitigation (standing orchestrator process rule):**
+
+After dispatching any code fix-burst, the orchestrator MUST run:
+```
+git -C <worktree> diff --name-only <base>
+```
+and for each modified file, verify the file's crate appears in the story's `crates_touched` frontmatter. Any crate not listed is a scope-expansion requiring story-writer + product-owner sibling sweeps in the same burst.
+
+**Outcome (D-1152):**
+
+story-writer v1.9→v1.10: `crates_touched` += prism-dtu-armis; Architecture Mapping + File Structure Reference rows added; AC-006 proof note clarified (harness/demo-server src/ vs armis-own-src); perimeter assertion disambiguated. product-owner BC v1.6→v1.7: `crates:` += prism-dtu-armis; Postcondition 4 verification-mechanism note (server-side counter lives in ArmisClone, control-plane route, not a perimeter violation). No code change. Lesson codified here. Pass-9 NEXT; need 9+10+11 CLEAN(strict) for 3/3 convergence.

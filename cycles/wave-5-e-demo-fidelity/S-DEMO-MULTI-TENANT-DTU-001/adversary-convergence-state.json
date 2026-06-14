@@ -1,10 +1,10 @@
 {
   "story_id": "S-DEMO-MULTI-TENANT-DTU-001",
   "protocol": "BC-5.39.001 3-CLEAN-strict",
-  "passes_completed": 7,
-  "clean_strict_streak": 1,
-  "last_pass": 7,
-  "last_classification": "CLEAN",
+  "passes_completed": 8,
+  "clean_strict_streak": 0,
+  "last_pass": 8,
+  "last_classification": "HIGH-SCOPE-DRIFT",
   "findings_pass_1": {
     "CRIT": 0,
     "HIGH": 1,
@@ -46,7 +46,11 @@
     "story_scoped_total": 0
   },
   "pass_7_observation": "capabilities.md CAP-036 reverse-cite lag — out-of-diff, pre-existing, 4-BC cohort (BC-2.06.017/018/019/020), routed business-analyst, non-blocking; does not reset streak per BC-5.39.001 out-of-scope exception",
-  "all_findings_through_pass_7": "CLOSED",
-  "note": "code stable since Pass-1 commit 9b4f4154; passes 2-7 doc/spec/CI accuracy sweeps. Pass-6: 1 MED finding (F-P6-MED-001 — harness doc shutdown() ghost reference) — doc-only fix a27b0f54. Pass-7: ZERO story-scoped findings; all SAP-1/gate/semantic-anchor/AC-coverage/partial-fix propagation axes CLEAN; adversary declares story CONVERGED on content. One out-of-scope OBSERVATION (CAP-036 reverse-cite lag) routed business-analyst, does not reset streak.",
-  "next": "pass-8 (need 2 more consecutive CLEAN-strict for 3/3 convergence)"
+  "findings_pass_8": {
+    "HIGH": 1,
+    "note": "F-P8-HIGH-001 — F-P1-HIGH-001 fix-burst expanded production code into prism-dtu-armis/src/ (state.rs request_counter AtomicU64; clone.rs count_request_middleware + request_count() + GET /dtu/request-count; routes/dtu.rs get_request_count handler) but story crates_touched + Architecture Mapping + File Structure Reference + Token Budget + BC crates: array never recorded it. Partial-fix-regression class (S-7.01): code scope grew, spec sibling surfaces not swept. Counter itself is legitimate (DTU clone instrumenting itself for AC-006 isolation proof; /dtu/* control plane; NOT INV-PERIMETER-001 breach). FIXED: story-writer v1.9→v1.10 (crates_touched += prism-dtu-armis; Architecture Mapping + File Structure rows; AC-006 proof note; perimeter assertion clarified); product-owner BC v1.6→v1.7 (crates: array += prism-dtu-armis; Postcondition 4 verification-mechanism note). No code change."
+  },
+  "all_findings_through_pass_8": "CLOSED",
+  "note": "code stable since Pass-1 commit 9b4f4154; passes 2-8 doc/spec/CI accuracy sweeps. Pass-8: 1 HIGH finding (F-P8-HIGH-001 — prism-dtu-armis/src undocumented from F-P1 fix-burst) — spec sibling sync fix (story v1.10, BC v1.7); streak RESET 1→0. Need 3 consecutive CLEAN from pass-9.",
+  "next": "pass-9 (need passes 9+10+11 all CLEAN-strict for 3/3 convergence)"
 }
