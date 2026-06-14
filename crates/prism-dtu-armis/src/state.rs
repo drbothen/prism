@@ -13,7 +13,10 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use prism_core::OrgId;
@@ -137,6 +140,30 @@ pub struct ArmisState {
     /// (no parsing, no validation — per R-DTU-002 mitigation).
     pub aql_log: Mutex<Vec<String>>,
 
+    /// Per-instance HTTP request counter.
+    ///
+    /// Incremented atomically by the counting tower layer on EVERY request received
+    /// by this clone's router (vendor API + DTU-internal routes alike).
+    ///
+    /// # Test-infra usage (AC-006 / INV-ISOLATION-001)
+    ///
+    /// Multi-tenant isolation tests read this counter via
+    /// `ArmisClone::request_count()` to prove zero cross-tenant leakage
+    /// from INSIDE the clone's router:
+    ///
+    /// ```text
+    /// let count_a = clone_a.request_count();  // requests received by instance A's router
+    /// let count_b = clone_b.request_count();  // requests received by instance B's router
+    /// // After dispatching N requests to S_A and 0 to S_B:
+    /// assert_eq!(count_a, N);
+    /// assert_eq!(count_b, 0);   // zero cross-tenant leakage
+    /// ```
+    ///
+    /// Reset by `reset_all()` / `BehavioralClone::reset()`.
+    ///
+    /// (BC-2.06.017 AC-006 / INV-ISOLATION-001; mirrors `ClarotyState::request_counter`)
+    pub request_counter: AtomicU64,
+
     /// Shared failure mode, read by `FailureLayerShared` on every request.
     ///
     /// Wrapped in `Arc` so `build_router()` can clone it into the tower layer
@@ -240,6 +267,7 @@ impl ArmisState {
             alert_fixture: alerts,
             tag_store: Mutex::new(HashMap::new()),
             aql_log: Mutex::new(Vec::new()),
+            request_counter: AtomicU64::new(0),
             failure_mode: Arc::new(Mutex::new(FailureMode::None)),
             admin_token,
             instance_org_id,
@@ -280,6 +308,9 @@ impl ArmisState {
         #[allow(clippy::expect_used)]
         let mut aql = self.aql_log.lock().expect("aql_log poisoned");
         aql.clear();
+
+        // Reset the per-instance request counter.
+        self.request_counter.store(0, Ordering::SeqCst);
 
         // SAFETY: same as above.
         #[allow(clippy::expect_used)]
@@ -396,6 +427,30 @@ impl ArmisState {
             *guard = mode;
         }
         Ok(())
+    }
+
+    /// Return the number of HTTP requests received by this clone's router since construction
+    /// (or last `reset_all()`).
+    ///
+    /// Incremented by the counting tower layer in `ArmisClone::build_router()` on every
+    /// incoming request — vendor API routes AND DTU-internal routes alike.
+    ///
+    /// # Multi-tenant isolation usage
+    ///
+    /// This is the load-bearing server-side counter for AC-006 / INV-ISOLATION-001.
+    /// Test code reads this value AFTER dispatching requests to verify zero cross-tenant
+    /// leakage from INSIDE the clone's router (not merely from the client side):
+    ///
+    /// ```text
+    /// // Before: both clones at 0.
+    /// // Dispatch 5 requests to clone A's SocketAddr.
+    /// assert_eq!(clone_a.request_count(), 5);  // all 5 reached A's router
+    /// assert_eq!(clone_b.request_count(), 0);  // zero reached B's router
+    /// ```
+    ///
+    /// (BC-2.06.017 AC-006 / INV-ISOLATION-001)
+    pub fn received_request_count(&self) -> u64 {
+        self.request_counter.load(Ordering::SeqCst)
     }
 
     /// Append an AQL string to the capture log.
