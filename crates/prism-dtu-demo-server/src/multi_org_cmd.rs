@@ -65,10 +65,13 @@ pub type CloneFactoryFn<'a> = Box<dyn Fn(&InstanceEntry) -> Box<dyn BehavioralCl
 /// `CyberintClone::new_with_seed` does NOT set `initial_access_token`. To satisfy BOTH
 /// seed-based data distinctness AND access-token auth, the factory uses the composite pattern:
 /// 1. Call `new_with_seed(seed, archetype, org_id)` to produce the seeded clone.
-/// 2. If `org_cfg.initial_access_token.is_some()`, call `configure({"access_token": token})`
-///    synchronously via `tokio::runtime::Handle::current().block_on(...)`.
-///    The factory closure is synchronous but `configure` is async — block_on is the
-///    minimum-change approach that avoids refactoring `CloneFactoryFn` to async.
+/// 2. If `org_cfg.initial_access_token.is_some()`, apply the token synchronously via
+///    `clone.state.apply_config(...)`. `BehavioralClone::configure` is declared async in
+///    the trait, but `CyberintState::apply_config` is synchronous. Calling `block_on`
+///    inside the factory closure (which runs on a tokio worker thread) would panic with
+///    "Cannot start a runtime from within a runtime". We bypass the trait's async wrapper
+///    and call `clone.state.apply_config` directly while we still hold the concrete
+///    `CyberintClone` type (before `Box::new(clone)` erases it to `dyn BehavioralClone`).
 ///
 /// # EC-008 / EC-009
 ///
@@ -155,25 +158,27 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
             "cyberint" => {
                 // GAP-2 composite path:
                 //   1. new_with_seed → seeded clone (no access_token yet)
-                //   2. if initial_access_token.is_some() → configure({"access_token": token})
+                //   2. if initial_access_token.is_some() → apply token synchronously via
+                //      clone.state.apply_config (CyberintState::apply_config is sync).
                 //
-                // configure() is async; the factory closure is synchronous. We use
-                // block_on(current runtime handle) which is safe here because:
-                //   - start_instances calls the factory from a tokio multi-thread executor
-                //   - block_on within a tokio::spawn task (not within async fn directly)
-                //     is allowed when we have a handle to the current runtime.
+                // We call clone.state.apply_config BEFORE Box::new(clone) so that the
+                // concrete CyberintClone type is still in scope. After boxing to
+                // Box<dyn BehavioralClone>, only the async configure() trait method is
+                // accessible — which would require block_on and panic on a tokio thread.
                 #[allow(clippy::expect_used)]
                 let clone = CyberintClone::new_with_seed(seed, archetype, org_id).expect(
                     "CyberintClone::new_with_seed must succeed for valid seed/archetype/org_id",
                 );
 
                 if let Some(token) = &org_cfg.initial_access_token {
-                    // GAP-2: register the access token in the clone's allowlist pre-start.
-                    // clone implements BehavioralClone::configure (async); block_on here.
+                    // GAP-2: register access token synchronously via the state's sync path.
+                    // CyberintState::apply_config is synchronous; calling it directly avoids
+                    // the block_on-within-tokio-runtime panic (CRIT-2 fix).
                     #[allow(clippy::expect_used)]
-                    tokio::runtime::Handle::current()
-                        .block_on(clone.configure(serde_json::json!({"access_token": token})))
-                        .expect("CyberintClone::configure(access_token) must succeed");
+                    clone
+                        .state
+                        .apply_config(&serde_json::json!({"access_token": token}))
+                        .expect("CyberintState::apply_config(access_token) must succeed");
                 }
 
                 Box::new(clone)

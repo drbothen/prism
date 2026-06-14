@@ -1,71 +1,18 @@
-# scripts/demo.toml — DTU demo server configuration.
+# scripts/demo.toml — DTU demo server multi-org configuration.
 #
-# This file serves DUAL purpose:
-#   1. [harness] + [clones.*] sections: used by `start` subcommand (backward-compat S-DEMO-003).
-#      Enables all 4 sensor DTU clones on ephemeral ports (port = 0).
-#      The actual ports are written to .prism-dtu-demo-server.urls.json after the server starts.
-#   2. [orgs.*] sections: used by `start-multi` subcommand (S-DEMO-LAUNCHER-CONSOLIDATION-001).
-#      Each org gets its own DTU clone fleet; seeds differ to satisfy INV-DISTINCT-DATA-001.
-#
-# NOTE: DemoConfig (used by `start`) has deny_unknown_fields and ignores [orgs.*] because
-#       `start` loads configs/demo.toml (not scripts/demo.toml). When scripts/demo.toml is
-#       passed to `start`, the [orgs.*] section causes a parse error — use configs/demo.toml
-#       with `start`. Use scripts/demo.toml only with `start-multi`.
+# Used ONLY by `start-multi` subcommand (S-DEMO-LAUNCHER-CONSOLIDATION-001).
+# Each org gets its own DTU clone fleet; seeds differ to satisfy INV-DISTINCT-DATA-001.
 #
 # Usage:
-#   prism-dtu-demo-server start --config configs/demo.toml         (single-org S-DEMO-003)
-#   prism-dtu-demo-server start-multi --config scripts/demo.toml   (multi-org S-DEMO-LAUNCHER-CONSOLIDATION-001)
+#   prism-dtu-demo-server start-multi --config scripts/demo.toml   (multi-org)
 #
-# Stories: S-DEMO-003 | S-DEMO-LAUNCHER-CONSOLIDATION-001
+# For single-org (`start` subcommand), use configs/demo.toml instead:
+#   prism-dtu-demo-server start --config configs/demo.toml
+#
+# Stories: S-DEMO-LAUNCHER-CONSOLIDATION-001
 
 [harness]
 bind = "127.0.0.1"
-
-[clones.crowdstrike]
-enabled = true
-bind = "127.0.0.1"
-port = 0
-fixture_set = "default"
-initial_failure_mode = "None"
-seed = 42
-tls = false
-continue_on_error = false
-
-[clones.armis]
-enabled = true
-bind = "127.0.0.1"
-port = 0
-fixture_set = "default"
-initial_failure_mode = "None"
-seed = 42
-tls = false
-continue_on_error = false
-
-[clones.claroty]
-enabled = true
-bind = "127.0.0.1"
-port = 0
-fixture_set = "default"
-initial_failure_mode = "None"
-seed = 42
-tls = false
-continue_on_error = false
-
-[clones.cyberint]
-enabled = true
-bind = "127.0.0.1"
-port = 0
-fixture_set = "default"
-initial_failure_mode = "None"
-seed = 42
-tls = false
-continue_on_error = false
-# initial_access_token: seeded into the Cyberint DTU allowlist at startup.
-# demo-setup.sh stores the matching value in the OS keyring under
-# prism/cyberint/api_key for org slug "demo-org". StaticCookieAuthProvider
-# reads it and injects Cookie: access_token=<value> on each fetch request.
-# ADR-031 §D3-a: Cyberint uses static cookie auth (no HTTP login step).
-initial_access_token = "demo-cyberint-api-key"
 
 # ---------------------------------------------------------------------------
 # Multi-org fleet config for `start-multi` (S-DEMO-LAUNCHER-CONSOLIDATION-001)

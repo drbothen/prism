@@ -310,3 +310,205 @@ async fn test_start_multi_stands_up_per_org_distinct_sockets() {
     // Graceful shutdown (no zombie instances).
     servers.shutdown();
 }
+
+// ---------------------------------------------------------------------------
+// CRIT-1 load-bearing: scripts/demo.toml parses as MultiOrgDemoConfig
+//
+// This test FAILED before the CRIT-1 fix (scripts/demo.toml contained [clones.*]
+// sections rejected by deny_unknown_fields on MultiOrgDemoConfig).
+// It PASSES after: scripts/demo.toml is orgs-only ([harness] + [orgs.*] only).
+//
+// Traces to: CRIT-1 (adversary pass-1) + BC-2.06.001 PC-1
+// ---------------------------------------------------------------------------
+
+/// CRIT-1: The actual scripts/demo.toml must parse as MultiOrgDemoConfig.
+///
+/// Before the fix, MultiOrgDemoConfig::from_file("scripts/demo.toml") failed
+/// with a deny_unknown_fields error because the file contained [clones.*] sections
+/// that are not recognised by MultiOrgDemoConfig (which only accepts [harness] and
+/// [orgs.*]). The fix removes [clones.*] from scripts/demo.toml.
+///
+/// Asserts:
+/// 1. The file exists and parses without error.
+/// 2. Exactly 3 orgs are configured (org-a, org-b, org-c).
+/// 3. org-a has sensors = ["crowdstrike", "armis"] and seed = 100.
+/// 4. org-b has initial_access_token set (Cyberint token).
+/// 5. org-c has all 4 sensors and initial_access_token set.
+#[test]
+fn test_scripts_demo_toml_parses_as_multi_org_config() {
+    // Resolve scripts/demo.toml from CARGO_MANIFEST_DIR (crates/prism-dtu-demo-server/)
+    // up to the workspace root, then into scripts/.
+    let demo_toml = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..") // → crates/
+        .join("..") // → workspace root
+        .join("scripts")
+        .join("demo.toml");
+
+    let demo_toml = demo_toml.canonicalize().unwrap_or_else(|e| {
+        panic!(
+            "CRIT-1: scripts/demo.toml not found at expected path {:?}: {}. \
+             Ensure scripts/demo.toml exists at the workspace root.",
+            demo_toml, e
+        )
+    });
+
+    let cfg = MultiOrgDemoConfig::from_file(&demo_toml).unwrap_or_else(|e| {
+        panic!(
+            "CRIT-1: MultiOrgDemoConfig::from_file(\"scripts/demo.toml\") failed: {}. \
+             This was caused by [clones.*] sections in the file being rejected by \
+             deny_unknown_fields. Fix: scripts/demo.toml must be orgs-only.",
+            e
+        )
+    });
+
+    // Assert 3 orgs are present.
+    assert_eq!(
+        cfg.orgs.len(),
+        3,
+        "CRIT-1: scripts/demo.toml must configure exactly 3 orgs (org-a, org-b, org-c)"
+    );
+
+    // Assert org-a has expected sensors and seed.
+    let org_a = cfg.orgs.get("org-a").expect("org-a must be present");
+    let mut org_a_sensors = org_a.sensors.clone();
+    org_a_sensors.sort();
+    assert_eq!(
+        org_a_sensors,
+        ["armis", "crowdstrike"],
+        "org-a must have sensors [crowdstrike, armis]"
+    );
+    assert_eq!(
+        org_a.seed, 100,
+        "org-a seed must be 100 (INV-DISTINCT-DATA-001)"
+    );
+    assert!(
+        org_a.initial_access_token.is_none(),
+        "org-a must not have initial_access_token (no Cyberint sensor)"
+    );
+
+    // Assert org-b has Cyberint token.
+    let org_b = cfg.orgs.get("org-b").expect("org-b must be present");
+    assert!(
+        org_b.initial_access_token.is_some(),
+        "org-b must have initial_access_token (Cyberint sensor)"
+    );
+    assert_eq!(
+        org_b.seed, 150,
+        "org-b seed must be 150 (INV-DISTINCT-DATA-001)"
+    );
+
+    // Assert org-c has all 4 sensors and Cyberint token.
+    let org_c = cfg.orgs.get("org-c").expect("org-c must be present");
+    assert_eq!(
+        org_c.sensors.len(),
+        4,
+        "org-c must have all 4 sensors (crowdstrike, armis, claroty, cyberint)"
+    );
+    assert!(
+        org_c.initial_access_token.is_some(),
+        "org-c must have initial_access_token (Cyberint sensor)"
+    );
+    assert_eq!(
+        org_c.seed, 200,
+        "org-c seed must be 200 (INV-DISTINCT-DATA-001)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CRIT-2 load-bearing: start_multi with Cyberint token does NOT panic
+//
+// Before the fix, the factory closure called
+// `tokio::runtime::Handle::current().block_on(clone.configure(...))` inside a
+// synchronous closure invoked on a tokio worker thread → panic: "Cannot start a
+// runtime from within a runtime". The fix calls clone.state.apply_config(...) directly
+// (synchronous path) before boxing the clone.
+//
+// Traces to: CRIT-2 (adversary pass-1) + BC-2.06.017 PC-1 (GAP-2)
+// ---------------------------------------------------------------------------
+
+/// CRIT-2: start_multi_for_config with Cyberint + initial_access_token must not panic.
+///
+/// Before the fix, block_on inside the factory closure panicked when invoked from a
+/// tokio worker thread. The fix uses the synchronous CyberintState::apply_config path.
+///
+/// Asserts:
+/// 1. start_multi_for_config returns Ok (no panic during clone construction).
+/// 2. The Cyberint clone accepts HTTP requests authenticated with the seeded token
+///    (token is in the clone's allowlist → GET /api/v1/alerts returns 200, not 401).
+/// 3. An invalid token returns 401 (allowlist not poisoned).
+#[tokio::test]
+async fn test_start_multi_cyberint_token_seeded_no_panic() {
+    const TEST_TOKEN: &str = "crit-2-test-access-token-abc123";
+
+    let toml = r#"
+        [harness]
+        bind = "127.0.0.1"
+
+        [orgs.org-b]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0001"
+        sensors = ["cyberint"]
+        seed = 150
+        initial_access_token = "crit-2-test-access-token-abc123"
+    "#;
+    let cfg = MultiOrgDemoConfig::from_str(toml).expect("must parse");
+
+    // This must not panic. Before CRIT-2 fix it panicked with:
+    // "Cannot start a runtime from within a runtime"
+    let servers = prism_dtu_demo_server::start_multi_for_config(&cfg)
+        .await
+        .expect(
+            "CRIT-2: start_multi_for_config with Cyberint initial_access_token must not panic \
+                 or return Err. Before the fix, block_on inside the factory closure panicked \
+                 on the tokio worker thread.",
+        );
+
+    let socket_map = servers.socket_map();
+    let cyberint_addr = socket_map
+        .get("org-b-cyberint")
+        .expect("org-b-cyberint must be in socket_map");
+
+    // Verify the token is in the Cyberint clone's allowlist by making an authenticated
+    // HTTP request. If the token was NOT seeded, the response would be 401.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("reqwest client must build");
+
+    let alerts_url = format!("http://{cyberint_addr}/api/v1/alerts");
+
+    // Case 1: seeded token → expect 200 (token is in allowlist)
+    let resp = client
+        .get(&alerts_url)
+        .header("Cookie", format!("access_token={TEST_TOKEN}"))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts with seeded token must not network-error");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "CRIT-2: Cyberint clone must accept the seeded initial_access_token. \
+         Got HTTP {} instead of 200. The token was not registered in the allowlist — \
+         the GAP-2 composite path (apply_config after new_with_seed) is broken.",
+        resp.status().as_u16()
+    );
+
+    // Case 2: wrong token → expect 401 (allowlist is not poisoned / not disabled)
+    let resp_bad = client
+        .get(&alerts_url)
+        .header("Cookie", "access_token=wrong-token-should-fail")
+        .send()
+        .await
+        .expect("GET /api/v1/alerts with wrong token must not network-error");
+
+    assert_eq!(
+        resp_bad.status().as_u16(),
+        401,
+        "CRIT-2 sanity: Cyberint clone must reject an invalid token (401). \
+         Got HTTP {} — the allowlist validation is broken.",
+        resp_bad.status().as_u16()
+    );
+
+    // Graceful shutdown.
+    servers.shutdown();
+}
