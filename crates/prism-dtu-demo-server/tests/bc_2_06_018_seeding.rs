@@ -12,7 +12,7 @@
 //! Traces to: BC-2.06.018 INV-DISTINCT-DATA-001, PC-4, INV-FIXTURE-SET-ARCHETYPE-MAP-001,
 //!            INV-CONSTRUCTION-TIME-FAILURE-001, E-DEMO-001/004/005
 
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
 use prism_dtu_demo_server::{config::DemoConfig, harness::build_clone_pairs};
 
