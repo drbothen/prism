@@ -1390,9 +1390,10 @@ pub const SEED_ORG_C_CYBERINT: u64 = 230;
 /// and returns a `BackgroundHarness` guard. The test thread can then block freely.
 ///
 /// The function is `async` so test callers can use `.await` (tests use `#[tokio::test]`).
-/// Internally, the background thread + its own multi-thread runtime are set up via
-/// `tokio::task::spawn_blocking`, which offloads the synchronous work to tokio's
-/// blocking thread pool without blocking the test runtime's async executor.
+/// Internally, the background thread + its own dedicated multi-thread runtime are set up via
+/// `std::thread::spawn`, which creates a raw OS thread that owns a new
+/// `tokio::runtime::Builder::new_multi_thread()` runtime. The runtime runs the harness's
+/// axum server tasks independently of anything on the test thread.
 pub async fn start_multi_org_harness() -> (BackgroundHarness, TempDir) {
     use prism_dtu_armis::ArmisClone;
     use prism_dtu_claroty::ClarotyClone;

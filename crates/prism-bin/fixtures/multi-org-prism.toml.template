@@ -37,8 +37,9 @@
 #   where {8hex} = hex(org_id.as_bytes()[0..4])
 #   CRITICAL: {8hex} is from UUID bytes, NOT the human slug "org-a".
 #
-# Per-org overlay files are written by write_overlay_temp_dir(&harness, tempdir.path())
-# under:  tempdir/specs/customers/org-{a,b,c}/{sensor_id}.sensor.toml
+# Per-org overlay files are written by write_overlay_from_socket_map(harness.socket_map(), specs_dir)
+# (called via write_multi_org_overlays in helpers/mod.rs) under:
+#   tempdir/specs/customers/org-{a,b,c}/{sensor_id}.sensor.toml
 # Each overlay carries: extends, instance_id = "{sensor_id}@org-{a,b,c}", base_url.
 #
 # This template is informational only; actual config is constructed programmatically
