@@ -62,3 +62,33 @@ failure-output = "immediate-final"
 path = "junit.xml"
 store-success-output = false
 store-failure-output = true
+
+# S-DEMO-004: Multi-org × multi-sensor isolation smoke test profile.
+# Un-ignores E2E-MULTI-001-tagged tests in e2e_multi_org.rs (currently 10 tests):
+#   - AC-001..AC-010 multi-org isolation assertions.
+#
+# Canonical CI command:
+#   cargo nextest run -p prism-bin --profile e2e-multi-org --run-ignored ignored-only \
+#     --no-tests=fail --test-threads 1
+#
+# Use `--run-ignored ignored-only` to run ONLY the #[ignore]'d multi-org E2E tests
+# without re-running the standard prism-bin test suite.
+#
+# --test-threads 1: serializes tests to prevent Secret Service races when multiple
+# credential-touching tests run in parallel (same pattern as [profile.e2e]).
+#
+# Timeout: 180s per test — multi-org setup (8 DTU clone instances + overlay wiring +
+# 3-org prism-bin boot + 10 multi-org MCP queries) is heavier than single-org smoke.
+# 180s provides 2x headroom over the expected ~90s worst-case on cold CI runners.
+# fail-fast: true — one subprocess deadlock aborts the suite to prevent CI queue starvation.
+[profile.e2e-multi-org]
+fail-fast = true
+retries = 1
+slow-timeout = { period = "180s", terminate-after = 1 }
+final-status-level = "all"
+failure-output = "immediate"
+
+[profile.e2e-multi-org.junit]
+path = "junit-multi-org.xml"
+store-success-output = false
+store-failure-output = true

@@ -1158,6 +1158,201 @@ pub async fn launch_prism_bin(
 /// # Precondition
 /// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
 /// The CI e2e profile ensures this; local runs require the manual build step.
+// ---------------------------------------------------------------------------
+// S-DEMO-004: Multi-org harness stubs (Red Gate — todo!() bodies)
+// ---------------------------------------------------------------------------
+//
+// These helpers are STUBS for the Red Gate. Each body contains `todo!()` so
+// the suite COMPILES but every test that calls them FAILS (RED) until the
+// implementer fills in the bodies.
+//
+// Implementer instructions:
+//   - start_multi_org_harness: call MultiInstanceHarness::start(entries) with 8
+//     HarnessEntry items (one per (org_slug, sensor_id) pair), constructed via
+//     HarnessEntry::new(org_slug, sensor_id, clone) where each clone is built
+//     with new_with_seed(seed, archetype, org_id) using DISTINCT per-org seeds.
+//     Return (harness, tempdir).
+//   - write_multi_org_overlays: call write_overlay_temp_dir(&harness, tempdir.path())
+//     to produce per-org TOML overlay files from the socket_map.
+//   - write_multi_org_prism_toml: write a 3-org prism.toml (org-a, org-b, org-c)
+//     pointing spec_dir at the tempdir/specs directory that contains the overlay
+//     files written by write_multi_org_overlays. The org_id UUIDs MUST match the
+//     ones used in start_multi_org_harness (same fixed UUIDs).
+//   - launch_prism_bin_multi_org: wraps launch_prism_bin with the 3-org credential
+//     env vars for org-a/org-b/org-c (same PRISM_CLIENTS_* pattern as launch_prism_bin).
+//
+// Seeds (fixed per story risk_mitigations):
+//   org-a crowdstrike: 100  |  org-a armis: 110
+//   org-b claroty:     120  |  org-b cyberint: 130
+//   org-c crowdstrike: 200  |  org-c armis:    210
+//   org-c claroty:     220  |  org-c cyberint: 230
+//
+// Org UUIDs (fixed UUIDv7 for deterministic tests, BC-2.21.001):
+//   org-a: "019700a0-0000-7000-8000-000000000021"
+//   org-b: "019700a0-0000-7000-8000-000000000022"
+//   org-c: "019700a0-0000-7000-8000-000000000023"
+//
+// CRITICAL: 8hex prefix for device ID assertions MUST be derived from
+// hex(org_id.as_bytes()[0..4]) of the UUID assigned above — NOT the human slug.
+// E.g., for "019700a0-0000-7000-8000-000000000021", bytes[0..4] = [0x01, 0x97, 0x00, 0xa0]
+// → 8hex = "019700a0". Device IDs for org-a CrowdStrike match "dev-019700a0-100-\d+".
+//
+// Story: S-DEMO-004
+// BCs: BC-3.2.001, BC-2.06.017, BC-2.06.018
+
+/// Fixed UUIDv7 org IDs used in all S-DEMO-004 multi-org tests (BC-2.21.001).
+///
+/// These MUST match the org_id values written in write_multi_org_prism_toml()
+/// and the OrgId bytes passed to new_with_seed() in start_multi_org_harness().
+///
+/// Device ID 8hex prefix is derived from hex(org_id.as_bytes()[0..4]):
+///   ORG_A_ID bytes[0..4] = [0x01, 0x97, 0x00, 0xa0] → "019700a0"
+///   ORG_B_ID bytes[0..4] = [0x01, 0x97, 0x00, 0xa0] → "019700a0"  (same first 4 bytes)
+///   ORG_C_ID bytes[0..4] = [0x01, 0x97, 0x00, 0xa0] → "019700a0"  (same first 4 bytes)
+///
+/// IMPORTANT: since these UUIDs share the same first 4 bytes (they are all v7
+/// UUIDs in the same time bucket), INV-DISTINCT-DATA-001 is proven by the SEED
+/// component of the ID ("dev-{8hex}-{seed}-{n}") rather than the 8hex alone:
+///   org-a IDs: "dev-019700a0-100-N"
+///   org-c IDs: "dev-019700a0-200-N"
+/// The seed component (100 vs 200) makes the sets structurally disjoint.
+pub const ORG_A_ID: &str = "019700a0-0000-7000-8000-000000000021";
+pub const ORG_A_SLUG: &str = "org-a";
+pub const ORG_B_ID: &str = "019700a0-0000-7000-8000-000000000022";
+pub const ORG_B_SLUG: &str = "org-b";
+pub const ORG_C_ID: &str = "019700a0-0000-7000-8000-000000000023";
+pub const ORG_C_SLUG: &str = "org-c";
+
+/// Seeds per (org, sensor) pair for S-DEMO-004.
+///
+/// Seeds are DISTINCT across orgs sharing the same sensor type (org-a and org-c both
+/// have CrowdStrike; seeds 100 vs 200 satisfy INV-DISTINCT-DATA-001 per BC-2.06.018).
+pub const SEED_ORG_A_CROWDSTRIKE: u64 = 100;
+pub const SEED_ORG_A_ARMIS: u64 = 110;
+pub const SEED_ORG_B_CLAROTY: u64 = 120;
+pub const SEED_ORG_B_CYBERINT: u64 = 130;
+pub const SEED_ORG_C_CROWDSTRIKE: u64 = 200;
+pub const SEED_ORG_C_ARMIS: u64 = 210;
+pub const SEED_ORG_C_CLAROTY: u64 = 220;
+pub const SEED_ORG_C_CYBERINT: u64 = 230;
+
+/// Start a `MultiInstanceHarness` with 8 DTU clone instances for the 3-org test matrix.
+///
+/// Org/sensor matrix:
+///   org-a: crowdstrike (seed=100), armis (seed=110)
+///   org-b: claroty (seed=120), cyberint (seed=130)
+///   org-c: crowdstrike (seed=200), armis (seed=210), claroty (seed=220), cyberint (seed=230)
+///
+/// Each clone is constructed via `new_with_seed(seed, Archetype::HealthyOtEnvironment, org_id)`.
+/// `ArmisClone::new_with_seed` and `CyberintClone::new_with_seed` are fallible (return
+/// `anyhow::Result<Self>`); `CrowdstrikeClone` and `ClarotyClone` are infallible.
+///
+/// Returns (harness, tempdir) — tempdir is kept alive by the caller for the test duration.
+/// The harness socket_map is keyed by (org_slug, sensor_id) plain strings.
+///
+/// # Red Gate stub (S-DEMO-004)
+/// // E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+pub async fn start_multi_org_harness() -> (
+    prism_dtu_harness::multi_instance::MultiInstanceHarness,
+    TempDir,
+) {
+    todo!(
+        "S-DEMO-004: implement start_multi_org_harness — \
+         call MultiInstanceHarness::start(entries) with 8 HarnessEntry items \
+         (org-a crowdstrike seed=100, org-a armis seed=110, \
+          org-b claroty seed=120, org-b cyberint seed=130, \
+          org-c crowdstrike seed=200, org-c armis seed=210, \
+          org-c claroty seed=220, org-c cyberint seed=230). \
+         Each entry: HarnessEntry::new(org_slug, sensor_id, Box::new(clone)) \
+         where clone = SensorClone::new_with_seed(seed, Archetype::HealthyOtEnvironment, org_id). \
+         ArmisClone::new_with_seed and CyberintClone::new_with_seed return anyhow::Result — use ?. \
+         Also write overlay files via write_overlay_temp_dir(&harness, tempdir.path()). \
+         Return (harness, tempdir)."
+    )
+}
+
+/// Write per-org overlay TOML files from the harness socket_map into `tempdir/specs/customers/`.
+///
+/// Calls `prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(&harness, tempdir.path())`.
+/// Second arg is `&std::path::Path` (use `tempdir.path()`, NOT `&tempdir`).
+///
+/// The overlay files are written under `{tempdir}/specs/customers/{org_slug}/{sensor_id}.sensor.toml`
+/// per BC-2.06.017 Postcondition 3 (overlay integration end-to-end).
+///
+/// # Red Gate stub (S-DEMO-004)
+pub fn write_multi_org_overlays(
+    harness: &prism_dtu_harness::multi_instance::MultiInstanceHarness,
+    tempdir: &TempDir,
+) -> Result<(), String> {
+    todo!(
+        "S-DEMO-004: implement write_multi_org_overlays — \
+         call prism_dtu_harness::overlay_wiring::write_overlay_temp_dir(harness, tempdir.path()). \
+         The second arg is &Path (use tempdir.path(), NOT &tempdir — &TempDir does not coerce to &Path). \
+         Returns Ok(()) once all 8 overlay TOML files are written under \
+         tempdir/specs/customers/{{org_slug}}/{{sensor_id}}.sensor.toml."
+    )
+}
+
+/// Write a 3-org prism.toml to `tempdir` for the S-DEMO-004 multi-org test.
+///
+/// Writes:
+///   - `{tempdir}/prism.toml` with 3 `[[orgs]]` entries (org-a, org-b, org-c)
+///     using the fixed UUIDv7 IDs from ORG_A_ID / ORG_B_ID / ORG_C_ID.
+///   - Sets `spec_dir`, `state_dir`, `plugin_dir` paths within the tempdir.
+///
+/// The per-org overlay TOML files are already written by `write_multi_org_overlays`;
+/// this function writes the top-level prism.toml that references the specs dir.
+///
+/// Also copies canonical TYPE specs from the workspace sensor specs directory
+/// (`crates/prism-sensors/specs/`) into `{tempdir}/specs/`, stages the
+/// crowdstrike-oauth2 plugin, and creates the `state/` and `plugins/` directories.
+///
+/// # Red Gate stub (S-DEMO-004)
+pub fn write_multi_org_prism_toml(tempdir: &TempDir) -> Result<(), String> {
+    todo!(
+        "S-DEMO-004: implement write_multi_org_prism_toml — \
+         write prism.toml with 3 [[orgs]] entries using ORG_A_ID/ORG_A_SLUG, \
+         ORG_B_ID/ORG_B_SLUG, ORG_C_ID/ORG_C_SLUG. \
+         Copy canonical TYPE specs from workspace crates/prism-sensors/specs/ into \
+         tempdir/specs/. Stage crowdstrike-oauth2 plugin via stage_crowdstrike_plugin(). \
+         The overlay files are written separately by write_multi_org_overlays; \
+         this function only writes the top-level config. \
+         Pattern: see write_org_config() in this file."
+    )
+}
+
+/// Launch `prism start` with per-org credential env vars for the 3-org multi-tenant test.
+///
+/// Sets PRISM_CLIENTS_ORG_{A,B,C}_SENSORS_* env vars for all sensors active per org:
+///   org-a: crowdstrike (client_id, client_secret), armis (bearer_token)
+///   org-b: claroty (bearer_token), cyberint (api_key)
+///   org-c: all 4 sensors
+///
+/// The org slug env prefix is ORG_A_SLUG.replace('-', '_').to_uppercase() → "ORG_A", etc.
+/// Per ADR-032 / BC-2.06.003 v1.3: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}.
+///
+/// Also sets RUST_LOG=off, CROWDSTRIKE_BASE_URL=http://127.0.0.1, and the
+/// sensor placeholder env vars (CLAROTY_INSTANCE_URL, ARMIS_INSTANCE_URL,
+/// CYBERINT_ENVIRONMENT) following the same pattern as launch_prism_bin().
+///
+/// # Red Gate stub (S-DEMO-004)
+/// // E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+pub async fn launch_prism_bin_multi_org(
+    config_dir: &Path,
+) -> Result<(SubprocessGuard, McpStdioHandle), String> {
+    todo!(
+        "S-DEMO-004: implement launch_prism_bin_multi_org — \
+         spawn prism-bin with PRISM_CLIENTS_ORG_A_*, PRISM_CLIENTS_ORG_B_*, \
+         PRISM_CLIENTS_ORG_C_* env vars for all active sensors. \
+         Org slug → env prefix: 'org-a' → 'ORG_A', 'org-b' → 'ORG_B', 'org-c' → 'ORG_C'. \
+         Follow the same pattern as launch_prism_bin() above. \
+         Also set RUST_LOG=off, CROWDSTRIKE_BASE_URL=http://127.0.0.1, \
+         CLAROTY_INSTANCE_URL=http://placeholder.claroty.invalid, \
+         ARMIS_INSTANCE_URL=http://placeholder.armis.invalid, \
+         CYBERINT_ENVIRONMENT=demo."
+    )
+}
+
 fn locate_binary(name: &str) -> Result<PathBuf, String> {
     // Env var name: replace hyphens with underscores per cargo convention.
     // NOTE: CARGO_BIN_EXE_* is only set for cross-package bins if declared as

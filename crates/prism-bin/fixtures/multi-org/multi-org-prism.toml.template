@@ -1,0 +1,65 @@
+# multi-org-prism.toml.template
+#
+# Template for S-DEMO-004 multi-org E2E test configuration.
+# Generated at test time by write_multi_org_prism_toml() in helpers/mod.rs.
+#
+# The final prism.toml is written to a TempDir by the test helper, with:
+#   - spec_dir  → tempdir/specs  (canonical TYPE specs copied from workspace)
+#   - state_dir → tempdir/state  (ephemeral RocksDB — destroyed after test)
+#   - plugin_dir → tempdir/plugins (crowdstrike-oauth2.prx staged for SEC-003)
+#
+# Org configuration (S-DEMO-004 §Multi-Org Demo Configuration):
+#
+#   Org A (org-a): CrowdStrike + Armis
+#     org_id: ORG_A_ID — UUID v7, first 4 bytes determine "8hex" prefix in device IDs
+#     org_slug: org-a
+#     sensors: crowdstrike, armis
+#     DTU clone seeds: crowdstrike seed=100, armis seed=110
+#
+#   Org B (org-b): Claroty + Cyberint
+#     org_id: ORG_B_ID
+#     org_slug: org-b
+#     sensors: claroty, cyberint
+#     DTU clone seeds: claroty seed=120, cyberint seed=130
+#
+#   Org C (org-c): all 4 sensors
+#     org_id: ORG_C_ID
+#     org_slug: org-c
+#     sensors: crowdstrike, armis, claroty, cyberint
+#     DTU clone seeds: crowdstrike seed=200, armis seed=210, claroty seed=220, cyberint seed=230
+#
+# The harness assigns DISTINCT seeds to each (org, sensor) pair.
+# org-a CrowdStrike seed=100 ≠ org-c CrowdStrike seed=200 → INV-DISTINCT-DATA-001:
+#   ids(org-a, crowdstrike) ∩ ids(org-c, crowdstrike) = ∅
+#
+# Device ID format (ADR-036 v2.0 §2.2):
+#   "dev-{8hex}-{seed}-{n}"
+#   where {8hex} = hex(org_id.as_bytes()[0..4])
+#   CRITICAL: {8hex} is from UUID bytes, NOT the human slug "org-a".
+#
+# Per-org overlay files are written by write_overlay_temp_dir(&harness, tempdir.path())
+# under:  tempdir/specs/customers/org-{a,b,c}/{sensor_id}.sensor.toml
+# Each overlay carries: extends, instance_id = "{sensor_id}@org-{a,b,c}", base_url.
+#
+# This template is informational only; actual config is constructed programmatically
+# in start_multi_org_harness() / write_multi_org_prism_toml() helpers.
+#
+# See: crates/prism-bin/tests/helpers/mod.rs start_multi_org_harness()
+# Story: S-DEMO-004
+# BCs: BC-3.2.001, BC-2.06.014, BC-2.06.017, BC-2.06.018
+
+spec_dir   = "<tempdir>/specs"
+state_dir  = "<tempdir>/state"
+plugin_dir = "<tempdir>/plugins"
+
+[[orgs]]
+org_id   = "019700a0-0000-7000-8000-000000000021"
+org_slug = "org-a"
+
+[[orgs]]
+org_id   = "019700a0-0000-7000-8000-000000000022"
+org_slug = "org-b"
+
+[[orgs]]
+org_id   = "019700a0-0000-7000-8000-000000000023"
+org_slug = "org-c"
