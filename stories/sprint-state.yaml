@@ -536,13 +536,16 @@ active_dispatch_set:
     notes: "LANDED (factory-only) — AC-001+AC-002+AC-003 all satisfied in D-845 burst (S-5.04 frontmatter depends_on [S-5.03,S-DEMO-001], body §Implementation Note, STORY-INDEX row all updated). D-990: confirmed complete. No code PR required (factory-only metadata fix)."
 
   - story_id: S-DEMO-MULTI-TENANT-DTU-001
-    status: stub
+    status: completed
     priority: P2
-    points: null  # needs story-writer materialization
-    spec_version: stub
+    points: 8
+    spec_version: "v1.14"
+    merged_sha: "664566e9"
+    merged_pr: 187
+    merged_at: "2026-06-14"
     depends_on:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001
-    notes: "Surfaced 2026-05-29 D-849 by S-CONFIG AC-009 DTU emulation gap. Needs story-writer materialization. Non-blocking for single-tenant demo."
+    notes: "D-1158 2026-06-14: MERGED PR #187 squash-merged develop@664566e9. LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict CONVERGED (BC-5.39.001). CI 43/43 green. HIGH F-PR3 routing-bypass paper-fix CLOSED (real prism-sensors E2E test added). SEC-001/002/006 all CLOSED. TLS+brotli CI fixes. POL-14: BC-2.06.017 v1.10 draft→active. Story v1.14 / BC v1.10. T6 DONE."
 
   - story_id: S-DEMO-ARMIS-AQL-001
     status: merged

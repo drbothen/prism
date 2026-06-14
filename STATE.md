@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.800"
+version: "7.801"
 producer: state-manager
 timestamp: 2026-06-14T05:00:00Z
 inputs: []
@@ -16,15 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "f7400f83"
-bc_index_version: "6.53"
+develop_head: "664566e9"
+bc_index_version: "6.54"
 vp_index_version: "1.79"
-story_index_version: "v2.381"
+story_index_version: "v2.382"
 arch_index_version: "2.133"
 error_taxonomy_version: "1.78"
 total_stories: 200
-active_contracts: 234
-draft_contracts: 3
+active_contracts: 235
+draft_contracts: 2
 retired_contracts: 6
 prd_version: "1.12"
 policies_version: "1.33"
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1157 — T6 PR #187 PR-LEVEL 3-CLEAN CONVERGENCE REACHED (passes 8/9/10; 10 PR-LEVEL passes total). All findings CLOSED incl HIGH F-PR3 routing-bypass (genuine prism-sensors E2E proof added) + SEC-001/002/006. CI tls+brotli fixed. Gate-count comments swept (OBS-PR6/7 CLOSED eb77316f+2746f878). feature HEAD 2746f878 (being pushed). NEXT: push 2746f878 → CI green on merge SHA → squash-merge PR #187 to develop → worktree cleanup → post-merge POL-14 BC-2.06.017 draft→active + sprint-state completed + task-ledger T6 DONE. STATE v7.799→v7.800."
+current_step: "T6 S-DEMO-MULTI-TENANT-DTU-001 DONE (PR #187 develop@664566e9). POL-14: BC-2.06.017 v1.10 draft→active. North-star roadmap: advance to next task per multi-client-soc-demo-tasks.md (T8 S-DEMO-004 needs architect+PO, or T11/T13/D-1107 opted-in stories). NEXT ACTION: orchestrator selects next task."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-13"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1157 T6 PR #187 PR-LEVEL 3-CLEAN CONVERGENCE passes 8/9/10; 10 total PR-LEVEL passes; feature HEAD 2746f878; all findings CLOSED; cleared for merge; STATE v7.800)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1158 T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED PR #187 develop@664566e9; POL-14 BC-2.06.017 active; T6 DONE; STATE v7.801)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment.** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T6 — PR #187 PR-LEVEL 3-CLEAN CONVERGED (passes 8/9/10; 10 total PR-LEVEL passes)** (S-DEMO-MULTI-TENANT-DTU-001 v1.14; BC-2.06.017 v1.10; feature HEAD 2746f878 being pushed; all findings CLOSED; NEXT: CI green → merge → POL-14). T1–T5+T4-A DONE.
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment.** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T8 — S-DEMO-004 (next unblocked task; needs architect+PO: add depends_on S-DEMO-MULTI-TENANT-DTU-001 + AC-006 data-distinctness via real seeding; then story-writer + remove-uncertainty)** (T1–T6+T4-A DONE; develop@664566e9). NEXT ACTION: orchestrator selects next task (T8 architect+PO, or T11 launcher consolidation, or D-1107 opted-in S-5.02/5.03/5.04/3.13).
 
 ## Phase Progress
 
@@ -98,6 +98,7 @@ pre_compact_snapshot_at: "2026-06-13"
 | **Review cycle fix-PRs (#183/#184/#182)** | **MERGED** | 2026-06-10 | 2026-06-12 | PRs #183→#184→#182 | QRY develop@f88b10e3; MCP develop@c200d5a2; DTU develop@939f36ce; all CI 43/43 GREEN |
 | **5: S-DEMO-DTU-LIVE-SCENARIO-001-B (T5)** | **MERGED** | 2026-06-12 | 2026-06-13 | PR #185 develop@7fd35b77 | LOCAL 13-pass 3-CLEAN; PR-LEVEL 29-pass 3-CLEAN strict CONVERGED; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 active |
 | **5: lefthook docs-only pre-push (PR #186)** | **MERGED** | 2026-06-13 | 2026-06-13 | PR #186 develop@f7400f83 | 35/35 test cases; 43-green CI; D-1134 bypass remediation RESOLVED |
+| **5: S-DEMO-MULTI-TENANT-DTU-001 (T6)** | **MERGED** | 2026-06-13 | 2026-06-14 | PR #187 develop@664566e9 | LOCAL 11-pass 3-CLEAN + PR-LEVEL 10-pass 3-CLEAN strict; CI 43/43; BC-2.06.017 v1.10 active |
 
 ## Current Phase Steps
 
@@ -115,6 +116,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1158 | state-manager | 2026-06-14 | **T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED — PR #187 squash develop@664566e9. LOCAL+PR-LEVEL 3-CLEAN both converged; HIGH F-PR3 routing-bypass paper-fix closed via real prism-sensors E2E test; SEC-001/002/006 closed; CI tls+brotli fixed. POL-14: BC-2.06.017 v1.10 draft→active. Story v1.14/BC v1.10. T6 DONE.** Process-gap lessons z21/z22/z23 codified; no new follow-up story required (mitigations only). BC-INDEX v6.53→v6.54. STORY-INDEX v2.381→v2.382. develop_head f7400f83→664566e9. active_contracts 234→235, draft_contracts 3→2. STATE v7.800→v7.801. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1157 | state-manager | 2026-06-14 | **T6 PR #187 PR-LEVEL 3-CLEAN CONVERGENCE — PASSES 8/9/10 CLEAN(strict)=YES (D-1157).** BC-5.39.001 PR-LEVEL convergence satisfied (streak 0→1→2→3/3 across passes 8/9/10). 10 total PR-LEVEL passes. MID-DELIVERY — PR open (#187); feature HEAD 2746f878 (being pushed); develop_head f7400f83 UNCHANGED. Pass 5: CLEAN(strict)=YES — Pass-4 fixes (citation symbols + volatile-SHA) verified; zero new findings; streak 0→1/3. Pass 6: CLEAN(strict)=NO — 1 LOW OBS-PR6-1 gate-count comment arithmetic wrong ("54-59: 6 E0639+1 E0004→7" vs actual "54-61: 7 E0639+1 E0004→8; 52→60"); CLOSED commit eb77316f (struct_violations.rs + main.rs "49 types"→"60 types"); streak RESET 1→0/3. Pass 7: CLEAN(strict)=NO — 1 LOW OBS-PR7-1 2 stale present-tense "EXPECTED=52 (current total)" comments in v51 block of struct_violations.rs; exhaustive grep-driven sweep (commit 2746f878); post-sweep zero stale present-tense gate-count refs confirmed; streak RESET 0/3. Pass 8: CLEAN(strict)=YES — gate-comment class confirmed exhausted (44+16=60 arithmetic exact); all axes CLEAN; streak 0→1/3. Pass 9: CLEAN(strict)=YES — independent re-derivation; F-PR3 closure load-bearing verified; all axes CLEAN; streak 1→2/3. Pass 10: CLEAN(strict)=YES — third consecutive clean; novelty ZERO; BC-5.39.001 3-CLEAN PR-LEVEL convergence SATISFIED; streak 2→3/3 CONVERGED. Substantive findings (all CLOSED): F-PR3-HIGH-001 AC-006 routing-bypass paper-fix (real prism-sensors E2E test added), SEC-001/002 TOML-injection+path-traversal (74d0bd4c), SEC-006 CWE-209 error-disclosure (846c21dc). Hygiene findings (all CLOSED): F-PR2 changelog order, F-PR4 citation symbols, OBS-PR4 volatile-SHA, OBS-PR6/7 gate-count comments. No BC-INDEX/STORY-INDEX bump (comment-only commits eb77316f+2746f878; specs already at BC v1.10/story v1.14). develop_head UNCHANGED f7400f83. STATE v7.799→v7.800. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1156 | state-manager | 2026-06-14 | **T6 PR #187 PR-LEVEL ADVERSARY PASS-4: F-PR3-HIGH-001 CONFIRMED CLOSED; CITATION-SYMBOL + VOLATILE-SHA FIXES (D-1156).** MID-DELIVERY — PR open (#187); feature HEAD 41d093fe (pushed; CI running); develop_head f7400f83 UNCHANGED. PR-LEVEL Pass-4 (CLEAN(strict)=NO / CLEAN(PR-merge)=NO at start): Part A — F-PR3-HIGH-001 CONFIRMED CLOSED: new `test_fan_out_with_overlay_map_routes_to_correct_dtu_instance` in `crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs` is genuinely load-bearing (drives REAL `fan_out_with_overlay_map`; acme→S_A delta 6, S_B 0-leak; symmetric contoso); no dep cycle (`prism-sensors [dev-dependencies]` += `prism-dtu-harness/armis/common` is PERMITTED INV-PERIMETER-001 direction); BC v1.9 and story v1.13 coherently narrowed to DISTINCT-LISTENER scope. Part B — 1 MED F-PR4-MED-001 [MEDIUM CLOSED]: harness-test citations in BC EC-017-007 + VP catalog entries and story AC inline text + 15 Red Gate Test Plan rows + Task-7 cited `multi_tenant_routing_zero_cross_tenant_leakage` without the required `test_BC_2_06_017_` infix; 5+ sites failed grep-resolve to the actual functions. product-owner amended BC-2.06.017 v1.9→v1.10 (EC-017-007 + VP catalog corrected; citation-accuracy only; no semantic change). story-writer performed comprehensive sweep of story v1.13→v1.14 (all 15 RGT rows + AC inline + Task-7 citations corrected; `grep -n "multi_tenant_routing"` grep-clean confirmed). 1 LOW OBS-PR4-1 [LOW CLOSED]: 4 volatile commit-SHA `41d093fe` references in story body prose (AC inline + Architecture Mapping) violated TD-VSDD-091 anti-volatile-pin; story-writer removed all 4 SHA references in the same sweep (combined v1.13→v1.14 amendment); function-name anchors retained; historical CHANGELOG rows preserved (immutable audit trail). All other axes clean: SAP-1 CLEAN; gate EXPECTED=60 UNCHANGED; INV-PERIMETER-001 CLEAN; POL-32 changelog direction DESCENDING (BC v1.10 top, story v1.14 top); SID-1 new test not #[ignore]'d + load-bearing. BC-INDEX v6.52→v6.53. STORY-INDEX v2.380→v2.381. feature HEAD 41d093fe (pushed). PR-LEVEL streak 0/3. Pass-5 NEXT. STATE v7.798→v7.799. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1155 | state-manager | 2026-06-14 | **T6 PR #187 PR-LEVEL ADVERSARY PASS-3 HIGH F-PR3-HIGH-001 CLOSED — REAL FanOutTarget DTU ROUTING PROOF ADDED (D-1155).** MID-DELIVERY — PR open (#187), not merged; feature HEAD 41d093fe (NOT YET PUSHED); develop_head f7400f83 UNCHANGED. PR-LEVEL Pass-3 (CLEAN(strict)=NO / CLEAN(PR-merge)=NO at start): Part A verified POL-32 changelog reorder from Pass-2 VERIFIED — story top=v1.12, BC top=v1.8, both DESCENDING. Part B: F-PR3-HIGH-001 [HIGH CLOSED] — AC-006 isolation tests in prism-dtu-harness/tests/ proved only distinct-listener TCP tautology (two separate TCP sockets on separate ports receive separate requests — of course they do), NOT the spec's claimed FanOutTarget→base_url routing from prism-sensors/src/fanout.rs. Structural contradiction: BC-2.06.017 v1.8 Postcondition 4 demanded FanOutTarget dispatch proof, but INV-PERIMETER-001 forbids prism-dtu-harness from importing prism-sensors (where FanOutTarget lives). LOCAL 11-pass convergence missed this because (a) context accumulation anchored on Pass-1's closure rationale, and (b) the spec-vs-perimeter contradiction requires cross-crate analysis that is harder with accumulated context. PR-LEVEL fresh context identified it immediately. OBS-1 [non-blocking]: pr-adversary-pass-1.md prose described HarnessError::InvalidKey (actual code uses io::Error; functional; pass-report prose only; orchestrator-confirmed non-blocking). RESOLUTION (architect-adjudicated, IN-SCOPE autonomous): combined fix — (1) product-owner BC-2.06.017 v1.8→v1.9 (Postcondition 4 narrowed to DISTINCT-LISTENER isolation scope; VP-catalog narrowed; Architecture-Anchors cross-ref to real routing proofs: prism-sensors/src/fanout.rs::test_F_LP2_CRIT_001 + new integration test; 2 harness AC-006 docstrings narrowed); (2) test-writer/implementer new crates/prism-sensors/tests/multi_tenant_dtu_routing_integration.rs::test_fan_out_with_overlay_map_routes_to_correct_dtu_instance (drives REAL fan_out_with_overlay_map through overlay_map; two live ArmisClone instances; acme→S_A delta 6, S_B 0-leak; symmetric contoso; prism-sensors Cargo.toml [dev-dependencies] += prism-dtu-harness+prism-dtu-armis+prism-dtu-common; permitted INV-PERIMETER-001 direction; 41d093fe PASSES; just check GREEN); (3) story-writer v1.12→v1.13 (AC-006 + Story-Level-Goal narrowed; crates_touched += prism-sensors; Architecture Mapping row added; File Structure rows added; RGT row added). Lesson z23 codified [process-gap][codified]. BC-INDEX v6.51→v6.52. STORY-INDEX v2.379→v2.380. feature HEAD 41d093fe NOT YET PUSHED. PR-LEVEL streak 0/3. Pass-4 NEXT (orchestrator pushes 41d093fe first). STATE v7.797→v7.798. | wave-5-e-demo-fidelity | 2026-06-14 |
@@ -197,17 +199,17 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · **decisions-archive-D1124-D1138.md** · **drift-items-resolved.md** · **phase-5-deferred-findings.md** · frontmatter-cascade-archive.md · session-handoff-archive.md · convergence-trajectory.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-_No open PRs on develop. PR #187 OPEN (feature/S-DEMO-MULTI-TENANT-DTU-001 → develop). Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass remediation RESOLVED). D-1157: T6 PR-LEVEL 3-CLEAN CONVERGENCE REACHED (passes 8/9/10; 10 total PR-LEVEL passes); feature HEAD 2746f878 being pushed; all findings CLOSED. NEXT: CI green → squash-merge PR #187 → POL-14 BC-2.06.017 draft→active._
+_No open PRs on develop. Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass), PR #187 develop@664566e9 (T6 DONE — D-1158 BC-2.06.017 active). T6 COMPLETE. NEXT: orchestrator selects T8/T11/D-1107 tasks per task ledger._
 
-## Session Resume Checkpoint (D-1157 — 2026-06-14; STATE v7.800)
+## Session Resume Checkpoint (D-1158 — 2026-06-14; STATE v7.801)
 
-**STATE v7.800. CURRENT POSITION: T6 — S-DEMO-MULTI-TENANT-DTU-001 PR #187 PR-LEVEL 3-CLEAN CONVERGED. BC-5.39.001 PR-LEVEL convergence satisfied (passes 8/9/10; 10 total PR-LEVEL passes). Feature HEAD: 2746f878 (being pushed). All findings CLOSED: F-PR3-HIGH-001 HIGH routing-bypass paper-fix (prism-sensors E2E test added at 41d093fe), SEC-001/002 BLOCKING CLOSED (74d0bd4c), SEC-006 CWE-209 CLOSED (846c21dc), F-PR4-MED-001 citation-symbols CLOSED (BC v1.10/story v1.14), OBS-PR6/7 gate-count comments CLOSED (eb77316f/2746f878). KNOWN NON-BLOCKER: `cargo nextest -p prism-dtu-harness --all-features` E0053 (no CI gate uses that invocation; --workspace + per-crate modes GREEN). VERIFIED STORY STATE at 2746f878: `MultiInstanceServers` (#[non_exhaustive]) is `start_instances` return type; `servers.socket_map()` returns `&HashMap<(String,String),SocketAddr>`; `servers.shutdown()` + Drop graceful drain wired; AtomicU64 request_counter in prism-dtu-armis/src/state.rs for AC-006 isolation proof; iter() (NOT iter_mut()) in ALL doc/sketch usage; EXPECTED=60 at merge; MultiInstanceHarness Drop-only; gate-count comments in struct_violations.rs all say "60 (current total)". BC-2.06.017 v1.10 / story v1.14: changelogs DESCENDING; all 15 RGT rows + AC inline + Task-7 citations carry `test_BC_2_06_017_` infix; no volatile SHA in body prose. BC-INDEX v6.53 (active 234 / draft 3 / retired 6). develop HEAD: f7400f83 UNCHANGED. STORY-INDEX v2.381 (200 stories).**
+**STATE v7.801. CURRENT POSITION: T6 DONE — S-DEMO-MULTI-TENANT-DTU-001 MERGED (PR #187 squash develop@664566e9 2026-06-14). LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict CONVERGED (BC-5.39.001). CI 43/43 green. All substantive findings CLOSED: F-PR3-HIGH-001 routing-bypass paper-fix (real prism-sensors FanOutTarget E2E test), SEC-001/002 BLOCKING CLOSED (74d0bd4c), SEC-006 CWE-209 CLOSED (846c21dc). Hygiene findings CLOSED: F-PR2 changelog order, F-PR4 citation symbols, OBS-PR6/7 gate-count comments. POL-14 complete: BC-2.06.017 v1.10 draft→active. BC-INDEX v6.54 (active 235 / draft 2 / retired 6). STORY-INDEX v2.382 (200 stories). T1–T6+T4-A DONE. No open PRs.**
 
 **RESUME PROTOCOL (run on fresh session start):**
-0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1157). Read `.factory/objectives/DEMO-SCOPE.md` (authoritative full demo scope).
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1158). Read `.factory/objectives/DEMO-SCOPE.md` (authoritative full demo scope).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING — must pass before reading any state).
-2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `f7400f83`.
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.800"`.
-4. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone. Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` may be cleaned up (merged).
+2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `664566e9`.
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.801"`.
+4. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone. T6 worktree `.worktrees/S-DEMO-MULTI-TENANT-DTU-001` cleaned (merged). Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` cleaned (merged).
 5. Apply lessons (a)–(z23) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-6. **NEXT ACTION: push feature branch 2746f878 to remote → wait for CI green on 2746f878 → pr-reviewer APPROVE → squash-merge PR #187 to develop → worktree cleanup → post-merge POL-14 BC-2.06.017 draft→active + sprint-state completed + task-ledger T6 DONE.**
+6. **NEXT ACTION: orchestrator selects next task from multi-client-soc-demo-tasks.md. Current POINTER = T8 (S-DEMO-004 needs architect+PO: add depends_on S-DEMO-MULTI-TENANT-DTU-001 + commit AC-006 data-distinctness via real seeding; then story-writer + remove-uncertainty). Alternatives: T11 S-DEMO-LAUNCHER-CONSOLIDATION-001 story-writer, T13 narrative capstone, or D-1107 opted-in S-5.02/5.03/5.04/S-3.13 capability-discovery stories. D-989+D-1090 autonomy grant remains active.**

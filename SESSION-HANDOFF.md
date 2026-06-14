@@ -1,17 +1,17 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.787"
+version: "7.801"
 status: current
 timestamp: 2026-06-13T21:45:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1144 BURST (2026-06-13) — T6 REMOVE-UNCERTAINTY RE-RUN COMPLETE. S-DEMO-MULTI-TENANT-DTU-001 v1.2→v1.3 ready; EXPECTED re-baselined 49→52→59. NEXT: vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001. develop HEAD UNCHANGED f7400f83. STATE v7.787.**
+> **D-1158 BURST (2026-06-14) — T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED (PR #187 develop@664566e9). POL-14: BC-2.06.017 v1.10 draft→active. T1–T6+T4-A DONE. NEXT: orchestrator selects T8/T11/D-1107. develop HEAD 664566e9. STATE v7.801.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1144 below, then STATE.md frontmatter. All prior D-1101..D-1143 notes SUPERSEDED.
-> develop HEAD `f7400f83` (PR #186 squash-merge 2026-06-13; unchanged by D-1144 — story spec only). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1144 burst). STATE v7.787.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1158 below, then STATE.md frontmatter. All prior D-1101..D-1157 notes SUPERSEDED.
+> develop HEAD `664566e9` (PR #187 squash-merge 2026-06-14; D-1158 post-merge burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1158 burst). STATE v7.801.
 
 ---
 
@@ -64,7 +64,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 | Order | Story ID | Status | Pts | BCs | depends_on | Notes |
 |-------|----------|--------|-----|-----|------------|-------|
-| 1 — parallel/independent | **S-DEMO-MULTI-TENANT-DTU-001** | **ready v1.3** (D-1144 T6 remove-uncertainty re-run DONE 2026-06-13: U-RERUN-001 HIGH + U-RERUN-002 MED FIXED; EXPECTED re-baselined 52→59; CLEARED FOR TDD; T1+T2+T3 DONE D-1076; original remove-uncertainty 8 closed; S-7.01 CLEARED) | 8 | BC-2.06.017 (draft) | S-CONFIG-MULTI-TENANT-OVERRIDE-001 (SATISFIED) | T6 IN PROGRESS — remove-uncertainty DONE; NEXT: vsdd-factory:deliver-story |
+| 1 — **DONE** | **S-DEMO-MULTI-TENANT-DTU-001** | **MERGED** (T6 DONE — PR #187 develop@664566e9 2026-06-14; LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict; CI 43/43; BC-2.06.017 v1.10 active per POL-14 D-1158) | 8 | BC-2.06.017 (active — v1.10) | S-CONFIG-MULTI-TENANT-OVERRIDE-001 (SATISFIED) | T6 DONE |
 | 2 — DONE | **S-DEMO-DTU-LIVE-SCENARIO-001-A** | **MERGED** (T4-A; PR #181 develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active) | 8 | BC-2.06.018 (active) | S-CONFIG-MULTI-TENANT-OVERRIDE-001 (SATISFIED) | T4-A DONE — Story B unblocked |
 | 3 — **MERGED** | **S-DEMO-DTU-LIVE-SCENARIO-001-B** | **MERGED** (T5 DONE — PR #185 squash-merged develop@7fd35b77 2026-06-13; 3/3 strict CONVERGED passes 27/28/29; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 ACTIVE per POL-14 D-1139) | 7 | BC-2.06.019 v1.7 (active) + BC-2.06.020 v1.6 (active) | SATISFIED | DONE |
 | 4 | **S-DEMO-004** | **registered** (STORY-INDEX row v2.342; T8 needs architect+PO: depends_on edge + AC-006 data-distinctness via real seeding; then story-writer + remove-uncertainty) | TBD | TBD (needs PO authorship) | S-DEMO-MULTI-TENANT-DTU-001 + data layer (001-A/B) | T8 architect+PO produce the formal story file |
@@ -75,36 +75,34 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **D-1107 SCOPE-IN** | **S-5.04** | not-started (wave 5) | 5 | -- | S-5.03, S-DEMO-001 | Sensor Health Subsystem — **OPTED IN (D-1107)**; remove-uncertainty before TDD |
 | **D-1107 SCOPE-IN** | **S-3.13** | not-started (wave 3) | 3 | 3 proxy (needs PO BCs) | S-3.02, S-1.12 | Dynamic Table Availability — **OPTED IN (D-1107)**; parallel after PO authors dedicated BCs; remove-uncertainty before TDD |
 
-**NEXT CONCRETE ACTION: T6 — `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001`** (ready v1.3; BC-2.06.017 draft; 8 pts). remove-uncertainty DONE (D-1144). Proceed directly to 12-gate TDD delivery. KEY for implementer/test-writer: ci.yml EXPECTED=52 today; this story adds +7 non-exhaustive arms → target EXPECTED=59 at merge. D-989 + D-1090 autonomy grant still active.**
+**NEXT CONCRETE ACTION: T8 — architect+PO dispatch for S-DEMO-004 (add depends_on S-DEMO-MULTI-TENANT-DTU-001 edge + commit AC-006 data-distinctness via real seeding, not port-binding-only; then story-writer + remove-uncertainty). Alternatively: T11 S-DEMO-LAUNCHER-CONSOLIDATION-001 story-writer, T13 narrative capstone, or D-1107 opted-in S-5.02/5.03/5.04/S-3.13 capability-discovery. T6 DONE develop@664566e9. D-989+D-1090 autonomy grant remains active.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T6 IN PROGRESS (S-DEMO-MULTI-TENANT-DTU-001 v1.3; remove-uncertainty DONE D-1144; NEXT: vsdd-factory:deliver-story). T1+T2+T3+T4+T4-A+T5 DONE. PR #186 MERGED develop@f7400f83 (D-1134 bypass remediation RESOLVED). ADR-036 v2.3. BC-INDEX v6.44. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.371. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.787.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T8 (S-DEMO-004; architect+PO; not-started). T1+T2+T3+T4+T4-A+T5+T6 DONE. PR #187 MERGED develop@664566e9 (D-1158 T6 DONE; BC-2.06.017 v1.10 active). ADR-036 v2.3. BC-INDEX v6.54. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.382. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.017 v1.10 ACTIVE. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.801.**
 
 ---
 
-## §RESUME SNAPSHOT — D-1144 (2026-06-13 — T6 remove-uncertainty DONE; S-DEMO-MULTI-TENANT-DTU-001 v1.3 ready; EXPECTED re-baselined 52→59; STATE v7.787)
+## §RESUME SNAPSHOT — D-1158 (2026-06-14 — T6 DONE; PR #187 develop@664566e9 MERGED; BC-2.06.017 v1.10 active; STATE v7.801)
 
-> **D-1144: T6 mandatory pre-TDD remove-uncertainty re-run complete. Story v1.3 CLEARED FOR TDD DELIVERY. All prior notes superseded.**
+> **D-1158: T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED. POL-14 complete. T1–T6+T4-A ALL DONE. All prior notes superseded.**
 >
-> **T6 REMOVE-UNCERTAINTY RE-RUN DONE (D-1144).** `dclaude:remove-uncertainty` mandatory re-run (D-1110 extension + user_directive_remove_uncertainty) on S-DEMO-MULTI-TENANT-DTU-001. 2 findings found and fixed by story-writer: (1) **U-RERUN-001 HIGH** — stale EXPECTED count: story said bump `49→56`; ground-truth `.github/workflows/ci.yml` is now `EXPECTED=52` (grew via S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014 + S-DEMO-DTU-LIVE-SCENARIO-001-B since 2026-06-09). Re-baselined to `EXPECTED=52→59` (+7 delta unchanged: 6 E0639 struct arms + 1 E0004 enum arm). FIXED at story lines 609, 677, 735. (2) **U-RERUN-002 MED** — stale "crate currently does NOT import any prism-dtu-* crate" claim — now imports prism-dtu-common (Story A); REWORDED. All confirmed-unchanged: version pins (axum 0.7, tokio 1/full, tempfile 3, anyhow 1, reqwest 0.12); BehavioralClone::start_on no-tls Option<()> 3rd arg signature; HarnessError #[non_exhaustive]; new files (multi_instance.rs ×2, overlay_wiring.rs) absent as expected; DemoHarness present. Story bumped v1.2→v1.3 (status remains `ready`).
+> **T6 DELIVERY COMPLETE (D-1158).** PR #187 squash-merged to develop@664566e9 2026-06-14T12:05:29Z. LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict CONVERGED (BC-5.39.001). CI 43/43 green. Story v1.14 / BC-2.06.017 v1.10. Remote feature branch auto-deleted; local worktree + branch cleaned; local develop fast-forwarded to 664566e9. Delivered: MultiInstanceConfig/InstanceEntry/start_instances + MultiInstanceServers graceful-shutdown handle (prism-dtu-demo-server); MultiInstanceHarness/HarnessEntry/overlay_wiring + BindError/HarnessError variants (prism-dtu-harness); ArmisClone request-counter + GET /dtu/request-count (prism-dtu-armis); end-to-end FanOutTarget DTU-routing isolation test (prism-sensors/tests/multi_tenant_dtu_routing_integration.rs); non-exhaustive gate 52→60; CI tls-no-default-features + brotli-pin fixes. POL-14: BC-2.06.017 v1.10 draft→active (D-1158). BC-INDEX v6.54 (active 235 / draft 2 / retired 6). STORY-INDEX v2.382 (200 stories). Lessons z21/z22/z23 codified; no new follow-up story required.
 >
-> **No open PRs.** develop HEAD: f7400f83 (UNCHANGED — story spec only).
+> **No open PRs.** develop HEAD: 664566e9.
 >
-> **KEY FOR IMPLEMENTER/TEST-WRITER:** ci.yml EXPECTED=52 today; this story adds +7 new non-exhaustive arms → update ci.yml EXPECTED to 59 at the appropriate commit. The +7 delta (6 E0639 struct arms + 1 E0004 enum arm) is the ground truth from U-RERUN-001 fix.
->
-> **EXACT NEXT ACTION: T6 — `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001`** (remove-uncertainty DONE; proceed directly to 12-gate TDD: worktree-manage → test-writer → implementer → LOCAL 3-CLEAN strict → demo-recorder → push → pr-manager → PR-LEVEL 3-CLEAN strict → pr-reviewer APPROVE → security CLEAR → CI → squash-merge → state-manager post-merge burst). STATE v7.787.
-> _All prior D-1101..D-1143 notes SUPERSEDED — archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
+> **EXACT NEXT ACTION: orchestrator selects T8 (architect+PO: S-DEMO-004 depends_on edge + data-distinctness via real seeding), T11 (story-writer: S-DEMO-LAUNCHER-CONSOLIDATION-001), T13 (PO+story-writer: narrative capstone), or D-1107 opted-in capability-discovery stories (S-5.02/5.03/5.04/S-3.13). Consult multi-client-soc-demo-tasks.md §Complete Story Roadmap.** D-989+D-1090 autonomy grant remains active. STATE v7.801.
+> _All prior D-1101..D-1157 notes SUPERSEDED — archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
 
 ---
 
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
-2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (authoritative demo scope: what is built, what is in convergence, what the honest gaps are). Then read STATE.md frontmatter (`current_step`, D-1144 decision rows).
-3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `f7400f83`.
-4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.787"`.
-5. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` may be cleaned up (merged).
-6. Apply lessons (a)–(z20) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-7. **NEXT ACTION: T6 — `vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001`** (ready v1.3; BC-2.06.017 draft; 8 pts). remove-uncertainty DONE (D-1144). Proceed directly to 12-gate TDD delivery. CRITICAL for implementer/test-writer: ci.yml EXPECTED=52 today; this story adds +7 → target EXPECTED=59.
+2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (authoritative demo scope: what is built, what is in convergence, what the honest gaps are). Then read STATE.md frontmatter (`current_step`, D-1158 decision row).
+3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `664566e9`.
+4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.801"`.
+5. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). T6 worktree `.worktrees/S-DEMO-MULTI-TENANT-DTU-001` CLEANED (merged). Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` CLEANED (merged).
+6. Apply lessons (a)–(z23) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+7. **NEXT ACTION: orchestrator selects next task. CURRENT POINTER = T8 (architect+PO: S-DEMO-004 depends_on + data-distinctness via real seeding). Alternatives: T11 (story-writer: S-DEMO-LAUNCHER-CONSOLIDATION-001), T13 (PO+story-writer: narrative capstone), D-1107 opted-in stories (S-5.02/5.03/5.04/S-3.13). Consult multi-client-soc-demo-tasks.md.**
 
 ---
 
@@ -113,20 +111,20 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | Field | Value |
 |-------|-------|
 | **Mode** | brownfield |
-| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T5 DONE. T6 IN PROGRESS: S-DEMO-MULTI-TENANT-DTU-001 v1.3 (remove-uncertainty DONE D-1144; NEXT: vsdd-factory:deliver-story). |
-| **develop HEAD** | `f7400f83` (PR #186 squash-merge 2026-06-13; UNCHANGED by D-1144 — story spec only) |
-| **STATE version** | v7.787 |
-| **BC-INDEX version** | v6.44 (total 250; active 234; draft 3; retired 6; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
-| **STORY-INDEX version** | v2.371 (total_stories 200; S-DEMO-MULTI-TENANT-DTU-001 v1.3 ready) |
+| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T1–T6+T4-A DONE. NEXT: T8 (architect+PO: S-DEMO-004) or T11/T13/D-1107. |
+| **develop HEAD** | `664566e9` (PR #187 squash-merge 2026-06-14; D-1158 T6 DONE) |
+| **STATE version** | v7.801 |
+| **BC-INDEX version** | v6.54 (total 250; active 235; draft 2; retired 6; BC-2.06.017 v1.10 active; BC-2.06.018 v1.6 active; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
+| **STORY-INDEX version** | v2.382 (total_stories 200; S-DEMO-MULTI-TENANT-DTU-001 merged v1.14) |
 | **VP-INDEX version** | v1.79 (158 registered) |
 | **ARCH-INDEX version** | v2.133 |
 | **error-taxonomy version** | v1.78 (E-DEMO-006 new) |
 | **ADR-036 version** | v2.3 (time_anchor 5-arg ruling) |
 | **policies version** | v1.33 (POL-33 route_coverage_table_required_for_stagemask_changes) |
 | **prd version** | v1.12 |
-| **Open PRs** | None. PR #185 MERGED develop@7fd35b77 (T5 DONE). PR #186 MERGED develop@f7400f83 (D-1143; D-1134 bypass remediation RESOLVED). |
-| **Story B branch** | `feature/S-DEMO-DTU-LIVE-SCENARIO-001-B`; MERGED at develop@7fd35b77 (2026-06-13) |
-| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1143 burst) |
+| **Open PRs** | None. PR #185 MERGED develop@7fd35b77 (T5 DONE). PR #186 MERGED develop@f7400f83 (D-1143). PR #187 MERGED develop@664566e9 (T6 DONE; D-1158). |
+| **T6 branch** | `feature/S-DEMO-MULTI-TENANT-DTU-001`; MERGED at develop@664566e9 (2026-06-14); worktree+branch cleaned |
+| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1158 burst) |
 
 ---
 
@@ -391,23 +389,22 @@ All LOCAL closures listed in §3 above, plus:
 # 1. Factory worktree health (BLOCKING preflight)
 # Use: vsdd-factory:factory-worktree-health skill
 
-# 2. Verify develop HEAD == f7400f83
+# 2. Verify develop HEAD == 664566e9
 git log --oneline origin/develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.787"
+# Expected: version: "7.801"
 
 # 4. Confirm parked worktrees
 ls /Users/jmagady/Dev/prism/.worktrees/
-# Expected: S-3.09 + W3-FIX-S307-001 (Story B worktree may be cleaned up — PR merged)
+# Expected: S-3.09 + W3-FIX-S307-001 (T6 + Story B worktrees cleaned — PRs merged)
 
-# 5. Confirm factory-artifacts pushed (expect D-1139 burst commit at HEAD)
+# 5. Confirm factory-artifacts pushed (expect D-1158 burst commit at HEAD)
 git -C /Users/jmagady/Dev/prism/.factory log -1 --format='%h %s'
 
-# 6. T6 remove-uncertainty is DONE (D-1144 2026-06-13; story v1.3)
-# NEXT: vsdd-factory:deliver-story S-DEMO-MULTI-TENANT-DTU-001
-# KEY: ci.yml EXPECTED=52 today; this story targets EXPECTED=59 (+7 arms)
+# 6. T6 DONE (D-1158 2026-06-14; PR #187 develop@664566e9; BC-2.06.017 active)
+# NEXT: orchestrator selects T8 (architect+PO: S-DEMO-004) or T11/T13/D-1107
 ```
 
 ---
