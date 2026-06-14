@@ -22,9 +22,10 @@
 //! - New `event_type` tracing emissions require a BC-2.16.002 catalog row (SAP-1).
 //! - `invoke_with_args` MUST return `not_impl_err!(...)` to force the async path.
 //!
-//! # Stub status (S-DEMO-ENRICHMENT-PIVOT-001)
-//! `InfusionAsyncUdf::invoke_async_with_args` body is `todo!()` — Red Gate stub.
-//! `register_infusion_udfs` is implemented — it registers UDFs calling the todo!() impl.
+//! # Implementation status (S-DEMO-ENRICHMENT-PIVOT-001 — GREEN)
+//! `InfusionAsyncUdf::invoke_async_with_args` is fully implemented: reads input `ColumnarValue`,
+//! calls `descriptor.source.enrich_single` per row, and returns a `StringArray` output.
+//! `register_infusion_udfs` registers `InfusionAsyncUdf` instances per descriptor.
 //!
 //! # async_trait requirement
 //! `AsyncScalarUDFImpl` is declared with `#[async_trait]` in DataFusion 53.1.

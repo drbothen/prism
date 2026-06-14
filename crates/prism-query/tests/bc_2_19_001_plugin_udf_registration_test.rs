@@ -1,31 +1,26 @@
-//! Red Gate test 3 — DataFusion async UDF registration wires plugin descriptors into SessionContext.
+//! DataFusion async UDF registration — wires plugin descriptors into SessionContext.
 //!
 //! Traces to: BC-2.19.001 postcondition — each field registers as a DataFusion scalar UDF.
 //! AC-003 / S-DEMO-ENRICHMENT-PIVOT-001.
 //!
-//! # Anti-false-green hardening (AC-003)
+//! # Tests in this file
 //!
-//! The test registers a MOCK async UDF implementation (NOT `InfusionAsyncUdf`, since that
-//! would immediately `todo!()`) that returns a known SENTINEL value: `"CVE-PIVOT-TEST-SENTINEL"`.
-//! This sentinel can ONLY originate from the async `invoke_async_with_args` round-trip — a
-//! no-op or sync stub cannot produce it. An `Arc<AtomicUsize>` call counter is asserted > 0
-//! after the DataFusion query executes, proving `invoke_async_with_args` was actually called.
+//! - `test_BC_2_19_001_plugin_udfs_registered_in_session_context`: Mock UDF sentinel + counter
+//!   test verifying DataFusion async UDF machinery (uses `MockInfusionAsyncUdf`, not production).
 //!
-//! A stub that hard-codes a return value CANNOT pass both the sentinel assertion and the call
-//! counter assertion simultaneously. An incorrectly-wrapped async UDF (sync fallback only)
-//! fails loudly with `not_impl_err!` rather than silently returning a wrong value.
+//! - `test_BC_2_19_001_real_infusion_async_udf_delegates_to_stub_source` (CRIT-2): REAL
+//!   `InfusionAsyncUdf` backed by a stub `InfusionSource` that returns a sentinel. Proves the
+//!   production `invoke_async_with_args` body runs and delegates to `descriptor.source.enrich_single`.
 //!
-//! # Red Gate failure mode
+//! - `test_BC_2_19_001_register_infusion_udfs_helper_compiles_and_registers`: Structural test
+//!   verifying `register_infusion_udfs` produces a discoverable UDF in the SessionContext.
 //!
-//! This test registers a mock async UDF, not `InfusionAsyncUdf`, so it can test the
-//! DataFusion registration path directly without hitting the `todo!()` in the production stub.
-//! The actual `register_infusion_udfs` helper is tested via a companion sub-test that
-//! verifies the function compiles and can be called (it will `todo!()` inside the UDF body
-//! when DataFusion actually invokes the async path).
+//! # Production UDF implementation
 //!
-//! `test_BC_2_19_001_plugin_udfs_registered_in_session_context` — exercises the real
-//! `register_infusion_udfs` function + mock async UDF sentinel round-trip. FAILS RED because
-//! `InfusionAsyncUdf::invoke_async_with_args` panics with `todo!()`.
+//! `InfusionAsyncUdf::invoke_async_with_args` is fully implemented — it reads the input
+//! `ColumnarValue`, calls `descriptor.source.enrich_single` per row, and builds a `StringArray`
+//! output. The REAL UDF test (`test_BC_2_19_001_real_infusion_async_udf_delegates_to_stub_source`)
+//! exercises this body end-to-end.
 
 #![allow(
     clippy::unwrap_used,
@@ -253,17 +248,172 @@ async fn test_BC_2_19_001_plugin_udfs_registered_in_session_context() {
 }
 
 // ---------------------------------------------------------------------------
+// Test 3b (CRIT-2): Real InfusionAsyncUdf backed by stub InfusionSource — production UDF path
+// ---------------------------------------------------------------------------
+
+/// Test BC-2.19.001: REAL `InfusionAsyncUdf` backed by stub `InfusionSource` proves production body runs.
+///
+/// Traces to: BC-2.19.001 postcondition — each field registers as a DataFusion scalar UDF.
+/// AC-003 / CRIT-2 / S-DEMO-ENRICHMENT-PIVOT-001.
+///
+/// # Anti-false-green (CRIT-2 fix)
+///
+/// Unlike `test_BC_2_19_001_plugin_udfs_registered_in_session_context` which uses a `MockInfusionAsyncUdf`
+/// that bypasses production code, this test wires the REAL `InfusionAsyncUdf` backed by a STUB
+/// `InfusionSource` that:
+/// 1. Returns a known sentinel `"REAL-UDF-PIVOT-SENTINEL"` from `enrich_single`.
+/// 2. Increments a call counter on every invocation.
+///
+/// The test then executes a DataFusion query through the REAL `invoke_async_with_args` body.
+/// A sentinel that can ONLY originate from the production `InfusionAsyncUdf::invoke_async_with_args`
+/// path proves:
+/// - The real `invoke_async_with_args` body runs (not a mock bypass).
+/// - The `descriptor.source.enrich_single` delegation actually fires.
+/// - The counter > 0 proves the stub source was actually called.
+///
+/// This test would FAIL if `InfusionAsyncUdf::invoke_async_with_args` were still `todo!()`.
+/// It would also FAIL if the UDF returns None (NullSource) instead of the sentinel.
+const REAL_UDF_SENTINEL: &str = "REAL-UDF-PIVOT-SENTINEL";
+
+/// Stub `InfusionSource` that returns a sentinel value and increments a counter.
+///
+/// Used in CRIT-2 test to verify the REAL production UDF path calls `enrich_single`.
+struct SentinelInfusionSource {
+    call_count: Arc<AtomicUsize>,
+}
+
+impl std::fmt::Debug for SentinelInfusionSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SentinelInfusionSource").finish()
+    }
+}
+
+impl prism_spec_engine::InfusionSource for SentinelInfusionSource {
+    fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
+        self.call_count.fetch_add(1, Ordering::SeqCst);
+        Some(serde_json::Value::String(REAL_UDF_SENTINEL.to_string()))
+    }
+
+    fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
+        inputs
+            .iter()
+            .map(|i| self.enrich_single(i, input_type))
+            .collect()
+    }
+}
+
+#[tokio::test]
+async fn test_BC_2_19_001_real_infusion_async_udf_delegates_to_stub_source() {
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
+    use datafusion::datasource::MemTable;
+    use datafusion::execution::FunctionRegistry;
+
+    use prism_query::infusion_udf::{register_infusion_udfs, InfusionAsyncUdf};
+    use prism_query::memory::build_session_context;
+    use prism_spec_engine::{InfusionSource, InfusionUdfDescriptor};
+
+    // Build the REAL InfusionAsyncUdf backed by the stub source.
+    let call_count = Arc::new(AtomicUsize::new(0));
+    let stub_source: Arc<dyn InfusionSource> = Arc::new(SentinelInfusionSource {
+        call_count: Arc::clone(&call_count),
+    });
+
+    // Construct the descriptor directly — no registry needed for this wiring path.
+    let descriptor = InfusionUdfDescriptor {
+        name: "pivot_enrich".to_string(),
+        input_type: "ip".to_string(),
+        output_type: "string".to_string(),
+        infusion_id: "pivot_test".to_string(),
+        source: stub_source,
+        source_column: None,
+    };
+
+    // Build a SessionContext.
+    let ctx = build_session_context(prism_query::memory::QUERY_MEMORY_POOL_BYTES)
+        .expect("BC-2.19.001 CRIT-2: build_session_context must succeed");
+
+    // Register using the REAL register_infusion_udfs → REAL InfusionAsyncUdf.
+    register_infusion_udfs(&ctx, vec![descriptor])
+        .expect("BC-2.19.001 CRIT-2: register_infusion_udfs must succeed");
+
+    // Verify registration.
+    let udf_names = ctx.udfs();
+    assert!(
+        udf_names.contains("pivot_enrich"),
+        "BC-2.19.001 CRIT-2: 'pivot_enrich' UDF must be registered. Got: {:?}",
+        udf_names
+    );
+
+    // Register a MemTable with one row to drive the UDF.
+    let schema = Arc::new(Schema::new(vec![Field::new(
+        "ioc_value",
+        DataType::Utf8,
+        false,
+    )]));
+    let batch = RecordBatch::try_new(
+        Arc::clone(&schema),
+        vec![Arc::new(StringArray::from(vec!["10.0.0.1"]))],
+    )
+    .expect("BC-2.19.001 CRIT-2: RecordBatch construction must succeed");
+    let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+        .expect("BC-2.19.001 CRIT-2: MemTable construction must succeed");
+    ctx.register_table("pivot_events", Arc::new(table))
+        .expect("BC-2.19.001 CRIT-2: register_table must succeed");
+
+    // Execute a query that invokes the REAL InfusionAsyncUdf::invoke_async_with_args.
+    let df = ctx
+        .sql("SELECT pivot_enrich(ioc_value) AS enriched FROM pivot_events")
+        .await
+        .expect("BC-2.19.001 CRIT-2: SQL with real InfusionAsyncUdf must parse");
+
+    let batches = df.collect().await.expect(
+        "BC-2.19.001 CRIT-2: real InfusionAsyncUdf::invoke_async_with_args must succeed. \
+             A todo!() in the UDF body would panic here.",
+    );
+
+    // Assertion 1: call counter > 0 — proves enrich_single was actually called.
+    let count = call_count.load(Ordering::SeqCst);
+    assert!(
+        count > 0,
+        "BC-2.19.001 CRIT-2: stub source call_count must be > 0 after query execution. \
+         Got count = {}. \
+         The production invoke_async_with_args body must call descriptor.source.enrich_single().",
+        count
+    );
+
+    // Assertion 2: sentinel in output — proves the production path returns the enriched value.
+    let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total_rows, 1,
+        "BC-2.19.001 CRIT-2: query must return 1 row (1 input row → 1 enriched output row)"
+    );
+
+    let enriched_col = batches[0]
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("BC-2.19.001 CRIT-2: enriched column must be a StringArray");
+
+    let enriched_value = enriched_col.value(0);
+    assert_eq!(
+        enriched_value, REAL_UDF_SENTINEL,
+        "BC-2.19.001 CRIT-2: enriched value must be the sentinel '{}'. \
+         Got '{}'. \
+         The real InfusionAsyncUdf delegates to enrich_single which returns the sentinel. \
+         A NullSource wiring defect or mock bypass would not produce this sentinel.",
+        REAL_UDF_SENTINEL, enriched_value
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Companion test: register_infusion_udfs helper compiles and is callable
 // ---------------------------------------------------------------------------
 
 /// Verify `register_infusion_udfs` is callable with a valid descriptor list.
 ///
-/// This test exercises the helper's signature and registration path. The UDF itself
-/// has a `todo!()` body, so DataFusion execution would panic — but registration must
-/// succeed (the function panics on invocation, not registration).
-///
-/// FAILS RED: `InfusionAsyncUdf::invoke_async_with_args` panics with `todo!()` when
-/// the actual DataFusion query is executed. Registration itself should succeed.
+/// This test exercises the helper's signature and registration path.
 #[test]
 fn test_BC_2_19_001_register_infusion_udfs_helper_compiles_and_registers() {
     use prism_query::infusion_udf::register_infusion_udfs;
@@ -298,8 +448,9 @@ fn test_BC_2_19_001_register_infusion_udfs_helper_compiles_and_registers() {
     let ctx = build_session_context(prism_query::memory::QUERY_MEMORY_POOL_BYTES)
         .expect("BC-2.19.001: build_session_context must succeed");
 
-    // Call register_infusion_udfs — must succeed (registration only, no execution).
-    // The UDF is now registered in the SessionContext; invoking it would todo!().
+    // Call register_infusion_udfs — must succeed (registration only).
+    // The UDF is registered with a NullSource (load_spec without runtime) — invoking it
+    // in a query would return null for every row, but registration itself must succeed.
     register_infusion_udfs(&ctx, descriptors)
         .expect("BC-2.19.001: register_infusion_udfs must succeed for plugin-type descriptors");
 
