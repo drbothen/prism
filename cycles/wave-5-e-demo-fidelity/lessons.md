@@ -1387,3 +1387,57 @@ and for each modified file, verify the file's crate appears in the story's `crat
 **Outcome (D-1152):**
 
 story-writer v1.9→v1.10: `crates_touched` += prism-dtu-armis; Architecture Mapping + File Structure Reference rows added; AC-006 proof note clarified (harness/demo-server src/ vs armis-own-src); perimeter assertion disambiguated. product-owner BC v1.6→v1.7: `crates:` += prism-dtu-armis; Postcondition 4 verification-mechanism note (server-side counter lives in ArmisClone, control-plane route, not a perimeter violation). No code change. Lesson codified here. Pass-9 NEXT; need 9+10+11 CLEAN(strict) for 3/3 convergence.
+
+---
+
+## z22 — POL-32 Ascending-Changelog Systemic Miss: Orchestrator Must Instruct PREPEND; Adversary Must Verify Direction, Not Just Monotonicity (D-1154, 2026-06-14)
+
+**Date recorded:** 2026-06-14
+**D-NNN anchor:** D-1154 (PR-LEVEL Pass-2 F-PR2-MED-001 MEDIUM finding + closure; story v1.12/BC v1.8)
+**Story:** S-DEMO-MULTI-TENANT-DTU-001
+**Tags:** [process-gap] [codified] [pol-32] [changelog-direction] [local-false-pass] [adversary-direction-check]
+**Classification:** PROCESS-GAP — systemic changelog-direction miss across 11 LOCAL passes; caught at PR-LEVEL pass 2 by fresh-context adversary.
+
+**What happened:**
+
+Throughout the S-DEMO-MULTI-TENANT-DTU-001 LOCAL cascade (11 passes, D-1144 through D-1153), every fix-burst that added a changelog row appended the new row at the BOTTOM of the changelog table. This produced an ASCENDING changelog (v1.0 at top, growing down to v1.10/v1.11). POL-32 requires monotonic-DESCENDING order (newest at top, oldest at bottom).
+
+The LOCAL adversary (passes 1-11) did not catch this. Notably, D-1153 Pass-9 explicitly stated "story 1.10→1.0 descending" — a false-pass statement. The LOCAL adversary verified that version numbers form a monotonic sequence but did NOT verify that the top row holds the HIGHEST version. "Monotonically ordered" and "monotonically descending" are NOT the same: 1.0, 1.1, 1.2, ..., 1.10 is monotonically ordered (each > prior) but ASCENDING — POL-32 violation.
+
+The PR-LEVEL pass-2 adversary, reading the actual top-to-bottom file text with no prior context, immediately identified the ascending order as a POL-32 violation. Fresh context caught what 11 passes of LOCAL review missed.
+
+**Root cause:**
+
+Two compounding failures:
+1. **Orchestrator dispatch instruction gap:** When orchestrator instructed fix-burst dispatches to "add a revision row," the instruction did not specify WHERE to add it. Specialist agents (story-writer, product-owner) appended at the bottom (the natural writing motion: "add a row to a table" defaults to bottom). The correct instruction is "PREPEND the new row at the TOP per POL-32."
+2. **Adversary direction-check gap:** LOCAL adversary POL-32 check verified that the changelog version numbers are monotonically ordered (a weaker check) rather than verifying the ACTUAL direction (read column top-to-bottom; assert strictly descending: each row's version < the row above). The adversary stated "descending" based on checking monotonicity, not direction.
+
+**Cost:** PR-LEVEL streak reset at pass 2; story v1.12/BC v1.8 reorder burst required.
+
+**Canonical rules (codified — two new standing rules):**
+
+**Rule A — Orchestrator changelog-edit dispatch MUST specify PREPEND:**
+
+> When dispatching any story-writer or product-owner task that adds a changelog row (new version, fix-burst record, revision annotation), the orchestrator instruction MUST include the explicit directive: **"PREPEND the new row at the TOP of the changelog table per POL-32 (monotonic-descending: newest at top)."** The word "PREPEND" must appear. "Add a row" without direction defaults to APPEND (bottom) — a POL-32 violation.
+
+**Rule B — Adversary POL-32 check MUST verify TOP ROW = HIGHEST VERSION:**
+
+> When an adversary performs a POL-32 changelog check, the check MUST:
+> 1. Read the changelog table top row → record the version in the top row.
+> 2. Read the changelog table bottom row → record the version in the bottom row.
+> 3. Assert: top_row_version > bottom_row_version (descending).
+> 4. Verify: the top row version matches the current frontmatter `version:` field.
+> A changelog where top < bottom is ASCENDING — POL-32 violation, severity MEDIUM.
+> The words "monotonically ordered" or "monotonically consistent" are INSUFFICIENT; the direction must be stated as "top > bottom (descending)."
+
+**Rule C — Adversary LOCAL false-pass on direction check is a process-gap:**
+
+> If a LOCAL adversary pass states "descending" or "POL-32 satisfied" for a changelog that is actually ASCENDING, this is a LOCAL false-pass. The orchestrator should be aware that this class of false-pass is possible in LOCAL cascades (context accumulation may anchor on prior passes' verdicts). PR-LEVEL fresh context provides an independent perimeter that catches direction errors — this is one reason why PR-LEVEL convergence (BC-5.39.001) is a separate gate from LOCAL convergence.
+
+**Mitigation (standing tooling candidate):**
+
+Consider a `state-manager` pre-commit hook that: (a) reads every changelog table in staged `.factory/` files; (b) checks that the top row's version is >= all other rows' versions; (c) rejects the commit with `POL-32: ascending changelog detected` if not. Filed as DRIFT-OBS-LP69-001 extension candidate (POL-26/POL-32 changelog lint hook — already tracked for cycle-close).
+
+**Outcome (D-1154):**
+
+story-writer reversed story changelog → v1.11→v1.12 (newest v1.12 at top; v1.0 at bottom). product-owner reversed BC-2.06.017 changelog → v1.7→v1.8 (newest v1.8 at top; v1.0 at bottom). STORY-INDEX v2.378→v2.379. BC-INDEX v6.50→v6.51. D-1154 decision recorded. Pass 3 NEXT.
