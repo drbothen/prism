@@ -1489,3 +1489,53 @@ Combined fix: BC-2.06.017 v1.8→v1.9 (Postcondition 4 narrowed to DISTINCT-LIST
 **Outcome (D-1155):**
 
 F-PR3-HIGH-001 CLOSED. BC-2.06.017 v1.9. Story v1.13. New prism-sensors integration test added (41d093fe). BC-INDEX v6.51→v6.52. STORY-INDEX v2.379→v2.380. PR-LEVEL streak 0/3. Pass-4 NEXT. Lesson codified.
+
+---
+
+## z24 — Hollow-Feature Integration Gap: TDD-Green + Unit-Tested in Isolation Does Not Prove Feature Is Wired into Production Boot/Engine (D-1169, 2026-06-14)
+
+**Date recorded:** 2026-06-14
+**D-NNN anchor:** D-1169 (adversary-fix spec consolidation; multi-lane systemic class)
+**Stories affected:** PIVOT-001 (NullSource), S-3.13 (TableRegistry), S-5.02 (structured-error envelope dead code)
+**Tags:** [process-gap] [codified] [hollow-feature] [production-wiring] [tdd-red-gate-mislabeling] [systemic]
+**Classification:** PROCESS-GAP — systemic class: three independent stories in three parallel lanes all exhibited the same hollow-feature pattern in the same sprint cycle.
+
+**What happened:**
+
+Three parallel-lane stories (PIVOT-001, S-3.13, S-5.02) each passed TDD-green and `just check` (4273 tests) while shipping a non-functional production feature:
+
+- **PIVOT-001:** `enrich_single` was implemented + unit-tested on `NullSource` (returns empty slice). The real `PluginInfusionSource` trait implementation was never wired. All enrichment Red Gate tests passed because they called the helper method directly, not the real production dispatch path. `enrich_single` was called in the demo but returned null data silently.
+
+- **S-3.13:** `TableRegistry` was built as a standalone struct with unit tests that verify its `register`/`is_registered` logic. It was never wired into `boot.rs` (as an Arc-DI dependency), never passed to `QueryEngine`, and never consulted in the hot-reload path. Queries against unregistered tables fell through with wrong error codes rather than the E-QUERY-037 path the spec required.
+
+- **S-5.02:** `build_structured_error_response()` was written and tested in isolation. It was never routed from the actual `map_prism_error` call sites. Tool call errors continued to produce the flat non-nested shape; the structured envelope was dead code. All 13 Red Gate tests passed because they called `build_structured_error_response()` directly, never via the actual MCP error dispatch path.
+
+**Root cause — Red Gate mislabeling:**
+
+The per-story TDD flow defines Red Gate tests as "failing stubs BEFORE any implementation." In all three cases, the implementer wrote Red Gate tests that exercised the new data structure or helper function directly rather than the real AC surface (the end-to-end production path from MCP tool call / query execution / plugin invocation through to the observable behavior). A test that asserts `build_structured_error_response(...)` returns the correct JSON shape is a unit test of the builder function — NOT a Red Gate for the AC that says "given an MCP tool error response, then the JSON contains structuredContent.error." The latter requires routing through the actual MCP dispatch path.
+
+The implementer's self-disclosure of "TDD-green" was NOT authoritative for production integration. The strict LOCAL adversary independently verified the production path and caught each case.
+
+**Why the standard TDD + just check flow did not catch this:**
+
+- `just check` runs the full workspace test suite (4273 tests) but does not distinguish between tests of helper functions and tests of the production path.
+- The Red Gate test names matched the BC format (`test_BC_2_10_007_*`) but asserted helper outputs, not production behavior.
+- No existing gate required a "wired into production boot" check between test-writer phase and LOCAL adversary dispatch.
+
+**Correct response (codified rule — per-story wiring gate):**
+
+Before LOCAL adversary dispatch, the implementer MUST verify two properties for EVERY AC:
+
+1. **Production-path test:** at least one Red Gate test for each AC must exercise the AC's behavior by calling the REAL production entry point (e.g., MCP tool dispatch, query engine `execute()`, plugin runtime `enrich_single()`) — NOT the helper function/builder/struct directly.
+2. **Boot-wiring check:** the feature MUST be visibly wired in `boot.rs` (or the equivalent production initialization path) with an `Arc<dyn ...>` or equivalent, verifiable by reading the boot sequence. An un-wired `Arc::new(SomeThing::placeholder())` or absent registration is a hollow-feature indicator.
+
+The adversary MUST probe both properties on every pass over a new story:
+
+1. Grep `boot.rs` (and `main.rs` / `bin/`) for the new component — if absent, HIGH finding.
+2. For each AC claiming a production-observable behavior, verify the Red Gate test drives the REAL entry point, not a helper method. If the test calls a constructor/builder directly without involving the production dispatch path, this is a paper-fix (lesson z23 class) — HIGH finding.
+
+**Drift item:** DRIFT-HOLLOW-FEATURE-INTEGRATION-001 registered in STATE.md Drift Items for cycle-close adjudication. The session-reviewer must evaluate whether this requires a standing spec amendment to the per-story TDD flow (adding an explicit "integration gate" step between test-writer and implementer phases) or a new SAP probe.
+
+**Outcome:**
+
+All three stories entered CRIT fix-burst mode. PIVOT-001: real `PluginInfusionSource` wiring added. S-3.13: `TableRegistry` wired into boot.rs + `QueryEngine` Arc-DI + hot-reload path. S-5.02: `build_structured_error_response` routed from all `map_prism_error` call sites. Adversary re-run NEXT on all three lanes. LOCAL streaks reset.

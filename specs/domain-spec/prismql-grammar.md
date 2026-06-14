@@ -1,6 +1,6 @@
 ---
 document_type: grammar-reference
-version: "1.0"
+version: "1.1"
 status: draft
 timestamp: 2026-04-13
 source: axiathon crate axiathon-query (production workspace)
@@ -327,7 +327,7 @@ bare_count = "COUNT" ;
 | `fields` | `fields [+\|-] field, ...` | Include (+) or exclude (-) fields; default include |
 | `stats` | `stats agg [AS alias], ... [BY field, ...]` | Aggregation with optional grouping |
 | `join` | `join [kind] source on field [== field]` | Join with another source. See section 6.2. |
-| `enrich` | `enrich infusion_name on field` | Enrich results with an infusion (GeoIP, threat intel, etc.). See section 6.3. |
+| `enrich` | `enrich infusion(field_path)` | Enrich results with an infusion (GeoIP, threat intel, etc.). See section 6.3. |
 
 ### 6.2 Join Pipe Stage
 
@@ -764,7 +764,7 @@ stage           = "HEAD" , pos_int
                 | "FIELDS" , [ "+" | "-" ] , field , { "," , field }
                 | "STATS" , stat_fn , { "," , stat_fn } , [ "BY" , fields ]
                 | "JOIN" , [ join_kind ] , source , "ON" , field , [ "==" , field ]
-                | "ENRICH" , ident , "ON" , field ;
+                | "ENRICH" , ident , "(" , field_path , ")" ;
 stat_fn         = ( "PERCENTILE" , "(" , field , "," , num , ")"
                   | func , "(" , [ "*" | field ] , ")"
                   | "COUNT" ) , [ "AS" , ident ] ;

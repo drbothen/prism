@@ -6,14 +6,14 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.1"
+version: "2.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
 tdd_mode: tdd
 # tdd_mode: tdd justification (Option-2 architect decision, version 2.0) —
 #   This story now touches prism-dtu-demo-server (Rust crate). The new
-#   `StartMulti` subcommand and `MultiOrgDemoConfig`/`MultiOrgConfig`/`OrgConfig`
+#   `StartMulti` subcommand and `MultiOrgDemoConfig`/`OrgConfig`
 #   structs require Red Gate tests (config parsing, sidecar format, clone_factory
 #   dispatch, per-org socket isolation). Full TDD Iron Law applies:
 #   non-trivial function bodies use `todo!()` stubs in the test-writer phase;
@@ -81,7 +81,7 @@ points: 8
 #   +0.5 — demo.toml [orgs.*] section for 3-org model (org-a/org-b/org-c with seeds).
 #   +0.5 — docs/DEMO-RUNBOOK.md update + retire start-demo.sh.
 #   +1.5 — Red Gate tests for Rust additions (see §Red Gate Tests below).
-#   Total: 8 points (~2 days). Architect estimate: +2 StartMulti cmd, +1 MultiOrgConfig+tests,
+#   Total: 8 points (~2 days). Architect estimate: +2 StartMulti cmd, +1 MultiOrgDemoConfig+tests,
 #         demo-run.sh simpler at 0.5; shells carry the remaining 4 points unchanged from v1.0.
 estimated_days: 2
 risk: MEDIUM
@@ -193,7 +193,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.1
+**Version:** v2.2
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -968,9 +968,8 @@ with no changes to `.github/workflows/ci.yml`.
 | `cmd_start_multi` (~80-120 lines) | `crates/prism-dtu-demo-server/src/main.rs` | Effectful (I/O: config load, clone start, sidecar write, signal wait) |
 | `build_multi_clone_factory` (extracted pure fn) | `crates/prism-dtu-demo-server/src/main.rs` | Pure (returns closure; no I/O) |
 | `write_multi_url_sidecar` (extracted helper) | `crates/prism-dtu-demo-server/src/main.rs` | Effectful (file I/O: tmp+rename atomic write) |
-| `MultiOrgDemoConfig` | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
-| `MultiOrgConfig` (`[orgs.*]` subsection) | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
-| `OrgConfig` | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
+| `MultiOrgDemoConfig` (root config type) | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
+| `OrgConfig` (per-org `[orgs.*]` subsection) | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
 | `start_instances` (EXISTING, unchanged) | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Effectful (async: socket bind) |
 | `MultiInstanceConfig` (EXISTING, unchanged) | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Pure (data) |
 | `MultiInstanceServers` (EXISTING, unchanged) | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Effectful (owns shutdown_tx) |
@@ -1287,6 +1286,7 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.2 | 2026-06-14 | story-writer | OBS-1 mapping-table correction: removed stale `MultiOrgConfig` row from Architecture Mapping table; the correct type names are `MultiOrgDemoConfig` (root config, annotated) and `OrgConfig` (per-org subsection, annotated). Fixed two additional `MultiOrgConfig` bare occurrences (frontmatter tdd_mode comment, token-budget architect-estimate comment) to `MultiOrgDemoConfig`/`OrgConfig` and `MultiOrgDemoConfig` respectively. Status: ready. Points: 8 (unchanged). |
 | 1.0 | 2026-06-14 | story-writer | Initial materialization from D-1029 draft stub. Full spec with 10 ACs, consolidation decision (retire start-demo.sh), 3-org model, N×M overlay and credential generalization, all 6 context-engineering sections. status: ready. tdd_mode: facade (scripts-only). |
 | 2.0 | 2026-06-14 | story-writer | Option-2 architect-approved conversion: facade→Rust-touching. Adds StartMulti CLI subcommand + MultiOrgDemoConfig structs in prism-dtu-demo-server. crates_touched: [] → [prism-dtu-demo-server]. tdd_mode: facade → tdd. points: 5 → 8. ACs expanded from 10 to 13 (3 new Rust subcommand ACs added; existing script ACs renumbered). 5 Red Gate tests specified (RG-001..RG-005). §File Structure updated with Rust crate MODIFY rows. demo-run.sh simplified to one start-multi call. Option-1 (N×M shell processes) retired. |
 | 2.1 | 2026-06-14 | story-writer | Pre-TDD gap closure (3 gaps). GAP-1 (IMPORTANT): `fixture-gen` feature is REQUIRED for `start-multi`; `build_multi_clone_factory` must hard-error (compile_error! or runtime panic) if built without it — no silent fallback to unseeded `new()` which would violate INV-DISTINCT-DATA-001. All `start-multi` cargo commands updated to `--features dtu,fixture-gen`. `multi_org.rs` Cargo.toml `[[test]]` must specify `required-features = ["dtu", "fixture-gen"]`. Architecture Compliance Rules updated: `build_multi_clone_factory` must reuse `harness::parse_org_id`, `harness::fixture_set_to_archetype`, `prism_dtu_common::Archetype`, `demo_time_anchor()`. GAP-2 (MINOR): Cyberint composite path documented: `new_with_seed(...)` then `configure({"access_token": token})` post-construction — these compose cleanly via `CyberintState::apply_config` → `register_access_token`; no architect escalation needed. GAP-3 (NOTE): `DEMO_RUN_DIR` must be threaded into sidecar poll + Python paths in demo-run.sh to avoid cwd-relative path mismatch. Status: ready. Points: 8 (unchanged). |
