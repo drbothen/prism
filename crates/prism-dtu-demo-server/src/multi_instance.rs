@@ -132,11 +132,14 @@ pub struct DemoBindError {
 ///
 /// # Watcher task vs error-path stop
 ///
-/// On the **success path**, each clone is moved into a watcher task spawned AFTER
-/// all binds succeed. The watcher holds the clone alive (keeping the clone's internal
-/// server `JoinHandle` in scope) until the harness drops `MultiInstanceServers`.
-/// When `shutdown_tx` fires (from `Drop` or `shutdown()`), axum's graceful shutdown
-/// receives the signal and drains in-flight requests.
+/// On the **success path**, each clone is moved into a `tokio::spawn(async move { drop(clone); })`
+/// task spawned AFTER all binds succeed. Because `ArmisClone` / `ClarotyClone` have no
+/// `Drop` impl, dropping the clone merely drops its `server_handle: Option<JoinHandle<()>>`,
+/// which DETACHES (does not abort) the internal axum server task. The server keeps running
+/// as a detached tokio task; the watcher task itself completes immediately. The
+/// `task_handles` field holds no-op completion handles, NOT lifetime handles.
+/// Real shutdown happens only when `shutdown_tx.send(())` (from `Drop` or `shutdown()`)
+/// wakes the axum graceful-shutdown receiver each server holds from `shutdown_tx.subscribe()`.
 ///
 /// On the **error path** (see [`start_instances`]), no watcher tasks are spawned.
 /// Instead, `clone.stop().await` is called directly on each successfully-started clone,
@@ -153,10 +156,15 @@ pub struct MultiInstanceServers {
     /// clone (which would keep the channel open forever). Sending or dropping
     /// this sender wakes all axum graceful-shutdown receivers → drain → port release.
     shutdown_tx: broadcast::Sender<()>,
-    /// Watcher task handles — held for RAII lifetime management.
-    /// Each watcher holds a clone object alive (keeping the clone's server JoinHandle
-    /// in scope) until `MultiInstanceServers` is dropped or `shutdown()` is called.
-    /// Dropped WITHOUT explicit abort on shutdown (axum handles the graceful drain
+    /// Watcher task handles — retained to satisfy the D-1075 locked field layout.
+    /// Each handle corresponds to a `tokio::spawn(async move { drop(clone); })` task.
+    /// Because `ArmisClone` / `ClarotyClone` have no `Drop` impl, each watcher drops
+    /// its clone and completes IMMEDIATELY — the internal axum server task was already
+    /// DETACHED (dropping a `JoinHandle` detaches, never joins or aborts). These are
+    /// no-op completion handles; they do NOT provide lifetime management for the servers.
+    /// Real shutdown happens ONLY when `shutdown_tx.send(())` wakes the axum
+    /// graceful-shutdown receiver each server holds from `shutdown_tx.subscribe()`.
+    /// Dropped WITHOUT explicit abort on `Drop` (axum handles the graceful drain
     /// via the subscribed `shutdown_rx` inside each clone).
     #[allow(dead_code)]
     task_handles: Vec<tokio::task::JoinHandle<()>>,
@@ -333,23 +341,25 @@ pub async fn start_instances(
     // No extra Sender clones exist — the channel closes (waking all receivers)
     // when either shutdown() sends the signal or the handle is dropped.
     //
-    // Each watcher task holds the clone object alive so the server JoinHandle
-    // inside the clone is not dropped until the harness drops MultiInstanceServers.
-    // When shutdown_tx fires (from Drop or shutdown()), the clone's axum server
-    // receives the signal via the subscribed receiver and drains gracefully.
+    // Each clone is moved into a `tokio::spawn(async move { drop(clone); })` task.
+    // Because ArmisClone / ClarotyClone have no Drop impl, drop(clone) merely drops
+    // `server_handle: Option<JoinHandle<()>>`, which DETACHES (not aborts) the axum
+    // server task. The server keeps running as a detached tokio task; the watcher
+    // itself completes immediately. task_handles are no-op completion handles.
+    // Real shutdown happens ONLY when shutdown_tx.send(()) (from Drop or shutdown())
+    // wakes the axum graceful-shutdown receiver each server holds from subscribe().
     let mut socket_map = HashMap::with_capacity(bound.len());
     let mut task_handles = Vec::with_capacity(bound.len());
     for instance in bound {
         let clone = instance.clone;
         // Spawn the watcher task AFTER confirming all binds succeeded.
-        // The watcher moves the clone in, keeping it alive until the task completes.
-        // The clone's internal server JoinHandle stays in scope; the server keeps
-        // running until the shutdown_rx (subscribed above) fires.
+        // drop(clone) detaches the internal JoinHandle — the axum server continues
+        // running independently as a detached tokio task. This watcher finishes
+        // immediately; shutdown is via shutdown_tx.send(()) only.
         let task_handle = tokio::spawn(async move {
-            // Hold the clone object alive for its lifetime. The server shuts down
-            // when the shared shutdown_tx fires (from Drop or shutdown()), which
-            // wakes the subscribed receiver inside the clone's axum graceful_shutdown.
-            // Dropping the clone here then joins the server JoinHandle (stop() logic).
+            // drop(clone) drops server_handle, detaching (NOT aborting) the axum task.
+            // The server stays alive until shutdown_tx.send(()) (from Drop or shutdown())
+            // wakes the graceful-shutdown receiver from shutdown_tx.subscribe() at bind time.
             drop(clone);
         });
         socket_map.insert(instance.name, instance.addr);

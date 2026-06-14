@@ -49,7 +49,8 @@ fn ephemeral() -> std::net::SocketAddr {
 ///
 /// RED GATE: `start_instances` is `todo!()` — will panic at call site.
 ///
-/// WHEN IMPLEMENTED: `Ok(HashMap::new())` must be returned with no spawned tasks.
+/// WHEN IMPLEMENTED: `Ok(MultiInstanceServers)` with empty `socket_map()` must be returned
+/// with no spawned tasks.
 ///
 /// (BC-2.06.017 EC-017-002 / Postcondition 1)
 #[tokio::test]
@@ -61,10 +62,10 @@ async fn test_BC_2_06_017_demo_server_zero_instances_returns_empty_map() {
     })
     .await;
 
-    // Once implemented: empty config → Ok(MultiInstanceServers) with empty socket_map, no error.
+    // Once implemented: empty config → Ok(MultiInstanceServers) with empty socket_map(), no error.
     let servers = result.expect(
-        "Empty MultiInstanceConfig must return Ok(MultiInstanceServers) — not Err() \
-         (BC-2.06.017 EC-017-002)",
+        "Empty MultiInstanceConfig must return Ok(MultiInstanceServers) with empty socket_map() \
+         — not Err() (BC-2.06.017 EC-017-002)",
     );
     let map = servers.socket_map();
     assert!(

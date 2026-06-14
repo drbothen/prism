@@ -161,7 +161,14 @@ pub struct ArmisState {
     ///
     /// Reset by `reset_all()` / `BehavioralClone::reset()`.
     ///
-    /// (BC-2.06.017 AC-006 / INV-ISOLATION-001; mirrors `ClarotyState::request_counter`)
+    /// # Armis-specific isolation counter (BC-2.06.017 AC-006)
+    ///
+    /// Unlike Claroty's `request_counter` (which is incremented only on vendor requests
+    /// via `FailureLayer` and has no `/dtu/request-count` route), this counter is
+    /// incremented by a dedicated outermost `count_request_middleware` on EVERY request
+    /// (vendor API + DTU-internal routes alike) and exposed via `GET /dtu/request-count`.
+    ///
+    /// (BC-2.06.017 AC-006 / INV-ISOLATION-001)
     pub request_counter: AtomicU64,
 
     /// Shared failure mode, read by `FailureLayerShared` on every request.
