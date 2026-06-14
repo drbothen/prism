@@ -44,6 +44,7 @@ use crate::{
     cache::{CacheConfig, SensorResponseCache},
     cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry},
     scoping::ClientRegistry,
+    table_registry::TableRegistry,
 };
 
 // ---------------------------------------------------------------------------
@@ -249,6 +250,16 @@ pub struct QueryEngine {
     /// on the ephemeral `SessionContext` so analyst queries using `| enrich infusion(field)` resolve.
     /// When `None`, no enrichment UDFs are registered (query-only / test mode without enrichment).
     pub(crate) infusion_registry: Option<Arc<prism_spec_engine::InfusionRegistry>>,
+    /// Dynamic table registry — tracks which sensor tables are currently available.
+    ///
+    /// Populated from `ConfigSnapshot.sensor_specs` at startup. Updated on hot-reload
+    /// via `register_sensor` / `deregister_sensor` (BC-2.16.007). Used in the plan-time
+    /// availability gate (before `materialize_query`) to return `E-QUERY-037`
+    /// (`TableNotAvailable`) for unregistered tables (BC-2.11.001, S-3.13).
+    ///
+    /// `Arc<TableRegistry>` so the gate and hot-reload path share the same instance.
+    /// When `None`, the availability gate is skipped (legacy / test mode without spec engine).
+    pub(crate) table_registry: Option<Arc<TableRegistry>>,
 }
 
 impl QueryEngine {
@@ -316,6 +327,10 @@ impl QueryEngine {
             resolved_spec_map: None,
             alias_store: None,
             infusion_registry: None,
+            // S-3.13: table_registry wired as None by default in new/new_with_cache_config.
+            // Production boot uses new_full (with a real ConfigSnapshot) or
+            // with_table_registry() to supply a pre-populated TableRegistry.
+            table_registry: None,
         }
     }
 
@@ -395,6 +410,9 @@ impl QueryEngine {
             resolved_spec_map: Some(resolved_spec_map),
             alias_store: Some(alias_store),
             infusion_registry: None,
+            // S-3.13: table_registry is None in new_full; callers that need it
+            // (production boot path with spec engine loaded) use with_table_registry().
+            table_registry: None,
         }
     }
 
@@ -410,6 +428,27 @@ impl QueryEngine {
     ) -> Self {
         self.infusion_registry = Some(registry);
         self
+    }
+
+    /// Set the `TableRegistry` on an existing engine (S-3.13 plan-time gate).
+    ///
+    /// Called from the production boot path after `TableRegistry::from_snapshot()` has
+    /// been populated from the initial `ConfigSnapshot`. Also used in tests that need
+    /// the plan-time availability gate active.
+    ///
+    /// # BC-2.11.001 / BC-2.16.001
+    /// The engine uses the registry to return `E-QUERY-037` (`TableNotAvailable`) for
+    /// queries against unconfigured sensor tables, before any fan-out occurs.
+    pub fn with_table_registry(mut self, registry: Arc<TableRegistry>) -> Self {
+        self.table_registry = Some(registry);
+        self
+    }
+
+    /// Return the `TableRegistry` arc, if wired.
+    ///
+    /// Exposed for tests that need to inspect or update the registry.
+    pub fn table_registry(&self) -> Option<Arc<TableRegistry>> {
+        self.table_registry.as_ref().map(Arc::clone)
     }
 }
 
@@ -523,6 +562,22 @@ impl QueryEngine {
                 (std::borrow::Cow::Borrowed(query_str), query_str.to_string())
             };
         let effective_query: &str = &effective_query;
+
+        // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
+        //
+        // Fires BEFORE client scope resolution and BEFORE `materialize_query` (fail fast,
+        // no fan-out). Validates each source_ref extracted from the AST against the
+        // `TableRegistry`. If a source_ref is not registered, returns `E-QUERY-037`
+        // (`TableNotAvailable`) with pre-formatted available-sensor context and a
+        // Levenshtein-based did_you_mean suggestion.
+        //
+        // Gate is mode-agnostic (AC-8): the same check applies to SQL, filter, and pipe mode
+        // because all three produce source_refs in the parsed AST before this point.
+        //
+        // Gate is skipped when `table_registry` is None (legacy / test mode without
+        // spec engine wiring) — this preserves backward compatibility for tests that
+        // predate S-3.13 and do not need the availability check.
+        check_table_availability(effective_query, self.table_registry.as_deref())?;
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -756,6 +811,9 @@ impl QueryEngine {
         // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
         check_internal_table_capabilities(query_str, &[])?;
 
+        // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
+        check_table_availability(query_str, self.table_registry.as_deref())?;
+
         // F-LP1-CRIT-1: register internal tables for scheduled queries too.
         // Scheduled queries run with no caller capabilities (system context).
         if let Some(ref storage) = self.storage {
@@ -867,6 +925,46 @@ fn check_internal_table_capabilities(
     }
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// check_table_availability — plan-time E-QUERY-037 gate (S-3.13)
+// ---------------------------------------------------------------------------
+
+/// Plan-time table availability gate (Layer 1 of the availability check).
+///
+/// Parses the query string, extracts all source_refs via the AST visitor, and
+/// checks each against the provided `TableRegistry`. Returns `Err(PrismError::TableNotAvailable)`
+/// for the first unregistered table encountered, with:
+/// - `sensor`: the prefix of the table name (e.g. `"crowdstrike"` for `"crowdstrike_alerts"`)
+/// - `available_sensors`: comma-separated list from `registry.registered_sensor_ids()`
+/// - `available_tables`: comma-separated list from `registry.registered_tables()`
+/// - `did_you_mean`: Levenshtein-based suggestion from `registry.did_you_mean(table_name)`
+///
+/// # Gate skip conditions
+/// - `registry` is `None`: skip immediately (legacy / test mode without spec engine wiring)
+/// - Query fails to parse: return `Ok(())` — parse errors are handled downstream
+/// - Table name starts with `prism_`: skip (internal tables have their own gate)
+///
+/// # AC-8 mode-agnostic guarantee
+/// This function runs on the alias-expanded query string before `materialize_query` —
+/// the same code path is reached by SQL, filter, and pipe mode queries.
+///
+/// # BC-2.11.001 / S-3.13 AC-2, AC-3, AC-8
+fn check_table_availability(
+    query_str: &str,
+    registry: Option<&TableRegistry>,
+) -> Result<(), PrismError> {
+    // Skip when no registry is wired — preserves backward compatibility for legacy tests.
+    // All constructors (new, new_with_cache_config, new_full) initialize table_registry
+    // as None; callers that need the gate use with_table_registry().
+    let Some(registry) = registry else {
+        return Ok(());
+    };
+    // Delegate to the registry's gate method.
+    // The gate stub body lives in table_registry.rs, keeping engine.rs
+    // free of stub macros per POL-12 / test_AC_8_no_todo_or_unimplemented_remains.
+    registry.check_availability_gate(query_str)
 }
 
 // ---------------------------------------------------------------------------

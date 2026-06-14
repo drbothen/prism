@@ -99,6 +99,12 @@ pub mod invalidation;
 // Infusion enrichment UDF registration for DataFusion SessionContext (BC-2.19.001).
 pub mod infusion_udf;
 
+// ── S-3.13 modules ────────────────────────────────────────────────────────────
+/// Dynamic table registry — tracks which sensor tables are currently available.
+/// Populated from `ConfigSnapshot.sensor_specs` at startup; updated on hot-reload.
+/// Used by the plan-time availability gate in `engine.rs` (E-QUERY-037 / BC-2.11.001).
+pub mod table_registry;
+
 // ── S-3.07 modules ────────────────────────────────────────────────────────────
 pub mod dry_run;
 pub mod safety_check;

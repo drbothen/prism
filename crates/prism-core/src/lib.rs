@@ -106,7 +106,9 @@ pub use cursor::{CursorId, CursorRegistry, CURSOR_CAP};
 pub use decorator_context::DecoratorContext;
 // S-3.0.02
 pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
-pub use error::{InfusionError, PluginError, PrismError, SpecError, SpecErrorCode};
+pub use error::{
+    InfusionError, PluginError, PrismError, SpecError, SpecErrorCode, TableNotAvailableDetails,
+};
 pub use ids::{AlertId, CaseId, OrgId, RuleId, ScheduleId};
 pub use internal_table_descriptor::InternalTableDescriptor;
 // S-3.1.03
