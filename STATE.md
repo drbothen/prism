@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.804"
+version: "7.805"
 producer: state-manager
-timestamp: 2026-06-14T05:00:00Z
+timestamp: 2026-06-14T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-14"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1161 T10 PRE-TDD remove-uncertainty RE-RUN CLEAR; S-DEMO-004 v1.5→v1.6; develop@664566e9 unchanged; STATE v7.804)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1162 scope expansion: capability-discovery optional→REQUIRED; S-5.02/S-5.03/S-5.04/S-3.13 promoted; STATE v7.805)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment.** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T10 — S-DEMO-004 delivery (ready v1.6; D-1110 PRE-TDD re-run CLEAR D-1161; 12-gate per-story TDD sequence)** (T1–T9 ALL DONE; develop@664566e9). NEXT ACTION: vsdd-factory:worktree-manage create S-DEMO-004 → test-writer → deliver-story S-DEMO-004.
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T10 — S-DEMO-004 delivery (ready v1.6; D-1110 PRE-TDD re-run CLEAR D-1161; 12-gate per-story TDD sequence)** (T1–T9 ALL DONE; develop@664566e9). NEXT ACTION: vsdd-factory:worktree-manage create S-DEMO-004 → test-writer → deliver-story S-DEMO-004. After T10: capability-discovery block T15a-d (S-5.02/S-5.03/S-5.04/S-3.13 REQUIRED per D-1162).
 
 ## Phase Progress
 
@@ -116,6 +116,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1162 | state-manager | 2026-06-14 | **USER-DIRECTED SCOPE EXPANSION: capability-discovery stories promoted optional→REQUIRED.** User stated S-5.02/S-3.13/S-5.04 "are not optional." S-5.03 added as transitive HARD prereq (S-5.04 depends_on S-5.03→S-5.02→S-5.01). Task ledger T15→T15a/b/c/d all REQUIRED. Delivery ordering: S-5.01-verify→S-5.02→S-5.03→S-5.04 (Chain A); S-1.12-verify→S-3.13 (Chain B parallel). PREREQ-VERIFICATION obligations: S-5.01 formal story still "not-started" but S-5.01-FOLLOWUP-MCP-BOOT merged PR #163 is graduation vehicle — verify before T15a; S-1.12 partial-merge + S-1.12-FOLLOWUP BLOCKED — verify S-3.13 dep scope before T15d. Core demo story count 6→10. CURRENT POINTER T10 UNCHANGED. develop_head 664566e9 UNCHANGED. active_contracts/draft_contracts/total_stories UNCHANGED. Ledger v1.21→v1.22. DEMO-SCOPE.md v1.1→v1.2. STATE v7.804→v7.805. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1161 | state-manager | 2026-06-14 | **T10 PRE-TDD remove-uncertainty RE-RUN CLEAR (D-1110 second run on S-DEMO-004 v1.5).** 5/6 prior fixes CONFIRMED-CORRECT; 1 residual mis-framing caught+corrected: prism-bin Cargo.toml `prism-dtu-common` dev-dep was framed as ADD with `["fixture-gen"]` but is ALREADY present with `["dtu"]`; must be MODIFY to `["dtu","fixture-gen"]` (independent features, not alternatives). Story-writer applied one-line correction; S-DEMO-004 v1.5→v1.6. PRE-TDD verdict CLEAR. STORY-INDEX v2.383→v2.384. Ledger v1.20→v1.21 (T10 not-started→in-progress; POINTER sub-step → worktree+test-writer). develop_head 664566e9 UNCHANGED. active_contracts/draft_contracts UNCHANGED (235/2). BC-INDEX UNTOUCHED. STATE v7.803→v7.804. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1160 | state-manager | 2026-06-14 | **T8+T9 S-DEMO-004 reconcile+materialize+remove-uncertainty — ready v1.5; CURRENT POINTER→T10.** T8-architect: 3 depends_on edges added (S-DEMO-MULTI-TENANT-DTU-001 SATISFIED PR #187, S-DEMO-DTU-LIVE-SCENARIO-001-A SATISFIED PR #181, S-DEMO-DTU-LIVE-SCENARIO-001-B SATISFIED PR #185); §DTU-multi-tenancy-scope rewritten to real-seeding model (retiring port-binding-only); §AC-006 Design Directive; no ADR amendment. T8-PO: BC-2.06.017+BC-2.06.018 added to behavioral_contracts (7 BCs total); §Behavioral Contracts table; no BC amendment, no BC version bump. T9-story-writer: AC-006/007/009 bodies propagated (INV-DISTINCT-DATA-001 content assertion; false-green trap documented); File Structure+Tasks+risk_mitigations; BC-2.10.001 trace gap closed; status draft→ready. remove-uncertainty (D-1110 first run): 6 fixes — 2 HIGH (nextest path, prism-bin Cargo.toml dev-deps), 4 MEDIUM (HarnessEntry::new(), .path(), Armis/Cyberint fallibility, hex-UUID device ID). T7 effectively-satisfied (Story A+B merged). STORY-INDEX v2.382→v2.383 (S-DEMO-004 row + BC-2.06.017/018 matrix rows). Ledger v1.19→v1.20. develop_head 664566e9 UNCHANGED. active_contracts/draft_contracts UNCHANGED (235/2). STATE v7.802→v7.803. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1159 | state-manager | 2026-06-14 | **DURABILITY HARDENING for zero-context resume (cold-resume dry-run verified READY). FIX 1:** DEMO-SCOPE.md staleness corrected (T5+T6 → MERGED; BC-2.06.017/019/020 draft→active; T6 MERGED section added; Build Sequence CURRENT POINTER = T8; read-order precedence note added). **FIX 2:** STATE.md compacted <200 lines (D-1139..D-1157 T6-cascade archived to burst-log.md). **FIX 3:** SESSION-HANDOFF read-order note clarified (DEMO-SCOPE.md = scope/narrative reference; STATE.md + SESSION-HANDOFF §RESUME SNAPSHOT = authoritative pipeline position). No code/merge; develop_head 664566e9 unchanged. STATE v7.801→v7.802. | wave-5-e-demo-fidelity | 2026-06-14 |
@@ -184,15 +185,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _No open PRs on develop. Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass), PR #187 develop@664566e9 (T6 DONE — D-1158 BC-2.06.017 active). T8+T9 COMPLETE (D-1160). D-1110 PRE-TDD re-run CLEAR (D-1161 — S-DEMO-004 v1.6). NEXT: T10 worktree+test-writer → deliver-story S-DEMO-004._
 
-## Session Resume Checkpoint (D-1161 — 2026-06-14; STATE v7.804)
+## Session Resume Checkpoint (D-1162 — 2026-06-14; STATE v7.805)
 
-**STATE v7.804. CURRENT POSITION: T10 in progress — S-DEMO-004 ready v1.6; D-1110 PRE-TDD remove-uncertainty RE-RUN CLEAR (D-1161 2026-06-14). T1–T9 ALL DONE. No open PRs. develop@664566e9 UNCHANGED. BC-INDEX v6.54 (active 235 / draft 2 / retired 6). STORY-INDEX v2.384 (200 stories). BC-2.06.017 v1.10 ACTIVE, BC-2.06.018 v1.6 ACTIVE, BC-2.06.019 v1.7 ACTIVE, BC-2.06.020 v1.6 ACTIVE.**
+**STATE v7.805. CURRENT POSITION: T10 in progress — S-DEMO-004 ready v1.6; D-1110 PRE-TDD remove-uncertainty RE-RUN CLEAR (D-1161 2026-06-14). D-1162: capability-discovery stories S-5.02/S-5.03/S-5.04/S-3.13 REQUIRED (user scope decision). T1–T9 ALL DONE. No open PRs. develop@664566e9 UNCHANGED. BC-INDEX v6.54 (active 235 / draft 2 / retired 6). STORY-INDEX v2.384 (200 stories). BC-2.06.017 v1.10 ACTIVE, BC-2.06.018 v1.6 ACTIVE, BC-2.06.019 v1.7 ACTIVE, BC-2.06.020 v1.6 ACTIVE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
-0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1161). Read `.factory/objectives/DEMO-SCOPE.md` (demo scope/narrative reference; STATUS values track build progress; authoritative current pipeline position = STATE.md + SESSION-HANDOFF §RESUME SNAPSHOT).
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT (latest D-1162). Read `.factory/objectives/DEMO-SCOPE.md` (demo scope/narrative reference; STATUS values track build progress; authoritative current pipeline position = STATE.md + SESSION-HANDOFF §RESUME SNAPSHOT).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING — must pass before reading any state).
 2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `664566e9`.
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.804"`.
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.805"`.
 4. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded) — leave alone. T6 worktree cleaned (merged). Story B worktree cleaned (merged).
 5. Apply lessons (a)–(z23) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-6. **NEXT ACTION: T10 — S-DEMO-004 v1.6 TDD delivery. PRE-TDD re-run DONE/CLEAR (D-1161; do NOT re-run). Execute: vsdd-factory:worktree-manage create S-DEMO-004 → test-writer → implementer → LOCAL 3-CLEAN strict → demo-recorder → push → pr-manager → PR-LEVEL 3-CLEAN strict + pr-reviewer + security → CI → squash-merge → state-manager post-merge burst. POINTER = T10. D-989+D-1090 autonomy grant ACTIVE.**
+6. **NEXT ACTION: T10 — S-DEMO-004 v1.6 TDD delivery. PRE-TDD re-run DONE/CLEAR (D-1161; do NOT re-run). Execute: vsdd-factory:worktree-manage create S-DEMO-004 → test-writer → implementer → LOCAL 3-CLEAN strict → demo-recorder → push → pr-manager → PR-LEVEL 3-CLEAN strict + pr-reviewer + security → CI → squash-merge → state-manager post-merge burst. POINTER = T10. D-989+D-1090 autonomy grant ACTIVE. AFTER T10: capability-discovery block T15a-d REQUIRED (D-1162); see task ledger §Notes for PREREQ-VERIFICATION obligations before T15a and T15d.**

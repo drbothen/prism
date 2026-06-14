@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.1"
-timestamp: 2026-06-14T05:00:00Z
+version: "1.2"
+timestamp: 2026-06-14T00:00:00Z
 project: prism
 ---
 
@@ -154,15 +154,17 @@ Designed in WO-D1109 at `.factory/specs/architecture/work-orders/WO-D1109-enrich
 
 This is **THE FLAGSHIP `enrich` FEATURE**. User chose the DESIGN-FAITHFUL infusion path (not a sensor-pragmatic shortcut). Slots AFTER the capability-discovery block, BEFORE T11 launcher.
 
-### Capability-Discovery Block (D-1107)
+### Capability-Discovery Block — REQUIRED (D-1107 scoped, D-1162 promoted to REQUIRED)
 
-Four stories opted in (D-1107 2026-06-12):
-- **S-5.02** — Tool routing / errors / client scoping (depends_on S-5.01)
-- **S-5.03** — Resources and prompts (hard dep of S-5.04; depends_on S-5.02)
+> **D-1162 USER SCOPE DECISION (2026-06-14):** These stories are NOT optional. User explicitly stated "are not optional." All four are now REQUIRED core demo deliverables.
+
+Four stories:
+- **S-5.02** — Tool routing / errors / client scoping (depends_on S-5.01; PREREQ-VERIFICATION needed — S-5.01 formal story row shows not-started but S-5.01-FOLLOWUP-MCP-BOOT merged PR #163 2026-05-29 is the graduation vehicle)
+- **S-5.03** — Resources and prompts (hard dep of S-5.04; depends_on S-5.02; transitive pull-in per D-1162)
 - **S-5.04** — Sensor health subsystem (depends_on S-5.03 + S-DEMO-001)
-- **S-3.13** — Dynamic table availability (parallel after PO authors dedicated BCs; depends_on S-3.02 + S-1.12)
+- **S-3.13** — Dynamic table availability (parallel after PO authors dedicated BCs; depends_on S-3.02 SATISFIED + S-1.12 PREREQ-VERIFICATION needed — partial-merge; S-1.12-FOLLOWUP BLOCKED)
 
-All four require `dclaude:remove-uncertainty` before TDD delivery (D-1110 standing rule).
+All four require `dclaude:remove-uncertainty` before TDD delivery (D-1110 standing rule). PO must author dedicated BCs for S-5.02 and S-3.13 before status=ready. Delivery ordering: S-5.01-verify → S-5.02 → S-5.03 → S-5.04; S-1.12-verify → S-3.13 (parallel chain).
 
 ### T11 — Launcher Consolidation
 
@@ -192,12 +194,14 @@ T1–T4 DONE
   → T5 MERGED (PR #185 develop@7fd35b77 2026-06-13) — unfolding-attack scenario; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 active
   → T6 MERGED (PR #187 develop@664566e9 2026-06-14) — multi-tenant DTU overlay; BC-2.06.017 v1.10 active
 
-  *** CURRENT POINTER: T8 ***
-  → T8 architect + PO reconcile (S-DEMO-004: add depends_on S-DEMO-MULTI-TENANT-DTU-001 + AC-006 data-distinctness via real seeding; then story-writer + remove-uncertainty)
-  → capability-discovery block: S-5.02 → S-5.03 → S-5.04 (+ S-3.13 parallel)
+  *** CURRENT POINTER: T10 (S-DEMO-004 delivery) ***
+  → T10 S-DEMO-004 delivery (12-gate TDD; ready v1.6; PRE-TDD CLEAR D-1161)
+  → capability-discovery block [REQUIRED — D-1162 2026-06-14]:
+      Chain A: S-5.01-verify → T15a S-5.02 → T15b S-5.03 → T15c S-5.04
+      Chain B: S-1.12-verify → T15d S-3.13 (parallel; PO authors dedicated BCs first)
   → S-DEMO-ENRICHMENT-PIVOT-001 → PIVOT-002 → PIVOT-003 (infusion `enrich` pivot)
-  → T11 launcher consolidation (S-DEMO-LAUNCHER-CONSOLIDATION-001)
-  → T13 capstone (multi-client SOC-analyst narrative story)
+  → T11 launcher consolidation (S-DEMO-LAUNCHER-CONSOLIDATION-001) [parallel with cap-discovery]
+  → T13 capstone (multi-client SOC-analyst narrative story) [LAST before recording]
   → T14 demo recording
 ```
 
