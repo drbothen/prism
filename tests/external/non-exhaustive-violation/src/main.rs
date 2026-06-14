@@ -97,7 +97,7 @@
 //!   58. prism_dtu_harness::HarnessEntry                   — struct, multi_instance.rs
 //!   59. prism_dtu_harness::BindError                      — struct, error.rs
 //!   60. prism_dtu_demo_server::MultiInstanceBindError     — enum (match without wildcard, multi_instance.rs)
-//!   Note: ci.yml EXPECTED bumped from 52 to 59 (U-006; 6 E0639 struct + 1 E0004 enum = 7 new violations).
+//!   Note: ci.yml EXPECTED bumped from 52 to 60 (U-006 + D-1075-API-GAP-001; 7 E0639 struct + 1 E0004 enum = 8 new violations).
 //!
 //! Structure: violations are split across submodules (separate compile units) so that
 //! rustc's per-function error budget does not suppress later violations. The CI script

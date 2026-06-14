@@ -35,6 +35,43 @@
 
 use crate::multi_instance::MultiInstanceHarness;
 
+/// Validate that a harness key component (org_slug or sensor_id) is safe to use
+/// in both filesystem paths and raw TOML string values.
+///
+/// # Security rationale (SEC-001 / SEC-002)
+///
+/// These values are interpolated into:
+/// - Filesystem paths: `{dir}/customers/{org_slug}/{sensor_id}.sensor.toml`  (CWE-22 path traversal)
+/// - Raw TOML content: `extends = "{sensor_id}"`, `instance_id = "{sensor_id}@{org_slug}"` (CWE-93/74 TOML injection)
+///
+/// Allowed charset: ASCII alphanumeric, `-`, `_`. Length: 1..=64.
+/// This excludes `..`, `/`, `\`, `"`, `\n`, `\r`, `[`, `]`, `@`, whitespace —
+/// closing both the path-traversal and TOML-injection attack surfaces.
+fn validate_harness_key(field: &str, value: &str) -> std::io::Result<()> {
+    if value.is_empty() || value.len() > 64 {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!(
+                "overlay_wiring: {field} must be 1–64 characters, got length {}",
+                value.len()
+            ),
+        ));
+    }
+    for ch in value.chars() {
+        if !matches!(ch, 'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_') {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "overlay_wiring: {field} contains disallowed character {ch:?} in {value:?}; \
+                     only ASCII alphanumeric, '-', and '_' are permitted \
+                     (SEC-001 TOML-injection / SEC-002 path-traversal defense)"
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Write per-org sensor overlay TOML files from a `MultiInstanceHarness` socket map.
 ///
 /// For each `(org_slug, sensor_id)` → `SocketAddr` entry in
@@ -52,7 +89,15 @@ use crate::multi_instance::MultiInstanceHarness;
 /// function receives only the `&Path` (U-005: no `tempfile` import in `src/`).
 ///
 /// Returns `Ok(())` once all overlay files are written, or the first
-/// `std::io::Error` encountered during directory creation or file write.
+/// `std::io::Error` encountered during validation, directory creation, or file write.
+///
+/// # Security (SEC-001 / SEC-002)
+///
+/// Both `org_slug` and `sensor_id` are validated before any path join or TOML
+/// string construction. Only ASCII alphanumeric, `-`, and `_` are accepted
+/// (length 1–64). This rejects path components containing `..`, `/`, `"`, newlines,
+/// or TOML structural characters, closing the CWE-22 path-traversal and CWE-93/74
+/// TOML-injection vectors.
 ///
 /// (BC-2.06.017 Postcondition 3 — after this function + `SpecLoader::load_all`,
 /// `ResolvedSensorSpec` entries for each org carry the correct distinct `base_url`)
@@ -60,6 +105,12 @@ pub fn write_overlay_temp_dir(
     harness: &MultiInstanceHarness,
     dir: &std::path::Path,
 ) -> std::io::Result<()> {
+    // Validate ALL entries BEFORE any filesystem mutation (fail-fast, atomicity).
+    for (org_slug, sensor_id) in harness.socket_map().keys() {
+        validate_harness_key("org_slug", org_slug)?;
+        validate_harness_key("sensor_id", sensor_id)?;
+    }
+
     // For each (org_slug, sensor_id) → SocketAddr in the harness socket_map,
     // write:  {dir}/customers/{org_slug}/{sensor_id}.sensor.toml
     // with content (raw TOML string — INV-PERIMETER-001: no spec-engine imports here):
@@ -87,4 +138,89 @@ pub fn write_overlay_temp_dir(
         std::fs::write(&toml_path, toml_content)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_harness_key;
+
+    /// SEC-002: org_slug with path traversal component is rejected.
+    #[test]
+    fn test_validate_harness_key_rejects_path_traversal_org_slug() {
+        let result = validate_harness_key("org_slug", "../etc");
+        assert!(
+            result.is_err(),
+            "org_slug '../etc' must be rejected (SEC-002 path traversal)"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("org_slug"),
+            "error message must name the offending field; got: {msg}"
+        );
+    }
+
+    /// SEC-001: sensor_id with TOML injection payload (quote + newline) is rejected.
+    #[test]
+    fn test_validate_harness_key_rejects_toml_injection_sensor_id() {
+        // A value that would break out of a TOML string value: `"\nmalicious = "true"`.
+        let injection = "arm\"\nmalicious = \"true";
+        let result = validate_harness_key("sensor_id", injection);
+        assert!(
+            result.is_err(),
+            "sensor_id containing quote+newline must be rejected (SEC-001 TOML injection)"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("sensor_id"),
+            "error message must name the offending field; got: {msg}"
+        );
+    }
+
+    /// Happy path: valid org_slug and sensor_id values are accepted.
+    #[test]
+    fn test_validate_harness_key_accepts_valid_values() {
+        assert!(
+            validate_harness_key("org_slug", "acme").is_ok(),
+            "org_slug 'acme' must be accepted"
+        );
+        assert!(
+            validate_harness_key("sensor_id", "armis").is_ok(),
+            "sensor_id 'armis' must be accepted"
+        );
+        assert!(
+            validate_harness_key("org_slug", "contoso-corp_01").is_ok(),
+            "org_slug with hyphens and underscores must be accepted"
+        );
+    }
+
+    /// SEC-002: forward slash in org_slug is rejected.
+    #[test]
+    fn test_validate_harness_key_rejects_forward_slash() {
+        let result = validate_harness_key("org_slug", "acme/etc");
+        assert!(
+            result.is_err(),
+            "org_slug 'acme/etc' must be rejected (SEC-002 path traversal via slash)"
+        );
+    }
+
+    /// Edge: empty string is rejected.
+    #[test]
+    fn test_validate_harness_key_rejects_empty() {
+        let result = validate_harness_key("org_slug", "");
+        assert!(
+            result.is_err(),
+            "empty org_slug must be rejected (length constraint)"
+        );
+    }
+
+    /// Edge: string exceeding 64 characters is rejected.
+    #[test]
+    fn test_validate_harness_key_rejects_too_long() {
+        let long_value = "a".repeat(65);
+        let result = validate_harness_key("org_slug", &long_value);
+        assert!(
+            result.is_err(),
+            "org_slug of 65 characters must be rejected (length > 64)"
+        );
+    }
 }
