@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-03T00:00:00Z"
 created: "2026-06-03"
-modified: "2026-06-13T23:30:00Z"
+modified: "2026-06-13T23:55:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -103,7 +103,7 @@ phase: 3
 
 **Story ID:** S-DEMO-MULTI-TENANT-DTU-001
 **Status:** ready
-**Version:** v1.4
+**Version:** v1.5
 **Wave:** 5
 **Priority:** P2
 **Points:** 8
@@ -767,7 +767,7 @@ version" for these two. For all other crates, verify workspace path/version befo
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | Requested bind address is already in use (EADDRINUSE) | Multi-error aggregation (INV-ERR-003-COMPAT): all bind operations attempted; all failures collected; successful partial binds shut down. Demo-server returns `Err(MultiInstanceBindError::BindFailure(Vec<DemoBindError>))` where each `DemoBindError { instance_name: String, source: std::io::Error }`. Harness returns `Err(HarnessError::BindFailure(Vec<BindError>))` where each `BindError { org_slug: String, sensor_id: String, source: std::io::Error }`. Does NOT short-circuit at first error. (BC-2.06.017 v1.1 EC-017-001 + Postcondition 6 + INV-ERR-003-COMPAT) |
-| EC-002 | `MultiInstanceConfig` with zero instances | Returns `Ok(HashMap::new())` — empty map, no error, no spawned tasks (BC-2.06.017 EC-017-002) |
+| EC-002 | `MultiInstanceConfig` with zero instances | Returns `Ok(MultiInstanceServers)` whose `socket_map()` is empty — no error, no spawned tasks (BC-2.06.017 EC-017-002) |
 | EC-003 | Same `(org_slug, sensor_id)` pair appears in two `HarnessEntry` items | `Err(HarnessError::DuplicateKey { org_slug, sensor_id })` returned immediately before any clone instances started. Same instance `name` duplication in demo-server returns `Err(MultiInstanceBindError::DuplicateName { name })` before any bind attempts. Silent last-wins behavior is FORBIDDEN per BC-2.06.017 v1.1 postcondition 7 + D-1074. Error message must name the conflicting pair verbatim. |
 | EC-004 | Overlay TOML file for org that is NOT in `OrgRegistry` | `SpecLoader::load_all` emits `E-SPEC-022` (S-CONFIG-MULTI-TENANT-OVERRIDE-001 AC-004 / BC-2.06.015); multi-instance harness test must register test orgs in OrgRegistry before calling load_all. |
 | EC-005 | `MultiInstanceHarness` dropped before test asserts isolation | `impl Drop` for `MultiInstanceHarness` calls `self.shutdown_tx.send(())` (best-effort; error ignored) then drops `task_handles` WITHOUT explicit abort. Axum `with_graceful_shutdown` drains in-flight requests within 5s on the clone side (matching existing `DemoHarness::drop` pattern). Test code must ensure assertions happen before the harness goes out of scope. (BC-2.06.017 EC-017-005; U-004 architect-locked drop pattern) |
@@ -811,3 +811,4 @@ version" for these two. For all other crates, verify workspace path/version befo
 | 1.2 | 2026-06-09 | story-writer | D-1075 reconciliation — architect remove-uncertainty scan U-001..U-008 applied. BC reference updated to BC-2.06.017 v1.1 throughout. **U-001:** AC-007 and Task-5 corrected to real `start_on` signature (`&mut self`, `Option<broadcast::Receiver<()>>`, `Option<()>` tls); bind-loop call form `entry.clone.start_on(bind_addr, Some(shutdown_tx.subscribe()), None).await?` added verbatim; `iter_mut()` requirement stated. **U-002:** Library table: `prism-dtu-armis`/`prism-dtu-claroty` reclassified from `[dependencies]` to `[dev-dependencies]` (test-only); `src/` code never names clone types; INV-PERIMETER-001 non-breach note added. **U-003+U-007:** Error type disambiguation — `DemoBindError { instance_name, source }` (demo-server) vs `BindError { org_slug, sensor_id, source }` (harness); both new `#[non_exhaustive]` structs added to Architecture Mapping + File Structure + EC-001/EC-003/EC-009. `MultiInstanceBindError` enum added to Architecture Mapping. **U-004:** `MultiInstanceHarness` locked field layout (`socket_map: HashMap<(String,String),SocketAddr>`, `shutdown_tx: broadcast::Sender<()>`, `task_handles: Vec<JoinHandle<()>>`); key is plain `(String,String)` test-infra key (not production OrgKey); `impl Drop` graceful pattern; admin-token map omission noted; AC-004/Story-Level-Goal/Red-Gate-Plan updated; EC-005 aligned. **U-005:** `overlay_wiring` function signature locked (`&MultiInstanceHarness, &std::path::Path`) -> `std::io::Result<()>`; `tempfile` = `[dev-dependencies]` `"3"` literal pin; no tempfile in `src/`. **U-006:** EXPECTED 49→56 (7 new gate errors: 6 E0639 + 1 E0004); explicit Task-6a for non-exhaustive-violation crate wiring (Cargo.toml deps + struct_violations.rs arms + enum_violations.rs arm + ci.yml bump). **U-008:** `axum = "0.7"` and `tokio = { version = "1", features = ["full"] }` literal per-crate pins replacing "workspace version" guidance throughout Library table and Task-3. **Also:** §Locked API (D-1075 reconciliation) subsection added to Architecture Mapping with verbatim canonical Rust signatures for all new types. Token budget updated to ~42,500 (~17% of 256K). Status remains `ready`. |
 | 1.3 | 2026-06-13 | story-writer | D-1143 remove-uncertainty re-run (mandatory pre-TDD per D-1110). Re-baselined non-exhaustive gate count: `EXPECTED` 49→52 base (001-A AC-014 + 001-B grew the gate to 52 since v1.2); target now 52→59 (+7 unchanged: 6 E0639 + 1 E0004). Corrected stale Task-6a preamble: non-exhaustive-violation crate now imports prism-dtu-common (Story A) — demo-server/harness still to be added. All version pins (axum 0.7, tokio 1/full, tempfile 3, anyhow 1, reqwest 0.12), start_on signature, and HarnessError #[non_exhaustive] re-CONFIRMED unchanged. Status remains `ready`. |
 | 1.4 | 2026-06-13 | story-writer | Architect adjudication D-1075-API-GAP-001 (Option A — graceful-shutdown lifecycle handle). start_instances return type HashMap→MultiInstanceServers (new #[non_exhaustive] handle owning shutdown_tx + task_handles; .shutdown() + Drop graceful drain; mirrors MultiInstanceHarness; eliminates zombie-server/port leak). Non-exhaustive gate re-baselined 59→60 (+1 MultiInstanceServers E0639). AC-001/AC-002/Story-Level-Goal updated to servers.socket_map() accessor. INV-COMPAT-001 unaffected (start_instances is new). Status remains ready. |
+| 1.5 | 2026-06-13 | story-writer | F-P1-MED-001 (LOCAL adversary Pass-1): EC-002 zero-instances return-type sweep Ok(HashMap::new()) → Ok(MultiInstanceServers) with empty socket_map() (sibling of the v1.4 return-type change). Status remains ready. |

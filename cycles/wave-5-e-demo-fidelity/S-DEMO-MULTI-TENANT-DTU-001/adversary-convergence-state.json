@@ -1,0 +1,16 @@
+{
+  "story_id": "S-DEMO-MULTI-TENANT-DTU-001",
+  "protocol": "BC-5.39.001 3-CLEAN-strict",
+  "passes_completed": 1,
+  "clean_strict_streak": 0,
+  "last_pass": 1,
+  "last_classification": "SUBSTANTIVE",
+  "findings_pass_1": {
+    "CRIT": 0,
+    "HIGH": 1,
+    "MED": 3,
+    "LOW": 3
+  },
+  "all_pass_1_findings": "CLOSED",
+  "next": "pass-2"
+}
