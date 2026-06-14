@@ -1,17 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.801"
+version: "7.802"
 status: current
-timestamp: 2026-06-13T21:45:00Z
+timestamp: 2026-06-14T05:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1158 BURST (2026-06-14) — T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED (PR #187 develop@664566e9). POL-14: BC-2.06.017 v1.10 draft→active. T1–T6+T4-A DONE. NEXT: orchestrator selects T8/T11/D-1107. develop HEAD 664566e9. STATE v7.801.**
+> **D-1159 BURST (2026-06-14) — DURABILITY HARDENING: DEMO-SCOPE.md T5+T6 → MERGED corrected; STATE compacted <200 lines; SESSION-HANDOFF read-order clarified. D-1158: T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED (PR #187 develop@664566e9). T1–T6+T4-A DONE. NEXT: orchestrator selects T8/T11/D-1107. develop HEAD 664566e9. STATE v7.802.**
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1158 below, then STATE.md frontmatter. All prior D-1101..D-1157 notes SUPERSEDED.
-> develop HEAD `664566e9` (PR #187 squash-merge 2026-06-14; D-1158 post-merge burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1158 burst). STATE v7.801.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT below are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
+> develop HEAD `664566e9` (PR #187 squash-merge 2026-06-14; D-1158 post-merge burst; D-1159 durability-hardening burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1159 burst). STATE v7.802.
 
 ---
 
@@ -77,7 +78,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 **NEXT CONCRETE ACTION: T8 — architect+PO dispatch for S-DEMO-004 (add depends_on S-DEMO-MULTI-TENANT-DTU-001 edge + commit AC-006 data-distinctness via real seeding, not port-binding-only; then story-writer + remove-uncertainty). Alternatively: T11 S-DEMO-LAUNCHER-CONSOLIDATION-001 story-writer, T13 narrative capstone, or D-1107 opted-in S-5.02/5.03/5.04/S-3.13 capability-discovery. T6 DONE develop@664566e9. D-989+D-1090 autonomy grant remains active.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T8 (S-DEMO-004; architect+PO; not-started). T1+T2+T3+T4+T4-A+T5+T6 DONE. PR #187 MERGED develop@664566e9 (D-1158 T6 DONE; BC-2.06.017 v1.10 active). ADR-036 v2.3. BC-INDEX v6.54. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.382. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.017 v1.10 ACTIVE. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.801.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T8 (S-DEMO-004; architect+PO; not-started). T1+T2+T3+T4+T4-A+T5+T6 DONE. PR #187 MERGED develop@664566e9 (D-1158 T6 DONE; BC-2.06.017 v1.10 active). ADR-036 v2.3. BC-INDEX v6.54. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.382. error-taxonomy v1.78. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.017 v1.10 ACTIVE. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.802 (D-1159 durability-hardening burst).**
 
 ---
 
@@ -97,9 +98,9 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
-2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (authoritative demo scope: what is built, what is in convergence, what the honest gaps are). Then read STATE.md frontmatter (`current_step`, D-1158 decision row).
+2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (demo SCOPE and NARRATIVE reference: what the demo includes, what is built, what the honest gaps are; STATUS values track build progress). For the AUTHORITATIVE current pipeline position and next action, use STATE.md frontmatter + §RESUME SNAPSHOT (this file), NOT DEMO-SCOPE.md. Then read STATE.md frontmatter (`current_step`, D-1158/D-1159 decision rows).
 3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `664566e9`.
-4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.801"`.
+4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.802"`.
 5. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). T6 worktree `.worktrees/S-DEMO-MULTI-TENANT-DTU-001` CLEANED (merged). Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` CLEANED (merged).
 6. Apply lessons (a)–(z23) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
 7. **NEXT ACTION: orchestrator selects next task. CURRENT POINTER = T8 (architect+PO: S-DEMO-004 depends_on + data-distinctness via real seeding). Alternatives: T11 (story-writer: S-DEMO-LAUNCHER-CONSOLIDATION-001), T13 (PO+story-writer: narrative capstone), D-1107 opted-in stories (S-5.02/5.03/5.04/S-3.13). Consult multi-client-soc-demo-tasks.md.**
@@ -113,7 +114,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T1–T6+T4-A DONE. NEXT: T8 (architect+PO: S-DEMO-004) or T11/T13/D-1107. |
 | **develop HEAD** | `664566e9` (PR #187 squash-merge 2026-06-14; D-1158 T6 DONE) |
-| **STATE version** | v7.801 |
+| **STATE version** | v7.802 |
 | **BC-INDEX version** | v6.54 (total 250; active 235; draft 2; retired 6; BC-2.06.017 v1.10 active; BC-2.06.018 v1.6 active; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
 | **STORY-INDEX version** | v2.382 (total_stories 200; S-DEMO-MULTI-TENANT-DTU-001 merged v1.14) |
 | **VP-INDEX version** | v1.79 (158 registered) |

@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.0"
-timestamp: 2026-06-13T18:00:00Z
+version: "1.1"
+timestamp: 2026-06-14T05:00:00Z
 project: prism
 ---
 
@@ -12,6 +12,8 @@ project: prism
 > **THIS IS THE SINGLE SOURCE OF TRUTH** for "everything we are including in the demo."
 > Referenced by SESSION-HANDOFF.md §ACTIVE OBJECTIVE and `.factory/objectives/multi-client-soc-demo-tasks.md`.
 > A zero-context restart MUST read this file to understand what the demo includes, what is already built, and what the honest gaps are.
+
+> **READ ORDER NOTE (cold-resume agents):** STATUS values in this document track build progress (MERGED / SCOPED-NOT-BUILT). For the AUTHORITATIVE current pipeline position, next action, and develop HEAD, the source-of-truth is **STATE.md frontmatter** + **SESSION-HANDOFF.md §RESUME SNAPSHOT**. This document is the demo SCOPE and NARRATIVE reference — not the live pipeline position.
 
 ---
 
@@ -66,9 +68,9 @@ All 43 CI checks pass on `develop@939f36ce`.
 
 ---
 
-## IN CONVERGENCE — T5 (PR #185, S-DEMO-DTU-LIVE-SCENARIO-001-B)
+## MERGED — T5 (PR #185, S-DEMO-DTU-LIVE-SCENARIO-001-B)
 
-> The **unfolding-attack centerpiece** of the demo. PR #185 OPEN. Story B HEAD: `15bedc12`. PR-LEVEL cascade streak 0/3; pass 25 NEXT.
+> **MERGED develop@7fd35b77 (2026-06-13; D-1139). BC-2.06.019 v1.7 + BC-2.06.020 v1.6 ACTIVE (POL-14). T5 DONE.**
 
 ### Deterministic 5-Stage Attack Progression Over Wall-Clock Time
 
@@ -77,7 +79,7 @@ All 43 CI checks pass on `develop@939f36ce`.
 - Same seed + same clock-offset = same timeline (reproducible for demo replay)
 - Stage transitions happen at real wall-clock time during the demo — the analyst can query prism WHILE the attack progresses and see the picture grow
 
-BCs: **BC-2.06.019 v1.7** (scenario progression) — draft; promotes to active at merge (POL-14).
+BCs: **BC-2.06.019 v1.7** (scenario progression) — **ACTIVE** (POL-14 at merge D-1139).
 
 ### Stage-Gated Visibility (StageMask)
 
@@ -105,11 +107,29 @@ Per user direction (D-1117):
 - Cyberint alert CVEs correlate end-to-end: a Cyberint alert's CVE genuinely resolves in NVD via the real `lookup_and_count` pivot (proven by integration test VP-020-K)
 - Enrichment data is scenario-seeded per-client — not random fixture noise
 
-BCs: **BC-2.06.020 v1.6** (enrichment correlation) — draft; promotes to active at merge (POL-14).
+BCs: **BC-2.06.020 v1.6** (enrichment correlation) — **ACTIVE** (POL-14 at merge D-1139).
 
 ### Acceptance Criteria and Demo Evidence
 
 19 acceptance criteria, all with recorded VHS demo evidence (19/19 complete).
+
+---
+
+## MERGED — T6 (PR #187, S-DEMO-MULTI-TENANT-DTU-001)
+
+> **MERGED develop@664566e9 (2026-06-14; D-1158). BC-2.06.017 v1.10 ACTIVE (POL-14). T6 DONE.**
+
+### Per-Instance Multi-Address Binding — Multi-Tenant DTU Overlay
+
+Per-client DTU instance binding, graceful-shutdown lifecycle handle (`MultiInstanceServers`), and end-to-end FanOutTarget DTU-routing isolation proof. Delivered:
+
+- `MultiInstanceConfig` / `InstanceEntry` / `start_instances` → `MultiInstanceServers` lifecycle handle with `socket_map()` accessor + `shutdown()` + `Drop` graceful drain (prism-dtu-demo-server)
+- `MultiInstanceHarness` / `HarnessEntry` / overlay_wiring + `BindError` / `HarnessError` variants (prism-dtu-harness)
+- `ArmisClone` server-side request counter (`GET /dtu/request-count`) for AC-006 isolation proof (prism-dtu-armis)
+- End-to-end `FanOutTarget` DTU-routing isolation test (`prism-sensors/tests/multi_tenant_dtu_routing_integration.rs`)
+- Non-exhaustive gate 52→60 (`ci.yml EXPECTED=60`)
+
+BC-2.06.017 v1.10 is **ACTIVE** (POL-14 at merge D-1158). Story v1.14. LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict CONVERGED (BC-5.39.001). CI 43/43 green.
 
 ---
 
@@ -134,12 +154,6 @@ Designed in WO-D1109 at `.factory/specs/architecture/work-orders/WO-D1109-enrich
 
 This is **THE FLAGSHIP `enrich` FEATURE**. User chose the DESIGN-FAITHFUL infusion path (not a sensor-pragmatic shortcut). Slots AFTER the capability-discovery block, BEFORE T11 launcher.
 
-### T6 — Multi-Tenant DTU Overlay
-
-**Story:** `S-DEMO-MULTI-TENANT-DTU-001` (BC-2.06.017 draft; story status: ready v1.2)
-
-Per-instance multi-address binding for fuller multi-tenant testing. Independent of Story A/B; deliver after T5 convergence + merge.
-
 ### Capability-Discovery Block (D-1107)
 
 Four stories opted in (D-1107 2026-06-12):
@@ -162,9 +176,9 @@ Pending human launcher-lifecycle decision. Story-writer materialization needed.
 
 ---
 
-## What the Demo CAN SHOW Today (Post-T5-Merge)
+## What the Demo CAN SHOW Today (Post-T6-Merge; develop@664566e9)
 
-An analyst in Claude Code, querying **multiple client orgs** through prism, watching an attack **unfold in real time** across CrowdStrike / Armis / Claroty / Cyberint — devices appearing, IOCs surfacing, containment triggering — with **cross-sensor correlation** telling one coherent story per client.
+An analyst in Claude Code, querying **multiple client orgs** through prism, watching an attack **unfold in real time** across CrowdStrike / Armis / Claroty / Cyberint — devices appearing, IOCs surfacing, containment triggering — with **cross-sensor correlation** telling one coherent story per client. Per-instance multi-address binding (T6) enables genuine multi-tenant DTU overlay with routing isolation proofs.
 
 The enrichment pivot (alert → IOC/CVE → ThreatIntel/NVD answer) is demonstrable at the DTU level and becomes a TRUE in-prism analyst pivot once the PIVOT-001/002/003 infusion chain lands.
 
@@ -173,11 +187,13 @@ The enrichment pivot (alert → IOC/CVE → ThreatIntel/NVD answer) is demonstra
 ## Build Sequence (Where Each Piece Sits)
 
 ```
-T1–T4 done
-  → T4-A MERGED (PR #181) — per-client distinct seeded data
-  → T5 IN CONVERGENCE (PR #185) — unfolding-attack scenario (5 stages, cross-DTU coherence, enrichment correlation at data layer)
-  → T6 multi-tenant DTU overlay (S-DEMO-MULTI-TENANT-DTU-001)
-  → T8 architect + PO reconcile (S-DEMO-004 formal story file)
+T1–T4 DONE
+  → T4-A MERGED (PR #181 develop@c287b00d) — per-client distinct seeded data; BC-2.06.018 v1.6 active
+  → T5 MERGED (PR #185 develop@7fd35b77 2026-06-13) — unfolding-attack scenario; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 active
+  → T6 MERGED (PR #187 develop@664566e9 2026-06-14) — multi-tenant DTU overlay; BC-2.06.017 v1.10 active
+
+  *** CURRENT POINTER: T8 ***
+  → T8 architect + PO reconcile (S-DEMO-004: add depends_on S-DEMO-MULTI-TENANT-DTU-001 + AC-006 data-distinctness via real seeding; then story-writer + remove-uncertainty)
   → capability-discovery block: S-5.02 → S-5.03 → S-5.04 (+ S-3.13 parallel)
   → S-DEMO-ENRICHMENT-PIVOT-001 → PIVOT-002 → PIVOT-003 (infusion `enrich` pivot)
   → T11 launcher consolidation (S-DEMO-LAUNCHER-CONSOLIDATION-001)
@@ -196,5 +212,6 @@ T1–T4 done
 | `.factory/STATE.md` | Live pipeline state (current phase, active decision rows) |
 | `.factory/stories/S-DEMO-DTU-LIVE-SCENARIO-001-B-scenario-progression-enrichment.md` | Story B spec (Story B v2.16, BCs 019+020) |
 | `.factory/specs/architecture/work-orders/WO-D1109-enrichment-pivot.md` | Enrichment pivot design (PIVOT-001/002/003 architecture) |
-| `.factory/specs/behavioral-contracts/BC-2.06.019.md` | Scenario progression contract (v1.7 draft) |
-| `.factory/specs/behavioral-contracts/BC-2.06.020.md` | Enrichment correlation contract (v1.6 draft) |
+| `.factory/specs/behavioral-contracts/BC-2.06.017.md` | Multi-tenant DTU overlay contract (v1.10 active) |
+| `.factory/specs/behavioral-contracts/BC-2.06.019.md` | Scenario progression contract (v1.7 active) |
+| `.factory/specs/behavioral-contracts/BC-2.06.020.md` | Enrichment correlation contract (v1.6 active) |
