@@ -297,7 +297,7 @@ impl InfusionLoader {
             })
             .collect();
 
-        Ok(InfusionSpec {
+        let spec = InfusionSpec {
             infusion_id: raw_infusion.infusion_id,
             name: raw_infusion.name,
             infusion_type,
@@ -308,7 +308,17 @@ impl InfusionLoader {
             credentials,
             source_path: source_path.to_string(),
             cache_ttl_secs: raw_infusion.cache_ttl_secs,
-        })
+        };
+
+        // Validate credentials use reference-based model (no empty env_var, INV-INFUSE-005 / AD-017).
+        // Fully determinable at spec-load time — checks TOML struct fields only.
+        Self::validate_credentials(&spec)?;
+
+        // Validate pipe_stage.adds_columns references only declared field names.
+        // Fully determinable at spec-load time — all data is in the InfusionSpec struct.
+        Self::validate_pipe_stage_columns(&spec)?;
+
+        Ok(spec)
     }
 
     /// Load all `*.infusion.toml` files from `{config_dir}/infusions/`.

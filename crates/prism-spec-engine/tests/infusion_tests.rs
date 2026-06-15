@@ -1645,3 +1645,219 @@ fn test_BC_2_19_003_is_api_backed_true_for_plugin_type() {
         "BC-2.19.003: is_api_backed('geoip_country') must return false for LocalLookup infusion."
     );
 }
+
+// ---------------------------------------------------------------------------
+// LOW-3 fix: validate_credentials + validate_pipe_stage_columns wired into parse
+//
+// Both validators are spec-load-time checks (no live credential store or runtime
+// data schema needed). They are called inside InfusionLoader::parse after the
+// InfusionSpec is built, so every load path picks them up automatically.
+// ---------------------------------------------------------------------------
+
+/// Valid plugin spec with a well-formed credential reference passes parse.
+///
+/// Traces to: BC-2.19.001 / INV-INFUSE-005 / AD-017 (credential reference model).
+/// validate_credentials: env_var non-empty → Ok(()).
+#[test]
+fn test_BC_2_19_001_parse_accepts_spec_with_valid_credential_reference() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "threat_intel"
+name = "Threat Intelligence Plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "plugins/threat_intel.prx"
+
+[[infusion.fields]]
+name = "threat_score"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "float"
+
+[[infusion.credentials]]
+field_name = "api_key"
+env_var = "THREAT_INTEL_API_KEY"
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "threat_intel.infusion.toml");
+
+    assert!(
+        result.is_ok(),
+        "BC-2.19.001: parse must accept a spec with a well-formed credential reference \
+         (env_var is non-empty). Got: {:?}",
+        result.err()
+    );
+    let spec = result.unwrap();
+    assert_eq!(
+        spec.credentials.len(),
+        1,
+        "BC-2.19.001: parsed spec must contain exactly 1 credential"
+    );
+    assert_eq!(
+        spec.credentials[0].field_name, "api_key",
+        "BC-2.19.001: credential field_name must be parsed correctly"
+    );
+    assert_eq!(
+        spec.credentials[0].env_var, "THREAT_INTEL_API_KEY",
+        "BC-2.19.001: credential env_var must be parsed correctly"
+    );
+}
+
+/// Plugin spec with a credential entry whose env_var is empty is rejected at parse time.
+///
+/// Traces to: BC-2.19.001 / INV-INFUSE-005 / AD-017 (reference-based credential model).
+/// validate_credentials: empty env_var → Err(CredentialUnresolved).
+/// This enforces the "no inline credential value" constraint at spec-load time —
+/// an empty env_var means the spec is missing the reference path entirely.
+#[test]
+fn test_BC_2_19_001_parse_rejects_spec_with_empty_env_var_credential() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "threat_intel"
+name = "Threat Intelligence Plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "plugins/threat_intel.prx"
+
+[[infusion.fields]]
+name = "threat_score"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "float"
+
+[[infusion.credentials]]
+field_name = "api_key"
+env_var = ""
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "threat_intel_bad_cred.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "BC-2.19.001: parse must reject a spec with an empty env_var credential (AD-017 violation)"
+    );
+    match result.unwrap_err() {
+        InfusionError::CredentialUnresolved {
+            field_name,
+            infusion_id,
+            ..
+        } => {
+            assert_eq!(
+                field_name, "api_key",
+                "BC-2.19.001: CredentialUnresolved must name the offending field"
+            );
+            assert_eq!(
+                infusion_id, "threat_intel",
+                "BC-2.19.001: CredentialUnresolved must name the infusion_id"
+            );
+        }
+        other => panic!(
+            "BC-2.19.001: expected CredentialUnresolved error for empty env_var, got: {:?}",
+            other
+        ),
+    }
+}
+
+/// Valid plugin spec with pipe_stage.adds_columns matching declared fields passes parse.
+///
+/// Traces to: BC-2.19.001 postcondition — pipe_stage.adds_columns must reference declared fields.
+/// validate_pipe_stage_columns: all adds_columns in spec.fields → Ok(()).
+#[test]
+fn test_BC_2_19_001_parse_accepts_spec_with_pipe_stage_matching_fields() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "threat_intel"
+name = "Threat Intelligence Plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "plugins/threat_intel.prx"
+
+[[infusion.fields]]
+name = "threat_score"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "float"
+
+[[infusion.fields]]
+name = "is_known_bad"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "boolean"
+
+[infusion.pipe_stage]
+adds_columns = ["threat_score", "is_known_bad"]
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "threat_intel.infusion.toml");
+
+    assert!(
+        result.is_ok(),
+        "BC-2.19.001: parse must accept a spec where pipe_stage.adds_columns references \
+         only declared fields. Got: {:?}",
+        result.err()
+    );
+    let spec = result.unwrap();
+    let pipe_stage = spec
+        .pipe_stage
+        .expect("BC-2.19.001: parsed spec must have pipe_stage set");
+    assert_eq!(
+        pipe_stage.adds_columns.len(),
+        2,
+        "BC-2.19.001: pipe_stage.adds_columns must contain 2 entries"
+    );
+}
+
+/// Plugin spec where pipe_stage.adds_columns references an unknown field name is rejected at parse time.
+///
+/// Traces to: BC-2.19.001 postcondition — pipe_stage column references must match declared fields.
+/// validate_pipe_stage_columns: unknown column name → Err(MissingRequiredField).
+#[test]
+fn test_BC_2_19_001_parse_rejects_pipe_stage_with_unknown_column_reference() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "threat_intel"
+name = "Threat Intelligence Plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "plugins/threat_intel.prx"
+
+[[infusion.fields]]
+name = "threat_score"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "float"
+
+[infusion.pipe_stage]
+adds_columns = ["threat_score", "nonexistent_field"]
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "threat_intel_bad_pipe.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "BC-2.19.001: parse must reject a spec where pipe_stage.adds_columns references \
+         'nonexistent_field' which is not in [[infusion.fields]]"
+    );
+    match result.unwrap_err() {
+        InfusionError::MissingRequiredField { field, spec_path } => {
+            assert!(
+                field.contains("nonexistent_field"),
+                "BC-2.19.001: MissingRequiredField must name the unknown column. Got field: '{}'",
+                field
+            );
+            assert_eq!(
+                spec_path, "threat_intel_bad_pipe.infusion.toml",
+                "BC-2.19.001: MissingRequiredField must include the spec path"
+            );
+        }
+        other => panic!(
+            "BC-2.19.001: expected MissingRequiredField error for unknown pipe_stage column, \
+             got: {:?}",
+            other
+        ),
+    }
+}
