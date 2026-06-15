@@ -160,12 +160,15 @@ impl InfusionSource for PluginInfusionSource {
 /// descriptive message capturing the plugin failure reason.
 ///
 /// TODO(S-1.14-REDO): add `InfusionError::PluginCallFailed` variant to the error
-/// taxonomy + InfusionError enum for a proper first-class error code (E-INFUSE-006).
+/// taxonomy + InfusionError enum for a proper first-class error code (E-INFUSE-008).
+/// Note: E-INFUSE-006 is already assigned ("Infusion not found"); E-INFUSE-008 is the
+/// next-free code for PluginCallFailed. The taxonomy row will be allocated when that
+/// variant is actually built in S-1.14-REDO.
 pub(crate) fn map_plugin_error_to_infusion_error(
     plugin_id: &str,
     err: prism_core::PluginError,
 ) -> InfusionError {
-    // Using MissingRequiredField as a stand-in until E-INFUSE-006 PluginCallFailed
+    // Using MissingRequiredField as a stand-in until E-INFUSE-008 PluginCallFailed
     // is added to the error taxonomy in S-1.14-REDO.
     InfusionError::MissingRequiredField {
         field: format!("plugin_call_failed({}): {}", plugin_id, err),

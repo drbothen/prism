@@ -400,8 +400,8 @@ impl QueryEngine {
 
     /// Set the infusion registry for plugin-backed enrichment UDF registration.
     ///
-    /// Called from the boot path (S-DEMO-ENRICHMENT-PIVOT-001) after constructing the engine
-    /// to wire in the `InfusionRegistry` populated by `InfusionLoader::load_all`.
+    /// Intended to be called from the boot path by S-DEMO-ENRICHMENT-PIVOT-002/003
+    /// (production wiring deferred per sequencing); currently no production caller.
     /// When set, `execute_inner` and `execute_scheduled_inner` call `register_infusion_udfs`
     /// on each ephemeral `SessionContext` before query execution.
     pub fn with_infusion_registry(
@@ -535,11 +535,13 @@ impl QueryEngine {
 
         // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs so
         // analyst queries using `| enrich infusion(field)` resolve in this ephemeral context.
-        // No-op when `infusion_registry` is `None` (test/MVP mode without enrichment).
+        // No-op when `infusion_registry` is `None` (enrichment not configured).
         if let Some(ref registry) = self.infusion_registry {
             crate::infusion_udf::register_infusion_udfs(&session_ctx, registry.udf_descriptors())
                 .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
-                detail: format!("E-QUERY-INFUSE-001: failed to register infusion UDFs: {e}"),
+                detail: format!(
+                    "E-INFUSE-007: Infusion UDF registration failed for 'execute_inner': {e}"
+                ),
             })?;
         }
 
@@ -741,7 +743,7 @@ impl QueryEngine {
             .map_err(|e| {
                 prism_core::PrismError::QueryExecutionFailed {
                     detail: format!(
-                        "E-QUERY-INFUSE-001: failed to register infusion UDFs in scheduled context: {e}"
+                        "E-INFUSE-007: Infusion UDF registration failed for 'execute_scheduled_inner': {e}"
                     ),
                 }
             })?;
