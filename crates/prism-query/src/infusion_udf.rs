@@ -223,10 +223,12 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
         };
 
         // Enrich each row via the plugin source.
+        // NULL input rows short-circuit to NULL output without dispatching to the source
+        // (a NULL IOC has no enrichment key — calling enrich_single("", ...) is incorrect).
         let enriched: Vec<Option<String>> = inputs
             .iter()
             .map(|opt_input| {
-                let input_str = opt_input.as_deref().unwrap_or("");
+                let input_str = opt_input.as_deref()?;
                 let result = self
                     .descriptor
                     .source
@@ -279,10 +281,224 @@ pub fn register_infusion_udfs(
     ctx: &SessionContext,
     descriptors: Vec<InfusionUdfDescriptor>,
 ) -> datafusion::error::Result<()> {
+    // Detect duplicate UDF names before registration.
+    // DataFusion's `register_udf` silently overwrites duplicates, which would cause
+    // the last-registered UDF for a given name to win — a silent misconfiguration.
+    // E-INFUSE-007: Infusion UDF registration failed for '{infusion_id}': {reason}
+    let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     for descriptor in descriptors {
+        if !seen_names.insert(descriptor.name.clone()) {
+            return Err(datafusion::error::DataFusionError::Execution(format!(
+                "E-INFUSE-007: Infusion UDF registration failed for '{}': \
+                 duplicate UDF name '{}' — each infusion field must produce a unique UDF name",
+                descriptor.infusion_id, descriptor.name,
+            )));
+        }
         let udf_impl = InfusionAsyncUdf::new(descriptor);
         let async_udf = AsyncScalarUDF::new(Arc::new(udf_impl));
         ctx.register_udf(async_udf.into_scalar_udf());
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    use datafusion::execution::context::SessionContext;
+    use prism_spec_engine::{InfusionSource, InfusionUdfDescriptor};
+
+    use super::register_infusion_udfs;
+
+    // ── test helpers ────────────────────────────────────────────────────────
+
+    /// Stub `InfusionSource` that counts calls to `enrich_single`.
+    #[derive(Debug)]
+    struct CountingSource {
+        call_count: Arc<AtomicUsize>,
+        return_value: Option<serde_json::Value>,
+    }
+
+    impl CountingSource {
+        fn new_returning(val: &str) -> (Arc<AtomicUsize>, Arc<dyn InfusionSource>) {
+            let counter = Arc::new(AtomicUsize::new(0));
+            let src = Arc::new(CountingSource {
+                call_count: Arc::clone(&counter),
+                return_value: Some(serde_json::Value::String(val.to_string())),
+            });
+            (counter, src)
+        }
+    }
+
+    impl InfusionSource for CountingSource {
+        fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
+            self.call_count.fetch_add(1, Ordering::SeqCst);
+            self.return_value.clone()
+        }
+
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
+            inputs
+                .iter()
+                .map(|i| self.enrich_single(i, input_type))
+                .collect()
+        }
+    }
+
+    fn make_descriptor(
+        name: &str,
+        infusion_id: &str,
+        source: Arc<dyn InfusionSource>,
+    ) -> InfusionUdfDescriptor {
+        InfusionUdfDescriptor {
+            name: name.to_string(),
+            input_type: "ip".to_string(),
+            output_type: "string".to_string(),
+            infusion_id: infusion_id.to_string(),
+            source,
+            source_column: None,
+        }
+    }
+
+    // ── Finding 1 tests ─────────────────────────────────────────────────────
+
+    /// Happy-path: two descriptors with DISTINCT names register successfully.
+    #[test]
+    fn test_register_infusion_udfs_distinct_names_ok() {
+        let ctx = SessionContext::new();
+        let (_, src_a) = CountingSource::new_returning("a");
+        let (_, src_b) = CountingSource::new_returning("b");
+        let descriptors = vec![
+            make_descriptor("geoip_country", "geoip", src_a),
+            make_descriptor("asset_owner", "asset", src_b),
+        ];
+        let result = register_infusion_udfs(&ctx, descriptors);
+        assert!(
+            result.is_ok(),
+            "distinct UDF names must register without error; got: {:?}",
+            result
+        );
+    }
+
+    /// E-INFUSE-007: duplicate UDF name emits error with real infusion_id and E-INFUSE-007 code.
+    ///
+    /// Verifies:
+    /// - `register_infusion_udfs` returns `Err` for duplicate names.
+    /// - The error message contains `E-INFUSE-007`.
+    /// - The error message contains the real `infusion_id` (not a function name like
+    ///   `'execute_inner'`), conforming to taxonomy template:
+    ///   `"Infusion UDF registration failed for '{infusion_id}': {reason}"`.
+    #[test]
+    fn test_register_infusion_udfs_duplicate_name_emits_e_infuse_007_with_infusion_id() {
+        let ctx = SessionContext::new();
+        let (_, src_a) = CountingSource::new_returning("sentinel-a");
+        let (_, src_b) = CountingSource::new_returning("sentinel-b");
+
+        // Both descriptors share name "geoip_country" but belong to different infusion specs.
+        // The second duplicate should trigger E-INFUSE-007 citing the *second* descriptor's
+        // infusion_id (the one that caused the collision).
+        let dup_infusion_id = "geoip_v2";
+        let descriptors = vec![
+            make_descriptor("geoip_country", "geoip_v1", src_a),
+            make_descriptor("geoip_country", dup_infusion_id, src_b),
+        ];
+        let result = register_infusion_udfs(&ctx, descriptors);
+
+        assert!(
+            result.is_err(),
+            "duplicate UDF name must return Err; got Ok"
+        );
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("E-INFUSE-007"),
+            "error must contain 'E-INFUSE-007' taxonomy code; got: {err_msg}"
+        );
+        assert!(
+            err_msg.contains(dup_infusion_id),
+            "error must contain the real infusion_id '{}' (not a function name); got: {err_msg}",
+            dup_infusion_id
+        );
+    }
+
+    // ── Finding 2 tests ─────────────────────────────────────────────────────
+
+    /// NULL-input rows must map to NULL output without invoking `enrich_single`.
+    ///
+    /// Drives `InfusionAsyncUdf::invoke_async_with_args` via a DataFusion SQL query
+    /// against a table with one NULL row and one non-NULL row. Asserts:
+    /// - `enrich_single` call_count == 1 (only the non-NULL row dispatches).
+    /// - The NULL row produces a NULL output value.
+    /// - The non-NULL row produces the sentinel enrichment value.
+    #[tokio::test]
+    async fn test_null_input_row_short_circuits_to_null_without_calling_enrich_single() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        const SENTINEL: &str = "NULL-TEST-SENTINEL";
+        let (call_count, src) = CountingSource::new_returning(SENTINEL);
+
+        let descriptor = make_descriptor("null_test_udf", "null_test_infusion", src);
+        register_infusion_udfs(&ctx, vec![descriptor]).expect("registration must succeed");
+
+        // Table: two rows — row 0 is NULL, row 1 is "10.0.0.1".
+        let schema = Arc::new(Schema::new(vec![Field::new("ioc", DataType::Utf8, true)]));
+        let arr = StringArray::from(vec![None, Some("10.0.0.1")]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch construction must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable construction must succeed");
+        ctx.register_table("null_test_events", Arc::new(table))
+            .expect("register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT null_test_udf(ioc) AS enriched FROM null_test_events")
+            .await
+            .expect("SQL must parse");
+        let batches = df.collect().await.expect("query must execute");
+
+        // Verify enrich_single was called exactly once (for the non-NULL row).
+        let count = call_count.load(Ordering::SeqCst);
+        assert_eq!(
+            count, 1,
+            "enrich_single call_count must be 1 (NULL row must NOT dispatch); got {count}"
+        );
+
+        // Verify output: 2 rows total.
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(total_rows, 2, "must have 2 output rows; got {total_rows}");
+
+        // Verify row 0 is NULL and row 1 contains the sentinel.
+        use datafusion::arrow::array::Array;
+        let output_col = batches[0]
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("output column must be StringArray");
+
+        assert!(
+            output_col.is_null(0),
+            "NULL input row must produce NULL output; got: {:?}",
+            output_col.value(0)
+        );
+        assert!(
+            !output_col.is_null(1),
+            "non-NULL input row must produce non-NULL output"
+        );
+        assert_eq!(
+            output_col.value(1),
+            SENTINEL,
+            "non-NULL row must produce the sentinel enrichment value"
+        );
+    }
 }
