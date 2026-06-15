@@ -3,7 +3,7 @@
 **Story:** Infusion Engine Plugin-Bridge Prerequisites — Forward-Subset of S-1.14-REDO for Demo
 **Story version:** v1.7
 **Branch:** feature/S-DEMO-ENRICHMENT-PIVOT-001
-**Code under test (LOCAL-converged):** 0d4978c3
+**Code under test (LOCAL-converged):** 1bcd67a5
 **Evidence date:** 2026-06-15
 **Product type:** Library/infrastructure (no CLI surface — evidence is test-execution, not VHS/Playwright)
 
@@ -107,7 +107,8 @@ constructs with `plugin_id = "threat_intel"` (structural assertion distinguishin
 `NullSource`, which has no `plugin_id` field). `enrich_single("192.168.1.1", "ip")` returns
 `None` after the runtime returns `PluginError::NotLoaded` (plugin not loaded in runtime) —
 demonstrating the CRIT-3 fix: `NotLoaded` arm maps-log-None rather than panicking via
-`todo!()`. The `reqwest::Client` is constructed with 30s timeout per CLAUDE.md convention.
+`todo!()`. Note: this PR's bridge code constructs no `reqwest::Client`; the 30s timeout
+convention applies to the `PluginRuntime` HTTP client, which is unchanged pre-existing code.
 
 ---
 
