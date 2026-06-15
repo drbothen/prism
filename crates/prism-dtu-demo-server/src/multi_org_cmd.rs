@@ -25,6 +25,7 @@ use crate::{MultiInstanceServers, MultiOrgDemoConfig};
 use prism_dtu_common::BehavioralClone;
 
 use crate::multi_instance::InstanceEntry;
+use std::path::Path;
 
 /// Type alias for the clone factory closure returned by `build_multi_clone_factory`.
 ///
@@ -262,4 +263,239 @@ pub async fn start_multi_for_config(
     crate::multi_instance::start_instances(multi_cfg, factory)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to start multi-org clone instances: {:?}", e))
+}
+
+/// Write the nested `{org_slug: {sensor_id: url}}` sidecar to a caller-specified path.
+///
+/// This is the testable, path-parameterised variant of `write_multi_url_sidecar` in
+/// `main.rs`. The binary's `write_multi_url_sidecar` delegates to this function with
+/// `path = URL_MULTI_FILE`.
+///
+/// # Production-grade: no silent drops (MED-2 fix)
+///
+/// Previous implementation used `filter_map`, which silently dropped any sensor in the
+/// config whose `{org_slug}-{sensor_id}` key was absent from `servers.socket_map()`.
+/// A dropped entry means demo-run.sh would not generate an overlay TOML for that sensor,
+/// causing prism boot failure for affected org×sensor queries — a production defect.
+///
+/// This function instead returns `Err` with an actionable message when ANY expected
+/// `{org_slug}-{sensor_id}` key is missing from `socket_map`. This matches the
+/// production-grade default: no silent partial-failure propagation
+/// (CLAUDE.md Standing Rule 3 §2).
+///
+/// # Atomic write
+///
+/// The sidecar is written atomically (tmp + rename) to prevent demo-run.sh from reading
+/// a partial file during the poll loop (GAP-3 sidecar-availability guarantee).
+pub fn write_multi_url_sidecar_to_path(
+    servers: &MultiInstanceServers,
+    cfg: &MultiOrgDemoConfig,
+    path: &Path,
+) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+
+    let socket_map = servers.socket_map();
+
+    // Build nested map: {org_slug → {sensor_id → url}}.
+    // Errors LOUDLY if any expected {org_slug}-{sensor_id} entry is missing from socket_map.
+    let mut nested: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for (org_slug, org_cfg) in &cfg.orgs {
+        let mut sensor_urls: HashMap<String, String> = HashMap::new();
+        for sensor_id in &org_cfg.sensors {
+            let entry_name = format!("{org_slug}-{sensor_id}");
+            let addr = socket_map.get(&entry_name).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "write_multi_url_sidecar: socket_map is missing expected entry '{}'. \
+                     This is a programming error — all sensors declared in MultiOrgDemoConfig \
+                     must have been started by start_instances before writing the sidecar. \
+                     Available socket_map keys: {:?}",
+                    entry_name,
+                    socket_map.keys().collect::<Vec<_>>()
+                )
+            })?;
+            sensor_urls.insert(sensor_id.clone(), format!("http://{addr}"));
+        }
+        nested.insert(org_slug.clone(), sensor_urls);
+    }
+
+    let json = serde_json::to_string(&nested)
+        .map_err(|e| anyhow::anyhow!("Failed to serialise nested URL map: {}", e))?;
+
+    // Atomic write: tmp file + rename.
+    let tmp_path = {
+        let mut p = path.to_path_buf();
+        let fname = p.file_name().and_then(|n| n.to_str()).unwrap_or("sidecar");
+        p.set_file_name(format!("{fname}.tmp"));
+        p
+    };
+    std::fs::write(&tmp_path, &json).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to write nested URL sidecar tmp {:?}: {}",
+            tmp_path,
+            e
+        )
+    })?;
+    std::fs::rename(&tmp_path, path)
+        .map_err(|e| anyhow::anyhow!("Failed to rename nested URL sidecar {:?}: {}", path, e))?;
+
+    Ok(())
+}
+
+/// Resolve the `/dtu/configure` base URL for a clone, reading from whichever sidecar exists.
+///
+/// # Lookup logic
+///
+/// 1. If `flat_sidecar_path` is `Some` and exists: parse as `HashMap<String, String>` and
+///    look up `clone_name` directly (flat format written by `start`).
+/// 2. Else if `nested_sidecar_path` is `Some` and exists: parse as
+///    `HashMap<String, HashMap<String, String>>` (nested format written by `start-multi`).
+///    - First try `clone_name` as a literal key in the outer map or as `{org_slug}-{sensor_id}`.
+///    - If not found as a literal key, try `clone_name` as a bare sensor_id:
+///      scan all org entries for a sensor with that name (EC-007 documented recovery form).
+///      If exactly one match exists, use it. If multiple orgs have the same sensor, return Err
+///      (ambiguous — caller must use the full `{org_slug}-{sensor_id}` key form).
+/// 3. Otherwise: return Err explaining which sidecars were checked.
+///
+/// # HIGH-1 fix
+///
+/// Before this function existed, `cmd_configure` only read the flat `URL_FILE`. After
+/// `start-multi`, only `URL_MULTI_FILE` (nested) exists, so `configure cyberint <json>`
+/// failed with "URL sidecar not found". This function implements the detection/resolution
+/// logic to make the documented EC-007 recovery path actually work.
+///
+/// # Parameters
+///
+/// - `clone_name`: the name argument to `configure` — either a full `{org_slug}-{sensor_id}`
+///   key (e.g. `"org-b-cyberint"`) or a bare sensor name (e.g. `"cyberint"`).
+/// - `flat_sidecar_path`: path to the flat sidecar file (written by `start`), if known.
+/// - `nested_sidecar_path`: path to the nested sidecar file (written by `start-multi`), if known.
+pub fn resolve_configure_url(
+    clone_name: &str,
+    flat_sidecar_path: Option<&Path>,
+    nested_sidecar_path: Option<&Path>,
+) -> anyhow::Result<String> {
+    use std::collections::HashMap;
+
+    // --- 1. Try flat sidecar first (written by `start`) ---
+    if let Some(flat_path) = flat_sidecar_path {
+        if flat_path.exists() {
+            let sidecar_str = std::fs::read_to_string(flat_path).map_err(|e| {
+                anyhow::anyhow!("Failed to read flat URL sidecar {:?}: {}", flat_path, e)
+            })?;
+            let url_map: HashMap<String, String> = serde_json::from_str(&sidecar_str)
+                .map_err(|e| anyhow::anyhow!("Failed to parse flat URL sidecar: {}", e))?;
+            if let Some(url) = url_map.get(clone_name) {
+                return Ok(format!("{url}/dtu/configure"));
+            }
+            anyhow::bail!(
+                "Clone '{}' not found in flat sidecar '{}'. Available: {:?}",
+                clone_name,
+                flat_path.display(),
+                url_map.keys().collect::<Vec<_>>()
+            );
+        }
+    }
+
+    // --- 2. Try nested sidecar (written by `start-multi`) ---
+    if let Some(nested_path) = nested_sidecar_path {
+        if nested_path.exists() {
+            let sidecar_str = std::fs::read_to_string(nested_path).map_err(|e| {
+                anyhow::anyhow!("Failed to read nested URL sidecar {:?}: {}", nested_path, e)
+            })?;
+            let nested: HashMap<String, HashMap<String, String>> =
+                serde_json::from_str(&sidecar_str)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse nested URL sidecar: {}", e))?;
+
+            // First: try clone_name as a literal {org_slug}-{sensor_id} key.
+            // The entry format is nested so we must check if clone_name splits into
+            // a known {org_slug}-{sensor_id} pair present in the outer map.
+            //
+            // Strategy: scan all (org_slug, sensor_map) pairs. For each org, check
+            // if sensor_map contains a key K such that "{org_slug}-{K}" == clone_name.
+            let mut exact_match: Option<String> = None;
+            for (org_slug, sensor_map) in &nested {
+                for (sensor_id, url) in sensor_map {
+                    let full_key = format!("{org_slug}-{sensor_id}");
+                    if full_key == clone_name {
+                        exact_match = Some(url.clone());
+                        break;
+                    }
+                }
+                if exact_match.is_some() {
+                    break;
+                }
+            }
+            if let Some(url) = exact_match {
+                return Ok(format!("{url}/dtu/configure"));
+            }
+
+            // Second: try clone_name as a bare sensor_id (EC-007 recovery form).
+            // Scan all org entries for a sensor named clone_name.
+            let mut bare_matches: Vec<(String, String)> = Vec::new(); // (org_slug, url)
+            for (org_slug, sensor_map) in &nested {
+                if let Some(url) = sensor_map.get(clone_name) {
+                    bare_matches.push((org_slug.clone(), url.clone()));
+                }
+            }
+            match bare_matches.len() {
+                0 => {
+                    // Not found by any lookup strategy.
+                    let all_keys: Vec<String> = nested
+                        .iter()
+                        .flat_map(|(org, sensors)| {
+                            sensors
+                                .keys()
+                                .map(|s| format!("{org}-{s}"))
+                                .collect::<Vec<_>>()
+                        })
+                        .collect();
+                    anyhow::bail!(
+                        "Clone '{}' not found in nested sidecar '{}'. \
+                         Use the full '{{org_slug}}-{{sensor_id}}' form or a bare sensor name \
+                         that exists in exactly one org. \
+                         Available full keys: {:?}",
+                        clone_name,
+                        nested_path.display(),
+                        all_keys
+                    );
+                }
+                1 => {
+                    // Exactly one match — EC-007 bare-sensor recovery form works.
+                    let (_, url) = bare_matches.remove(0);
+                    return Ok(format!("{url}/dtu/configure"));
+                }
+                _ => {
+                    // Ambiguous — multiple orgs have this sensor.
+                    let org_list: Vec<String> =
+                        bare_matches.iter().map(|(org, _)| org.clone()).collect();
+                    anyhow::bail!(
+                        "Bare sensor name '{}' is ambiguous — found in {} orgs: {:?}. \
+                         Use the full '{{org_slug}}-{{sensor_id}}' form to disambiguate \
+                         (e.g. '{}-{}').",
+                        clone_name,
+                        org_list.len(),
+                        org_list,
+                        org_list[0],
+                        clone_name
+                    );
+                }
+            }
+        }
+    }
+
+    // --- 3. Neither sidecar found ---
+    anyhow::bail!(
+        "No URL sidecar found. Checked: flat='{}', nested='{}'. \
+         Is the demo harness running? \
+         Start with `prism-dtu-demo-server start --config ...` (writes '{}') \
+         or `prism-dtu-demo-server start-multi --config ...` (writes '{}').",
+        flat_sidecar_path
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "<not provided>".to_string()),
+        nested_sidecar_path
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "<not provided>".to_string()),
+        crate::URL_FILE,
+        crate::URL_MULTI_FILE
+    )
 }

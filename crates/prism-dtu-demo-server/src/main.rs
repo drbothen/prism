@@ -83,17 +83,9 @@ enum Commands {
 /// Name of the PID sidecar file written in cwd by `start`.
 const PID_FILE: &str = ".prism-dtu-demo-server.pid";
 
-/// Name of the URL map sidecar file written in cwd by `start`.
-const URL_FILE: &str = ".prism-dtu-demo-server.urls.json";
-
-/// Name of the nested URL map sidecar file written in cwd by `start-multi`.
-///
-/// Format: `{org_slug: {sensor_id: url}}` — distinct from the flat `URL_FILE`
-/// format `{name: url}` written by `start` (BC-2.06.017 / AC-003).
-///
-/// Written atomically (tmp + rename) by `write_multi_url_sidecar` to prevent
-/// demo-run.sh from reading a partial file during the poll loop (GAP-3).
-const URL_MULTI_FILE: &str = ".prism-dtu-demo-server.urls-multi.json";
+// URL_FILE and URL_MULTI_FILE are defined in lib.rs (as `pub const`) so that
+// multi_org_cmd.rs can reference them in error messages. Import them here.
+use prism_dtu_demo_server::{URL_FILE, URL_MULTI_FILE};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -425,59 +417,27 @@ async fn cmd_start_multi(config_path: std::path::PathBuf) -> anyhow::Result<()> 
 
 /// Write the NESTED URL sidecar file `.prism-dtu-demo-server.urls-multi.json`.
 ///
-/// Format: `{org_slug: {sensor_id: url}}` — distinct from the flat format written by `start`.
+/// Delegates to `write_multi_url_sidecar_to_path` (the testable, path-parameterised
+/// variant in `multi_org_cmd.rs`) with the canonical `URL_MULTI_FILE` path.
 ///
 /// The sidecar is written atomically (tmp + rename) to prevent demo-run.sh from
 /// reading a partial file during the poll loop (GAP-3 sidecar-availability guarantee).
 ///
-/// # Format
+/// # Production-grade: no silent drops (MED-2 fix)
 ///
-/// ```json
-/// {
-///   "org-a": {"crowdstrike": "http://127.0.0.1:PORT", "armis": "http://127.0.0.1:PORT"},
-///   "org-b": {"claroty": "http://127.0.0.1:PORT", "cyberint": "http://127.0.0.1:PORT"},
-///   ...
-/// }
-/// ```
-///
-/// The flat sidecar format (`{name: url}` where name is `"org-a-crowdstrike"`) is NOT used here.
-/// `demo-run.sh` parses the nested format to generate per-org overlay TOMLs (BC-2.06.012/013/014).
+/// This function errors loudly if any expected `{org_slug}-{sensor_id}` entry is
+/// absent from `servers.socket_map()`. The previous `filter_map` implementation
+/// silently dropped missing entries — a production defect that would cause prism
+/// boot failure for affected org×sensor queries (CLAUDE.md Standing Rule 3 §2).
 fn write_multi_url_sidecar(
     servers: &prism_dtu_demo_server::MultiInstanceServers,
     cfg: &prism_dtu_demo_server::MultiOrgDemoConfig,
 ) -> anyhow::Result<()> {
-    use std::collections::HashMap;
-
-    // Build nested map: {org_slug → {sensor_id → url}}.
-    // The socket_map keys are "{org_slug}-{sensor_id}" — split by matching known sensor suffixes.
-    // We rebuild the nested structure from the configured org/sensor assignments and socket_map.
-    let socket_map = servers.socket_map();
-
-    let mut nested: HashMap<String, HashMap<String, String>> = HashMap::new();
-    for (org_slug, org_cfg) in &cfg.orgs {
-        let sensor_urls: HashMap<String, String> = org_cfg
-            .sensors
-            .iter()
-            .filter_map(|sensor_id| {
-                let entry_name = format!("{org_slug}-{sensor_id}");
-                socket_map
-                    .get(&entry_name)
-                    .map(|addr| (sensor_id.clone(), format!("http://{addr}")))
-            })
-            .collect();
-        nested.insert(org_slug.clone(), sensor_urls);
-    }
-
-    let json = serde_json::to_string(&nested)
-        .map_err(|e| anyhow::anyhow!("Failed to serialise nested URL map: {}", e))?;
-
-    let tmp_path = format!("{URL_MULTI_FILE}.tmp");
-    std::fs::write(&tmp_path, &json)
-        .map_err(|e| anyhow::anyhow!("Failed to write nested URL sidecar tmp: {}", e))?;
-    std::fs::rename(&tmp_path, URL_MULTI_FILE)
-        .map_err(|e| anyhow::anyhow!("Failed to rename nested URL sidecar: {}", e))?;
-
-    Ok(())
+    prism_dtu_demo_server::write_multi_url_sidecar_to_path(
+        servers,
+        cfg,
+        std::path::Path::new(URL_MULTI_FILE),
+    )
 }
 
 /// Wait for SIGINT or SIGTERM, then gracefully shut down all multi-org clone instances.
@@ -576,26 +536,27 @@ fn send_sigterm(pid: i32) -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<()> {
-    // Read the URL sidecar written by `start`.
-    let sidecar_str = std::fs::read_to_string(URL_FILE).map_err(|_| {
+    // HIGH-1 fix: resolve the clone URL from whichever sidecar exists.
+    //
+    // `start` writes URL_FILE (flat: {name: url}).
+    // `start-multi` writes URL_MULTI_FILE (nested: {org_slug: {sensor_id: url}}).
+    //
+    // `resolve_configure_url` tries the flat sidecar first; if absent, falls back to the
+    // nested sidecar and accepts both full `{org_slug}-{sensor_id}` keys (e.g.
+    // "org-b-cyberint") and bare sensor names (e.g. "cyberint" — EC-007 recovery form,
+    // works when only one org has that sensor).
+    let configure_url = prism_dtu_demo_server::resolve_configure_url(
+        &clone_name,
+        Some(std::path::Path::new(URL_FILE)),
+        Some(std::path::Path::new(URL_MULTI_FILE)),
+    )
+    .map_err(|e| {
         anyhow::anyhow!(
-            "URL sidecar '{}' not found — is the harness running?",
-            URL_FILE
-        )
-    })?;
-
-    let url_map: std::collections::HashMap<String, String> = serde_json::from_str(&sidecar_str)
-        .map_err(|e| anyhow::anyhow!("Failed to parse URL sidecar: {}", e))?;
-
-    let clone_url = url_map.get(&clone_name).ok_or_else(|| {
-        anyhow::anyhow!(
-            "Clone '{}' not found in running harness. Available: {:?}",
+            "configure: could not resolve URL for clone '{}': {}",
             clone_name,
-            url_map.keys().collect::<Vec<_>>()
+            e
         )
     })?;
-
-    let configure_url = format!("{clone_url}/dtu/configure");
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
