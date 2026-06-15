@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.802"
+version: "7.813"
 status: current
-timestamp: 2026-06-14T05:00:00Z
+timestamp: 2026-06-14T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1159 BURST (2026-06-14) — DURABILITY HARDENING: DEMO-SCOPE.md T5+T6 → MERGED corrected; STATE compacted <200 lines; SESSION-HANDOFF read-order clarified. D-1158: T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED (PR #187 develop@664566e9). T1–T6+T4-A DONE. NEXT: orchestrator selects T8/T11/D-1107. develop HEAD 664566e9. STATE v7.802.**
+> **D-1170 BURST (2026-06-14) — ZERO-CONTEXT DURABILITY SNAPSHOT: 5 active lanes (CRIT fix-bursts complete; LOCAL streak 0/3 each) + PR #188 OPEN (PR-LEVEL cascade IN PROGRESS) + reconcile-from-live-state protocol. develop HEAD 664566e9 UNCHANGED. STATE v7.813.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1158 below, then STATE.md frontmatter. All prior D-1101..D-1157 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT below are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
-> develop HEAD `664566e9` (PR #187 squash-merge 2026-06-14; D-1158 post-merge burst; D-1159 durability-hardening burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1159 burst). STATE v7.802.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1170 below, then STATE.md frontmatter. All prior D-1101..D-1169 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1170 below are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
+> develop HEAD `664566e9` (PR #187 squash-merge 2026-06-14; D-1158 post-merge burst; D-1170 zero-context durability snapshot). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1170 burst). STATE v7.813.
 
 ---
 
@@ -82,28 +82,127 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 ---
 
-## §RESUME SNAPSHOT — D-1158 (2026-06-14 — T6 DONE; PR #187 develop@664566e9 MERGED; BC-2.06.017 v1.10 active; STATE v7.801)
+## §RESUME SNAPSHOT — D-1170 (2026-06-14 — ZERO-CONTEXT DURABILITY SNAPSHOT; 5 active lanes; PR #188 OPEN; STATE v7.813)
 
-> **D-1158: T6 S-DEMO-MULTI-TENANT-DTU-001 MERGED. POL-14 complete. T1–T6+T4-A ALL DONE. All prior notes superseded.**
->
-> **T6 DELIVERY COMPLETE (D-1158).** PR #187 squash-merged to develop@664566e9 2026-06-14T12:05:29Z. LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict CONVERGED (BC-5.39.001). CI 43/43 green. Story v1.14 / BC-2.06.017 v1.10. Remote feature branch auto-deleted; local worktree + branch cleaned; local develop fast-forwarded to 664566e9. Delivered: MultiInstanceConfig/InstanceEntry/start_instances + MultiInstanceServers graceful-shutdown handle (prism-dtu-demo-server); MultiInstanceHarness/HarnessEntry/overlay_wiring + BindError/HarnessError variants (prism-dtu-harness); ArmisClone request-counter + GET /dtu/request-count (prism-dtu-armis); end-to-end FanOutTarget DTU-routing isolation test (prism-sensors/tests/multi_tenant_dtu_routing_integration.rs); non-exhaustive gate 52→60; CI tls-no-default-features + brotli-pin fixes. POL-14: BC-2.06.017 v1.10 draft→active (D-1158). BC-INDEX v6.54 (active 235 / draft 2 / retired 6). STORY-INDEX v2.382 (200 stories). Lessons z21/z22/z23 codified; no new follow-up story required.
->
-> **No open PRs.** develop HEAD: 664566e9.
->
-> **EXACT NEXT ACTION: orchestrator selects T8 (architect+PO: S-DEMO-004 depends_on edge + data-distinctness via real seeding), T11 (story-writer: S-DEMO-LAUNCHER-CONSOLIDATION-001), T13 (PO+story-writer: narrative capstone), or D-1107 opted-in capability-discovery stories (S-5.02/5.03/5.04/S-3.13). Consult multi-client-soc-demo-tasks.md §Complete Story Roadmap.** D-989+D-1090 autonomy grant remains active. STATE v7.801.
-> _All prior D-1101..D-1157 notes SUPERSEDED — archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
+> **D-1170: ZERO-CONTEXT DURABILITY SNAPSHOT. T10 IN PROGRESS — S-DEMO-004 PR #188 OPEN (PR-LEVEL cascade active; adversary+pr-reviewer+security dispatched, results pending; streak 0/3). 4 PARALLEL LANES with CRIT fix-bursts complete; ALL at LOCAL streak 0/3. No code merged since develop@664566e9 (T6 DONE). Systemic lesson DRIFT-HOLLOW-FEATURE-INTEGRATION-001 registered. All prior D-1101..D-1169 notes SUPERSEDED.**
 
 ---
 
-### FRESH-SESSION RESUME PROTOCOL (zero prior context)
+### RECONCILE-FROM-LIVE-STATE PROTOCOL (6-step; fresh session MUST run before acting)
 
-1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
-2. Read §ACTIVE OBJECTIVE (North Star) FIRST — **then read `.factory/objectives/DEMO-SCOPE.md`** (demo SCOPE and NARRATIVE reference: what the demo includes, what is built, what the honest gaps are; STATUS values track build progress). For the AUTHORITATIVE current pipeline position and next action, use STATE.md frontmatter + §RESUME SNAPSHOT (this file), NOT DEMO-SCOPE.md. Then read STATE.md frontmatter (`current_step`, D-1158/D-1159 decision rows).
-3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `664566e9`.
-4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.802"`.
-5. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). T6 worktree `.worktrees/S-DEMO-MULTI-TENANT-DTU-001` CLEANED (merged). Story B worktree `.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-B` CLEANED (merged).
-6. Apply lessons (a)–(z23) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-7. **NEXT ACTION: orchestrator selects next task. CURRENT POINTER = T8 (architect+PO: S-DEMO-004 depends_on + data-distinctness via real seeding). Alternatives: T11 (story-writer: S-DEMO-LAUNCHER-CONSOLIDATION-001), T13 (PO+story-writer: narrative capstone), D-1107 opted-in stories (S-5.02/5.03/5.04/S-3.13). Consult multi-client-soc-demo-tasks.md.**
+A fresh session with NO prior context MUST run this protocol to derive the current state of each lane from live git before taking any action. Baseline SHAs below were recorded at D-1170 snapshot time; fix-bursts ongoing in code worktrees may have advanced them further.
+
+1. `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**. Do not read state until it passes.
+2. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `664566e9` (unchanged since T6; no lane has merged yet).
+3. Verify STATE version: `grep "^version:" /Users/jmagady/Dev/prism/.factory/STATE.md` → expect `"7.813"` (or newer if a state burst ran since D-1170).
+4. **For EACH active worktree — derive ACTUAL current commit from git (do NOT trust baseline SHAs in this document as current):**
+   ```bash
+   git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-004 log --oneline -5
+   git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001 log --oneline -5
+   git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-ENRICHMENT-PIVOT-001 log --oneline -5
+   git -C /Users/jmagady/Dev/prism/.worktrees/S-3.13 log --oneline -5
+   git -C /Users/jmagady/Dev/prism/.worktrees/S-5.02 log --oneline -5
+   ```
+5. `gh pr view 188 --json state,statusCheckRollup,reviews` → check PR #188 CI status + review status + any adversary/pr-reviewer/security results posted as review comments.
+6. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) is the most recent and critical for all 4 parallel lanes.
+
+---
+
+### 5 ACTIVE LANES — Baseline SHAs + Current Phase + Next Action
+
+> **IMPORTANT:** These SHAs are baselines recorded at D-1170 snapshot time. Background agents (CRIT fix-bursts) were in-flight. Run the reconcile protocol Step 4 to derive actual current HEAD for each worktree before citing any SHA.
+
+| Lane | Story | Worktree Path | Branch | Baseline HEAD (D-1170) | Phase / Streak | EXACT NEXT ACTION |
+|------|-------|---------------|--------|----------------------|----------------|-------------------|
+| **T10 (PR-LEVEL)** | S-DEMO-004 | `/Users/jmagady/Dev/prism/.worktrees/S-DEMO-004` | `feature/S-DEMO-004` | `33827e79` (demo evidence) | PR #188 OPEN; PR-LEVEL streak 0/3 — adversary+pr-reviewer+security DISPATCHED, results pending | Collect adversary/pr-reviewer/security results from PR #188; if CRIT/HIGH found → implementer fix-burst → push → re-run adversary; if CLEAN(strict) pass → advance streak. If 3/3 CLEAN(strict) + APPROVE + CLEAR + CI green → squash-merge → post-merge burst. |
+| **Lane A** | S-5.02 | `/Users/jmagady/Dev/prism/.worktrees/S-5.02` | `feature/S-5.02` | `79993dea` (CRIT fix-burst) | LOCAL streak 0/3 | Run LOCAL adversary on worktree (story ready v1.7; CRIT fix-burst landed — hollow-feature wiring class; verify fix actually wires feature into production engine, not just unit-tests it in isolation per DRIFT-HOLLOW-FEATURE-INTEGRATION-001). |
+| **Lane B** | S-3.13 | `/Users/jmagady/Dev/prism/.worktrees/S-3.13` | `feature/S-3.13` | `20f370ea` (clippy hygiene pre-adversary) | LOCAL streak 0/3 | Run LOCAL adversary on worktree (story ready v1.8; CRIT fix-burst landed + clippy hygiene; verify E-QUERY-037 wired into engine.rs plan-time + strsim="0.11" integrated). |
+| **Lane C** | PIVOT-001 | `/Users/jmagady/Dev/prism/.worktrees/S-DEMO-ENRICHMENT-PIVOT-001` | `feature/S-DEMO-ENRICHMENT-PIVOT-001` | `25ed264a` (CRIT-2 real-UDF fix) | LOCAL streak 0/3 | Run LOCAL adversary on worktree (story ready v1.3; CRIT fix-burst landed — NullSource-replacement + async-UDF DataFusion 53.1). Merge-coord: PIVOT-001 shares prism-query/engine.rs with S-3.13 (different zones; land constructor-sig first; rebase second). |
+| **Lane D** | — | — | — | — | **CLOSED** (D-1168 architect verdict) | S-1.15 DROPPED from demo enrichment lane: TD-PLUGIN-P0-008 (fire_alert/fire_case/fire_report action dispatch) is write-back/TDE DEFERRED with S-4.08. `enrich_single` already operational. Demo enrichment: 5→4 stories. Lane D permanently closed. |
+| **Lane E** | LAUNCHER | `/Users/jmagady/Dev/prism/.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001` | `feature/S-DEMO-LAUNCHER-CONSOLIDATION-001` | `3dc0bf18` (H-1 dangling-ref fix) | LOCAL streak 0/3 | Run LOCAL adversary on worktree (story ready v2.2; CRIT+H-1 fix landed — dangling-ref fix; verify Option-2 Rust start-multi subcommand wired; review H-1 fix completeness). |
+
+---
+
+### QUEUED STORIES (after current lanes converge)
+
+| Story | Status | Depends On | Notes |
+|-------|--------|------------|-------|
+| S-5.03 | not-started | S-5.02 MERGED | Resources and Prompts; hard prereq of S-5.04 |
+| S-5.04 | not-started | S-5.03 MERGED | Sensor Health Subsystem; 5 pts |
+| PIVOT-002 | not-started | PIVOT-001 MERGED | Enrichment chain; parallel with S-1.14-REDO possible |
+| S-1.14-REDO | not-started | PIVOT-001 MERGED | Forward-subset of PIVOT chain; serialized infusion trio |
+| PIVOT-003 | not-started | PIVOT-002 + S-1.14-REDO MERGED | Final enrichment story; closes TD-PLUGIN-P0-002 P0 |
+| T13 narrative capstone | not-authored | S-DEMO-004+LAUNCHER+S-5.02/03/04+S-3.13+PIVOT-001/002/003 | PO+story-writer; SOC-analyst workflow story |
+| T14 demo recording | not-started | T13 MERGED | demo-recorder |
+
+**Merge-coordination note (MERGE-COORD):** S-3.13 (Lane B) and PIVOT-001 (Lane C) both touch `prism-query/engine.rs` in different zones (table-availability plan-time vs enrich UDF registration). Sequence: land constructor-signature-changing story first, rebase second. Orchestrator must coordinate merge order when both reach PR-level convergence simultaneously.
+
+---
+
+### USER AUTHORIZATIONS (confirmed active — fresh session does NOT re-ask)
+
+| Authorization | Decision | Date | Scope |
+|---------------|----------|------|-------|
+| Full Option-A enrichment framework REQUIRED | D-1164 | 2026-06-14 | 4 enrichment stories (S-1.14-REDO + PIVOT-001/002/003) REQUIRED before T13/T14 demo recording |
+| Option-2 Rust launcher (start-multi CLI subcommand) | D-1166 | 2026-06-14 | S-DEMO-LAUNCHER-CONSOLIDATION-001 uses Rust start_multi path; crates_touched includes prism-dtu-demo-server |
+| Parallel execution CAP LIFTED | D-1165 | 2026-06-14 | No fixed worktree cap; review-throughput is practical limiter (~3 in LOCAL cascade + 1 at PR-level simultaneously) |
+| factory-artifacts push authorized (standing) | D-1066 | 2026-06-08 | State-manager PUSHES factory-artifacts to origin/factory-artifacts as FINAL step of every state burst |
+| Full autonomous A→merge | D-989 + D-1090 | 2026-06-04 + 2026-06-10 | Pause ONLY for: §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit |
+
+---
+
+### BACKGROUND AGENTS IN FLIGHT AT D-1170 SNAPSHOT (results pending)
+
+These agents were dispatched before the D-1170 snapshot was taken. A fresh session should check their results before dispatching duplicates.
+
+| Agent | Target | What to Check | Where to Find Results |
+|-------|--------|---------------|-----------------------|
+| PR-LEVEL adversary | S-DEMO-004 PR #188 | CLEAN(strict)=yes/no; findings list | PR #188 review comments (`gh pr view 188 --json reviews`) |
+| pr-reviewer | S-DEMO-004 PR #188 | APPROVE or REQUEST CHANGES | PR #188 review comments |
+| security-reviewer | S-DEMO-004 PR #188 | MAY PROCEED or BLOCK | PR #188 review comments |
+| LAUNCHER H-1 fix-burst implementer | `.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001` | H-1 dangling-ref fix complete; worktree at `3dc0bf18` baseline (check git log for advances) | `git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001 log --oneline -5` |
+| PIVOT-001 CRIT fix-burst implementer | `.worktrees/S-DEMO-ENRICHMENT-PIVOT-001` | CRIT-2 real-UDF fix; NullSource-replacement task; async-UDF DataFusion 53.1; worktree at `25ed264a` baseline | `git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-ENRICHMENT-PIVOT-001 log --oneline -5` |
+| S-3.13 CRIT fix-burst implementer | `.worktrees/S-3.13` | CRIT fix + clippy hygiene; E-QUERY-037 wired into engine.rs; worktree at `20f370ea` baseline | `git -C /Users/jmagady/Dev/prism/.worktrees/S-3.13 log --oneline -5` |
+| S-5.02 CRIT fix-burst implementer | `.worktrees/S-5.02` | CRIT fix-burst; hollow-feature wiring confirmed; worktree at `79993dea` baseline | `git -C /Users/jmagady/Dev/prism/.worktrees/S-5.02 log --oneline -5` |
+
+---
+
+### SYSTEMIC LESSON (z24 + DRIFT-HOLLOW-FEATURE-INTEGRATION-001)
+
+**Lesson z24 — DRIFT-HOLLOW-FEATURE-INTEGRATION-001 (hollow-feature wiring class; 2026-06-14):**
+
+Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shipped TDD-green + unit-tested in isolation but were NOT wired into the production boot path / engine call site. The pattern: implementer adds a new capability (new function, error code, UDF registration), writes unit tests against the new function, all Red Gate tests pass — but the production `main()` / `engine.rs` / `boot.rs` never calls the new entry point. A fresh LOCAL adversary with production-path tracing caught each one.
+
+**Implication for all 4 parallel lanes:** Before declaring LOCAL adversary dispatch ready on any of these lanes, the orchestrator MUST instruct the adversary to explicitly trace the production invocation path from the real entry point (engine.rs / boot.rs / MCP server handler) to the new feature surface. Unit-test-only coverage is NOT sufficient to satisfy hollow-feature detection.
+
+**Required gate (not yet in formal TDD flow — add per session-reviewer cycle-close):** After TDD green, before LOCAL adversary dispatch: "feature wired into production boot/engine AND real end-to-end path test exists (not just unit test of the new function in isolation)."
+
+---
+
+### INDEX VERSIONS (as of D-1170 snapshot)
+
+| Artifact | Version | Notes |
+|----------|---------|-------|
+| STATE.md | v7.813 | This snapshot |
+| BC-INDEX | v6.57 | active 235 / draft 2 / retired 6; total 250 |
+| STORY-INDEX | v2.389 | 200 stories |
+| error-taxonomy | v1.80 | E-QUERY-037 boxed emitter + strsim; E-DEMO-006 org_id guard |
+| ARCH-INDEX | v2.133 | — |
+| VP-INDEX | v1.79 | 158 registered |
+| prd | v1.12 | — |
+| policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes |
+| prismql-grammar | v1.1 | enrich function-call form |
+| develop HEAD | 664566e9 | PR #187 squash-merge 2026-06-14; T6 DONE; UNCHANGED since |
+| Open PRs | PR #188 | feature/S-DEMO-004; PR-LEVEL cascade active; streak 0/3 |
+
+---
+
+### PARKED WORKTREES (leave alone)
+
+| Worktree | Status | Action |
+|----------|--------|--------|
+| `.worktrees/S-3.09` | FROZEN | Leave alone |
+| `.worktrees/W3-FIX-S307-001` | BLOCKED/superseded | Leave alone |
 
 ---
 
