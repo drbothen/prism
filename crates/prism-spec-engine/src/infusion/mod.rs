@@ -410,7 +410,19 @@ pub struct InfusionRegistryInner {
 /// Registry of loaded infusion specs and their source backends.
 ///
 /// Uses `arc_swap::ArcSwap` for lock-free hot reload (AD-007 / CI-002).
-/// All public methods are stubs (`unimplemented!()`) — implementation in S-1.14.
+///
+/// Public API:
+/// - [`InfusionRegistry::new`] — create an empty registry.
+/// - [`InfusionRegistry::load_spec`] — validate and register a spec using `NullSource`
+///   (suitable for local-lookup specs or tests that do not need live enrichment).
+/// - [`InfusionRegistry::load_spec_with_runtime`] — validate and register a plugin-type
+///   spec wired to a real `PluginInfusionSource` backed by `Arc<PluginRuntime>`.
+/// - [`InfusionRegistry::udf_descriptors`] — return all registered `InfusionUdfDescriptor`
+///   values for DataFusion UDF registration (consumed by prism-query, S-3.02).
+/// - [`InfusionRegistry::is_api_backed`] — check whether a UDF name maps to an API-backed
+///   plugin infusion.
+/// - [`InfusionRegistry::enrich_descriptor`] — return the `EnrichStageDescriptor` for a
+///   named infusion (used by the pipe-stage enrichment planner).
 pub struct InfusionRegistry {
     inner: ArcSwap<InfusionRegistryInner>,
 }
