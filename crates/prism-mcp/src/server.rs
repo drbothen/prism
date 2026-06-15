@@ -755,18 +755,20 @@ impl ListCapabilitiesParams {
 }
 
 // ---------------------------------------------------------------------------
-// S-5.02 stub types — BC-2.10.011 v1.5 tri-state capability model
+// BC-2.10.011 v1.5 tri-state capability model types
 // ---------------------------------------------------------------------------
 //
-// These types expose the correct public API surface for the new `list_capabilities`
-// response shape so that Red Gate tests compile.  The `list_capabilities` handler
-// body is NOT YET UPDATED — it still returns the old bool-map shape — so tests
-// asserting `status`, `resolution_chain`, and `not_registered_tools` will FAIL.
-// The implementer (S-5.02 green phase) wires these types into the handler body.
+// These types form the public API surface of the `list_capabilities` response.
+// The `list_capabilities` handler is fully implemented (S-5.02 green phase):
+// it returns the tri-state capability matrix using `CapabilityEntry` with
+// `status` and `resolution_chain` per BC-2.10.011 v1.5.
 
 /// Status of a capability in the tri-state BC-2.10.011 model.
 ///
-/// **S-5.02 stub** — type definition only; handler returns old bool-map shape.
+/// Distinguishes between:
+/// - `enabled`: compile tier permits AND runtime TOML grants the capability
+/// - `runtime_disabled`: compile tier permits but runtime config denies
+/// - `compile_time_disabled`: no `[[write_endpoints]]` entry in sensor TOML spec
 #[non_exhaustive]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -780,8 +782,6 @@ pub enum CapabilityStatus {
 }
 
 /// One step in the resolution chain for a capability (BC-2.10.011 v1.5).
-///
-/// **S-5.02 stub** — type definition only.
 #[non_exhaustive]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResolutionStep {
@@ -789,13 +789,14 @@ pub struct ResolutionStep {
     pub level: String,
     /// Resolution outcome: `"permit"`, `"allow"`, or `"deny"`.
     pub result: String,
-    /// Human-readable source description (e.g. `"write_endpoints in sensor TOML"`).
+    /// Human-readable source description (e.g. `"WriteEndpointRegistry"`,
+    /// `"prism.toml clients.acme.capabilities"`).
     pub source: String,
 }
 
 /// Entry for a single capability path in the tri-state `list_capabilities` response.
 ///
-/// **S-5.02 stub** — type definition only; handler returns old bool-map shape.
+/// Used in the `capabilities` map keyed by capability path string.
 #[non_exhaustive]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CapabilityEntry {
