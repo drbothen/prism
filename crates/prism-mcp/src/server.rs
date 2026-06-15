@@ -5410,7 +5410,7 @@ mod tests {
     //       → feature_flags.check_permission (empty map → DeniedRuntime)
     //       → PrismError::CapabilityDenied
     //     → prism_error_to_structured_call_result → Ok(structured_error)
-    //       with category="authorization", is_error=true
+    //       with category="permission", is_error=true (BC-2.10.007 legal enum)
 
     /// Stub AuditWriter for F-PASS14-HIGH-1 test.
     /// Not reached — CapabilityDenied fires in Phase 2, before Phase 5a audit intent.
@@ -5470,7 +5470,8 @@ mod tests {
     ///       → feature_flags.check_permission (empty map → DeniedRuntime)
     ///       → PrismError::CapabilityDenied
     ///     → prism_error_to_structured_call_result → Ok(structured_error) with
-    ///       category="authorization", code="E-FLAG-001", is_error=true
+    ///       category="permission", code="E-FLAG-001", is_error=true
+    ///       (BC-2.10.007 legal category enum: "permission" not "authorization")
     #[tokio::test]
     async fn test_F_PASS14_HIGH_1_confirm_action_capability_denied_maps_to_32002() {
         use std::{collections::BTreeMap, sync::Arc};
@@ -5582,12 +5583,13 @@ mod tests {
             .get("error")
             .expect("F-PASS14-HIGH-1: structuredContent.error must be present");
 
-        // Category must be "authorization" for CapabilityDenied.
+        // Category must be "permission" for CapabilityDenied (BC-2.10.007 legal enum).
+        // "authorization" is not in the BC-2.10.007 category enum; "permission" is.
         assert_eq!(
             error_obj.get("category").and_then(|v| v.as_str()),
-            Some("authorization"),
-            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must have category='authorization' \
-             in structured error"
+            Some("permission"),
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must have category='permission' \
+             in structured error (BC-2.10.007 legal category; 'authorization' is illegal)"
         );
         // retryable must be false for a capability denial.
         assert_eq!(

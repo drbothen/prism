@@ -208,12 +208,23 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-SENSOR-*: Sensor adapter errors → -32000 Internal
+        // E-SENSOR-020: Sensor rate limited — EXPLICIT arm required.
+        // BC-2.10.007 §115-116: bind both fields; sensor→source (used in
+        // prism_error_to_structured_call_result), retry_after_ms/1000→retry_after_seconds.
+        // Kept separate so `sensor` is bound for the structured error caller to use.
+        PrismError::SensorRateLimited {
+            sensor,
+            retry_after_ms,
+        } => (
+            codes::INTERNAL_ERROR,
+            format!("E-SENSOR-020: sensor '{sensor}' rate limited; retry after {retry_after_ms}ms"),
+        ),
+
+        // E-SENSOR-001..003: Other sensor adapter errors → -32000 Internal
         // (external service failures; detail in audit log)
         PrismError::SensorHttpError { .. }
         | PrismError::SensorTimeout { .. }
-        | PrismError::SensorResponseParse { .. }
-        | PrismError::SensorRateLimited { .. } => (
+        | PrismError::SensorResponseParse { .. } => (
             codes::INTERNAL_ERROR,
             "Internal error; see audit log".to_owned(),
         ),
@@ -601,18 +612,33 @@ pub fn to_error_data_with_retry(err: PrismError) -> (ErrorData, Option<u64>) {
 pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::CallToolResult {
     // Inspect err by reference BEFORE consuming it with map_prism_error.
     // Temporary struct to capture variant-level metadata.
+    //
+    // BC-2.10.007 §category legal enum:
+    //   transient | authentication | validation | not_found | permission |
+    //   upstream_error | configuration | safety
+    // BC-2.10.007 §81 source values:
+    //   "prism_mcp" for MCP-layer errors; sensor API name for sensor errors;
+    //   "prism_config" for configuration errors.
+    // BC-2.10.007 DI-006 / EC-10-013: raw sensor text goes in upstream_message ONLY.
     struct VariantMeta {
         category: &'static str,
         suggestion: &'static str,
         retryable: bool,
         retry_after_seconds: Option<u64>,
         original_params_valid: bool,
+        /// Override source for sensor errors; `None` → default "prism_mcp".
+        source_override: Option<String>,
+        /// Raw upstream sensor text for DI-006 isolation; `None` for Prism-originating errors.
+        upstream_message: Option<String>,
     }
     let meta = match &err {
+        // ── Validation errors: caller-supplied bad parameters ────────────────
+        // ClientNotFound is intentionally EXCLUDED from this group per BC-2.10.004 §87:
+        // a well-formed-but-unregistered client_id is a configuration error, not a
+        // bad-parameter error — `original_params_valid: true`.
         PrismError::QueryParseFailed { .. }
         | PrismError::McpParameterInvalid { .. }
         | PrismError::McpToolNotFound { .. }
-        | PrismError::ClientNotFound { .. }
         | PrismError::InvalidCapabilityPath { .. }
         | PrismError::InvalidOrgSlug { .. }
         | PrismError::InvalidAnalystId { .. }
@@ -643,7 +669,34 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
         },
+
+        // ── Configuration errors: well-formed params but not in config ───────
+        // BC-2.10.004 §87 case (c): ClientNotFound → category "configuration",
+        // original_params_valid: true (params were structurally valid).
+        // BC-2.10.007 §81 source: "prism_config" for configuration errors.
+        PrismError::ClientNotFound { .. }
+        | PrismError::Spec(_)
+        | PrismError::SpecNotFound { .. }
+        | PrismError::SpecValidationFailed { .. }
+        | PrismError::SpecHotReloadFailed { .. }
+        | PrismError::ConfigNotFound { .. }
+        | PrismError::ConfigParseFailed { .. }
+        | PrismError::ConfigValidationFailed { .. }
+        | PrismError::ConfigSnapshotStale { .. } => VariantMeta {
+            category: "configuration",
+            suggestion: "Check operator configuration; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: Some("prism_config".to_owned()),
+            upstream_message: None,
+        },
+
+        // ── Permission errors: capability denied, auth failures ──────────────
+        // BC-2.10.007 legal category: "permission" (not "authorization").
         PrismError::CapabilityDenied { .. }
         | PrismError::FeatureFlagEvalError { .. }
         | PrismError::Unauthorized { .. }
@@ -657,55 +710,100 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::WriteRequiresClientId
         | PrismError::CredentialAccessDenied { .. }
         | PrismError::AuditTableAccessDenied => VariantMeta {
-            category: "authorization",
+            category: "permission",
             suggestion:
                 "Check capability configuration or confirm the operation through the correct flow.",
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
         },
+
+        // ── Transient errors: retryable, no permanent fix needed ─────────────
+        // BC-2.10.007 legal category: "transient" (not "timeout" or "internal").
         PrismError::QueryTimeout { .. } => VariantMeta {
-            category: "timeout",
+            category: "transient",
             suggestion: "Retry the query with a shorter time range or narrower scope.",
             retryable: true,
             retry_after_seconds: None,
             original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
         },
-        PrismError::SensorRateLimited { retry_after_ms, .. } => VariantMeta {
-            category: "sensor",
+
+        // BC-2.10.007 §115: SensorRateLimited requires explicit arm binding both fields.
+        // BC-2.10.007 §81: source = sensor name (not "prism_mcp").
+        // BC-2.10.007 DI-006: raw sensor display text → upstream_message (not message/content).
+        // BC-2.10.007 legal category: "transient" (retryable 429 → transient, not "sensor").
+        PrismError::SensorRateLimited {
+            sensor,
+            retry_after_ms,
+        } => VariantMeta {
+            category: "transient",
             suggestion: "Retry after the indicated delay.",
             retryable: true,
             retry_after_seconds: Some(retry_after_ms / 1000),
             original_params_valid: true,
+            source_override: Some(sensor.clone()),
+            upstream_message: Some(format!(
+                "sensor '{sensor}' rate limited; retry after {retry_after_ms}ms"
+            )),
         },
+
+        // BC-2.10.007 §81: source = sensor name; DI-006: body → upstream_message.
+        // BC-2.10.007 legal category: "upstream_error" (external service failure).
+        PrismError::SensorHttpError {
+            sensor,
+            status,
+            body,
+        } => VariantMeta {
+            category: "upstream_error",
+            suggestion: "Check sensor API status. If the problem persists, see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: Some(sensor.clone()),
+            // Raw body text → upstream_message ONLY (DI-006 injection isolation, EC-10-013).
+            upstream_message: Some(format!("HTTP {status}: {body}")),
+        },
+
+        // BC-2.10.007 §81: source = sensor name; "upstream_error" for sensor timeouts.
+        PrismError::SensorTimeout { sensor, .. }
+        | PrismError::SensorResponseParse { sensor, .. } => VariantMeta {
+            category: "upstream_error",
+            suggestion: "Check sensor API status. If the problem persists, see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: Some(sensor.clone()),
+            upstream_message: None,
+        },
+
+        // AuditPersistenceFailed is retryable and transient (not permanent "internal").
         PrismError::AuditPersistenceFailed => VariantMeta {
-            category: "internal",
+            category: "transient",
             suggestion:
                 "Retry the operation. If the problem persists, check the audit log storage.",
             retryable: true,
             retry_after_seconds: None,
             original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
         },
-        PrismError::Spec(_)
-        | PrismError::SpecNotFound { .. }
-        | PrismError::SpecValidationFailed { .. }
-        | PrismError::SpecHotReloadFailed { .. }
-        | PrismError::ConfigNotFound { .. }
-        | PrismError::ConfigParseFailed { .. }
-        | PrismError::ConfigValidationFailed { .. }
-        | PrismError::ConfigSnapshotStale { .. } => VariantMeta {
-            category: "configuration",
-            suggestion: "Check operator configuration; see audit log for details.",
-            retryable: false,
-            retry_after_seconds: None,
-            original_params_valid: true,
-        },
+
+        // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
+        // "internal" is not in the BC-2.10.007 legal category enum.
+        // "upstream_error" is the safest legal fallback for infrastructure failures
+        // that don't have a more specific classification.
         _ => VariantMeta {
-            category: "internal",
+            category: "upstream_error",
             suggestion: "See audit log for details.",
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
         },
     };
 
@@ -724,6 +822,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         }
     };
 
+    let source = meta
+        .source_override
+        .unwrap_or_else(|| "prism_mcp".to_owned());
+
     let fields = StructuredErrorFields {
         code: ec_code,
         message,
@@ -731,9 +833,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         retryable: meta.retryable,
         retry_after_seconds: meta.retry_after_seconds,
         suggestion: meta.suggestion.to_owned(),
-        source: "prism_mcp".to_owned(),
+        source,
         original_params_valid: meta.original_params_valid,
-        upstream_message: None,
+        upstream_message: meta.upstream_message,
     };
     let content_text = format!(
         "ERROR: [{}] - {}. {}",
