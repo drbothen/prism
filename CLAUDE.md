@@ -163,7 +163,7 @@ Use this table to determine which specialist handles which kind of work. Authori
 - **PR-LEVEL adversarial finding `pub type SensorId = String` shadow alias in prism-query::cache_key** (PREREQ-A pass 1): correct routing is `implementer` (the type is in code, not spec). The fix-burst dispatch happens via orchestrator-drives-cascade pattern (Standing Rule 2) because pr-manager lacks Agent tool access — that's a tooling routing constraint, not a defer-pattern.
 - **TDD red-gate violation found by test-writer** where a Red Gate test does not align with the BC: route to `product-owner` (if the BC is the problem) or to the human (if the spec is genuinely contradictory). DO NOT have the test-writer modify the BC silently.
 - **Security finding found by security-reviewer**: triage classification is security-reviewer's job. The FIX is implementer's job (with security-reviewer re-running to confirm). Use the `fix-pr-delivery` skill.
-- **BC ↔ tracing-emission catalog drift discovered during implementation** (PREREQ-B PG-LP11-001): the implementer must amend BC-2.16.002 Structured Event Catalog in the SAME atomic commit. The implementer is editing the .factory/ artifact in-scope — this is correct-agent because the contract surface and the emission site are both implementer-owned at fix-burst time. Post-merge, state-manager + adversary verify.
+- **BC ↔ tracing-emission catalog drift discovered during implementation** (PREREQ-B PG-LP11-001): the implementer must amend the Canonical Structured Event Catalog in BC-2.16.002 §Postconditions in the SAME atomic commit. The implementer is editing the .factory/ artifact in-scope — this is correct-agent because the contract surface and the emission site are both implementer-owned at fix-burst time. Post-merge, state-manager + adversary verify.
 - **Out-of-scope finding (legitimate scope-boundary defer)**: still route to orchestrator. Orchestrator records the deferral with explicit future-story attachment per Canonical Principle Rule 3. The deferral target must be a real story ID, not "Wave X" or "later."
 
 #### When the routing is unclear
@@ -215,6 +215,8 @@ These project-specific operational rules layer onto the canonical principle. Rec
 
   **Orchestrator dispatch decisions** for fix-bursts use the STRICT criterion. If CLEAN(strict)=no, orchestrator dispatches a fix-burst regardless of CLEAN(PR-merge) status.
 
+  **Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001, 2026-06-08):** the 3-CLEAN streak only counts consecutive CLEAN(strict) passes taken against an UNCHANGED feature/PR HEAD. Pushing any new commit to the branch mid-cascade — a fix-burst, evidence refresh, or rebase — RESETS the streak to 0/3; the cascade must re-gate on the newly-pushed HEAD. Never count a pass taken before a push toward a streak completed after it. (Origin: S-DEMO-CLAROTY-PAGINATION-001 PR-LEVEL cascade, where a fix was pushed before re-gating.)
+
   **Rationale:** This disambiguation eliminates the cascade-internal mismatch where adversary CLEAN flag and orchestrator dispatch decision operated on different interpretations of the same flag. Evidence: PLUGIN-MIGRATION-001-D cascade passes 7-9; session-review-2026-05-22.md D-777 proposal B1; lessons 28, 31, 33 in cycles/wave-0-plugin-prereqs/lessons.md.
 
 - **TD-FACTORY-HOOK-BYPASS-001 P0** — Use Edit/Write tools ONLY for `.factory/` mutations. NEVER use Python/sed/echo bypass. Enforced by POL-3.
@@ -230,7 +232,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 - **Arc-DI plumbing.** Production runtime wires dependencies via `Arc<dyn ...>` constructors per ADR-022. The placeholder-construct anti-pattern (constructing a type without wiring real Arc dependencies "for now") is explicitly forbidden (Standing Rule 3 §4 in SESSION-HANDOFF.md). Adding `Arc<dyn Foo>` to a constructor that lacked it is "wiring, not redesign" and must be done in-scope.
 
-- **Structured event catalog discipline.** Every `tracing::*!(event_type=…)` site must appear as a row in BC-2.16.002 Structured Event Catalog with full field schema, audit role, and recurrence policy (PG-LP11-001, established during S-PLUGIN-PREREQ-B cascade). New emission sites added without a corresponding BC-2.16.002 row are a P1 finding in adversarial review.
+- **Structured event catalog discipline.** Every `tracing::*!(event_type=…)` site must appear as a row in the Canonical Structured Event Catalog in BC-2.16.002 §Postconditions (BC-2.16.002's H1 title is *Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation*; the event catalog is a §Postconditions sub-section within that contract, not the contract's title) with full field schema, audit role, and recurrence policy (PG-LP11-001, established during S-PLUGIN-PREREQ-B cascade). New emission sites added without a corresponding BC-2.16.002 catalog row are a P1 finding in adversarial review.
 
 - **Newtype + redacted `Debug` for credentials.** Sensitive types (`AuthToken`, `OrgSlug`, credential names) use newtypes with redacted `Debug` impls. `OrgSlug::new_unchecked` is a `pub` validation-bypass constructor guarded by a symbol-keyed allowlist audit test (`crates/prism-core/tests/new_unchecked_audit.rs`) rather than a Cargo feature gate — `#[cfg(test)]` does not propagate to downstream crates' test builds, so the audit-test-as-compensating-control mechanism is the ratified exception (human-approved 2026-06-10). It must never appear in production code paths; new call sites require an allowlist entry with justification. Credential values never transit AI context (AD-017; see project memory `project_ai_opaque_credentials.md`).
 
@@ -270,7 +272,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 ### Logging
 
 - Use `tracing::info!` / `tracing::warn!` / `tracing::error!` / `tracing::debug!` with structured field syntax: `tracing::info!(sensor_id = %id, event_type = "fetch.started", "fetching sensor data")`.
-- All `event_type` values must be registered in BC-2.16.002 Structured Event Catalog before the PR merges.
+- All `event_type` values must be registered in the Canonical Structured Event Catalog in BC-2.16.002 §Postconditions before the PR merges.
 - Log target discipline: 18 diagnostic targets defined in `architecture/observability.md`; match the target to the subsystem.
 
 ### Channels / async
@@ -420,7 +422,7 @@ VP coverage layers:
 - **Feature branches:** `feature/<story-id>` (e.g., `feature/S-3.01`)
 - **Maintenance branches:** `maintenance/<scope>` (e.g., `maintenance/rename-crowdstrike-session`)
 - **Worktree pattern:** per-story worktrees in `.worktrees/<story-id>/` for parallel work
-- **Factory artifacts branch:** `factory-artifacts` (orphan branch mounted at `.factory/` via worktree). Local-only by default — orchestrator does NOT push factory-artifacts to remote without explicit user authorization.
+- **Factory artifacts branch:** `factory-artifacts` (orphan branch mounted at `.factory/` via worktree). Pushed to `origin/factory-artifacts` under the standing authorization granted in D-1066; state-manager pushes it as part of each `.factory/` burst (no per-burst re-authorization needed). The branch is append-only in normal operation; a force-push of `factory-artifacts` still requires explicit human approval.
 
 ### Commit conventions
 - **Conventional Commits** enforced by `lefthook.yml`:
