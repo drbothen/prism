@@ -89,14 +89,18 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
     // Known sensor names in suffix-search order. The name convention is
     // "{org_slug}-{sensor_id}" where both parts may contain '-' themselves
     // (e.g. "org-a-crowdstrike"). We match by stripping known sensor suffixes.
-    const SENSORS: &[&str] = &["crowdstrike", "armis", "claroty", "cyberint"];
+    //
+    // TD-VSDD-060 sibling-awareness: use the shared const from config.rs so that
+    // sensor validation (MultiOrgDemoConfig::from_str) and dispatch (here) cannot drift.
+    // Adding a new sensor updates KNOWN_SENSORS once; both sites pick it up automatically.
+    use crate::config::KNOWN_SENSORS;
 
     Box::new(move |entry: &InstanceEntry| -> Box<dyn BehavioralClone> {
         let entry_name = &entry.name;
 
         // Parse (org_slug, sensor_id) from entry.name by matching known sensor suffixes.
         // Try each sensor as a suffix "-{sensor_id}"; first match wins.
-        let (org_slug, sensor_id) = SENSORS
+        let (org_slug, sensor_id) = KNOWN_SENSORS
             .iter()
             .find_map(|&sensor| {
                 let suffix = format!("-{sensor}");
