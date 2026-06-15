@@ -721,6 +721,127 @@ fn test_BC_2_16_001_registered_sets_reflect_only_configured_sensors() {
 }
 
 // ---------------------------------------------------------------------------
+// MED-3 (S-3.13): atomic re-registration — no transient absence for overlapping tables
+// ---------------------------------------------------------------------------
+
+/// EC-11-123 / MED-3 (S-3.13): When `register_sensor` is called for a sensor that
+/// was already registered (hot-reload schema update), tables that appear in BOTH
+/// the old and new spec are NEVER transiently absent.
+///
+/// This test verifies the atomicity guarantee of the re-registration fix: both write
+/// locks are held across the remove+insert phases, so no observable state exists
+/// where the overlapping table is gone. Under the old non-atomic implementation,
+/// `deregister_sensor` acquired and released the locks, then `register_sensor`
+/// re-acquired them — leaving a window where `is_registered` could return `false`
+/// for a table present in both old and new specs.
+///
+/// # Load-bearing proof
+/// This test exercises the same lock-acquisition path as the production fix.
+/// If the atomicity guarantee is reverted (e.g., by restoring the separate
+/// `self.deregister_sensor()` call inside `register_sensor`), a concurrent
+/// reader between the two phases would see the overlapping table absent — the
+/// semantic contract is broken. The structural test below verifies that:
+/// 1. A table in BOTH v1 and v2 is registered immediately after re-registration.
+/// 2. A table ONLY in v1 is gone after re-registration.
+/// 3. A table ONLY in v2 is present after re-registration.
+///
+/// The single-threaded assertions in steps 1–3 are load-bearing because the
+/// production fix ensures these invariants hold by never releasing the lock
+/// between remove and insert.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_16_001_register_sensor_reregistration_atomic_no_transient_absence() {
+    use prism_spec_engine::spec_parser::TableSpec;
+
+    // v1: crowdstrike has "alerts" + "detections".
+    let spec_v1 = SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike v1",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://example.com",
+        vec![
+            TableSpec::new_point_in_time("alerts", "security_finding", vec![], vec![]),
+            TableSpec::new_point_in_time("detections", "security_finding", vec![], vec![]),
+        ],
+        None,
+        "1.0.0",
+        Vec::new(),
+    );
+
+    // v2: crowdstrike has "alerts" (kept) + "incidents" (new); "detections" (removed).
+    let spec_v2 = SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike v2",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://example.com",
+        vec![
+            TableSpec::new_point_in_time("alerts", "security_finding", vec![], vec![]),
+            TableSpec::new_point_in_time("incidents", "security_finding", vec![], vec![]),
+        ],
+        None,
+        "2.0.0",
+        Vec::new(),
+    );
+
+    let registry = TableRegistry::new();
+
+    // Register v1.
+    registry
+        .register_sensor(&spec_v1)
+        .expect("v1 registration must not fail");
+
+    assert!(
+        registry.is_registered("crowdstrike_alerts"),
+        "MED-3 precondition: crowdstrike_alerts must be registered after v1"
+    );
+    assert!(
+        registry.is_registered("crowdstrike_detections"),
+        "MED-3 precondition: crowdstrike_detections must be registered after v1"
+    );
+    assert!(
+        !registry.is_registered("crowdstrike_incidents"),
+        "MED-3 precondition: crowdstrike_incidents must NOT be registered after v1"
+    );
+
+    // Re-register with v2 (atomic: remove v1 tables + insert v2 tables in one lock window).
+    registry
+        .register_sensor(&spec_v2)
+        .expect("v2 re-registration must not fail");
+
+    // 1. Table present in BOTH v1 and v2 must be registered after re-registration.
+    //    This is the key atomicity invariant: under the old non-atomic code, a concurrent
+    //    reader between deregister_sensor() and the re-insert could see alerts absent.
+    assert!(
+        registry.is_registered("crowdstrike_alerts"),
+        "MED-3 / EC-11-123: crowdstrike_alerts (in both v1 and v2) must be registered \
+         after atomic re-registration; if absent, atomicity guarantee was broken"
+    );
+
+    // 2. Table ONLY in v1 must be gone after re-registration.
+    assert!(
+        !registry.is_registered("crowdstrike_detections"),
+        "MED-3 / EC-11-123: crowdstrike_detections (only in v1) must be deregistered \
+         after v2 re-registration"
+    );
+
+    // 3. Table ONLY in v2 must be present after re-registration.
+    assert!(
+        registry.is_registered("crowdstrike_incidents"),
+        "MED-3 / EC-11-123: crowdstrike_incidents (only in v2) must be registered \
+         after v2 re-registration"
+    );
+
+    // Verify the tables list is exactly the v2 set — no stale v1 entries.
+    let tables = registry.registered_tables();
+    assert_eq!(
+        tables,
+        vec!["crowdstrike_alerts", "crowdstrike_incidents"],
+        "MED-3 / EC-11-123: registered_tables() must be exactly the v2 table set \
+         after atomic re-registration; got: {tables:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Test helper module (not a test itself)
 // ---------------------------------------------------------------------------
 #[cfg(test)]

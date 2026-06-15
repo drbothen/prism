@@ -81,16 +81,25 @@ impl TableRegistry {
     ///
     /// For each `[[tables]]` entry in the spec, inserts `{sensor_id}_{table_name}`
     /// into the registry. If the sensor was already registered (hot-reload update
-    /// case), existing tables for this sensor are replaced atomically via
-    /// `deregister_sensor()` + re-register. (EC-11-123, S-3.13 Task 3 note)
+    /// case), existing tables for this sensor are replaced atomically: both write
+    /// locks are acquired ONCE and the old tables removed and new tables inserted
+    /// without releasing the lock between phases. This prevents a transient window
+    /// where the sensor's tables are absent between the remove and insert operations.
+    /// (EC-11-123, S-3.13 Task 3 note, MED-3 fix)
+    ///
+    /// # Atomicity guarantee
+    /// Both `registered` and `sensor_by_table` are mutated in a single lock
+    /// acquisition window — the sensor is never in a partially-deregistered state
+    /// that is visible to concurrent readers. Queries landing during a re-registration
+    /// will see EITHER the old table set OR the new table set, never an empty window.
     ///
     /// # BC-2.16.001 / BC-2.16.007
     /// Called at startup (from_snapshot) and on hot-reload add/update.
     pub fn register_sensor(&self, spec: &SensorSpec) -> Result<(), PrismError> {
-        // Deregister first to handle re-registration (hot-reload update case EC-11-123).
-        // This is a no-op if the sensor was not previously registered.
-        self.deregister_sensor(&spec.sensor_id)?;
+        let prefix = format!("{}_", spec.sensor_id);
 
+        // Acquire BOTH write locks once and hold them across the remove+insert
+        // to make re-registration atomic (MED-3 fix — no transient empty window).
         let mut registered = self.registered.write().map_err(|_| PrismError::Internal {
             detail: "TableRegistry::register_sensor: RwLock poisoned \
                          (another thread panicked while holding the lock)"
@@ -104,6 +113,20 @@ impl TableRegistry {
                         .to_string(),
                 })?;
 
+        // Remove existing tables for this sensor (the deregister phase).
+        // Executed under the held locks — no visibility gap.
+        let to_remove: Vec<String> = registered
+            .iter()
+            .filter(|name| name.starts_with(&prefix))
+            .cloned()
+            .collect();
+        for name in to_remove {
+            registered.remove(&name);
+            sensor_by_table.remove(&name);
+        }
+
+        // Insert new tables for this sensor (the register phase).
+        // Executed under the same held locks — atomic with the remove above.
         for table in &spec.tables {
             let full_name = format!("{}_{}", spec.sensor_id, table.table_name);
             registered.insert(full_name.clone());
