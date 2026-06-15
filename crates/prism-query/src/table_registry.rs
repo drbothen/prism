@@ -173,9 +173,9 @@ impl TableRegistry {
     ///
     /// Used by:
     /// - `explain_query` to list `available_tables` (AC-6)
-    /// - `prism://config/clients` MCP resource (AC-7)
     /// - `TableNotAvailable` error construction (available_tables field)
     /// - `did_you_mean` Levenshtein computation (AC-3)
+    /// - Future `prism://config/clients` MCP resource (S-5.03; not delivered by S-3.13)
     ///
     /// Acquires a read-lock; returns an owned `Vec` sorted for determinism.
     /// On `RwLock` poison: returns empty `Vec` (safe default).

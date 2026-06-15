@@ -10,8 +10,8 @@
 //! | BC | Tests |
 //! |-----|-------|
 //! | BC-2.11.001 | `_table_not_available_*`, `_did_you_mean_*`, `_mode_agnostic_*`, `_no_sensors_*`, `_e_query_037_mcp_*` |
-//! | BC-2.16.001 | `_register_sensor_*`, `_unregistered_sensor_*`, `_explain_*` |
-//! | BC-2.16.007 | `_hot_reload_add_*`, `_hot_reload_remove_*`, `_hot_reload_schema_*`, `_config_clients_*` |
+//! | BC-2.16.001 | `_register_sensor_*`, `_unregistered_sensor_*`, `_explain_*`, `_registered_sets_*` |
+//! | BC-2.16.007 | `_hot_reload_add_*`, `_hot_reload_remove_*`, `_hot_reload_schema_*` |
 //!
 //! # Red Gate density
 //! 15 tests / 15 functions = 1.0 (≥ 0.5 required per story §Red Gate Test Names).
@@ -650,18 +650,22 @@ fn test_BC_2_16_001_explain_query_lists_only_registered_tables() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-7: prism://config/clients reflects registered sensors (BC-2.16.007)
+// BC-2.16.001: registered_sensor_ids / registered_tables reflect only configured sensors
 // ---------------------------------------------------------------------------
 
-/// BC-2.16.007 / AC-7: `registered_sensor_ids()` and `registered_tables()` together
-/// reflect only the currently-configured sensors. The `prism://config/clients`
-/// resource handler (in prism-mcp) reads from these methods, so verifying the
-/// registry state verifies the resource content.
+/// BC-2.16.001: `registered_sensor_ids()` and `registered_tables()` reflect only
+/// the sensors that were passed to `register_sensor()` — no more, no fewer.
+///
+/// This verifies the core registration fidelity invariant: after registering crowdstrike
+/// and claroty, the accessor methods return exactly those two sensors and their tables.
+/// Armis and cyberint (never registered) must not appear. These accessors back the
+/// future `prism://config/clients` MCP resource in S-5.03; S-3.13 delivers the
+/// accessors only, not the resource or its notifications.
 ///
 /// Only crowdstrike + claroty are registered; armis and cyberint must not appear.
 #[test]
 #[allow(non_snake_case)]
-fn test_BC_2_16_007_config_clients_resource_reflects_registered() {
+fn test_BC_2_16_001_registered_sets_reflect_only_configured_sensors() {
     let registry = TableRegistry::new();
 
     // Register crowdstrike and claroty only.
@@ -680,35 +684,35 @@ fn test_BC_2_16_007_config_clients_resource_reflects_registered() {
     // Crowdstrike and claroty must appear.
     assert!(
         sensor_ids.contains(&"crowdstrike".to_string()),
-        "AC-7 / BC-2.16.007: crowdstrike must be in registered_sensor_ids()"
+        "BC-2.16.001: crowdstrike must be in registered_sensor_ids() after register_sensor"
     );
     assert!(
         sensor_ids.contains(&"claroty".to_string()),
-        "AC-7 / BC-2.16.007: claroty must be in registered_sensor_ids()"
+        "BC-2.16.001: claroty must be in registered_sensor_ids() after register_sensor"
     );
 
     // Armis and cyberint must NOT appear.
     assert!(
         !sensor_ids.contains(&"armis".to_string()),
-        "AC-7 / BC-2.16.007: armis must NOT be in registered_sensor_ids()"
+        "BC-2.16.001: armis must NOT be in registered_sensor_ids() — was never registered"
     );
     assert!(
         !sensor_ids.contains(&"cyberint".to_string()),
-        "AC-7 / BC-2.16.007: cyberint must NOT be in registered_sensor_ids()"
+        "BC-2.16.001: cyberint must NOT be in registered_sensor_ids() — was never registered"
     );
 
     // Tables must also be accurate.
     assert!(
         tables.contains(&"crowdstrike_alerts".to_string()),
-        "AC-7: crowdstrike_alerts must appear in registered_tables()"
+        "BC-2.16.001: crowdstrike_alerts must appear in registered_tables()"
     );
     assert!(
         tables.contains(&"claroty_devices".to_string()),
-        "AC-7: claroty_devices must appear in registered_tables()"
+        "BC-2.16.001: claroty_devices must appear in registered_tables()"
     );
     assert!(
         !tables.contains(&"armis_alerts".to_string()),
-        "AC-7: armis_alerts must NOT appear in registered_tables()"
+        "BC-2.16.001: armis_alerts must NOT appear in registered_tables() — was never registered"
     );
 }
 
