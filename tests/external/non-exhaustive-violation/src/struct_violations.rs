@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-62 (45 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64 (47 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -16,6 +16,9 @@
 //! ci.yml EXPECTED bumped from 59 to 60.
 //! v62 (StructuredErrorFields) added by S-5.02 (HIGH-3 fix).
 //! ci.yml EXPECTED bumped from 60 to 61.
+//! v63 (CapabilityEntry) and v64 (ResolutionStep) added by S-5.02 follow-up fix-burst
+//! (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep). ci.yml EXPECTED bumped from 61 to 64
+//! (together with v65 CapabilityStatus enum violation).
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -854,4 +857,43 @@ pub fn v62_structured_error_fields() {
         upstream_message: None,
     };
     let _ = _fields;
+}
+
+/// Violation 63: prism_mcp::CapabilityEntry struct literal (E0639).
+///
+/// `CapabilityEntry` is the per-capability-path response entry in the `list_capabilities`
+/// tool response (BC-2.10.011 v1.5, S-5.02 R4). `#[non_exhaustive]` ensures that future
+/// fields (e.g., `last_evaluated_at`, `policy_source`) can be added without breaking
+/// external consumers. External callers MUST NOT construct this directly — it is produced
+/// exclusively by `PrismServer::list_capabilities`.
+///
+/// Added: S-5.02 follow-up fix-burst (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep).
+/// ci.yml EXPECTED bumped from 61 to 64 (together with v64 ResolutionStep + v65 CapabilityStatus).
+#[allow(dead_code)]
+pub fn v63_capability_entry() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _entry = prism_mcp::CapabilityEntry {
+        status: todo!(),
+        resolution_chain: vec![],
+    };
+    let _ = _entry;
+}
+
+/// Violation 64: prism_mcp::ResolutionStep struct literal (E0639).
+///
+/// `ResolutionStep` is a single tier step in the capability resolution chain returned
+/// by `list_capabilities` (BC-2.10.011 v1.5, S-5.02 R4). `#[non_exhaustive]` ensures
+/// that new step fields (e.g., `timestamp`, `policy_id`) can be added without breaking
+/// external consumers. External callers MUST NOT construct this directly.
+///
+/// Added: S-5.02 follow-up fix-burst (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep).
+#[allow(dead_code)]
+pub fn v64_resolution_step() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _step = prism_mcp::ResolutionStep {
+        level: "compile_tier".to_string(),
+        result: "permit".to_string(),
+        source: "WriteEndpointRegistry".to_string(),
+    };
+    let _ = _step;
 }
