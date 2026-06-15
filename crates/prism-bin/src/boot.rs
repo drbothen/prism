@@ -3645,3 +3645,179 @@ mod p1_03_config_swap_cache_flush_tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Unit tests — wire_table_registry_swap_listener (S-3.13 AC-4/AC-5)
+// ---------------------------------------------------------------------------
+//
+// SID-1: in-process unit tests exercising the REAL production wiring helper
+// directly against the real ConfigManager + TableRegistry types; no subprocess
+// spawning, no #[ignore], no external dependencies.
+//
+// Mirror of the p1_03_config_swap_cache_flush_tests pattern above, applied to
+// the TableRegistry sibling function (finding MED / SID-1 / TD-VSDD-059).
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod table_registry_swap_listener_tests {
+    use std::sync::Arc;
+
+    use prism_spec_engine::{
+        ConfigSnapshot,
+        spec_parser::{AuthType, SensorSpec, TableSpec},
+    };
+
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // Helper: minimal SensorSpec builder (mirrors table_registry_tests.rs)
+    // -----------------------------------------------------------------------
+
+    fn make_spec(sensor_id: &str, table_suffix: &str) -> SensorSpec {
+        SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        )
+    }
+
+    fn snapshot_with(specs: Vec<SensorSpec>) -> ConfigSnapshot {
+        let mut snap = ConfigSnapshot::empty();
+        for spec in specs {
+            snap.sensor_specs.insert(spec.sensor_id.clone(), spec);
+        }
+        snap
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 1: add — sensor present after swap
+    // -----------------------------------------------------------------------
+
+    /// AC-4 / BC-2.16.007: calling the REAL `wire_table_registry_swap_listener`
+    /// and then storing a snapshot that adds armis makes `is_registered` return
+    /// `true` for the armis table.
+    ///
+    /// This is a DIRECT test of the production boot function (not a re-impl of its
+    /// body), closing the SID-1 / TD-VSDD-059 finding: a mutation to the production
+    /// delta loop (e.g., deleting the register_sensor call) now fails this test.
+    #[test]
+    fn test_wire_table_registry_swap_listener_add_sensor_registers_tables() {
+        let registry = Arc::new(prism_query::table_registry::TableRegistry::new());
+        let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        ));
+
+        // Call the REAL production function.
+        wire_table_registry_swap_listener(&config_manager, Arc::clone(&registry));
+
+        // Precondition: registry is empty before any swap.
+        assert!(
+            !registry.is_registered("armis_alerts"),
+            "AC-4 precondition: registry must be empty before the swap"
+        );
+
+        // Simulate hot-reload apply via ConfigManager::store (the BC-2.16.006 sole write path).
+        let armis_spec = make_spec("armis", "alerts");
+        config_manager.load().store(snapshot_with(vec![armis_spec]));
+
+        // AC-4 / BC-2.16.007: after the swap, the listener must have registered armis_alerts.
+        assert!(
+            registry.is_registered("armis_alerts"),
+            "AC-4 / BC-2.16.007: is_registered('armis_alerts') must be true after \
+             wire_table_registry_swap_listener wiring + ConfigManager::store. \
+             A mutation to the register_sensor loop in wire_table_registry_swap_listener \
+             will fail this assertion."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 2: remove — sensor absent after swap
+    // -----------------------------------------------------------------------
+
+    /// AC-5 / BC-2.16.007: calling the REAL `wire_table_registry_swap_listener`
+    /// and then storing an empty snapshot removes the previously-registered claroty
+    /// table (`is_registered` returns `false`).
+    ///
+    /// Directly exercises the deregister-removed loop inside the production function.
+    #[test]
+    fn test_wire_table_registry_swap_listener_remove_sensor_deregisters_tables() {
+        let registry = Arc::new(prism_query::table_registry::TableRegistry::new());
+
+        // Pre-populate registry with claroty (represents sensors registered at boot
+        // from the initial snapshot before the listener is wired).
+        let claroty_spec = make_spec("claroty", "devices");
+        registry
+            .register_sensor(&claroty_spec)
+            .expect("initial registration must succeed");
+
+        assert!(
+            registry.is_registered("claroty_devices"),
+            "AC-5 precondition: claroty_devices must be registered before the swap"
+        );
+
+        // Wire the REAL production function with a ConfigManager that has claroty in the
+        // initial snapshot (so the new_sensor_ids diff sees it as "was present").
+        let initial_snapshot = snapshot_with(vec![claroty_spec]);
+        let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot),
+        ));
+
+        wire_table_registry_swap_listener(&config_manager, Arc::clone(&registry));
+
+        // Simulate hot-reload that removes claroty: store an EMPTY snapshot.
+        config_manager.load().store(ConfigSnapshot::empty());
+
+        // AC-5 / BC-2.16.007: after the swap, claroty_devices must have been deregistered.
+        assert!(
+            !registry.is_registered("claroty_devices"),
+            "AC-5 / BC-2.16.007: is_registered('claroty_devices') must be false after \
+             wire_table_registry_swap_listener wiring + ConfigManager::store with empty snapshot. \
+             A mutation to the deregister-removed loop in wire_table_registry_swap_listener \
+             will fail this assertion."
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 3: add then remove — listener stays live across multiple swaps
+    // -----------------------------------------------------------------------
+
+    /// AC-4/AC-5 combined: the listener registered by `wire_table_registry_swap_listener`
+    /// stays live across multiple `ConfigManager::store` calls (add then remove).
+    #[test]
+    fn test_wire_table_registry_swap_listener_add_then_remove_across_swaps() {
+        let registry = Arc::new(prism_query::table_registry::TableRegistry::new());
+        let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        ));
+
+        wire_table_registry_swap_listener(&config_manager, Arc::clone(&registry));
+
+        // Swap 1: add crowdstrike.
+        let cs_spec = make_spec("crowdstrike", "devices");
+        config_manager.load().store(snapshot_with(vec![cs_spec]));
+
+        assert!(
+            registry.is_registered("crowdstrike_devices"),
+            "multi-swap: crowdstrike_devices must be registered after swap-1 (add)"
+        );
+
+        // Swap 2: remove crowdstrike (empty snapshot).
+        config_manager.load().store(ConfigSnapshot::empty());
+
+        assert!(
+            !registry.is_registered("crowdstrike_devices"),
+            "multi-swap: crowdstrike_devices must be deregistered after swap-2 (remove). \
+             The production listener must stay live across repeated swaps."
+        );
+    }
+}
