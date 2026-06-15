@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.819"
+version: "7.820"
 producer: state-manager
 timestamp: 2026-06-15T00:00:00Z
 inputs: []
@@ -19,7 +19,7 @@ safe_to_compact: true
 develop_head: "7241f5ef"
 bc_index_version: "6.58"
 vp_index_version: "1.79"
-story_index_version: "v2.392"
+story_index_version: "v2.394"
 arch_index_version: "2.133"
 error_taxonomy_version: "1.81"
 total_stories: 200
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "T10 DONE — S-DEMO-004 MERGED PR #188 develop@7241f5ef 2026-06-15. PARALLEL EXECUTION ACTIVE (D-1176 2026-06-15): PIVOT-001 v1.6 @e4d95d19 (LOCAL strict streak 2/3; one more clean pass → PR); S-3.13 v1.13 @97148f90 (LOCAL strict streak 0/3; duplicate test rename IN-FLIGHT; MED-1/MED-2/MED-3/NEW-1/NEW-2 all closed); LAUNCHER v2.5 @d9098c1f (LOCAL strict streak 0/3; re-pass IN-FLIGHT after AC-004 prose fix); S-5.02 @8eaff098 (BLOCKED on human CLAUDE.md 60→64 commit). 4 drift items added. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1176."
+current_step: "T10 DONE — S-DEMO-004 MERGED PR #188 develop@7241f5ef 2026-06-15. PARALLEL EXECUTION ACTIVE (D-1177 2026-06-15): PIVOT-001 v1.6 @0d4978c3 (LOCAL 3/3 CONVERGED — pushed; PR pending); S-3.13 v1.13 @eafd017a (LOCAL strict streak 2/3; DRIFT-S313-DUPTEST-001 CLOSED); LAUNCHER v2.6 @d9098c1f (LOCAL strict streak 1/3; AC-005 prose fixed); S-5.02 @8eaff098 (BLOCKED on human CLAUDE.md 60→64 commit). SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1177."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -67,18 +67,18 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "D-1176 resume-session cascade round 2026-06-15 — STATE v7.818→v7.819. S-DEMO-004 MERGED PR #188 develop@7241f5ef. POL-14 all 9 BCs idempotent. sprint-state.yaml updated. STORY-INDEX v2.392→v2.393: S-DEMO-004 merged; S-3.13 v1.11→v1.13 (RG 15→17); LAUNCHER v2.4→v2.5. Task ledger T10 DONE → T11. 4 drift items added. develop_head 664566e9→7241f5ef. Prior: D-1175 resume-session fix-round 2026-06-14 (STATE v7.817→v7.818). D-1174 zero-context durability delta (STATE v7.816→v7.817). D-1173 round-6 cascade (STATE v7.815→v7.816). D-1172 spec-finalization (STATE v7.814→v7.815). D-1171 durability-delta (STATE v7.813→v7.814). D-1170 compaction (D-1165..D-1169 archived). D-1159 compaction (D-1139..D-1157). Hygiene 2026-06-13 (D-1124..D-1138). D-1132 (D-1055..D-1123). D-1056 2026-06-08 (D-700..D-1054)."
+pre_compact_snapshot: "D-1177 durability burst 2026-06-15 — STATE v7.819→v7.820. PIVOT-001 LOCAL 3/3 CONVERGED rebased+pushed @0d4978c3 (PR pending). S-3.13 LOCAL 2/3 @eafd017a (DRIFT-S313-DUPTEST-001 CLOSED). LAUNCHER v2.6 @d9098c1f LOCAL 1/3 (AC-005 prose fixed). STORY-INDEX v2.393→v2.394 (LAUNCHER v2.5→v2.6). D-1177 decision row added. develop_head 7241f5ef UNCHANGED. Prior: D-1176 resume-session cascade round 2026-06-15 (STATE v7.818→v7.819). D-1175 resume-session fix-round 2026-06-14 (STATE v7.817→v7.818). D-1174 zero-context durability delta (STATE v7.816→v7.817). D-1173 round-6 cascade (STATE v7.815→v7.816). D-1172 spec-finalization (STATE v7.814→v7.815). D-1171 durability-delta (STATE v7.813→v7.814). D-1170 compaction (D-1165..D-1169 archived). D-1159 compaction (D-1139..D-1157). Hygiene 2026-06-13 (D-1124..D-1138). D-1132 (D-1055..D-1123). D-1056 2026-06-08 (D-700..D-1054)."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-15 (D-1176 RESUME-SESSION CASCADE ROUND — S-DEMO-004 MERGED PR #188 develop@7241f5ef; POL-14 all 9 BCs idempotent; PIVOT-001 2/3 + S-3.13 v1.13 0/3 + LAUNCHER v2.5 0/3 + S-5.02 BLOCKED; 4 drift items; STATE v7.819)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-15 (D-1177 DURABILITY BURST — PIVOT-001 LOCAL 3/3 CONVERGED pushed @0d4978c3 (PR pending); S-3.13 LOCAL 2/3 @eafd017a DRIFT-S313-DUPTEST-001 CLOSED; LAUNCHER v2.6 LOCAL 1/3; develop_head 7241f5ef UNCHANGED; STATE v7.820)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T11 — S-DEMO-LAUNCHER-CONSOLIDATION-001** (T1–T10 ALL DONE; develop@7241f5ef). PARALLEL: Lane A (S-5.02 @8eaff098 LOCAL streak 0/3 — BLOCKED on human CLAUDE.md 60→64 commit), B (S-3.13 v1.13 @97148f90 — LOCAL streak 0/3 — duplicate test rename IN-FLIGHT), C (PIVOT-001 v1.6 @e4d95d19 — LOCAL strict streak 2/3 — one more clean pass → PR), D (CLOSED), E (LAUNCHER v2.5 @d9098c1f — LOCAL streak 0/3 — re-pass IN-FLIGHT). SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1176.
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T11 — S-DEMO-LAUNCHER-CONSOLIDATION-001** (T1–T10 ALL DONE; develop@7241f5ef). PARALLEL: Lane A (S-5.02 @8eaff098 LOCAL streak 0/3 — BLOCKED on human CLAUDE.md 60→64 commit), B (S-3.13 v1.13 @eafd017a — LOCAL strict streak 2/3 — DRIFT-S313-DUPTEST-001 CLOSED — one more clean pass → 3/3), C (PIVOT-001 v1.6 @0d4978c3 — LOCAL 3/3 CONVERGED — pushed; NEXT: PR), D (CLOSED), E (LAUNCHER v2.6 @d9098c1f — LOCAL streak 1/3). SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1177.
 
 ## Phase Progress
 
@@ -106,6 +106,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log._
+| D-1177 | state-manager | 2026-06-15 | DURABILITY BURST (TD-VSDD-053 single-commit). PIVOT-001 @0d4978c3 LOCAL 3/3 CONVERGED — rebased onto develop@7241f5ef + pushed; just check GREEN; PR PENDING. S-3.13 @eafd017a LOCAL 2/3 (DRIFT-S313-DUPTEST-001 CLOSED — duplicate renamed). LAUNCHER v2.6 @d9098c1f LOCAL 1/3 (AC-005 seeded-path prose fixed). S-5.02 @8eaff098 BLOCKED UNCHANGED. STORY-INDEX v2.393→v2.394 (LAUNCHER v2.5→v2.6). develop_head 7241f5ef UNCHANGED. STATE v7.819→v7.820. |
 | D-1176 | state-manager | 2026-06-15 | RESUME-SESSION CASCADE ROUND STATE BURST (TD-VSDD-053 single-commit). S-DEMO-004 MERGED PR #188 develop@7241f5ef (squash-merge 2026-06-15T05:48:52Z). POL-14: all 9 BCs (BC-3.2.001/BC-2.06.014/BC-2.11.005/BC-2.01.013/BC-2.06.017/BC-2.06.018/BC-2.10.001/BC-2.22.001/BC-2.09.008) already active — idempotent no-ops. sprint-state.yaml: S-DEMO-004 merged/7241f5ef/PR188/2026-06-15; current_story updated. STORY-INDEX v2.392→v2.393: S-DEMO-004 merged; S-3.13 v1.11→v1.13 (MED-2+NEW-2+atomicity RG row; RG 15→17; ACs 7); LAUNCHER v2.4→v2.5 (AC-004 /dtu/health prose). Task ledger T10 DONE → CURRENT POINTER T11. Lane snapshot: PIVOT-001 @e4d95d19 2/3; S-3.13 @97148f90 0/3 (rename IN-FLIGHT); LAUNCHER @d9098c1f 0/3; S-5.02 @8eaff098 BLOCKED. 4 drift items added. develop_head 664566e9→7241f5ef. STATE v7.818→v7.819. |
 | D-1175 | state-manager | 2026-06-14 | RESUME-SESSION FIX-ROUND STATE BURST (TD-VSDD-053 single-commit). PIVOT-001 EC-001/EC-002 corrected; de-pin. S-3.13 Red Gate table accuracy; relabeled-in-place test; RG 14→15. S-DEMO-004 + LAUNCHER body-version drift synced. STORY-INDEX v2.391→v2.392. develop_head 664566e9 UNCHANGED. STATE v7.817→v7.818. |
 | D-1173 | state-manager | 2026-06-14 | ROUND-6 CASCADE STATE BURST (TD-VSDD-053 single-commit). STORY-INDEX v2.390→v2.391. error_taxonomy 1.80→1.81. S-DEMO-004 v1.12→v1.14 (PR-LEVEL pass-3 FIXED). PIVOT-001 v1.4→v1.5. LAUNCHER v2.3→v2.4. S-3.13 v1.8→v1.10. S-5.03 v1.11→v1.13. develop_head 664566e9 UNCHANGED. STATE v7.815→v7.816. |
@@ -116,6 +117,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1177 | state-manager | 2026-06-15 | **DURABILITY BURST (TD-VSDD-053 single-commit).** No code/merge in this burst. Lane progress since D-1176: PIVOT-001 LOCAL adversary pass-3 CLEAN(strict)=YES → **3/3 CONVERGED** (BC-5.39.001 D-779); rebased onto develop@7241f5ef; pushed to origin/feature/S-DEMO-ENRICHMENT-PIVOT-001 @0d4978c3; just check GREEN; PR PENDING — NEXT: per-story-delivery PR cycle (demo evidence → pr-manager creates PR → PR-LEVEL adversarial cascade 3-CLEAN → merge). MERGE-COORD: PIVOT-001 must land BEFORE S-3.13 (both touch prism-query/engine.rs constructor + DI plumbing). S-3.13 @eafd017a: implementer renamed duplicate test (DRIFT-S313-DUPTEST-001 CLOSED); LOCAL adversary re-pass reached CLEAN(strict)=YES → **streak 2/3** (one more clean pass → 3/3); after PIVOT merges, S-3.13 rebases onto it. LAUNCHER v2.6 @d9098c1f: LOCAL adversary pass returned CLEAN(strict)=YES → **streak 1/3**; AC-005 prose "(static-JSON path)"→"(seeded path via `new_with_seed`)" committed in story file. S-5.02 @8eaff098: BLOCKED on human CLAUDE.md 60→64 commit — UNCHANGED. STORY-INDEX v2.393→v2.394 (LAUNCHER v2.5→v2.6). DRIFT-S313-DUPTEST-001 status → CLOSED. develop_head 7241f5ef UNCHANGED. STATE v7.819→v7.820. | wave-5-e-demo-fidelity | 2026-06-15 |
 | D-1176 | state-manager | 2026-06-15 | **RESUME-SESSION CASCADE ROUND STATE BURST (TD-VSDD-053 single-commit).** S-DEMO-004 (T10) MERGED — PR #188 squash-merged develop@7241f5ef 2026-06-15T05:48:52Z. POL-14 BC promotions: all 9 BCs (BC-3.2.001, BC-2.06.014, BC-2.11.005, BC-2.01.013, BC-2.06.017, BC-2.06.018, BC-2.10.001, BC-2.22.001, BC-2.09.008) already active — all 9 are idempotent no-ops; none flipped. sprint-state.yaml + STORY-INDEX updated: S-DEMO-004 status merged. Story edits committed: S-3.13 v1.11→v1.13 (MED-2 notification-sweep + 2 new Red Gate rows RG 15→17; NEW-2 Previous-Story-Intelligence DEFERRED-TO-S-5.03 + atomicity Red Gate row corrected); LAUNCHER v2.4→v2.5 (AC-004 prose /health→/dtu/health). Task ledger T10 DONE → CURRENT POINTER T11. develop_head 664566e9→7241f5ef. STORY-INDEX v2.392→v2.393. 4 new drift items: DRIFT-PIVOT-PLUGINID-INFUSIONID-001, DRIFT-TLS-SUBPROCESS-FLAKE-001, DRIFT-DEMO-CONFIGURE-ADMINTOKEN-001, DRIFT-S313-DUPTEST-001. Lane durability: PIVOT-001 @e4d95d19 LOCAL 2/3; S-3.13 @97148f90 LOCAL 0/3 (rename IN-FLIGHT); LAUNCHER @d9098c1f LOCAL 0/3 (re-pass IN-FLIGHT); S-5.02 @8eaff098 BLOCKED. After S-DEMO-004 merge, S-3.13 + PIVOT-001 need rebase onto develop@7241f5ef at PR-time. STATE v7.818→v7.819. | wave-5-e-demo-fidelity | 2026-06-15 |
 | D-1175 | state-manager | 2026-06-14 | **RESUME-SESSION FIX-ROUND STATE BURST (TD-VSDD-053 single-commit).** No code/merge in this burst. L1–L4 LOCAL/PR re-passes all verified prior closures load-bearing; cascade converged to OBS-level hygiene. Fixed: PIVOT-001 EC-001 error-variant (story v1.5→v1.6; UnknownSourceType/E-INFUSE-004 corrected; is_api_backed line-pin de-pinned; code @945d0b2e); S-3.13 Red Gate table accuracy (story v1.10→v1.11; relabeled-in-place test documented; explain-wrapper registry injection; test header; code @3c65a5eb); S-DEMO-004 + LAUNCHER body-version-header drift synced (POL-23; no version bump; STORY-INDEX rows unchanged). PIVOT OBS-1 (E-INFUSE-007 missing) DISMISSED — row present error-taxonomy.md line 438 v1.81. STORY-INDEX v2.391→v2.392. develop_head 664566e9 UNCHANGED; CLAUDE.md 60→64 human edit STILL PENDING (S-5.02/L0 blocker). STATE v7.817→v7.818. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1174 | state-manager | 2026-06-14 | **ZERO-CONTEXT DURABILITY DELTA (TD-VSDD-053 single-commit).** No code/merge/spec-content change. Concrete worktree HEADs pinned; S-3.13 placeholder resolved to 9068f8a7. Explicit TASK LEDGER persisted to SESSION-HANDOFF for fresh-session restart. develop_head 664566e9 UNCHANGED; CLAUDE.md 60→64 human edit STILL PENDING (S-5.02 blocker). STATE v7.816→v7.817. cycles/v1.0.0-greenfield/S-5.02/implementation/red-gate-log.md staged in this burst (legitimate in-progress cycle dir). | wave-5-e-demo-fidelity | 2026-06-14 |
@@ -183,7 +185,7 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 | DRIFT-PIVOT-PLUGINID-INFUSIONID-001 [PIVOT-002 forward-concern] | `PluginInfusionSource::new` uses `spec.infusion_id` but `PluginRuntime` keys its registry by `plugin_metadata.plugin_id` — if they diverge, lookups return `NotLoaded` → silent `None`. Cannot manifest in PIVOT-001 (load_spec_with_runtime test-only; boot wiring deferred). | Architect to resolve in PIVOT-002: require infusion_id == plugin_id, or plugin_path-based resolution | PIVOT-002 |
 | DRIFT-TLS-SUBPROCESS-FLAKE-001 [test-harness hardening, pre-existing] | `td_wv1_04_binary_start_with_tls_*` subprocess e2e tests time out (~15s) only under full-workspace `just check` concurrency; pass in isolation + crate --all-features (90/90). Pre-existing harness flake, not a story regression. | Candidate: nextest `serial_test` grouping / timeout hardening for TLS subprocess tests | maintenance wave |
 | DRIFT-DEMO-CONFIGURE-ADMINTOKEN-001 [demo-functionality, pre-existing] | `configure` subcommand POSTs `/dtu/configure` without `X-Admin-Token` → 401 (predates LAUNCHER; `cmd_configure` on develop already omitted it). Affects live demo configure flow. | Track for demo-functionality track; not a LAUNCHER finding | demo-functionality track |
-| DRIFT-S313-DUPTEST-001 [in-flight, being fixed] | Duplicate/misnamed test `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` in prism-query (S-3.13 worktree @97148f90) — implementer rename in-flight this session. LOCAL streak 0/3 until fixed + clean pass. | Implementer rename in-flight; then LOCAL adversary re-pass S-3.13 | in progress this session |
+| DRIFT-S313-DUPTEST-001 [CLOSED @eafd017a D-1177] | Duplicate/misnamed test `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` in prism-query — implementer renamed at @eafd017a. LOCAL adversary re-pass confirmed CLEAN(strict)=YES → S-3.13 streak now 2/3. | CLOSED — see cycles/wave-5-e-demo-fidelity/blocking-issues-resolved.md | 2026-06-15 |
 
 ## Blocking Issues
 
@@ -195,18 +197,18 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · **decisions-archive-D1124-D1138.md** · **drift-items-resolved.md** · **phase-5-deferred-findings.md** · frontmatter-cascade-archive.md · session-handoff-archive.md · convergence-trajectory.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-_No open PRs. T10 DONE: PR #188 feature/S-DEMO-004 MERGED develop@7241f5ef 2026-06-15. Last merges: PR #185 develop@7fd35b77 (T5), PR #186 develop@f7400f83 (D-1134), PR #187 develop@664566e9 (T6), PR #188 develop@7241f5ef (T10). Lane status (D-1176): PIVOT-001 v1.6 @e4d95d19 LOCAL 2/3; S-3.13 v1.13 @97148f90 LOCAL 0/3 (rename IN-FLIGHT); LAUNCHER v2.5 @d9098c1f LOCAL 0/3; S-5.02 @8eaff098 BLOCKED; S-5.03 v1.13 not-started. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1176._
+_No open PRs. T10 DONE: PR #188 feature/S-DEMO-004 MERGED develop@7241f5ef 2026-06-15. Last merges: PR #185 develop@7fd35b77 (T5), PR #186 develop@f7400f83 (D-1134), PR #187 develop@664566e9 (T6), PR #188 develop@7241f5ef (T10). Lane status (D-1177): PIVOT-001 v1.6 @0d4978c3 LOCAL 3/3 CONVERGED (pushed; PR PENDING); S-3.13 v1.13 @eafd017a LOCAL 2/3 (DRIFT-S313-DUPTEST-001 CLOSED); LAUNCHER v2.6 @d9098c1f LOCAL 1/3; S-5.02 @8eaff098 BLOCKED; S-5.03 v1.13 not-started. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1177._
 
-## Session Resume Checkpoint (D-1176 — 2026-06-15; STATE v7.819)
+## Session Resume Checkpoint (D-1177 — 2026-06-15; STATE v7.820)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1176**. Read that first. Summary below.
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1177**. Read that first. Summary below.
 
-**STATE v7.819. CURRENT POSITION: T10 DONE — S-DEMO-004 MERGED PR #188 develop@7241f5ef. T11 NEXT (LAUNCHER). 4 parallel lanes: PIVOT-001 @e4d95d19 LOCAL 2/3 (one more clean pass → PR) / LAUNCHER v2.5 @d9098c1f LOCAL 0/3 (re-pass IN-FLIGHT after AC-004 prose fix) / S-3.13 v1.13 @97148f90 LOCAL 0/3 (duplicate test rename IN-FLIGHT) / S-5.02 @8eaff098 BLOCKED on human CLAUDE.md 60→64 commit. develop@7241f5ef. No open PRs. MERGE-COORD: S-3.13 + PIVOT-001 both touch engine.rs + boot.rs — rebase onto develop@7241f5ef at PR-time. Human action still required: DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 (commit CLAUDE.md 60→64 to develop).**
+**STATE v7.820. CURRENT POSITION: T10 DONE — S-DEMO-004 MERGED PR #188 develop@7241f5ef. T11 IN PROGRESS (LAUNCHER LOCAL 1/3). PIVOT-001 LOCAL 3/3 CONVERGED — pushed @0d4978c3 — PR PENDING. S-3.13 LOCAL 2/3 @eafd017a (one more CLEAN → 3/3). S-5.02 @8eaff098 BLOCKED on human CLAUDE.md 60→64 commit. develop@7241f5ef. No open PRs. MERGE-COORD: PIVOT-001 must land BEFORE S-3.13; S-5.03 depends_on S-3.13. Human action still required: DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 (commit CLAUDE.md 60→64 to develop).**
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1176 (comprehensive; this checkpoint is a pointer only).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1177 (comprehensive; this checkpoint is a pointer only).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline origin/develop | head -1` → expect `7241f5ef` (or newer if a lane merged or CLAUDE.md committed).
 3. For each worktree: `git -C .worktrees/<name> log --oneline -5` — derive ACTUAL commit for each lane.
 4. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-5. **NEXT ACTIONS (TASK LEDGER):** See SESSION-HANDOFF.md §RESUME SNAPSHOT D-1176 TASK LEDGER. L0 (human): commit CLAUDE.md 60→64 → devops-engineer rebase S-5.02. L1 (PIVOT-001 @e4d95d19 2/3): LOCAL adversary re-pass → if CLEAN(strict)=yes → 3/3 → PR. L2 (LAUNCHER @d9098c1f): LOCAL adversary re-pass (re-pass IN-FLIGHT after AC-004 fix). L3 (S-3.13 @97148f90): implementer rename duplicate test → LOCAL adversary re-pass. MERGE-COORD: S-3.13 + PIVOT-001 both touch engine.rs + boot.rs — rebase onto develop@7241f5ef at PR-time; S-5.03 depends_on S-3.13.
+5. **NEXT ACTIONS (TASK LEDGER):** See SESSION-HANDOFF.md §RESUME SNAPSHOT D-1177 TASK LEDGER. L0 (human): commit CLAUDE.md 60→64 → devops-engineer rebase S-5.02. L1 (PIVOT-001 @0d4978c3 3/3 CONVERGED): NEXT ACTION per-story-delivery PR cycle (demo evidence → pr-manager creates PR → PR-LEVEL cascade 3-CLEAN → merge). L2 (LAUNCHER @d9098c1f 1/3): LOCAL adversary re-pass (2 more CLEAN → 3/3). L3 (S-3.13 @eafd017a 2/3): LOCAL adversary re-pass (1 more CLEAN → 3/3). MERGE-COORD: PIVOT-001 lands first; S-3.13 rebases onto develop after PIVOT merges; S-5.03 depends_on S-3.13.

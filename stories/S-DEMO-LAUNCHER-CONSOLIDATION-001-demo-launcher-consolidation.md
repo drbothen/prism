@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.5"
+version: "2.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -193,7 +193,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.5
+**Version:** v2.6
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -805,7 +805,7 @@ serving the correct sensor's endpoints)
 Given: `build_multi_clone_factory(&cfg)` returns a factory closure.
 
 Then:
-- Passing an entry with name `"org-a-crowdstrike"` produces a `CrowdstrikeClone` (static-JSON path).
+- Passing an entry with name `"org-a-crowdstrike"` produces a `CrowdstrikeClone` (seeded path via `new_with_seed`).
 - Passing an entry with name `"org-b-cyberint"` produces a `CyberintClone` constructed via
   `new_with_seed` (seeded data distinctness) AND, if `[orgs.org-b].initial_access_token` is set,
   has the token registered in `access_token_allowlist` via a follow-up `configure({"access_token": token})`
@@ -1299,6 +1299,7 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.6 | 2026-06-15 | story-writer | LOW fix: AC-005 stale parenthetical corrected — "(static-JSON path)" replaced with "(seeded path via `new_with_seed`)" for the `"org-a-crowdstrike"` bullet. The static-JSON path (plain `new()`) is never used by `start-multi`; every clone dispatched by `build_multi_clone_factory` uses the seeded path (fixture-gen required). No semantic change; prose now matches the dominant seeded-path design mandated by GAP-1, risk_mitigations, §Option-2 Design step 4, Architecture Compliance Rules, and AC-001 Note. Sibling scan found lines 136 and 303 are accurate context (contrasting seeded vs static-JSON paths in explanation/pseudocode); no further corrections needed. Version bumped to v2.6 (POL-23). |
 | 2.5 | 2026-06-15 | story-writer | OBS fix: AC-004 example health-endpoint path corrected from `/health` → `/dtu/health` — DTU clones expose `/dtu/health` (HTTP 200); `/health` returns 404. No semantic change to AC-004; only the prose example path string was inaccurate. Single `/health` occurrence in the file corrected; no other sibling sites found. Body version header and frontmatter version bumped to v2.5 (POL-23). |
 | 2.4 | 2026-06-14 | story-writer | MED-A paper-fix remediation: v2.2 changelog claimed `MultiOrgConfig` bare occurrences were fixed, but two live (non-changelog) sites remained. Fixed: (1) `crates_touched` comment line — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig` → `MultiOrgDemoConfig / OrgConfig`; (2) points justification comment — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig config structs` → `MultiOrgDemoConfig / OrgConfig config structs`. The type `MultiOrgConfig` does not exist in the codebase; real types are `MultiOrgDemoConfig` (root) and `OrgConfig` (per-org). Historical changelog rows are immutable and were not touched. Body version header synced from v2.3 → v2.4 (POL-23 sibling-sweep propagation completing this burst). |
 | 2.3 | 2026-06-14 | story-writer | Four fixes: (MED-3/POL-32) Changelog reordered to strict monotonic-descending (2.3→2.2→2.1→2.0→1.0). (MED-4/POL-7) §Behavioral Contracts table cells updated to verbatim BC H1 titles: BC-2.06.013 → "Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files"; BC-2.06.014 → "Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec"; BC-2.06.017 → "Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing". (OBS-1) AC-006 verification step corrected: `crates/prism-dtu-demo-server/configs/demo.toml` is the existing single-org config (confirmed present); verification command updated to unambiguous repo-root-relative path; explanatory note added distinguishing the two config files and their respective subcommands. (EC-007) Recovery-path text synced to implemented `configure` subcommand behavior: full `{org_slug}-{sensor_id}` key form after start-multi; bare form when sensor unambiguous; legacy flat-sidecar form after plain `start`; note that `configure` reads nested sidecar when flat is absent. |
