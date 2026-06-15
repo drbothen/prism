@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.10"
+version: "1.12"
 level: "L4"
 producer: architect
 timestamp: "2026-05-29T00:00:00Z"
@@ -56,6 +56,14 @@ behavioral_contracts:
                  # would match nothing and make ids_a ∩ ids_c = ∅ pass VACUOUSLY (false green).
                  # Merged PR #181 2026-06-10 (D-1089). AC-006 is the integration-level proof of
                  # INV-DISTINCT-DATA-001 across two orgs sharing the same sensor type.
+  - BC-2.22.001  # Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate —
+                 # AC-001 traces here: boot step 9A adapter_registry_populated event confirms
+                 # deterministic boot sequencing; AC-010 traces here: startup deterministic and
+                 # testable (test gated behind #[ignore] with explicit CI profile per boot
+                 # orchestration invariant). Tests named test_BC_2_22_001_*.
+  - BC-2.09.008  # Response Envelope with Trust Annotations — AC-008 traces here: ResponseEnvelope
+                 # metadata must identify correct org and sensor; no org identifiers from other
+                 # orgs appear in the response. Tests named test_BC_2_09_008_*.
 verification_properties:
   - VP-148  # VP-PLUGIN-003 DTU parity — this test extends the parity coverage to the
             # multi-org dimension; each org's adapter must resolve to its org-scoped DTU clone.
@@ -169,7 +177,7 @@ phase: 3
 
 **Story ID:** S-DEMO-004
 **Status:** ready
-**Version:** v1.10
+**Version:** v1.12
 **Wave:** 5
 **Priority:** P0
 **Points:** 8
@@ -227,6 +235,8 @@ After this story merges:
 | BC-2.10.001 | rmcp ServerHandler — client_id scoping parameter routes to correct org's adapters | AC-001, AC-002 |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding — MultiInstanceHarness + INV-ISOLATION-001 | AC-006 (PC-3: overlay integration end-to-end — write_overlay_temp_dir → distinct SocketAddrs), AC-007 (INV-ISOLATION-001: per-org distinct Cyberint DTU sockets), AC-009 (INV-ISOLATION-001: concurrent no cross-tenant socket dispatch) |
 | BC-2.06.018 | Demo-Server Config-Time Data Seeding — INV-DISTINCT-DATA-001 disjoint ID sets | AC-006 (primary: ids_org_a ∩ ids_org_c = ∅ CONTENT assertion via new_with_seed per-org seeds), AC-009 (secondary: concurrent ids_a ∩ ids_c = ∅ under concurrent dispatch) |
+| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | AC-001 (boot step 9A adapter_registry_populated event confirms deterministic boot sequencing), AC-010 (startup deterministic and testable; test gated behind #[ignore] with explicit CI profile per boot orchestration invariant) |
+| BC-2.09.008 | Response Envelope with Trust Annotations | AC-008 (ResponseEnvelope metadata must identify correct org and sensor; no org identifiers from other orgs appear in the response) |
 
 ---
 
@@ -330,7 +340,7 @@ Then: AdapterRegistry contains exactly the expected count:
 - org-b: 2 adapters (Claroty + Cyberint)
 - org-c: 4 adapters (all 4 sensors)
 Total: 8 adapters. Verified via `boot.step9a.adapter_registry_populated` event log assertion.
-(traces to BC-2.22.001 boot sequencing postcondition; BC-2.10.001 rmcp ServerHandler — correct per-org adapter count enables client_id routing at query time)
+(traces to BC-2.22.001 Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate postcondition: boot step 9A adapter_registry_populated event confirms deterministic sequencing; BC-2.10.001 rmcp ServerHandler — correct per-org adapter count enables client_id routing at query time)
 
 ### AC-002: Org A queries return data for registered sensors only
 Given: org-a is registered with CrowdStrike + Armis (not Claroty or Cyberint).
@@ -397,7 +407,7 @@ Given: A successful multi-org query for any org/sensor combination.
 When: The ResponseEnvelope is inspected.
 Then: `_meta.data_source` contains the correct sensor name; the response is scoped to the
 querying org's data — no org identifiers from other orgs appear in the response.
-(traces to BC-2.09.008 response envelope trust annotations)
+(traces to BC-2.09.008 Response Envelope with Trust Annotations — ResponseEnvelope metadata must identify correct org and sensor; no org identifiers from other orgs appear in the response)
 
 ### AC-009: Sequential cross-org queries do not interfere — no cross-call state (BC-2.11.005)
 Given: org-a and org-c both query CrowdStrike using the same MultiInstanceHarness setup as
@@ -435,7 +445,7 @@ Given: Standard nextest profile runs (no DTU server available).
 When: `cargo nextest run -p prism-bin` is executed.
 Then: Multi-org test is skipped (marked `#[ignore]`). CI runs with `--profile e2e-multi-org`
 to execute it. Comment: `// E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.`
-(traces to BC-2.22.001 invariant: startup deterministic and testable)
+(traces to BC-2.22.001 Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate invariant: startup deterministic and testable)
 
 ---
 
@@ -682,6 +692,8 @@ cross-referencing needed for the implementer to understand how to use the merged
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.12 | 2026-06-14 | story-writer | POL-8 body propagation for BC-2.22.001 + BC-2.09.008 added in v1.11 frontmatter. Added two rows to §Behavioral Contracts table: BC-2.22.001 "Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate" (AC-001, AC-010) and BC-2.09.008 "Response Envelope with Trust Annotations" (AC-008). Updated AC-001 trace annotation to cite BC-2.22.001 by full verbatim title. Updated AC-008 trace annotation to cite BC-2.09.008 by full verbatim title. Updated AC-010 trace annotation to cite BC-2.22.001 by full verbatim title. Bidirectional AC↔BC traces satisfied for both new BCs. |
+| 1.11 | 2026-06-14 | product-owner | Add BC-2.22.001 + BC-2.09.008 to behavioral_contracts array (PR #188 PR-LEVEL MED-1). AC-001 and AC-010 trace to BC-2.22.001 ("Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate"); AC-008 traces to BC-2.09.008 ("Response Envelope with Trust Annotations"). Both BCs were active in BC-INDEX but missing from frontmatter array. Body BC table and AC-trace column propagation deferred to story-writer (POL-8). |
 | 1.10 | 2026-06-14 | story-writer | LOCAL adversary PASS-3 LOW-1 §File-Structure correction. Renamed NOTE row header from `crates/prism-bin/tests/e2e_multi_org.rs (regression guard)` to `crates/prism-bin/tests/bc_2_10_006_mcp_stdout_purity.rs`; action changed from NOTE to CREATE (standalone file, not part of e2e_multi_org.rs); description updated to cite BC-2.10.006 §Postconditions as the stdout-purity invariant source (stdout reserved for MCP JSON-RPC per BC-2.10.006, enforced at the step1_init_tracing emission site). No BC-2.22.001→BC-2.10.006 body corrections required: AC-001 and AC-010 reference BC-2.22.001 for boot sequencing and startup determinism respectively — those are correct semantics for BC-2.22.001 and are unrelated to the stdout-purity invariant. Status: ready. |
 | 1.9 | 2026-06-14 | story-writer | LOCAL adversary PASS-2 §File-Structure accuracy fixes (M2-01, O2-01, O2-02) + AC-009 test-rename reference + M2-02 regression-guard note. M2-01: added `crates/prism-bin/src/boot.rs | MODIFY` row documenting that `step1_init_tracing` forces all fmt layers to stderr (`.with_writer(std::io::stderr)`) to uphold MCP-stdout-purity invariant (fix-burst commit a7c9cbf0). O2-01: fixture path corrected from `crates/prism-bin/tests/fixtures/multi-org-prism.toml.template` → `crates/prism-bin/fixtures/multi-org-prism.toml.template` (crate-level `fixtures/`, no `tests/` prefix). O2-02: helper signatures corrected — `write_multi_org_overlays` now typed as `(&BackgroundHarness, &TempDir)` and documented to call `write_overlay_from_socket_map(harness.socket_map(), specs_dir)` internally (not `write_overlay_temp_dir`); `write_multi_org_prism_toml` now typed as `(&TempDir)` only, no socket_map arg; `BackgroundHarness` wrapper described (background thread, dedicated multi-thread runtime, oneshot for socket_map, SyncSender shutdown, Drop joins thread). Task 9: `concurrent`/`tokio::join!` language replaced with `sequential`/back-to-back/single-channel language; test name updated to `test_BC_2_11_005_sequential_org_queries_do_not_interfere`. M2-02: added NOTE row for MCP-stdout cleanliness regression guard (green guard, not Red Gate AC test; does not change acceptance_criteria_count=10 or red_gate_tests=4). Status: ready. |
 | 1.8 | 2026-06-14 | product-owner | LOCAL adversary PASS-2 L2-01 adjudication — AC-009 prose corrected (decision A). `tokio::join!`/simultaneously language removed; AC-009 now specifies rapid sequential/back-to-back dispatch on the single MCP stdio channel. Architecture rationale added inline: per-analyst stdio is a serialized single-channel protocol (AD-013 / deployment model) — a single client cannot issue genuinely concurrent requests over one pipe; BC-2.11.005 ephemeral materialization property is fully proven by sequential dispatch + `ids_a ∩ ids_c = ∅`. AC-009 title changed from "Concurrent queries..." to "Sequential cross-org queries do not interfere..." to match. Test rename guidance added: `test_BC_2_11_005_concurrent_org_queries_do_not_interfere` → `test_BC_2_11_005_sequential_org_queries_do_not_interfere` (story-writer/implementer to apply). BC-2.11.005 trace retained; BC-2.06.018 trace retained. §File Structure / other ACs NOT touched (story-writer pass follows). |

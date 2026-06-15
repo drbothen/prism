@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.2"
+version: "2.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -193,7 +193,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.2
+**Version:** v2.3
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -425,9 +425,9 @@ instead of managing N separate server processes with N flat sidecars.
 |-------|-------|
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup |
 | BC-2.06.012 | Per-Tenant Overlay Loading and Merge Semantics |
-| BC-2.06.013 | Scalar-Only Overlay Enforcement |
-| BC-2.06.014 | Instance Identity Resolution at Fanout |
-| BC-2.06.017 | Per-DTU-Instance Multi-Address Binding |
+| BC-2.06.013 | Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files |
+| BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec |
+| BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing |
 
 ---
 
@@ -822,21 +822,34 @@ RG-004 must be green.
 (traces to BC-2.06.001 invariant — the existing single-org `DemoConfig` + `start` subcommand
 must not regress)
 
-Given: `prism-dtu-demo-server start --config configs/demo.toml` is run.
+Given: `cargo run -p prism-dtu-demo-server --features dtu -- start --config crates/prism-dtu-demo-server/configs/demo.toml`
+is run from the repo root (or equivalently `prism-dtu-demo-server start --config configs/demo.toml`
+when the cwd is `crates/prism-dtu-demo-server/`).
+
+**Config file:** `crates/prism-dtu-demo-server/configs/demo.toml` — this file EXISTS in the
+repo (single-org canonical demo config for the `start` subcommand, no `[orgs.*]` section).
+It is the S-DEMO-003 baseline config. Do NOT use `scripts/demo.toml` for the `start`
+subcommand — that file contains `[orgs.*]` sections (once this story adds them) which would
+cause `DemoConfig::from_file` to fail with `deny_unknown_fields`.
 
 Then:
-- `DemoConfig` parses `configs/demo.toml` as before (no unknown-field errors from `[orgs.*]`
-  in `scripts/demo.toml` — because `start` only parses `DemoConfig`, not `MultiOrgDemoConfig`).
+- `DemoConfig` parses `crates/prism-dtu-demo-server/configs/demo.toml` without error
+  (no unknown-field errors; `[orgs.*]` is not present in this file).
 - The 6 clone instances start on their configured ports (or ephemeral ports if `port = 0`).
 - The flat URL sidecar `.prism-dtu-demo-server.urls.json` is written.
 
-**Note on config file handling:** If `scripts/demo.toml` is used with `start`, the `[orgs.*]`
-section must NOT cause a parse error. The implementer must ensure that `DemoConfig::from_file`
-ignores the `[orgs.*]` section. Options:
-  - Keep `configs/demo.toml` (single-org, no `[orgs.*]`) as the target for `start`.
-  - Or strip `[orgs.*]` from the TOML before passing to `DemoConfig` parser (fragile).
-  - Preferred: use `configs/demo.toml` for `start` and `scripts/demo.toml` for `start-multi`.
-    These are already different files per the S-DEMO-003 baseline.
+**Note on config file handling:** The preferred design uses two separate TOML files:
+  - `crates/prism-dtu-demo-server/configs/demo.toml` — for `start` (single-org, DemoConfig)
+  - `scripts/demo.toml` — for `start-multi` (multi-org, MultiOrgDemoConfig with `[orgs.*]`)
+  This is already the S-DEMO-003 baseline split. The implementer MUST NOT modify
+  `crates/prism-dtu-demo-server/configs/demo.toml` to add `[orgs.*]` sections.
+
+**Verification command (runnable from repo root):**
+```bash
+cargo run -p prism-dtu-demo-server --features dtu -- start \
+  --config crates/prism-dtu-demo-server/configs/demo.toml
+# Expected: starts 6 clone instances; writes .prism-dtu-demo-server.urls.json; exits on SIGTERM
+```
 
 ---
 
@@ -1033,7 +1046,7 @@ Architecture section files referenced:
 | EC-004 | `demo-run.sh` called before `demo-setup.sh` (no `prism.toml` present) | `demo-run.sh` checks for `prism.toml` existence before starting DTU; exits 1 with "Run: bash scripts/demo-setup.sh". |
 | EC-005 | `demo-teardown.sh` is run when DTU server is not running (no PID file) | Prints "server may not be running", skips the kill step; continues to credential delete + rm -rf. |
 | EC-006 | `start-multi` sidecar not available within 30s poll timeout | `demo-run.sh` exits 1 with "demo-server start-multi did not write sidecar within 30s; check DTU server logs." |
-| EC-007 | `[orgs.org-b]` has no `initial_access_token` but org-b has `cyberint` in sensors | `cmd_start_multi` starts the Cyberint clone without calling `configure()`; the clone's allowlist is empty (no token pre-seeded). Operator must configure manually via `prism-dtu-demo-server configure cyberint <json>`. |
+| EC-007 | `[orgs.org-b]` has no `initial_access_token` but org-b has `cyberint` in sensors | `cmd_start_multi` starts the Cyberint clone without calling `configure()`; the clone's allowlist is empty (no token pre-seeded). Operator must configure manually. Recovery paths (implemented `configure` subcommand, nested-sidecar-aware): (a) **After `start-multi`** — use the fully-qualified `{org_slug}-{sensor_id}` key: `prism-dtu-demo-server configure org-b-cyberint '{"access_token":"demo-cyberint-api-key-org-b"}'`; (b) **Bare form** — `prism-dtu-demo-server configure cyberint '{"access_token":"demo-cyberint-api-key-org-b"}'` works when the sensor is unambiguous (exactly one running org has that sensor registered); (c) **After plain `start`** — the legacy flat-sidecar form `prism-dtu-demo-server configure cyberint '{"access_token":"..."}` is unchanged. The `configure` subcommand reads the nested sidecar (`.prism-dtu-demo-server.urls-multi.json`) when the flat sidecar (`.prism-dtu-demo-server.urls.json`) is absent, enabling it to resolve the clone endpoint for `start-multi`-launched instances. |
 | EC-008 | `MultiOrgDemoConfig` `[orgs.X]` sensor list references an unsupported sensor name | `build_multi_clone_factory` returns an error or panics with a clear message: "unsupported sensor 'X' in [orgs.org-a]; valid values: crowdstrike, armis, claroty, cyberint". |
 | EC-009 | `build_multi_clone_factory` called with an InstanceEntry name that does not match `{org_slug}-{sensor_id}` convention | Panic or error with actionable message; this is a programming error (the factory is only called internally by `start_instances` with entries built by `cmd_start_multi`). |
 
@@ -1286,7 +1299,8 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.3 | 2026-06-14 | story-writer | Four fixes: (MED-3/POL-32) Changelog reordered to strict monotonic-descending (2.3→2.2→2.1→2.0→1.0). (MED-4/POL-7) §Behavioral Contracts table cells updated to verbatim BC H1 titles: BC-2.06.013 → "Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files"; BC-2.06.014 → "Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec"; BC-2.06.017 → "Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing". (OBS-1) AC-006 verification step corrected: `crates/prism-dtu-demo-server/configs/demo.toml` is the existing single-org config (confirmed present); verification command updated to unambiguous repo-root-relative path; explanatory note added distinguishing the two config files and their respective subcommands. (EC-007) Recovery-path text synced to implemented `configure` subcommand behavior: full `{org_slug}-{sensor_id}` key form after start-multi; bare form when sensor unambiguous; legacy flat-sidecar form after plain `start`; note that `configure` reads nested sidecar when flat is absent. |
 | 2.2 | 2026-06-14 | story-writer | OBS-1 mapping-table correction: removed stale `MultiOrgConfig` row from Architecture Mapping table; the correct type names are `MultiOrgDemoConfig` (root config, annotated) and `OrgConfig` (per-org subsection, annotated). Fixed two additional `MultiOrgConfig` bare occurrences (frontmatter tdd_mode comment, token-budget architect-estimate comment) to `MultiOrgDemoConfig`/`OrgConfig` and `MultiOrgDemoConfig` respectively. Status: ready. Points: 8 (unchanged). |
-| 1.0 | 2026-06-14 | story-writer | Initial materialization from D-1029 draft stub. Full spec with 10 ACs, consolidation decision (retire start-demo.sh), 3-org model, N×M overlay and credential generalization, all 6 context-engineering sections. status: ready. tdd_mode: facade (scripts-only). |
-| 2.0 | 2026-06-14 | story-writer | Option-2 architect-approved conversion: facade→Rust-touching. Adds StartMulti CLI subcommand + MultiOrgDemoConfig structs in prism-dtu-demo-server. crates_touched: [] → [prism-dtu-demo-server]. tdd_mode: facade → tdd. points: 5 → 8. ACs expanded from 10 to 13 (3 new Rust subcommand ACs added; existing script ACs renumbered). 5 Red Gate tests specified (RG-001..RG-005). §File Structure updated with Rust crate MODIFY rows. demo-run.sh simplified to one start-multi call. Option-1 (N×M shell processes) retired. |
 | 2.1 | 2026-06-14 | story-writer | Pre-TDD gap closure (3 gaps). GAP-1 (IMPORTANT): `fixture-gen` feature is REQUIRED for `start-multi`; `build_multi_clone_factory` must hard-error (compile_error! or runtime panic) if built without it — no silent fallback to unseeded `new()` which would violate INV-DISTINCT-DATA-001. All `start-multi` cargo commands updated to `--features dtu,fixture-gen`. `multi_org.rs` Cargo.toml `[[test]]` must specify `required-features = ["dtu", "fixture-gen"]`. Architecture Compliance Rules updated: `build_multi_clone_factory` must reuse `harness::parse_org_id`, `harness::fixture_set_to_archetype`, `prism_dtu_common::Archetype`, `demo_time_anchor()`. GAP-2 (MINOR): Cyberint composite path documented: `new_with_seed(...)` then `configure({"access_token": token})` post-construction — these compose cleanly via `CyberintState::apply_config` → `register_access_token`; no architect escalation needed. GAP-3 (NOTE): `DEMO_RUN_DIR` must be threaded into sidecar poll + Python paths in demo-run.sh to avoid cwd-relative path mismatch. Status: ready. Points: 8 (unchanged). |
+| 2.0 | 2026-06-14 | story-writer | Option-2 architect-approved conversion: facade→Rust-touching. Adds StartMulti CLI subcommand + MultiOrgDemoConfig structs in prism-dtu-demo-server. crates_touched: [] → [prism-dtu-demo-server]. tdd_mode: facade → tdd. points: 5 → 8. ACs expanded from 10 to 13 (3 new Rust subcommand ACs added; existing script ACs renumbered). 5 Red Gate tests specified (RG-001..RG-005). §File Structure updated with Rust crate MODIFY rows. demo-run.sh simplified to one start-multi call. Option-1 (N×M shell processes) retired. |
+| 1.0 | 2026-06-14 | story-writer | Initial materialization from D-1029 draft stub. Full spec with 10 ACs, consolidation decision (retire start-demo.sh), 3-org model, N×M overlay and credential generalization, all 6 context-engineering sections. status: ready. tdd_mode: facade (scripts-only). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.57"
+version: "6.58"
 status: draft
 producer: state-manager
 timestamp: 2026-06-14T05:00:00Z
@@ -245,7 +245,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft — v1.4 (D-1166 2026-06-14: PO added plugin-type source wiring postcondition — plugin-type descriptors MUST carry Arc<PluginInfusionSource> not NullSource; closed NullSource gap for PIVOT-001 AC-003 Phase 3) |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft — v1.5 (D-1172 2026-06-14: two-phase wiring reword — load_spec_with_runtime named as real-source producer per PIVOT-001 AC-002 alignment; was v1.4 D-1166 2026-06-14: PO added plugin-type source wiring postcondition) |
 | BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.58 (2026-06-14, D-1172 resume-cascade spec-finalization burst):** state-manager | BC-2.19.001 row: v1.4→v1.5 — two-phase wiring reword: `load_spec_with_runtime` named as real-source producer per PIVOT-001 AC-002 alignment (story-writer S-DEMO-ENRICHMENT-PIVOT-001 v1.3→v1.4). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.57→v6.58.
 
 **v6.57 (2026-06-14, D-1168 consolidation burst):** state-manager | BC-2.10.007 v1.5→v1.6 inline row update: SensorRateLimited shape clarification — `retry_after_ms: u64` is REQUIRED (not Option), field name is `sensor` (not `sensor_id`); `to_error_data_with_retry` helper contract added; rate-limit always populates retry_after_seconds, non-retryable always null; external JSON contract unchanged (null-not-absent invariant preserved); no code change required (BC was the imprecise artifact). BC-2.10.007 lifecycle_status: active / status: active (unchanged — POL-14: S-5.02 is anchor story; promotes at S-5.02 merge; BC was already active). No lifecycle flips. active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.56→v6.57.
 

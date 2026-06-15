@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.814"
+version: "7.815"
 producer: state-manager
 timestamp: 2026-06-14T00:00:00Z
 inputs: []
@@ -17,9 +17,9 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "664566e9"
-bc_index_version: "6.57"
+bc_index_version: "6.58"
 vp_index_version: "1.79"
-story_index_version: "v2.389"
+story_index_version: "v2.390"
 arch_index_version: "2.133"
 error_taxonomy_version: "1.80"
 total_stories: 200
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "T10 in progress + PARALLEL EXECUTION ACTIVE (D-1171 2026-06-14): S-DEMO-004 PR #188 OPEN (PR-LEVEL: pr-reviewer APPROVE written/pending-post; security CLEAR; adversary pass-1 CLEAN(PR-merge)=YES/strict=NO LOW-1 demo-doc prose; strict streak 0/3); S-5.02 CRIT-fixed 79993dea (LOCAL streak 0/3); PIVOT-001 CRIT-fixed 25ed264a (LOCAL streak 0/3); LAUNCHER H-1-fixed 3dc0bf18 (LOCAL streak 0/3); S-3.13 CRIT fix-burst in-progress (reconcile from git). 7 pending actions in SESSION-HANDOFF §PENDING ACTIONS. develop_head 664566e9 UNCHANGED. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1171."
+current_step: "T10 in progress + PARALLEL EXECUTION ACTIVE (D-1172 2026-06-14): S-DEMO-004 PR #188 OPEN (v1.12; PR-LEVEL pass-2 MED-1 BC-gap FIXED; BC-2.22.001+BC-2.09.008 enrolled; PR-LEVEL pass-3 NEXT; strict streak 0/3); S-5.02 2-pass CRIT+HIGH fixed (LOCAL re-pass NEXT; strict streak 0/3); PIVOT-001 v1.4 AC-002 aligned (LOCAL re-pass NEXT; strict streak 0/3); LAUNCHER v2.3 MED-3/4+OBS-1 fixed (LOCAL re-pass NEXT; strict streak 0/3); S-3.13 MCP-resource re-scoping burst PENDING (AC-4+AC-7+Task-6/7 move to S-5.03; PO+story-writer). develop_head 664566e9 UNCHANGED. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1172."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -67,18 +67,18 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "D-1171 durability-delta burst 2026-06-14 — STATE v7.813→v7.814. PR #188 cascade verdicts + 7 pending actions + 4-lane CRIT-fix baselines recorded. Session Resume Checkpoint updated to D-1171. Prior: D-1170 durability-hardening compaction 2026-06-14 (STATE v7.812→v7.813; D-1165..D-1169 archived). D-1159 compaction (D-1139..D-1157). Hygiene 2026-06-13 (D-1124..D-1138). D-1132 (D-1055..D-1123). D-1056 2026-06-08 (D-700..D-1054)."
+pre_compact_snapshot: "D-1172 resume-cascade spec-finalization burst 2026-06-14 — STATE v7.814→v7.815. Index reconciliation: STORY-INDEX v2.389→v2.390, BC-INDEX v6.57→v6.58. 3 story rows advanced (S-DEMO-004 v1.12, PIVOT-001 v1.4, LAUNCHER v2.3). D-1172 decision + drift items recorded. Prior: D-1171 durability-delta (STATE v7.813→v7.814). D-1170 compaction (D-1165..D-1169 archived). D-1159 compaction (D-1139..D-1157). Hygiene 2026-06-13 (D-1124..D-1138). D-1132 (D-1055..D-1123). D-1056 2026-06-08 (D-700..D-1054)."
 pre_compact_snapshot_at: "2026-06-14"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1171 DURABILITY DELTA — PR #188 cascade verdicts + 7 pending actions + 4-lane CRIT-fix baselines; STATE v7.814)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1172 RESUME-CASCADE SPEC-FINALIZATION — index reconciliation: STORY-INDEX v2.390, BC-INDEX v6.58; 3 story rows advanced; drift items added; STATE v7.815)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T10 — S-DEMO-004 delivery (PR #188 OPEN; pr-reviewer APPROVE pending post; security CLEAR; adversary pass-1 CLEAN(PR-merge)/strict-streak 0/3)** (T1–T9 ALL DONE; develop@664566e9). PARALLEL: Lane A (S-5.02 CRIT-fixed 79993dea — LOCAL streak 0/3), B (S-3.13 CRIT fix-burst in-progress — LOCAL streak 0/3), C (PIVOT-001 CRIT-fixed 25ed264a — LOCAL streak 0/3), D (CLOSED), E (LAUNCHER H-1-fixed 3dc0bf18 — LOCAL streak 0/3). 7 pending actions in SESSION-HANDOFF §RESUME SNAPSHOT D-1171.
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T10 — S-DEMO-004 PR #188 OPEN (v1.12; BC-2.22.001+BC-2.09.008 enrolled; PR-LEVEL pass-3 NEXT; strict streak 0/3)** (T1–T9 ALL DONE; develop@664566e9). PARALLEL: Lane A (S-5.02 re-pass NEXT — LOCAL streak 0/3), B (S-3.13 re-scoping burst PENDING — LOCAL streak 0/3), C (PIVOT-001 v1.4 re-pass NEXT — LOCAL streak 0/3), D (CLOSED), E (LAUNCHER v2.3 re-pass NEXT — LOCAL streak 0/3). All 5 lanes strict streak 0/3. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1172.
 
 ## Phase Progress
 
@@ -105,9 +105,9 @@ pre_compact_snapshot_at: "2026-06-14"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files._
+| D-1172 | state-manager | 2026-06-14 | RESUME-CASCADE SPEC-FINALIZATION BURST (TD-VSDD-053 single-commit). Index reconciliation: STORY-INDEX v2.389→v2.390, BC-INDEX v6.57→v6.58. S-DEMO-004 v1.10→v1.12 (PR-LEVEL pass-1 LOW-1 evidence-prose FIXED; pass-2 MED-1 BC-2.22.001+BC-2.09.008 frontmatter+body+AC-traces FIXED; BC count 7→9; evidence HEAD de-pinned). PIVOT-001 v1.3→v1.4 (AC-002 aligned to BC-2.19.001 v1.5 two-phase wiring). BC-2.19.001 v1.4→v1.5 (load_spec_with_runtime real-source producer). LAUNCHER v2.2→v2.3 (MED-3 changelog reorder + MED-4 verbatim BC titles + OBS-1 AC-006 path + EC-007 sync). S-5.02: fix-bursts @c5868233/@8eaff098 (CRIT+HIGH closed; non-exhaustive EXPECTED 60→64). S-3.13: AC-7 DEFER to S-5.03 (feature-ordering; re-scoping burst PENDING). All 5 lanes strict streak 0/3. develop_head 664566e9 UNCHANGED. STATE v7.814→v7.815. |
 | D-1171 | state-manager | 2026-06-14 | DURABILITY DELTA (TD-VSDD-053 single-commit). PR #188 cascade verdicts: pr-reviewer APPROVE (written; pending post via PA-1 github-ops); security CLEAR (0 CRIT/HIGH/MED; 6 LOW accepted); adversary pass-1 CLEAN(PR-merge)=YES/CLEAN(strict)=NO (LOW-1 evidence-report stale prose; OBS-1 no-action; strict streak 0/3). 4 parallel lanes CRIT-fixed: LAUNCHER@3dc0bf18 / S-5.02@79993dea / PIVOT-001@25ed264a / S-3.13 in-progress. 7 pending actions recorded. develop_head 664566e9 UNCHANGED. STATE v7.813→v7.814. |
 | D-1170 | state-manager | 2026-06-14 | ZERO-CONTEXT DURABILITY SNAPSHOT (TD-VSDD-053 single-commit). 5 active lanes captured with reconcile-from-live-state protocol. SESSION-HANDOFF §RESUME SNAPSHOT D-1170 is the comprehensive resume checkpoint. develop_head 664566e9 UNCHANGED. STATE v7.812→v7.813. |
-| D-1169 | state-manager | 2026-06-14 | ADVERSARY-FIX SPEC CONSOLIDATION burst (TD-VSDD-053 single-commit). S-5.02 v1.7 (HIGH-2 crates_touched + 4 FSR MODIFY rows; LOW-1 retry_after_ms u64). prismql-grammar v1.1 (enrich function-call form). LAUNCHER v2.2 (OBS-1 struct-name). error-taxonomy v1.80 (E-QUERY-037 boxed emitter + strsim). S-DEMO-004 LOCAL 3/3 CONVERGED → demo-recorder → PR #188 OPEN. Systemic lesson z24 + DRIFT-HOLLOW-FEATURE-INTEGRATION-001 registered. STATE v7.811→v7.812. |
 
 ## Decisions Log
 
@@ -115,6 +115,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1172 | state-manager | 2026-06-14 | **RESUME-CASCADE SPEC-FINALIZATION BURST (TD-VSDD-053 single-commit).** No code/merge. develop_head 664566e9 UNCHANGED. Index reconciliation: STORY-INDEX v2.389→v2.390; BC-INDEX v6.57→v6.58. Story rows advanced: S-DEMO-004 v1.10→v1.12 (PR-LEVEL pass-1 LOW-1 evidence-prose + pass-2 MED-1 BC-2.22.001+BC-2.09.008 enrolled; BC count 7→9; evidence HEAD de-pinned); PIVOT-001 v1.3→v1.4 (AC-002 aligned to BC-2.19.001 v1.5 two-phase wiring); LAUNCHER v2.2→v2.3 (MED-3/4+OBS-1 fixes). BC-2.19.001 v1.4→v1.5 (load_spec_with_runtime real-source producer). S-5.02 fix-bursts @c5868233/@8eaff098 (CRIT+HIGH; non-exhaustive EXPECTED 60→64). S-3.13 AC-7 DEFER to S-5.03 (feature-ordering; re-scoping PENDING). 3 drift items added. All 5 lanes strict streak 0/3. total_stories 200 / active_contracts 235 / draft_contracts 2 UNCHANGED. STATE v7.814→v7.815. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1171 | state-manager | 2026-06-14 | **DURABILITY DELTA (TD-VSDD-053 single-commit).** No code/merge. develop_head 664566e9 UNCHANGED. PR #188 cascade verdicts recorded: pr-reviewer APPROVE (pending post PA-1); security CLEAR; adversary pass-1 CLEAN(PR-merge)=YES/CLEAN(strict)=NO (LOW-1 demo-doc prose). 4-lane baselines: LAUNCHER@3dc0bf18 / S-5.02@79993dea / PIVOT-001@25ed264a / S-3.13 in-progress. 7 pending actions in SESSION-HANDOFF §RESUME SNAPSHOT D-1171. total_stories 200 / active_contracts 235 / draft_contracts 2 UNCHANGED. STATE v7.813→v7.814. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1170 | state-manager | 2026-06-14 | **ZERO-CONTEXT DURABILITY SNAPSHOT (TD-VSDD-053 single-commit).** No code/merge. develop_head 664566e9 UNCHANGED. 5 active lanes + PR #188 + reconcile-from-live-state protocol in SESSION-HANDOFF §RESUME SNAPSHOT D-1170. User authorizations D-989/D-1090/D-1164/D-1165/D-1166 confirmed active. Systemic lesson DRIFT-HOLLOW-FEATURE-INTEGRATION-001 codified. total_stories 200 / active_contracts 235 / draft_contracts 2 UNCHANGED. STATE v7.812→v7.813. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1169 | state-manager | 2026-06-14 | **ADVERSARY-FIX SPEC CONSOLIDATION burst (TD-VSDD-053 single-commit).** S-5.02 v1.7 (HIGH-2: crates_touched + 4 FSR MODIFY rows; LOW-1: retry_after_ms u64). prismql-grammar v1.1 (enrich function-call form). LAUNCHER v2.2 (OBS-1: struct-name fix). error-taxonomy v1.80 (E-QUERY-037 boxed emitter + strsim resolved). Cascade: S-DEMO-004 LOCAL 3/3 CONVERGED; LAUNCHER 2/3; PIVOT-001/S-3.13/S-5.02 CRIT fix-bursts. SYSTEMIC lesson z24 + DRIFT-HOLLOW-FEATURE-INTEGRATION-001 registered. STATE v7.811→v7.812. | wave-5-e-demo-fidelity | 2026-06-14 |
@@ -167,11 +168,13 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 | DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 [pre-existing] | `spec_parser` PaginationConfig lacks page_size>0 guard | PO/architect adjudicate | spec-engine validation story |
 | DRIFT-EDITION-SYNC-001 [pre-existing, JUSTIFIED DEFERRAL] | prism-credentials/Cargo.toml edition=2021 vs workspace edition 2024 | S-MAINT-EDITION-SYNC-001 | S-MAINT-EDITION-SYNC-001 |
 | DRIFT-SEC-TAPE-PATH-001 [security-LOW] | Hardcoded `/Users/<name>/...` absolute paths in `docs/demo-evidence/**/*.tape` files (CWE-200) | S-MAINT-TAPE-PATH-SWEEP-001 (maintenance wave) | maintenance wave |
-| DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 [doc-staleness, HUMAN-ONLY] | CLAUDE.md §Conventions cites stale EXPECTED count | **HUMAN CLAUDE.md EDIT REQUIRED** | human at next checkpoint |
+| DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 [doc-staleness, HUMAN-ONLY] | CLAUDE.md §Conventions cites stale EXPECTED count — S-5.02 fix-bursts added 4 non-exhaustive pub types (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus): correct text is "60→64" not "60→61" | **HUMAN CLAUDE.md EDIT REQUIRED** | human at next checkpoint |
 | DRIFT-SLUG-FORMAT-BC34004-001 [PO-harmonization] | BC-3.4.004+BC-3.5.001 carry arbitrary-string slug vs ADR-036 §2.2 canonical hex slug | PO reconciles BC-3.4.004/BC-3.5.001 test vectors | maintenance / Story-B-adjacent |
 | DRIFT-HOLLOW-FEATURE-INTEGRATION-001 [process-gap, cycle-close candidate] | Hollow-feature class: 3 stories (PIVOT-001, S-3.13, S-5.02) shipped TDD-green + unit-tested in isolation but NOT wired into production boot/engine; adversary caught each. TDD flow lets implementers pass Red Gate tests by asserting helper outputs rather than the real AC surface. Requires per-story "feature wired into production boot/engine AND real end-to-end path test" gate before LOCAL adversary dispatch. Lesson z24 recorded. | session-reviewer cycle-close assessment: add explicit integration gate to per-story TDD flow; OR follow-up story targeting self-improvement epic | v1.0.0-greenfield |
 | DRIFT-RC1-PAGINATION-PARITY-001 [PO-harmonization] | BC-2.16.013 INV-HARNESS-ROUTE-PARITY does not explicitly define "route surface" | PO harmonization at next PO dispatch | next PO dispatch |
 | DRIFT-D1151-CAP036-001 [process-gap, system-level] | capabilities.md §CAP-036 "Anchored BCs" list missing reverse-cite for BC-2.06.017/018/019/020 (4-BC cohort; PRE-EXISTING; OUT-OF-DIFF; BC→CAP direction correct; gap is CAP→BC reverse-cite only) | business-analyst system-level capabilities.md maintenance sweep | cycle-close |
+| DRIFT-S313-S503-RESCOPING-001 [D-1172 feature-ordering] | S-3.13→S-5.03 re-scoping accepted: AC-4 notification clause + AC-7 prism://config/clients MCP resource + Task 6/Task 7 diagnostics resource moved to S-5.03; S-3.13 body reconciliation PENDING. This is feature-ordering (correct story boundary), not a deferral shortcut. Owner: PO+story-writer re-scoping burst. | PO+story-writer burst: S-3.13 re-scope + S-5.03 receive — PENDING next orchestrator dispatch | next PO+story-writer dispatch |
+| DRIFT-LAUNCHER-SIBLING-TITLE-001 [maintenance-sweep-candidate] | S-DEMO-MULTI-TENANT-DTU-001 (merged PR #187) carries same shortened BC titles that were corrected in S-DEMO-LAUNCHER-CONSOLIDATION-001 v2.3 (MED-4; POL-7 verbatim-title requirement); maintenance-sweep candidate since that story is already merged | maintenance sweep: story-writer updates S-DEMO-MULTI-TENANT-DTU-001 BC title rows at next opportunity | maintenance wave |
 
 ## Blocking Issues
 
@@ -183,19 +186,19 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · **decisions-archive-D1124-D1138.md** · **drift-items-resolved.md** · **phase-5-deferred-findings.md** · frontmatter-cascade-archive.md · session-handoff-archive.md · convergence-trajectory.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-_Open PR: #188 feature/S-DEMO-004 (PR-LEVEL cascade streak 0/3 strict; pr-reviewer APPROVE written/pending-post; security CLEAR; adversary pass-1 LOW-1 open). Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass), PR #187 develop@664566e9 (T6 DONE). Lane baselines (D-1171): LAUNCHER@3dc0bf18 (H-1 fixed); S-5.02@79993dea (CRIT-fixed); PIVOT-001@25ed264a (CRIT-fixed); S-3.13 in-progress. 7 pending actions in SESSION-HANDOFF §RESUME SNAPSHOT D-1171._
+_Open PR: #188 feature/S-DEMO-004 (v1.12; PR-LEVEL cascade streak 0/3 strict; BC-2.22.001+BC-2.09.008 enrolled; pass-3 NEXT). Last merges: PR #185 develop@7fd35b77 (T5), PR #186 develop@f7400f83 (D-1134), PR #187 develop@664566e9 (T6). Lane status (D-1172): LAUNCHER v2.3 LOCAL re-pass NEXT; S-5.02 LOCAL re-pass NEXT (EXPECTED 60→64); PIVOT-001 v1.4 LOCAL re-pass NEXT; S-3.13 re-scoping PENDING. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1172._
 
-## Session Resume Checkpoint (D-1171 — 2026-06-14; STATE v7.814)
+## Session Resume Checkpoint (D-1172 — 2026-06-14; STATE v7.815)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1171**. Read that first. Summary below.
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1172**. Read that first. Summary below.
 
-**STATE v7.814. CURRENT POSITION: T10 in progress — S-DEMO-004 PR #188 OPEN (pr-reviewer APPROVE written/pending-post PA-1; security CLEAR; adversary pass-1 CLEAN(PR-merge)/strict streak 0/3; LOW-1 = fix demo-doc prose PA-2). 4 parallel lanes: LAUNCHER@3dc0bf18 / S-5.02@79993dea / PIVOT-001@25ed264a (all CRIT-fixed, LOCAL 0/3) / S-3.13 fix-burst in-progress. develop@664566e9. 7 pending actions: PA-1 (post APPROVE), PA-2 (fix evidence-report prose), PA-3 (re-run PR-LEVEL adversary #188), PA-4/5/6 (LOCAL adversary LAUNCHER/S-5.02/PIVOT-001), PA-7 (finish S-3.13 + adjudicate AC-7). Human action: DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 (60→61).**
+**STATE v7.815. CURRENT POSITION: T10 in progress — S-DEMO-004 PR #188 OPEN (v1.12; BC-2.22.001+BC-2.09.008 enrolled; PR-LEVEL pass-3 NEXT; strict streak 0/3). 4 parallel re-pass lanes: LAUNCHER v2.3 LOCAL re-pass NEXT / S-5.02 LOCAL re-pass NEXT (EXPECTED 60→64 in CI) / PIVOT-001 v1.4 LOCAL re-pass NEXT / S-3.13 re-scoping burst PENDING (PO+story-writer: AC-4+AC-7+Task-6/7 to S-5.03). develop@664566e9. Human action required: DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 (update "60→64" in CLAUDE.md §Conventions).**
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1171 (comprehensive; this checkpoint is a pointer only).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1172 (comprehensive; this checkpoint is a pointer only).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline origin/develop | head -1` → expect `664566e9` (or newer if a lane merged).
-3. For each worktree: `git -C .worktrees/<name> log --oneline -5` — derive ACTUAL commit (S-3.13 fix-burst may have advanced).
-4. `gh pr view 188 --json state,statusCheckRollup,reviews` → confirm APPROVE not yet posted; check CI.
+3. For each worktree: `git -C .worktrees/<name> log --oneline -5` — derive ACTUAL commit for each lane.
+4. `gh pr view 188 --json state,statusCheckRollup,reviews` → confirm PR #188 open; check CI green.
 5. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-6. **NEXT:** PA-1 github-ops posts APPROVE + PA-2 demo-recorder fixes evidence prose + PA-3 re-run PR-LEVEL adversary. Parallel PA-4/5/6: LOCAL adversary on LAUNCHER/S-5.02/PIVOT-001. PA-7: finish S-3.13 + adjudicate AC-7 + LOCAL adversary.
+6. **NEXT:** (A) PR-LEVEL adversary pass-3 on PR #188. (B) LOCAL adversary re-passes: LAUNCHER / S-5.02 / PIVOT-001. (C) PO+story-writer S-3.13 re-scoping burst (move AC-4+AC-7+Task-6/7 to S-5.03). All 5 lanes at strict streak 0/3.
