@@ -3281,7 +3281,9 @@ impl PrismServer {
         .await?;
 
         // BC-2.10.011 v1.5: tri-state capability model.
-        // WriteExecutor is always wired (PrismServer::new() provides a minimal one).
+        // WriteExecutor is wired via `with_write_executor()` builder or `with_deps()` at boot.
+        // `new()` leaves write_executor as None; the guard below returns Internal when not wired
+        // (boot step 9 incomplete), covered by test_confirm_action_returns_internal_when_not_wired.
         let Some(we) = &self.write_executor else {
             return Err(to_error_data(PrismError::Internal {
                 detail: "WriteExecutor not wired at PrismServer (boot step 9 incomplete)"
@@ -5606,8 +5608,9 @@ mod tests {
     /// time, the since-removed FeatureFlagDisabled variant; P2-03 2026-06-10
     /// review pass-2), but Internal (dependency not wired at boot step 9).
     ///
-    /// Uses `PrismServer::minimal()` (no WriteExecutor) rather than `new()` because
-    /// `new()` now wires a test WriteExecutor for BC-2.10.011 tri-state capability tests.
+    /// Uses `PrismServer::minimal()` (no WriteExecutor wired) to verify the not-wired
+    /// error path. Both `minimal()` and `new()` leave write_executor as None; `minimal()`
+    /// is the conventional constructor for not-wired tests (see `minimal()` doc-comment).
     #[tokio::test]
     async fn test_confirm_action_returns_internal_when_not_wired() {
         let server = PrismServer::minimal();
