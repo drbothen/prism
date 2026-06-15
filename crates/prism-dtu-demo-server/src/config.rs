@@ -317,6 +317,35 @@ pub struct OrgConfig {
     pub initial_access_token: Option<String>,
 }
 
+/// Returns `true` if `slug` is a path-safe org slug.
+///
+/// Allowed charset: `[a-zA-Z0-9][a-zA-Z0-9\-]*`
+/// - Must be non-empty.
+/// - First character: ASCII alphanumeric only (no leading hyphen).
+/// - Remaining characters: ASCII alphanumeric or `-` (hyphen).
+/// - Explicitly rejects `/`, `.`, `..`, `\`, null bytes, and any character that
+///   could escape a `path.join(customers_dir, slug)` boundary.
+///
+/// This is a char-level scan with no regex dependency — the `prism-dtu-demo-server`
+/// crate does not depend on `regex`, and the allowed set is small enough to check
+/// with `char::is_ascii_alphanumeric` + a single `== '-'` guard.
+///
+/// SEC-001 (CWE-22): single enforcement point called from `MultiOrgDemoConfig::from_str`
+/// before any filesystem path is constructed from the slug value.
+fn is_path_safe_slug(slug: &str) -> bool {
+    if slug.is_empty() {
+        return false;
+    }
+    let mut chars = slug.chars();
+    // First character: alphanumeric only (no leading hyphen)
+    match chars.next() {
+        Some(c) if c.is_ascii_alphanumeric() => {}
+        _ => return false,
+    }
+    // Remaining characters: alphanumeric or hyphen
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
+}
+
 impl MultiOrgDemoConfig {
     /// Load configuration from a TOML file at `path`.
     ///
@@ -335,11 +364,21 @@ impl MultiOrgDemoConfig {
     /// Uses `deny_unknown_fields` on all nested structs — a typo'd key is a parse error,
     /// not a silently-ignored default (BC-2.06.001 invariant).
     ///
-    /// After TOML deserialization, validates every `org_id` field in `orgs` as a
-    /// well-formed UUID. A malformed org_id (e.g. `"not-a-uuid"`) returns `Err` with
-    /// an actionable message naming the offending org entry and value (MED-B fix).
-    /// This makes the claim in `build_multi_clone_factory`'s `.expect()` TRUE: by the
-    /// time the factory runs, all org_ids have been validated as valid UUIDs at parse time.
+    /// After TOML deserialization, validates every org slug key, `org_id` field, and
+    /// `sensors` list in `orgs`:
+    ///
+    /// - **SEC-001 (CWE-22):** Each org slug (HashMap key) must match
+    ///   `[a-zA-Z0-9][a-zA-Z0-9-]*` — alphanumeric start, alphanumeric-or-hyphen body.
+    ///   A slug containing `/`, `..`, a leading hyphen, or any other path-unsafe character
+    ///   returns `Err` naming the offending slug before any filesystem path is constructed.
+    ///   This is the single enforcement point: the same slug flows into
+    ///   `os.path.join(customers_dir, org_slug)` + `os.makedirs` in the shell overlay
+    ///   script, so a crafted `[orgs."../../../tmp/evil"]` would write outside
+    ///   `customers_dir` if not blocked here.
+    ///
+    /// - **MED-B:** Each `org_id` must be a well-formed UUID.
+    ///
+    /// - **LOW sensor validation:** Each sensor name must appear in `KNOWN_SENSORS`.
     ///
     /// Mirrors the `DemoConfig::from_str` inherent method pattern.
     #[allow(clippy::should_implement_trait)]
@@ -347,16 +386,31 @@ impl MultiOrgDemoConfig {
         let cfg: Self = toml::from_str(toml_str)
             .map_err(|e| anyhow::anyhow!("Invalid TOML in multi-org demo config: {}", e))?;
 
-        // MED-B: validate all org_id fields as UUIDs at parse time.
-        // This ensures the `.expect()` in `build_multi_clone_factory` is a true
-        // programming-error guard (not a user-input panic on a typo'd org_id).
-        for (entry_name, org_cfg) in &cfg.orgs {
+        for (slug, org_cfg) in &cfg.orgs {
+            // SEC-001 (CWE-22): validate the org slug is path-safe before it can reach
+            // any filesystem join. Allowed charset: [a-zA-Z0-9][a-zA-Z0-9-]*.
+            // This rejects "../../../tmp/evil", "/abs/path", "leading-dash" (-foo),
+            // and any other slug that could escape `customers_dir` in the overlay script.
+            if !is_path_safe_slug(slug) {
+                return Err(anyhow::anyhow!(
+                    "Invalid multi-org demo config: org slug '{}' contains characters that are \
+                     not path-safe. Org slugs must start with an alphanumeric character and \
+                     contain only alphanumeric characters and hyphens (e.g. 'org-a', 'acme-corp'). \
+                     Slugs containing '/', '..', a leading hyphen, or other special characters \
+                     are rejected to prevent path traversal (CWE-22).",
+                    slug
+                ));
+            }
+
+            // MED-B: validate all org_id fields as UUIDs at parse time.
+            // This ensures the `.expect()` in `build_multi_clone_factory` is a true
+            // programming-error guard (not a user-input panic on a typo'd org_id).
             uuid::Uuid::parse_str(&org_cfg.org_id).map_err(|_| {
                 anyhow::anyhow!(
                     "Invalid multi-org demo config: org '{}' has org_id '{}' which is not a \
                      valid UUID. Expected a hyphenated UUID v7 string, e.g. \
                      '0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000'.",
-                    entry_name,
+                    slug,
                     org_cfg.org_id
                 )
             })?;
@@ -373,7 +427,7 @@ impl MultiOrgDemoConfig {
                     return Err(anyhow::anyhow!(
                         "Invalid multi-org demo config: org '{}' lists sensor '{}' which is not \
                          supported. Valid sensors: {}.",
-                        entry_name,
+                        slug,
                         sensor,
                         KNOWN_SENSORS.join(", ")
                     ));
@@ -498,6 +552,118 @@ mod tests {
         "#;
         MultiOrgDemoConfig::from_str(toml_good)
             .expect("MED-B: valid UUID org_id must parse without error");
+    }
+
+    // ---------------------------------------------------------------------------
+    // SEC-001 (CWE-22): path-traversal-safe org slug validation load-bearing tests.
+    //
+    // The org slug (HashMap key in MultiOrgDemoConfig.orgs) flows unsanitized into
+    // `os.path.join(customers_dir, org_slug)` + `os.makedirs` in the shell overlay
+    // script. A crafted `[orgs."../../../tmp/evil"]` TOML key would escape
+    // `customers_dir` if not blocked at parse time.
+    //
+    // After the fix, MultiOrgDemoConfig::from_str calls `is_path_safe_slug` for every
+    // slug key BEFORE any UUID or sensor validation. Invalid slugs return `Err` naming
+    // the offending slug — no panic, no filesystem operation, no subprocess needed.
+    //
+    // Proves the fix is load-bearing: if `is_path_safe_slug` is removed or weakened
+    // to return `true` for path-unsafe inputs, the path-traversal cases below fail
+    // at assertion 1 (from_str returns Ok instead of Err).
+    // ---------------------------------------------------------------------------
+
+    /// SEC-001 (CWE-22): org slug path traversal must be rejected at parse time.
+    ///
+    /// Asserts:
+    /// 1. `from_str` returns `Err` (not `Ok`) for slugs containing path-traversal
+    ///    sequences (`../`), absolute-path prefixes (`/`), leading hyphens, empty
+    ///    strings, or any character outside `[a-zA-Z0-9\-]`.
+    /// 2. The error message names the offending slug.
+    /// 3. Valid slugs (`"org-a"`, `"acme-corp"`, `"tenant123"`) still parse without error.
+    #[test]
+    fn test_sec_001_org_slug_path_traversal_rejected() {
+        // A valid org_id and sensor to use across all cases — the slug is the only variable.
+        let valid_org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000";
+        let valid_sensor = "crowdstrike";
+
+        // --- Cases that MUST be rejected ---
+
+        // Path traversal sequences
+        let traversal_cases: &[&str] = &[
+            "../../../tmp/evil",
+            "../sibling",
+            "parent/../escape",
+            "evil/subdir",
+            "/absolute/path",
+            "leading-ok/but-slash",
+        ];
+        for slug in traversal_cases {
+            let toml = format!(
+                "[orgs.\"{}\"]\norg_id = \"{}\"\nsensors = [\"{}\"]\nseed = 42\n",
+                slug, valid_org_id, valid_sensor
+            );
+            let result = MultiOrgDemoConfig::from_str(&toml);
+            // Note: TOML may reject some of these slugs as invalid TOML keys before
+            // Rust validation even runs (e.g. bare `../` in a key). Both outcomes
+            // (TOML parse error OR our validation Err) are acceptable — the invariant
+            // is that from_str NEVER returns Ok for these slugs.
+            assert!(
+                result.is_err(),
+                "SEC-001: from_str must return Err for path-traversal slug '{slug}', got Ok"
+            );
+        }
+
+        // Leading hyphen — first char must be alphanumeric
+        let leading_hyphen = "-leading-hyphen";
+        let toml_leading_hyphen = format!(
+            "[orgs.\"{}\"]\norg_id = \"{}\"\nsensors = [\"{}\"]\nseed = 42\n",
+            leading_hyphen, valid_org_id, valid_sensor
+        );
+        let result_lh = MultiOrgDemoConfig::from_str(&toml_leading_hyphen);
+        assert!(
+            result_lh.is_err(),
+            "SEC-001: from_str must return Err for leading-hyphen slug '{leading_hyphen}', got Ok"
+        );
+        // The error message must name the offending slug (our Err path)
+        // OR it's a TOML parse error (which also rejects it) — both are acceptable.
+        // If our validator fired, verify the slug is named:
+        if let Err(ref e) = result_lh {
+            let msg = e.to_string();
+            // If the error is from our validator (not the TOML parser), slug must be named.
+            if msg.contains("path-safe") || msg.contains("org slug") {
+                assert!(
+                    msg.contains(leading_hyphen),
+                    "SEC-001: error must name the offending slug '{leading_hyphen}', got: {msg}"
+                );
+            }
+        }
+
+        // Dot-only / double-dot — special filesystem entries
+        let dot_cases: &[&str] = &[".", ".."];
+        for slug in dot_cases {
+            let toml = format!(
+                "[orgs.\"{}\"]\norg_id = \"{}\"\nsensors = [\"{}\"]\nseed = 42\n",
+                slug, valid_org_id, valid_sensor
+            );
+            // TOML may or may not parse these as bare keys; either Err form is acceptable.
+            let result = MultiOrgDemoConfig::from_str(&toml);
+            assert!(
+                result.is_err(),
+                "SEC-001: from_str must return Err for dot-slug '{slug}', got Ok"
+            );
+        }
+
+        // --- Control cases that MUST parse successfully ---
+
+        let valid_slugs: &[&str] = &["org-a", "acme-corp", "tenant123", "a", "X9", "org-b-west"];
+        for slug in valid_slugs {
+            let toml = format!(
+                "[orgs.{}]\norg_id = \"{}\"\nsensors = [\"{}\"]\nseed = 100\n",
+                slug, valid_org_id, valid_sensor
+            );
+            MultiOrgDemoConfig::from_str(&toml).unwrap_or_else(|e| {
+                panic!("SEC-001: valid slug '{slug}' must parse without error, got: {e}")
+            });
+        }
     }
 
     // ---------------------------------------------------------------------------
