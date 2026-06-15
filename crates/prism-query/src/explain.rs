@@ -35,6 +35,7 @@ use crate::{
     pushdown::classify_predicates,
     scoping::{resolve_clients, ClientRegistry},
     security::PRISM_MAX_QUERY_SIZE,
+    table_registry::TableRegistry,
     visit::{walk_ast, Visitor},
 };
 
@@ -112,6 +113,14 @@ pub struct ExplainOptions {
     // TODO(CR-007): replace with `AuditEmitter` trait from `prism-audit` when
     // wired (S-X.XX). The current `Arc<dyn Fn>` is a lightweight stand-in.
     pub audit_sink: Option<Arc<dyn Fn(AuditEvent) + Send + Sync>>,
+
+    /// S-3.13 / AC-6: Live `TableRegistry` for populating `available_tables` in
+    /// the explain result. When `Some`, `ExplainResult.available_tables` lists
+    /// only currently-registered tables. When `None`, `available_tables` is empty.
+    ///
+    /// In production, `prism-mcp` threads this from `QueryEngine::table_registry()`.
+    /// Tests that need AC-6 coverage provide a pre-populated `TableRegistry`.
+    pub table_registry: Option<Arc<TableRegistry>>,
 }
 
 impl std::fmt::Debug for ExplainOptions {
@@ -122,6 +131,10 @@ impl std::fmt::Debug for ExplainOptions {
             .field("sources", &self.sources)
             .field("alias_registry", &self.alias_registry)
             .field("audit_sink", &self.audit_sink.as_ref().map(|_| "<sink>"))
+            .field(
+                "table_registry",
+                &self.table_registry.as_ref().map(|_| "<TableRegistry>"),
+            )
             .finish()
     }
 }
@@ -171,6 +184,13 @@ pub struct ExplainResult {
 
     /// Structured cost estimate for the query. (BC-2.11.010)
     pub estimated_cost: CostEstimate,
+
+    /// S-3.13 / AC-6: Currently-registered table names from the live `TableRegistry`.
+    ///
+    /// Populated from `ExplainOptions::table_registry` if provided; empty otherwise.
+    /// Lists exactly the tables that are currently available for querying — not a
+    /// static list. Reflects hot-reload additions/removals immediately. (BC-2.16.001)
+    pub available_tables: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1095,6 +1115,15 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     };
 
     // ── Step 11: Assemble result ───────────────────────────────────────────────
+
+    // S-3.13 / AC-6: Populate available_tables from the live TableRegistry if provided.
+    // Called at explain time (not cached in the plan) so the list reflects
+    // hot-reload additions/removals. (BC-2.16.001)
+    let available_tables = options
+        .table_registry
+        .as_deref()
+        .map_or_else(Vec::new, TableRegistry::registered_tables);
+
     let result = ExplainResult {
         parsed_mode,
         original_query: query_str.to_string(),
@@ -1116,6 +1145,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             summary,
             warnings,
         },
+        available_tables,
     };
 
     // ── DI-004: Emit success audit event ──────────────────────────────────────

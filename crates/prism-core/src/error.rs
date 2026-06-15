@@ -22,17 +22,23 @@ use thiserror::Error;
 /// # Construction
 /// ```
 /// use prism_core::error::{PrismError, TableNotAvailableDetails};
-/// let err = PrismError::TableNotAvailable(Box::new(TableNotAvailableDetails {
-///     table: "crowdstrike_alerts".to_string(),
-///     sensor: "crowdstrike".to_string(),
-///     available_sensors: "armis".to_string(),
-///     available_tables: "armis_alerts".to_string(),
-///     did_you_mean: "".to_string(),
-/// }));
+/// let err = PrismError::TableNotAvailable(Box::new(TableNotAvailableDetails::new(
+///     "crowdstrike_alerts",
+///     "crowdstrike",
+///     "armis",
+///     "armis_alerts",
+///     "",
+/// )));
 /// ```
 ///
 /// Reference: S-3.13; BC-2.11.001; error-taxonomy.md E-QUERY-037.
+///
+/// # `#[non_exhaustive]` note
+/// Marked `#[non_exhaustive]` per CLAUDE.md convention for public `prism-core` structs.
+/// Callers outside this crate must use `TableNotAvailableDetails::new(...)` rather than
+/// struct literal construction (E0639 would fire at the cross-crate construction site).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct TableNotAvailableDetails {
     /// The table name that was queried (e.g. `"crowdstrike_alerts"`).
     pub table: String,
@@ -44,6 +50,28 @@ pub struct TableNotAvailableDetails {
     pub available_tables: String,
     /// Either `""` (no match within Levenshtein ≤ 3) or `" Did you mean: 'X'?"`.
     pub did_you_mean: String,
+}
+
+impl TableNotAvailableDetails {
+    /// Construct a `TableNotAvailableDetails`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct literal construction
+    /// from outside `prism-core`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    pub fn new(
+        table: impl Into<String>,
+        sensor: impl Into<String>,
+        available_sensors: impl Into<String>,
+        available_tables: impl Into<String>,
+        did_you_mean: impl Into<String>,
+    ) -> Self {
+        Self {
+            table: table.into(),
+            sensor: sensor.into(),
+            available_sensors: available_sensors.into(),
+            available_tables: available_tables.into(),
+            did_you_mean: did_you_mean.into(),
+        }
+    }
 }
 
 impl std::fmt::Display for TableNotAvailableDetails {

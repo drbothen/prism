@@ -2056,14 +2056,15 @@ mod tests {
     #[test]
     fn test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params() {
         // Construct PrismError::TableNotAvailable with all required fields.
-        let err =
-            PrismError::TableNotAvailable(Box::new(prism_core::error::TableNotAvailableDetails {
-                table: "crowdstrike_alerts".to_string(),
-                sensor: "crowdstrike".to_string(),
-                available_sensors: "armis, claroty".to_string(),
-                available_tables: "armis_alerts, claroty_devices".to_string(),
-                did_you_mean: String::new(),
-            }));
+        let err = PrismError::TableNotAvailable(Box::new(
+            prism_core::error::TableNotAvailableDetails::new(
+                "crowdstrike_alerts",
+                "crowdstrike",
+                "armis, claroty",
+                "armis_alerts, claroty_devices",
+                "",
+            ),
+        ));
         let (code, message) = map_prism_error(err);
         assert_eq!(
             code,
@@ -2093,14 +2094,15 @@ mod tests {
     /// The test validates that the Display impl threads `did_you_mean` correctly.
     #[test]
     fn test_BC_2_11_001_e_query_037_mcp_message_includes_did_you_mean() {
-        let err =
-            PrismError::TableNotAvailable(Box::new(prism_core::error::TableNotAvailableDetails {
-                table: "crowdstrike_alert".to_string(),
-                sensor: "crowdstrike".to_string(),
-                available_sensors: "crowdstrike".to_string(),
-                available_tables: "crowdstrike_alerts".to_string(),
-                did_you_mean: " Did you mean: 'crowdstrike_alerts'?".to_string(),
-            }));
+        let err = PrismError::TableNotAvailable(Box::new(
+            prism_core::error::TableNotAvailableDetails::new(
+                "crowdstrike_alert",
+                "crowdstrike",
+                "crowdstrike",
+                "crowdstrike_alerts",
+                " Did you mean: 'crowdstrike_alerts'?",
+            ),
+        ));
         let (code, message) = map_prism_error(err);
         assert_eq!(code, codes::INVALID_PARAMS);
         assert!(

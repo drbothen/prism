@@ -2405,6 +2405,91 @@ pub(crate) fn wire_config_swap_cache_flush(
     }));
 }
 
+/// S-3.13 CRIT-2: Register a swap listener that diffs old/new `ConfigSnapshot.sensor_specs`
+/// and applies `register_sensor`/`deregister_sensor` to the shared `Arc<TableRegistry>`.
+///
+/// When `ConfigManager::store()` is called (via `reload_config`, `add_sensor_spec`, or the
+/// S-1.12-FOLLOWUP hot-reload watcher), the listener:
+/// 1. Loads the new snapshot (already visible via `config_manager.load()` at listener call time
+///    per the swap-before-notify ordering guarantee — `test_p1_03_listener_observes_new_snapshot`).
+/// 2. Compares new `sensor_specs` keyed set against the currently-registered sensor IDs.
+/// 3. For sensors added: calls `register_sensor(spec)`.
+/// 4. For sensors removed: calls `deregister_sensor(sensor_id)`.
+/// 5. For sensors in both: calls `register_sensor(spec)` (register_sensor deregisters first
+///    atomically — handles schema changes, EC-11-123).
+///
+/// The `notifications/resources/list_changed` MCP notification when the table set changes
+/// is deferred to S-5.03 (MCP resources framework; see CRIT-4 adjudication below).
+///
+/// # Thread safety
+/// The `Arc<TableRegistry>` is shared between this listener and the `QueryEngine` — reads
+/// in the engine use `RwLock::read()` (non-exclusive) and do NOT block. The write lock
+/// is held only here (brief, on the config-reload path, never the query path).
+pub(crate) fn wire_table_registry_swap_listener(
+    config_manager: &arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>,
+    table_registry: Arc<prism_query::table_registry::TableRegistry>,
+) {
+    let manager = config_manager.load_full();
+    // Clone the Arc so the closure owns its own reference while the outer scope
+    // retains the original for the register_swap_listener call.
+    let manager_for_listener = Arc::clone(&manager);
+    manager.register_swap_listener(Box::new(move || {
+        // Load the new snapshot. Per swap-before-notify ordering (config_manager.rs store()),
+        // this is guaranteed to be the just-stored snapshot.
+        let new_snapshot = manager_for_listener.load();
+
+        // Apply delta: register all sensors in the new snapshot.
+        // register_sensor() deregisters-then-re-registers (EC-11-123 atomicity),
+        // so calling it for both new and updated sensors is correct.
+        let mut register_errors = 0u32;
+        for spec in new_snapshot.sensor_specs.values() {
+            if let Err(e) = table_registry.register_sensor(spec) {
+                // SAP-1 exemption: no event_type field — operational diagnostic, not a
+                // catalog-tracked structured event (no BC-2.16.002 row required).
+                tracing::error!(
+                    sensor_id = %spec.sensor_id,
+                    error = %e,
+                    "S-3.13: TableRegistry::register_sensor failed on hot-reload swap; \
+                     table availability may be inconsistent until next reload"
+                );
+                register_errors += 1;
+            }
+        }
+
+        // Deregister sensors removed from the new snapshot.
+        // A sensor was registered if its ID appears in registered_sensor_ids() but NOT in
+        // the new snapshot.
+        let new_sensor_ids: std::collections::HashSet<&str> = new_snapshot
+            .sensor_specs
+            .keys()
+            .map(String::as_str)
+            .collect();
+        for registered_id in table_registry.registered_sensor_ids() {
+            if !new_sensor_ids.contains(registered_id.as_str())
+                && let Err(e) = table_registry.deregister_sensor(&registered_id)
+            {
+                // SAP-1 exemption: see above.
+                tracing::error!(
+                    sensor_id = %registered_id,
+                    error = %e,
+                    "S-3.13: TableRegistry::deregister_sensor failed on hot-reload swap; \
+                     table availability may be inconsistent until next reload"
+                );
+                register_errors += 1;
+            }
+        }
+
+        if register_errors == 0 {
+            // SAP-1 exemption: no event_type field — operational diagnostic.
+            tracing::info!(
+                sensor_count = new_snapshot.sensor_specs.len(),
+                "S-3.13: TableRegistry updated from hot-reload swap \
+                 (AC-4/AC-5 / BC-2.16.007)"
+            );
+        }
+    }));
+}
+
 /// Step 9 [BACKGROUND]: MCP server start.
 ///
 /// Constructs `QueryEngine` + `WriteExecutor` from available boot deps, builds
@@ -2462,6 +2547,7 @@ pub async fn step9_start_mcp_server(
         WriteExecutor, WritePlan, WriteResult,
         engine::{QueryEngine, QueryEngineConfig},
         scoping::ClientRegistry,
+        table_registry::TableRegistry,
         write_dispatch::AuditWriter,
     };
     use prism_security::{
@@ -2615,22 +2701,46 @@ pub async fn step9_start_mcp_server(
     // MCP-02 (2026-06-10 review): retain storage Arc for the boot AuditWriter so
     // MCP tool-call audit records land durably in the RocksDB audit_buffer CF.
     let storage_for_audit = Arc::clone(&storage);
-    let query_engine = Arc::new(QueryEngine::new_full(
-        adapter_registry.clone(),
-        // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
-        credential_store,
-        ocsf_normalizer,
-        client_registry,
-        query_config,
-        credential_resolver,
-        // CRIT-5: real org_registry from step 3 — replaces OrgRegistry::new() placeholder.
-        org_registry,
-        storage,
-        resolved_spec_map,
-        // F-PASS9-LOW-1: alias_store shared with PrismServer so @alias tokens in queries
-        // are resolved against aliases created via MCP tools (BC-2.11.008).
-        Arc::clone(&alias_store),
-    ));
+
+    // S-3.13 CRIT-1: Build TableRegistry from the initial ConfigSnapshot so the
+    // plan-time E-QUERY-037 gate is live on the first query (BC-2.11.001, BC-2.16.001).
+    // Wrapping in Arc lets the hot-reload swap listener (CRIT-2 below) mutate the
+    // SAME instance that the QueryEngine uses for plan-time checks.
+    //
+    // Type navigation: config_manager is Arc<ArcSwap<ConfigManager>>; the inner
+    // ConfigManager wraps ArcSwap<ConfigSnapshot>. Two .load() calls unwrap both layers.
+    let table_registry = {
+        let cm_guard = config_manager.load(); // Guard<Arc<ConfigManager>>
+        let snap_guard = cm_guard.load(); // Guard<Arc<ConfigSnapshot>>
+        let table_registry = TableRegistry::from_snapshot(&snap_guard).map_err(|e| {
+            BootError::InternalError(format!("S-3.13: TableRegistry::from_snapshot failed: {e}"))
+        })?;
+        // Guards drop here so ArcSwap can proceed normally.
+        Arc::new(table_registry)
+    };
+
+    let query_engine = Arc::new(
+        QueryEngine::new_full(
+            adapter_registry.clone(),
+            // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
+            credential_store,
+            ocsf_normalizer,
+            client_registry,
+            query_config,
+            credential_resolver,
+            // CRIT-5: real org_registry from step 3 — replaces OrgRegistry::new() placeholder.
+            org_registry,
+            storage,
+            resolved_spec_map,
+            // F-PASS9-LOW-1: alias_store shared with PrismServer so @alias tokens in queries
+            // are resolved against aliases created via MCP tools (BC-2.11.008).
+            Arc::clone(&alias_store),
+        )
+        // S-3.13 CRIT-1: wire the pre-populated TableRegistry so the plan-time
+        // E-QUERY-037 gate fires on real queries (AC-2, AC-8). The hot-reload
+        // swap listener (CRIT-2) shares this same Arc<TableRegistry> instance.
+        .with_table_registry(Arc::clone(&table_registry)),
+    );
 
     // ── Build WriteExecutor ───────────────────────────────────────────────────
     //
@@ -2665,6 +2775,14 @@ pub async fn step9_start_mcp_server(
     // docs for the two caveats bounding this guarantee (boot-frozen adapter
     // normalization; in-flight pre-swap queries may insert after the flush).
     wire_config_swap_cache_flush(&config_manager, Arc::clone(&cache_invalidator));
+
+    // S-3.13 CRIT-2: Register a second swap listener that diffs old/new
+    // ConfigSnapshot.sensor_specs and applies register_sensor/deregister_sensor
+    // to the shared Arc<TableRegistry> wired into the QueryEngine above.
+    // This keeps is_registered() consistent with the live config after every reload.
+    // The listener runs AFTER the cache-flush listener (registration order), which
+    // is correct: the registry update and cache flush are independent side effects.
+    wire_table_registry_swap_listener(&config_manager, Arc::clone(&table_registry));
 
     let write_executor = Arc::new(WriteExecutor::new(
         feature_flags,

@@ -311,13 +311,13 @@ impl TableRegistry {
                 let did_you_mean = self.did_you_mean(&table_name);
 
                 return Err(PrismError::TableNotAvailable(Box::new(
-                    TableNotAvailableDetails {
-                        table: table_name,
+                    TableNotAvailableDetails::new(
+                        table_name,
                         sensor,
                         available_sensors,
                         available_tables,
                         did_you_mean,
-                    },
+                    ),
                 )));
             }
         }

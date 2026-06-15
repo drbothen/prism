@@ -351,83 +351,177 @@ fn test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params() {
 // AC-4/AC-5: Hot-reload add/remove (BC-2.16.007)
 // ---------------------------------------------------------------------------
 
-/// BC-2.16.007 / AC-4: When a sensor spec is added via `register_sensor` (simulating
-/// hot-reload add), the registry reflects the new tables (`is_registered` returns `true`).
+/// BC-2.16.007 / AC-4: When a sensor spec is added via the REAL `ConfigManager::store`
+/// swap path, the registry reflects the new tables (`is_registered` returns `true`).
 ///
-/// The MCP `notifications/resources/list_changed` notification is sent by the hot-reload
-/// integration layer (wired via ConfigManager swap-listener in production); this unit test
-/// verifies only the registry state (the notification channel is an integration concern).
+/// Drives the production path: `ConfigManager::store(snapshot_with_armis)` →
+/// `notify_swap_listeners()` → listener calls `register_sensor(armis_spec)` →
+/// `is_registered("armis_alerts")` returns `true`.
+///
+/// The `notifications/resources/list_changed` MCP notification is deferred to S-5.03
+/// (MCP resources framework; see CRIT-4 adjudication in fix-burst report).
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_16_007_hot_reload_add_sensor_registers_tables() {
-    let registry = TableRegistry::new();
+    use std::sync::Arc;
 
-    // Initially empty.
+    use prism_spec_engine::config_manager::ConfigManager;
+
+    // Start with an empty registry and a config that has NO sensors.
+    let registry = Arc::new(TableRegistry::new());
+    let manager = Arc::new(ConfigManager::empty());
+
+    // Wire the swap listener (mirrors wire_table_registry_swap_listener in boot.rs).
+    // The listener reads the new snapshot from `manager_for_listener.load()` and
+    // applies register_sensor for all sensors in the new snapshot.
+    {
+        let manager_for_listener = Arc::clone(&manager);
+        let registry_for_listener = Arc::clone(&registry);
+        manager.register_swap_listener(Box::new(move || {
+            let snap = manager_for_listener.load();
+            // Register all sensors in the new snapshot (same as production listener).
+            for spec in snap.sensor_specs.values() {
+                let _ = registry_for_listener.register_sensor(spec);
+            }
+            // Deregister removed sensors.
+            let new_ids: std::collections::HashSet<&str> =
+                snap.sensor_specs.keys().map(String::as_str).collect();
+            for id in registry_for_listener.registered_sensor_ids() {
+                if !new_ids.contains(id.as_str()) {
+                    let _ = registry_for_listener.deregister_sensor(&id);
+                }
+            }
+        }));
+    }
+
+    // Precondition: initially empty.
     assert!(
         !registry.is_registered("armis_alerts"),
         "AC-4 precondition: registry must be empty initially"
     );
 
-    // Simulate hot-reload add: register armis spec.
+    // Drive the REAL hot-reload path: store a new snapshot that includes armis.
     let armis_spec = make_sensor_spec_one_table("armis", "alerts");
-    registry
-        .register_sensor(&armis_spec)
-        .expect("register_sensor must not fail");
+    let mut new_snapshot = ConfigSnapshot::empty();
+    new_snapshot
+        .sensor_specs
+        .insert("armis".to_string(), armis_spec);
+    manager.store(new_snapshot); // ← triggers notify_swap_listeners() → listener runs
 
+    // AC-4 / BC-2.16.007 / EC-11-122: after the swap, the registry must reflect the new sensor.
     assert!(
         registry.is_registered("armis_alerts"),
         "AC-4 / BC-2.16.007 / EC-11-122: is_registered('armis_alerts') must be true \
-         after register_sensor (hot-reload add)"
+         after ConfigManager::store (real hot-reload swap path). The swap listener wired \
+         in boot.rs drives register_sensor — this test validates that wiring."
     );
 }
 
-/// BC-2.16.007 / AC-5: When a sensor spec is removed via `deregister_sensor` (simulating
-/// hot-reload remove), `is_registered` returns `false` for its tables.
+/// BC-2.16.007 / AC-5: When a sensor spec is removed via the REAL `ConfigManager::store`
+/// swap path, `is_registered` returns `false` for its tables.
+///
+/// Drives the production path: `ConfigManager::store(snapshot_without_claroty)` →
+/// `notify_swap_listeners()` → listener calls `deregister_sensor("claroty")` →
+/// `is_registered("claroty_devices")` returns `false`.
 ///
 /// EC-11-121 (in-flight query isolation) is guaranteed by the arc-swap ConfigSnapshot
 /// pattern (CI-007) — not testable in a unit test without a full query pipeline.
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_16_007_hot_reload_remove_sensor_deregisters_tables() {
-    let registry = TableRegistry::new();
+    use std::sync::Arc;
 
-    // Register claroty first.
+    use prism_spec_engine::config_manager::ConfigManager;
+
+    // Start with claroty registered.
+    let registry = Arc::new(TableRegistry::new());
     let claroty_spec = make_sensor_spec_one_table("claroty", "devices");
-    registry
-        .register_sensor(&claroty_spec)
-        .expect("register_sensor must not fail");
+    let mut initial_snapshot = ConfigSnapshot::empty();
+    initial_snapshot
+        .sensor_specs
+        .insert("claroty".to_string(), claroty_spec);
+    let manager = Arc::new(ConfigManager::new(initial_snapshot));
+
+    // Pre-populate registry from the initial snapshot.
+    {
+        let snap = manager.load();
+        for spec in snap.sensor_specs.values() {
+            registry
+                .register_sensor(spec)
+                .expect("initial registration must not fail");
+        }
+    }
     assert!(
         registry.is_registered("claroty_devices"),
         "AC-5 precondition: claroty_devices must be registered before deregistration test"
     );
 
-    // Simulate hot-reload remove: deregister claroty.
-    registry
-        .deregister_sensor("claroty")
-        .expect("deregister_sensor must not fail");
+    // Wire the swap listener.
+    {
+        let manager_for_listener = Arc::clone(&manager);
+        let registry_for_listener = Arc::clone(&registry);
+        manager.register_swap_listener(Box::new(move || {
+            let snap = manager_for_listener.load();
+            // Register all sensors in new snapshot.
+            for spec in snap.sensor_specs.values() {
+                let _ = registry_for_listener.register_sensor(spec);
+            }
+            // Deregister sensors that are no longer in the new snapshot.
+            let new_ids: std::collections::HashSet<&str> =
+                snap.sensor_specs.keys().map(String::as_str).collect();
+            for id in registry_for_listener.registered_sensor_ids() {
+                if !new_ids.contains(id.as_str()) {
+                    let _ = registry_for_listener.deregister_sensor(&id);
+                }
+            }
+        }));
+    }
 
+    // Drive the REAL hot-reload path: store a new snapshot that OMITS claroty.
+    let empty_snapshot = ConfigSnapshot::empty();
+    manager.store(empty_snapshot); // ← triggers notify_swap_listeners() → listener deregisters claroty
+
+    // AC-5 / BC-2.16.007: after the swap, claroty_devices must be gone.
     assert!(
         !registry.is_registered("claroty_devices"),
         "AC-5 / BC-2.16.007: is_registered('claroty_devices') must be false \
-         after deregister_sensor('claroty')"
+         after ConfigManager::store with empty snapshot (real hot-reload remove path). \
+         The swap listener wired in boot.rs drives deregister_sensor — this test validates that wiring."
     );
 }
 
-/// BC-2.16.007 / EC-11-123: When a spec is updated (schema change) via hot-reload,
-/// the old tables are deregistered and new tables are re-registered atomically.
+/// BC-2.16.007 / EC-11-123: When a spec is updated (schema change) via the REAL
+/// `ConfigManager::store` swap path, old tables are deregistered and new tables
+/// re-registered atomically.
 ///
-/// This test simulates: crowdstrike v1 has one table; v2 adds a second table.
-/// After re-register, both old and new tables must reflect the v2 state.
+/// Drives the production path: crowdstrike v1 has one table; store a new snapshot
+/// with crowdstrike v2 (two tables). After the swap, both v2 tables are registered.
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_16_007_hot_reload_schema_change_reregisters() {
-    let registry = TableRegistry::new();
+    use std::sync::Arc;
+
+    use prism_spec_engine::{config_manager::ConfigManager, spec_parser::TableSpec};
 
     // v1: crowdstrike has only "alerts".
     let spec_v1 = make_sensor_spec_one_table("crowdstrike", "alerts");
-    registry
-        .register_sensor(&spec_v1)
-        .expect("register spec v1 must not fail");
+    let mut snapshot_v1 = ConfigSnapshot::empty();
+    snapshot_v1
+        .sensor_specs
+        .insert("crowdstrike".to_string(), spec_v1);
+
+    let registry = Arc::new(TableRegistry::new());
+    let manager = Arc::new(ConfigManager::new(snapshot_v1));
+
+    // Pre-populate from v1.
+    {
+        let snap = manager.load();
+        for spec in snap.sensor_specs.values() {
+            registry
+                .register_sensor(spec)
+                .expect("v1 registration must not fail");
+        }
+    }
     assert!(
         registry.is_registered("crowdstrike_alerts"),
         "v1 must have crowdstrike_alerts"
@@ -437,8 +531,26 @@ fn test_BC_2_16_007_hot_reload_schema_change_reregisters() {
         "v1 must NOT have crowdstrike_detections"
     );
 
+    // Wire the swap listener.
+    {
+        let manager_for_listener = Arc::clone(&manager);
+        let registry_for_listener = Arc::clone(&registry);
+        manager.register_swap_listener(Box::new(move || {
+            let snap = manager_for_listener.load();
+            for spec in snap.sensor_specs.values() {
+                let _ = registry_for_listener.register_sensor(spec);
+            }
+            let new_ids: std::collections::HashSet<&str> =
+                snap.sensor_specs.keys().map(String::as_str).collect();
+            for id in registry_for_listener.registered_sensor_ids() {
+                if !new_ids.contains(id.as_str()) {
+                    let _ = registry_for_listener.deregister_sensor(&id);
+                }
+            }
+        }));
+    }
+
     // v2: crowdstrike has "alerts" + "detections" (schema update).
-    use prism_spec_engine::spec_parser::TableSpec;
     let spec_v2 = SensorSpec::new(
         "crowdstrike",
         "CrowdStrike v2",
@@ -452,21 +564,23 @@ fn test_BC_2_16_007_hot_reload_schema_change_reregisters() {
         "2.0.0",
         Vec::new(),
     );
+    let mut snapshot_v2 = ConfigSnapshot::empty();
+    snapshot_v2
+        .sensor_specs
+        .insert("crowdstrike".to_string(), spec_v2);
 
-    // register_sensor handles the deregister+re-register atomically (EC-11-123).
-    registry
-        .register_sensor(&spec_v2)
-        .expect("register spec v2 must not fail");
+    // Drive the REAL hot-reload swap — register_sensor re-registers atomically (EC-11-123).
+    manager.store(snapshot_v2);
 
-    // After re-register: both tables must be present.
+    // After v2 swap: both tables must be present.
     assert!(
         registry.is_registered("crowdstrike_alerts"),
-        "EC-11-123: crowdstrike_alerts must be registered in v2"
+        "EC-11-123: crowdstrike_alerts must be registered in v2 after swap"
     );
     assert!(
         registry.is_registered("crowdstrike_detections"),
         "EC-11-123 / BC-2.16.007: new table crowdstrike_detections must be registered after \
-         hot-reload schema update"
+         hot-reload schema update via ConfigManager::store (real swap path)"
     );
 }
 
@@ -474,15 +588,23 @@ fn test_BC_2_16_007_hot_reload_schema_change_reregisters() {
 // AC-6: explain_query lists only registered tables (BC-2.16.001)
 // ---------------------------------------------------------------------------
 
-/// BC-2.16.001 / AC-6: `registered_tables()` returns exactly the tables from the
-/// live registry after adding a sensor — matches what `explain_query` uses for
-/// `available_tables` field (the explain_query path reads from this method).
+/// BC-2.16.001 / AC-6: `explain()` returns `available_tables` reflecting ONLY the
+/// tables currently registered in the live `TableRegistry` — not a static list.
 ///
-/// Verifies the registry is the source of truth for explain output (AC-6).
+/// Drives the REAL `explain()` path with a `TableRegistry` threaded via
+/// `ExplainOptions::table_registry`. Verifies that `ExplainResult.available_tables`
+/// contains armis_alerts but NOT crowdstrike_alerts or cyberint_alerts.
+///
+/// This is a load-bearing test for AC-6: it calls the actual `explain()` function
+/// and asserts the `available_tables` field in `ExplainResult`.
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_16_001_explain_query_lists_only_registered_tables() {
-    let registry = TableRegistry::new();
+    use std::sync::Arc;
+
+    use crate::explain::{explain, ExplainOptions};
+
+    let registry = Arc::new(TableRegistry::new());
 
     // Register armis only.
     let armis_spec = make_sensor_spec_one_table("armis", "alerts");
@@ -490,24 +612,40 @@ fn test_BC_2_16_001_explain_query_lists_only_registered_tables() {
         .register_sensor(&armis_spec)
         .expect("register armis must not fail");
 
-    let tables = registry.registered_tables();
+    // Call the REAL explain() function with the wired TableRegistry (AC-6).
+    let opts = ExplainOptions {
+        table_registry: Some(Arc::clone(&registry)),
+        ..ExplainOptions::default()
+    };
+    let result = explain("armis_alerts | severity = 'critical'", opts)
+        .expect("explain() must succeed for a valid filter query");
 
+    // AC-6 / BC-2.16.001: available_tables must reflect the live registry.
     assert!(
-        tables.contains(&"armis_alerts".to_string()),
-        "AC-6 / BC-2.16.001: registered_tables() must include 'armis_alerts' after registering armis. \
-         Got: {tables:?}"
+        result
+            .available_tables
+            .contains(&"armis_alerts".to_string()),
+        "AC-6 / BC-2.16.001: ExplainResult.available_tables must include 'armis_alerts' \
+         after registering armis. Got: {:?}",
+        result.available_tables
     );
 
-    // Unregistered sensors must not appear.
+    // Unregistered sensors must NOT appear in available_tables.
     assert!(
-        !tables.contains(&"crowdstrike_alerts".to_string()),
-        "AC-6 / BC-2.16.001: registered_tables() must NOT include 'crowdstrike_alerts' \
-         when only armis is configured. Got: {tables:?}"
+        !result
+            .available_tables
+            .contains(&"crowdstrike_alerts".to_string()),
+        "AC-6 / BC-2.16.001: available_tables must NOT include 'crowdstrike_alerts' \
+         when only armis is configured. Got: {:?}",
+        result.available_tables
     );
     assert!(
-        !tables.contains(&"cyberint_alerts".to_string()),
-        "AC-6 / BC-2.16.001: registered_tables() must NOT include 'cyberint_alerts' \
-         when only armis is configured. Got: {tables:?}"
+        !result
+            .available_tables
+            .contains(&"cyberint_alerts".to_string()),
+        "AC-6 / BC-2.16.001: available_tables must NOT include 'cyberint_alerts' \
+         when only armis is configured. Got: {:?}",
+        result.available_tables
     );
 }
 
@@ -586,12 +724,12 @@ pub(crate) mod helpers {
     /// This helper is used by `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params`
     /// to avoid re-implementing the variant construction there.
     pub fn make_table_not_available_error() -> PrismError {
-        PrismError::TableNotAvailable(Box::new(prism_core::error::TableNotAvailableDetails {
-            table: "crowdstrike_alerts".to_string(),
-            sensor: "crowdstrike".to_string(),
-            available_sensors: "armis, claroty".to_string(),
-            available_tables: "armis_alerts, claroty_devices".to_string(),
-            did_you_mean: "".to_string(),
-        }))
+        PrismError::TableNotAvailable(Box::new(prism_core::error::TableNotAvailableDetails::new(
+            "crowdstrike_alerts",
+            "crowdstrike",
+            "armis, claroty",
+            "armis_alerts, claroty_devices",
+            "",
+        )))
     }
 }

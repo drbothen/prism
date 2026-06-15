@@ -1252,6 +1252,100 @@ mod alias_wiring_tests {
             "error detail must NOT contain 'execute_scheduled_inner'; got: {detail}"
         );
     }
+
+    // ---------------------------------------------------------------------------
+    // S-3.13 CRIT-1 Engine-level test: E-QUERY-037 fires via QueryEngine::execute
+    // ---------------------------------------------------------------------------
+
+    /// S-3.13 / AC-2 / AC-8: `QueryEngine::execute` with a wired `TableRegistry`
+    /// returns `PrismError::TableNotAvailable` (E-QUERY-037) for a query targeting
+    /// an unregistered table — BEFORE any fan-out occurs.
+    ///
+    /// This is the LOAD-BEARING engine-level test for CRIT-1. It drives the full
+    /// `QueryEngine::execute` path (not just `check_availability_gate` in isolation)
+    /// with the registry wired via `with_table_registry(...)`. The empty `AdapterRegistry`
+    /// guarantees no fan-out occurs — any fan-out attempt would return empty results,
+    /// not E-QUERY-037. The only way E-QUERY-037 fires from `execute` is via the
+    /// plan-time gate in `check_table_availability`.
+    ///
+    /// BC-2.11.001 AC-2: fire before fan-out. BC-2.11.001 AC-8: mode-agnostic.
+    #[tokio::test]
+    async fn test_S3_13_engine_execute_with_wired_registry_returns_e_query_037_before_fanout() {
+        use crate::table_registry::TableRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build a TableRegistry with only armis registered (no crowdstrike).
+        let registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register armis must not fail");
+
+        // Build a QueryEngine with the registry wired (the CRIT-1 production path).
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()), // empty — no fan-out possible
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(Arc::clone(&registry)); // CRIT-1: wire the registry
+
+        // Execute a query targeting an UNREGISTERED table (crowdstrike_alerts).
+        // The plan-time gate must fire E-QUERY-037 before any fan-out.
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts LIMIT 5",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::TableNotAvailable(ref details)) => {
+                let display = details.to_string();
+                assert!(
+                    display.starts_with("E-QUERY-037:"),
+                    "S-3.13 CRIT-1 / AC-2: QueryEngine::execute must return E-QUERY-037 for \
+                     unregistered table 'crowdstrike_alerts' when registry is wired. \
+                     Display was: {display}"
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "CRIT-1: table field must be 'crowdstrike_alerts'"
+                );
+                // available_sensors must list only armis (the registered sensor).
+                assert!(
+                    details.available_sensors.contains("armis"),
+                    "CRIT-1 / AC-2: available_sensors must list 'armis'. Got: '{}'",
+                    details.available_sensors
+                );
+            }
+            Ok(_) => panic!(
+                "S-3.13 CRIT-1 / AC-2: QueryEngine::execute must NOT succeed for \
+                 unregistered table 'crowdstrike_alerts' when registry is wired — \
+                 E-QUERY-037 must fire before fan-out"
+            ),
+            Err(other) => panic!(
+                "S-3.13 CRIT-1 / AC-2: expected PrismError::TableNotAvailable, \
+                 got different error: {other:?}"
+            ),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

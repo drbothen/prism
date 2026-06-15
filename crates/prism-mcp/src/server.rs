@@ -1901,6 +1901,9 @@ impl PrismServer {
             alias_registry,
             client_registry: Some(qe.client_registry()),
             audit_sink: None,
+            // S-3.13 CRIT-3: thread live TableRegistry into explain so
+            // ExplainResult.available_tables reflects the current config (AC-6).
+            table_registry: qe.table_registry(),
         };
         // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
         let result = match prism_query::explain::explain(&params.query, explain_opts) {
@@ -6784,6 +6787,8 @@ mod tests {
             alias_registry,
             client_registry: None,
             audit_sink: None,
+            // Test context: no TableRegistry needed for alias expansion verification.
+            table_registry: None,
         };
         let result = prism_query::explain::explain("@alias:devices", opts)
             .expect("explain must succeed for @alias:devices with registry wired");

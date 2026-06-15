@@ -16,8 +16,9 @@
 # S-5.02: bumped 60→61 for prism_mcp::error_mapping::StructuredErrorFields (BC-2.10.007 v1.5 9-field struct).
 # S-5.02 follow-up fix-burst: bumped 61→64 for prism_mcp::{CapabilityEntry, ResolutionStep} (struct literals)
 #   and prism_mcp::CapabilityStatus (enum match) — CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep.
+# S-3.13 (LOW-1 + CR-002): bumped 64→66 for TableNotAvailableDetails (prism-core::error) + TableRegistry (prism-query).
 
-EXPECTED=64
+EXPECTED=66
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 
