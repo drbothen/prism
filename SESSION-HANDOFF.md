@@ -109,7 +109,7 @@ git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001 rev
 git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-ENRICHMENT-PIVOT-001 rev-parse --short HEAD
 git -C /Users/jmagady/Dev/prism/.worktrees/S-3.13 rev-parse --short HEAD
 ```
-Expected values: see PINNED STATE table below. If any differ, the worktree has new commits since D-1180 — use live git as truth (PINNED STATE is the D-1180 baseline, not a lock).
+Expected values: see PINNED STATE table below. If any differ, the worktree has new commits since D-1181 — use live git as truth (PINNED STATE is the D-1181 baseline, not a lock).
 
 **Step 4.** Verify S-5.02 LOCAL streak status:
 ```bash
@@ -257,21 +257,21 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 
 ---
 
-### INDEX VERSIONS (as of D-1180 snapshot)
+### INDEX VERSIONS (as of D-1181 snapshot)
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.823 | This snapshot (D-1180 durability burst; develop_head UNCHANGED 09925bbe; BC-2.10.011 v1.6 committed; S-3.13 CONVERGED 3/3; PIVOT PR #189 1/3; LAUNCHER SEC-001 fix IN FLIGHT) |
-| BC-INDEX | v6.59 | active 235 / draft 2 / retired 6; total 250; BC-2.10.011 v1.6 (S-5.02 reconciliation) |
-| STORY-INDEX | v2.396 | 200 stories; S-DEMO-004 → merged; S-3.13 → v1.15/rg22 CONVERGED; PIVOT-001 → v1.7; LAUNCHER → v2.7 |
+| STATE.md | v7.824 | This snapshot (D-1181 durability burst; develop_head UNCHANGED 09925bbe; BC-2.19.001 v1.7 two-phase fix; PIVOT-001 v1.10 validators wired; LAUNCHER v2.8 SEC-001 closed; S-5.02 v1.8 LOCAL CONVERGED 3/3) |
+| BC-INDEX | v6.60 | active 235 / draft 2 / retired 6; total 250; BC-2.19.001 v1.7 (D-1181 two-phase regression fix) |
+| STORY-INDEX | v2.398 | 200 stories; PIVOT-001 → v1.10 (validators wired; EC-006/EC-007; rg=7); LAUNCHER → v2.8 (SEC-001 closed); S-5.02 → v1.8 (BC-2.10.011 v1.6 pin) |
 | error-taxonomy | v1.81 | E-INFUSE-007 (PIVOT-001 HIGH-1 UDF-registration failure); E-QUERY-037 boxed emitter + strsim |
 | ARCH-INDEX | v2.133 | — |
 | VP-INDEX | v1.79 | 158 registered |
 | prd | v1.12 | — |
 | policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes |
 | prismql-grammar | v1.1 | enrich function-call form |
-| develop HEAD | 09925bbe | docs(CLAUDE.md) commit 2026-06-15 D-1178; UNCHANGED through D-1180 |
-| Open PRs | PR #189 + PR #190 | PR #189 OPEN (PIVOT-001; pr-reviewer APPROVE + security CLEAR; PR-LEVEL 1/3); PR #190 OPEN (LAUNCHER; pr-reviewer APPROVE + security CLEAR; SEC-001 fix IN FLIGHT) |
+| develop HEAD | 09925bbe | docs(CLAUDE.md) commit 2026-06-15 D-1178; UNCHANGED through D-1181 |
+| Open PRs | PR #189 + PR #190 | PR #189 OPEN (PIVOT-001 v1.10; pr-reviewer APPROVE + security CLEAR; PR-LEVEL 0/3 re-pass IN FLIGHT); PR #190 OPEN (LAUNCHER v2.8; pr-reviewer APPROVE + security CLEAR; PR-LEVEL 0/3 re-pass IN FLIGHT) |
 
 ---
 
@@ -289,20 +289,20 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 | Field | Value |
 |-------|-------|
 | **Mode** | brownfield |
-| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T1–T10+T4-A DONE. T11 (LAUNCHER) PR #190 OPEN (SEC-001 fix IN FLIGHT). PIVOT-001 PR #189 OPEN (PR-LEVEL 1/3). S-3.13 v1.15 LOCAL CONVERGED 3/3. S-5.02 @bc52076a LOCAL 1/3. |
-| **develop HEAD** | `09925bbe` (docs(CLAUDE.md) 2026-06-15 D-1178; UNCHANGED through D-1180) |
-| **STATE version** | v7.823 |
-| **BC-INDEX version** | v6.59 (total 250; active 235; draft 2; retired 6; BC-2.10.011 v1.6 S-5.02 reconciliation; BC-2.06.017 v1.10 active; BC-2.06.018 v1.6 active; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
-| **STORY-INDEX version** | v2.396 (total_stories 200; S-3.13 v1.15/rg22 CONVERGED; PIVOT-001 v1.7; LAUNCHER v2.7) |
+| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T1–T10+T4-A DONE. T11 (LAUNCHER) PR #190 OPEN (PR-LEVEL 0/3 re-pass IN FLIGHT). PIVOT-001 PR #189 OPEN (PR-LEVEL 0/3 re-pass IN FLIGHT). S-3.13 v1.15 LOCAL CONVERGED 3/3. S-5.02 @ea06ff52 LOCAL CONVERGED 3/3. |
+| **develop HEAD** | `09925bbe` (docs(CLAUDE.md) 2026-06-15 D-1178; UNCHANGED through D-1181) |
+| **STATE version** | v7.824 |
+| **BC-INDEX version** | v6.60 (total 250; active 235; draft 2; retired 6; BC-2.19.001 v1.7 D-1181 two-phase fix; BC-2.10.011 v1.6; BC-2.06.017 v1.10 active; BC-2.06.018 v1.6 active; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
+| **STORY-INDEX version** | v2.398 (total_stories 200; S-3.13 v1.15/rg22 CONVERGED; PIVOT-001 v1.10 validators wired; LAUNCHER v2.8 SEC-001 closed; S-5.02 v1.8 BC-2.10.011 v1.6 pin) |
 | **VP-INDEX version** | v1.79 (158 registered) |
 | **ARCH-INDEX version** | v2.133 |
 | **error-taxonomy version** | v1.81 (E-INFUSE-007 PIVOT-001 HIGH-1 UDF-registration failure; E-QUERY-037 boxed emitter + strsim) |
 | **ADR-036 version** | v2.3 (time_anchor 5-arg ruling) |
 | **policies version** | v1.33 (POL-33 route_coverage_table_required_for_stagemask_changes) |
 | **prd version** | v1.12 |
-| **Open PRs** | **PR #189 OPEN** (feature/S-DEMO-ENRICHMENT-PIVOT-001; pr-reviewer APPROVE + security CLEAR; PR-LEVEL adversary 1/3). **PR #190 OPEN** (feature/S-DEMO-LAUNCHER-CONSOLIDATION-001; pr-reviewer APPROVE + security CLEAR; SEC-001 org-slug fix IN FLIGHT). PR #188 MERGED develop@7241f5ef (T10; D-1176 2026-06-15). PR #185 MERGED develop@7fd35b77 (T5). PR #186 MERGED develop@f7400f83 (D-1143). PR #187 MERGED develop@664566e9 (T6; D-1158). |
+| **Open PRs** | **PR #189 OPEN** (feature/S-DEMO-ENRICHMENT-PIVOT-001 @e87e44ea; pr-reviewer APPROVE + security CLEAR; PR-LEVEL adversary 0/3 re-pass IN FLIGHT). **PR #190 OPEN** (feature/S-DEMO-LAUNCHER-CONSOLIDATION-001 @037c44f3; pr-reviewer APPROVE + security CLEAR; SEC-001 CLOSED; PR-LEVEL 0/3 re-pass IN FLIGHT). PR #188 MERGED develop@7241f5ef (T10; D-1176 2026-06-15). PR #185 MERGED develop@7fd35b77 (T5). PR #186 MERGED develop@f7400f83 (D-1143). PR #187 MERGED develop@664566e9 (T6; D-1158). |
 | **T10 branch** | `feature/S-DEMO-004`; MERGED at develop@7241f5ef (2026-06-15); worktree+branch cleaned |
-| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1180 burst) |
+| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1181 burst) |
 
 ---
 
@@ -572,17 +572,17 @@ git log --oneline origin/develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.823"
+# Expected: version: "7.824"
 
 # 4. Confirm active worktrees (S-DEMO-004 worktree REMOVED post-merge)
 ls /Users/jmagady/Dev/prism/.worktrees/
 # Expected: S-3.09 + W3-FIX-S307-001 (parked) + S-5.02 + S-3.13 + S-DEMO-ENRICHMENT-PIVOT-001 + S-DEMO-LAUNCHER-CONSOLIDATION-001
 
-# 5. Confirm factory-artifacts pushed (expect D-1176 burst commit at HEAD)
+# 5. Confirm factory-artifacts pushed (expect D-1181 burst commit at HEAD)
 git -C /Users/jmagady/Dev/prism/.factory log -1 --format='%h %s'
 
-# 6. T10 DONE (D-1176 2026-06-15; PR #188 develop@7241f5ef; all 9 BCs idempotent)
-# NEXT: T11 LAUNCHER @d9098c1f LOCAL re-pass + parallel lanes (PIVOT-001 L1 2/3; S-3.13 L3 fix-in-flight)
+# 6. T10+T11(partial) DONE (D-1181 2026-06-15; PIVOT-001 v1.10 PR-LEVEL 0/3; LAUNCHER v2.8 PR-LEVEL 0/3)
+# NEXT: PIVOT-001 L1 PR-LEVEL 3-CLEAN → merge; LAUNCHER L2 PR-LEVEL 3-CLEAN → merge; S-5.02 L0 demo evidence → PR; S-3.13 L3 demo evidence → PR after PIVOT-001 merges
 ```
 
 ---
