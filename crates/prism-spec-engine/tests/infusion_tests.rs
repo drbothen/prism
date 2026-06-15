@@ -1479,17 +1479,47 @@ output_type = "string"
     let loader = InfusionLoader::new(temp_dir.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
-    // Either: the mmdb spec is loaded but returns UnsupportedSourceType error,
-    // OR: 0 specs loaded and 1 error.
-    // In both cases, the loader must not panic (FAILS RED: unimplemented!()).
-    // Outcome: 0 valid specs + 1 error for the unsupported mmdb type.
-    assert!(
-        !errors.is_empty() || specs.is_empty(),
-        "BC-2.19.001 EC-001: load_all must reject maxmind_mmdb type \
-         (deferred to S-1.14-REDO) with an error, not load it silently. \
-         Got {} specs and {} errors. (FAILS RED: unimplemented!())",
+    // The mmdb spec must produce exactly 1 error (UnknownSourceType) and 0 valid specs.
+    // A regression to any other error variant OR to silent success (0 errors, 1 spec) must fail.
+    assert_eq!(
         specs.len(),
+        0,
+        "BC-2.19.001 EC-001: load_all must not silently load maxmind_mmdb type \
+         (deferred to S-1.14-REDO). Got {} specs (expected 0).",
+        specs.len()
+    );
+    assert_eq!(
+        errors.len(),
+        1,
+        "BC-2.19.001 EC-001: load_all must produce exactly 1 error for maxmind_mmdb type. \
+         Got {} errors.",
         errors.len()
+    );
+
+    // Pin the error variant: must be UnknownSourceType (E-INFUSE-004), not any other variant.
+    match &errors[0] {
+        InfusionError::UnknownSourceType { type_name } => {
+            assert!(
+                type_name.contains("maxmind_mmdb") || type_name.contains("mmdb"),
+                "BC-2.19.001 EC-001: UnknownSourceType error must name the rejected type. \
+                 Got type_name: '{}'",
+                type_name
+            );
+        }
+        other => panic!(
+            "BC-2.19.001 EC-001: expected InfusionError::UnknownSourceType for maxmind_mmdb, \
+             got: {:?}. A regression to a different variant would not be caught by a weak assertion.",
+            other
+        ),
+    }
+
+    // Pin the error code: message must contain E-INFUSE-004.
+    let err_msg = errors[0].to_string();
+    assert!(
+        err_msg.contains("E-INFUSE-004"),
+        "BC-2.19.001 EC-001: UnknownSourceType error message must contain 'E-INFUSE-004'. \
+         Got: '{}'",
+        err_msg
     );
 }
 
