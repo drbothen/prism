@@ -123,12 +123,16 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
         });
 
         // Derive OrgId from org_cfg.org_id (UUID string).
-        // SAFETY: parse_org_id returns Err only for invalid UUIDs; we use expect() with an
-        //         actionable message because this is a programming error path (config was
-        //         validated by from_str with deny_unknown_fields before we get here).
+        // SAFETY: parse_org_id returns Err only for invalid UUIDs. This is a true
+        //         programming-error guard: MultiOrgDemoConfig::from_str validates all
+        //         org_id fields as UUIDs before returning Ok, so any non-UUID value is
+        //         rejected at config parse time (MED-B fix in config.rs). If this expect
+        //         ever fires, it means a MultiOrgDemoConfig was constructed without going
+        //         through from_str / from_file (i.e., a test or code path that bypasses
+        //         the parse boundary — a programming error, not an operator error).
         #[allow(clippy::expect_used)]
         let org_id = crate::harness::parse_org_id(&org_cfg.org_id, entry_name)
-            .expect("org_id in OrgConfig must be a valid UUID (validated at config parse time)");
+            .expect("org_id in OrgConfig must be a valid UUID (validated at config parse time by MultiOrgDemoConfig::from_str)");
 
         // Derive Archetype from "default" fixture_set (start-multi always uses the seeded path).
         // SAFETY: "default" is a known-valid fixture_set; expect() is appropriate here.

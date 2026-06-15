@@ -306,7 +306,10 @@ pub struct OrgConfig {
 impl MultiOrgDemoConfig {
     /// Load configuration from a TOML file at `path`.
     ///
-    /// Mirrors the `DemoConfig::from_file` pattern.
+    /// Mirrors the `DemoConfig::from_file` pattern. Validates org_id UUID strings after
+    /// TOML deserialization — a malformed org_id returns `Err` with an actionable message
+    /// naming the offending entry, rather than panicking later inside the factory closure
+    /// (MED-B: the `.expect()` in `build_multi_clone_factory` is guarded by this validation).
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let contents = std::fs::read_to_string(path)
             .map_err(|e| anyhow::anyhow!("Failed to read multi-org config {:?}: {}", path, e))?;
@@ -318,11 +321,34 @@ impl MultiOrgDemoConfig {
     /// Uses `deny_unknown_fields` on all nested structs — a typo'd key is a parse error,
     /// not a silently-ignored default (BC-2.06.001 invariant).
     ///
+    /// After TOML deserialization, validates every `org_id` field in `orgs` as a
+    /// well-formed UUID. A malformed org_id (e.g. `"not-a-uuid"`) returns `Err` with
+    /// an actionable message naming the offending org entry and value (MED-B fix).
+    /// This makes the claim in `build_multi_clone_factory`'s `.expect()` TRUE: by the
+    /// time the factory runs, all org_ids have been validated as valid UUIDs at parse time.
+    ///
     /// Mirrors the `DemoConfig::from_str` inherent method pattern.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(toml_str: &str) -> anyhow::Result<Self> {
-        toml::from_str(toml_str)
-            .map_err(|e| anyhow::anyhow!("Invalid TOML in multi-org demo config: {}", e))
+        let cfg: Self = toml::from_str(toml_str)
+            .map_err(|e| anyhow::anyhow!("Invalid TOML in multi-org demo config: {}", e))?;
+
+        // MED-B: validate all org_id fields as UUIDs at parse time.
+        // This ensures the `.expect()` in `build_multi_clone_factory` is a true
+        // programming-error guard (not a user-input panic on a typo'd org_id).
+        for (entry_name, org_cfg) in &cfg.orgs {
+            uuid::Uuid::parse_str(&org_cfg.org_id).map_err(|_| {
+                anyhow::anyhow!(
+                    "Invalid multi-org demo config: org '{}' has org_id '{}' which is not a \
+                     valid UUID. Expected a hyphenated UUID v7 string, e.g. \
+                     '0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000'.",
+                    entry_name,
+                    org_cfg.org_id
+                )
+            })?;
+        }
+
+        Ok(cfg)
     }
 }
 
@@ -333,7 +359,7 @@ impl MultiOrgDemoConfig {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::DemoConfig;
+    use super::{DemoConfig, MultiOrgDemoConfig};
 
     /// Non-regression: a known-good minimal config still parses.
     #[test]
@@ -378,5 +404,64 @@ mod tests {
                  finding ⑫, 2026-06-10 review), but it parsed: {toml:?}"
             );
         }
+    }
+
+    // ---------------------------------------------------------------------------
+    // MED-B load-bearing: malformed org_id must yield clean Err at parse time,
+    // not a panic inside the factory closure (which runs on a tokio worker thread
+    // where a panic produces an unrecoverable stack trace rather than an
+    // actionable error message).
+    //
+    // Before the fix, MultiOrgDemoConfig::from_str did ONLY TOML deserialization —
+    // no UUID validation. A typo'd org_id passed parse silently, then panicked in
+    // build_multi_clone_factory when parse_org_id was called inside start_instances.
+    //
+    // After the fix, from_str validates all org_id fields as UUIDs and returns Err
+    // with an actionable message naming the offending entry.
+    // ---------------------------------------------------------------------------
+
+    /// MED-B: a malformed org_id in MultiOrgDemoConfig must be caught at parse time.
+    ///
+    /// Asserts:
+    /// 1. `from_str` returns `Err` (not `Ok`) when any org_id is not a valid UUID.
+    /// 2. The error message names the offending org entry (here `"org-bad"`).
+    /// 3. The error message names the offending value (`"not-a-uuid"`).
+    /// 4. The valid-config case (well-formed UUID) still parses without error.
+    ///
+    /// Proves the fix is load-bearing: if UUID validation is removed from `from_str`,
+    /// this test fails at assertion 1 (parse returns `Ok` instead of `Err`).
+    #[test]
+    fn test_med_b_malformed_org_id_yields_clean_err_not_panic() {
+        // Case 1: malformed org_id — must be a clean Err at from_str call, not a panic.
+        let toml_bad = r#"
+            [orgs.org-bad]
+            org_id = "not-a-uuid"
+            sensors = ["crowdstrike"]
+            seed = 42
+        "#;
+        let result = MultiOrgDemoConfig::from_str(toml_bad);
+        assert!(
+            result.is_err(),
+            "MED-B: from_str must return Err for malformed org_id 'not-a-uuid', got Ok"
+        );
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("org-bad"),
+            "MED-B: error must name the offending org entry ('org-bad'), got: {err_msg}"
+        );
+        assert!(
+            err_msg.contains("not-a-uuid"),
+            "MED-B: error must name the offending value ('not-a-uuid'), got: {err_msg}"
+        );
+
+        // Case 2: well-formed org_id — must still parse successfully.
+        let toml_good = r#"
+            [orgs.org-a]
+            org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0000"
+            sensors = ["crowdstrike"]
+            seed = 100
+        "#;
+        MultiOrgDemoConfig::from_str(toml_good)
+            .expect("MED-B: valid UUID org_id must parse without error");
     }
 }

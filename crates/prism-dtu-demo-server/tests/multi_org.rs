@@ -41,28 +41,20 @@
 
 use prism_dtu_demo_server::{multi_instance::InstanceEntry, MultiOrgDemoConfig};
 
-// Pull in the testable stub functions from main.rs via the crate's test-binary path.
-// These are `pub(crate)` functions that integration tests access through the binary.
+// `build_multi_clone_factory`, `start_multi_for_config`, and `write_multi_url_sidecar_to_path`
+// live in `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` and are re-exported at the
+// library root via `pub use multi_org_cmd::{...}` in `src/lib.rs`.
 //
-// Note: `build_multi_clone_factory` and `start_multi_for_config` live in `main.rs` as
-// `pub(crate)`. Integration tests in `tests/` are compiled as separate crates and
-// cannot access `pub(crate)` items from `main.rs`. They ARE accessible when the test
-// links against the library; however these functions are in the binary target, not the
-// library. We work around this by re-declaring test-visible wrappers below that call
-// through to the functions under the same feature gate.
-//
-// ARCHITECTURE NOTE: The story spec requires `build_multi_clone_factory` and
-// `start_multi_for_config` to be "extracted testable functions". For integration tests
-// to call them directly, they must be re-exported through the library crate
-// (`prism_dtu_demo_server`) rather than being `pub(crate)` in `main.rs`. The
-// implementer must move them to `lib.rs` re-exports or a `pub mod multi_org` module.
-// The tests below assume they are accessible as:
+// Integration tests in `tests/` are compiled as separate crates that link against
+// `prism_dtu_demo_server` (the library target). Because the functions are in a `pub` module
+// re-exported at the crate root, they are directly accessible as:
 //   - `prism_dtu_demo_server::build_multi_clone_factory`
 //   - `prism_dtu_demo_server::start_multi_for_config`
+//   - `prism_dtu_demo_server::write_multi_url_sidecar_to_path`
+//   - `prism_dtu_demo_server::resolve_configure_url`
 //
-// Until the implementer adds those re-exports, RG-004 and RG-005 will fail to COMPILE
-// (not just fail at runtime). This is an acceptable Red Gate failure mode — the test
-// cannot compile because the surface it tests doesn't exist yet.
+// This satisfies the story spec's Architecture Compliance Rule: "extracted testable functions"
+// accessible without subprocess overhead (RG-004 / RG-005 / MED-2 / HIGH-1).
 
 // ---------------------------------------------------------------------------
 // RG-001: MultiOrgDemoConfig parses a valid 3-org TOML
