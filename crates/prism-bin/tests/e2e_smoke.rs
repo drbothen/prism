@@ -1125,9 +1125,9 @@ fn assert_response_has_no_error(envelope: &serde_json::Value) {
         panic!("Response contains unexpected error: {err:?}; envelope: {envelope:?}");
     }
     // Check for ResponseEnvelope-level error status.
-    if let Some(status) = envelope.get("status").and_then(|s| s.as_str()) {
-        if status.contains("error") || status.contains("Error") {
-            panic!("Response has error status '{status}'; envelope: {envelope:?}");
-        }
+    if let Some(status) = envelope.get("status").and_then(|s| s.as_str())
+        && (status.contains("error") || status.contains("Error"))
+    {
+        panic!("Response has error status '{status}'; envelope: {envelope:?}");
     }
 }

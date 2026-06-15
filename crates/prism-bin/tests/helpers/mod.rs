@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
+// Items in this helpers module are used selectively by different test binaries
+// (e2e_smoke, e2e_multi_org, plugin_boot_tests, bc_2_10_006_mcp_stdout_purity).
+// Each item is used by at least one binary; the ones not used by all binaries
+// are correctly reported as dead_code by the per-binary perspective.
+#![allow(dead_code)]
 //! Test helpers for S-DEMO-002 E2E subprocess smoke test.
 //!
 //! Provides:
@@ -100,7 +105,7 @@ const DTU_E2E_CLAROTY_BEARER_TOKEN: &str = "dtu-e2e-claroty-bearer-token";
 /// Values are `"http://127.0.0.1:<port>"` strings.
 ///
 /// DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
-/// AdapterRegistry layer only (AC-013 scope clarification).
+/// AdapterRegistry layer only.
 #[derive(Debug, Default)]
 pub struct DtuPorts {
     pub urls: HashMap<String, String>,
@@ -346,7 +351,7 @@ pub fn write_demo_config(config_dir: &Path, dtu_ports: &DtuPorts) -> Result<(), 
 // write_multi_org_demo_config (3-org)
 // ---------------------------------------------------------------------------
 
-/// Write a prism.toml with 3 orgs configured for multi-tenant isolation tests (AC-011..013).
+/// Write a prism.toml with 3 orgs configured for multi-tenant isolation tests (S-DEMO-004 AC-001..AC-010).
 ///
 /// Org layout:
 /// - `demo-org-a` (UUIDv7): CrowdStrike + Armis (2 sensors)
@@ -359,9 +364,7 @@ pub fn write_demo_config(config_dir: &Path, dtu_ports: &DtuPorts) -> Result<(), 
 /// DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
 /// AdapterRegistry layer only. Two different orgs that both have CrowdStrike
 /// point to the same DTU clone port — they receive the same fixture data.
-/// This is by design (AC-013).
-///
-/// AC-011 expected result: `AdapterRegistry.len() == 8` (2+2+4 entries).
+/// This is by design (S-DEMO-002 scope; per-org DTU isolation is S-DEMO-004 scope).
 pub fn write_multi_org_demo_config(config_dir: &Path, dtu_ports: &DtuPorts) -> Result<(), String> {
     // Fixed UUIDv7 values for deterministic multi-org tests.
     // BC-2.21.001: org_id must be UUID v7.
@@ -710,7 +713,7 @@ impl McpStdioHandle {
     /// as `Err`. Instead it returns `Ok(full_response_json)` so callers can inspect
     /// the `"error"` field.  Only I/O and parse failures are returned as `Err`.
     ///
-    /// Used by AC-012 (cross-org isolation): the `query` handler returns a
+    /// Used by AC-005 (S-DEMO-004 cross-org isolation): the `query` handler returns a
     /// JSON-RPC error (code -32602) when `resolve_source_refs` raises E-QUERY-032
     /// (sensor not registered for the requesting org); the test must capture that
     /// error object and verify it carries the E-QUERY-032 signal — it must NOT panic.
@@ -809,7 +812,7 @@ impl McpStdioHandle {
 
     /// Send `tools/call` for the `query` MCP tool scoped to a specific org.
     ///
-    /// Used by AC-012/AC-013 to query from a specific org context (BC-2.11.001 scoping).
+    /// Used by AC-002..AC-009 (S-DEMO-004) to query from a specific org context (BC-2.11.001 scoping).
     /// The org scope is passed via `clients: [org_slug]` (array of strings) — NOT `org_slug`.
     /// `QueryToolParams` uses `clients: Option<Vec<String>>` and has `#[serde(deny_unknown_fields)]`;
     /// passing `org_slug` would be rejected at deserialization before isolation logic runs.
@@ -823,7 +826,7 @@ impl McpStdioHandle {
 
     /// Send `tools/call` for the `query` tool scoped to an org, expecting a JSON-RPC error.
     ///
-    /// Used exclusively by AC-012 (cross-org isolation). When `resolve_source_refs`
+    /// Used exclusively by AC-005 (S-DEMO-004 cross-org isolation). When `resolve_source_refs`
     /// raises E-QUERY-032 (sensor not registered for the requesting org), the MCP server
     /// emits a JSON-RPC error response with code -32602.
     /// `tool_query_scoped` (which calls `send_request`) would propagate this as `Err` and
@@ -853,6 +856,19 @@ impl McpStdioHandle {
     }
 
     /// Internal: send `tools/call` for the `query` tool with optional org scoping.
+    ///
+    /// Returns a normalized ResponseEnvelope with:
+    /// - `rows` at the top level (from `results.rows` or `structuredContent.results.rows`)
+    /// - `_meta` at the top level with `data_source` normalized to a string
+    ///   (if the server returns `data_source` as an array, we extract the first element)
+    /// - All other top-level fields preserved for assertion by tests
+    ///
+    /// This normalization is necessary because:
+    /// 1. MCP `tools/call` wraps the result in `{ "content": [...], "structuredContent": {...} }`.
+    /// 2. Prism's `query` tool may return `content[0].text` as a human summary ("N results found")
+    ///    rather than a JSON blob — so we cannot rely on parsing the text field as JSON.
+    /// 3. Tests in `e2e_multi_org.rs` access `result.get("rows")` (top-level) and
+    ///    `result.get("_meta").get("data_source").as_str()` — requiring this normalization.
     fn tool_query_with_params(
         &mut self,
         pql: &str,
@@ -865,7 +881,7 @@ impl McpStdioHandle {
             input["clients"] = serde_json::json!([slug]);
         }
 
-        let result = self.send_request(
+        let raw = self.send_request(
             "tools/call",
             serde_json::json!({
                 "name": "query",
@@ -873,23 +889,76 @@ impl McpStdioHandle {
             }),
         )?;
 
-        // Extract the text content from the MCP tools/call response.
-        // MCP tools/call result shape: { "content": [{ "type": "text", "text": "<json>" }], ... }
-        if let Some(content) = result.get("content") {
-            if let Some(text) = content
-                .as_array()
-                .and_then(|a| a.first())
-                .and_then(|c| c.get("text"))
-                .and_then(|t| t.as_str())
-            {
-                return serde_json::from_str(text).map_err(|e| {
-                    format!("Failed to parse tool_query response text as JSON: {e}; text: {text}")
-                });
-            }
-        }
+        // Prism's query MCP tool embeds the full ResponseEnvelope JSON as a string
+        // inside content[0].text.  The outer MCP `tools/call` result wrapper looks like:
+        //
+        //   raw = {
+        //     "content": [{"type": "text", "text": "<ResponseEnvelope JSON string>"}],
+        //     "structuredContent": { ... },
+        //     "isError": false,
+        //   }
+        //
+        // where the ResponseEnvelope JSON string is:
+        //
+        //   {
+        //     "_meta": { "data_source": ["sensor_name"], "total_results": N, ... },
+        //     "content": [{"type": "text", "text": "N results found"}],
+        //     "results": { "rows": [...], "returned_results": N, ... },
+        //     "structuredContent": { "results": { ... } }
+        //   }
+        //
+        // We pick the richest source available (text_json if it parses, else raw),
+        // then normalize to the shape tests expect:
+        //   { "rows": [...], "_meta": { "data_source": "sensor_name", ... }, ... }
 
-        // Return the raw result if content extraction failed.
-        Ok(result)
+        // Unwrap content[0].text if it's a valid JSON object (the ResponseEnvelope path).
+        let envelope: serde_json::Value = raw
+            .get("content")
+            .and_then(|c| c.as_array())
+            .and_then(|a| a.first())
+            .and_then(|c| c.get("text"))
+            .and_then(|t| t.as_str())
+            .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok())
+            .filter(|v| v.is_object())
+            .unwrap_or(raw);
+
+        // Extract rows: envelope.results.rows (primary) → envelope.structuredContent.results.rows.
+        let rows = envelope
+            .get("results")
+            .and_then(|r| r.get("rows"))
+            .cloned()
+            .or_else(|| {
+                envelope
+                    .get("structuredContent")
+                    .and_then(|sc| sc.get("results"))
+                    .and_then(|r| r.get("rows"))
+                    .cloned()
+            });
+
+        // Normalize _meta.data_source from Array → String (first element).
+        // Tests use `.as_str()` which requires a JSON String, not an Array.
+        let normalized_meta = envelope.get("_meta").cloned().map(|mut meta| {
+            if let Some(ds_array) = meta
+                .get("data_source")
+                .and_then(|ds| ds.as_array())
+                .map(|a| a.to_owned())
+                && let Some(first) = ds_array.first().and_then(|s| s.as_str())
+            {
+                meta["data_source"] = serde_json::Value::String(first.to_string());
+            }
+            meta
+        });
+
+        // Build normalized result: start from envelope, add top-level `rows` and
+        // replace `_meta` with the normalized version.
+        let mut normalized = envelope;
+        if let Some(rows) = rows {
+            normalized["rows"] = rows;
+        }
+        if let Some(meta) = normalized_meta {
+            normalized["_meta"] = meta;
+        }
+        Ok(normalized)
     }
 }
 
@@ -1135,29 +1204,777 @@ pub async fn launch_prism_bin(
 // locate_binary
 // ---------------------------------------------------------------------------
 
-/// Locate a workspace binary by name.
+// Locate a workspace binary by name.
+//
+// Search order:
+// 1. `CARGO_BIN_EXE_<name>` env var (set by cargo for binaries in the same package).
+//    NOTE: `CARGO_BIN_EXE_*` is only populated for binaries declared in the SAME
+//    package as the integration test binary. Cross-package binaries (`prism`,
+//    `prism-dtu-demo-server`) are NOT set by cargo from within `prism-bin`'s test
+//    harness. The env-var path is kept as a forward-compatibility hook.
+// 2. Workspace `target/release/<name>` — the release binary is required by
+//    Architecture Compliance Rule 5 (30-second subprocess timeout assumes release
+//    performance). This is the documented precondition for running E2E tests.
+// 3. Workspace `target/debug/<name>` — fallback ONLY when release is absent.
+//    NOT silent: emits a visible `eprintln!` diagnostic before returning the path.
+//    Debug binaries may cause E2E timeout failures (30s limit assumes release speed).
+// 4. Returns `Err(...)` with an actionable `cargo build --release` message if
+//    neither release nor debug binary exists.
+//
+// OBS-1: There is NO silent fallback path. Every binary selection path either
+// returns `Ok` with a log/diagnostic or returns `Err` with a clear message.
+//
+// Precondition:
+// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
+// The CI e2e profile ensures this; local runs require the manual build step.
+// ---------------------------------------------------------------------------
+// S-DEMO-004: Multi-org harness helpers
+// ---------------------------------------------------------------------------
+//
+// BackgroundHarness: wraps a MultiInstanceHarness running on a dedicated
+// multi-thread tokio runtime in a background thread. This is REQUIRED because
+// the E2E tests use `#[tokio::test]` (current-thread runtime) and synchronous
+// `std::io::BufReader::read_line` to read prism's stdout. That blocking call
+// starves all tokio tasks in the current-thread runtime, including the in-process
+// DTU clone axum server tasks — causing every sensor HTTP request from prism to
+// time out (30s) because the DTU server cannot accept connections.
+//
+// Root cause: current-thread tokio runtime + blocking `read_line` = deadlock on
+// any in-process async server (DTU clones) that prism is trying to reach.
+//
+// Fix: run the MultiInstanceHarness (and its axum server tasks) on a separate
+// multi-thread tokio runtime in a background thread. The blocking `read_line`
+// can't affect that background runtime. The socket_map is extracted and copied
+// for use from the test thread (write_multi_org_overlays only needs socket addresses).
+
+/// A guard that keeps a `MultiInstanceHarness` alive on a dedicated background
+/// tokio multi-thread runtime, decoupled from the test's current-thread runtime.
 ///
-/// Search order:
-/// 1. `CARGO_BIN_EXE_<name>` env var (set by cargo for binaries in the same package).
-///    NOTE: `CARGO_BIN_EXE_*` is only populated for binaries declared in the SAME
-///    package as the integration test binary. Cross-package binaries (`prism`,
-///    `prism-dtu-demo-server`) are NOT set by cargo from within `prism-bin`'s test
-///    harness. The env-var path is kept as a forward-compatibility hook.
-/// 2. Workspace `target/release/<name>` — the release binary is required by
-///    Architecture Compliance Rule 5 (30-second subprocess timeout assumes release
-///    performance). This is the documented precondition for running E2E tests.
-/// 3. Workspace `target/debug/<name>` — fallback ONLY when release is absent.
-///    NOT silent: emits a visible `eprintln!` diagnostic before returning the path.
-///    Debug binaries may cause E2E timeout failures (30s limit assumes release speed).
-/// 4. Returns `Err(...)` with an actionable `cargo build --release` message if
-///    neither release nor debug binary exists.
+/// `BackgroundHarness` exposes the `socket_map()` extracted at start time.
+/// When dropped, it sends a shutdown signal that terminates the background thread
+/// and its runtime (which in turn shuts down the DTU clone axum servers via the
+/// harness's broadcast shutdown channel).
 ///
-/// OBS-1: There is NO silent fallback path. Every binary selection path either
-/// returns `Ok` with a log/diagnostic or returns `Err` with a clear message.
+/// # Why this is needed (current-thread deadlock prevention)
 ///
-/// # Precondition
-/// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
-/// The CI e2e profile ensures this; local runs require the manual build step.
+/// `#[tokio::test]` uses a current-thread runtime. When the test calls the
+/// synchronous `send_request` / `read_line`, the current thread is blocked.
+/// Since only one thread runs the tokio tasks, the in-process DTU clone axum servers
+/// cannot accept connections while the test is waiting for prism's response.
+/// Running the harness on a SEPARATE multi-thread runtime in a background thread
+/// ensures the DTU clone tasks run independently of any blocking on the test thread.
+pub struct BackgroundHarness {
+    /// Extracted socket_map from MultiInstanceHarness — (org_slug, sensor_id) → SocketAddr.
+    /// Exposed via socket_map() for use by write_multi_org_overlays.
+    socket_map: std::collections::HashMap<(String, String), std::net::SocketAddr>,
+    /// Shutdown signal sender. Wrapped in `Option<_>` so the explicit `Drop` impl
+    /// can take ownership (to drop it first) before joining the thread.
+    ///
+    /// The sender is always `Some` except after `Drop::drop` has taken it.
+    _shutdown_tx: Option<std::sync::mpsc::SyncSender<()>>,
+    /// Background thread handle. `Option<_>` so that `Drop::drop` can take
+    /// ownership for the join call (O-02: deterministic teardown).
+    ///
+    /// Always `Some` except after `Drop::drop` has taken it.
+    _thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl BackgroundHarness {
+    /// Return the socket_map from the MultiInstanceHarness: (org_slug, sensor_id) → SocketAddr.
+    ///
+    /// Used by `write_multi_org_overlays` to write per-org overlay TOML files.
+    pub fn socket_map(&self) -> &std::collections::HashMap<(String, String), std::net::SocketAddr> {
+        &self.socket_map
+    }
+}
+
+impl Drop for BackgroundHarness {
+    fn drop(&mut self) {
+        // O-02: deterministic teardown.
+        //
+        // ORDERING IS CRITICAL:
+        //   1. Drop `_shutdown_tx` FIRST — this closes the sync_channel, causing
+        //      the background thread's `shutdown_rx.recv()` to return `Err(RecvError)`.
+        //      The thread then exits (dropping the harness + axum servers).
+        //   2. Join `_thread` AFTER — by then the thread is already exiting/exited,
+        //      so join returns quickly. Ensures the axum DTU clone servers have
+        //      fully drained before the test harness tears down.
+        //
+        // Without this explicit ordering, a naive `Drop` impl that called `join()`
+        // first would deadlock because `_shutdown_tx` would still be alive (not yet
+        // dropped by field-drop, which runs after `Drop::drop` returns).
+        drop(self._shutdown_tx.take()); // closes channel → thread exits
+        if let Some(handle) = self._thread.take() {
+            let _ = handle.join(); // wait for thread to finish
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-004 multi-org harness helpers (GREEN — implemented)
+//
+// Seeds (fixed per story risk_mitigations):
+//   org-a crowdstrike: 100  |  org-a armis: 110
+//   org-b claroty:     120  |  org-b cyberint: 130
+//   org-c crowdstrike: 200  |  org-c armis:    210
+//   org-c claroty:     220  |  org-c cyberint: 230
+//
+// Org UUIDs (fixed UUIDv7 for deterministic tests, BC-2.21.001):
+//   org-a: "019700a0-0000-7000-8000-000000000021"
+//   org-b: "019700a0-0000-7000-8000-000000000022"
+//   org-c: "019700a0-0000-7000-8000-000000000023"
+//
+// CRITICAL: 8hex prefix for device ID assertions MUST be derived from
+// hex(org_id.as_bytes()[0..4]) of the UUID assigned above — NOT the human slug.
+// E.g., for "019700a0-0000-7000-8000-000000000021", bytes[0..4] = [0x01, 0x97, 0x00, 0xa0]
+// → 8hex = "019700a0". Device IDs for org-a CrowdStrike match "dev-019700a0-100-\d+".
+//
+// Story: S-DEMO-004
+// BCs: BC-3.2.001, BC-2.06.017, BC-2.06.018
+// ---------------------------------------------------------------------------
+
+/// Fixed UUIDv7 org IDs used in all S-DEMO-004 multi-org tests (BC-2.21.001).
+///
+/// These MUST match the org_id values written in write_multi_org_prism_toml()
+/// and the OrgId bytes passed to new_with_seed() in start_multi_org_harness().
+///
+/// Device ID 8hex prefix is derived from hex(org_id.as_bytes()[0..4]):
+///   ORG_A_ID bytes[0..4] = [0x01, 0x97, 0x00, 0xa0] → "019700a0"
+///   ORG_B_ID bytes[0..4] = [0x01, 0x97, 0x00, 0xa0] → "019700a0"  (same first 4 bytes)
+///   ORG_C_ID bytes[0..4] = [0x01, 0x97, 0x00, 0xa0] → "019700a0"  (same first 4 bytes)
+///
+/// IMPORTANT: since these UUIDs share the same first 4 bytes (they are all v7
+/// UUIDs in the same time bucket), INV-DISTINCT-DATA-001 is proven by the SEED
+/// component of the ID ("dev-{8hex}-{seed}-{n}") rather than the 8hex alone:
+///   org-a IDs: "dev-019700a0-100-N"
+///   org-c IDs: "dev-019700a0-200-N"
+/// The seed component (100 vs 200) makes the sets structurally disjoint.
+pub const ORG_A_ID: &str = "019700a0-0000-7000-8000-000000000021";
+pub const ORG_A_SLUG: &str = "org-a";
+pub const ORG_B_ID: &str = "019700a0-0000-7000-8000-000000000022";
+pub const ORG_B_SLUG: &str = "org-b";
+pub const ORG_C_ID: &str = "019700a0-0000-7000-8000-000000000023";
+pub const ORG_C_SLUG: &str = "org-c";
+
+/// Seeds per (org, sensor) pair for S-DEMO-004.
+///
+/// Seeds are DISTINCT across orgs sharing the same sensor type (org-a and org-c both
+/// have CrowdStrike; seeds 100 vs 200 satisfy INV-DISTINCT-DATA-001 per BC-2.06.018).
+pub const SEED_ORG_A_CROWDSTRIKE: u64 = 100;
+pub const SEED_ORG_A_ARMIS: u64 = 110;
+pub const SEED_ORG_B_CLAROTY: u64 = 120;
+pub const SEED_ORG_B_CYBERINT: u64 = 130;
+pub const SEED_ORG_C_CROWDSTRIKE: u64 = 200;
+pub const SEED_ORG_C_ARMIS: u64 = 210;
+pub const SEED_ORG_C_CLAROTY: u64 = 220;
+pub const SEED_ORG_C_CYBERINT: u64 = 230;
+
+/// Start a `MultiInstanceHarness` with 8 DTU clone instances for the 3-org test matrix.
+///
+/// Org/sensor matrix:
+///   org-a: crowdstrike (seed=100), armis (seed=110)
+///   org-b: claroty (seed=120), cyberint (seed=130)
+///   org-c: crowdstrike (seed=200), armis (seed=210), claroty (seed=220), cyberint (seed=230)
+///
+/// Each clone is constructed via `new_with_seed(seed, Archetype::HealthyOtEnvironment, org_id)`.
+/// `ArmisClone::new_with_seed` and `CyberintClone::new_with_seed` are fallible (return
+/// `anyhow::Result<Self>`); `CrowdstrikeClone` and `ClarotyClone` are infallible.
+///
+/// Returns (harness, tempdir) — tempdir is kept alive by the caller for the test duration.
+/// The harness socket_map is keyed by (org_slug, sensor_id) plain strings.
+///
+/// # E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+///
+/// # Current-thread deadlock prevention
+///
+/// `#[tokio::test]` uses a current-thread runtime. Calling blocking `read_line` on
+/// prism's stdout starves all tasks in that runtime — including any in-process axum
+/// server tasks. To avoid deadlock, this function builds the harness on a SEPARATE
+/// multi-thread tokio runtime in a background thread, then extracts the socket_map
+/// and returns a `BackgroundHarness` guard. The test thread can then block freely.
+///
+/// The function is `async` so test callers can use `.await` (tests use `#[tokio::test]`).
+/// Internally, the background thread + its own dedicated multi-thread runtime are set up via
+/// `std::thread::spawn`, which creates a raw OS thread that owns a new
+/// `tokio::runtime::Builder::new_multi_thread()` runtime. The runtime runs the harness's
+/// axum server tasks independently of anything on the test thread.
+pub async fn start_multi_org_harness() -> (BackgroundHarness, TempDir) {
+    use prism_dtu_armis::ArmisClone;
+    use prism_dtu_claroty::ClarotyClone;
+    use prism_dtu_common::{Archetype, BehavioralClone as _, OrgId};
+    use prism_dtu_crowdstrike::CrowdstrikeClone;
+    use prism_dtu_cyberint::CyberintClone;
+    use prism_dtu_harness::multi_instance::HarnessEntry;
+
+    // Parse org UUIDs into OrgId([u8; 16]) — pattern from harness.rs parse_org_id.
+    let make_org_id = |uuid_str: &str| -> OrgId {
+        let uuid = uuid::Uuid::parse_str(uuid_str).expect("org UUID must be valid");
+        OrgId(*uuid.as_bytes())
+    };
+
+    let org_id_a = make_org_id(ORG_A_ID);
+    let org_id_b = make_org_id(ORG_B_ID);
+    let org_id_c = make_org_id(ORG_C_ID);
+
+    let archetype = Archetype::HealthyOtEnvironment;
+
+    // Build 8 HarnessEntry items — one per (org_slug, sensor_id) pair.
+    // HarnessEntry is #[non_exhaustive]; MUST use HarnessEntry::new() (not struct-literal).
+    // ArmisClone::new_with_seed and CyberintClone::new_with_seed are fallible — propagate
+    // via .expect() (test code; panic is acceptable per #[allow(unwrap_used)] in lints).
+    // OrgId is Clone (not Copy) — clone when reusing across multiple constructors.
+    // Archetype is Copy — no clone needed.
+    let entries: Vec<HarnessEntry> = vec![
+        // org-a: CrowdStrike (seed=100) — infallible constructor
+        HarnessEntry::new(
+            ORG_A_SLUG,
+            "crowdstrike",
+            Box::new(CrowdstrikeClone::new_with_seed(
+                SEED_ORG_A_CROWDSTRIKE,
+                archetype,
+                org_id_a.clone(),
+            )),
+        ),
+        // org-a: Armis (seed=110) — fallible constructor
+        HarnessEntry::new(
+            ORG_A_SLUG,
+            "armis",
+            Box::new(
+                ArmisClone::new_with_seed(SEED_ORG_A_ARMIS, archetype, org_id_a)
+                    .expect("ArmisClone::new_with_seed for org-a must succeed"),
+            ),
+        ),
+        // org-b: Claroty (seed=120) — infallible constructor
+        HarnessEntry::new(
+            ORG_B_SLUG,
+            "claroty",
+            Box::new(ClarotyClone::new_with_seed(
+                SEED_ORG_B_CLAROTY,
+                archetype,
+                org_id_b.clone(),
+            )),
+        ),
+        // org-b: Cyberint (seed=130) — fallible constructor
+        // Register the E2E access token before boxing so prism's Cookie header passes auth.
+        // CyberintClone::new_with_seed does NOT pre-register any access token; without this
+        // step the access_token_allowlist is empty and every query returns 0 results (AC-007).
+        HarnessEntry::new(ORG_B_SLUG, "cyberint", {
+            let cy_b = CyberintClone::new_with_seed(SEED_ORG_B_CYBERINT, archetype, org_id_b)
+                .expect("CyberintClone::new_with_seed for org-b must succeed");
+            cy_b.configure(serde_json::json!({"access_token": DTU_E2E_CYBERINT_ACCESS_TOKEN}))
+                .await
+                .expect("CyberintClone configure (org-b access_token) must succeed");
+            Box::new(cy_b) as Box<dyn prism_dtu_common::BehavioralClone>
+        }),
+        // org-c: CrowdStrike (seed=200) — infallible constructor; DISTINCT seed from org-a (100≠200)
+        HarnessEntry::new(
+            ORG_C_SLUG,
+            "crowdstrike",
+            Box::new(CrowdstrikeClone::new_with_seed(
+                SEED_ORG_C_CROWDSTRIKE,
+                archetype,
+                org_id_c.clone(),
+            )),
+        ),
+        // org-c: Armis (seed=210) — fallible constructor
+        HarnessEntry::new(
+            ORG_C_SLUG,
+            "armis",
+            Box::new(
+                ArmisClone::new_with_seed(SEED_ORG_C_ARMIS, archetype, org_id_c.clone())
+                    .expect("ArmisClone::new_with_seed for org-c must succeed"),
+            ),
+        ),
+        // org-c: Claroty (seed=220) — infallible constructor
+        HarnessEntry::new(
+            ORG_C_SLUG,
+            "claroty",
+            Box::new(ClarotyClone::new_with_seed(
+                SEED_ORG_C_CLAROTY,
+                archetype,
+                org_id_c.clone(),
+            )),
+        ),
+        // org-c: Cyberint (seed=230) — fallible constructor
+        // Register the E2E access token before boxing (same reason as org-b above).
+        HarnessEntry::new(ORG_C_SLUG, "cyberint", {
+            let cy_c = CyberintClone::new_with_seed(SEED_ORG_C_CYBERINT, archetype, org_id_c)
+                .expect("CyberintClone::new_with_seed for org-c must succeed");
+            cy_c.configure(serde_json::json!({"access_token": DTU_E2E_CYBERINT_ACCESS_TOKEN}))
+                .await
+                .expect("CyberintClone configure (org-c access_token) must succeed");
+            Box::new(cy_c) as Box<dyn prism_dtu_common::BehavioralClone>
+        }),
+    ];
+
+    let tempdir = TempDir::new().expect("failed to create temp dir for multi-org harness");
+
+    // --- BackgroundHarness: run DTU clones on a dedicated multi-thread runtime ---
+    //
+    // The test uses #[tokio::test] (current-thread runtime). When the test blocks on
+    // synchronous `read_line`, no tokio tasks in that runtime can execute — including
+    // any in-process axum server tasks. To prevent deadlock, start the harness on a
+    // SEPARATE multi-thread tokio runtime in a background thread.
+    //
+    // Channel protocol:
+    //   (a) `socket_tx` / `socket_rx` — tokio oneshot: background thread sends the
+    //       extracted socket_map after the harness starts; async fn `.await`s on it.
+    //   (b) `shutdown_tx` — std SyncSender: when BackgroundHarness is dropped (test
+    //       teardown), this is dropped, closing the channel. The background thread
+    //       receives `Err(RecvError)` from `shutdown_rx.recv()` and exits, dropping
+    //       the harness (which fires MultiInstanceHarness::drop → graceful-shutdown).
+    let (socket_tx, socket_rx) = tokio::sync::oneshot::channel::<
+        std::collections::HashMap<(String, String), std::net::SocketAddr>,
+    >();
+    let (shutdown_tx, shutdown_rx) = std::sync::mpsc::sync_channel::<()>(0);
+
+    let thread = std::thread::spawn(move || {
+        // Build a multi-thread tokio runtime in this background thread.
+        // This runtime owns the DTU clone axum server tasks — it runs independently
+        // of anything happening on the test thread.
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("BackgroundHarness: failed to build multi-thread tokio runtime");
+
+        // Start the harness inside the runtime.
+        let harness = rt
+            .block_on(prism_dtu_harness::multi_instance::MultiInstanceHarness::start(entries))
+            .expect("MultiInstanceHarness::start must succeed for all 8 clone entries");
+
+        // Extract and send the socket_map to the test thread via oneshot.
+        let map = harness.socket_map().clone();
+        // send() is infallible on the happy path (receiver alive until .await completes).
+        let _ = socket_tx.send(map);
+
+        // Keep the harness alive (and thus the axum server tasks running) until
+        // the test is done. Block here waiting for the shutdown signal.
+        // When BackgroundHarness is dropped, shutdown_tx is dropped, closing the
+        // channel, and `recv()` returns Err(RecvError) → we exit, dropping harness.
+        let _ = shutdown_rx.recv(); // Err(RecvError) on shutdown_tx drop = expected
+        // harness dropped here → MultiInstanceHarness::drop fires shutdown_tx.send(())
+        // → axum graceful-shutdown receivers wake → servers drain → thread exits.
+        drop(harness);
+    });
+
+    // Receive the socket_map from the background thread (.await is non-blocking to the
+    // current-thread runtime — it just yields until the background thread sends the map).
+    let socket_map = socket_rx
+        .await
+        .expect("BackgroundHarness: socket_rx must receive socket_map (background thread alive)");
+
+    let bg_harness = BackgroundHarness {
+        socket_map,
+        _shutdown_tx: Some(shutdown_tx),
+        _thread: Some(thread),
+    };
+
+    (bg_harness, tempdir)
+}
+
+/// Write per-org overlay TOML files from the harness socket_map into `tempdir/specs/customers/`.
+///
+/// Calls `prism_dtu_harness::overlay_wiring::write_overlay_from_socket_map(harness.socket_map(), specs_dir)`
+/// where `specs_dir = tempdir.path().join("specs")`.
+///
+/// The overlay files are written under `{tempdir}/specs/customers/{org_slug}/{sensor_id}.sensor.toml`
+/// per BC-2.06.017 Postcondition 3 (overlay integration end-to-end). The `specs` directory is
+/// created if not present. prism.toml sets `spec_dir = {tempdir}/specs` so the overlay walk
+/// resolves to the correct customer sub-directory.
+///
+/// # Note on harness type
+///
+/// Takes `&BackgroundHarness` (not `&MultiInstanceHarness`) because the harness
+/// runs on a background thread's multi-thread tokio runtime to avoid the
+/// current-thread deadlock (see `start_multi_org_harness` doc comment).
+pub fn write_multi_org_overlays(
+    harness: &BackgroundHarness,
+    tempdir: &TempDir,
+) -> Result<(), String> {
+    // Create {tempdir}/specs if not yet present (write_overlay_from_socket_map writes
+    // {specs_dir}/customers/{org}/{sensor}.sensor.toml).
+    let specs_dir = tempdir.path().join("specs");
+    std::fs::create_dir_all(&specs_dir)
+        .map_err(|e| format!("Failed to create specs dir '{}': {e}", specs_dir.display()))?;
+
+    prism_dtu_harness::overlay_wiring::write_overlay_from_socket_map(
+        harness.socket_map(),
+        specs_dir.as_path(),
+    )
+    .map_err(|e| {
+        format!(
+            "write_overlay_from_socket_map failed for multi-org harness \
+             (BC-2.06.017 Postcondition 3): {e}"
+        )
+    })
+}
+
+/// Write a 3-org prism.toml to `tempdir` for the S-DEMO-004 multi-org test.
+///
+/// Writes:
+///   - `{tempdir}/prism.toml` with 3 `[[orgs]]` entries (org-a, org-b, org-c)
+///     using the fixed UUIDv7 IDs from ORG_A_ID / ORG_B_ID / ORG_C_ID.
+///   - Sets `spec_dir = {tempdir}/specs`, `state_dir`, `plugin_dir` paths within the tempdir.
+///
+/// The per-org overlay TOML files are already written by `write_multi_org_overlays` under
+/// `{tempdir}/specs/customers/{org_slug}/{sensor_id}.sensor.toml`; this function writes the
+/// top-level prism.toml that references `{tempdir}/specs` as `spec_dir`.
+///
+/// Also copies canonical TYPE specs from the workspace sensor specs directory
+/// (`crates/prism-sensors/specs/`) into `{tempdir}/specs/`, stages the
+/// crowdstrike-oauth2 plugin, and creates the `state/` and `plugins/` directories.
+///
+/// # Pattern
+/// Mirrors `write_org_config()` — see the S-DEMO-002 helper for the established pattern.
+///
+/// Story: S-DEMO-004 AC-001..AC-010
+pub fn write_multi_org_prism_toml(tempdir: &TempDir) -> Result<(), String> {
+    let config_dir = tempdir.path();
+    let specs_dir = config_dir.join("specs");
+    let state_dir = config_dir.join("state");
+    let plugins_dir = config_dir.join("plugins");
+
+    // Create required directories (specs_dir may already exist from write_multi_org_overlays).
+    for dir in [&specs_dir, &state_dir, &plugins_dir] {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| format!("Failed to create directory '{}': {e}", dir.display()))?;
+    }
+
+    // Stage the crowdstrike-oauth2 plugin (required by crowdstrike.sensor.toml auth_plugin field).
+    // Without this, boot step 7.5b raises BootError::UnknownAuthPlugin before MCP binds (EC-002).
+    stage_crowdstrike_plugin(&plugins_dir)?;
+
+    // Copy canonical TYPE specs from workspace into temp specs_dir.
+    let workspace_specs = workspace_sensor_specs_dir();
+    for sensor_id in ["crowdstrike", "armis", "claroty", "cyberint"] {
+        let src = workspace_specs.join(format!("{sensor_id}.sensor.toml"));
+        let dst = specs_dir.join(format!("{sensor_id}.sensor.toml"));
+        std::fs::copy(&src, &dst).map_err(|e| {
+            format!(
+                "Failed to copy sensor spec '{}' → '{}': {e}",
+                src.display(),
+                dst.display()
+            )
+        })?;
+    }
+
+    // Build [[orgs]] TOML section for all 3 orgs.
+    // org_id UUIDs MUST match those used in start_multi_org_harness() / new_with_seed() calls
+    // so device ID 8hex prefixes derive consistently from the same UUID bytes.
+    let orgs_toml = format!(
+        "\n[[orgs]]\norg_id = \"{ORG_A_ID}\"\norg_slug = \"{ORG_A_SLUG}\"\n\
+         \n[[orgs]]\norg_id = \"{ORG_B_ID}\"\norg_slug = \"{ORG_B_SLUG}\"\n\
+         \n[[orgs]]\norg_id = \"{ORG_C_ID}\"\norg_slug = \"{ORG_C_SLUG}\"\n"
+    );
+
+    // Write prism.toml — Windows-safe path serialization via {:?} (matches write_org_config pattern).
+    let prism_toml = format!(
+        "# Generated by S-DEMO-004 multi-org E2E test harness — do not edit manually.\n\
+         spec_dir   = {:?}\n\
+         state_dir  = {:?}\n\
+         plugin_dir = {:?}\n\
+         {}\n",
+        specs_dir.display(),
+        state_dir.display(),
+        plugins_dir.display(),
+        orgs_toml.trim()
+    );
+
+    let prism_toml_path = config_dir.join("prism.toml");
+    std::fs::write(&prism_toml_path, &prism_toml)
+        .map_err(|e| format!("Failed to write prism.toml: {e}"))
+}
+
+/// Launch `prism start` with per-org credential env vars for the 3-org multi-tenant test.
+///
+/// Sets PRISM_CLIENTS_ORG_{A,B,C}_SENSORS_* env vars for all sensors active per org:
+///   org-a: crowdstrike (client_id, client_secret), armis (bearer_token)
+///   org-b: claroty (bearer_token), cyberint (api_key)
+///   org-c: all 4 sensors
+///
+/// The org slug env prefix is ORG_A_SLUG.replace('-', '_').to_uppercase() → "ORG_A", etc.
+/// Per ADR-032 / BC-2.06.003 v1.3: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}.
+///
+/// Also sets RUST_LOG=off, CROWDSTRIKE_BASE_URL=http://127.0.0.1, and the
+/// sensor placeholder env vars (CLAROTY_INSTANCE_URL, ARMIS_INSTANCE_URL,
+/// CYBERINT_ENVIRONMENT) following the same pattern as launch_prism_bin().
+///
+/// # E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+pub async fn launch_prism_bin_multi_org(
+    config_dir: &Path,
+) -> Result<(SubprocessGuard, McpStdioHandle), String> {
+    let prism_bin = locate_binary("prism")?;
+
+    // Env prefix per org slug (ADR-032 / BC-2.06.003 v1.3):
+    //   "org-a" → replace '-' with '_' → "org_a" → uppercase → "ORG_A"
+    //   "org-b" → "ORG_B"
+    //   "org-c" → "ORG_C"
+    //
+    // Full env var: PRISM_CLIENTS_{PREFIX}_SENSORS_{SENSOR}_{REF}
+
+    let mut child = std::process::Command::new(&prism_bin)
+        .arg("start")
+        .arg("--config-dir")
+        .arg(config_dir)
+        // TYPE-spec ${env.VAR} interpolation placeholders (same as launch_prism_bin).
+        // Per-org overlays replace base_url with the actual DTU clone URL before any HTTP call.
+        .env("CLAROTY_INSTANCE_URL", "http://placeholder.claroty.invalid")
+        .env("ARMIS_INSTANCE_URL", "http://placeholder.armis.invalid")
+        .env("CYBERINT_ENVIRONMENT", "demo")
+        // CROWDSTRIKE_BASE_URL: SEC-003 validates this against the plugin's allowed_urls at step 7.5b.
+        // DTU-safe manifest has allowed_urls = ["api.crowdstrike.com", "127.0.0.1"].
+        // Using "http://127.0.0.1" satisfies SEC-003; per-org overlay replaces it for actual DTU calls.
+        .env("CROWDSTRIKE_BASE_URL", "http://127.0.0.1")
+        // ---------- org-a credentials (sensors: crowdstrike + armis) ----------
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        // ---------- org-b credentials (sensors: claroty + cyberint) ----------
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // ---------- org-c credentials (all 4 sensors) ----------
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // Suppress all tracing output so MCP JSON-RPC stdout is not corrupted by log lines.
+        // prism-bin step1_init_tracing uses fmt::layer() which defaults to stdout;
+        // any non-off RUST_LOG level will inject log lines into the MCP stdio stream,
+        // causing McpStdioHandle to read a WARN line instead of the JSON-RPC response
+        // and shift all subsequent reads by one (tools/list reads init response, etc.).
+        .env("RUST_LOG", "off")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn prism-bin '{}': {e}", prism_bin.display()))?;
+
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or("prism-bin stdin not available after spawn")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("prism-bin stdout not available after spawn")?;
+
+    let guard = SubprocessGuard::new(child, "prism-multi-org");
+
+    let mut handle = McpStdioHandle {
+        stdin,
+        stdout: std::io::BufReader::new(stdout),
+        next_id: 1,
+    };
+
+    // Poll for MCP server readiness (same pattern as launch_prism_bin — 30s timeout).
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        match handle.initialize() {
+            Ok(_) => return Ok((guard, handle)),
+            Err(e) => {
+                if Instant::now() >= deadline {
+                    return Err(format!(
+                        "prism-bin multi-org MCP server did not become ready within 30s (EC-002): {e}"
+                    ));
+                }
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+        }
+    }
+}
+
+/// Launch `prism start` for multi-org tests and capture stderr for boot-event assertion.
+///
+/// Identical to `launch_prism_bin_multi_org` except:
+/// - `RUST_LOG=boot=info` (instead of `off`) so that the `boot.step9a.adapter_registry_populated`
+///   tracing event is emitted to stderr.
+/// - `PRISM_LOG_FORMAT=json` so each event is a machine-readable JSON object on its own line.
+/// - `stderr(Stdio::piped())` — stderr is captured.
+/// - A background thread buffers the subprocess stderr into a `Vec<u8>` shared via
+///   `Arc<Mutex<_>>`. The caller MUST poll the arc AFTER MCP readiness is established —
+///   at that point all boot-phase log lines (including step9a) have been emitted.
+///
+/// Returns `(prism_guard, mcp_handle, stderr_buf)`.
+///
+/// The caller asserts on `stderr_buf` after MCP readiness, then drops everything.
+///
+/// # AC-001 / BC-2.22.001 use case
+///
+/// The `boot.step9a.adapter_registry_populated` event carries `sensor_count` (total across
+/// all orgs) and `org_count`. The event is emitted once per boot (in JSON format, one line).
+/// The test parses all lines for the event and asserts `sensor_count == 8` (2+2+4).
+///
+/// # E2E-MULTI-001: requires multi-org DTU setup; un-gated via 'e2e-multi-org' profile.
+pub async fn launch_prism_bin_multi_org_with_stderr(
+    config_dir: &Path,
+) -> Result<
+    (
+        SubprocessGuard,
+        McpStdioHandle,
+        std::sync::Arc<std::sync::Mutex<Vec<u8>>>,
+    ),
+    String,
+> {
+    let prism_bin = locate_binary("prism")?;
+
+    let stderr_buf: std::sync::Arc<std::sync::Mutex<Vec<u8>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+
+    let mut child = std::process::Command::new(&prism_bin)
+        .arg("start")
+        .arg("--config-dir")
+        .arg(config_dir)
+        // Env var placeholders (same as launch_prism_bin_multi_org).
+        .env("CLAROTY_INSTANCE_URL", "http://placeholder.claroty.invalid")
+        .env("ARMIS_INSTANCE_URL", "http://placeholder.armis.invalid")
+        .env("CYBERINT_ENVIRONMENT", "demo")
+        .env("CROWDSTRIKE_BASE_URL", "http://127.0.0.1")
+        // org-a credentials
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_A_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        // org-b credentials
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_B_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // org-c credentials
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_ORG_C_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // M-01: capture boot-phase events at info level; suppress all non-boot targets.
+        // "boot=info" enables just the "boot" tracing target (used by spec_driven_adapter.rs
+        // step9a_populate_adapter_registry) without flooding stdout with debug-level frames.
+        // Other targets stay silent so the test does not time out waiting for an MCP response
+        // mixed with verbose log output.
+        .env("RUST_LOG", "boot=info")
+        // JSON log format: one event per line — easy to parse for boot.step9a assertion.
+        .env("PRISM_LOG_FORMAT", "json")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn prism-bin '{}': {e}", prism_bin.display()))?;
+
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or("prism-bin stdin not available after spawn")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("prism-bin stdout not available after spawn")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("prism-bin stderr not available after spawn")?;
+
+    let guard = SubprocessGuard::new(child, "prism-multi-org-with-stderr");
+
+    // Spawn a background thread to drain prism's stderr into `stderr_buf`.
+    //
+    // Without this drain, the subprocess can block when its stderr OS pipe buffer
+    // fills (~64 KiB on Linux/macOS), causing MCP polling to time out.
+    // The thread holds an Arc clone of `stderr_buf`; the test reads it after
+    // MCP readiness is established (by which time all boot-phase events are emitted).
+    let buf_clone = std::sync::Arc::clone(&stderr_buf);
+    std::thread::spawn(move || {
+        use std::io::Read as _;
+        let mut buf = Vec::new();
+        let mut stderr_reader = stderr;
+        // Read to EOF (the subprocess closes stderr when it exits).
+        // We accumulate all bytes; the test consumes them after MCP handshake.
+        let _ = stderr_reader.read_to_end(&mut buf);
+        if let Ok(mut locked) = buf_clone.lock() {
+            locked.extend_from_slice(&buf);
+        }
+    });
+
+    let mut handle = McpStdioHandle {
+        stdin,
+        stdout: std::io::BufReader::new(stdout),
+        next_id: 1,
+    };
+
+    // Poll for MCP server readiness (same 30s timeout as launch_prism_bin_multi_org).
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        match handle.initialize() {
+            Ok(_) => return Ok((guard, handle, stderr_buf)),
+            Err(e) => {
+                if Instant::now() >= deadline {
+                    return Err(format!(
+                        "prism-bin multi-org MCP server did not become ready within 30s \
+                         (EC-002, launch_prism_bin_multi_org_with_stderr): {e}"
+                    ));
+                }
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+        }
+    }
+}
+
 fn locate_binary(name: &str) -> Result<PathBuf, String> {
     // Env var name: replace hyphens with underscores per cargo convention.
     // NOTE: CARGO_BIN_EXE_* is only set for cross-package bins if declared as
