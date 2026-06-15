@@ -112,19 +112,30 @@ prism-dtu-demo-server stop
 Use `scripts/demo.toml` with the `start-multi` subcommand (requires the
 `fixture-gen` feature; `demo-setup.sh` seeds the per-org keyring credentials).
 
+`scripts/demo-run.sh` launches `start-multi` in the background automatically —
+do not run `start-multi` manually before calling `demo-run.sh`. Running both
+would start two competing fleets on separate ephemeral ports (PID confusion,
+stale sidecar). The authoritative sequence is:
+
 ```bash
 # 1. Bootstrap keyring credentials and build binaries (one-time setup)
 scripts/demo-setup.sh
 
-# 2. Start all DTU clones (multi-org, ephemeral ports)
-prism-dtu-demo-server start-multi --config scripts/demo.toml
-
-# 3. Run the live demo scenario
+# 2. Start DTU clones + generate per-org overlays (start-multi runs inside this script)
 scripts/demo-run.sh
 
-# 4. Tear down clones and clean up credentials
+# 3. Tear down clones and clean up credentials
 scripts/demo-teardown.sh
 ```
+
+To run `start-multi` directly without the overlay generation that `demo-run.sh`
+provides, use it as a standalone command (bare fleet, no overlay writes):
+
+```bash
+prism-dtu-demo-server start-multi --config scripts/demo.toml
+```
+
+Do not combine the standalone command with `demo-run.sh` — use one or the other.
 
 ---
 
