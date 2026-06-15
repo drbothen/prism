@@ -318,15 +318,14 @@ async fn test_BC_2_11_001_no_sensors_configured_returns_e_query_037_empty_list()
 // AC-2: E-QUERY-037 MCP mapping → -32602 INVALID_PARAMS (BC-2.11.001)
 // ---------------------------------------------------------------------------
 
-/// BC-2.11.001 / AC-2: `PrismError::TableNotAvailable` maps to MCP error code
-/// -32602 (INVALID_PARAMS) in `error_mapping.rs`, NOT -32000 (INTERNAL_ERROR).
-///
-/// This test constructs the error variant with the correct boxed shape and
-/// verifies the Display output starts with "E-QUERY-037:" and includes all
-/// required fields. The MCP mapping test in prism-mcp validates the -32602 code.
+/// BC-2.11.001 / AC-2: `PrismError::TableNotAvailable` Display output starts
+/// with "E-QUERY-037:" and contains the required field substrings (sensor name,
+/// available sensors, did_you_mean). This verifies the error variant's
+/// formatting contract. The MCP code mapping (-32602) is validated separately
+/// by `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` in prism-mcp.
 #[test]
 #[allow(non_snake_case)]
-fn test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params() {
+fn test_BC_2_11_001_table_not_available_display_format() {
     let err = helpers::make_table_not_available_error();
 
     match &err {
