@@ -1,11 +1,15 @@
 # Demo Evidence Report — S-DEMO-004
 
 **Story:** S-DEMO-004 — Multi-Org × Multi-Sensor Isolation Smoke Test
-**Version:** v1.10
+**Version:** v1.11
 **Branch:** feature/S-DEMO-004
-**HEAD:** 10769aac
+**Last test-code commit:** `10769aac` (style: add #[allow(dead_code)] to multi-org helpers + collapse if-lets)
 **Recorded:** 2026-06-14
 **Recorder:** vsdd-factory:demo-recorder
+
+> Note (TD-VSDD-091): evidence was captured at test-code commit `10769aac`. All subsequent
+> commits on this branch are `docs(S-DEMO-004):` evidence-prose-only changes; no test code
+> has changed since the recorded run. The 10/10 PASS result remains current.
 
 ---
 
@@ -132,6 +136,8 @@ the story spec.
 ## Attestation
 
 All 10 acceptance criteria are covered by the `e2e-multi-org` test suite. All 10 tests
-PASS on feature/S-DEMO-004 HEAD 10769aac. The VHS recording captures the full nextest
-run output showing 10/10 PASS. No AC is silently skipped. The 4 designated Red Gate
-tests all pass. No absolute paths appear in any `.tape` file.
+PASS on feature/S-DEMO-004 at test-code commit `10769aac` (the last commit that changed
+test code). The VHS recording captures the full nextest run output showing 10/10 PASS.
+No AC is silently skipped. The 4 designated Red Gate tests all pass. No absolute paths
+appear in any `.tape` file. Commits after `10769aac` are evidence-prose-only
+(`docs(S-DEMO-004):` prefix); they do not affect test validity.
