@@ -357,7 +357,7 @@ impl MultiOrgDemoConfig {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::{DemoConfig, MultiOrgDemoConfig};
 
@@ -444,7 +444,9 @@ mod tests {
             result.is_err(),
             "MED-B: from_str must return Err for malformed org_id 'not-a-uuid', got Ok"
         );
-        let err_msg = result.unwrap_err().to_string();
+        let err_msg = result
+            .expect_err("MED-B: from_str must return Err for malformed org_id 'not-a-uuid'")
+            .to_string();
         assert!(
             err_msg.contains("org-bad"),
             "MED-B: error must name the offending org entry ('org-bad'), got: {err_msg}"

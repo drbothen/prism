@@ -4,7 +4,7 @@
 #
 # Prerequisites:
 #   1. Seed credentials and export env vars: scripts/demo-setup.sh
-#   2. Start the demo harness: prism-dtu-demo-server start --config scripts/demo.toml
+#   2. Start the demo harness: prism-dtu-demo-server start-multi -c scripts/demo.toml
 #
 # credential_ref uses bare-name convention (no `env:` prefix) per S-5.05 Task 3 / BC-2.03.009.
 # Resolution chain: <NAME>_FILE env var → <NAME> env var → keyring.
