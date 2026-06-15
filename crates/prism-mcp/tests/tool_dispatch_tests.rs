@@ -1240,42 +1240,75 @@ fn test_BC_3_2_001_map_prism_error_sensor_not_registered_for_org_to_32602() {
 
 // ─── BC-2.10.004 — validate_client_ids message prefix ────────────────────────
 
-/// BC-2.10.004 v2.8 postcondition case (a): empty string → E-MCP-001 prefix.
+/// BC-2.10.004 v2.8 postcondition case (a): empty string → E-MCP-001 structured error.
 ///
-/// `validate_client_ids` with `""` must return an `ErrorData` whose `message` field
-/// starts with `"E-MCP-001: invalid client_id format:"` (BC-2.10.004 v2.8 Implementer Note §1).
+/// `validate_client_ids` with `""` returns a BC-2.10.007 structured `CallToolResult`
+/// (`is_error=true`) with `structuredContent.error.code = "E-MCP-001"`,
+/// `original_params_valid = false`, and message starting with `"E-MCP-001:"`.
 ///
-/// Test path: call `list_capabilities` with `client_id: Some("")` so that
-/// `validate_client_ids` fires BEFORE the WriteExecutor check, and inspect the
-/// returned `ErrorData.message`.
+/// CRIT-2 fix: list_capabilities returns `Ok(structured_error)` (not `Err(ErrorData)`)
+/// so MCP callers receive `structuredContent.error` with all 9 BC-2.10.007 v1.5 fields.
 ///
-/// GREEN when: validate_client_ids emits `"E-MCP-001: invalid client_id format: ''"`.
+/// GREEN when: validate_client_ids emits BC-2.10.007 structured error with E-MCP-001 + original_params_valid=false.
 #[tokio::test]
 async fn test_BC_2_10_004_empty_client_id_returns_e_mcp_001_prefix() {
     use prism_mcp::{ListCapabilitiesParams, PrismServer};
     use rmcp::handler::server::wrapper::Parameters;
 
     let server = PrismServer::new();
-    // Empty string must fail validate_client_ids BEFORE the WriteExecutor check.
-    let err = server
+    // Empty string must fail validate_client_ids and return a structured error as Ok(CallToolResult).
+    let result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_client("")))
         .await
-        .expect_err(
-            "BC-2.10.004 case (a): list_capabilities with empty client_id must return an error",
+        .expect(
+            "BC-2.10.004 case (a): list_capabilities with empty client_id must return \
+             Ok(structured_error), not Err(ErrorData) (CRIT-2 fix)",
         );
 
-    let required_prefix = "E-MCP-001: invalid client_id format:";
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "BC-2.10.004 case (a): CallToolResult must have is_error=true for validation errors"
+    );
+
+    let sc = result
+        .structured_content
+        .expect("BC-2.10.004 case (a): structured_content must be present (BC-2.10.007 v1.5)");
+    let error_obj = sc
+        .get("error")
+        .expect("BC-2.10.004 case (a): structuredContent.error must be present");
+
+    // CRIT-2: original_params_valid must be false (format check failed).
+    let orig_valid = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool());
+    assert_eq!(
+        orig_valid,
+        Some(false),
+        "BC-2.10.004 case (a) CRIT-2: original_params_valid must be false for format-invalid client_id; \
+         got: {orig_valid:?}"
+    );
+
+    // E-MCP-001 code in the structured error.
+    let code = error_obj.get("code").and_then(|v| v.as_str()).unwrap_or("");
+    assert_eq!(
+        code, "E-MCP-001",
+        "BC-2.10.004 v2.8 AC-001: structured error code must be 'E-MCP-001'; got: '{code}'"
+    );
+
+    // Message starts with E-MCP-001 prefix.
+    let message = error_obj
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     assert!(
-        err.message.starts_with(required_prefix),
-        "BC-2.10.004 v2.8 AC-001: validate_client_ids error message for empty client_id \
-         must start with '{required_prefix}'; got: '{}'",
-        err.message
+        message.starts_with("E-MCP-001:"),
+        "BC-2.10.004 v2.8 AC-001: message must start with 'E-MCP-001:'; got: '{message}'"
     );
     assert!(
-        !err.message.contains("E-AUTH-003"),
+        !message.contains("E-AUTH-003"),
         "BC-2.10.004 case (a): must NOT route through E-AUTH-003 (InvalidClientId); \
-         got: '{}'",
-        err.message
+         got: '{message}'"
     );
 }
 
@@ -1284,7 +1317,8 @@ async fn test_BC_2_10_004_empty_client_id_returns_e_mcp_001_prefix() {
 /// Test vector from story EC-002: `"acme/../../etc"` fails `[a-zA-Z0-9_-]{1,64}` because `/` and `.`
 /// are not in the allowed charset. Error must carry `"E-MCP-001: invalid client_id format:"` prefix.
 ///
-/// GREEN when: validate_client_ids emits `"E-MCP-001: invalid client_id format: 'acme/../../etc'"`.
+/// GREEN when: validate_client_ids emits structured error with `code="E-MCP-001"` and
+/// `original_params_valid=false` via `Ok(CallToolResult)` (CRIT-2 fix).
 #[tokio::test]
 async fn test_BC_2_10_004_malformed_client_id_returns_e_mcp_001_prefix() {
     use prism_mcp::{ListCapabilitiesParams, PrismServer};
@@ -1292,19 +1326,53 @@ async fn test_BC_2_10_004_malformed_client_id_returns_e_mcp_001_prefix() {
 
     let server = PrismServer::new();
     let bad_id = "acme/../../etc";
-    let err = server
+    let result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_client(bad_id)))
         .await
-        .expect_err(
-            "BC-2.10.004 case (b): list_capabilities with malformed client_id must return an error",
+        .expect(
+            "BC-2.10.004 case (b): list_capabilities with malformed client_id must return \
+             Ok(structured_error), not Err(ErrorData) (CRIT-2 fix)",
         );
 
-    let required_prefix = "E-MCP-001: invalid client_id format:";
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "BC-2.10.004 case (b): CallToolResult must have is_error=true for validation errors"
+    );
+
+    let sc = result
+        .structured_content
+        .expect("BC-2.10.004 case (b): structured_content must be present (BC-2.10.007 v1.5)");
+    let error_obj = sc
+        .get("error")
+        .expect("BC-2.10.004 case (b): structuredContent.error must be present");
+
+    // CRIT-2: original_params_valid must be false (format check failed).
+    let orig_valid = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool());
+    assert_eq!(
+        orig_valid,
+        Some(false),
+        "BC-2.10.004 case (b) CRIT-2: original_params_valid must be false for format-invalid client_id '{bad_id}'; \
+         got: {orig_valid:?}"
+    );
+
+    // E-MCP-001 code in the structured error.
+    let code = error_obj.get("code").and_then(|v| v.as_str()).unwrap_or("");
+    assert_eq!(
+        code, "E-MCP-001",
+        "BC-2.10.004 v2.8 AC-002: structured error code must be 'E-MCP-001'; got: '{code}'"
+    );
+
+    // Message starts with E-MCP-001 prefix.
+    let message = error_obj
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     assert!(
-        err.message.starts_with(required_prefix),
-        "BC-2.10.004 v2.8 AC-002: validate_client_ids error for malformed id '{bad_id}' \
-         must start with '{required_prefix}'; got: '{}'",
-        err.message
+        message.starts_with("E-MCP-001:"),
+        "BC-2.10.004 v2.8 AC-002: message must start with 'E-MCP-001:'; got: '{message}'"
     );
 }
 
@@ -1313,7 +1381,8 @@ async fn test_BC_2_10_004_malformed_client_id_returns_e_mcp_001_prefix() {
 /// Additional malformed pattern: `"../passwd"` contains `/` and `.` which are not
 /// in the `[a-zA-Z0-9_-]{1,64}` allowed charset.
 ///
-/// GREEN when: validate_client_ids emits `"E-MCP-001: invalid client_id format: '../passwd'"`.
+/// GREEN when: validate_client_ids emits structured error with `code="E-MCP-001"` and
+/// `original_params_valid=false` via `Ok(CallToolResult)` (CRIT-2 fix).
 #[tokio::test]
 async fn test_BC_2_10_004_path_traversal_client_id_returns_e_mcp_001() {
     use prism_mcp::{ListCapabilitiesParams, PrismServer};
@@ -1321,20 +1390,53 @@ async fn test_BC_2_10_004_path_traversal_client_id_returns_e_mcp_001() {
 
     let server = PrismServer::new();
     let bad_id = "../passwd";
-    let err = server
+    let result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_client(bad_id)))
         .await
-        .expect_err(
+        .expect(
             "BC-2.10.004 case (b) path traversal: list_capabilities with path-traversal \
-             client_id must return an error",
+             client_id must return Ok(structured_error), not Err(ErrorData) (CRIT-2 fix)",
         );
 
-    let required_prefix = "E-MCP-001: invalid client_id format:";
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "BC-2.10.004 case (b) path traversal: CallToolResult must have is_error=true for validation errors"
+    );
+
+    let sc = result.structured_content.expect(
+        "BC-2.10.004 case (b) path traversal: structured_content must be present (BC-2.10.007 v1.5)",
+    );
+    let error_obj = sc
+        .get("error")
+        .expect("BC-2.10.004 case (b) path traversal: structuredContent.error must be present");
+
+    // CRIT-2: original_params_valid must be false (format check failed).
+    let orig_valid = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool());
+    assert_eq!(
+        orig_valid,
+        Some(false),
+        "BC-2.10.004 case (b) path traversal CRIT-2: original_params_valid must be false \
+         for format-invalid client_id '{bad_id}'; got: {orig_valid:?}"
+    );
+
+    // E-MCP-001 code in the structured error.
+    let code = error_obj.get("code").and_then(|v| v.as_str()).unwrap_or("");
+    assert_eq!(
+        code, "E-MCP-001",
+        "BC-2.10.004 v2.8 AC-002 (path traversal): structured error code must be 'E-MCP-001'; got: '{code}'"
+    );
+
+    // Message starts with E-MCP-001 prefix.
+    let message = error_obj
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     assert!(
-        err.message.starts_with(required_prefix),
-        "BC-2.10.004 v2.8 AC-002 (path traversal): error for '{bad_id}' \
-         must start with '{required_prefix}'; got: '{}'",
-        err.message
+        message.starts_with("E-MCP-001:"),
+        "BC-2.10.004 v2.8 AC-002 (path traversal): message must start with 'E-MCP-001:'; got: '{message}'"
     );
 }
 
@@ -1373,17 +1475,17 @@ fn test_BC_2_10_004_well_formed_unknown_client_id_maps_to_e_cfg_100() {
     );
 
     // Now verify the structured error shape has `original_params_valid: true`.
-    let fields = StructuredErrorFields {
-        code: "E-CFG-100".to_owned(),
-        message: "Client 'well-formed-but-unknown' not found in registry".to_owned(),
-        category: "configuration".to_owned(),
-        retryable: false,
-        retry_after_seconds: None,
-        suggestion: "Register the client in prism.toml".to_owned(),
-        source: "prism_mcp".to_owned(),
-        original_params_valid: true,
-        upstream_message: None,
-    };
+    let fields = StructuredErrorFields::new(
+        "E-CFG-100",
+        "Client 'well-formed-but-unknown' not found in registry",
+        "configuration",
+        false,
+        None,
+        "Register the client in prism.toml",
+        "prism_mcp",
+        true,
+        None,
+    );
     let result = build_structured_error_response(fields, "ERROR: [configuration] - ...".to_owned());
     // Inspect structuredContent.error.original_params_valid.
     let sc = result.structured_content.expect(
@@ -1415,17 +1517,17 @@ fn test_BC_2_10_004_well_formed_unknown_client_id_maps_to_e_cfg_100() {
 fn test_BC_2_10_007_structured_error_has_nine_fields_and_meta_trust_level() {
     use prism_mcp::error_mapping::{build_structured_error_response, StructuredErrorFields};
 
-    let fields = StructuredErrorFields {
-        code: "E-MCP-001".to_owned(),
-        message: "invalid client_id format: ''".to_owned(),
-        category: "validation".to_owned(),
-        retryable: false,
-        retry_after_seconds: None,
-        suggestion: "Provide a client_id matching [a-zA-Z0-9_-]{1,64}".to_owned(),
-        source: "prism_mcp".to_owned(),
-        original_params_valid: false,
-        upstream_message: None,
-    };
+    let fields = StructuredErrorFields::new(
+        "E-MCP-001",
+        "invalid client_id format: ''",
+        "validation",
+        false,
+        None,
+        "Provide a client_id matching [a-zA-Z0-9_-]{1,64}",
+        "prism_mcp",
+        false,
+        None,
+    );
     let result =
         build_structured_error_response(fields, "ERROR: [validation] - invalid client_id format: ''. Provide a client_id matching [a-zA-Z0-9_-]{1,64}".to_owned());
 
@@ -1587,17 +1689,17 @@ fn test_BC_2_10_007_no_retry_after_produces_null_not_absent() {
     );
 
     // Build the structured error with retry_after_seconds: None.
-    let fields = StructuredErrorFields {
-        code: "E-SENSOR-004".to_owned(),
-        message: "Internal error; see audit log".to_owned(),
-        category: "sensor".to_owned(),
-        retryable: true,
+    let fields = StructuredErrorFields::new(
+        "E-SENSOR-004",
+        "Internal error; see audit log",
+        "sensor",
+        true,
         retry_after_seconds,
-        suggestion: "Retry the request.".to_owned(),
-        source: "prism_mcp".to_owned(),
-        original_params_valid: true,
-        upstream_message: None,
-    };
+        "Retry the request.",
+        "prism_mcp",
+        true,
+        None,
+    );
     let result = build_structured_error_response(fields, "ERROR: [sensor] - ...".to_owned());
     let sc = result
         .structured_content
@@ -1634,18 +1736,18 @@ fn test_BC_2_10_007_upstream_message_isolation_from_prose_content() {
     let safe_message = "Internal error; see audit log";
     let safe_content_text = format!("ERROR: [sensor] - {safe_message}. Retry later.");
 
-    let fields = StructuredErrorFields {
-        code: "E-SENSOR-004".to_owned(),
-        message: safe_message.to_owned(),
-        category: "sensor".to_owned(),
-        retryable: true,
-        retry_after_seconds: None,
-        suggestion: "Retry the request.".to_owned(),
-        source: "prism_mcp".to_owned(),
-        original_params_valid: true,
+    let fields = StructuredErrorFields::new(
+        "E-SENSOR-004",
+        safe_message,
+        "sensor",
+        true,
+        None,
+        "Retry the request.",
+        "prism_mcp",
+        true,
         // The raw sensor error text with injection payload goes ONLY here.
-        upstream_message: Some(injection_payload.to_owned()),
-    };
+        Some(injection_payload.to_owned()),
+    );
     let result = build_structured_error_response(fields, safe_content_text.clone());
 
     let sc = result
@@ -1693,105 +1795,200 @@ fn test_BC_2_10_007_upstream_message_isolation_from_prose_content() {
 
 // ─── BC-2.10.011 — list_capabilities tri-state ───────────────────────────────
 
+/// Build a `PrismServer` wired with a `WriteExecutor` that exercises the full
+/// tri-state capability model for client "acme":
+///
+/// - `sensor.crowdstrike.containment`: in registry + acme has Allow → **enabled**
+///   (two resolution steps: compile_tier→permit, runtime_tier→allow)
+/// - `sensor.cyberint.write`: acme has Allow but NOT in registry → **compile_time_disabled**
+///   (one step: compile_tier→deny)
+/// - `sensor.armis.segment`: in registry but acme has no rule → **runtime_disabled**
+///   (two steps: compile_tier→permit, runtime_tier→deny)
+fn server_with_write_executor_acme_crowdstrike() -> prism_mcp::PrismServer {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
+    use prism_mcp::PrismServer;
+    use prism_query::{
+        invalidation::CacheInvalidator, write_dispatch::NullAuditWriter,
+        write_pipeline::WriteExecutor,
+    };
+    use prism_security::{confirmation_token::ConfirmationTokenStore, FeatureFlagEvaluator};
+    use prism_sensors::registry::AdapterRegistry;
+    use prism_spec_engine::write_endpoint::{
+        BatchMode, RiskTierSpec, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+    };
+
+    // Registry: crowdstrike + armis present (compile tier allows), cyberint absent.
+    let mut registry = WriteEndpointRegistry::new();
+    let crowdstrike_endpoint = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contain",
+        RiskTierSpec::Reversible,
+        "sensor.crowdstrike.containment",
+        0,
+        BatchMode::Serial,
+        "device_id",
+        vec![WriteStep::new(
+            "POST",
+            "https://api.crowdstrike.test/contain",
+            None,
+            None,
+        )],
+    );
+    let armis_endpoint = WriteEndpointSpec::new(
+        "segment",
+        "armis_segment",
+        RiskTierSpec::Reversible,
+        "sensor.armis.segment",
+        0,
+        BatchMode::Serial,
+        "device_id",
+        vec![WriteStep::new(
+            "POST",
+            "https://api.armis.test/segment",
+            None,
+            None,
+        )],
+    );
+    let _ = registry.register("crowdstrike", vec![crowdstrike_endpoint]);
+    let _ = registry.register("armis", vec![armis_endpoint]);
+
+    // FeatureFlagEvaluator for "acme":
+    //   sensor.crowdstrike.containment = Allow  → in registry → enabled
+    //   sensor.cyberint.write = Allow            → NOT in registry → compile_time_disabled
+    //   sensor.armis.segment: no rule            → deny-by-default → runtime_disabled
+    let mut acme_caps = ClientCapabilities::new();
+    acme_caps.grant(
+        CapabilityPath::new("sensor.crowdstrike.containment").expect("valid capability path"),
+        CapabilityEffect::Allow,
+    );
+    acme_caps.grant(
+        CapabilityPath::new("sensor.cyberint.write").expect("valid capability path"),
+        CapabilityEffect::Allow,
+    );
+    let mut client_map = BTreeMap::new();
+    client_map.insert("acme".to_owned(), acme_caps);
+
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(client_map));
+    let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+    let audit_writer = Arc::new(NullAuditWriter);
+    let adapter_registry = Arc::new(AdapterRegistry::new());
+    let endpoint_registry = Arc::new(registry);
+    let cache = Arc::new(prism_query::cache::SensorResponseCache::with_defaults());
+    let cache_invalidator = Arc::new(CacheInvalidator::new(cache));
+
+    let write_executor = Arc::new(WriteExecutor::new(
+        feature_flags,
+        confirmation_store,
+        audit_writer,
+        adapter_registry,
+        endpoint_registry,
+        cache_invalidator,
+    ));
+    PrismServer::new().with_write_executor(write_executor)
+}
+
 /// BC-2.10.011 v1.5 postcondition — enabled capability has two resolution steps.
 ///
-/// When `list_capabilities(client_id: "acme")` is called for a capability with a
-/// `[[write_endpoints]]` entry (compile tier permits) and runtime flag grants it,
-/// `capabilities["sensor.crowdstrike.containment"].status` must be `"enabled"` and
-/// `resolution_chain` must have two steps (`compile_tier → permit`, `runtime_tier → allow`).
-///
-/// RED: current handler returns old bool-map `{"sensor.crowdstrike.containment": true}` →
-/// `.status` key absent → assertion fails.
+/// `list_capabilities("acme")` for `sensor.crowdstrike.containment`:
+///   registry has it (compile tier permits) AND acme has Allow (runtime permits)
+///   → `status = "enabled"`, `resolution_chain` has two steps:
+///     `{level: "compile_tier", result: "permit"}` and
+///     `{level: "runtime_tier", result: "allow"}`.
 #[tokio::test]
 async fn test_BC_2_10_011_enabled_capability_has_two_resolution_steps() {
-    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use prism_mcp::ListCapabilitiesParams;
     use rmcp::handler::server::wrapper::Parameters;
 
-    let server = PrismServer::new();
-    let result = server
+    let server = server_with_write_executor_acme_crowdstrike();
+    let call_result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_client("acme")))
-        .await;
-
-    // The handler may fail (no WriteExecutor wired in PrismServer::new()).
-    // We test the SHAPE of a successful response; if it errors we note what shape was returned.
-    let Ok(call_result) = result else {
-        // Even an error response is acceptable for the Red Gate — we just need to verify
-        // the CONTRACT shape when a success is returned.  If WriteExecutor is not wired,
-        // the handler returns an error; that's an expected Red Gate failure mode.
-        // The actual Red Gate assertion is: a SUCCESS response must carry the tri-state shape.
-        // We record this as a failing assertion to document the Red Gate.
-        let _ = result.expect(
-            "BC-2.10.011 AC-008: list_capabilities must succeed with a wired WriteExecutor \
-             and return tri-state capabilities — RED GATE (no WriteExecutor in stub server)",
-        );
-        return;
-    };
+        .await
+        .expect("BC-2.10.011 AC-008: list_capabilities must succeed with a wired WriteExecutor");
 
     let sc = call_result
         .structured_content
         .expect("BC-2.10.011: structured_content must be present");
 
-    // Navigate the SafetyEnvelope wrapper to find the body.
-    // In current code, the envelope is: {results: {client_id, client_registered, capabilities, note}}
-    // In the new shape:               {results: {client_id, client_registered, capabilities: {<path>: {status, resolution_chain}}, not_registered_tools}}
     let body = sc.get("results").unwrap_or(&sc);
     let capabilities = body
         .get("capabilities")
-        .expect("BC-2.10.011: capabilities must be present");
+        .expect("BC-2.10.011 AC-008: capabilities must be present in response body");
 
-    // In the OLD (current) shape: capabilities["sensor.crowdstrike.containment"] = true (bool).
-    // In the NEW (required) shape: capabilities["sensor.crowdstrike.containment"] = {status, resolution_chain}.
-    // The new shape may not have this exact key if the handler hasn't been updated.
-    // Test: find ANY capability entry and verify it has the tri-state shape.
-    let entries = capabilities
-        .as_object()
-        .expect("BC-2.10.011: capabilities must be a JSON object");
-
-    // Pick the first capability entry.
-    let (cap_path, cap_value) = entries
-        .iter()
-        .next()
-        .expect("BC-2.10.011: capabilities must have at least one entry");
-
-    let status = cap_value.get("status");
-    assert!(
-        status.is_some(),
-        "BC-2.10.011 AC-008: capability '{cap_path}' must have a 'status' field \
-         (tri-state model); current shape is bool-map — RED GATE"
+    // Assert the NAMED capability sensor.crowdstrike.containment is present.
+    let cap_entry = capabilities.get("sensor.crowdstrike.containment").expect(
+        "BC-2.10.011 AC-008: capabilities must contain 'sensor.crowdstrike.containment' \
+             (in registry + acme has Allow → enabled)",
     );
 
-    let resolution_chain = cap_value.get("resolution_chain");
-    assert!(
-        resolution_chain.is_some(),
-        "BC-2.10.011 AC-008: capability '{cap_path}' must have a 'resolution_chain' field; \
-         got: {cap_value} — RED GATE"
+    // status must be "enabled".
+    let status = cap_entry.get("status").and_then(|s| s.as_str());
+    assert_eq!(
+        status,
+        Some("enabled"),
+        "BC-2.10.011 AC-008: sensor.crowdstrike.containment status must be 'enabled' \
+         (compile permits + runtime Allow); got: {status:?}"
+    );
+
+    // resolution_chain must have exactly 2 steps.
+    let chain = cap_entry
+        .get("resolution_chain")
+        .and_then(|c| c.as_array())
+        .expect("BC-2.10.011 AC-008: sensor.crowdstrike.containment must have resolution_chain");
+    assert_eq!(
+        chain.len(),
+        2,
+        "BC-2.10.011 AC-008: enabled capability must have 2 resolution steps \
+         (compile_tier→permit, runtime_tier→allow); got {} steps: {:?}",
+        chain.len(),
+        chain
+    );
+
+    // Step 0: compile_tier → permit.
+    let compile_step = &chain[0];
+    assert_eq!(
+        compile_step.get("level").and_then(|v| v.as_str()),
+        Some("compile_tier"),
+        "BC-2.10.011 AC-008: step[0].level must be 'compile_tier'; got: {compile_step}"
+    );
+    assert_eq!(
+        compile_step.get("result").and_then(|v| v.as_str()),
+        Some("permit"),
+        "BC-2.10.011 AC-008: step[0].result must be 'permit'; got: {compile_step}"
+    );
+
+    // Step 1: runtime_tier → allow.
+    let runtime_step = &chain[1];
+    assert_eq!(
+        runtime_step.get("level").and_then(|v| v.as_str()),
+        Some("runtime_tier"),
+        "BC-2.10.011 AC-008: step[1].level must be 'runtime_tier'; got: {runtime_step}"
+    );
+    assert_eq!(
+        runtime_step.get("result").and_then(|v| v.as_str()),
+        Some("allow"),
+        "BC-2.10.011 AC-008: step[1].result must be 'allow'; got: {runtime_step}"
     );
 }
 
 /// BC-2.10.011 v1.5 — compile_time_disabled: single deny step at compile tier.
 ///
-/// When a capability has no `[[write_endpoints]]` in the TOML, `status` must be
-/// `"compile_time_disabled"` and `resolution_chain` must contain exactly one step
-/// at `"compile_tier"` with `result: "deny"`.
-///
-/// RED: current handler returns bool-map → no `status` field → assertion fails.
+/// `list_capabilities("acme")` for `sensor.cyberint.write`:
+///   acme has Allow on this path but it has NO `[[write_endpoints]]` in registry
+///   → `status = "compile_time_disabled"`, `resolution_chain` has exactly one step:
+///     `{level: "compile_tier", result: "deny"}`.
 #[tokio::test]
 async fn test_BC_2_10_011_compile_time_disabled_has_one_deny_step() {
-    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use prism_mcp::ListCapabilitiesParams;
     use rmcp::handler::server::wrapper::Parameters;
 
-    let server = PrismServer::new();
-    let result = server
+    let server = server_with_write_executor_acme_crowdstrike();
+    let call_result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_client("acme")))
-        .await;
-
-    let Ok(call_result) = result else {
-        let _ = result.expect(
-            "BC-2.10.011 AC-009: list_capabilities must succeed and return compile_time_disabled \
-             entries — RED GATE (no WriteExecutor in stub server)",
-        );
-        return;
-    };
+        .await
+        .expect("BC-2.10.011 AC-009: list_capabilities must succeed with a wired WriteExecutor");
 
     let sc = call_result
         .structured_content
@@ -1799,20 +1996,15 @@ async fn test_BC_2_10_011_compile_time_disabled_has_one_deny_step() {
     let body = sc.get("results").unwrap_or(&sc);
     let capabilities = body
         .get("capabilities")
-        .expect("BC-2.10.011: capabilities must be present");
+        .expect("BC-2.10.011 AC-009: capabilities must be present");
     let entries = capabilities
         .as_object()
         .expect("BC-2.10.011: capabilities must be a JSON object");
 
-    // Find an entry that should be compile_time_disabled in the current stub state.
-    // Any entry that currently returns `false` in the bool-map is a candidate.
-    // In the new model it should have status=compile_time_disabled with one deny step.
-    let compile_disabled = entries.iter().find(|(_k, v)| {
-        // OLD shape: bool false → no write endpoint declared.
-        // NEW shape: { status: "compile_time_disabled", resolution_chain: [{level: "compile_tier", result: "deny", ...}] }
-        v.as_bool() == Some(false)
-            || v.get("status").and_then(|s| s.as_str()) == Some("compile_time_disabled")
-    });
+    // sensor.cyberint.write: acme has Allow but NOT in endpoint registry → compile_time_disabled.
+    let compile_disabled = entries
+        .iter()
+        .find(|(_k, v)| v.get("status").and_then(|s| s.as_str()) == Some("compile_time_disabled"));
 
     let (cap_path, cap_value) = compile_disabled
         .expect("BC-2.10.011 AC-009: must have at least one compile_time_disabled capability");
@@ -1853,28 +2045,23 @@ async fn test_BC_2_10_011_compile_time_disabled_has_one_deny_step() {
 
 /// BC-2.10.011 v1.5 — runtime_disabled: two steps, deny at runtime tier.
 ///
-/// When TOML declares `[[write_endpoints]]` (compile permits) but runtime flag denies,
-/// `status` must be `"runtime_disabled"` and `resolution_chain` has two steps:
-/// `compile_tier → permit`, `runtime_tier → deny`.
-///
-/// RED: current bool-map handler cannot express this state → `status` key absent → fails.
+/// `list_capabilities("acme")` for `sensor.armis.segment`:
+///   in endpoint registry (compile permits) BUT acme has no rule → deny-by-default
+///   → `status = "runtime_disabled"`, `resolution_chain` has two steps:
+///     `{level: "compile_tier", result: "permit"}` and
+///     `{level: "runtime_tier", result: "deny"}`.
 #[tokio::test]
 async fn test_BC_2_10_011_runtime_disabled_has_two_steps_deny_at_runtime_tier() {
-    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use prism_mcp::ListCapabilitiesParams;
     use rmcp::handler::server::wrapper::Parameters;
 
-    let server = PrismServer::new();
-    let result = server
+    let server = server_with_write_executor_acme_crowdstrike();
+    let call_result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_client("acme")))
-        .await;
-
-    let Ok(call_result) = result else {
-        let _ = result.expect(
-            "BC-2.10.011 AC-008/EC-008: list_capabilities must return runtime_disabled entries \
-             — RED GATE",
+        .await
+        .expect(
+            "BC-2.10.011 AC-008/EC-008: list_capabilities must succeed with a wired WriteExecutor",
         );
-        return;
-    };
 
     let sc = call_result
         .structured_content
@@ -1887,16 +2074,14 @@ async fn test_BC_2_10_011_runtime_disabled_has_two_steps_deny_at_runtime_tier() 
         .as_object()
         .expect("BC-2.10.011: capabilities must be a JSON object");
 
-    // Find a runtime_disabled entry.
+    // sensor.armis.segment: in registry but acme has no Allow rule → runtime_disabled.
     let runtime_disabled = entries
         .iter()
         .find(|(_k, v)| v.get("status").and_then(|s| s.as_str()) == Some("runtime_disabled"));
 
-    // If no runtime_disabled entry exists in the current (unimplemented) state,
-    // this assertion fires to mark the Red Gate.
     let (cap_path, cap_value) = runtime_disabled.expect(
-        "BC-2.10.011 AC-008 (runtime_disabled): must have at least one runtime_disabled \
-         capability entry in the tri-state response — RED GATE (old bool-map has no such key)",
+        "BC-2.10.011 AC-008/EC-008 (runtime_disabled): must have at least one runtime_disabled \
+         capability entry — sensor.armis.segment has no Allow rule for 'acme'",
     );
 
     let chain = cap_value
@@ -1906,21 +2091,36 @@ async fn test_BC_2_10_011_runtime_disabled_has_two_steps_deny_at_runtime_tier() 
     assert_eq!(
         chain.len(),
         2,
-        "BC-2.10.011: runtime_disabled '{cap_path}' must have 2 resolution steps; \
-         got {}",
+        "BC-2.10.011: runtime_disabled '{cap_path}' must have 2 resolution steps \
+         (compile_tier→permit, runtime_tier→deny); got {}",
         chain.len()
     );
-    let runtime_step = chain
-        .iter()
-        .find(|s| s.get("level").and_then(|v| v.as_str()) == Some("runtime_tier"));
-    assert!(
-        runtime_step.is_some(),
-        "BC-2.10.011: resolution_chain must include a runtime_tier step"
+
+    // Step 0: compile_tier → permit.
+    let compile_step = &chain[0];
+    assert_eq!(
+        compile_step.get("level").and_then(|v| v.as_str()),
+        Some("compile_tier"),
+        "BC-2.10.011: runtime_disabled step[0].level must be 'compile_tier'; got: {compile_step}"
     );
     assert_eq!(
-        runtime_step.unwrap().get("result").and_then(|v| v.as_str()),
+        compile_step.get("result").and_then(|v| v.as_str()),
+        Some("permit"),
+        "BC-2.10.011: runtime_disabled step[0].result must be 'permit'; got: {compile_step}"
+    );
+
+    // Step 1: runtime_tier → deny.
+    let runtime_step = &chain[1];
+    assert_eq!(
+        runtime_step.get("level").and_then(|v| v.as_str()),
+        Some("runtime_tier"),
+        "BC-2.10.011: runtime_disabled step[1].level must be 'runtime_tier'; got: {runtime_step}"
+    );
+    assert_eq!(
+        runtime_step.get("result").and_then(|v| v.as_str()),
         Some("deny"),
-        "BC-2.10.011: runtime_tier step must have result='deny' for runtime_disabled capabilities"
+        "BC-2.10.011: runtime_tier step must have result='deny' for runtime_disabled capabilities; \
+         got: {runtime_step}"
     );
 }
 
@@ -1929,76 +2129,61 @@ async fn test_BC_2_10_011_runtime_disabled_has_two_steps_deny_at_runtime_tier() 
 /// When `list_capabilities(client_id: null)` is called, the response must be:
 ///   `{client_id: null, clients: {<id>: {client_registered, enabled_count,
 ///    runtime_disabled_count, compile_time_disabled_count}}, not_registered_tools: [...]}`
-///
-/// RED: current handler returns `{client_id: "<all>", capabilities: {...}, not_implemented: [...], note: "..."}`
-/// → `clients` key absent → assertion fails.
 #[tokio::test]
 async fn test_BC_2_10_011_cross_client_null_returns_summary_shape() {
-    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use prism_mcp::ListCapabilitiesParams;
     use rmcp::handler::server::wrapper::Parameters;
 
-    let server = PrismServer::new();
-    let result = server
+    let server = server_with_write_executor_acme_crowdstrike();
+    let call_result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_all_clients()))
-        .await;
-
-    let Ok(call_result) = result else {
-        let _ = result.expect(
-            "BC-2.10.011 AC-010: list_capabilities(client_id=null) must succeed — RED GATE",
-        );
-        return;
-    };
+        .await
+        .expect("BC-2.10.011 AC-010: list_capabilities(client_id=null) must succeed");
 
     let sc = call_result
         .structured_content
         .expect("BC-2.10.011: structured_content must be present");
     let body = sc.get("results").unwrap_or(&sc);
 
-    // New contract: client_id field must be JSON null.
+    // client_id field must be JSON null.
     let client_id_val = body.get("client_id");
     assert!(
         client_id_val.map(|v| v.is_null()).unwrap_or(false),
         "BC-2.10.011 AC-010: cross-client response must have client_id=null; \
-         got: {client_id_val:?} — RED GATE (current code sets client_id='<all>')"
+         got: {client_id_val:?}"
     );
 
-    // New contract: `clients` key must be present with per-client count summaries.
+    // `clients` key must be present with per-client count summaries.
     let clients = body.get("clients");
     assert!(
         clients.is_some(),
         "BC-2.10.011 AC-010: cross-client response must have 'clients' key with per-client \
-         summaries; got body: {body} — RED GATE (old code has no 'clients' key)"
+         summaries; got body: {body}"
     );
 
-    // New contract: `not_registered_tools` key must be present (renamed from `not_implemented`).
+    // `not_registered_tools` key must be present (renamed from `not_implemented`).
     let not_registered = body.get("not_registered_tools");
     assert!(
         not_registered.is_some(),
         "BC-2.10.011 AC-010 + AC-011: cross-client response must have 'not_registered_tools' key; \
-         got: {body} — RED GATE"
+         got: {body}"
     );
 }
 
 /// BC-2.10.011 v1.5 AC-011 — field rename: `not_registered_tools` not `not_implemented`.
 ///
 /// The response for any `list_capabilities` call must use the key `not_registered_tools`
-/// (not the old `not_implemented`).
-///
-/// RED: current handler emits `"not_implemented"` → `not_registered_tools` key absent → fails.
+/// (not the old `not_implemented`) and must not contain the old `note` field.
 #[tokio::test]
 async fn test_BC_2_10_011_not_registered_tools_field_not_not_implemented() {
-    use prism_mcp::{ListCapabilitiesParams, PrismServer};
+    use prism_mcp::ListCapabilitiesParams;
     use rmcp::handler::server::wrapper::Parameters;
 
-    let server = PrismServer::new();
-    let result = server
+    let server = server_with_write_executor_acme_crowdstrike();
+    let call_result = server
         .list_capabilities(Parameters(ListCapabilitiesParams::for_client("acme")))
-        .await;
-
-    let Ok(call_result) = result else {
-        let _ = result.expect("BC-2.10.011 AC-011: list_capabilities must succeed — RED GATE");
-        return;
-    };
+        .await
+        .expect("BC-2.10.011 AC-011: list_capabilities must succeed");
 
     let sc = call_result
         .structured_content

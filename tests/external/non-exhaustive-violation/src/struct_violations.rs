@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61 (44 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-62 (45 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -14,6 +14,8 @@
 //! by S-DEMO-DTU-LIVE-SCENARIO-001-B. ci.yml EXPECTED bumped from 50 to 52.
 //! v61 (MultiInstanceServers) added by S-DEMO-MULTI-TENANT-DTU-001 (D-1075-API-GAP-001).
 //! ci.yml EXPECTED bumped from 59 to 60.
+//! v62 (StructuredErrorFields) added by S-5.02 (HIGH-3 fix).
+//! ci.yml EXPECTED bumped from 60 to 61.
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -828,4 +830,28 @@ pub fn v61_multi_instance_servers() {
         task_handles: todo!(),
     };
     let _ = _servers;
+}
+
+/// Violation 62: StructuredErrorFields (prism-mcp error_mapping) struct literal (E0639).
+///
+/// BC-2.10.007 v1.5 / S-5.02 HC-3: `StructuredErrorFields` carries `#[non_exhaustive]`
+/// so that adding a field (e.g. a future `request_id` or `trace_id`) is backward-compatible.
+/// External callers MUST use `StructuredErrorFields::new(...)` (the 9-argument constructor).
+///
+/// Added: S-5.02 (HIGH-3 fix). ci.yml EXPECTED bumped from 60 to 61.
+#[allow(dead_code)]
+pub fn v62_structured_error_fields() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _fields = prism_mcp::error_mapping::StructuredErrorFields {
+        code: "E-MCP-001".to_string(),
+        message: "invalid".to_string(),
+        category: "validation".to_string(),
+        retryable: false,
+        retry_after_seconds: None,
+        suggestion: "Fix it".to_string(),
+        source: "prism_mcp".to_string(),
+        original_params_valid: false,
+        upstream_message: None,
+    };
+    let _ = _fields;
 }

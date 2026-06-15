@@ -62,7 +62,7 @@ use serde::Deserialize;
 use tokio::signal;
 
 use crate::{
-    error_mapping::{codes, to_error_data},
+    error_mapping::{codes, prism_error_to_structured_call_result, to_error_data},
     safety_envelope::{
         DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
         AUDIT_EMISSION_FAILED_WARNING,
@@ -117,32 +117,39 @@ pub struct PrismServer {
 }
 
 impl PrismServer {
-    /// Construct a new PrismServer for testing.
+    /// Construct a minimal PrismServer for testing.
     ///
-    /// Wires `InjectionScanner` from the global singleton (BC-2.09.001).
-    /// Wires a minimal `WriteExecutor` with a fixed test capability configuration
-    /// so that `list_capabilities` can return the BC-2.10.011 tri-state shape
-    /// without requiring a fully-booted production stack.
+    /// Wires only `InjectionScanner`. All domain dependencies (`QueryEngine`,
+    /// `WriteExecutor`, `AuditWriter`) are `None` — domain tools return
+    /// `PrismError::Internal` when called without wiring.
     ///
-    /// Test WriteExecutor configuration (for BC-2.10.011 tri-state tests):
-    /// - Client "acme" with `sensor.crowdstrike.containment` = Allow (→ enabled)
-    /// - Client "acme" with `sensor.cyberint.write` = Allow (NOT in registry → compile_time_disabled)
-    /// - `sensor.armis.segment` in registry but "acme" has no rule (→ runtime_disabled)
-    ///
-    /// Use [`with_deps()`] for production wiring (boot step 9).
-    /// Use [`minimal()`] for tests that specifically require no WriteExecutor.
+    /// Use [`with_write_executor()`] to wire a `WriteExecutor` for tests that
+    /// exercise the capability/write path (e.g., BC-2.10.011 tri-state tests).
+    /// Use [`with_deps()`] for full production wiring (boot step 9).
     pub fn new() -> Self {
         Self {
-            // InjectionScanner is a ZST — construct directly (global() is reference-only).
+            // InjectionScanner is a ZST — construct directly.
             injection_scanner: Arc::new(InjectionScanner),
             query_engine: None,
-            write_executor: Some(Arc::new(Self::build_test_write_executor())),
+            write_executor: None,
             audit_writer: None,
             config_manager: None,
             spec_dir: None,
             alias_store: None,
             org_registry: None,
         }
+    }
+
+    /// Builder: wire a `WriteExecutor` into an existing `PrismServer`.
+    ///
+    /// Intended for integration tests that need to exercise the write / capability
+    /// path without a fully-booted production stack. The caller constructs the
+    /// `WriteExecutor` with the required capability configuration (see
+    /// `server_with_write_executor_acme_crowdstrike` in `tool_dispatch_tests.rs` for
+    /// a complete fixture example) and passes it here.
+    pub fn with_write_executor(mut self, we: Arc<WriteExecutor>) -> Self {
+        self.write_executor = Some(we);
+        self
     }
 
     /// Construct a minimal PrismServer with NO domain dependencies wired.
@@ -152,7 +159,7 @@ impl PrismServer {
     ///
     /// Use this constructor ONLY in tests that specifically verify "not wired"
     /// error paths (e.g., `confirm_action` returns INTERNAL_ERROR when no
-    /// WriteExecutor is present). For all other tests, use [`new()`].
+    /// WriteExecutor is present).  For all other tests, use [`new()`].
     #[allow(dead_code)] // used in #[cfg(test)] to test "not wired" error paths
     pub(crate) fn minimal() -> Self {
         Self {
@@ -165,85 +172,6 @@ impl PrismServer {
             alias_store: None,
             org_registry: None,
         }
-    }
-
-    /// Build a minimal `WriteExecutor` for test/stub use (BC-2.10.011 tri-state tests).
-    ///
-    /// Registry has two write endpoints (crowdstrike + armis).
-    /// "acme" client has Allow on `sensor.crowdstrike.containment` and
-    /// `sensor.cyberint.write`; `sensor.armis.segment` is in registry but
-    /// "acme" has no rule → deny-by-default → runtime_disabled.
-    fn build_test_write_executor() -> WriteExecutor {
-        // Build WriteEndpointRegistry with two compile-gate-Present capabilities.
-        let mut registry = WriteEndpointRegistry::new();
-        let crowdstrike_endpoint = WriteEndpointSpec::new(
-            "contain",
-            "crowdstrike_contain",
-            RiskTierSpec::Reversible,
-            "sensor.crowdstrike.containment",
-            0,
-            BatchMode::Serial,
-            "device_id",
-            vec![WriteStep::new(
-                "POST",
-                "https://api.crowdstrike.test/contain",
-                None,
-                None,
-            )],
-        );
-        let armis_endpoint = WriteEndpointSpec::new(
-            "segment",
-            "armis_segment",
-            RiskTierSpec::Reversible,
-            "sensor.armis.segment",
-            0,
-            BatchMode::Serial,
-            "device_id",
-            vec![WriteStep::new(
-                "POST",
-                "https://api.armis.test/segment",
-                None,
-                None,
-            )],
-        );
-        // Ignore registration errors in test construction.
-        let _ = registry.register("crowdstrike", vec![crowdstrike_endpoint]);
-        let _ = registry.register("armis", vec![armis_endpoint]);
-
-        // Build FeatureFlagEvaluator for "acme":
-        //   - sensor.crowdstrike.containment = Allow  → in registry → enabled
-        //   - sensor.cyberint.write = Allow            → NOT in registry → compile_time_disabled
-        //   - sensor.armis.segment: no rule            → deny-by-default → runtime_disabled
-        let mut acme_caps = ClientCapabilities::new();
-        acme_caps.grant(
-            CapabilityPath::new("sensor.crowdstrike.containment").expect("valid capability path"),
-            CapabilityEffect::Allow,
-        );
-        acme_caps.grant(
-            CapabilityPath::new("sensor.cyberint.write").expect("valid capability path"),
-            CapabilityEffect::Allow,
-        );
-
-        let mut client_map = std::collections::BTreeMap::new();
-        client_map.insert("acme".to_owned(), acme_caps);
-
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(client_map));
-        let confirmation_store = Arc::new(ConfirmationTokenStore::new());
-        let audit_writer: Arc<dyn AuditWriter> = Arc::new(NullAuditWriter);
-        let adapter_registry = Arc::new(AdapterRegistry::new());
-        let endpoint_registry = Arc::new(registry);
-        let cache: Arc<GenericQueryCache<_>> =
-            Arc::new(GenericQueryCache::new(CacheConfig::default()));
-        let cache_invalidator = Arc::new(CacheInvalidator::new(cache));
-
-        WriteExecutor::new(
-            feature_flags,
-            confirmation_store,
-            audit_writer,
-            adapter_registry,
-            endpoint_registry,
-            cache_invalidator,
-        )
     }
 
     /// Construct a PrismServer with full production dependencies wired (ADR-022 §F).
@@ -1392,16 +1320,20 @@ fn injection_rejection_error() -> rmcp::model::ErrorData {
 
 /// Validate that every string in `client_ids` matches `[a-zA-Z0-9_-]{1,64}`.
 ///
-/// Returns `Err(ErrorData)` with INVALID_PARAMS code if any entry is invalid.
+/// Returns `Err(CallToolResult)` with BC-2.10.007 structured error on invalid entry.
 /// BC-2.10.004 v2.8: client_id/clients entries must be validated before use.
 /// Error message MUST start with `"E-MCP-001: invalid client_id format:"` (Implementer Note §1).
+/// `structuredContent.error.original_params_valid` is `false` (format check failed).
 /// CRITICAL: do NOT route through PrismError::InvalidClientId — it displays E-AUTH-003,
 /// a namespace collision with the sensor-layer bearer-token rejection code.
 ///
 /// The 64-character upper bound matches `OrgSlug` validation (`^[a-zA-Z0-9_-]{1,64}$`).
 /// Without this bound a caller could send a 65+-char client_id that passes this check
 /// but causes `OrgSlug::new` to return Invalid, and then `OrgSlug::as_str()` to panic.
-fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::ErrorData> {
+///
+/// Tool handlers convert the returned `Err(CallToolResult)` to `Ok(...)` so the
+/// structured error reaches the MCP caller as a CallToolResult with `is_error=true`.
+fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::CallToolResult> {
     for id in client_ids {
         if id.is_empty()
             || id.len() > 64
@@ -1409,10 +1341,23 @@ fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::ErrorDa
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
-            return Err(rmcp::model::ErrorData::new(
-                rmcp::model::ErrorCode(codes::INVALID_PARAMS),
-                format!("E-MCP-001: invalid client_id format: '{id}'"),
-                None,
+            let message = format!("E-MCP-001: invalid client_id format: '{id}'");
+            let content_text = format!(
+                "ERROR: [validation] - {message}. Provide a client_id matching [a-zA-Z0-9_-]{{1,64}}."
+            );
+            return Err(crate::error_mapping::build_structured_error_response(
+                crate::error_mapping::StructuredErrorFields::new(
+                    "E-MCP-001",
+                    message,
+                    "validation",
+                    false,
+                    None,
+                    "Provide a client_id matching [a-zA-Z0-9_-]{1,64}.",
+                    "prism_mcp",
+                    false,
+                    None,
+                ),
+                content_text,
             ));
         }
     }
@@ -1750,7 +1695,9 @@ impl PrismServer {
             for c in clients {
                 inputs.push(("clients", c.as_str()));
             }
-            validate_client_ids(clients)?;
+            if let Err(e) = validate_client_ids(clients) {
+                return Ok(e);
+            }
         }
         self.scan_inputs_audited("query", &inputs).await?;
 
@@ -1779,10 +1726,14 @@ impl PrismServer {
                     .to_owned(),
             }));
         };
-        let result = qe
-            .execute(&params.query, opts)
-            .await
-            .map_err(to_error_data)?;
+        // Domain errors from query execution (QueryParseFailed, QueryTimeout,
+        // SensorRateLimited, CapabilityDenied, etc.) are user-visible errors: surface
+        // them as Ok(CallToolResult{is_error:true}) with the BC-2.10.007 structured
+        // envelope (CRIT-1 fix).  Infrastructure panics are caught at the ? boundary.
+        let result = match qe.execute(&params.query, opts).await {
+            Ok(r) => r,
+            Err(domain_err) => return Ok(prism_error_to_structured_call_result(domain_err)),
+        };
 
         // CRIT-1 fix: serialize actual RecordBatch rows to JSON via arrow-json v58.
         // Uses WriterBuilder + Writer<Vec<u8>, JsonArray> to produce a JSON array of row objects.
@@ -1877,7 +1828,9 @@ impl PrismServer {
             for c in clients {
                 inputs.push(("clients", c.as_str()));
             }
-            validate_client_ids(clients)?;
+            if let Err(e) = validate_client_ids(clients) {
+                return Ok(e);
+            }
         }
         self.scan_inputs_audited("explain_query", &inputs).await?;
 
@@ -2121,7 +2074,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_aliases", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
 
         let audit_warning = emit_tool_audit(
@@ -2392,7 +2347,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
 
         let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -2520,7 +2477,14 @@ impl PrismServer {
                 // Step 3: Delegate to WriteExecutor which internally runs
                 // DryRunGate::consume_token() with the correct action_params hash
                 // (F-PASS4-CRIT-1 fix).
-                let outcome = we.execute(plan, context).await.map_err(to_error_data)?;
+                // Domain errors (CapabilityDenied, SensorRateLimited, etc.) surface as
+                // Ok(structured_error) per BC-2.10.007 (CRIT-1 fix).
+                let outcome = match we.execute(plan, context).await {
+                    Ok(o) => o,
+                    Err(domain_err) => {
+                        return Ok(prism_error_to_structured_call_result(domain_err))
+                    }
+                };
 
                 // Serialize outcome to JSON for the response envelope.
                 match outcome {
@@ -3302,7 +3266,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_capabilities", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
 
         let audit_warning = emit_tool_audit(
@@ -3953,7 +3919,9 @@ impl PrismServer {
             &[("client_id", params.client_id.as_str())],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "list_credentials",
@@ -3991,7 +3959,9 @@ impl PrismServer {
             &[("client_id", params.client_id.as_str())],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "credential_status",
@@ -4039,7 +4009,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "configure_credential_source",
@@ -4085,7 +4057,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "delete_credential",
@@ -4196,7 +4170,9 @@ impl PrismServer {
             self.scan_inputs_audited("list_alerts", &inputs).await?;
         }
         if let Some(ref client_id) = params.client_id {
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -4308,7 +4284,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "crowdstrike_contain_host",
@@ -4350,7 +4328,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "crowdstrike_lift_containment",
@@ -4419,7 +4399,9 @@ impl PrismServer {
         }
         self.scan_inputs_audited("explain_pack", &inputs).await?;
         if let Some(ref client_id) = params.client_id {
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -4546,7 +4528,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_infusions", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -4747,7 +4731,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_actions", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -5120,6 +5106,120 @@ mod tests {
         );
     }
 
+    // ─── CRIT-1 — BC-2.10.007 end-to-end structured error wiring ────────────────
+    //
+    // Verifies that domain errors from query execution are surfaced as
+    // Ok(CallToolResult{is_error:true, structured_content: {error:{9 fields}, _meta}})
+    // NOT as Err(ErrorData) (which is the flat protocol-level error shape).
+
+    /// CRIT-1 (BC-2.10.007 v1.5): domain error from QueryEngine.execute() is delivered as
+    /// `Ok(CallToolResult{is_error:true})` with 9-field `structuredContent.error` envelope.
+    ///
+    /// Wires a minimal QueryEngine (no adapters, no sensor data) so that an invalid
+    /// PrismQL query → `PrismError::QueryParseFailed` → `Ok(structured_error)`.
+    /// Asserts all 9 required fields and `_meta.trust_level:"internal"`.
+    #[tokio::test]
+    async fn test_CRIT_1_query_domain_error_surfaces_as_ok_structured_error() {
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{engine::QueryEngine, engine::QueryEngineConfig};
+        use prism_sensors::AdapterRegistry;
+
+        // Build a minimal QueryEngine with no sensor adapters.
+        // An invalid query string will produce PrismError::QueryParseFailed,
+        // which is the domain error this test exercises.
+        let engine = QueryEngine::new(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        );
+        let mut server = PrismServer::new();
+        server.query_engine = Some(Arc::new(engine));
+
+        // "!!invalid query!!" is not valid PrismQL → QueryParseFailed domain error.
+        let params = QueryToolParams {
+            query: "!!invalid query!!".to_owned(),
+            clients: None,
+            limit: None,
+            force_refresh: None,
+        };
+        let result = server.query(Parameters(params)).await;
+
+        // CRIT-1 assertion: domain errors must be Ok(CallToolResult), NOT Err(ErrorData).
+        let call_result = result.expect(
+            "CRIT-1 / BC-2.10.007: QueryParseFailed domain error must surface as \
+             Ok(CallToolResult{is_error:true}), not Err(ErrorData); \
+             prism_error_to_structured_call_result must be wired into the query tool",
+        );
+
+        // is_error must be true.
+        assert_eq!(
+            call_result.is_error,
+            Some(true),
+            "CRIT-1: domain error result must have is_error=true"
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("CRIT-1: structured_content must be present (BC-2.10.007 v1.5)");
+
+        // _meta.trust_level must be "internal".
+        let trust_level = sc
+            .get("_meta")
+            .and_then(|m| m.get("trust_level"))
+            .and_then(|v| v.as_str());
+        assert_eq!(
+            trust_level,
+            Some("internal"),
+            "CRIT-1: structuredContent._meta.trust_level must be 'internal'; got {trust_level:?}"
+        );
+
+        let error_obj = sc
+            .get("error")
+            .expect("CRIT-1: structuredContent.error must be present");
+
+        // All 9 required fields must be present.
+        let required_fields = [
+            "code",
+            "message",
+            "category",
+            "retryable",
+            "retry_after_seconds",
+            "suggestion",
+            "source",
+            "original_params_valid",
+            "upstream_message",
+        ];
+        for field in &required_fields {
+            assert!(
+                error_obj.get(field).is_some(),
+                "CRIT-1: structuredContent.error must have '{field}' field; \
+                 error object: {error_obj}"
+            );
+        }
+
+        // For a parse error: category must be "validation", retryable=false,
+        // original_params_valid=false.
+        assert_eq!(
+            error_obj.get("category").and_then(|v| v.as_str()),
+            Some("validation"),
+            "CRIT-1: QueryParseFailed must have category='validation'"
+        );
+        assert_eq!(
+            error_obj.get("retryable").and_then(|v| v.as_bool()),
+            Some(false),
+            "CRIT-1: QueryParseFailed must have retryable=false"
+        );
+        assert_eq!(
+            error_obj
+                .get("original_params_valid")
+                .and_then(|v| v.as_bool()),
+            Some(false),
+            "CRIT-1: QueryParseFailed must have original_params_valid=false"
+        );
+    }
+
     // ─── P1-02 (2026-06-10 review) — BC-2.11.001 limit + BC-2.07.003 force_refresh ──
     //
     // QueryToolParams previously had only `query` + `clients` with
@@ -5291,15 +5391,15 @@ mod tests {
         );
     }
 
-    // ─── F-PASS14-HIGH-1 — AC-7 confirm_action CapabilityDenied → FORBIDDEN ────
+    // ─── F-PASS14-HIGH-1 — AC-7 confirm_action CapabilityDenied → structured error ─
     //
     // This test drives the FULL AC-7 path through PrismServer::confirm_action.
     // Previous pass-13 test was a paper-fix: it called WriteExecutor::execute and
     // map_prism_error directly, bypassing confirm_action entirely.
     //
-    // Mental-deletion proof: if `we.execute(plan, context).await.map_err(to_error_data)?`
-    // in confirm_action is replaced with `Ok(success_outcome)`, this test fails because
-    // the returned result would be Ok (not Err with FORBIDDEN).
+    // CRIT-1 update: CapabilityDenied is a domain error → Ok(structured_error)
+    // per BC-2.10.007 v1.5, not Err(ErrorData). The test expectation was updated
+    // in the S-5.02 fix-burst to reflect the correct boundary.
     //
     // LOAD-BEARING path:
     //   confirm_action
@@ -5309,7 +5409,8 @@ mod tests {
     //     → we.execute(plan, context) → phase2_safety_check
     //       → feature_flags.check_permission (empty map → DeniedRuntime)
     //       → PrismError::CapabilityDenied
-    //     → map_err(to_error_data) → ErrorData.code == FORBIDDEN (-32002)
+    //     → prism_error_to_structured_call_result → Ok(structured_error)
+    //       with category="authorization", is_error=true
 
     /// Stub AuditWriter for F-PASS14-HIGH-1 test.
     /// Not reached — CapabilityDenied fires in Phase 2, before Phase 5a audit intent.
@@ -5343,16 +5444,22 @@ mod tests {
         }
     }
 
-    /// F-PASS14-HIGH-1 / AC-7: confirm_action → CapabilityDenied → FORBIDDEN (-32002).
+    /// F-PASS14-HIGH-1 / AC-7 (updated for CRIT-1): confirm_action → CapabilityDenied →
+    /// `Ok(CallToolResult{is_error:true})` with BC-2.10.007 structured error.
     ///
     /// LOAD-BEARING: exercises the FULL confirm_action production code path.
     ///
     /// Previous pass-13 test was a paper-fix: it called WriteExecutor::execute and
     /// map_prism_error directly, bypassing confirm_action.
     ///
-    /// Mental-deletion proof: if `we.execute(plan, context).await.map_err(to_error_data)?`
-    /// in confirm_action is replaced with `Ok(success_outcome)`, this test fails because
-    /// the returned result would be Ok (not Err with FORBIDDEN).
+    /// CRIT-1 behavioral change: `CapabilityDenied` is a USER-VISIBLE domain error
+    /// (the user asked for a capability they don't have) and must be surfaced as
+    /// `Ok(CallToolResult{is_error:true, structured_content: {error:{...}, _meta}})` per
+    /// BC-2.10.007 v1.5, NOT as `Err(ErrorData)` which is reserved for protocol-level
+    /// errors (injection rejected, audit fail-closed).
+    ///
+    /// Mental-deletion proof: if the `we.execute()` error branch is removed,
+    /// this test fails because `confirm_action` would return Ok(success_outcome).
     ///
     /// LOAD-BEARING path through production code:
     ///   PrismServer::confirm_action
@@ -5362,7 +5469,8 @@ mod tests {
     ///     → we.execute(plan, context) → phase2_safety_check
     ///       → feature_flags.check_permission (empty map → DeniedRuntime)
     ///       → PrismError::CapabilityDenied
-    ///     → map_err(to_error_data) → ErrorData.code == FORBIDDEN (-32002)
+    ///     → prism_error_to_structured_call_result → Ok(structured_error) with
+    ///       category="authorization", code="E-FLAG-001", is_error=true
     #[tokio::test]
     async fn test_F_PASS14_HIGH_1_confirm_action_capability_denied_maps_to_32002() {
         use std::{collections::BTreeMap, sync::Arc};
@@ -5455,17 +5563,37 @@ mod tests {
 
         let result = server.confirm_action(Parameters(params)).await;
 
-        // Must return Err with FORBIDDEN (-32002) — CapabilityDenied from Phase 2.
-        let err = result.expect_err(
-            "F-PASS14-HIGH-1 / AC-7: confirm_action must return Err when \
-             FeatureFlagEvaluator denies the capability for an unknown client",
+        // CRIT-1: CapabilityDenied is a domain error → Ok(structured_error), not Err(ErrorData).
+        let call_result = result.expect(
+            "F-PASS14-HIGH-1 / AC-7 (CRIT-1): confirm_action must return Ok(structured_error) \
+             when CapabilityDenied fires — NOT Err(ErrorData). Domain errors use \
+             BC-2.10.007 structured envelope.",
         );
         assert_eq!(
-            err.code.0,
-            codes::FORBIDDEN,
-            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must map to FORBIDDEN (-32002) \
-             via confirm_action → to_error_data; got code {}",
-            err.code.0
+            call_result.is_error,
+            Some(true),
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must set is_error=true in CallToolResult"
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("F-PASS14-HIGH-1: structured_content must be present for CapabilityDenied");
+        let error_obj = sc
+            .get("error")
+            .expect("F-PASS14-HIGH-1: structuredContent.error must be present");
+
+        // Category must be "authorization" for CapabilityDenied.
+        assert_eq!(
+            error_obj.get("category").and_then(|v| v.as_str()),
+            Some("authorization"),
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must have category='authorization' \
+             in structured error"
+        );
+        // retryable must be false for a capability denial.
+        assert_eq!(
+            error_obj.get("retryable").and_then(|v| v.as_bool()),
+            Some(false),
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must have retryable=false"
         );
     }
 
@@ -5505,7 +5633,10 @@ mod tests {
         );
     }
 
-    /// BC-2.10.004: client_id validation rejects invalid characters.
+    /// BC-2.10.004: client_id validation rejects invalid characters with structured error.
+    ///
+    /// CRIT-2 fix: validate_client_ids now returns Err(CallToolResult) with
+    /// structuredContent.error.original_params_valid = false (BC-2.10.007 v1.5).
     #[test]
     fn test_validate_client_ids_rejects_invalid_chars() {
         let result = validate_client_ids(&["acme; DROP TABLE sensors".to_string()]);
@@ -5513,7 +5644,36 @@ mod tests {
             result.is_err(),
             "must reject client_id with injection chars"
         );
-        assert_eq!(result.unwrap_err().code.0, codes::INVALID_PARAMS);
+        let structured_err = result.unwrap_err();
+        // Verify is_error = true.
+        assert_eq!(
+            structured_err.is_error,
+            Some(true),
+            "validate_client_ids structured error must have is_error=true"
+        );
+        // Verify structuredContent.error.original_params_valid = false (CRIT-2).
+        let sc = structured_err
+            .structured_content
+            .expect("validate_client_ids must return structured_content");
+        let orig_valid = sc
+            .get("error")
+            .and_then(|e| e.get("original_params_valid"))
+            .and_then(|v| v.as_bool());
+        assert_eq!(
+            orig_valid,
+            Some(false),
+            "CRIT-2: validate_client_ids error must have original_params_valid=false; got {orig_valid:?}"
+        );
+        // Verify the E-MCP-001 code is in the message.
+        let msg = sc
+            .get("error")
+            .and_then(|e| e.get("message"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert!(
+            msg.contains("E-MCP-001"),
+            "validate_client_ids error message must contain E-MCP-001; got: '{msg}'"
+        );
     }
 
     /// BC-2.10.004: client_id validation accepts valid slug.
@@ -5528,7 +5688,7 @@ mod tests {
     // These tests call validate_client_ids directly (private function accessible from
     // child mod tests via use super::*). Mental-deletion proof: removing `|| id.len() > 64`
     // from validate_client_ids causes test_validate_client_ids_rejects_65_char_id to fail
-    // because validate_client_ids would return Ok(()) instead of Err(INVALID_PARAMS).
+    // because validate_client_ids would return Ok(()) instead of Err(structured_error).
 
     /// F-PASS14-CRIT-1: validate_client_ids must reject ids longer than 64 chars.
     ///
@@ -5544,10 +5704,19 @@ mod tests {
             "validate_client_ids must reject a 65-char id (exceeds 64-char OrgSlug limit); \
              got Ok — the || id.len() > 64 guard was removed or bypassed"
         );
+        // Verify structured error shape (CRIT-2: original_params_valid = false).
+        let structured_err = result.unwrap_err();
+        let sc = structured_err
+            .structured_content
+            .expect("validate_client_ids must produce structured_content for 65-char id");
+        let orig_valid = sc
+            .get("error")
+            .and_then(|e| e.get("original_params_valid"))
+            .and_then(|v| v.as_bool());
         assert_eq!(
-            result.unwrap_err().code.0,
-            codes::INVALID_PARAMS,
-            "rejection must use INVALID_PARAMS (-32602), not another code"
+            orig_valid,
+            Some(false),
+            "rejection must set original_params_valid=false; got {orig_valid:?}"
         );
     }
 
@@ -8169,9 +8338,7 @@ mod tests {
                 prism_query::cache::SensorResponseCache::with_defaults(),
             ))),
         ));
-        let mut server = PrismServer::new();
-        server.write_executor = Some(write_executor);
-        server
+        PrismServer::new().with_write_executor(write_executor)
     }
 
     /// Extract the envelope JSON from a structured CallToolResult.

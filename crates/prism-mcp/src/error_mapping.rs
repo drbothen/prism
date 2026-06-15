@@ -396,23 +396,31 @@ pub fn to_error_data(err: PrismError) -> ErrorData {
 }
 
 // ---------------------------------------------------------------------------
-// S-5.02 stub API surface (BC-2.10.007 v1.5 — structured error responses)
+// BC-2.10.007 v1.5 — structured error envelope API
 // ---------------------------------------------------------------------------
-//
-// STUB ZONE — these functions expose the correct public signatures required by
-// the BC-2.10.007 / BC-2.10.004 contracts so that `tests/tool_dispatch_tests.rs`
-// Red Gate tests compile.  Bodies intentionally return wrong/placeholder data:
-// the implementer (S-5.02 green phase) replaces these with correct logic.
-// Stubs must NOT use panic-macro aliases forbidden by POL-12 (see tool_dispatch_tests.rs
-// test_AC_10_no_todo_in_production_code which scans src/ for those strings).
-// The preferred approach is a wrong-value stub that compiles but returns incorrect data,
-// causing Red Gate test assertions to fail rather than panicking at runtime.
 
-/// S-5.02 stub — BC-2.10.007 v1.5 wire shape.
+/// BC-2.10.007 v1.5 wire shape — 9 fields inside `structuredContent.error`.
 ///
-/// The 9 fields required inside `structuredContent.error` plus `_meta.trust_level`.
-/// Implementer populates this from real error data; stub leaves fields at placeholder
-/// values so tests asserting the correct values fail (Red Gate).
+/// Carries the structured error envelope that every user-visible MCP tool error response
+/// must include (BC-2.10.007 postcondition). The builder [`build_structured_error_response`]
+/// serialises these fields into `structuredContent.error` with an explicit-null
+/// invariant for `retry_after_seconds` and `upstream_message` (null-not-absent).
+///
+/// # Construction
+///
+/// `#[non_exhaustive]` prevents external struct-literal construction, which would
+/// need updating every time a field is added. External callers (including tests)
+/// MUST use [`StructuredErrorFields::new`]:
+///
+/// ```
+/// use prism_mcp::error_mapping::StructuredErrorFields;
+/// let fields = StructuredErrorFields::new(
+///     "E-MCP-001", "invalid client_id format: ''", "validation",
+///     false, None, "Provide a client_id matching [a-zA-Z0-9_-]{1,64}.", "prism_mcp",
+///     false, None,
+/// );
+/// ```
+#[non_exhaustive]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StructuredErrorFields {
     /// Canonical error code (e.g. `"E-MCP-001"`, `"E-CFG-100"`).
@@ -435,9 +443,59 @@ pub struct StructuredErrorFields {
     pub upstream_message: Option<String>,
 }
 
-/// Build the nested BC-2.10.007 `structuredContent.error` envelope as a `CallToolResult`.
+impl StructuredErrorFields {
+    /// Construct all 9 BC-2.10.007 v1.5 structured error fields.
+    ///
+    /// External callers MUST use this constructor — struct literal syntax is blocked by
+    /// `#[non_exhaustive]` (HC-3, S-5.02).
+    ///
+    /// # Arguments (positional, matching field order)
+    /// 1. `code` — canonical E-* error code (e.g. `"E-MCP-001"`)
+    /// 2. `message` — human-readable message (no raw sensor text, DI-006)
+    /// 3. `category` — error class: `"validation"`, `"authorization"`, `"timeout"`, `"sensor"`, `"configuration"`, `"internal"`
+    /// 4. `retryable` — whether the caller may retry
+    /// 5. `retry_after_seconds` — wait hint (null when not applicable)
+    /// 6. `suggestion` — actionable suggestion for the caller
+    /// 7. `source` — error source identifier (e.g. `"prism_mcp"`)
+    /// 8. `original_params_valid` — whether the original request params were structurally valid
+    /// 9. `upstream_message` — raw upstream sensor text (null for Prism-originating errors, DI-006)
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        category: impl Into<String>,
+        retryable: bool,
+        retry_after_seconds: Option<u64>,
+        suggestion: impl Into<String>,
+        source: impl Into<String>,
+        original_params_valid: bool,
+        upstream_message: Option<String>,
+    ) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+            category: category.into(),
+            retryable,
+            retry_after_seconds,
+            suggestion: suggestion.into(),
+            source: source.into(),
+            original_params_valid,
+            upstream_message,
+        }
+    }
+}
+
+/// Build the nested BC-2.10.007 `structuredContent.error` envelope as an error `CallToolResult`.
 ///
-/// Produces the ratified BC-2.10.007 v1.5 wire shape:
+/// This is the PRODUCTION tool error boundary: tool handlers return
+/// `Ok(build_structured_error_response(...))` for all user-visible domain errors so that
+/// `structuredContent.error` carries the 9-field schema and `_meta.trust_level:"internal"`.
+///
+/// Protocol-level errors (injection rejection, write-tool audit fail-closed, rmcp framework
+/// errors) remain as `Err(ErrorData)` — those are returned before the tool handler body
+/// executes and are not user-visible at the domain level.
+///
+/// Produces the BC-2.10.007 v1.5 wire shape:
 /// ```json
 /// {
 ///   "isError": true,
@@ -519,6 +577,169 @@ pub fn to_error_data_with_retry(err: PrismError) -> (ErrorData, Option<u64>) {
         ErrorData::new(ErrorCode(code), message, None),
         retry_after_ms,
     )
+}
+
+/// Convert a `PrismError` into a BC-2.10.007 structured `CallToolResult` (is_error=true).
+///
+/// This is the PRODUCTION domain-error boundary for tool handlers. All user-visible
+/// domain errors (QueryEngine failures, WriteExecutor rejections, validation failures)
+/// route through here so the caller receives `structuredContent.error` with all
+/// 9 required fields + `_meta.trust_level:"internal"`.
+///
+/// Protocol-level errors (injection rejection, write-tool fail-closed audit) remain as
+/// `Err(ErrorData)` because they fire before or around the tool handler body.
+///
+/// # Usage in tool handlers
+///
+/// ```ignore
+/// // BEFORE (flat error — violates BC-2.10.007):
+/// return Err(to_error_data(PrismError::QueryTimeout { elapsed_ms: 30_000 }));
+///
+/// // AFTER (structured error — BC-2.10.007 compliant):
+/// return Ok(prism_error_to_structured_call_result(PrismError::QueryTimeout { elapsed_ms: 30_000 }));
+/// ```
+pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::CallToolResult {
+    // Inspect err by reference BEFORE consuming it with map_prism_error.
+    // Temporary struct to capture variant-level metadata.
+    struct VariantMeta {
+        category: &'static str,
+        suggestion: &'static str,
+        retryable: bool,
+        retry_after_seconds: Option<u64>,
+        original_params_valid: bool,
+    }
+    let meta = match &err {
+        PrismError::QueryParseFailed { .. }
+        | PrismError::McpParameterInvalid { .. }
+        | PrismError::McpToolNotFound { .. }
+        | PrismError::ClientNotFound { .. }
+        | PrismError::InvalidCapabilityPath { .. }
+        | PrismError::InvalidOrgSlug { .. }
+        | PrismError::InvalidAnalystId { .. }
+        | PrismError::InvalidClientId { .. }
+        | PrismError::QueryLimitExceeded { .. }
+        | PrismError::QuerySecurityLimitExceeded { .. }
+        | PrismError::WriteUnbounded
+        | PrismError::WriteTargetCompositeSource { .. }
+        | PrismError::WriteBatchLimitExceeded { .. }
+        | PrismError::WriteTargetingInternalTable { .. }
+        | PrismError::WriteVerbNotAvailable { .. }
+        | PrismError::WriteTargetTableUnknown { .. }
+        | PrismError::WriteAdapterNotConfiguredForClient { .. }
+        | PrismError::UnknownSourceTable { .. }
+        | PrismError::SensorNotRegisteredForOrg { .. }
+        | PrismError::AliasNotFound { .. }
+        | PrismError::AliasCycleDetected { .. }
+        | PrismError::AliasDepthExceeded { .. }
+        | PrismError::AliasParameterInvalid { .. }
+        | PrismError::AliasDependentsExist { .. }
+        | PrismError::AliasNameConflict { .. }
+        | PrismError::CursorExpired
+        | PrismError::CursorPageSizeInvalid
+        | PrismError::CursorTokenUnknown
+        | PrismError::CursorCapExceeded => VariantMeta {
+            category: "validation",
+            suggestion: "Check the request parameters and retry.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+        },
+        PrismError::CapabilityDenied { .. }
+        | PrismError::FeatureFlagEvalError { .. }
+        | PrismError::Unauthorized { .. }
+        | PrismError::McpPromptInjectionDetected { .. }
+        | PrismError::TokenExpired { .. }
+        | PrismError::TokenAlreadyConsumed { .. }
+        | PrismError::TokenContentHashMismatch { .. }
+        | PrismError::TokenCapExceeded
+        | PrismError::TokenNotFound { .. }
+        | PrismError::ConfirmClientIdMismatch { .. }
+        | PrismError::WriteRequiresClientId
+        | PrismError::CredentialAccessDenied { .. }
+        | PrismError::AuditTableAccessDenied => VariantMeta {
+            category: "authorization",
+            suggestion:
+                "Check capability configuration or confirm the operation through the correct flow.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+        },
+        PrismError::QueryTimeout { .. } => VariantMeta {
+            category: "timeout",
+            suggestion: "Retry the query with a shorter time range or narrower scope.",
+            retryable: true,
+            retry_after_seconds: None,
+            original_params_valid: true,
+        },
+        PrismError::SensorRateLimited { retry_after_ms, .. } => VariantMeta {
+            category: "sensor",
+            suggestion: "Retry after the indicated delay.",
+            retryable: true,
+            retry_after_seconds: Some(retry_after_ms / 1000),
+            original_params_valid: true,
+        },
+        PrismError::AuditPersistenceFailed => VariantMeta {
+            category: "internal",
+            suggestion:
+                "Retry the operation. If the problem persists, check the audit log storage.",
+            retryable: true,
+            retry_after_seconds: None,
+            original_params_valid: true,
+        },
+        PrismError::Spec(_)
+        | PrismError::SpecNotFound { .. }
+        | PrismError::SpecValidationFailed { .. }
+        | PrismError::SpecHotReloadFailed { .. }
+        | PrismError::ConfigNotFound { .. }
+        | PrismError::ConfigParseFailed { .. }
+        | PrismError::ConfigValidationFailed { .. }
+        | PrismError::ConfigSnapshotStale { .. } => VariantMeta {
+            category: "configuration",
+            suggestion: "Check operator configuration; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+        },
+        _ => VariantMeta {
+            category: "internal",
+            suggestion: "See audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+        },
+    };
+
+    // Now consume err to get the canonical code + message.
+    let (code_i32, message) = map_prism_error(err);
+    // Derive E-* code string from the i32 code.
+    let ec_code = if message.starts_with("E-") {
+        message.split(':').next().unwrap_or("E-INT-001").to_owned()
+    } else {
+        match code_i32 {
+            codes::INVALID_PARAMS => "E-MCP-002".to_owned(),
+            codes::FORBIDDEN => "E-FLAG-001".to_owned(),
+            codes::TIMEOUT => "E-QUERY-004".to_owned(),
+            codes::NOT_IMPLEMENTED => "E-MCP-003".to_owned(),
+            _ => "E-INT-001".to_owned(),
+        }
+    };
+
+    let fields = StructuredErrorFields {
+        code: ec_code,
+        message,
+        category: meta.category.to_owned(),
+        retryable: meta.retryable,
+        retry_after_seconds: meta.retry_after_seconds,
+        suggestion: meta.suggestion.to_owned(),
+        source: "prism_mcp".to_owned(),
+        original_params_valid: meta.original_params_valid,
+        upstream_message: None,
+    };
+    let content_text = format!(
+        "ERROR: [{}] - {}. {}",
+        fields.category, fields.message, fields.suggestion
+    );
+    build_structured_error_response(fields, content_text)
 }
 
 // ---------------------------------------------------------------------------
