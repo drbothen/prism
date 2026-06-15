@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-12"
-modified: "2026-06-14T12:00:00Z"
+modified: "2026-06-15T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-19, SS-11, SS-17]
 # Subsystem anchor justifications:
@@ -82,9 +82,10 @@ risk_mitigations:
      existing InfusionSource trait methods in crates/prism-spec-engine/src/infusion/plugin_bridge.rs
      (stubs at lines 24-41 with unimplemented!()). Do NOT add a new free-function
      plugin_bridge::enrich_via_plugin. Delegate to PluginRuntime::enrich_single
-     (plugin/mod.rs ~904). If S-1.15 PluginRuntime is not operational at dispatch time,
-     implement as Err(InfusionError::PluginRuntimeNotAvailable) with annotated todo!(S-1.15) —
-     same exemption as S-1.14-REDO AC-9. Document in PR."
+     (plugin/mod.rs ~904). If S-1.15 PluginRuntime is not operational at dispatch time (e.g.,
+     source is NotLoaded), enrich_single returns None and logs a WARN — it does NOT return an
+     error (map-log-None path per BC-2.19.001 v1.5 / CRIT-3 closure). InfusionError::PluginRuntimeNotAvailable
+     does NOT exist in prism-core error.rs — do not reference it. Document in PR."
   - "DataFusion async UDF registration (U3/U4/U8 — RESEARCH CONFIRMED DF 53.1.0):
      Implement AsyncScalarUDFImpl with invoke_async_with_args (real enrichment call) and
      invoke_with_args returning not_impl_err!(...). Register via:
@@ -122,7 +123,7 @@ traces_to: [D-1109, WO-D1109]
 supersedes: []
 ---
 
-# S-DEMO-ENRICHMENT-PIVOT-001: Infusion Engine Plugin-Bridge Prerequisites
+# S-DEMO-ENRICHMENT-PIVOT-001 v1.7: Infusion Engine Plugin-Bridge Prerequisites
 
 Wire the plugin-backed infusion path forward-subset from S-1.14-REDO's scope so the
 demo enrichment chain (S-DEMO-ENRICHMENT-PIVOT-002/003) can be built and tested before
@@ -300,9 +301,12 @@ using `wasmtime::component::Val::S32(...)` params. `get_typed_func` is NOT used 
 "post_return removed — no longer needed in wasmtime >=44 (no-op, deprecated)").
 Conform exactly to the existing plugin/mod.rs implementation — do NOT call post_return.
 
-When `PluginRuntime` is not yet available at dispatch time, `enrich_single` returns
-`Err(InfusionError::PluginRuntimeNotAvailable)` (or the closest equivalent variant in the
-InfusionError enum) with an annotated `todo!("S-1.15")`.
+When `PluginRuntime` is not yet available at dispatch time (e.g., source is `NotLoaded`),
+`enrich_single` returns `None` and emits a `tracing::warn!` — it does NOT return an error
+variant. This is the map-log-None path per BC-2.19.001 v1.5 / CRIT-3 closure.
+`InfusionError::PluginRuntimeNotAvailable` does NOT exist in `prism-core/src/error.rs` and
+MUST NOT be referenced. Real plugin wiring lands in PIVOT-002/003 / S-1.14-REDO;
+the unavailable-runtime contract is `None` + WARN log.
 
 Red Gate: `test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime`
 
@@ -423,8 +427,11 @@ Implementation checklist (TDD order — write failing tests before each implemen
     using the UNTYPED `component::Val` path (see AC-004 for confirmed signature).
     DO NOT use `get_typed_func` or call `post_return` — removed in merged runtime.
     Map `PluginError → InfusionError` at the boundary.
-  - if PluginRuntime not yet operational: `Err(InfusionError::PluginRuntimeNotAvailable)`
-    (use the closest variant in the existing InfusionError enum) with `todo!("S-1.15")`
+  - if PluginRuntime not yet operational (e.g., source is `NotLoaded`): return `Ok(None)` and
+    emit `tracing::warn!(plugin_id = %self.plugin_id, "plugin runtime unavailable — enrichment skipped")`.
+    DO NOT return `Err(InfusionError::PluginRuntimeNotAvailable)` — that variant does not exist.
+    DO NOT use `todo!("S-1.15")`. The map-log-None path is the correct production contract
+    (BC-2.19.001 v1.5 / CRIT-3 closure). Real wiring lands in PIVOT-002/003 / S-1.14-REDO.
 - [ ] Write regression test for AC-005 (NOT failing-first — already implemented):
   `test_BC_2_19_003_is_api_backed_true_for_plugin_type` — exercises the existing
   `InfusionRegistry::is_api_backed` implementation; confirms `true` for plugin-type UDFs and `false` for unknown names
@@ -491,7 +498,10 @@ Implementation checklist (TDD order — write failing tests before each implemen
 **S-1.15 (WASM runtime, partial-merge):**
 - `PluginRuntime::enrich_single` may or may not be operational at dispatch. Read
   `crates/prism-spec-engine/src/infusion/plugin_bridge.rs` to confirm current stub state
-  (stubs at lines 24-41). Use annotated `todo!("S-1.15")` if not operational.
+  (stubs at lines 24-41). If not operational, the correct behavior is map-log-None:
+  `enrich_single` returns `Ok(None)` and emits a `tracing::warn!` — NOT `todo!("S-1.15")`
+  and NOT `Err(InfusionError::PluginRuntimeNotAvailable)` (that variant does not exist).
+  See AC-004 and CRIT-3 closure for the authoritative contract.
 
 ---
 
@@ -545,7 +555,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 |----|-------------|-------------------|
 | EC-001 | `source.type = "maxmind_mmdb"` passed to load_all | Returns `Err(InfusionError::UnknownSourceType { type_name: "maxmind_mmdb".into() })` / E-INFUSE-004: "Unknown source type 'maxmind_mmdb'. Valid types: maxmind_mmdb, csv, json_lookup, plugin." (stub — full impl in S-1.14-REDO; see error-taxonomy.md §E-INFUSE-004 and prism-core error.rs `InfusionError::UnknownSourceType`) |
 | EC-002 | Plugin-type spec with no `plugin_ref` field | `Err(InfusionError::MissingRequiredField { field: "plugin_ref".into(), spec_path })` / E-INFUSE-003 from parse — plugin_ref is required for type=plugin (see error-taxonomy.md §E-INFUSE-003 and prism-core error.rs `InfusionError::MissingRequiredField`) |
-| EC-003 | `PluginInfusionSource::enrich_single` with S-1.15 unavailable | Returns `Err(InfusionError::PluginRuntimeNotAvailable)` (or nearest variant) — NOT a panic |
+| EC-003 | `PluginInfusionSource::enrich_single` with S-1.15 unavailable (e.g., source is `NotLoaded`) | Returns `Ok(None)` and emits a `tracing::warn!` — map-log-None path per BC-2.19.001 v1.5 / CRIT-3 closure. NOT an error return; NOT a panic. `InfusionError::PluginRuntimeNotAvailable` does not exist — do not use it. |
 | EC-004 | Two plugin specs with the same field name (duplicate UDF) | `SpecEngineError` at load_all with named conflict (BC-2.19.001 invariant: UDF names globally unique) |
 | EC-005 | `is_api_backed` called with UDF name not in registry | Returns `false` (unknown UDFs are not API-backed by default) |
 
@@ -597,6 +607,7 @@ Anticipated emissions (implementer must enumerate actual sites):
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.7 | 2026-06-15 | LOW spec↔impl drift fix (CRIT-3 closure): reconciled all pre-CRIT-3 prose to BC-2.19.001 v1.5 map-log-None semantics. Five sites corrected — (1) frontmatter risk_mitigations U5/Ruling-2 bullet, (2) AC-004 unavailable-runtime clause, (3) Tasks Phase-2 `if PluginRuntime not yet operational` bullet, (4) Previous Story Intelligence S-1.15 paragraph, (5) EC-003. All sites now specify: runtime-unavailable → `Ok(None)` + `tracing::warn!` (map-log-None). Removed all references to phantom `InfusionError::PluginRuntimeNotAvailable` variant (does not exist in prism-core/src/error.rs) and removed all `todo!("S-1.15")` directives. E-INFUSE-003/004/007 EC entries unchanged. |
 | v1.6 | 2026-06-14 | MED-1 fix: EC-001 corrected from non-existent `InfusionError::UnsupportedSourceType` / `E-INFUSE-003` to real variant `InfusionError::UnknownSourceType` / `E-INFUSE-004` (verified against prism-core error.rs line 1135 and error-taxonomy.md line 435 and BC-2.19.001 §Error table). `E-INFUSE-003` is `MissingRequiredField` — the wrong code for unknown-source-type. EC-002 corrected to cite `InfusionError::MissingRequiredField` / `E-INFUSE-003` (correct for missing `plugin_ref`). Tasks Phase-1 bullet corrected: `SpecEngineError::UnsupportedInfusionSourceType` (non-existent, forbidden by risk_mitigations U7) replaced with `Err(InfusionError::UnknownSourceType { type_name })` / E-INFUSE-004. risk_mitigations Scope-boundary bullet corrected to same. OBS-2 fix: all line-pin citations `infusion/mod.rs:619-628` de-pinned to behavioral anchor `InfusionRegistry::is_api_backed` per TD-VSDD-091 (three sites: risk_mitigations U6, AC-005 note, §File Structure mod.rs row, Red Gate table test-5 parenthetical). |
 | v1.5 | 2026-06-14 | OBS-3 fix: AC-002 third bullet removed unsupported `Arc<NullSource>` type assertion. The test `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` asserts descriptor count + `plugin_id`/`config` field population (parse-phase outcome) — it does NOT make a `NullSource` type assertion, which would require downcasting and is not part of the test's observable contract. AC-002 "then" bullets now match what the test actually asserts. |
 | v1.4 | 2026-06-14 | AC-002 aligned to BC-2.19.001 v1.5 two-phase wiring. AC-002 "then" clause now distinguishes: `load_all` (parse phase) produces descriptors with `plugin_id`/`config` populated but `source = Arc<NullSource>` placeholder; the full runtime-wired `Arc<PluginInfusionSource>` is the output of `load_spec_with_runtime` (runtime phase). AC-002 scoping note added: test asserts parse-phase outcome only; runtime bridge delegation is AC-004's scope. Test name `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` retained (names parse phase correctly — do not rename to imply full runtime wiring). BC table row updated: BC-2.19.001 v1.4 → v1.5 with two-phase wiring description. Frontmatter BC status comment updated to v1.5. |

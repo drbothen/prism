@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.821"
+version: "7.822"
 status: current
 timestamp: 2026-06-15T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1178 BURST (2026-06-15) — CLAUDE.md DRIFT CLOSURE: develop_head 7241f5ef→09925bbe. 3 CLAUDE.md drift items CLOSED (09925bbe). NONEXHAUSTIVE-COUNT reframed/Lane A UNBLOCKED. S-3.13 v1.14/rg19 + LAUNCHER v2.7/rg5 committed. STORY-INDEX v2.395. STATE v7.821.**
+> **D-1179 BURST (2026-06-15) — DURABILITY: develop_head UNCHANGED 09925bbe. S-3.13 v1.15/rg22 + PIVOT-001 v1.7 committed. STORY-INDEX v2.396. 3 security drift items. PIVOT PR #189 OPEN (pr-reviewer APPROVE + security CLEAR; PR-LEVEL 0/3). S-3.13 LOCAL 2/3. LAUNCHER LOCAL 1/3. S-5.02 LOCAL 0/3. STATE v7.822.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1178 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1177 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1178 below are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
-> develop HEAD `09925bbe` (docs(CLAUDE.md): refresh factory-artifacts push policy + BC-2.16.002 catalog label + frozen-HEAD streak rule; D-1178 burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1178 burst). STATE v7.821.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1179 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1178 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1179 below are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
+> develop HEAD `09925bbe` (docs(CLAUDE.md): refresh factory-artifacts push policy + BC-2.16.002 catalog label + frozen-HEAD streak rule; D-1178 burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1179 burst). STATE v7.822.
 
 ---
 
@@ -69,22 +69,22 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | 2 — DONE | **S-DEMO-DTU-LIVE-SCENARIO-001-A** | **MERGED** (T4-A; PR #181 develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active) | 8 | BC-2.06.018 (active) | S-CONFIG-MULTI-TENANT-OVERRIDE-001 (SATISFIED) | T4-A DONE — Story B unblocked |
 | 3 — **MERGED** | **S-DEMO-DTU-LIVE-SCENARIO-001-B** | **MERGED** (T5 DONE — PR #185 squash-merged develop@7fd35b77 2026-06-13; 3/3 strict CONVERGED passes 27/28/29; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 ACTIVE per POL-14 D-1139) | 7 | BC-2.06.019 v1.7 (active) + BC-2.06.020 v1.6 (active) | SATISFIED | DONE |
 | 4 — **DONE** | **S-DEMO-004** | **MERGED** (T10 DONE — PR #188 develop@7241f5ef 2026-06-15T05:48:52Z; LOCAL 3/3 strict CONVERGED + PR-LEVEL 3/3 strict CONVERGED passes 5/6/7; CI 43/43; POL-14 all 9 BCs idempotent; D-1176) | 8 | BC-3.2.001, BC-2.06.014, BC-2.11.005, BC-2.01.013, BC-2.06.017, BC-2.06.018, BC-2.10.001, BC-2.22.001, BC-2.09.008 (all active) | S-DEMO-MULTI-TENANT-DTU-001 + data layer (001-A/B) | T10 DONE |
-| 5 | **S-DEMO-LAUNCHER-CONSOLIDATION-001** | **IN PROGRESS — ready v2.7** (D-1178 2026-06-15; @754c9034; LOCAL 0/3 re-pass IN FLIGHT; 3 CLEAN → 3/3 → PR) | 8 | BC-2.06.001, BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.017 | S-DEMO-003 (SATISFIED) | T11 — LOCAL 0/3; 3 CLEAN(strict) → PR cycle |
+| 5 | **S-DEMO-LAUNCHER-CONSOLIDATION-001** | **IN PROGRESS — ready v2.7** (D-1179 2026-06-15; @754c9034; LOCAL 1/3; 2 more CLEAN → 3/3 → PR) | 8 | BC-2.06.001, BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.017 | S-DEMO-003 (SATISFIED) | T11 — LOCAL 1/3; 2 more CLEAN(strict) → PR cycle |
 | 6 — capstone | **Multi-client SOC-analyst narrative story** (not yet named or authored) | **not-authored** (no story file, no STORY-INDEX row; owner: product-owner + story-writer; after data layer + tooling exist) | TBD | TBD | Orders 3+4+5 complete | T13 → T14 demo recording; the demo's capstone deliverable |
 | **D-1107 SCOPE-IN** | **S-5.02** | not-started (wave 5) | 3 | 2 proxy | S-5.01 | Tool Routing/Errors/Client Scoping — **OPTED IN (D-1107 2026-06-12)**; remove-uncertainty before TDD (D-1061) |
 | **D-1107 SCOPE-IN** | **S-5.03** | not-started (wave 5) | -- | -- | S-5.02 | Resources and Prompts — hard dep of S-5.04; **OPTED IN (D-1107)**; remove-uncertainty before TDD |
 | **D-1107 SCOPE-IN** | **S-5.04** | not-started (wave 5) | 5 | -- | S-5.03, S-DEMO-001 | Sensor Health Subsystem — **OPTED IN (D-1107)**; remove-uncertainty before TDD |
 | **D-1107 SCOPE-IN** | **S-3.13** | **IN PROGRESS ready v1.14** (D-1178; @12c182b3; LOCAL 0/3 re-pass IN FLIGHT) | 3 | 3 proxy (needs PO BCs) | S-3.02, S-1.12 | Dynamic Table Availability — LOCAL 0/3; 3 CLEAN(strict) → PR; MERGE-COORD: after PIVOT-001 merges |
 
-**NEXT CONCRETE ACTION: L0 (UNBLOCKED — D-1178): devops-engineer rebase feature/S-5.02 onto develop@09925bbe → LOCAL adversary re-pass. L1 (PIVOT-001 @0d4978c3 3/3 CONVERGED) — per-story-delivery PR cycle. PARALLEL: LAUNCHER @754c9034 LOCAL 0/3 (3 CLEAN → 3/3); S-3.13 @12c182b3 LOCAL 0/3 (3 CLEAN → 3/3). T1–T10+T4-A ALL DONE. D-989+D-1090 autonomy grant remains active. MERGE-COORD: PIVOT-001 PR merges BEFORE S-3.13 PR (engine.rs + boot.rs); S-5.03 depends_on S-3.13.**
+**NEXT CONCRETE ACTION: L0 (S-5.02 @bc52076a LOCAL 0/3): LOCAL adversary re-pass. L1 (PIVOT-001 PR #189 OPEN 0/3): PR-LEVEL adversary → 3-CLEAN(strict) → merge (pass-2 demo-recorder OBS fix IN FLIGHT). L2 (LAUNCHER @754c9034 1/3): 2 more CLEAN → 3/3 → PR. L3 (S-3.13 @793c994a 2/3): 1 more CLEAN → 3/3 → rebase onto develop after PIVOT merges → PR. T1–T10+T4-A ALL DONE. D-989+D-1090 autonomy grant remains active. MERGE-COORD: PIVOT-001 PR merges BEFORE S-3.13 PR (engine.rs + boot.rs); S-5.03 depends_on S-3.13.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T11 (LAUNCHER v2.7 @754c9034 IN PROGRESS; LOCAL 0/3 re-pass). T1+T2+T3+T4+T4-A+T5+T6+T8+T9+T10 DONE. PR #188 MERGED develop@7241f5ef (D-1176 T10 DONE). develop@09925bbe (D-1178 docs CLAUDE.md). ADR-036 v2.3. BC-INDEX v6.58. ARCH-INDEX v2.133. STORY-INDEX v2.395. error-taxonomy v1.81. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.017 v1.10 ACTIVE. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.821 (D-1178 CLAUDE.md drift closure burst).**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T11 (LAUNCHER v2.7 @754c9034 IN PROGRESS; LOCAL 1/3). T1+T2+T3+T4+T4-A+T5+T6+T8+T9+T10 DONE. PR #188 MERGED develop@7241f5ef (D-1176 T10 DONE). PR #189 OPEN (PIVOT-001; pr-reviewer APPROVE + security CLEAR; PR-LEVEL 0/3). develop@09925bbe (D-1178 docs CLAUDE.md). ADR-036 v2.3. BC-INDEX v6.58. ARCH-INDEX v2.133. STORY-INDEX v2.396. error-taxonomy v1.81. VP-INDEX v1.79 (158). policies v1.33. prd v1.12. BC-2.06.017 v1.10 ACTIVE. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.822 (D-1179 durability burst).**
 
 ---
 
-## §RESUME SNAPSHOT — D-1178 (2026-06-15 — CLAUDE.md DRIFT CLOSURE; develop_head→09925bbe; Lane A UNBLOCKED; S-3.13 v1.14; LAUNCHER v2.7; NO open PRs; STATE v7.821)
+## §RESUME SNAPSHOT — D-1179 (2026-06-15 — DURABILITY BURST; develop_head UNCHANGED 09925bbe; S-3.13 v1.15/rg22; PIVOT-001 v1.7 PR #189 OPEN; S-3.13 LOCAL 2/3; LAUNCHER LOCAL 1/3; S-5.02 LOCAL 0/3; STATE v7.822)
 
-> **D-1178: CLAUDE.md DRIFT CLOSURE COMPLETE. develop_head 7241f5ef→09925bbe (orchestrator committed docs(CLAUDE.md)). 3 CLAUDE.md drift items CLOSED. NONEXHAUSTIVE-COUNT reframed: orchestrator CLAUDE.md authority granted; count bumps per-story at merge. Lane A S-5.02 UNBLOCKED — devops-engineer rebase IN FLIGHT. S-3.13 v1.14/rg19 + LAUNCHER v2.7/rg5 committed to .factory. PIVOT-001 @0d4978c3 LOCAL 3/3 CONVERGED (PR PENDING). S-3.13 @12c182b3 LOCAL 0/3 (re-pass IN FLIGHT). LAUNCHER @754c9034 LOCAL 0/3 (re-pass IN FLIGHT). All prior D-1101..D-1177 notes SUPERSEDED.**
+> **D-1179: DURABILITY BURST COMPLETE. develop_head UNCHANGED 09925bbe. S-3.13 v1.15/rg22 committed (3 boot-integration tests enrolled from 793c994a). PIVOT-001 v1.7 committed (CRIT-3 drift closure). PR #189 OPEN (pr-reviewer APPROVE + security CLEAR; PR-LEVEL adversary 0/3 — pass-2 OBS demo-recorder fix IN FLIGHT). S-3.13 @793c994a LOCAL 2/3. LAUNCHER @754c9034 LOCAL 1/3. S-5.02 @bc52076a LOCAL 0/3. 3 security drift items recorded (SEC-001 MANDATORY gate; SEC-002 CWE-209; SEC-003 CWE-22). All prior D-1101..D-1178 notes SUPERSEDED.**
 
 ---
 
@@ -109,13 +109,13 @@ git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001 rev
 git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-ENRICHMENT-PIVOT-001 rev-parse --short HEAD
 git -C /Users/jmagady/Dev/prism/.worktrees/S-3.13 rev-parse --short HEAD
 ```
-Expected values: see PINNED STATE table below. If any differ, the worktree has new commits since D-1176 — use live git as truth (PINNED STATE is the D-1176 baseline, not a lock).
+Expected values: see PINNED STATE table below. If any differ, the worktree has new commits since D-1179 — use live git as truth (PINNED STATE is the D-1179 baseline, not a lock).
 
-**Step 4.** Verify S-5.02 rebase status:
+**Step 4.** Verify S-5.02 doc-fix status:
 ```bash
 git -C /Users/jmagady/Dev/prism/.worktrees/S-5.02 log --oneline -3
 ```
-If worktree HEAD is still `8eaff098`, devops-engineer rebase onto develop@09925bbe has NOT yet completed — dispatch devops-engineer. If HEAD is ahead of 8eaff098 with a rebase merge from 09925bbe, L0 rebase is done — proceed to LOCAL adversary re-pass. CLAUDE.md-edit authority is now ORCHESTRATOR-OWNED (D-1178); no human action required.
+Expected HEAD: `bc52076a` (doc-comment fix; just check GREEN). If still `8eaff098`, the rebase + doc-fix has NOT completed — verify. CLAUDE.md-edit authority is ORCHESTRATOR-OWNED (D-1178); no human action required for count bumps.
 
 **Step 5.** Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) is critical for all parallel lanes.
 
@@ -123,38 +123,37 @@ If worktree HEAD is still `8eaff098`, devops-engineer rebase onto develop@09925b
 
 ---
 
-### PINNED STATE (concrete; from D-1177 burst)
+### PINNED STATE (concrete; from D-1179 burst)
 
 | Artifact | Value | Notes |
 |----------|-------|-------|
-| develop HEAD | `09925bbe` | docs(CLAUDE.md) commit 2026-06-15; D-1178. Previous: 7241f5ef (PR #188 squash-merge). |
-| factory-artifacts HEAD (D-1178) | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
+| develop HEAD | `09925bbe` | docs(CLAUDE.md) commit 2026-06-15; D-1178. Unchanged through D-1179. |
+| factory-artifacts HEAD (D-1179) | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
 | S-DEMO-004 worktree | REMOVED | feature/S-DEMO-004 DELETED — cleaned post-merge; PR #188 MERGED develop@7241f5ef |
-| S-5.02 worktree HEAD | `8eaff098` (pre-rebase baseline) | feature/S-5.02; non-exhaustive EXPECTED=64; UNBLOCKED (D-1178); rebase onto 09925bbe IN FLIGHT |
-| S-3.13 worktree HEAD | `12c182b3` | feature/S-3.13; story v1.14/rg19; LOCAL strict streak 0/3 (re-pass IN FLIGHT after v1.14 commit) |
-| PIVOT-001 worktree HEAD | `0d4978c3` | feature/S-DEMO-ENRICHMENT-PIVOT-001; story v1.6; LOCAL 3/3 CONVERGED; pushed to origin; PR PENDING |
-| LAUNCHER worktree HEAD | `754c9034` | feature/S-DEMO-LAUNCHER-CONSOLIDATION-001; story v2.7 (EC-008/KNOWN_SENSORS/AC-005); LOCAL streak 0/3 (re-pass IN FLIGHT) |
-| All active worktrees | just-check-GREEN (pre-rebase) | All 4 remaining lanes pass `just check`; S-5.02 rebase in flight |
-| S-5.02 | strict streak 0/3; UNBLOCKED | UNBLOCKED D-1178 (orchestrator CLAUDE.md authority); rebase onto 09925bbe → LOCAL adversary |
-| S-3.13 | strict streak 0/3 | v1.14 committed; re-pass in flight from fresh 0/3 (post DML-arm fix @12c182b3) |
-| PIVOT-001 | LOCAL 3/3 CONVERGED | Pushed @0d4978c3; PR PENDING; NEXT: per-story-delivery PR cycle |
-| LAUNCHER | strict streak 0/3 | v2.7 committed; re-pass in flight; EC-008/KNOWN_SENSORS/AC-005 fixed |
+| S-5.02 worktree HEAD | `bc52076a` | feature/S-5.02; doc-comment fix pushed; just check GREEN; story v1.7; LOCAL strict streak 0/3 (re-pass IN FLIGHT) |
+| S-3.13 worktree HEAD | `793c994a` | feature/S-3.13; story v1.15/rg22; LOCAL strict streak 2/3 (convergence pass IN FLIGHT) |
+| PIVOT-001 worktree HEAD | `0d4978c3` | feature/S-DEMO-ENRICHMENT-PIVOT-001; story v1.7; code LOCAL-converged; PR #189 OPEN (pr-reviewer APPROVE + security CLEAR); PR-LEVEL adversary 0/3 (pass-2 demo-recorder OBS IN FLIGHT) |
+| LAUNCHER worktree HEAD | `754c9034` | feature/S-DEMO-LAUNCHER-CONSOLIDATION-001; story v2.7; LOCAL streak 1/3 (re-pass IN FLIGHT) |
+| S-5.02 | strict streak 0/3 | doc-comment fix at @bc52076a; just check GREEN; LOCAL adversary re-pass in flight |
+| S-3.13 | strict streak 2/3 | v1.15 committed; @793c994a (3 boot-integration tests); 1 more CLEAN → 3/3 |
+| PIVOT-001 | PR-LEVEL 0/3 | PR #189 OPEN; pr-reviewer APPROVE + security CLEAR; pass-1 2 LOW fixed @1bcd67a5; pass-2 1 OBS demo-recorder IN FLIGHT |
+| LAUNCHER | strict streak 1/3 | v2.7; 2 more CLEAN → 3/3 → PR |
 | CLAUDE.md on develop | EXPECTED=60 (floor; correct for develop) | Count bumps now happen per-story at merge under orchestrator authority (D-1178) |
 
 ---
 
 ### TASK LEDGER (durable; replaces orchestrator in-session task list)
 
-Execute L0 first (human action); L1–L4 are autonomous and can run in parallel after Step 1–3 pass.
+Execute in parallel where possible; L1 (PIVOT PR-LEVEL) is critical path; L3 (S-3.13) must finish AFTER L1 merges.
 
 | ID | Status | Task | Agent | Notes |
 |----|--------|------|-------|-------|
-| **L0** | **IN FLIGHT — UNBLOCKED (D-1178)** | devops-engineer rebases feature/S-5.02 onto develop@09925bbe → LOCAL adversary re-pass (expect CLEAN(strict) → streak 1/3). CLAUDE.md-edit authority is ORCHESTRATOR-OWNED (D-1178 2026-06-15). Count bump for S-5.02's 4 new pub types (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus) lands AT S-5.02 MERGE: orchestrator edits CLAUDE.md (60→cumulative) + ci.yml (EXPECTED=cumulative) in-PR before squash-merge. | devops-engineer → adversary | All S-5.02 code/gate already correct in worktree (EXPECTED=64, 64 violations detected); rebase onto 09925bbe is the only remaining step before LOCAL adversary. |
-| **L1** | **READY — 3/3 CONVERGED** | PIVOT-001 @0d4978c3: LOCAL 3/3 CONVERGED (D-1177). Pushed to origin/feature/S-DEMO-ENRICHMENT-PIVOT-001. NEXT: per-story-delivery PR cycle (demo evidence → pr-manager creates PR → PR-LEVEL adversarial cascade 3-CLEAN → merge). MERGE-COORD: PIVOT-001 must land BEFORE S-3.13 PR (both touch prism-query/engine.rs + boot.rs in different zones). | pr-manager → adversary | Story v1.6. DO-NOT-REFLAG: E-INFUSE-007 IS present in error-taxonomy.md v1.81. OBS-1 boot-wiring adjudicated PIVOT-002/003 scope. |
-| **L2** | IN-FLIGHT — 1/3 | LAUNCHER @d9098c1f: LOCAL streak 1/3 (D-1177). AC-005 seeded-path prose fixed. 2 more CLEAN(strict) → 3/3 → PR. Verify MED-A/MED-B still closed. Hollow-feature gate: start-multi wired. | adversary | Story v2.6 (AC-005 "(static-JSON path)"→"(seeded path via `new_with_seed`)"). |
-| **L3** | IN-FLIGHT — 2/3 | S-3.13 @eafd017a: LOCAL streak 2/3 (D-1177). DRIFT-S313-DUPTEST-001 CLOSED. 1 more CLEAN(strict) → 3/3. THEN: rebase onto develop (after PIVOT-001 merges) → PR. Verify S-5.03 re-scope (no over-claim), proxy test relabeled, explain-wrapper wired, RG count = 17. | adversary | Story v1.13 (ACs 7 / RG 17). Merge-coord: engine.rs + boot.rs with PIVOT-001; S-5.03 depends_on S-3.13. |
-| **L4** | **DONE** | S-DEMO-004 PR #188: LOCAL 3/3 strict CONVERGED + PR-LEVEL 3/3 strict CONVERGED (passes 5/6/7 on frozen 89942715). CI 43/43 GREEN. POL-14: all 9 BCs already active — idempotent. MERGED develop@7241f5ef 2026-06-15T05:48:52Z. | — | **CLOSED. T10 DONE.** |
-| **L5** | BLOCKED-ON-L1..L3 | Per lane, after each LOCAL strict 3-CLEAN: create PR + run PR-LEVEL cascade → merge. MERGE-COORD: PIVOT-001 PR lands first; S-3.13 rebases onto develop after PIVOT merges. S-5.03 depends_on S-3.13. | pr-manager → adversary | Convergence rule: 3 consecutive strict-CLEAN passes (BC-5.39.001 / D-779). Orchestrator-drives-cascade (pr-manager lacks Agent tool). |
+| **L0** | **IN FLIGHT — LOCAL 0/3** | S-5.02 @bc52076a: doc-comment fix pushed; just check GREEN. LOCAL adversary re-pass → expect CLEAN(strict) → streak 1/3. Count bump for S-5.02's 4 new pub types (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus) lands AT S-5.02 MERGE: orchestrator edits CLAUDE.md (60→cumulative) + ci.yml (EXPECTED=cumulative) in-PR. | adversary | Story v1.7. EXPECTED=64 in ci.yml. CLAUDE.md count bump is orchestrator-owned at merge. |
+| **L1** | **PR #189 OPEN — PR-LEVEL 0/3** | PIVOT-001 @0d4978c3 (code LOCAL-converged; story v1.7; PR #189 OPEN). pr-reviewer APPROVE + security SECURITY-CLEAR-TO-MERGE. PR-LEVEL adversary: pass-1 2 LOW fixed @1bcd67a5; pass-2 1 OBS evidence-header demo-recorder fix IN FLIGHT. Run pass-2 → 3-CLEAN(strict) streak → merge. SECURITY NOTE: DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 + DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 are PIVOT-002 latent items; do NOT block PIVOT-001 merge on them. DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 sync-WASM is MANDATORY GATE for PIVOT-002/003 plugin-bridge wiring only — NOT a PIVOT-001 blocker. | adversary → pr-manager | MERGE-COORD: PIVOT-001 must land BEFORE S-3.13 (engine.rs + boot.rs DI plumbing). |
+| **L2** | IN-FLIGHT — 1/3 | LAUNCHER @754c9034: LOCAL streak 1/3. Story v2.7. 2 more CLEAN(strict) → 3/3 → PR. Verify MED-A/MED-B/EC-008 still closed. Hollow-feature gate: start-multi wired. | adversary → pr-manager | Story v2.7. LAUNCHER is independent of PIVOT-001/S-3.13 engine.rs; can merge in any order. |
+| **L3** | IN-FLIGHT — 2/3 | S-3.13 @793c994a: LOCAL streak 2/3. Story v1.15 (ACs 7 / RG 22). 1 more CLEAN(strict) → 3/3. THEN: rebase onto develop AFTER PIVOT-001 merges → PR. Verify S-5.03 re-scope (no over-claim), proxy test relabeled, explain-wrapper wired, RG count = 22 (not 17 — story v1.15 has 22). | adversary → pr-manager | MERGE-COORD: must rebase onto develop after PIVOT-001 merges; S-5.03 depends_on S-3.13. |
+| **L4** | **DONE** | S-DEMO-004 PR #188: MERGED develop@7241f5ef 2026-06-15T05:48:52Z. T10 DONE. | — | **CLOSED.** |
+| **L5** | BLOCKED-ON-L1,L3 | S-5.03 not-started. Depends_on S-3.13. After S-3.13 merges: story-writer materializes S-5.03 body; remove-uncertainty; TDD delivery. | story-writer → implementer | BC-2.16.007 anchor. depends_on S-3.13 (TableRegistry API). |
 
 **Convergence rule (all lanes):** every lane needs 3 CONSECUTIVE CLEAN(strict) passes. Any finding resets streak to 0/3. Orchestrator drives cascade (pr-manager lacks Agent tool).
 
@@ -173,6 +172,9 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 | PIVOT-001 OBS-1 E-INFUSE-007 missing from error-taxonomy | DISMISSED — E-INFUSE-007 IS registered at error-taxonomy.md line 438 v1.81. DO-NOT-REFLAG. | D-1175 dismissal |
 | DRIFT-PIVOT-PLUGINID-INFUSIONID-001 | Forward-concern tracked (D-1176). PluginInfusionSource::new uses spec.infusion_id but PluginRuntime keys by plugin_metadata.plugin_id. NOT a PIVOT-001 blocker — PIVOT-002/003 scope. | D-1176 drift items |
 | DRIFT-S313-DUPTEST-001 | CLOSED (D-1177). Duplicate/misnamed test `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` renamed at S-3.13 worktree @eafd017a. LOCAL streak advanced to 2/3. DO-NOT-REFLAG. | D-1177 STATE.md drift items |
+| DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 (PIVOT-002 latent) | NOT a PIVOT-001 PR blocker. plugin_ref un-canonicalized path is latent — only manifests when PIVOT-002 adds file I/O. Record and defer to PIVOT-002. Do NOT raise against PR #189. | D-1179 drift items |
+| DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (PIVOT-002 latent) | NOT a PIVOT-001 PR blocker. load_all error path-disclosure is latent — only manifests when PIVOT-002 wires errors into MCP responses. Record and defer to PIVOT-002. Do NOT raise against PR #189. | D-1179 drift items |
+| DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 sync-WASM gate | MANDATORY gate for PIVOT-002/003 plugin-bridge wiring ONLY. NOT a PIVOT-001 blocker. PR #189 may merge. Gate enforcement point is PIVOT-002 PR review. | D-1179 drift items (elevation) |
 | S-DEMO-004 PR #188 — all closures | MERGED develop@7241f5ef. ALL findings closed. T10 DONE. DO-NOT-REFLAG any S-DEMO-004 finding. | PR #188 merged 2026-06-15 |
 | DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 | RESOLVED-MECHANISM (D-1178): orchestrator CLAUDE.md authority granted; develop count stays 60 (FLOOR); count bumps per-story at merge. Lane A UNBLOCKED. | D-1178 |
 | DEFER-CLAUDEMD-FACTORY-PUSH-POLICY-001 | CLOSED @09925bbe (D-1178): §Git Workflow reflects D-1066 push authorization. | D-1178 |
@@ -182,18 +184,18 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 
 ---
 
-### 4 ACTIVE LANES — Current SHAs + Phase + Next Action (D-1177 baseline)
+### 4 ACTIVE LANES — Current SHAs + Phase + Next Action (D-1179 baseline)
 
-> **IMPORTANT:** SHAs are the D-1177 baseline. Run RESTART PROTOCOL Step 3 to confirm actual HEAD before acting. If worktrees have advanced, live git is authoritative.
+> **IMPORTANT:** SHAs are the D-1179 baseline. Run RESTART PROTOCOL Step 3 to confirm actual HEAD before acting. If worktrees have advanced, live git is authoritative.
 
-| Lane | Story | Worktree Path | Branch | HEAD (D-1177) | Phase / Streak | EXACT NEXT ACTION |
+| Lane | Story | Worktree Path | Branch | HEAD (D-1179) | Phase / Streak | EXACT NEXT ACTION |
 |------|-------|---------------|--------|---------------|----------------|-------------------|
 | **T10 (DONE)** | S-DEMO-004 | REMOVED | `feature/S-DEMO-004 (DELETED)` | `89942715 (frozen merge-base)` | **MERGED PR #188 develop@7241f5ef 2026-06-15T05:48:52Z** | **CLOSED.** T10 DONE. |
-| **Lane A** | S-5.02 | `/Users/jmagady/Dev/prism/.worktrees/S-5.02` | `feature/S-5.02` | `8eaff098` (pre-rebase) | LOCAL streak 0/3; UNBLOCKED (D-1178) — rebase IN FLIGHT | **L0 (IN FLIGHT):** devops-engineer rebase feature/S-5.02 onto develop@09925bbe → LOCAL adversary re-pass. Story v1.7. EXPECTED=64 in ci.yml. CLAUDE.md count bump to orchestrator at S-5.02 merge. |
-| **Lane B** | S-3.13 | `/Users/jmagady/Dev/prism/.worktrees/S-3.13` | `feature/S-3.13` | `12c182b3` | LOCAL strict streak **0/3** (re-pass IN FLIGHT post v1.14 commit) | **L3:** LOCAL adversary re-pass → 3 CLEAN(strict) → 3/3. Story v1.14 (ACs 7 / RG 19). After 3/3: rebase onto develop (after PIVOT-001 merges) → PR. |
-| **Lane C** | PIVOT-001 | `/Users/jmagady/Dev/prism/.worktrees/S-DEMO-ENRICHMENT-PIVOT-001` | `feature/S-DEMO-ENRICHMENT-PIVOT-001` | `0d4978c3` | LOCAL **3/3 CONVERGED** — pushed | **L1:** per-story-delivery PR cycle. Story v1.6. MERGE-COORD: land BEFORE S-3.13 PR. |
+| **Lane A** | S-5.02 | `/Users/jmagady/Dev/prism/.worktrees/S-5.02` | `feature/S-5.02` | `bc52076a` | LOCAL strict streak **0/3** (re-pass IN FLIGHT) | **L0 (IN FLIGHT):** LOCAL adversary re-pass → CLEAN(strict) → streak 1/3. Story v1.7. EXPECTED=64 in ci.yml. Count bump at S-5.02 merge via orchestrator. |
+| **Lane B** | S-3.13 | `/Users/jmagady/Dev/prism/.worktrees/S-3.13` | `feature/S-3.13` | `793c994a` | LOCAL strict streak **2/3** (convergence pass IN FLIGHT) | **L3:** 1 more CLEAN(strict) → 3/3. Story v1.15 (ACs 7 / RG 22). After 3/3: rebase onto develop (after PIVOT-001 merges) → PR. Verify S-5.03 re-scope; RG count = 22. |
+| **Lane C** | PIVOT-001 | `/Users/jmagady/Dev/prism/.worktrees/S-DEMO-ENRICHMENT-PIVOT-001` | `feature/S-DEMO-ENRICHMENT-PIVOT-001` | `0d4978c3` (code; PR head may advance) | PR #189 OPEN; PR-LEVEL adversary **0/3** (pass-2 demo-recorder OBS IN FLIGHT) | **L1:** complete PR-LEVEL adversary 3-CLEAN(strict) → merge. Story v1.7. SECURITY items: see DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001/LOADALL-PATH-DISCLOSURE-001 (PIVOT-002 latent; NOT blockers for this PR). |
 | **Lane D** | — | — | — | — | **CLOSED** (D-1168) | S-1.15 DROPPED. Permanently closed. |
-| **Lane E** | LAUNCHER | `/Users/jmagady/Dev/prism/.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001` | `feature/S-DEMO-LAUNCHER-CONSOLIDATION-001` | `754c9034` | LOCAL streak **0/3** (re-pass IN FLIGHT post v2.7 commit) | **L2:** LOCAL adversary re-pass. Story v2.7. Verify MED-A/MED-B/EC-008 still closed. Hollow-feature: start-multi wired. 3 CLEAN → 3/3 → PR. |
+| **Lane E** | LAUNCHER | `/Users/jmagady/Dev/prism/.worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001` | `feature/S-DEMO-LAUNCHER-CONSOLIDATION-001` | `754c9034` | LOCAL streak **1/3** (re-pass IN FLIGHT) | **L2:** 2 more CLEAN(strict) → 3/3 → PR. Story v2.7. Verify MED-A/MED-B/EC-008 still closed. Hollow-feature: start-multi wired. |
 
 ---
 
@@ -254,21 +256,21 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 
 ---
 
-### INDEX VERSIONS (as of D-1176 snapshot)
+### INDEX VERSIONS (as of D-1179 snapshot)
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.821 | This snapshot (D-1178 CLAUDE.md drift closure; develop_head→09925bbe; Lane A UNBLOCKED; S-3.13 v1.14; LAUNCHER v2.7) |
+| STATE.md | v7.822 | This snapshot (D-1179 durability burst; develop_head UNCHANGED 09925bbe; S-3.13 v1.15/rg22; PIVOT-001 v1.7; PR #189 OPEN) |
 | BC-INDEX | v6.58 | active 235 / draft 2 / retired 6; total 250 |
-| STORY-INDEX | v2.395 | 200 stories; S-DEMO-004 → merged; S-3.13 → v1.14/rg19; LAUNCHER → v2.7/rg5 |
+| STORY-INDEX | v2.396 | 200 stories; S-DEMO-004 → merged; S-3.13 → v1.15/rg22; PIVOT-001 → v1.7; LAUNCHER → v2.7/rg5 |
 | error-taxonomy | v1.81 | E-INFUSE-007 (PIVOT-001 HIGH-1 UDF-registration failure); E-QUERY-037 boxed emitter + strsim |
 | ARCH-INDEX | v2.133 | — |
 | VP-INDEX | v1.79 | 158 registered |
 | prd | v1.12 | — |
 | policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes |
 | prismql-grammar | v1.1 | enrich function-call form |
-| develop HEAD | 09925bbe | docs(CLAUDE.md) commit 2026-06-15 D-1178; prior: 7241f5ef PR #188 squash-merge T10 DONE |
-| Open PRs | NONE | PR #188 MERGED (T10 DONE). All prior PRs merged. |
+| develop HEAD | 09925bbe | docs(CLAUDE.md) commit 2026-06-15 D-1178; UNCHANGED through D-1179 |
+| Open PRs | PR #189 | PR #189 OPEN (feature/S-DEMO-ENRICHMENT-PIVOT-001; pr-reviewer APPROVE + security CLEAR; PR-LEVEL adversary 0/3) |
 
 ---
 
@@ -286,18 +288,18 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 | Field | Value |
 |-------|-------|
 | **Mode** | brownfield |
-| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T1–T10+T4-A DONE. T11 (LAUNCHER) 0/3 re-pass. PIVOT-001 3/3 CONVERGED (PR pending). S-3.13 v1.14 0/3 re-pass. S-5.02 UNBLOCKED (rebase IN FLIGHT). |
-| **develop HEAD** | `09925bbe` (docs(CLAUDE.md) 2026-06-15 D-1178; prior: 7241f5ef PR #188 squash-merge T10 DONE) |
-| **STATE version** | v7.821 |
+| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T1–T10+T4-A DONE. T11 (LAUNCHER) 1/3. PIVOT-001 PR #189 OPEN (PR-LEVEL 0/3). S-3.13 v1.15 2/3. S-5.02 @bc52076a LOCAL 0/3. |
+| **develop HEAD** | `09925bbe` (docs(CLAUDE.md) 2026-06-15 D-1178; UNCHANGED through D-1179) |
+| **STATE version** | v7.822 |
 | **BC-INDEX version** | v6.58 (total 250; active 235; draft 2; retired 6; BC-2.06.017 v1.10 active; BC-2.06.018 v1.6 active; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
-| **STORY-INDEX version** | v2.395 (total_stories 200; S-3.13 v1.14/rg19; LAUNCHER v2.7/rg5) |
+| **STORY-INDEX version** | v2.396 (total_stories 200; S-3.13 v1.15/rg22; PIVOT-001 v1.7; LAUNCHER v2.7/rg5) |
 | **VP-INDEX version** | v1.79 (158 registered) |
 | **ARCH-INDEX version** | v2.133 |
 | **error-taxonomy version** | v1.81 (E-INFUSE-007 PIVOT-001 HIGH-1 UDF-registration failure; E-QUERY-037 boxed emitter + strsim) |
 | **ADR-036 version** | v2.3 (time_anchor 5-arg ruling) |
 | **policies version** | v1.33 (POL-33 route_coverage_table_required_for_stagemask_changes) |
 | **prd version** | v1.12 |
-| **Open PRs** | **NONE.** PR #188 MERGED develop@7241f5ef (T10; D-1176 2026-06-15). PR #185 MERGED develop@7fd35b77 (T5). PR #186 MERGED develop@f7400f83 (D-1143). PR #187 MERGED develop@664566e9 (T6; D-1158). |
+| **Open PRs** | **PR #189 OPEN** (feature/S-DEMO-ENRICHMENT-PIVOT-001; pr-reviewer APPROVE + security CLEAR; PR-LEVEL adversary 0/3). PR #188 MERGED develop@7241f5ef (T10; D-1176 2026-06-15). PR #185 MERGED develop@7fd35b77 (T5). PR #186 MERGED develop@f7400f83 (D-1143). PR #187 MERGED develop@664566e9 (T6; D-1158). |
 | **T10 branch** | `feature/S-DEMO-004`; MERGED at develop@7241f5ef (2026-06-15); worktree+branch cleaned |
 | **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1178 burst) |
 
@@ -569,7 +571,7 @@ git log --oneline origin/develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.821"
+# Expected: version: "7.822"
 
 # 4. Confirm active worktrees (S-DEMO-004 worktree REMOVED post-merge)
 ls /Users/jmagady/Dev/prism/.worktrees/
