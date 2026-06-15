@@ -16,7 +16,7 @@ pub mod alias_tests;
 // Drives production code path (pushdown::predicate_tree_to_filter_map) without external DTU.
 pub mod aql_pushdown_tests;
 // S-3.13: Red Gate tests for dynamic table availability + E-QUERY-037 plan-time gate.
-// 15 tests covering BC-2.11.001 / BC-2.16.001 / BC-2.16.007.
+// Tests covering BC-2.11.001 / BC-2.16.001 / BC-2.16.007 (table availability registry + gate).
 pub mod bc_gap_fill_tests;
 pub mod cache_tests;
 pub mod explain_tests;
