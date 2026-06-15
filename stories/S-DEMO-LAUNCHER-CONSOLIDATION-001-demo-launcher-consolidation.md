@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.3"
+version: "2.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -33,7 +33,7 @@ subsystems: [SS-06, SS-22]
 crates_touched: [prism-dtu-demo-server]
 # crates_touched: prism-dtu-demo-server only.
 #   Adds: StartMulti variant in Commands enum (main.rs), cmd_start_multi function (main.rs ~80-120 lines),
-#   MultiOrgDemoConfig / MultiOrgConfig / OrgConfig structs (config.rs ~40-60 lines).
+#   MultiOrgDemoConfig / OrgConfig structs (config.rs ~40-60 lines).
 #   Zero changes to prism-dtu-harness, prism-dtu-common, or any other crate.
 target_module: prism-dtu-demo-server
 capabilities: [CAP-034]
@@ -72,7 +72,7 @@ points: 8
 #         call start_instances(MultiInstanceConfig, clone_factory), write nested per-org sidecar
 #         {org_slug: {sensor: url}}, wait for SIGTERM/SIGINT via shared broadcast, shutdown via
 #         MultiInstanceServers::shutdown().
-#   +1 — MultiOrgDemoConfig / MultiOrgConfig / OrgConfig config structs (~40-60 lines in config.rs)
+#   +1 — MultiOrgDemoConfig / OrgConfig config structs (~40-60 lines in config.rs)
 #         + unit tests (config parsing, deny_unknown_fields, error cases).
 #   +0.5 — demo-run.sh becomes simpler (replaces N separate prism-dtu-demo-server start invocations
 #           with one start-multi; reads nested {org_slug: {sensor: url}} sidecar instead of flat).
@@ -1299,6 +1299,7 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.4 | 2026-06-14 | story-writer | MED-A paper-fix remediation: v2.2 changelog claimed `MultiOrgConfig` bare occurrences were fixed, but two live (non-changelog) sites remained. Fixed: (1) `crates_touched` comment line — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig` → `MultiOrgDemoConfig / OrgConfig`; (2) points justification comment — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig config structs` → `MultiOrgDemoConfig / OrgConfig config structs`. The type `MultiOrgConfig` does not exist in the codebase; real types are `MultiOrgDemoConfig` (root) and `OrgConfig` (per-org). Historical changelog rows are immutable and were not touched. |
 | 2.3 | 2026-06-14 | story-writer | Four fixes: (MED-3/POL-32) Changelog reordered to strict monotonic-descending (2.3→2.2→2.1→2.0→1.0). (MED-4/POL-7) §Behavioral Contracts table cells updated to verbatim BC H1 titles: BC-2.06.013 → "Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files"; BC-2.06.014 → "Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec"; BC-2.06.017 → "Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing". (OBS-1) AC-006 verification step corrected: `crates/prism-dtu-demo-server/configs/demo.toml` is the existing single-org config (confirmed present); verification command updated to unambiguous repo-root-relative path; explanatory note added distinguishing the two config files and their respective subcommands. (EC-007) Recovery-path text synced to implemented `configure` subcommand behavior: full `{org_slug}-{sensor_id}` key form after start-multi; bare form when sensor unambiguous; legacy flat-sidecar form after plain `start`; note that `configure` reads nested sidecar when flat is absent. |
 | 2.2 | 2026-06-14 | story-writer | OBS-1 mapping-table correction: removed stale `MultiOrgConfig` row from Architecture Mapping table; the correct type names are `MultiOrgDemoConfig` (root config, annotated) and `OrgConfig` (per-org subsection, annotated). Fixed two additional `MultiOrgConfig` bare occurrences (frontmatter tdd_mode comment, token-budget architect-estimate comment) to `MultiOrgDemoConfig`/`OrgConfig` and `MultiOrgDemoConfig` respectively. Status: ready. Points: 8 (unchanged). |
 | 2.1 | 2026-06-14 | story-writer | Pre-TDD gap closure (3 gaps). GAP-1 (IMPORTANT): `fixture-gen` feature is REQUIRED for `start-multi`; `build_multi_clone_factory` must hard-error (compile_error! or runtime panic) if built without it — no silent fallback to unseeded `new()` which would violate INV-DISTINCT-DATA-001. All `start-multi` cargo commands updated to `--features dtu,fixture-gen`. `multi_org.rs` Cargo.toml `[[test]]` must specify `required-features = ["dtu", "fixture-gen"]`. Architecture Compliance Rules updated: `build_multi_clone_factory` must reuse `harness::parse_org_id`, `harness::fixture_set_to_archetype`, `prism_dtu_common::Archetype`, `demo_time_anchor()`. GAP-2 (MINOR): Cyberint composite path documented: `new_with_seed(...)` then `configure({"access_token": token})` post-construction — these compose cleanly via `CyberintState::apply_config` → `register_access_token`; no architect escalation needed. GAP-3 (NOTE): `DEMO_RUN_DIR` must be threaded into sidecar poll + Python paths in demo-run.sh to avoid cwd-relative path mismatch. Status: ready. Points: 8 (unchanged). |

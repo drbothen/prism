@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -205,7 +205,6 @@ attached by `InfusionRegistry::load_spec_with_runtime` (and future boot-time run
 This test therefore asserts the PARSE-PHASE outcome only:
 - `registry.udf_descriptors()` is non-empty (descriptors exist for each declared field)
 - Each descriptor has `plugin_id` and `config` matching the TOML spec
-- The `source` field carries `Arc<NullSource>` (placeholder before `load_spec_with_runtime`)
 
 A descriptor still carrying `Arc<NullSource>` at query-execution time (i.e., where
 `load_spec_with_runtime` was not invoked) is a loading defect per BC-2.19.001 v1.5
@@ -596,6 +595,7 @@ Anticipated emissions (implementer must enumerate actual sites):
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.5 | 2026-06-14 | OBS-3 fix: AC-002 third bullet removed unsupported `Arc<NullSource>` type assertion. The test `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` asserts descriptor count + `plugin_id`/`config` field population (parse-phase outcome) — it does NOT make a `NullSource` type assertion, which would require downcasting and is not part of the test's observable contract. AC-002 "then" bullets now match what the test actually asserts. |
 | v1.4 | 2026-06-14 | AC-002 aligned to BC-2.19.001 v1.5 two-phase wiring. AC-002 "then" clause now distinguishes: `load_all` (parse phase) produces descriptors with `plugin_id`/`config` populated but `source = Arc<NullSource>` placeholder; the full runtime-wired `Arc<PluginInfusionSource>` is the output of `load_spec_with_runtime` (runtime phase). AC-002 scoping note added: test asserts parse-phase outcome only; runtime bridge delegation is AC-004's scope. Test name `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` retained (names parse phase correctly — do not rename to imply full runtime wiring). BC table row updated: BC-2.19.001 v1.4 → v1.5 with two-phase wiring description. Frontmatter BC status comment updated to v1.5. |
 | v1.3 | 2026-06-14 | BC version-pin sync (D-1167 state-manager burst — citation sync only). BC-2.19.001 v1.3 → v1.4 (NullSource gap closed; PO confirmed at D-1166); BC-2.19.003 v? → v1.3 (PO-confirmed at D-1166). Frontmatter BC status comment updated to remove pending-PO language. Behavioral Contracts table rows updated. No AC/scope changes. |
 | v1.2 | 2026-06-14 | Pre-TDD scan corrections (verified against develop@664566e9). (1) Correction 1 — post_return RETRACTED: plugin/mod.rs ~L970 removed post_return as deprecated in wasmtime >=44; risk_mitigations + AC-004 + Library table + Architecture Mapping updated to reflect UNTYPED component::Val path with no post_return. (2) Correction 2 — enrich_single delegation signature fixed: real signature is PluginRuntime::enrich_single(plugin_id, input_value, input_type, config: &PluginConfigMap) -> Result<Option<Value>, PluginError>; PluginInfusionSource must carry plugin_id + config as fields; bridge maps PluginError → InfusionError; AC-004 + task + file-structure updated. (3) Correction 3 — async UDF research applied: DataFusion 53.1.0 confirmed ctx.register_udf(AsyncScalarUDF::new(Arc<dyn AsyncScalarUDFImpl>).into_scalar_udf()) is sufficient; DefaultPhysicalPlanner handles async natively; no analyzer/optimizer rules needed; hallucinated symbols catalogued (AsyncFunctionRule, enable_async_udf, concurrent_async_udf_tasks, GLOBAL_ASYNC_UDF_SEMAPHORE — do not exist); AC-003 rewritten, hallucination list added, anti-false-green hardening added (sentinel value + call counter). (4) Correction 4 — NullSource wiring gap: udf_descriptors() hardwires Arc::new(NullSource) at mod.rs ~L500/535/558/662; net-new Phase 3 task added to replace with real PluginInfusionSource; engine.rs two-site registration noted (execute + new_full paths); S-3.13 merge-coordination note added; file-structure table corrected (is_api_backed already implemented — not net-new). Status: draft → ready. |
