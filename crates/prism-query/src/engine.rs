@@ -715,14 +715,30 @@ impl QueryEngine {
     /// Thin wrapper over `explain::explain()` that satisfies the COMP-003 interface
     /// specified in `module-decomposition.md` line 185. (CR-006, BC-2.11.010)
     ///
+    /// # Registry injection (OBS-1 fix)
+    /// If `options.table_registry` is `None` and the engine has a wired `table_registry`,
+    /// the engine's registry is injected into the options so that
+    /// `ExplainResult.available_tables` is populated from the live registry without
+    /// requiring callers to retrieve and thread `QueryEngine::table_registry()` manually.
+    /// Callers that supply their own `options.table_registry` are not overridden.
+    ///
     /// # No sensor API calls
     /// Delegates to `explain::explain()` which is a pure plan-analysis function.
     /// No `fan_out()`, no sensor adapter `fetch()`.
     pub fn explain(
         &self,
         query_str: &str,
-        options: crate::explain::ExplainOptions,
+        mut options: crate::explain::ExplainOptions,
     ) -> Result<crate::explain::ExplainResult, PrismError> {
+        // Inject the engine's table_registry into the options when the caller did
+        // not supply one. This makes the wrapper correct-by-construction: any future
+        // caller of QueryEngine::explain gets available_tables populated from the
+        // wired registry without needing to know about ExplainOptions::table_registry.
+        if options.table_registry.is_none() {
+            if let Some(ref registry) = self.table_registry {
+                options.table_registry = Some(Arc::clone(registry));
+            }
+        }
         crate::explain::explain(query_str, options)
     }
 
@@ -1345,6 +1361,222 @@ mod alias_wiring_tests {
                  got different error: {other:?}"
             ),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests: QueryEngine::explain wrapper injects table_registry (OBS-1)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod explain_wrapper_tests {
+    use std::sync::Arc;
+
+    use prism_core::PrismError;
+    use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+    use super::*;
+    use crate::{explain::ExplainOptions, table_registry::TableRegistry};
+
+    /// Minimal no-op credential store (mirrors alias_wiring_tests::NoopCs).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a minimal `QueryEngine` with a wired `TableRegistry`.
+    fn make_engine_with_registry(registry: Arc<TableRegistry>) -> QueryEngine {
+        use prism_sensors::AdapterRegistry;
+
+        QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry)
+    }
+
+    /// OBS-1 fix: `QueryEngine::explain` injects `self.table_registry` into the
+    /// options when `options.table_registry` is `None`.
+    ///
+    /// Verifies that `ExplainResult.available_tables` contains the table registered
+    /// in the engine's registry WITHOUT the caller needing to thread the registry
+    /// through `ExplainOptions::table_registry` manually.
+    ///
+    /// This is the correctness test for the wrapper: a future caller using
+    /// `QueryEngine::explain` (not the standalone `explain::explain` function) must
+    /// get correct `available_tables` from the wired engine registry.
+    ///
+    /// `#[tokio::test]` required because `QueryEngine::new_with_cache_config` starts
+    /// the cursor cleanup background task via `spawn_cursor_cleanup_task`, which
+    /// requires a tokio runtime context even though `explain()` itself is synchronous.
+    #[tokio::test]
+    async fn test_explain_wrapper_injects_engine_table_registry_into_options() {
+        // Build a registry with armis registered.
+        let registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register armis must not fail");
+
+        let engine = make_engine_with_registry(Arc::clone(&registry));
+
+        // Call QueryEngine::explain WITHOUT setting options.table_registry.
+        // The wrapper must inject self.table_registry so available_tables is populated.
+        let opts = ExplainOptions::default(); // table_registry is None
+        let result = engine
+            .explain("armis_alerts | severity = 'critical'", opts)
+            .expect("explain must succeed for a valid filter query");
+
+        assert!(
+            result
+                .available_tables
+                .contains(&"armis_alerts".to_string()),
+            "OBS-1 fix: QueryEngine::explain must inject self.table_registry so \
+             ExplainResult.available_tables contains 'armis_alerts'. Got: {:?}",
+            result.available_tables
+        );
+    }
+
+    /// OBS-1 fix (caller-supplied registry is NOT overridden): when the caller
+    /// explicitly sets `options.table_registry`, the wrapper must preserve the
+    /// caller-supplied value, not replace it with `self.table_registry`.
+    ///
+    /// This guards against the inject-always anti-pattern where the engine silently
+    /// masks a caller-supplied registry (useful for per-request registry overrides).
+    ///
+    /// `#[tokio::test]` required — same reason as the injection test above.
+    #[tokio::test]
+    async fn test_explain_wrapper_does_not_override_caller_supplied_table_registry() {
+        // Engine registry: only armis.
+        let engine_registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        engine_registry
+            .register_sensor(&armis_spec)
+            .expect("register armis in engine_registry must not fail");
+
+        let engine = make_engine_with_registry(Arc::clone(&engine_registry));
+
+        // Caller-supplied registry: only crowdstrike (different from engine registry).
+        let caller_registry = Arc::new(TableRegistry::new());
+        let cs_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        caller_registry
+            .register_sensor(&cs_spec)
+            .expect("register crowdstrike in caller_registry must not fail");
+
+        // Call explain with caller-supplied registry (crowdstrike only).
+        let opts = ExplainOptions {
+            table_registry: Some(Arc::clone(&caller_registry)),
+            ..ExplainOptions::default()
+        };
+        let result = engine
+            .explain("crowdstrike_alerts | severity = 'critical'", opts)
+            .expect("explain must succeed");
+
+        // Caller-supplied registry (crowdstrike) must win, not the engine registry (armis).
+        assert!(
+            result
+                .available_tables
+                .contains(&"crowdstrike_alerts".to_string()),
+            "OBS-1 fix: caller-supplied table_registry must be preserved — \
+             crowdstrike_alerts must appear. Got: {:?}",
+            result.available_tables
+        );
+        assert!(
+            !result
+                .available_tables
+                .contains(&"armis_alerts".to_string()),
+            "OBS-1 fix: engine registry must NOT override caller-supplied registry — \
+             armis_alerts must NOT appear when caller supplied crowdstrike-only registry. \
+             Got: {:?}",
+            result.available_tables
+        );
     }
 }
 

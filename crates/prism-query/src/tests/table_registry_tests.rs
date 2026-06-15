@@ -1,7 +1,10 @@
 //! Red Gate tests for S-3.13 — Dynamic Table Availability.
 //!
-//! Every test exercises a concrete behavior specified in the S-3.13 story v1.8
-//! §Red Gate Test Names table. All 15 tests map 1:1 to the named Red Gates.
+//! Tests in this file correspond to the S-3.13 story v1.10 §Red Gate Test Names table.
+//! 14 of the 15 test functions map 1:1 to named AC Red Gates. The fifteenth test,
+//! `test_BC_2_16_001_registered_sets_reflect_only_configured_sensors`, is a supplementary
+//! BC-2.16.001 accessor-correctness test (verifying `registered_sensor_ids` /
+//! `registered_tables` fidelity) — it is not one of the named story AC Red Gates.
 //!
 //! # Naming convention
 //! All tests follow `test_BC_S_SS_NNN_descriptive_name()` per the VSDD naming standard.
@@ -10,11 +13,12 @@
 //! | BC | Tests |
 //! |-----|-------|
 //! | BC-2.11.001 | `_table_not_available_*`, `_did_you_mean_*`, `_mode_agnostic_*`, `_no_sensors_*`, `_e_query_037_mcp_*` |
-//! | BC-2.16.001 | `_register_sensor_*`, `_unregistered_sensor_*`, `_explain_*`, `_registered_sets_*` |
+//! | BC-2.16.001 | `_register_sensor_*`, `_unregistered_sensor_*`, `_explain_*`, `_registered_sets_*` (supplementary) |
 //! | BC-2.16.007 | `_hot_reload_add_*`, `_hot_reload_remove_*`, `_hot_reload_schema_*` |
 //!
 //! # Red Gate density
-//! 15 tests / 15 functions = 1.0 (≥ 0.5 required per story §Red Gate Test Names).
+//! 14 named AC Red Gates / 15 total test functions (1 supplementary BC-2.16.001 accessor test).
+//! Named Red Gate density: 14/15 = 0.93 (≥ 0.5 required per story §Red Gate Test Names).
 //!
 //! Story: S-3.13
 // Test-code lint allowances: `expect()` in test assertions is the established project
