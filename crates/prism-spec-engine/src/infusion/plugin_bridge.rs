@@ -3,8 +3,9 @@
 //! `PluginInfusionSource` implements `InfusionSource` by calling
 //! `PluginRuntime::enrich_single` on the named `.prx` plugin.
 //!
-//! `plugin_id` and `config` are captured at construction time (in `InfusionLoader::load_all`)
-//! because the `InfusionSource` trait signature only receives `input` and `input_type`.
+//! `plugin_id` and `config` are captured at construction time (in
+//! `InfusionRegistry::load_spec_with_runtime`) because the `InfusionSource` trait signature
+//! only receives `input` and `input_type`.
 //!
 //! # Architecture Compliance
 //! - PROHIBITED in detection rule filters (E-RULE-012 / BC-2.19.003 / INV-INFUSE-003).
@@ -43,11 +44,11 @@ pub struct PluginInfusionSource {
     /// Passed as the first argument to `PluginRuntime::enrich_single(plugin_id, ...)`.
     pub plugin_id: String,
 
-    /// The plugin configuration map (credentials, endpoint URLs) for this infusion.
+    /// The plugin configuration map for this infusion.
     ///
-    /// Populated from `[[infusion.credentials]]` and source config in `load_all`.
-    /// Passed as `config` to `PluginRuntime::enrich_single`.
-    /// Values are `SecretString` — credentials never transit AI context (AD-017).
+    /// Constructed as an empty `PluginConfigMap` in `InfusionRegistry::load_spec_with_runtime`;
+    /// credential values are resolved at call time from env vars per AD-017, not pre-populated
+    /// here. Passed as `config` to `PluginRuntime::enrich_single`.
     pub config: Arc<PluginConfigMap>,
 
     /// Reference to the shared `PluginRuntime` for WASM dispatch.

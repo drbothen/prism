@@ -10,10 +10,9 @@
 //! - This crate MUST NOT import DataFusion or Arrow.
 //!
 //! # Plugin-type specs (BC-2.19.001 v1.4)
-//! Use `load_spec_with_runtime` (or `load_all_with_runtime`) to populate plugin-type specs
-//! with a real `Arc<PluginInfusionSource>`. Bare `load_spec` uses `NullSource` for all types
-//! and is only appropriate for local-lookup specs (S-1.14-REDO) or tests that do not need
-//! live enrichment.
+//! Use `load_spec_with_runtime` to populate plugin-type specs with a real
+//! `Arc<PluginInfusionSource>`. Bare `load_spec` uses `NullSource` for all types and is only
+//! appropriate for local-lookup specs (S-1.14-REDO) or tests that do not need live enrichment.
 
 pub mod cache;
 pub mod enrich_descriptor;
