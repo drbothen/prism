@@ -3,12 +3,12 @@
 # Use with: prism start --config configs/prism-demo.toml
 #
 # Prerequisites:
-#   1. Start the demo harness: cargo run -p prism-dtu-demo-server --features dtu -- start --config configs/demo.toml
-#   2. Export fake tokens: source scripts/start-demo.sh
+#   1. Seed credentials and export env vars: scripts/demo-setup.sh
+#   2. Start the demo harness: prism-dtu-demo-server start --config scripts/demo.toml
 #
 # credential_ref uses bare-name convention (no `env:` prefix) per S-5.05 Task 3 / BC-2.03.009.
 # Resolution chain: <NAME>_FILE env var → <NAME> env var → keyring.
-# scripts/start-demo.sh exports DEMO_FAKE_* env vars so the <NAME> tier resolves them.
+# demo-setup.sh seeds DEMO_FAKE_* into the keyring and exports them so the <NAME> tier resolves them.
 
 [sensors.crowdstrike]
 base_url = "http://127.0.0.1:17080"

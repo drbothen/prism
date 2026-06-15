@@ -83,12 +83,23 @@ be running.
 
 ## Quickstart launcher
 
-`scripts/start-demo.sh` wraps the above commands with sensible defaults:
+The operator scripts in `scripts/` manage the full demo lifecycle:
 
 ```bash
-scripts/start-demo.sh                                          # plain HTTP
-scripts/start-demo.sh --tls                                    # HTTPS
-scripts/start-demo.sh --config configs/prism-demo.toml --deterministic-logging
+# 1. Seed keyring credentials and export DEMO_FAKE_* env vars
+scripts/demo-setup.sh
+
+# 2. Start all DTU clones (single-org plain HTTP)
+prism-dtu-demo-server start --config scripts/demo.toml
+
+# 3. Start all DTU clones (multi-org)
+prism-dtu-demo-server start-multi --config scripts/demo.toml
+
+# 4. Run the live demo scenario
+scripts/demo-run.sh
+
+# 5. Tear down clones and clean up credentials
+scripts/demo-teardown.sh
 ```
 
 ---
@@ -117,11 +128,11 @@ Routes Prism sensor queries through the demo harness. Uses bare-name
 `credential_ref` values per S-5.05 Task 3 / BC-2.03.009. Resolution chain:
 `<NAME>_FILE` env var → `<NAME>` env var → keyring.
 
-`scripts/start-demo.sh` automatically exports all six `DEMO_FAKE_*` vars with
-the fake tokens that match what the DTU clone fixture validators accept
-(S-6.20 Task 11).  The script uses the `"${VAR:-default}"` pattern so any
-value you export before calling the script takes precedence.  Credentials
-never transit the AI context (AI-opaque model).
+`scripts/demo-setup.sh` seeds all six `DEMO_FAKE_*` credentials into the
+system keyring and exports them as env vars so the `<NAME>` tier of the
+resolution chain resolves them (S-6.20 Task 11). Any value you export before
+calling the script takes precedence. Credentials never transit the AI context
+(AI-opaque model).
 
 ---
 
