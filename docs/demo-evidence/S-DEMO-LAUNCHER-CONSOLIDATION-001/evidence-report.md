@@ -1,15 +1,15 @@
 # Evidence Report — S-DEMO-LAUNCHER-CONSOLIDATION-001
 
 **Story:** Demo Launcher Consolidation — `start-multi` subcommand + N-org demo scripts
-**Story version:** v2.7
+**Story version:** v2.8
 **Crate:** `prism-dtu-demo-server`
 **Feature flags:** `--features dtu,fixture-gen` (required for all `start-multi` verifications)
 **Branch:** `feature/S-DEMO-LAUNCHER-CONSOLIDATION-001`
 **Code under test:** `5cf9e77c` (SEC-001-fixed commit — added `is_path_safe_slug` org-slug validation)
 
-> **Anchor note (TD-VSDD-091):** This report cites story version v2.7, not a volatile tip SHA.
+> **Anchor note (TD-VSDD-091):** This report cites story version v2.8, not a volatile tip SHA.
 > The "code under test" SHA above is a labeled reference point for this evidence update, not a
-> line-number anchor. Story version v2.7 remains the stable narrative reference.
+> line-number anchor. Story version v2.8 remains the stable narrative reference.
 
 ---
 
