@@ -48,15 +48,14 @@ fn read_tool_call_entries(backend: &RocksDbBackend) -> Vec<StorageAuditEntry> {
     for (_key, value) in &entries {
         let decoded: Result<(StorageAuditEntry, _), _> =
             bincode::serde::decode_from_slice(value, bincode::config::standard());
-        if let Ok((entry, _)) = decoded {
-            if entry
+        if let Ok((entry, _)) = decoded
+            && entry
                 .payload
                 .get("event_type")
                 .map(|v| v == "mcp.tool.called")
                 .unwrap_or(false)
-            {
-                decoded_entries.push(entry);
-            }
+        {
+            decoded_entries.push(entry);
         }
     }
     decoded_entries

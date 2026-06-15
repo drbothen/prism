@@ -837,19 +837,34 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 ///
 /// Format: JSON if `PRISM_LOG_FORMAT=json`; pretty otherwise.
 /// First log line: `tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"))`.
+///
+/// # Writer: stderr only (BC-2.10.006 §Postconditions / §Invariants)
+///
+/// All tracing output goes to **stderr**, never stdout. In `prism start` mode,
+/// stdout is reserved exclusively for MCP JSON-RPC protocol messages per
+/// BC-2.10.006 §Postconditions ("stdout is reserved exclusively for MCP JSON-RPC
+/// protocol messages; all logging, diagnostics, and metrics are written to stderr")
+/// and §Invariants ("stdout purity: no non-MCP content ever written to stdout").
+/// `tracing-subscriber 0.3.x` defaults to stdout, so we must explicitly set
+/// `with_writer(std::io::stderr)` on every fmt layer to prevent cross-contamination.
+/// This function is the enforcement site for that invariant (BC-2.22.001 §step1).
 pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
     use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
+    // CRITICAL: use `with_writer(std::io::stderr)` on all fmt layers.
+    // tracing-subscriber 0.3.x defaults to io::stdout — stdout is reserved for
+    // the MCP JSON-RPC channel in `prism start` mode; writing logs there would
+    // corrupt the MCP framing and cause all MCP clients to receive garbled JSON.
     let result = match log_format {
         crate::cli::LogFormat::Json => tracing_subscriber::registry()
             .with(env_filter)
-            .with(fmt::layer().json())
+            .with(fmt::layer().json().with_writer(std::io::stderr))
             .try_init(),
         crate::cli::LogFormat::Pretty => tracing_subscriber::registry()
             .with(env_filter)
-            .with(fmt::layer().pretty())
+            .with(fmt::layer().pretty().with_writer(std::io::stderr))
             .try_init(),
     };
 

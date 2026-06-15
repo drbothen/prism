@@ -195,6 +195,14 @@ path = "tests/e2e_smoke.rs"
 name = "adv_p02_e2e_pushdown_pipeline_test"
 path = "tests/adv_p02_e2e_pushdown_pipeline_test.rs"
 
+# S-DEMO-004: Multi-org × multi-sensor isolation smoke test.
+# AC-001..AC-010, BCs: BC-3.2.001, BC-2.06.014, BC-2.06.017, BC-2.06.018, BC-2.11.005,
+#              BC-2.01.013, BC-2.10.001, BC-2.09.008, BC-2.22.001
+# All tests are #[ignore] by default; un-gated via 'e2e-multi-org' nextest profile.
+[[test]]
+name = "e2e_multi_org"
+path = "tests/e2e_multi_org.rs"
+
 # S-DEMO-003: Red Gate test — BC-2.06.001 TOML config loading contract.
 # AC-001: demo-setup.sh generates a valid prism.toml that deserializes via PrismConfig.
 # Testable seam: generate_demo_prism_toml() in credential_cli.rs (Rust helper, not shell script).
@@ -255,9 +263,19 @@ proptest = "1"
 wiremock = "0.6"
 # S-DEMO-QUERY-PUSHDOWN-001 v2.1: wire-level push-down tests in bc_2_01_013 use real DTU clones
 # to assert augmented AQL and limit params reach the DTU wire (F-P1-CRIT-002, F-P1-CRIT-004, F-P1-HIGH-003).
-prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu"] }
-prism-dtu-crowdstrike = { path = "../prism-dtu-crowdstrike", version = "0.1.0", features = ["dtu"] }
-prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu", "fixture-gen"] }
+prism-dtu-crowdstrike = { path = "../prism-dtu-crowdstrike", version = "0.1.0", features = ["dtu", "fixture-gen"] }
+# S-DEMO-004: dtu and fixture-gen are INDEPENDENT features on prism-dtu-common.
+# dtu does NOT transitively enable fixture-gen; both must be listed explicitly.
+# Dropping "dtu" would break adv_p02_e2e_pushdown_pipeline_test tests that depend on it.
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu", "fixture-gen"] }
+# S-DEMO-004: new dev-deps for multi-org seeded harness test.
+# INV-PERIMETER-001 does NOT apply to prism-bin dev-dependencies — prism-bin integration
+# tests are permitted to import the full stack (see §Architecture Compliance Note in story).
+prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0", features = ["dtu", "fixture-gen"] }
+prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0", features = ["dtu", "fixture-gen"] }
+# prism-dtu-harness: transitively pulls prism-dtu-common/fixture-gen via its own dep chain.
+prism-dtu-harness = { path = "../prism-dtu-harness", version = "0.1.0", features = ["dtu"] }
 reqwest = { version = "0.12", features = ["json"] }
 
 [lints.clippy]
