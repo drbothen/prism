@@ -83,22 +83,46 @@ be running.
 
 ## Quickstart launcher
 
-The operator scripts in `scripts/` manage the full demo lifecycle:
+### Single-org flat model (ports 17080–17085, plain HTTP)
+
+Use `configs/demo.toml` with the `start` subcommand. Export `DEMO_FAKE_*` env
+vars so Prism can resolve the `credential_ref` values in `configs/prism-demo.toml`.
 
 ```bash
-# 1. Seed keyring credentials and export DEMO_FAKE_* env vars
+# 1. Start all 6 DTU clones on fixed ports 17080–17085
+prism-dtu-demo-server start --config configs/demo.toml
+
+# 2. Export fake credential tokens (in a separate shell where you'll run prism)
+export DEMO_FAKE_CROWDSTRIKE_TOKEN=dtu-fake-cs-token
+export DEMO_FAKE_CLAROTY_TOKEN=dtu-fake-claroty-token
+export DEMO_FAKE_CYBERINT_TOKEN=dtu-fake-cyberint-token
+export DEMO_FAKE_ARMIS_TOKEN=dtu-fake-armis-token
+export DEMO_FAKE_THREATINTEL_TOKEN=dtu-fake-ti-token
+export DEMO_FAKE_NVD_TOKEN=dtu-fake-nvd-token
+
+# 3. Run Prism against the DTU harness
+prism start --config crates/prism-dtu-demo-server/configs/prism-demo.toml
+
+# 4. Tear down clones
+prism-dtu-demo-server stop
+```
+
+### Multi-org model (ephemeral OS ports, 3 orgs × N sensors)
+
+Use `scripts/demo.toml` with the `start-multi` subcommand (requires the
+`fixture-gen` feature; `demo-setup.sh` seeds the per-org keyring credentials).
+
+```bash
+# 1. Bootstrap keyring credentials and build binaries (one-time setup)
 scripts/demo-setup.sh
 
-# 2. Start all DTU clones (single-org plain HTTP)
-prism-dtu-demo-server start --config scripts/demo.toml
-
-# 3. Start all DTU clones (multi-org)
+# 2. Start all DTU clones (multi-org, ephemeral ports)
 prism-dtu-demo-server start-multi --config scripts/demo.toml
 
-# 4. Run the live demo scenario
+# 3. Run the live demo scenario
 scripts/demo-run.sh
 
-# 5. Tear down clones and clean up credentials
+# 4. Tear down clones and clean up credentials
 scripts/demo-teardown.sh
 ```
 
@@ -128,11 +152,24 @@ Routes Prism sensor queries through the demo harness. Uses bare-name
 `credential_ref` values per S-5.05 Task 3 / BC-2.03.009. Resolution chain:
 `<NAME>_FILE` env var → `<NAME>` env var → keyring.
 
-`scripts/demo-setup.sh` seeds all six `DEMO_FAKE_*` credentials into the
-system keyring and exports them as env vars so the `<NAME>` tier of the
-resolution chain resolves them (S-6.20 Task 11). Any value you export before
-calling the script takes precedence. Credentials never transit the AI context
-(AI-opaque model).
+Before running `prism start` with this config, export the six `DEMO_FAKE_*`
+env vars so the `<NAME>` env-var tier of the resolution chain resolves the
+`credential_ref` values below. These are fake tokens for the DTU harness —
+they have no real credential value:
+
+```bash
+export DEMO_FAKE_CROWDSTRIKE_TOKEN=dtu-fake-cs-token
+export DEMO_FAKE_CLAROTY_TOKEN=dtu-fake-claroty-token
+export DEMO_FAKE_CYBERINT_TOKEN=dtu-fake-cyberint-token
+export DEMO_FAKE_ARMIS_TOKEN=dtu-fake-armis-token
+export DEMO_FAKE_THREATINTEL_TOKEN=dtu-fake-ti-token
+export DEMO_FAKE_NVD_TOKEN=dtu-fake-nvd-token
+```
+
+Any value you export before the above takes precedence. Credentials never
+transit the AI context (AI-opaque model). Note: `scripts/demo-setup.sh` seeds
+per-org keyring credentials for the multi-org model (org-a/org-b/org-c), not
+the `DEMO_FAKE_*` flat-model tokens used here.
 
 ---
 

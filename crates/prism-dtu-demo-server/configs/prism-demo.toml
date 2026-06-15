@@ -3,12 +3,20 @@
 # Use with: prism start --config configs/prism-demo.toml
 #
 # Prerequisites:
-#   1. Seed credentials and export env vars: scripts/demo-setup.sh
-#   2. Start the demo harness: prism-dtu-demo-server start-multi -c scripts/demo.toml
+#   1. Start the demo harness (single-org, fixed ports 17080-17085):
+#        prism-dtu-demo-server start --config crates/prism-dtu-demo-server/configs/demo.toml
+#   2. Export fake credential tokens so the resolution chain resolves credential_refs below:
+#        export DEMO_FAKE_CROWDSTRIKE_TOKEN=dtu-fake-cs-token
+#        export DEMO_FAKE_CLAROTY_TOKEN=dtu-fake-claroty-token
+#        export DEMO_FAKE_CYBERINT_TOKEN=dtu-fake-cyberint-token
+#        export DEMO_FAKE_ARMIS_TOKEN=dtu-fake-armis-token
+#        export DEMO_FAKE_THREATINTEL_TOKEN=dtu-fake-ti-token
+#        export DEMO_FAKE_NVD_TOKEN=dtu-fake-nvd-token
+#   3. Run Prism: prism start --config crates/prism-dtu-demo-server/configs/prism-demo.toml
 #
 # credential_ref uses bare-name convention (no `env:` prefix) per S-5.05 Task 3 / BC-2.03.009.
 # Resolution chain: <NAME>_FILE env var → <NAME> env var → keyring.
-# demo-setup.sh seeds DEMO_FAKE_* into the keyring and exports them so the <NAME> tier resolves them.
+# Step 2 above sets the <NAME> env var tier so Prism resolves each credential_ref below.
 
 [sensors.crowdstrike]
 base_url = "http://127.0.0.1:17080"
