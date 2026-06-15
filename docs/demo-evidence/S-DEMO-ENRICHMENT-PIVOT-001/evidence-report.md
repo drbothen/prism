@@ -1,9 +1,9 @@
 # Demo Evidence Report — S-DEMO-ENRICHMENT-PIVOT-001
 
 **Story:** Infusion Engine Plugin-Bridge Prerequisites — Forward-Subset of S-1.14-REDO for Demo
-**Story version:** v1.6
+**Story version:** v1.7
 **Branch:** feature/S-DEMO-ENRICHMENT-PIVOT-001
-**Worktree HEAD at evidence time:** 0d4978c3
+**Code under test (LOCAL-converged):** 0d4978c3
 **Evidence date:** 2026-06-15
 **Product type:** Library/infrastructure (no CLI surface — evidence is test-execution, not VHS/Playwright)
 
@@ -154,7 +154,7 @@ The following error-path behaviors are demonstrated by passing tests:
 
 | Error Code | Trigger | Backing Test | Status |
 |------------|---------|--------------|--------|
-| E-INFUSE-004 | `source.type = "maxmind_mmdb"` (unsupported) passed to `load_all` | `test_BC_2_19_001_load_all_returns_error_for_unsupported_source_type` | PASS |
+| E-INFUSE-004 | `source.type = "maxmind_mmdb"` (unsupported) passed to `load_all` — asserts `InfusionError::UnknownSourceType` variant and error message containing `E-INFUSE-004` | `test_BC_2_19_001_load_all_returns_error_for_unsupported_source_type` | PASS |
 | E-INFUSE-003 | Plugin-type spec missing `plugin_ref` field | `test_BC_2_19_001_infusion_loader_rejects_plugin_spec_without_plugin_ref` | PASS |
 | E-INFUSE-007 | Two plugin specs registering the same UDF field name | `test_register_infusion_udfs_duplicate_name_emits_e_infuse_007_with_infusion_id` | PASS |
 | NULL short-circuit | `NULL` input row bypasses `enrich_single` without calling the plugin | `test_null_input_row_short_circuits_to_null_without_calling_enrich_single` | PASS |
