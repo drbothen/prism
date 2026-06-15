@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.7"
+version: "1.10"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -24,11 +24,12 @@ subsystems: [SS-19, SS-11, SS-17]
 target_module: prism-spec-engine
 crates_touched: [prism-spec-engine, prism-query]
 # BC status: LIGHT PO CONFIRMATION REQUIRED (story-writer cannot do PO work)
-# BC-2.19.001 v1.5 (active) and BC-2.19.003 v1.3 are the authoritative anchors for this
+# BC-2.19.001 v1.7 (active) and BC-2.19.003 v1.3 are the authoritative anchors for this
 # FORWARD-SUBSET. BCs exist and bidirectional AC↔BC traces are present. PO confirmed
-# version pins at D-1166 (2026-06-14). v1.5 two-phase wiring: load_all (parse phase)
-# populates plugin_id/config but leaves Arc<NullSource> placeholder; load_spec_with_runtime
-# (runtime phase) attaches the real Arc<PluginInfusionSource>.
+# version pins updated to v1.7 (PIVOT-001 LOW-2 regression fix, 2026-06-15). Two-phase
+# wiring: load_all (PARSE PHASE) returns (Vec<InfusionSpec>, Vec<InfusionError>) — does NOT
+# construct PluginInfusionSource; load_spec_with_runtime (RUNTIME PHASE) builds
+# PluginInfusionSource and attaches it as descriptor.source.
 # BC-2.19.003 v1.3. No further PO sign-off required before test-writer dispatch.
 behavioral_contracts: [BC-2.19.001, BC-2.19.003]
 # BC array propagation note: BC-2.19.001 covers UDF registration (DataFusion scalar UDF
@@ -73,7 +74,7 @@ risk: MEDIUM
 # SessionState extension API before writing. The subsystem perimeter between
 # prism-spec-engine and prism-query must be respected: spec-engine provides descriptors,
 # query registers UDFs — no reverse dependency.
-red_gate_tests: 5
+red_gate_tests: 7
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -123,7 +124,7 @@ traces_to: [D-1109, WO-D1109]
 supersedes: []
 ---
 
-# S-DEMO-ENRICHMENT-PIVOT-001 v1.7: Infusion Engine Plugin-Bridge Prerequisites
+# S-DEMO-ENRICHMENT-PIVOT-001 v1.10: Infusion Engine Plugin-Bridge Prerequisites
 
 Wire the plugin-backed infusion path forward-subset from S-1.14-REDO's scope so the
 demo enrichment chain (S-DEMO-ENRICHMENT-PIVOT-002/003) can be built and tested before
@@ -152,7 +153,10 @@ T5 (PR #185) → T6 (S-DEMO-MULTI-TENANT-DTU-001) → T8
 - Three-tier cache (`InfusionLruCache`, `QueryScopedInfusionCache`, RocksDB Tier 3)
 - VP-048 Kani proof and VP-049 proptest (full dedup coverage)
 - Hot reload integration (S-1.12-FOLLOWUP)
-- Credential validation (`validate_credentials`)
+
+**Now implemented in PIVOT-001** (no longer deferred to S-1.14-REDO):
+- `validate_credentials` — checks every `CredentialRef.env_var` is non-empty (spec-load-time, no live credential store needed); wired into `InfusionLoader::parse`; tested by `test_BC_2_19_001_parse_accepts_spec_with_valid_credential_reference` and `test_BC_2_19_001_parse_rejects_spec_with_empty_env_var_credential`
+- `validate_pipe_stage_columns` — checks every `pipe_stage.adds_columns` name appears in `spec.fields`; wired into `InfusionLoader::parse`; tested by `test_BC_2_19_001_parse_accepts_spec_with_pipe_stage_matching_fields` and `test_BC_2_19_001_parse_rejects_pipe_stage_with_unknown_column_reference`
 
 ---
 
@@ -171,7 +175,7 @@ source types.
 
 | BC | Title | Key Clauses |
 |----|-------|-------------|
-| BC-2.19.001 v1.5 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` entry registered in `SessionContext`. v1.5 two-phase wiring: `InfusionLoader::load_all` (PARSE PHASE) populates `plugin_id`/`config` fields in the descriptor but leaves `source = Arc<NullSource>` as placeholder; the real `Arc<PluginInfusionSource>` is attached by `InfusionRegistry::load_spec_with_runtime` (RUNTIME PHASE). A descriptor still carrying `Arc<NullSource>` at query execution time is a loading defect. AC-002 tests the parse-phase outcome only; AC-004 tests the runtime bridge delegation. |
+| BC-2.19.001 v1.7 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` entry registered in `SessionContext`. Two-phase wiring: PARSE PHASE (`InfusionLoader::load_all`) returns `(Vec<InfusionSpec>, Vec<InfusionError>)` — it does NOT construct `PluginInfusionSource` and does NOT attach it as `descriptor.source`; descriptors carry `Arc<NullSource>` as placeholder after this phase. RUNTIME PHASE (`InfusionRegistry::load_spec_with_runtime`) builds `PluginInfusionSource` (carrying `plugin_id`/`config` from the spec) and attaches it as `descriptor.source` — `plugin_id`/`config` live on `PluginInfusionSource` via `descriptor.source`, NOT on `InfusionUdfDescriptor` directly. A descriptor still carrying `Arc<NullSource>` at query execution time is a loading defect. AC-002 tests the parse-phase outcome only; AC-004 tests the runtime bridge delegation. |
 | BC-2.19.003 v1.3 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | Postcondition: `is_api_backed("threat_score")` returns `true` for plugin-type infusions; detection rule loader rejects with E-RULE-012. PO-confirmed version v1.3 at D-1166 2026-06-14. |
 
 ---
@@ -206,7 +210,9 @@ attached by `InfusionRegistry::load_spec_with_runtime` (and future boot-time run
 
 This test therefore asserts the PARSE-PHASE outcome only:
 - `registry.udf_descriptors()` is non-empty (descriptors exist for each declared field)
-- Each descriptor has `plugin_id` and `config` matching the TOML spec
+- Each descriptor's SOURCE (`PluginInfusionSource`, accessed via `descriptor.source`) carries
+  `plugin_id` and `config` populated from the TOML spec — these fields live on
+  `PluginInfusionSource`, NOT on `InfusionUdfDescriptor` directly
 
 A descriptor still carrying `Arc<NullSource>` at query-execution time (i.e., where
 `load_spec_with_runtime` was not invoked) is a loading defect per BC-2.19.001 v1.5
@@ -363,6 +369,8 @@ MUST return 0 matches in the EBNF/pipe-stage sections after this story)
 | 3 | `test_BC_2_19_001_plugin_udfs_registered_in_session_context` | prism-query | BC-2.19.001 postcondition | unit |
 | 4 | `test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime` | prism-spec-engine | BC-2.19.001 postcondition | unit (tests PluginInfusionSource::enrich_single, the InfusionSource trait impl — NOT a free function enrich_via_plugin) |
 | 5 | `test_BC_2_19_003_is_api_backed_true_for_plugin_type` | prism-spec-engine | BC-2.19.003 postcondition | unit (REGRESSION — InfusionRegistry::is_api_backed already implemented; test confirms existing behavior) |
+| 6 | `test_BC_2_19_001_parse_accepts_spec_with_valid_credential_reference` / `test_BC_2_19_001_parse_rejects_spec_with_empty_env_var_credential` | prism-spec-engine | BC-2.19.001 postcondition (`validate_credentials`) | unit — **IMPLEMENTED in PIVOT-001** (wired into `InfusionLoader::parse`; EC-006) |
+| 7 | `test_BC_2_19_001_parse_accepts_spec_with_pipe_stage_matching_fields` / `test_BC_2_19_001_parse_rejects_pipe_stage_with_unknown_column_reference` | prism-spec-engine | BC-2.19.001 postcondition (`validate_pipe_stage_columns`) | unit — **IMPLEMENTED in PIVOT-001** (wired into `InfusionLoader::parse`; EC-007) |
 
 ---
 
@@ -378,9 +386,9 @@ MUST return 0 matches in the EBNF/pipe-stage sections after this story)
 | `prism-query/src/engine.rs` (UDF registration wiring) | ~1,000 |
 | BC files (BC-2.19.001, BC-2.19.003) | ~2,000 |
 | S-1.14-REDO spec (graduation relationship context) | ~800 |
-| Test files (5 red gate stubs × ~40 lines each; AC-005 regression ~20 lines) | ~620 |
+| Test files (5 red gate stubs × ~40 lines each; AC-005 regression ~20 lines; EC-006/EC-007 validator tests × 4 tests ~25 lines each) | ~720 |
 | Tool outputs (nextest, clippy) | ~1,000 |
-| **Total estimate** | **~13,300** |
+| **Total estimate** | **~13,400** |
 
 At ~200k context window, this is ~6.7% — well within the 20-30% ceiling.
 
@@ -482,7 +490,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 
 **S-1.14 (partial-merge predecessor):**
 - `InfusionSpec`, `InfusionRegistry`, `InfusionSource` trait, `plugin_bridge.rs` stubs are present
-- `InfusionLoader::parse` skeleton exists with `unimplemented!()` at parse/load_all/validate_credentials
+- `InfusionLoader::parse` skeleton existed with `unimplemented!()` at parse/load_all/validate_credentials; **both `validate_credentials` and `validate_pipe_stage_columns` are now implemented and wired into `parse` in PIVOT-001** (see §Edge Cases EC-006/EC-007)
 - `PluginInfusionSource::enrich_single` and `enrich_batch` (InfusionSource trait impl) have
   `unimplemented!()` stubs at `crates/prism-spec-engine/src/infusion/plugin_bridge.rs` lines 24-41
   (U5/Ruling 2: NOT a free function — trait impl on PluginInfusionSource)
@@ -558,6 +566,8 @@ Implementation checklist (TDD order — write failing tests before each implemen
 | EC-003 | `PluginInfusionSource::enrich_single` with S-1.15 unavailable (e.g., source is `NotLoaded`) | Returns `Ok(None)` and emits a `tracing::warn!` — map-log-None path per BC-2.19.001 v1.5 / CRIT-3 closure. NOT an error return; NOT a panic. `InfusionError::PluginRuntimeNotAvailable` does not exist — do not use it. |
 | EC-004 | Two plugin specs with the same field name (duplicate UDF) | `SpecEngineError` at load_all with named conflict (BC-2.19.001 invariant: UDF names globally unique) |
 | EC-005 | `is_api_backed` called with UDF name not in registry | Returns `false` (unknown UDFs are not API-backed by default) |
+| EC-006 | `validate_credentials` — spec with empty `env_var` on a `CredentialRef` | `Err(InfusionError::...)` at parse time; `tracing::warn!` / structured error. **IMPLEMENTED in PIVOT-001** — wired into `InfusionLoader::parse`. Tests: `test_BC_2_19_001_parse_accepts_spec_with_valid_credential_reference` (happy path), `test_BC_2_19_001_parse_rejects_spec_with_empty_env_var_credential` (reject path). |
+| EC-007 | `validate_pipe_stage_columns` — `pipe_stage.adds_columns` entry names a column not in `spec.fields` | `Err(InfusionError::...)` at parse time. **IMPLEMENTED in PIVOT-001** — wired into `InfusionLoader::parse`. Tests: `test_BC_2_19_001_parse_accepts_spec_with_pipe_stage_matching_fields` (happy path), `test_BC_2_19_001_parse_rejects_pipe_stage_with_unknown_column_reference` (reject path). |
 
 ---
 
@@ -576,15 +586,16 @@ Implementation checklist (TDD order — write failing tests before each implemen
 ## S-1.14-REDO Annotation
 
 Per WO-D1109 §Story 1 note, S-1.14-REDO must be updated after this story merges to
-reflect that the plugin-type InfusionLoader path and `plugin_bridge::enrich_via_plugin`
+reflect that the plugin-type InfusionLoader path and `PluginInfusionSource::enrich_single`
 are no longer unimplemented stubs (they were implemented by this story). S-1.14-REDO's
 scope becomes:
 - MMDB, CSV, JSON-lookup `InfusionSource` implementations
 - Three-tier cache (`InfusionLruCache`, `QueryScopedInfusionCache`, RocksDB Tier 3)
 - VP-048 Kani proof and VP-049 proptest (per-query dedup)
 - Hot reload integration (S-1.12-FOLLOWUP watcher)
-- Credential validation (`validate_credentials`)
 - (Plugin-type loader + bridge: ALREADY DONE by S-DEMO-ENRICHMENT-PIVOT-001)
+- (`validate_credentials`: ALREADY DONE by S-DEMO-ENRICHMENT-PIVOT-001 — wired into `parse`; tests: `test_BC_2_19_001_parse_accepts_spec_with_valid_credential_reference`, `test_BC_2_19_001_parse_rejects_spec_with_empty_env_var_credential`)
+- (`validate_pipe_stage_columns`: ALREADY DONE by S-DEMO-ENRICHMENT-PIVOT-001 — wired into `parse`; tests: `test_BC_2_19_001_parse_accepts_spec_with_pipe_stage_matching_fields`, `test_BC_2_19_001_parse_rejects_pipe_stage_with_unknown_column_reference`)
 
 The story-writer notes that S-1.14-REDO should add a `forward_subset_implemented_by:
 [S-DEMO-ENRICHMENT-PIVOT-001]` frontmatter annotation and a body note in its §Objective
@@ -607,6 +618,9 @@ Anticipated emissions (implementer must enumerate actual sites):
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.10 | 2026-06-15 | Validator-implemented closure: `validate_credentials` and `validate_pipe_stage_columns` are now IMPLEMENTED + WIRED into `InfusionLoader::parse` + TESTED in PIVOT-001 (feature/S-DEMO-ENRICHMENT-PIVOT-001 @e87e44ea). Removed both from S-1.14-REDO deferral list (§"What this story does NOT implement" and §S-1.14-REDO Annotation scope list). Added §"Now implemented in PIVOT-001" note with test names (TD-VSDD-091). Updated Previous Story Intelligence to reflect both validators implemented. Added EC-006 (`validate_credentials` — empty `env_var`) and EC-007 (`validate_pipe_stage_columns` — unknown column ref) with 4 new test-name anchors. Red Gate count 5 → 7; tests 6-7 added to Red Gate Test Plan table. |
+| v1.9 | 2026-06-15 | LOW-1 BC-table sync (PIVOT-001 LOW-1): BC-2.19.001 row at line ~174 updated — version pin bumped v1.5→v1.7; carrier-struct phrasing corrected: PARSE PHASE (`load_all`) returns specs+errors and does NOT construct `PluginInfusionSource`; RUNTIME PHASE (`load_spec_with_runtime`) builds `PluginInfusionSource` and attaches it as `descriptor.source`; `plugin_id`/`config` live on `PluginInfusionSource` via `descriptor.source`, not on `InfusionUdfDescriptor` directly. Aligns with BC-2.19.001 v1.7 ground truth. |
+| v1.8 | 2026-06-15 | OBS prose-precision fix: AC-002 second "then" bullet clarified — `plugin_id`/`config` live on `PluginInfusionSource` (accessed via `descriptor.source`), not on `InfusionUdfDescriptor` directly. Implementation and tests are correct and unchanged; AC prose now matches the struct layout. |
 | v1.7 | 2026-06-15 | LOW spec↔impl drift fix (CRIT-3 closure): reconciled all pre-CRIT-3 prose to BC-2.19.001 v1.5 map-log-None semantics. Five sites corrected — (1) frontmatter risk_mitigations U5/Ruling-2 bullet, (2) AC-004 unavailable-runtime clause, (3) Tasks Phase-2 `if PluginRuntime not yet operational` bullet, (4) Previous Story Intelligence S-1.15 paragraph, (5) EC-003. All sites now specify: runtime-unavailable → `Ok(None)` + `tracing::warn!` (map-log-None). Removed all references to phantom `InfusionError::PluginRuntimeNotAvailable` variant (does not exist in prism-core/src/error.rs) and removed all `todo!("S-1.15")` directives. E-INFUSE-003/004/007 EC entries unchanged. |
 | v1.6 | 2026-06-14 | MED-1 fix: EC-001 corrected from non-existent `InfusionError::UnsupportedSourceType` / `E-INFUSE-003` to real variant `InfusionError::UnknownSourceType` / `E-INFUSE-004` (verified against prism-core error.rs line 1135 and error-taxonomy.md line 435 and BC-2.19.001 §Error table). `E-INFUSE-003` is `MissingRequiredField` — the wrong code for unknown-source-type. EC-002 corrected to cite `InfusionError::MissingRequiredField` / `E-INFUSE-003` (correct for missing `plugin_ref`). Tasks Phase-1 bullet corrected: `SpecEngineError::UnsupportedInfusionSourceType` (non-existent, forbidden by risk_mitigations U7) replaced with `Err(InfusionError::UnknownSourceType { type_name })` / E-INFUSE-004. risk_mitigations Scope-boundary bullet corrected to same. OBS-2 fix: all line-pin citations `infusion/mod.rs:619-628` de-pinned to behavioral anchor `InfusionRegistry::is_api_backed` per TD-VSDD-091 (three sites: risk_mitigations U6, AC-005 note, §File Structure mod.rs row, Red Gate table test-5 parenthetical). |
 | v1.5 | 2026-06-14 | OBS-3 fix: AC-002 third bullet removed unsupported `Arc<NullSource>` type assertion. The test `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` asserts descriptor count + `plugin_id`/`config` field population (parse-phase outcome) — it does NOT make a `NullSource` type assertion, which would require downcasting and is not part of the test's observable contract. AC-002 "then" bullets now match what the test actually asserts. |

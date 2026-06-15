@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.7"
+version: "2.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -193,7 +193,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.7
+**Version:** v2.8
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -266,6 +266,14 @@ pub struct OrgConfig {
 
 impl MultiOrgDemoConfig {
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> { ... }
+    /// Parse and validate a multi-org demo config from a TOML string.
+    /// Validates at parse time (returns clean Err, no panics):
+    ///   1. Unknown fields at any level (via `#[serde(deny_unknown_fields)]`).
+    ///   2. `org_id` for each org is a valid UUID v7 hyphenated string (MED-B validation).
+    ///   3. Each `sensors` entry is a member of `KNOWN_SENSORS` (LOW validation, EC-008).
+    ///   4. Each org slug key is path-safe per `is_path_safe_slug`:
+    ///      charset `[a-zA-Z0-9][a-zA-Z0-9-]*`; rejects `/`, `.`, `..`, leading-hyphen
+    ///      (SEC-001 / CWE-22 path-traversal prevention, EC-010).
     pub fn from_str(toml_str: &str) -> anyhow::Result<Self> { ... }
 }
 ```
@@ -1054,6 +1062,7 @@ Architecture section files referenced:
 | EC-007 | `[orgs.org-b]` has no `initial_access_token` but org-b has `cyberint` in sensors | `cmd_start_multi` starts the Cyberint clone without calling `configure()`; the clone's allowlist is empty (no token pre-seeded). Operator must configure manually. Recovery paths (implemented `configure` subcommand, nested-sidecar-aware): (a) **After `start-multi`** — use the fully-qualified `{org_slug}-{sensor_id}` key: `prism-dtu-demo-server configure org-b-cyberint '{"access_token":"demo-cyberint-api-key-org-b"}'`; (b) **Bare form** — `prism-dtu-demo-server configure cyberint '{"access_token":"demo-cyberint-api-key-org-b"}'` works when the sensor is unambiguous (exactly one running org has that sensor registered); (c) **After plain `start`** — the legacy flat-sidecar form `prism-dtu-demo-server configure cyberint '{"access_token":"..."}` is unchanged. The `configure` subcommand reads the nested sidecar (`.prism-dtu-demo-server.urls-multi.json`) when the flat sidecar (`.prism-dtu-demo-server.urls.json`) is absent, enabling it to resolve the clone endpoint for `start-multi`-launched instances. |
 | EC-008 | `MultiOrgDemoConfig` `[orgs.X]` sensor list references an unsupported sensor name | `MultiOrgDemoConfig::from_str` returns a clean `Err` at parse time (not a worker-thread panic). The error names the offending org entry and the invalid sensor value; valid values are checked against `KNOWN_SENSORS` (`crowdstrike`, `armis`, `claroty`, `cyberint`) — a shared `pub const` in `config.rs`, re-exported from `lib.rs`, used by `multi_org_cmd.rs`. Parallel to the MED-B org_id validation pattern. Verified by `test_low_unsupported_sensor_yields_clean_err_not_panic` (3 sub-cases) in `crates/prism-dtu-demo-server/src/config.rs`. |
 | EC-009 | `build_multi_clone_factory` called with an InstanceEntry name that does not match `{org_slug}-{sensor_id}` convention | Panic or error with actionable message; this is a programming error (the factory is only called internally by `start_instances` with entries built by `cmd_start_multi`). |
+| EC-010 | Org slug key in `[orgs.*]` is path-unsafe — e.g., `"../../../tmp/evil"`, `".hidden"`, `"-leading-hyphen"`, or any value containing `/` or `.` | **SEC-001 (CWE-22 path-traversal prevention).** `MultiOrgDemoConfig::from_str` validates every org slug key against `is_path_safe_slug` (charset `[a-zA-Z0-9][a-zA-Z0-9-]*`) at parse time and returns a clean `Err` before any overlay or filesystem path is constructed. No traversal, no panic. Verified by `test_sec_001_org_slug_path_traversal_rejected`. Parallel to EC-008 (sensor) and MED-B (org_id) parse-time validation pattern. |
 
 ---
 
@@ -1304,6 +1313,7 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.8 | 2026-06-15 | story-writer | SEC-001 closure (CWE-22 org-slug path-traversal, POL-26/32): Added EC-010 for "path-unsafe org slug → clean `Err` from `MultiOrgDemoConfig::from_str` at parse time (no traversal, no panic)"; cites `test_sec_001_org_slug_path_traversal_rejected`. Updated `from_str` doc comment to enumerate 4 parse-time validations (unknown-fields, UUID org_id, KNOWN_SENSORS, slug charset); slug charset rule is `is_path_safe_slug` (`[a-zA-Z0-9][a-zA-Z0-9-]*`; rejects `/`, `.`, `..`, leading-hyphen). No AC count change (security EC recorded as EC entry per v2.7 LOW precedent, not a Red Gate row). `red_gate_tests` stays at 5. |
 | 2.7 | 2026-06-15 | story-writer | LOW finding closure: enrolled `test_low_unsupported_sensor_yields_clean_err_not_panic` (3 sub-cases, `config.rs`) as a post-implementation finding-closure test — recorded as EC entry, not a Red Gate row (`red_gate_tests` stays at 5; Red Gate rows are pre-implementation failing tests only). Updated EC-008: parse-time `Err` from `MultiOrgDemoConfig::from_str`, not `build_multi_clone_factory` panic; cites test by name; references `KNOWN_SENSORS` const. Updated AC-005 third bullet: "panics or returns an error" tightened to "returns a clean `Err` from `MultiOrgDemoConfig::from_str`"; cites test by name; cites `KNOWN_SENSORS` const. Added Architecture Compliance Rule for `KNOWN_SENSORS` (single authoritative sensor list in `config.rs`, re-exported from `lib.rs`, used by `multi_org_cmd.rs`). Updated File Structure `config.rs` row to mention `KNOWN_SENSORS`. Parallel to MED-B org_id-validation pattern. No semantic change to Red Gate section or `red_gate_tests` count. |
 | 2.6 | 2026-06-15 | story-writer | LOW fix: AC-005 stale parenthetical corrected — "(static-JSON path)" replaced with "(seeded path via `new_with_seed`)" for the `"org-a-crowdstrike"` bullet. The static-JSON path (plain `new()`) is never used by `start-multi`; every clone dispatched by `build_multi_clone_factory` uses the seeded path (fixture-gen required). No semantic change; prose now matches the dominant seeded-path design mandated by GAP-1, risk_mitigations, §Option-2 Design step 4, Architecture Compliance Rules, and AC-001 Note. Sibling scan found lines 136 and 303 are accurate context (contrasting seeded vs static-JSON paths in explanation/pseudocode); no further corrections needed. Version bumped to v2.6 (POL-23). |
 | 2.5 | 2026-06-15 | story-writer | OBS fix: AC-004 example health-endpoint path corrected from `/health` → `/dtu/health` — DTU clones expose `/dtu/health` (HTTP 200); `/health` returns 404. No semantic change to AC-004; only the prose example path string was inaccurate. Single `/health` occurrence in the file corrected; no other sibling sites found. Body version header and frontmatter version bumped to v2.5 (POL-23). |

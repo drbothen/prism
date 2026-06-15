@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-19"
 capability: "CAP-031"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-04-20
+modified: 2026-06-15
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -49,14 +49,21 @@ This is INV-INFUSE-001.
   - Exactly one `InfusionUdfDescriptor` is produced with: `name`, `input_type`, `output_type`,
     and a reference to the `InfusionSource` lookup function
   - The descriptor is added to `InfusionRegistry::udf_descriptors()` output
-- **Plugin-type source wiring:** When `source.type = "plugin"`, `InfusionLoader::load_all`
-  parses the spec and produces `InfusionUdfDescriptor` entries with `plugin_id` and `config`
-  populated from the spec. The real `Arc<PluginInfusionSource>` (with those fields wired as
-  live runtime fields) is then attached by `InfusionRegistry::load_spec_with_runtime` (and
-  future boot-time runtime wiring chained from it). A plugin-type spec that reaches query
-  execution still carrying `Arc<NullSource>` — because `load_spec_with_runtime` was not
-  invoked or failed silently — is a loading defect equivalent to `E-INFUSE-003`: `NullSource`
-  returns `None` for all enrichment lookups, making plugin enrichment silently inoperative.
+- **Plugin-type source wiring (two phases):**
+  - **PARSE PHASE** (`InfusionLoader::load_all`): parses `*.infusion.toml` files and returns
+    `(Vec<InfusionSpec>, Vec<InfusionError>)`. It does NOT construct `PluginInfusionSource`
+    and does NOT attach anything as `descriptor.source`. At the end of the PARSE PHASE each
+    plugin-type descriptor carries `Arc<NullSource>` as a placeholder source.
+  - **RUNTIME PHASE** (`InfusionRegistry::load_spec_with_runtime`, and future boot-time wiring
+    chained from it): builds the `PluginInfusionSource` struct — carrying `plugin_id` and
+    `config` populated from the `InfusionSpec` — and attaches it as `descriptor.source`
+    (an `Arc<dyn InfusionSource>`). The `plugin_id` and `config` values from the spec are NOT
+    fields on `InfusionUdfDescriptor` directly; they live on `PluginInfusionSource`, reachable
+    via `descriptor.source`.
+  - A plugin-type spec that reaches query execution still carrying `Arc<NullSource>` as
+    `descriptor.source` — because `load_spec_with_runtime` was not invoked or failed silently —
+    is a loading defect equivalent to `E-INFUSE-003`: `NullSource` returns `None` for all
+    enrichment lookups, making plugin enrichment silently inoperative.
 - `prism-query` (S-3.02) consumes `udf_descriptors()` and registers each as a DataFusion `ScalarUDF`
 - **Duplicate UDF name detection:** If two specs declare the same `[[infusion.fields]]` name
   (e.g., both declare `name = "geoip_country"`), the second spec is rejected with:
@@ -139,6 +146,8 @@ Integration test: `tests/infusion_tests.rs` — "Load `geoip.infusion.toml` → 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | PIVOT-001-LOW-2-regression-fix | 2026-06-15 | product-owner | Regression fix (PIVOT-001 LOW-2): v1.6 reword incorrectly re-introduced `load_all` as constructor of `PluginInfusionSource`. Corrected to accurate two-phase model: PARSE PHASE (`load_all`) returns `(Vec<InfusionSpec>, Vec<InfusionError>)` and does NOT construct `PluginInfusionSource`; RUNTIME PHASE (`load_spec_with_runtime`) builds `PluginInfusionSource` (carrying `plugin_id`/`config` from the spec) and attaches it as `descriptor.source`. Reverses the v1.6 regression; restores and extends the v1.5 accuracy. |
+| 1.6 | OBS-plugin-id-type-correction | 2026-06-15 | product-owner | Prose precision fix (OBS finding): `plugin_id`/`config` are NOT fields on `InfusionUdfDescriptor` — they live on `PluginInfusionSource`, reachable via `descriptor.source`. Reworded plugin-type source wiring postcondition to name `PluginInfusionSource` as the carrier struct and `descriptor.source` as the access path. Contract semantics unchanged; implementation was already correct. |
 | 1.5 | PIVOT-001-LOCAL-HIGH-2 | 2026-06-14 | product-owner | Corrected plugin-type source wiring postcondition (PIVOT-001 LOCAL HIGH-2). Prior wording named `InfusionLoader::load_all` as producer of real `Arc<PluginInfusionSource>` — incorrect: `load_all` returns specs+errors, not runtime-wired descriptors. Reworded to name `InfusionRegistry::load_spec_with_runtime` (and future boot-time runtime wiring) as the step that attaches the real `PluginInfusionSource`; `load_all` role limited to parsing and populating `plugin_id`/`config` fields. Anti-NullSource defect definition retained (a plugin-type spec reaching query execution with `NullSource` is E-INFUSE-003 equivalent). No line-number pins (TD-VSDD-091). |
 | 1.4 | S-DEMO-ENRICHMENT-PIVOT-001-po-sign-off | 2026-06-14 | product-owner | Closed NullSource gap: added plugin-type source wiring postcondition — plugin-type descriptors MUST carry Arc<PluginInfusionSource> (not NullSource) or loading is a defect equivalent to E-INFUSE-003. Needed for PIVOT-001 AC-003 Phase 3 / NullSource-replacement task. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
