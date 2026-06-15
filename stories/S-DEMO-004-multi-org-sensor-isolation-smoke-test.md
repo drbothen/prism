@@ -177,7 +177,7 @@ phase: 3
 
 **Story ID:** S-DEMO-004
 **Status:** ready
-**Version:** v1.13
+**Version:** v1.14
 **Wave:** 5
 **Priority:** P0
 **Points:** 8
@@ -692,7 +692,7 @@ cross-referencing needed for the implementer to understand how to use the merged
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
-| 1.14 | 2026-06-14 | story-writer | F-PR3-MED-002 fix: AC-004 Red Gate test name corrected. `test_BC_3_2_001_org_c_all_4_sensors_return_independent_data` → `test_BC_2_01_013_org_c_all_4_sensors_return_independent_data`. The old prefix `BC_3_2_001` self-contradicted the AC-004 trace (`BC-2.01.013`) and did not match the actual test in `crates/prism-bin/tests/e2e_multi_org.rs` (evidence-report Red Gate table). Only one occurrence of the old test name existed in the body (AC-004); confirmed single-site via grep before edit. |
+| 1.14 | 2026-06-14 | story-writer | F-PR3-MED-002 fix: AC-004 Red Gate test name corrected. `test_BC_3_2_001_org_c_all_4_sensors_return_independent_data` → `test_BC_2_01_013_org_c_all_4_sensors_return_independent_data`. The old prefix `BC_3_2_001` self-contradicted the AC-004 trace (`BC-2.01.013`) and did not match the actual test in `crates/prism-bin/tests/e2e_multi_org.rs` (evidence-report Red Gate table). Only one occurrence of the old test name existed in the body (AC-004); confirmed single-site via grep before edit. Body version header synced from v1.13 → v1.14 (POL-23 sibling-sweep propagation completing this burst). |
 | 1.13 | 2026-06-14 | product-owner | PR #188 F-PR3-MED-001: AC-003 query corrected. `tool_query "FROM claroty_assets LIMIT 5"` → `tool_query "SELECT * FROM claroty_alerts LIMIT 5"`. Two errors fixed: (1) wrong table name `claroty_assets` → canonical `claroty_alerts`; (2) bare `FROM ... LIMIT` pipe syntax → valid PrismQL `SELECT * FROM ... LIMIT`. Now matches the actual test in `crates/prism-bin/tests/e2e_multi_org.rs` and the evidence-report (POL-22 verified: `claroty_assets` appears at exactly one site; that site is AC-003 body, now corrected). |
 | 1.12 | 2026-06-14 | story-writer | POL-8 body propagation for BC-2.22.001 + BC-2.09.008 added in v1.11 frontmatter. Added two rows to §Behavioral Contracts table: BC-2.22.001 "Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate" (AC-001, AC-010) and BC-2.09.008 "Response Envelope with Trust Annotations" (AC-008). Updated AC-001 trace annotation to cite BC-2.22.001 by full verbatim title. Updated AC-008 trace annotation to cite BC-2.09.008 by full verbatim title. Updated AC-010 trace annotation to cite BC-2.22.001 by full verbatim title. Bidirectional AC↔BC traces satisfied for both new BCs. |
 | 1.11 | 2026-06-14 | product-owner | Add BC-2.22.001 + BC-2.09.008 to behavioral_contracts array (PR #188 PR-LEVEL MED-1). AC-001 and AC-010 trace to BC-2.22.001 ("Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate"); AC-008 traces to BC-2.09.008 ("Response Envelope with Trust Annotations"). Both BCs were active in BC-INDEX but missing from frontmatter array. Body BC table and AC-trace column propagation deferred to story-writer (POL-8). |

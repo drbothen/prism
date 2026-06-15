@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-12"
-modified: "2026-06-14T00:00:00Z"
+modified: "2026-06-14T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-19, SS-11, SS-17]
 # Subsystem anchor justifications:
@@ -102,7 +102,7 @@ risk_mitigations:
      instance.get_func(store, 'enrich-single').call(store, params, results) — NOT
      get_typed_func. Following the pre-merge TypedFunc pattern would reintroduce a removed
      API; conform to the existing plugin/mod.rs implementation exactly."
-  - "is_api_backed() is ALREADY implemented (infusion/mod.rs:619-628) (U6): scope as a
+  - "is_api_backed() is ALREADY implemented (InfusionRegistry::is_api_backed) (U6): scope as a
      regression/confirmation test — NOT a red-gate-new test. The implementation exists;
      the test verifies it returns true for plugin-type UDFs. Adjust points note accordingly."
   - "Error surface (U7): use the existing InfusionError enum surface (loader.rs returns
@@ -113,7 +113,8 @@ risk_mitigations:
   - "Scope boundary: this story implements ONLY source.type = 'plugin' path in
      InfusionLoader. Do NOT implement mmdb/csv/json_lookup paths — those belong to
      S-1.14-REDO. InfusionLoader::load_all must route 'plugin' to PluginInfusionSource
-     and return E-INFUSE-003 (or equivalent InfusionError variant) for unrecognized types."
+     and return Err(InfusionError::UnknownSourceType { type_name }) / E-INFUSE-004 for
+     unrecognized types (see error-taxonomy.md §E-INFUSE-004)."
   - "Forward-subset graduation contract: after this story merges, S-1.14-REDO's scope
      annotation MUST be updated to explicitly exclude the plugin-type loader path
      implemented here. See §S-1.14-REDO Annotation section."
@@ -308,15 +309,15 @@ Red Gate: `test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime`
 ### AC-005 — is_api_backed() returns true for plugin-type infusion UDFs (regression confirmation)
 (traces to BC-2.19.003 postcondition — API-backed UDFs rejected in detection rule filters)
 
-NOTE (U6): `InfusionRegistry::is_api_backed` is ALREADY IMPLEMENTED at
-`crates/prism-spec-engine/src/infusion/mod.rs:619-628`. This AC is a regression/confirmation
-test — NOT a red-gate-new implementation task. The test exercises the existing code path to
-verify it returns `true` for plugin-type UDFs. Adjust points estimate accordingly (0.5 pts
-→ ~0.2 pts for test only).
+NOTE (U6): `InfusionRegistry::is_api_backed` is ALREADY IMPLEMENTED (the
+`InfusionRegistry::is_api_backed` method in `crates/prism-spec-engine/src/infusion/mod.rs`).
+This AC is a regression/confirmation test — NOT a red-gate-new implementation task. The test
+exercises the existing code path to verify it returns `true` for plugin-type UDFs. Adjust
+points estimate accordingly (0.5 pts → ~0.2 pts for test only).
 
 Given an `InfusionRegistry` loaded with a plugin-type spec whose field is named `threat_score`,
 when `registry.is_api_backed("threat_score")` is called,
-then it returns `true` (verified against existing implementation at infusion/mod.rs:619-628).
+then it returns `true` (verified against the existing `InfusionRegistry::is_api_backed` implementation).
 
 Given an unknown UDF name not present in the registry,
 when `registry.is_api_backed("unknown_field")` is called,
@@ -357,7 +358,7 @@ MUST return 0 matches in the EBNF/pipe-stage sections after this story)
 | 2 | `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` | prism-spec-engine | BC-2.19.001 postcondition | unit |
 | 3 | `test_BC_2_19_001_plugin_udfs_registered_in_session_context` | prism-query | BC-2.19.001 postcondition | unit |
 | 4 | `test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime` | prism-spec-engine | BC-2.19.001 postcondition | unit (tests PluginInfusionSource::enrich_single, the InfusionSource trait impl — NOT a free function enrich_via_plugin) |
-| 5 | `test_BC_2_19_003_is_api_backed_true_for_plugin_type` | prism-spec-engine | BC-2.19.003 postcondition | unit (REGRESSION — is_api_backed already implemented at infusion/mod.rs:619-628; test confirms existing behavior) |
+| 5 | `test_BC_2_19_003_is_api_backed_true_for_plugin_type` | prism-spec-engine | BC-2.19.003 postcondition | unit (REGRESSION — InfusionRegistry::is_api_backed already implemented; test confirms existing behavior) |
 
 ---
 
@@ -405,7 +406,8 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Write failing test 2 (FAIL first): `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors`
 - [ ] Implement `InfusionLoader::load_all` plugin branch:
   route `source.type = "plugin"` to `PluginInfusionSource`; other types return
-  `SpecEngineError::UnsupportedInfusionSourceType` (stub — full impl in S-1.14-REDO)
+  `Err(InfusionError::UnknownSourceType { type_name })` / E-INFUSE-004 (stub — full impl
+  in S-1.14-REDO; see error-taxonomy.md §E-INFUSE-004 and error.rs InfusionError::UnknownSourceType)
 - [ ] Verify tests 1-2 pass
 
 **Phase 2: plugin_bridge (InfusionSource trait impl)**
@@ -424,8 +426,8 @@ Implementation checklist (TDD order — write failing tests before each implemen
   - if PluginRuntime not yet operational: `Err(InfusionError::PluginRuntimeNotAvailable)`
     (use the closest variant in the existing InfusionError enum) with `todo!("S-1.15")`
 - [ ] Write regression test for AC-005 (NOT failing-first — already implemented):
-  `test_BC_2_19_003_is_api_backed_true_for_plugin_type` — reads existing implementation at
-  `infusion/mod.rs:619-628`; confirms `true` for plugin-type UDFs and `false` for unknown names
+  `test_BC_2_19_003_is_api_backed_true_for_plugin_type` — exercises the existing
+  `InfusionRegistry::is_api_backed` implementation; confirms `true` for plugin-type UDFs and `false` for unknown names
 - [ ] Verify tests 4-5 pass
 
 **Phase 3: DataFusion UDF registration wiring**
@@ -530,7 +532,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 |------|--------|---------|
 | `crates/prism-spec-engine/src/infusion/loader.rs` | MODIFY | Implement parse/load_all for `source.type = "plugin"` only; unimplemented!() remains for other types (deferred to S-1.14-REDO) |
 | `crates/prism-spec-engine/src/infusion/plugin_bridge.rs` | MODIFY | (1) Add `plugin_id: String` and `config: PluginConfigMap` fields to `PluginInfusionSource`. (2) Implement `enrich_single`/`enrich_batch` (stubs at lines 24-41) delegating via the UNTYPED `component::Val` path to `PluginRuntime::enrich_single`. DO NOT use `TypedFunc` or `post_return`. Map `PluginError → InfusionError`. |
-| `crates/prism-spec-engine/src/infusion/mod.rs` | MODIFY | (1) `InfusionRegistry::is_api_backed` is ALREADY IMPLEMENTED at lines 619-628 — no re-implementation needed. (2) NET-NEW: Replace `Arc::new(NullSource)` with real `Arc<PluginInfusionSource>` in `udf_descriptors()` and `load_all` for plugin-type descriptors (lines ~500, ~535, ~558, ~662 hardwire NullSource today). |
+| `crates/prism-spec-engine/src/infusion/mod.rs` | MODIFY | (1) `InfusionRegistry::is_api_backed` is ALREADY IMPLEMENTED (`InfusionRegistry::is_api_backed` method) — no re-implementation needed. (2) NET-NEW: Replace `Arc::new(NullSource)` with real `Arc<PluginInfusionSource>` in `udf_descriptors()` and `load_all` for plugin-type descriptors (multiple `NullSource` sites in this file today). |
 | `crates/prism-query/src/engine.rs` | MODIFY | Add `register_infusion_udfs` call at BOTH SessionContext construction sites (execute path + new_full/materialized path). Merge-coordinate with S-3.13 (capability-discovery block also modifies engine.rs). |
 | `crates/prism-spec-engine/tests/infusion_tests.rs` | MODIFY | Add Red Gate tests 1, 2, 4, 5 |
 | `crates/prism-query/tests/` or `src/` | MODIFY | Add Red Gate test 3 (UDF registration) |
@@ -541,8 +543,8 @@ Implementation checklist (TDD order — write failing tests before each implemen
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | `source.type = "maxmind_mmdb"` passed to load_all | Returns `Err(InfusionError::UnsupportedSourceType)` or nearest equivalent InfusionError variant (stub — full impl in S-1.14-REDO); E-INFUSE-003 if that code exists in error-taxonomy.md |
-| EC-002 | Plugin-type spec with no `plugin_ref` field | `Err(InfusionError::...)` validation error from parse — plugin_ref is required for type=plugin; use nearest existing InfusionError variant; if none fits, add variant to InfusionError enum + row to error-taxonomy.md |
+| EC-001 | `source.type = "maxmind_mmdb"` passed to load_all | Returns `Err(InfusionError::UnknownSourceType { type_name: "maxmind_mmdb".into() })` / E-INFUSE-004: "Unknown source type 'maxmind_mmdb'. Valid types: maxmind_mmdb, csv, json_lookup, plugin." (stub — full impl in S-1.14-REDO; see error-taxonomy.md §E-INFUSE-004 and prism-core error.rs `InfusionError::UnknownSourceType`) |
+| EC-002 | Plugin-type spec with no `plugin_ref` field | `Err(InfusionError::MissingRequiredField { field: "plugin_ref".into(), spec_path })` / E-INFUSE-003 from parse — plugin_ref is required for type=plugin (see error-taxonomy.md §E-INFUSE-003 and prism-core error.rs `InfusionError::MissingRequiredField`) |
 | EC-003 | `PluginInfusionSource::enrich_single` with S-1.15 unavailable | Returns `Err(InfusionError::PluginRuntimeNotAvailable)` (or nearest variant) — NOT a panic |
 | EC-004 | Two plugin specs with the same field name (duplicate UDF) | `SpecEngineError` at load_all with named conflict (BC-2.19.001 invariant: UDF names globally unique) |
 | EC-005 | `is_api_backed` called with UDF name not in registry | Returns `false` (unknown UDFs are not API-backed by default) |
@@ -595,6 +597,7 @@ Anticipated emissions (implementer must enumerate actual sites):
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.6 | 2026-06-14 | MED-1 fix: EC-001 corrected from non-existent `InfusionError::UnsupportedSourceType` / `E-INFUSE-003` to real variant `InfusionError::UnknownSourceType` / `E-INFUSE-004` (verified against prism-core error.rs line 1135 and error-taxonomy.md line 435 and BC-2.19.001 §Error table). `E-INFUSE-003` is `MissingRequiredField` — the wrong code for unknown-source-type. EC-002 corrected to cite `InfusionError::MissingRequiredField` / `E-INFUSE-003` (correct for missing `plugin_ref`). Tasks Phase-1 bullet corrected: `SpecEngineError::UnsupportedInfusionSourceType` (non-existent, forbidden by risk_mitigations U7) replaced with `Err(InfusionError::UnknownSourceType { type_name })` / E-INFUSE-004. risk_mitigations Scope-boundary bullet corrected to same. OBS-2 fix: all line-pin citations `infusion/mod.rs:619-628` de-pinned to behavioral anchor `InfusionRegistry::is_api_backed` per TD-VSDD-091 (three sites: risk_mitigations U6, AC-005 note, §File Structure mod.rs row, Red Gate table test-5 parenthetical). |
 | v1.5 | 2026-06-14 | OBS-3 fix: AC-002 third bullet removed unsupported `Arc<NullSource>` type assertion. The test `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` asserts descriptor count + `plugin_id`/`config` field population (parse-phase outcome) — it does NOT make a `NullSource` type assertion, which would require downcasting and is not part of the test's observable contract. AC-002 "then" bullets now match what the test actually asserts. |
 | v1.4 | 2026-06-14 | AC-002 aligned to BC-2.19.001 v1.5 two-phase wiring. AC-002 "then" clause now distinguishes: `load_all` (parse phase) produces descriptors with `plugin_id`/`config` populated but `source = Arc<NullSource>` placeholder; the full runtime-wired `Arc<PluginInfusionSource>` is the output of `load_spec_with_runtime` (runtime phase). AC-002 scoping note added: test asserts parse-phase outcome only; runtime bridge delegation is AC-004's scope. Test name `test_BC_2_19_001_load_all_plugin_type_produces_udf_descriptors` retained (names parse phase correctly — do not rename to imply full runtime wiring). BC table row updated: BC-2.19.001 v1.4 → v1.5 with two-phase wiring description. Frontmatter BC status comment updated to v1.5. |
 | v1.3 | 2026-06-14 | BC version-pin sync (D-1167 state-manager burst — citation sync only). BC-2.19.001 v1.3 → v1.4 (NullSource gap closed; PO confirmed at D-1166); BC-2.19.003 v? → v1.3 (PO-confirmed at D-1166). Frontmatter BC status comment updated to remove pending-PO language. Behavioral Contracts table rows updated. No AC/scope changes. |
