@@ -5,10 +5,11 @@
 **Crate:** `prism-dtu-demo-server`
 **Feature flags:** `--features dtu,fixture-gen` (required for all `start-multi` verifications)
 **Branch:** `feature/S-DEMO-LAUNCHER-CONSOLIDATION-001`
-**Worktree HEAD at recording:** `85371fc9`
+**Code under test:** `5cf9e77c` (SEC-001-fixed commit — added `is_path_safe_slug` org-slug validation)
 
-> **Anchor note (TD-VSDD-091):** This report cites story version v2.7, not a commit SHA.
-> SHA anchors decay on subsequent diffs; story version is the stable reference.
+> **Anchor note (TD-VSDD-091):** This report cites story version v2.7, not a volatile tip SHA.
+> The "code under test" SHA above is a labeled reference point for this evidence update, not a
+> line-number anchor. Story version v2.7 remains the stable narrative reference.
 
 ---
 
@@ -19,9 +20,9 @@
 cargo nextest run -p prism-dtu-demo-server --features dtu,fixture-gen --no-fail-fast
 ```
 
-**Result: 78 / 78 PASS, 0 failed, 0 skipped**
+**Result: 79 / 79 PASS, 0 failed, 0 skipped**
 
-Full run time: 15.145 s
+Full run time: 15.166 s
 
 ---
 
@@ -30,7 +31,7 @@ Full run time: 15.145 s
 | AC | Title | Backing Evidence | Result |
 |----|-------|-----------------|--------|
 | AC-001 | `StartMulti` variant in Commands enum + CLI help | `cargo run ... -- --help` + `-- start-multi --help` captured below | PASS |
-| AC-002 | `MultiOrgDemoConfig` parses valid 3-org TOML (RG-001 green) | `test_multi_org_config_parses_valid_three_org_toml`, `test_multi_org_config_rejects_unknown_fields` (RG-001, RG-002) | PASS |
+| AC-002 | `MultiOrgDemoConfig` parses valid 3-org TOML (RG-001 green) | `test_multi_org_config_parses_valid_three_org_toml`, `test_multi_org_config_rejects_unknown_fields` (RG-001, RG-002), `test_sec_001_org_slug_path_traversal_rejected` (SEC-001) | PASS |
 | AC-003 | `start-multi` writes nested `{org_slug: {sensor_id: url}}` sidecar (RG-003 green) | `test_nested_sidecar_format_has_correct_structure` (RG-003), `test_write_multi_url_sidecar_produces_all_keys`, `test_write_multi_url_sidecar_fails_loudly_on_missing_socket` | PASS |
 | AC-004 | Per-org DTU clones on distinct socket addresses (RG-005 green) | `test_start_multi_stands_up_per_org_distinct_sockets` (RG-005), `test_org_a_vs_org_c_crowdstrike_serve_distinct_data` | PASS |
 | AC-005 | `clone_factory` dispatches `(org_slug, sensor_id)` to BehavioralClone (RG-004 green) | `test_clone_factory_dispatch_returns_clone_for_each_sensor` (RG-004), `test_start_multi_cyberint_token_seeded_no_panic`, `test_low_unsupported_sensor_yields_clean_err_not_panic` (EC-008) | PASS |
@@ -75,6 +76,7 @@ These tests were added during implementation and adversarial passes to close gap
 | `test_f10_unknown_keys_rejected_at_every_level` | `src/config.rs:419` | AC-002 | Deny-unknown-fields at `[harness]`, `[orgs.X]`, top level |
 | `test_med_b_malformed_org_id_yields_clean_err_not_panic` | `src/config.rs:467` | AC-002 | Non-UUID org_id string → clean `Err`, not panic |
 | `test_low_unsupported_sensor_yields_clean_err_not_panic` | `src/config.rs:530` | AC-005/EC-008 | 3 sub-cases; unsupported sensor → clean `Err` from `from_str`; valid all-sensors control passes |
+| `test_sec_001_org_slug_path_traversal_rejected` | `src/config.rs` | AC-002/SEC-001 | Org slugs must match `[a-zA-Z0-9][a-zA-Z0-9-]*`; `../traversal`, `/absolute`, `leading-hyphen` rejected at `MultiOrgDemoConfig::from_str` parse time — no slug ever reaches filesystem path construction |
 
 ---
 
