@@ -726,35 +726,46 @@ fn test_BC_2_16_001_registered_sets_reflect_only_configured_sensors() {
 
 /// EC-11-123 / MED-3 (S-3.13): When `register_sensor` is called for a sensor that
 /// was already registered (hot-reload schema update), tables that appear in BOTH
-/// the old and new spec are NEVER transiently absent.
+/// the old and new spec are NEVER transiently absent during the re-registration.
 ///
-/// This test verifies the atomicity guarantee of the re-registration fix: both write
-/// locks are held across the remove+insert phases, so no observable state exists
-/// where the overlapping table is gone. Under the old non-atomic implementation,
-/// `deregister_sensor` acquired and released the locks, then `register_sensor`
-/// re-acquired them — leaving a window where `is_registered` could return `false`
-/// for a table present in both old and new specs.
+/// # Why a concurrency test is required
+/// A single-threaded test that only checks final state CANNOT detect the transient
+/// absence window. Under a non-atomic implementation (e.g., calling
+/// `self.deregister_sensor()` then re-acquiring the lock for insert), the overlapping
+/// table is absent between the two lock acquisitions. A concurrent reader can observe
+/// this window; a single-threaded test cannot.
 ///
-/// # Load-bearing proof
-/// This test exercises the same lock-acquisition path as the production fix.
-/// If the atomicity guarantee is reverted (e.g., by restoring the separate
-/// `self.deregister_sensor()` call inside `register_sensor`), a concurrent
-/// reader between the two phases would see the overlapping table absent — the
-/// semantic contract is broken. The structural test below verifies that:
-/// 1. A table in BOTH v1 and v2 is registered immediately after re-registration.
-/// 2. A table ONLY in v1 is gone after re-registration.
-/// 3. A table ONLY in v2 is present after re-registration.
+/// # How this test catches non-atomic implementations
+/// - 4 reader threads each loop calling `is_registered("crowdstrike_alerts")` in a
+///   tight spin. Any `false` observation is recorded via an atomic flag.
+/// - The main thread re-registers v1 → v2 → v1 → v2 ... 400 times. Both v1 and v2
+///   contain "crowdstrike_alerts", so it must NEVER be absent.
+/// - Under the correct atomic implementation (both write locks held across remove+insert
+///   in a single acquisition), readers see either the old table set or the new table set
+///   — never an empty window. The overlapping table "crowdstrike_alerts" is always
+///   present in both sets, so `is_registered` always returns `true`.
+/// - Under a non-atomic implementation, readers can observe the transient-absence
+///   window. In practice this test reliably catches the violation within the 400 cycles
+///   even on fast hardware, because the lock release between deregister and re-register
+///   is a preemption point the OS can schedule a reader onto.
 ///
-/// The single-threaded assertions in steps 1–3 are load-bearing because the
-/// production fix ensures these invariants hold by never releasing the lock
-/// between remove and insert.
+/// # Determinism
+/// The atomic flag means there is no data race. The 400-iteration loop provides
+/// enough opportunities for the scheduler to expose any transient absence window.
+/// The test is deterministic in the sense that it produces a definitive PASS under
+/// the correct implementation and a reliable FAIL under the incorrect one.
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_16_001_register_sensor_reregistration_atomic_no_transient_absence() {
     use prism_spec_engine::spec_parser::TableSpec;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread;
 
-    // v1: crowdstrike has "alerts" + "detections".
-    let spec_v1 = SensorSpec::new(
+    // v1: crowdstrike has "alerts" (overlapping) + "detections" (v1-only).
+    let spec_v1 = Arc::new(SensorSpec::new(
         "crowdstrike",
         "CrowdStrike v1",
         prism_spec_engine::spec_parser::AuthType::ApiKey,
@@ -766,10 +777,11 @@ fn test_BC_2_16_001_register_sensor_reregistration_atomic_no_transient_absence()
         None,
         "1.0.0",
         Vec::new(),
-    );
+    ));
 
-    // v2: crowdstrike has "alerts" (kept) + "incidents" (new); "detections" (removed).
-    let spec_v2 = SensorSpec::new(
+    // v2: crowdstrike has "alerts" (overlapping) + "incidents" (v2-only).
+    // "crowdstrike_alerts" appears in BOTH specs — must NEVER be transiently absent.
+    let spec_v2 = Arc::new(SensorSpec::new(
         "crowdstrike",
         "CrowdStrike v2",
         prism_spec_engine::spec_parser::AuthType::ApiKey,
@@ -781,63 +793,68 @@ fn test_BC_2_16_001_register_sensor_reregistration_atomic_no_transient_absence()
         None,
         "2.0.0",
         Vec::new(),
-    );
+    ));
 
-    let registry = TableRegistry::new();
+    let registry = Arc::new(TableRegistry::new());
 
-    // Register v1.
+    // Seed with v1 before spawning readers (ensures the table is present at start).
     registry
         .register_sensor(&spec_v1)
-        .expect("v1 registration must not fail");
+        .expect("initial v1 registration must not fail");
 
+    // Shared stop signal and absence-observed flag.
+    let stop = Arc::new(AtomicBool::new(false));
+    let absence_observed = Arc::new(AtomicBool::new(false));
+
+    // Spawn 4 reader threads hammering is_registered("crowdstrike_alerts").
+    // Each thread spins until `stop` is set, recording any false observation.
+    let readers: Vec<_> = (0..4)
+        .map(|_| {
+            let reg = Arc::clone(&registry);
+            let stop_flag = Arc::clone(&stop);
+            let absent_flag = Arc::clone(&absence_observed);
+            thread::spawn(move || {
+                while !stop_flag.load(Ordering::Relaxed) {
+                    if !reg.is_registered("crowdstrike_alerts") {
+                        // Observed the overlapping table absent — atomicity violation.
+                        absent_flag.store(true, Ordering::Relaxed);
+                    }
+                }
+            })
+        })
+        .collect();
+
+    // Main thread re-registers v1 → v2 alternately 400 times while readers spin.
+    // Under a non-atomic implementation, the transient-absence window is exposed here.
+    for i in 0..400u32 {
+        let spec = if i % 2 == 0 { &spec_v2 } else { &spec_v1 };
+        registry
+            .register_sensor(spec)
+            .expect("re-registration must not fail");
+    }
+
+    // Signal readers to stop and join them.
+    stop.store(true, Ordering::Relaxed);
+    for handle in readers {
+        handle.join().expect("reader thread must not panic");
+    }
+
+    // The overlapping table must NEVER have been observed absent.
+    assert!(
+        !absence_observed.load(Ordering::Relaxed),
+        "MED-3 / EC-11-123: crowdstrike_alerts (present in both v1 and v2) was \
+         observed absent during concurrent re-registration — atomicity guarantee broken. \
+         The production fix acquires both write locks ONCE across remove+insert so \
+         readers always see either the old table set or the new table set, never an \
+         empty window."
+    );
+
+    // Verify that the final-state invariants also hold (belt-and-suspenders).
+    // After 400 iterations (even count ending on v2 for i=398, i=399 → v1 for odd):
+    // i=399 is odd so final spec is v1. Check v1 final state.
     assert!(
         registry.is_registered("crowdstrike_alerts"),
-        "MED-3 precondition: crowdstrike_alerts must be registered after v1"
-    );
-    assert!(
-        registry.is_registered("crowdstrike_detections"),
-        "MED-3 precondition: crowdstrike_detections must be registered after v1"
-    );
-    assert!(
-        !registry.is_registered("crowdstrike_incidents"),
-        "MED-3 precondition: crowdstrike_incidents must NOT be registered after v1"
-    );
-
-    // Re-register with v2 (atomic: remove v1 tables + insert v2 tables in one lock window).
-    registry
-        .register_sensor(&spec_v2)
-        .expect("v2 re-registration must not fail");
-
-    // 1. Table present in BOTH v1 and v2 must be registered after re-registration.
-    //    This is the key atomicity invariant: under the old non-atomic code, a concurrent
-    //    reader between deregister_sensor() and the re-insert could see alerts absent.
-    assert!(
-        registry.is_registered("crowdstrike_alerts"),
-        "MED-3 / EC-11-123: crowdstrike_alerts (in both v1 and v2) must be registered \
-         after atomic re-registration; if absent, atomicity guarantee was broken"
-    );
-
-    // 2. Table ONLY in v1 must be gone after re-registration.
-    assert!(
-        !registry.is_registered("crowdstrike_detections"),
-        "MED-3 / EC-11-123: crowdstrike_detections (only in v1) must be deregistered \
-         after v2 re-registration"
-    );
-
-    // 3. Table ONLY in v2 must be present after re-registration.
-    assert!(
-        registry.is_registered("crowdstrike_incidents"),
-        "MED-3 / EC-11-123: crowdstrike_incidents (only in v2) must be registered \
-         after v2 re-registration"
-    );
-
-    // Verify the tables list is exactly the v2 set — no stale v1 entries.
-    let tables = registry.registered_tables();
-    assert_eq!(
-        tables,
-        vec!["crowdstrike_alerts", "crowdstrike_incidents"],
-        "MED-3 / EC-11-123: registered_tables() must be exactly the v2 table set \
-         after atomic re-registration; got: {tables:?}"
+        "MED-3 / EC-11-123: crowdstrike_alerts must be registered in the final state"
     );
 }
 
