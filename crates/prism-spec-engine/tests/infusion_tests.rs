@@ -1572,8 +1572,8 @@ fn test_BC_2_19_001_plugin_bridge_delegates_to_plugin_runtime() {
 /// Traces to: BC-2.19.003 postcondition — API-backed UDFs rejected in detection rule filters.
 /// AC-005 / S-DEMO-ENRICHMENT-PIVOT-001.
 ///
-/// NOTE (U6): `InfusionRegistry::is_api_backed` is ALREADY IMPLEMENTED at
-/// `crates/prism-spec-engine/src/infusion/mod.rs:619-628`. This is a REGRESSION test,
+/// NOTE (U6): `InfusionRegistry::is_api_backed` is ALREADY IMPLEMENTED
+/// in `InfusionRegistry::is_api_backed` in `infusion/mod.rs`. This is a REGRESSION test,
 /// not a Red Gate new implementation test. It confirms the existing behavior is correct.
 ///
 /// This test SHOULD PASS even before the TDD green phase (since is_api_backed is implemented).
@@ -1591,7 +1591,7 @@ fn test_BC_2_19_003_is_api_backed_true_for_plugin_type() {
     assert!(
         registry.is_api_backed("threat_score"),
         "BC-2.19.003: is_api_backed('threat_score') must return true for plugin-type infusion. \
-         REGRESSION: this function is already implemented at infusion/mod.rs:619-628."
+         REGRESSION: this function is already implemented in InfusionRegistry::is_api_backed in infusion/mod.rs."
     );
     assert!(
         registry.is_api_backed("is_known_bad"),
