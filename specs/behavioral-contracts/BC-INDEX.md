@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.58"
+version: "6.59"
 status: draft
 producer: state-manager
-timestamp: 2026-06-14T05:00:00Z
+timestamp: 2026-06-15T00:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.59 (2026-06-15, D-1180 durability burst):** state-manager | BC-2.10.011 inline row: v1.5→v1.6 — self-contradiction fix committed: removed E-CFG-100/ClientNotFound from Error Cases (list_capabilities NEVER errors for unknown-but-well-formed client_id; returns matrix with client_registered:false); added EC-10-020 unknown-client-no-error edge case; added `unknown-client-no-error` canonical test vector row; expanded client_registered postcondition note for the false case. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED (BC-2.10.011 remains lifecycle_status:active / status:draft per POL-14; promotes at S-5.02 anchor-story merge). BC-INDEX v6.58→v6.59.
 
 **v6.58 (2026-06-14, D-1172 resume-cascade spec-finalization burst):** state-manager | BC-2.19.001 row: v1.4→v1.5 — two-phase wiring reword: `load_spec_with_runtime` named as real-source producer per PIVOT-001 AC-002 alignment (story-writer S-DEMO-ENRICHMENT-PIVOT-001 v1.3→v1.4). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.57→v6.58.
 
