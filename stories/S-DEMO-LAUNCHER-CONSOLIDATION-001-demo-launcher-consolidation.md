@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.4"
+version: "2.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -193,7 +193,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.4
+**Version:** v2.5
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -791,7 +791,7 @@ Then:
 - The nested sidecar's `org-a.crowdstrike` URL port ≠ `org-c.crowdstrike` URL port
   (both orgs have CrowdStrike; they must bind to distinct OS-assigned ports).
 - All ports in the sidecar are non-zero (actually bound by the OS).
-- A GET request to each URL's health endpoint (e.g., `/health`) returns HTTP 200.
+- A GET request to each URL's health endpoint (e.g., `/dtu/health`) returns HTTP 200.
 
 RG-005 (per-org distinct socket test) must be green.
 
@@ -1299,6 +1299,7 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.5 | 2026-06-15 | story-writer | OBS fix: AC-004 example health-endpoint path corrected from `/health` → `/dtu/health` — DTU clones expose `/dtu/health` (HTTP 200); `/health` returns 404. No semantic change to AC-004; only the prose example path string was inaccurate. Single `/health` occurrence in the file corrected; no other sibling sites found. Body version header and frontmatter version bumped to v2.5 (POL-23). |
 | 2.4 | 2026-06-14 | story-writer | MED-A paper-fix remediation: v2.2 changelog claimed `MultiOrgConfig` bare occurrences were fixed, but two live (non-changelog) sites remained. Fixed: (1) `crates_touched` comment line — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig` → `MultiOrgDemoConfig / OrgConfig`; (2) points justification comment — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig config structs` → `MultiOrgDemoConfig / OrgConfig config structs`. The type `MultiOrgConfig` does not exist in the codebase; real types are `MultiOrgDemoConfig` (root) and `OrgConfig` (per-org). Historical changelog rows are immutable and were not touched. Body version header synced from v2.3 → v2.4 (POL-23 sibling-sweep propagation completing this burst). |
 | 2.3 | 2026-06-14 | story-writer | Four fixes: (MED-3/POL-32) Changelog reordered to strict monotonic-descending (2.3→2.2→2.1→2.0→1.0). (MED-4/POL-7) §Behavioral Contracts table cells updated to verbatim BC H1 titles: BC-2.06.013 → "Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files"; BC-2.06.014 → "Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec"; BC-2.06.017 → "Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing". (OBS-1) AC-006 verification step corrected: `crates/prism-dtu-demo-server/configs/demo.toml` is the existing single-org config (confirmed present); verification command updated to unambiguous repo-root-relative path; explanatory note added distinguishing the two config files and their respective subcommands. (EC-007) Recovery-path text synced to implemented `configure` subcommand behavior: full `{org_slug}-{sensor_id}` key form after start-multi; bare form when sensor unambiguous; legacy flat-sidecar form after plain `start`; note that `configure` reads nested sidecar when flat is absent. |
 | 2.2 | 2026-06-14 | story-writer | OBS-1 mapping-table correction: removed stale `MultiOrgConfig` row from Architecture Mapping table; the correct type names are `MultiOrgDemoConfig` (root config, annotated) and `OrgConfig` (per-org subsection, annotated). Fixed two additional `MultiOrgConfig` bare occurrences (frontmatter tdd_mode comment, token-budget architect-estimate comment) to `MultiOrgDemoConfig`/`OrgConfig` and `MultiOrgDemoConfig` respectively. Status: ready. Points: 8 (unchanged). |

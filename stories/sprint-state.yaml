@@ -547,6 +547,30 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001
     notes: "D-1158 2026-06-14: MERGED PR #187 squash-merged develop@664566e9. LOCAL 11-pass 3-CLEAN strict + PR-LEVEL 10-pass 3-CLEAN strict CONVERGED (BC-5.39.001). CI 43/43 green. HIGH F-PR3 routing-bypass paper-fix CLOSED (real prism-sensors E2E test added). SEC-001/002/006 all CLOSED. TLS+brotli CI fixes. POL-14: BC-2.06.017 v1.10 draft→active. Story v1.14 / BC v1.10. T6 DONE."
 
+  - story_id: S-DEMO-004
+    status: merged
+    priority: P0
+    points: 8
+    spec_version: "v1.14"
+    merged_sha: "7241f5ef"
+    merged_pr: 188
+    merged_at: "2026-06-15"
+    dispatch_status: "MERGED — PR #188 squash-merged develop@7241f5ef 2026-06-15T05:48:52Z (D-1176). LOCAL 3/3 strict CONVERGED + PR-LEVEL 3/3 strict CONVERGED (passes 5/6/7 on frozen 89942715; BC-5.39.001 D-779). CI 43/43 GREEN. POL-14: all 9 BCs already active — idempotent no-ops (BC-3.2.001/BC-2.06.014/BC-2.11.005/BC-2.01.013/BC-2.06.017/BC-2.06.018/BC-2.10.001/BC-2.22.001/BC-2.09.008). Worktree REMOVED. Branch DELETED. T10 DONE. Downstream unblocked: post-demo backlog stories (S-RELOAD-DRY-RUN-001, S-CACHE-SPEC-COMPLIANCE-001, S-WATCHDOG-WIRING-001, S-QUERY-SCOPE-PARAMS-001)."
+    entry_point: "CLOSED — story merged"
+    worktree_path: ".worktrees/S-DEMO-004 (REMOVED — cleaned post-merge)"
+    code_head: "89942715"
+    branch: "feature/S-DEMO-004 (DELETED — cleaned post-merge)"
+    depends_on:
+      - S-DEMO-001
+      - S-DEMO-002
+      - S-CONFIG-MULTI-TENANT-OVERRIDE-001
+      - S-DEMO-MULTI-TENANT-DTU-001
+      - S-DEMO-DTU-LIVE-SCENARIO-001-A
+      - S-DEMO-DTU-LIVE-SCENARIO-001-B
+    bcs: [BC-3.2.001, BC-2.06.014, BC-2.11.005, BC-2.01.013, BC-2.10.001, BC-2.06.017, BC-2.06.018, BC-2.22.001, BC-2.09.008]
+    vps: [VP-148]
+    notes: "D-1176 2026-06-15 post-merge burst: PR #188 squash-merged develop@7241f5ef; POL-14 all 9 BCs already active (all 9 idempotent no-ops). LOCAL 3/3 CONVERGED + PR-LEVEL 3/3 CONVERGED (passes 5/6/7 strict; BC-5.39.001 D-779). CI 43/43 GREEN. T10 DONE."
+
   - story_id: S-DEMO-ARMIS-AQL-001
     status: merged
     priority: P1
@@ -678,12 +702,12 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 current_story:
-  story_id: S-DEMO-DTU-LIVE-SCENARIO-001-B
-  delivery_step: not-started
-  spec_version: "1.0"
-  resume_at: "D-1091 2026-06-10. T5 INTERRUPTED BEFORE START by user-directed full-codebase review (2026-06-10). Do NOT dispatch story-writer for Story B until the review cycle completes: (1) finish 3 fix-branch BC-5.39.001 cascades to 3-CLEAN strict (fix/review-2026-06-10-{dtu-fleet,query-core,mcp-boot} — see SESSION-HANDOFF §BRANCH STATE; verify git log on resume); (2) pr-manager delivery per branch, PINNED merge order QRY→MCP→DTU (draft PR #182 parked — pr-manager assumes at DTU convergence); (3) state-manager 16-item register burst (SESSION-HANDOFF §5); (4) THEN resume T5 per D-1090 envelope: story-writer materializes Story B impl spec with CONTRACT-COMPLETENESS FRONT-LOAD (progression mechanism + stage masks + enrichment correlation fully specified in BC-2.06.019/020 + ADR-036 v2.2 before locking); fold in NIT-1 E-DEMO-004 message reconcile + NIT-2 ScenarioConfig field wiring; then dclaude:remove-uncertainty; then 12-gate TDD delivery. T6 (S-DEMO-MULTI-TENANT-DTU-001 v1.2) independently deliverable after T5 starts. Autonomy (D-1090): auto-merge on gates; pause for §7/product-business/Level-3/CLAUDE.md only."
-  note: "D-1091 2026-06-10 review-cycle mid-cycle checkpoint. T5 paused for review cycle (cascades → QRY→MCP→DTU merges → register burst → T5). BC-2.06.018 v1.6 active. develop@c287b00d unchanged. STATE v7.742."
-  last_updated_at: "2026-06-10"
+  story_id: S-DEMO-LAUNCHER-CONSOLIDATION-001
+  delivery_step: local-adversary-in-progress
+  spec_version: "2.5"
+  resume_at: "D-1176 2026-06-15. T10 DONE (S-DEMO-004 MERGED PR #188 develop@7241f5ef). T11 is LAUNCHER v2.5 @d9098c1f LOCAL streak 0/3; re-pass IN-FLIGHT after AC-004 /health→/dtu/health prose fix. Parallel: PIVOT-001 @e4d95d19 LOCAL 2/3; S-3.13 @97148f90 LOCAL 0/3 (duplicate test rename IN-FLIGHT); S-5.02 @8eaff098 BLOCKED on human CLAUDE.md 60→64 commit. See SESSION-HANDOFF §RESUME SNAPSHOT D-1176."
+  note: "D-1176 2026-06-15. S-DEMO-004 MERGED. S-DEMO-LAUNCHER-CONSOLIDATION-001 v2.5 LOCAL adversary in-progress. develop@7241f5ef. STATE v7.819."
+  last_updated_at: "2026-06-15"
 
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.346 (STORY-INDEX v2.346 current; total_stories 194)
