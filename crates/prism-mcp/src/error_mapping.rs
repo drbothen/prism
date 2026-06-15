@@ -752,21 +752,35 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         },
 
         // BC-2.10.007 §81: source = sensor name; DI-006: body → upstream_message.
-        // BC-2.10.007 legal category: "upstream_error" (external service failure).
+        // BC-2.10.007 Canonical Test Vector: 401 → category "authentication", retryable: false.
+        // 403 is also an authentication/authorization failure (bad credentials or insufficient
+        // scope) — same category. All other HTTP status codes remain "upstream_error".
         PrismError::SensorHttpError {
             sensor,
             status,
             body,
-        } => VariantMeta {
-            category: "upstream_error",
-            suggestion: "Check sensor API status. If the problem persists, see audit log.",
-            retryable: false,
-            retry_after_seconds: None,
-            original_params_valid: true,
-            source_override: Some(sensor.clone()),
-            // Raw body text → upstream_message ONLY (DI-006 injection isolation, EC-10-013).
-            upstream_message: Some(format!("HTTP {status}: {body}")),
-        },
+        } => {
+            let (category, suggestion) = match status {
+                401 | 403 => (
+                    "authentication",
+                    "Check sensor credential configuration in prism.toml. See audit log.",
+                ),
+                _ => (
+                    "upstream_error",
+                    "Check sensor API status. If the problem persists, see audit log.",
+                ),
+            };
+            VariantMeta {
+                category,
+                suggestion,
+                retryable: false,
+                retry_after_seconds: None,
+                original_params_valid: true,
+                source_override: Some(sensor.clone()),
+                // Raw body text → upstream_message ONLY (DI-006 injection isolation, EC-10-013).
+                upstream_message: Some(format!("HTTP {status}: {body}")),
+            }
+        }
 
         // BC-2.10.007 §81: source = sensor name; "upstream_error" for sensor timeouts.
         PrismError::SensorTimeout { sensor, .. }
@@ -894,6 +908,126 @@ mod tests {
             code,
             codes::INTERNAL_ERROR,
             "UnknownSourceTable must NOT map to INTERNAL_ERROR (-32000); got: {code}"
+        );
+    }
+
+    // ── BC-2.10.007 v1.6 Canonical Test Vectors — SensorHttpError auth mis-categorization ──
+
+    /// BC-2.10.007 Canonical Test Vector: Sensor API returns 401 → category "authentication".
+    ///
+    /// Verifies that `SensorHttpError { status: 401 }` produces `category: "authentication"`,
+    /// `retryable: false` in `prism_error_to_structured_call_result`. Before this fix the arm
+    /// was unconditional `"upstream_error"`, causing analysts to see a misleading "outage/retry"
+    /// signal for a credential failure.
+    #[test]
+    fn test_BC_2_10_007_sensor_http_401_category_is_authentication() {
+        let err = PrismError::SensorHttpError {
+            sensor: "crowdstrike_falcon_api".to_owned(),
+            status: 401,
+            body: "Unauthorized".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        // Extract structuredContent.error from the CallToolResult.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "authentication",
+            "SensorHttpError{{status:401}} must map to category 'authentication' (BC-2.10.007 Canonical Test Vector); got '{category}'"
+        );
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("structuredContent.error.retryable must be a bool");
+        assert!(
+            !retryable,
+            "SensorHttpError{{status:401}} must be retryable:false (auth failures are not transient)"
+        );
+        // upstream_message must still carry the raw body per DI-006.
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("structuredContent.error.upstream_message must be present (null-not-absent)");
+        assert!(
+            upstream_message.is_string(),
+            "upstream_message must be a string (not null) for SensorHttpError; got: {upstream_message:?}"
+        );
+        assert!(
+            upstream_message.as_str().unwrap().contains("401"),
+            "upstream_message must include the HTTP status; got: {upstream_message}"
+        );
+    }
+
+    /// BC-2.10.007 v1.6: SensorHttpError { status: 403 } → category "authentication".
+    ///
+    /// 403 is Forbidden / insufficient scope — a credential/auth failure, not an upstream
+    /// service outage. Analysts must receive the same "authentication" signal as 401.
+    #[test]
+    fn test_BC_2_10_007_sensor_http_403_category_is_authentication() {
+        let err = PrismError::SensorHttpError {
+            sensor: "armis_api".to_owned(),
+            status: 403,
+            body: "Forbidden: insufficient scope".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "authentication",
+            "SensorHttpError{{status:403}} must map to category 'authentication' (BC-2.10.007); got '{category}'"
+        );
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "SensorHttpError{{status:403}} must be retryable:false"
+        );
+    }
+
+    /// BC-2.10.007 control case: SensorHttpError { status: 502 } → category "upstream_error".
+    ///
+    /// Ensures the 401/403 branch is correctly scoped — other HTTP errors must NOT be
+    /// re-categorized as "authentication". 502 Bad Gateway is a genuine upstream outage.
+    #[test]
+    fn test_BC_2_10_007_sensor_http_502_category_is_upstream_error() {
+        let err = PrismError::SensorHttpError {
+            sensor: "claroty_api".to_owned(),
+            status: 502,
+            body: "Bad Gateway".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "SensorHttpError{{status:502}} must remain 'upstream_error' (not 'authentication'); got '{category}'"
         );
     }
 }
