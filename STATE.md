@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.813"
+version: "7.814"
 producer: state-manager
 timestamp: 2026-06-14T00:00:00Z
 inputs: []
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "T10 in progress + PARALLEL EXECUTION ACTIVE (D-1165..D-1170 2026-06-14): S-DEMO-004 PR #188 OPEN (PR-LEVEL cascade IN PROGRESS — adversary+pr-reviewer+security dispatched, results pending; PR-LEVEL streak 0/3); S-5.02 ready v1.7 (CRIT fix-burst landed 79993dea; LOCAL streak 0/3); S-3.13 CRIT fix-burst landed 20f370ea (LOCAL streak 0/3); PIVOT-001 CRIT fix-burst landed 25ed264a (LOCAL streak 0/3); LAUNCHER CRIT+H-1 fix landed 3dc0bf18 (LOCAL reset 0/3). develop_head 664566e9 UNCHANGED. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1170 for full reconcile-from-live-state protocol."
+current_step: "T10 in progress + PARALLEL EXECUTION ACTIVE (D-1171 2026-06-14): S-DEMO-004 PR #188 OPEN (PR-LEVEL: pr-reviewer APPROVE written/pending-post; security CLEAR; adversary pass-1 CLEAN(PR-merge)=YES/strict=NO LOW-1 demo-doc prose; strict streak 0/3); S-5.02 CRIT-fixed 79993dea (LOCAL streak 0/3); PIVOT-001 CRIT-fixed 25ed264a (LOCAL streak 0/3); LAUNCHER H-1-fixed 3dc0bf18 (LOCAL streak 0/3); S-3.13 CRIT fix-burst in-progress (reconcile from git). 7 pending actions in SESSION-HANDOFF §PENDING ACTIONS. develop_head 664566e9 UNCHANGED. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1171."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -67,18 +67,18 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "D-1170 durability-hardening compaction 2026-06-14 — STATE v7.812→v7.813. D-1165..D-1169 archived to burst-log (5 rows compacted to 2). Session Resume Checkpoint updated to D-1170. Prior: D-1159 compaction 2026-06-14 (D-1139..D-1157 archived). Hygiene 2026-06-13 (D-1124..D-1138). D-1132 (D-1055..D-1123). D-1056 2026-06-08 (D-700..D-1054)."
+pre_compact_snapshot: "D-1171 durability-delta burst 2026-06-14 — STATE v7.813→v7.814. PR #188 cascade verdicts + 7 pending actions + 4-lane CRIT-fix baselines recorded. Session Resume Checkpoint updated to D-1171. Prior: D-1170 durability-hardening compaction 2026-06-14 (STATE v7.812→v7.813; D-1165..D-1169 archived). D-1159 compaction (D-1139..D-1157). Hygiene 2026-06-13 (D-1124..D-1138). D-1132 (D-1055..D-1123). D-1056 2026-06-08 (D-700..D-1054)."
 pre_compact_snapshot_at: "2026-06-14"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1170 DURABILITY SNAPSHOT — 5 active lanes + PR #188 + reconcile-from-live-state protocol; STATE v7.813)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-14 (D-1171 DURABILITY DELTA — PR #188 cascade verdicts + 7 pending actions + 4-lane CRIT-fix baselines; STATE v7.814)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T10 — S-DEMO-004 delivery (PR #188 OPEN; PR-LEVEL cascade IN PROGRESS)** (T1–T9 ALL DONE; develop@664566e9). PARALLEL: Lane A (S-5.02 ready v1.7 — LOCAL streak 0/3), B (S-3.13 ready v1.8 — LOCAL streak 0/3), C (PIVOT-001 ready v1.3 — LOCAL streak 0/3), D (CLOSED — S-1.15 dropped from demo lane D-1168; deferred-TDE), E (LAUNCHER ready v2.2 — LOCAL streak 0/3). After T10: capability-discovery T15a-d + enrichment T16a-c (4 stories REQUIRED; S-1.15 NOT in enrichment chain).
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T10 — S-DEMO-004 delivery (PR #188 OPEN; pr-reviewer APPROVE pending post; security CLEAR; adversary pass-1 CLEAN(PR-merge)/strict-streak 0/3)** (T1–T9 ALL DONE; develop@664566e9). PARALLEL: Lane A (S-5.02 CRIT-fixed 79993dea — LOCAL streak 0/3), B (S-3.13 CRIT fix-burst in-progress — LOCAL streak 0/3), C (PIVOT-001 CRIT-fixed 25ed264a — LOCAL streak 0/3), D (CLOSED), E (LAUNCHER H-1-fixed 3dc0bf18 — LOCAL streak 0/3). 7 pending actions in SESSION-HANDOFF §RESUME SNAPSHOT D-1171.
 
 ## Phase Progress
 
@@ -105,6 +105,7 @@ pre_compact_snapshot_at: "2026-06-14"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files._
+| D-1171 | state-manager | 2026-06-14 | DURABILITY DELTA (TD-VSDD-053 single-commit). PR #188 cascade verdicts: pr-reviewer APPROVE (written; pending post via PA-1 github-ops); security CLEAR (0 CRIT/HIGH/MED; 6 LOW accepted); adversary pass-1 CLEAN(PR-merge)=YES/CLEAN(strict)=NO (LOW-1 evidence-report stale prose; OBS-1 no-action; strict streak 0/3). 4 parallel lanes CRIT-fixed: LAUNCHER@3dc0bf18 / S-5.02@79993dea / PIVOT-001@25ed264a / S-3.13 in-progress. 7 pending actions recorded. develop_head 664566e9 UNCHANGED. STATE v7.813→v7.814. |
 | D-1170 | state-manager | 2026-06-14 | ZERO-CONTEXT DURABILITY SNAPSHOT (TD-VSDD-053 single-commit). 5 active lanes captured with reconcile-from-live-state protocol. SESSION-HANDOFF §RESUME SNAPSHOT D-1170 is the comprehensive resume checkpoint. develop_head 664566e9 UNCHANGED. STATE v7.812→v7.813. |
 | D-1169 | state-manager | 2026-06-14 | ADVERSARY-FIX SPEC CONSOLIDATION burst (TD-VSDD-053 single-commit). S-5.02 v1.7 (HIGH-2 crates_touched + 4 FSR MODIFY rows; LOW-1 retry_after_ms u64). prismql-grammar v1.1 (enrich function-call form). LAUNCHER v2.2 (OBS-1 struct-name). error-taxonomy v1.80 (E-QUERY-037 boxed emitter + strsim). S-DEMO-004 LOCAL 3/3 CONVERGED → demo-recorder → PR #188 OPEN. Systemic lesson z24 + DRIFT-HOLLOW-FEATURE-INTEGRATION-001 registered. STATE v7.811→v7.812. |
 
@@ -114,6 +115,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1171 | state-manager | 2026-06-14 | **DURABILITY DELTA (TD-VSDD-053 single-commit).** No code/merge. develop_head 664566e9 UNCHANGED. PR #188 cascade verdicts recorded: pr-reviewer APPROVE (pending post PA-1); security CLEAR; adversary pass-1 CLEAN(PR-merge)=YES/CLEAN(strict)=NO (LOW-1 demo-doc prose). 4-lane baselines: LAUNCHER@3dc0bf18 / S-5.02@79993dea / PIVOT-001@25ed264a / S-3.13 in-progress. 7 pending actions in SESSION-HANDOFF §RESUME SNAPSHOT D-1171. total_stories 200 / active_contracts 235 / draft_contracts 2 UNCHANGED. STATE v7.813→v7.814. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1170 | state-manager | 2026-06-14 | **ZERO-CONTEXT DURABILITY SNAPSHOT (TD-VSDD-053 single-commit).** No code/merge. develop_head 664566e9 UNCHANGED. 5 active lanes + PR #188 + reconcile-from-live-state protocol in SESSION-HANDOFF §RESUME SNAPSHOT D-1170. User authorizations D-989/D-1090/D-1164/D-1165/D-1166 confirmed active. Systemic lesson DRIFT-HOLLOW-FEATURE-INTEGRATION-001 codified. total_stories 200 / active_contracts 235 / draft_contracts 2 UNCHANGED. STATE v7.812→v7.813. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1169 | state-manager | 2026-06-14 | **ADVERSARY-FIX SPEC CONSOLIDATION burst (TD-VSDD-053 single-commit).** S-5.02 v1.7 (HIGH-2: crates_touched + 4 FSR MODIFY rows; LOW-1: retry_after_ms u64). prismql-grammar v1.1 (enrich function-call form). LAUNCHER v2.2 (OBS-1: struct-name fix). error-taxonomy v1.80 (E-QUERY-037 boxed emitter + strsim resolved). Cascade: S-DEMO-004 LOCAL 3/3 CONVERGED; LAUNCHER 2/3; PIVOT-001/S-3.13/S-5.02 CRIT fix-bursts. SYSTEMIC lesson z24 + DRIFT-HOLLOW-FEATURE-INTEGRATION-001 registered. STATE v7.811→v7.812. | wave-5-e-demo-fidelity | 2026-06-14 |
 | D-1165..D-1168 | state-manager | 2026-06-14 | **PARALLEL-LANE KICKOFF + SPEC LOCKS (archived — D-1170 compaction).** D-1165: parallel-execution active; S-5.02 BCs v2.8/v1.5/v1.5 locked; LAUNCHER v1.0 materialized. D-1166: S-5.02 v1.6; PIVOT-001 v1.2 (4 traps); S-3.13 E-QUERY-037+BC-2.11.001 v1.8 locked; LAUNCHER Option-2 decision. D-1167: S-3.13 v1.8 body propagation done; LAUNCHER v2.0 Rust StartMulti; PIVOT-001 v1.3 BC-pin; S-DEMO-004 v1.10. D-1168: LAUNCHER v2.1 GAP-1/2/3; S-1.15 DROPPED (deferred-TDE/TD-PLUGIN-P0-008); Lane D CLOSED; enrichment 5→4 stories; BC-INDEX v6.54→v6.57. Full narratives: `cycles/wave-5-e-demo-fidelity/burst-log.md`. | wave-5-e-demo-fidelity | 2026-06-14 |
@@ -181,19 +183,19 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · **decisions-archive-D1124-D1138.md** · **drift-items-resolved.md** · **phase-5-deferred-findings.md** · frontmatter-cascade-archive.md · session-handoff-archive.md · convergence-trajectory.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-_Open PR: #188 feature/S-DEMO-004 (PR-LEVEL cascade IN PROGRESS). Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass), PR #187 develop@664566e9 (T6 DONE). Background agents: LAUNCHER H-1 fix-burst; PIVOT-001 CRIT fix-burst; S-3.13 CRIT fix-burst; S-5.02 CRIT fix-burst. All baseline SHAs recorded in SESSION-HANDOFF §RESUME SNAPSHOT D-1170 — fresh session reconciles from git log per worktree._
+_Open PR: #188 feature/S-DEMO-004 (PR-LEVEL cascade streak 0/3 strict; pr-reviewer APPROVE written/pending-post; security CLEAR; adversary pass-1 LOW-1 open). Last merges: PR #185 develop@7fd35b77 (T5 DONE), PR #186 develop@f7400f83 (D-1134 bypass), PR #187 develop@664566e9 (T6 DONE). Lane baselines (D-1171): LAUNCHER@3dc0bf18 (H-1 fixed); S-5.02@79993dea (CRIT-fixed); PIVOT-001@25ed264a (CRIT-fixed); S-3.13 in-progress. 7 pending actions in SESSION-HANDOFF §RESUME SNAPSHOT D-1171._
 
-## Session Resume Checkpoint (D-1170 — 2026-06-14; STATE v7.813)
+## Session Resume Checkpoint (D-1171 — 2026-06-14; STATE v7.814)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1170**. Read that first. Summary below.
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1171**. Read that first. Summary below.
 
-**STATE v7.813. CURRENT POSITION: T10 in progress — S-DEMO-004 PR #188 OPEN, PR-LEVEL cascade active (adversary+pr-reviewer+security dispatched; streak 0/3). 4 parallel lanes ALL at LOCAL streak 0/3 after CRIT fix-bursts. develop@664566e9. BC-INDEX v6.57 (active 235 / draft 2). STORY-INDEX v2.389 (200 stories). error-taxonomy v1.80. ENRICHMENT: 4 stories (S-1.14-REDO + PIVOT-001/002/003 REQUIRED). SYSTEMIC LESSON: hollow-feature wiring class (z24 + DRIFT-HOLLOW-FEATURE-INTEGRATION-001).**
+**STATE v7.814. CURRENT POSITION: T10 in progress — S-DEMO-004 PR #188 OPEN (pr-reviewer APPROVE written/pending-post PA-1; security CLEAR; adversary pass-1 CLEAN(PR-merge)/strict streak 0/3; LOW-1 = fix demo-doc prose PA-2). 4 parallel lanes: LAUNCHER@3dc0bf18 / S-5.02@79993dea / PIVOT-001@25ed264a (all CRIT-fixed, LOCAL 0/3) / S-3.13 fix-burst in-progress. develop@664566e9. 7 pending actions: PA-1 (post APPROVE), PA-2 (fix evidence-report prose), PA-3 (re-run PR-LEVEL adversary #188), PA-4/5/6 (LOCAL adversary LAUNCHER/S-5.02/PIVOT-001), PA-7 (finish S-3.13 + adjudicate AC-7). Human action: DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 (60→61).**
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1170 (comprehensive; this checkpoint is a pointer only).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1171 (comprehensive; this checkpoint is a pointer only).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline origin/develop | head -1` → expect `664566e9` (or newer if a lane merged).
-3. For each active worktree: `git -C .worktrees/<name> log --oneline -5` to derive ACTUAL current commit (baselines recorded in SESSION-HANDOFF; fix-bursts may have advanced).
-4. `gh pr view 188 --json state,statusCheckRollup` → check PR #188 CI + review status.
+3. For each worktree: `git -C .worktrees/<name> log --oneline -5` — derive ACTUAL commit (S-3.13 fix-burst may have advanced).
+4. `gh pr view 188 --json state,statusCheckRollup,reviews` → confirm APPROVE not yet posted; check CI.
 5. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-6. **NEXT:** collect PR #188 adversary/pr-reviewer/security results → if 3-CLEAN strict + APPROVE + CLEAR + CI green → squash-merge → post-merge burst. Parallel lanes (each at LOCAL 0/3): re-run LOCAL adversary on each worktree after verifying fix-burst commit actually landed.
+6. **NEXT:** PA-1 github-ops posts APPROVE + PA-2 demo-recorder fixes evidence prose + PA-3 re-run PR-LEVEL adversary. Parallel PA-4/5/6: LOCAL adversary on LAUNCHER/S-5.02/PIVOT-001. PA-7: finish S-3.13 + adjudicate AC-7 + LOCAL adversary.
