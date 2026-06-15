@@ -391,6 +391,14 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
                     push_dedup(&mut sources, &join.source);
                 }
             }
+            // OBS-1 fix: mirror explain.rs — also walk dml.filter for InSubquery
+            // predicates (e.g. DELETE WHERE id IN (SELECT … FROM <external_sensor>)).
+            // Without this walk, a WHERE-IN-subquery referencing an unregistered
+            // external table would bypass the gate and fail later/less helpfully
+            // instead of returning the fast E-QUERY-037 response.
+            if let Some(ref filter) = dml.filter {
+                collect_predicate_sources_into_gate(filter, &mut sources);
+            }
         }
         Ast::Pipe(pq) => {
             push_dedup(&mut sources, &pq.source);
@@ -406,6 +414,70 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
     }
 
     sources
+}
+
+/// Walk a `Predicate` tree and collect `SourceRef`s from any `InSubquery` predicates.
+///
+/// Mirrors `explain::collect_predicate_sources_into` — kept local to avoid a circular
+/// dependency between the table_registry and explain modules. Used by
+/// `extract_sources_from_ast_for_gate` for the DML filter arm (OBS-1): a DML WHERE
+/// clause may contain `field IN (SELECT … FROM <external_sensor>)` which references
+/// an external table that must be gated. Without this walk, the gate would silently
+/// miss the subquery source and return success, deferring the E-QUERY-037 to a
+/// later (less helpful) error site. (AC-8 mode-agnostic gating robustness)
+fn collect_predicate_sources_into_gate(
+    predicate: &crate::ast::Predicate,
+    sources: &mut Vec<crate::ast::SourceRef>,
+) {
+    use crate::ast::Predicate;
+
+    fn push_dedup(sources: &mut Vec<crate::ast::SourceRef>, s: &crate::ast::SourceRef) {
+        if !sources.iter().any(|x| x.raw == s.raw) {
+            sources.push(s.clone());
+        }
+    }
+
+    match predicate {
+        Predicate::InSubquery { subquery, .. } => {
+            push_dedup(sources, &subquery.from.source);
+            for join in &subquery.joins {
+                push_dedup(sources, &join.source);
+            }
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_predicate_sources_into_gate(p, sources);
+            }
+        }
+        Predicate::Not(inner) => {
+            collect_predicate_sources_into_gate(inner, sources);
+        }
+        // Other predicate variants (Compare, Between, Cidr, Has, Missing, IsNull,
+        // Wildcard, RecoveryError, In, StringOp, Regex) do not carry nested SqlQuery
+        // references and need no traversal.
+        _ => {}
+    }
+}
+
+/// Test-only re-export of `extract_sources_from_ast_for_gate` for AST-level
+/// unit tests in `table_registry_tests.rs`.
+///
+/// The production function is intentionally private (it is a module-internal
+/// helper with no public contract). This wrapper grants `pub(crate)` visibility
+/// exclusively for test assertions that build AST nodes directly and verify the
+/// predicate-subquery walk without going through the parser.
+///
+/// # Why this exists (OBS-1)
+/// The DELETE/UPDATE parser uses `build_predicate_parser()` which does not yet
+/// support `IN (SELECT …)` predicates in WHERE clauses. Direct AST construction
+/// is therefore the only way to test the `dml.filter` InSubquery walk path in
+/// isolation. The function under test is `extract_sources_from_ast_for_gate`;
+/// this thin wrapper makes it reachable from `tests::table_registry_tests`.
+#[cfg(test)]
+pub(crate) fn extract_sources_from_ast_for_gate_test_only(
+    ast: &crate::ast::Ast,
+) -> Vec<crate::ast::SourceRef> {
+    extract_sources_from_ast_for_gate(ast)
 }
 
 // ---------------------------------------------------------------------------
