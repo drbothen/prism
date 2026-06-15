@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.6"
+version: "2.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -193,7 +193,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.6
+**Version:** v2.7
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -810,8 +810,12 @@ Then:
   `new_with_seed` (seeded data distinctness) AND, if `[orgs.org-b].initial_access_token` is set,
   has the token registered in `access_token_allowlist` via a follow-up `configure({"access_token": token})`
   call (GAP-2 composite path). The `new_with_access_token` constructor is NOT used in the seeded path.
-- Passing an entry with an unrecognized sensor name panics or returns an error (not silently
-  constructing a wrong clone type).
+- Passing an entry with an unrecognized sensor name returns a clean `Err` from
+  `MultiOrgDemoConfig::from_str` (parse-time, not a worker-thread panic). The error names
+  the offending org entry and the invalid sensor value; valid values are enumerated from the
+  shared `KNOWN_SENSORS` const (`crowdstrike`, `armis`, `claroty`, `cyberint`). Verified by
+  `test_low_unsupported_sensor_yields_clean_err_not_panic` (3 sub-cases: each unsupported
+  sensor, plus the valid-all-sensors control case) in `config.rs` tests.
 
 RG-004 must be green.
 
@@ -1019,6 +1023,7 @@ Architecture section files referenced:
 | AD-017: credential values MUST be piped via stdin, NEVER via CLI argv | Applies to all N×M `prism credential set` calls in `demo-setup.sh`. |
 | Cyberint DTU `initial_access_token` in `[orgs.*]` config MUST match the `api_key` credential for that org | StaticCookieAuthProvider injects `Cookie: access_token=<keyring-value>`; mismatch → 401 on all Cyberint queries. |
 | All shell scripts MUST use `#!/usr/bin/env bash` shebang and `set -euo pipefail` | shellcheck portability requirement. |
+| The canonical sensor set is `pub const KNOWN_SENSORS: &[&str]` in `config.rs`, re-exported from `lib.rs` and used by `multi_org_cmd.rs` | Single authoritative list for parse-time validation (`from_str`) AND factory dispatch (`build_multi_clone_factory`). Adding a sensor requires updating only this const; do NOT hardcode the sensor list in multiple places. |
 
 ---
 
@@ -1047,7 +1052,7 @@ Architecture section files referenced:
 | EC-005 | `demo-teardown.sh` is run when DTU server is not running (no PID file) | Prints "server may not be running", skips the kill step; continues to credential delete + rm -rf. |
 | EC-006 | `start-multi` sidecar not available within 30s poll timeout | `demo-run.sh` exits 1 with "demo-server start-multi did not write sidecar within 30s; check DTU server logs." |
 | EC-007 | `[orgs.org-b]` has no `initial_access_token` but org-b has `cyberint` in sensors | `cmd_start_multi` starts the Cyberint clone without calling `configure()`; the clone's allowlist is empty (no token pre-seeded). Operator must configure manually. Recovery paths (implemented `configure` subcommand, nested-sidecar-aware): (a) **After `start-multi`** — use the fully-qualified `{org_slug}-{sensor_id}` key: `prism-dtu-demo-server configure org-b-cyberint '{"access_token":"demo-cyberint-api-key-org-b"}'`; (b) **Bare form** — `prism-dtu-demo-server configure cyberint '{"access_token":"demo-cyberint-api-key-org-b"}'` works when the sensor is unambiguous (exactly one running org has that sensor registered); (c) **After plain `start`** — the legacy flat-sidecar form `prism-dtu-demo-server configure cyberint '{"access_token":"..."}` is unchanged. The `configure` subcommand reads the nested sidecar (`.prism-dtu-demo-server.urls-multi.json`) when the flat sidecar (`.prism-dtu-demo-server.urls.json`) is absent, enabling it to resolve the clone endpoint for `start-multi`-launched instances. |
-| EC-008 | `MultiOrgDemoConfig` `[orgs.X]` sensor list references an unsupported sensor name | `build_multi_clone_factory` returns an error or panics with a clear message: "unsupported sensor 'X' in [orgs.org-a]; valid values: crowdstrike, armis, claroty, cyberint". |
+| EC-008 | `MultiOrgDemoConfig` `[orgs.X]` sensor list references an unsupported sensor name | `MultiOrgDemoConfig::from_str` returns a clean `Err` at parse time (not a worker-thread panic). The error names the offending org entry and the invalid sensor value; valid values are checked against `KNOWN_SENSORS` (`crowdstrike`, `armis`, `claroty`, `cyberint`) — a shared `pub const` in `config.rs`, re-exported from `lib.rs`, used by `multi_org_cmd.rs`. Parallel to the MED-B org_id validation pattern. Verified by `test_low_unsupported_sensor_yields_clean_err_not_panic` (3 sub-cases) in `crates/prism-dtu-demo-server/src/config.rs`. |
 | EC-009 | `build_multi_clone_factory` called with an InstanceEntry name that does not match `{org_slug}-{sensor_id}` convention | Panic or error with actionable message; this is a programming error (the factory is only called internally by `start_instances` with entries built by `cmd_start_multi`). |
 
 ---
@@ -1253,7 +1258,7 @@ escalate to the architect — do not silently fall back to Option-1.
 
 | File | Action | Description |
 |------|--------|-------------|
-| `crates/prism-dtu-demo-server/src/config.rs` | MODIFY | Add `MultiOrgDemoConfig`, `OrgConfig` structs with `#[serde(deny_unknown_fields)]` + `#[non_exhaustive]` + `from_file`/`from_str` methods (~40-60 lines). |
+| `crates/prism-dtu-demo-server/src/config.rs` | MODIFY | Add `MultiOrgDemoConfig`, `OrgConfig` structs with `#[serde(deny_unknown_fields)]` + `#[non_exhaustive]` + `from_file`/`from_str` methods (~40-60 lines). Also adds `pub const KNOWN_SENSORS: &[&str]` (the canonical 4-sensor list used for parse-time validation and factory dispatch). |
 | `crates/prism-dtu-demo-server/src/main.rs` | MODIFY | Add `StartMulti` variant to `Commands` enum; add `cmd_start_multi` + `build_multi_clone_factory` + `start_multi_for_config` + `write_multi_url_sidecar` (~80-120 lines net). |
 | `crates/prism-dtu-demo-server/tests/` | CREATE | New integration test file (e.g., `multi_org.rs`) containing RG-004 and RG-005. The corresponding `[[test]]` entry in `crates/prism-dtu-demo-server/Cargo.toml` MUST specify `required-features = ["dtu", "fixture-gen"]` — matching the precedent of `bc_2_06_018_archetype_differential` and `bc_2_06_019_scenario_progression` in that crate's Cargo.toml. Without `required-features`, the test compiles without `fixture-gen` and `build_multi_clone_factory` will hard-error at runtime. |
 | `crates/prism-dtu-demo-server/Cargo.toml` | MODIFY | Add `[[test]]` entry for `multi_org.rs` with `required-features = ["dtu", "fixture-gen"]`. |
@@ -1299,6 +1304,7 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.7 | 2026-06-15 | story-writer | LOW finding closure: enrolled `test_low_unsupported_sensor_yields_clean_err_not_panic` (3 sub-cases, `config.rs`) as a post-implementation finding-closure test — recorded as EC entry, not a Red Gate row (`red_gate_tests` stays at 5; Red Gate rows are pre-implementation failing tests only). Updated EC-008: parse-time `Err` from `MultiOrgDemoConfig::from_str`, not `build_multi_clone_factory` panic; cites test by name; references `KNOWN_SENSORS` const. Updated AC-005 third bullet: "panics or returns an error" tightened to "returns a clean `Err` from `MultiOrgDemoConfig::from_str`"; cites test by name; cites `KNOWN_SENSORS` const. Added Architecture Compliance Rule for `KNOWN_SENSORS` (single authoritative sensor list in `config.rs`, re-exported from `lib.rs`, used by `multi_org_cmd.rs`). Updated File Structure `config.rs` row to mention `KNOWN_SENSORS`. Parallel to MED-B org_id-validation pattern. No semantic change to Red Gate section or `red_gate_tests` count. |
 | 2.6 | 2026-06-15 | story-writer | LOW fix: AC-005 stale parenthetical corrected — "(static-JSON path)" replaced with "(seeded path via `new_with_seed`)" for the `"org-a-crowdstrike"` bullet. The static-JSON path (plain `new()`) is never used by `start-multi`; every clone dispatched by `build_multi_clone_factory` uses the seeded path (fixture-gen required). No semantic change; prose now matches the dominant seeded-path design mandated by GAP-1, risk_mitigations, §Option-2 Design step 4, Architecture Compliance Rules, and AC-001 Note. Sibling scan found lines 136 and 303 are accurate context (contrasting seeded vs static-JSON paths in explanation/pseudocode); no further corrections needed. Version bumped to v2.6 (POL-23). |
 | 2.5 | 2026-06-15 | story-writer | OBS fix: AC-004 example health-endpoint path corrected from `/health` → `/dtu/health` — DTU clones expose `/dtu/health` (HTTP 200); `/health` returns 404. No semantic change to AC-004; only the prose example path string was inaccurate. Single `/health` occurrence in the file corrected; no other sibling sites found. Body version header and frontmatter version bumped to v2.5 (POL-23). |
 | 2.4 | 2026-06-14 | story-writer | MED-A paper-fix remediation: v2.2 changelog claimed `MultiOrgConfig` bare occurrences were fixed, but two live (non-changelog) sites remained. Fixed: (1) `crates_touched` comment line — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig` → `MultiOrgDemoConfig / OrgConfig`; (2) points justification comment — `MultiOrgDemoConfig / MultiOrgConfig / OrgConfig config structs` → `MultiOrgDemoConfig / OrgConfig config structs`. The type `MultiOrgConfig` does not exist in the codebase; real types are `MultiOrgDemoConfig` (root) and `OrgConfig` (per-org). Historical changelog rows are immutable and were not touched. Body version header synced from v2.3 → v2.4 (POL-23 sibling-sweep propagation completing this burst). |
