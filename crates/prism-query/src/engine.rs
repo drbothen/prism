@@ -1616,6 +1616,242 @@ mod explain_wrapper_tests {
 }
 
 // ---------------------------------------------------------------------------
+// Unit tests: SEC-003 production path via QueryEngine::explain (CR-NEW-001)
+// ---------------------------------------------------------------------------
+//
+// These tests verify that calling QueryEngine::explain() (not the free function
+// explain::explain()) correctly injects self.resolved_spec_map into the options,
+// so that available_tables is filtered to the requesting org's visible tables.
+//
+// This is the PRODUCTION-PATH test demanded by CR-NEW-001 (S-3.13 fix-burst).
+// The key invariant under test: resolved_spec_map MUST be None in the options
+// supplied to qe.explain() — the engine's injection wiring is what we're verifying.
+
+#[cfg(test)]
+mod sec003_engine_path_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{ResolvedSensorSpec, ResolvedSpecKey};
+
+    use super::*;
+    use crate::{explain::ExplainOptions, scoping::ClientRegistry, table_registry::TableRegistry};
+
+    /// Minimal no-op credential store for SEC-003 engine tests.
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a two-org resolved_spec_map: acme→armis (armis_devices), contoso→crowdstrike (crowdstrike_alerts).
+    fn make_two_org_spec_map() -> HashMap<ResolvedSpecKey, ResolvedSensorSpec> {
+        use prism_spec_engine::{
+            overlay::{OverlayLoader, SensorInstanceOverlay},
+            spec_parser::{AuthType, SensorSpec, TableSpec},
+        };
+
+        let make_resolved = |sensor_id: &str, table_suffix: &str, org: &str| {
+            let spec = SensorSpec::new(
+                sensor_id,
+                format!("{sensor_id} sensor"),
+                AuthType::ApiKey,
+                "https://example.com",
+                vec![TableSpec::new_point_in_time(
+                    table_suffix,
+                    "security_finding",
+                    vec![],
+                    vec![],
+                )],
+                None,
+                "1.0.0",
+                Vec::new(),
+            );
+            let overlay_toml =
+                format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+            let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+                .expect("SEC-003 engine fixture: SensorInstanceOverlay TOML must parse");
+            let org_slug = OrgSlug::new(org);
+            let resolved =
+                OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+            let sensor_id_typed = SensorId::new(sensor_id);
+            let key: ResolvedSpecKey = (org_slug, sensor_id_typed);
+            (key, resolved)
+        };
+
+        let mut map = HashMap::new();
+        let (k, v) = make_resolved("armis", "devices", "acme");
+        map.insert(k, v);
+        let (k, v) = make_resolved("crowdstrike", "alerts", "contoso");
+        map.insert(k, v);
+        map
+    }
+
+    /// Build a global TableRegistry with both armis and crowdstrike sensors.
+    fn make_two_sensor_registry() -> Arc<TableRegistry> {
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+        let registry = TableRegistry::new();
+        let make_spec = |sensor_id: &str, table_suffix: &str| {
+            SensorSpec::new(
+                sensor_id,
+                format!("{sensor_id} sensor"),
+                AuthType::ApiKey,
+                "https://example.com",
+                vec![TableSpec::new_point_in_time(
+                    table_suffix,
+                    "security_finding",
+                    vec![],
+                    vec![],
+                )],
+                None,
+                "1.0.0",
+                Vec::new(),
+            )
+        };
+        registry
+            .register_sensor(&make_spec("armis", "devices"))
+            .expect("register armis must not fail");
+        registry
+            .register_sensor(&make_spec("crowdstrike", "alerts"))
+            .expect("register crowdstrike must not fail");
+        Arc::new(registry)
+    }
+
+    /// Build a QueryEngine with wired resolved_spec_map and table_registry.
+    ///
+    /// Uses new_with_cache_config + direct pub(crate) field injection so we
+    /// don't need the full production dependency tree (OrgRegistry, RocksDB, etc.).
+    fn make_engine_with_spec_map(
+        registry: Arc<TableRegistry>,
+        spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec>,
+    ) -> QueryEngine {
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        // Inject resolved_spec_map (pub(crate)) — same pattern as make_engine_with_alias_store.
+        engine.resolved_spec_map = Some(Arc::new(spec_map));
+        // Wire the table_registry so available_tables is populated.
+        engine = engine.with_table_registry(registry);
+        engine
+    }
+
+    /// CR-NEW-001 / SEC-003 production path test (S-3.13 fix-burst, CWE-200).
+    ///
+    /// Verifies that calling `QueryEngine::explain()` — the production code path
+    /// used by the MCP `explain_query` handler after the CR-NEW-001 fix — correctly
+    /// injects `self.resolved_spec_map` into the options and filters
+    /// `available_tables` to the requesting org's visible tables.
+    ///
+    /// CRITICAL: `resolved_spec_map` in `ExplainOptions` is set to `None`.  The engine
+    /// injection (engine.rs:753-757) is the mechanism under test.  Passing it
+    /// pre-populated would bypass the wiring and make this a vacuous test.
+    ///
+    /// `client_registry` IS supplied in opts (same as the MCP handler does via
+    /// `qe.client_registry()`) — the engine does not inject that field, so tests
+    /// must mirror the MCP handler call-site exactly.
+    ///
+    /// Fixture: acme → armis (armis_devices), contoso → crowdstrike (crowdstrike_alerts).
+    /// Calling with clients=Some([acme]) must yield armis_devices but NOT crowdstrike_alerts.
+    ///
+    /// `#[tokio::test]` required because QueryEngine::new_with_cache_config starts
+    /// the cursor cleanup background task, which requires a tokio runtime context.
+    #[tokio::test]
+    #[allow(non_snake_case, clippy::expect_used)]
+    async fn test_SEC_003_explain_production_path_via_query_engine_filters_other_org() {
+        let registry = make_two_sensor_registry();
+        let spec_map = make_two_org_spec_map();
+        let acme = OrgSlug::new("acme");
+
+        // Build a ClientRegistry that contains "acme" so resolve_clients() accepts it.
+        // The MCP handler supplies this via `qe.client_registry()` in ExplainOptions.
+        let client_registry = Arc::new(ClientRegistry::new(vec![acme.clone()]));
+
+        let engine = make_engine_with_spec_map(registry, spec_map);
+
+        // CRITICAL: resolved_spec_map is None here — the engine's injection (engine.rs:753-757)
+        // must supply it.  This is the exact options shape the MCP handler constructs.
+        // client_registry is supplied explicitly (mirrors the MCP handler at server.rs:1749).
+        let opts = ExplainOptions {
+            clients: Some(vec![acme]),
+            client_registry: Some(client_registry),
+            resolved_spec_map: None, // engine injects self.resolved_spec_map
+            ..ExplainOptions::default()
+        };
+
+        let result = engine
+            .explain("severity = 'critical'", opts)
+            .expect("QueryEngine::explain must succeed for valid query");
+
+        // acme can only see armis_devices — the injection must have fired.
+        assert!(
+            result
+                .available_tables
+                .contains(&"armis_devices".to_string()),
+            "SEC-003 production path: acme's table 'armis_devices' must appear \
+             in available_tables after QueryEngine::explain injection. Got: {:?}",
+            result.available_tables
+        );
+
+        // contoso's table must NOT leak — cross-tenant CWE-200 protection.
+        assert!(
+            !result
+                .available_tables
+                .contains(&"crowdstrike_alerts".to_string()),
+            "SEC-003 / CWE-200 production path: contoso's table 'crowdstrike_alerts' \
+             must NOT appear in available_tables when requesting org is acme. \
+             Got: {:?}",
+            result.available_tables
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Helper: truncate batches to a row limit
 // ---------------------------------------------------------------------------
 

@@ -1910,8 +1910,13 @@ impl PrismServer {
             // QueryEngine::explain() — MCP callers do not need to supply it directly.
             resolved_spec_map: None,
         };
+        // CR-NEW-001 fix (S-3.13, SEC-003, CWE-200): route through QueryEngine::explain()
+        // so that self.resolved_spec_map is injected into explain_opts, filtering
+        // available_tables to the requesting org's visible tables.  Calling the free
+        // function prism_query::explain::explain() directly bypasses the injection
+        // (engine.rs:753-757) and leaks the global table list cross-tenant.
         // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
-        let result = match prism_query::explain::explain(&params.query, explain_opts) {
+        let result = match qe.explain(&params.query, explain_opts) {
             Ok(r) => r,
             Err(e) => return Ok(prism_error_to_structured_call_result(e)),
         };
