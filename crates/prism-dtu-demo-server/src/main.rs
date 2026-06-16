@@ -58,6 +58,19 @@ enum Commands {
     /// Send SIGTERM to a backgrounded harness PID (reads `.prism-dtu-demo-server.pid`).
     Stop,
 
+    /// Start all orgs' clone fleets using the multi-instance API.
+    ///
+    /// Requires `--features dtu,fixture-gen` — the seeded clone constructors
+    /// (`new_with_seed`) are `#[cfg(feature = "fixture-gen")]`-gated. Omitting
+    /// `fixture-gen` causes a hard error (compile_error! or runtime panic) to
+    /// prevent silent fallback to unseeded `new()` which would violate
+    /// INV-DISTINCT-DATA-001 (org-a and org-c would serve identical data).
+    StartMulti {
+        /// Path to the multi-org demo config TOML (e.g. `scripts/demo.toml`).
+        #[arg(long, short = 'c', value_name = "PATH")]
+        config: std::path::PathBuf,
+    },
+
     /// Convenience wrapper: POST to a clone's own `/dtu/configure` endpoint.
     Configure {
         /// Clone name (e.g. `crowdstrike`, `cyberint`).
@@ -70,8 +83,9 @@ enum Commands {
 /// Name of the PID sidecar file written in cwd by `start`.
 const PID_FILE: &str = ".prism-dtu-demo-server.pid";
 
-/// Name of the URL map sidecar file written in cwd by `start`.
-const URL_FILE: &str = ".prism-dtu-demo-server.urls.json";
+// URL_FILE and URL_MULTI_FILE are defined in lib.rs (as `pub const`) so that
+// multi_org_cmd.rs can reference them in error messages. Import them here.
+use prism_dtu_demo_server::{URL_FILE, URL_MULTI_FILE};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -84,6 +98,7 @@ async fn main() -> anyhow::Result<()> {
             bind_any,
             deterministic_logging,
         } => cmd_start(config, tls, bind_any, deterministic_logging).await,
+        Commands::StartMulti { config } => cmd_start_multi(config).await,
         Commands::Stop => cmd_stop(),
         Commands::Configure { clone, json } => cmd_configure(clone, json).await,
     }
@@ -351,6 +366,130 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
 }
 
 // ---------------------------------------------------------------------------
+// `start-multi` subcommand — S-DEMO-LAUNCHER-CONSOLIDATION-001
+// ---------------------------------------------------------------------------
+
+/// Entry point for `prism-dtu-demo-server start-multi`.
+///
+/// Loads `MultiOrgDemoConfig` from `config_path`, starts all org clone fleets
+/// via `start_multi_for_config`, writes the nested sidecar, then waits for shutdown.
+///
+/// # fixture-gen requirement
+///
+/// This function calls `build_multi_clone_factory` (via `start_multi_for_config`) which is
+/// `#[cfg(feature = "fixture-gen")]`-only. Building without `fixture-gen` produces a runtime
+/// panic — NEVER a silent fallback to unseeded `new()` (which would violate INV-DISTINCT-DATA-001).
+async fn cmd_start_multi(config_path: std::path::PathBuf) -> anyhow::Result<()> {
+    // 1. Initialise tracing (deterministic_logging=false for multi-org mode).
+    init_tracing(false);
+
+    // 2. Load MultiOrgDemoConfig.
+    let cfg = prism_dtu_demo_server::config::MultiOrgDemoConfig::from_file(&config_path)
+        .map_err(|e| anyhow::anyhow!("Failed to load multi-org config {:?}: {}", config_path, e))?;
+
+    // 3. Start all org clone fleets. This calls build_multi_clone_factory (fixture-gen required)
+    //    which will panic if fixture-gen is absent (GAP-1 enforcement).
+    let servers = prism_dtu_demo_server::start_multi_for_config(&cfg)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to start multi-org clone fleet: {}", e))?;
+
+    // 4. Write PID file (same atomic tmp+rename helper used by cmd_start).
+    write_pid_file()?;
+
+    // 5. Write NESTED URL sidecar: {org_slug: {sensor_id: url}}.
+    //    Written to URL_MULTI_FILE (distinct from the flat URL_FILE written by `start`).
+    write_multi_url_sidecar(&servers, &cfg)?;
+
+    // 6. Print nested URL table to stdout.
+    let socket_map = servers.socket_map();
+    println!("start-multi: {} instances running", socket_map.len());
+    let mut entries: Vec<_> = socket_map.iter().collect();
+    entries.sort_by_key(|(name, _)| name.as_str());
+    for (name, addr) in &entries {
+        println!("  {name}: http://{addr}");
+    }
+
+    // 7. Wait for SIGTERM/SIGINT, then gracefully shut down.
+    wait_for_shutdown_signal_multi(&servers).await;
+
+    Ok(())
+}
+
+/// Write the NESTED URL sidecar file `.prism-dtu-demo-server.urls-multi.json`.
+///
+/// Delegates to `write_multi_url_sidecar_to_path` (the testable, path-parameterised
+/// variant in `multi_org_cmd.rs`) with the canonical `URL_MULTI_FILE` path.
+///
+/// The sidecar is written atomically (tmp + rename) to prevent demo-run.sh from
+/// reading a partial file during the poll loop (GAP-3 sidecar-availability guarantee).
+///
+/// # Production-grade: no silent drops (MED-2 fix)
+///
+/// This function errors loudly if any expected `{org_slug}-{sensor_id}` entry is
+/// absent from `servers.socket_map()`. The previous `filter_map` implementation
+/// silently dropped missing entries — a production defect that would cause prism
+/// boot failure for affected org×sensor queries (CLAUDE.md Standing Rule 3 §2).
+fn write_multi_url_sidecar(
+    servers: &prism_dtu_demo_server::MultiInstanceServers,
+    cfg: &prism_dtu_demo_server::MultiOrgDemoConfig,
+) -> anyhow::Result<()> {
+    prism_dtu_demo_server::write_multi_url_sidecar_to_path(
+        servers,
+        cfg,
+        std::path::Path::new(URL_MULTI_FILE),
+    )
+}
+
+/// Wait for SIGINT or SIGTERM, then gracefully shut down all multi-org clone instances.
+///
+/// Mirrors `wait_for_shutdown_signal` but operates on `MultiInstanceServers` instead of
+/// `DemoHarness`. Removes both the PID file and the nested URL sidecar on shutdown.
+async fn wait_for_shutdown_signal_multi(servers: &prism_dtu_demo_server::MultiInstanceServers) {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        // SAFETY: failure to install a signal handler is a fatal setup error; panic is correct.
+        #[allow(clippy::expect_used)]
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                tracing::info!("start-multi: Received SIGINT — initiating graceful shutdown");
+            }
+            _ = sigterm.recv() => {
+                tracing::info!("start-multi: Received SIGTERM — initiating graceful shutdown");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        // SAFETY: failure to install a signal handler is a fatal setup error; panic is correct.
+        #[allow(clippy::expect_used)]
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl-C handler");
+        tracing::info!("start-multi: Received Ctrl-C — initiating graceful shutdown");
+    }
+
+    // Send graceful shutdown signal to all instances.
+    servers.shutdown();
+
+    // Remove sidecar files.
+    let _ = std::fs::remove_file(PID_FILE);
+    let _ = std::fs::remove_file(URL_MULTI_FILE);
+
+    tracing::info!("start-multi: All instances signalled for graceful shutdown.");
+}
+
+// `build_multi_clone_factory` and `start_multi_for_config` live in
+// `prism_dtu_demo_server::multi_org_cmd` (library crate) so that integration tests
+// in `tests/multi_org.rs` can access them. `cmd_start_multi` delegates to them.
+// See `src/multi_org_cmd.rs` for the implementations.
+
+// ---------------------------------------------------------------------------
 // `stop` subcommand
 // ---------------------------------------------------------------------------
 
@@ -397,26 +536,27 @@ fn send_sigterm(pid: i32) -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<()> {
-    // Read the URL sidecar written by `start`.
-    let sidecar_str = std::fs::read_to_string(URL_FILE).map_err(|_| {
+    // HIGH-1 fix: resolve the clone URL from whichever sidecar exists.
+    //
+    // `start` writes URL_FILE (flat: {name: url}).
+    // `start-multi` writes URL_MULTI_FILE (nested: {org_slug: {sensor_id: url}}).
+    //
+    // `resolve_configure_url` tries the flat sidecar first; if absent, falls back to the
+    // nested sidecar and accepts both full `{org_slug}-{sensor_id}` keys (e.g.
+    // "org-b-cyberint") and bare sensor names (e.g. "cyberint" — EC-007 recovery form,
+    // works when only one org has that sensor).
+    let configure_url = prism_dtu_demo_server::resolve_configure_url(
+        &clone_name,
+        Some(std::path::Path::new(URL_FILE)),
+        Some(std::path::Path::new(URL_MULTI_FILE)),
+    )
+    .map_err(|e| {
         anyhow::anyhow!(
-            "URL sidecar '{}' not found — is the harness running?",
-            URL_FILE
-        )
-    })?;
-
-    let url_map: std::collections::HashMap<String, String> = serde_json::from_str(&sidecar_str)
-        .map_err(|e| anyhow::anyhow!("Failed to parse URL sidecar: {}", e))?;
-
-    let clone_url = url_map.get(&clone_name).ok_or_else(|| {
-        anyhow::anyhow!(
-            "Clone '{}' not found in running harness. Available: {:?}",
+            "configure: could not resolve URL for clone '{}': {}",
             clone_name,
-            url_map.keys().collect::<Vec<_>>()
+            e
         )
     })?;
-
-    let configure_url = format!("{clone_url}/dtu/configure");
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))

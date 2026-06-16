@@ -14,7 +14,7 @@
 //!            BC-2.06.019 EC-019-012: archetype/fixture_set contradiction
 //!            Architecture Compliance Rules: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004 order
 
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
 use prism_dtu_demo_server::{config::DemoConfig, harness::build_clone_pairs};
 
