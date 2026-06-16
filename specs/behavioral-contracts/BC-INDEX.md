@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.60"
+version: "6.61"
 status: draft
 producer: state-manager
-timestamp: 2026-06-15T00:00:00Z
+timestamp: 2026-06-16T00:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -147,7 +147,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Interface | CAP-009 | P0 | active |
 | BC-2.10.005 | notifications/tools/list_changed on Config Reload | 10 - MCP Interface | CAP-005, CAP-009 | P0 | draft |
 | BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | active |
-| BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active (v1.6 — D-1168 2026-06-14: SensorRateLimited shape clarification; retry_after_ms: u64 required not Option; `sensor` not `sensor_id`; to_error_data_with_retry contract; external JSON contract unchanged; no code change) |
+| BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active (v1.7 — D-1187 2026-06-16: S-5.02 F-4 adjudication — `"internal"` added as 9th category enum value for Prism-side infrastructure failures (Internal/Io/Storage*); internal-vs-upstream_error decision rule + 4 test vectors + Implementer Code Follow-Up section; no code change this burst — code follow-up required in crates/prism-mcp/src/error_mapping.rs) |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft |
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.61 (2026-06-16, D-1187 spec-reconciliation burst):** state-manager | BC-2.10.007 inline row: v1.6→v1.7 — S-5.02 F-4 adjudication (PR #191): `"internal"` added as 9th category enum value for Prism-side infrastructure/invariant failures (PrismError::Internal, Io, Storage*) — distinct from `"upstream_error"` (genuine sensor boundary failures). Added canonical category decision rule table (9 rows, LLM-agent strategy column), internal-vs-upstream_error critical distinction, 4 test vectors (Internal→internal, Io→internal, StorageWriteFailed→internal, SensorHttpError→upstream_error regression guard), and §Implementer Code Follow-Up (F-4) specifying required changes to error_mapping.rs + error_response.rs. This is a semantic contract change; no code change in this burst — code follow-up required at S-5.02 implementation time. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.60→v6.61.
 
 **v6.60 (2026-06-15, D-1181 durability burst):** state-manager | BC-2.19.001 inline row: v1.5→v1.7 — two-phase model regression fix and carrier-struct precision: (1) v1.6 prose-precision fix (OBS D-1180): plugin_id/config live on PluginInfusionSource via descriptor.source, NOT on InfusionUdfDescriptor directly. (2) v1.7 regression fix (D-1181): v1.6 reword incorrectly re-introduced load_all as PluginInfusionSource constructor; corrected to accurate two-phase model — PARSE PHASE (load_all) returns (Vec<InfusionSpec>,Vec<InfusionError>) and does NOT construct PluginInfusionSource or attach descriptor.source; RUNTIME PHASE (load_spec_with_runtime) builds PluginInfusionSource and attaches as descriptor.source. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.59→v6.60.
 

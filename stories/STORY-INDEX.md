@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.402"
+version: "v2.403"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T00:00:00Z
+timestamp: 2026-06-16T01:00:00Z
 phase: 3
 total_stories: 200
 total_active_bcs: 222
@@ -1074,6 +1074,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.403 | 2026-06-16 | state-manager D-1187 spec-reconciliation burst (2026-06-16): Two spec-only reconciliations affecting S-DEMO-ENRICHMENT-PIVOT-001 (taxonomy) and S-5.02 (BC-2.10.007). (1) S-DEMO-ENRICHMENT-PIVOT-001 upstream spec: error-taxonomy v1.81→v1.82 — PIVOT-001 MED-A closed; E-INFUSE-007 FORWARD-RESERVED status preserved; false "must be replaced" mandate removed; E-QUERY-034 wrapping documented; PIVOT-001 HEAD UNCHANGED (PR #189 re-gate NEXT on e16f06b6). (2) S-5.02 upstream spec: BC-2.10.007 v1.6→v1.7 — S-5.02 F-4 "internal" category added (9th enum value); internal-vs-upstream_error decision rule + 4 test vectors + §Implementer Code Follow-Up; IMPLEMENTER CODE FOLLOW-UP PENDING (error_mapping.rs + error_response.rs). Story row versions UNCHANGED (no story-file version bumps in this burst; spec changes tracked at spec level). develop_head UNCHANGED c3ecf6c8. total_stories 200 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.402→v2.403. |
 | v2.402 | 2026-06-16 | state-manager D-1186 LAUNCHER post-merge durability burst (2026-06-16): S-DEMO-LAUNCHER-CONSOLIDATION-001 row ready v2.10→merged v2.10 — PR #190 squash-merged develop@c3ecf6c8 2026-06-16T05:08:37Z; PR-LEVEL 3/3 strict CONVERGED (passes on frozen HEAD 8e183f03; BC-5.39.001 D-779); POL-14 all 5 BCs (BC-2.06.001/012/013/014/017) already active — idempotent no-ops; non-exhaustive gate UNCHANGED (EXPECTED=60; LAUNCHER types in prism-dtu-demo-server outside scope); worktree .worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001 still mounted (cleanup pending); feature/S-DEMO-LAUNCHER-CONSOLIDATION-001 DELETED at GitHub. develop_head 09925bbe→c3ecf6c8. total_stories 200 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.401→v2.402. |
 | v2.401 | 2026-06-15 | state-manager D-1185 PIVOT fix-burst durability burst (2026-06-15): S-DEMO-ENRICHMENT-PIVOT-001 row v1.10→v1.11 — PR #189 PR-LEVEL cascade closed: MED-1 E-INFUSE-002 conformance + MED-2 verbatim error propagation in engine.rs + OBS-1 udf.rs doc comment (795b8e0f→50811a46); HIGH-1 3-site E-INFUSE-007→E-INFUSE-002 sibling sweep: test rename + comment + evidence-report; OBS-3 register-guard E-INFUSE-002 message shape (e16f06b6); just check 4317/4317 GREEN at e16f06b6; PR-LEVEL streak reset 0/3 — adversary re-gate NEXT on frozen HEAD e16f06b6; EC-004 prose corrected: `InfusionError::DuplicateUdfName` / E-INFUSE-002; BC-2.19.001 confirmed E-INFUSE-002 contracts this condition; no BC conflict. DRIFT-PIVOT-PLUGINERR-MAPPING-001 + DRIFT-ORCH-ADVERSARY-TUPLE-001 registered. develop_head UNCHANGED 09925bbe. total_stories 200 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.400→v2.401. |
 | v2.400 | 2026-06-15 | state-manager D-1184 MED-closure burst (2026-06-15): S-DEMO-LAUNCHER-CONSOLIDATION-001 row v2.9→v2.10 — F-PASS-MED-001 closure (spec-only): §Architecture Mapping symbol names corrected — `start_multi_for_config` + `write_multi_url_sidecar_to_path` are actual functions in `multi_org_cmd.rs`; `cmd_start_multi` + `write_multi_url_sidecar` thin-wrapper names in `main.rs` each appear in exactly one row; same-document contradiction from v2.9 resolved. No AC/BC/Red Gate/behavioral change. LAUNCHER HEAD @8e183f03 UNCHANGED. PR-LEVEL streak 0/3; adversary re-pass NEXT on unchanged HEAD. develop_head UNCHANGED 09925bbe. total_stories 200 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.399→v2.400. |
