@@ -281,17 +281,22 @@ pub fn register_infusion_udfs(
     ctx: &SessionContext,
     descriptors: Vec<InfusionUdfDescriptor>,
 ) -> datafusion::error::Result<()> {
-    // Detect duplicate UDF names before registration.
+    // Detect duplicate UDF names before registration (spec-load-time guard).
     // DataFusion's `register_udf` silently overwrites duplicates, which would cause
     // the last-registered UDF for a given name to win — a silent misconfiguration.
-    // E-INFUSE-007: Infusion UDF registration failed for '{infusion_id}': {reason}
+    //
+    // Taxonomy: E-INFUSE-002 — "Duplicate UDF name '{udf_name}' in '{path2}' — already
+    // registered from '{path1}'." — spec-validation error BEFORE DataFusion registration.
+    // E-INFUSE-007 is reserved for DataFusion `register_udf`/`register_table_function`
+    // CALL failures (i.e., when DataFusion itself rejects the registration at runtime).
     let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     for descriptor in descriptors {
         if !seen_names.insert(descriptor.name.clone()) {
             return Err(datafusion::error::DataFusionError::Execution(format!(
-                "E-INFUSE-007: Infusion UDF registration failed for '{}': \
-                 duplicate UDF name '{}' — each infusion field must produce a unique UDF name",
-                descriptor.infusion_id, descriptor.name,
+                "E-INFUSE-002: Duplicate UDF name '{}' in '{}' — already registered from a prior \
+                 infusion spec. Each infusion field must produce a unique UDF name within the \
+                 DataFusion SessionContext.",
+                descriptor.name, descriptor.infusion_id,
             )));
         }
         let udf_impl = InfusionAsyncUdf::new(descriptor);
@@ -388,14 +393,19 @@ mod tests {
         );
     }
 
-    /// E-INFUSE-007: duplicate UDF name emits error with real infusion_id and E-INFUSE-007 code.
+    /// E-INFUSE-002: duplicate UDF name emits error with real infusion_id and E-INFUSE-002 code.
+    ///
+    /// Taxonomy source-of-truth (error-taxonomy.md §INFUSE):
+    ///   E-INFUSE-002 — "Duplicate UDF name '{udf_name}' in '{path2}' — already registered
+    ///                   from '{path1}'." — spec-load-time collision BEFORE DataFusion registration.
+    ///   E-INFUSE-007 — runtime `register_udf` call failure from DataFusion itself.
     ///
     /// Verifies:
     /// - `register_infusion_udfs` returns `Err` for duplicate names.
-    /// - The error message contains `E-INFUSE-007`.
-    /// - The error message contains the real `infusion_id` (not a function name like
-    ///   `'execute_inner'`), conforming to taxonomy template:
-    ///   `"Infusion UDF registration failed for '{infusion_id}': {reason}"`.
+    /// - The error message contains `E-INFUSE-002`.
+    /// - The error message does NOT contain `E-INFUSE-007` (that code is for DataFusion
+    ///   registration failures, not pre-registration duplicate-name guard).
+    /// - The error message contains the real `infusion_id` of the colliding spec.
     #[test]
     fn test_register_infusion_udfs_duplicate_name_emits_e_infuse_007_with_infusion_id() {
         let ctx = SessionContext::new();
@@ -418,12 +428,18 @@ mod tests {
         );
         let err_msg = result.unwrap_err().to_string();
         assert!(
-            err_msg.contains("E-INFUSE-007"),
-            "error must contain 'E-INFUSE-007' taxonomy code; got: {err_msg}"
+            err_msg.contains("E-INFUSE-002"),
+            "error must contain 'E-INFUSE-002' taxonomy code (duplicate UDF name at spec-load time, \
+             NOT E-INFUSE-007 which is for DataFusion registration call failures); got: {err_msg}"
+        );
+        assert!(
+            !err_msg.contains("E-INFUSE-007"),
+            "error must NOT contain 'E-INFUSE-007' (that code is for runtime register_udf failures); \
+             got: {err_msg}"
         );
         assert!(
             err_msg.contains(dup_infusion_id),
-            "error must contain the real infusion_id '{}' (not a function name); got: {err_msg}",
+            "error must contain the real infusion_id '{}' of the colliding spec; got: {err_msg}",
             dup_infusion_id
         );
     }
