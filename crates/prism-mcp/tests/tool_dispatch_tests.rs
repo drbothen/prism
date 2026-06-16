@@ -2787,20 +2787,14 @@ fn test_F3_write_batch_limit_exceeded_original_params_valid_is_true() {
     );
 }
 
-/// F-4: Internal Prism errors (Io, StorageXxx) must NOT fall to the generic catch-all.
+/// F-4 (BC-2.10.007 v1.7): Internal Prism errors (Io, StorageXxx) must map to "internal".
 ///
-/// The PR reviewer found that Io/Storage errors were categorized as "upstream_error",
-/// which is misleading (they are Prism infrastructure failures, not sensor failures).
-/// The ideal fix would use "internal" but BC-2.10.007 §77 legal category enum does NOT
-/// include "internal" as a value. A BC amendment is required before that change can land.
+/// BC-2.10.007 v1.7 added "internal" as the 9th legal category value. Io/Storage errors
+/// indicate a failure in Prism's own runtime — the sensor was never reached. "upstream_error"
+/// was the pre-v1.7 fallback; it misled LLM agents into investigating sensor health for a
+/// Prism-side fault. The BC amendment (product-owner, 2026-06-16) resolves the F-4 finding.
 ///
-/// This test guards what IS in scope:
-/// 1. Io/Storage errors have an explicit arm (not falling to the generic catch-all).
-/// 2. The explicit arm uses "upstream_error" (the BC-compliant fallback until BC amendment).
-///
-/// F-4 BC amendment requirement: product-owner must add "internal" to BC-2.10.007 §77
-/// legal category enum. Once added, this test and error_mapping.rs must be updated to
-/// use "internal" for Io/Storage/McpSerializationError/Internal variants.
+/// Updated from "upstream_error" to "internal" per BC-2.10.007 v1.7 category decision rule.
 #[test]
 fn test_F4_io_error_has_explicit_arm_not_catch_all() {
     use prism_core::error::PrismError;
@@ -2818,23 +2812,17 @@ fn test_F4_io_error_has_explicit_arm_not_catch_all() {
         .get("category")
         .and_then(|c| c.as_str())
         .expect("structuredContent.error.category must be present");
-    // BC-2.10.007 legal enum does not include "internal"; "upstream_error" is the
-    // BC-compliant fallback. Assert the explicit arm fires (not a panic or missing field).
-    assert!(
-        !category.is_empty(),
-        "PrismError::Io must produce a non-empty category (explicit arm, not panic)"
-    );
-    // The explicit arm produces "upstream_error" per BC constraint (pending BC amendment for "internal").
+    // BC-2.10.007 v1.7: "internal" is now the correct category for Prism I/O failures.
     assert_eq!(
-        category, "upstream_error",
-        "PrismError::Io must map to 'upstream_error' (BC-2.10.007 legal; pending BC amendment \
-         to add 'internal'); got '{category}'"
+        category, "internal",
+        "PrismError::Io must map to 'internal' (BC-2.10.007 v1.7 F-4 — Prism I/O; sensor not reached); got '{category}'"
     );
 }
 
-/// F-4: StorageWriteFailed must have an explicit arm, not fall to the generic catch-all.
+/// F-4 (BC-2.10.007 v1.7): StorageWriteFailed must map to "internal", not "upstream_error".
 ///
-/// See test_F4_io_error_has_explicit_arm_not_catch_all for the BC amendment note.
+/// Updated from "upstream_error" to "internal" per BC-2.10.007 v1.7 category decision rule.
+/// RocksDB write failures are Prism infrastructure failures; the sensor was never reached.
 #[test]
 fn test_F4_storage_write_failed_has_explicit_arm() {
     use prism_core::error::PrismError;
@@ -2853,11 +2841,10 @@ fn test_F4_storage_write_failed_has_explicit_arm() {
         .and_then(|e| e.get("category"))
         .and_then(|c| c.as_str())
         .expect("structuredContent.error.category must be present");
-    // "upstream_error" per BC-2.10.007 legal enum (pending BC amendment for "internal").
+    // BC-2.10.007 v1.7: "internal" for RocksDB / storage layer failures.
     assert_eq!(
-        category, "upstream_error",
-        "PrismError::StorageWriteFailed must map to 'upstream_error' (BC-compliant; \
-         pending BC amendment to add 'internal'); got '{category}'"
+        category, "internal",
+        "PrismError::StorageWriteFailed must map to 'internal' (BC-2.10.007 v1.7 F-4 — storage not sensor); got '{category}'"
     );
 }
 

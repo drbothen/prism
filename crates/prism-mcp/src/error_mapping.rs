@@ -411,7 +411,7 @@ pub fn to_error_data(err: PrismError) -> ErrorData {
 // BC-2.10.007 v1.5 — structured error envelope API
 // ---------------------------------------------------------------------------
 
-/// BC-2.10.007 v1.5 wire shape — 9 fields inside `structuredContent.error`.
+/// BC-2.10.007 v1.7 wire shape — 9 fields inside `structuredContent.error`.
 ///
 /// Carries the structured error envelope that every user-visible MCP tool error response
 /// must include (BC-2.10.007 postcondition). The builder [`build_structured_error_response`]
@@ -441,7 +441,8 @@ pub struct StructuredErrorFields {
     pub message: String,
     /// Error category — must be a legal BC-2.10.007 §77 enum value:
     /// `"transient"` | `"authentication"` | `"validation"` | `"not_found"` |
-    /// `"permission"` | `"upstream_error"` | `"configuration"` | `"safety"`.
+    /// `"permission"` | `"upstream_error"` | `"configuration"` | `"safety"` |
+    /// `"internal"` (v1.7: Prism-side infrastructure/invariant failures; sensor not reached).
     pub category: String,
     /// Whether the caller may retry.
     pub retryable: bool,
@@ -468,7 +469,7 @@ impl StructuredErrorFields {
     /// 2. `message` — human-readable message (no raw sensor text, DI-006)
     /// 3. `category` — legal BC-2.10.007 §77 enum value: `"transient"` | `"authentication"` |
     ///    `"validation"` | `"not_found"` | `"permission"` | `"upstream_error"` |
-    ///    `"configuration"` | `"safety"`
+    ///    `"configuration"` | `"safety"` | `"internal"` (v1.7)
     /// 4. `retryable` — whether the caller may retry
     /// 5. `retry_after_seconds` — wait hint (null when not applicable)
     /// 6. `suggestion` — actionable suggestion for the caller
@@ -608,7 +609,7 @@ impl StructuredErrorFieldsBuilder {
 /// errors) remain as `Err(ErrorData)` — those are returned before the tool handler body
 /// executes and are not user-visible at the domain level.
 ///
-/// Produces the BC-2.10.007 v1.5 wire shape:
+/// Produces the BC-2.10.007 v1.7 wire shape:
 /// ```json
 /// {
 ///   "isError": true,
@@ -725,9 +726,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
     // Inspect err by reference BEFORE consuming it with map_prism_error.
     // Temporary struct to capture variant-level metadata.
     //
-    // BC-2.10.007 §category legal enum:
+    // BC-2.10.007 v1.7 §category legal enum (9 values):
     //   transient | authentication | validation | not_found | permission |
-    //   upstream_error | configuration | safety
+    //   upstream_error | configuration | safety | internal
     // BC-2.10.007 §81 source values:
     //   "prism_mcp" for MCP-layer errors; sensor API name for sensor errors;
     //   "prism_config" for configuration errors.
@@ -996,16 +997,19 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             ec_code_override: None,
         },
 
-        // ── Internal Prism errors: I/O, storage, serialization ──────────────
-        // F-4 finding: these should logically be "internal" not "upstream_error".
-        // However, BC-2.10.007 §77 legal category enum does NOT include "internal":
-        //   "transient" | "authentication" | "validation" | "not_found" |
-        //   "permission" | "upstream_error" | "configuration" | "safety"
-        // A BC amendment is required before this can be changed to "internal".
-        // For now, "upstream_error" is retained as the safest BC-compliant fallback
-        // for Prism infrastructure failures that don't match a more specific category.
-        // F-4 BC amendment requirement surfaced to orchestrator for product-owner routing.
-        PrismError::Io(_)
+        // ── Prism-side infrastructure failures → category "internal" ────────
+        // BC-2.10.007 v1.7 §F-4: these variants indicate a failure in Prism's own
+        // runtime (disk I/O, RocksDB, internal invariant). The sensor was NEVER
+        // reached. Emitting "upstream_error" for these was semantically incorrect:
+        // it told LLM agents to investigate sensor health for a Prism-internal fault.
+        // "internal" is the 9th legal BC-2.10.007 category value added in v1.7.
+        //
+        // BC-2.10.007 v1.7 canonical list:
+        //   Internal, Io, StorageOpenFailed, StorageWriteFailed, StorageReadFailed,
+        //   StorageDomainNotFound, StorageKeyNotFound, StorageLockHeld,
+        //   StorageHealthCheckFailed, SchemaMismatch, StorageBatchFailed
+        PrismError::Internal { .. }
+        | PrismError::Io(_)
         | PrismError::StorageOpenFailed { .. }
         | PrismError::StorageWriteFailed { .. }
         | PrismError::StorageReadFailed { .. }
@@ -1014,9 +1018,21 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::StorageLockHeld { .. }
         | PrismError::StorageHealthCheckFailed { .. }
         | PrismError::SchemaMismatch { .. }
-        | PrismError::StorageBatchFailed { .. }
-        | PrismError::McpSerializationError { .. }
-        | PrismError::Internal { .. } => VariantMeta {
+        | PrismError::StorageBatchFailed { .. } => VariantMeta {
+            category: "internal",
+            suggestion:
+                "Prism infrastructure failure. Contact Prism operator; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            ec_code_override: None,
+        },
+
+        // ── MCP serialization error → fallback (not a sensor failure, not listed in
+        // BC-2.10.007 v1.7 "internal" list — remains catch-all pending future BC amendment)
+        PrismError::McpSerializationError { .. } => VariantMeta {
             category: "upstream_error",
             suggestion:
                 "See audit log for details. Contact Prism operator if the problem persists.",
@@ -1257,6 +1273,151 @@ mod tests {
         assert_eq!(
             category, "upstream_error",
             "SensorHttpError{{status:502}} must remain 'upstream_error' (not 'authentication'); got '{category}'"
+        );
+    }
+
+    // ── BC-2.10.007 v1.7 Canonical Test Vectors — "internal" category for Prism infra failures ──
+
+    /// BC-2.10.007 v1.7 Test Vector: PrismError::Internal → category "internal".
+    ///
+    /// Before v1.7 the F-4 arm used "upstream_error" as a fallback, which told LLM
+    /// agents to investigate sensor health for a Prism-side invariant failure. The
+    /// sensor was never reached — Prism itself failed. "internal" is the correct
+    /// semantic category per the v1.7 category decision rule table.
+    #[test]
+    fn test_BC_2_10_007_v1_7_internal_category_is_internal() {
+        let err = PrismError::Internal {
+            detail: "invariant violated in test".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "PrismError::Internal must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+        );
+        // retryable must be false — Prism invariant failures are not transient.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "PrismError::Internal must be retryable:false (invariant violation is not transient)"
+        );
+        // upstream_message must be null — no sensor was involved (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "PrismError::Internal upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.7 Test Vector: PrismError::Io → category "internal".
+    ///
+    /// Prism I/O failure (disk, file system). The sensor was never reached.
+    /// Before v1.7 this fell through to "upstream_error", which was semantically wrong.
+    #[test]
+    fn test_BC_2_10_007_v1_7_io_category_is_internal() {
+        let err = PrismError::Io("disk read error in test".to_owned());
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "PrismError::Io must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+        );
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "PrismError::Io upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.7 Test Vector: PrismError::StorageWriteFailed → category "internal".
+    ///
+    /// RocksDB / storage layer failure. The sensor was never reached.
+    /// Before v1.7 this fell through to "upstream_error", which was semantically wrong.
+    #[test]
+    fn test_BC_2_10_007_v1_7_storage_write_failed_category_is_internal() {
+        let err = PrismError::StorageWriteFailed {
+            domain: "audit".to_owned(),
+            detail: "RocksDB write error in test".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "PrismError::StorageWriteFailed must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+        );
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "PrismError::StorageWriteFailed upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.7 Regression guard: PrismError::SensorHttpError → category "upstream_error".
+    ///
+    /// The F-4 fix MUST NOT change the "upstream_error" category for genuine sensor
+    /// boundary failures. SensorHttpError (non-auth) remains "upstream_error".
+    /// This test guards against an over-broad fix that reclassifies sensor errors as "internal".
+    #[test]
+    fn test_BC_2_10_007_v1_7_sensor_http_503_category_is_upstream_error_regression_guard() {
+        let err = PrismError::SensorHttpError {
+            sensor: "cyberint_api".to_owned(),
+            status: 503,
+            body: "Service Unavailable".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "PrismError::SensorHttpError (non-auth) must remain 'upstream_error' — NOT 'internal' (BC-2.10.007 v1.7 regression guard); got '{category}'"
         );
     }
 }
