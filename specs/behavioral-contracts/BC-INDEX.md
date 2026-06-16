@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.63"
+version: "6.64"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T12:00:00Z
+timestamp: 2026-06-16T17:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -216,13 +216,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into All Results | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
-| BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
+| BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.77 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
-| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft |
+| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft — v1.5 |
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.10 |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.64 (2026-06-16, D-1195 S-3.13 LOCAL OBS-1 table-naming convention sweep):** state-manager | BC-2.16.001 inline row: v1.7→v1.8 (PO sweep: §Postconditions table names corrected dot→underscore separator — `{sensor_id}_{table_name}` per BC-2.11.001, `table_registry.rs` `format!("{}_{}", ...)` impl, and E-QUERY-037 sibling; spec-only fix, S-3.13 feature HEAD 148ed284 UNCHANGED). BC-2.16.007 inline row: v1.4→v1.5 (same dot→underscore sweep; §Postconditions/Error Conditions table-name format corrected). error-taxonomy v1.84→v1.85: E-QUERY-035 Message Format `{sensor_id}.{table_name}` → `{sensor_id}_{table_name}` (forward-spec companion to BC sweep; zero code emitters). S-3.13 LOCAL 3-CLEAN re-gate NEXT (reads corrected specs). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.63→v6.64.
 
 **v6.63 (2026-06-16, D-1192 PIVOT-001 post-merge burst):** state-manager | POL-14 legacy-status-field sync: BC-2.19.001 inline row: status draft→active (lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16). BC-2.19.003 inline row: status draft→active (same pattern; lifecycle_status was already active). BC-2.19.001 `status:` frontmatter field: draft→active. BC-2.19.003 `status:` frontmatter field: draft→active. No `lifecycle_status` flip (already active). No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — BC-2.19.001 + BC-2.19.003 had lifecycle_status:active before this burst and were never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.62→v6.63.
 

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.837"
+version: "7.838"
 producer: state-manager
-timestamp: 2026-06-16T16:00:00Z
+timestamp: 2026-06-16T17:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,11 +17,11 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "1b2e9a31"
-bc_index_version: "6.63"
+bc_index_version: "6.64"
 vp_index_version: "1.79"
-story_index_version: "v2.410"
+story_index_version: "v2.411"
 arch_index_version: "2.133"
-error_taxonomy_version: "1.84"
+error_taxonomy_version: "1.85"
 total_stories: 201
 active_contracts: 235
 draft_contracts: 2
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1194 S-5.02 STORY v1.10 DURABILITY BURST + SESSION-HANDOFF SHA DRIFT REPAIR (2026-06-16): S-5.02 story v1.9→v1.10 (HIGH-1 auth categories E-AUTH-001/002/003/010/011, OBS-1 E-QUERY-032→permission, OBS-2 Watchdog→internal; ACs 12-15 + ECs 14-18 + 9 RG stubs; BC-2.10.007 v1.7→v1.8 at 7 sites; E-AUTH cross-ref Dev Note → S-MAINT-EAUTH-COLLISION-001). STORY-INDEX v2.409→v2.410. SESSION-HANDOFF live develop_head pins updated 09925bbe→1b2e9a31 (verify-sha-currency.sh now PASS). S-3.13 rebased onto develop@1b2e9a31 → HEAD 148ed284; LOCAL 3-CLEAN re-pass STARTED — pass 1 CLEAN(strict), streak 1/3; non-exhaustive: S-3.13 branch EXPECTED=61 (TableNotAvailableDetails; EXPECTED bumps at S-3.13 MERGE per DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001). develop_head UNCHANGED 1b2e9a31. STATE v7.836→v7.837."
+current_step: "D-1195 S-3.13 LOCAL OBS-1 CLOSED — table-naming convention swept dot→underscore across BC-2.16.001 v1.8 + BC-2.16.007 v1.5 + error-taxonomy E-QUERY-035 v1.85 (authority: BC-2.11.001 + table_registry.rs impl + E-QUERY-037 sibling). S-3.13 feature HEAD 148ed284 UNCHANGED (spec-only fix); LOCAL 3-CLEAN re-gate NEXT (reads corrected specs). S-5.02 PR #191 PR-LEVEL cascade pass-1 @d1c69e44 CLEAN(strict) — streak 1/3. develop_head 1b2e9a31 UNCHANGED. BC-INDEX v6.63→v6.64. error_taxonomy 1.84→1.85. STORY-INDEX v2.410→v2.411. STATE v7.837→v7.838."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-16 (D-1194 S-5.02 v1.10 durability burst + SESSION-HANDOFF SHA drift repair — STORY-INDEX v2.410; STATE v7.837)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-16 (D-1195 S-3.13 LOCAL OBS-1 table-naming convention sweep — BC-2.16.001 v1.8 + BC-2.16.007 v1.5 + error-taxonomy v1.85; STORY-INDEX v2.411; STATE v7.838)
 
 ## Active Objective (North Star)
 

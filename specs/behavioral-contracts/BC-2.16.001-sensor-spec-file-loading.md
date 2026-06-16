@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-05-22"
+modified: "2026-06-16"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -51,7 +51,7 @@ loads but its tables are marked unavailable (DEC-036).
 ## Postconditions
 - Each `.toml` file in the sensor specs directory is parsed into a `SensorSpec` struct containing: `sensor_id`, `name`, `auth_type` (oauth2/bearer/cookie/api_key), `base_url`, `tables` (Vec<TableSpec>), `rate_limit_hints`, and `version`
 - Each `TableSpec` within a `SensorSpec` is registered as a DataFusion table in the query engine's catalog, following the same pattern as external sensor tables (CAP-015)
-- Table names follow the convention `{sensor_id}.{table_name}` (e.g., `sentinelone.alerts`, `sentinelone.agents`)
+- Table names follow the convention `{sensor_id}_{table_name}` (e.g., `sentinelone_alerts`, `sentinelone_agents`)
 - Column definitions from `ColumnSpec` entries are translated to Arrow schema fields with appropriate Arrow types: `string` -> Utf8, `integer` -> Int64, `float` -> Float64, `boolean` -> Boolean, `datetime` -> TimestampMicrosecond, `json` -> Utf8 (JSON string)
 - OCSF field mappings from `ColumnSpec.ocsf_field` are registered with the OCSF normalizer (CAP-003) so spec-driven columns participate in cross-sensor correlation
 - Column options (REQUIRED, INDEX, ADDITIONAL, HIDDEN) are respected: REQUIRED columns enforce WHERE clause constraints (DI-021), INDEX columns enable push-down hints, ADDITIONAL columns trigger enrichment steps, HIDDEN columns are excluded from schema introspection
@@ -132,6 +132,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | S-3.13-LOCAL-adversary-OBS-1 | 2026-06-16 | product-owner | Prose drift fix: §Postconditions table-name convention corrected from DOT separator to UNDERSCORE (`{sensor_id}_{table_name}`, e.g., `sentinelone_alerts`, `sentinelone_agents`). Aligns with BC-2.11.001 authoritative convention (EC-11-033..036: `crowdstrike_alerts`, `armis_alerts`), `table_registry.rs::register_sensor` `format!("{}_{}", ...)` implementation, and E-QUERY-037 message format. DOT form `sentinelone.alerts` would require DataFusion identifier quoting; underscore is unquoted and ratified. No semantic or behavioral change — convention was always underscore; prose was wrong. |
 | 1.7 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 auto-promotion at merge: PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status draft→active (lifecycle_status was already active). |
 | 1.6 | FB-IMPL-1-PO | 2026-05-21 | product-owner | F-LP1-HIGH-005 closure (Option a — narrow AC-006): Added §Known Gaps section with KG-006-001 — DEC-036 DataFusion-level unavailability marking is not exercisable in prism-spec-engine test harness due to AD-015 (prism-spec-engine MUST NOT import DataFusion; catalog registration is prism-query S-3.02 scope). The parse-time portion of DEC-036 (credential_refs.is_empty() on load) remains the in-scope PASS criterion for AC-006. Gap will close in S-3.02. |
 | 1.5 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | F-LP4-HIGH-003 + F-LP4-MED-002 closure: Expanded E-SPEC-017 row with explicit enforcement contract — (1) `prism-core` exposes `SpecErrorCode::ESpec017` variant (D-737 Decision 3 scope expansion); (2) `SpecLoader::load_all()` / `parse_spec_directory()` emits E-SPEC-017 (has filename context); (3) `SpecLoader::parse(toml_input: &str)` does NOT emit E-SPEC-017 (no filename context); (4) RG-09 / HS-018 must use `load_all()` / `parse_spec_directory()` as test driver, not `parse()`. This closes F-LP4-MED-002 (RG-09 driver ambiguity) and F-LP4-HIGH-003 (enforcement scope gap). |

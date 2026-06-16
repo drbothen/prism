@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.410"
+version: "v2.411"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T16:00:00Z
+timestamp: 2026-06-16T17:00:00Z
 phase: 3
 total_stories: 201
 total_active_bcs: 222
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1195 S-3.13 LOCAL OBS-1 CLOSED — STORY-INDEX v2.410→v2.411 (2026-06-16):** (POL-11/POL-32 changelog row) Companion to BC-2.16.001 v1.8 + BC-2.16.007 v1.5 + error-taxonomy v1.85 table-naming convention sweep (dot→underscore). S-3.13 story-row versions UNCHANGED (spec-only fix; story file not edited in this burst). BC-INDEX v6.63→v6.64. S-3.13 feature HEAD 148ed284 UNCHANGED. LOCAL 3-CLEAN re-gate NEXT (reads corrected specs). S-5.02 PR #191 PR-LEVEL cascade pass-1 @d1c69e44 CLEAN(strict) streak 1/3 recorded. develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.410→v2.411.
 
 - **D-1194 S-5.02 story v1.10 durability burst + SESSION-HANDOFF SHA drift repair — STORY-INDEX v2.409→v2.410 (2026-06-16):** (POL-11/POL-32 changelog row) S-5.02 row v1.9→v1.10: reflected implemented behavior from worktree @d0942825 and BC-2.10.007 v1.8 amendment. HIGH-1: added AC-012 (AuthTokenExpired→E-AUTH-010/authentication/original_params_valid:true; AuthTokenInvalid→E-AUTH-011/authentication/true) and AC-013 (InvalidOrgSlug→E-AUTH-001, InvalidAnalystId→E-AUTH-002, InvalidClientId→E-AUTH-003, category:authentication/original_params_valid:false — identity-format). OBS-1: added AC-014 (SensorNotRegisteredForOrg E-QUERY-032→category:permission/original_params_valid:true). OBS-2: added AC-015 (WatchdogKilled/HeartbeatMissed/RestartLimitExceeded→category:internal/original_params_valid:true). Added EC-014–EC-018, 9 Red Gate test stubs, E-AUTH cross-reference Dev Note citing S-MAINT-EAUTH-COLLISION-001. Advanced all live BC-2.10.007 version pins v1.7→v1.8 (7 sites). SESSION-HANDOFF live develop_head pins updated 09925bbe→1b2e9a31 (verify-sha-currency.sh PASS). S-3.13 rebased onto develop@1b2e9a31 → HEAD 148ed284; LOCAL 3-CLEAN re-pass STARTED — pass 1 CLEAN(strict), streak 1/3; S-3.13 branch non-exhaustive EXPECTED=61 (TableNotAvailableDetails; bumps at merge per DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.409→v2.410.
 
