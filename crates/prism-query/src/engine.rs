@@ -577,7 +577,15 @@ impl QueryEngine {
         // Gate is skipped when `table_registry` is None (legacy / test mode without
         // spec engine wiring) — this preserves backward compatibility for tests that
         // predate S-3.13 and do not need the availability check.
-        check_table_availability(effective_query, self.table_registry.as_deref())?;
+        // ADR-039 / SEC-001: pass org_scope and resolved_spec_map so the gate can filter
+        // available_sensors / available_tables to the requesting org's scope in multi-tenant
+        // overlay deployments, preventing cross-tenant vendor enumeration (CWE-200).
+        check_table_availability(
+            effective_query,
+            self.table_registry.as_deref(),
+            options.clients.as_deref(),
+            self.resolved_spec_map.as_ref().map(|m| m.as_ref()),
+        )?;
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -799,6 +807,22 @@ impl QueryEngine {
         ),
         PrismError,
     > {
+        // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
+        // Scheduled queries run in system context with no capabilities — this means they
+        // cannot reference prism_audit (correct secure-by-default for scheduled queries).
+        // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
+        check_internal_table_capabilities(query_str, &[])?;
+
+        // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
+        // ADR-039 / SEC-001: pass org_scope and resolved_spec_map for org-scoped filtering.
+        // Gate fires BEFORE resolve_clients to avoid moving `clients` before the borrow.
+        check_table_availability(
+            query_str,
+            self.table_registry.as_deref(),
+            clients.as_deref(),
+            self.resolved_spec_map.as_ref().map(|m| m.as_ref()),
+        )?;
+
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
 
@@ -820,15 +844,6 @@ impl QueryEngine {
                 detail: e.to_string(),
             })?;
         }
-
-        // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
-        // Scheduled queries run in system context with no capabilities — this means they
-        // cannot reference prism_audit (correct secure-by-default for scheduled queries).
-        // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
-        check_internal_table_capabilities(query_str, &[])?;
-
-        // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
-        check_table_availability(query_str, self.table_registry.as_deref())?;
 
         // F-LP1-CRIT-1: register internal tables for scheduled queries too.
         // Scheduled queries run with no caller capabilities (system context).
@@ -953,23 +968,35 @@ fn check_internal_table_capabilities(
 /// checks each against the provided `TableRegistry`. Returns `Err(PrismError::TableNotAvailable)`
 /// for the first unregistered table encountered, with:
 /// - `sensor`: the prefix of the table name (e.g. `"crowdstrike"` for `"crowdstrike_alerts"`)
-/// - `available_sensors`: comma-separated list from `registry.registered_sensor_ids()`
-/// - `available_tables`: comma-separated list from `registry.registered_tables()`
-/// - `did_you_mean`: Levenshtein-based suggestion from `registry.did_you_mean(table_name)`
+/// - `available_sensors`: comma-separated list (filtered to requesting org when org_scope is provided)
+/// - `available_tables`: comma-separated list (filtered to requesting org when org_scope is provided)
+/// - `did_you_mean`: Levenshtein-based suggestion (filtered to requesting org's tables)
 ///
 /// # Gate skip conditions
 /// - `registry` is `None`: skip immediately (legacy / test mode without spec engine wiring)
 /// - Query fails to parse: return `Ok(())` — parse errors are handled downstream
 /// - Table name starts with `prism_`: skip (internal tables have their own gate)
 ///
+/// # Org-scoped error enumeration (ADR-039 / SEC-001 / CWE-200)
+/// `org_scope` and `resolved_spec_map` are forwarded to `check_availability_gate` to filter
+/// the enumeration fields to the requesting org's scope. When either is `None`, the global
+/// registry is used (single-tenant backward compatibility).
+///
 /// # AC-8 mode-agnostic guarantee
 /// This function runs on the alias-expanded query string before `materialize_query` —
 /// the same code path is reached by SQL, filter, and pipe mode queries.
 ///
-/// # BC-2.11.001 / S-3.13 AC-2, AC-3, AC-8
+/// # BC-2.11.001 / S-3.13 AC-2, AC-3, AC-8 / ADR-039
 fn check_table_availability(
     query_str: &str,
     registry: Option<&TableRegistry>,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
 ) -> Result<(), PrismError> {
     // Skip when no registry is wired — preserves backward compatibility for legacy tests.
     // All constructors (new, new_with_cache_config, new_full) initialize table_registry
@@ -977,10 +1004,10 @@ fn check_table_availability(
     let Some(registry) = registry else {
         return Ok(());
     };
-    // Delegate to the registry's gate method.
-    // The gate stub body lives in table_registry.rs, keeping engine.rs
+    // Delegate to the registry's gate method with org-scope parameters.
+    // The gate body lives in table_registry.rs, keeping engine.rs
     // free of stub macros per POL-12 / test_AC_8_no_todo_or_unimplemented_remains.
-    registry.check_availability_gate(query_str)
+    registry.check_availability_gate(query_str, org_scope, resolved_spec_map)
 }
 
 // ---------------------------------------------------------------------------

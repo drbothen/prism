@@ -30,8 +30,8 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
-use prism_core::{error::TableNotAvailableDetails, PrismError};
-use prism_spec_engine::{ConfigSnapshot, SensorSpec};
+use prism_core::{error::TableNotAvailableDetails, OrgSlug, PrismError};
+use prism_spec_engine::{ConfigSnapshot, ResolvedSensorSpec, ResolvedSpecKey, SensorSpec};
 
 /// Maximum byte length accepted for the `requested` parameter of `did_you_mean`.
 ///
@@ -314,6 +314,45 @@ impl TableRegistry {
         }
     }
 
+    /// Compute the `did_you_mean` suggestion over a pre-filtered set of visible tables.
+    ///
+    /// Identical Levenshtein logic to [`did_you_mean`] but operates on the caller-supplied
+    /// `visible_tables` slice rather than the full global registry. Used by
+    /// `check_availability_gate` when org-scope filtering is active (ADR-039 / SEC-001)
+    /// to avoid suggesting tables belonging to other orgs.
+    ///
+    /// The same 128-byte input cap (SEC-002 / CWE-407) is applied here.
+    ///
+    /// # BC-2.11.001 / ADR-039
+    pub fn did_you_mean_for_tables(&self, requested: &str, visible_tables: &[String]) -> String {
+        // SEC-002 / CWE-407: apply the same 128-byte cap as `did_you_mean`.
+        let requested = if requested.len() > DID_YOU_MEAN_MAX_NAME_BYTES {
+            let mut boundary = DID_YOU_MEAN_MAX_NAME_BYTES;
+            while !requested.is_char_boundary(boundary) {
+                boundary -= 1;
+            }
+            &requested[..boundary]
+        } else {
+            requested
+        };
+
+        if visible_tables.is_empty() {
+            return String::new();
+        }
+
+        let best = visible_tables
+            .iter()
+            .map(|candidate| (strsim::levenshtein(requested, candidate), candidate))
+            .min_by_key(|(dist, _)| *dist);
+
+        match best {
+            Some((dist, candidate)) if dist <= 3 => {
+                format!(" Did you mean: '{candidate}'?")
+            }
+            _ => String::new(),
+        }
+    }
+
     /// Return the set of all registered sensor IDs (derived from table prefixes).
     ///
     /// Used to populate the `available_sensors` field of `TableNotAvailable`.
@@ -347,12 +386,26 @@ impl TableRegistry {
     /// the first unregistered table (fail fast, before fan-out). Skips `prism_*`
     /// prefixed tables (those have their own capability gate in `engine.rs`).
     ///
+    /// # Org-scoped error enumeration (ADR-039 / SEC-001 / CWE-200)
+    /// When `org_scope` and `resolved_spec_map` are both `Some`, the `available_sensors`
+    /// and `available_tables` fields in `TableNotAvailable` are filtered to the sensors
+    /// and tables accessible to the requesting org(s). This prevents cross-tenant vendor
+    /// enumeration in multi-tenant overlay deployments.
+    ///
+    /// When either parameter is `None`, the global registry is returned unchanged —
+    /// preserving single-tenant backward compatibility.
+    ///
     /// Called from `engine::check_table_availability` so that `engine.rs` itself
     /// remains free of `todo!()` stubs (preserving the POL-12 / AC-8 guard in
     /// `tests/execute_integration_tests.rs::test_AC_8_no_todo_or_unimplemented_remains`).
     ///
-    /// # BC-2.11.001 / S-3.13 AC-2, AC-3, AC-8
-    pub fn check_availability_gate(&self, query_str: &str) -> Result<(), PrismError> {
+    /// # BC-2.11.001 / S-3.13 AC-2, AC-3, AC-8 / ADR-039
+    pub fn check_availability_gate(
+        &self,
+        query_str: &str,
+        org_scope: Option<&[OrgSlug]>,
+        resolved_spec_map: Option<&HashMap<ResolvedSpecKey, ResolvedSensorSpec>>,
+    ) -> Result<(), PrismError> {
         use crate::ast::SourceRefKind;
         use crate::filter_parser::PrismQlParser;
 
@@ -400,9 +453,38 @@ impl TableRegistry {
                     .sensor_for_table(&table_name)
                     .unwrap_or_else(|| table_name.split('_').next().unwrap_or("").to_string());
 
-                let available_sensors = self.registered_sensor_ids().join(", ");
-                let available_tables = self.registered_tables().join(", ");
-                let did_you_mean = self.did_you_mean(&table_name);
+                // ADR-039 / SEC-001: filter available_sensors and available_tables to the
+                // requesting org's scope. When org_scope or resolved_spec_map is None
+                // (single-tenant or no overlay config), use the global registry unchanged.
+                let sensor_by_table_snapshot = match self.sensor_by_table.read() {
+                    Ok(g) => g.clone(),
+                    Err(_) => {
+                        tracing::warn!(
+                            event_type = "table_registry.rwlock_poisoned",
+                            method = "check_availability_gate",
+                            "TableRegistry::check_availability_gate: sensor_by_table RwLock \
+                             poisoned — using empty map for org filter."
+                        );
+                        HashMap::new()
+                    }
+                };
+
+                let global_sensor_ids = self.registered_sensor_ids();
+                let global_tables = self.registered_tables();
+
+                let org_visible_sensor_ids =
+                    filter_to_org_visible_sensors(global_sensor_ids, org_scope, resolved_spec_map);
+                let org_visible_tables = filter_to_org_visible_tables(
+                    global_tables,
+                    &sensor_by_table_snapshot,
+                    &org_visible_sensor_ids,
+                    org_scope,
+                    resolved_spec_map,
+                );
+
+                let available_sensors = org_visible_sensor_ids.join(", ");
+                let available_tables = org_visible_tables.join(", ");
+                let did_you_mean = self.did_you_mean_for_tables(&table_name, &org_visible_tables);
 
                 return Err(PrismError::TableNotAvailable(Box::new(
                     TableNotAvailableDetails::new(
@@ -424,6 +506,97 @@ impl Default for TableRegistry {
     fn default() -> Self {
         Self::new()
     }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-039 / SEC-001 — org-scope filter helpers
+// ---------------------------------------------------------------------------
+
+/// Filter `global_sensor_ids` to only those accessible to `org_scope`.
+///
+/// Rules (ADR-039 §Design Specification — `filter_to_org_visible` Logic):
+/// 1. `org_scope` is `None` → return `global_sensor_ids` unchanged (single-tenant).
+/// 2. `resolved_spec_map` is `None` → return `global_sensor_ids` unchanged (no overlay info).
+/// 3. `org_scope` is `Some([])` → return empty `Vec` (no orgs = no sensors visible).
+/// 4. `org_scope` is `Some(orgs)` and `resolved_spec_map` is `Some(map)`:
+///    build the union of `sensor_id` values from `ResolvedSensorSpec` entries whose
+///    `org_slug` is in `orgs`, then intersect with `global_sensor_ids`.
+///
+/// The result is `O(N_org_specs)` — computed only at error-construction time.
+///
+/// # ADR-039 / SEC-001 / CWE-200
+fn filter_to_org_visible_sensors(
+    global_sensor_ids: Vec<String>,
+    org_scope: Option<&[OrgSlug]>,
+    resolved_spec_map: Option<&HashMap<ResolvedSpecKey, ResolvedSensorSpec>>,
+) -> Vec<String> {
+    // Rule 1: no org scope restriction — return global set unchanged.
+    let Some(orgs) = org_scope else {
+        return global_sensor_ids;
+    };
+    // Rule 2: no overlay config — return global set unchanged (can't compute per-org visibility).
+    let Some(spec_map) = resolved_spec_map else {
+        return global_sensor_ids;
+    };
+    // Rule 3: empty org scope — no sensors visible.
+    if orgs.is_empty() {
+        return Vec::new();
+    }
+    // Rule 4: build union of sensor_ids for the requesting orgs.
+    let org_visible: HashSet<&str> = spec_map
+        .values()
+        .filter(|rss| orgs.contains(&rss.org_slug))
+        .map(|rss| rss.spec.sensor_id.as_str())
+        .collect();
+
+    // Intersect with global_sensor_ids (keep only what's in both).
+    global_sensor_ids
+        .into_iter()
+        .filter(|sid| org_visible.contains(sid.as_str()))
+        .collect()
+}
+
+/// Filter `global_tables` to only those whose owning sensor is in `org_visible_sensor_ids`.
+///
+/// Uses `sensor_by_table` (the reverse map from table name → sensor_id) to determine
+/// which tables belong to which sensor, then filters to org-visible sensors.
+///
+/// The same four rules from `filter_to_org_visible_sensors` apply (same guard conditions).
+/// Short-circuit: when `org_scope` is `None` or `resolved_spec_map` is `None`, return
+/// `global_tables` unchanged.
+///
+/// # ADR-039 / SEC-001 / CWE-200
+fn filter_to_org_visible_tables(
+    global_tables: Vec<String>,
+    sensor_by_table: &HashMap<String, String>,
+    org_visible_sensor_ids: &[String],
+    org_scope: Option<&[OrgSlug]>,
+    resolved_spec_map: Option<&HashMap<ResolvedSpecKey, ResolvedSensorSpec>>,
+) -> Vec<String> {
+    // Rule 1: no org scope — return global set unchanged.
+    let Some(_orgs) = org_scope else {
+        return global_tables;
+    };
+    // Rule 2: no overlay config — return global set unchanged.
+    if resolved_spec_map.is_none() {
+        return global_tables;
+    }
+    // Rule 3: empty org_visible_sensor_ids means empty org scope (Rule 3 applied upstream).
+    if org_visible_sensor_ids.is_empty() {
+        return Vec::new();
+    }
+
+    let visible_set: HashSet<&str> = org_visible_sensor_ids.iter().map(String::as_str).collect();
+
+    global_tables
+        .into_iter()
+        .filter(|table| {
+            sensor_by_table
+                .get(table)
+                .map(|sid| visible_set.contains(sid.as_str()))
+                .unwrap_or(false)
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------

@@ -131,7 +131,7 @@ async fn test_BC_2_11_001_table_not_available_returns_e_query_037() {
     // Empty registry — no sensors configured.
     let registry = TableRegistry::new();
 
-    let result = registry.check_availability_gate("SELECT * FROM crowdstrike_alerts");
+    let result = registry.check_availability_gate("SELECT * FROM crowdstrike_alerts", None, None);
 
     match result {
         Err(PrismError::TableNotAvailable(ref details)) => {
@@ -211,7 +211,8 @@ fn test_BC_2_11_001_did_you_mean_empty_when_distance_exceeds_threshold() {
 async fn test_BC_2_11_001_mode_agnostic_plan_time_gate_sql() {
     let registry = TableRegistry::new();
 
-    let result = registry.check_availability_gate("SELECT * FROM crowdstrike_detections");
+    let result =
+        registry.check_availability_gate("SELECT * FROM crowdstrike_detections", None, None);
 
     assert!(
         matches!(result, Err(PrismError::TableNotAvailable(..))),
@@ -232,7 +233,8 @@ async fn test_BC_2_11_001_mode_agnostic_plan_time_gate_filter() {
 
     // Filter mode: "source | predicate" — the source is "crowdstrike_alerts".
     // PrismQL filter syntax requires string literals to be quoted (e.g. 'critical').
-    let result = registry.check_availability_gate("crowdstrike_alerts | severity = 'critical'");
+    let result =
+        registry.check_availability_gate("crowdstrike_alerts | severity = 'critical'", None, None);
 
     assert!(
         matches!(result, Err(PrismError::TableNotAvailable(..))),
@@ -254,8 +256,11 @@ async fn test_BC_2_11_001_mode_agnostic_plan_time_gate_pipe() {
 
     // Pipe mode: "source | where predicate | limit N"
     // PrismQL pipe keyword is `where` (not `filter`); `limit` is also a valid pipe stage.
-    let result = registry
-        .check_availability_gate("crowdstrike_alerts | where severity = 'critical' | limit 10");
+    let result = registry.check_availability_gate(
+        "crowdstrike_alerts | where severity = 'critical' | limit 10",
+        None,
+        None,
+    );
 
     assert!(
         matches!(result, Err(PrismError::TableNotAvailable(..))),
@@ -284,7 +289,7 @@ async fn test_BC_2_11_001_no_sensors_configured_returns_e_query_037_empty_list()
         "EC-11-125: registered_tables() must return empty Vec when no sensors configured"
     );
 
-    let result = registry.check_availability_gate("SELECT * FROM any_table");
+    let result = registry.check_availability_gate("SELECT * FROM any_table", None, None);
 
     match result {
         Err(PrismError::TableNotAvailable(ref details)) => {
@@ -1206,6 +1211,313 @@ fn test_SEC_002_did_you_mean_input_one_over_cap_truncated() {
         "SEC-002: did_you_mean with 129-byte input must return '' after truncation. \
          Got: '{result}'"
     );
+}
+
+// ---------------------------------------------------------------------------
+// SEC-001 / CWE-200 / ADR-039: Org-scoped E-QUERY-037 enumeration tests
+// ---------------------------------------------------------------------------
+//
+// These tests prove that `check_availability_gate` (and its downstream helpers
+// `filter_to_org_visible` / `did_you_mean_for_tables`) filter the `available_sensors`
+// and `available_tables` fields of `PrismError::TableNotAvailable` to the requesting
+// org's scope, preventing cross-tenant vendor enumeration (SEC-001 / CWE-200).
+//
+// Fixture: two orgs (acme, contoso) each with distinct sensor sets.
+//   acme   → sensor_id = "armis"        → table "armis_devices"
+//   contoso → sensor_id = "crowdstrike" → table "crowdstrike_alerts"
+//
+// Both sensors are registered in the global TableRegistry (TYPE-level registry).
+
+/// Build a `HashMap<ResolvedSpecKey, ResolvedSensorSpec>` for two orgs.
+///
+/// acme   → armis (armis_devices)
+/// contoso → crowdstrike (crowdstrike_alerts)
+///
+/// Uses `OverlayLoader::merge_overlay_onto_type_spec` — the canonical external
+/// construction path for `ResolvedSensorSpec` (which is `#[non_exhaustive]`).
+fn make_two_org_resolved_spec_map() -> std::collections::HashMap<
+    prism_spec_engine::ResolvedSpecKey,
+    prism_spec_engine::ResolvedSensorSpec,
+> {
+    use prism_core::{OrgSlug, SensorId};
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{SensorSpec, TableSpec},
+        ResolvedSpecKey,
+    };
+
+    let make_resolved = |sensor_id: &str, table_suffix: &str, org: &str| {
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            prism_spec_engine::spec_parser::AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let overlay_toml =
+            format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("test fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let sensor_id_typed = SensorId::new(sensor_id);
+        let key: ResolvedSpecKey = (org_slug, sensor_id_typed);
+        (key, resolved)
+    };
+
+    let mut map = std::collections::HashMap::new();
+    let (k, v) = make_resolved("armis", "devices", "acme");
+    map.insert(k, v);
+    let (k, v) = make_resolved("crowdstrike", "alerts", "contoso");
+    map.insert(k, v);
+    map
+}
+
+/// Build a global `TableRegistry` containing BOTH armis and crowdstrike tables.
+///
+/// This represents the TYPE-level registry that knows all configured sensor types.
+fn make_two_sensor_global_registry() -> TableRegistry {
+    let registry = TableRegistry::new();
+    let armis_spec = make_sensor_spec_one_table("armis", "devices");
+    registry
+        .register_sensor(&armis_spec)
+        .expect("register armis must not fail");
+    let cs_spec = make_sensor_spec_one_table("crowdstrike", "alerts");
+    registry
+        .register_sensor(&cs_spec)
+        .expect("register crowdstrike must not fail");
+    registry
+}
+
+/// SEC-001 / ADR-039: When org A (acme) queries an unknown table, the E-QUERY-037
+/// `available_sensors` field contains ONLY org A's configured sensors (armis),
+/// NOT org B's sensors (crowdstrike).
+///
+/// Requirement: cross-tenant vendor enumeration is eliminated (CWE-200).
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_SEC_001_e_query_037_filters_available_sensors_to_requesting_org() {
+    use prism_core::OrgSlug;
+
+    let registry = make_two_sensor_global_registry();
+    let resolved_spec_map = make_two_org_resolved_spec_map();
+    let acme = OrgSlug::new("acme").expect("valid org slug");
+    let org_scope: &[OrgSlug] = &[acme];
+
+    // Query an unknown table as acme — should fail with E-QUERY-037.
+    let result = registry.check_availability_gate(
+        "SELECT * FROM unknown_table",
+        Some(org_scope),
+        Some(&resolved_spec_map),
+    );
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            let sensors = &details.available_sensors;
+            // acme's sensor (armis) MUST be present.
+            assert!(
+                sensors.contains("armis"),
+                "SEC-001: acme's sensor 'armis' must appear in available_sensors. \
+                 Got: '{sensors}'"
+            );
+            // contoso's sensor (crowdstrike) MUST NOT be present.
+            assert!(
+                !sensors.contains("crowdstrike"),
+                "SEC-001 / CWE-200: contoso's sensor 'crowdstrike' must NOT appear in \
+                 available_sensors for org=acme. Got: '{sensors}'"
+            );
+        }
+        other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
+    }
+}
+
+/// SEC-001 / ADR-039: When org A (acme) queries an unknown table, the E-QUERY-037
+/// `available_tables` field contains ONLY org A's tables (armis_devices),
+/// NOT org B's tables (crowdstrike_alerts).
+///
+/// Requirement: cross-tenant table enumeration is eliminated (CWE-200).
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_SEC_001_e_query_037_filters_available_tables_to_requesting_org() {
+    use prism_core::OrgSlug;
+
+    let registry = make_two_sensor_global_registry();
+    let resolved_spec_map = make_two_org_resolved_spec_map();
+    let acme = OrgSlug::new("acme").expect("valid org slug");
+    let org_scope: &[OrgSlug] = &[acme];
+
+    let result = registry.check_availability_gate(
+        "SELECT * FROM unknown_table",
+        Some(org_scope),
+        Some(&resolved_spec_map),
+    );
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            let tables = &details.available_tables;
+            // acme's table (armis_devices) MUST be present.
+            assert!(
+                tables.contains("armis_devices"),
+                "SEC-001: acme's table 'armis_devices' must appear in available_tables. \
+                 Got: '{tables}'"
+            );
+            // contoso's table (crowdstrike_alerts) MUST NOT be present.
+            assert!(
+                !tables.contains("crowdstrike_alerts"),
+                "SEC-001 / CWE-200: contoso's table 'crowdstrike_alerts' must NOT appear in \
+                 available_tables for org=acme. Got: '{tables}'"
+            );
+        }
+        other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
+    }
+}
+
+/// SEC-001 / ADR-039: `did_you_mean` suggestions come only from the requesting
+/// org's visible tables — a typo that closely matches a contoso table does NOT
+/// appear in the suggestion for an acme query.
+///
+/// Setup: acme has armis_devices, contoso has crowdstrike_alerts.
+/// Query a table "crowdstrike_alert" (distance 1 from crowdstrike_alerts).
+/// As acme, the suggestion must NOT be "crowdstrike_alerts".
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_SEC_001_e_query_037_did_you_mean_filtered_to_requesting_org() {
+    use prism_core::OrgSlug;
+
+    let registry = make_two_sensor_global_registry();
+    let resolved_spec_map = make_two_org_resolved_spec_map();
+    let acme = OrgSlug::new("acme").expect("valid org slug");
+    let org_scope: &[OrgSlug] = &[acme];
+
+    // "crowdstrike_alert" is Levenshtein distance 1 from "crowdstrike_alerts".
+    // But crowdstrike_alerts belongs to contoso, not acme.
+    // When org_scope=acme, the did_you_mean must NOT suggest "crowdstrike_alerts".
+    let result = registry.check_availability_gate(
+        "SELECT * FROM crowdstrike_alert",
+        Some(org_scope),
+        Some(&resolved_spec_map),
+    );
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            let suggestion = &details.did_you_mean;
+            assert!(
+                !suggestion.contains("crowdstrike_alerts"),
+                "SEC-001 / CWE-200: did_you_mean must NOT suggest contoso's table \
+                 'crowdstrike_alerts' when org=acme. Got: '{suggestion}'"
+            );
+        }
+        other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
+    }
+}
+
+/// SEC-001 / ADR-039: Single-tenant mode (org_scope=None, resolved_spec_map=None)
+/// is byte-identical to the pre-fix implementation — both acme and contoso sensors
+/// appear in available_sensors and available_tables.
+///
+/// Requirement: backward compatibility for single-tenant deployments.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_SEC_001_e_query_037_single_tenant_unaffected() {
+    let registry = make_two_sensor_global_registry();
+
+    // Single-tenant: no org_scope, no resolved_spec_map.
+    let result = registry.check_availability_gate(
+        "SELECT * FROM unknown_table",
+        None, // org_scope
+        None, // resolved_spec_map
+    );
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            let sensors = &details.available_sensors;
+            let tables = &details.available_tables;
+            // Both sensors must appear in single-tenant mode.
+            assert!(
+                sensors.contains("armis"),
+                "SEC-001 backward-compat: 'armis' must appear in single-tenant available_sensors. \
+                 Got: '{sensors}'"
+            );
+            assert!(
+                sensors.contains("crowdstrike"),
+                "SEC-001 backward-compat: 'crowdstrike' must appear in single-tenant \
+                 available_sensors. Got: '{sensors}'"
+            );
+            // Both tables must appear.
+            assert!(
+                tables.contains("armis_devices"),
+                "SEC-001 backward-compat: 'armis_devices' must appear in single-tenant \
+                 available_tables. Got: '{tables}'"
+            );
+            assert!(
+                tables.contains("crowdstrike_alerts"),
+                "SEC-001 backward-compat: 'crowdstrike_alerts' must appear in single-tenant \
+                 available_tables. Got: '{tables}'"
+            );
+        }
+        other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
+    }
+}
+
+/// SEC-001 / ADR-039: When resolved_spec_map is None but org_scope is Some([acme]),
+/// the filter is bypassed (can't compute org visibility without the map) and the
+/// GLOBAL registry is returned.
+///
+/// Requirement: absence of overlay config must not hard-fail; degrade gracefully
+/// to the full registry (same as single-tenant behavior). (ADR-039 filter rule 3.)
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_SEC_001_e_query_037_no_resolved_spec_map_falls_back_to_global() {
+    use prism_core::OrgSlug;
+
+    let registry = make_two_sensor_global_registry();
+    let acme = OrgSlug::new("acme").expect("valid org slug");
+    let org_scope: &[OrgSlug] = &[acme];
+
+    // No resolved_spec_map — overlay system not configured.
+    let result = registry.check_availability_gate(
+        "SELECT * FROM unknown_table",
+        Some(org_scope),
+        None, // no resolved_spec_map
+    );
+
+    match result {
+        Err(PrismError::TableNotAvailable(ref details)) => {
+            let sensors = &details.available_sensors;
+            let tables = &details.available_tables;
+            // Both sensors must appear (global fallback).
+            assert!(
+                sensors.contains("armis"),
+                "SEC-001 no-map fallback: 'armis' must appear in available_sensors. Got: '{sensors}'"
+            );
+            assert!(
+                sensors.contains("crowdstrike"),
+                "SEC-001 no-map fallback: 'crowdstrike' must appear in available_sensors. \
+                 Got: '{sensors}'"
+            );
+            // Both tables must appear (global fallback).
+            assert!(
+                tables.contains("armis_devices"),
+                "SEC-001 no-map fallback: 'armis_devices' must appear in available_tables. \
+                 Got: '{tables}'"
+            );
+            assert!(
+                tables.contains("crowdstrike_alerts"),
+                "SEC-001 no-map fallback: 'crowdstrike_alerts' must appear in available_tables. \
+                 Got: '{tables}'"
+            );
+        }
+        other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
+    }
 }
 
 // ---------------------------------------------------------------------------
