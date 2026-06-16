@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.414"
+version: "v2.415"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T20:00:00Z
+timestamp: 2026-06-16T23:00:00Z
 phase: 3
 total_stories: 201
 total_active_bcs: 222
@@ -414,7 +414,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | VP-145 | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework [v1.23 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration [effective-merged-by: S-5.01-FOLLOWUP-MCP-BOOT PR #163 develop@e898c3c9 2026-05-29 — dep gate SATISFIED via metadata reconciliation D-1163] | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
-| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**ready v1.10** (D-1196 2026-06-16: PR #191 OPEN — worktree HEAD 9763a25a PUSH-PENDING [origin @aa796518]; PR-LEVEL streak 2/3 on d1c69e44; OBS-1 ADJUDICATED SPEC-ACCEPTED → DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001; pr-reviewer APPROVE + security CLEAR on earlier HEADs; ci.yml EXPECTED=64; was D-1194 2026-06-16: HIGH-1/OBS-1/OBS-2 category reflections + BC-2.10.007 v1.8 pins @d0942825)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
+| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**ready v1.11** (D-1199 2026-06-16: F-S502-LOW-1 CLOSED — File Structure `to_error_data_with_retry` signature corrected `(ErrorData, Option<u64>)` → `(ErrorData, u64)`; TD-VSDD-060 sweep; PR #191 @77ceb5e5 PR-LEVEL 0/3; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 registered; DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 SPEC-ACCEPTED; ci.yml EXPECTED=64; was D-1196 2026-06-16: v1.10 @9763a25a PR-LEVEL streak 2/3 on d1c69e44)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
 | S-5.03 | Resources and Prompts [**not-started v1.13** (D-1173 2026-06-14: received AC-8/9/10 from S-3.13 re-scope; depends_on S-3.13 added; BC-2.16.007 anchor; ACs 10 / RG 9; was v1.11: prior story-writer materialization)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
 | S-5.04 | Sensor Health Subsystem [depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession; v1.6] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
