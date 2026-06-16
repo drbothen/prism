@@ -1,9 +1,9 @@
 # Demo Evidence Report — S-DEMO-ENRICHMENT-PIVOT-001
 
 **Story:** Infusion Engine Plugin-Bridge Prerequisites — Forward-Subset of S-1.14-REDO for Demo
-**Story version:** v1.10
+**Story version:** v1.11
 **Branch:** feature/S-DEMO-ENRICHMENT-PIVOT-001
-**Code under test:** e87e44ea31eeeae82390c3227a87f89125d25d3d
+**Code under test:** feature/S-DEMO-ENRICHMENT-PIVOT-001 (current feature HEAD — pinning volatile SHAs violates TD-VSDD-091)
 **Evidence date:** 2026-06-15
 **Product type:** Library/infrastructure (no CLI surface — evidence is test-execution, not VHS/Playwright)
 **Red Gate count:** 7 (rg7 — expanded from rg5 at D-1181; EC-006 validate_credentials + EC-007 validate_pipe_stage_columns implemented and wired)

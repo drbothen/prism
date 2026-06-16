@@ -97,8 +97,9 @@ impl InfusionAsyncUdf {
     /// Construct an `InfusionAsyncUdf` from an `InfusionUdfDescriptor`.
     pub fn new(descriptor: InfusionUdfDescriptor) -> Self {
         // Simplified signature: one Utf8 input → Utf8 output.
-        // The full implementation will map `descriptor.input_type` / `descriptor.output_type`
-        // to the canonical Arrow DataType (S-DEMO-ENRICHMENT-PIVOT-001 TDD green phase).
+        // The full typed-output mapping (descriptor.input_type / descriptor.output_type →
+        // canonical Arrow DataType) is out of scope for S-DEMO-ENRICHMENT-PIVOT-001 and is
+        // deferred to S-1.14-REDO (tracked as DRIFT-PIVOT-UDF-OUTPUT-TYPE-001).
         let signature = Signature::new(
             TypeSignature::Exact(vec![DataType::Utf8]),
             Volatility::Volatile,
@@ -129,8 +130,9 @@ impl ScalarUDFImpl for InfusionAsyncUdf {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DataFusionResult<DataType> {
-        // Simplified: always returns Utf8 for the stub.
-        // The full implementation maps `descriptor.output_type` to a DataType.
+        // Simplified: always returns Utf8 for the current implementation.
+        // Full typed mapping of `descriptor.output_type` → Arrow DataType is deferred
+        // to S-1.14-REDO (DRIFT-PIVOT-UDF-OUTPUT-TYPE-001); not in PIVOT-001 scope.
         Ok(DataType::Utf8)
     }
 
