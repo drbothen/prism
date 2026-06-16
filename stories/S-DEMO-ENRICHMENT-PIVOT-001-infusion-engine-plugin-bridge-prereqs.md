@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.10"
+version: "1.11"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -124,7 +124,7 @@ traces_to: [D-1109, WO-D1109]
 supersedes: []
 ---
 
-# S-DEMO-ENRICHMENT-PIVOT-001 v1.10: Infusion Engine Plugin-Bridge Prerequisites
+# S-DEMO-ENRICHMENT-PIVOT-001 v1.11: Infusion Engine Plugin-Bridge Prerequisites
 
 Wire the plugin-backed infusion path forward-subset from S-1.14-REDO's scope so the
 demo enrichment chain (S-DEMO-ENRICHMENT-PIVOT-002/003) can be built and tested before
@@ -564,7 +564,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 | EC-001 | `source.type = "maxmind_mmdb"` passed to load_all | Returns `Err(InfusionError::UnknownSourceType { type_name: "maxmind_mmdb".into() })` / E-INFUSE-004: "Unknown source type 'maxmind_mmdb'. Valid types: maxmind_mmdb, csv, json_lookup, plugin." (stub — full impl in S-1.14-REDO; see error-taxonomy.md §E-INFUSE-004 and prism-core error.rs `InfusionError::UnknownSourceType`) |
 | EC-002 | Plugin-type spec with no `plugin_ref` field | `Err(InfusionError::MissingRequiredField { field: "plugin_ref".into(), spec_path })` / E-INFUSE-003 from parse — plugin_ref is required for type=plugin (see error-taxonomy.md §E-INFUSE-003 and prism-core error.rs `InfusionError::MissingRequiredField`) |
 | EC-003 | `PluginInfusionSource::enrich_single` with S-1.15 unavailable (e.g., source is `NotLoaded`) | Returns `Ok(None)` and emits a `tracing::warn!` — map-log-None path per BC-2.19.001 v1.5 / CRIT-3 closure. NOT an error return; NOT a panic. `InfusionError::PluginRuntimeNotAvailable` does not exist — do not use it. |
-| EC-004 | Two plugin specs with the same field name (duplicate UDF) | `SpecEngineError` at load_all with named conflict (BC-2.19.001 invariant: UDF names globally unique) |
+| EC-004 | Two plugin specs with the same field name (duplicate UDF) | `InfusionError::DuplicateUdfName` / E-INFUSE-002 returned from load_all for the second spec; first spec retained (BC-2.19.001 Error Cases: E-INFUSE-002; error message: "Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'.") |
 | EC-005 | `is_api_backed` called with UDF name not in registry | Returns `false` (unknown UDFs are not API-backed by default) |
 | EC-006 | `validate_credentials` — spec with empty `env_var` on a `CredentialRef` | `Err(InfusionError::...)` at parse time; `tracing::warn!` / structured error. **IMPLEMENTED in PIVOT-001** — wired into `InfusionLoader::parse`. Tests: `test_BC_2_19_001_parse_accepts_spec_with_valid_credential_reference` (happy path), `test_BC_2_19_001_parse_rejects_spec_with_empty_env_var_credential` (reject path). |
 | EC-007 | `validate_pipe_stage_columns` — `pipe_stage.adds_columns` entry names a column not in `spec.fields` | `Err(InfusionError::...)` at parse time. **IMPLEMENTED in PIVOT-001** — wired into `InfusionLoader::parse`. Tests: `test_BC_2_19_001_parse_accepts_spec_with_pipe_stage_matching_fields` (happy path), `test_BC_2_19_001_parse_rejects_pipe_stage_with_unknown_column_reference` (reject path). |
@@ -618,6 +618,7 @@ Anticipated emissions (implementer must enumerate actual sites):
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.11 | 2026-06-15 | OBS-1 closure: EC-004 prose corrected — replaced "SpecEngineError at load_all with named conflict" with `InfusionError::DuplicateUdfName` / E-INFUSE-002, per canonical error taxonomy (E-INFUSE-002 row: "Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'"; second spec rejected, first retained) and BC-2.19.001 Error Cases row. BC conflict check: BC-2.19.001 explicitly contracts E-INFUSE-002 for this condition (not SpecEngineError); no BC conflict found. Source-of-Truth Precedence: taxonomy + BC govern; EC prose was stale. |
 | v1.10 | 2026-06-15 | Validator-implemented closure: `validate_credentials` and `validate_pipe_stage_columns` are now IMPLEMENTED + WIRED into `InfusionLoader::parse` + TESTED in PIVOT-001 (feature/S-DEMO-ENRICHMENT-PIVOT-001 @e87e44ea). Removed both from S-1.14-REDO deferral list (§"What this story does NOT implement" and §S-1.14-REDO Annotation scope list). Added §"Now implemented in PIVOT-001" note with test names (TD-VSDD-091). Updated Previous Story Intelligence to reflect both validators implemented. Added EC-006 (`validate_credentials` — empty `env_var`) and EC-007 (`validate_pipe_stage_columns` — unknown column ref) with 4 new test-name anchors. Red Gate count 5 → 7; tests 6-7 added to Red Gate Test Plan table. |
 | v1.9 | 2026-06-15 | LOW-1 BC-table sync (PIVOT-001 LOW-1): BC-2.19.001 row at line ~174 updated — version pin bumped v1.5→v1.7; carrier-struct phrasing corrected: PARSE PHASE (`load_all`) returns specs+errors and does NOT construct `PluginInfusionSource`; RUNTIME PHASE (`load_spec_with_runtime`) builds `PluginInfusionSource` and attaches it as `descriptor.source`; `plugin_id`/`config` live on `PluginInfusionSource` via `descriptor.source`, not on `InfusionUdfDescriptor` directly. Aligns with BC-2.19.001 v1.7 ground truth. |
 | v1.8 | 2026-06-15 | OBS prose-precision fix: AC-002 second "then" bullet clarified — `plugin_id`/`config` live on `PluginInfusionSource` (accessed via `descriptor.source`), not on `InfusionUdfDescriptor` directly. Implementation and tests are correct and unchanged; AC prose now matches the struct layout. |
