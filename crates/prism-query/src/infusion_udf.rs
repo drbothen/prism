@@ -292,8 +292,8 @@ pub fn register_infusion_udfs(
     //     "Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'."
     //   This call site has no file paths — it keys on infusion_id instead. The message
     //   explicitly cites udf_name + infusion_id to satisfy the taxonomy's identity requirements.
-    // E-INFUSE-007 is reserved for DataFusion `register_udf`/`register_table_function`
-    // CALL failures (i.e., when DataFusion itself rejects the registration at runtime).
+    // E-INFUSE-007 is FORWARD-RESERVED (taxonomy v1.82); it has no current emitter.
+    // DataFusion 53.1's `register_udf` is infallible — it does not return a Result.
     let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     for descriptor in descriptors {
         if !seen_names.insert(descriptor.name.clone()) {
@@ -403,13 +403,15 @@ mod tests {
     /// Taxonomy source-of-truth (error-taxonomy.md §INFUSE):
     ///   E-INFUSE-002 — "Duplicate UDF name '{udf_name}' in '{path2}' — already registered
     ///                   from '{path1}'." — spec-load-time collision BEFORE DataFusion registration.
-    ///   E-INFUSE-007 — runtime `register_udf` call failure from DataFusion itself.
+    ///   E-INFUSE-007 — FORWARD-RESERVED (taxonomy v1.82); no current emitter; DataFusion 53.1's
+    ///                  `register_udf` is infallible (returns `()`, not `Result`).
     ///
     /// Verifies:
     /// - `register_infusion_udfs` returns `Err` for duplicate names.
     /// - The error message contains `E-INFUSE-002`.
-    /// - The error message does NOT contain `E-INFUSE-007` (that code is for DataFusion
-    ///   registration failures, not pre-registration duplicate-name guard).
+    /// - The error message does NOT contain `E-INFUSE-007` (that code is FORWARD-RESERVED in
+    ///   taxonomy v1.82; DataFusion 53.1's `register_udf` is infallible so E-INFUSE-007 has
+    ///   no current emitter; this path only ever emits E-INFUSE-002).
     /// - The error message contains the real `infusion_id` of the colliding spec.
     #[test]
     fn test_register_infusion_udfs_duplicate_name_emits_e_infuse_002_with_infusion_id() {
@@ -434,12 +436,13 @@ mod tests {
         let err_msg = result.unwrap_err().to_string();
         assert!(
             err_msg.contains("E-INFUSE-002"),
-            "error must contain 'E-INFUSE-002' taxonomy code (duplicate UDF name at spec-load time, \
-             NOT E-INFUSE-007 which is for DataFusion registration call failures); got: {err_msg}"
+            "error must contain 'E-INFUSE-002' taxonomy code (duplicate UDF name at spec-load time; \
+             E-INFUSE-007 is FORWARD-RESERVED in taxonomy v1.82 with no current emitter); got: {err_msg}"
         );
         assert!(
             !err_msg.contains("E-INFUSE-007"),
-            "error must NOT contain 'E-INFUSE-007' (that code is for runtime register_udf failures); \
+            "error must NOT contain 'E-INFUSE-007' (FORWARD-RESERVED in taxonomy v1.82; \
+             DataFusion 53.1's register_udf is infallible so this code has no current emitter); \
              got: {err_msg}"
         );
         assert!(

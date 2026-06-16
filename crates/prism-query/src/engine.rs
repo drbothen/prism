@@ -539,7 +539,8 @@ impl QueryEngine {
         //
         // Error propagation: the inner error from `register_infusion_udfs` already carries
         // the canonical taxonomy code (E-INFUSE-002 for duplicate UDF names at spec-load time;
-        // E-INFUSE-007 for DataFusion register_udf call failures) and the real infusion_id.
+        // E-INFUSE-007 is FORWARD-RESERVED in taxonomy v1.82 — DataFusion 53.1's register_udf
+        // is infallible so no call failure can occur here) and the real infusion_id.
         // We propagate verbatim — no outer prefix that would inject a function name into the
         // {infusion_id} slot or double-prefix the error code (MED-2 fix).
         if let Some(ref registry) = self.infusion_registry {
@@ -1069,9 +1070,10 @@ mod alias_wiring_tests {
     /// the error's `{infusion_id}` slot and does NOT double-prefix with `E-INFUSE-007`.
     ///
     /// The engine.rs `map_err` closure must propagate the inner error verbatim so the
-    /// real taxonomy code (E-INFUSE-002 for duplicates; E-INFUSE-007 for DataFusion failures)
-    /// surfaces with the real infusion_id, not with the function name 'execute_inner' or
-    /// 'execute_scheduled_inner' in the {infusion_id} slot.
+    /// real taxonomy code (E-INFUSE-002 for duplicates; E-INFUSE-007 is FORWARD-RESERVED in
+    /// taxonomy v1.82 and has no current emitter since DataFusion 53.1's register_udf is
+    /// infallible) surfaces with the real infusion_id, not with the function name
+    /// 'execute_inner' or 'execute_scheduled_inner' in the {infusion_id} slot.
     ///
     /// This test constructs duplicate descriptors directly and passes them to
     /// `register_infusion_udfs`, then wraps the error through the SAME `map_err` pattern
