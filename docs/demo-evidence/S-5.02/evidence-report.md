@@ -86,8 +86,8 @@ Test calls `build_structured_error_response(StructuredErrorFields::new(...), con
 ### AC-005 — 429 ms→s conversion (BC-2.10.007 v1.6)
 
 Test calls `to_error_data_with_retry(PrismError::SensorRateLimited { sensor: "crowdstrike", retry_after_ms: 30_000 })`. Assertions:
-- `retry_after_ms == Some(30_000)` (returned as second tuple element)
-- `retry_after_ms.map(|ms| ms / 1000) == Some(30)`
+- the returned `u64` (second element of the `(ErrorData, u64)` tuple) equals `30_000`
+- `30_000u64 / 1000 == 30u64` (the caller's ms-to-s conversion, asserted as `retry_after_seconds == 30`)
 
 End-to-end test (`test_HIGH_A_sensor_rate_limited_end_to_end_retry_after_seconds`) calls `prism_error_to_structured_call_result` and verifies:
 - `structuredContent.error.retry_after_seconds == 30` (as JSON number)
@@ -96,8 +96,7 @@ End-to-end test (`test_HIGH_A_sensor_rate_limited_end_to_end_retry_after_seconds
 
 ### AC-006 — null-not-absent invariant (BC-2.10.007 v1.6)
 
-Test uses `PrismError::Internal { detail: "..." }` (no `retry_after_ms`). Assertions:
-- `to_error_data_with_retry(Internal).1 == None` (no retry ms)
+Test constructs a `StructuredErrorFields` with `retry_after_seconds: None` and calls `build_structured_error_response` directly (note: `to_error_data_with_retry` only accepts `SensorRateLimited`; non-rate-limit paths supply no retry hint to the builder). Assertions:
 - `build_structured_error_response` with `retry_after_seconds: None` emits `retry_after_seconds` key with JSON null value
 - `error_obj.get("retry_after_seconds").is_some() == true`
 - `error_obj.get("retry_after_seconds").unwrap().is_null() == true`
