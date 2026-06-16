@@ -3296,8 +3296,14 @@ impl PrismServer {
         WHEN NOT TO USE: do not use to discover sensor data — use list_sensor_specs instead\n\
         PARAMETERS: client_id (optional scopes to a specific client's capabilities)\n\
         PAGINATION: not applicable — returns complete capability set\n\
-        RESPONSE: client_registered flag and capabilities map with tool enablement status\n\
-        ERRORS: -32000 internal error",
+        RESPONSE: for a given client_id, returns client_registered (bool) and capabilities \
+(map of capability path → {status: enabled|runtime_disabled|compile_time_disabled, \
+resolution_chain: [{level, result, source}]}); for null client_id, returns a per-client \
+summary with enabled_count/runtime_disabled_count/compile_time_disabled_count per client; \
+both shapes include not_registered_tools (tools in the MCP catalog that return -32003)\n\
+        ERRORS: E-MCP-001 (-32602 invalid params) when client_id fails [a-zA-Z0-9_-]{1,64} \
+validation; -32000 internal error on serialization failure; unknown-but-well-formed client_id \
+is NOT an error — returns matrix with client_registered: false",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_capabilities(
