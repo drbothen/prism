@@ -29,7 +29,7 @@
 //! stub delegated to new() without inserting scenario CVEs.
 
 #![cfg(feature = "fixture-gen")]
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
 use std::{collections::HashMap, sync::Arc};
 

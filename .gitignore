@@ -33,3 +33,8 @@ fuzz/Cargo.lock
 # Perimeter compile-fail test crate — standalone workspace, lock file generated locally.
 # The crate itself (Cargo.toml + src/) is tracked; only the generated lock is excluded.
 tests/external/perimeter-violation/Cargo.lock
+
+# prism-dtu-demo-server runtime sidecars (written to cwd by `start` / `start-multi`).
+# These are ephemeral process state, not source — never committed.
+.prism-dtu-demo-server.pid
+.prism-dtu-demo-server.urls*.json

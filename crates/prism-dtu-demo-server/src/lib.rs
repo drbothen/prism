@@ -17,12 +17,34 @@
 pub mod config;
 pub mod harness;
 pub mod multi_instance;
+pub mod multi_org_cmd;
 pub mod tls;
 
+/// Name of the flat URL sidecar file written by `start` subcommand.
+///
+/// Format: `{name: url}` (one entry per clone).
+/// Shared between `main.rs` (binary) and `multi_org_cmd.rs` (library) so that
+/// `resolve_configure_url` can reference it in error messages.
+pub const URL_FILE: &str = ".prism-dtu-demo-server.urls.json";
+
+/// Name of the nested URL sidecar file written by `start-multi` subcommand.
+///
+/// Format: `{org_slug: {sensor_id: url}}`.
+/// Shared between `main.rs` (binary) and `multi_org_cmd.rs` (library) so that
+/// `resolve_configure_url` can reference it in error messages.
+pub const URL_MULTI_FILE: &str = ".prism-dtu-demo-server.urls-multi.json";
+
 // Re-export primary types for test usage.
-pub use config::DemoConfig;
+pub use config::{DemoConfig, MultiOrgDemoConfig, OrgConfig, KNOWN_SENSORS};
 pub use harness::{ClonePair, DemoHarness, StartReport};
 pub use multi_instance::{
     start_instances, DemoBindError, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
     MultiInstanceServers,
+};
+// S-DEMO-LAUNCHER-CONSOLIDATION-001: testable extracted functions for `start-multi`.
+// Re-exported so integration tests in tests/multi_org.rs can call them directly
+// without subprocess overhead (Architecture Compliance Rule).
+pub use multi_org_cmd::{
+    build_multi_clone_factory, resolve_configure_url, start_multi_for_config,
+    write_multi_url_sidecar_to_path,
 };
