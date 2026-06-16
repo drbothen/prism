@@ -754,7 +754,14 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
     // BC-2.10.007 DI-006 / EC-10-013: raw sensor text goes in upstream_message ONLY.
     struct VariantMeta {
         category: &'static str,
+        /// Static suggestion string for variants with no per-instance guidance.
         suggestion: &'static str,
+        /// Runtime-owned suggestion override — used when a variant carries its own
+        /// actionable guidance that must be surfaced verbatim (e.g. CapabilityDenied.suggestion).
+        /// When `Some`, takes precedence over `suggestion`.
+        /// MED-1 (BC-2.10.007 v1.8): threads CapabilityDenied's own actionable guidance
+        /// through instead of discarding it in favour of a static string.
+        owned_suggestion: Option<String>,
         retryable: bool,
         retry_after_seconds: Option<u64>,
         original_params_valid: bool,
@@ -803,6 +810,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             source_override: None,
             upstream_message: None,
             // E-AUTH-001/002/003 inferred from map_prism_error Display prefix (starts "E-AUTH-").
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -817,6 +825,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
             // variant — no E- prefix. Pin E-AUTH-010 directly.
+            owned_suggestion: None,
             ec_code_override: Some("E-AUTH-010"),
         },
 
@@ -830,6 +839,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
             // variant — no E- prefix. Pin E-AUTH-011 directly.
+            owned_suggestion: None,
             ec_code_override: Some("E-AUTH-011"),
         },
 
@@ -870,6 +880,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: false,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -891,6 +902,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -914,18 +926,61 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: Some("prism_config".to_owned()),
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
         // ── Permission errors: capability denied, auth failures, org-scoping ──
         // BC-2.10.007 legal category: "permission" (not "authorization").
-        // OBS-1 (BC-2.10.007 v1.8): SensorNotRegisteredForOrg is a scoping/permission
-        // denial. The org slug and sensor name are structurally valid; access was refused
-        // at the org-scoping boundary. original_params_valid: true (parallel to
-        // CapabilityDenied). LLM-agent strategy: inspect permissions; verify the sensor
-        // is registered under the target org.
-        PrismError::CapabilityDenied { .. }
-        | PrismError::FeatureFlagEvalError { .. }
+        // MED-1 (BC-2.10.007 v1.8): each sub-class of permission error carries its own
+        // suggestion text. The OBS-1 fix incorrectly shared the org-scoping string across
+        // ALL permission variants. Fixed by splitting into three dedicated sub-arms:
+        //   (a) SensorNotRegisteredForOrg — org-scoping guidance (the OBS-1 intent)
+        //   (b) CapabilityDenied — threads the variant's own suggestion field verbatim
+        //   (c) All other permission variants — generic permission/confirmation guidance
+
+        // (a) SensorNotRegisteredForOrg: org-scoping guidance.
+        // OBS-1 (BC-2.10.007 v1.8): cross-org sensor isolation is a scoping/permission denial.
+        // The org slug and sensor name are structurally valid; access was refused at the
+        // org-scoping boundary. original_params_valid: true. LLM-agent: verify sensor is
+        // registered under the target org.
+        PrismError::SensorNotRegisteredForOrg { .. } => VariantMeta {
+            category: "permission",
+            suggestion:
+                "Check sensor registration for the target org. Verify the sensor is configured \
+                 under the requested org slug in prism.toml.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // (b) CapabilityDenied: thread the variant's own suggestion field verbatim.
+        // MED-1 (BC-2.10.007 v1.8): CapabilityDenied carries an actionable "exact TOML path
+        // + restart instruction" suggestion generated by the capability resolver at check time.
+        // This guidance is variant-specific and must not be discarded. owned_suggestion threads
+        // it through to the structured response; suggestion is a never-used fallback.
+        PrismError::CapabilityDenied { suggestion, .. } => VariantMeta {
+            category: "permission",
+            suggestion: "Inspect capability configuration; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: Some(suggestion.clone()),
+            ec_code_override: None,
+        },
+
+        // (c) All other permission variants: generic permission/confirmation guidance.
+        // FeatureFlagEvalError, Unauthorized, McpPromptInjectionDetected, token variants,
+        // WriteRequiresClientId, CredentialAccessDenied, AuditTableAccessDenied.
+        // None of these carry sensor-registration context; org-scoping text would actively
+        // misdirect the LLM agent (e.g., for prompt-injection rejection or expired tokens).
+        PrismError::FeatureFlagEvalError { .. }
         | PrismError::Unauthorized { .. }
         | PrismError::McpPromptInjectionDetected { .. }
         | PrismError::TokenExpired { .. }
@@ -936,18 +991,15 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::ConfirmClientIdMismatch { .. }
         | PrismError::WriteRequiresClientId
         | PrismError::CredentialAccessDenied { .. }
-        | PrismError::AuditTableAccessDenied
-        | PrismError::SensorNotRegisteredForOrg { .. } => VariantMeta {
+        | PrismError::AuditTableAccessDenied => VariantMeta {
             category: "permission",
-            suggestion:
-                "Check sensor registration for the target org. Verify the sensor is configured \
-                 under the requested org slug in prism.toml. \
-                 Or check capability configuration and confirm the operation through the correct flow.",
+            suggestion: "Inspect permissions and use the confirmation flow if required.",
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -961,6 +1013,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -991,6 +1044,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             // notice; there is no raw upstream body text to preserve here.
             upstream_message: None,
             // F-1: pin canonical code directly (map_prism_error returns generic message for this).
+            owned_suggestion: None,
             ec_code_override: Some("E-SENSOR-020"),
         },
 
@@ -1047,6 +1101,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 // Raw body text → upstream_message ONLY (DI-006 injection isolation, EC-10-013).
                 upstream_message: Some(capped_body),
                 // F-1: pin canonical code directly (map_prism_error returns generic message).
+                owned_suggestion: None,
                 ec_code_override: Some("E-SENSOR-001"),
             }
         }
@@ -1063,6 +1118,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: Some(sensor.clone()),
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: Some("E-SENSOR-002"),
         },
 
@@ -1074,6 +1130,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: Some(sensor.clone()),
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: Some("E-SENSOR-003"),
         },
 
@@ -1087,6 +1144,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -1120,6 +1178,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -1134,6 +1193,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -1152,14 +1212,14 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::WatchdogHeartbeatMissed { .. }
         | PrismError::WatchdogRestartLimitExceeded { .. } => VariantMeta {
             category: "internal",
-            suggestion:
-                "Prism process supervision failure (memory or watchdog). \
+            suggestion: "Prism process supervision failure (memory or watchdog). \
                  Contact Prism operator; see audit log for details.",
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
 
@@ -1174,6 +1234,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             original_params_valid: true,
             source_override: None,
             upstream_message: None,
+            owned_suggestion: None,
             ec_code_override: None,
         },
     };
@@ -1210,7 +1271,11 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         category: meta.category.to_owned(),
         retryable: meta.retryable,
         retry_after_seconds: meta.retry_after_seconds,
-        suggestion: meta.suggestion.to_owned(),
+        // MED-1 (BC-2.10.007 v1.8): use owned_suggestion when the variant carries its own
+        // actionable guidance (e.g. CapabilityDenied.suggestion); fall back to static string.
+        suggestion: meta
+            .owned_suggestion
+            .unwrap_or_else(|| meta.suggestion.to_owned()),
         source,
         original_params_valid: meta.original_params_valid,
         upstream_message: meta.upstream_message,
@@ -1777,6 +1842,109 @@ mod tests {
         assert!(
             upstream_message.is_null(),
             "WatchdogRestartLimitExceeded upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 MED-1: suggestion text correctness per-variant ──
+
+    /// MED-1 (BC-2.10.007 v1.8): SensorNotRegisteredForOrg suggestion must contain
+    /// org-scoping guidance (keyword "org") — e.g., "Check sensor registration for the
+    /// target org; verify the sensor is configured under the requested org slug in
+    /// prism.toml."
+    ///
+    /// Before MED-1 this was correct, but the fix was shared with ALL permission variants.
+    /// After MED-1 this must be in a DEDICATED sub-arm, not a shared one.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_not_registered_for_org_suggestion_contains_org_scoping() {
+        let err = PrismError::SensorNotRegisteredForOrg {
+            sensor_id: "crowdstrike".to_owned(),
+            org_slug: "acme-corp".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert!(
+            suggestion.contains("org"),
+            "SensorNotRegisteredForOrg suggestion must contain org-scoping guidance ('org'); \
+             got '{suggestion}'"
+        );
+    }
+
+    /// MED-1 (BC-2.10.007 v1.8): McpPromptInjectionDetected suggestion must NOT contain
+    /// the org-scoping text "Check sensor registration for the target org". Before MED-1
+    /// the shared permission arm prepended the org-scoping string to ALL permission variants,
+    /// actively misdirecting the LLM agent for injection rejections.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_mcp_prompt_injection_suggestion_does_not_contain_org_scoping_text() {
+        let err = PrismError::McpPromptInjectionDetected {
+            tool: "prism_query".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert!(
+            !suggestion.contains("sensor registration for the target org"),
+            "McpPromptInjectionDetected suggestion must NOT contain org-scoping text \
+             (MED-1: different variants need different suggestions); got '{suggestion}'"
+        );
+    }
+
+    /// MED-1 (BC-2.10.007 v1.8): CapabilityDenied must thread its own `suggestion` field
+    /// through to the structured error response. Before MED-1 the shared permission arm
+    /// discarded CapabilityDenied.suggestion in favour of the static org-scoping string.
+    /// CapabilityDenied carries an actionable "exact TOML path + restart instruction"
+    /// suggestion generated by the capability resolver — it must not be silently discarded.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_capability_denied_suggestion_threads_own_suggestion_field() {
+        let err = PrismError::CapabilityDenied {
+            capability: "sensor.crowdstrike.containment".to_owned(),
+            client_id: "test-client".to_owned(),
+            reason: "compile-time disabled".to_owned(),
+            suggestion: "Enable sensor.crowdstrike.containment = true in prism.toml and rebuild."
+                .to_owned(),
+            resolution_trace: vec!["root=disabled".to_owned()],
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert!(
+            suggestion.contains("sensor.crowdstrike.containment"),
+            "CapabilityDenied suggestion must thread the variant's own suggestion field through \
+             (MED-1); got '{suggestion}'"
+        );
+        assert!(
+            !suggestion.contains("sensor registration for the target org"),
+            "CapabilityDenied suggestion must NOT contain org-scoping text (MED-1); got '{suggestion}'"
         );
     }
 
