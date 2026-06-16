@@ -139,6 +139,13 @@ required-features = ["test-helpers"]
 name = "vp156_write_tool_post_boot_proptest"
 required-features = ["test-helpers"]
 
+# S-DEMO-ENRICHMENT-PIVOT-001: Red Gate test 3 — DataFusion async UDF registration
+# Traces to: BC-2.19.001 postcondition — each field registers as a DataFusion scalar UDF.
+# Requires tokio multi-thread runtime (AD-013) for async UDF execution.
+[[test]]
+name = "bc_2_19_001_plugin_udf_registration_test"
+path = "tests/bc_2_19_001_plugin_udf_registration_test.rs"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "test-helpers", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
 non_snake_case = "allow"

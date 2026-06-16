@@ -1,11 +1,18 @@
 //! InfusionUdfDescriptor — exported UDF descriptor for prism-query DataFusion registration.
 //!
-//! prism-spec-engine produces these descriptors; prism-query (S-3.02) creates the actual
-//! `datafusion::logical_expr::ScalarUDF` and registers it in the `SessionContext`.
-//! This crate MUST NOT import DataFusion (AD-015).
+//! prism-spec-engine produces these descriptors; prism-query (S-DEMO-ENRICHMENT-PIVOT-001)
+//! creates the actual `datafusion::logical_expr::AsyncScalarUDF` and registers it in the
+//! `SessionContext` via `register_infusion_udfs` (BC-2.19.001).
 //!
-//! # Stub
-//! All methods are `unimplemented!()` — implementation in S-1.14.
+//! This crate MUST NOT import DataFusion (AD-015). The descriptor carries the source
+//! (`Arc<dyn InfusionSource>`) so prism-query can invoke enrichment without knowing the
+//! concrete source type.
+//!
+//! # Implementation status (S-DEMO-ENRICHMENT-PIVOT-001 — fully implemented)
+//! `InfusionUdfDescriptor` is actively consumed by prism-query's `InfusionAsyncUdf` wrapper.
+//! Plugin-type descriptors are built by `InfusionRegistry::load_spec_with_runtime` with a
+//! real `Arc<PluginInfusionSource>`; parse-phase descriptors carry `Arc<NullSource>` until
+//! the runtime phase wires the real source.
 
 use std::sync::Arc;
 

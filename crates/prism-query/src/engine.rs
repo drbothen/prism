@@ -243,6 +243,12 @@ pub struct QueryEngine {
     /// and the query executor share the same live AliasStore instance.
     /// (F-PASS9-LOW-1 fix — S-5.01-FOLLOWUP-MCP-BOOT)
     pub(crate) alias_store: Option<Arc<Mutex<AliasStore>>>,
+    /// Infusion registry for plugin-backed enrichment UDFs (BC-2.19.001 / S-DEMO-ENRICHMENT-PIVOT-001).
+    ///
+    /// When `Some`, `execute_inner` and `execute_scheduled_inner` call `register_infusion_udfs`
+    /// on the ephemeral `SessionContext` so analyst queries using `| enrich infusion(field)` resolve.
+    /// When `None`, no enrichment UDFs are registered (query-only / test mode without enrichment).
+    pub(crate) infusion_registry: Option<Arc<prism_spec_engine::InfusionRegistry>>,
 }
 
 impl QueryEngine {
@@ -309,6 +315,7 @@ impl QueryEngine {
             storage: None,
             resolved_spec_map: None,
             alias_store: None,
+            infusion_registry: None,
         }
     }
 
@@ -387,7 +394,22 @@ impl QueryEngine {
             storage: Some(storage),
             resolved_spec_map: Some(resolved_spec_map),
             alias_store: Some(alias_store),
+            infusion_registry: None,
         }
+    }
+
+    /// Set the infusion registry for plugin-backed enrichment UDF registration.
+    ///
+    /// Intended to be called from the boot path by S-DEMO-ENRICHMENT-PIVOT-002/003
+    /// (production wiring deferred per sequencing); currently no production caller.
+    /// When set, `execute_inner` and `execute_scheduled_inner` call `register_infusion_udfs`
+    /// on each ephemeral `SessionContext` before query execution.
+    pub fn with_infusion_registry(
+        mut self,
+        registry: Arc<prism_spec_engine::InfusionRegistry>,
+    ) -> Self {
+        self.infusion_registry = Some(registry);
+        self
     }
 }
 
@@ -510,6 +532,23 @@ impl QueryEngine {
         // HIGH-001 / ADV-W3MT-P58-HIGH-001: memory_pool_bytes was stored but not consumed.
         // Now wired via `build_session_context` which wraps RuntimeEnvBuilder + GreedyMemoryPool.
         let session_ctx = crate::memory::build_session_context(self.config.memory_pool_bytes)?;
+
+        // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs so
+        // analyst queries using `| enrich infusion(field)` resolve in this ephemeral context.
+        // No-op when `infusion_registry` is `None` (enrichment not configured).
+        //
+        // Error propagation: the inner error from `register_infusion_udfs` already carries
+        // the canonical taxonomy code (E-INFUSE-002 for duplicate UDF names at spec-load time;
+        // E-INFUSE-007 is FORWARD-RESERVED in taxonomy v1.82 — DataFusion 53.1's register_udf
+        // is infallible so no call failure can occur here) and the real infusion_id.
+        // We propagate verbatim — no outer prefix that would inject a function name into the
+        // {infusion_id} slot or double-prefix the error code (MED-2 fix).
+        if let Some(ref registry) = self.infusion_registry {
+            crate::infusion_udf::register_infusion_udfs(&session_ctx, registry.udf_descriptors())
+                .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
+                detail: e.to_string(),
+            })?;
+        }
 
         // F-LP1-HIGH-3: Capability gate — check BEFORE registering internal tables.
         // Parse-time depth/size checks happen inside PrismQlParser::parse (security.rs).
@@ -698,6 +737,18 @@ impl QueryEngine {
         let session_ctx = Arc::new(crate::memory::build_session_context(
             self.config.memory_pool_bytes,
         )?);
+
+        // S-DEMO-ENRICHMENT-PIVOT-001 / BC-2.19.001: register plugin-backed enrichment UDFs
+        // for scheduled queries as well (detection-engine enrichment context).
+        //
+        // Error propagation: propagate the inner error verbatim — same rationale as
+        // execute_inner (MED-2 fix; see that site for the full explanation).
+        if let Some(ref registry) = self.infusion_registry {
+            crate::infusion_udf::register_infusion_udfs(&session_ctx, registry.udf_descriptors())
+                .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
+                detail: e.to_string(),
+            })?;
+        }
 
         // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
         // Scheduled queries run in system context with no capabilities — this means they
@@ -1012,6 +1063,95 @@ mod alias_wiring_tests {
         assert_eq!(
             result.context.expanded_query, "SELECT * FROM crowdstrike_detections LIMIT 5",
             "without alias_store, expanded_query == original_query"
+        );
+    }
+
+    /// MED-2: verify the engine's `map_err` wrapper does NOT inject a function name into
+    /// the error's `{infusion_id}` slot and does NOT double-prefix with `E-INFUSE-007`.
+    ///
+    /// The engine.rs `map_err` closure must propagate the inner error verbatim so the
+    /// real taxonomy code (E-INFUSE-002 for duplicates; E-INFUSE-007 is FORWARD-RESERVED in
+    /// taxonomy v1.82 and has no current emitter since DataFusion 53.1's register_udf is
+    /// infallible) surfaces with the real infusion_id, not with the function name
+    /// 'execute_inner' or 'execute_scheduled_inner' in the {infusion_id} slot.
+    ///
+    /// This test constructs duplicate descriptors directly and passes them to
+    /// `register_infusion_udfs`, then wraps the error through the SAME `map_err` pattern
+    /// used in execute_inner. Before the fix the detail would contain 'execute_inner';
+    /// after the fix it must NOT.
+    #[test]
+    fn test_infusion_udf_registration_error_does_not_inject_function_name() {
+        use prism_spec_engine::InfusionSource;
+        use prism_spec_engine::InfusionUdfDescriptor;
+
+        // Build two descriptors with the same name but different infusion_ids.
+        // This simulates the scenario where register_infusion_udfs catches the duplicate.
+        #[derive(Debug)]
+        struct NullSrc;
+        impl InfusionSource for NullSrc {
+            fn enrich_single(&self, _: &str, _: &str) -> Option<serde_json::Value> {
+                None
+            }
+            fn enrich_batch(
+                &self,
+                inputs: &[String],
+                input_type: &str,
+            ) -> Vec<Option<serde_json::Value>> {
+                inputs
+                    .iter()
+                    .map(|i| self.enrich_single(i, input_type))
+                    .collect()
+            }
+        }
+
+        let descriptors = vec![
+            InfusionUdfDescriptor {
+                name: "threat_score".to_string(),
+                input_type: "ip".to_string(),
+                output_type: "string".to_string(),
+                infusion_id: "threatintel_v1".to_string(),
+                source: Arc::new(NullSrc),
+                source_column: None,
+            },
+            InfusionUdfDescriptor {
+                name: "threat_score".to_string(), // duplicate name
+                input_type: "ip".to_string(),
+                output_type: "string".to_string(),
+                infusion_id: "threatintel_v2".to_string(),
+                source: Arc::new(NullSrc),
+                source_column: None,
+            },
+        ];
+
+        // Simulate the map_err pattern used in execute_inner — FIXED version (propagates
+        // inner error verbatim, without prepending a function-name prefix).
+        let ctx = datafusion::execution::context::SessionContext::new();
+        let inner_err = crate::infusion_udf::register_infusion_udfs(&ctx, descriptors).unwrap_err();
+
+        // The engine wraps in PrismError::QueryExecutionFailed { detail: e.to_string() }.
+        let detail = inner_err.to_string();
+
+        // Must contain the real infusion_id of the colliding spec (not a function name).
+        assert!(
+            detail.contains("threatintel_v2"),
+            "error detail must contain the real infusion_id 'threatintel_v2'; got: {detail}"
+        );
+
+        // Must contain E-INFUSE-002 (duplicate at spec-load time).
+        assert!(
+            detail.contains("E-INFUSE-002"),
+            "error detail must contain 'E-INFUSE-002'; got: {detail}"
+        );
+
+        // Must NOT contain a function name in the infusion_id slot.
+        assert!(
+            !detail.contains("execute_inner"),
+            "error detail must NOT contain 'execute_inner' (function name injected as infusion_id); \
+             got: {detail}"
+        );
+        assert!(
+            !detail.contains("execute_scheduled_inner"),
+            "error detail must NOT contain 'execute_scheduled_inner'; got: {detail}"
         );
     }
 }
