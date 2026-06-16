@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.405"
+version: "v2.406"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T08:00:00Z
+timestamp: 2026-06-16T10:00:00Z
 phase: 3
 total_stories: 200
 total_active_bcs: 222
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1190 taxonomy-reconciliation + S-5.02/PIVOT-001 PR-LEVEL adjudication — STORY-INDEX v2.405→v2.406 (2026-06-16):** (POL-11/POL-32 changelog row) error-taxonomy v1.82→v1.83 committed to .factory: OBS-1 E-SENSOR-020 row added (`PrismError::SensorRateLimited`; BC-2.10.007 `retry_after_seconds` non-null u64); OBS-2 E-SENSOR-001/002/003 prose ratified to authoritative error.rs Display strings (no code change; ratify-prose). S-5.02 PR #191 adversary pass-1 CLEAN(PR-merge)=yes — OBS-1/OBS-2 CLOSED via taxonomy v1.83; OBS-3 (`to_error_data_with_retry` production-wiring) IN FLIGHT @82e87c49. 3 PIVOT-002-gate security drift items registered: DRIFT-PIVOT-UDFNAME-VALIDATION-001 (SEC-001 CWE-20), DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 (SEC-002 CWE-200), DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (SEC-003 CWE-209). 2 additional drift items: DRIFT-ESENSOR004-OVERLAP-001 (taxonomy incidental; PO adjudication), DRIFT-ORCH-AGENT-WORKTREE-READ-001 (process-gap; extends DRIFT-ORCH-ADVERSARY-TUPLE-001 to all feature-code-reading dispatches). Story row versions UNCHANGED (no story spec edits this burst). error_taxonomy_version 1.82→1.83. STORY-INDEX v2.405→v2.406.
 
 - **D-1121 BPRL-P15-01 SPEC-ONLY closure — Story B v2.12→v2.13; STORY-INDEX v2.365→v2.366 (2026-06-13):** BPRL-P15-01 MED SPEC-ONLY: story B Phase-6 gate instruction at line ~581 read "all 19 Red Gate tests pass" — stale count from pre-D-1117 revision (19 RGTs was correct at v2.9 and earlier; D-1117 raised red_gate_tests to 23 by adding VP-020-I..VP-020-L). Canonical count is 23 (red_gate_tests frontmatter = 23; Phase-6 gate table = 23 rows; STORY-INDEX row says 23 RGTs). A literal verifier following the gate instruction could skip the 4 cyberint-correlation tests. Fix: story B v2.12→v2.13 — Phase-6 gate instruction "19"→"23". Exhaustive `\b19\b`/`\b18\b` classification sweep confirmed line ~581 was the SOLE stale gate-count prose; all other `19` occurrences are AC count (correct, unchanged) or RGT row-index labels or historical changelog entries (all correctly left). red_gate_tests stays 23; acceptance_criteria_count stays 19. BC-2.06.020 UNCHANGED v1.4. Feature HEAD UNCHANGED 7ddc0a51. CODE UNCHANGED. BC-INDEX v6.39→v6.40 (rows 119+120 anchor story pin v2.12→v2.13). total_stories 200 UNCHANGED. STORY-INDEX v2.365→v2.366.
 
