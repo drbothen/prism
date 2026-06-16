@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.835"
+version: "7.836"
 producer: state-manager
-timestamp: 2026-06-16T14:00:00Z
+timestamp: 2026-06-16T15:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -19,10 +19,10 @@ safe_to_compact: true
 develop_head: "1b2e9a31"
 bc_index_version: "6.63"
 vp_index_version: "1.79"
-story_index_version: "v2.408"
+story_index_version: "v2.409"
 arch_index_version: "2.133"
 error_taxonomy_version: "1.84"
-total_stories: 200
+total_stories: 201
 active_contracts: 235
 draft_contracts: 2
 retired_contracts: 6
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1192 PIVOT-001 POST-MERGE + E-AUTH TAXONOMY + S-5.02 PROGRESS DURABILITY BURST (2026-06-16): S-DEMO-ENRICHMENT-PIVOT-001 MERGED PR #189 develop@1b2e9a31 2026-06-16. PR-LEVEL 3/3 strict CONVERGED (passes 1/2/3 on frozen 5553cc91; BC-5.39.001 D-779). POL-14 BC-2.19.001+BC-2.19.003 status: draft→active (legacy-field sync; lifecycle_status was already active; no count change). error-taxonomy v1.83→v1.84 (E-AUTH-001/002/003 LIVE-COLLISION documented; E-AUTH-010/011/020 ratified; DRIFT-EAUTH-CODE-COLLISION-001 registered). STORY-INDEX v2.407→v2.408. BC-INDEX v6.62→v6.63. develop_head c3ecf6c8→1b2e9a31. S-3.13 now unblocked (engine.rs dependency landed). non-exhaustive gate UNCHANGED (EXPECTED=60; PIVOT added no gate-scoped types). STATE v7.834→v7.835."
+current_step: "D-1193 S-MAINT-EAUTH-COLLISION-001 MATERIALIZED (2026-06-16): story draft v1.0 registered per user directive — E-AUTH-001/002 collision renumber (OAuth2→E-AUTH-008/009); scheduled post-live-demo (after T13+T14), off critical path; anchors DRIFT-EAUTH-CODE-COLLISION-001 (drift item now anchored to real story). STORY-INDEX v2.408→v2.409. total_stories 200→201. develop_head UNCHANGED 1b2e9a31. STATE v7.835→v7.836."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-16 (D-1192 PIVOT-001 post-merge + E-AUTH taxonomy + S-5.02 progress — BC-INDEX v6.63; STORY-INDEX v2.408; STATE v7.835)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-16 (D-1193 S-MAINT-EAUTH-COLLISION-001 materialized — STORY-INDEX v2.409; total_stories 201; STATE v7.836)
 
 ## Active Objective (North Star)
 
@@ -108,6 +108,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log._
+| D-1193 | state-manager | 2026-06-16 | S-MAINT-EAUTH-COLLISION-001 MATERIALIZED (TD-VSDD-053 single-commit). Story draft v1.0 registered per user directive 2026-06-16 — E-AUTH-001/002 collision renumber (OAuth2 SpecEngineError variants → E-AUTH-008/009); scheduled post-live-demo (after T13 capstone + T14 recording), off critical path; anchors DRIFT-EAUTH-CODE-COLLISION-001. DRIFT-EAUTH-CODE-COLLISION-001 Drift Items row updated: Required Action now references S-MAINT-EAUTH-COLLISION-001 (story materialized); Due now "post-demo maintenance wave (S-MAINT-EAUTH-COLLISION-001)". STORY-INDEX v2.408→v2.409. total_stories 200→201. develop_head UNCHANGED 1b2e9a31. STATE v7.835→v7.836. |
 | D-1192 | state-manager | 2026-06-16 | PIVOT-001 POST-MERGE + E-AUTH TAXONOMY + S-5.02 PROGRESS DURABILITY BURST (TD-VSDD-053 single-commit). S-DEMO-ENRICHMENT-PIVOT-001 MERGED — PR #189 squash-merged develop@1b2e9a31 2026-06-16. PR-LEVEL 3/3 strict CONVERGED (passes 1/2/3 on frozen 5553cc91; BC-5.39.001 D-779). POL-14: BC-2.19.001 status: draft→active (lifecycle_status was already active — legacy-field sync only; no count flip); BC-2.19.003 status: draft→active (same pattern). active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 only) UNCHANGED. non-exhaustive gate UNCHANGED (EXPECTED=60; PIVOT added no gate-scoped types in prism-core/prism-spec-engine/prism-query). worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 still mounted (cleanup pending — note only; state-manager does NOT remove worktrees). feature/S-DEMO-ENRICHMENT-PIVOT-001 DELETED by GitHub at merge. DRIFT-EAUTH-CODE-COLLISION-001 registered [maintenance story, HIGH, pre-existing]: E-AUTH-001 LIVE-COLLISION (PrismError::InvalidOrgSlug + SpecEngineError::AuthAcquisitionFailed both emit E-AUTH-001); E-AUTH-002 LIVE-COLLISION (PrismError::InvalidAnalystId + SpecEngineError::AuthRefreshFailed both emit E-AUTH-002); blast-radius documented; proposed renumber SpecEngineError variants → E-AUTH-008/009 (confirm free first); requires dedicated maintenance story (e.g. S-MAINT-EAUTH-COLLISION-001); NOT an S-5.02 blocker. error-taxonomy v1.83→v1.84 committed (E-AUTH-001/002/003 collision documented; E-AUTH-010/011/020 ratified; IMPLEMENTER FOLLOW-UP note added). S-5.02 PR #191 progress: HIGH-1 (E-AUTH-001/002/003/010/011 authentication category arm) + MED-1/MED-2 fixed @6501a01c + OBS-1 (E-QUERY-032→permission) + OBS-2 (Watchdog→internal) fixed @d0942825; NEXT: story bump v1.9→v1.10 (BC-2.10.007 v1.7→v1.8 pins + category reflections) then re-gate adversary 3-CLEAN on frozen HEAD d0942825. S-3.13 UNBLOCKED — rebase onto develop@1b2e9a31 NEXT. BC-INDEX v6.62→v6.63. STORY-INDEX v2.407→v2.408. error_taxonomy_version 1.83→1.84. develop_head c3ecf6c8→1b2e9a31. STATE v7.834→v7.835. |
 | D-1191 | state-manager | 2026-06-16 | BC-2.10.007 v1.7→v1.8 OBS-1+OBS-2 ADJUDICATION DURABILITY BURST (TD-VSDD-053). BC committed (v1.8): OBS-1 SensorNotRegisteredForOrg→permission/true; OBS-2 Watchdog*→internal/true; +2 test vectors; §ImpCodeFollowUp F-4/OBS-1/OBS-2. BC-INDEX v6.61→v6.62. STORY-INDEX v2.406→v2.407. STATE v7.833→v7.834. S-5.02 story v1.9 BC-2.10.007 pin stays v1.7 (syncs at OBS-1/OBS-2 impl burst). PIVOT-001 pass-1 @5553cc91 CLEAN(strict) streak 1/3. develop_head UNCHANGED c3ecf6c8. |
 | D-1190 | state-manager | 2026-06-16 | TAXONOMY-RECONCILIATION + S-5.02/PIVOT-001 PR-LEVEL ADJUDICATION DURABILITY BURST (TD-VSDD-053). error-taxonomy v1.82→v1.83: E-SENSOR-020 added (OBS-1); E-SENSOR-001/002/003 prose ratified to code (OBS-2; no code change). S-5.02 PR #191 adversary pass-1: CLEAN(PR-merge)=yes; OBS-1/OBS-2 CLOSED via taxonomy v1.83; OBS-3 IN FLIGHT @82e87c49. 5 drift items registered. STORY-INDEX v2.405→v2.406. STATE v7.832→v7.833. |
@@ -228,7 +229,7 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 | DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 [PIVOT-002 gate; SEC-003 CWE-209] | `map_plugin_error_to_infusion_error` embeds the `SandboxViolation` URL in WARN-level tracing logs. In PIVOT-002 when live plugins are wired, those URLs will contain resolved endpoint addresses. Redact or lower to DEBUG in PIVOT-002 to prevent information disclosure in analyst-visible logs. No live plugins in PIVOT-001. | Implementer (PIVOT-002): redact or lower SandboxViolation URL log to DEBUG level | PIVOT-002 |
 | DRIFT-ESENSOR004-OVERLAP-001 [taxonomy; incidental; zero-urgency] | After v1.83 OBS-2 ratification (E-SENSOR-003 = `SensorResponseParse`), E-SENSOR-004 prose may overlap with corrected E-SENSOR-003 description. PO to adjudicate whether E-SENSOR-004 has a live emitter or is redundant. No production impact; taxonomy-cleanup only. | PO: adjudicate E-SENSOR-004 vs corrected E-SENSOR-003 overlap at next taxonomy pass | future PO burst |
 | DRIFT-ORCH-AGENT-WORKTREE-READ-001 [process-gap, codification-candidate] | Non-adversary agents (product-owner etc.) dispatched to read feature-branch code also need the explicit worktree path in their dispatch tuple. S-5.02 OBS-3 PO pass mis-read the develop checkout and wrongly concluded `to_error_data_with_retry` was unimplemented. Extends DRIFT-ORCH-ADVERSARY-TUPLE-001 to all feature-code-reading dispatches (not only adversary). | Orchestrator: codify worktree-path tuple requirement for ALL feature-code-reading agent dispatches (not only adversary) at cycle-close | v1.0.0-greenfield cycle-close |
-| DRIFT-EAUTH-CODE-COLLISION-001 [maintenance story; HIGH; pre-existing on develop] | E-AUTH-001 LIVE-COLLISION: `PrismError::InvalidOrgSlug` (prism-core) and `SpecEngineError::AuthAcquisitionFailed` (prism-spec-engine) both emit `E-AUTH-001`. E-AUTH-002 LIVE-COLLISION: `PrismError::InvalidAnalystId` (prism-core) and `SpecEngineError::AuthRefreshFailed` (prism-spec-engine) both emit `E-AUTH-002`. Proposed resolution: reallocate SpecEngineError::AuthAcquisitionFailed→E-AUTH-008, AuthRefreshFailed→E-AUTH-009 (confirm free in taxonomy first). Blast radius: prism-core/src/error.rs, prism-spec-engine/src/error.rs, prism-mcp/src/error_mapping.rs, prism-bin/src/spec_driven_adapter.rs, prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs (~12 assertions), prism-spec-engine/tests/crowdstrike_oauth2_plugin_tests.rs, BC-2.01.013 §Error Cases, BC-2.01.016 §Error Cases. NOT an S-5.02 blocker (S-5.02 is consistent with prism-core). Registered D-1192 taxonomy v1.84. | PO allocates E-AUTH-008/009 confirmed-free; implementer sibling-sweep; dedicated maintenance story (e.g. S-MAINT-EAUTH-COLLISION-001) | maintenance wave |
+| DRIFT-EAUTH-CODE-COLLISION-001 [maintenance story; HIGH; pre-existing on develop] | E-AUTH-001 LIVE-COLLISION: `PrismError::InvalidOrgSlug` (prism-core) and `SpecEngineError::AuthAcquisitionFailed` (prism-spec-engine) both emit `E-AUTH-001`. E-AUTH-002 LIVE-COLLISION: `PrismError::InvalidAnalystId` (prism-core) and `SpecEngineError::AuthRefreshFailed` (prism-spec-engine) both emit `E-AUTH-002`. Proposed resolution: reallocate SpecEngineError::AuthAcquisitionFailed→E-AUTH-008, AuthRefreshFailed→E-AUTH-009 (confirm free in taxonomy first). Blast radius: prism-core/src/error.rs, prism-spec-engine/src/error.rs, prism-mcp/src/error_mapping.rs, prism-bin/src/spec_driven_adapter.rs, prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs (~12 assertions), prism-spec-engine/tests/crowdstrike_oauth2_plugin_tests.rs, BC-2.01.013 §Error Cases, BC-2.01.016 §Error Cases. NOT an S-5.02 blocker (S-5.02 is consistent with prism-core). Registered D-1192 taxonomy v1.84. | **Anchored to S-MAINT-EAUTH-COLLISION-001** (draft v1.0 registered D-1193 2026-06-16): PO confirms E-AUTH-008/009 free in taxonomy; implementer sibling-sweep; story materialized by story-writer | post-demo maintenance wave (S-MAINT-EAUTH-COLLISION-001) |
 
 ## Blocking Issues
 
@@ -242,11 +243,11 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE — S-DEMO-ENRICHMENT-PIVOT-001; worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 PENDING CLEANUP). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). T10 DONE: PR #188 MERGED develop@7241f5ef 2026-06-15. docs(CLAUDE.md) develop@09925bbe 2026-06-15 (D-1178). Last merges: PR #185 develop@7fd35b77 (T5), PR #186 develop@f7400f83 (D-1134), PR #187 develop@664566e9 (T6), PR #188 develop@7241f5ef (T10), PR #190 develop@c3ecf6c8 (T11), PR #189 develop@1b2e9a31 (T12). Lane status (D-1192): PIVOT-001 v1.12 MERGED PR #189 develop@1b2e9a31 (T12 DONE); S-3.13 v1.15 @31b4d147 LOCAL CONVERGED 3/3 (demo evidence IN FLIGHT; UNBLOCKED — rebase onto develop@1b2e9a31 NEXT); S-5.02 v1.9 @d0942825 PR #191 OPEN (NEXT: story bump v1.9→v1.10; re-gate adversary 3-CLEAN on frozen HEAD d0942825); S-5.03 v1.13 not-started. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1182._
 
-## Session Resume Checkpoint (D-1192 — 2026-06-16; STATE v7.835)
+## Session Resume Checkpoint (D-1193 — 2026-06-16; STATE v7.836)
 
 **POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1182**. Read that first (NOTE: SESSION-HANDOFF not updated in this burst — story-writer bump is next burst). Summary below.
 
-**STATE v7.835. CURRENT POSITION: T12 DONE — S-DEMO-ENRICHMENT-PIVOT-001 MERGED PR #189 develop@1b2e9a31 2026-06-16. develop@1b2e9a31. PIVOT-001 worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 PENDING CLEANUP (note only). S-5.02 v1.9 @d0942825 PR #191 OPEN (HIGH-1 E-AUTH auth-category arm fixed; MED-1/MED-2 CLOSED @6501a01c; OBS-1 E-QUERY-032→permission + OBS-2 Watchdog→internal CLOSED @d0942825; NEXT: story-writer bump v1.9→v1.10 with BC-2.10.007 v1.8 pins → re-gate adversary 3-CLEAN on frozen HEAD d0942825). S-3.13 v1.15 @31b4d147 LOCAL CONVERGED 3/3 UNBLOCKED (engine.rs dep landed via PIVOT; NEXT: rebase onto develop@1b2e9a31 → demo evidence → PR → 3-CLEAN → merge). S-5.03 v1.13 not-started (depends_on S-3.13). MERGE-COORD: S-5.02 independent; S-3.13 → merge → S-5.03. error-taxonomy v1.84 (E-AUTH-010/011/020 ratified; DRIFT-EAUTH-CODE-COLLISION-001 registered). BC-2.10.007 v1.8. bc_index_version 6.63. story_index_version v2.408.**
+**STATE v7.836. CURRENT POSITION: T12 DONE — S-DEMO-ENRICHMENT-PIVOT-001 MERGED PR #189 develop@1b2e9a31 2026-06-16. develop@1b2e9a31. S-MAINT-EAUTH-COLLISION-001 draft v1.0 registered D-1193 (off critical path; post-demo). DRIFT-EAUTH-CODE-COLLISION-001 anchored to S-MAINT-EAUTH-COLLISION-001. total_stories 201. S-5.02 v1.9 @d0942825 PR #191 OPEN (NEXT: story-writer bump v1.9→v1.10 with BC-2.10.007 v1.8 pins → re-gate adversary 3-CLEAN on frozen HEAD d0942825). S-3.13 v1.15 @31b4d147 LOCAL CONVERGED 3/3 UNBLOCKED (NEXT: rebase onto develop@1b2e9a31 → demo evidence → PR → 3-CLEAN → merge). S-5.03 v1.13 not-started (depends_on S-3.13). MERGE-COORD: S-5.02 independent; S-3.13 → merge → S-5.03. error-taxonomy v1.84. BC-2.10.007 v1.8. bc_index_version 6.63. story_index_version v2.409.**
 
 **RESUME PROTOCOL (zero prior context):**
 0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1182 (NOTE: not updated this burst; use D-1192 STATE summary above as the authoritative current-state reference for PIVOT-001 status, develop_head, and S-5.02 HEAD).
