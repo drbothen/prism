@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P3
 status: ready
-version: "2.8"
+version: "2.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-14T00:00:00Z"
@@ -162,6 +162,7 @@ risk_mitigations:
     silently orphans keyring entries (S-DEMO-003 F-P10-HIGH-001 precedent)."
 inputs:
   - "crates/prism-dtu-demo-server/src/main.rs"
+  - "crates/prism-dtu-demo-server/src/multi_org_cmd.rs"
   - "crates/prism-dtu-demo-server/src/config.rs"
   - "crates/prism-dtu-demo-server/src/multi_instance.rs"
   - "crates/prism-dtu-demo-server/src/harness.rs"
@@ -193,7 +194,7 @@ phase: 3
 
 **Story ID:** S-DEMO-LAUNCHER-CONSOLIDATION-001
 **Status:** ready
-**Version:** v2.8
+**Version:** v2.9
 **Wave:** 5
 **Priority:** P3
 **Points:** 8
@@ -989,10 +990,10 @@ with no changes to `.github/workflows/ci.yml`.
 
 | Component | Module | Pure/Effectful |
 |-----------|--------|---------------|
-| `Commands::StartMulti` (enum variant) | `crates/prism-dtu-demo-server/src/main.rs` | Pure (data) |
-| `cmd_start_multi` (~80-120 lines) | `crates/prism-dtu-demo-server/src/main.rs` | Effectful (I/O: config load, clone start, sidecar write, signal wait) |
-| `build_multi_clone_factory` (extracted pure fn) | `crates/prism-dtu-demo-server/src/main.rs` | Pure (returns closure; no I/O) |
-| `write_multi_url_sidecar` (extracted helper) | `crates/prism-dtu-demo-server/src/main.rs` | Effectful (file I/O: tmp+rename atomic write) |
+| `Commands::StartMulti` (enum variant) + `cmd_start_multi` CLI dispatch shim | `crates/prism-dtu-demo-server/src/main.rs` | Pure (data) / thin dispatch shim |
+| `cmd_start_multi` (~80-120 lines, testable logic) | `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` | Effectful (I/O: config load, clone start, sidecar write, signal wait) |
+| `build_multi_clone_factory` (extracted pure fn) | `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` | Pure (returns closure; no I/O) |
+| `write_multi_url_sidecar` (extracted helper) | `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` | Effectful (file I/O: tmp+rename atomic write) |
 | `MultiOrgDemoConfig` (root config type) | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
 | `OrgConfig` (per-org `[orgs.*]` subsection) | `crates/prism-dtu-demo-server/src/config.rs` | Pure (data struct) |
 | `start_instances` (EXISTING, unchanged) | `crates/prism-dtu-demo-server/src/multi_instance.rs` | Effectful (async: socket bind) |
@@ -1313,6 +1314,7 @@ Option-2. Do not raise the question again.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.9 | 2026-06-15 | story-writer | OBS closure (PR #190 PR-LEVEL adversary): Architecture Mapping table and `inputs:` frontmatter reconciled to the `multi_org_cmd.rs` module relocation. The implementation correctly extracted `build_multi_clone_factory`, `write_multi_url_sidecar`, and the testable body of `cmd_start_multi` into `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` (a binary's private `main.rs` fns are unreachable from a separate `tests/` crate; the Architecture Compliance Rule "move the function to a pub module" explicitly sanctions this). The Architecture Mapping table rows for these three functions updated from `src/main.rs` to `src/multi_org_cmd.rs`; the thin CLI dispatch shim (`Commands::StartMulti` enum variant + match arm) remains in `main.rs` and its row is updated accordingly. Added `crates/prism-dtu-demo-server/src/multi_org_cmd.rs` to the `inputs:` frontmatter list (after `src/main.rs`). No AC, BC, Red Gate, or behavioral content changed. |
 | 2.8 | 2026-06-15 | story-writer | SEC-001 closure (CWE-22 org-slug path-traversal, POL-26/32): Added EC-010 for "path-unsafe org slug → clean `Err` from `MultiOrgDemoConfig::from_str` at parse time (no traversal, no panic)"; cites `test_sec_001_org_slug_path_traversal_rejected`. Updated `from_str` doc comment to enumerate 4 parse-time validations (unknown-fields, UUID org_id, KNOWN_SENSORS, slug charset); slug charset rule is `is_path_safe_slug` (`[a-zA-Z0-9][a-zA-Z0-9-]*`; rejects `/`, `.`, `..`, leading-hyphen). No AC count change (security EC recorded as EC entry per v2.7 LOW precedent, not a Red Gate row). `red_gate_tests` stays at 5. |
 | 2.7 | 2026-06-15 | story-writer | LOW finding closure: enrolled `test_low_unsupported_sensor_yields_clean_err_not_panic` (3 sub-cases, `config.rs`) as a post-implementation finding-closure test — recorded as EC entry, not a Red Gate row (`red_gate_tests` stays at 5; Red Gate rows are pre-implementation failing tests only). Updated EC-008: parse-time `Err` from `MultiOrgDemoConfig::from_str`, not `build_multi_clone_factory` panic; cites test by name; references `KNOWN_SENSORS` const. Updated AC-005 third bullet: "panics or returns an error" tightened to "returns a clean `Err` from `MultiOrgDemoConfig::from_str`"; cites test by name; cites `KNOWN_SENSORS` const. Added Architecture Compliance Rule for `KNOWN_SENSORS` (single authoritative sensor list in `config.rs`, re-exported from `lib.rs`, used by `multi_org_cmd.rs`). Updated File Structure `config.rs` row to mention `KNOWN_SENSORS`. Parallel to MED-B org_id-validation pattern. No semantic change to Red Gate section or `red_gate_tests` count. |
 | 2.6 | 2026-06-15 | story-writer | LOW fix: AC-005 stale parenthetical corrected — "(static-JSON path)" replaced with "(seeded path via `new_with_seed`)" for the `"org-a-crowdstrike"` bullet. The static-JSON path (plain `new()`) is never used by `start-multi`; every clone dispatched by `build_multi_clone_factory` uses the seeded path (fixture-gen required). No semantic change; prose now matches the dominant seeded-path design mandated by GAP-1, risk_mitigations, §Option-2 Design step 4, Architecture Compliance Rules, and AC-001 Note. Sibling scan found lines 136 and 303 are accurate context (contrasting seeded vs static-JSON paths in explanation/pseudocode); no further corrections needed. Version bumped to v2.6 (POL-23). |
