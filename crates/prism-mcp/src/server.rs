@@ -152,6 +152,16 @@ impl PrismServer {
         self
     }
 
+    /// Wire an AliasStore for testing alias tool handlers.
+    ///
+    /// Used in integration tests that need list_aliases / explain_alias / create_alias
+    /// to reach domain-level execution without the full boot-time wiring.
+    /// Does NOT wire org_registry — valid_client_ids() returns [] unless separately wired.
+    pub fn with_alias_store_for_test(mut self, store: Arc<Mutex<AliasStore>>) -> Self {
+        self.alias_store = Some(store);
+        self
+    }
+
     /// Construct a minimal PrismServer with NO domain dependencies wired.
     ///
     /// All domain tools return `PrismError::Internal` when called.
@@ -1892,8 +1902,11 @@ impl PrismServer {
             client_registry: Some(qe.client_registry()),
             audit_sink: None,
         };
-        let result =
-            prism_query::explain::explain(&params.query, explain_opts).map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::explain::explain(&params.query, explain_opts) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         // Serialize ExplainResult as JSON string.
         let result_json = serde_json::json!({
             "parsed_mode": result.parsed_mode,
@@ -2022,15 +2035,18 @@ impl PrismServer {
                         .to_owned(),
                 })
             })?;
-        let result = prism_query::alias_tools::create_alias_with_clients_gated(
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::create_alias_with_clients_gated(
             input,
             &mut store,
             &ocsf_reserved,
             &valid_ids,
             capability_gate,
             &token_store_arc,
-        )
-        .map_err(to_error_data)?;
+        ) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let envelope = SafetyEnvelopeBuilder::wrap(
             "create_alias",
             DataSource::Multiple(vec![]),
@@ -2104,8 +2120,11 @@ impl PrismServer {
         };
         // IMP-8: pass valid_client_ids from OrgRegistry allowlist.
         let valid_ids = self.valid_client_ids();
-        let result = prism_query::alias_tools::list_aliases(input, &store, &valid_ids)
-            .map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::list_aliases(input, &store, &valid_ids) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let envelope = SafetyEnvelopeBuilder::wrap(
             "list_aliases",
             DataSource::Multiple(vec![]),
@@ -2207,14 +2226,17 @@ impl PrismServer {
                         .to_owned(),
                 })
             })?;
-        let result = prism_query::alias_tools::delete_alias_gated(
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::delete_alias_gated(
             input,
             &mut store,
             &token_store_arc,
             &valid_ids,
             capability_gate,
-        )
-        .map_err(to_error_data)?;
+        ) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let envelope = SafetyEnvelopeBuilder::wrap(
             "delete_alias",
             DataSource::Multiple(vec![]),
@@ -2288,8 +2310,11 @@ impl PrismServer {
             name: params.name,
             scope: params.scope,
         };
-        let result =
-            prism_query::alias_tools::explain_alias(input, &store, None).map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::explain_alias(input, &store, None) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let result_json = serde_json::to_value(&result).map_err(|e| {
             to_error_data(PrismError::Internal {
                 detail: format!("Failed to serialize explain_alias response: {e}"),
@@ -2373,7 +2398,11 @@ impl PrismServer {
         // WITHOUT consuming it.  Consumption happens inside DryRunGate::consume_token()
         // via WriteExecutor::execute() (write path) or alias_tools (alias path).
         let token_store = we.confirmation_store();
-        let stored_token = token_store.peek(&params.token).map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — token lookup failure returns Ok(structured_error), not Err.
+        let stored_token = match token_store.peek(&params.token) {
+            Ok(t) => t,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
 
         // Step 2: Dispatch based on token.tool_name.
         //
@@ -2584,18 +2613,24 @@ impl PrismServer {
                 //
                 // Actually, the second call DOES re-build the entry from input.  We need
                 // the original query stored in the AliasStore to reconstruct it.  Look it up.
-                let scope_parsed =
-                    prism_query::alias_types::AliasScope::parse(&scope).map_err(to_error_data)?;
-                let existing_entry = store
-                    .get(&name, &scope_parsed)
-                    .map_err(to_error_data)?
-                    .ok_or_else(|| {
-                        to_error_data(PrismError::AliasNotFound {
-                            name: name.clone(),
-                            scope: scope.clone(),
-                            available: String::new(),
-                        })
-                    })?;
+                // F-2: BC-2.10.007 — domain errors return Ok(structured_error), not Err.
+                let scope_parsed = match prism_query::alias_types::AliasScope::parse(&scope) {
+                    Ok(s) => s,
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                };
+                let existing_entry = match store.get(&name, &scope_parsed) {
+                    Ok(Some(entry)) => entry,
+                    Ok(None) => {
+                        return Ok(prism_error_to_structured_call_result(
+                            PrismError::AliasNotFound {
+                                name: name.clone(),
+                                scope: scope.clone(),
+                                available: String::new(),
+                            },
+                        ))
+                    }
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                };
 
                 let input = prism_query::alias_tools::CreateAliasInput {
                     name,
@@ -2624,15 +2659,18 @@ impl PrismServer {
                         prism_query::alias_capability::alias_write_compile_gate(),
                     )
                 });
-                prism_query::alias_tools::create_alias_with_clients_gated(
+                // F-2: BC-2.10.007 — domain errors return Ok(structured_error), not Err.
+                match prism_query::alias_tools::create_alias_with_clients_gated(
                     input,
                     &mut store,
                     &ocsf_reserved,
                     &valid_ids,
                     confirm_alias_gate,
                     token_store,
-                )
-                .map_err(to_error_data)?
+                ) {
+                    Ok(r) => r,
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                }
             }
 
             "delete_alias" => {
@@ -2714,14 +2752,17 @@ impl PrismServer {
                         prism_query::alias_capability::alias_write_compile_gate(),
                     )
                 });
-                prism_query::alias_tools::delete_alias_gated(
+                // F-2: BC-2.10.007 — domain errors return Ok(structured_error), not Err.
+                match prism_query::alias_tools::delete_alias_gated(
                     input,
                     &mut store,
                     token_store,
                     &valid_ids,
                     confirm_delete_gate,
-                )
-                .map_err(to_error_data)?
+                ) {
+                    Ok(r) => r,
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                }
             }
 
             other => {
@@ -3294,7 +3335,8 @@ impl PrismServer {
         let endpoint_registry = we.endpoint_registry();
 
         // `not_registered_tools` = MCP tools whose handlers return -32003 (BC-2.10.011 AC-011).
-        let not_registered_tools: Vec<&str> = NOT_YET_AVAILABLE_TOOLS.to_vec();
+        // F-10: use slice reference directly — .to_vec() allocation is unnecessary.
+        let not_registered_tools: &[&str] = NOT_YET_AVAILABLE_TOOLS;
 
         let result_json = if let Some(ref client_id) = params.client_id {
             // ── Per-client mode ─────────────────────────────────────────────
@@ -3371,6 +3413,27 @@ impl PrismServer {
                                 },
                             ],
                         },
+                        // F-7: DeniedCompileTime is structurally unreachable when
+                        // CompileTimeGate::Present is passed — cap_path IS in registry.
+                        prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                            ..
+                        } => unreachable!(
+                            "check_permission(CompileTimeGate::Present, ..) returned \
+                             DeniedCompileTime for in-registry cap_path '{cap_path}' — \
+                             invariant violation"
+                        ),
+                    }
+                } else {
+                    // F-6: route through ff.check_permission(CompileTimeGate::Absent, ...)
+                    // so the same resolver instance is used for all paths (Architecture
+                    // Compliance Rule 4). CompileTimeGate::Absent always returns
+                    // DeniedCompileTime, but using the resolver preserves behavioral
+                    // consistency with the write-pipeline's capability check path.
+                    let absent_result =
+                        ff.check_permission(CompileTimeGate::Absent, client_id, cap_path);
+                    // CompileTimeGate::Absent always produces DeniedCompileTime — this
+                    // match is exhaustive for safety but only one arm is reachable.
+                    match absent_result {
                         prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
                             ..
                         } => CapabilityEntry {
@@ -3378,19 +3441,14 @@ impl PrismServer {
                             resolution_chain: vec![ResolutionStep {
                                 level: "compile_tier".to_owned(),
                                 result: "deny".to_owned(),
-                                source: "no write_endpoints declaration in sensor TOML".to_owned(),
+                                source: "no write_endpoints declaration in sensor TOML"
+                                    .to_owned(),
                             }],
                         },
-                    }
-                } else {
-                    // Not in registry → compile-gate Absent → compile_time_disabled.
-                    CapabilityEntry {
-                        status: CapabilityStatus::CompileTimeDisabled,
-                        resolution_chain: vec![ResolutionStep {
-                            level: "compile_tier".to_owned(),
-                            result: "deny".to_owned(),
-                            source: "no write_endpoints declaration in sensor TOML".to_owned(),
-                        }],
+                        _ => unreachable!(
+                            "check_permission(CompileTimeGate::Absent, ..) must always return \
+                             DeniedCompileTime — invariant violation for cap_path '{cap_path}'"
+                        ),
                     }
                 };
                 let entry_json = serde_json::to_value(&entry).map_err(|e| {
@@ -3444,14 +3502,29 @@ impl PrismServer {
                             } => {
                                 runtime_disabled_count += 1;
                             }
+                            // F-7: DeniedCompileTime is unreachable when CompileTimeGate::Present
+                            // is passed for an in-registry path — treat as invariant violation.
+                            prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                                ..
+                            } => unreachable!(
+                                "check_permission(CompileTimeGate::Present, ..) returned \
+                                 DeniedCompileTime for in-registry path — invariant violation"
+                            ),
+                        }
+                    } else {
+                        // F-6: route through check_permission(Absent) for architecture compliance.
+                        // CompileTimeGate::Absent always returns DeniedCompileTime.
+                        match ff.check_permission(CompileTimeGate::Absent, cid, cap_path) {
                             prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
                                 ..
                             } => {
                                 compile_time_disabled_count += 1;
                             }
+                            _ => unreachable!(
+                                "check_permission(CompileTimeGate::Absent, ..) must always return \
+                                 DeniedCompileTime — invariant violation for cap_path '{cap_path}'"
+                            ),
                         }
-                    } else {
-                        compile_time_disabled_count += 1;
                     }
                 }
 

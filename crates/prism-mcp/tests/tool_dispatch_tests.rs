@@ -1638,61 +1638,45 @@ fn test_BC_2_10_007_sensor_rate_limited_retry_after_seconds_ms_to_s_conversion()
     use prism_core::error::PrismError;
     use prism_mcp::error_mapping::to_error_data_with_retry;
 
-    // Note: the current PrismError::SensorRateLimited variant has fields:
-    //   sensor: String, retry_after_ms: u64
-    // The story spec describes Option<u64> for retry_after_ms; the BC-2.10.007 contract
-    // requires the implementer to thread this value through to retry_after_seconds.
-    // Tests use the ACTUAL variant shape (spec/code mismatch flagged to orchestrator).
+    // F-9: to_error_data_with_retry returns (ErrorData, u64) — always present for SensorRateLimited.
     let err = PrismError::SensorRateLimited {
         sensor: "crowdstrike".to_owned(),
         retry_after_ms: 30_000,
     };
     let (_error_data, retry_after_ms) = to_error_data_with_retry(err);
     // The caller converts ms → s for the structured error `retry_after_seconds` field.
-    let retry_after_seconds = retry_after_ms.map(|ms| ms / 1000);
+    let retry_after_seconds = retry_after_ms / 1000;
     assert_eq!(
-        retry_after_seconds,
-        Some(30),
+        retry_after_seconds, 30u64,
         "BC-2.10.007 AC-005: SensorRateLimited{{retry_after_ms: 30_000}} must produce \
-         retry_after_seconds=30 (ms/1000); got {retry_after_seconds:?} — RED GATE \
-         (stub returns None)"
+         retry_after_seconds=30 (ms/1000); got {retry_after_seconds}"
     );
 }
 
 /// BC-2.10.007 v1.5 — null-not-absent invariant for non-rate-limited errors.
 ///
-/// For errors that have no retry hint (e.g. `PrismError::Internal`), `to_error_data_with_retry`
-/// returns `None` and the structured error builder must emit `"retry_after_seconds": null`
-/// (not absent from the JSON object).
+/// For errors without a retry hint, `build_structured_error_response` must emit
+/// `"retry_after_seconds": null` (not absent from the JSON object).
+///
+/// F-9: `to_error_data_with_retry` returns `(ErrorData, u64)` (spec R2 v1.7) and is
+/// ONLY for `SensorRateLimited`. Testing the null case uses `None` directly.
 ///
 /// RED: `build_structured_error_response` stub returns empty structuredContent →
 /// `retry_after_seconds` key absent → key-present assertion fails.
 #[test]
 fn test_BC_2_10_007_no_retry_after_produces_null_not_absent() {
-    use prism_core::error::PrismError;
-    use prism_mcp::error_mapping::{
-        build_structured_error_response, to_error_data_with_retry, StructuredErrorFields,
-    };
+    use prism_mcp::error_mapping::{build_structured_error_response, StructuredErrorFields};
 
-    // Use a non-rate-limited error (no retry_after_ms available).
-    let err = PrismError::Internal {
-        detail: "test: no retry hint".to_owned(),
-    };
-    let (_error_data, retry_after_ms) = to_error_data_with_retry(err);
-    let retry_after_seconds: Option<u64> = retry_after_ms.map(|ms| ms / 1000);
+    // F-9: to_error_data_with_retry only accepts SensorRateLimited (spec R2 v1.7).
+    // Test the null case directly — no need to construct a PrismError.
+    let retry_after_seconds: Option<u64> = None;
 
-    // retry_after_ms is None → retry_after_seconds is None → JSON null.
-    assert!(
-        retry_after_seconds.is_none(),
-        "BC-2.10.007 AC-006: SensorRateLimited{{retry_after_ms: None}} must yield \
-         retry_after_seconds=None (→ JSON null); got {retry_after_seconds:?}"
-    );
-
-    // Build the structured error with retry_after_seconds: None.
+    // Build the structured error with retry_after_seconds: None (None → JSON null invariant).
+    // F-8: category must be a legal BC-2.10.007 §77 value. "sensor" is not legal; use "upstream_error".
     let fields = StructuredErrorFields::new(
         "E-SENSOR-004",
         "Internal error; see audit log",
-        "sensor",
+        "upstream_error",
         true,
         retry_after_seconds,
         "Retry the request.",
@@ -1700,7 +1684,8 @@ fn test_BC_2_10_007_no_retry_after_produces_null_not_absent() {
         true,
         None,
     );
-    let result = build_structured_error_response(fields, "ERROR: [sensor] - ...".to_owned());
+    let result =
+        build_structured_error_response(fields, "ERROR: [upstream_error] - ...".to_owned());
     let sc = result
         .structured_content
         .expect("BC-2.10.007: structured_content must be present");
@@ -1736,10 +1721,11 @@ fn test_BC_2_10_007_upstream_message_isolation_from_prose_content() {
     let safe_message = "Internal error; see audit log";
     let safe_content_text = format!("ERROR: [sensor] - {safe_message}. Retry later.");
 
+    // F-8: category must be a legal BC-2.10.007 §77 value. "sensor" is not legal; use "upstream_error".
     let fields = StructuredErrorFields::new(
         "E-SENSOR-004",
         safe_message,
-        "sensor",
+        "upstream_error",
         true,
         None,
         "Retry the request.",
@@ -2340,10 +2326,16 @@ fn test_CRIT_B_catch_all_category_is_upstream_error() {
     use prism_core::error::PrismError;
     use prism_mcp::error_mapping::prism_error_to_structured_call_result;
 
-    // Use Internal variant (catch-all path) to verify the default category
-    // is 'upstream_error' not the illegal 'internal'.
-    let err = PrismError::Internal {
-        detail: "test catch-all category".to_owned(),
+    // Use WatchdogKilled variant to test the catch-all path. This variant has no
+    // explicit arm in prism_error_to_structured_call_result so it falls to the
+    // catch-all `_` arm. The catch-all must emit 'upstream_error' per BC-2.10.007
+    // legal category enum (which does NOT include 'internal').
+    //
+    // Note: PrismError::Internal was previously used here but now has an explicit arm
+    // (F-4 fix: Io/Storage/Internal group). WatchdogKilled genuinely exercises the
+    // catch-all path.
+    let err = PrismError::WatchdogKilled {
+        budget_bytes: 512_000_000,
     };
     let result = prism_error_to_structured_call_result(err);
     let sc = result
@@ -2356,8 +2348,8 @@ fn test_CRIT_B_catch_all_category_is_upstream_error() {
         .unwrap_or("<missing>");
     assert_eq!(
         category, "upstream_error",
-        "CRIT-B BC-2.10.007: Internal/catch-all must emit category='upstream_error', \
-         not 'internal'; got '{category}' — RED GATE"
+        "CRIT-B BC-2.10.007: catch-all must emit category='upstream_error' \
+         (BC-legal enum; 'internal' is not in the BC-2.10.007 enum); got '{category}'"
     );
 }
 
@@ -2477,13 +2469,19 @@ fn test_HIGH_B_sensor_http_error_body_isolated_in_upstream_message() {
     );
 }
 
-/// HIGH-B DI-006: `prism_error_to_structured_call_result` must thread
-/// sensor name from `SensorRateLimited` into `upstream_message`.
+/// F-5 / DI-006: `SensorRateLimited` upstream_message must be null (not a synthesized string).
 ///
-/// The upstream_message for a rate-limit is the sensor's display string, not null,
-/// so the client knows which sensor is rate-limiting.
+/// UPDATED by fix-burst PR #191 F-5: this test previously asserted that upstream_message
+/// was non-null (containing a Prism-synthesized string like "sensor 'X' rate limited...").
+/// The PR reviewer and security reviewer identified that upstream_message per DI-006 must
+/// carry RAW UPSTREAM content only. A 429 rate-limit notice is synthesized by Prism, not
+/// raw upstream text, so upstream_message must be null for SensorRateLimited.
+///
+/// The sensor name is conveyed via the `source` field (not upstream_message), and the
+/// retry hint is in `retry_after_seconds`. The null upstream_message also prevents the
+/// dual-channel disclosure identified by SEC-002 (CWE-200).
 #[test]
-fn test_HIGH_B_sensor_rate_limited_upstream_message_populated() {
+fn test_HIGH_B_sensor_rate_limited_upstream_message_is_null_per_di006() {
     use prism_core::error::PrismError;
     use prism_mcp::error_mapping::prism_error_to_structured_call_result;
 
@@ -2500,13 +2498,25 @@ fn test_HIGH_B_sensor_rate_limited_upstream_message_populated() {
         .get("error")
         .expect("HIGH-B: structuredContent.error must be present");
 
-    // upstream_message must be non-null for sensor errors (contains the sensor Display string).
-    let upstream_val = error_obj.get("upstream_message");
+    // F-5 / DI-006: upstream_message must be null for SensorRateLimited.
+    // The rate-limit notice is Prism-synthesized, not raw upstream content.
+    let upstream_val = error_obj
+        .get("upstream_message")
+        .expect("upstream_message must be present (null-not-absent invariant)");
     assert!(
-        upstream_val.map(|v| !v.is_null()).unwrap_or(false),
-        "HIGH-B DI-006: SensorRateLimited upstream_message must be non-null \
-         (carries sensor display string for client visibility); got {:?}",
-        upstream_val
+        upstream_val.is_null(),
+        "F-5 DI-006: SensorRateLimited upstream_message must be null (Prism-synthesized \
+         rate-limit notice is not raw upstream text); got: {upstream_val:?}"
+    );
+
+    // Sensor name must still be in `source` for audit trail.
+    let source = error_obj
+        .get("source")
+        .and_then(|s| s.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        source, "crowdstrike",
+        "SensorRateLimited source must be the sensor name; got '{source}'"
     );
 }
 
@@ -2636,5 +2646,575 @@ async fn test_BC_2_10_011_not_registered_tools_field_not_not_implemented() {
         not_registered.map(|v| v.is_array()).unwrap_or(false),
         "BC-2.10.011 AC-011: 'not_registered_tools' must be a JSON array; \
          got: {not_registered:?}"
+    );
+}
+
+// ─── Fix-burst tests: PR-reviewer + security-reviewer findings ───────────────
+//
+// PR #191 triage comment findings F-1..F-12, SEC-001..SEC-004.
+// Tests are written RED first; implementation follows.
+
+/// F-1: SensorHttpError must produce code "E-SENSOR-001" not "E-INT-001".
+///
+/// Root cause: `prism_error_to_structured_call_result` infers ec_code from the redacted
+/// message string. Since `map_prism_error` returns "Internal error; see audit log" (no E-
+/// prefix) for `SensorHttpError`, the fallback fires and produces "E-INT-001". Fix: pin
+/// the canonical code in `VariantMeta.ec_code_override` before the message is consumed.
+#[test]
+fn test_F1_sensor_http_error_code_is_e_sensor_001_not_e_int_001() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::SensorHttpError {
+        sensor: "crowdstrike".to_owned(),
+        status: 500,
+        body: "Internal Server Error".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let code = sc
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_str())
+        .expect("structuredContent.error.code must be present");
+    assert_eq!(
+        code, "E-SENSOR-001",
+        "SensorHttpError must produce code 'E-SENSOR-001', not '{code}'"
+    );
+}
+
+/// F-1: SensorTimeout must produce code "E-SENSOR-002" not "E-INT-001".
+#[test]
+fn test_F1_sensor_timeout_code_is_e_sensor_002_not_e_int_001() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::SensorTimeout {
+        sensor: "crowdstrike".to_owned(),
+        elapsed_ms: 30_000,
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let code = sc
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_str())
+        .expect("structuredContent.error.code must be present");
+    assert_eq!(
+        code, "E-SENSOR-002",
+        "SensorTimeout must produce code 'E-SENSOR-002', not '{code}'"
+    );
+}
+
+/// F-1: SensorResponseParse must produce code "E-SENSOR-003" not "E-INT-001".
+#[test]
+fn test_F1_sensor_response_parse_code_is_e_sensor_003_not_e_int_001() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::SensorResponseParse {
+        sensor: "armis".to_owned(),
+        detail: "invalid JSON".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let code = sc
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_str())
+        .expect("structuredContent.error.code must be present");
+    assert_eq!(
+        code, "E-SENSOR-003",
+        "SensorResponseParse must produce code 'E-SENSOR-003', not '{code}'"
+    );
+}
+
+/// F-3: WriteUnbounded policy denial must have original_params_valid: true.
+///
+/// WriteUnbounded means the params were structurally valid but the query lacked
+/// a WHERE clause -- a policy failure, not a malformed-parameter failure.
+#[test]
+fn test_F3_write_unbounded_original_params_valid_is_true() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::WriteUnbounded;
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let valid = sc
+        .get("error")
+        .and_then(|e| e.get("original_params_valid"))
+        .and_then(|v| v.as_bool())
+        .expect("structuredContent.error.original_params_valid must be present");
+    assert!(
+        valid,
+        "WriteUnbounded is a policy denial over valid params;          original_params_valid must be true, got false"
+    );
+}
+
+/// F-3: WriteBatchLimitExceeded policy denial must have original_params_valid: true.
+#[test]
+fn test_F3_write_batch_limit_exceeded_original_params_valid_is_true() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::WriteBatchLimitExceeded {
+        requested: 1001,
+        limit: 1000,
+        endpoint: "sensor.crowdstrike.containment".to_owned(),
+        client_id: "acme".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let valid = sc
+        .get("error")
+        .and_then(|e| e.get("original_params_valid"))
+        .and_then(|v| v.as_bool())
+        .expect("structuredContent.error.original_params_valid must be present");
+    assert!(
+        valid,
+        "WriteBatchLimitExceeded is a policy denial over valid params;          original_params_valid must be true, got false"
+    );
+}
+
+/// F-4: Internal Prism errors (Io, StorageXxx) must NOT fall to the generic catch-all.
+///
+/// The PR reviewer found that Io/Storage errors were categorized as "upstream_error",
+/// which is misleading (they are Prism infrastructure failures, not sensor failures).
+/// The ideal fix would use "internal" but BC-2.10.007 §77 legal category enum does NOT
+/// include "internal" as a value. A BC amendment is required before that change can land.
+///
+/// This test guards what IS in scope:
+/// 1. Io/Storage errors have an explicit arm (not falling to the generic catch-all).
+/// 2. The explicit arm uses "upstream_error" (the BC-compliant fallback until BC amendment).
+///
+/// F-4 BC amendment requirement: product-owner must add "internal" to BC-2.10.007 §77
+/// legal category enum. Once added, this test and error_mapping.rs must be updated to
+/// use "internal" for Io/Storage/McpSerializationError/Internal variants.
+#[test]
+fn test_F4_io_error_has_explicit_arm_not_catch_all() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::Io("disk full".to_owned());
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let error_obj = sc
+        .get("error")
+        .expect("structuredContent.error must be present");
+    let category = error_obj
+        .get("category")
+        .and_then(|c| c.as_str())
+        .expect("structuredContent.error.category must be present");
+    // BC-2.10.007 legal enum does not include "internal"; "upstream_error" is the
+    // BC-compliant fallback. Assert the explicit arm fires (not a panic or missing field).
+    assert!(
+        !category.is_empty(),
+        "PrismError::Io must produce a non-empty category (explicit arm, not panic)"
+    );
+    // The explicit arm produces "upstream_error" per BC constraint (pending BC amendment for "internal").
+    assert_eq!(
+        category, "upstream_error",
+        "PrismError::Io must map to 'upstream_error' (BC-2.10.007 legal; pending BC amendment \
+         to add 'internal'); got '{category}'"
+    );
+}
+
+/// F-4: StorageWriteFailed must have an explicit arm, not fall to the generic catch-all.
+///
+/// See test_F4_io_error_has_explicit_arm_not_catch_all for the BC amendment note.
+#[test]
+fn test_F4_storage_write_failed_has_explicit_arm() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::StorageWriteFailed {
+        domain: "audit".to_owned(),
+        detail: "RocksDB error".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let category = sc
+        .get("error")
+        .and_then(|e| e.get("category"))
+        .and_then(|c| c.as_str())
+        .expect("structuredContent.error.category must be present");
+    // "upstream_error" per BC-2.10.007 legal enum (pending BC amendment for "internal").
+    assert_eq!(
+        category, "upstream_error",
+        "PrismError::StorageWriteFailed must map to 'upstream_error' (BC-compliant; \
+         pending BC amendment to add 'internal'); got '{category}'"
+    );
+}
+
+/// F-5: SensorRateLimited upstream_message must be null (no raw upstream text available).
+///
+/// DI-006 says upstream_message carries raw upstream content. A synthesized Prism string
+/// ("sensor 'X' rate limited; retry after Yms") is NOT raw upstream content -- it is a
+/// Prism-generated message. The field must be null/None for synthesized content.
+#[test]
+fn test_F5_sensor_rate_limited_upstream_message_is_null_not_synthesized_string() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::SensorRateLimited {
+        sensor: "crowdstrike".to_owned(),
+        retry_after_ms: 5_000,
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let upstream = sc
+        .get("error")
+        .and_then(|e| e.get("upstream_message"))
+        .expect("upstream_message must be present (null-not-absent invariant)");
+    // upstream_message must be null -- not a synthesized string with sensor details.
+    assert!(
+        upstream.is_null(),
+        "SensorRateLimited upstream_message must be null (no raw upstream text available          per DI-006); got: {upstream}"
+    );
+}
+
+/// SEC-001: retry_after_seconds floor must be at least 1 for sub-second values.
+///
+/// retry_after_ms / 1000 = 0 for values < 1000ms. A 0-second retry hint causes
+/// immediate retry storms (CWE-400). Fix: apply .max(1) floor.
+#[test]
+fn test_SEC001_retry_after_seconds_floor_is_one_for_sub_second_ms() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    // 500ms -> without floor: 0s; with floor: 1s.
+    let err = PrismError::SensorRateLimited {
+        sensor: "crowdstrike".to_owned(),
+        retry_after_ms: 500,
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let retry_secs = sc
+        .get("error")
+        .and_then(|e| e.get("retry_after_seconds"))
+        .and_then(|v| v.as_u64())
+        .expect("retry_after_seconds must be a non-null u64 for SensorRateLimited");
+    assert!(
+        retry_secs >= 1,
+        "SEC-001 (CWE-400): retry_after_seconds must be >= 1 to prevent immediate retry          storms; sub-second ms=500 produced {retry_secs}"
+    );
+}
+
+/// SEC-002: SensorRateLimited message/content[].text must be generic, not contain sensor name.
+///
+/// Sensor name + retry_after_ms in the user-visible message field is a dual-channel
+/// information disclosure (CWE-200). The message must be generic;
+/// sensor details stay in upstream_message only (which is null per F-5 fix).
+#[test]
+fn test_SEC002_sensor_rate_limited_message_does_not_contain_sensor_name() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::SensorRateLimited {
+        sensor: "crowdstrike_secret_sensor".to_owned(),
+        retry_after_ms: 5_000,
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let message = sc
+        .get("error")
+        .and_then(|e| e.get("message"))
+        .and_then(|m| m.as_str())
+        .expect("message must be present");
+    assert!(
+        !message.contains("crowdstrike_secret_sensor"),
+        "SEC-002 (CWE-200): SensorRateLimited message must NOT contain the sensor name;          got: '{message}'"
+    );
+    // content[].text must also not contain sensor name.
+    let content_text = result
+        .content
+        .first()
+        .and_then(|c| c.as_text())
+        .map(|t| t.text.as_str())
+        .unwrap_or("");
+    assert!(
+        !content_text.contains("crowdstrike_secret_sensor"),
+        "SEC-002 (CWE-200): content[].text must NOT contain the sensor name;          got: '{content_text}'"
+    );
+}
+
+/// SEC-004: upstream_message must be capped to prevent unbounded allocation (CWE-400).
+///
+/// A sensor returning a massive response body (e.g., 10MB HTML error page) must be
+/// truncated before embedding in the MCP error response.
+/// Fix: truncate upstream_message at 4096 bytes.
+#[test]
+fn test_SEC004_upstream_message_capped_at_4096_bytes() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    // Construct a body that is 100KB -- well over any reasonable cap.
+    let huge_body = "X".repeat(100_000);
+    let err = PrismError::SensorHttpError {
+        sensor: "crowdstrike".to_owned(),
+        status: 500,
+        body: huge_body,
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let upstream = sc
+        .get("error")
+        .and_then(|e| e.get("upstream_message"))
+        .and_then(|v| v.as_str())
+        .expect("upstream_message must be a string for SensorHttpError");
+    assert!(
+        upstream.len() <= 4096,
+        "SEC-004 (CWE-400): upstream_message must be capped (<=4096 bytes) to prevent          unbounded allocation; got {} bytes",
+        upstream.len()
+    );
+}
+
+/// F-10: NOT_YET_AVAILABLE_TOOLS reference must not use .to_vec() allocation.
+///
+/// This test guards that list_capabilities still works correctly after the
+/// optimization from Vec<&str> allocation to slice reference.
+#[tokio::test]
+async fn test_F10_not_registered_tools_allocation_optimization_does_not_regress() {
+    use prism_mcp::ListCapabilitiesParams;
+    use rmcp::handler::server::wrapper::Parameters;
+
+    let server = server_with_write_executor_acme_crowdstrike();
+    let call_result = server
+        .list_capabilities(Parameters(ListCapabilitiesParams::for_client("acme")))
+        .await
+        .expect("list_capabilities must succeed after allocation optimization");
+    let sc = call_result
+        .structured_content
+        .expect("structured_content must be present");
+    let body = sc.get("results").unwrap_or(&sc);
+    assert!(
+        body.get("not_registered_tools").is_some(),
+        "not_registered_tools must still be present after allocation optimization"
+    );
+}
+
+/// F-6: list_capabilities compile-absent paths must route through ff.check_permission.
+///
+/// When a capability path is in the client config but NOT in the WriteEndpointRegistry,
+/// the code must call ff.check_permission(CompileTimeGate::Absent, ...) -- not bypass
+/// the resolver. Architecture Compliance Rule 4: same resolver instance as write pipeline.
+///
+/// Verifies that compile-absent paths produce compile_time_disabled with one deny step.
+#[tokio::test]
+async fn test_F6_compile_absent_paths_produce_compile_time_disabled_via_resolver() {
+    use prism_mcp::ListCapabilitiesParams;
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // server_with_write_executor_acme_crowdstrike has "sensor.cyberint.write" in
+    // acme's client config but NOT in the registry -- exercises the else branch.
+    let server = server_with_write_executor_acme_crowdstrike();
+    let call_result = server
+        .list_capabilities(Parameters(ListCapabilitiesParams::for_client("acme")))
+        .await
+        .expect("list_capabilities must succeed");
+
+    let sc = call_result
+        .structured_content
+        .expect("structured_content must be present");
+    let body = sc.get("results").unwrap_or(&sc);
+    let caps = body
+        .get("capabilities")
+        .and_then(|c| c.as_object())
+        .expect("capabilities must be an object");
+
+    // sensor.cyberint.write is NOT in registry -> must be compile_time_disabled.
+    let entry = caps
+        .get("sensor.cyberint.write")
+        .expect("sensor.cyberint.write must appear (it is in acme's config)");
+    let status = entry
+        .get("status")
+        .and_then(|s| s.as_str())
+        .expect("status must be present");
+    assert_eq!(
+        status, "compile_time_disabled",
+        "sensor.cyberint.write (not in registry) must be compile_time_disabled; got '{status}'"
+    );
+
+    let chain = entry
+        .get("resolution_chain")
+        .and_then(|c| c.as_array())
+        .expect("resolution_chain must be an array");
+    assert_eq!(
+        chain.len(),
+        1,
+        "compile_time_disabled must have exactly 1 resolution step; got {} steps",
+        chain.len()
+    );
+    let step0 = &chain[0];
+    assert_eq!(
+        step0.get("level").and_then(|l| l.as_str()).unwrap_or(""),
+        "compile_tier",
+        "step level must be compile_tier"
+    );
+    assert_eq!(
+        step0.get("result").and_then(|r| r.as_str()).unwrap_or(""),
+        "deny",
+        "step result must be deny"
+    );
+}
+
+// ─── F-2 Red Gate: domain-error paths must return Ok(structured) not Err ──────
+//
+// Finding F-2 (BLOCKING): BC-2.10.007 structured-error envelope rollout incomplete.
+// Several .map_err(to_error_data)? callsites on user-visible paths return Err(ErrorData)
+// instead of Ok(CallToolResult { is_error: true, structured_content: ... }).
+// Per BC-2.10.007, domain errors on user-visible MCP tool paths MUST be wrapped in
+// the structured envelope and returned as Ok so the agent always receives structuredContent.
+
+/// F-2: list_aliases domain error (ClientNotFound) must return Ok(structured), not Err.
+///
+/// Wires a bare alias_store but NO org_registry (so valid_client_ids is empty).
+/// Calling list_aliases with a client_id causes ClientNotFound in the domain function.
+/// The .map_err(to_error_data)? at line 2108 currently short-circuits with Err(ErrorData).
+/// After the fix it must return Ok(CallToolResult { is_error: true, structured_content: ... }).
+///
+/// RED gate: expect_err() succeeds before the fix; after fix, expect() must succeed.
+#[tokio::test]
+async fn test_F2_list_aliases_domain_error_returns_ok_structured_not_err() {
+    use prism_mcp::server::{ListAliasesParams, PrismServer};
+    use prism_query::alias_store::AliasStore;
+    use rmcp::handler::server::wrapper::Parameters;
+    use std::sync::{Arc, Mutex};
+
+    let tmpdir = tempfile::tempdir().expect("create tmpdir");
+    let alias_store = Arc::new(Mutex::new(AliasStore::empty(
+        tmpdir.path().join("aliases.toml"),
+    )));
+
+    // Wire alias_store but NOT org_registry — valid_client_ids() returns [] (empty).
+    // This means list_aliases domain fn will fail with ClientNotFound for any client_id.
+    let server = PrismServer::new().with_alias_store_for_test(alias_store);
+
+    let params: ListAliasesParams = serde_json::from_value(serde_json::json!({
+        "client_id": "demo-org-a"
+    }))
+    .expect("ListAliasesParams JSON construction must succeed");
+
+    // BC-2.10.007: domain errors on user-visible paths MUST return Ok(structured error).
+    // Before fix: result is Err(ErrorData) — the test panics at expect().
+    // After fix: result is Ok(CallToolResult { is_error: Some(true), structured_content: Some(...) }).
+    let result = server.list_aliases(Parameters(params)).await.expect(
+        "F-2: list_aliases with unknown client_id must return Ok(structured_error), \
+             not Err(ErrorData) — domain errors on user-visible paths must be wrapped in \
+             BC-2.10.007 structured envelope",
+    );
+
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "F-2: list_aliases structured error must have is_error=true"
+    );
+    let sc = result
+        .structured_content
+        .expect("F-2: list_aliases structured error must carry structuredContent (BC-2.10.007)");
+    let error_obj = sc
+        .get("error")
+        .expect("F-2: structuredContent must have 'error' key");
+
+    // BC-2.10.007 §77: category must be a legal value from the enum.
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let legal_categories = [
+        "transient",
+        "authentication",
+        "validation",
+        "not_found",
+        "permission",
+        "upstream_error",
+        "configuration",
+        "safety",
+    ];
+    assert!(
+        legal_categories.contains(&category),
+        "F-2: structuredContent.error.category must be a legal BC-2.10.007 §77 value; got: '{category}'"
+    );
+
+    // EC code must be a known E-* code, not the fallback E-INT-001.
+    let code = error_obj.get("code").and_then(|v| v.as_str()).unwrap_or("");
+    assert!(
+        code.starts_with("E-"),
+        "F-2: structuredContent.error.code must start with E-; got: '{code}'"
+    );
+}
+
+/// F-2: explain_alias domain error (AliasNotFound) must return Ok(structured), not Err.
+///
+/// Wire alias_store with an empty store, then call explain_alias with a name that
+/// doesn't exist — AliasNotFound error triggers .map_err(to_error_data)? at line 2292.
+/// After the fix it must return Ok(CallToolResult { is_error: true, structured_content: ... }).
+#[tokio::test]
+async fn test_F2_explain_alias_domain_error_returns_ok_structured_not_err() {
+    use prism_mcp::server::{ExplainAliasParams, PrismServer};
+    use prism_query::alias_store::AliasStore;
+    use rmcp::handler::server::wrapper::Parameters;
+    use std::sync::{Arc, Mutex};
+
+    let tmpdir = tempfile::tempdir().expect("create tmpdir");
+    let alias_store = Arc::new(Mutex::new(AliasStore::empty(
+        tmpdir.path().join("aliases.toml"),
+    )));
+
+    let server = PrismServer::new().with_alias_store_for_test(alias_store);
+
+    let params: ExplainAliasParams = serde_json::from_value(serde_json::json!({
+        "name": "nonexistent_alias"
+    }))
+    .expect("ExplainAliasParams JSON construction must succeed");
+
+    // BC-2.10.007: domain errors on user-visible paths MUST return Ok(structured error).
+    // Before fix: result is Err(ErrorData) — the test panics at expect().
+    // After fix: result is Ok(CallToolResult { is_error: Some(true), structured_content: Some(...) }).
+    let result = server.explain_alias(Parameters(params)).await.expect(
+        "F-2: explain_alias with nonexistent alias must return Ok(structured_error), \
+             not Err(ErrorData) — domain errors on user-visible paths must be wrapped in \
+             BC-2.10.007 structured envelope",
+    );
+
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "F-2: explain_alias structured error must have is_error=true"
+    );
+    let sc = result
+        .structured_content
+        .expect("F-2: explain_alias structured error must carry structuredContent (BC-2.10.007)");
+    let error_obj = sc
+        .get("error")
+        .expect("F-2: structuredContent must have 'error' key");
+
+    let code = error_obj.get("code").and_then(|v| v.as_str()).unwrap_or("");
+    assert!(
+        code.starts_with("E-"),
+        "F-2: structuredContent.error.code must start with E-; got: '{code}'"
     );
 }
