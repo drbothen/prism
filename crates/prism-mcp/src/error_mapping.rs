@@ -673,18 +673,37 @@ pub fn build_structured_error_response(
     result
 }
 
-/// Like `to_error_data` but also extracts `retry_after_ms` from `SensorRateLimited`.
+/// BC-2.10.007 spec R2 flat-path helper: extract `retry_after_ms` from `SensorRateLimited`
+/// alongside the flat [`ErrorData`] representation.
 ///
-/// For `PrismError::SensorRateLimited { retry_after_ms, .. }`, returns
-/// `Some(retry_after_ms)` as the second tuple element so the caller can convert
-/// to `retry_after_seconds` (ms / 1000) for the BC-2.10.007 structured error envelope.
+/// # Design role (BC-2.10.007 §"to_error_data_with_retry helper contract")
 ///
-/// For all other `PrismError` variants, returns `None`.
-/// F-9: spec R2 (v1.7) requires `(ErrorData, u64)` — `retry_after_ms` is ALWAYS present
-/// because this function is only ever called for `PrismError::SensorRateLimited`.
-/// Callers MUST NOT pass other error variants; doing so panics with an invariant message.
+/// BC-2.10.007 §108 mandates a helper function **"or equivalent inline mapping"** for
+/// extracting `retry_after_ms` from `SensorRateLimited`. This function is the **flat-path**
+/// variant of that helper (return type `(ErrorData, u64)`) — it covers the case where a
+/// caller already operates on the flat `Err(ErrorData)` MCP error boundary and needs the
+/// `retry_after_ms` value alongside the error data.
 ///
-/// If a future variant needs retry threading, add a dedicated function.
+/// The **structured path** ([`prism_error_to_structured_call_result`]) satisfies the same
+/// BC requirement via the "equivalent inline mapping" clause: it binds `retry_after_ms`
+/// directly in its `SensorRateLimited` arm and applies the SEC-001 `.max(1)` floor
+/// (`(retry_after_ms / 1000).max(1)`). Both paths are BC-compliant; they serve different
+/// error-surface boundaries.
+///
+/// # Contract
+///
+/// - MUST be called only with `PrismError::SensorRateLimited { .. }`.
+/// - Returns `(ErrorData, retry_after_ms_raw_u64)` — the `u64` is the raw millisecond value.
+///   Callers converting to `retry_after_seconds` MUST apply `.max(1)` (SEC-001 floor).
+/// - Panics with an invariant message for any other variant — this is an intentional
+///   invariant guard enforcing the SensorRateLimited-only contract at the call site.
+///
+/// # Note
+///
+/// This function has no production caller in the current server implementation because
+/// `SensorRateLimited` is always routed to `prism_error_to_structured_call_result` (the
+/// structured path). It remains part of the public API as the BC-2.10.007 spec R2 flat-path
+/// helper contract, exercised by `test_BC_2_10_007_sensor_rate_limited_retry_after_seconds_ms_to_s_conversion`.
 pub fn to_error_data_with_retry(err: PrismError) -> (ErrorData, u64) {
     // Extract retry_after_ms BEFORE consuming err via map_prism_error.
     // Panics if called with a non-SensorRateLimited variant (invariant: spec R2).
