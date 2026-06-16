@@ -1,7 +1,7 @@
 # Demo Evidence Report — S-DEMO-ENRICHMENT-PIVOT-001
 
 **Story:** Infusion Engine Plugin-Bridge Prerequisites — Forward-Subset of S-1.14-REDO for Demo
-**Story version:** v1.11
+**Story version:** v1.12
 **Branch:** feature/S-DEMO-ENRICHMENT-PIVOT-001
 **Code under test:** feature/S-DEMO-ENRICHMENT-PIVOT-001 (current feature HEAD — pinning volatile SHAs violates TD-VSDD-091)
 **Evidence date:** 2026-06-15
@@ -323,7 +323,7 @@ Summary [   0.541s] 6 tests run: 6 passed, 966 skipped
   `InfusionLoader::parse` in PIVOT-001: `validate_credentials` (EC-006) and
   `validate_pipe_stage_columns` (EC-007). Each validator has a happy-path test and an
   error-path test, adding 4 test names across RG-6 and RG-7. Story version bumped v1.7
-  → v1.10 to capture this expansion.
+  → v1.12 to capture this expansion (v1.10→v1.11→v1.12 were prose-only spec precision changes).
 - AC-004 delegates to `PluginRuntime::enrich_single` via the confirmed production signature.
   When the plugin is not loaded in the runtime, `enrich_single` returns `None` after
   map-log (CRIT-3 closure) rather than panicking. The S-1.15 WASM runtime is not yet
