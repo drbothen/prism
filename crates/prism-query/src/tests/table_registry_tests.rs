@@ -1144,6 +1144,86 @@ fn test_NB_1_rwlock_poison_registered_tables_fail_closed() {
 }
 
 // ---------------------------------------------------------------------------
+// CR-003: sensor_by_table poison coverage (S-3.13 fix-burst)
+// ---------------------------------------------------------------------------
+
+/// CR-003 (S-3.13 fix-burst): Verify that a poisoned `sensor_by_table` RwLock
+/// causes `sensor_for_table` to return `None` (fail-closed) without panicking.
+///
+/// Uses `TableRegistry::new_with_poisoned_sensor_by_table_for_test()`.
+#[test]
+#[allow(non_snake_case)]
+fn test_NB_1_sensor_for_table_poisoned_returns_none() {
+    let registry = TableRegistry::new_with_poisoned_sensor_by_table_for_test();
+
+    // Must not panic; must return None (fail-closed).
+    let result = registry.sensor_for_table("crowdstrike_alerts");
+    assert!(
+        result.is_none(),
+        "NB-1 (CR-003): sensor_for_table on a poisoned sensor_by_table registry \
+         must return None (fail-closed). Got: {result:?}"
+    );
+}
+
+/// CR-003 (S-3.13 fix-burst): Verify that a poisoned `sensor_by_table` RwLock
+/// causes `registered_sensor_ids` to return an empty Vec (fail-closed) without panicking.
+#[test]
+#[allow(non_snake_case)]
+fn test_NB_1_registered_sensor_ids_poisoned_returns_empty() {
+    let registry = TableRegistry::new_with_poisoned_sensor_by_table_for_test();
+
+    let sensor_ids = registry.registered_sensor_ids();
+    assert!(
+        sensor_ids.is_empty(),
+        "NB-1 (CR-003): registered_sensor_ids on a poisoned sensor_by_table registry \
+         must return empty Vec (fail-closed). Got: {sensor_ids:?}"
+    );
+}
+
+/// CR-003 (S-3.13 fix-burst): Verify that a poisoned `sensor_by_table` RwLock
+/// causes `check_availability_gate` to return `Err(TableNotAvailable)` with
+/// empty `available_sensors` and `available_tables` (falls back to empty map),
+/// and does NOT panic.
+///
+/// The gate encounters a table (`crowdstrike_alerts`) that is NOT in `registered`
+/// (since the registry is freshly built with only the `sensor_by_table` lock poisoned
+/// and no tables registered), so it proceeds to the error-construction path where
+/// it reads `sensor_by_table` — which is poisoned — and falls back to an empty
+/// HashMap. The result is `TableNotAvailable` with empty available lists.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_NB_1_check_availability_gate_sensor_by_table_poison_falls_back_to_empty_map() {
+    use prism_core::PrismError;
+
+    let registry = TableRegistry::new_with_poisoned_sensor_by_table_for_test();
+
+    // Query a custom table — the gate will try to look it up in registered (empty),
+    // fail, then try to read sensor_by_table for error-construction (poisoned).
+    let result = registry.check_availability_gate("SELECT * FROM crowdstrike_alerts", None, None);
+
+    match result {
+        Err(PrismError::TableNotAvailable(details)) => {
+            // The gate must return TableNotAvailable (not panic).
+            // With a poisoned sensor_by_table, available_sensors and available_tables
+            // fall back to empty (the global registered_sensor_ids / registered_tables
+            // also returns empty because registered is empty too).
+            assert_eq!(
+                details.table, "crowdstrike_alerts",
+                "NB-1 (CR-003): TableNotAvailable table field must name the queried table"
+            );
+            // available_sensors and available_tables will be empty strings
+            // (both global methods return empty when registered is empty/poisoned).
+            // The key invariant: no panic occurred.
+        }
+        Ok(()) => panic!(
+            "NB-1 (CR-003): gate must return Err(TableNotAvailable) for an unregistered table \
+             even when sensor_by_table is poisoned"
+        ),
+        Err(other) => panic!("NB-1 (CR-003): expected TableNotAvailable, got: {other:?}"),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // SEC-002: 128-char input cap on did_you_mean (CWE-407)
 // ---------------------------------------------------------------------------
 

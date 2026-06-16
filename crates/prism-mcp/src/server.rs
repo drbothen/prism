@@ -1904,6 +1904,11 @@ impl PrismServer {
             // S-3.13 CRIT-3: thread live TableRegistry into explain so
             // ExplainResult.available_tables reflects the current config (AC-6).
             table_registry: qe.table_registry(),
+            // SEC-003: None here; QueryEngine::explain() injects self.resolved_spec_map
+            // so that available_tables is filtered to the requesting org's visible tables
+            // (CWE-200 cross-tenant info disclosure). The injection is done centrally in
+            // QueryEngine::explain() — MCP callers do not need to supply it directly.
+            resolved_spec_map: None,
         };
         // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
         let result = match prism_query::explain::explain(&params.query, explain_opts) {
@@ -6793,6 +6798,8 @@ mod tests {
             audit_sink: None,
             // Test context: no TableRegistry needed for alias expansion verification.
             table_registry: None,
+            // SEC-003: no org-scope filter needed in this unit test (single-tenant).
+            resolved_spec_map: None,
         };
         let result = prism_query::explain::explain("@alias:devices", opts)
             .expect("explain must succeed for @alias:devices with registry wired");

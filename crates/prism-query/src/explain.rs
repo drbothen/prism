@@ -27,6 +27,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use prism_core::{OrgSlug, PrismError, SensorId};
+use prism_spec_engine::{ResolvedSensorSpec, ResolvedSpecKey};
 use serde::Serialize;
 
 use crate::{
@@ -35,7 +36,7 @@ use crate::{
     pushdown::classify_predicates,
     scoping::{resolve_clients, ClientRegistry},
     security::PRISM_MAX_QUERY_SIZE,
-    table_registry::TableRegistry,
+    table_registry::{filter_to_org_visible_sensors, filter_to_org_visible_tables, TableRegistry},
     visit::{walk_ast, Visitor},
 };
 
@@ -121,6 +122,21 @@ pub struct ExplainOptions {
     /// In production, `prism-mcp` threads this from `QueryEngine::table_registry()`.
     /// Tests that need AC-6 coverage provide a pre-populated `TableRegistry`.
     pub table_registry: Option<Arc<TableRegistry>>,
+
+    /// SEC-003 / ADR-039: Resolved sensor spec map for org-scoped `available_tables`
+    /// filtering on the explain path.
+    ///
+    /// When `Some`, `ExplainResult.available_tables` is filtered to the sensors
+    /// accessible to `options.clients` (the requesting org(s)), preventing cross-tenant
+    /// vendor enumeration on the explain path (CWE-200).
+    ///
+    /// When `None` (single-tenant or no overlay config), `available_tables` is the
+    /// full global registry — preserving single-tenant backward compatibility.
+    ///
+    /// In production, `QueryEngine::explain` injects this from `self.resolved_spec_map`
+    /// (the same map used for SEC-001 on the execute path). Tests that need SEC-003
+    /// coverage provide the map directly.
+    pub resolved_spec_map: Option<Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>>,
 }
 
 impl std::fmt::Debug for ExplainOptions {
@@ -134,6 +150,13 @@ impl std::fmt::Debug for ExplainOptions {
             .field(
                 "table_registry",
                 &self.table_registry.as_ref().map(|_| "<TableRegistry>"),
+            )
+            .field(
+                "resolved_spec_map",
+                &self
+                    .resolved_spec_map
+                    .as_ref()
+                    .map(|m| format!("<{} entries>", m.len())),
             )
             .finish()
     }
@@ -1119,10 +1142,51 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     // S-3.13 / AC-6: Populate available_tables from the live TableRegistry if provided.
     // Called at explain time (not cached in the plan) so the list reflects
     // hot-reload additions/removals. (BC-2.16.001)
-    let available_tables = options
-        .table_registry
-        .as_deref()
-        .map_or_else(Vec::new, TableRegistry::registered_tables);
+    //
+    // SEC-003 / ADR-039 / CWE-200: When `options.resolved_spec_map` is `Some` AND
+    // `options.clients` is `Some(orgs)`, filter the global table list to only the
+    // tables whose owning sensor is accessible to the requesting org(s). This prevents
+    // cross-tenant vendor enumeration on the explain path — the same CWE-200 class
+    // that ADR-039 / SEC-001 closed for the E-QUERY-037 error path.
+    //
+    // Single-tenant / `clients=None` / `resolved_spec_map=None` → fall back to
+    // global list (backward-compat rule, identical to SEC-001 rules).
+    let available_tables = if let Some(registry) = options.table_registry.as_deref() {
+        let global_tables = registry.registered_tables();
+
+        // Org-scope filter: apply only when both clients and resolved_spec_map are provided.
+        if options.clients.is_some() && options.resolved_spec_map.is_some() {
+            let org_scope: &[OrgSlug] = options.clients.as_deref().unwrap_or(&[]);
+            let spec_map_ref = options.resolved_spec_map.as_deref();
+
+            // Build sensor_by_table snapshot for the filter helper.
+            // We re-use the registry's internal data via registered_sensor_ids / registered_tables.
+            // The filter helpers expect a HashMap<table_name → sensor_id>; reconstruct from
+            // registered_sensor_ids and the registry's per-table sensor lookup.
+            let sensor_by_table: HashMap<String, String> = global_tables
+                .iter()
+                .filter_map(|t| registry.sensor_for_table(t).map(|s| (t.clone(), s)))
+                .collect();
+
+            let org_visible_sensors = filter_to_org_visible_sensors(
+                registry.registered_sensor_ids(),
+                Some(org_scope),
+                spec_map_ref,
+            );
+            filter_to_org_visible_tables(
+                global_tables,
+                &sensor_by_table,
+                &org_visible_sensors,
+                Some(org_scope),
+                spec_map_ref,
+            )
+        } else {
+            // Single-tenant / no org scope — return global list unchanged.
+            global_tables
+        }
+    } else {
+        Vec::new()
+    };
 
     let result = ExplainResult {
         parsed_mode,

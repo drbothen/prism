@@ -57,6 +57,13 @@ const DID_YOU_MEAN_MAX_NAME_BYTES: usize = 128;
 /// Every table name in `registered` follows the `{sensor_id}_{table_name}` convention
 /// derived from `[[tables]]` entries in the sensor spec. The separator is `_`; callers
 /// that need the sensor prefix can use `sensor_for_table()`.
+///
+/// # API Stability (`#[non_exhaustive]`)
+/// `#[non_exhaustive]` prevents external crates from constructing `TableRegistry`
+/// via struct-literal syntax (callers must use `TableRegistry::new()` or
+/// `TableRegistry::from_snapshot()`). This is the prism-query pub-API-surface
+/// discipline per CLAUDE.md §Conventions and CR-002 (S-3.13 fix-burst).
+#[non_exhaustive]
 pub struct TableRegistry {
     /// Table names currently available (e.g. `"crowdstrike_alerts"`).
     registered: Arc<RwLock<HashSet<String>>>,
@@ -524,8 +531,11 @@ impl Default for TableRegistry {
 ///
 /// The result is `O(N_org_specs)` — computed only at error-construction time.
 ///
+/// `pub(crate)` so that `explain.rs` can reuse this for SEC-003 available_tables
+/// filtering without duplicating logic (ADR-039 reuse rule).
+///
 /// # ADR-039 / SEC-001 / CWE-200
-fn filter_to_org_visible_sensors(
+pub(crate) fn filter_to_org_visible_sensors(
     global_sensor_ids: Vec<String>,
     org_scope: Option<&[OrgSlug]>,
     resolved_spec_map: Option<&HashMap<ResolvedSpecKey, ResolvedSensorSpec>>,
@@ -565,8 +575,11 @@ fn filter_to_org_visible_sensors(
 /// Short-circuit: when `org_scope` is `None` or `resolved_spec_map` is `None`, return
 /// `global_tables` unchanged.
 ///
+/// `pub(crate)` so that `explain.rs` can reuse this for SEC-003 available_tables
+/// filtering without duplicating logic (ADR-039 reuse rule).
+///
 /// # ADR-039 / SEC-001 / CWE-200
-fn filter_to_org_visible_tables(
+pub(crate) fn filter_to_org_visible_tables(
     global_tables: Vec<String>,
     sensor_by_table: &HashMap<String, String>,
     org_visible_sensor_ids: &[String],
@@ -756,6 +769,28 @@ impl TableRegistry {
         })
         .join();
         // Thread has panicked; `registered` lock is now poisoned.
+        registry
+    }
+
+    /// Construct a `TableRegistry` whose `sensor_by_table` RwLock is poisoned.
+    ///
+    /// Mirrors `new_with_poisoned_registered_for_test` but poisons `sensor_by_table`
+    /// instead of `registered`. Used by CR-003 tests that verify the fail-closed
+    /// behavior of `sensor_for_table`, `registered_sensor_ids`, and
+    /// `check_availability_gate` when the `sensor_by_table` lock is poisoned.
+    ///
+    /// CR-003 (S-3.13 fix-burst): actual-poison coverage for `sensor_by_table`.
+    pub(crate) fn new_with_poisoned_sensor_by_table_for_test() -> Self {
+        let registry = Self::new();
+        let sensor_by_table_clone = Arc::clone(&registry.sensor_by_table);
+        let _ = std::thread::spawn(move || {
+            let _guard = sensor_by_table_clone
+                .write()
+                .expect("write lock must be acquirable before poison");
+            panic!("intentional sensor_by_table poison for CR-003 fail-closed coverage");
+        })
+        .join();
+        // Thread has panicked; `sensor_by_table` lock is now poisoned.
         registry
     }
 }

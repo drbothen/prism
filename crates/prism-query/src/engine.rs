@@ -747,6 +747,14 @@ impl QueryEngine {
                 options.table_registry = Some(Arc::clone(registry));
             }
         }
+        // SEC-003: inject resolved_spec_map so that available_tables is filtered to
+        // the requesting org's visible tables (CWE-200 cross-tenant info disclosure fix).
+        // Mirrors the SEC-001 wiring used in execute_inner for sensor fan-out.
+        if options.resolved_spec_map.is_none() {
+            if let Some(ref spec_map) = self.resolved_spec_map {
+                options.resolved_spec_map = Some(Arc::clone(spec_map));
+            }
+        }
         crate::explain::explain(query_str, options)
     }
 
