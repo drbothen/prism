@@ -1676,6 +1676,110 @@ mod tests {
         );
     }
 
+    /// BC-2.10.007 v1.8 OBS-2: WatchdogHeartbeatMissed maps to category "internal",
+    /// retryable: false, upstream_message: null.
+    ///
+    /// WatchdogHeartbeatMissed shares the explicit `|` arm with WatchdogKilled and
+    /// WatchdogRestartLimitExceeded. This test closes the TD-VSDD-059 mutation-coverage hole:
+    /// without it, a mutation dropping HeartbeatMissed from the arm would pass undetected.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_heartbeat_missed_maps_to_internal_category() {
+        let err = PrismError::WatchdogHeartbeatMissed {
+            component: "test-component".to_owned(),
+            elapsed_ms: 5_000,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-2: category must be "internal".
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "WatchdogHeartbeatMissed must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+        );
+
+        // retryable must be false — missed heartbeat is not a transient sensor condition.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "WatchdogHeartbeatMissed must be retryable:false (watchdog supervision failure is not transient)"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "WatchdogHeartbeatMissed upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.8 OBS-2: WatchdogRestartLimitExceeded maps to category "internal",
+    /// retryable: false, upstream_message: null.
+    ///
+    /// WatchdogRestartLimitExceeded shares the explicit `|` arm with WatchdogKilled and
+    /// WatchdogHeartbeatMissed. This test closes the TD-VSDD-059 mutation-coverage hole:
+    /// without it, a mutation dropping RestartLimitExceeded from the arm would pass undetected.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_restart_limit_exceeded_maps_to_internal_category() {
+        let err = PrismError::WatchdogRestartLimitExceeded {
+            component: "test-component".to_owned(),
+            count: 3,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-2: category must be "internal".
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "WatchdogRestartLimitExceeded must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+        );
+
+        // retryable must be false — restart limit exceeded is not a transient sensor condition.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "WatchdogRestartLimitExceeded must be retryable:false (restart limit exceeded is not transient)"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "WatchdogRestartLimitExceeded upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
     // ── BC-2.10.007 v1.8 catch-all guard: genuinely unmapped variants → "upstream_error" ──
 
     /// BC-2.10.007 catch-all arm: genuinely unmapped PrismError variants fall to
