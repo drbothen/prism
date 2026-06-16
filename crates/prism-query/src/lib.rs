@@ -95,6 +95,10 @@ pub mod cache_key;
 pub mod cursor;
 pub mod invalidation;
 
+// ── S-DEMO-ENRICHMENT-PIVOT-001 modules ───────────────────────────────────────
+// Infusion enrichment UDF registration for DataFusion SessionContext (BC-2.19.001).
+pub mod infusion_udf;
+
 // ── S-3.07 modules ────────────────────────────────────────────────────────────
 pub mod dry_run;
 pub mod safety_check;
