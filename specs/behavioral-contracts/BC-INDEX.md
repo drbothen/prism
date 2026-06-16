@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.61"
+version: "6.62"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T00:00:00Z
+timestamp: 2026-06-16T12:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -147,7 +147,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Interface | CAP-009 | P0 | active |
 | BC-2.10.005 | notifications/tools/list_changed on Config Reload | 10 - MCP Interface | CAP-005, CAP-009 | P0 | draft |
 | BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | active |
-| BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active (v1.7 — D-1187 2026-06-16: S-5.02 F-4 adjudication — `"internal"` added as 9th category enum value for Prism-side infrastructure failures (Internal/Io/Storage*); internal-vs-upstream_error decision rule + 4 test vectors + Implementer Code Follow-Up section; no code change this burst — code follow-up required in crates/prism-mcp/src/error_mapping.rs) |
+| BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active (v1.8 — D-1191 2026-06-16: S-5.02 PR #191 OBS-1+OBS-2 adjudication — E-QUERY-032/SensorNotRegisteredForOrg → category "permission"/original_params_valid:true; WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded → category "internal"/original_params_valid:true; +2 canonical test vectors; §Implementer Code Follow-Up restructured into F-4/OBS-1/OBS-2 sections; IMPLEMENTER CODE FOLLOW-UP PENDING in S-5.02 feature branch) |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft |
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.62 (2026-06-16, D-1191 BC-2.10.007 v1.8 OBS-1+OBS-2 adjudication burst):** state-manager | BC-2.10.007 inline row: v1.7→v1.8 — S-5.02 PR #191 OBS-1+OBS-2 adjudication (product-owner PO amendment): (1) OBS-1 PINNED — E-QUERY-032/SensorNotRegisteredForOrg moves from "validation"/original_params_valid:false to "permission"/original_params_valid:true; cross-org sensor access is a scoping/permission denial, not a parameter format error; LLM-agent strategy correction: "fix your parameters" → "verify sensor registration under the target org". (2) OBS-2 PINNED — WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded mapped to "internal"/original_params_valid:true; verified WatchdogKilled IS reachable on user-visible MCP tool paths via query execution path (watchdog::check_query → ? propagation → tool handler); catch-all "upstream_error" was semantically wrong (directs LLM to investigate sensor health for a Prism-internal resource constraint). +2 canonical test vectors added (SensorNotRegisteredForOrg→permission/true; WatchdogKilled→internal/true). §Implementer Code Follow-Up restructured into F-4/OBS-1/OBS-2 sections with exact match-arm code and test names. IMPLEMENTER CODE FOLLOW-UP PENDING in S-5.02 feature branch. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.61→v6.62.
 
 **v6.61 (2026-06-16, D-1187 spec-reconciliation burst):** state-manager | BC-2.10.007 inline row: v1.6→v1.7 — S-5.02 F-4 adjudication (PR #191): `"internal"` added as 9th category enum value for Prism-side infrastructure/invariant failures (PrismError::Internal, Io, Storage*) — distinct from `"upstream_error"` (genuine sensor boundary failures). Added canonical category decision rule table (9 rows, LLM-agent strategy column), internal-vs-upstream_error critical distinction, 4 test vectors (Internal→internal, Io→internal, StorageWriteFailed→internal, SensorHttpError→upstream_error regression guard), and §Implementer Code Follow-Up (F-4) specifying required changes to error_mapping.rs + error_response.rs. This is a semantic contract change; no code change in this burst — code follow-up required at S-5.02 implementation time. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.60→v6.61.
 

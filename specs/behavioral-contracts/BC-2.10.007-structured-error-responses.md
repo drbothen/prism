@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-16"  # v1.7: Add "internal" category (9th enum value) for Prism-side infrastructure failures (Internal, Io, Storage*) — distinct from "upstream_error" (sensor failures). Fixes F-4 semantic misclassification from PR #191.
+modified: "2026-06-16"  # v1.8: Pin E-QUERY-032/SensorNotRegisteredForOrg to category "permission"/original_params_valid:true (OBS-1, PR #191). Pin Watchdog* reachability rationale and category "internal" mapping (OBS-2, PR #191).
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -127,16 +127,38 @@ The `category` field communicates the ERROR ORIGIN and correct LLM-agent respons
 | `"authentication"` | Credential invalid or identity validation failure | Re-authenticate; check credential_ref | `AuthTokenExpired`, `AuthTokenInvalid`, `InvalidOrgSlug`, `InvalidAnalystId`, `InvalidClientId` |
 | `"validation"` | Caller-supplied parameters structurally or semantically invalid | Fix the tool call parameters | `QueryParseFailed`, `McpParameterInvalid`, `QueryLimitExceeded`, `QuerySecurityLimitExceeded`, `UnknownSourceTable`, `AliasNotFound` |
 | `"not_found"` | Named resource does not exist (reserved for future use; currently expressed as validation) | Verify resource name | (future: dedicated not-found variants) |
-| `"permission"` | Access denied by feature flag, capability check, token lifecycle, or safety boundary | Inspect permissions; use confirmation flow | `CapabilityDenied`, `FeatureFlagEvalError`, `Unauthorized`, `TokenExpired`, `TokenAlreadyConsumed`, `McpPromptInjectionDetected`, `WriteRequiresClientId` |
+| `"permission"` | Access denied by feature flag, capability check, token lifecycle, safety boundary, or org-scoping isolation. `original_params_valid: true` for all permission denials — the request parameters were structurally correct; access was refused. | Inspect permissions; use confirmation flow; for org-scoping errors, verify the sensor is registered under the target org | `CapabilityDenied`, `FeatureFlagEvalError`, `Unauthorized`, `TokenExpired`, `TokenAlreadyConsumed`, `McpPromptInjectionDetected`, `WriteRequiresClientId`, **`SensorNotRegisteredForOrg` (E-QUERY-032)** |
 | `"upstream_error"` | Genuine sensor or third-party service failure (Prism reached the sensor; the sensor failed) | Investigate sensor health; try a different sensor or time range | `SensorHttpError`, `SensorTimeout`, `SensorResponseParse`, `OcsfNormalizationFailed` and related OCSF variants |
 | `"configuration"` | Prism operator configuration issue (not the API caller's problem) | Escalate to operator to fix prism.toml / sensor spec | `ConfigNotFound`, `ConfigParseFailed`, `ConfigValidationFailed`, `ConfigSnapshotStale`, `SpecNotFound`, `SpecValidationFailed` |
 | `"safety"` | Safety boundary violation (injection, exfiltration, contamination) | Do not retry; report to operator | `SafetyContextContamination`, `SafetyDataExfiltration` |
-| `"internal"` | Prism-side infrastructure or invariant failure — sensor was NEVER reached; Prism's own storage, I/O, or internal invariant failed | Do not retry; escalate to Prism operator for infrastructure investigation | `PrismError::Internal`, `PrismError::Io`, `StorageOpenFailed`, `StorageWriteFailed`, `StorageReadFailed`, `StorageDomainNotFound`, `StorageKeyNotFound`, `StorageLockHeld`, `StorageHealthCheckFailed`, `SchemaMismatch`, `StorageBatchFailed` |
+| `"internal"` | Prism-side infrastructure or invariant failure — sensor was NEVER reached; Prism's own storage, I/O, or internal invariant failed. Also covers watchdog-triggered query termination (see Watchdog note below). | Do not retry; escalate to Prism operator for infrastructure investigation | `PrismError::Internal`, `PrismError::Io`, `StorageOpenFailed`, `StorageWriteFailed`, `StorageReadFailed`, `StorageDomainNotFound`, `StorageKeyNotFound`, `StorageLockHeld`, `StorageHealthCheckFailed`, `SchemaMismatch`, `StorageBatchFailed`, **`WatchdogKilled`, `WatchdogHeartbeatMissed`, `WatchdogRestartLimitExceeded`** |
 
 **Critical distinction — "internal" vs "upstream_error":**
 
 - `"upstream_error"`: Prism successfully dispatched a request to the sensor API; the sensor or network between Prism and the sensor is the fault domain.
-- `"internal"`: Prism itself failed before or independent of any sensor dispatch; the fault domain is Prism's own runtime (disk, memory, RocksDB, invariant violation). Telling an LLM agent that an `Io` or `StorageWriteFailed` error is an "upstream_error" is semantically incorrect — the sensor was never involved.
+- `"internal"`: Prism itself failed before or independent of any sensor dispatch; the fault domain is Prism's own runtime (disk, memory, RocksDB, invariant violation, or watchdog termination). Telling an LLM agent that an `Io` or `StorageWriteFailed` error is an "upstream_error" is semantically incorrect — the sensor was never involved.
+
+**Pinned adjudication — OBS-1 (PR #191): E-QUERY-032 / SensorNotRegisteredForOrg category = "permission", original_params_valid = true:**
+
+The adversary flagged the current implementation's mapping of `SensorNotRegisteredForOrg` to `category: "validation" / original_params_valid: false` as semantically imprecise. This BC pins the production-grade-correct mapping:
+
+- **Category: `"permission"`** — Cross-org sensor isolation is a scoping/permission denial, not a parameter validation failure. The analyst's org slug and sensor name are both structurally valid. The sensor exists and is registered — just not under the requesting org. The fault domain is the org-scoping permission boundary, not the caller's parameter shape. Parallel to `CapabilityDenied`: the capability (sensor access for that org) was denied. The LLM-agent strategy for "permission" errors — "inspect permissions; verify sensor is registered under the target org" — is exactly right for this error. The "validation" strategy — "fix the tool call parameters" — is wrong and misleading, because the parameters *are* correct.
+- **original_params_valid: true** — The org slug and sensor name were syntactically and structurally valid. The request was denied at the scoping layer, not at parameter validation. Parallel to `ClientNotFound` (configuration/original_params_valid:true) and all other permission variants. "validation"/false would tell the LLM agent to fix its parameters, when the correct action is to check sensor registration for that org.
+- **No change to the error code (E-QUERY-032) or JSON-RPC code (-32602 INVALID_PARAMS)**: The JSON-RPC code remains -32602 and the error code remains E-QUERY-032 as defined in error-taxonomy.md and enforced by BC-3.2.001 postcondition 5. The BC-2.10.007 `category` field and `original_params_valid` field are STRUCTURED CONTENT fields, not JSON-RPC protocol fields — they can differ from the JSON-RPC code. (-32602 INVALID_PARAMS is the closest JSON-RPC code for a scoping denial; -32002 FORBIDDEN would be semantically closer but the taxonomy and BC-3.2.001 have already fixed the JSON-RPC code at -32602. The `category` field is the primary semantic signal for LLM agents.)
+
+**This changes the current implementation**, which maps `SensorNotRegisteredForOrg` to `category: "validation" / original_params_valid: false` (grouped with `QueryParseFailed`, `McpParameterInvalid`, etc. in the validation arm of `prism_error_to_structured_call_result`). See §Implementer Code Follow-Up (OBS-1) below.
+
+**Pinned adjudication — OBS-2 (PR #191): Watchdog* variants — reachability and category:**
+
+The adversary flagged that `WatchdogKilled`, `WatchdogHeartbeatMissed`, and `WatchdogRestartLimitExceeded` fall to the catch-all `"upstream_error"` in `prism_error_to_structured_call_result`.
+
+**Reachability verdict: WatchdogKilled IS reachable on user-visible MCP tool paths.** Verified by reading `crates/prism-storage/src/watchdog.rs::check_query()` (the production emission site) and the MCP tool dispatch chain. The background watchdog monitor cancels query `CancellationToken` instances; the `?` propagation in the query execution path surfaces this as `PrismError::WatchdogKilled` to the MCP tool handler, which routes it through `prism_error_to_structured_call_result`. A tool call that triggers memory-watchdog termination will produce a user-visible structured error with this variant.
+
+**WatchdogHeartbeatMissed and WatchdogRestartLimitExceeded:** No production emission sites found in the worktree outside of `prism-storage/src/watchdog.rs` itself (the spawn_monitor task) and tests. These are process-supervision signals that currently do not propagate into the MCP tool response path. However, since they share the same E-WATCH-* taxonomy and the same "Prism-side process supervision failure" fault domain, they are categorized identically to `WatchdogKilled` for forward compatibility.
+
+**Category decision: `"internal"`, original_params_valid: true.** Watchdog termination is a Prism-side process supervision failure — the query was killed because Prism's own memory budget was exceeded, not because the sensor failed. Mapping these to `"upstream_error"` is semantically wrong: it directs the LLM agent to investigate sensor health when the problem is Prism's own process memory pressure. `"internal"` correctly signals "Prism infrastructure failure; escalate to operator." The catch-all `"upstream_error"` is not appropriate here because the fault domain is known and Prism-internal.
+
+**This changes the current implementation** (catch-all `"upstream_error"` for Watchdog*). The existing test `test_CRIT_B_catch_all_category_is_upstream_error` uses `WatchdogKilled` to exercise the catch-all; after the implementer adds an explicit arm for Watchdog* variants, that test's assertion (`"upstream_error"`) must be updated to `"internal"`, and the catch-all test should use a genuinely unmapped future variant (or be repurposed). See §Implementer Code Follow-Up (OBS-2) below.
 
 **Implementer note (F-4 code follow-up required):** The current `error_mapping.rs` maps `PrismError::Internal`, `PrismError::Io`, and all `PrismError::Storage*` variants to the JSON-RPC code `-32000` with a generic message. After this BC amendment, the structured error builder (`error_response.rs`) must set `category: "internal"` for these variants and `category: "upstream_error"` only for sensor-origin failures (`SensorHttpError`, `SensorTimeout`, `SensorResponseParse`, `OcsfNormalizationFailed` and related OCSF variants). See §Implementer Code Follow-Up below.
 
@@ -168,6 +190,8 @@ The `category` field communicates the ERROR ORIGIN and correct LLM-agent respons
 | `PrismError::Io(std::io::Error)` | `category: "internal"`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"` | error (F-4 — internal infra) |
 | `PrismError::StorageWriteFailed { .. }` | `category: "internal"`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"` | error (F-4 — internal infra) |
 | `PrismError::SensorHttpError { .. }` (sensor returns 503) | `category: "upstream_error"`, `retryable: true`, `upstream_message: "<sensor 503 body>"` | error (upstream sensor) |
+| `PrismError::SensorNotRegisteredForOrg { sensor_id: "claroty", org_slug: "demo-org-a" }` | `category: "permission"`, `original_params_valid: true`, `retryable: false`, `source: "prism_mcp"` | error (OBS-1 — org-scoping permission denial) |
+| `PrismError::WatchdogKilled { budget_bytes: 512_000_000 }` | `category: "internal"`, `original_params_valid: true`, `retryable: false`, `upstream_message: null`, `source: "prism_mcp"` | error (OBS-2 — watchdog process supervision) |
 
 See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
 
@@ -185,13 +209,15 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | L2 Edge Cases | DEC-009 |
 | Priority | P0 |
 
-## Implementer Code Follow-Up (F-4)
+## Implementer Code Follow-Up (F-4, OBS-1, OBS-2)
 
-**This section records a required implementer action resulting from this BC amendment (F-4 from PR #191 review). The orchestrator must route this to the implementer after the BC amendment is committed.**
+**This section records required implementer actions resulting from BC amendments. The orchestrator must route these to the implementer after the BC amendment is committed.**
 
-File to change: `crates/prism-mcp/src/error_mapping.rs` (and the structured error builder in `error_response.rs`).
+File to change: `crates/prism-mcp/src/error_mapping.rs` (specifically `prism_error_to_structured_call_result` and its test module).
 
-Required mapping changes — add `category` field population (currently the code emits no `category` into structured content for most arms; the structured error builder must read category from the mapping output):
+### F-4 (status: DONE in S-5.02 feature branch)
+
+The F-4 mapping changes (Internal/Io/Storage* → "internal"; SensorHttpError/SensorTimeout/SensorResponseParse/OCSF* → "upstream_error") are already implemented in the S-5.02 feature branch. The category decision rule table in §Category above now documents this as the canonical mapping.
 
 | PrismError variants | Old category (incorrect) | New category (correct) | Rationale |
 |--------------------|--------------------------|------------------------|-----------|
@@ -201,18 +227,72 @@ Required mapping changes — add `category` field population (currently the code
 | `SensorHttpError { .. }`, `SensorTimeout { .. }`, `SensorResponseParse { .. }` | `"upstream_error"` (correct, no change) | `"upstream_error"` | Sensor boundary — Prism dispatched to sensor and sensor failed |
 | OCSF normalization variants (`OcsfField*`, `OcsfProtobuf*`, `OcsfNormalizationFailed`, etc.) | `"upstream_error"` (correct, no change) | `"upstream_error"` | Normalization of sensor-origin data; effectively upstream failure |
 
-Additionally, add a test in `crates/prism-mcp/src/error_mapping.rs` `#[cfg(test)] mod tests` that asserts:
-- `map_prism_error(PrismError::Internal { reason: "test".into() })` produces category `"internal"` (not `"upstream_error"`)
-- `map_prism_error(PrismError::Io(std::io::Error::new(std::io::ErrorKind::Other, "disk")))` produces category `"internal"`
-- `map_prism_error(PrismError::StorageWriteFailed { .. })` produces category `"internal"`
-- `map_prism_error(PrismError::SensorHttpError { .. })` produces category `"upstream_error"` (regression guard)
+### OBS-1 (status: REQUIRED — implementer follow-up needed)
 
-Note: the `category` field is in the structured error builder, not in `map_prism_error` directly. The implementer must thread category derivation through `error_response.rs` using the same variant match, or extract category as a second return value alongside `(code, message)` from `map_prism_error`.
+**Change:** In `prism_error_to_structured_call_result`, move `PrismError::SensorNotRegisteredForOrg { .. }` OUT of the "validation" arm (lines 846-872 in the S-5.02 branch) and into the "permission" arm (lines 920-942), with `original_params_valid: true`.
+
+The "validation" arm currently has:
+```rust
+PrismError::SensorNotRegisteredForOrg { .. }
+```
+grouped with `QueryParseFailed`, `McpParameterInvalid`, etc., and sets `original_params_valid: false`.
+
+After this change, `SensorNotRegisteredForOrg` must be added to the permission arm:
+```rust
+PrismError::CapabilityDenied { .. }
+| PrismError::FeatureFlagEvalError { .. }
+// ... (existing permission variants)
+| PrismError::SensorNotRegisteredForOrg { .. }  // ← ADD HERE
+```
+with `original_params_valid: true` (already set by the permission arm).
+
+The suggestion text in the permission arm should be updated (or a dedicated sub-arm created) to include org-scoping guidance: "Check sensor registration for the target org. Verify the sensor is configured under the requested org slug in prism.toml."
+
+**JSON-RPC code (-32602) and error code (E-QUERY-032) are UNCHANGED** — only the structured content `category` and `original_params_valid` fields change.
+
+**Tests to add:** A new test `test_BC_2_10_007_sensor_not_registered_for_org_category_is_permission` asserting:
+- `prism_error_to_structured_call_result(PrismError::SensorNotRegisteredForOrg { sensor_id: "claroty", org_slug: "demo-org-a" })` produces `category: "permission"`, `original_params_valid: true`, `retryable: false`.
+
+**Tests to update:** If any existing test asserts `category: "validation"` for `SensorNotRegisteredForOrg`, update to assert `category: "permission"`.
+
+### OBS-2 (status: REQUIRED — implementer follow-up needed)
+
+**Change:** In `prism_error_to_structured_call_result`, add an explicit arm for `WatchdogKilled`, `WatchdogHeartbeatMissed`, and `WatchdogRestartLimitExceeded` producing `category: "internal"`, `original_params_valid: true`, `retryable: false`. These must NOT fall to the catch-all.
+
+```rust
+// ── Process-supervision watchdog failures → category "internal" ─────────
+// BC-2.10.007 v1.8 §OBS-2: Watchdog variants are Prism-side process supervision
+// failures. WatchdogKilled is reachable on user-visible MCP tool paths via the
+// query execution path (prism-storage::watchdog::check_query → ? propagation →
+// tool handler → prism_error_to_structured_call_result). Category "internal"
+// is correct: the fault domain is Prism's own memory budget, not a sensor failure.
+// Catch-all "upstream_error" was semantically wrong — it directed LLM agents to
+// investigate sensor health for a Prism-internal resource constraint.
+PrismError::WatchdogKilled { .. }
+| PrismError::WatchdogHeartbeatMissed { .. }
+| PrismError::WatchdogRestartLimitExceeded { .. } => VariantMeta {
+    category: "internal",
+    suggestion: "Prism process supervision failure (memory or watchdog). Contact Prism operator; see audit log for details.",
+    retryable: false,
+    retry_after_seconds: None,
+    original_params_valid: true,
+    source_override: None,
+    upstream_message: None,
+    ec_code_override: None,
+},
+```
+
+**Tests to add:**
+- `test_BC_2_10_007_watchdog_killed_category_is_internal`: asserts `WatchdogKilled { budget_bytes: 512_000_000 }` → `category: "internal"`, `retryable: false`, `upstream_message: null`.
+
+**Tests to update:**
+- `test_CRIT_B_catch_all_category_is_upstream_error` currently uses `WatchdogKilled` to exercise the catch-all path and asserts `category: "upstream_error"`. After the explicit arm is added, this test will break. Update it to: (a) use a genuinely unmapped variant (the `PrismError::Infusion(_)` catch-all delegating variant works, or any newly-added future variant if available), and (b) change the assertion to confirm the new explicit arm maps `WatchdogKilled` to `"internal"` (or retire the WatchdogKilled assertion from the catch-all test and add the new dedicated test above instead).
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | PR-191-OBS1-OBS2-adjudication | 2026-06-16 | product-owner | Semantic pin (OBS-1, OBS-2, PR #191): (1) OBS-1 — pinned E-QUERY-032/SensorNotRegisteredForOrg to `category: "permission"` / `original_params_valid: true`. Previous impl used `"validation"` / `false`, which was semantically wrong: cross-org sensor access is a scoping/permission denial, not a parameter format error. The org slug and sensor name are structurally valid; access was refused at the org-scoping boundary. Updated §Category decision rule "permission" row to include SensorNotRegisteredForOrg explicitly. Added OBS-1 canonical test vector. Added §Implementer Code Follow-Up (OBS-1) with exact match-arm change and new test. (2) OBS-2 — pinned WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded to `category: "internal"` / `original_params_valid: true`. Verified reachability: WatchdogKilled IS reachable on user-visible MCP tool paths via query execution → watchdog::check_query() → ? propagation → tool handler → prism_error_to_structured_call_result. Category "internal" is correct (Prism-side process supervision fault, not sensor failure). Updated §Category "internal" row to enumerate Watchdog* variants. Added OBS-2 canonical test vector. Added §Implementer Code Follow-Up (OBS-2) with explicit arm code and test_CRIT_B_catch_all_category_is_upstream_error update instructions. Both OBS-1 and OBS-2 require implementer follow-up in the S-5.02 feature branch. |
 | 1.7 | PR-191-F4-adjudication | 2026-06-16 | product-owner | Semantic fix (F-4, PR #191): added `"internal"` as 9th legal category value for Prism-side infrastructure/invariant failures (`PrismError::Internal`, `Io`, `Storage*`). "upstream_error" is now reserved for genuine sensor/third-party boundary failures only. Added canonical category decision rule table (9 rows, LLM-agent strategy column). Added 4 test vectors covering Internal/Io/Storage→internal and SensorHttpError→upstream_error. Added §Implementer Code Follow-Up (F-4) specifying exact mapping changes required in `error_mapping.rs` / `error_response.rs`. This is a semantic contract change (enum grows by one value); existing implementations emitting "upstream_error" for Prism-internal failures must be updated. |
 | 1.6 | S-5.02-red-gate-clarification | 2026-06-14 | product-owner | Contract clarification (not a semantic change): aligned `retry_after_seconds` wiring with actual `PrismError::SensorRateLimited` shape (`{ sensor: String, retry_after_ms: u64 }` — required u64, not `Option<u64>`; field `sensor` not `sensor_id`). Replaced v1.5's `Option<u64>` / `None` framing with explicit table: SensorRateLimited ALWAYS produces non-null `retry_after_ms / 1000`; all other variants produce JSON `null`. Added `to_error_data_with_retry` helper contract. Updated `retry_after_seconds` field-spec row to distinguish rate-limit vs non-rate-limit cases. External JSON contract unchanged (field always present, null-not-absent). No code change required — the code shape was already correct; the BC was the imprecise artifact. |
 | 1.5 | S-5.02-pre-TDD-reconciliation | 2026-06-14 | product-owner | R3 reconciliation: Locked canonical ToolError shape as NESTED (not flat) with complete 9-field `structuredContent.error` object specification. Fields: code, message, category, retryable, retry_after_seconds (always-present, null-not-absent), suggestion, source, original_params_valid, upstream_message. Added `_meta.trust_level: "internal"` spec. Added 429 wiring note: SensorError::RateLimited → PrismError::SensorRateLimited { retry_after_ms } → retry_after_seconds (ms/1000); implementer must add explicit SensorRateLimited arm in map_prism_error and wire retry_after_ms through error_response.rs. Story-spec flat-7-field framing superseded by this BC's nested shape. |

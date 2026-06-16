@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.406"
+version: "v2.407"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T10:00:00Z
+timestamp: 2026-06-16T12:00:00Z
 phase: 3
 total_stories: 200
 total_active_bcs: 222
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1191 BC-2.10.007 v1.8 OBS-1+OBS-2 adjudication — STORY-INDEX v2.406→v2.407 (2026-06-16):** (POL-11/POL-32 changelog row) BC-2.10.007 v1.7→v1.8 committed to .factory (PO amendment, PR #191 OBS-1+OBS-2): (1) OBS-1: E-QUERY-032/SensorNotRegisteredForOrg category "validation"/original_params_valid:false → "permission"/original_params_valid:true — cross-org sensor access is a permission denial, not a parameter validation failure. (2) OBS-2: WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded → category "internal"/original_params_valid:true — Prism-side process supervision failure, not sensor failure. +2 canonical test vectors. §Implementer Code Follow-Up restructured F-4/OBS-1/OBS-2. BC-INDEX v6.61→v6.62. STORY-INDEX story-row versions UNCHANGED (S-5.02 story BC-2.10.007 pin stays v1.7 — will re-sync to v1.8 in the upcoming S-5.02 OBS-1/OBS-2 implementer follow-up burst). PIVOT-001 PR #189 pass-1 @5553cc91 CLEAN(strict) streak 1/3 recorded. develop_head UNCHANGED c3ecf6c8. total_stories 200 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.406→v2.407.
 
 - **D-1190 taxonomy-reconciliation + S-5.02/PIVOT-001 PR-LEVEL adjudication — STORY-INDEX v2.405→v2.406 (2026-06-16):** (POL-11/POL-32 changelog row) error-taxonomy v1.82→v1.83 committed to .factory: OBS-1 E-SENSOR-020 row added (`PrismError::SensorRateLimited`; BC-2.10.007 `retry_after_seconds` non-null u64); OBS-2 E-SENSOR-001/002/003 prose ratified to authoritative error.rs Display strings (no code change; ratify-prose). S-5.02 PR #191 adversary pass-1 CLEAN(PR-merge)=yes — OBS-1/OBS-2 CLOSED via taxonomy v1.83; OBS-3 (`to_error_data_with_retry` production-wiring) IN FLIGHT @82e87c49. 3 PIVOT-002-gate security drift items registered: DRIFT-PIVOT-UDFNAME-VALIDATION-001 (SEC-001 CWE-20), DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 (SEC-002 CWE-200), DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (SEC-003 CWE-209). 2 additional drift items: DRIFT-ESENSOR004-OVERLAP-001 (taxonomy incidental; PO adjudication), DRIFT-ORCH-AGENT-WORKTREE-READ-001 (process-gap; extends DRIFT-ORCH-ADVERSARY-TUPLE-001 to all feature-code-reading dispatches). Story row versions UNCHANGED (no story spec edits this burst). error_taxonomy_version 1.82→1.83. STORY-INDEX v2.405→v2.406.
 
