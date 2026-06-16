@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.825"
+version: "7.837"
 status: current
-timestamp: 2026-06-15T00:00:00Z
+timestamp: 2026-06-16T16:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -12,7 +12,7 @@ timestamp: 2026-06-15T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1182 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1181 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1182 below are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
-> develop HEAD `09925bbe` (docs(CLAUDE.md): refresh factory-artifacts push policy + BC-2.16.002 catalog label + frozen-HEAD streak rule; D-1178 burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1182 burst). STATE v7.825.
+> develop HEAD `1b2e9a31` (feat(S-DEMO-ENRICHMENT-PIVOT-001): enrichment chain merged; D-1192 burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1194 burst). STATE v7.837.
 
 ---
 
@@ -100,7 +100,7 @@ A fresh session with NO prior context runs these steps in order before taking an
 ```bash
 git log --oneline -1 origin/develop
 ```
-Expected: `09925bbe` (or newer if a lane merged since D-1182).
+Expected: `1b2e9a31` (or newer if a lane merged since D-1194).
 
 **Step 3.** Verify each worktree HEAD against PINNED STATE below, AND confirm all 4 branches exist on origin:
 ```bash
@@ -129,7 +129,7 @@ gh pr view 190  # LAUNCHER — expect: OPEN, base develop, head 8e183f03
 
 | Artifact | Value | Notes |
 |----------|-------|-------|
-| develop HEAD | `09925bbe` | docs(CLAUDE.md) commit 2026-06-15; D-1178. Unchanged through D-1182. |
+| develop HEAD | `1b2e9a31` | feat(S-DEMO-ENRICHMENT-PIVOT-001) commit 2026-06-16; D-1192. Unchanged through D-1194. |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
 | S-DEMO-004 worktree | REMOVED | feature/S-DEMO-004 DELETED — cleaned post-merge; PR #188 MERGED develop@7241f5ef |
 | S-5.02 worktree HEAD | `ea06ff52` | feature/S-5.02 — PUSHED to origin @ea06ff52; story v1.8; BC-2.10.011 v1.6; LOCAL CONVERGED 3/3 (BC-5.39.001 D-779); demo evidence IN FLIGHT |
@@ -292,17 +292,17 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.825 | This snapshot (D-1182 comprehensive zero-context snapshot; develop_head UNCHANGED 09925bbe; all 4 branches pushed to origin) |
-| BC-INDEX | v6.60 | active 235 / draft 2 / retired 6; total 250; BC-2.19.001 v1.7 (D-1181 two-phase regression fix); BC-2.10.011 v1.6 |
-| STORY-INDEX | v2.398 | 200 stories; PIVOT-001 v1.10 (validators wired; EC-006/EC-007; rg=7); LAUNCHER v2.8 (SEC-001 closed); S-5.02 v1.8 (BC-2.10.011 v1.6); S-3.13 v1.15/rg22 (LOCAL CONVERGED) |
-| error-taxonomy | v1.81 | E-INFUSE-007 (PIVOT-001 HIGH-1 UDF-registration failure); E-QUERY-037 boxed emitter + strsim |
+| STATE.md | v7.837 | D-1194 burst; develop_head 1b2e9a31; S-5.02 v1.10; S-3.13 rebased @148ed284 streak 1/3 |
+| BC-INDEX | v6.63 | active 235 / draft 2 / retired 6; total 250; BC-2.10.007 v1.8 (D-1191); BC-2.10.011 v1.6 |
+| STORY-INDEX | v2.410 | 201 stories; S-5.02 v1.10 (D-1194); S-3.13 v1.15 rebased @148ed284; PIVOT-001 v1.12 MERGED; LAUNCHER v2.10 MERGED |
+| error-taxonomy | v1.84 | E-AUTH-001/002/003 collision documented; E-AUTH-010/011/020 ratified; E-INFUSE-007 FORWARD-RESERVED |
 | ARCH-INDEX | v2.133 | — |
-| VP-INDEX | v1.79 | 158 registered |
+| VP-INDEX | v1.79 | 157 registered |
 | prd | v1.12 | — |
 | policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes |
 | prismql-grammar | v1.1 | enrich function-call form |
-| develop HEAD | `09925bbe` | docs(CLAUDE.md) commit 2026-06-15 D-1178; UNCHANGED through D-1182 |
-| Open PRs | PR #189 + PR #190 | PR #189 OPEN (PIVOT-001 v1.10 @e87e44ea; pr-reviewer APPROVE + security CLEAR; PR-LEVEL 0/3; evidence-report rg5→rg7 fix pending); PR #190 OPEN (LAUNCHER v2.8 @8e183f03; pr-reviewer APPROVE + security CLEAR; PR-LEVEL 0/3; evidence-label v2.7→v2.8 FIXED @8e183f03) |
+| develop HEAD | `1b2e9a31` | feat(S-DEMO-ENRICHMENT-PIVOT-001) commit 2026-06-16 D-1192; UNCHANGED through D-1194 |
+| Open PRs | PR #191 | PR #191 OPEN (S-5.02 @d0942825; PR-LEVEL 0/3 re-gate NEXT on frozen HEAD d0942825; story v1.10 committed). PR #189+#190 MERGED. |
 
 ### MERGE COORDINATION (critical — engine.rs conflict zone)
 
@@ -347,7 +347,7 @@ After all 4 active lanes merge, the queued sequence (per `.factory/objectives/mu
 |-------|-------|
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — T1–T10+T4-A DONE. T11 (LAUNCHER) PR #190 OPEN (PR-LEVEL 0/3 re-pass IN FLIGHT). PIVOT-001 PR #189 OPEN (PR-LEVEL 0/3 re-pass IN FLIGHT). S-3.13 v1.15 LOCAL CONVERGED 3/3. S-5.02 @ea06ff52 LOCAL CONVERGED 3/3. |
-| **develop HEAD** | `09925bbe` (docs(CLAUDE.md) 2026-06-15 D-1178; UNCHANGED through D-1181) |
+| **develop HEAD** | `1b2e9a31` (feat(S-DEMO-ENRICHMENT-PIVOT-001) 2026-06-16 D-1192; UNCHANGED through D-1194) |
 | **STATE version** | v7.825 |
 | **BC-INDEX version** | v6.60 (total 250; active 235; draft 2; retired 6; BC-2.19.001 v1.7 D-1181 two-phase fix; BC-2.10.011 v1.6; BC-2.06.017 v1.10 active; BC-2.06.018 v1.6 active; BC-2.06.019 v1.7 active; BC-2.06.020 v1.6 active) |
 | **STORY-INDEX version** | v2.398 (total_stories 200; S-3.13 v1.15/rg22 LOCAL CONVERGED 3/3 @31b4d147; PIVOT-001 v1.10 @e87e44ea validators wired; LAUNCHER v2.8 @8e183f03 SEC-001 closed; S-5.02 v1.8 @ea06ff52 BC-2.10.011 v1.6 LOCAL CONVERGED 3/3) |
@@ -624,12 +624,12 @@ All LOCAL closures listed in §3 above, plus:
 # 1. Factory worktree health (BLOCKING preflight)
 # Use: vsdd-factory:factory-worktree-health skill
 
-# 2. Verify develop HEAD == 09925bbe (or newer if a lane merged)
+# 2. Verify develop HEAD == 1b2e9a31 (or newer if a lane merged)
 git log --oneline -1 origin/develop
 
 # 3. Verify STATE.md version
 grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
-# Expected: version: "7.825"
+# Expected: version: "7.837"
 
 # 4. Confirm active worktrees (S-DEMO-004 worktree REMOVED post-merge)
 ls /Users/jmagady/Dev/prism/.worktrees/
