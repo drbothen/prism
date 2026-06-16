@@ -702,16 +702,16 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 current_story:
-  story_id: S-DEMO-LAUNCHER-CONSOLIDATION-001
+  story_id: S-DEMO-ENRICHMENT-PIVOT-001
   status: merged
   delivery_step: merged
-  spec_version: "2.10"
-  merged_sha: "c3ecf6c8"
-  merged_pr: 190
+  spec_version: "1.12"
+  merged_sha: "1b2e9a31"
+  merged_pr: 189
   merged_at: "2026-06-16"
-  task_ledger_item: "T11 DONE"
-  resume_at: "D-1186 2026-06-16. T11 DONE (S-DEMO-LAUNCHER-CONSOLIDATION-001 MERGED PR #190 develop@c3ecf6c8). CURRENT POINTER = T12. Parallel lanes: PIVOT-001 @e16f06b6 PR #189 OPEN (0/3 re-gate NEXT on frozen HEAD); S-5.02 @ea06ff52 LOCAL CONVERGED 3/3 (demo evidence IN FLIGHT); S-3.13 @31b4d147 LOCAL CONVERGED 3/3 (PR waits PIVOT-001). See SESSION-HANDOFF §RESUME SNAPSHOT D-1182."
-  note: "D-1186 2026-06-16. S-DEMO-LAUNCHER-CONSOLIDATION-001 MERGED PR #190. develop@c3ecf6c8. STATE v7.829. POL-14 all 5 BCs idempotent. worktree .worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001 still mounted (cleanup pending)."
+  task_ledger_item: "T12 (PIVOT-001 MERGED — S-3.13 unblocked)"
+  resume_at: "D-1192 2026-06-16. PIVOT-001 MERGED PR #189 develop@1b2e9a31. CURRENT POINTER = T12 (next: S-5.02 story bump v1.9→v1.10 + re-gate adversary 3-CLEAN on d0942825; S-3.13 rebase onto develop@1b2e9a31 then PR). POL-14: BC-2.19.001+BC-2.19.003 status: draft→active (legacy sync; lifecycle_status already active; no count change). develop@1b2e9a31. STATE v7.835. Worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 PENDING CLEANUP. Prev current_story: S-DEMO-LAUNCHER-CONSOLIDATION-001 MERGED PR #190 develop@c3ecf6c8 2026-06-16 (D-1186 T11 DONE)."
+  note: "D-1192 2026-06-16. S-DEMO-ENRICHMENT-PIVOT-001 MERGED PR #189. develop@1b2e9a31. STATE v7.835. POL-14 BC-2.19.001+BC-2.19.003 status: draft→active (legacy-field sync; lifecycle_status was already active). worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 still mounted (cleanup pending — note only)."
   last_updated_at: "2026-06-16"
 
 prereq_artifacts:

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.62"
+version: "6.63"
 status: draft
 producer: state-manager
 timestamp: 2026-06-16T12:00:00Z
@@ -245,9 +245,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft — v1.7 (D-1181 2026-06-15: regression fix — v1.6 reword incorrectly re-introduced load_all as PluginInfusionSource constructor; corrected to accurate two-phase model: PARSE PHASE=load_all returns (Vec<InfusionSpec>,Vec<InfusionError>) does NOT construct PluginInfusionSource; RUNTIME PHASE=load_spec_with_runtime builds PluginInfusionSource+attaches as descriptor.source; was v1.6 D-1180 2026-06-15: OBS plugin_id/config carrier-struct precision fix; was v1.5 D-1172 2026-06-14) |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v1.7 |
 | BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
-| BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v1.3 |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
 | BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.20.001 | Log Forwarder Recursive Prevention — Plugin host.log() Writes to Local Sink Only | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.63 (2026-06-16, D-1192 PIVOT-001 post-merge burst):** state-manager | POL-14 legacy-status-field sync: BC-2.19.001 inline row: status draft→active (lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16). BC-2.19.003 inline row: status draft→active (same pattern; lifecycle_status was already active). BC-2.19.001 `status:` frontmatter field: draft→active. BC-2.19.003 `status:` frontmatter field: draft→active. No `lifecycle_status` flip (already active). No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — BC-2.19.001 + BC-2.19.003 had lifecycle_status:active before this burst and were never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.62→v6.63.
 
 **v6.62 (2026-06-16, D-1191 BC-2.10.007 v1.8 OBS-1+OBS-2 adjudication burst):** state-manager | BC-2.10.007 inline row: v1.7→v1.8 — S-5.02 PR #191 OBS-1+OBS-2 adjudication (product-owner PO amendment): (1) OBS-1 PINNED — E-QUERY-032/SensorNotRegisteredForOrg moves from "validation"/original_params_valid:false to "permission"/original_params_valid:true; cross-org sensor access is a scoping/permission denial, not a parameter format error; LLM-agent strategy correction: "fix your parameters" → "verify sensor registration under the target org". (2) OBS-2 PINNED — WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded mapped to "internal"/original_params_valid:true; verified WatchdogKilled IS reachable on user-visible MCP tool paths via query execution path (watchdog::check_query → ? propagation → tool handler); catch-all "upstream_error" was semantically wrong (directs LLM to investigate sensor health for a Prism-internal resource constraint). +2 canonical test vectors added (SensorNotRegisteredForOrg→permission/true; WatchdogKilled→internal/true). §Implementer Code Follow-Up restructured into F-4/OBS-1/OBS-2 sections with exact match-arm code and test names. IMPLEMENTER CODE FOLLOW-UP PENDING in S-5.02 feature branch. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.61→v6.62.
 
