@@ -692,11 +692,14 @@ pub fn build_structured_error_response(
 ///
 /// # Contract
 ///
-/// - MUST be called only with `PrismError::SensorRateLimited { .. }`.
+/// - Intended for use with `PrismError::SensorRateLimited { .. }`. For any other variant,
+///   returns `retry_after_ms = 0` (graceful — no panic). OBS-1 de-footgun fix: the prior
+///   `panic!` on misuse made this public function unsafe to call from match arms that include
+///   non-rate-limited variants.
 /// - Returns `(ErrorData, retry_after_ms_raw_u64)` — the `u64` is the raw millisecond value.
 ///   Callers converting to `retry_after_seconds` MUST apply `.max(1)` (SEC-001 floor).
-/// - Panics with an invariant message for any other variant — this is an intentional
-///   invariant guard enforcing the SensorRateLimited-only contract at the call site.
+/// - For non-`SensorRateLimited` variants: returns `retry_after_ms = 0`.
+///   Callers applying `.max(1)` will produce 1s minimum retry hint.
 ///
 /// # Note
 ///
@@ -706,14 +709,13 @@ pub fn build_structured_error_response(
 /// helper contract, exercised by `test_BC_2_10_007_sensor_rate_limited_retry_after_seconds_ms_to_s_conversion`.
 pub fn to_error_data_with_retry(err: PrismError) -> (ErrorData, u64) {
     // Extract retry_after_ms BEFORE consuming err via map_prism_error.
-    // Panics if called with a non-SensorRateLimited variant (invariant: spec R2).
+    // For non-SensorRateLimited variants, return 0 (no retry hint) — no panic.
+    // OBS-1: the prior panic! was a public-function footgun; 0u64 is the graceful
+    // (ErrorData, u64) equivalent of BC-2.10.007 §111 "return None for other variants".
+    // Callers applying .max(1) floor will produce 1s minimum.
     let retry_after_ms = match &err {
         PrismError::SensorRateLimited { retry_after_ms, .. } => *retry_after_ms,
-        other => panic!(
-            "to_error_data_with_retry called with non-SensorRateLimited variant: {:?} — \
-             this function is only specified for SensorRateLimited (spec R2 v1.7)",
-            std::mem::discriminant(other)
-        ),
+        _other => 0u64, // graceful: no retry hint; callers apply .max(1) SEC-001 floor
     };
     let (code, message) = map_prism_error(err);
     (
@@ -1982,6 +1984,42 @@ mod tests {
             "Genuinely unmapped PrismError variants must fall to catch-all 'upstream_error'; \
              got '{category}'. If this fails after a new explicit arm was added, switch to \
              a different genuinely-unmapped variant."
+        );
+    }
+
+    /// OBS-1 de-footgun: `to_error_data_with_retry` must NOT panic for non-SensorRateLimited
+    /// variants (load-bearing regression guard).
+    ///
+    /// BC-2.10.007 §111 specifies graceful "return None for all other variants" semantics.
+    /// The prior implementation `panic!`'d, making the public function a latent footgun.
+    /// After the fix: non-SensorRateLimited variants return `retry_after_ms = 0` gracefully.
+    ///
+    /// Uses `PrismError::QueryTimeout` as a representative non-SensorRateLimited variant.
+    #[test]
+    fn test_to_error_data_with_retry_non_rate_limited_does_not_panic() {
+        let err = PrismError::QueryTimeout { elapsed_ms: 30_000 };
+        // Must NOT panic — graceful return with retry_after_ms = 0 (no retry hint).
+        let (_error_data, retry_after_ms) = to_error_data_with_retry(err);
+        assert_eq!(
+            retry_after_ms, 0u64,
+            "OBS-1: non-SensorRateLimited variant must return retry_after_ms=0 (graceful, \
+             no panic); got {retry_after_ms}"
+        );
+    }
+
+    /// OBS-1 companion: `to_error_data_with_retry` with `SensorRateLimited` still works
+    /// correctly after the de-footgun refactor (regression guard on the happy path).
+    #[test]
+    fn test_to_error_data_with_retry_rate_limited_still_correct_after_obs1_fix() {
+        let err = PrismError::SensorRateLimited {
+            sensor: "armis".to_owned(),
+            retry_after_ms: 60_000,
+        };
+        let (_error_data, retry_after_ms) = to_error_data_with_retry(err);
+        assert_eq!(
+            retry_after_ms, 60_000u64,
+            "OBS-1 regression guard: SensorRateLimited path must still return retry_after_ms \
+             unchanged after de-footgun fix; got {retry_after_ms}"
         );
     }
 }

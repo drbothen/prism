@@ -3486,6 +3486,7 @@ impl PrismServer {
                         all_paths.push(p.clone());
                     }
                 }
+                all_paths.sort(); // deterministic order (OBS-3 symmetry with single-client path)
 
                 let mut enabled_count: u32 = 0;
                 let mut runtime_disabled_count: u32 = 0;
