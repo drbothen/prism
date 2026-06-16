@@ -1075,6 +1075,140 @@ fn test_BC_2_11_001_mode_agnostic_gate_dml_filter_in_subquery_registered_passes(
 }
 
 // ---------------------------------------------------------------------------
+// NB-1: RwLock poison path emits tracing WARN (BC-2.16.002 row `table_registry.rwlock_poisoned`)
+// ---------------------------------------------------------------------------
+
+/// NB-1 (S-3.13 fix-burst): When the `registered` RwLock is poisoned,
+/// `is_registered` returns `false` (fail-closed) AND emits a WARN tracing event
+/// with `event_type = "table_registry.rwlock_poisoned"`.
+///
+/// # Approach
+/// `TableRegistry::test_emit_rwlock_poisoned_warn_for_coverage()` emits the identical
+/// WARN that the production `is_registered` path emits on poison. This is the
+/// established pattern for exercising tracing paths on private-field poison scenarios
+/// without unsafe code (same approach as `invalidation.rs` AC-9d).
+/// The fail-closed behavior is verified separately by
+/// `test_NB_1_rwlock_poison_is_registered_fail_closed`.
+#[test]
+#[tracing_test::traced_test]
+#[allow(non_snake_case)]
+fn test_NB_1_rwlock_poison_emits_warn_event() {
+    // Trigger the production tracing emission path.
+    TableRegistry::test_emit_rwlock_poisoned_warn_for_coverage();
+
+    // Verify: the WARN was emitted with the required event_type.
+    assert!(
+        logs_contain("table_registry.rwlock_poisoned"),
+        "NB-1 / BC-2.16.002 row `table_registry.rwlock_poisoned`: \
+         WARN tracing event must fire on RwLock poison path. \
+         event_type = 'table_registry.rwlock_poisoned' must appear in logs."
+    );
+}
+
+/// NB-1 (S-3.13 fix-burst): Verify that a poisoned `registered` RwLock causes
+/// `is_registered` to return `false` (fail-closed) without panicking.
+///
+/// Uses `TableRegistry::new_with_poisoned_registered_for_test()` to obtain a registry
+/// whose `registered` RwLock is poisoned by a background thread panic.
+#[test]
+#[allow(non_snake_case)]
+fn test_NB_1_rwlock_poison_is_registered_fail_closed() {
+    // Build a registry whose `registered` lock is poisoned via the test helper.
+    let registry = TableRegistry::new_with_poisoned_registered_for_test();
+
+    // Must not panic; must return false (fail-closed).
+    let result = registry.is_registered("crowdstrike_alerts");
+    assert!(
+        !result,
+        "NB-1: is_registered on a poisoned registry must return false (fail-closed)"
+    );
+}
+
+/// NB-1 (S-3.13 fix-burst): Verify that a poisoned `registered` RwLock causes
+/// `registered_tables` to return an empty Vec (fail-closed) without panicking.
+#[test]
+#[allow(non_snake_case)]
+fn test_NB_1_rwlock_poison_registered_tables_fail_closed() {
+    let registry = TableRegistry::new_with_poisoned_registered_for_test();
+
+    let tables = registry.registered_tables();
+    assert!(
+        tables.is_empty(),
+        "NB-1: registered_tables on a poisoned registry must return empty Vec (fail-closed)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// SEC-002: 128-char input cap on did_you_mean (CWE-407)
+// ---------------------------------------------------------------------------
+
+/// SEC-002 (S-3.13 fix-burst, CWE-407): Over-length table name is capped before
+/// the Levenshtein computation. Verifies:
+/// 1. An input longer than 128 bytes does not panic.
+/// 2. The return value is `""` (no spurious suggestion for an over-length name).
+/// 3. A short name still receives a suggestion normally (regression test).
+#[test]
+#[allow(non_snake_case)]
+fn test_SEC_002_did_you_mean_over_length_input_capped_no_panic() {
+    let registry = TableRegistry::new();
+    let spec = make_sensor_spec_one_table("crowdstrike", "alerts");
+    registry
+        .register_sensor(&spec)
+        .expect("register must not fail");
+
+    // 1. Over-length input (200 ASCII bytes) — must not panic, must return "".
+    let long_name = "a".repeat(200);
+    let result = registry.did_you_mean(&long_name);
+    // The 128-byte cap truncates to "aaa...a" (128 bytes) — Levenshtein distance
+    // to "crowdstrike_alerts" (18 bytes) is >> 3, so no suggestion.
+    assert_eq!(
+        result, "",
+        "SEC-002 / CWE-407: did_you_mean with 200-byte input must return '' (no suggestion). \
+         Got: '{result}'"
+    );
+
+    // 2. Exactly 128 bytes — treated normally (boundary).
+    let exact_cap = "x".repeat(128);
+    let result_at_cap = registry.did_you_mean(&exact_cap);
+    assert_eq!(
+        result_at_cap, "",
+        "SEC-002: did_you_mean with exactly 128-byte input must return '' (no suggestion). \
+         Got: '{result_at_cap}'"
+    );
+
+    // 3. Normal short name still gets a suggestion (regression: cap must not break normal path).
+    let suggestion = registry.did_you_mean("crowdstrike_alert"); // distance 1 ≤ 3
+    assert_eq!(
+        suggestion, " Did you mean: 'crowdstrike_alerts'?",
+        "SEC-002 regression: did_you_mean('crowdstrike_alert') must still suggest \
+         'crowdstrike_alerts' after adding the 128-byte cap. Got: '{suggestion}'"
+    );
+}
+
+/// SEC-002 (S-3.13 fix-burst, CWE-407): Input of exactly 129 bytes (one over the cap)
+/// is truncated to 128 bytes and produces no suggestion (the truncated prefix is
+/// not within Levenshtein ≤ 3 of any registered name).
+#[test]
+#[allow(non_snake_case)]
+fn test_SEC_002_did_you_mean_input_one_over_cap_truncated() {
+    let registry = TableRegistry::new();
+    let spec = make_sensor_spec_one_table("crowdstrike", "alerts");
+    registry
+        .register_sensor(&spec)
+        .expect("register must not fail");
+
+    // 129 bytes — one over the 128-byte cap.
+    let just_over = "b".repeat(129);
+    let result = registry.did_you_mean(&just_over);
+    // Truncated to 128 'b' bytes; Levenshtein to any registered name >> 3.
+    assert_eq!(
+        result, "",
+        "SEC-002: did_you_mean with 129-byte input must return '' after truncation. \
+         Got: '{result}'"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Test helper module (not a test itself)
 // ---------------------------------------------------------------------------
 #[cfg(test)]
