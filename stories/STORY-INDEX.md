@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.411"
+version: "v2.412"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T17:00:00Z
+timestamp: 2026-06-16T20:00:00Z
 phase: 3
 total_stories: 201
 total_active_bcs: 222
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1196 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT — STORY-INDEX v2.411→v2.412 (2026-06-16):** (POL-11/POL-32 changelog row) PR #189 (PIVOT-001 T12) + PR #190 (LAUNCHER T11) MERGED. S-5.02 PR #191 OPEN: story v1.10; worktree HEAD 9763a25a PUSH-PENDING (origin @aa796518); PR-LEVEL streak 2/3 on d1c69e44; OBS-1 ADJUDICATED SPEC-ACCEPTED → DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 registered. S-3.13 PR #192 OPEN: story v1.15; @87c0008e (= worktree; pushed); pr-reviewer APPROVE (0 blocking) + security APPROVE; fix-burst PENDING (NB-1 RwLock poison silent + SEC-002 CWE-407 Levenshtein cap + SEC-001 CWE-200 E-QUERY-037 org-scope assessment). MERGE-COORD: S-5.02 (+4 types) and S-3.13 (+1 type) cumulative EXPECTED=65 at both merged; second-to-merge rebases; orchestrator-owned. OPEN USER SCOPING QUESTION: PIVOT-002/003 demo-blocking vs post-demo (awaiting user confirmation). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.411→v2.412.
 
 - **D-1195 S-3.13 LOCAL OBS-1 CLOSED — STORY-INDEX v2.410→v2.411 (2026-06-16):** (POL-11/POL-32 changelog row) Companion to BC-2.16.001 v1.8 + BC-2.16.007 v1.5 + error-taxonomy v1.85 table-naming convention sweep (dot→underscore). S-3.13 story-row versions UNCHANGED (spec-only fix; story file not edited in this burst). BC-INDEX v6.63→v6.64. S-3.13 feature HEAD 148ed284 UNCHANGED. LOCAL 3-CLEAN re-gate NEXT (reads corrected specs). S-5.02 PR #191 PR-LEVEL cascade pass-1 @d1c69e44 CLEAN(strict) streak 1/3 recorded. develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.410→v2.411.
 
@@ -398,7 +400,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
 | S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
-| S-3.13 | Dynamic Table Availability [**ready v1.15** (D-1179 2026-06-15: MED boot-glue coverage — enrolled 3 boot-integration tests from commit 793c994a into Red Gate table mapped to AC-4/AC-5 (wire_table_registry_swap_listener add/remove/lifecycle paths in crates/prism-bin/src/boot.rs); red_gate_tests 19→22; ACs 7 UNCHANGED; was v1.14: D-1178 2026-06-15: OBS-1 closure — enrolled 2 DML predicate-subquery AC-8 gate tests from commit 12c182b3 into Red Gate table; red_gate_tests 17→19; was v1.13: D-1176/D-1177 2026-06-15: NEW-2 PSI-sweep + DRIFT-S313-DUPTEST-001 CLOSED; was v1.12/v1.11: D-1176/D-1175 Red Gate table accuracy; was v1.10: D-1173 AC-7/Task6-7 re-scoped to S-5.03; ACs 7/RG 14)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
+| S-3.13 | Dynamic Table Availability [**in_progress v1.15** (D-1196 2026-06-16: PR #192 OPEN @87c0008e — pr-reviewer APPROVE 0 blocking + security APPROVE; fix-burst PENDING [NB-1 RwLock poison silent + SEC-002 CWE-407 Levenshtein cap + SEC-001 CWE-200 E-QUERY-037 org-scope]; ci.yml EXPECTED=61; was D-1179 2026-06-15: MED boot-glue coverage — enrolled 3 boot-integration tests into Red Gate table AC-4/AC-5 (wire_table_registry_swap_listener paths in prism-bin/src/boot.rs); red_gate_tests 19→22; ACs 7 UNCHANGED)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026, VP-030, VP-137 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs [v1.11 ADR-018] | prism-operations | 3 | VP-019, VP-141, VP-142 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |
@@ -408,7 +410,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | VP-145 | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework [v1.23 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration [effective-merged-by: S-5.01-FOLLOWUP-MCP-BOOT PR #163 develop@e898c3c9 2026-05-29 — dep gate SATISFIED via metadata reconciliation D-1163] | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
-| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**ready v1.10** (D-1194 2026-06-16: HIGH-1/OBS-1/OBS-2 category reflections + BC-2.10.007 v1.8 pins; code @d0942825; PR-LEVEL adversary 3-CLEAN re-gate NEXT; was v1.9: D-1188 2026-06-16: F-4 closure — EC-012/EC-013 + Architecture Compliance Rule 8 for "internal" category @82e87c49; BC-2.10.007 v1.7 pins synced; was v1.8: D-1181 2026-06-15: at-merge BC-2.10.011 pin sync v1.5→v1.6)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
+| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**ready v1.10** (D-1196 2026-06-16: PR #191 OPEN — worktree HEAD 9763a25a PUSH-PENDING [origin @aa796518]; PR-LEVEL streak 2/3 on d1c69e44; OBS-1 ADJUDICATED SPEC-ACCEPTED → DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001; pr-reviewer APPROVE + security CLEAR on earlier HEADs; ci.yml EXPECTED=64; was D-1194 2026-06-16: HIGH-1/OBS-1/OBS-2 category reflections + BC-2.10.007 v1.8 pins @d0942825)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
 | S-5.03 | Resources and Prompts [**not-started v1.13** (D-1173 2026-06-14: received AC-8/9/10 from S-3.13 re-scope; depends_on S-3.13 added; BC-2.16.007 anchor; ACs 10 / RG 9; was v1.11: prior story-writer materialization)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
 | S-5.04 | Sensor Health Subsystem [depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession; v1.6] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
