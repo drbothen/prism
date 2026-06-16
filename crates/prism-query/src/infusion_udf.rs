@@ -281,21 +281,24 @@ pub fn register_infusion_udfs(
     ctx: &SessionContext,
     descriptors: Vec<InfusionUdfDescriptor>,
 ) -> datafusion::error::Result<()> {
-    // Detect duplicate UDF names before registration (spec-load-time guard).
+    // Detect duplicate UDF names before registration (registration-time defense-in-depth guard).
     // DataFusion's `register_udf` silently overwrites duplicates, which would cause
     // the last-registered UDF for a given name to win — a silent misconfiguration.
     //
-    // Taxonomy: E-INFUSE-002 — "Duplicate UDF name '{udf_name}' in '{path2}' — already
-    // registered from '{path1}'." — spec-validation error BEFORE DataFusion registration.
+    // Taxonomy: E-INFUSE-002 — registration-time defense-in-depth variant.
+    //   File-load-time variant (validate_spec_against / DuplicateUdfName{path1,path2}):
+    //     "Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'."
+    //   This call site has no file paths — it keys on infusion_id instead. The message
+    //   explicitly cites udf_name + infusion_id to satisfy the taxonomy's identity requirements.
     // E-INFUSE-007 is reserved for DataFusion `register_udf`/`register_table_function`
     // CALL failures (i.e., when DataFusion itself rejects the registration at runtime).
     let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     for descriptor in descriptors {
         if !seen_names.insert(descriptor.name.clone()) {
             return Err(datafusion::error::DataFusionError::Execution(format!(
-                "E-INFUSE-002: Duplicate UDF name '{}' in '{}' — already registered from a prior \
-                 infusion spec. Each infusion field must produce a unique UDF name within the \
-                 DataFusion SessionContext.",
+                "E-INFUSE-002: Duplicate UDF name '{}' from infusion '{}' — a UDF with this name \
+                 was already registered from a prior infusion spec. Each infusion field must \
+                 produce a unique UDF name within the DataFusion SessionContext.",
                 descriptor.name, descriptor.infusion_id,
             )));
         }
@@ -407,13 +410,13 @@ mod tests {
     ///   registration failures, not pre-registration duplicate-name guard).
     /// - The error message contains the real `infusion_id` of the colliding spec.
     #[test]
-    fn test_register_infusion_udfs_duplicate_name_emits_e_infuse_007_with_infusion_id() {
+    fn test_register_infusion_udfs_duplicate_name_emits_e_infuse_002_with_infusion_id() {
         let ctx = SessionContext::new();
         let (_, src_a) = CountingSource::new_returning("sentinel-a");
         let (_, src_b) = CountingSource::new_returning("sentinel-b");
 
         // Both descriptors share name "geoip_country" but belong to different infusion specs.
-        // The second duplicate should trigger E-INFUSE-007 citing the *second* descriptor's
+        // The second duplicate should trigger E-INFUSE-002 citing the *second* descriptor's
         // infusion_id (the one that caused the collision).
         let dup_infusion_id = "geoip_v2";
         let descriptors = vec![
@@ -441,6 +444,14 @@ mod tests {
             err_msg.contains(dup_infusion_id),
             "error must contain the real infusion_id '{}' of the colliding spec; got: {err_msg}",
             dup_infusion_id
+        );
+        // OBS-3: registration-time E-INFUSE-002 variant must cite both the udf_name AND the
+        // infusion_id. The file-load-time variant uses {path1}/{path2}; at registration time
+        // no file paths are available so infusion_id is the identity anchor instead.
+        assert!(
+            err_msg.contains("geoip_country"),
+            "error must contain the udf_name 'geoip_country' (registration-time E-INFUSE-002 \
+             variant must cite udf_name per OBS-3); got: {err_msg}"
         );
     }
 

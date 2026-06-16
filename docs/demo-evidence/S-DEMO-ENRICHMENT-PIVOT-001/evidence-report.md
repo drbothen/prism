@@ -241,7 +241,7 @@ The following error-path behaviors are demonstrated by passing tests:
 |------------|---------|--------------|--------|
 | E-INFUSE-004 | `source.type = "maxmind_mmdb"` (unsupported) passed to `load_all` — asserts `InfusionError::UnknownSourceType` variant | `test_BC_2_19_001_load_all_returns_error_for_unsupported_source_type` | PASS |
 | E-INFUSE-003 | Plugin-type spec missing `plugin_ref` field | `test_BC_2_19_001_infusion_loader_rejects_plugin_spec_without_plugin_ref` | PASS |
-| E-INFUSE-007 | Two plugin specs registering the same UDF field name | `test_register_infusion_udfs_duplicate_name_emits_e_infuse_007_with_infusion_id` | PASS |
+| E-INFUSE-002 | Two plugin specs registering the same UDF field name | `test_register_infusion_udfs_duplicate_name_emits_e_infuse_002_with_infusion_id` | PASS |
 | NULL short-circuit | `NULL` input row bypasses `enrich_single` without calling the plugin | `test_null_input_row_short_circuits_to_null_without_calling_enrich_single` | PASS |
 | EC-006 empty `env_var` | `CredentialRef` with empty `env_var` rejected at parse time | `test_BC_2_19_001_parse_rejects_spec_with_empty_env_var_credential` | PASS |
 | EC-007 unknown column ref | `pipe_stage.adds_columns` names a column absent from `spec.fields` | `test_BC_2_19_001_parse_rejects_pipe_stage_with_unknown_column_reference` | PASS |
@@ -266,13 +266,13 @@ Summary [   0.021s] 4 tests run: 4 passed, 607 skipped
 **Command (error-path + NULL short-circuit, prism-query):**
 ```
 cargo nextest run -p prism-query \
-  -E 'test(test_register_infusion_udfs_duplicate_name_emits_e_infuse_007_with_infusion_id) + test(test_null_input_row_short_circuits_to_null_without_calling_enrich_single)'
+  -E 'test(test_register_infusion_udfs_duplicate_name_emits_e_infuse_002_with_infusion_id) + test(test_null_input_row_short_circuits_to_null_without_calling_enrich_single)'
 ```
 
 **Output:**
 ```
 Starting 2 tests across 13 binaries (970 tests skipped)
-    PASS [   0.044s] (1/2) prism-query infusion_udf::tests::test_register_infusion_udfs_duplicate_name_emits_e_infuse_007_with_infusion_id
+    PASS [   0.044s] (1/2) prism-query infusion_udf::tests::test_register_infusion_udfs_duplicate_name_emits_e_infuse_002_with_infusion_id
     PASS [   0.050s] (2/2) prism-query infusion_udf::tests::test_null_input_row_short_circuits_to_null_without_calling_enrich_single
 Summary [   0.053s] 2 tests run: 2 passed, 970 skipped
 ```
