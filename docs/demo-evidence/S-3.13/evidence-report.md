@@ -1,8 +1,8 @@
 # S-3.13 Demo Evidence Report
 
 **Story:** S-3.13 v1.15 — prism-query: Dynamic Table Availability
-**Code under test:** f2b778b8405cbe111f9b5c96a2536e6046ba083c (feature/S-3.13)
-**Evidence date:** 2026-06-15
+**Code under test:** 148ed2847236b0c44199c9b92746d24c746e721d (feature/S-3.13)
+**Evidence date:** 2026-06-16
 **Product type:** CLI/Library (Rust crate — query-engine infrastructure)
 **Recording method:** TEST-EXECUTION (no end-user UI; all acceptance criteria are validated via automated tests against the production codebase)
 **ACs in scope:** AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8 (7 total; AC-7 DEFERRED-TO-S-5.03)
@@ -15,9 +15,9 @@
 | Test Suite | Command | Tests Run | Passed | Failed |
 |------------|---------|-----------|--------|--------|
 | prism-query table_registry | `cargo nextest run -p prism-query -E 'test(table_registry)'` | 20 | 20 | 0 |
-| prism-mcp BC_2_16_001 boundary | `cargo nextest run -p prism-mcp -E 'test(BC_2_16_001)'` | 1 | 1 | 0 |
+| prism-mcp error mapping + AC-6 boundary | `cargo nextest run -p prism-mcp -E 'test(BC_2_11_001)' && cargo nextest run -p prism-mcp -E 'test(BC_2_16_001)'` | 2 | 2 | 0 |
 | prism-bin boot swap-listener | `cargo nextest run -p prism-bin -E 'test(wire_table_registry_swap_listener)'` | 3 | 3 | 0 |
-| **Total** | | **24** | **24** | **0** |
+| **Total** | | **25** | **25** | **0** |
 
 ---
 
@@ -44,7 +44,7 @@ Given `SELECT * FROM crowdstrike_alerts` when CrowdStrike is not configured, the
 |-----------|----------|--------|
 | `test_BC_2_11_001_table_not_available_returns_e_query_037` | `prism-query/src/tests/table_registry_tests.rs` | PASS |
 | `test_BC_2_11_001_no_sensors_configured_returns_e_query_037_empty_list` | `prism-query/src/tests/table_registry_tests.rs` | PASS |
-| `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` | `prism-query/src/tests/table_registry_tests.rs` | PASS |
+| `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` | `prism-mcp/src/error_mapping.rs` | PASS |
 
 **Key assertions:** `PrismError::TableNotAvailable` returned; error contains `"Sensor 'crowdstrike' is not configured"`; MCP error code maps to `-32602` (INVALID_PARAMS, not `-32000` InternalError); no fan-out initiated.
 
@@ -162,7 +162,7 @@ All 22 Red Gate tests enrolled in story v1.15 frontmatter are confirmed passing:
 | 10 | `test_BC_2_16_007_hot_reload_remove_sensor_deregisters_tables` | AC-5 | prism-query | PASS |
 | 11 | `test_BC_2_16_007_hot_reload_schema_change_reregisters` | EC-11-123 | prism-query | PASS |
 | 12 | `test_BC_2_11_001_no_sensors_configured_returns_e_query_037_empty_list` | EC-11-125 | prism-query | PASS |
-| 13 | `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` | AC-2 | prism-query | PASS |
+| 13 | `test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params` | AC-2 | prism-mcp | PASS |
 | 14 | `test_BC_2_16_001_explain_query_lists_only_registered_tables` | AC-6 | prism-query | PASS |
 | 15 | `test_BC_2_16_001_AC6_explain_query_json_response_contains_available_tables` | AC-6 | prism-mcp | PASS |
 | 16 | `test_BC_2_16_001_register_sensor_reregistration_atomic_no_transient_absence` | EC-11-123 | prism-query | PASS |
@@ -194,6 +194,9 @@ cargo nextest run -p prism-query -E 'test(table_registry)'
 
 # AC-6 serialization boundary test in prism-mcp (1 test)
 cargo nextest run -p prism-mcp -E 'test(BC_2_16_001)'
+
+# AC-2 MCP error-code mapping test in prism-mcp (1 test; located in error_mapping.rs, not prism-query)
+cargo nextest run -p prism-mcp -E 'test(e_query_037_mcp)'
 
 # AC-4/AC-5 boot swap-listener wiring tests in prism-bin (3 tests)
 cargo nextest run -p prism-bin -E 'test(wire_table_registry_swap_listener)'
