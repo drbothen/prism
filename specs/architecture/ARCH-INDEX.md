@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.133"
+version: "2.134"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -105,6 +105,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v2.2 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
 | ADR-037 | prism-customer-config Crate Retirement — Superseded by Boot Step 3 OrgRegistry (BC-2.21.001), Spec-Engine Per-Org Overlays (ADR-029), and Per-Client Credential Convention (ADR-032) | ACCEPTED v1.0 | 2026-06-10 | decisions/ADR-037-prism-customer-config-crate-retirement.md |
 | ADR-038 | E-CFG Runtime Namespace Reconciliation — Canonical E-CFG-100..106 Runtime Codes, PrismError Renumber Map, and Client-Not-Found Variant Split | ACCEPTED v1.5 | 2026-06-11 | decisions/ADR-038-e-cfg-runtime-namespace-reconciliation.md |
+| ADR-039 | Org-Scoped TableRegistry Error Filtering — Filter E-QUERY-037 available_sensors/available_tables to Requesting Org's Registered Tables (SEC-001/CWE-200 fix) | ACCEPTED v1.0 | 2026-06-16 | decisions/ADR-039-org-scoped-table-registry-error-filtering.md |
 
 ## Architecture Decisions
 

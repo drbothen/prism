@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.412"
+version: "v2.413"
 status: draft
 producer: state-manager
 timestamp: 2026-06-16T20:00:00Z
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1197 Lane-A/Lane-B spec durability burst — STORY-INDEX v2.412→v2.413 (2026-06-16):** (POL-11/POL-32 changelog row) S-3.13 row v1.15→v1.16: AC-9 org-scoped enumeration (SEC-001/CWE-200 fix via ADR-039 Option B); acceptance_criteria_count 7→8; red_gate_tests 22→27 (+5 test_SEC_001_*); BC-2.11.001 v1.9 linkage; ADR-039 refs; SEC-002 Levenshtein cap CLOSED; NB-1 RwLock WARN CLOSED. BC-INDEX v6.64→v6.65 (BC-2.11.001 v1.8→v1.9 + BC-2.16.002 v1.77→v1.78). ARCH-INDEX v2.133→v2.134 (ADR-039 row). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.412→v2.413.
 
 - **D-1196 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT — STORY-INDEX v2.411→v2.412 (2026-06-16):** (POL-11/POL-32 changelog row) PR #189 (PIVOT-001 T12) + PR #190 (LAUNCHER T11) MERGED. S-5.02 PR #191 OPEN: story v1.10; worktree HEAD 9763a25a PUSH-PENDING (origin @aa796518); PR-LEVEL streak 2/3 on d1c69e44; OBS-1 ADJUDICATED SPEC-ACCEPTED → DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 registered. S-3.13 PR #192 OPEN: story v1.15; @87c0008e (= worktree; pushed); pr-reviewer APPROVE (0 blocking) + security APPROVE; fix-burst PENDING (NB-1 RwLock poison silent + SEC-002 CWE-407 Levenshtein cap + SEC-001 CWE-200 E-QUERY-037 org-scope assessment). MERGE-COORD: S-5.02 (+4 types) and S-3.13 (+1 type) cumulative EXPECTED=65 at both merged; second-to-merge rebases; orchestrator-owned. OPEN USER SCOPING QUESTION: PIVOT-002/003 demo-blocking vs post-demo (awaiting user confirmation). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.411→v2.412.
 
@@ -400,7 +402,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
 | S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
-| S-3.13 | Dynamic Table Availability [**in_progress v1.15** (D-1196 2026-06-16: PR #192 OPEN @87c0008e — pr-reviewer APPROVE 0 blocking + security APPROVE; fix-burst PENDING [NB-1 RwLock poison silent + SEC-002 CWE-407 Levenshtein cap + SEC-001 CWE-200 E-QUERY-037 org-scope]; ci.yml EXPECTED=61; was D-1179 2026-06-15: MED boot-glue coverage — enrolled 3 boot-integration tests into Red Gate table AC-4/AC-5 (wire_table_registry_swap_listener paths in prism-bin/src/boot.rs); red_gate_tests 19→22; ACs 7 UNCHANGED)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
+| S-3.13 | Dynamic Table Availability [**in_progress v1.16** (D-1197 2026-06-16: AC-9 org-scoped enumeration — E-QUERY-037 did_you_mean/available_sensors/available_tables filtered to requesting org resolved_spec_map; ADR-039 Option B ref; acceptance_criteria_count 7→8; red_gate_tests 22→27 (+5 test_SEC_001_*); BC-2.11.001 v1.9 linkage; SEC-001/CWE-200 fix @dcf8734a; SEC-002/CWE-407 Levenshtein cap CLOSED; NB-1 RwLock WARN CLOSED @17b1a9d1; PR #192 PR-LEVEL 3-CLEAN IN FLIGHT; was D-1196 2026-06-16: v1.15 @87c0008e)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026, VP-030, VP-137 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs [v1.11 ADR-018] | prism-operations | 3 | VP-019, VP-141, VP-142 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |

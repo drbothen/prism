@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.64"
+version: "6.65"
 status: draft
 producer: state-manager
 timestamp: 2026-06-16T17:00:00Z
@@ -152,7 +152,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | draft |
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.8 (S-3.13 pre-TDD 2026-06-14: table-availability postcondition + E-QUERY-037 error case added; v1.7: MCP cascade P2-04: interim-status annotation — `sensors`/`sources`/`time_range` declared but unwired, rejected `-32602` fail-closed via `deny_unknown_fields`; wiring tracked by query scope-params story per 2026-06-10 review) |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.9 (D-1197 2026-06-16: org-scoped E-QUERY-037 enumeration invariant; EC-11-037/EC-11-038 org-isolation edge cases; test vectors for cross-org did_you_mean filtering; ADR-039 refs; 5 test_SEC_001_* Red Gate tests wired; was v1.8: S-3.13 pre-TDD 2026-06-14: table-availability postcondition + E-QUERY-037 error case added) |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active |
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.77 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.78 (D-1197 2026-06-16: NB-1 catalog row 73 `table_registry.rwlock_poisoned` WARN added; catalog count 72→73; SAP-1/PG-LP11-001; S-3.13 fix-burst @67e5171a; was v1.77: PRL-P4-01 reload_config WriteTool reclassification) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.65 (2026-06-16, D-1197 Lane-A/Lane-B spec work durability burst):** state-manager | (1) BC-2.11.001 inline row: v1.8→v1.9 — S-3.13 org-scoped enumeration invariant: E-QUERY-037 available_sensors/available_tables filtered to requesting org's resolved_spec_map; EC-11-037 (org-isolation postcondition) + EC-11-038 (cross-org did_you_mean filter) + org-isolation test vectors + 5 test_SEC_001_* Red Gate tests wired (ADR-039 Option B, SEC-001/CWE-200 fix). (2) BC-2.16.002 inline row: v1.77→v1.78 — NB-1 fix-burst catalog row 73 `table_registry.rwlock_poisoned` WARN registered (SAP-1/PG-LP11-001; commit 67e5171a on factory-artifacts; S-3.13 feature crates/prism-query/src/table_registry.rs). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.64→v6.65.
 
 **v6.64 (2026-06-16, D-1195 S-3.13 LOCAL OBS-1 table-naming convention sweep):** state-manager | BC-2.16.001 inline row: v1.7→v1.8 (PO sweep: §Postconditions table names corrected dot→underscore separator — `{sensor_id}_{table_name}` per BC-2.11.001, `table_registry.rs` `format!("{}_{}", ...)` impl, and E-QUERY-037 sibling; spec-only fix, S-3.13 feature HEAD 148ed284 UNCHANGED). BC-2.16.007 inline row: v1.4→v1.5 (same dot→underscore sweep; §Postconditions/Error Conditions table-name format corrected). error-taxonomy v1.84→v1.85: E-QUERY-035 Message Format `{sensor_id}.{table_name}` → `{sensor_id}_{table_name}` (forward-spec companion to BC sweep; zero code emitters). S-3.13 LOCAL 3-CLEAN re-gate NEXT (reads corrected specs). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.63→v6.64.
 
