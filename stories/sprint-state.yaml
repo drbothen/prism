@@ -703,11 +703,16 @@ deferred_post_demo:
 
 current_story:
   story_id: S-DEMO-LAUNCHER-CONSOLIDATION-001
-  delivery_step: local-adversary-in-progress
-  spec_version: "2.5"
-  resume_at: "D-1176 2026-06-15. T10 DONE (S-DEMO-004 MERGED PR #188 develop@7241f5ef). T11 is LAUNCHER v2.5 @d9098c1f LOCAL streak 0/3; re-pass IN-FLIGHT after AC-004 /health→/dtu/health prose fix. Parallel: PIVOT-001 @e4d95d19 LOCAL 2/3; S-3.13 @97148f90 LOCAL 0/3 (duplicate test rename IN-FLIGHT); S-5.02 @8eaff098 BLOCKED on human CLAUDE.md 60→64 commit. See SESSION-HANDOFF §RESUME SNAPSHOT D-1176."
-  note: "D-1176 2026-06-15. S-DEMO-004 MERGED. S-DEMO-LAUNCHER-CONSOLIDATION-001 v2.5 LOCAL adversary in-progress. develop@7241f5ef. STATE v7.819."
-  last_updated_at: "2026-06-15"
+  status: merged
+  delivery_step: merged
+  spec_version: "2.10"
+  merged_sha: "c3ecf6c8"
+  merged_pr: 190
+  merged_at: "2026-06-16"
+  task_ledger_item: "T11 DONE"
+  resume_at: "D-1186 2026-06-16. T11 DONE (S-DEMO-LAUNCHER-CONSOLIDATION-001 MERGED PR #190 develop@c3ecf6c8). CURRENT POINTER = T12. Parallel lanes: PIVOT-001 @e16f06b6 PR #189 OPEN (0/3 re-gate NEXT on frozen HEAD); S-5.02 @ea06ff52 LOCAL CONVERGED 3/3 (demo evidence IN FLIGHT); S-3.13 @31b4d147 LOCAL CONVERGED 3/3 (PR waits PIVOT-001). See SESSION-HANDOFF §RESUME SNAPSHOT D-1182."
+  note: "D-1186 2026-06-16. S-DEMO-LAUNCHER-CONSOLIDATION-001 MERGED PR #190. develop@c3ecf6c8. STATE v7.829. POL-14 all 5 BCs idempotent. worktree .worktrees/S-DEMO-LAUNCHER-CONSOLIDATION-001 still mounted (cleanup pending)."
+  last_updated_at: "2026-06-16"
 
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.346 (STORY-INDEX v2.346 current; total_stories 194)
