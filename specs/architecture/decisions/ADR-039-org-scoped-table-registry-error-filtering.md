@@ -1,10 +1,10 @@
 ---
 document_type: adr
 adr_id: "ADR-039"
-title: "Org-Scoped TableRegistry Error Filtering — Filter E-QUERY-037 available_sensors/available_tables to Requesting Org's Registered Tables"
+title: "Org-Scoped Enumeration Filtering — Filter E-QUERY-037 Error Fields and explain_query available_tables to Requesting Org's Registered Tables"
 status: ACCEPTED
 date: "2026-06-16"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-11, SS-16]
 supersedes: null
@@ -13,7 +13,7 @@ amends: null
 anchor_stories: [S-3.13]
 related_adrs: [ADR-006, ADR-022, ADR-029, ADR-034]
 related_bcs: [BC-2.11.001]
-security_finding: SEC-001
+security_finding: [SEC-001, SEC-003]
 security_cwe: CWE-200
 locked_decisions: []
 inputs:
@@ -26,16 +26,31 @@ input-hash: ""
 wiring_deferred_to: null
 ---
 
-# ADR-039: Org-Scoped TableRegistry Error Filtering
+# ADR-039: Org-Scoped Enumeration Filtering
 
 ## Status
 
-ACCEPTED 2026-06-16, v1.0. Immediate in-scope fix required for story S-3.13.
+ACCEPTED 2026-06-16, v1.0. Amended v1.1 2026-06-16 to extend scope to the
+`explain_query` / `ExplainResult.available_tables` path (SEC-003).
 Human directive: FIX IN-SCOPE NOW. No deferral.
 
 ---
 
 ## Context
+
+### Covered Information Disclosure Findings
+
+This ADR addresses two related CWE-200 findings in the multi-tenant overlay
+deployment. Both use the same mitigation mechanism (§Design Specification).
+
+- **SEC-001 (MEDIUM, CWE-200):** E-QUERY-037 error enumeration leak —
+  `available_sensors` / `available_tables` in `PrismError::TableNotAvailable`
+  enumerate the GLOBAL registry across org boundaries. **Original scope of v1.0.**
+- **SEC-003 (MEDIUM, CWE-200):** `explain_query` enumeration leak —
+  `ExplainResult.available_tables` uses the GLOBAL registry, leaking all
+  configured sensor table names to the requesting org via the explain path.
+  **Added to scope in v1.1** after security re-review identified this as a
+  sibling leak site using the same cross-tenant enumeration pattern.
 
 ### The Information Disclosure Finding (SEC-001, CWE-200)
 
@@ -87,6 +102,7 @@ zero org context, always querying the GLOBAL registry.
 | Driver | Constraint |
 |--------|------------|
 | SEC-001 / CWE-200 | E-QUERY-037 must never enumerate sensor vendors belonging to other orgs |
+| SEC-003 / CWE-200 | `ExplainResult.available_tables` must never enumerate tables belonging to other orgs |
 | ADR-029 / ADR-022 Wiring-not-redesign | Build ON the existing multi-tenant machinery; do not redesign TableRegistry from scratch |
 | ADR-006 OrgSlug compile-time enforcement | Org identity flows as `OrgSlug` newtype; solution must use this type |
 | Hot-reload (AD-007 arc-swap) | TableRegistry is mutated on hot-reload via `register_sensor` / `deregister_sensor`. Any org-keying must survive hot-reload. |
@@ -265,6 +281,65 @@ QueryEngine::execute_inner(query_str, options)
 The org scope is passed from `options.clients` — the same `Vec<OrgSlug>` that
 `execute_inner` already receives. No new fields are added to `QueryOptions`.
 
+### SEC-003: Org-Scope Data Flow for `explain_query` / `ExplainResult.available_tables`
+
+`ExplainResult.available_tables` is constructed inside `QueryEngine::explain()` by
+reading the global `TableRegistry`. In the multi-tenant overlay deployment it
+exhibits the same cross-tenant enumeration leak as E-QUERY-037.
+
+**Fix mechanism (same helpers, different call site):**
+
+```
+MCP explain_query tool call
+  │  ExplainOptions { clients: Option<Vec<OrgSlug>>, resolved_spec_map: Option<Arc<…>>, ... }
+  ▼
+QueryEngine::explain(query_str, options)
+  │
+  ├─ Parse + plan query (unchanged)
+  │
+  ├─ Build ExplainResult.available_tables:
+  │    org_visible_tables = filter_to_org_visible_tables(
+  │      self.table_registry.as_deref()
+  │        .map(|r| r.registered_tables())
+  │        .unwrap_or_default(),
+  │      options.clients.as_deref(),
+  │      options.resolved_spec_map.as_deref(),
+  │    )
+  │    available_tables = org_visible_tables
+  │
+  └─ Return ExplainResult { available_tables, ... }
+```
+
+**`ExplainOptions` changes (v1.1):**
+
+```rust
+pub struct ExplainOptions {
+    /// Org scope (forwarded from the MCP tool call's client restriction).
+    /// When `Some`, `available_tables` is filtered to this org's sensors only.
+    pub clients: Option<Vec<OrgSlug>>,
+    /// Per-org resolved sensor map from the ADR-029 overlay loader.
+    /// When `None` (single-tenant), filter is bypassed.
+    pub resolved_spec_map: Option<Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>>,
+    // ... existing fields unchanged
+}
+```
+
+**`prism-mcp` call-site changes (v1.1):**
+
+Both `ExplainOptions` construction sites in `prism-mcp` must be updated to inject
+`clients` and `resolved_spec_map`. The `QueryEngine` already holds
+`resolved_spec_map` as a field; `prism-mcp` must pass it through from the engine
+context at explain-call construction time, exactly as it does for `execute_inner`
+via `QueryOptions`.
+
+**Visibility of filter helpers (v1.1):**
+
+`filter_to_org_visible_sensors` and `filter_to_org_visible_tables` are elevated
+from `pub(self)` (private to `table_registry.rs`) to `pub(crate)` so that
+`engine.rs` can call them directly when constructing `ExplainResult.available_tables`
+without the call flowing through `check_availability_gate`. The `pub(crate)`
+boundary keeps them out of the public `prism-query` API surface.
+
 ### `filter_to_org_visible` Logic
 
 ```
@@ -372,10 +447,20 @@ rg 'check_table_availability\|check_availability_gate' crates/prism-query/
 
 ### Security Consequence
 
-After this fix, `PrismError::TableNotAvailable` (E-QUERY-037) in the
-multi-tenant overlay deployment will enumerate only the sensor vendors and
-tables registered for the requesting org's scope. Cross-tenant vendor
-enumeration (CWE-200 / SEC-001) is eliminated at the error-construction site.
+After this fix (v1.0 + v1.1):
+
+- `PrismError::TableNotAvailable` (E-QUERY-037) in the multi-tenant overlay
+  deployment enumerates only the sensor vendors and tables registered for the
+  requesting org's scope. Cross-tenant vendor enumeration (CWE-200 / SEC-001)
+  is eliminated at the error-construction site.
+- `ExplainResult.available_tables` in the `explain_query` path is filtered by
+  the same `filter_to_org_visible_tables` helper. Cross-tenant table enumeration
+  via the explain surface (CWE-200 / SEC-003) is eliminated at the
+  `ExplainResult` construction site in `QueryEngine::explain()`.
+
+Both enumeration surfaces now apply the same filtering invariant: in multi-tenant
+overlay deployments, org-scoped table/sensor lists reflect only what the
+requesting org's overlays have registered.
 
 ### Backward Compatibility
 
@@ -416,10 +501,12 @@ reference (`Option<&HashMap<…>>`); no new arc-clone is needed on the error pat
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `crates/prism-query/src/table_registry.rs` | Add `did_you_mean_for_tables(requested, visible_tables)` method. Change `check_availability_gate` signature to accept `org_scope: Option<&[OrgSlug]>` and `resolved_spec_map: Option<&HashMap<ResolvedSpecKey, ResolvedSensorSpec>>`. Add `filter_to_org_visible` private function. Apply filter when both parameters are non-None and org_scope is non-empty. |
-| `crates/prism-query/src/engine.rs` | Change `check_table_availability` signature to pass `org_scope` and `resolved_spec_map`. Update both call sites: `execute_inner` and `execute_scheduled_inner`. |
+| File | Change | Finding |
+|------|--------|---------|
+| `crates/prism-query/src/table_registry.rs` | Add `did_you_mean_for_tables(requested, visible_tables)` method. Change `check_availability_gate` signature to accept `org_scope: Option<&[OrgSlug]>` and `resolved_spec_map: Option<&HashMap<ResolvedSpecKey, ResolvedSensorSpec>>`. Add `filter_to_org_visible_sensors` and `filter_to_org_visible_tables` as `pub(crate)` functions (elevated from `pub(self)` to allow `engine.rs` explain path to call them directly). Apply filter when both parameters are non-None and org_scope is non-empty. | SEC-001, SEC-003 |
+| `crates/prism-query/src/engine.rs` | Change `check_table_availability` signature to pass `org_scope` and `resolved_spec_map`. Update both call sites: `execute_inner` and `execute_scheduled_inner`. In `QueryEngine::explain()`, filter `ExplainResult.available_tables` using `filter_to_org_visible_tables` with `options.clients` and `options.resolved_spec_map`. | SEC-001, SEC-003 |
+| `crates/prism-query/src/explain.rs` (or equivalent `ExplainOptions` definition site) | Add `clients: Option<Vec<OrgSlug>>` and `resolved_spec_map: Option<Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>>` fields to `ExplainOptions`. | SEC-003 |
+| `crates/prism-mcp/src/tools/explain.rs` (and any sibling explain tool file) | Update both `ExplainOptions` construction sites to inject `clients` (from MCP tool call org scope) and `resolved_spec_map` (from `QueryEngine` context). Sibling-site sweep required: `rg 'ExplainOptions' crates/prism-mcp/`. | SEC-003 |
 
 ### New Dependencies
 
@@ -526,6 +613,9 @@ pass. These tests operate with `org_scope = None` and `resolved_spec_map = None`
 | Filter under-restricts: org A can still enumerate TYPE-level sensor names if no overlay is configured for that sensor | ACCEPTED | SaaS sensors (CrowdStrike, Cyberint) have no per-org overlay by design — all orgs share the same endpoint. Enumerating that a process supports CrowdStrike is not a cross-tenant secret in MSSP deployments; sensor TYPE membership is operationally visible. The real leak is per-org-specific sensors with private endpoint overrides. |
 | `options.clients` is `None` (multi-org query, system context) — which org's set to show? | LOW | When `org_scope` is `None`, return global registry (Rule 1 of filter). Multi-org system queries legitimately have access to the full table catalog. |
 | Forgot to update `execute_scheduled_inner` call site | HIGH | Sibling-site sweep (TD-VSDD-060) required before declaring done. Both call sites are specified in this ADR. |
+| Sibling leak: `explain_query` / `ExplainResult.available_tables` (SEC-003) | ADDRESSED (v1.1) | `ExplainOptions` now carries `clients` and `resolved_spec_map`; `QueryEngine::explain()` filters `available_tables` via `filter_to_org_visible_tables`. Both `prism-mcp` `ExplainOptions` construction sites updated. |
+| Sibling leak: `list_tables` / `list_sensors` MCP tools (if implemented) | OUT OF SCOPE (document) | If `list_tables` or `list_sensors` MCP tools are added in future stories, they MUST apply the same `filter_to_org_visible_*` helpers. This ADR does not cover tools that do not yet exist; the implementer of any future list-type tool MUST grep for this ADR and apply the same filter. |
+| Forgot to update `prism-mcp` `ExplainOptions` construction sites | HIGH (v1.1) | Sibling-site sweep required: `rg 'ExplainOptions' crates/prism-mcp/`. Both construction sites must inject `clients` and `resolved_spec_map` before declaring SEC-003 closed. |
 
 ---
 
@@ -534,3 +624,4 @@ pass. These tests operate with `org_scope = None` and `resolved_spec_map = None`
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-16 | architect | Initial ADR for SEC-001 / CWE-200 fix. Human directive: FIX IN-SCOPE NOW. |
+| 1.1 | 2026-06-16 | architect | Extended scope to cover SEC-003 (MEDIUM, CWE-200): `explain_query` / `ExplainResult.available_tables` cross-tenant table enumeration leak. Same `filter_to_org_visible_tables` helper applies; `ExplainOptions` gains `clients` + `resolved_spec_map` fields; helpers elevated to `pub(crate)`; both `prism-mcp` `ExplainOptions` construction sites swept. Risk register updated: SEC-003 row marked ADDRESSED; future `list_tables`/`list_sensors` tools noted as OUT OF SCOPE with implementation obligation. |

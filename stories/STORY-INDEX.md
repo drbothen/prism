@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.413"
+version: "v2.414"
 status: draft
 producer: state-manager
 timestamp: 2026-06-16T20:00:00Z
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1198 Lane-B SEC-003/CR-001/CR-002/CR-003 spec durability burst — STORY-INDEX v2.413→v2.414 (2026-06-16):** (POL-11/POL-32 changelog row) S-3.13 row v1.16→v1.17: AC-10 org-scoped explain_query available_tables (SEC-003/CWE-200 fix via ADR-039 helpers); acceptance_criteria_count 8→9; red_gate_tests 27→29 (+2 explain_query org-scope tests); ADR-039 v1.1 refs. BC-INDEX v6.65→v6.66 (BC-2.16.002 v1.78→v1.79 — CR-001: check_availability_gate 5th rwlock_poisoned emitting method). ARCH-INDEX v2.134→v2.135 (ADR-039 v1.0→v1.1). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.413→v2.414.
 
 - **D-1197 Lane-A/Lane-B spec durability burst — STORY-INDEX v2.412→v2.413 (2026-06-16):** (POL-11/POL-32 changelog row) S-3.13 row v1.15→v1.16: AC-9 org-scoped enumeration (SEC-001/CWE-200 fix via ADR-039 Option B); acceptance_criteria_count 7→8; red_gate_tests 22→27 (+5 test_SEC_001_*); BC-2.11.001 v1.9 linkage; ADR-039 refs; SEC-002 Levenshtein cap CLOSED; NB-1 RwLock WARN CLOSED. BC-INDEX v6.64→v6.65 (BC-2.11.001 v1.8→v1.9 + BC-2.16.002 v1.77→v1.78). ARCH-INDEX v2.133→v2.134 (ADR-039 row). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.412→v2.413.
 
@@ -402,7 +404,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
 | S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
-| S-3.13 | Dynamic Table Availability [**in_progress v1.16** (D-1197 2026-06-16: AC-9 org-scoped enumeration — E-QUERY-037 did_you_mean/available_sensors/available_tables filtered to requesting org resolved_spec_map; ADR-039 Option B ref; acceptance_criteria_count 7→8; red_gate_tests 22→27 (+5 test_SEC_001_*); BC-2.11.001 v1.9 linkage; SEC-001/CWE-200 fix @dcf8734a; SEC-002/CWE-407 Levenshtein cap CLOSED; NB-1 RwLock WARN CLOSED @17b1a9d1; PR #192 PR-LEVEL 3-CLEAN IN FLIGHT; was D-1196 2026-06-16: v1.15 @87c0008e)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
+| S-3.13 | Dynamic Table Availability [**in_progress v1.17** (D-1198 2026-06-16: AC-10 explain_query org-scoped available_tables — SEC-003/CWE-200 fix via ADR-039 helpers; acceptance_criteria_count 8→9; red_gate_tests 27→29 (+2 explain_query org-scope tests); ADR-039 v1.1 refs; fix-burst COMPLETE @8efcbd4c; PR-LEVEL 3-CLEAN cascade NEXT; was D-1197: v1.16 AC-9 SEC-001 org-scoped enumeration; was D-1196 2026-06-16: v1.15 @87c0008e)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026, VP-030, VP-137 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs [v1.11 ADR-018] | prism-operations | 3 | VP-019, VP-141, VP-142 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |
