@@ -2211,19 +2211,25 @@ fn test_CRIT_A_client_not_found_structured_error_category_configuration_params_v
 
 // ─── CRIT-B: BC category enum legality ────────────────────────────────────────
 
-/// CRIT-B: BC-2.10.007 — `prism_error_to_structured_call_result` must only emit
-/// categories from the BC-2.10.007 legal enum:
+/// CRIT-B: BC-2.10.007 v1.7 — `prism_error_to_structured_call_result` must only emit
+/// categories from the BC-2.10.007 v1.7 legal 9-value enum:
 /// `transient`, `authentication`, `validation`, `not_found`, `permission`,
-/// `upstream_error`, `configuration`, `safety`.
+/// `upstream_error`, `configuration`, `safety`, `internal`.
+///
+/// Note: `"internal"` was added as the 9th legal value in BC-2.10.007 v1.7 (F-4 amendment).
+/// Prism-side infrastructure failures (Io, Storage*) now correctly emit `"internal"`.
 ///
 /// Tests each previously-illegal category group:
 /// - `authorization` (CapabilityDenied, Unauthorized, token variants) → `permission`
 /// - `timeout` (QueryTimeout) → `transient`
 /// - `sensor` (SensorRateLimited) → `transient`
-/// - `internal` (AuditPersistenceFailed, catch-all) → `transient` or `upstream_error`
+/// - `internal` (AuditPersistenceFailed) → `transient` (retryable transient error)
+///   Note: `"internal"` IS in the v1.7 BC enum but AuditPersistenceFailed → `transient`
+///   (it is a retryable transient failure, not a non-retryable infrastructure failure).
 ///
-/// RED: current code emits `"authorization"`, `"timeout"`, `"sensor"`, `"internal"` —
-/// all outside the BC legal enum.
+/// RED: current code emits `"authorization"`, `"timeout"`, `"sensor"` —
+/// all outside the BC legal enum. (The v1.7 amendment added "internal" to the enum
+/// for PrismError::Internal/Io/Storage* but AuditPersistenceFailed is "transient".)
 #[test]
 fn test_CRIT_B_capability_denied_category_is_permission() {
     use prism_core::error::PrismError;
@@ -2328,12 +2334,18 @@ fn test_CRIT_B_catch_all_category_is_upstream_error() {
 
     // Use WatchdogKilled variant to test the catch-all path. This variant has no
     // explicit arm in prism_error_to_structured_call_result so it falls to the
-    // catch-all `_` arm. The catch-all must emit 'upstream_error' per BC-2.10.007
-    // legal category enum (which does NOT include 'internal').
+    // catch-all `_` arm. The catch-all emits 'upstream_error'.
     //
-    // Note: PrismError::Internal was previously used here but now has an explicit arm
-    // (F-4 fix: Io/Storage/Internal group). WatchdogKilled genuinely exercises the
-    // catch-all path.
+    // BC-2.10.007 v1.7 context (MED-2 fix): 'internal' IS in the v1.7 9-value enum,
+    // but it is reserved for the explicitly-listed Prism-side infrastructure variants
+    // (Internal, Io, Storage*). WatchdogKilled is NOT in the BC-2.10.007 v1.7 "internal"
+    // list; it remains in the catch-all → 'upstream_error'. The catch-all emits
+    // 'upstream_error' as the safest legal fallback for unmapped variants.
+    // (OBS-2: whether WatchdogKilled should be "internal" is a pending PO decision —
+    //  see OBS-2 finding in PR #191. Until BC-2.10.007 adds it to the "internal" list,
+    //  catch-all "upstream_error" is the correct mapping.)
+    //
+    // Note: PrismError::Internal has an explicit arm since the F-4 fix.
     let err = PrismError::WatchdogKilled {
         budget_bytes: 512_000_000,
     };
@@ -2348,8 +2360,8 @@ fn test_CRIT_B_catch_all_category_is_upstream_error() {
         .unwrap_or("<missing>");
     assert_eq!(
         category, "upstream_error",
-        "CRIT-B BC-2.10.007: catch-all must emit category='upstream_error' \
-         (BC-legal enum; 'internal' is not in the BC-2.10.007 enum); got '{category}'"
+        "CRIT-B BC-2.10.007: WatchdogKilled (not in BC v1.7 'internal' list) must emit \
+         category='upstream_error' via catch-all; got '{category}'"
     );
 }
 
@@ -3126,7 +3138,8 @@ async fn test_F2_list_aliases_domain_error_returns_ok_structured_not_err() {
         .get("error")
         .expect("F-2: structuredContent must have 'error' key");
 
-    // BC-2.10.007 §77: category must be a legal value from the enum.
+    // BC-2.10.007 §77 v1.7: category must be a legal value from the 9-value enum.
+    // MED-1 fix: "internal" is the 9th value added in BC-2.10.007 v1.7 (F-4 amendment).
     let category = error_obj
         .get("category")
         .and_then(|v| v.as_str())
@@ -3140,10 +3153,11 @@ async fn test_F2_list_aliases_domain_error_returns_ok_structured_not_err() {
         "upstream_error",
         "configuration",
         "safety",
+        "internal",
     ];
     assert!(
         legal_categories.contains(&category),
-        "F-2: structuredContent.error.category must be a legal BC-2.10.007 §77 value; got: '{category}'"
+        "F-2: structuredContent.error.category must be a legal BC-2.10.007 §77 v1.7 value (9 values, including 'internal'); got: '{category}'"
     );
 
     // EC code must be a known E-* code, not the fallback E-INT-001.
@@ -3151,6 +3165,244 @@ async fn test_F2_list_aliases_domain_error_returns_ok_structured_not_err() {
     assert!(
         code.starts_with("E-"),
         "F-2: structuredContent.error.code must start with E-; got: '{code}'"
+    );
+}
+
+// ─── HIGH-1: "authentication" category for identity-auth variants ───────────
+//
+// BC-2.10.007 v1.7 §Category rule maps 5 variants to category "authentication":
+//   AuthTokenExpired, AuthTokenInvalid → valid-format credential that is expired/invalid
+//   InvalidOrgSlug, InvalidAnalystId, InvalidClientId → malformed identity format
+//
+// These tests drive the fix: currently InvalidOrgSlug/InvalidAnalystId/InvalidClientId
+// fall into the "validation" group (wrong category) and AuthTokenExpired/AuthTokenInvalid
+// fall to the catch-all "upstream_error" arm (wrong category + wrong code E-INT-001).
+
+/// HIGH-1 (BC-2.10.007 v1.7): InvalidOrgSlug must emit category="authentication".
+///
+/// InvalidOrgSlug is an identity FORMAT failure. BC-2.10.007 §Category rule places it
+/// under "authentication" (not "validation"). The LLM-agent strategy is "re-authenticate;
+/// check credential_ref" — not "fix the tool call parameters".
+///
+/// original_params_valid = false: the org slug format was malformed (E-AUTH-001).
+/// ec_code: E-AUTH-001 (from map_prism_error Display prefix).
+#[test]
+fn test_HIGH_1_invalid_org_slug_category_is_authentication() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::InvalidOrgSlug {
+        reason: "slug must match [a-z0-9-]{1,64}".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present (BC-2.10.007)");
+    let error_obj = sc
+        .get("error")
+        .expect("structuredContent.error must be present");
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .expect("structuredContent.error.category must be a string");
+    assert_eq!(
+        category, "authentication",
+        "HIGH-1 BC-2.10.007 v1.7: InvalidOrgSlug must emit category='authentication' \
+         (identity FORMAT failure per §Category rule); got '{category}'"
+    );
+    let original_params_valid = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool())
+        .expect("structuredContent.error.original_params_valid must be a bool");
+    assert!(
+        !original_params_valid,
+        "HIGH-1 BC-2.10.007 v1.7: InvalidOrgSlug is a malformed identity — \
+         original_params_valid must be false; got true"
+    );
+    let code = error_obj
+        .get("code")
+        .and_then(|v| v.as_str())
+        .expect("structuredContent.error.code must be a string");
+    assert!(
+        code.starts_with("E-AUTH-"),
+        "HIGH-1 BC-2.10.007 v1.7: InvalidOrgSlug code must be E-AUTH-001; got '{code}'"
+    );
+}
+
+/// HIGH-1 (BC-2.10.007 v1.7): InvalidAnalystId must emit category="authentication".
+///
+/// Same reasoning as InvalidOrgSlug: identity FORMAT failure → "authentication".
+/// original_params_valid = false (E-AUTH-002 malformed identity).
+#[test]
+fn test_HIGH_1_invalid_analyst_id_category_is_authentication() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::InvalidAnalystId {
+        reason: "analyst ID must not be empty".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let error_obj = sc
+        .get("error")
+        .expect("structuredContent.error must be present");
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .expect("category must be a string");
+    assert_eq!(
+        category, "authentication",
+        "HIGH-1 BC-2.10.007 v1.7: InvalidAnalystId must emit category='authentication'; got '{category}'"
+    );
+    let opv = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool())
+        .expect("original_params_valid must be a bool");
+    assert!(
+        !opv,
+        "HIGH-1: InvalidAnalystId is a malformed identity — original_params_valid must be false"
+    );
+}
+
+/// HIGH-1 (BC-2.10.007 v1.7): InvalidClientId must emit category="authentication".
+///
+/// InvalidClientId is an identity FORMAT failure — distinct from ClientNotFound
+/// (E-CFG-100, category "configuration", original_params_valid:true). A malformed
+/// client ID cannot match any configured entry.
+/// original_params_valid = false (E-AUTH-003).
+#[test]
+fn test_HIGH_1_invalid_client_id_category_is_authentication() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::InvalidClientId {
+        reason: "client ID contains invalid characters".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let error_obj = sc
+        .get("error")
+        .expect("structuredContent.error must be present");
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .expect("category must be a string");
+    assert_eq!(
+        category, "authentication",
+        "HIGH-1 BC-2.10.007 v1.7: InvalidClientId must emit category='authentication'; got '{category}'"
+    );
+    let opv = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool())
+        .expect("original_params_valid must be a bool");
+    assert!(
+        !opv,
+        "HIGH-1: InvalidClientId is a malformed identity — original_params_valid must be false"
+    );
+}
+
+/// HIGH-1 (BC-2.10.007 v1.7): AuthTokenExpired must emit category="authentication".
+///
+/// AuthTokenExpired: the token FORMAT was valid but the credential has expired.
+/// Per BC-2.10.007 §Category rule: "Credential invalid or identity validation failure"
+/// → "authentication". The params were structurally valid (original_params_valid=true).
+///
+/// Pre-fix behavior: falls to catch-all arm → category "upstream_error" + code "E-INT-001".
+/// Required: category "authentication", code "E-AUTH-010", original_params_valid=true.
+#[test]
+fn test_HIGH_1_auth_token_expired_category_is_authentication() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::AuthTokenExpired;
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let error_obj = sc
+        .get("error")
+        .expect("structuredContent.error must be present");
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .expect("category must be a string");
+    assert_eq!(
+        category, "authentication",
+        "HIGH-1 BC-2.10.007 v1.7: AuthTokenExpired must emit category='authentication'; \
+         got '{category}' — pre-fix this was 'upstream_error' which is semantically wrong"
+    );
+    let opv = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool())
+        .expect("original_params_valid must be a bool");
+    assert!(
+        opv,
+        "HIGH-1: AuthTokenExpired — token format was valid, credential expired; \
+         original_params_valid must be true (caller's params were structurally valid)"
+    );
+    let code = error_obj
+        .get("code")
+        .and_then(|v| v.as_str())
+        .expect("code must be a string");
+    assert_eq!(
+        code, "E-AUTH-010",
+        "HIGH-1 BC-2.10.007 v1.7: AuthTokenExpired code must be E-AUTH-010 (NOT E-INT-001); got '{code}'"
+    );
+}
+
+/// HIGH-1 (BC-2.10.007 v1.7): AuthTokenInvalid must emit category="authentication".
+///
+/// AuthTokenInvalid: token format was structurally valid but credential is invalid.
+/// Same reasoning as AuthTokenExpired: original_params_valid=true (format was valid).
+/// ec_code_override required: map_prism_error returns INTERNAL_ERROR for this variant
+/// (the generic "Internal error; see audit log" message → no E- prefix to infer from).
+///
+/// Pre-fix behavior: falls to catch-all → category "upstream_error" + code "E-INT-001".
+/// Required: category "authentication", code "E-AUTH-011", original_params_valid=true.
+#[test]
+fn test_HIGH_1_auth_token_invalid_category_is_authentication() {
+    use prism_core::error::PrismError;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+    let err = PrismError::AuthTokenInvalid {
+        reason: "signature verification failed".to_owned(),
+    };
+    let result = prism_error_to_structured_call_result(err);
+    let sc = result
+        .structured_content
+        .expect("structuredContent must be present");
+    let error_obj = sc
+        .get("error")
+        .expect("structuredContent.error must be present");
+    let category = error_obj
+        .get("category")
+        .and_then(|v| v.as_str())
+        .expect("category must be a string");
+    assert_eq!(
+        category, "authentication",
+        "HIGH-1 BC-2.10.007 v1.7: AuthTokenInvalid must emit category='authentication'; \
+         got '{category}' — pre-fix this was 'upstream_error' which is semantically wrong"
+    );
+    let opv = error_obj
+        .get("original_params_valid")
+        .and_then(|v| v.as_bool())
+        .expect("original_params_valid must be a bool");
+    assert!(
+        opv,
+        "HIGH-1: AuthTokenInvalid — token format was structurally valid; \
+         original_params_valid must be true"
+    );
+    let code = error_obj
+        .get("code")
+        .and_then(|v| v.as_str())
+        .expect("code must be a string");
+    assert_eq!(
+        code, "E-AUTH-011",
+        "HIGH-1 BC-2.10.007 v1.7: AuthTokenInvalid code must be E-AUTH-011 (NOT E-INT-001); got '{code}'"
     );
 }
 

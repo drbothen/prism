@@ -769,6 +769,70 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         ec_code_override: Option<&'static str>,
     }
     let meta = match &err {
+        // ── Authentication errors: credential invalid or identity format failure ─
+        // BC-2.10.007 v1.7 §Category rule: "Credential invalid or identity validation
+        // failure" → category "authentication". LLM-agent strategy: re-authenticate;
+        // check credential_ref.
+        //
+        // Two sub-cases:
+        //   (a) Identity FORMAT failures (InvalidOrgSlug, InvalidAnalystId, InvalidClientId):
+        //       The identity string was malformed — original_params_valid: false.
+        //       E-AUTH-001/002/003 codes are inferred from the Display prefix (map_prism_error
+        //       returns the formatted message which starts with "E-AUTH-NNN: ...").
+        //
+        //   (b) Valid-format credential failures (AuthTokenExpired, AuthTokenInvalid):
+        //       The token format was structurally valid but the credential is expired/invalid.
+        //       original_params_valid: true (params were well-formed; the credential failed).
+        //       ec_code_override required: map_prism_error returns INTERNAL_ERROR with
+        //       "Internal error; see audit log" for these variants — no E- prefix to infer.
+        //       Pin E-AUTH-010/011 directly.
+        //
+        // HIGH-1 fix (BC-2.10.007 v1.7 §Category rule):
+        //   - InvalidOrgSlug/InvalidAnalystId/InvalidClientId: moved FROM "validation"
+        //   - AuthTokenExpired/AuthTokenInvalid: moved FROM catch-all "upstream_error"
+
+        // (a) Identity format failures: malformed → original_params_valid: false
+        PrismError::InvalidOrgSlug { .. }
+        | PrismError::InvalidAnalystId { .. }
+        | PrismError::InvalidClientId { .. } => VariantMeta {
+            category: "authentication",
+            suggestion: "Check the identity format and re-authenticate.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            // E-AUTH-001/002/003 inferred from map_prism_error Display prefix (starts "E-AUTH-").
+            ec_code_override: None,
+        },
+
+        // (b) Valid-format credential failures: token expired/invalid → original_params_valid: true
+        PrismError::AuthTokenExpired => VariantMeta {
+            category: "authentication",
+            suggestion: "The auth token has expired. Re-authenticate and obtain a fresh token.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
+            // variant — no E- prefix. Pin E-AUTH-010 directly.
+            ec_code_override: Some("E-AUTH-010"),
+        },
+
+        PrismError::AuthTokenInvalid { .. } => VariantMeta {
+            category: "authentication",
+            suggestion: "The auth token is invalid. Re-authenticate and obtain a valid token.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
+            // variant — no E- prefix. Pin E-AUTH-011 directly.
+            ec_code_override: Some("E-AUTH-011"),
+        },
+
         // ── Validation errors: caller-supplied bad parameters ────────────────
         // ClientNotFound is intentionally EXCLUDED from this group per BC-2.10.004 §87:
         // a well-formed-but-unregistered client_id is a configuration error, not a
@@ -776,13 +840,13 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // Write-policy variants (WriteUnbounded, WriteBatchLimitExceeded, etc.) are
         // EXCLUDED from this group per F-3: the params are structurally valid but
         // the write policy denied them — `original_params_valid: true`.
+        // InvalidOrgSlug/InvalidAnalystId/InvalidClientId are EXCLUDED from this group
+        // per HIGH-1 fix: identity FORMAT failures map to "authentication" (BC-2.10.007 v1.7).
+        // AuthTokenExpired/AuthTokenInvalid are EXCLUDED: moved to "authentication" arm above.
         PrismError::QueryParseFailed { .. }
         | PrismError::McpParameterInvalid { .. }
         | PrismError::McpToolNotFound { .. }
         | PrismError::InvalidCapabilityPath { .. }
-        | PrismError::InvalidOrgSlug { .. }
-        | PrismError::InvalidAnalystId { .. }
-        | PrismError::InvalidClientId { .. }
         | PrismError::QueryLimitExceeded { .. }
         | PrismError::QuerySecurityLimitExceeded { .. }
         | PrismError::UnknownSourceTable { .. }
