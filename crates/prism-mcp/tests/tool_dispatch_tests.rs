@@ -2329,26 +2329,23 @@ fn test_CRIT_B_audit_persistence_failed_category_is_transient() {
 
 #[test]
 fn test_CRIT_B_catch_all_category_is_upstream_error() {
-    use prism_core::error::PrismError;
+    use prism_core::error::{InfusionError, PrismError};
     use prism_mcp::error_mapping::prism_error_to_structured_call_result;
 
-    // Use WatchdogKilled variant to test the catch-all path. This variant has no
+    // Use PrismError::Infusion to exercise the catch-all path. This variant has no
     // explicit arm in prism_error_to_structured_call_result so it falls to the
     // catch-all `_` arm. The catch-all emits 'upstream_error'.
     //
-    // BC-2.10.007 v1.7 context (MED-2 fix): 'internal' IS in the v1.7 9-value enum,
-    // but it is reserved for the explicitly-listed Prism-side infrastructure variants
-    // (Internal, Io, Storage*). WatchdogKilled is NOT in the BC-2.10.007 v1.7 "internal"
-    // list; it remains in the catch-all → 'upstream_error'. The catch-all emits
-    // 'upstream_error' as the safest legal fallback for unmapped variants.
-    // (OBS-2: whether WatchdogKilled should be "internal" is a pending PO decision —
-    //  see OBS-2 finding in PR #191. Until BC-2.10.007 adds it to the "internal" list,
-    //  catch-all "upstream_error" is the correct mapping.)
+    // BC-2.10.007 v1.8 (OBS-2): WatchdogKilled now has an EXPLICIT arm mapping to
+    // "internal". Using WatchdogKilled here would no longer exercise the catch-all.
+    // PrismError::Infusion has no explicit arm in prism_error_to_structured_call_result
+    // and is a genuinely unmapped variant that hits the catch-all `_` arm.
     //
-    // Note: PrismError::Internal has an explicit arm since the F-4 fix.
-    let err = PrismError::WatchdogKilled {
-        budget_bytes: 512_000_000,
-    };
+    // The catch-all emits 'upstream_error' as the safest legal fallback for unmapped
+    // future PrismError variants (non_exhaustive enum).
+    let err = PrismError::Infusion(InfusionError::UnknownInfusion {
+        name: "test_catch_all_enrichment".to_owned(),
+    });
     let result = prism_error_to_structured_call_result(err);
     let sc = result
         .structured_content
@@ -2360,8 +2357,8 @@ fn test_CRIT_B_catch_all_category_is_upstream_error() {
         .unwrap_or("<missing>");
     assert_eq!(
         category, "upstream_error",
-        "CRIT-B BC-2.10.007: WatchdogKilled (not in BC v1.7 'internal' list) must emit \
-         category='upstream_error' via catch-all; got '{category}'"
+        "CRIT-B BC-2.10.007: Genuinely unmapped PrismError variants (Infusion has no explicit arm) \
+         must emit category='upstream_error' via catch-all; got '{category}'"
     );
 }
 

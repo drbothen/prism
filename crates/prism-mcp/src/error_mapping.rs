@@ -843,6 +843,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // InvalidOrgSlug/InvalidAnalystId/InvalidClientId are EXCLUDED from this group
         // per HIGH-1 fix: identity FORMAT failures map to "authentication" (BC-2.10.007 v1.7).
         // AuthTokenExpired/AuthTokenInvalid are EXCLUDED: moved to "authentication" arm above.
+        // SensorNotRegisteredForOrg is EXCLUDED from this group per OBS-1 (BC-2.10.007 v1.8):
+        // cross-org sensor isolation is a scoping/permission denial, NOT a param-validation
+        // failure. The org slug and sensor name are structurally valid. Moved to "permission".
         PrismError::QueryParseFailed { .. }
         | PrismError::McpParameterInvalid { .. }
         | PrismError::McpToolNotFound { .. }
@@ -850,7 +853,6 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::QueryLimitExceeded { .. }
         | PrismError::QuerySecurityLimitExceeded { .. }
         | PrismError::UnknownSourceTable { .. }
-        | PrismError::SensorNotRegisteredForOrg { .. }
         | PrismError::AliasNotFound { .. }
         | PrismError::AliasCycleDetected { .. }
         | PrismError::AliasDepthExceeded { .. }
@@ -915,8 +917,13 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             ec_code_override: None,
         },
 
-        // ── Permission errors: capability denied, auth failures ──────────────
+        // ── Permission errors: capability denied, auth failures, org-scoping ──
         // BC-2.10.007 legal category: "permission" (not "authorization").
+        // OBS-1 (BC-2.10.007 v1.8): SensorNotRegisteredForOrg is a scoping/permission
+        // denial. The org slug and sensor name are structurally valid; access was refused
+        // at the org-scoping boundary. original_params_valid: true (parallel to
+        // CapabilityDenied). LLM-agent strategy: inspect permissions; verify the sensor
+        // is registered under the target org.
         PrismError::CapabilityDenied { .. }
         | PrismError::FeatureFlagEvalError { .. }
         | PrismError::Unauthorized { .. }
@@ -929,10 +936,13 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::ConfirmClientIdMismatch { .. }
         | PrismError::WriteRequiresClientId
         | PrismError::CredentialAccessDenied { .. }
-        | PrismError::AuditTableAccessDenied => VariantMeta {
+        | PrismError::AuditTableAccessDenied
+        | PrismError::SensorNotRegisteredForOrg { .. } => VariantMeta {
             category: "permission",
             suggestion:
-                "Check capability configuration or confirm the operation through the correct flow.",
+                "Check sensor registration for the target org. Verify the sensor is configured \
+                 under the requested org slug in prism.toml. \
+                 Or check capability configuration and confirm the operation through the correct flow.",
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: true,
@@ -1119,6 +1129,32 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             category: "upstream_error",
             suggestion:
                 "See audit log for details. Contact Prism operator if the problem persists.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            ec_code_override: None,
+        },
+
+        // ── Process-supervision watchdog failures → category "internal" ────────
+        // BC-2.10.007 v1.8 §OBS-2: Watchdog variants are Prism-side process supervision
+        // failures. WatchdogKilled is reachable on user-visible MCP tool paths via the
+        // query execution path (prism-storage::watchdog::check_query → ? propagation →
+        // tool handler → prism_error_to_structured_call_result). Category "internal"
+        // is correct: the fault domain is Prism's own memory budget, not a sensor failure.
+        // Catch-all "upstream_error" was semantically wrong — it directed LLM agents to
+        // investigate sensor health for a Prism-internal resource constraint.
+        // WatchdogHeartbeatMissed and WatchdogRestartLimitExceeded share the same
+        // "Prism-side process supervision failure" fault domain and are categorized
+        // identically for forward compatibility.
+        PrismError::WatchdogKilled { .. }
+        | PrismError::WatchdogHeartbeatMissed { .. }
+        | PrismError::WatchdogRestartLimitExceeded { .. } => VariantMeta {
+            category: "internal",
+            suggestion:
+                "Prism process supervision failure (memory or watchdog). \
+                 Contact Prism operator; see audit log for details.",
             retryable: false,
             retry_after_seconds: None,
             original_params_valid: true,
@@ -1501,6 +1537,179 @@ mod tests {
         assert_eq!(
             category, "upstream_error",
             "PrismError::SensorHttpError (non-auth) must remain 'upstream_error' — NOT 'internal' (BC-2.10.007 v1.7 regression guard); got '{category}'"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 OBS-1: SensorNotRegisteredForOrg → category "permission" ──
+
+    /// BC-2.10.007 v1.8 OBS-1: SensorNotRegisteredForOrg maps to category "permission",
+    /// original_params_valid: true (BC-2.10.007 §OBS-1 adjudication).
+    ///
+    /// Cross-org sensor isolation is a scoping/permission denial, NOT a parameter
+    /// validation failure. The org slug and sensor name are structurally valid; access
+    /// was refused at the org-scoping boundary. original_params_valid: true because the
+    /// parameters were correct — the sensor is not registered under that org.
+    ///
+    /// JSON-RPC code (-32602) and error code (E-QUERY-032) are unchanged.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_not_registered_for_org_category_is_permission() {
+        let err = PrismError::SensorNotRegisteredForOrg {
+            sensor_id: "claroty".to_owned(),
+            org_slug: "demo-org-a".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-1: category must be "permission" (not "validation").
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "permission",
+            "SensorNotRegisteredForOrg must map to category 'permission' (BC-2.10.007 v1.8 OBS-1); got '{category}'"
+        );
+
+        // OBS-1: original_params_valid must be true.
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("structuredContent.error.original_params_valid must be a bool");
+        assert!(
+            original_params_valid,
+            "SensorNotRegisteredForOrg must have original_params_valid:true (params were structurally \
+             correct; access was refused at org-scoping boundary)"
+        );
+
+        // retryable must be false — org-scoping errors are not transient.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "SensorNotRegisteredForOrg must be retryable:false"
+        );
+
+        // Error code must still be E-QUERY-032 (unchanged per OBS-1 adjudication).
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.code must be a string");
+        assert!(
+            code.contains("E-QUERY-032"),
+            "SensorNotRegisteredForOrg error code must contain 'E-QUERY-032' (unchanged by OBS-1); got '{code}'"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "SensorNotRegisteredForOrg upstream_message must be null (Prism-originating error, DI-006); got: {upstream_message:?}"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 OBS-2: Watchdog* → category "internal" ──
+
+    /// BC-2.10.007 v1.8 OBS-2: WatchdogKilled maps to category "internal",
+    /// original_params_valid: true, retryable: false, upstream_message: null.
+    ///
+    /// WatchdogKilled is a Prism-side process supervision failure (memory budget exceeded).
+    /// The query was killed by Prism's own watchdog — the sensor was never reached.
+    /// "internal" is correct; "upstream_error" was semantically wrong (it directed
+    /// LLM agents to investigate sensor health for a Prism-internal resource constraint).
+    ///
+    /// WatchdogKilled is reachable on user-visible MCP tool paths via:
+    /// prism-storage::watchdog::check_query → ? propagation → tool handler →
+    /// prism_error_to_structured_call_result.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_watchdog_killed_category_is_internal() {
+        let err = PrismError::WatchdogKilled {
+            budget_bytes: 512_000_000,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-2: category must be "internal".
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "WatchdogKilled must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+        );
+
+        // retryable must be false — watchdog termination is not transient.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "WatchdogKilled must be retryable:false (watchdog termination is not a transient condition)"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "WatchdogKilled upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 catch-all guard: genuinely unmapped variants → "upstream_error" ──
+
+    /// BC-2.10.007 catch-all arm: genuinely unmapped PrismError variants fall to
+    /// "upstream_error" via the non_exhaustive catch-all.
+    ///
+    /// PrismError::Infusion has no explicit arm in prism_error_to_structured_call_result
+    /// (it is handled by the catch-all `_` arm). This test asserts that the catch-all
+    /// still maps to "upstream_error" after OBS-2 added the explicit Watchdog* arm.
+    ///
+    /// Previously this test used WatchdogKilled to exercise the catch-all. After OBS-2
+    /// added an explicit arm for WatchdogKilled, this test was repurposed to use
+    /// PrismError::Infusion — a genuinely unmapped variant that still hits the catch-all.
+    #[test]
+    fn test_CRIT_B_catch_all_category_is_upstream_error() {
+        let err = PrismError::Infusion(prism_core::error::InfusionError::UnknownInfusion {
+            name: "test_catch_all_enrichment".to_owned(),
+        });
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "Genuinely unmapped PrismError variants must fall to catch-all 'upstream_error'; \
+             got '{category}'. If this fails after a new explicit arm was added, switch to \
+             a different genuinely-unmapped variant."
         );
     }
 }
