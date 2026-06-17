@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.72"
+version: "6.73"
 status: draft
 producer: state-manager
-timestamp: 2026-06-17T00:00:00Z
+timestamp: 2026-06-17T15:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -148,7 +148,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.005 | notifications/tools/list_changed on Config Reload | 10 - MCP Interface | CAP-005, CAP-009 | P0 | draft |
 | BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active (v1.8 — D-1191 2026-06-16: S-5.02 PR #191 OBS-1+OBS-2 adjudication — E-QUERY-032/SensorNotRegisteredForOrg → category "permission"/original_params_valid:true; WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded → category "internal"/original_params_valid:true; +2 canonical test vectors; §Implementer Code Follow-Up restructured into F-4/OBS-1/OBS-2 sections; IMPLEMENTER CODE FOLLOW-UP PENDING in S-5.02 feature branch) |
-| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft (v1.8 — D-1212 2026-06-17: DI-008 client-scoping + api_base_url required) |
+| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft (v1.9 — 2026-06-17: org-with-no-overlay semantics documented: Option B — zero sensors when org has no resolved_spec_map entries; EC-10-017 added; postcondition 1 extended with zero-sensor clause grounded in BC-2.06.012 EC-012-003; was v1.8: D-1212 2026-06-17: DI-008 client-scoping + api_base_url required) |
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active (status:draft→active D-1202 per POL-14; anchor story S-5.02 merged PR #191 develop@bec894a2 2026-06-17; lifecycle_status was already active) |
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.81 (D-1215 2026-06-17: SAP-1/PG-LP11-001 dual-path infusion catalog expansion — 5 new event_type rows: `infusion.http_lookup.started`, `infusion.http_lookup.failed`, `infusion.http_lookup.succeeded`, `plugin_enrich_json_parse_error`, `plugin_enrich_unexpected_val`; catalog v1.48→v1.49; event count 73→78; was v1.80: OBS-2 `sensor_by_table_snapshot` 6th emitting method D-1200) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.82 (2026-06-17: ADR-040 §D8.7 correction — replaced 3 PIVOT-002 dotted-name rows (`infusion.http_lookup.started/failed/succeeded`) with 2 ADR-mandated names (`http_lookup_enrich_failed`, `http_lookup_ssrf_rejected`); catalog v1.49→v1.50; event count 78→77; implementer must rename `tracing::warn!` site and add SSRF rejection emit; was v1.81: D-1215 2026-06-17: SAP-1 dual-path infusion catalog expansion, event count 73→78) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.73 (2026-06-17, S-5.03+PIVOT-002 spec corrections burst):** product-owner | (1) BC-2.10.008 inline row: v1.8→v1.9 — org-with-no-overlay semantics documented as Option B (zero sensors when `resolved_spec_map` has no entries for org's OrgSlug); EC-10-017 added; postcondition 1 extended; BC-2.06.012 EC-012-003 cited as authority. (2) BC-2.16.002 inline row: v1.81→v1.82 — ADR-040 §D8.7 source-of-truth correction: replaced 3 PIVOT-002 dotted-name rows (`infusion.http_lookup.started/failed/succeeded`) with 2 ADR-mandated names (`http_lookup_enrich_failed`, `http_lookup_ssrf_rejected`); catalog v1.49→v1.50; event count 78→77; ADR wins per CLAUDE.md precedence §2. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.72→v6.73.
 
 **v6.72 (2026-06-17, D-1215–D-1216 out-of-band reconciliation burst — PIVOT-002 BC catalog amendments):** state-manager | (1) BC-2.16.002 inline row: v1.80→v1.81 — SAP-1/PG-LP11-001 dual-path infusion catalog expansion: 5 new event_type rows added (`infusion.http_lookup.started`, `infusion.http_lookup.failed`, `infusion.http_lookup.succeeded`, `plugin_enrich_json_parse_error`, `plugin_enrich_unexpected_val`); catalog v1.48→v1.49; event count 73→78; scope statement extended to cover HttpLookupSource emissions. (2) BC-2.19.001 inline row: v1.7→v1.8 — `http_lookup` added as valid InfusionType per ADR-040 v2.0 §D8.3; E-INFUSE-004 valid-types extended; two-phase RUNTIME wiring for HttpLookup (SSRF validation, E-INFUSE-011) documented. Reconciliation note: these BC changes were originally committed out-of-band by the PIVOT-002 implementer in commit 3e327e99 (unpushed); soft-reset and re-committed here as a single state-manager burst per TD-VSDD-053. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.71→v6.72.
 

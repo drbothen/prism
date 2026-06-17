@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-008, CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["cycle-1-burst-45", "cycle-1-burst-49", "pass-69-housekeeping", "pass-73-fix", "pass-79-fix", "F-S503-002-adjudication-2026-06-17"]
+modified: ["cycle-1-burst-45", "cycle-1-burst-49", "pass-69-housekeeping", "pass-73-fix", "pass-79-fix", "F-S503-002-adjudication-2026-06-17", "S-5.03-org-no-overlay-semantics-2026-06-17"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,6 +30,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | S-5.03-org-no-overlay-semantics-2026-06-17 | 2026-06-17 | product-owner | **S-5.03 Item 1 — org-with-no-overlay semantics documented (Option B: zero sensors).** Postcondition 1 extended with an unambiguous zero-sensor clause: an org that is registered in `OrgRegistry` but has zero entries in `resolved_spec_map` for its `OrgSlug` MUST expose zero sensors via `prism://config/clients/{client_id}/sensors`. Rationale: (a) `resolved_spec_map: HashMap<(OrgSlug,SensorId),ResolvedSensorSpec>` is the definitive per-org provisioned set — only orgs with explicit overlay entries or registered TYPE-spec-backed adapter entries appear in it; an org with zero entries is not provisioned for any sensor. (b) The multi-client SOC demo requires DIFFERENTIATED sensor combinations per org: if Option A (all TYPE specs visible by default) were adopted, every org would see every sensor type, destroying the differentiation that drives the demo's value. (c) Option A would require inventing a "global TYPE spec list" data source that is separate from `resolved_spec_map`, introducing a new code path not anchored to any existing data structure. (d) MSSP correctness: an org is provisioned for the sensors they explicitly configure (via `customers/<slug>/*.overlay.toml`); unexplained visibility of unprovisioned sensor types would be an over-disclosure. BC-2.06.012 EC-012-003 confirms that a SaaS sensor with no per-org overlay produces NO `ResolvedSensorSpec` entry (fanout engine fallback to TYPE spec is an EXECUTOR optimization, not an indicator of provisioned inventory). **Bumped v1.8→v1.9.** |
 | 1.8 | F-S503-002-adjudication-2026-06-17 | 2026-06-17 | product-owner | **F-S503-002 adjudication — per-client scoping and host-only URL field clarified.** (1) Postcondition 2 rewritten to be unambiguous: `prism://config/clients/{client_id}/sensors` MUST filter by the `client_id` URI segment — returning all sensors regardless of `client_id` is a DI-008 violation; this is IN SCOPE for S-5.03. `api_base_url` field added explicitly to the postcondition with the requirement that it be present and contain only scheme+host+port (no path, no query string, no credentials). (2) DI-008 Invariant strengthened: the `client_id` path segment is the authorization boundary; ignoring it is a data separation defect, not a multi-tenant deferral. DI-002 Invariant expanded to call out `api_base_url` host-only requirement. (3) VP-050 proptest already verifies the URL redaction; no VP change required. Story-writer propagation required for S-5.03: update AC-2 to explicitly assert per-client filtering and `api_base_url` host-only field presence. **Bumped v1.7→v1.8.** |
 | 1.7 | pass-79-fix | 2026-04-20 | state-manager | MED-001 fix: removed stale `pass-72-fix` entry from modified array (no corresponding changelog row existed; pass-72 did not touch this file). |
 | 1.6 | pass-73-fix | 2026-04-20 | state-manager | Renumbered changelog to close v1.4 gap: old v1.5→v1.4; old v1.6→v1.5; this row closes the sequence at v1.6. Original v1.3→v1.5 spanned two distinct burst events that were conflated at authoring time. |
@@ -51,7 +52,7 @@ This BC governs the MCP resources that expose client inventory and per-client se
 
 ## Postconditions
 
-1. `prism://config/clients` resource returns a JSON array of all configured clients with: `client_id`, `display_name`, `sensors` (list of enabled sensor IDs), `capabilities_summary` (count of enabled write capabilities)
+1. `prism://config/clients` resource returns a JSON array of all configured clients with: `client_id`, `display_name`, `sensors` (list of enabled sensor IDs), `capabilities_summary` (count of enabled write capabilities). The sensor list for each client is derived from `resolved_spec_map` entries for that client's `OrgSlug`. **An org registered in `OrgRegistry` but with zero entries in `resolved_spec_map` for its `OrgSlug` MUST appear in this list with an empty `sensors` array `[]` — it is present as a client but provisioned for zero sensors.** An org whose `OrgSlug` is NOT registered in `OrgRegistry` at all MUST NOT appear in this list.
 2. `prism://config/clients/{client_id}/sensors` resource returns detailed sensor inventory SCOPED TO THE SPECIFIED `client_id` ONLY — the handler MUST filter by the `client_id` URI segment before returning results. Each entry includes: `sensor_id`, `api_base_url` (host+port component only — full URL and path MUST be stripped; no credentials), `enabled` status, and `configured_sources` (list of data source identifiers). **The `api_base_url` field MUST be present and MUST contain only the scheme+host+port (e.g., `"https://api.crowdstrike.com"`); full URL paths, query strings, and credentials MUST NOT appear in this field.** Any implementation that returns the full API URL, omits `api_base_url`, or returns sensors from a `client_id` different from the URI segment violates this postcondition.
 3. `prism://sensors/health` resource returns cached health status per BC-2.08.006 (global cross-client matrix)
 4. Resource content uses `application/json` MIME type
@@ -75,7 +76,8 @@ This BC governs the MCP resources that expose client inventory and per-client se
 |----|-------------|-------------------|
 | EC-10-014 | Zero clients configured | `prism://config/clients` returns empty JSON array `[]` |
 | EC-10-015 | Client has sensors configured but all disabled | `prism://config/clients/{id}/sensors` lists sensors with `enabled: false` |
-| EC-10-016 | Client has no sensors configured | `prism://config/clients/{id}/sensors` returns empty `sensors` array, not an error |
+| EC-10-016 | Client has no sensors configured | `prism://config/clients/{id}/sensors` returns empty `sensors` array `[]`, not an error |
+| EC-10-017 | Org registered in `OrgRegistry` with zero entries in `resolved_spec_map` | `prism://config/clients/{id}/sensors` returns empty `sensors` array `[]`. The org is provisioned but has no sensor overlays — zero sensors exposed. **This is Option B semantics: overlay = provisioned, not "customize a global default."** BC-2.06.012 EC-012-003 (SaaS sensor with no per-org overlay produces NO `ResolvedSensorSpec` entry) is the authoritative grounding. The query-engine fanout fallback to TYPE spec is an executor optimization that does NOT create provisioned inventory visible in MCP resources. |
 
 ## Canonical Test Vectors
 
