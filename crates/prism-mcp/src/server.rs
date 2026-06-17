@@ -51,18 +51,27 @@ use prism_spec_engine::write_endpoint::{
     BatchMode, RiskTierSpec, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
 };
 use rmcp::{
-    handler::server::{tool::schema_for_type, wrapper::Parameters},
-    model::{Implementation, ServerCapabilities, ServerInfo},
+    handler::server::{router::prompt::PromptRouter, tool::schema_for_type, wrapper::Parameters},
+    model::{
+        ErrorData, GetPromptRequestParams, GetPromptResult, Implementation, ListPromptsResult,
+        ListResourceTemplatesResult, ListResourcesResult, PaginatedRequestParams,
+        ReadResourceRequestParams, ReadResourceResult, ServerCapabilities, ServerInfo,
+    },
+    prompt_handler,
     schemars::JsonSchema,
+    service::RequestContext,
     tool, tool_handler, tool_router,
     transport::stdio,
-    ServerHandler, ServiceExt,
+    RoleServer, ServerHandler, ServiceExt,
 };
 use serde::Deserialize;
 use tokio::signal;
 
 use crate::{
+    context::PrismContext,
     error_mapping::{codes, prism_error_to_structured_call_result, to_error_data},
+    prompts::build_prompt_router,
+    resources,
     safety_envelope::{
         DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
         AUDIT_EMISSION_FAILED_WARNING,
@@ -114,6 +123,20 @@ pub struct PrismServer {
     /// IMP-8: wired at boot step 9 via list_slugs(); alias handlers call
     /// valid_client_ids() to build the allowlist before passing it to alias_tools.
     org_registry: Option<Arc<prism_core::OrgRegistry>>,
+    /// PromptRouter — holds the four static MCP prompt templates (BC-2.10.009).
+    ///
+    /// Consumed by `#[prompt_handler(router = self.prompt_router)]` on the
+    /// `impl ServerHandler for PrismServer` block. Built at construction time
+    /// via `build_prompt_router()`.
+    prompt_router: PromptRouter<Self>,
+    /// PrismContext — per-server mutable state (health cache, etc.) (BC-2.08.006).
+    ///
+    /// Shared via `Arc` across tool handlers that need to read/write per-server
+    /// state (e.g., `check_sensor_health` writes health cache,
+    /// `prism://sensors/health` resource reads it).
+    #[allow(dead_code)]
+    // stub — implementer will read/write this field; unused until todo!() bodies filled in
+    context: Arc<PrismContext>,
 }
 
 impl PrismServer {
@@ -137,6 +160,8 @@ impl PrismServer {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         }
     }
 
@@ -181,6 +206,8 @@ impl PrismServer {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         }
     }
 
@@ -218,6 +245,8 @@ impl PrismServer {
             spec_dir: Some(spec_dir),
             alias_store: Some(alias_store),
             org_registry: Some(org_registry),
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         }
     }
 
@@ -829,13 +858,18 @@ pub struct ConfirmActionParams {
     pub client_id: String,
 }
 
-/// Parameters for the `check_sensor_health` tool.
+/// Parameters for the `check_sensor_health` tool (BC-2.08.005 precondition).
+///
+/// BC-2.08.005 v1.4 (OOD-001 adjudication — SPEC WINS): `client_id` is required.
+/// The legacy `sensor: Option<String>` stub (absent `client_id`) was non-conformant.
 #[non_exhaustive]
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CheckSensorHealthParams {
-    /// Specific sensor name to check (optional — all sensors checked if absent).
-    pub sensor: Option<String>,
+    /// Client identifier — REQUIRED (BC-2.08.005 precondition, OOD-001 adjudication).
+    pub client_id: String,
+    /// Specific sensor to check (optional — null means all sensors for the client).
+    pub sensor_id: Option<String>,
 }
 
 /// Parameters for the `get_diagnostics` tool.
@@ -2860,10 +2894,18 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CheckSensorHealthParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        if let Some(ref sensor) = params.sensor {
-            // F-PR163-PASS3-MED-1: sensor name is length-bounded before injection scan (256-byte cap).
-            validate_text_field("sensor", sensor.as_str(), 256)?;
-            self.scan_inputs_audited("check_sensor_health", &[("sensor", sensor.as_str())])
+        // BC-2.08.005 v1.4: client_id is required — validate it is non-empty and length-bounded.
+        validate_text_field("client_id", params.client_id.as_str(), 256)?;
+        self.scan_inputs_audited(
+            "check_sensor_health",
+            &[("client_id", params.client_id.as_str())],
+        )
+        .await?;
+
+        if let Some(ref sensor_id) = params.sensor_id {
+            // F-PR163-PASS3-MED-1: sensor_id name is length-bounded before injection scan (256-byte cap).
+            validate_text_field("sensor_id", sensor_id.as_str(), 256)?;
+            self.scan_inputs_audited("check_sensor_health", &[("sensor_id", sensor_id.as_str())])
                 .await?;
         }
 
@@ -2875,14 +2917,9 @@ impl PrismServer {
         )
         .await?;
 
-        // CRIT-4 fix: sensor health check requires live adapter pings (GAP-002-A).
-        // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
-        // PluginAuthProvider (ADR-028 §D10). Direct adapter fan-out wires in S-5.04.
-        // Return a structured not-yet-available response rather than Internal (which implies
-        // a wiring defect — this is a known architectural gap, not a missing dependency).
-        Err(not_yet_available_msg(
-            "sensor health — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
-        ))
+        // S-5.03 stub: real implementation wires adapter fan-out in Task 3.
+        // Full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH.
+        todo!("S-5.03 Task 3: implement check_sensor_health with adapter fan-out per BC-2.08.005")
     }
 
     /// Retrieve diagnostic information for a specific sensor or all sensors.
@@ -5031,10 +5068,12 @@ is NOT an error — returns matrix with client_registered: false",
     }
 }
 
-// ─── ServerHandler impl — override get_info for correct capabilities ──────────
+// ─── ServerHandler impl — override get_info, resources, and prompt routing ────
 
 /// HIGH-006 fix: server name is "prism" (not the crate name "prism_mcp").
 /// HIGH-007 fix: declare tools + prompts + resources capabilities.
+/// S-5.03: #[prompt_handler] wires PromptRouter; resource overrides serve prism:// URIs.
+#[prompt_handler(router = self.prompt_router)]
 #[tool_handler(
     name = "prism",
     version = "0.1.0",
@@ -5047,11 +5086,7 @@ impl ServerHandler for PrismServer {
         // HIGH-006 fix: server name is "prism" (not the crate name "prism_mcp").
         // F-PASS11-MED-3 fix: declare tools + prompts + resources capabilities.
         // rmcp-1.7.0 ServerCapabilities::builder() supports all three; prompts and
-        // resources are declared as empty stubs so MCP clients know to negotiate
-        // their presence (MCP capability negotiation protocol). The list_prompts and
-        // list_resources handlers are provided by the default ServerHandler impl
-        // (empty lists), which satisfies the MCP spec for declared-but-empty
-        // capability sets (clients must not assume capabilities are non-empty).
+        // resources are declared as active capability sets (S-5.03 implements all three).
         ServerInfo::new(
             ServerCapabilities::builder()
                 .enable_tools()
@@ -5060,6 +5095,37 @@ impl ServerHandler for PrismServer {
                 .build(),
         )
         .with_server_info(Implementation::new("prism", "0.1.0"))
+    }
+
+    // ─── Resource overrides (rmcp 1.7 — no #[resource_handler] macro exists) ───
+    //
+    // Resources are served by overriding these three ServerHandler methods directly.
+    // Confirmed against rmcp-1.7.0/src/handler/server.rs default impls.
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, ErrorData> {
+        todo!("S-5.03 Task 1: implement list_resources — return prism:// resource catalogue")
+    }
+
+    async fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, ErrorData> {
+        todo!("S-5.03 Task 1: implement list_resource_templates — return prism:// URI templates")
+    }
+
+    async fn read_resource(
+        &self,
+        _request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResult, ErrorData> {
+        // Dispatch to resources.rs based on URI pattern.
+        // The context Arc provides access to health cache (BC-2.08.006).
+        todo!("S-5.03 Task 1+4: implement read_resource — dispatch to resources::dispatch_read_resource")
     }
 }
 
@@ -5654,6 +5720,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         // Call confirm_action with the pre-stored token and matching client_id.
@@ -5988,6 +6056,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 'p' chars — 1 over the 256-char limit.
         let oversized_pack_id = "p".repeat(257);
@@ -6100,6 +6170,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = ConfirmActionParams {
@@ -6838,6 +6910,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "r".repeat(257);
@@ -6868,6 +6942,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "c".repeat(257);
@@ -6897,6 +6973,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "u".repeat(257);
@@ -6993,6 +7071,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         (server, confirmation_store, tmpdir)
@@ -7178,6 +7258,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = CreateAliasParams {
@@ -7222,6 +7304,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = DeleteAliasParams {
@@ -7659,23 +7743,27 @@ mod tests {
         );
     }
 
-    /// F-PR163-PASS3-MED-1: check_sensor_health rejects a 257-byte sensor name with INVALID_PARAMS.
+    /// F-PR163-PASS3-MED-1: check_sensor_health rejects a 257-byte sensor_id with INVALID_PARAMS.
+    ///
+    /// Updated for BC-2.08.005 v1.4 (OOD-001 adjudication): struct now has
+    /// `client_id: String` (required) and `sensor_id: Option<String>` (renamed from `sensor`).
     #[tokio::test]
     async fn test_F_PR163_PASS3_MED_1_check_sensor_health_sensor_length_bounded() {
         let server = PrismServer::new();
         let params = CheckSensorHealthParams {
-            sensor: Some("s".repeat(257)),
+            client_id: "acme".to_string(),
+            sensor_id: Some("s".repeat(257)),
         };
         let err = server
             .check_sensor_health(Parameters(params))
             .await
-            .expect_err("check_sensor_health must reject a 257-byte sensor name");
+            .expect_err("check_sensor_health must reject a 257-byte sensor_id");
         assert_eq!(
             err.code.0,
             codes::INVALID_PARAMS,
-            "check_sensor_health: 257-byte sensor must return INVALID_PARAMS (-32602); \
-             mental-deletion proof: removing validate_text_field(\"sensor\",...) causes the \
-             handler to return NOT_IMPLEMENTED (-32003), not INVALID_PARAMS — assertion fails"
+            "check_sensor_health: 257-byte sensor_id must return INVALID_PARAMS (-32602); \
+             mental-deletion proof: removing validate_text_field(\"sensor_id\",...) causes the \
+             handler to return todo!() panic, not INVALID_PARAMS — assertion fails"
         );
     }
 
@@ -8593,6 +8681,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = ExplainQueryParams {

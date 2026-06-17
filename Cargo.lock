@@ -5175,6 +5175,7 @@ dependencies = [
  "prism-security",
  "prism-sensors",
  "prism-spec-engine",
+ "proptest",
  "rmcp",
  "schemars",
  "serde",
