@@ -432,7 +432,7 @@ pub fn register_infusion_udfs(
     ctx: &SessionContext,
     descriptors: Vec<InfusionUdfDescriptor>,
 ) -> datafusion::error::Result<()> {
-    register_infusion_udfs_impl(ctx, descriptors, None, None)
+    register_infusion_udfs_impl(ctx, descriptors, None)
 }
 
 /// Register all infusion UDF descriptors with the full three-tier cache wired (BC-2.19.002).
@@ -457,7 +457,6 @@ pub fn register_infusion_udfs_with_cache(
         ctx,
         descriptors,
         Some((lru_cache, tier3_cache, cache_ttl_secs)),
-        None,
     )
 }
 
@@ -469,7 +468,6 @@ fn register_infusion_udfs_impl(
     ctx: &SessionContext,
     descriptors: Vec<InfusionUdfDescriptor>,
     cache_opts: Option<(Arc<InfusionLruCache>, Arc<InfusionTier3Cache>, u64)>,
-    _reserved: Option<()>,
 ) -> datafusion::error::Result<()> {
     // Detect duplicate UDF names before registration (registration-time defense-in-depth guard).
     // DataFusion's `register_udf` silently overwrites duplicates, which would cause

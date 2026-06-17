@@ -86,6 +86,15 @@ impl PluginInfusionSource {
 }
 
 impl InfusionSource for PluginInfusionSource {
+    /// Returns `true` — this source IS backed by the WASM plugin runtime.
+    ///
+    /// Overrides the `InfusionSource::is_plugin_backed()` default (`false`) to distinguish
+    /// `PluginInfusionSource` from `NullSource` and local-lookup sources without `Any`
+    /// downcasting (Task 13 / F-SV-1 load-bearing assertion path).
+    fn is_plugin_backed(&self) -> bool {
+        true
+    }
+
     /// Enrich a single input value via the WASM plugin runtime.
     ///
     /// Delegates to `PluginRuntime::enrich_single(plugin_id, input, input_type, config)`

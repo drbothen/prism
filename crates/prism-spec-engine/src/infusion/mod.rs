@@ -389,6 +389,18 @@ pub trait InfusionSource: Send + Sync + std::fmt::Debug {
 
     /// Enrich a batch of input values. Returns parallel `Option<Value>` results.
     fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>>;
+
+    /// Returns `true` if this source is backed by the WASM plugin runtime.
+    ///
+    /// Default implementation returns `false` (for `NullSource`, `MmdbSource`, `CsvSource`,
+    /// `JsonLookupSource`). `PluginInfusionSource` overrides to return `true`.
+    ///
+    /// Used by tests (and diagnostics) to assert that `infusion_load_step` wired a
+    /// `PluginInfusionSource` — not a `NullSource` — for plugin-type infusion specs
+    /// (Task 13 / F-SV-1 load-bearing assertion).
+    fn is_plugin_backed(&self) -> bool {
+        false
+    }
 }
 
 // ---------------------------------------------------------------------------

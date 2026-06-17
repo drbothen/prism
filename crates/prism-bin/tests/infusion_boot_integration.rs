@@ -29,6 +29,21 @@ use std::io::Write;
 use std::sync::Arc;
 
 use prism_bin::boot::infusion_load_step;
+use prism_spec_engine::plugin::PluginRuntime;
+
+/// Construct a minimal `Arc<PluginRuntime>` for tests that exercise LocalLookup infusion
+/// paths and do not need a real WASM plugin loaded.  The runtime is used by
+/// `infusion_load_step` only for `InfusionType::Plugin` specs; LocalLookup tests never hit
+/// the plugin path, so an empty runtime (no plugins registered) is correct here.
+fn make_test_runtime() -> Arc<PluginRuntime> {
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("test runtime: reqwest::Client construction must succeed");
+    Arc::new(
+        PluginRuntime::new(http_client).expect("test runtime: PluginRuntime::new must succeed"),
+    )
+}
 
 // ---------------------------------------------------------------------------
 // Test AC-10: infusion_load_step is callable and produces an InfusionRegistry
@@ -108,7 +123,9 @@ adds_columns = ["asset_name", "asset_owner"]
 
     // `infusion_load_step()` calls InfusionLoader::load_all(), registers each valid spec,
     // and returns a populated InfusionRegistry. S-1.14-REDO is fully implemented.
-    let registry = infusion_load_step(temp_dir.path());
+    // An empty PluginRuntime is correct here — this test uses a LocalLookup CSV spec.
+    let runtime = make_test_runtime();
+    let registry = infusion_load_step(temp_dir.path(), &runtime);
 
     // After S-1.14-REDO: verify the registry has the expected UDF descriptors.
     let descriptors = registry.udf_descriptors();
@@ -214,7 +231,9 @@ adds_columns = ["asset_name_medb", "asset_owner_medb"]
     }
 
     // Boot: call infusion_load_step to get the populated registry.
-    let registry = infusion_load_step(temp_dir.path());
+    // An empty PluginRuntime is correct here — this test uses a LocalLookup CSV spec.
+    let runtime = make_test_runtime();
+    let registry = infusion_load_step(temp_dir.path(), &runtime);
     let descriptors = registry.udf_descriptors();
     assert!(
         !descriptors.is_empty(),
@@ -439,7 +458,9 @@ adds_columns = ["tier3_asset_name"]
             .expect("AC-7: TOML write must succeed");
     }
 
-    let registry = infusion_load_step(temp_dir.path());
+    // An empty PluginRuntime is correct here — this test uses a LocalLookup CSV spec.
+    let runtime = make_test_runtime();
+    let registry = infusion_load_step(temp_dir.path(), &runtime);
     let descriptors = registry.udf_descriptors();
     assert!(
         !descriptors.is_empty(),
@@ -569,6 +590,143 @@ adds_columns = ["tier3_asset_name"]
     );
 }
 
+/// Task 13 / F-SV-1 load-bearing test: plugin-type infusion spec wired through `infusion_load_step`
+/// with a real `Arc<PluginRuntime>` stores a `PluginInfusionSource` — not `NullSource`.
+///
+/// # What this proves (structural, not just behavioral)
+///
+/// Before the Task 13 fix, `infusion_load_step` called `registry.load_spec(spec)` for ALL specs
+/// (including `InfusionType::Plugin`), which stores `NullSource`.  `NullSource::is_plugin_backed()`
+/// returns `false`.  `PluginInfusionSource::is_plugin_backed()` returns `true`.
+/// This test asserts `is_plugin_backed() == true` for every descriptor produced by a plugin-type
+/// spec — proving the fix landed and `load_spec_with_runtime` was called, not `load_spec`.
+///
+/// # Why the NullSource hollow-feature matters
+///
+/// With `NullSource`, `enrich_single` returns `None` immediately without ever calling
+/// `PluginRuntime::enrich_single`. With `PluginInfusionSource`, the runtime IS called —
+/// and for a loaded plugin, it returns real enrichment data. For an unloaded plugin (no .prx
+/// registered), it returns `PluginError::NotLoaded → None` (non-panicking).
+///
+/// This test uses an empty `PluginRuntime` (no .prx loaded) — the plugin returns `NotLoaded → None`.
+/// That is correct for a unit test: the structural proof (is_plugin_backed) is the assertion,
+/// not the enrichment value.
+///
+/// # Regression detection
+///
+/// If the fix regresses (plugin spec goes back through `load_spec` instead of
+/// `load_spec_with_runtime`), every descriptor's `source.is_plugin_backed()` returns `false`
+/// and this test fails — catching the regression before it ships.
+///
+/// Traces to: Task 13 (F-SV-1), S-1.14-REDO AC-10, BC-2.19.001 (plugin-type spec must be
+/// wired with a real PluginInfusionSource in the production boot path).
+#[test]
+fn test_boot_plugin_infusion_spec_wired_with_real_plugin_source_not_null_source() {
+    use prism_spec_engine::InfusionSource;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // Create a minimal temp config dir with a plugin-type infusion TOML.
+    let temp_dir =
+        TempDir::new().expect("Task13/F-SV-1: temp dir creation must succeed for test setup");
+    let infusions_dir = temp_dir.path().join("infusions");
+    std::fs::create_dir_all(&infusions_dir).expect("Task13/F-SV-1: infusions dir must be created");
+
+    // Write a plugin-type infusion TOML — source.type = "plugin" + source.plugin_ref path.
+    // The plugin does NOT need to exist as a real .prx file for this test because:
+    // 1. infusion_load_step only parses the TOML and calls load_spec_with_runtime — it does
+    //    NOT load or validate the .prx file (that happens at enrichment dispatch time).
+    // 2. The load-bearing assertion is source.is_plugin_backed(), not the enrichment value.
+    //
+    // Source type resolution order (loader.rs):
+    //   1. [source].type  (top-level — this is what we use here)
+    //   2. [infusion.source].type
+    //   3. [infusion].type
+    //   4. [infusion].source_type fallback
+    let plugin_infusion_toml = r#"
+[infusion]
+infusion_id = "threat_intel"
+name = "Threat Intel Plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "plugins/threat_intel.prx"
+
+[[infusion.fields]]
+name = "threat_intel_score"
+input_field = "src_ip"
+input_type = "ip"
+output_type = "string"
+
+[[infusion.fields]]
+name = "threat_intel_category"
+input_field = "src_ip"
+input_type = "ip"
+output_type = "string"
+
+[infusion.pipe_stage]
+adds_columns = ["threat_intel_score", "threat_intel_category"]
+"#;
+
+    let spec_path = infusions_dir.join("threat_intel.infusion.toml");
+    {
+        let mut f = std::fs::File::create(&spec_path)
+            .expect("Task13/F-SV-1: TOML fixture creation must succeed");
+        f.write_all(plugin_infusion_toml.as_bytes())
+            .expect("Task13/F-SV-1: TOML write must succeed");
+    }
+
+    // Call infusion_load_step with a real (but empty) PluginRuntime.
+    // Task 13 fix: plugin-type spec must go through load_spec_with_runtime (not load_spec).
+    let runtime = make_test_runtime();
+    let registry = infusion_load_step(temp_dir.path(), &runtime);
+
+    // Assert the spec was successfully registered (not silently dropped).
+    let descriptors = registry.udf_descriptors();
+    assert_eq!(
+        descriptors.len(),
+        2,
+        "Task13/F-SV-1: plugin-type infusion spec must produce 2 UDF descriptors \
+         (threat_intel_score, threat_intel_category). Got: {}. \
+         A 0-descriptor result means the spec failed to register (check WARN logs).",
+        descriptors.len()
+    );
+
+    // Structural load-bearing assertion: every descriptor from a plugin-type spec must carry a
+    // PluginInfusionSource (is_plugin_backed() == true), NOT a NullSource (is_plugin_backed() == false).
+    //
+    // Before the Task 13 fix: infusion_load_step called load_spec() for all specs, which stores
+    // NullSource for plugin-type specs. NullSource::is_plugin_backed() returns false.
+    // After the fix: infusion_load_step calls load_spec_with_runtime() for plugin specs, which
+    // stores PluginInfusionSource. PluginInfusionSource::is_plugin_backed() returns true.
+    //
+    // A regression to NullSource would cause this assertion to fail, catching the hollow-feature
+    // at test time rather than silently at production enrichment dispatch (where NullSource
+    // returns None without ever calling PluginRuntime).
+    for desc in &descriptors {
+        assert!(
+            desc.source.is_plugin_backed(),
+            "Task13/F-SV-1: descriptor '{}' from plugin-type infusion spec must carry a \
+             PluginInfusionSource (is_plugin_backed=true), not NullSource (is_plugin_backed=false). \
+             This assertion fails when infusion_load_step regresses to calling load_spec() for \
+             plugin-type specs instead of load_spec_with_runtime() (F-SV-1 hollow-feature).",
+            desc.name
+        );
+    }
+
+    // is_api_backed() must return true for both UDF names (InfusionType::Plugin).
+    assert!(
+        registry.is_api_backed("threat_intel_score"),
+        "Task13/F-SV-1: is_api_backed('threat_intel_score') must be true for plugin-type infusion \
+         (BC-2.19.003 / INV-INFUSE-003)"
+    );
+    assert!(
+        registry.is_api_backed("threat_intel_category"),
+        "Task13/F-SV-1: is_api_backed('threat_intel_category') must be true for plugin-type infusion \
+         (BC-2.19.003 / INV-INFUSE-003)"
+    );
+}
+
 /// AC-10 (non-fatal absent dir): `infusion_load_step` with no infusions dir returns empty registry.
 ///
 /// Verifies that an absent `infusions/` directory does NOT cause a boot failure.
@@ -584,7 +742,9 @@ fn test_boot_infusion_load_step_empty_dir_returns_empty_registry() {
     let temp_dir = TempDir::new().expect("AC-10: temp dir creation must succeed for test setup");
 
     // infusion_load_step handles absent dirs non-fatally — returns empty registry.
-    let registry = infusion_load_step(temp_dir.path());
+    // An empty PluginRuntime is correct here — no specs loaded in this test.
+    let runtime = make_test_runtime();
+    let registry = infusion_load_step(temp_dir.path(), &runtime);
 
     // After S-1.14-REDO: empty registry is acceptable (no infusions configured).
     let descriptors = registry.udf_descriptors();

@@ -613,7 +613,10 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // so that the InfusionRegistry is populated before the first query is processed.
     // Non-fatal: individual spec load failures are WARN-logged; the registry is returned
     // empty on error rather than aborting boot (BC-2.22.001 §Sequencing Invariant).
-    let infusion_registry = Arc::new(infusion_load_step(config_dir));
+    //
+    // Task 13 (F-SV-1): thread plugin_result.runtime so plugin-type infusion specs are
+    // wired with a real PluginInfusionSource instead of NullSource.
+    let infusion_registry = Arc::new(infusion_load_step(config_dir, &plugin_result.runtime));
 
     // Step 7 [BLOCKING]: Storage + internal-tables provider init.
     // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
@@ -2932,14 +2935,22 @@ pub async fn step11_install_signal_handlers(
 /// `QueryEngine::with_infusion_registry()`, which registers all infusion UDFs into the
 /// DataFusion SessionContext before the first query is processed.
 ///
-/// # Current behavior
-/// Calls `InfusionLoader::load_all()` to discover all `.infusion.toml` files in
-/// `{config_dir}/infusions/`, registers each successfully-parsed spec via
-/// `InfusionRegistry::load_spec()` (wiring real file-backed sources for LocalLookup specs),
-/// and returns the populated registry. The registry is wired into the QueryEngine via
-/// `with_infusion_registry()` in `run_boot_sequence`. Implemented and tested by S-1.14-REDO.
-pub fn infusion_load_step(config_dir: &Path) -> prism_spec_engine::InfusionRegistry {
+/// # Plugin-type vs LocalLookup routing (Task 13, F-SV-1)
+/// - `InfusionType::Plugin` specs → `InfusionRegistry::load_spec_with_runtime(spec, runtime)`:
+///   wires a real `PluginInfusionSource` backed by the supplied `Arc<PluginRuntime>`.
+///   This enables live enrichment for plugin-type infusions (e.g., ThreatIntel plugin).
+///   Without this routing, plugin-type specs would receive `NullSource` (always returns None).
+/// - All other specs → `InfusionRegistry::load_spec(spec)`: wires real file-backed sources for
+///   `LocalLookup` specs (MMDB/CSV/JSON-lookup) and `NullSource` for specs without a source config.
+///
+/// The `runtime` parameter is the `Arc<PluginRuntime>` produced by step 7.5 (plugin-load).
+/// It MUST be passed from `run_boot_sequence` after `plugin_load_step_with_audit` returns.
+pub fn infusion_load_step(
+    config_dir: &Path,
+    runtime: &Arc<prism_spec_engine::plugin::PluginRuntime>,
+) -> prism_spec_engine::InfusionRegistry {
     use prism_spec_engine::InfusionRegistry;
+    use prism_spec_engine::infusion::InfusionType;
     use prism_spec_engine::infusion::loader::InfusionLoader;
 
     let registry = InfusionRegistry::new();
@@ -2955,10 +2966,21 @@ pub fn infusion_load_step(config_dir: &Path) -> prism_spec_engine::InfusionRegis
     }
 
     // Register each valid spec into the registry.
+    // Task 13 (F-SV-1): branch by spec type so plugin-type specs get a real
+    // PluginInfusionSource (not NullSource which silently returns None for all enrichment calls).
     let mut registered = 0usize;
     for spec in specs {
         let infusion_id = spec.infusion_id.clone();
-        match registry.load_spec(spec) {
+        let is_plugin = spec.infusion_type == InfusionType::Plugin;
+        let result = if is_plugin {
+            // Plugin-type: wire a real PluginInfusionSource backed by the boot-step runtime.
+            registry.load_spec_with_runtime(spec, Arc::clone(runtime))
+        } else {
+            // LocalLookup (and any other non-plugin type): wire real file-backed source or
+            // NullSource (for specs without a source config). Same behaviour as before.
+            registry.load_spec(spec)
+        };
+        match result {
             Ok(_) => {
                 registered += 1;
             }
