@@ -2229,8 +2229,9 @@ fn test_enrichment_pivot_002_val_lift_fix_option_none_returns_ok_none() {
 /// CRIT-2 (AC-003 real path): verifies the PluginInfusionSource → PluginRuntime::enrich_single
 /// delegation chain is fully wired (not just the interface contract tested by mock).
 ///
-/// Constructs a real PluginRuntime + PluginInfusionSource with plugin_id "threat-intel"
-/// (matching the name() the built threatintel-lookup.prx will return).
+/// Constructs a real PluginRuntime + PluginInfusionSource with plugin_id "threat_intel"
+/// (canonical underscore identity — matches infusion_id in threatintel.infusion.toml AND
+/// the name() the guest plugin returns after HIGH-1 fix).
 /// Calls enrich_single("45.55.100.1", "ip") and asserts it returns None — the NotLoaded
 /// path proves the real delegation chain is exercised: PluginInfusionSource → PluginRuntime
 /// → plugin not in loaded map → logged at WARN → returns None.
@@ -2253,8 +2254,9 @@ fn test_enrichment_pivot_002_ac003_plugin_infusion_source_real_path() {
     // Empty config map — credential resolved at call time per AD-017.
     let config = Arc::new(PluginConfigMap::new());
 
-    // plugin_id "threat-intel" matches the name() the guest plugin returns.
-    let source = PluginInfusionSource::new("threat-intel", config, runtime);
+    // plugin_id "threat_intel" (underscore) — canonical identity after HIGH-1 fix.
+    // Matches infusion_id in threatintel.infusion.toml AND Guest::name() in the plugin.
+    let source = PluginInfusionSource::new("threat_intel", config, runtime);
 
     // Call enrich_single via the real PluginInfusionSource → PluginRuntime path.
     let result = source.enrich_single("45.55.100.1", "ip");
@@ -2269,6 +2271,244 @@ fn test_enrichment_pivot_002_ac003_plugin_infusion_source_real_path() {
          When threatintel-lookup.prx is built and loaded, this returns Some(enrichment). \
          Got: {:?}",
         result
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CRIT-2b + HIGH-1: ThreatIntel canned fixture end-to-end coverage
+// (S-DEMO-ENRICHMENT-PIVOT-002 fix-burst findings)
+// ---------------------------------------------------------------------------
+
+/// HIGH-1 + CRIT-2b: spec infusion_id "threat_intel" resolves to the loaded plugin
+/// and enrich_single returns real ThreatIntel enrichment fields.
+///
+/// Uses threat_intel.prx: a Component Model fixture named to match the canonical
+/// infusion_id "threat_intel" (underscore). For Component Model binaries, PluginRuntime
+/// derives plugin_id from the FILENAME STEM (not from name()), so the fixture must be
+/// named `threat_intel.prx` to register under key "threat_intel".
+///
+/// The fixture returns:
+///   enrich_single(_, _) -> Some({"threat_score":85,"threat_is_known_malicious":true,
+///                                "threat_sources":["greynoise","abuseipdb"]})
+///
+/// This test closes the hollow-coverage gap (CRIT-2b) and proves the identity
+/// alignment (HIGH-1): plugin_id "threat_intel" from infusion spec resolves to the
+/// loaded plugin — no NotLoaded on lookup.
+///
+/// HIGH-1 root cause: for Component Model binaries, PluginRuntime keys plugins by
+/// filename stem (discovery.rs:306 `path.file_stem()`). The production plugin filename
+/// must therefore match the infusion_id. The Guest::name() fix (returning "threat_intel"
+/// vs "threat-intel") is also applied for consistency and display/manifest name purposes,
+/// but the load_plugin path uses the filename, not name().
+///
+/// SID-1: no #[ignore], no mock — loads a real Component Model binary and exercises
+/// the production PluginRuntime::enrich_single path.
+#[test]
+fn test_enrichment_pivot_002_high1_crit2b_threat_intel_canned_fixture_end_to_end() {
+    // Fixture: crates/prism-spec-engine/fixtures/threat_intel.prx
+    // Component Model binary named "threat_intel.prx" → plugin_id = "threat_intel".
+    // enrich_single(_, _) -> Some({"threat_score":85,"threat_is_known_malicious":true,
+    //                              "threat_sources":["greynoise","abuseipdb"]})
+    let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("fixtures")
+        .join("threat_intel.prx");
+
+    assert!(
+        fixture_path.exists(),
+        "HIGH-1/CRIT-2b: threat_intel.prx fixture must exist at {:?}",
+        fixture_path
+    );
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+    let runtime = PluginRuntime::new(client).expect("PluginRuntime::new");
+
+    // Load the fixture — registers under plugin_id = "threat_intel" (filename stem).
+    // For Component Model binaries, PluginRuntime derives plugin_id from the filename stem,
+    // NOT from the name() export (that is only called for core WASM modules).
+    runtime
+        .load_plugin(&fixture_path)
+        .expect("HIGH-1/CRIT-2b: threat_intel.prx must load into PluginRuntime");
+
+    // HIGH-1 assertion: the plugin is registered under "threat_intel" (underscore).
+    // If the identity mismatch is NOT fixed, looking up "threat_intel" returns NotLoaded.
+    let plugins = runtime.list_plugins();
+    assert_eq!(
+        plugins.len(),
+        1,
+        "HIGH-1/CRIT-2b: exactly 1 plugin must be registered after loading threat_intel.prx. \
+         Got: {:?}",
+        plugins
+    );
+    assert_eq!(
+        plugins[0], "threat_intel",
+        "HIGH-1: plugin must be registered under 'threat_intel' (underscore) — canonical identity \
+         matching infusion_id in threatintel.infusion.toml. \
+         Got: '{}'",
+        plugins[0]
+    );
+
+    let config = PluginConfigMap::new();
+
+    // CRIT-2b: exercise the real enrich_single path — not NotLoaded.
+    let result = runtime.enrich_single("threat_intel", "45.55.100.1", "ip", &config);
+
+    assert!(
+        result.is_ok(),
+        "HIGH-1/CRIT-2b: enrich_single with plugin_id 'threat_intel' must return Ok(_). \
+         NotLoaded indicates HIGH-1 identity mismatch is NOT fixed. Got: {:?}",
+        result
+    );
+
+    let enrichment = result.unwrap();
+    assert!(
+        enrichment.is_some(),
+        "CRIT-2b: enrich_single must return Some(json) — canned fixture returns ThreatIntel data. \
+         Got None."
+    );
+
+    let json_val = enrichment.unwrap();
+    assert!(
+        json_val.is_object(),
+        "CRIT-2b: enrichment must be a JSON object. Got: {:?}",
+        json_val
+    );
+
+    // Assert all three ThreatIntel-specific fields are present and have the correct types.
+    // These fields match the spec's [[infusion.fields]] declarations.
+    let threat_score = json_val.get("threat_score");
+    assert!(
+        threat_score.is_some(),
+        "CRIT-2b: 'threat_score' field must be present in enrichment JSON. Got: {:?}",
+        json_val
+    );
+    assert!(
+        threat_score.unwrap().is_number(),
+        "CRIT-2b: 'threat_score' must be a number (integer). Got: {:?}",
+        threat_score
+    );
+
+    let threat_is_known_malicious = json_val.get("threat_is_known_malicious");
+    assert!(
+        threat_is_known_malicious.is_some(),
+        "CRIT-2b: 'threat_is_known_malicious' field must be present in enrichment JSON. Got: {:?}",
+        json_val
+    );
+    assert!(
+        threat_is_known_malicious.unwrap().is_boolean(),
+        "CRIT-2b: 'threat_is_known_malicious' must be a boolean. Got: {:?}",
+        threat_is_known_malicious
+    );
+
+    let threat_sources = json_val.get("threat_sources");
+    assert!(
+        threat_sources.is_some(),
+        "CRIT-2b: 'threat_sources' field must be present in enrichment JSON. Got: {:?}",
+        json_val
+    );
+    assert!(
+        threat_sources.unwrap().is_array(),
+        "CRIT-2b: 'threat_sources' must be a JSON array. Got: {:?}",
+        threat_sources
+    );
+
+    // Verify the canned values — deterministic fixture.
+    assert_eq!(
+        json_val["threat_score"].as_i64(),
+        Some(85),
+        "CRIT-2b: threat_score must be 85 (canned fixture value). Got: {:?}",
+        json_val["threat_score"]
+    );
+    assert_eq!(
+        json_val["threat_is_known_malicious"].as_bool(),
+        Some(true),
+        "CRIT-2b: threat_is_known_malicious must be true (canned fixture value). Got: {:?}",
+        json_val["threat_is_known_malicious"]
+    );
+    let sources_arr = json_val["threat_sources"].as_array().unwrap();
+    assert!(
+        sources_arr.contains(&serde_json::json!("greynoise")),
+        "CRIT-2b: threat_sources must contain 'greynoise'. Got: {:?}",
+        sources_arr
+    );
+    assert!(
+        sources_arr.contains(&serde_json::json!("abuseipdb")),
+        "CRIT-2b: threat_sources must contain 'abuseipdb'. Got: {:?}",
+        sources_arr
+    );
+}
+
+/// HIGH-1 + CRIT-2b: PluginInfusionSource with "threat_intel" plugin_id
+/// (canonical underscore identity) resolves to the loaded threat_intel.prx fixture and
+/// returns real enrichment data end-to-end.
+///
+/// This tests the FULL chain: spec's infusion_id "threat_intel" →
+/// PluginInfusionSource::new("threat_intel") → PluginRuntime::enrich_single →
+/// loaded plugin → Some(ThreatIntel JSON).
+///
+/// Contrast with test_enrichment_pivot_002_ac003_plugin_infusion_source_real_path
+/// which tests the NotLoaded path (no plugin loaded). This test confirms the
+/// loaded path works with the canonical identity.
+#[test]
+fn test_enrichment_pivot_002_high1_crit2b_plugin_infusion_source_canonical_identity_resolves() {
+    let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("fixtures")
+        .join("threat_intel.prx");
+
+    assert!(
+        fixture_path.exists(),
+        "HIGH-1/CRIT-2b: threat_intel.prx fixture must exist at {:?}",
+        fixture_path
+    );
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+    let runtime = Arc::new(PluginRuntime::new(client).expect("PluginRuntime::new"));
+    runtime
+        .load_plugin(&fixture_path)
+        .expect("HIGH-1/CRIT-2b: threat_intel.prx must load");
+
+    let config = Arc::new(PluginConfigMap::new());
+
+    // plugin_id "threat_intel" — the infusion_id from threatintel.infusion.toml.
+    // After HIGH-1 fix, the loaded plugin is registered under this same key.
+    let source = PluginInfusionSource::new("threat_intel", config, runtime);
+
+    let result = source.enrich_single("45.55.100.1", "ip");
+
+    // With the plugin loaded and HIGH-1 identity mismatch fixed, must return Some(json).
+    assert!(
+        result.is_some(),
+        "HIGH-1/CRIT-2b: PluginInfusionSource with plugin_id 'threat_intel' must return \
+         Some(json) when the canned fixture is loaded. \
+         None indicates HIGH-1 identity mismatch is NOT fixed — plugin registered under \
+         wrong key so lookup returns NotLoaded → None. Got None."
+    );
+
+    let json_val = result.unwrap();
+    assert!(
+        json_val.is_object(),
+        "HIGH-1/CRIT-2b: enrichment must be a JSON object. Got: {:?}",
+        json_val
+    );
+    assert!(
+        json_val.get("threat_score").is_some(),
+        "HIGH-1/CRIT-2b: 'threat_score' must be present in enrichment. Got: {:?}",
+        json_val
+    );
+    assert!(
+        json_val.get("threat_is_known_malicious").is_some(),
+        "HIGH-1/CRIT-2b: 'threat_is_known_malicious' must be present in enrichment. Got: {:?}",
+        json_val
+    );
+    assert!(
+        json_val.get("threat_sources").is_some(),
+        "HIGH-1/CRIT-2b: 'threat_sources' must be present in enrichment. Got: {:?}",
+        json_val
     );
 }
 
@@ -2331,5 +2571,90 @@ fn test_enrichment_pivot_002_val_lift_fix_unexpected_val_returns_enrich_call_fai
         "AC-019: unexpected Val type must produce EnrichCallFailed, Trapped, or InvalidInterface. \
          Got: {:?}",
         err
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CRIT-2a: validate_plugin_path wired into production load path
+// (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)
+// ---------------------------------------------------------------------------
+
+/// CRIT-2a: path traversal rejection through the production load entry point (InfusionLoader::load_all).
+///
+/// Given a plugin-type infusion TOML with plugin_ref = "../../etc/passwd.prx" (path traversal),
+/// AND a real `{config_dir}/plugins/` directory exists (so the validation runs via canonicalize),
+/// when InfusionLoader::load_all processes the directory,
+/// then the traversal spec is added to errors (NOT to specs) and the error message does NOT
+/// disclose the traversal target path (AC-012 companion CWE-209 check).
+///
+/// This drives the real production code path: load_all → validate_plugin_path → Err → errors.
+/// Not the isolated helper alone (that is tested in tests 13-14).
+///
+/// DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22.
+#[test]
+fn test_enrichment_pivot_002_sec003_load_all_rejects_traversal_plugin_ref_production_path() {
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // Create a config dir with infusions/ and plugins/ subdirectories.
+    // The plugins/ dir must EXIST for canonicalize-based validation to fire.
+    let config_dir = TempDir::new().expect("config_dir tempdir");
+    let infusions_dir = config_dir.path().join("infusions");
+    let plugins_dir = config_dir.path().join("plugins");
+    std::fs::create_dir_all(&infusions_dir).expect("create infusions dir");
+    std::fs::create_dir_all(&plugins_dir).expect("create plugins dir");
+
+    // Plugin-type TOML with a path traversal plugin_ref.
+    // "../../escape.prx" escapes config_dir by two levels.
+    let traversal_toml = r#"
+[infusion]
+infusion_id = "traversal_test"
+name = "Traversal Test"
+type = "plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "../../escape.prx"
+
+[[infusion.fields]]
+name = "test_field"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+"#;
+
+    let spec_file = infusions_dir.join("traversal_test.infusion.toml");
+    let mut f = std::fs::File::create(&spec_file).expect("create traversal spec file");
+    f.write_all(traversal_toml.as_bytes())
+        .expect("write traversal TOML");
+
+    let loader = InfusionLoader::new(config_dir.path().to_str().unwrap());
+    let (specs, errors) = loader.load_all();
+
+    // The traversal spec MUST appear in errors, NOT in specs.
+    assert_eq!(
+        specs.len(),
+        0,
+        "CRIT-2a SEC-003 CWE-22: traversal plugin_ref must be rejected — spec must not appear \
+         in loaded specs. Got {} specs (expected 0): {:?}",
+        specs.len(),
+        specs.iter().map(|s| &s.infusion_id).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        errors.len(),
+        1,
+        "CRIT-2a SEC-003 CWE-22: traversal plugin_ref must produce exactly 1 error. \
+         Got {} errors: {:?}",
+        errors.len(),
+        errors
+    );
+
+    // Error message must NOT disclose the traversal target path (AC-012 / CWE-209).
+    let err_msg = errors[0].to_string();
+    assert!(
+        !err_msg.contains("escape"),
+        "CRIT-2a AC-012 CWE-209: error message must not disclose the traversal target path. \
+         Got: '{}'",
+        err_msg
     );
 }

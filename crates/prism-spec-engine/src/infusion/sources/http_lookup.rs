@@ -271,14 +271,6 @@ impl HttpLookupSource {
         let url_path = config.url_template.replace("${input}", input);
         let full_url = format!("{}{}", config.base_url.trim_end_matches('/'), url_path);
 
-        tracing::debug!(
-            infusion_id = %self.spec_path,
-            spec_path = %self.spec_path,
-            event_type = "http_lookup_enrich_started",
-            method = %config.method,
-            "starting HTTP lookup enrichment"
-        );
-
         // Step 3: Build request, applying auth per HttpLookupAuthType.
         let request_builder = match config.method.as_str() {
             "GET" => self.client.get(&full_url),
@@ -365,21 +357,8 @@ impl HttpLookupSource {
         };
 
         // Step 6: Extract response_path subtree using extract_at_path from pipeline.rs.
-        match extract_at_path(&body_json, &config.response_path) {
-            Ok(subtree) => {
-                tracing::debug!(
-                    infusion_id = %self.spec_path,
-                    spec_path = %self.spec_path,
-                    event_type = "http_lookup_enrich_succeeded",
-                    "HTTP lookup enrichment succeeded"
-                );
-                Some(subtree)
-            }
-            Err(_) => {
-                // Path not found in response — return None (not an error, just no match).
-                None
-            }
-        }
+        // Path not found in response → None (not an error, just no match).
+        extract_at_path(&body_json, &config.response_path).ok()
     }
 }
 

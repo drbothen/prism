@@ -268,6 +268,12 @@ build-plugin-crowdstrike-oauth2:
 # S-DEMO-ENRICHMENT-PIVOT-002: Build prism-threatintel-infusion WASM plugin → .prx artifact.
 # Pattern mirrors build-plugin-crowdstrike-oauth2 (U14/Ruling 4).
 # Output: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+#         crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+#
+# HIGH-1 fix (S-DEMO-ENRICHMENT-PIVOT-002): the companion manifest is deployed alongside
+# the .prx binary. PluginRuntime::load_all_plugins reads the manifest `name` field as
+# the plugin_id — so the manifest `name = "threat_intel"` ensures the plugin registers
+# under "threat_intel", matching infusion_id in specs/infusions/threatintel.infusion.toml.
 build-plugin-threatintel-infusion:
     @echo "Building prism-threatintel-infusion plugin (wasm32-wasip1 → Component)"
     test -f tests/fixtures/wasi_snapshot_preview1.wasm || \
@@ -292,7 +298,11 @@ build-plugin-threatintel-infusion:
         crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | \
         grep -q '(component' || \
         (echo "ERROR: threatintel-lookup.prx is a core WASM module, not a Component"; exit 1)
+    @echo "Deploying companion manifest (HIGH-1: name = threat_intel matches infusion_id)..."
+    cp crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml \
+        crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
     @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
+    @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml"
 
 # S-DEMO-ENRICHMENT-PIVOT-002 v1.3: build-plugin-nvd-infusion REMOVED (ADR-040 D9).
 # NVD enrichment is now served by InfusionType::HttpLookup (permanent built-in).

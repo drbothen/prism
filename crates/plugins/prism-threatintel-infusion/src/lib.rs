@@ -62,7 +62,12 @@ mod host_impl {
 
     impl exports::prism::infusion_plugin::infusion_plugin::Guest for Plugin {
         fn name() -> String {
-            "threat-intel".to_string()
+            // HIGH-1 fix (S-DEMO-ENRICHMENT-PIVOT-002): canonical plugin identity uses underscore
+            // to match infusion_id in threatintel.infusion.toml → "threat_intel".
+            // PluginRuntime keys loaded plugins by metadata.plugin_id (derived from name()),
+            // so this MUST match the infusion_id that InfusionRegistry::load_spec_with_runtime
+            // passes as plugin_id to PluginInfusionSource::new.
+            "threat_intel".to_string()
         }
 
         fn version() -> String {
@@ -70,8 +75,7 @@ mod host_impl {
         }
 
         fn enrich_single(input_value: String, input_type: String) -> Option<String> {
-            let api_key = prism::infusion_plugin::host::get_config("api_key")
-                .unwrap_or_default();
+            let api_key = prism::infusion_plugin::host::get_config("api_key").unwrap_or_default();
 
             // Determine the DTU route based on input_type or IOC auto-classification.
             let route = if input_type == "ip" || super::is_ip_address(&input_value) {
@@ -87,17 +91,12 @@ mod host_impl {
 
             // Build the full URL using get_config("base_url") for the DTU endpoint.
             // Falls back to empty string if not configured (will fail HTTP call gracefully).
-            let base_url = prism::infusion_plugin::host::get_config("base_url")
-                .unwrap_or_default();
+            let base_url = prism::infusion_plugin::host::get_config("base_url").unwrap_or_default();
             let url = format!("{}{}", base_url.trim_end_matches('/'), route);
 
             // Issue HTTP request via host WIT import (U9: WASM guests have no sockets).
-            let response = prism::infusion_plugin::host::http_request(
-                "GET".to_string(),
-                url,
-                vec![],
-                None,
-            );
+            let response =
+                prism::infusion_plugin::host::http_request("GET".to_string(), url, vec![], None);
 
             // Non-2xx → no enrichment.
             if response.status < 200 || response.status >= 300 {

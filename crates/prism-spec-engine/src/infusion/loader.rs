@@ -599,7 +599,42 @@ impl InfusionLoader {
             }
 
             match Self::parse(&content, &source_path) {
-                Ok(spec) => specs.push(spec),
+                Ok(spec) => {
+                    // CRIT-2a (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22):
+                    // For plugin-type specs, validate the plugin_ref path against the designated
+                    // plugin directory before the spec is returned for PluginRuntime loading.
+                    // This is the ONLY place where config_dir context is available to resolve
+                    // the relative plugin_ref path against the filesystem.
+                    //
+                    // plugin_dir = {config_dir}/plugins/ by convention (same directory scanned by
+                    // PluginRuntime::load_all_plugins at boot time).
+                    //
+                    // If the plugin directory does not yet exist (e.g., first run), the traversal
+                    // check cannot be performed via canonicalize — skip the check rather than reject
+                    // a valid spec (canonicalize returns Err when either path component doesn't exist).
+                    if spec.infusion_type == super::InfusionType::Plugin
+                        && let Some(ref plugin_cfg) = spec.plugin_config
+                    {
+                        let plugin_dir = Path::new(&self.config_dir).join("plugins");
+                        // Only validate if the plugin_dir exists — canonicalize requires
+                        // both the directory and the file to exist (D8 constraint, ADR-040).
+                        // If the dir is absent (first boot, CI), skip rather than reject.
+                        if plugin_dir.exists() {
+                            match Self::validate_plugin_path(
+                                &plugin_cfg.plugin_path,
+                                &plugin_dir,
+                                &sanitized_path,
+                            ) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    errors.push(e);
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                    specs.push(spec);
+                }
                 Err(parse_err) => {
                     // Sanitize spec_path in the parse error before surfacing to MCP.
                     // The parse error was created with the absolute path; replace it.
