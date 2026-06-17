@@ -358,6 +358,19 @@ impl WriteEndpointRegistry {
         COMPOSITE_SOURCES.iter().any(|&s| s == lower)
     }
 
+    /// Return all registered capability paths across all sensors.
+    ///
+    /// Used by `list_capabilities` to enumerate write capability paths that have a
+    /// `[[write_endpoints]]` declaration (compile-tier Present).
+    ///
+    /// Returns a `Vec` of `(sensor_id, capability_path)` pairs in insertion order.
+    pub fn all_capability_paths(&self) -> Vec<(&str, &str)> {
+        self.entries
+            .iter()
+            .map(|e| (e.sensor.as_str(), e.spec.capability_path.as_str()))
+            .collect()
+    }
+
     /// HIGH-2: returns the sensor name registered for a given sql_table name.
     ///
     /// Used by `WritePlan::from_dml_node` to resolve the sensor without relying

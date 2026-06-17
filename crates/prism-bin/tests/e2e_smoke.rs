@@ -755,20 +755,29 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
 /// for OTHER orgs), the system MUST return a SURFACED operational error E-QUERY-032.
 ///
 /// demo-org-a has CrowdStrike + Armis but NOT Claroty or Cyberint.
-/// Querying claroty_alerts from demo-org-a context must return a JSON-RPC error
-/// carrying E-QUERY-032 (sensor not registered for org), code -32602 (INVALID_PARAMS).
+/// Querying claroty_alerts from demo-org-a context must return a BC-2.10.007 structured
+/// error with `isError: true` and `structuredContent.error.code = "E-QUERY-032"`.
 /// No Claroty data from demo-org-b is leaked.
 ///
-/// Transport note: the `query` handler calls `map_err(to_error_data)?` for
-/// engine errors (including E-QUERY-032). This produces a JSON-RPC error
-/// response object rather than a successful ResponseEnvelope. The test uses
-/// `tool_query_scoped_expect_rpc_error` (not `tool_query_scoped`) so the error
-/// JSON is returned as `Ok(...)` rather than propagated as `Err` and panicked on.
+/// # Wire shape (post F-2 / BC-2.10.007 v1.5+)
 ///
-/// The JSON-RPC response assertions verify ALL of:
-/// - response has a JSON-RPC `error` field (not a `result` with empty rows)
-/// - `error.code == -32602` (INVALID_PARAMS)
-/// - `error.message` contains `"E-QUERY-032"`, `"claroty"`, and `"demo-org-a"`
+/// The MCP `query` handler routes all user-visible domain errors (including E-QUERY-032)
+/// through `prism_error_to_structured_call_result`, which returns:
+///   `Ok(CallToolResult { isError: true, structuredContent: { error: { code: "E-QUERY-032", ... } } })`
+/// rather than the pre-F-2 JSON-RPC protocol-level error (`{"error": {...}}`).
+/// BC-2.10.007 (later, more-specific contract) governs the wire shape; BC-3.2.001 governs
+/// the isolation semantics. Both are satisfied: the error is observably an error (isError=true)
+/// with E-QUERY-032 signal; no data leaks.
+///
+/// `tool_query_scoped` is used (not `tool_query_scoped_expect_rpc_error`). Since `send_request`
+/// now sees `{ "result": { "isError": true, ... } }` (no top-level `error` field), it returns
+/// `Ok(result_object)`. The `tool_query_with_params` normalization then falls back to the raw
+/// CallToolResult because `content[0].text` is the error string (not a JSON object).
+///
+/// The assertions verify ALL of:
+/// - `isError == true` (BC-2.10.007 structured error envelope, not a protocol-level error)
+/// - `structuredContent.error.code` == `"E-QUERY-032"`
+/// - `structuredContent.error.message` contains `"E-QUERY-032"`, `"claroty"`, and `"demo-org-a"`
 /// - zero data rows (no ResponseEnvelope `rows` field present)
 /// - no Claroty data from demo-org-b is present
 ///
@@ -801,64 +810,73 @@ async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032() {
     // AC-012: query claroty_alerts from demo-org-a (Claroty NOT registered for demo-org-a).
     // The MCP `query` tool scopes to demo-org-a; resolve_source_refs raises E-QUERY-032
     // at the query-planning boundary (BC-3.2.001 postcondition 5).
-    // The query handler returns a JSON-RPC error (map_err(to_error_data)?) carrying E-QUERY-032.
     //
-    // Use `tool_query_scoped_expect_rpc_error` to capture the error JSON without panicking.
+    // Post F-2: the query handler returns Ok(CallToolResult{isError:true}) via
+    // `prism_error_to_structured_call_result`, NOT a JSON-RPC protocol-level error.
+    // `tool_query_scoped` is used (not `tool_query_scoped_expect_rpc_error`): send_request
+    // sees `{ "result": { "isError": true, ... } }` and returns Ok(result_object).
+    // `tool_query_with_params` falls back to the raw CallToolResult since content[0].text
+    // is the error string "ERROR: [validation] - ..." (not a JSON object).
+    //
     // Scoping param: `clients: ["demo-org-a"]` (array of org slug strings).
     // QueryToolParams.clients: Option<Vec<String>>; #[serde(deny_unknown_fields)] rejects `org_slug`.
-    // Claroty is registered for demo-org-b and demo-org-c (NOT demo-org-a) — the org-scoped
-    // guard fires and returns E-QUERY-032 (sensor registered for other orgs but not this one).
+    // Claroty is registered for demo-org-b and demo-org-c (NOT demo-org-a).
     // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query_scoped_expect_rpc_error("SELECT * FROM claroty_alerts LIMIT 5", "demo-org-a")
-        .expect("tool_query_scoped_expect_rpc_error failed at transport/I/O level (not an expected RPC error)");
+        .tool_query_scoped("SELECT * FROM claroty_alerts LIMIT 5", "demo-org-a")
+        .expect("tool_query_scoped failed at transport/I/O level");
 
-    // AC-012 assertion 1: response has a JSON-RPC `error` field, not a `result`.
-    // The response is the raw JSON-RPC object: { "jsonrpc": "2.0", "id": N, "error": {...} }.
+    // AC-012 assertion 1: isError must be true (BC-2.10.007 structured error shape).
+    // The response is the normalized CallToolResult: { "isError": true, "structuredContent": {...}, ... }.
+    let is_error = response
+        .get("isError")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     assert!(
-        response.get("error").is_some(),
-        "AC-012 BC-3.2.001: querying claroty_alerts from demo-org-a must return a \
-         JSON-RPC error object (not a result envelope); got: {response:?}"
-    );
-    assert!(
-        response.get("result").is_none(),
-        "AC-012 BC-3.2.001: response must NOT contain a 'result' field when E-QUERY-032 is raised; \
-         got: {response:?}"
+        is_error,
+        "AC-012 BC-3.2.001: querying claroty_alerts from demo-org-a must return \
+         isError=true (BC-2.10.007 structured error envelope); got: {response:?}"
     );
 
-    // AC-012 assertion 2: error.code == -32602 (INVALID_PARAMS).
-    let error_code = response
-        .get("error")
+    // AC-012 assertion 2: structuredContent.error.code must be "E-QUERY-032".
+    let sc_error_code = response
+        .get("structuredContent")
+        .and_then(|sc| sc.get("error"))
         .and_then(|e| e.get("code"))
-        .and_then(|c| c.as_i64());
-    assert_eq!(
-        error_code,
-        Some(-32602),
-        "AC-012 BC-3.2.001: E-QUERY-032 must map to MCP code -32602 (INVALID_PARAMS); \
-         got code: {error_code:?}; response: {response:?}"
+        .and_then(|c| c.as_str())
+        .unwrap_or("");
+    assert!(
+        sc_error_code.contains("E-QUERY-032"),
+        "AC-012 BC-3.2.001: structuredContent.error.code must be 'E-QUERY-032'; \
+         got: {sc_error_code:?}; response: {response:?}"
     );
 
-    // AC-012 assertion 3: error.message contains "E-QUERY-032", "claroty", and "demo-org-a".
-    let error_message = response
-        .get("error")
+    // AC-012 assertion 3: structuredContent.error.message contains "E-QUERY-032",
+    // "claroty", and "demo-org-a".
+    let sc_error_msg = response
+        .get("structuredContent")
+        .and_then(|sc| sc.get("error"))
         .and_then(|e| e.get("message"))
         .and_then(|m| m.as_str())
         .unwrap_or("");
     assert!(
-        error_message.contains("E-QUERY-032"),
-        "AC-012 BC-3.2.001: error.message must contain 'E-QUERY-032'; got: {error_message:?}"
+        sc_error_msg.contains("E-QUERY-032"),
+        "AC-012 BC-3.2.001: structuredContent.error.message must contain 'E-QUERY-032'; \
+         got: {sc_error_msg:?}"
     );
     assert!(
-        error_message.contains("claroty"),
-        "AC-012 BC-3.2.001: error.message must mention sensor 'claroty'; got: {error_message:?}"
+        sc_error_msg.contains("claroty"),
+        "AC-012 BC-3.2.001: structuredContent.error.message must mention sensor 'claroty'; \
+         got: {sc_error_msg:?}"
     );
     assert!(
-        error_message.contains("demo-org-a"),
-        "AC-012 BC-3.2.001: error.message must mention org 'demo-org-a'; got: {error_message:?}"
+        sc_error_msg.contains("demo-org-a"),
+        "AC-012 BC-3.2.001: structuredContent.error.message must mention org 'demo-org-a'; \
+         got: {sc_error_msg:?}"
     );
 
     // AC-012 assertion 4: zero data rows (no leakage from demo-org-b).
-    // When a JSON-RPC error is returned there is no ResponseEnvelope, so rows is empty.
+    // For an isError=true CallToolResult there is no ResponseEnvelope rows field.
     let rows = extract_rows_from_envelope(&response);
     assert!(
         rows.is_empty(),

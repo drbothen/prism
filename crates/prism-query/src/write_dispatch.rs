@@ -135,6 +135,49 @@ pub trait AuditWriter: Send + Sync + 'static {
 }
 
 // ---------------------------------------------------------------------------
+// NullAuditWriter — no-op implementation for test constructors and minimal setups
+// ---------------------------------------------------------------------------
+
+/// No-op `AuditWriter` that returns `Ok` for all audit calls without persistence.
+///
+/// Intended for `PrismServer::new()` (test-only constructor) and for scenarios
+/// where a fully-wired `AuditWriter` is not yet available.
+///
+/// # Safety
+/// Using this in production suppresses the write-pipeline audit trail. Production
+/// boot paths MUST wire a real `AuditWriter` via `PrismServer::with_deps()`.
+pub struct NullAuditWriter;
+
+#[async_trait]
+impl AuditWriter for NullAuditWriter {
+    async fn write_intent(
+        &self,
+        _plan: &WritePlan,
+        _context: &QueryContext,
+        _capability_check: &CapabilityCheckResult,
+    ) -> Result<Ulid, PrismError> {
+        Ok(Ulid::new())
+    }
+
+    async fn write_outcome(
+        &self,
+        _intent_id: Ulid,
+        _result: &WriteResult,
+    ) -> Result<(), PrismError> {
+        Ok(())
+    }
+
+    async fn write_tool_call(
+        &self,
+        _tool_name: &str,
+        _client_id: Option<&str>,
+        _outcome: &str,
+    ) -> Result<(), PrismError> {
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // DispatchInputs — bundled Phase 5 arguments
 // ---------------------------------------------------------------------------
 
