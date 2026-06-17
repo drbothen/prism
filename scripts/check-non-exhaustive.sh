@@ -20,8 +20,10 @@
 # S-1.14-REDO burst-2 (MED-1-RESIDUAL): bumped 66→67 for Tier3CacheEntry (prism-spec-engine::infusion::cache).
 # S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE): bumped 67→69 for InfusionUdfDescriptor + EnrichStageDescriptor.
 # S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE: bumped 69→70 for InfusionError (prism-core::error enum).
+# S-5.03 (F-007 process-gap): bumped 70→76 for 6 prism-mcp resources types (ClientInventoryEntry,
+#   SensorConfigEntry, SensorHealthResult, RateLimitInfo, ResourcePressure, SensorHealthStructuredContent).
 
-EXPECTED=70
+EXPECTED=76
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

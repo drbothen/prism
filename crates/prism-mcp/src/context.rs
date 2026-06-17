@@ -67,10 +67,13 @@ impl HealthCache {
             cached_at: Instant::now(),
             cached_at_utc: Utc::now(),
         };
-        self.inner
-            .lock()
-            .expect("HealthCache mutex poisoned")
-            .insert(key, entry);
+        // F-006: poison-tolerant lock — recover via into_inner on PoisonError
+        // (CLAUDE.md §Conventions: expect() on Result forbidden in production paths)
+        let mut guard = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        guard.insert(key, entry);
     }
 
     /// Get the cached health result for a (client_id, sensor_id) pair.
@@ -81,18 +84,23 @@ impl HealthCache {
             client_id: client_id.to_owned(),
             sensor_id: sensor_id.to_owned(),
         };
-        self.inner
-            .lock()
-            .expect("HealthCache mutex poisoned")
-            .get(&key)
-            .cloned()
+        // F-006: poison-tolerant lock
+        let guard = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        guard.get(&key).cloned()
     }
 
     /// Get all cached entries for a given client_id, sorted by sensor_id.
     ///
     /// Returns an empty Vec if no health check has been run for the client.
     pub fn get_all_for_client(&self, client_id: &str) -> Vec<CachedHealthEntry> {
-        let guard = self.inner.lock().expect("HealthCache mutex poisoned");
+        // F-006: poison-tolerant lock
+        let guard = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         let mut entries: Vec<CachedHealthEntry> = guard
             .iter()
             .filter(|(k, _)| k.client_id == client_id)
@@ -104,24 +112,31 @@ impl HealthCache {
 
     /// Returns true if there are any entries (stale or fresh) for the given client.
     pub fn has_any_for_client(&self, client_id: &str) -> bool {
-        self.inner
-            .lock()
-            .expect("HealthCache mutex poisoned")
-            .keys()
-            .any(|k| k.client_id == client_id)
+        // F-006: poison-tolerant lock
+        let guard = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        guard.keys().any(|k| k.client_id == client_id)
     }
 
     /// Returns true if the cache is empty (no health checks run for any client).
     pub fn is_empty(&self) -> bool {
-        self.inner
-            .lock()
-            .expect("HealthCache mutex poisoned")
-            .is_empty()
+        // F-006: poison-tolerant lock
+        let guard = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        guard.is_empty()
     }
 
     /// Get all entries across all clients, sorted by (client_id, sensor_id).
     pub fn get_all(&self) -> Vec<CachedHealthEntry> {
-        let guard = self.inner.lock().expect("HealthCache mutex poisoned");
+        // F-006: poison-tolerant lock
+        let guard = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         let mut entries: Vec<CachedHealthEntry> = guard.values().cloned().collect();
         entries.sort_by(|a, b| {
             a.result

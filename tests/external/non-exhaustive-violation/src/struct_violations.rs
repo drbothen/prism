@@ -28,6 +28,14 @@
 //! v69 (InfusionUdfDescriptor) and v70 (EnrichStageDescriptor) added by S-1.14-REDO
 //! fix-burst (architect-ruled FIX-IN-SCOPE — descriptor types exported to prism-query
 //! lacked #[non_exhaustive]). ci.yml EXPECTED bumped from 67 to 69.
+//! v71-v76 (6 prism-mcp resources types) added by S-5.03 (F-007 process-gap).
+//! ci.yml EXPECTED bumped from 70 to 76.
+//!   71. prism_mcp::ClientInventoryEntry  — struct, resources.rs
+//!   72. prism_mcp::SensorConfigEntry     — struct, resources.rs
+//!   73. prism_mcp::SensorHealthResult    — struct, resources.rs
+//!   74. prism_mcp::RateLimitInfo         — struct, resources.rs
+//!   75. prism_mcp::ResourcePressure      — struct, resources.rs
+//!   76. prism_mcp::SensorHealthStructuredContent — struct, resources.rs
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -403,6 +411,11 @@ pub fn v36_resolved_sensor_spec() {
 use prism_mcp::safety_envelope::{
     ContentEntry, MetaEnvelopeSchemaType, ResponseEnvelope, ResponseEnvelopeSchema, ResponseMeta,
     SafetyFlagSchema, StructuredContent,
+};
+// S-5.03 F-007: 6 new #[non_exhaustive] pub types from prism_mcp::resources
+use prism_mcp::{
+    ClientInventoryEntry, RateLimitInfo, ResourcePressure, SensorConfigEntry, SensorHealthResult,
+    SensorHealthStructuredContent,
 };
 
 /// Violation 37: prism_mcp::safety_envelope::ResponseMeta struct literal (E0639).
@@ -1019,4 +1032,129 @@ pub fn v70_enrich_stage_descriptor() {
         infusion_id: "geoip".to_string(),
     };
     let _ = _descriptor;
+}
+
+// ─── S-5.03 F-007: prism-mcp resources pub types ────────────────────────────
+//
+// These 6 structs are the public API surface of prism-mcp's resource handlers.
+// `#[non_exhaustive]` ensures future field additions can be made without
+// breaking downstream callers.
+
+/// Violation 71: prism_mcp::ClientInventoryEntry struct literal (E0639).
+///
+/// `ClientInventoryEntry` is the per-client summary row returned by the
+/// `prism://config/clients` resource (BC-2.10.008). `#[non_exhaustive]` ensures
+/// future fields (e.g., `last_reload_at`, `error_count`) can be added without
+/// breaking external struct-literal construction.
+///
+/// Added: S-5.03 (F-007 process-gap — register new prism-mcp pub types).
+/// ci.yml EXPECTED bumped from 70 to 76 (6 new types, v71-v76).
+#[allow(dead_code)]
+pub fn v71_client_inventory_entry() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _entry = ClientInventoryEntry {
+        client_id: "acme".to_string(),
+        sensor_count: 3,
+        enabled_sensors: vec![],
+    };
+    let _ = _entry;
+}
+
+/// Violation 72: prism_mcp::SensorConfigEntry struct literal (E0639).
+///
+/// `SensorConfigEntry` is the per-sensor config row returned by the
+/// `prism://config/clients/{client_id}/sensors` resource (BC-2.10.008 postcondition 2).
+/// `#[non_exhaustive]` ensures `api_base_url` and future fields can be added without
+/// breaking external callers (VP-050: URL redaction invariant).
+///
+/// Added: S-5.03 (F-007 process-gap).
+#[allow(dead_code)]
+pub fn v72_sensor_config_entry() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _entry = SensorConfigEntry {
+        sensor_type: "crowdstrike".to_string(),
+        status: "active".to_string(),
+        credential_ref: "cs-api-key".to_string(),
+        sources: vec![],
+        api_base_url: "https://api.crowdstrike.com".to_string(),
+    };
+    let _ = _entry;
+}
+
+/// Violation 73: prism_mcp::SensorHealthResult struct literal (E0639).
+///
+/// `SensorHealthResult` holds per-sensor health status for the `check_sensor_health`
+/// tool (BC-2.08.005). `#[non_exhaustive]` ensures S-5.04 live-probe fields can be
+/// added without breaking external callers that only pattern-match on spec-only fields.
+///
+/// Added: S-5.03 (F-007 process-gap).
+#[allow(dead_code)]
+pub fn v73_sensor_health_result() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _result = SensorHealthResult {
+        sensor_id: "crowdstrike".to_string(),
+        client_id: "acme".to_string(),
+        probe_level: "spec-only".to_string(),
+        reachable: None,
+        auth_valid: None,
+        rate_limit: None,
+        last_successful_query_at: None,
+        error: None,
+    };
+    let _ = _result;
+}
+
+/// Violation 74: prism_mcp::RateLimitInfo struct literal (E0639).
+///
+/// `RateLimitInfo` holds per-sensor rate-limit state within `SensorHealthResult`
+/// (BC-2.08.005 postcondition). `#[non_exhaustive]` ensures new rate-limit fields
+/// (e.g., `retry_after`, `burst_remaining`) can be added without breaking callers.
+///
+/// Added: S-5.03 (F-007 process-gap).
+#[allow(dead_code)]
+pub fn v74_rate_limit_info() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _info = RateLimitInfo {
+        remaining: None,
+        limit: None,
+        reset_at: None,
+    };
+    let _ = _info;
+}
+
+/// Violation 75: prism_mcp::ResourcePressure struct literal (E0639).
+///
+/// `ResourcePressure` holds the active cursor count and token count for the
+/// `check_sensor_health` response (BC-2.08.005 postcondition). `#[non_exhaustive]`
+/// ensures future pressure metrics (e.g., `pending_writes`) can be added.
+///
+/// Added: S-5.03 (F-007 process-gap).
+#[allow(dead_code)]
+pub fn v75_resource_pressure() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _pressure = ResourcePressure {
+        active_cursor_count: 0,
+        active_token_count: 0,
+    };
+    let _ = _pressure;
+}
+
+/// Violation 76: prism_mcp::SensorHealthStructuredContent struct literal (E0639).
+///
+/// `SensorHealthStructuredContent` is the top-level `structuredContent` shape for
+/// the `check_sensor_health` tool response (BC-2.08.005). `#[non_exhaustive]`
+/// ensures future fields (e.g., `query_ids`) can be added without breaking callers.
+///
+/// Added: S-5.03 (F-007 process-gap).
+#[allow(dead_code)]
+pub fn v76_sensor_health_structured_content() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _content = SensorHealthStructuredContent {
+        sensors: vec![],
+        resource_pressure: ResourcePressure::new(0, 0),
+        trust_level: "internal".to_string(),
+        summary: "0 sensors".to_string(),
+        partial_failures: vec![],
+    };
+    let _ = _content;
 }

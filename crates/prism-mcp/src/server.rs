@@ -2966,22 +2966,22 @@ impl PrismServer {
             None => sensor_ids,
         };
 
+        // BC-2.08.005 v1.5 two-phase probe model (F-S503-004 adjudication):
+        // S-5.03 scope = spec-only: probe_level="spec-only", reachable=null, auth_valid=null.
+        // Hardcoding reachable=true / auth_valid=true is FORBIDDEN — it sends a false-positive
+        // health signal to the AI consumer (which may act on it as if sensors are live and
+        // authenticated when they have not been probed). S-5.04 delivers the live probe.
         let sensors: Vec<resources::SensorHealthResult> = sensor_ids_to_check
             .iter()
             .map(|sid| {
-                // A sensor in TableRegistry has its spec loaded — reachable=true at spec level.
-                // S-5.04 adds live API endpoint probing; until then, spec-registered = reachable.
-                // auth_valid is set to true when the sensor spec loaded successfully
-                // (credential ref is present and valid in config); S-5.04 will verify
-                // actual credential acceptance by the remote API.
+                // SensorHealthResult::new() sets probe_level="spec-only", reachable=None,
+                // auth_valid=None, last_successful_query_at=None per the S-5.03 contract.
+                // Do NOT call with_reachable/with_auth_valid here — that is S-5.04 scope only.
                 resources::SensorHealthResult::new(sid.clone(), params.client_id.clone())
-                    .with_reachable(true)
-                    .with_auth_valid(true)
             })
             .collect();
 
         // Write to health cache so prism://sensors/health reflects last run.
-        // Use the actual sensor health result (with reachable/auth_valid already set).
         for sensor in &sensors {
             self.context.health_cache.insert(
                 sensor.client_id.clone(),
@@ -2990,16 +2990,13 @@ impl PrismServer {
             );
         }
 
-        let healthy_count = sensors
-            .iter()
-            .filter(|s| s.reachable.unwrap_or(false) && s.auth_valid.unwrap_or(false))
-            .count();
         let total_count = sensors.len();
-        // BC-2.08.005 v1.5: prose summary for spec-only scope must include
-        // "spec-only: no live probe performed" — the current implementation does NOT
-        // include this phrase (RED GATE for AC-4 / test_BC_2_08_005_check_sensor_health_returns_structured_result).
+        // BC-2.08.005 v1.5 postcondition 6: the prose summary MUST contain
+        // "spec-only: no live probe performed" so the AI consumer cannot mistake
+        // this response for a live health check (F-S503-004 adjudication).
+        // S-5.04 will use "live probe" phrasing when real probing is performed.
         let summary = format!(
-            "{healthy_count} of {total_count} sensors healthy for client '{}'",
+            "{total_count} sensor(s) available for client '{}' (spec-only: no live probe performed)",
             params.client_id
         );
         let pressure = resources::ResourcePressure::new(0, 0);
@@ -3065,25 +3062,13 @@ impl PrismServer {
 
     // ─── Config tools ─────────────────────────────────────────────────────────
 
-    /// Hot-reload the running configuration from disk.
+    /// Core reload logic — separated so the existing audit-failure unit test can
+    /// call it directly without needing a `Peer<RoleServer>`.
     ///
-    /// DATA TRUST LEVEL: Internal — configuration is operator-controlled.
-    /// SECURITY NOTE: No user-controlled parameters; safe to call without parameter scan.
-    /// DATA SOURCE: Prism config directory on disk.
-    #[tool(
-        description = "Hot-reload the running configuration from disk.\n\
-        DATA TRUST LEVEL: Internal — configuration is operator-controlled.\n\
-        SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Prism config directory on disk.\n\
-        WHEN TO USE: after modifying sensor spec TOML files on disk to apply changes\n\
-        WHEN NOT TO USE: do not call repeatedly without spec file changes\n\
-        PARAMETERS: none — operates on the configured spec directory\n\
-        PAGINATION: not applicable\n\
-        RESPONSE: reload result with added, removed, modified, and unchanged sensor counts\n\
-        ERRORS: -32000 internal error, spec parse failure details included in message",
-        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
-    )]
-    pub async fn reload_config(
+    /// Returns the `CallToolResult` on success (audit + disk reload + JSON serialization).
+    /// BC-2.16.007 notification dispatch is handled by the `reload_config` `#[tool]`
+    /// wrapper that calls this core and then dispatches via the peer.
+    pub(super) async fn reload_config_core(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let audit_warning =
@@ -3136,6 +3121,99 @@ impl PrismServer {
                     detail: format!("Failed to serialize response: {e}"),
                 })
             })
+    }
+
+    /// Hot-reload the running configuration from disk.
+    ///
+    /// DATA TRUST LEVEL: Internal — configuration is operator-controlled.
+    /// SECURITY NOTE: No user-controlled parameters; safe to call without parameter scan.
+    /// DATA SOURCE: Prism config directory on disk.
+    #[tool(
+        description = "Hot-reload the running configuration from disk.\n\
+        DATA TRUST LEVEL: Internal — configuration is operator-controlled.\n\
+        SECURITY NOTE: No user-controlled parameters.\n\
+        DATA SOURCE: Prism config directory on disk.\n\
+        WHEN TO USE: after modifying sensor spec TOML files on disk to apply changes\n\
+        WHEN NOT TO USE: do not call repeatedly without spec file changes\n\
+        PARAMETERS: none — operates on the configured spec directory\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: reload result with added, removed, modified, and unchanged sensor counts\n\
+        ERRORS: -32000 internal error, spec parse failure details included in message",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn reload_config(
+        &self,
+        peer: rmcp::Peer<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // AC-9 (BC-2.16.007): capture the pre-reload registered table set for
+        // set-comparison. Prefer the query_engine registry when available (wired in
+        // production); fall back to the config_manager snapshot (available in tests
+        // and during early boot before query_engine wiring). The notification fires
+        // only when the table set changes (tables added or removed); spec-attribute-only
+        // changes do NOT fire.
+        let old_tables: Vec<String> = if let Some(tables) = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.table_registry())
+            .map(|r| r.registered_tables())
+        {
+            tables
+        } else {
+            // Fallback: derive table set from config_manager snapshot.
+            // Fully-qualified name: `{sensor_id}.{table_name}` (DataFusion convention).
+            self.config_manager
+                .as_ref()
+                .map(|cm_arc_swap| {
+                    let cm_guard = cm_arc_swap.load();
+                    let snap = cm_guard.load();
+                    snap.sensor_specs
+                        .values()
+                        .flat_map(|spec| {
+                            spec.tables
+                                .iter()
+                                .map(move |t| format!("{}.{}", spec.sensor_id, t.table_name))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+
+        // Execute the core reload (audit + spec-engine swap + JSON serialization).
+        let result = self.reload_config_core().await?;
+
+        // AC-9 (BC-2.16.007): capture post-reload table set and dispatch notifications
+        // if the set changed. `dispatch_hot_reload_notifications` is a no-op when
+        // old == new (no notification sent on spec-attribute-only changes).
+        let new_tables: Vec<String> = if let Some(tables) = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.table_registry())
+            .map(|r| r.registered_tables())
+        {
+            tables
+        } else {
+            // Fallback: derive table set from config_manager snapshot (post-reload).
+            self.config_manager
+                .as_ref()
+                .map(|cm_arc_swap| {
+                    let cm_guard = cm_arc_swap.load();
+                    let snap = cm_guard.load();
+                    snap.sensor_specs
+                        .values()
+                        .flat_map(|spec| {
+                            spec.tables
+                                .iter()
+                                .map(move |t| format!("{}.{}", spec.sensor_id, t.table_name))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+
+        // Dispatch notifications if the table set changed (non-fatal if peer is gone).
+        let _ = resources::dispatch_hot_reload_notifications(old_tables, new_tables, &peer).await;
+
+        Ok(result)
     }
 
     /// Add or update a sensor spec from a TOML string.
@@ -8450,7 +8528,7 @@ mod tests {
         let hash_before = cm_for_check.load().current_hash();
         server.spec_dir = Some(tmpdir.path().to_path_buf());
 
-        let result = server.reload_config().await;
+        let result = server.reload_config_core().await;
 
         let err = result.expect_err(
             "BC-2.05.001 DEC-014 / PRL-P4-01: reload_config must ABORT when \

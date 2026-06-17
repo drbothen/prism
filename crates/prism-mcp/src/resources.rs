@@ -485,21 +485,26 @@ pub async fn render_client_sensors_resource(
     let cm_guard = config_manager.load();
     let snapshot = cm_guard.load();
 
-    // In the current single-tenant model, sensor_specs is a HashMap<sensor_id, SensorSpec>.
-    // The client_id is not yet an index in ConfigSnapshot — multi-tenant client-scoped
-    // specs require the org-scoped store (OrgScopedSpecStore, depends on S-3.x multi-tenant).
-    // For now: if ANY sensor exists in the snapshot, return the full inventory.
-    // The AC-2 red-gate test (invalid client_id) will still pass because OrgSlug validation
-    // happens first and rejects path-traversal strings.
-    if snapshot.sensor_specs.is_empty() {
-        return Err(not_found_error(format!(
-            "Resource not found: client '{client_id}' not configured"
-        )));
-    }
-
+    // DI-008 client data separation (BC-2.10.008 v1.8):
+    // The handler MUST filter by the `client_id` URI segment before returning results.
+    // Returning all sensors regardless of `client_id` is a data separation defect.
+    //
+    // In the current single-tenant deployment model, `sensor_id` serves as the
+    // per-client key — each loaded sensor spec IS a client scope. The filter
+    // here returns ONLY the spec whose `sensor_id` matches the requested `client_id`.
+    //
+    // Multi-tenant org→sensor mapping (S-CONFIG-MULTI-TENANT-OVERRIDE-001 overlay store)
+    // will replace this when the OrgScopedSpecStore is wired into ConfigSnapshot; until
+    // that story merges, the single-tenant model is the correct production-grade behaviour:
+    // `client_id` maps to at most one sensor spec (the one where sensor_id == client_id).
+    //
+    // An unknown client_id (no matching sensor_id) returns an empty array — not a 404
+    // error — because the client_id is syntactically valid but the sensor spec for that
+    // org simply isn't loaded (EC-10-016: "Client has no sensors configured").
     let entries: Vec<SensorConfigEntry> = snapshot
         .sensor_specs
         .values()
+        .filter(|spec| spec.sensor_id == client_id)
         .map(|spec| {
             let table_names: Vec<String> =
                 spec.tables.iter().map(|t| t.table_name.clone()).collect();
