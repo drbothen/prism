@@ -54,6 +54,10 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 # Both are already transitive dependencies via prism-query; pinned here for test stability.
 async-trait = "0.1"
 ulid = { version = "1", features = ["serde"] }
+# toml + uuid: needed for IMP-8 per-org scoping test fixtures (OverlayLoader::merge_overlay_onto_type_spec
+# requires SensorInstanceOverlay TOML deserialization; OrgId::new() mints a fresh UUID).
+toml = "0.8"
+uuid = { version = "1", features = ["v4"] }
 
 [lints.clippy]
 # From workspace

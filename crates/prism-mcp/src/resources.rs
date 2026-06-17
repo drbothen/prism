@@ -313,10 +313,23 @@ pub async fn dispatch_read_resource(
         &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     >,
 ) -> Result<ReadResourceResult, ErrorData> {
+    // Extract org_registry and resolved_spec_map from the query engine (IMP-8).
+    // These are `None` when the engine is in test / MVP mode without multi-tenant support.
+    let org_registry = query_engine.and_then(|qe| qe.org_registry());
+    let resolved_spec_map = query_engine.and_then(|qe| qe.resolved_spec_map());
+
     // Exact match: prism://config/clients
     if uri == URI_CONFIG_CLIENTS {
         match (config_manager, query_engine) {
-            (Some(cm), Some(qe)) => return render_client_list_resource(cm, qe).await,
+            (Some(cm), Some(qe)) => {
+                return render_client_list_resource(
+                    cm,
+                    qe,
+                    org_registry.as_ref(),
+                    resolved_spec_map.as_ref(),
+                )
+                .await
+            }
             _ => {
                 // Fallback when not fully wired (test construction): return empty array
                 let text = serde_json::to_string(&Vec::<ClientInventoryEntry>::new())
@@ -336,7 +349,15 @@ pub async fn dispatch_read_resource(
     // Template match: prism://config/clients/{client_id}/sensors
     if let Some(client_id) = extract_template_param(uri, "prism://config/clients/", "/sensors") {
         match config_manager {
-            Some(cm) => return render_client_sensors_resource(client_id, cm).await,
+            Some(cm) => {
+                return render_client_sensors_resource(
+                    client_id,
+                    cm,
+                    resolved_spec_map.as_ref(),
+                    org_registry.as_ref(),
+                )
+                .await
+            }
             None => {
                 return Err(not_found_error(format!(
                     "Client sensors resource not available (config manager not wired): {uri}"
@@ -416,64 +437,99 @@ fn validate_resource_path_segment(segment: &str) -> Result<(), ()> {
 
 /// Handle `prism://config/clients` resource read (BC-2.10.008 postcondition 1).
 ///
-/// Sources sensor data from `QueryEngine::table_registry().registered_tables()`
-/// (S-3.13 API), grouped by sensor_id prefix. NOT a static config snapshot.
+/// # Per-org scoping (IMP-8 / BC-2.10.008 v1.9)
+///
+/// When `org_registry` and `resolved_spec_map` are both wired (production multi-tenant
+/// mode), this function enumerates all registered org slugs via `org_registry.list_slugs()`
+/// and for each slug counts sensor entries from `resolved_spec_map`.  An org with zero
+/// overlay entries is listed with `sensor_count=0` and `enabled_sensors=[]`
+/// (BC-2.10.008 v1.9 Option B semantics: overlay = provisioned, not "customize a global
+/// default").
+///
+/// When `org_registry` or `resolved_spec_map` is `None` (test / MVP mode without
+/// multi-tenant support), falls back to the TableRegistry intersection logic for backwards
+/// compatibility with existing tests (AC-1, AC-8, EC-10-014).
 ///
 /// Returns a JSON array of `ClientInventoryEntry` objects.
-///
-/// NOTE: AC-1 test body is a Red Gate stub — this function compiles but its full
-/// multi-client behaviour is validated by AC-1/AC-8 after S-3.13 is merged.
 pub async fn render_client_list_resource(
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     query_engine: &Arc<prism_query::engine::QueryEngine>,
+    org_registry: Option<&Arc<prism_core::OrgRegistry>>,
+    resolved_spec_map: Option<
+        &Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    >,
 ) -> Result<ReadResourceResult, ErrorData> {
-    // Arc<ArcSwap<ConfigManager>>::load() → Guard<Arc<ConfigManager>>
-    // ConfigManager::load() → Guard<Arc<ConfigSnapshot>>
-    let cm_guard = config_manager.load();
-    let snapshot = cm_guard.load();
-
-    // Collect sensor IDs from the config snapshot.
-    let spec_sensor_ids: BTreeSet<String> = snapshot.sensor_specs.keys().cloned().collect();
-
-    // Get registered sensor IDs from S-3.13 TableRegistry (Option<Arc<TableRegistry>>).
-    // Use registered_sensor_ids() directly — it reads the sensor_by_table reverse map
-    // and returns unique sensor IDs without requiring table-name parsing.
-    let registry_sensor_ids: BTreeSet<String> =
-        if let Some(registry) = query_engine.table_registry() {
-            registry.registered_sensor_ids().into_iter().collect()
+    let entries: Vec<ClientInventoryEntry> =
+        if let (Some(org_reg), Some(spec_map)) = (org_registry, resolved_spec_map) {
+            // ── Per-org path (IMP-8 / BC-2.10.008 v1.9) ──────────────────────────
+            // Enumerate all registered org slugs. For each org, collect the sensor IDs
+            // that have an overlay entry in resolved_spec_map.
+            let mut result: Vec<ClientInventoryEntry> = org_reg
+                .list_slugs()
+                .into_iter()
+                .map(|slug_str| {
+                    // Count sensors for this org: all keys where OrgSlug == slug.
+                    // resolved_spec_map key = (OrgSlug, SensorId).
+                    // We match by string representation to avoid needing OrgSlug constructor.
+                    let sensors_for_org: Vec<String> = spec_map
+                        .keys()
+                        .filter(|(org, _sensor)| org.as_str() == slug_str.as_str())
+                        .map(|(_org, sensor_id)| sensor_id.as_ref().to_string())
+                        .collect();
+                    let sensor_count = sensors_for_org.len();
+                    ClientInventoryEntry {
+                        client_id: slug_str,
+                        sensor_count,
+                        enabled_sensors: sensors_for_org,
+                    }
+                })
+                .collect();
+            // Sort by client_id for deterministic output.
+            result.sort_by(|a, b| a.client_id.cmp(&b.client_id));
+            result
         } else {
-            BTreeSet::new()
+            // ── TableRegistry intersection fallback (test / MVP mode) ─────────────
+            // Used when org_registry or resolved_spec_map is None (e.g., existing
+            // single-sensor tests, AC-1, AC-8, EC-10-014 fixture).
+            let cm_guard = config_manager.load();
+            let snapshot = cm_guard.load();
+
+            let spec_sensor_ids: BTreeSet<String> = snapshot.sensor_specs.keys().cloned().collect();
+
+            let registry_sensor_ids: BTreeSet<String> =
+                if let Some(registry) = query_engine.table_registry() {
+                    registry.registered_sensor_ids().into_iter().collect()
+                } else {
+                    BTreeSet::new()
+                };
+
+            let enabled_sensors: Vec<String> = spec_sensor_ids
+                .intersection(&registry_sensor_ids)
+                .cloned()
+                .collect();
+
+            // EC-10-014: if no sensors are registered, return [] (empty array).
+            enabled_sensors
+                .iter()
+                .map(|sensor_id| {
+                    let sensor_tables: Vec<String> = snapshot
+                        .sensor_specs
+                        .get(sensor_id)
+                        .map(|spec| spec.tables.iter().map(|t| t.table_name.clone()).collect())
+                        .unwrap_or_default();
+                    ClientInventoryEntry {
+                        client_id: sensor_id.clone(),
+                        sensor_count: 1,
+                        enabled_sensors: sensor_tables,
+                    }
+                })
+                .collect()
         };
-
-    // Intersection: only sensors present in both config AND TableRegistry.
-    let enabled_sensors: Vec<String> = spec_sensor_ids
-        .intersection(&registry_sensor_ids)
-        .cloned()
-        .collect();
-
-    // BC-2.10.008 postcondition 1: return one entry per sensor registered in
-    // TableRegistry. In the current single-tenant deployment model, sensor_id
-    // serves as the client_id (each sensor is its own client group).
-    // AC-8: only sensors present in the intersection of config AND TableRegistry
-    // appear — sensors absent from TableRegistry are excluded.
-    // EC-10-014: if no sensors are registered, return [] (empty array), never
-    // the synthetic "(all)" aggregate.
-    let entries: Vec<ClientInventoryEntry> = enabled_sensors
-        .iter()
-        .map(|sensor_id| {
-            // Collect the table names for this sensor from the config snapshot.
-            let sensor_tables: Vec<String> = snapshot
-                .sensor_specs
-                .get(sensor_id)
-                .map(|spec| spec.tables.iter().map(|t| t.table_name.clone()).collect())
-                .unwrap_or_default();
-            ClientInventoryEntry {
-                client_id: sensor_id.clone(),
-                sensor_count: 1,
-                enabled_sensors: sensor_tables,
-            }
-        })
-        .collect();
 
     let text = serde_json::to_string(&entries)
         .map_err(|e| internal_error(format!("JSON serialize error: {e}")))?;
@@ -490,68 +546,117 @@ pub async fn render_client_list_resource(
 /// (BC-2.10.008 postcondition 2).
 ///
 /// Validates `client_id` via `OrgSlug::new()` (same guard as tool calls).
-/// Returns a 404-equivalent ErrorData on invalid or unknown `client_id`.
+/// Returns a 404-equivalent `ErrorData` on invalid `client_id`.
+///
+/// # Per-org scoping (IMP-8 / BC-2.10.008 v1.8)
+///
+/// When `resolved_spec_map` is wired (production multi-tenant mode):
+/// - Filters `resolved_spec_map` by `OrgSlug == client_id` to return only that
+///   org's provisioned sensors.
+/// - When `org_registry` is also wired, validates that `client_id` is a known org
+///   and returns a 404 error for unregistered orgs (BC-2.10.008 error case).
+/// - An org registered in `OrgRegistry` with zero overlay entries returns an empty
+///   array (EC-10-017 / BC-2.10.008 v1.9 Option B semantics).
+/// - Removes the `sensor_id == client_id` stopgap (DI-008 fix).
+///
+/// When `resolved_spec_map` is `None` (test / MVP mode without multi-tenant support):
+/// - Falls back to `config_manager.sensor_specs` filtered by `sensor_id == client_id`
+///   (existing single-tenant behavior retained for AC-2 fixture compatibility).
 ///
 /// Returns a JSON array of `SensorConfigEntry` objects.
-///
-/// NOTE: AC-2 test body is a Red Gate stub — this function compiles but its
-/// full behaviour is validated after the multi-tenant credential model is wired.
 pub async fn render_client_sensors_resource(
     client_id: &str,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    resolved_spec_map: Option<
+        &Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    >,
+    org_registry: Option<&Arc<prism_core::OrgRegistry>>,
 ) -> Result<ReadResourceResult, ErrorData> {
     // Validate client_id via OrgSlug — rejects path traversal and invalid chars.
     // BC-2.10.008 prompt-injection defense: do NOT echo the raw untrusted client_id
     // in the error message — attacker-controlled input must never appear verbatim
     // in MCP responses forwarded to AI agent contexts (BC-2.10.008 postcondition,
     // DI-006 invariant). Use a generic rejection message instead.
-    let slug = prism_core::OrgSlug::new(client_id);
-    if slug.is_err() {
+    let org_slug = prism_core::OrgSlug::new(client_id);
+    if org_slug.is_err() {
         return Err(not_found_error(
             "Resource not found: invalid client_id (path traversal or invalid characters rejected)"
                 .to_string(),
         ));
     }
 
-    let cm_guard = config_manager.load();
-    let snapshot = cm_guard.load();
+    let entries: Vec<SensorConfigEntry> = if let Some(spec_map) = resolved_spec_map {
+        // ── Per-org path (IMP-8 / DI-008 / BC-2.10.008 v1.8+v1.9) ───────────────
+        // Validate that the org is registered when org_registry is available.
+        // An unregistered org returns a 404-equivalent error.
+        if let Some(reg) = org_registry {
+            if !reg.slug_exists(&org_slug) {
+                return Err(not_found_error(
+                    "Resource not found: client not found".to_string(),
+                ));
+            }
+        }
 
-    // DI-008 client data separation (BC-2.10.008 v1.8):
-    // The handler MUST filter by the `client_id` URI segment before returning results.
-    // Returning all sensors regardless of `client_id` is a data separation defect.
-    //
-    // In the current single-tenant deployment model, `sensor_id` serves as the
-    // per-client key — each loaded sensor spec IS a client scope. The filter
-    // here returns ONLY the spec whose `sensor_id` matches the requested `client_id`.
-    //
-    // Multi-tenant org→sensor mapping (S-CONFIG-MULTI-TENANT-OVERRIDE-001 overlay store)
-    // will replace this when the OrgScopedSpecStore is wired into ConfigSnapshot; until
-    // that story merges, the single-tenant model is the correct production-grade behaviour:
-    // `client_id` maps to at most one sensor spec (the one where sensor_id == client_id).
-    //
-    // An unknown client_id (no matching sensor_id) returns an empty array — not a 404
-    // error — because the client_id is syntactically valid but the sensor spec for that
-    // org simply isn't loaded (EC-10-016: "Client has no sensors configured").
-    let entries: Vec<SensorConfigEntry> = snapshot
-        .sensor_specs
-        .values()
-        .filter(|spec| spec.sensor_id == client_id)
-        .map(|spec| {
-            let table_names: Vec<String> =
-                spec.tables.iter().map(|t| t.table_name.clone()).collect();
-            let cred_ref = spec
-                .credential_refs
-                .first()
-                .map(|c| c.name.as_str())
-                .unwrap_or("");
-            render_sensor_inventory_resource(
-                &spec.sensor_id,
-                cred_ref,
-                &spec.base_url,
-                &table_names,
-            )
-        })
-        .collect();
+        // Filter resolved_spec_map by OrgSlug == client_id.
+        // Each entry for this org yields one SensorConfigEntry.
+        // An org with zero overlay entries → empty vec (EC-10-017 / Option B semantics).
+        let mut sensors: Vec<SensorConfigEntry> = spec_map
+            .iter()
+            .filter(|((org, _sensor), _spec)| org.as_str() == org_slug.as_str())
+            .map(|((_org, sensor_id), resolved)| {
+                let spec = &resolved.spec;
+                let table_names: Vec<String> =
+                    spec.tables.iter().map(|t| t.table_name.clone()).collect();
+                let cred_ref = spec
+                    .credential_refs
+                    .first()
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("");
+                render_sensor_inventory_resource(
+                    sensor_id.as_ref(),
+                    cred_ref,
+                    &spec.base_url,
+                    &table_names,
+                )
+            })
+            .collect();
+        // Sort by sensor_type for deterministic output.
+        sensors.sort_by(|a, b| a.sensor_type.cmp(&b.sensor_type));
+        sensors
+    } else {
+        // ── ConfigManager fallback (test / MVP / single-tenant mode) ─────────────
+        // The `sensor_id == client_id` filter remains here for backward compatibility
+        // with existing tests that supply only config_manager (no resolved_spec_map).
+        // This path is only reached when resolved_spec_map is None.
+        let cm_guard = config_manager.load();
+        let snapshot = cm_guard.load();
+
+        snapshot
+            .sensor_specs
+            .values()
+            .filter(|spec| spec.sensor_id == client_id)
+            .map(|spec| {
+                let table_names: Vec<String> =
+                    spec.tables.iter().map(|t| t.table_name.clone()).collect();
+                let cred_ref = spec
+                    .credential_refs
+                    .first()
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("");
+                render_sensor_inventory_resource(
+                    &spec.sensor_id,
+                    cred_ref,
+                    &spec.base_url,
+                    &table_names,
+                )
+            })
+            .collect()
+    };
 
     let uri = format!("prism://config/clients/{client_id}/sensors");
     let text = serde_json::to_string(&entries)

@@ -178,7 +178,7 @@ async fn test_BC_2_10_008_config_clients_returns_all_clients() {
     let config_manager = make_config_manager_two_sensors();
     let query_engine = make_query_engine_with_sensors(&["crowdstrike", "claroty"]);
 
-    let result = render_client_list_resource(&config_manager, &query_engine)
+    let result = render_client_list_resource(&config_manager, &query_engine, None, None)
         .await
         .expect("render_client_list_resource must return Ok");
 
@@ -336,7 +336,8 @@ async fn test_BC_2_10_008_client_sensors_acme_does_not_include_globex_sensors() 
 
     // Request sensors for client_id="crowdstrike" — in the current single-tenant model,
     // sensor_id serves as the client_id key.  Only the crowdstrike spec should be returned.
-    let result = render_client_sensors_resource("crowdstrike", &config_manager)
+    // Pass None for resolved_spec_map and org_registry to use the fallback config-manager path.
+    let result = render_client_sensors_resource("crowdstrike", &config_manager, None, None)
         .await
         .expect("render_client_sensors_resource must return Ok for a valid client_id");
 
@@ -450,7 +451,8 @@ async fn test_BC_2_10_008_client_sensors_invalid_id_returns_error() {
     );
 
     // Path-traversal client_id: must be rejected before any CF scan.
-    let result = render_client_sensors_resource("../../etc/passwd", &config_manager).await;
+    let result =
+        render_client_sensors_resource("../../etc/passwd", &config_manager, None, None).await;
 
     assert!(
         result.is_err(),
@@ -840,7 +842,7 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
     // Registry has ONLY crowdstrike and claroty registered (not armis or cyberint).
     let query_engine = make_query_engine_with_sensors(&["crowdstrike", "claroty"]);
 
-    let result = render_client_list_resource(&config_manager, &query_engine)
+    let result = render_client_list_resource(&config_manager, &query_engine, None, None)
         .await
         .expect("render_client_list_resource must return Ok");
 
@@ -1380,7 +1382,7 @@ async fn test_BC_2_10_008_invariant_zero_clients_returns_empty_array() {
     // Empty registry: no tables registered.
     let query_engine = make_query_engine_with_sensors(&[]);
 
-    let result = render_client_list_resource(&config_manager, &query_engine)
+    let result = render_client_list_resource(&config_manager, &query_engine, None, None)
         .await
         .expect(
             "BC-2.10.008 EC-10-014: render_client_list_resource must return Ok with zero clients",
@@ -1410,5 +1412,462 @@ async fn test_BC_2_10_008_invariant_zero_clients_returns_empty_array() {
          clients must return empty JSON array '[]', not a synthetic entry. \
          Current implementation returns a '(all)' aggregate with sensor_count=0, which \
          violates the EC-10-014 postcondition. Response: {content_text:?}"
+    );
+}
+
+// ─── IMP-8 per-org scoping tests (BC-2.10.008 v1.9) ─────────────────────────
+
+/// Build a `resolved_spec_map` fixture with two orgs:
+/// - "acme"  → crowdstrike + claroty overlays
+/// - "globex" → armis overlay
+///
+/// Used by IMP-8 load-bearing tests to verify per-org sensor scoping.
+fn make_two_org_resolved_spec_map() -> Arc<
+    std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+> {
+    use prism_core::{OrgSlug, SensorId};
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, SensorSpec, TableSpec},
+    };
+
+    let make_resolved = |org: &str, sensor_id: &str, base_url: &str, table_name: &str| {
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            AuthType::ApiKey,
+            base_url,
+            vec![TableSpec::new_point_in_time(
+                table_name,
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        let overlay_toml =
+            format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("IMP-8 fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let sensor_id_typed = SensorId::new(sensor_id);
+        let key = (org_slug, sensor_id_typed);
+        (key, resolved)
+    };
+
+    let mut map = std::collections::HashMap::new();
+
+    // acme → crowdstrike
+    let (k, v) = make_resolved(
+        "acme",
+        "crowdstrike",
+        "https://api.crowdstrike.com/path/to/strip?key=secret",
+        "detections",
+    );
+    map.insert(k, v);
+
+    // acme → claroty
+    let (k, v) = make_resolved(
+        "acme",
+        "claroty",
+        "https://api.claroty.com/v1/assets",
+        "assets",
+    );
+    map.insert(k, v);
+
+    // globex → armis
+    let (k, v) = make_resolved(
+        "globex",
+        "armis",
+        "https://api.armis.com/api/v1/devices",
+        "devices",
+    );
+    map.insert(k, v);
+
+    Arc::new(map)
+}
+
+/// Build an `OrgRegistry` with "acme" and "globex" registered.
+fn make_two_org_registry() -> Arc<prism_core::OrgRegistry> {
+    use prism_core::{OrgId, OrgRegistry, OrgSlug};
+
+    let reg = OrgRegistry::new();
+    reg.register(OrgSlug::new("acme"), OrgId::new())
+        .expect("register acme must not fail");
+    reg.register(OrgSlug::new("globex"), OrgId::new())
+        .expect("register globex must not fail");
+    Arc::new(reg)
+}
+
+/// Build an `OrgRegistry` with "acme", "globex", AND "empty-org" registered.
+/// "empty-org" has no entries in resolved_spec_map — exercises EC-10-017.
+fn make_three_org_registry_with_empty() -> Arc<prism_core::OrgRegistry> {
+    use prism_core::{OrgId, OrgRegistry, OrgSlug};
+
+    let reg = OrgRegistry::new();
+    reg.register(OrgSlug::new("acme"), OrgId::new())
+        .expect("register acme must not fail");
+    reg.register(OrgSlug::new("globex"), OrgId::new())
+        .expect("register globex must not fail");
+    reg.register(OrgSlug::new("empty-org"), OrgId::new())
+        .expect("register empty-org must not fail");
+    Arc::new(reg)
+}
+
+/// IMP-8 / BC-2.10.008 DI-008 LOAD-BEARING:
+/// `prism://config/clients/acme/sensors` with a real `resolved_spec_map` MUST return
+/// crowdstrike AND claroty for "acme", and MUST NOT return armis (which belongs to "globex").
+///
+/// This test FAILS if:
+/// - The `sensor_id == client_id` stopgap is still in place (both globex's armis and
+///   acme's sensors share the same ConfigSnapshot → stopgap returns nothing for "acme").
+/// - The resolved_spec_map filter is broken and returns sensors from all orgs.
+/// - api_base_url is not stripped to host+port (VP-050 assertion executes on real entries).
+#[tokio::test]
+async fn test_BC_2_10_008_per_org_scoping_acme_has_crowdstrike_and_claroty_not_armis() {
+    use prism_spec_engine::ConfigManager;
+
+    let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::empty()));
+    let spec_map = make_two_org_resolved_spec_map();
+    let org_registry = make_two_org_registry();
+
+    // Request sensors for "acme" — must return crowdstrike + claroty, not armis.
+    let result = render_client_sensors_resource(
+        "acme",
+        &config_manager,
+        Some(&spec_map),
+        Some(&org_registry),
+    )
+    .await
+    .expect("IMP-8: render_client_sensors_resource must return Ok for registered org 'acme'");
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content_text).expect("IMP-8: response must be valid JSON");
+    let entries = parsed
+        .as_array()
+        .expect("IMP-8: response must be a JSON array");
+
+    // LOAD-BEARING: exactly 2 entries for acme (crowdstrike + claroty).
+    // If resolved_spec_map filter is broken and returns all 3 sensors, len=3 — FAILS.
+    // If stopgap sensor_id==client_id is used (no match for "acme"), len=0 — FAILS.
+    assert_eq!(
+        entries.len(),
+        2,
+        "IMP-8 DI-008: 'acme' MUST have exactly 2 sensors (crowdstrike + claroty) in \
+         resolved_spec_map. Got {} entries. Full response: {content_text:?}",
+        entries.len()
+    );
+
+    let sensor_types: Vec<&str> = entries
+        .iter()
+        .filter_map(|e| e.get("sensor_type").and_then(|v| v.as_str()))
+        .collect();
+
+    // crowdstrike MUST appear for acme.
+    assert!(
+        sensor_types.contains(&"crowdstrike"),
+        "IMP-8 DI-008: 'crowdstrike' MUST appear for org 'acme'. \
+         Got sensor_types: {sensor_types:?}"
+    );
+    // claroty MUST appear for acme.
+    assert!(
+        sensor_types.contains(&"claroty"),
+        "IMP-8 DI-008: 'claroty' MUST appear for org 'acme'. \
+         Got sensor_types: {sensor_types:?}"
+    );
+    // armis MUST NOT appear for acme (belongs to globex only).
+    assert!(
+        !sensor_types.contains(&"armis"),
+        "IMP-8 DI-008: 'armis' MUST NOT appear for org 'acme' \
+         (armis belongs to 'globex' — cross-org data leak). \
+         Got sensor_types: {sensor_types:?}. Full response: {content_text:?}"
+    );
+
+    // VP-050 / BC-2.10.008 v1.8: api_base_url must be stripped to host+port only.
+    // These assertions execute on real entries (non-vacuous).
+    for entry in entries {
+        let sensor_type = entry
+            .get("sensor_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("(unknown)");
+        let api_base_url = entry
+            .get("api_base_url")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| {
+                panic!(
+                    "IMP-8: SensorConfigEntry must include 'api_base_url' field \
+                     (BC-2.10.008 v1.8 postcondition 2). Missing for sensor_type={sensor_type:?}"
+                )
+            });
+        // Must not contain path segments stripped by strip_url_to_host_port.
+        assert!(
+            !api_base_url.contains("/path/")
+                && !api_base_url.contains("/v1/")
+                && !api_base_url.contains("/api/"),
+            "IMP-8 VP-050: api_base_url must contain ONLY scheme+host+port. \
+             sensor_type={sensor_type:?} api_base_url={api_base_url:?}"
+        );
+        assert!(
+            !api_base_url.contains('?'),
+            "IMP-8 VP-050: api_base_url must NOT contain query string. \
+             sensor_type={sensor_type:?} api_base_url={api_base_url:?}"
+        );
+    }
+}
+
+/// IMP-8 / BC-2.10.008 DI-008 LOAD-BEARING:
+/// `prism://config/clients/globex/sensors` with a real `resolved_spec_map` MUST return
+/// armis for "globex", and MUST NOT return crowdstrike or claroty (which belong to "acme").
+#[tokio::test]
+async fn test_BC_2_10_008_per_org_scoping_globex_has_armis_not_acme_sensors() {
+    use prism_spec_engine::ConfigManager;
+
+    let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::empty()));
+    let spec_map = make_two_org_resolved_spec_map();
+    let org_registry = make_two_org_registry();
+
+    let result = render_client_sensors_resource(
+        "globex",
+        &config_manager,
+        Some(&spec_map),
+        Some(&org_registry),
+    )
+    .await
+    .expect("IMP-8: render_client_sensors_resource must return Ok for registered org 'globex'");
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content_text).expect("IMP-8: response must be valid JSON");
+    let entries = parsed
+        .as_array()
+        .expect("IMP-8: response must be a JSON array");
+
+    // LOAD-BEARING: exactly 1 entry for globex (armis only).
+    assert_eq!(
+        entries.len(),
+        1,
+        "IMP-8 DI-008: 'globex' MUST have exactly 1 sensor (armis) in resolved_spec_map. \
+         Got {} entries. Full response: {content_text:?}",
+        entries.len()
+    );
+
+    let sensor_types: Vec<&str> = entries
+        .iter()
+        .filter_map(|e| e.get("sensor_type").and_then(|v| v.as_str()))
+        .collect();
+
+    assert!(
+        sensor_types.contains(&"armis"),
+        "IMP-8 DI-008: 'armis' MUST appear for org 'globex'. \
+         Got sensor_types: {sensor_types:?}"
+    );
+    assert!(
+        !sensor_types.contains(&"crowdstrike"),
+        "IMP-8 DI-008: 'crowdstrike' MUST NOT appear for org 'globex' \
+         (crowdstrike belongs to 'acme'). Got sensor_types: {sensor_types:?}"
+    );
+    assert!(
+        !sensor_types.contains(&"claroty"),
+        "IMP-8 DI-008: 'claroty' MUST NOT appear for org 'globex' \
+         (claroty belongs to 'acme'). Got sensor_types: {sensor_types:?}"
+    );
+}
+
+/// IMP-8 / BC-2.10.008 EC-10-017 LOAD-BEARING:
+/// An org registered in `OrgRegistry` but with ZERO entries in `resolved_spec_map`
+/// MUST return an empty sensors array `[]` — not an error, not the global sensor list.
+///
+/// This is Option B semantics: overlay = provisioned, not "customize a global default."
+/// BC-2.06.012 EC-012-003 grounds this: a SaaS sensor with no per-org overlay produces
+/// NO `ResolvedSensorSpec` entry.
+///
+/// This test FAILS if the implementation returns a non-empty array for "empty-org".
+#[tokio::test]
+async fn test_BC_2_10_008_ec_10_017_org_with_no_overlay_returns_empty_sensors() {
+    use prism_spec_engine::ConfigManager;
+
+    let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::empty()));
+    let spec_map = make_two_org_resolved_spec_map(); // acme + globex only; "empty-org" has no entries
+    let org_registry = make_three_org_registry_with_empty(); // registers acme, globex, AND empty-org
+
+    let result = render_client_sensors_resource(
+        "empty-org",
+        &config_manager,
+        Some(&spec_map),
+        Some(&org_registry),
+    )
+    .await
+    .expect(
+        "IMP-8 EC-10-017: render_client_sensors_resource must return Ok (not error) \
+         for an org registered in OrgRegistry with zero overlay entries",
+    );
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    // LOAD-BEARING: must be exactly empty JSON array [].
+    // If the implementation returns all type specs (Option A was rejected), this fails.
+    assert_eq!(
+        content_text.trim(),
+        "[]",
+        "IMP-8 EC-10-017 (BC-2.10.008 v1.9 Option B): org 'empty-org' is registered in \
+         OrgRegistry but has zero entries in resolved_spec_map. MUST return '[]'. \
+         Got: {content_text:?}"
+    );
+}
+
+/// IMP-8 / BC-2.10.008 postcondition 1 LOAD-BEARING:
+/// `prism://config/clients` with a real `org_registry` and `resolved_spec_map` MUST
+/// enumerate ALL registered orgs (including orgs with zero overlays), with correct
+/// sensor counts derived from `resolved_spec_map`.
+///
+/// acme → 2 sensors (crowdstrike, claroty)
+/// globex → 1 sensor (armis)
+/// empty-org → 0 sensors (no overlay entries)
+///
+/// This test FAILS if:
+/// - Any org is missing from the response.
+/// - Sensor counts are wrong (e.g., acme shows 1 instead of 2).
+/// - empty-org is omitted (BC-2.10.008 v1.9: registered orgs with zero sensors are listed).
+#[tokio::test]
+async fn test_BC_2_10_008_client_list_per_org_enumerates_all_registered_orgs() {
+    let config_manager = {
+        use prism_spec_engine::{types::ConfigSnapshot, ConfigManager};
+        Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::new(
+            ConfigSnapshot::empty(),
+        )))
+    };
+    let query_engine = make_query_engine_with_sensors(&[]);
+    let spec_map = make_two_org_resolved_spec_map();
+    let org_registry = make_three_org_registry_with_empty();
+
+    let result = render_client_list_resource(
+        &config_manager,
+        &query_engine,
+        Some(&org_registry),
+        Some(&spec_map),
+    )
+    .await
+    .expect("IMP-8: render_client_list_resource must return Ok with org_registry wired");
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("IMP-8: client list response must be valid JSON");
+    let entries = parsed
+        .as_array()
+        .expect("IMP-8: client list response must be a JSON array");
+
+    // LOAD-BEARING: 3 orgs registered → 3 entries.
+    assert_eq!(
+        entries.len(),
+        3,
+        "IMP-8: prism://config/clients MUST return 3 entries for 3 registered orgs \
+         (acme, globex, empty-org). Got {} entries. Response: {content_text:?}",
+        entries.len()
+    );
+
+    // Find entries by client_id.
+    let find = |id: &str| -> &serde_json::Value {
+        entries
+            .iter()
+            .find(|e| e.get("client_id").and_then(|v| v.as_str()) == Some(id))
+            .unwrap_or_else(|| panic!("IMP-8: org '{id}' must appear in client list"))
+    };
+
+    // acme: sensor_count = 2 (crowdstrike + claroty).
+    let acme = find("acme");
+    let acme_count = acme
+        .get("sensor_count")
+        .and_then(|v| v.as_u64())
+        .expect("acme must have sensor_count");
+    assert_eq!(
+        acme_count, 2,
+        "IMP-8: 'acme' must have sensor_count=2 (crowdstrike+claroty). Got {acme_count}"
+    );
+
+    // globex: sensor_count = 1 (armis).
+    let globex = find("globex");
+    let globex_count = globex
+        .get("sensor_count")
+        .and_then(|v| v.as_u64())
+        .expect("globex must have sensor_count");
+    assert_eq!(
+        globex_count, 1,
+        "IMP-8: 'globex' must have sensor_count=1 (armis). Got {globex_count}"
+    );
+
+    // empty-org: sensor_count = 0, listed but with empty sensors array.
+    let empty_org = find("empty-org");
+    let empty_count = empty_org
+        .get("sensor_count")
+        .and_then(|v| v.as_u64())
+        .expect("empty-org must have sensor_count");
+    assert_eq!(
+        empty_count, 0,
+        "IMP-8 EC-10-017: 'empty-org' must have sensor_count=0 \
+         (registered in OrgRegistry but no overlay entries). Got {empty_count}"
+    );
+    let empty_sensors = empty_org
+        .get("enabled_sensors")
+        .and_then(|v| v.as_array())
+        .expect("empty-org must have enabled_sensors array");
+    assert!(
+        empty_sensors.is_empty(),
+        "IMP-8 EC-10-017: 'empty-org' enabled_sensors MUST be empty []. \
+         Got: {empty_sensors:?}"
     );
 }
