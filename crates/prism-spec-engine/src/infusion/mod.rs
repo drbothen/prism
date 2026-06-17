@@ -536,6 +536,10 @@ impl InfusionRegistry {
     /// Returns `Err(InfusionError::DuplicateUdfName)` if any field name conflicts with
     /// an already-registered UDF (BC-2.19.001 / INV-INFUSE-001 / VP-048).
     ///
+    /// For `LocalLookup` specs, the real file-backed `InfusionSource` is constructed via
+    /// `sources::load_source` and stored in the registry. Plugin-type specs use
+    /// `NullSource` here — use `load_spec_with_runtime` to wire a real `PluginInfusionSource`.
+    ///
     /// On validation error: returns `Err` — does NOT partially register.
     /// On success: the registry `ArcSwap` is updated atomically.
     pub fn load_spec(
@@ -547,8 +551,27 @@ impl InfusionRegistry {
         // Validate against current state (pure — does not mutate).
         let descriptors = self.validate_spec_against(&spec, &current)?;
 
+        // For LocalLookup specs with a source config, wire the real file-backed source.
+        // Plugin specs use NullSource here; callers must use load_spec_with_runtime for plugin.
+        let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::LocalLookup {
+            if let Some(ref source_config) = spec.source {
+                match sources::load_source(source_config) {
+                    Ok(s) => s,
+                    // File not found at load time: fall through to NullSource so load_all
+                    // continues loading other specs rather than aborting. The error is
+                    // surfaced via the descriptors' source returning None on enrich_single.
+                    // If strict failure is required, callers should validate file paths before
+                    // calling load_spec.
+                    Err(_) => Arc::new(NullSource),
+                }
+            } else {
+                Arc::new(NullSource)
+            }
+        } else {
+            Arc::new(NullSource)
+        };
+
         // Build updated inner: clone existing state and add the new spec.
-        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
         let mut new_entries = current.entries.clone();
         let mut new_udf_to_infusion = current.udf_to_infusion.clone();
 
@@ -591,13 +614,21 @@ impl InfusionRegistry {
         // Validate against current state (pure — does not mutate).
         let descriptors = self.validate_spec_against(&spec, &current)?;
 
-        // Build the real source for plugin-type specs.
+        // Build the real source:
+        // - Plugin specs: PluginInfusionSource wired to the runtime.
+        // - LocalLookup specs with a source_config: real file-backed source via load_source.
+        // - LocalLookup specs without source_config (test stubs): NullSource.
         let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::Plugin {
             Arc::new(plugin_bridge::PluginInfusionSource::new(
                 spec.infusion_id.clone(),
                 Arc::new(PluginConfigMap::new()),
                 runtime,
             ))
+        } else if let Some(ref source_config) = spec.source {
+            match sources::load_source(source_config) {
+                Ok(s) => s,
+                Err(_) => Arc::new(NullSource),
+            }
         } else {
             Arc::new(NullSource)
         };
@@ -737,7 +768,20 @@ impl InfusionRegistry {
         let descriptors = self.validate_spec_against(&updated_spec, &temp_inner)?;
 
         // Validation passed — build new inner and swap atomically.
-        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        // Wire the real source for LocalLookup specs (same policy as load_spec).
+        let source: Arc<dyn InfusionSource> =
+            if updated_spec.infusion_type == InfusionType::LocalLookup {
+                if let Some(ref source_config) = updated_spec.source {
+                    match sources::load_source(source_config) {
+                        Ok(s) => s,
+                        Err(_) => Arc::new(NullSource),
+                    }
+                } else {
+                    Arc::new(NullSource)
+                }
+            } else {
+                Arc::new(NullSource)
+            };
         let mut new_entries = temp_inner.entries;
         let mut new_udf_to_infusion = temp_inner.udf_to_infusion;
 

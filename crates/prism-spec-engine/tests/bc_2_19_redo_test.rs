@@ -1522,3 +1522,190 @@ fn test_BC_2_19_002_vp_049_ac_8_five_hundred_events_thirty_unique() {
         "VP-049 AC-8: 500 events with 30 unique IPs must produce exactly 30 source calls"
     );
 }
+
+// ---------------------------------------------------------------------------
+// CRIT-1: End-to-end enrichment through wired registry (BC-2.19.001)
+//
+// This test proves the PRODUCTION PATH:
+//   InfusionSpec (CSV source) → InfusionRegistry::load_spec → stores real CsvSource
+//   → udf_descriptors() → descriptor.source.enrich_single → returns REAL CSV data
+//
+// A NullSource regression would make enrich_single return None for any key.
+// A CsvSource correctly wired returns the CSV row for known keys.
+// ---------------------------------------------------------------------------
+
+/// CRIT-1 end-to-end: Registry stores a real CsvSource for LocalLookup specs.
+///
+/// Production path proof:
+///   `InfusionRegistry::load_spec(csv_spec)` stores a real `CsvSource` (not `NullSource`).
+///   `udf_descriptors()` returns descriptors with the real source.
+///   `descriptor.source.enrich_single("192.168.1.10", "ip")` returns CSV row data.
+///
+/// Traces to: BC-2.19.001 postcondition — descriptors carry a real source backend.
+/// CRIT-1 closure: `load_spec` → `sources::load_source` → `CsvSource` → real data.
+#[test]
+fn test_BC_2_19_001_crit1_registry_wires_real_csv_source_for_local_lookup_spec() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let csv_path = format!("{}/fixtures/asset_inventory.csv", manifest_dir);
+
+    // Build a LocalLookup CSV spec pointing at the real fixture.
+    let fields = vec![
+        InfusionField::with_all(
+            "asset_department",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("department".to_string()),
+        ),
+        InfusionField::with_all(
+            "asset_owner",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("owner".to_string()),
+        ),
+    ];
+    let mut spec = InfusionSpec::new(
+        "asset_inventory",
+        "Asset Inventory CSV",
+        InfusionType::LocalLookup,
+        fields,
+        "asset_inventory.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        csv_path,
+        Some("ip_address".to_string()),
+        Some(300),
+    ));
+
+    // PRODUCTION PATH: load_spec must wire a real CsvSource (not NullSource).
+    let registry = InfusionRegistry::new();
+    let descriptors = registry
+        .load_spec(spec)
+        .expect("CRIT-1: registry.load_spec must succeed for a valid CSV LocalLookup spec");
+
+    assert_eq!(
+        descriptors.len(),
+        2,
+        "CRIT-1: CSV spec with 2 fields must produce 2 UDF descriptors"
+    );
+
+    // Get the wired descriptors from the registry (these carry the stored source).
+    let stored_descriptors = registry.udf_descriptors();
+    assert_eq!(
+        stored_descriptors.len(),
+        2,
+        "CRIT-1: udf_descriptors() must return 2 stored descriptors"
+    );
+
+    // Find the asset_department descriptor.
+    let dept_desc = stored_descriptors
+        .iter()
+        .find(|d| d.name == "asset_department")
+        .expect("CRIT-1: asset_department descriptor must be present in registry");
+
+    // THE CRITICAL ASSERTION: enrich_single via the stored source must return REAL CSV data.
+    // A NullSource would return None for ALL inputs — this proves the source is a real CsvSource.
+    let result = dept_desc.source.enrich_single("192.168.1.10", "ip");
+
+    assert!(
+        result.is_some(),
+        "CRIT-1: descriptor.source.enrich_single('192.168.1.10') must return Some (real CSV data), \
+         NOT None (NullSource regression). \
+         NullSource returns None unconditionally — a Some here proves the wired path is CsvSource."
+    );
+
+    // Verify the actual data returned is correct (Engineering for 192.168.1.10).
+    let value = result.unwrap();
+    assert_eq!(
+        value.get("department").and_then(|v| v.as_str()),
+        Some("Engineering"),
+        "CRIT-1: wired CsvSource must return 'Engineering' for 192.168.1.10 (real data, not mock)"
+    );
+
+    // Also verify unknown key returns None (not a blanket NullSource that always returns None).
+    let unknown_result = dept_desc.source.enrich_single("10.255.255.99", "ip");
+    assert!(
+        unknown_result.is_none(),
+        "CRIT-1: CsvSource must return None for unknown keys"
+    );
+}
+
+/// CRIT-1 end-to-end: Registry stores a real JsonLookupSource for LocalLookup specs.
+///
+/// Uses a temp JSON file to prove the JsonLookup path is wired through the registry.
+/// CRIT-1 closure: `load_spec` → `sources::load_source` → `JsonLookupSource` → real data.
+#[test]
+fn test_BC_2_19_001_crit1_registry_wires_real_json_lookup_source_for_local_lookup_spec() {
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().expect("CRIT-1: temp dir creation must succeed");
+    let json_path = temp_dir.path().join("assets.json");
+
+    // Write a minimal JSON lookup file.
+    let json_content = r#"{
+        "192.168.1.1": {"role": "server", "criticality": "high"},
+        "10.0.0.1": {"role": "gateway", "criticality": "critical"}
+    }"#;
+    {
+        let mut f =
+            std::fs::File::create(&json_path).expect("CRIT-1: JSON file creation must succeed");
+        f.write_all(json_content.as_bytes())
+            .expect("CRIT-1: JSON file write must succeed");
+    }
+
+    // Build a LocalLookup JSON spec.
+    let fields = vec![InfusionField::with_all(
+        "asset_role",
+        "device_ip",
+        "ip",
+        "string",
+        None,
+        Some("role".to_string()),
+    )];
+    let mut spec = InfusionSpec::new(
+        "asset_roles",
+        "Asset Roles JSON",
+        InfusionType::LocalLookup,
+        fields,
+        "asset_roles.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::JsonLookup,
+        json_path.to_str().unwrap().to_string(),
+        None,
+        None,
+    ));
+
+    // PRODUCTION PATH: load_spec must wire a real JsonLookupSource.
+    let registry = InfusionRegistry::new();
+    registry
+        .load_spec(spec)
+        .expect("CRIT-1: registry.load_spec must succeed for a valid JSON LocalLookup spec");
+
+    let stored_descriptors = registry.udf_descriptors();
+    let role_desc = stored_descriptors
+        .iter()
+        .find(|d| d.name == "asset_role")
+        .expect("CRIT-1: asset_role descriptor must be present in registry");
+
+    // THE CRITICAL ASSERTION: real data, not NullSource None.
+    let result = role_desc.source.enrich_single("192.168.1.1", "ip");
+
+    assert!(
+        result.is_some(),
+        "CRIT-1: descriptor.source.enrich_single('192.168.1.1') must return Some (real JSON data), \
+         NOT None (NullSource regression). Got None — load_spec did not wire JsonLookupSource."
+    );
+
+    let value = result.unwrap();
+    assert_eq!(
+        value.get("role").and_then(|v| v.as_str()),
+        Some("server"),
+        "CRIT-1: JsonLookupSource must return 'server' for 192.168.1.1 (real data)"
+    );
+}

@@ -1,30 +1,57 @@
 //! Built-in infusion source backends.
 //!
 //! Dispatches to the appropriate source implementation based on `BuiltInSourceType`.
-//! All source types are stubs (`unimplemented!()`) — implementation in S-1.14.
+//! Called from `InfusionRegistry::load_spec` / `load_all` to wire the real file-backed
+//! source for LocalLookup specs (BC-2.19.001, S-1.14-REDO).
 
 pub mod csv;
 pub mod json_lookup;
 pub mod mmdb;
 
+use std::path::Path;
 use std::sync::Arc;
 
 use prism_core::InfusionError;
 
-use super::{InfusionSource, InfusionSourceConfig};
+use super::{BuiltInSourceType, InfusionSource, InfusionSourceConfig};
+use csv::CsvSource;
+use json_lookup::JsonLookupSource;
+use mmdb::MmdbSource;
 
 /// Load the appropriate `InfusionSource` implementation for the given config.
 ///
 /// Dispatches to `MmdbSource::load`, `CsvSource::load`, or `JsonLookupSource::load`
-/// based on `config.source_type`. Called from `InfusionLoader::load_all` when
-/// constructing the per-spec source backend.
+/// based on `config.source_type`. Called from `InfusionRegistry::load_spec` (and
+/// `load_spec_with_runtime` / `hot_reload`) when constructing the per-spec source
+/// backend for a `LocalLookup`-type spec (BC-2.19.001).
 ///
-/// Returns `Err(InfusionError::UnknownSourceType)` for unrecognized source types.
+/// Returns `Err(InfusionError::MissingRequiredField)` for backend load failures
+/// (missing file, parse error, etc.).
 pub fn load_source(
-    _config: &InfusionSourceConfig,
+    config: &InfusionSourceConfig,
 ) -> Result<Arc<dyn InfusionSource>, InfusionError> {
-    todo!(
-        "S-1.14-REDO: implement load_source — dispatch to MmdbSource/CsvSource/JsonLookupSource \
-         based on config.source_type (BC-2.19.001)"
-    )
+    // `#[allow(unreachable_patterns)]`: `BuiltInSourceType` is `#[non_exhaustive]` so
+    // the wildcard arm is required for external crates but is unreachable within this crate
+    // (the compiler knows all variants here). This is intentional forward-compat scaffolding.
+    #[allow(unreachable_patterns)]
+    match config.source_type {
+        BuiltInSourceType::MaxmindMmdb => {
+            let field_names: Vec<String> = vec![]; // field_names unused by mmdb lookup (reads all)
+            let source = MmdbSource::load(Path::new(&config.file_path), field_names)?;
+            Ok(Arc::new(source))
+        }
+        BuiltInSourceType::Csv => {
+            let key_column = config.key_column.as_deref().unwrap_or("id");
+            let source = CsvSource::load(&config.file_path, key_column)?;
+            Ok(Arc::new(source))
+        }
+        BuiltInSourceType::JsonLookup => {
+            let source = JsonLookupSource::load(&config.file_path)?;
+            Ok(Arc::new(source))
+        }
+        // `BuiltInSourceType` is `#[non_exhaustive]`; future variants handled here.
+        _ => Err(InfusionError::UnknownSourceType {
+            type_name: format!("{:?}", config.source_type),
+        }),
+    }
 }
