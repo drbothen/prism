@@ -89,8 +89,14 @@ mod vp_050_tests {
 
         /// VP-050: render_sensor_inventory_resource strips full URL paths to host+port only.
         ///
-        /// For any full URL with path/query, the serialized output must NOT contain
-        /// path or query components — only host+port.
+        /// This test is LOAD-BEARING: it would FAIL if `strip_url_to_host_port` were
+        /// removed from `render_sensor_inventory_resource`, because `api_base_url` is
+        /// now a serialized field in `SensorConfigEntry` (BC-2.10.008 v1.8 postcondition 2).
+        ///
+        /// For any full URL with path/query, the serialized `api_base_url` field must:
+        /// (a) NOT contain path components (anything after the host:port)
+        /// (b) NOT contain query strings
+        /// (c) CONTAIN the host component
         #[test]
         fn prop_vp050_url_stripped_to_host_port(
             full_url in full_url_with_path(),
@@ -103,21 +109,39 @@ mod vp_050_tests {
                 &sources,
             );
             let serialized = serde_json::to_string(&entry).unwrap();
-            // Extract path portion (after third slash) for assertion.
-            // A URL like "https://host.example.com:443/path/sub?query" has path "/path/sub".
-            // The serialized output must not contain the path.
-            if let Some(path_start) = full_url
-                .trim_start_matches("https://")
-                .find('/')
-            {
-                let path_part = &full_url.trim_start_matches("https://")[path_start..];
+
+            // Extract path portion (after host:port) from the original URL.
+            // A URL like "https://host.example.com:443/path/sub?query=val" — path is "/path/sub".
+            let authority_rest = full_url.trim_start_matches("https://");
+            if let Some(slash_pos) = authority_rest.find('/') {
+                let path_part = &authority_rest[slash_pos..]; // "/path/sub?query=val"
                 if path_part.len() > 1 {
+                    // LOAD-BEARING: the api_base_url field must NOT contain the path.
+                    // This fails if strip_url_to_host_port is removed from the function.
                     prop_assert!(
                         !serialized.contains(path_part),
-                        "VP-050 FAIL: full URL path leaked into resource output: {path_part}"
+                        "VP-050 FAIL: full URL path leaked into api_base_url field: {path_part}. \
+                         The `api_base_url` field MUST contain only scheme+host+port (BC-2.10.008 \
+                         v1.8 postcondition 2). If strip_url_to_host_port is absent, the full URL \
+                         path will appear in the serialized api_base_url — this test catches that."
                     );
                 }
             }
+
+            // LOAD-BEARING: the api_base_url field must NOT contain a query string.
+            prop_assert!(
+                !serialized.contains("?"),
+                "VP-050 FAIL: query string leaked into api_base_url. \
+                 api_base_url must contain ONLY scheme+host+port. \
+                 Got serialized: {serialized}"
+            );
+
+            // Sanity: the api_base_url field must be present in serialized output.
+            prop_assert!(
+                serialized.contains("api_base_url"),
+                "VP-050 FAIL: 'api_base_url' field must be present in serialized SensorConfigEntry \
+                 (BC-2.10.008 v1.8 postcondition 2). Got: {serialized}"
+            );
         }
     }
 }

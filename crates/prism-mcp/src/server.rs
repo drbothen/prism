@@ -2992,9 +2992,12 @@ impl PrismServer {
 
         let healthy_count = sensors
             .iter()
-            .filter(|s| s.reachable && s.auth_valid)
+            .filter(|s| s.reachable.unwrap_or(false) && s.auth_valid.unwrap_or(false))
             .count();
         let total_count = sensors.len();
+        // BC-2.08.005 v1.5: prose summary for spec-only scope must include
+        // "spec-only: no live probe performed" — the current implementation does NOT
+        // include this phrase (RED GATE for AC-4 / test_BC_2_08_005_check_sensor_health_returns_structured_result).
         let summary = format!(
             "{healthy_count} of {total_count} sensors healthy for client '{}'",
             params.client_id
@@ -8863,23 +8866,26 @@ mod tests {
         );
     }
 
-    // ─── AC-4 (BC-2.08.005): check_sensor_health returns reachable=true ─────
+    // ─── AC-4 (BC-2.08.005 v1.5): check_sensor_health spec-only contract ────
     //
     // This test MUST live in `mod tests` (not `tests/resources.rs`) because it
     // needs to wire `PrismServer.query_engine` directly — the field is private.
     //
-    // RED GATE: The current S-5.03 implementation hardcodes `reachable = false`
-    // for every sensor (adapter fan-out deferred to S-5.04). The assertion
-    // `reachable: true` fails until S-5.04 wires the real adapter fan-out.
+    // BC-2.08.005 v1.5 two-phase probe contract (F-S503-004 adjudication):
+    // - S-5.03 scope: `probe_level: "spec-only"`, `reachable: null`, `auth_valid: null`
+    //   `last_successful_query_at: null`, prose contains "spec-only: no live probe performed".
+    // - S-5.04 scope: `probe_level: "live"`, real `reachable`/`auth_valid` bool values.
     //
-    // BC-2.08.005 postcondition 1: "SensorHealthResult.reachable = true when
-    // the sensor API endpoint responds to the lightweight probe within timeout."
+    // RED GATE: The current S-5.03 implementation hardcodes `.with_reachable(true)`
+    // and `.with_auth_valid(true)` (false-positive signals). These assertions FAIL
+    // until the implementation is corrected to spec-only null semantics.
     //
-    // SID-1: this unit test exercises the production `check_sensor_health`
-    // handler with a wired QueryEngine + TableRegistry, mocking the sensor
-    // adapter at the dependency boundary (S-5.04 is the implementing story).
+    // The assertion `reachable == null` (i.e., `as_bool() == None` + field is
+    // JSON null) will FAIL against the current code that returns `reachable: true`.
+    //
+    // SID-1: unit test at the production handler boundary with wired QueryEngine.
     #[tokio::test]
-    async fn test_BC_2_08_005_check_sensor_health_returns_structured_result_with_reachable() {
+    async fn test_BC_2_08_005_check_sensor_health_returns_spec_only_probe_level() {
         use prism_credentials::InMemoryCredentialStore;
         use prism_query::{
             engine::{QueryEngine, QueryEngineConfig},
@@ -8947,9 +8953,6 @@ mod tests {
              Did the engine wiring fail?"
         );
 
-        // BC-2.08.005 postcondition 1 (RED GATE): reachable=true requires S-5.04.
-        // The current S-5.03 implementation returns reachable=false for all sensors.
-        // This assertion FAILS until S-5.04 wires real adapter fan-out.
         let crowdstrike_entry = sensors
             .iter()
             .find(|s| s["sensor_id"].as_str() == Some("crowdstrike"))
@@ -8957,21 +8960,230 @@ mod tests {
                 "BC-2.08.005: 'crowdstrike' sensor entry must appear in structured_content.sensors",
             );
 
-        assert!(
-            crowdstrike_entry["reachable"].as_bool() == Some(true),
-            "BC-2.08.005 postcondition 1 (RED GATE): check_sensor_health must return \
-             reachable=true for a healthy sensor. \
-             Current S-5.03 implementation returns reachable=false (stub — adapter fan-out \
-             requires S-5.04). Got sensor entry: {crowdstrike_entry:?}"
+        // BC-2.08.005 v1.5 postcondition (RED GATE): S-5.03 scope requires probe_level="spec-only".
+        // The current implementation does NOT set probe_level — this assertion FAILS.
+        assert_eq!(
+            crowdstrike_entry["probe_level"].as_str(),
+            Some("spec-only"),
+            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped check_sensor_health \
+             MUST set probe_level='spec-only'. The current implementation is missing this field. \
+             Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 postcondition 7: trust_level = "internal".
+        // BC-2.08.005 v1.5 postcondition (RED GATE): reachable MUST be null for spec-only scope.
+        // Hardcoding reachable=true sends a false-positive health signal to the AI consumer.
+        // The current implementation returns reachable=true — this assertion FAILS.
+        assert!(
+            crowdstrike_entry["reachable"].is_null(),
+            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped check_sensor_health \
+             MUST return reachable=null (honest-unknown — no live probe). \
+             Hardcoding reachable=true is FORBIDDEN (false-positive health signal). \
+             Current implementation returns reachable=true. Got entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 v1.5 postcondition (RED GATE): auth_valid MUST be null for spec-only scope.
+        assert!(
+            crowdstrike_entry["auth_valid"].is_null(),
+            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped check_sensor_health \
+             MUST return auth_valid=null (honest-unknown — no live probe). \
+             Current implementation returns auth_valid=true. Got entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 v1.5 postcondition (RED GATE): last_successful_query_at MUST be null.
+        assert!(
+            crowdstrike_entry["last_successful_query_at"].is_null(),
+            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped \
+             check_sensor_health MUST return last_successful_query_at=null. \
+             Got entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 v1.5 postcondition (RED GATE): prose summary MUST contain
+        // "spec-only: no live probe performed" so the AI consumer cannot mistake this
+        // response for a live health check.
+        let prose = result
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.as_str().to_owned()))
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            prose.contains("spec-only: no live probe performed"),
+            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): prose summary MUST contain \
+             'spec-only: no live probe performed' so the AI consumer cannot mistake this \
+             response for a live health check. \
+             Current implementation does not include this phrase. Got prose: {prose:?}"
+        );
+
+        // BC-2.08.005 postcondition 7: trust_level = "internal" (unchanged by v1.5).
         assert_eq!(
             sc["trust_level"].as_str(),
             Some("internal"),
             "BC-2.08.005 postcondition 7: trust_level must be 'internal' (health data \
              is Prism-generated, not sensor-sourced); got: {:?}",
             sc["trust_level"]
+        );
+    }
+
+    // ─── AC-9 (BC-2.16.007): dispatch_hot_reload_notifications invoked from reload_config ──
+    //
+    // This test verifies the WIRING gap: `reload_config` must call
+    // `dispatch_hot_reload_notifications` (via peer from RequestContext) when the
+    // table set changes after the hot-reload swap.
+    //
+    // RED GATE: `reload_config` currently does NOT call `dispatch_hot_reload_notifications`.
+    // The assertion that `notifications/resources/list_changed` arrives on the client-side
+    // wire after a `reload_config` tool call FAILS until the implementer wires the call.
+    //
+    // Test setup:
+    // 1. Wire a PrismServer with a config_manager (single CrowdStrike spec) + spec_dir.
+    // 2. Write an additional spec (Claroty) to spec_dir so reload will pick it up.
+    // 3. Complete the MCP handshake via duplex transport.
+    // 4. Call `reload_config` via JSON-RPC tool call.
+    // 5. Assert `notifications/resources/list_changed` appears on client side within 2s.
+    //
+    // BC-2.16.007: "when the set of registered tables changes (set-comparison gate),
+    // both notifications/resources/list_changed AND notifications/tools/list_changed
+    // are dispatched from the reload_config tool handler path."
+    //
+    // SID-1: this unit test drives the `reload_config` ENTRY POINT, not the leaf
+    // `dispatch_hot_reload_notifications` function — the existing AC-9 test in
+    // tests/resources.rs already covers the leaf function.
+    #[tokio::test]
+    async fn test_BC_2_16_007_reload_config_wires_dispatch_hot_reload_notifications() {
+        use std::path::PathBuf;
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+        // Step 1: Create a temp spec directory with one sensor spec.
+        let tmp_dir = tempfile::tempdir().expect("tempdir must succeed");
+        let spec_dir: PathBuf = tmp_dir.path().to_path_buf();
+
+        // Write initial CrowdStrike spec.
+        let cs_toml = r#"
+sensor_id = "crowdstrike"
+display_name = "CrowdStrike"
+auth_type = "api_key"
+base_url = "https://api.crowdstrike.com"
+spec_version = "1.0.0"
+
+[[tables]]
+table_name = "detections"
+ocsf_class = "security_finding"
+query_type = "point_in_time"
+columns = []
+"#;
+        std::fs::write(spec_dir.join("crowdstrike.toml"), cs_toml)
+            .expect("write crowdstrike.toml must succeed");
+
+        // Step 2: Build initial config from spec_dir (crowdstrike only at this point).
+        let initial_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+            .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+        let cm = prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot);
+        let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
+
+        // Step 3: Write a second spec so reload detects a table-set change.
+        let claroty_toml = r#"
+sensor_id = "claroty"
+display_name = "Claroty"
+auth_type = "api_key"
+base_url = "https://api.claroty.com"
+spec_version = "1.0.0"
+
+[[tables]]
+table_name = "assets"
+ocsf_class = "device_inventory_info"
+query_type = "point_in_time"
+columns = []
+"#;
+        std::fs::write(spec_dir.join("claroty.toml"), claroty_toml)
+            .expect("write claroty.toml must succeed");
+
+        // Step 4: Build PrismServer with config_manager + spec_dir wired.
+        // Access private field — this is in mod tests.
+        let mut server = PrismServer::new();
+        server.config_manager = Some(cm_arc);
+        server.spec_dir = Some(spec_dir);
+
+        // Step 5: Create duplex transport and spin up MCP server.
+        let (server_stream, client_stream) = tokio::io::duplex(65536);
+        let server_task = tokio::spawn(async move {
+            rmcp::serve_server(server, server_stream)
+                .await
+                .expect("serve_server must complete handshake")
+        });
+
+        // Step 6: Complete MCP handshake from client side.
+        let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+        let mut client_read_buf = BufReader::new(client_read_half);
+
+        let init_req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"prism-reload-test","version":"0.0.1"}}}"#;
+        client_write_half
+            .write_all(format!("{init_req}\n").as_bytes())
+            .await
+            .unwrap();
+        let mut line = String::new();
+        client_read_buf.read_line(&mut line).await.unwrap(); // init response
+
+        let init_notif = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        client_write_half
+            .write_all(format!("{init_notif}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        let _running = server_task.await.expect("server task must not panic");
+
+        // Step 7: Call reload_config tool via JSON-RPC.
+        // BC-2.16.007 (RED GATE): the current reload_config does NOT call
+        // dispatch_hot_reload_notifications, so no notification will appear on
+        // the client stream. This assertion FAILS until the wiring is added.
+        let reload_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"reload_config","arguments":{}}}"#;
+        client_write_half
+            .write_all(format!("{reload_req}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        // Step 8: Collect messages — expect tool response + notification within 3s.
+        let mut resource_list_changed = false;
+        let mut tool_list_changed = false;
+        let read_timeout = std::time::Duration::from_secs(3);
+
+        for _ in 0..5 {
+            let mut msg = String::new();
+            let r = tokio::time::timeout(read_timeout, client_read_buf.read_line(&mut msg)).await;
+            match r {
+                Ok(Ok(0)) | Err(_) => break,
+                Ok(Ok(_)) => {
+                    let t = msg.trim();
+                    if t.contains("notifications/resources/list_changed") {
+                        resource_list_changed = true;
+                    }
+                    if t.contains("notifications/tools/list_changed") {
+                        tool_list_changed = true;
+                    }
+                    if resource_list_changed && tool_list_changed {
+                        break;
+                    }
+                }
+                Ok(Err(_)) => break,
+            }
+        }
+
+        // BC-2.16.007 (RED GATE): reload_config must dispatch BOTH notifications when
+        // the table set changes (crowdstrike → crowdstrike+claroty added by the reload).
+        // Currently reload_config does NOT call dispatch_hot_reload_notifications.
+        assert!(
+            resource_list_changed,
+            "BC-2.16.007 (RED GATE AC-9): 'notifications/resources/list_changed' MUST be \
+             dispatched from the reload_config tool handler path when the table set changes. \
+             Current implementation: reload_config does NOT call dispatch_hot_reload_notifications. \
+             The wiring is missing — implement it per S-5.03 Task 6 (AC-9)."
+        );
+        assert!(
+            tool_list_changed,
+            "BC-2.16.007 (RED GATE AC-9): 'notifications/tools/list_changed' MUST be \
+             dispatched from the reload_config tool handler path when the table set changes. \
+             Current implementation: reload_config does NOT call dispatch_hot_reload_notifications."
         );
     }
 }

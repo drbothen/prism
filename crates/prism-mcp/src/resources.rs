@@ -42,6 +42,10 @@ pub struct ClientInventoryEntry {
 
 /// Per-sensor config entry in `prism://config/clients/{client_id}/sensors`
 /// response (BC-2.10.008 postcondition 2).
+///
+/// BC-2.10.008 v1.8: `api_base_url` MUST be present and contain only the
+/// scheme+host+port component (e.g., `"https://api.crowdstrike.com"`).
+/// Full URL paths, query strings, and credentials MUST NOT appear (VP-050, DI-002).
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorConfigEntry {
@@ -53,9 +57,18 @@ pub struct SensorConfigEntry {
     pub credential_ref: String,
     /// Data source identifiers (table names) for this sensor.
     pub sources: Vec<String>,
+    /// API base URL — scheme+host+port ONLY (VP-050 / BC-2.10.008 postcondition 2).
+    /// Full path, query string, and credentials MUST NOT appear here.
+    pub api_base_url: String,
 }
 
 /// Health result for a single sensor — stored in the health cache (BC-2.08.005, BC-2.08.006).
+///
+/// BC-2.08.005 v1.5 two-phase probe model:
+/// - S-5.03 scope (`probe_level: "spec-only"`): `reachable` and `auth_valid` are `None`
+///   (honest-unknown — no live probe has been performed). Hardcoding `true` is FORBIDDEN.
+/// - S-5.04 scope (`probe_level: "live"`): `reachable` and `auth_valid` are `Some(bool)`
+///   from actual API probe results.
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorHealthResult {
@@ -63,43 +76,59 @@ pub struct SensorHealthResult {
     pub sensor_id: String,
     /// Client identifier — always present (BC-2.08.005 postcondition).
     pub client_id: String,
+    /// Probe level: `"spec-only"` (S-5.03) or `"live"` (S-5.04).
+    /// Must never be absent.
+    pub probe_level: String,
     /// Whether the sensor API endpoint was reachable.
-    pub reachable: bool,
+    /// `None` for spec-only scope (no live probe); `Some(bool)` for live probe (S-5.04).
+    /// MUST NOT be hardcoded `Some(true)` in S-5.03 scope — that is a false-positive signal.
+    pub reachable: Option<bool>,
     /// Whether the provided credentials were accepted by the sensor.
-    pub auth_valid: bool,
+    /// `None` for spec-only scope; `Some(bool)` for live probe (S-5.04).
+    pub auth_valid: Option<bool>,
     /// Rate-limit information (None if not applicable or unavailable).
     pub rate_limit: Option<RateLimitInfo>,
-    /// Timestamp of the last successful query to this sensor (None if never queried).
+    /// Timestamp of the last successful query to this sensor.
+    /// `None` for spec-only scope (no query has run); `Some(DateTime)` after a live query.
     pub last_successful_query_at: Option<DateTime<Utc>>,
     /// Sanitised error text (prompt-injection-safe), if the health check failed.
     pub error: Option<String>,
 }
 
 impl SensorHealthResult {
-    /// Create a new `SensorHealthResult` with required fields.
+    /// Create a new `SensorHealthResult` in spec-only scope (BC-2.08.005 v1.5 S-5.03 contract).
     ///
-    /// Optional fields (`rate_limit`, `last_successful_query_at`, `error`) default to `None`.
+    /// `probe_level` is `"spec-only"`. `reachable`, `auth_valid`, and
+    /// `last_successful_query_at` are all `None` (honest-unknown — no live probe).
     pub fn new(sensor_id: impl Into<String>, client_id: impl Into<String>) -> Self {
         Self {
             sensor_id: sensor_id.into(),
             client_id: client_id.into(),
-            reachable: false,
-            auth_valid: false,
+            probe_level: "spec-only".to_string(),
+            reachable: None,
+            auth_valid: None,
             rate_limit: None,
             last_successful_query_at: None,
             error: None,
         }
     }
 
-    /// Builder: set `reachable`.
+    /// Builder: set `reachable` to `Some(bool)` (S-5.04 live-probe use only).
+    ///
+    /// NOTE: Do NOT call this in S-5.03 scope — `reachable` must remain `None` for
+    /// spec-only responses (BC-2.08.005 v1.5 postcondition, hardcoded-true prohibition).
+    #[allow(dead_code)]
     pub fn with_reachable(mut self, reachable: bool) -> Self {
-        self.reachable = reachable;
+        self.reachable = Some(reachable);
         self
     }
 
-    /// Builder: set `auth_valid`.
+    /// Builder: set `auth_valid` to `Some(bool)` (S-5.04 live-probe use only).
+    ///
+    /// NOTE: Do NOT call this in S-5.03 scope — `auth_valid` must remain `None`.
+    #[allow(dead_code)]
     pub fn with_auth_valid(mut self, auth_valid: bool) -> Self {
-        self.auth_valid = auth_valid;
+        self.auth_valid = Some(auth_valid);
         self
     }
 
@@ -626,21 +655,17 @@ pub fn render_sensor_inventory_resource(
     // not a raw value — but we sanitize defensively.
     let safe_credential_ref = redact_credential_ref(credential_ref);
 
-    // VP-050: strip URL to host+port only.
-    let safe_url = strip_url_to_host_port(endpoint_url);
-
-    // Note: safe_url is computed but not stored in SensorConfigEntry because the spec
-    // does not include the endpoint URL in the sensor config entry (it's an internal detail).
-    // The VP-050 test passes `endpoint_url` and verifies the SERIALIZED output contains no
-    // path — which is satisfied because endpoint_url is not serialized into SensorConfigEntry.
-    // The computation here ensures the redaction logic exists and is tested by VP-050.
-    let _ = safe_url;
+    // VP-050 / BC-2.10.008 postcondition 2: strip URL to host+port only.
+    // `api_base_url` MUST contain scheme+host+port only — full paths, query strings,
+    // and credentials MUST NOT appear (DI-002 invariant).
+    let api_base_url = strip_url_to_host_port(endpoint_url);
 
     SensorConfigEntry {
         sensor_type: sensor_type.to_string(),
         status: "active".to_string(),
         credential_ref: safe_credential_ref,
         sources: sources.to_vec(),
+        api_base_url,
     }
 }
 
