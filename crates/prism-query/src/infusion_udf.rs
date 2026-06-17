@@ -509,6 +509,7 @@ fn register_infusion_udfs_impl(
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::new_ret_no_self)]
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -1160,7 +1161,10 @@ mod tests {
             Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
         ));
 
-        let (_, src2) = CountingSource::new_returning("geo-result");
+        // Capture Q2's own source counter so we can assert directly on it.
+        // Previously the counter was discarded via `(_, src2)`, meaning the assertion
+        // on Q1's `call_count` would pass regardless of T3 hit/miss (F-LOCAL-3 fix).
+        let (call_count_q2, src2) = CountingSource::new_returning("geo-result");
         let descriptor2 = make_descriptor("ac7_udf", "ac7_infusion", src2);
 
         register_infusion_udfs_with_cache(
@@ -1193,17 +1197,21 @@ mod tests {
             .expect("AC-7: Q2 SQL must parse");
         df2.collect().await.expect("AC-7: Q2 must execute");
 
-        // The new source (src2) should have 0 calls — all 5 IPs served from T3.
-        // We use `call_count` from Q1's source to verify Q1 source was not called again.
-        // Q2 uses a fresh `src2` CountingSource — if T3 missed, src2.call_count > 0.
-        // But we check via call_count_after_q1 vs call_count_after_q2 on the SAME counter.
-        // Actually we need the Q2 source's call counter. Use the backend get_count as proxy:
-        // T3 get should be called for each of the 5 inputs in Q2.
+        // Assert directly on Q2's own source counter — must be 0.
+        // T3 must have served all 5 IPs without calling the live source.
+        // If T3 missed even one IP, call_count_q2 would be > 0 and this assertion fails.
+        let q2_source_calls = call_count_q2.load(Ordering::SeqCst);
+        assert_eq!(
+            q2_source_calls, 0,
+            "AC-7: second query must NOT call source at all (all 5 IPs must be served from T3 \
+             cache). Got {q2_source_calls} source calls — T3 cache miss detected."
+        );
+
+        // Sanity: Q1 source must still show exactly 5 calls (unchanged after Q2).
         let count_after_q2 = call_count.load(Ordering::SeqCst);
         assert_eq!(
             count_after_q2, 5,
-            "AC-7: second query must NOT call the original source (call count must remain 5 \
-             from Q1 only; T3 cache must serve all 5 results). Got: {count_after_q2}"
+            "AC-7: Q1 source call count must remain 5 after Q2 executes; got {count_after_q2}"
         );
     }
 }
