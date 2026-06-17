@@ -123,6 +123,22 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // P6-02 adjudication 2026-06-11; error-taxonomy.md v1.73 E-QUERY-036.
         PrismError::UnknownSourceTable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
+        // E-QUERY-037: Table not available → -32602 Invalid params (caller-resolvable).
+        //
+        // MUST be explicit: `PrismError` is `#[non_exhaustive]`; without this arm the
+        // variant would fall through to the catch-all `-32000 INTERNAL_ERROR`, losing the
+        // caller-actionable E-QUERY-037 guidance (available sensor list, did_you_mean).
+        //
+        // The error message is the full Display of the variant — it contains the table name,
+        // sensor name, available sensors list, available tables list, and the Levenshtein
+        // suggestion. All fields are safe to surface to the MCP caller (no credential values).
+        //
+        // Maps to INVALID_PARAMS (-32602): the caller supplied a query referencing a sensor
+        // that is not configured — caller-resolvable by adding the sensor to prism.toml.
+        //
+        // Reference: S-3.13 AC-2; BC-2.11.001; error-taxonomy.md E-QUERY-037.
+        PrismError::TableNotAvailable(..) => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-QUERY-032: Sensor not registered for org → -32602 Invalid params.
         // SURFACED (NOT redacted): the org slug and sensor name are safe to expose to
         // the MCP caller — they contain no credential values (AD-017). This is an
@@ -2020,6 +2036,78 @@ mod tests {
             retry_after_ms, 60_000u64,
             "OBS-1 regression guard: SensorRateLimited path must still return retry_after_ms \
              unchanged after de-footgun fix; got {retry_after_ms}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // S-3.13 Red Gate tests: TableNotAvailable (E-QUERY-037) → -32602
+    // -----------------------------------------------------------------------
+
+    /// S-3.13 / BC-2.11.001 / AC-2: `PrismError::TableNotAvailable` MUST map to
+    /// -32602 (INVALID_PARAMS), not the catch-all -32000 (INTERNAL_ERROR).
+    ///
+    /// LOAD-BEARING explicit arm: `PrismError` is `#[non_exhaustive]`; without the
+    /// explicit arm this test would fail at -32000 (catch-all). The arm is in
+    /// error_mapping.rs directly above the catch-all.
+    ///
+    /// Red Gate note (historical): this test required a fully-constructed `TableNotAvailableDetails`
+    /// value; the stub state panicked at construction time. Now that S-3.13 is implemented,
+    /// the test passes end-to-end.
+    #[test]
+    fn test_BC_2_11_001_e_query_037_mcp_maps_to_invalid_params() {
+        // Construct PrismError::TableNotAvailable with all required fields.
+        let err = PrismError::TableNotAvailable(Box::new(
+            prism_core::error::TableNotAvailableDetails::new(
+                "crowdstrike_alerts",
+                "crowdstrike",
+                "armis, claroty",
+                "armis_alerts, claroty_devices",
+                "",
+            ),
+        ));
+        let (code, message) = map_prism_error(err);
+        assert_eq!(
+            code,
+            codes::INVALID_PARAMS,
+            "TableNotAvailable must map to INVALID_PARAMS (-32602); \
+             without the explicit arm the catch-all produces -32000. got: {code}"
+        );
+        assert_ne!(
+            code,
+            codes::INTERNAL_ERROR,
+            "TableNotAvailable must NOT map to INTERNAL_ERROR (-32000). got: {code}"
+        );
+        assert!(
+            message.contains("E-QUERY-037"),
+            "message must contain 'E-QUERY-037'; got: {message}"
+        );
+        assert!(
+            message.contains("crowdstrike_alerts"),
+            "message must include the table name; got: {message}"
+        );
+    }
+
+    /// S-3.13 / BC-2.11.001: `TableNotAvailable` with a non-empty `did_you_mean`
+    /// field preserves the suggestion in the MCP error message.
+    ///
+    /// Red Gate: structurally passes once the explicit arm is in place.
+    /// The test validates that the Display impl threads `did_you_mean` correctly.
+    #[test]
+    fn test_BC_2_11_001_e_query_037_mcp_message_includes_did_you_mean() {
+        let err = PrismError::TableNotAvailable(Box::new(
+            prism_core::error::TableNotAvailableDetails::new(
+                "crowdstrike_alert",
+                "crowdstrike",
+                "crowdstrike",
+                "crowdstrike_alerts",
+                " Did you mean: 'crowdstrike_alerts'?",
+            ),
+        ));
+        let (code, message) = map_prism_error(err);
+        assert_eq!(code, codes::INVALID_PARAMS);
+        assert!(
+            message.contains("Did you mean"),
+            "message must include did_you_mean suggestion; got: {message}"
         );
     }
 }

@@ -1901,18 +1901,35 @@ impl PrismServer {
             alias_registry,
             client_registry: Some(qe.client_registry()),
             audit_sink: None,
+            // S-3.13 CRIT-3: thread live TableRegistry into explain so
+            // ExplainResult.available_tables reflects the current config (AC-6).
+            table_registry: qe.table_registry(),
+            // SEC-003: None here; QueryEngine::explain() injects self.resolved_spec_map
+            // so that available_tables is filtered to the requesting org's visible tables
+            // (CWE-200 cross-tenant info disclosure). The injection is done centrally in
+            // QueryEngine::explain() — MCP callers do not need to supply it directly.
+            resolved_spec_map: None,
         };
+        // CR-NEW-001 fix (S-3.13, SEC-003, CWE-200): route through QueryEngine::explain()
+        // so that self.resolved_spec_map is injected into explain_opts, filtering
+        // available_tables to the requesting org's visible tables.  Calling the free
+        // function prism_query::explain::explain() directly bypasses the injection
+        // (engine.rs:753-757) and leaks the global table list cross-tenant.
         // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
-        let result = match prism_query::explain::explain(&params.query, explain_opts) {
+        let result = match qe.explain(&params.query, explain_opts) {
             Ok(r) => r,
             Err(e) => return Ok(prism_error_to_structured_call_result(e)),
         };
         // Serialize ExplainResult as JSON string.
+        // MED-1 fix (S-3.13): include available_tables in the serialized JSON response
+        // so AC-6 is honored at the MCP boundary, not just in the in-process ExplainResult.
+        // The field lists only currently-registered tables (from the live TableRegistry).
         let result_json = serde_json::json!({
             "parsed_mode": result.parsed_mode,
             "original_query": result.original_query,
             "expanded_query": result.expanded_query,
             "alias_expansion": result.alias_expansion,
+            "available_tables": result.available_tables,
         });
         // F-PASS12-CRIT-1: BC-2.09.008 requires every Ok tool response wrapped in ResponseEnvelope.
         // explain_query is an internal query planner call — no sensor data accessed — so
@@ -6784,6 +6801,10 @@ mod tests {
             alias_registry,
             client_registry: None,
             audit_sink: None,
+            // Test context: no TableRegistry needed for alias expansion verification.
+            table_registry: None,
+            // SEC-003: no org-scope filter needed in this unit test (single-tenant).
+            resolved_spec_map: None,
         };
         let result = prism_query::explain::explain("@alias:devices", opts)
             .expect("explain must succeed for @alias:devices with registry wired");
@@ -8492,6 +8513,124 @@ mod tests {
         assert!(
             body.get("note").is_none(),
             "note field must be absent (removed in BC-2.10.011 v1.5); got {body}"
+        );
+    }
+
+    // ─── MED-1 (S-3.13) — AC-6 hollow at MCP boundary fix verification ──────────
+    //
+    // LOAD-BEARING: tests that the SERIALIZED JSON response from explain_query contains
+    // `available_tables` with only the currently-registered tables.
+    //
+    // Mental-deletion proof: if `"available_tables": result.available_tables` is removed
+    // from the `result_json` serde_json::json!{}` macro in the explain_query handler,
+    // the serialized envelope body will NOT contain the key, and the assertion
+    // `body["available_tables"].as_array().is_some()` fails. The in-process ExplainResult
+    // struct test (`test_BC_2_16_001_explain_query_lists_only_registered_tables` in
+    // prism-query) would still pass — only THIS test catches the hollow-boundary pattern.
+
+    /// MED-1 / AC-6 (S-3.13): explain_query JSON response contains available_tables
+    /// listing only currently-registered tables.
+    ///
+    /// Wires a QueryEngine with a TableRegistry containing armis_alerts only,
+    /// calls the explain_query handler, deserializes the ResponseEnvelope, and
+    /// asserts:
+    /// 1. The envelope body JSON contains an "available_tables" key.
+    /// 2. "available_tables" includes "armis_alerts" (registered).
+    /// 3. "available_tables" does NOT include "crowdstrike_alerts" (not registered).
+    ///
+    /// LOAD-BEARING: tests the MCP boundary (serialized JSON), not the in-process struct.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_16_001_AC6_explain_query_json_response_contains_available_tables() {
+        use std::sync::Arc;
+
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{
+            engine::{QueryEngine, QueryEngineConfig},
+            scoping::ClientRegistry,
+            table_registry::TableRegistry,
+        };
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build a TableRegistry with armis only.
+        let registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register_sensor must not fail");
+
+        // Build a minimal QueryEngine with the TableRegistry wired.
+        let qe = QueryEngine::new(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        )
+        .with_table_registry(Arc::clone(&registry));
+
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: Some(Arc::new(qe)),
+            write_executor: None,
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+            org_registry: None,
+        };
+
+        let params = ExplainQueryParams {
+            query: "armis_alerts | severity = 'critical'".to_owned(),
+            clients: None,
+        };
+        let result = server
+            .explain_query(Parameters(params))
+            .await
+            .expect("explain_query must succeed with wired QueryEngine and valid query");
+
+        // Deserialize the structured envelope response.
+        let v = result
+            .structured_content
+            .expect("explain_query must return structured_content");
+
+        // Navigate to the envelope body (the inner result payload).
+        // SafetyEnvelopeBuilder::wrap embeds the payload under "results".
+        let body = &v["results"];
+
+        // AC-6 / MED-1: "available_tables" must be present in the serialized JSON.
+        let available = body["available_tables"].as_array().expect(
+            "MED-1 / AC-6: serialized explain_query JSON must contain 'available_tables' \
+                 array; if absent, the fix (adding 'available_tables': result.available_tables \
+                 to result_json) was removed",
+        );
+
+        let table_strings: Vec<&str> = available.iter().filter_map(|v| v.as_str()).collect();
+
+        assert!(
+            table_strings.contains(&"armis_alerts"),
+            "MED-1 / AC-6: 'available_tables' must include 'armis_alerts' (registered); \
+             got: {table_strings:?}"
+        );
+        assert!(
+            !table_strings.contains(&"crowdstrike_alerts"),
+            "MED-1 / AC-6: 'available_tables' must NOT include 'crowdstrike_alerts' \
+             (not registered); got: {table_strings:?}"
         );
     }
 

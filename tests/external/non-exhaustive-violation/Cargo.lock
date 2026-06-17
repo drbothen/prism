@@ -4315,6 +4315,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "strsim",
  "tokio",
  "tokio-util",
  "toml 0.8.23",

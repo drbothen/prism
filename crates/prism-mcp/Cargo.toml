@@ -39,6 +39,9 @@ arrow-json = "58"
 [dev-dependencies]
 serde_json = "1"
 prism-security = { path = "../prism-security", version = "0.1.0" }
+# prism-credentials: needed to construct InMemoryCredentialStore for QueryEngine in MED-1 test.
+# Already a transitive dependency via prism-query; test-helpers feature exposes
+# InMemoryCredentialStore for in-process unit test injection (SID-1 compliance).
 prism-credentials = { path = "../prism-credentials", version = "0.1.0", features = ["test-helpers"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }
 tempfile = "3"

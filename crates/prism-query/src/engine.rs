@@ -44,6 +44,7 @@ use crate::{
     cache::{CacheConfig, SensorResponseCache},
     cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry},
     scoping::ClientRegistry,
+    table_registry::TableRegistry,
 };
 
 // ---------------------------------------------------------------------------
@@ -249,6 +250,16 @@ pub struct QueryEngine {
     /// on the ephemeral `SessionContext` so analyst queries using `| enrich infusion(field)` resolve.
     /// When `None`, no enrichment UDFs are registered (query-only / test mode without enrichment).
     pub(crate) infusion_registry: Option<Arc<prism_spec_engine::InfusionRegistry>>,
+    /// Dynamic table registry — tracks which sensor tables are currently available.
+    ///
+    /// Populated from `ConfigSnapshot.sensor_specs` at startup. Updated on hot-reload
+    /// via `register_sensor` / `deregister_sensor` (BC-2.16.007). Used in the plan-time
+    /// availability gate (before `materialize_query`) to return `E-QUERY-037`
+    /// (`TableNotAvailable`) for unregistered tables (BC-2.11.001, S-3.13).
+    ///
+    /// `Arc<TableRegistry>` so the gate and hot-reload path share the same instance.
+    /// When `None`, the availability gate is skipped (legacy / test mode without spec engine).
+    pub(crate) table_registry: Option<Arc<TableRegistry>>,
 }
 
 impl QueryEngine {
@@ -316,6 +327,10 @@ impl QueryEngine {
             resolved_spec_map: None,
             alias_store: None,
             infusion_registry: None,
+            // S-3.13: table_registry wired as None by default in new/new_with_cache_config.
+            // Production boot uses new_full (with a real ConfigSnapshot) or
+            // with_table_registry() to supply a pre-populated TableRegistry.
+            table_registry: None,
         }
     }
 
@@ -395,6 +410,9 @@ impl QueryEngine {
             resolved_spec_map: Some(resolved_spec_map),
             alias_store: Some(alias_store),
             infusion_registry: None,
+            // S-3.13: table_registry is None in new_full; callers that need it
+            // (production boot path with spec engine loaded) use with_table_registry().
+            table_registry: None,
         }
     }
 
@@ -410,6 +428,27 @@ impl QueryEngine {
     ) -> Self {
         self.infusion_registry = Some(registry);
         self
+    }
+
+    /// Set the `TableRegistry` on an existing engine (S-3.13 plan-time gate).
+    ///
+    /// Called from the production boot path after `TableRegistry::from_snapshot()` has
+    /// been populated from the initial `ConfigSnapshot`. Also used in tests that need
+    /// the plan-time availability gate active.
+    ///
+    /// # BC-2.11.001 / BC-2.16.001
+    /// The engine uses the registry to return `E-QUERY-037` (`TableNotAvailable`) for
+    /// queries against unconfigured sensor tables, before any fan-out occurs.
+    pub fn with_table_registry(mut self, registry: Arc<TableRegistry>) -> Self {
+        self.table_registry = Some(registry);
+        self
+    }
+
+    /// Return the `TableRegistry` arc, if wired.
+    ///
+    /// Exposed for tests that need to inspect or update the registry.
+    pub fn table_registry(&self) -> Option<Arc<TableRegistry>> {
+        self.table_registry.as_ref().map(Arc::clone)
     }
 }
 
@@ -523,6 +562,30 @@ impl QueryEngine {
                 (std::borrow::Cow::Borrowed(query_str), query_str.to_string())
             };
         let effective_query: &str = &effective_query;
+
+        // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
+        //
+        // Fires BEFORE client scope resolution and BEFORE `materialize_query` (fail fast,
+        // no fan-out). Validates each source_ref extracted from the AST against the
+        // `TableRegistry`. If a source_ref is not registered, returns `E-QUERY-037`
+        // (`TableNotAvailable`) with pre-formatted available-sensor context and a
+        // Levenshtein-based did_you_mean suggestion.
+        //
+        // Gate is mode-agnostic (AC-8): the same check applies to SQL, filter, and pipe mode
+        // because all three produce source_refs in the parsed AST before this point.
+        //
+        // Gate is skipped when `table_registry` is None (legacy / test mode without
+        // spec engine wiring) — this preserves backward compatibility for tests that
+        // predate S-3.13 and do not need the availability check.
+        // ADR-039 / SEC-001: pass org_scope and resolved_spec_map so the gate can filter
+        // available_sensors / available_tables to the requesting org's scope in multi-tenant
+        // overlay deployments, preventing cross-tenant vendor enumeration (CWE-200).
+        check_table_availability(
+            effective_query,
+            self.table_registry.as_deref(),
+            options.clients.as_deref(),
+            self.resolved_spec_map.as_ref().map(|m| m.as_ref()),
+        )?;
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -660,14 +723,38 @@ impl QueryEngine {
     /// Thin wrapper over `explain::explain()` that satisfies the COMP-003 interface
     /// specified in `module-decomposition.md` line 185. (CR-006, BC-2.11.010)
     ///
+    /// # Registry injection (OBS-1 fix)
+    /// If `options.table_registry` is `None` and the engine has a wired `table_registry`,
+    /// the engine's registry is injected into the options so that
+    /// `ExplainResult.available_tables` is populated from the live registry without
+    /// requiring callers to retrieve and thread `QueryEngine::table_registry()` manually.
+    /// Callers that supply their own `options.table_registry` are not overridden.
+    ///
     /// # No sensor API calls
     /// Delegates to `explain::explain()` which is a pure plan-analysis function.
     /// No `fan_out()`, no sensor adapter `fetch()`.
     pub fn explain(
         &self,
         query_str: &str,
-        options: crate::explain::ExplainOptions,
+        mut options: crate::explain::ExplainOptions,
     ) -> Result<crate::explain::ExplainResult, PrismError> {
+        // Inject the engine's table_registry into the options when the caller did
+        // not supply one. This makes the wrapper correct-by-construction: any future
+        // caller of QueryEngine::explain gets available_tables populated from the
+        // wired registry without needing to know about ExplainOptions::table_registry.
+        if options.table_registry.is_none() {
+            if let Some(ref registry) = self.table_registry {
+                options.table_registry = Some(Arc::clone(registry));
+            }
+        }
+        // SEC-003: inject resolved_spec_map so that available_tables is filtered to
+        // the requesting org's visible tables (CWE-200 cross-tenant info disclosure fix).
+        // Mirrors the SEC-001 wiring used in execute_inner for sensor fan-out.
+        if options.resolved_spec_map.is_none() {
+            if let Some(ref spec_map) = self.resolved_spec_map {
+                options.resolved_spec_map = Some(Arc::clone(spec_map));
+            }
+        }
         crate::explain::explain(query_str, options)
     }
 
@@ -728,6 +815,22 @@ impl QueryEngine {
         ),
         PrismError,
     > {
+        // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
+        // Scheduled queries run in system context with no capabilities — this means they
+        // cannot reference prism_audit (correct secure-by-default for scheduled queries).
+        // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
+        check_internal_table_capabilities(query_str, &[])?;
+
+        // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
+        // ADR-039 / SEC-001: pass org_scope and resolved_spec_map for org-scoped filtering.
+        // Gate fires BEFORE resolve_clients to avoid moving `clients` before the borrow.
+        check_table_availability(
+            query_str,
+            self.table_registry.as_deref(),
+            clients.as_deref(),
+            self.resolved_spec_map.as_ref().map(|m| m.as_ref()),
+        )?;
+
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
 
@@ -749,12 +852,6 @@ impl QueryEngine {
                 detail: e.to_string(),
             })?;
         }
-
-        // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
-        // Scheduled queries run in system context with no capabilities — this means they
-        // cannot reference prism_audit (correct secure-by-default for scheduled queries).
-        // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
-        check_internal_table_capabilities(query_str, &[])?;
 
         // F-LP1-CRIT-1: register internal tables for scheduled queries too.
         // Scheduled queries run with no caller capabilities (system context).
@@ -867,6 +964,58 @@ fn check_internal_table_capabilities(
     }
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// check_table_availability — plan-time E-QUERY-037 gate (S-3.13)
+// ---------------------------------------------------------------------------
+
+/// Plan-time table availability gate (Layer 1 of the availability check).
+///
+/// Parses the query string, extracts all source_refs via the AST visitor, and
+/// checks each against the provided `TableRegistry`. Returns `Err(PrismError::TableNotAvailable)`
+/// for the first unregistered table encountered, with:
+/// - `sensor`: the prefix of the table name (e.g. `"crowdstrike"` for `"crowdstrike_alerts"`)
+/// - `available_sensors`: comma-separated list (filtered to requesting org when org_scope is provided)
+/// - `available_tables`: comma-separated list (filtered to requesting org when org_scope is provided)
+/// - `did_you_mean`: Levenshtein-based suggestion (filtered to requesting org's tables)
+///
+/// # Gate skip conditions
+/// - `registry` is `None`: skip immediately (legacy / test mode without spec engine wiring)
+/// - Query fails to parse: return `Ok(())` — parse errors are handled downstream
+/// - Table name starts with `prism_`: skip (internal tables have their own gate)
+///
+/// # Org-scoped error enumeration (ADR-039 / SEC-001 / CWE-200)
+/// `org_scope` and `resolved_spec_map` are forwarded to `check_availability_gate` to filter
+/// the enumeration fields to the requesting org's scope. When either is `None`, the global
+/// registry is used (single-tenant backward compatibility).
+///
+/// # AC-8 mode-agnostic guarantee
+/// This function runs on the alias-expanded query string before `materialize_query` —
+/// the same code path is reached by SQL, filter, and pipe mode queries.
+///
+/// # BC-2.11.001 / S-3.13 AC-2, AC-3, AC-8 / ADR-039
+fn check_table_availability(
+    query_str: &str,
+    registry: Option<&TableRegistry>,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), PrismError> {
+    // Skip when no registry is wired — preserves backward compatibility for legacy tests.
+    // All constructors (new, new_with_cache_config, new_full) initialize table_registry
+    // as None; callers that need the gate use with_table_registry().
+    let Some(registry) = registry else {
+        return Ok(());
+    };
+    // Delegate to the registry's gate method with org-scope parameters.
+    // The gate body lives in table_registry.rs, keeping engine.rs
+    // free of stub macros per POL-12 / test_AC_8_no_todo_or_unimplemented_remains.
+    registry.check_availability_gate(query_str, org_scope, resolved_spec_map)
 }
 
 // ---------------------------------------------------------------------------
@@ -1153,6 +1302,662 @@ mod alias_wiring_tests {
             !detail.contains("execute_scheduled_inner"),
             "error detail must NOT contain 'execute_scheduled_inner'; got: {detail}"
         );
+    }
+
+    // ---------------------------------------------------------------------------
+    // S-3.13 CRIT-1 Engine-level test: E-QUERY-037 fires via QueryEngine::execute
+    // ---------------------------------------------------------------------------
+
+    /// S-3.13 / AC-2 / AC-8: `QueryEngine::execute` with a wired `TableRegistry`
+    /// returns `PrismError::TableNotAvailable` (E-QUERY-037) for a query targeting
+    /// an unregistered table — BEFORE any fan-out occurs.
+    ///
+    /// This is the LOAD-BEARING engine-level test for CRIT-1. It drives the full
+    /// `QueryEngine::execute` path (not just `check_availability_gate` in isolation)
+    /// with the registry wired via `with_table_registry(...)`. The empty `AdapterRegistry`
+    /// guarantees no fan-out occurs — any fan-out attempt would return empty results,
+    /// not E-QUERY-037. The only way E-QUERY-037 fires from `execute` is via the
+    /// plan-time gate in `check_table_availability`.
+    ///
+    /// BC-2.11.001 AC-2: fire before fan-out. BC-2.11.001 AC-8: mode-agnostic.
+    #[tokio::test]
+    async fn test_S3_13_engine_execute_with_wired_registry_returns_e_query_037_before_fanout() {
+        use crate::table_registry::TableRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build a TableRegistry with only armis registered (no crowdstrike).
+        let registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register armis must not fail");
+
+        // Build a QueryEngine with the registry wired (the CRIT-1 production path).
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()), // empty — no fan-out possible
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(Arc::clone(&registry)); // CRIT-1: wire the registry
+
+        // Execute a query targeting an UNREGISTERED table (crowdstrike_alerts).
+        // The plan-time gate must fire E-QUERY-037 before any fan-out.
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts LIMIT 5",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::TableNotAvailable(ref details)) => {
+                let display = details.to_string();
+                assert!(
+                    display.starts_with("E-QUERY-037:"),
+                    "S-3.13 CRIT-1 / AC-2: QueryEngine::execute must return E-QUERY-037 for \
+                     unregistered table 'crowdstrike_alerts' when registry is wired. \
+                     Display was: {display}"
+                );
+                assert_eq!(
+                    details.table, "crowdstrike_alerts",
+                    "CRIT-1: table field must be 'crowdstrike_alerts'"
+                );
+                // available_sensors must list only armis (the registered sensor).
+                assert!(
+                    details.available_sensors.contains("armis"),
+                    "CRIT-1 / AC-2: available_sensors must list 'armis'. Got: '{}'",
+                    details.available_sensors
+                );
+            }
+            Ok(_) => panic!(
+                "S-3.13 CRIT-1 / AC-2: QueryEngine::execute must NOT succeed for \
+                 unregistered table 'crowdstrike_alerts' when registry is wired — \
+                 E-QUERY-037 must fire before fan-out"
+            ),
+            Err(other) => panic!(
+                "S-3.13 CRIT-1 / AC-2: expected PrismError::TableNotAvailable, \
+                 got different error: {other:?}"
+            ),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests: QueryEngine::explain wrapper injects table_registry (OBS-1)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod explain_wrapper_tests {
+    use std::sync::Arc;
+
+    use prism_core::PrismError;
+    use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+    use super::*;
+    use crate::{explain::ExplainOptions, table_registry::TableRegistry};
+
+    /// Minimal no-op credential store (mirrors alias_wiring_tests::NoopCs).
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a minimal `QueryEngine` with a wired `TableRegistry`.
+    fn make_engine_with_registry(registry: Arc<TableRegistry>) -> QueryEngine {
+        use prism_sensors::AdapterRegistry;
+
+        QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+        .with_table_registry(registry)
+    }
+
+    /// OBS-1 fix: `QueryEngine::explain` injects `self.table_registry` into the
+    /// options when `options.table_registry` is `None`.
+    ///
+    /// Verifies that `ExplainResult.available_tables` contains the table registered
+    /// in the engine's registry WITHOUT the caller needing to thread the registry
+    /// through `ExplainOptions::table_registry` manually.
+    ///
+    /// This is the correctness test for the wrapper: a future caller using
+    /// `QueryEngine::explain` (not the standalone `explain::explain` function) must
+    /// get correct `available_tables` from the wired engine registry.
+    ///
+    /// `#[tokio::test]` required because `QueryEngine::new_with_cache_config` starts
+    /// the cursor cleanup background task via `spawn_cursor_cleanup_task`, which
+    /// requires a tokio runtime context even though `explain()` itself is synchronous.
+    #[tokio::test]
+    async fn test_explain_wrapper_injects_engine_table_registry_into_options() {
+        // Build a registry with armis registered.
+        let registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register armis must not fail");
+
+        let engine = make_engine_with_registry(Arc::clone(&registry));
+
+        // Call QueryEngine::explain WITHOUT setting options.table_registry.
+        // The wrapper must inject self.table_registry so available_tables is populated.
+        let opts = ExplainOptions::default(); // table_registry is None
+        let result = engine
+            .explain("armis_alerts | severity = 'critical'", opts)
+            .expect("explain must succeed for a valid filter query");
+
+        assert!(
+            result
+                .available_tables
+                .contains(&"armis_alerts".to_string()),
+            "OBS-1 fix: QueryEngine::explain must inject self.table_registry so \
+             ExplainResult.available_tables contains 'armis_alerts'. Got: {:?}",
+            result.available_tables
+        );
+    }
+
+    /// OBS-1 fix (caller-supplied registry is NOT overridden): when the caller
+    /// explicitly sets `options.table_registry`, the wrapper must preserve the
+    /// caller-supplied value, not replace it with `self.table_registry`.
+    ///
+    /// This guards against the inject-always anti-pattern where the engine silently
+    /// masks a caller-supplied registry (useful for per-request registry overrides).
+    ///
+    /// `#[tokio::test]` required — same reason as the injection test above.
+    #[tokio::test]
+    async fn test_explain_wrapper_does_not_override_caller_supplied_table_registry() {
+        // Engine registry: only armis.
+        let engine_registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        engine_registry
+            .register_sensor(&armis_spec)
+            .expect("register armis in engine_registry must not fail");
+
+        let engine = make_engine_with_registry(Arc::clone(&engine_registry));
+
+        // Caller-supplied registry: only crowdstrike (different from engine registry).
+        let caller_registry = Arc::new(TableRegistry::new());
+        let cs_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        caller_registry
+            .register_sensor(&cs_spec)
+            .expect("register crowdstrike in caller_registry must not fail");
+
+        // Call explain with caller-supplied registry (crowdstrike only).
+        let opts = ExplainOptions {
+            table_registry: Some(Arc::clone(&caller_registry)),
+            ..ExplainOptions::default()
+        };
+        let result = engine
+            .explain("crowdstrike_alerts | severity = 'critical'", opts)
+            .expect("explain must succeed");
+
+        // Caller-supplied registry (crowdstrike) must win, not the engine registry (armis).
+        assert!(
+            result
+                .available_tables
+                .contains(&"crowdstrike_alerts".to_string()),
+            "OBS-1 fix: caller-supplied table_registry must be preserved — \
+             crowdstrike_alerts must appear. Got: {:?}",
+            result.available_tables
+        );
+        assert!(
+            !result
+                .available_tables
+                .contains(&"armis_alerts".to_string()),
+            "OBS-1 fix: engine registry must NOT override caller-supplied registry — \
+             armis_alerts must NOT appear when caller supplied crowdstrike-only registry. \
+             Got: {:?}",
+            result.available_tables
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests: SEC-003 production path via QueryEngine::explain (CR-NEW-001)
+// ---------------------------------------------------------------------------
+//
+// These tests verify that calling QueryEngine::explain() (not the free function
+// explain::explain()) correctly injects self.resolved_spec_map into the options,
+// so that available_tables is filtered to the requesting org's visible tables.
+//
+// This is the PRODUCTION-PATH test demanded by CR-NEW-001 (S-3.13 fix-burst).
+// The key invariant under test: resolved_spec_map MUST be None in the options
+// supplied to qe.explain() — the engine's injection wiring is what we're verifying.
+
+#[cfg(test)]
+mod sec003_engine_path_tests {
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{ResolvedSensorSpec, ResolvedSpecKey};
+
+    use super::*;
+    use crate::{explain::ExplainOptions, scoping::ClientRegistry, table_registry::TableRegistry};
+
+    /// Minimal no-op credential store for SEC-003 engine tests.
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a two-org resolved_spec_map: acme→armis (armis_devices), contoso→crowdstrike (crowdstrike_alerts).
+    fn make_two_org_spec_map() -> HashMap<ResolvedSpecKey, ResolvedSensorSpec> {
+        use prism_spec_engine::{
+            overlay::{OverlayLoader, SensorInstanceOverlay},
+            spec_parser::{AuthType, SensorSpec, TableSpec},
+        };
+
+        let make_resolved = |sensor_id: &str, table_suffix: &str, org: &str| {
+            let spec = SensorSpec::new(
+                sensor_id,
+                format!("{sensor_id} sensor"),
+                AuthType::ApiKey,
+                "https://example.com",
+                vec![TableSpec::new_point_in_time(
+                    table_suffix,
+                    "security_finding",
+                    vec![],
+                    vec![],
+                )],
+                None,
+                "1.0.0",
+                Vec::new(),
+            );
+            let overlay_toml =
+                format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+            let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+                .expect("SEC-003 engine fixture: SensorInstanceOverlay TOML must parse");
+            let org_slug = OrgSlug::new(org);
+            let resolved =
+                OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+            let sensor_id_typed = SensorId::new(sensor_id);
+            let key: ResolvedSpecKey = (org_slug, sensor_id_typed);
+            (key, resolved)
+        };
+
+        let mut map = HashMap::new();
+        let (k, v) = make_resolved("armis", "devices", "acme");
+        map.insert(k, v);
+        let (k, v) = make_resolved("crowdstrike", "alerts", "contoso");
+        map.insert(k, v);
+        map
+    }
+
+    /// Build a global TableRegistry with both armis and crowdstrike sensors.
+    fn make_two_sensor_registry() -> Arc<TableRegistry> {
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+        let registry = TableRegistry::new();
+        let make_spec = |sensor_id: &str, table_suffix: &str| {
+            SensorSpec::new(
+                sensor_id,
+                format!("{sensor_id} sensor"),
+                AuthType::ApiKey,
+                "https://example.com",
+                vec![TableSpec::new_point_in_time(
+                    table_suffix,
+                    "security_finding",
+                    vec![],
+                    vec![],
+                )],
+                None,
+                "1.0.0",
+                Vec::new(),
+            )
+        };
+        registry
+            .register_sensor(&make_spec("armis", "devices"))
+            .expect("register armis must not fail");
+        registry
+            .register_sensor(&make_spec("crowdstrike", "alerts"))
+            .expect("register crowdstrike must not fail");
+        Arc::new(registry)
+    }
+
+    /// Build a QueryEngine with wired resolved_spec_map and table_registry.
+    ///
+    /// Uses new_with_cache_config + direct pub(crate) field injection so we
+    /// don't need the full production dependency tree (OrgRegistry, RocksDB, etc.).
+    fn make_engine_with_spec_map(
+        registry: Arc<TableRegistry>,
+        spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec>,
+    ) -> QueryEngine {
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        // Inject resolved_spec_map (pub(crate)) — same pattern as make_engine_with_alias_store.
+        engine.resolved_spec_map = Some(Arc::new(spec_map));
+        // Wire the table_registry so available_tables is populated.
+        engine = engine.with_table_registry(registry);
+        engine
+    }
+
+    /// CR-NEW-001 / SEC-003 production path test (S-3.13 fix-burst, CWE-200).
+    ///
+    /// Verifies that calling `QueryEngine::explain()` — the production code path
+    /// used by the MCP `explain_query` handler after the CR-NEW-001 fix — correctly
+    /// injects `self.resolved_spec_map` into the options and filters
+    /// `available_tables` to the requesting org's visible tables.
+    ///
+    /// CRITICAL: `resolved_spec_map` in `ExplainOptions` is set to `None`.  The engine
+    /// injection (engine.rs:753-757) is the mechanism under test.  Passing it
+    /// pre-populated would bypass the wiring and make this a vacuous test.
+    ///
+    /// `client_registry` IS supplied in opts (same as the MCP handler does via
+    /// `qe.client_registry()`) — the engine does not inject that field, so tests
+    /// must mirror the MCP handler call-site exactly.
+    ///
+    /// Fixture: acme → armis (armis_devices), contoso → crowdstrike (crowdstrike_alerts).
+    /// Calling with clients=Some([acme]) must yield armis_devices but NOT crowdstrike_alerts.
+    ///
+    /// `#[tokio::test]` required because QueryEngine::new_with_cache_config starts
+    /// the cursor cleanup background task, which requires a tokio runtime context.
+    #[tokio::test]
+    #[allow(non_snake_case, clippy::expect_used)]
+    async fn test_SEC_003_explain_production_path_via_query_engine_filters_other_org() {
+        let registry = make_two_sensor_registry();
+        let spec_map = make_two_org_spec_map();
+        let acme = OrgSlug::new("acme");
+
+        // Build a ClientRegistry that contains "acme" so resolve_clients() accepts it.
+        // The MCP handler supplies this via `qe.client_registry()` in ExplainOptions.
+        let client_registry = Arc::new(ClientRegistry::new(vec![acme.clone()]));
+
+        let engine = make_engine_with_spec_map(registry, spec_map);
+
+        // CRITICAL: resolved_spec_map is None here — the engine's injection (engine.rs:753-757)
+        // must supply it.  This is the exact options shape the MCP handler constructs.
+        // client_registry is supplied explicitly (mirrors the MCP handler at server.rs:1749).
+        let opts = ExplainOptions {
+            clients: Some(vec![acme]),
+            client_registry: Some(client_registry),
+            resolved_spec_map: None, // engine injects self.resolved_spec_map
+            ..ExplainOptions::default()
+        };
+
+        let result = engine
+            .explain("severity = 'critical'", opts)
+            .expect("QueryEngine::explain must succeed for valid query");
+
+        // acme can only see armis_devices — the injection must have fired.
+        assert!(
+            result
+                .available_tables
+                .contains(&"armis_devices".to_string()),
+            "SEC-003 production path: acme's table 'armis_devices' must appear \
+             in available_tables after QueryEngine::explain injection. Got: {:?}",
+            result.available_tables
+        );
+
+        // contoso's table must NOT leak — cross-tenant CWE-200 protection.
+        assert!(
+            !result
+                .available_tables
+                .contains(&"crowdstrike_alerts".to_string()),
+            "SEC-003 / CWE-200 production path: contoso's table 'crowdstrike_alerts' \
+             must NOT appear in available_tables when requesting org is acme. \
+             Got: {:?}",
+            result.available_tables
+        );
+    }
+    /// SEC-001 production-path regression test (S-3.13 MED-A / sibling-coverage gap).
+    ///
+    /// Verifies that calling `QueryEngine::execute()` — the EXECUTE production code path,
+    /// not the explain path — correctly uses `self.resolved_spec_map` + `options.clients`
+    /// to filter the E-QUERY-037 enumeration to the requesting org's visible sensors only.
+    ///
+    /// # What this test proves
+    ///
+    /// The 5 existing `test_SEC_001_*` tests in `table_registry_tests.rs` call
+    /// `check_availability_gate` DIRECTLY, bypassing the engine. The existing engine-path
+    /// test (`test_S3_13_engine_execute_with_wired_registry_returns_e_query_037_before_fanout`)
+    /// uses `QueryOptions::default()` (clients=None) + no `resolved_spec_map`, so it never
+    /// exercises the org-FILTER path. This test closes that gap.
+    ///
+    /// # Load-bearing guarantee
+    ///
+    /// The E-QUERY-037 enumeration depends on both:
+    /// 1. `engine.resolved_spec_map` being wired (injected via `execute_inner` into
+    ///    `check_table_availability`), AND
+    /// 2. `options.clients` carrying the requesting org's slug (used as `org_scope`).
+    ///
+    /// If either plumbing is removed, the filter reverts to global scope and
+    /// `available_sensors`/`available_tables` would contain BOTH orgs — causing this test
+    /// to fail on the `!contains("crowdstrike")` / `!contains("crowdstrike_alerts")` asserts.
+    ///
+    /// # Fixture
+    ///
+    /// acme → armis (armis_devices), contoso → crowdstrike (crowdstrike_alerts).
+    /// Execute with `clients=Some([acme])` on `unknown_table`.
+    /// E-QUERY-037 must enumerate acme's tables only (armis_devices) — NOT contoso's.
+    ///
+    /// # Execution note
+    ///
+    /// `check_table_availability` fires BEFORE `resolve_clients`, so the empty
+    /// `ClientRegistry` in `make_engine_with_spec_map` is acceptable — `resolve_clients`
+    /// is never reached when the gate returns E-QUERY-037.
+    ///
+    /// `#[tokio::test]` required: `QueryEngine::new_with_cache_config` spawns the cursor
+    /// cleanup background task which requires a tokio runtime context.
+    ///
+    /// BC-2.11.001 / ADR-039 / SEC-001 / CWE-200.
+    #[tokio::test]
+    #[allow(non_snake_case, clippy::expect_used)]
+    async fn test_SEC_001_e_query_037_production_path_via_query_engine_filters_other_org() {
+        let registry = make_two_sensor_registry();
+        let spec_map = make_two_org_spec_map();
+        let acme = OrgSlug::new("acme");
+
+        let engine = make_engine_with_spec_map(registry, spec_map);
+
+        // Execute against an unknown table so E-QUERY-037 fires.
+        // clients=Some([acme]) is the org-scope the gate must use for filtering.
+        // check_table_availability fires BEFORE resolve_clients — the empty ClientRegistry
+        // in make_engine_with_spec_map is acceptable for this test path.
+        let result = engine
+            .execute(
+                "SELECT * FROM unknown_table LIMIT 5",
+                QueryOptions {
+                    clients: Some(vec![acme]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::TableNotAvailable(ref details)) => {
+                // available_sensors must contain acme's sensor ("armis")
+                // and must NOT contain contoso's sensor ("crowdstrike").
+                let sensors: Vec<&str> = details.available_sensors.split(", ").collect();
+                assert!(
+                    sensors.contains(&"armis"),
+                    "SEC-001 execute production path: acme's sensor 'armis' must appear \
+                     in E-QUERY-037 available_sensors. Got: '{}'",
+                    details.available_sensors
+                );
+                assert!(
+                    !sensors.contains(&"crowdstrike"),
+                    "SEC-001 / CWE-200 execute production path: contoso's sensor 'crowdstrike' \
+                     must NOT appear in E-QUERY-037 available_sensors when requesting org is acme. \
+                     Got: '{}'",
+                    details.available_sensors
+                );
+
+                // available_tables must contain acme's table ("armis_devices")
+                // and must NOT contain contoso's table ("crowdstrike_alerts").
+                let tables: Vec<&str> = details.available_tables.split(", ").collect();
+                assert!(
+                    tables.contains(&"armis_devices"),
+                    "SEC-001 execute production path: acme's table 'armis_devices' must appear \
+                     in E-QUERY-037 available_tables. Got: '{}'",
+                    details.available_tables
+                );
+                assert!(
+                    !tables.contains(&"crowdstrike_alerts"),
+                    "SEC-001 / CWE-200 execute production path: contoso's table 'crowdstrike_alerts' \
+                     must NOT appear in E-QUERY-037 available_tables when requesting org is acme. \
+                     Got: '{}'",
+                    details.available_tables
+                );
+            }
+            Ok(_) => panic!(
+                "SEC-001 execute production path: QueryEngine::execute must NOT succeed for \
+                 unknown table 'unknown_table' when registry is wired — E-QUERY-037 must fire"
+            ),
+            Err(other) => panic!(
+                "SEC-001 execute production path: expected PrismError::TableNotAvailable, \
+                 got different error: {other:?}"
+            ),
+        }
     }
 }
 

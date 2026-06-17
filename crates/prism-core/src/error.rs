@@ -8,6 +8,88 @@
 
 use thiserror::Error;
 
+/// Inner fields for `PrismError::TableNotAvailable` (E-QUERY-037).
+///
+/// Boxed inside the enum variant to keep `PrismError` under the
+/// `clippy::result_large_err` 128-byte threshold. Five inline `String` fields
+/// would push the variant past the limit; boxing trades a pointer-dereference
+/// on the error path (which is not performance-critical) for enum-size compliance.
+///
+/// Implements `Display` directly so `PrismError::TableNotAvailable` can use
+/// `#[error("{0}")]` to delegate formatting without `thiserror`'s field-access syntax
+/// (which does not support indexing into `Box<T>` fields).
+///
+/// # Construction
+/// ```
+/// use prism_core::error::{PrismError, TableNotAvailableDetails};
+/// let err = PrismError::TableNotAvailable(Box::new(TableNotAvailableDetails::new(
+///     "crowdstrike_alerts",
+///     "crowdstrike",
+///     "armis",
+///     "armis_alerts",
+///     "",
+/// )));
+/// ```
+///
+/// Reference: S-3.13; BC-2.11.001; error-taxonomy.md E-QUERY-037.
+///
+/// # `#[non_exhaustive]` note
+/// Marked `#[non_exhaustive]` per CLAUDE.md convention for public `prism-core` structs.
+/// Callers outside this crate must use `TableNotAvailableDetails::new(...)` rather than
+/// struct literal construction (E0639 would fire at the cross-crate construction site).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct TableNotAvailableDetails {
+    /// The table name that was queried (e.g. `"crowdstrike_alerts"`).
+    pub table: String,
+    /// The sensor that owns the table (e.g. `"crowdstrike"`), derived from the table name prefix.
+    pub sensor: String,
+    /// Pre-formatted comma-separated list of available sensor IDs (e.g. `"armis, claroty"`).
+    pub available_sensors: String,
+    /// Pre-formatted comma-separated list of all registered table names.
+    pub available_tables: String,
+    /// Either `""` (no match within Levenshtein ≤ 3) or `" Did you mean: 'X'?"`.
+    pub did_you_mean: String,
+}
+
+impl TableNotAvailableDetails {
+    /// Construct a `TableNotAvailableDetails`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct literal construction
+    /// from outside `prism-core`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    pub fn new(
+        table: impl Into<String>,
+        sensor: impl Into<String>,
+        available_sensors: impl Into<String>,
+        available_tables: impl Into<String>,
+        did_you_mean: impl Into<String>,
+    ) -> Self {
+        Self {
+            table: table.into(),
+            sensor: sensor.into(),
+            available_sensors: available_sensors.into(),
+            available_tables: available_tables.into(),
+            did_you_mean: did_you_mean.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for TableNotAvailableDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "E-QUERY-037: table '{}' is not available — sensor '{}' is not configured. \
+             Available sensors: [{}]. \
+             Available tables: [{}].{}",
+            self.table,
+            self.sensor,
+            self.available_sensors,
+            self.available_tables,
+            self.did_you_mean
+        )
+    }
+}
+
 /// Canonical error type for the Prism platform.
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
@@ -554,6 +636,27 @@ pub enum PrismError {
          or internal table. Check spelling or register the sensor in prism.toml."
     )]
     UnknownSourceTable { source_name: String },
+
+    /// E-QUERY-037: Table is not available — the sensor that owns the table is not configured.
+    ///
+    /// Returned by the plan-time availability gate in `engine.rs` when a query references
+    /// a table whose owning sensor is not in the live `TableRegistry`. This fires BEFORE
+    /// fan-out (fail fast). Carries pre-formatted String fields; `did_you_mean` is `""`
+    /// when no candidate within Levenshtein ≤ 3 exists, or `" Did you mean: 'X'?"` otherwise.
+    ///
+    /// Maps to MCP code -32602 (INVALID_PARAMS) — caller-resolvable by configuring the
+    /// missing sensor or correcting the table name.
+    ///
+    /// The inner fields are boxed (`Box<TableNotAvailableDetails>`) to keep `PrismError`
+    /// within the `clippy::result_large_err` threshold — five `String` fields inline would
+    /// push the enum variant past 128 bytes (S-3.13 clippy gate).
+    ///
+    /// Construct via `PrismError::TableNotAvailable(Box::new(TableNotAvailableDetails { .. }))`.
+    /// Match via `PrismError::TableNotAvailable(ref d)` or `PrismError::TableNotAvailable(..)`.
+    ///
+    /// Reference: S-3.13 AC-2, AC-3, AC-8; BC-2.11.001; error-taxonomy.md E-QUERY-037.
+    #[error("{0}")]
+    TableNotAvailable(Box<TableNotAvailableDetails>),
 
     /// E-QUERY-032: Sensor is not registered for the requesting org.
     ///

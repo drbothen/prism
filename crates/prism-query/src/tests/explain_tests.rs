@@ -20,10 +20,12 @@ use std::{
 };
 
 use prism_core::{OrgSlug, SensorId};
+use prism_spec_engine::{ResolvedSensorSpec, ResolvedSpecKey};
 
 use crate::{
     explain::{explain, AuditEvent, ExplainOptions},
     scoping::ClientRegistry,
+    table_registry::TableRegistry,
 };
 
 // ---------------------------------------------------------------------------
@@ -1633,5 +1635,183 @@ fn test_BC_2_16_012_B_001_explain_unknown_sensor_latency_is_300() {
          not the hardcoded 250ms arm. \
          Got: {latency:?}. \
          This test FAILS (RED) against pre-migration code that returns 250."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// SEC-003: explain path cross-tenant available_tables filtering (ADR-039 / CWE-200)
+// ---------------------------------------------------------------------------
+//
+// These tests verify that `ExplainResult.available_tables` is filtered to the
+// requesting org's visible sensors when `options.resolved_spec_map` is populated,
+// preventing cross-tenant vendor enumeration on the explain path (SEC-003, CWE-200).
+//
+// Fixture (mirrors the SEC-001 two-org fixture in table_registry_tests.rs):
+//   acme   → sensor "armis"        → table "armis_devices"
+//   contoso → sensor "crowdstrike" → table "crowdstrike_alerts"
+// Both sensors are in the global TableRegistry; the resolved_spec_map restricts
+// each org to its own sensor.
+
+/// Build a two-org `HashMap<ResolvedSpecKey, ResolvedSensorSpec>` for explain tests.
+///
+/// acme → armis (armis_devices), contoso → crowdstrike (crowdstrike_alerts).
+fn make_sec003_resolved_spec_map() -> HashMap<ResolvedSpecKey, ResolvedSensorSpec> {
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{SensorSpec, TableSpec},
+    };
+
+    let make_resolved = |sensor_id: &str, table_suffix: &str, org: &str| {
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            prism_spec_engine::spec_parser::AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let overlay_toml =
+            format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("SEC-003 fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let sensor_id_typed = SensorId::new(sensor_id);
+        let key: ResolvedSpecKey = (org_slug, sensor_id_typed);
+        (key, resolved)
+    };
+
+    let mut map = HashMap::new();
+    let (k, v) = make_resolved("armis", "devices", "acme");
+    map.insert(k, v);
+    let (k, v) = make_resolved("crowdstrike", "alerts", "contoso");
+    map.insert(k, v);
+    map
+}
+
+/// Build a global TableRegistry with both armis and crowdstrike tables.
+fn make_sec003_global_registry() -> Arc<TableRegistry> {
+    use prism_spec_engine::spec_parser::{SensorSpec, TableSpec};
+    let registry = TableRegistry::new();
+    let make_spec = |sensor_id: &str, table_suffix: &str| {
+        SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            prism_spec_engine::spec_parser::AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        )
+    };
+    registry
+        .register_sensor(&make_spec("armis", "devices"))
+        .expect("register armis must not fail");
+    registry
+        .register_sensor(&make_spec("crowdstrike", "alerts"))
+        .expect("register crowdstrike must not fail");
+    Arc::new(registry)
+}
+
+/// SEC-003 (S-3.13 fix-burst, CWE-200):
+/// When org `acme` calls `explain_query` with `clients = Some(["acme"])` and
+/// `resolved_spec_map` is provided, `ExplainResult.available_tables` must contain
+/// ONLY `acme`'s tables (armis_devices) — NOT contoso's tables (crowdstrike_alerts).
+///
+/// This is the analogous protection to SEC-001 on the error-enumeration path,
+/// applied to the explain-path `available_tables` field.
+#[test]
+#[allow(non_snake_case)]
+fn test_SEC_003_explain_available_tables_filtered_to_requesting_org() {
+    let resolved_spec_map = make_sec003_resolved_spec_map();
+    let registry = make_sec003_global_registry();
+    let acme = OrgSlug::new("acme").expect("valid org slug");
+    // SEC-003 fixture: provide a ClientRegistry that contains "acme" so that
+    // resolve_clients() does not reject the requesting-org slug. In production,
+    // QueryEngine injects the real ClientRegistry; tests must supply it directly.
+    let client_registry = ClientRegistry::new(vec![acme.clone()]);
+
+    let opts = ExplainOptions {
+        clients: Some(vec![acme]),
+        table_registry: Some(registry),
+        resolved_spec_map: Some(Arc::new(resolved_spec_map)),
+        client_registry: Some(Arc::new(client_registry)),
+        ..ExplainOptions::default()
+    };
+
+    let result =
+        explain("severity = 'critical'", opts).expect("explain must succeed for valid query");
+
+    // acme's table (armis_devices) must be present.
+    assert!(
+        result
+            .available_tables
+            .contains(&"armis_devices".to_string()),
+        "SEC-003: acme's table 'armis_devices' must appear in available_tables. \
+         Got: {:?}",
+        result.available_tables
+    );
+
+    // contoso's table (crowdstrike_alerts) must NOT be present — cross-tenant disclosure.
+    assert!(
+        !result
+            .available_tables
+            .contains(&"crowdstrike_alerts".to_string()),
+        "SEC-003 / CWE-200: contoso's table 'crowdstrike_alerts' must NOT appear in \
+         available_tables when requesting org is acme. \
+         Got: {:?}",
+        result.available_tables
+    );
+}
+
+/// SEC-003 (S-3.13 fix-burst, CWE-200): backward-compat test.
+/// When `clients` is `None` (single-tenant, no org scope) and `resolved_spec_map`
+/// is `None`, `available_tables` returns ALL registered tables (global registry).
+/// This preserves single-tenant backward compatibility.
+#[test]
+#[allow(non_snake_case)]
+fn test_SEC_003_explain_single_tenant_unaffected() {
+    let registry = make_sec003_global_registry();
+
+    let opts = ExplainOptions {
+        clients: None,
+        table_registry: Some(registry),
+        resolved_spec_map: None,
+        ..ExplainOptions::default()
+    };
+
+    let result =
+        explain("severity = 'critical'", opts).expect("explain must succeed for valid query");
+
+    // Both tables must be present in single-tenant mode (global registry, no filter).
+    assert!(
+        result
+            .available_tables
+            .contains(&"armis_devices".to_string()),
+        "SEC-003 backward-compat: 'armis_devices' must appear when no org scope filter. \
+         Got: {:?}",
+        result.available_tables
+    );
+    assert!(
+        result
+            .available_tables
+            .contains(&"crowdstrike_alerts".to_string()),
+        "SEC-003 backward-compat: 'crowdstrike_alerts' must appear when no org scope filter. \
+         Got: {:?}",
+        result.available_tables
     );
 }
