@@ -2895,38 +2895,30 @@ pub async fn step11_install_signal_handlers(
 // Step 7.6 [BLOCKING]: Infusion loading — S-1.14-REDO (AC-10 hollow-feature fix)
 // ---------------------------------------------------------------------------
 
-/// Step 7.6 [BLOCKING] (stub — S-1.14-REDO AC-10): Load all `.infusion.toml` files from
-/// `{config_dir}/infusions/` and return an `InfusionRegistry` wired with the loaded specs.
+/// Step 7.6 [BLOCKING]: Load all `.infusion.toml` files from `{config_dir}/infusions/` and
+/// return an `InfusionRegistry` wired with the loaded specs (S-1.14-REDO AC-10).
 ///
 /// # Boot sequence position (BC-2.22.001)
-/// Must execute AFTER step 7.5 (plugin-load) so that plugin-type infusions can be wired
-/// with a real `Arc<PluginRuntime>`. Must execute BEFORE step 9 (MCP server start) so that
+/// Executes AFTER step 7.5 (plugin-load) so that plugin-type infusions can be wired
+/// with a real `Arc<PluginRuntime>`. Executes BEFORE step 9 (MCP server start) so that
 /// `QueryEngine::with_infusion_registry()` is called before the first query is processed.
 ///
 /// # Non-fatal partial failures (AC-10 contract)
 /// Individual spec load failures are non-fatal: a WARN log is emitted per failed spec
-/// and the remaining valid specs continue loading. A WARN log is also emitted if
-/// `InfusionLoader::load_all()` returns any errors (logged with count).
-/// An INFO log is emitted with the count of successfully loaded infusion specs.
+/// and the remaining valid specs continue loading. An INFO log is emitted with the count of
+/// successfully loaded infusion specs on completion.
 ///
 /// # Wiring into QueryEngine (AC-10)
-/// The caller (`run_boot_sequence`) must call:
-/// ```ignore
-/// query_engine.with_infusion_registry(Arc::new(infusion_registry))
-/// ```
-/// This wires the UDFs into the DataFusion SessionContext for all subsequent queries.
+/// The caller (`run_boot_sequence`) passes the returned registry to
+/// `QueryEngine::with_infusion_registry()`, which registers all infusion UDFs into the
+/// DataFusion SessionContext before the first query is processed.
 ///
-/// # TODO (S-1.14-REDO)
-/// This function is a stub — the real implementation is dispatched to S-1.14-REDO.
-/// The stub compiles but panics at runtime (todo!) so the integration test
-/// `infusion_boot_integration.rs::test_boot_with_csv_infusion_udf_resolves` fails RED.
-///
-/// Implementer: replace `todo!()` with the real InfusionLoader::load_all() call,
-/// registry construction via InfusionRegistry::load_spec() for each valid spec,
-/// and emit the INFO/WARN structured events per AC-10 contract.
-///
-/// S-1.14-REDO AC-10: infusion_load_step is wired into run_boot_sequence (non-hollow).
-/// The registry returned here is passed to step9 via with_infusion_registry().
+/// # Current behavior
+/// Calls `InfusionLoader::load_all()` to discover all `.infusion.toml` files in
+/// `{config_dir}/infusions/`, registers each successfully-parsed spec via
+/// `InfusionRegistry::load_spec()` (wiring real file-backed sources for LocalLookup specs),
+/// and returns the populated registry. The registry is wired into the QueryEngine via
+/// `with_infusion_registry()` in `run_boot_sequence`. Implemented and tested by S-1.14-REDO.
 pub fn infusion_load_step(config_dir: &Path) -> prism_spec_engine::InfusionRegistry {
     use prism_spec_engine::InfusionRegistry;
     use prism_spec_engine::infusion::loader::InfusionLoader;

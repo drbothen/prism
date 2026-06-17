@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-67 (49 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-68 (50 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -23,6 +23,8 @@
 //! ci.yml EXPECTED bumped from 64 to 66. Note: v65 is reserved for CapabilityStatus in
 //! enum_violations.rs; S-3.13 struct violations use v66/v67 to maintain the global monotonic
 //! ladder across both files with no collision.
+//! v68 (Tier3CacheEntry) added by S-1.14-REDO burst-2 (MED-1-RESIDUAL — missing
+//! #[non_exhaustive] on pub cache wire-format type). ci.yml EXPECTED bumped from 66 to 67.
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -940,4 +942,24 @@ pub fn v67_table_registry() {
     // Note: TableRegistry fields are private; the E0639 check fires before E0603.
     let _reg = prism_query::table_registry::TableRegistry {};
     let _ = _reg;
+}
+
+/// Violation 68: prism_spec_engine::infusion::cache::Tier3CacheEntry struct literal (E0639).
+///
+/// `Tier3CacheEntry` is the wire-format struct for the Tier-3 RocksDB infusion cache.
+/// `#[non_exhaustive]` ensures external crates cannot use struct-literal construction
+/// — callers must rely on `InfusionTier3Cache::set()` to write entries. Future fields
+/// (e.g., compression flag, schema_version, source_ttl_hint) can be added without
+/// breaking external callers.
+///
+/// Added: S-1.14-REDO burst-2 (MED-1-RESIDUAL).
+/// ci.yml EXPECTED bumped from 66 to 67.
+#[allow(dead_code)]
+pub fn v68_tier3_cache_entry() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _entry = prism_spec_engine::infusion::cache::Tier3CacheEntry {
+        value_json: None,
+        expiry_unix_secs: 0u64,
+    };
+    let _ = _entry;
 }

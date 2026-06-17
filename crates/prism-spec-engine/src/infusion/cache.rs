@@ -178,6 +178,10 @@ impl InfusionLruCache {
 ///
 /// Serialized with bincode 2.x (`encode_to_vec` / `decode_from_slice`).
 /// `value` is the JSON-serialized enrichment result (None = negative cache entry).
+///
+/// `#[non_exhaustive]`: forward-compat per CLAUDE.md §Conventions — pub types in
+/// prism-spec-engine require `#[non_exhaustive]` (MED-1-RESIDUAL, S-1.14-REDO burst 2).
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tier3CacheEntry {
     /// JSON-serialized enrichment result. `None` = negative cache hit (no enrichment).

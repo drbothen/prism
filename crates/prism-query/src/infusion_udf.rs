@@ -163,9 +163,17 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
     /// If the source returns `None` for a row (plugin failure, no enrichment available),
     /// the row's output is `null` in the output array.
     ///
-    /// If the source returns `Some(Value)`, the JSON value is serialized to a string.
-    /// For plain strings in the JSON value (the common case for plugin enrichment results),
-    /// the string is returned unwrapped to avoid double-quoting.
+    /// If `descriptor.source_column` is set AND the source returns a JSON object (the
+    /// common case for CSV/MMDB sources which return the full row/record), this method
+    /// projects the declared field from the object: `obj[source_column]`. If the key is
+    /// absent, the output is an empty string. This ensures two UDFs registered against the
+    /// same CSV source with different `source_column` values return DISTINCT projected values
+    /// (e.g., `asset_name → "server-01"`, `asset_owner → "security-team"`) rather than
+    /// the same whole-row JSON object for both columns (HIGH-A fix, S-1.14-REDO burst 2).
+    ///
+    /// If `source_column` is `None`, or the source returns a non-object JSON value,
+    /// the value is serialized directly. For plain JSON strings, the string is returned
+    /// unwrapped to avoid double-quoting.
     ///
     /// # Input argument
     /// Expects exactly one `Utf8` column as the first argument (enforced by the `Signature`).
@@ -236,9 +244,41 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
                     .source
                     .enrich_single(input_str, &self.descriptor.input_type);
                 result.map(|json_val| {
-                    // If the plugin returns a plain JSON string, unwrap it to avoid
-                    // double-quoting ("value" → value). Other JSON shapes are serialized as-is.
-                    match json_val {
+                    // HIGH-A fix: if the descriptor declares a source_column AND the enrichment
+                    // result is a JSON object (e.g., a full CSV row), extract that specific field
+                    // rather than serializing the whole object. This is the correct behavior for
+                    // CSV/MMDB sources where enrich_single returns the entire row/record and the
+                    // field-level UDF is responsible for projecting the declared column.
+                    //
+                    // When source_column is set and the value is an Object:
+                    //   - Look up obj[source_column].
+                    //   - If found and it is a String, return the string value (unwrapped).
+                    //   - If found but not a String, serialize it.
+                    //   - If the key is absent in the object, return empty string (no-match).
+                    //
+                    // When source_column is None (e.g., plugin sources that return a scalar
+                    // directly), fall through to the original scalar/string passthrough.
+                    let projected = if let Some(col) = &self.descriptor.source_column {
+                        match &json_val {
+                            serde_json::Value::Object(obj) => {
+                                return match obj.get(col.as_str()) {
+                                    Some(serde_json::Value::String(s)) => s.clone(),
+                                    Some(other) => other.to_string(),
+                                    // Column absent in object — return empty string (no-match).
+                                    None => String::new(),
+                                };
+                            }
+                            // source_column is set but the source didn't return an object
+                            // (e.g., scalar result from a plugin) — fall through to
+                            // the standard scalar passthrough below.
+                            _ => json_val,
+                        }
+                    } else {
+                        json_val
+                    };
+                    // Standard passthrough: unwrap plain JSON strings to avoid double-quoting;
+                    // serialize other JSON shapes (arrays, objects without source_column) as-is.
+                    match projected {
                         serde_json::Value::String(s) => s,
                         other => other.to_string(),
                     }
@@ -375,6 +415,69 @@ mod tests {
             infusion_id: infusion_id.to_string(),
             source,
             source_column: None,
+        }
+    }
+
+    fn make_descriptor_with_source_column(
+        name: &str,
+        infusion_id: &str,
+        source: Arc<dyn InfusionSource>,
+        source_column: &str,
+    ) -> InfusionUdfDescriptor {
+        InfusionUdfDescriptor {
+            name: name.to_string(),
+            input_type: "ip".to_string(),
+            output_type: "string".to_string(),
+            infusion_id: infusion_id.to_string(),
+            source,
+            source_column: Some(source_column.to_string()),
+        }
+    }
+
+    /// Stub `InfusionSource` that returns a fixed JSON object (full row) — simulating
+    /// a CSV source that returns the whole row for any input.
+    ///
+    /// Used by the HIGH-A distinct-column-projection test to verify that two UDFs
+    /// registered against the same CSV source with different `source_column` values
+    /// return DISTINCT projected values instead of the identical whole-row object.
+    #[derive(Debug)]
+    struct CsvRowSource {
+        /// The fixed row to return (simulates: `{"name": "server-01", "owner": "security-team"}`).
+        row: serde_json::Value,
+    }
+
+    impl CsvRowSource {
+        /// Create a `CsvRowSource` that returns a row with `name` and `owner` fields.
+        fn new(name: &str, owner: &str) -> Arc<dyn InfusionSource> {
+            let mut obj = serde_json::Map::new();
+            obj.insert(
+                "name".to_string(),
+                serde_json::Value::String(name.to_string()),
+            );
+            obj.insert(
+                "owner".to_string(),
+                serde_json::Value::String(owner.to_string()),
+            );
+            Arc::new(CsvRowSource {
+                row: serde_json::Value::Object(obj),
+            })
+        }
+    }
+
+    impl InfusionSource for CsvRowSource {
+        fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
+            Some(self.row.clone())
+        }
+
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
+            inputs
+                .iter()
+                .map(|i| self.enrich_single(i, input_type))
+                .collect()
         }
     }
 
@@ -531,6 +634,119 @@ mod tests {
             output_col.value(1),
             SENTINEL,
             "non-NULL row must produce the sentinel enrichment value"
+        );
+    }
+
+    // ── HIGH-A distinct-column-projection test ────────────────────────────────
+
+    /// HIGH-A: two UDFs registered against the same CSV row source with DISTINCT
+    /// `source_column` values must return DISTINCT projected values.
+    ///
+    /// Before the HIGH-A fix: both UDFs returned the identical whole-row JSON object
+    /// `{"name":"server-01","owner":"security-team"}` because `invoke_async_with_args`
+    /// ignored `descriptor.source_column`. The fix projects the declared column from
+    /// the returned object.
+    ///
+    /// Setup:
+    ///   - CsvRowSource returns `{"name": "server-01", "owner": "security-team"}` for any IP.
+    ///   - UDF `asset_name` has `source_column = "name"`.
+    ///   - UDF `asset_owner` has `source_column = "owner"`.
+    ///
+    /// Assertions:
+    ///   - `asset_name("10.0.0.1")` returns `"server-01"` (NOT the whole row object).
+    ///   - `asset_owner("10.0.0.1")` returns `"security-team"` (NOT the whole row object).
+    ///   - The two results are DISTINCT strings, not identical whole-row objects.
+    ///
+    /// Traces to: AC-3 (output schema includes the declared columns), S-1.14-REDO HIGH-A.
+    #[tokio::test]
+    async fn test_source_column_projection_produces_distinct_values_not_whole_row() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        // Both UDFs share the same backing source (the same Arc<CsvRowSource>).
+        // This directly tests the scenario described in HIGH-A: the source returns
+        // the WHOLE row; the UDF must project `source_column` to return the right field.
+        let shared_source = CsvRowSource::new("server-01", "security-team");
+
+        let name_desc = make_descriptor_with_source_column(
+            "asset_name",
+            "asset_inventory",
+            Arc::clone(&shared_source),
+            "name",
+        );
+        let owner_desc = make_descriptor_with_source_column(
+            "asset_owner",
+            "asset_inventory",
+            Arc::clone(&shared_source),
+            "owner",
+        );
+
+        register_infusion_udfs(&ctx, vec![name_desc, owner_desc])
+            .expect("HIGH-A: registration must succeed for two distinct UDF names");
+
+        // Register a single-row MemTable with one IP address.
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "device_ip",
+            DataType::Utf8,
+            false,
+        )]));
+        let arr = StringArray::from(vec!["10.0.0.1"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch construction must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable construction must succeed");
+        ctx.register_table("test_devices", Arc::new(table))
+            .expect("register_table must succeed");
+
+        // Execute a query that applies BOTH UDFs to the same row.
+        let df = ctx
+            .sql("SELECT asset_name(device_ip) AS aname, asset_owner(device_ip) AS aowner FROM test_devices")
+            .await
+            .expect("HIGH-A: SQL must parse and plan");
+        let batches = df.collect().await.expect("HIGH-A: query must execute");
+
+        assert_eq!(batches.len(), 1, "HIGH-A: must have exactly 1 output batch");
+        let batch = &batches[0];
+        assert_eq!(
+            batch.num_rows(),
+            1,
+            "HIGH-A: must have exactly 1 output row"
+        );
+
+        let name_col = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("HIGH-A: asset_name column must be StringArray");
+        let owner_col = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("HIGH-A: asset_owner column must be StringArray");
+
+        let name_val = name_col.value(0);
+        let owner_val = owner_col.value(0);
+
+        assert_eq!(
+            name_val, "server-01",
+            "HIGH-A: asset_name UDF must return the projected 'name' field value 'server-01', \
+             not the whole-row object; got: {:?}",
+            name_val
+        );
+        assert_eq!(
+            owner_val, "security-team",
+            "HIGH-A: asset_owner UDF must return the projected 'owner' field value 'security-team', \
+             not the whole-row object; got: {:?}",
+            owner_val
+        );
+        assert_ne!(
+            name_val, owner_val,
+            "HIGH-A: asset_name and asset_owner must return DISTINCT values, \
+             not the same whole-row object; name={:?}, owner={:?}",
+            name_val, owner_val
         );
     }
 }

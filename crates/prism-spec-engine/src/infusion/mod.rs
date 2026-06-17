@@ -558,12 +558,22 @@ impl InfusionRegistry {
             if let Some(ref source_config) = spec.source {
                 match sources::load_source(source_config) {
                     Ok(s) => s,
-                    // File not found at load time: fall through to NullSource so load_all
-                    // continues loading other specs rather than aborting. The error is
-                    // surfaced via the descriptors' source returning None on enrich_single.
-                    // If strict failure is required, callers should validate file paths before
-                    // calling load_spec.
-                    Err(_) => Arc::new(NullSource),
+                    // File not found or corrupt at load time: fall through to NullSource so
+                    // load_all continues loading other specs rather than aborting. Emit WARN
+                    // (LOW-A: failed source must be distinguishable from no-match).
+                    // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
+                    // NO file_path or credential values in the log (AD-017).
+                    Err(ref err) => {
+                        tracing::warn!(
+                            infusion_id = %spec.infusion_id,
+                            source_type = ?source_config.source_type,
+                            error_kind = %err,
+                            "infusion: source load failed for LocalLookup spec — falling back to NullSource; \
+                             enrichment calls will return None until the source file is corrected and the \
+                             spec is hot-reloaded (LOW-A, S-1.14-REDO)"
+                        );
+                        Arc::new(NullSource)
+                    }
                 }
             } else {
                 Arc::new(NullSource)
@@ -628,7 +638,20 @@ impl InfusionRegistry {
         } else if let Some(ref source_config) = spec.source {
             match sources::load_source(source_config) {
                 Ok(s) => s,
-                Err(_) => Arc::new(NullSource),
+                // Source file not found or corrupt — fall back to NullSource with WARN.
+                // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
+                // NO file_path or credential values in the log (AD-017).
+                Err(ref err) => {
+                    tracing::warn!(
+                        infusion_id = %spec.infusion_id,
+                        source_type = ?source_config.source_type,
+                        error_kind = %err,
+                        "infusion: source load failed in load_spec_with_runtime — falling back to \
+                         NullSource; enrichment calls will return None until source is corrected \
+                         and the spec is hot-reloaded (LOW-A, S-1.14-REDO)"
+                    );
+                    Arc::new(NullSource)
+                }
             }
         } else {
             Arc::new(NullSource)
@@ -775,7 +798,20 @@ impl InfusionRegistry {
                 if let Some(ref source_config) = updated_spec.source {
                     match sources::load_source(source_config) {
                         Ok(s) => s,
-                        Err(_) => Arc::new(NullSource),
+                        // Source file not found or corrupt at hot-reload time — fall back with WARN.
+                        // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
+                        // NO file_path or credential values in the log (AD-017).
+                        Err(ref err) => {
+                            tracing::warn!(
+                                infusion_id = %updated_spec.infusion_id,
+                                source_type = ?source_config.source_type,
+                                error_kind = %err,
+                                "infusion: source load failed during hot_reload — falling back to \
+                                 NullSource; enrichment calls will return None until the source \
+                                 file is corrected and hot-reload retried (LOW-A, S-1.14-REDO)"
+                            );
+                            Arc::new(NullSource)
+                        }
                     }
                 } else {
                     Arc::new(NullSource)

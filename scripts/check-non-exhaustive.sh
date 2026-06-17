@@ -17,8 +17,9 @@
 # S-5.02 follow-up fix-burst: bumped 61→64 for prism_mcp::{CapabilityEntry, ResolutionStep} (struct literals)
 #   and prism_mcp::CapabilityStatus (enum match) — CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep.
 # S-3.13 (LOW-1 + CR-002): bumped 64→66 for TableNotAvailableDetails (prism-core::error) + TableRegistry (prism-query).
+# S-1.14-REDO burst-2 (MED-1-RESIDUAL): bumped 66→67 for Tier3CacheEntry (prism-spec-engine::infusion::cache).
 
-EXPECTED=66
+EXPECTED=67
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 
