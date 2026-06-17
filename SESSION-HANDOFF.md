@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.839"
+version: "7.845"
 status: current
-timestamp: 2026-06-16T20:00:00Z
+timestamp: 2026-06-17T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1196 BURST (2026-06-16) — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT: develop_head UNCHANGED 1b2e9a31. PR #190 (LAUNCHER T11) + PR #189 (PIVOT-001 T12) MERGED. PR #191 S-5.02 v1.10 OPEN @9763a25a PUSH-PENDING (origin @aa796518; PR-LEVEL 2/3; OBS-1 ADJUDICATED SPEC-ACCEPTED). PR #192 S-3.13 OPEN @87c0008e (fix-burst PENDING). DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 registered. BC-INDEX v6.64. STORY-INDEX v2.412. STATE v7.839.**
+> **D-1202 BURST (2026-06-17) — S-5.02 POST-MERGE DURABILITY SNAPSHOT: develop_head bec894a2. PR #191 S-5.02 MERGED develop@bec894a2 (PR-LEVEL 3/3 strict on frozen 86842768; pr-reviewer APPROVE; CI 43/43; POL-14 BC-2.10.011 status:draft→active). PR #192 S-3.13 OPEN @7f192e31 — NEXT: rebase onto develop@bec894a2; ci.yml EXPECTED=66; CLAUDE.md count=66; PR-LEVEL 3-CLEAN → merge. S-5.03 + S-5.08 UNBLOCKED. DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open. BC-INDEX v6.68. STORY-INDEX v2.418. STATE v7.845.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1196 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1195 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1196 below are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
-> develop HEAD `1b2e9a31` (feat(S-DEMO-ENRICHMENT-PIVOT-001): enrichment chain merged; D-1192 burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1196 burst). STATE v7.839.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1196 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1195 notes SUPERSEDED. D-1197..D-1202 durability bursts layer on top of D-1196.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1196 below (with D-1202 overlay) are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
+> develop HEAD `bec894a2` (feat(S-5.02): MCP tool routing, structured error responses, tri-state client scoping; D-1202 burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1202 burst). STATE v7.845.
 
 ---
 
@@ -100,7 +100,7 @@ A fresh session with NO prior context runs these steps in order before taking an
 ```bash
 git log --oneline -1 origin/develop
 ```
-Expected: `1b2e9a31` (or newer if a lane merged since D-1196).
+Expected: `bec894a2` (or newer if a lane merged since D-1202).
 
 **Step 3.** Verify each worktree HEAD against PINNED STATE below:
 ```bash
@@ -127,7 +127,7 @@ gh pr view 192  # S-3.13 — expect: OPEN, base develop, head 87c0008e
 
 | Artifact | Value | Notes |
 |----------|-------|-------|
-| develop HEAD | `1b2e9a31` | feat(S-DEMO-ENRICHMENT-PIVOT-001) commit 2026-06-16; D-1192. |
+| develop HEAD | `bec894a2` | feat(S-5.02): MCP tool routing, structured error responses, tri-state client scoping; D-1202. (Prior: 1b2e9a31 at D-1192.) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
 | S-DEMO-004 worktree | REMOVED | feature/S-DEMO-004 DELETED — PR #188 MERGED develop@7241f5ef |
 | PIVOT-001 worktree | STALE (PR MERGED) | feature/S-DEMO-ENRICHMENT-PIVOT-001 DELETED at merge; PR #189 MERGED develop@1b2e9a31; T12 DONE; worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 still mounted (cleanup pending) |

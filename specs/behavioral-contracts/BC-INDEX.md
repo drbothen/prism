@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.67"
+version: "6.68"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T23:30:00Z
+timestamp: 2026-06-17T00:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -151,7 +151,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft |
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
-| BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | draft |
+| BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active (status:draft→active D-1202 per POL-14; anchor story S-5.02 merged PR #191 develop@bec894a2 2026-06-17; lifecycle_status was already active) |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.9 (D-1197 2026-06-16: org-scoped E-QUERY-037 enumeration invariant; EC-11-037/EC-11-038 org-isolation edge cases; test vectors for cross-org did_you_mean filtering; ADR-039 refs; 5 test_SEC_001_* Red Gate tests wired; was v1.8: S-3.13 pre-TDD 2026-06-14: table-availability postcondition + E-QUERY-037 error case added) |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.68 (2026-06-17, D-1202 S-5.02 post-merge durability burst):** state-manager | POL-14 legacy-status-field sync: BC-2.10.011 inline row and file frontmatter: status draft→active (lifecycle_status was already active; anchor story S-5.02 merged PR #191 develop@bec894a2 2026-06-17). BC-2.10.004: status already active — idempotent no-op. BC-2.10.007: status already active — idempotent no-op. No lifecycle_status flip on any BC. No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — BC-2.10.011 had lifecycle_status:active before this burst and was never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.67→v6.68.
 
 **v6.67 (2026-06-16, D-1200 dual-lane durability burst):** state-manager | BC-2.16.002 inline row: v1.79→v1.80 — OBS-2 closure: `sensor_by_table_snapshot` added as 6th emitting method for `table_registry.rwlock_poisoned` WARN in BC-2.16.002 Canonical Structured Event Catalog (SAP-1/PG-LP11-001; S-3.13 PR-LEVEL pass-1 OBS-2 finding). POL-30 Fork B: catalog-row description extension only (no new event_type, no count change). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.66→v6.67.
 

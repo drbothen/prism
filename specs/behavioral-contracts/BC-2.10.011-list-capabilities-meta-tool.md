@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.6"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-005"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-15"  # v1.6: self-contradiction fix — unknown-but-well-formed client_id returns matrix (client_registered:false), NOT E-CFG-100 error
+modified: "2026-06-17"  # v1.6 POL-14 status sync: status draft→active at S-5.02 anchor-story merge PR #191 develop@bec894a2; lifecycle_status was already active
 deprecated: null
 deprecated_by: null
 replacement: null

@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.417"
+version: "v2.418"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T23:55:00Z
+timestamp: 2026-06-17T00:00:00Z
 phase: 3
 total_stories: 201
 total_active_bcs: 222
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1202 S-5.02 post-merge durability burst — STORY-INDEX v2.417→v2.418 (2026-06-17):** (POL-11/POL-32 changelog row) S-5.02 row ready v1.12→merged v1.13: PR #191 squash-merged develop@bec894a2 2026-06-17; LOCAL 3/3 strict + PR-LEVEL 3/3 strict CONVERGED on frozen 86842768; pr-reviewer APPROVE; CI 43/43 green (incl. 2 Linux jobs re-run after disk-exhaustion infra failure); merged_pr 191, merged_sha bec894a2, merged_at 2026-06-17. POL-14 BC-2.10.011 status:draft→active (legacy-field sync; lifecycle_status was already active; no count change). BC-2.10.004 idempotent (already active). BC-2.10.007 idempotent (already active). BC-INDEX v6.67→v6.68. develop_head 1b2e9a31→bec894a2. DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 OPEN (wave-gate follow-up, BC-2.11.001). CLAUDE.md EXPECTED count update DEFERRED to Lane B (S-3.13) merge — develop@bec894a2 transiently reads 60; ci.yml now EXPECTED=64 (enforced authority). S-5.03 + S-5.08 UNBLOCKED. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.417→v2.418.
 
 - **D-1201 Lane-B spec v1.19 + Lane-A bookkeeping + MED-B POL-13 reconcile — STORY-INDEX v2.416→v2.417 (2026-06-16):** (POL-11/POL-32 changelog row) S-3.13 row ready v1.18→v1.19 — MED-A follow-up: test_SEC_001_e_query_037_production_path_via_query_engine_filters_other_org enrolled in AC-9 (engine.rs mod); red_gate_tests 30→31. MED-B POL-13 CLOSED: status annotation in_progress→ready (story file frontmatter `status: ready` is SOT; canonical pre-merge convention = `ready`; matches S-5.02 pattern). Lane B new frozen HEAD 7f192e31; PR-LEVEL 3-CLEAN re-gate (streak 0/3) NEXT. S-5.02 row re-gate-point corrected: 77ceb5e5/9b605f2c → 86842768; PR-LEVEL pass-1 CLEAN + pass-2 CLEAN(strict) recorded → streak 2/3 on 86842768. develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.416→v2.417.
 
@@ -418,7 +420,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | VP-145 | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework [v1.23 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration [effective-merged-by: S-5.01-FOLLOWUP-MCP-BOOT PR #163 develop@e898c3c9 2026-05-29 — dep gate SATISFIED via metadata reconciliation D-1163] | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
-| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**ready v1.12** (D-1201 2026-06-16: re-gate-point corrected 77ceb5e5/9b605f2c→86842768; PR-LEVEL pass-1 CLEAN + pass-2 CLEAN(strict) → streak 2/3 on 86842768; pass-3 convergence attempt NEXT; DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 SPEC-ACCEPTED — do NOT re-raise; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 registered; was D-1200 2026-06-16: v1.12 F-S502-PRL-LOW-2 CLOSED; was D-1199: v1.11 F-S502-LOW-1 CLOSED)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
+| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**merged v1.13** (D-1202 2026-06-17: PR #191 squash-merged develop@bec894a2; LOCAL 3/3 strict + PR-LEVEL 3/3 strict CONVERGED on frozen 86842768; pr-reviewer APPROVE; CI 43/43; POL-14 BC-2.10.011 status:draft→active; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open; was D-1201 2026-06-16: ready v1.12 streak 2/3 on 86842768)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
 | S-5.03 | Resources and Prompts [**not-started v1.13** (D-1173 2026-06-14: received AC-8/9/10 from S-3.13 re-scope; depends_on S-3.13 added; BC-2.16.007 anchor; ACs 10 / RG 9; was v1.11: prior story-writer materialization)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
 | S-5.04 | Sensor Health Subsystem [depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession; v1.6] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |

@@ -710,9 +710,9 @@ current_story:
   merged_pr: 189
   merged_at: "2026-06-16"
   task_ledger_item: "T12 (PIVOT-001 MERGED — S-3.13 unblocked)"
-  resume_at: "D-1192 2026-06-16. PIVOT-001 MERGED PR #189 develop@1b2e9a31. CURRENT POINTER = T12 (next: S-5.02 story bump v1.9→v1.10 + re-gate adversary 3-CLEAN on d0942825; S-3.13 rebase onto develop@1b2e9a31 then PR). POL-14: BC-2.19.001+BC-2.19.003 status: draft→active (legacy sync; lifecycle_status already active; no count change). develop@1b2e9a31. STATE v7.835. Worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 PENDING CLEANUP. Prev current_story: S-DEMO-LAUNCHER-CONSOLIDATION-001 MERGED PR #190 develop@c3ecf6c8 2026-06-16 (D-1186 T11 DONE)."
-  note: "D-1192 2026-06-16. S-DEMO-ENRICHMENT-PIVOT-001 MERGED PR #189. develop@1b2e9a31. STATE v7.835. POL-14 BC-2.19.001+BC-2.19.003 status: draft→active (legacy-field sync; lifecycle_status was already active). worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 still mounted (cleanup pending — note only)."
-  last_updated_at: "2026-06-16"
+  resume_at: "D-1202 2026-06-17. S-5.02 MERGED PR #191 develop@bec894a2. CURRENT POINTER = S-3.13 NEXT (rebase onto develop@bec894a2; ci.yml EXPECTED=66; CLAUDE.md count=66; PR-LEVEL 3-CLEAN). POL-14: BC-2.10.011 status: draft→active (legacy sync; lifecycle_status already active; no count change; active_contracts 235 / draft_contracts 2 UNCHANGED). develop@bec894a2. STATE v7.845. S-5.03 + S-5.08 UNBLOCKED. DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open (wave-gate follow-up, BC-2.11.001). Worktree .worktrees/S-5.02 cleanup pending (devops)."
+  note: "D-1202 2026-06-17. S-5.02 MERGED PR #191 develop@bec894a2. POL-14 BC-2.10.011 status: draft→active (legacy-field sync; lifecycle_status was already active). Lane B (S-3.13) NEXT."
+  last_updated_at: "2026-06-17"
 
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.346 (STORY-INDEX v2.346 current; total_stories 194)
