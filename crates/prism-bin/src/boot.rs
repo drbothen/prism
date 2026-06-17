@@ -2878,6 +2878,59 @@ pub async fn step11_install_signal_handlers(
 }
 
 // ---------------------------------------------------------------------------
+// Step 7.6 [BLOCKING]: Infusion loading — S-1.14-REDO (AC-10 hollow-feature fix)
+// ---------------------------------------------------------------------------
+
+/// Step 7.6 [BLOCKING] (stub — S-1.14-REDO AC-10): Load all `.infusion.toml` files from
+/// `{config_dir}/infusions/` and return an `InfusionRegistry` wired with the loaded specs.
+///
+/// # Boot sequence position (BC-2.22.001)
+/// Must execute AFTER step 7.5 (plugin-load) so that plugin-type infusions can be wired
+/// with a real `Arc<PluginRuntime>`. Must execute BEFORE step 9 (MCP server start) so that
+/// `QueryEngine::with_infusion_registry()` is called before the first query is processed.
+///
+/// # Non-fatal partial failures (AC-10 contract)
+/// Individual spec load failures are non-fatal: a WARN log is emitted per failed spec
+/// and the remaining valid specs continue loading. A WARN log is also emitted if
+/// `InfusionLoader::load_all()` returns any errors (logged with count).
+/// An INFO log is emitted with the count of successfully loaded infusion specs.
+///
+/// # Wiring into QueryEngine (AC-10)
+/// The caller (`run_boot_sequence`) must call:
+/// ```ignore
+/// query_engine.with_infusion_registry(Arc::new(infusion_registry))
+/// ```
+/// This wires the UDFs into the DataFusion SessionContext for all subsequent queries.
+///
+/// # TODO (S-1.14-REDO)
+/// This function is a stub — the real implementation is dispatched to S-1.14-REDO.
+/// The stub compiles but panics at runtime (todo!) so the integration test
+/// `infusion_boot_integration.rs::test_boot_with_csv_infusion_udf_resolves` fails RED.
+///
+/// Implementer: replace `todo!()` with the real InfusionLoader::load_all() call,
+/// registry construction via InfusionRegistry::load_spec() for each valid spec,
+/// and emit the INFO/WARN structured events per AC-10 contract.
+///
+/// NOTE: `#[allow(dead_code)]` because `run_boot_sequence` does not yet call this function
+/// (it will call it once S-1.14-REDO implements it; for now the integration test calls it directly
+/// to establish the RED gate).
+#[allow(dead_code)]
+pub fn infusion_load_step(_config_dir: &Path) -> prism_spec_engine::InfusionRegistry {
+    // TODO(S-1.14-REDO): implement infusion_load_step —
+    // 1. let loader = prism_spec_engine::infusion::loader::InfusionLoader::new(config_dir)
+    // 2. let (specs, errors) = loader.load_all()
+    // 3. log errors as WARN, log count of specs as INFO
+    // 4. for each spec, call registry.load_spec(spec) or registry.load_spec_with_runtime(spec, runtime)
+    // 5. return registry for QueryEngine::with_infusion_registry() wiring in run_boot_sequence
+    todo!(
+        "S-1.14-REDO AC-10: implement infusion_load_step — call InfusionLoader::load_all, \
+         register specs into InfusionRegistry, log WARN on failures, log INFO on success count. \
+         Then call QueryEngine::with_infusion_registry(Arc::new(registry)) in run_boot_sequence \
+         before step9_start_mcp_server (BC-2.22.001 §Step 7.6)"
+    )
+}
+
+// ---------------------------------------------------------------------------
 // Inline unit tests — BootError mapping and step-function stubs
 // ---------------------------------------------------------------------------
 

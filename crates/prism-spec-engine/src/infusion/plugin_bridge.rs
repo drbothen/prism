@@ -151,27 +151,27 @@ impl InfusionSource for PluginInfusionSource {
     }
 }
 
-/// Map a `PluginError` to the nearest `InfusionError` variant.
+/// Map a `PluginError` to `InfusionError::PluginCallFailed` (E-INFUSE-008).
 ///
 /// Called at the `PluginInfusionSource::enrich_single` boundary so plugin failures
 /// propagate through the infusion error surface without leaking WASM internals.
 ///
-/// Current mapping: `PluginError` → `InfusionError::MissingRequiredField` with a
-/// descriptive message capturing the plugin failure reason.
+/// Uses the first-class `InfusionError::PluginCallFailed { plugin_id, infusion_id, reason }`
+/// variant added in S-1.14-REDO (previously used `MissingRequiredField` as a stand-in).
 ///
-/// TODO(S-1.14-REDO): add `InfusionError::PluginCallFailed` variant to the error
-/// taxonomy + InfusionError enum for a proper first-class error code (E-INFUSE-008).
-/// Note: E-INFUSE-006 is already assigned ("Infusion not found"); E-INFUSE-008 is the
-/// next-free code for PluginCallFailed. The taxonomy row will be allocated when that
-/// variant is actually built in S-1.14-REDO.
+/// # Credential safety (INV-INFUSE-005 / AD-017)
+/// The `reason` field carries the `PluginError::fmt()` string — credential values MUST NOT
+/// appear in `PluginError` display strings. Plugin errors surface sandbox/runtime failures,
+/// not credential content (this is maintained by PluginError variant design in prism-core).
 pub(crate) fn map_plugin_error_to_infusion_error(
     plugin_id: &str,
     err: prism_core::PluginError,
 ) -> InfusionError {
-    // Using MissingRequiredField as a stand-in until E-INFUSE-008 PluginCallFailed
-    // is added to the error taxonomy in S-1.14-REDO.
-    InfusionError::MissingRequiredField {
-        field: format!("plugin_call_failed({}): {}", plugin_id, err),
-        spec_path: plugin_id.to_string(),
+    InfusionError::PluginCallFailed {
+        plugin_id: plugin_id.to_string(),
+        // In current wiring, infusion_id == plugin_id (set at PluginInfusionSource construction
+        // from spec.infusion_id). Kept as a separate field for future cases where they diverge.
+        infusion_id: plugin_id.to_string(),
+        reason: err.to_string(),
     }
 }

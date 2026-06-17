@@ -81,7 +81,12 @@ pub struct LruCacheEntry {
 /// Default capacity: 10,000 entries. Per-infusion TTL (default 3600s).
 /// Guarded by `tokio::sync::Mutex`.
 pub struct InfusionLruCache {
-    _inner: tokio::sync::Mutex<lru::LruCache<String, LruCacheEntry>>,
+    // S-1.14-REDO: renamed from `_inner` to `inner` — implementer uses `.inner.lock().await`
+    // in get/insert bodies. Field was `_inner` in the S-1.14 stub to suppress dead-code
+    // warnings; removing the underscore prefix prepares it for real implementation.
+    // `#[allow(dead_code)]` suppresses the warning until S-1.14-REDO implements get/insert.
+    #[allow(dead_code)]
+    inner: tokio::sync::Mutex<lru::LruCache<String, LruCacheEntry>>,
     capacity: usize,
 }
 
@@ -117,19 +122,32 @@ impl InfusionLruCache {
     /// Create a new in-memory LRU cache with the given capacity.
     pub fn new(capacity: usize) -> Self {
         InfusionLruCache {
-            _inner: tokio::sync::Mutex::new(lru::LruCache::new(
+            inner: tokio::sync::Mutex::new(lru::LruCache::new(
                 std::num::NonZeroUsize::new(capacity).expect("capacity must be > 0"),
             )),
             capacity,
         }
     }
 
-    /// Look up a cached entry. Returns `None` on miss or TTL expiry (lazy eviction).
+    /// Look up a cached entry by composite key `"{infusion_id}:{input_value}"`.
+    ///
+    /// Returns `None` on cache miss or on TTL expiry (lazy eviction: pop the stale key).
+    /// On hit: return `Some(value)` if `entry.expiry_unix_secs > now`.
+    ///
+    /// Implementer: use `self.inner.lock().await` + lru 0.17 `.get(&key)` API.
+    /// Key format must be consistent with `QueryScopedInfusionCache` (S-1.14-REDO Task 6).
     pub async fn get(&self, _infusion_id: &str, _input_value: &str) -> Option<Value> {
-        unimplemented!("InfusionLruCache::get — implement in S-1.14 (BC-2.19.002)")
+        todo!(
+            "S-1.14-REDO: implement InfusionLruCache::get — composite key lookup with lazy TTL \
+             eviction using lru 0.17 API — BC-2.19.002 / AC-7"
+        )
     }
 
-    /// Insert an entry with the given TTL.
+    /// Insert an entry with the given TTL (seconds).
+    ///
+    /// Key format: `"{infusion_id}:{input_value}"`.
+    /// `expiry_unix_secs = now + ttl_secs`.
+    /// Implementer: use `self.inner.lock().await` + lru 0.17 `.put(key, LruCacheEntry { value, expiry_unix_secs })`.
     pub async fn insert(
         &self,
         _infusion_id: &str,
@@ -137,6 +155,9 @@ impl InfusionLruCache {
         _value: Value,
         _ttl_secs: u64,
     ) {
-        unimplemented!("InfusionLruCache::insert — implement in S-1.14 (BC-2.19.002)")
+        todo!(
+            "S-1.14-REDO: implement InfusionLruCache::insert — TTL-bounded put with lru 0.17 API \
+             — BC-2.19.002 / AC-7"
+        )
     }
 }

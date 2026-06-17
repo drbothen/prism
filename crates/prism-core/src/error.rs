@@ -1253,6 +1253,31 @@ pub enum InfusionError {
         udf_name: String,
         infusion_id: String,
     },
+
+    /// E-INFUSE-008: Plugin infusion call failed at the WASM runtime boundary.
+    ///
+    /// Returned by `map_plugin_error_to_infusion_error` in `plugin_bridge.rs` when
+    /// `PluginRuntime::enrich_single` returns any `PluginError` variant. The `reason`
+    /// field carries a human-readable description of the PluginError — credential values
+    /// MUST NOT appear in `reason` (INV-INFUSE-005 / AD-017).
+    ///
+    /// Added in S-1.14-REDO (task from `plugin_bridge.rs` TODO comment).
+    ///
+    /// `#[non_exhaustive]`: `InfusionError` is already `#[non_exhaustive]`; this variant
+    /// inherits that constraint. External match arms must include a wildcard arm.
+    #[error(
+        "E-INFUSE-008: Plugin infusion call failed for plugin '{plugin_id}' \
+         (infusion '{infusion_id}'): {reason}"
+    )]
+    PluginCallFailed {
+        /// The plugin_id as registered in PluginRuntime (e.g., `"threat_intel"`).
+        plugin_id: String,
+        /// The infusion_id from the InfusionSpec (same as plugin_id in current wiring).
+        infusion_id: String,
+        /// Human-readable failure reason derived from PluginError display.
+        /// Credential values MUST NOT appear here (INV-INFUSE-005 / AD-017).
+        reason: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
