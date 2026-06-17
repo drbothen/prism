@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.66"
+version: "6.67"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T17:00:00Z
+timestamp: 2026-06-16T23:30:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.79 (D-1198 2026-06-16: CR-001 fix-burst — `check_availability_gate` added as 5th `table_registry.rwlock_poisoned` emitting method; was v1.78: NB-1 catalog row 73 `table_registry.rwlock_poisoned` WARN added) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.80 (D-1200 2026-06-16: OBS-2 — `sensor_by_table_snapshot` added as 6th `table_registry.rwlock_poisoned` emitting method; was v1.79: CR-001 `check_availability_gate` as 5th emitting method) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.67 (2026-06-16, D-1200 dual-lane durability burst):** state-manager | BC-2.16.002 inline row: v1.79→v1.80 — OBS-2 closure: `sensor_by_table_snapshot` added as 6th emitting method for `table_registry.rwlock_poisoned` WARN in BC-2.16.002 Canonical Structured Event Catalog (SAP-1/PG-LP11-001; S-3.13 PR-LEVEL pass-1 OBS-2 finding). POL-30 Fork B: catalog-row description extension only (no new event_type, no count change). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.66→v6.67.
 
 **v6.66 (2026-06-16, D-1198 Lane-B SEC-003/CR-001/CR-002/CR-003 spec durability burst):** state-manager | BC-2.16.002 inline row: v1.78→v1.79 — CR-001 fix-burst: `check_availability_gate` added as 5th emitting method for `table_registry.rwlock_poisoned` WARN (SAP-1/PG-LP11-001; S-3.13 fix-burst @8efcbd4c). POL-30 Fork B: catalog-row description extension only (no new event_type, no count change); catalog bullet label `(v1.48)` UNCHANGED. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.65→v6.66.
 

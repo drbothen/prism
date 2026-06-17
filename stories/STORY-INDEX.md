@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.415"
+version: "v2.416"
 status: draft
 producer: state-manager
-timestamp: 2026-06-16T23:00:00Z
+timestamp: 2026-06-16T23:30:00Z
 phase: 3
 total_stories: 201
 total_active_bcs: 222
@@ -19,6 +19,8 @@ total_vps_assigned: 145
 Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
+
+- **D-1200 dual-lane durability burst — STORY-INDEX v2.415→v2.416 (2026-06-16):** (POL-11/POL-32 changelog row) S-5.02 row v1.11→v1.12: F-S502-PRL-LOW-2 CLOSED — 7 Red Gate test names reconciled to shipped verbatim names (PR-LEVEL pass-1 finding; spec-only; feature HEAD UNCHANGED 77ceb5e5). S-3.13 row v1.17→v1.18: MED-1 CLOSED — AC-10 SEC-003 test file paths corrected table_registry_tests.rs→explain_tests.rs at 3 sites; production-path engine.rs test enrolled; red_gate_tests 29→30. BC-INDEX v6.66→v6.67 (BC-2.16.002 v1.79→v1.80: OBS-2 — `sensor_by_table_snapshot` added as 6th `table_registry.rwlock_poisoned` emitting method). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.415→v2.416.
 
 - **D-1198 Lane-B SEC-003/CR-001/CR-002/CR-003 spec durability burst — STORY-INDEX v2.413→v2.414 (2026-06-16):** (POL-11/POL-32 changelog row) S-3.13 row v1.16→v1.17: AC-10 org-scoped explain_query available_tables (SEC-003/CWE-200 fix via ADR-039 helpers); acceptance_criteria_count 8→9; red_gate_tests 27→29 (+2 explain_query org-scope tests); ADR-039 v1.1 refs. BC-INDEX v6.65→v6.66 (BC-2.16.002 v1.78→v1.79 — CR-001: check_availability_gate 5th rwlock_poisoned emitting method). ARCH-INDEX v2.134→v2.135 (ADR-039 v1.0→v1.1). develop_head UNCHANGED 1b2e9a31. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.413→v2.414.
 
@@ -404,7 +406,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
 | S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
-| S-3.13 | Dynamic Table Availability [**in_progress v1.17** (D-1198 2026-06-16: AC-10 explain_query org-scoped available_tables — SEC-003/CWE-200 fix via ADR-039 helpers; acceptance_criteria_count 8→9; red_gate_tests 27→29 (+2 explain_query org-scope tests); ADR-039 v1.1 refs; fix-burst COMPLETE @8efcbd4c; PR-LEVEL 3-CLEAN cascade NEXT; was D-1197: v1.16 AC-9 SEC-001 org-scoped enumeration; was D-1196 2026-06-16: v1.15 @87c0008e)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
+| S-3.13 | Dynamic Table Availability [**in_progress v1.18** (D-1200 2026-06-16: MED-1 CLOSED — AC-10 SEC-003 test file paths corrected table_registry_tests.rs→explain_tests.rs at 3 sites; production-path engine.rs test enrolled; red_gate_tests 29→30; PR #192 @c8175395 PR-LEVEL 0/3 re-gate NEXT on frozen c8175395; was D-1198 2026-06-16: v1.17 AC-10 explain_query org-scope; was D-1197: v1.16 AC-9 org-scoped enumeration)] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026, VP-030, VP-137 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs [v1.11 ADR-018] | prism-operations | 3 | VP-019, VP-141, VP-142 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |
@@ -414,7 +416,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | VP-145 | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework [v1.23 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration [effective-merged-by: S-5.01-FOLLOWUP-MCP-BOOT PR #163 develop@e898c3c9 2026-05-29 — dep gate SATISFIED via metadata reconciliation D-1163] | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
-| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**ready v1.11** (D-1199 2026-06-16: F-S502-LOW-1 CLOSED — File Structure `to_error_data_with_retry` signature corrected `(ErrorData, Option<u64>)` → `(ErrorData, u64)`; TD-VSDD-060 sweep; PR #191 @77ceb5e5 PR-LEVEL 0/3; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 registered; DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 SPEC-ACCEPTED; ci.yml EXPECTED=64; was D-1196 2026-06-16: v1.10 @9763a25a PR-LEVEL streak 2/3 on d1c69e44)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
+| S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**ready v1.12** (D-1200 2026-06-16: F-S502-PRL-LOW-2 CLOSED — 7 Red Gate test names reconciled to shipped verbatim names (PR-LEVEL pass-1); PR #191 @77ceb5e5 PR-LEVEL 0/3 re-gate NEXT on frozen 77ceb5e5; DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 SPEC-ACCEPTED — do NOT re-raise; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 registered; was D-1199 2026-06-16: v1.11 F-S502-LOW-1 CLOSED)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
 | S-5.03 | Resources and Prompts [**not-started v1.13** (D-1173 2026-06-14: received AC-8/9/10 from S-3.13 re-scope; depends_on S-3.13 added; BC-2.16.007 anchor; ACs 10 / RG 9; was v1.11: prior story-writer materialization)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
 | S-5.04 | Sensor Health Subsystem [depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession; v1.6] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
