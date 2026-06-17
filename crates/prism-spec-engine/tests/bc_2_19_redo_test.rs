@@ -1758,12 +1758,16 @@ fn test_BC_2_19_001_crit1_registry_wires_real_json_lookup_source_for_local_looku
 //   (c) Tier1 bypass: Tier1 hit → 0 source calls (Tier2/Tier3 not consulted).
 // ---------------------------------------------------------------------------
 
+/// Type alias to avoid `clippy::type_complexity` on `InMemoryCacheBackend::store`.
+/// Key: (column_family_name, raw_key_bytes); Value: raw_value_bytes.
+type InMemoryCacheStore = std::sync::Mutex<std::collections::HashMap<(String, Vec<u8>), Vec<u8>>>;
+
 /// In-memory `CacheBackend` implementation for CRIT-2 three-tier tests.
 ///
-/// Uses a `tokio::sync::Mutex<HashMap<(domain_name, key), value>>` keyed by domain+raw-bytes.
+/// Uses a `Mutex<HashMap<(domain_name, key), value>>` keyed by domain+raw-bytes.
 /// This is a test-only type that satisfies `CacheBackend` without RocksDB.
 struct InMemoryCacheBackend {
-    store: std::sync::Mutex<std::collections::HashMap<(String, Vec<u8>), Vec<u8>>>,
+    store: InMemoryCacheStore,
 }
 
 impl std::fmt::Debug for InMemoryCacheBackend {
@@ -1776,7 +1780,7 @@ impl std::fmt::Debug for InMemoryCacheBackend {
 impl InMemoryCacheBackend {
     fn new() -> Self {
         Self {
-            store: std::sync::Mutex::new(std::collections::HashMap::new()),
+            store: InMemoryCacheStore::new(std::collections::HashMap::new()),
         }
     }
 }
