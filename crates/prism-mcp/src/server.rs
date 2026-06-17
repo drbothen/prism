@@ -8954,12 +8954,10 @@ mod tests {
     //   `last_successful_query_at: null`, prose contains "spec-only: no live probe performed".
     // - S-5.04 scope: `probe_level: "live"`, real `reachable`/`auth_valid` bool values.
     //
-    // RED GATE: The current S-5.03 implementation hardcodes `.with_reachable(true)`
-    // and `.with_auth_valid(true)` (false-positive signals). These assertions FAIL
-    // until the implementation is corrected to spec-only null semantics.
-    //
-    // The assertion `reachable == null` (i.e., `as_bool() == None` + field is
-    // JSON null) will FAIL against the current code that returns `reachable: true`.
+    // GREEN: Implementation corrected in S-5.03 pass-1. `check_sensor_health` now uses
+    // `SensorHealthResult::new()` (sets probe_level="spec-only", reachable=None,
+    // auth_valid=None, last_successful_query_at=None) and the prose summary includes
+    // "spec-only: no live probe performed". All assertions below pass.
     //
     // SID-1: unit test at the production handler boundary with wired QueryEngine.
     #[tokio::test]
@@ -9038,44 +9036,41 @@ mod tests {
                 "BC-2.08.005: 'crowdstrike' sensor entry must appear in structured_content.sensors",
             );
 
-        // BC-2.08.005 v1.5 postcondition (RED GATE): S-5.03 scope requires probe_level="spec-only".
-        // The current implementation does NOT set probe_level — this assertion FAILS.
+        // BC-2.08.005 v1.5 postcondition: S-5.03 scope requires probe_level="spec-only".
         assert_eq!(
             crowdstrike_entry["probe_level"].as_str(),
             Some("spec-only"),
-            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped check_sensor_health \
-             MUST set probe_level='spec-only'. The current implementation is missing this field. \
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
+             MUST set probe_level='spec-only'. \
              Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition (RED GATE): reachable MUST be null for spec-only scope.
-        // Hardcoding reachable=true sends a false-positive health signal to the AI consumer.
-        // The current implementation returns reachable=true — this assertion FAILS.
+        // BC-2.08.005 v1.5 postcondition: reachable MUST be null for spec-only scope.
+        // Hardcoding reachable=true is FORBIDDEN — false-positive health signal.
         assert!(
             crowdstrike_entry["reachable"].is_null(),
-            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped check_sensor_health \
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
              MUST return reachable=null (honest-unknown — no live probe). \
-             Hardcoding reachable=true is FORBIDDEN (false-positive health signal). \
-             Current implementation returns reachable=true. Got entry: {crowdstrike_entry:?}"
+             Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition (RED GATE): auth_valid MUST be null for spec-only scope.
+        // BC-2.08.005 v1.5 postcondition: auth_valid MUST be null for spec-only scope.
         assert!(
             crowdstrike_entry["auth_valid"].is_null(),
-            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped check_sensor_health \
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
              MUST return auth_valid=null (honest-unknown — no live probe). \
-             Current implementation returns auth_valid=true. Got entry: {crowdstrike_entry:?}"
+             Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition (RED GATE): last_successful_query_at MUST be null.
+        // BC-2.08.005 v1.5 postcondition: last_successful_query_at MUST be null.
         assert!(
             crowdstrike_entry["last_successful_query_at"].is_null(),
-            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): S-5.03-scoped \
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped \
              check_sensor_health MUST return last_successful_query_at=null. \
              Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition (RED GATE): prose summary MUST contain
+        // BC-2.08.005 v1.5 postcondition: prose summary MUST contain
         // "spec-only: no live probe performed" so the AI consumer cannot mistake this
         // response for a live health check.
         let prose = result
@@ -9086,10 +9081,9 @@ mod tests {
             .join(" ");
         assert!(
             prose.contains("spec-only: no live probe performed"),
-            "BC-2.08.005 v1.5 postcondition (RED GATE AC-4): prose summary MUST contain \
+            "BC-2.08.005 v1.5 postcondition (AC-4): prose summary MUST contain \
              'spec-only: no live probe performed' so the AI consumer cannot mistake this \
-             response for a live health check. \
-             Current implementation does not include this phrase. Got prose: {prose:?}"
+             response for a live health check. Got prose: {prose:?}"
         );
 
         // BC-2.08.005 postcondition 7: trust_level = "internal" (unchanged by v1.5).

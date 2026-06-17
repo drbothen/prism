@@ -381,6 +381,37 @@ fn extract_template_param<'a>(uri: &'a str, prefix: &str, suffix: &str) -> Optio
     Some(param)
 }
 
+/// Validate a URI path segment used as a resource identifier (sensor_id or table_name).
+///
+/// Rejects:
+/// - Empty strings
+/// - Path-traversal sequences (`..`, `/`)
+/// - ASCII control characters (0x00–0x1F, 0x7F)
+/// - Non-ASCII bytes (non-printable or multi-byte sequences)
+///
+/// Returns `Ok(())` if the segment is safe for use in lookups and error messages.
+/// Returns `Err(())` if the segment fails any check.
+///
+/// Used by `render_schema_resource` (DI-006 / BC-2.10.008 postcondition: attacker-controlled
+/// input must never appear verbatim in MCP responses forwarded to AI agent contexts).
+fn validate_resource_path_segment(segment: &str) -> Result<(), ()> {
+    if segment.is_empty() {
+        return Err(());
+    }
+    // Reject path traversal
+    if segment.contains("..") || segment.contains('/') {
+        return Err(());
+    }
+    // Reject control characters and non-ASCII bytes
+    if !segment
+        .chars()
+        .all(|c| c.is_ascii() && !c.is_ascii_control())
+    {
+        return Err(());
+    }
+    Ok(())
+}
+
 // ─── prism://config/clients ───────────────────────────────────────────────────
 
 /// Handle `prism://config/clients` resource read (BC-2.10.008 postcondition 1).
@@ -537,31 +568,56 @@ pub async fn render_client_sensors_resource(
 ///
 /// Looks up the OCSF schema definition from the spec engine ConfigSnapshot.
 /// Returns a 404-equivalent ErrorData if the sensor+table combination is unknown.
+///
+/// # Prompt-Injection Defense (DI-006)
+///
+/// Both `sensor_id` and `table_name` are attacker-controlled URI path segments.
+/// This function validates them before use and MUST NOT echo the raw values in
+/// error messages — doing so would allow injection of arbitrary text into AI agent
+/// contexts via a crafted URI (BC-2.10.008 postcondition, DI-006 invariant).
+///
+/// Validation rejects: path traversal (`..`, `/`), control characters, non-ASCII.
+/// Error messages are generic and contain no attacker-controlled content.
 pub async fn render_schema_resource(
     sensor_id: &str,
     table_name: &str,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
 ) -> Result<ReadResourceResult, ErrorData> {
+    // DI-006: validate both path segments before any lookup or error message
+    // construction — reject path traversal / control chars / non-ASCII.
+    if validate_resource_path_segment(sensor_id).is_err() {
+        return Err(not_found_error(
+            "Schema not found: invalid sensor_id (path traversal or invalid characters rejected)"
+                .to_string(),
+        ));
+    }
+    if validate_resource_path_segment(table_name).is_err() {
+        return Err(not_found_error(
+            "Schema not found: invalid table_name (path traversal or invalid characters rejected)"
+                .to_string(),
+        ));
+    }
+
     let cm_guard = config_manager.load();
     let snapshot = cm_guard.load();
 
-    // Look up sensor spec
+    // Look up sensor spec — generic error message, no echo of sensor_id.
     let spec = match snapshot.sensor_specs.get(sensor_id) {
         Some(s) => s,
         None => {
-            return Err(not_found_error(format!(
-                "Schema not found for sensor '{sensor_id}': sensor not configured"
-            )))
+            return Err(not_found_error(
+                "Schema not found: sensor not configured".to_string(),
+            ))
         }
     };
 
-    // Find the matching table
+    // Find the matching table — generic error message, no echo of table_name.
     let table_spec = match spec.tables.iter().find(|t| t.table_name == table_name) {
         Some(t) => t,
         None => {
-            return Err(not_found_error(format!(
-                "Schema not found for sensor '{sensor_id}', table '{table_name}'"
-            )))
+            return Err(not_found_error(
+                "Schema not found: table not available for this sensor".to_string(),
+            ))
         }
     };
 
