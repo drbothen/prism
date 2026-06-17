@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-66 (49 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-67 (49 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -18,7 +18,11 @@
 //! ci.yml EXPECTED bumped from 60 to 61.
 //! v63 (CapabilityEntry) and v64 (ResolutionStep) added by S-5.02 follow-up fix-burst
 //! (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep). ci.yml EXPECTED bumped from 61 to 64
-//! (together with v65 CapabilityStatus enum violation).
+//! (together with v65 CapabilityStatus enum violation in enum_violations.rs).
+//! v66 (TableNotAvailableDetails) and v67 (TableRegistry) added by S-3.13 (LOW-1 + CR-002).
+//! ci.yml EXPECTED bumped from 64 to 66. Note: v65 is reserved for CapabilityStatus in
+//! enum_violations.rs; S-3.13 struct violations use v66/v67 to maintain the global monotonic
+//! ladder across both files with no collision.
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -899,13 +903,15 @@ pub fn v64_resolution_step() {
     let _ = _step;
 }
 
-/// Violation 65: prism_core::error::TableNotAvailableDetails struct literal (E0639).
+/// Violation 66: prism_core::error::TableNotAvailableDetails struct literal (E0639).
 ///
 /// Added: S-3.13 (LOW-1 — #[non_exhaustive] on `TableNotAvailableDetails`).
-/// ci.yml EXPECTED bumped from 64 to 65. Callers outside prism-core MUST use
-/// `TableNotAvailableDetails::new(...)` instead of struct literal construction.
+/// ci.yml EXPECTED bumped from 65 to 66 (v65 is CapabilityStatus enum violation in
+/// enum_violations.rs; S-3.13 struct violations use v66/v67 on the global ladder).
+/// Callers outside prism-core MUST use `TableNotAvailableDetails::new(...)` instead
+/// of struct literal construction.
 #[allow(dead_code)]
-pub fn v65_table_not_available_details() {
+pub fn v66_table_not_available_details() {
     // Triggers E0639 (#[non_exhaustive]).
     let _details = TableNotAvailableDetails {
         table: "crowdstrike_alerts".to_string(),
@@ -917,7 +923,7 @@ pub fn v65_table_not_available_details() {
     let _ = _details;
 }
 
-/// Violation 66: prism_query::table_registry::TableRegistry struct literal (E0639).
+/// Violation 67: prism_query::table_registry::TableRegistry struct literal (E0639).
 ///
 /// `TableRegistry` is a new pub struct in `prism-query` that manages the dynamic
 /// catalog of available sensor tables. `#[non_exhaustive]` ensures external crates
@@ -926,9 +932,10 @@ pub fn v65_table_not_available_details() {
 /// TTL expiry timestamps) can be added without breaking external callers.
 ///
 /// Added: S-3.13 (CR-002 — `#[non_exhaustive]` on new pub prism-query types).
-/// ci.yml EXPECTED bumped from 65 to 66.
+/// ci.yml EXPECTED stays 66 (v66 is TableNotAvailableDetails above; function label
+/// v67 reflects position on the global monotonic ladder, not a new type count).
 #[allow(dead_code)]
-pub fn v66_table_registry() {
+pub fn v67_table_registry() {
     // Triggers E0639 (#[non_exhaustive]).
     // Note: TableRegistry fields are private; the E0639 check fires before E0603.
     let _reg = prism_query::table_registry::TableRegistry {};
