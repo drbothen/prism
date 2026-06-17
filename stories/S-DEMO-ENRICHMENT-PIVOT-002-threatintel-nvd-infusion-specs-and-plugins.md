@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-12"
-modified: "2026-06-12T18:00:00Z"
+modified: "2026-06-17T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-19, SS-17, SS-01]
 # Subsystem anchor justifications:
@@ -69,7 +69,7 @@ risk: HIGH
 # against actual prism-dtu-threatintel and prism-dtu-nvd types.rs and routes/ before
 # writing any TOML spec. The WIT interface for the .prx ABI (CAP-032, AD-019) must be
 # read before implementing. WASM guests cannot use reqwest/tokio — HTTP through host WIT.
-red_gate_tests: 6
+red_gate_tests: 15
 estimated_passes: "3-4 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -263,6 +263,152 @@ This AC uses an intermediate field name; STORY-003 updates the field reference t
 
 Red Gate: `test_enrichment_pivot_002_enrich_threatintel_pipe_stage_returns_malicious_for_scenario_iocs`
 
+### AC-007 — UDF name validation rejects non-identifier characters at parse time (DRIFT-PIVOT-UDFNAME-VALIDATION-001 — SEC-001 CWE-20)
+(traces to BC-2.19.001 precondition — InfusionSpec is structurally valid before UDF registration)
+
+Given an `[[infusion.fields]]` entry in any `.infusion.toml` with a `name` containing
+a character outside the `[a-zA-Z][a-zA-Z0-9_]*` identifier pattern — e.g.,
+`name = "threat; DROP TABLE"`, `name = " leading_space"`, `name = "has-hyphen"`,
+`name = "1starts_with_digit"`, `name = ""` (empty) — when `InfusionLoader::parse`
+processes that spec, then it returns `Err(InfusionError::InvalidFieldSpec { field: <name>,
+spec_path: <path>, message: "field name must match [a-zA-Z][a-zA-Z0-9_]* ..." })`
+and no `InfusionUdfDescriptor` is registered for any field in that spec.
+
+Validation is applied at parse time (in `InfusionLoader::parse`, before `SessionContext`
+UDF registration) so malformed names never reach DataFusion.
+
+Valid names accepted: `threat_is_known_malicious`, `cvss_base_score`, `field1`, `THREAT_SCORE`.
+
+Red Gate (unit, prism-spec-engine):
+`test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars`
+`test_enrichment_pivot_002_sec001_udf_name_rejects_leading_digit`
+`test_enrichment_pivot_002_sec001_udf_name_accepts_valid_identifiers`
+
+### AC-008 — PluginInfusionSource.config is not publicly readable (DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 — SEC-002 CWE-200)
+(traces to BC-2.19.001 invariant — credential data does not leak through public API surface)
+
+Given `PluginInfusionSource` in `crates/prism-spec-engine/src/infusion/plugin_bridge.rs`,
+the `config` field (which will be populated with resolved credentials in this story)
+MUST NOT be `pub`. It must be narrowed to `pub(crate)` or have visibility limited via
+an explicit accessor before credentials are populated in PIVOT-002.
+
+At the time PIVOT-002 wires real credentials into `PluginInfusionSource::new(...)`,
+the `config` field visibility MUST be `pub(crate)` so that external crates cannot read
+resolved credential values through a struct field access.
+
+Additionally: `plugin_id` and `runtime` fields on `PluginInfusionSource` are currently
+`pub`. As they do not contain sensitive data, they MAY remain public; however this AC
+REQUIRES `config: pub(crate)` before any credential is passed in.
+
+Red Gate (compile-fail or unit, prism-spec-engine):
+`test_enrichment_pivot_002_sec002_plugin_infusion_source_config_not_pub`
+
+NOTE: a compile-fail test in `tests/external/perimeter-violation/` is the canonical
+enforcement pattern (ADR per S-PLUGIN-PREREQ-A). If a compile-fail test is not feasible
+for `pub(crate)` visibility (it only applies to external crate access), an in-module
+unit test asserting the field is inaccessible via `std::mem::offset_of!` or a doc-comment
+audit is acceptable as a compensating control; document the rationale.
+
+### AC-009 — SandboxViolation URL is not logged at WARN in analyst-visible output (DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 — SEC-003 CWE-209)
+(traces to BC-2.19.001 invariant — plugin errors do not disclose server internals to analysts)
+
+Given `PluginInfusionSource::enrich_single` in `plugin_bridge.rs`, when the underlying
+`PluginRuntime::enrich_single` call returns `Err(PluginError::SandboxViolation { url, .. })`,
+the `url` field (which may contain the resolved DTU endpoint address when the DTU URL is
+missing from `allowed_urls`) MUST NOT be included in WARN-level tracing output that
+surfaces in analyst-visible MCP error responses.
+
+Required fix: in `map_plugin_error_to_infusion_error` (or before the WARN call in
+`enrich_single`), either:
+  (a) Redact the URL field: emit it at DEBUG level only, or replace with `<redacted>` in
+      the WARN log, OR
+  (b) Do not include the `url` string in the `InfusionError::MissingRequiredField { field }`
+      message constructed by `map_plugin_error_to_infusion_error`.
+
+The `plugin_id` MAY appear in WARN logs (it identifies the plugin configuration, not
+a network address). The `url` field MUST be redacted or demoted to DEBUG before PIVOT-002
+wires real DTU endpoint addresses into the allowlist.
+
+Red Gate (unit, prism-spec-engine):
+`test_enrichment_pivot_002_sec003_sandbox_violation_url_not_in_warn_log`
+
+NOTE: use `tracing_test` or capture WARN spans and assert the `url` value does not appear
+in the formatted WARN output. The DEBUG-level emission (for operator diagnostics) is
+acceptable and NOT gated.
+
+### AC-010 — spawn_blocking gate: WASM plugin call does not block the async runtime (DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 sync-WASM gate — CWE-400)
+(traces to BC-2.19.001 postcondition — plugin-type source executes without blocking tokio runtime)
+
+Given `PluginInfusionSource::enrich_single` dispatches synchronously into the wasmtime
+WASM runtime via `PluginRuntime::enrich_single`, and `InfusionAsyncUdf::invoke_with_args`
+(in `prism-query`) calls this synchronous operation from an async DataFusion context:
+
+The WASM call MUST be wrapped in `tokio::task::spawn_blocking` (or migrate
+`InfusionSource::enrich_single` to an async trait) before any PIVOT-002 or PIVOT-003
+plugin-bridge wiring merges to the production boot path.
+
+Rationale: synchronous WASM execution on a tokio worker thread blocks the thread for the
+duration of the WASM call (up to host HTTP timeout, 30s). Under concurrent query load this
+exhausts the tokio thread pool (CWE-400). The security review of PR #189 (D-1179)
+elevated this to a MANDATORY gate.
+
+Acceptable implementations:
+  (a) `spawn_blocking`: wrap the synchronous `runtime.enrich_single(...)` call in a
+      `tokio::task::spawn_blocking(|| runtime.enrich_single(...)).await?` in the
+      DataFusion UDF's async `invoke_with_args` (prism-query side), OR
+  (b) Async trait: migrate `InfusionSource::enrich_single` to `async fn enrich_single`
+      (requires updating all InfusionSource implementations — MMDB/CSV/etc. gain
+      trivial async wrapping; WASM source gains `spawn_blocking` internally).
+
+Implementation (a) is preferred for minimum-scope PIVOT-002 delivery; (b) is the
+S-1.14-REDO full-engine approach and may be deferred if (a) is implemented here.
+
+Red Gate (integration or unit, prism-spec-engine or prism-query):
+`test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking`
+
+NOTE: if `InfusionAsyncUdf` already uses `spawn_blocking` from PIVOT-001, verify and
+cite the location; close this gate with a code-pointer in the PR. If not present,
+implement it in this story.
+
+### AC-011 — plugin_ref path is canonicalized and restricted to the plugin directory (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 — SEC-003 CWE-22)
+(traces to BC-2.19.001 precondition — plugin_ref paths are confined to the designated plugin directory)
+
+Given an `InfusionSpec` with `plugin_ref = "../../etc/passwd.prx"` or any path
+containing `..` components, when `InfusionLoader` or the PIVOT-002 plugin loading
+code processes the `plugin_ref` value to resolve the `.prx` file path, then:
+
+  1. `std::fs::canonicalize` is called on the resolved path BEFORE any file I/O.
+  2. The canonicalized path is verified to share the same `starts_with(plugin_dir)` prefix
+     as the configured plugin directory. If not, `InfusionError::InvalidFieldSpec` (or a
+     new `InfusionError::PluginPathViolation`) is returned and no file I/O is performed.
+  3. A relative path that stays within the plugin directory (e.g., `subdir/plugin.prx`) is
+     accepted after canonicalization confirms it is within bounds.
+
+Red Gate (unit, prism-spec-engine):
+`test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_ref`
+`test_enrichment_pivot_002_sec003_path_within_plugin_dir_accepted`
+
+### AC-012 — load_all errors do not disclose absolute filesystem paths in MCP responses (DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 — SEC-002 CWE-209)
+(traces to BC-2.19.001 invariant — error messages surfaced to callers do not leak server paths)
+
+Given `InfusionLoader::load_all` processes a directory of `.infusion.toml` files and
+encounters a parse error on one file, when the resulting `InfusionError` is propagated
+through to an MCP tool response (e.g., as part of a PrismError message), then the
+`spec_path` field in the error MUST NOT contain the absolute filesystem path of the server
+(e.g., `/home/analyst/.prism/infusions/bad.infusion.toml`).
+
+Required sanitization: strip absolute path prefix from `InfusionError` messages before
+they surface in MCP JSON. Acceptable forms:
+  - Filename only: `bad.infusion.toml`
+  - Relative path from config dir: `infusions/bad.infusion.toml`
+  - Redacted path: `<infusions-dir>/bad.infusion.toml`
+
+Internal error formatting (tracing at DEBUG/INFO for operator diagnostics) MAY retain
+the full absolute path. Only the MCP-surfaced error string must be sanitized.
+
+Red Gate (unit, prism-spec-engine):
+`test_enrichment_pivot_002_sec002_load_all_error_does_not_leak_absolute_path`
+
 ### AC-006 — | enrich nvd(device_cves_first) returns HIGH CVSS for scenario CVEs
 (traces to BC-2.19.001 postcondition — pipe stage enrich produces declared output columns)
 
@@ -284,18 +430,34 @@ Red Gate: `test_enrichment_pivot_002_enrich_nvd_pipe_stage_returns_high_cvss_for
 
 ## Red Gate Test Plan
 
-| # | Test Name | Crate | BC Clause | Type |
-|---|-----------|-------|-----------|------|
-| 1 | `test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs` | prism-spec-engine | BC-2.19.001 postcondition | unit |
-| 2 | `test_enrichment_pivot_002_nvd_toml_loads_and_registers_3_udfs` | prism-spec-engine | BC-2.19.001 postcondition | unit |
-| 3 | `test_enrichment_pivot_002_threatintel_plugin_resolves_scenario_ioc_as_malicious` | prism-threatintel-infusion (or prism-spec-engine integration) | BC-2.19.001 postcondition | integration (demo server) |
-| 4 | `test_enrichment_pivot_002_nvd_plugin_resolves_scenario_cve_high_cvss` | prism-nvd-infusion (or prism-spec-engine integration) | BC-2.19.001 postcondition | integration (demo server) |
-| 5 | `test_enrichment_pivot_002_enrich_threatintel_pipe_stage_returns_malicious_for_scenario_iocs` | prism-spec-engine or prism-query integration | BC-2.19.001 postcondition | integration (demo server) |
-| 6 | `test_enrichment_pivot_002_enrich_nvd_pipe_stage_returns_high_cvss_for_scenario_cves` | prism-spec-engine or prism-query integration | BC-2.19.001 postcondition | integration (demo server) |
+| # | Test Name | Crate | BC Clause | Type | DRIFT Item |
+|---|-----------|-------|-----------|------|------------|
+| 1 | `test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs` | prism-spec-engine | BC-2.19.001 postcondition | unit | — |
+| 2 | `test_enrichment_pivot_002_nvd_toml_loads_and_registers_3_udfs` | prism-spec-engine | BC-2.19.001 postcondition | unit | — |
+| 3 | `test_enrichment_pivot_002_threatintel_plugin_resolves_scenario_ioc_as_malicious` | prism-spec-engine integration | BC-2.19.001 postcondition | integration (demo server) | — |
+| 4 | `test_enrichment_pivot_002_nvd_plugin_resolves_scenario_cve_high_cvss` | prism-spec-engine integration | BC-2.19.001 postcondition | integration (demo server) | — |
+| 5 | `test_enrichment_pivot_002_enrich_threatintel_pipe_stage_returns_malicious_for_scenario_iocs` | prism-spec-engine or prism-query integration | BC-2.19.001 postcondition | integration (demo server) | — |
+| 6 | `test_enrichment_pivot_002_enrich_nvd_pipe_stage_returns_high_cvss_for_scenario_cves` | prism-spec-engine or prism-query integration | BC-2.19.001 postcondition | integration (demo server) | — |
+| 7 | `test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars` | prism-spec-engine | BC-2.19.001 precondition | unit | DRIFT-PIVOT-UDFNAME-VALIDATION-001 |
+| 8 | `test_enrichment_pivot_002_sec001_udf_name_rejects_leading_digit` | prism-spec-engine | BC-2.19.001 precondition | unit | DRIFT-PIVOT-UDFNAME-VALIDATION-001 |
+| 9 | `test_enrichment_pivot_002_sec001_udf_name_accepts_valid_identifiers` | prism-spec-engine | BC-2.19.001 precondition | unit | DRIFT-PIVOT-UDFNAME-VALIDATION-001 |
+| 10 | `test_enrichment_pivot_002_sec002_plugin_infusion_source_config_not_pub` | prism-spec-engine | BC-2.19.001 invariant | unit/compile-fail | DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 |
+| 11 | `test_enrichment_pivot_002_sec003_sandbox_violation_url_not_in_warn_log` | prism-spec-engine | BC-2.19.001 invariant | unit | DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 |
+| 12 | `test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking` | prism-spec-engine or prism-query | BC-2.19.001 postcondition | unit/integration | DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 |
+| 13 | `test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_ref` | prism-spec-engine | BC-2.19.001 precondition | unit | DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 |
+| 14 | `test_enrichment_pivot_002_sec003_path_within_plugin_dir_accepted` | prism-spec-engine | BC-2.19.001 precondition | unit | DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 |
+| 15 | `test_enrichment_pivot_002_sec002_load_all_error_does_not_leak_absolute_path` | prism-spec-engine | BC-2.19.001 invariant | unit | DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 |
 
 Integration tests (tests 3-6) require demo server running with scenario.enabled = true.
 Per SID-1, these tests are NOT `#[ignore]`'d unless blocking on a live external service.
 An in-process demo server harness is sufficient and should NOT be `#[ignore]`'d.
+
+Security gate tests 7-15 are unit tests. They MUST pass before any PIVOT-002 code merges
+(they are Red Gate tests, not advisory). Tests 7-9 validate the new identifier-regex
+validation in `InfusionLoader::parse`. Test 10 validates `pub(crate)` visibility. Test 11
+uses `tracing_test` or equivalent span capture to assert URL redaction. Test 12 verifies
+`spawn_blocking` wrapping. Tests 13-14 verify path canonicalization. Test 15 verifies
+path stripping from MCP-surfaced errors.
 
 ---
 
@@ -315,15 +477,117 @@ An in-process demo server harness is sufficient and should NOT be `#[ignore]`'d.
 | `prism-nvd-infusion/src/lib.rs` (WASM plugin) | ~1,200 |
 | BC-2.19.001 (full) | ~1,500 |
 | BC files (BC-2.06.020 for scenario IOC/CVE correlation context) | ~1,000 |
-| Test files (6 stubs × ~50 lines each) | ~900 |
-| Tool outputs (nextest, clippy, demo server integration) | ~1,500 |
-| **Total estimate** | **~16,700** |
+| Test files (15 stubs × ~50 lines each — 6 original + 9 security gate) | ~2,250 |
+| BC files (BC-2.19.001, security drift item references) | ~1,500 |
+| `plugin_bridge.rs` + `loader.rs` (security gate context reads) | ~1,200 |
+| Tool outputs (nextest, clippy, demo server integration, tracing_test) | ~1,800 |
+| **Total estimate** | **~20,350** |
 
-At ~200k context window, this is ~8.4% — within the 20-30% ceiling.
+At ~200k context window, this is ~10.2% — within the 20-30% ceiling.
 
 ---
 
 ## Tasks
+
+**MANDATORY SECURITY GATES (D-1205) — must be addressed FIRST, before any TOML/plugin work**
+
+These gates address security findings deferred from PIVOT-001 (3 LOW findings from
+PIVOT-001 PR #189 adversary cascade + 2 latent findings that become live in PIVOT-002 +
+1 SEC-001 sync-WASM MANDATORY gate). All 6 must have passing Red Gate tests before
+PIVOT-002 code merges.
+
+**Security Gate 1 — DRIFT-PIVOT-UDFNAME-VALIDATION-001 (SEC-001 CWE-20): UDF name identifier validation**
+
+- [ ] Read `InfusionLoader::parse` in `crates/prism-spec-engine/src/infusion/loader.rs`
+  to locate where `InfusionField { name, .. }` is constructed from TOML (currently line ~257-268)
+- [ ] Add identifier regex validation on each `InfusionField.name` during parse:
+  `^[a-zA-Z][a-zA-Z0-9_]*$` (must start with letter, followed by alphanumerics/underscore).
+  Return `Err(InfusionError::InvalidFieldSpec { field: <name>, spec_path: <path>,
+  message: "field name must match [a-zA-Z][a-zA-Z0-9_]* ..." })` on violation.
+  Empty string also rejected.
+- [ ] Write failing tests 7, 8, 9 FIRST (FAIL first — TDD Iron Law):
+  `test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars`
+  `test_enrichment_pivot_002_sec001_udf_name_rejects_leading_digit`
+  `test_enrichment_pivot_002_sec001_udf_name_accepts_valid_identifiers`
+- [ ] Verify all three pass
+
+**Security Gate 2 — DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 (SEC-002 CWE-200): PluginInfusionSource.config encapsulation**
+
+- [ ] In `crates/prism-spec-engine/src/infusion/plugin_bridge.rs`, change
+  `pub config: Arc<PluginConfigMap>` to `pub(crate) config: Arc<PluginConfigMap>`
+- [ ] Verify workspace builds: `just check-fast` — any external crate that accessed
+  `.config` directly will produce E0616; fix callsites within `prism-spec-engine` to use
+  the field (pub(crate) allows within-crate access)
+- [ ] Write failing test 10 FIRST:
+  `test_enrichment_pivot_002_sec002_plugin_infusion_source_config_not_pub`
+  (unit test or compile-fail gate per ADR perimeter-violation pattern; document rationale
+  in the test if using a unit test compensating control instead of compile-fail)
+- [ ] Verify test 10 passes
+
+**Security Gate 3 — DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (SEC-003 CWE-209): SandboxViolation URL redaction**
+
+- [ ] In `plugin_bridge.rs` `map_plugin_error_to_infusion_error`, for the
+  `PluginError::SandboxViolation { plugin_id, url }` arm: do NOT include `url` in the
+  `InfusionError::MissingRequiredField { field }` message string. Include only
+  `plugin_id` and a generic "sandbox policy violation" description.
+- [ ] The `url` value MUST be emitted at DEBUG level only (not WARN) — add a
+  `tracing::debug!(plugin_id = %pid, sandbox_url = %url, "sandbox violation URL (debug only)")`.
+- [ ] Verify the `enrich_single` WARN log at line ~131-136 of plugin_bridge.rs does NOT
+  contain the URL via the InfusionError Display (since the error no longer embeds it).
+- [ ] Write failing test 11 FIRST:
+  `test_enrichment_pivot_002_sec003_sandbox_violation_url_not_in_warn_log`
+  (use `tracing_test` crate or a custom span recorder; assert formatted WARN output does
+  not contain the URL string for a SandboxViolation error)
+- [ ] Verify test 11 passes
+
+**Security Gate 4 — DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 sync-WASM spawn_blocking gate (CWE-400)**
+
+- [ ] Read `crates/prism-query/src/` for `InfusionAsyncUdf` or equivalent DataFusion UDF
+  wrapper that calls `InfusionSource::enrich_single` from an async context
+- [ ] Verify whether `spawn_blocking` wraps the synchronous WASM call. If YES: cite the
+  location and close this gate with a code-pointer in the PR description.
+  If NO: implement `tokio::task::spawn_blocking(|| runtime.enrich_single(...)).await`
+  at the DataFusion UDF invoke_with_args boundary (preferred for minimum scope)
+- [ ] Write failing test 12 FIRST:
+  `test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking`
+  (if already implemented in PIVOT-001: write a test that confirms the async UDF call
+  does NOT block the tokio runtime — a short timeout-based test is acceptable)
+- [ ] Verify test 12 passes
+
+**Security Gate 5 — DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 (SEC-003 CWE-22): plugin_ref path canonicalization**
+
+- [ ] Locate where `plugin_ref` from `InfusionSpec` is resolved to a filesystem path in
+  the PIVOT-002 plugin loading code (likely in `InfusionLoader` or `InfusionRegistry::load_spec_with_runtime`)
+- [ ] Before any `std::fs::read` or `File::open` on the `.prx` path:
+  a) Resolve the path relative to the configured plugin directory
+  b) Call `std::fs::canonicalize(resolved_path)` — this rejects `..` escapes by following
+     symlinks and producing a real absolute path
+  c) Assert `canonicalized_path.starts_with(&plugin_dir_canonical)` — if not, return
+     `Err(InfusionError::InvalidFieldSpec { field: "plugin_ref", ... })` with a message
+     like "plugin path escapes plugin directory" (do NOT include the attempted path in the
+     error message surfaced to callers — see Security Gate 6)
+- [ ] Write failing tests 13, 14 FIRST:
+  `test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_ref`
+  `test_enrichment_pivot_002_sec003_path_within_plugin_dir_accepted`
+- [ ] Verify both pass
+
+**Security Gate 6 — DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (SEC-002 CWE-209): path sanitization in MCP errors**
+
+- [ ] Identify where `InfusionError` messages containing `spec_path` (absolute path) are
+  converted into `PrismError` or MCP tool response strings. This is likely in the
+  error chain from `InfusionLoader::load_all` → `InfusionError` → `SpecEngineError` →
+  `PrismError` → MCP JSON response.
+- [ ] At the point where `InfusionError` is serialized for MCP response (NOT internal tracing),
+  strip the absolute path prefix from `spec_path`. Use `Path::file_name()` to extract
+  just the filename, or `path.strip_prefix(config_dir)` to produce a relative path.
+  Internal tracing (DEBUG/INFO for operator diagnostics) MAY retain the full path.
+- [ ] Write failing test 15 FIRST:
+  `test_enrichment_pivot_002_sec002_load_all_error_does_not_leak_absolute_path`
+  (feed a deliberately bad TOML at an absolute path; capture the resulting error string
+  that would surface in an MCP response; assert it does not contain the absolute prefix)
+- [ ] Verify test 15 passes
+
+---
 
 **Pre-flight: SAP-2 DTU grounding verification (MANDATORY before writing any TOML)**
 
@@ -459,6 +723,13 @@ At ~200k context window, this is ~8.4% — within the 20-30% ceiling.
 | HOST HTTP client: `.timeout(Duration::from_secs(30))` mandatory | CLAUDE.md §Conventions (TD-S-PLUGIN-PREREQ-B-005 precedent) — applies to HOST reqwest client in host_functions.rs, NOT to WASM guest crates |  Adversary |
 | WASM guest crates MUST NOT use reqwest or tokio (no sockets in sandbox) | U9 research-confirmed 2026-06-12; HTTP via host WIT import host.http-request (host_functions.rs:59) | Adversary: grep for reqwest/tokio in crates/plugins/prism-*-infusion/Cargo.toml |
 
+| `InfusionField.name` MUST match `^[a-zA-Z][a-zA-Z0-9_]*$` — validated at parse time before UDF registration | DRIFT-PIVOT-UDFNAME-VALIDATION-001 (D-1190 SEC-001 CWE-20) | AC-007; test_enrichment_pivot_002_sec001_* |
+| `PluginInfusionSource.config` field MUST be `pub(crate)` (not `pub`) before PIVOT-002 populates credentials | DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 (D-1190 SEC-002 CWE-200) | AC-008; test_enrichment_pivot_002_sec002_plugin_infusion_source_config_not_pub |
+| `SandboxViolation.url` MUST NOT appear in WARN-level tracing or MCP error strings | DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (D-1190 SEC-003 CWE-209) | AC-009; test_enrichment_pivot_002_sec003_sandbox_violation_url_not_in_warn_log |
+| Sync WASM call in async UDF MUST be wrapped in `spawn_blocking` | DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 MANDATORY gate (D-1179) | AC-010; test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking |
+| `plugin_ref` path MUST be canonicalized and verified against plugin_dir before file I/O | DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 (D-1179 SEC-003 CWE-22) | AC-011; test_enrichment_pivot_002_sec003_path_traversal_rejected_* |
+| `InfusionLoader::load_all` errors MUST NOT surface absolute filesystem paths in MCP responses | DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (D-1179 SEC-002 CWE-209) | AC-012; test_enrichment_pivot_002_sec002_load_all_error_does_not_leak_absolute_path |
+
 **Forbidden Dependencies:**
 - `crates/plugins/prism-threatintel-infusion` and `crates/plugins/prism-nvd-infusion` MUST NOT
   depend on `prism-spec-engine`, `prism-sensors`, or `prism-query` (plugin binary ABI is a
@@ -479,6 +750,8 @@ At ~200k context window, this is ~8.4% — within the 20-30% ceiling.
 | `toml` | 0.8.x (workspace) | Infusion spec TOML parsing (in prism-spec-engine, already present) |
 | `reqwest` | HOST ONLY (project-pinned; `.timeout(30s)` mandatory) | HTTP client in HOST functions (host_functions.rs) — NOT in WASM guest crates (U9: no sockets in WASM sandbox) |
 | `tokio` | HOST ONLY (1.x workspace) | Async runtime for HOST reqwest client — NOT in WASM guest crates |
+| `tracing-test` | 0.2.6 (already in workspace Cargo.lock; used in prism-query) | Dev-dep for AC-009 WARN log assertion test. Add `tracing-test = "0.2"` to `[dev-dependencies]` in `prism-spec-engine/Cargo.toml` if not already present. |
+| `regex` or `once_cell` + `Lazy<Regex>` | workspace | Identifier validation regex for AC-007. Use `once_cell::sync::Lazy` (already workspace dep) or inline `Regex::new(r"^[a-zA-Z][a-zA-Z0-9_]*$")`. Do NOT add regex as a new production dep if inline validation with `str::chars()` suffices (char-by-char is simpler and zero-dep). |
 
 **MSRV:** Rust stable per `rust-toolchain.toml` (host crates); wasm32-wasip1 target for plugin guest crates (out-of-workspace — standalone [workspace] per Ruling 3).
 
@@ -511,6 +784,10 @@ At ~200k context window, this is ~8.4% — within the 20-30% ceiling.
 | EC-004 | Stage < 3 (IOCs not yet visible) | DTU alerts route withholds IOC-bearing records; enrich pipe stage has no matching records to enrich (empty result, not error) |
 | EC-005 | TOML spec references a `plugin_ref` file that does not exist on disk | `InfusionLoader::load_all` returns `SpecEngineError::PluginNotFound` with the plugin_ref name |
 | EC-006 | Plugin HTTP call times out (DTU slow or not running) | Host WIT import host.http-request applies 30s timeout on HOST side (reqwest client in host_functions.rs, not in WASM guest); host returns error to guest; plugin returns `Err(...)`; no infinite hang (U9: WASM guests have no socket access — timeout is host-side only) |
+| EC-007 | `[[infusion.fields]]` entry with `name = "threat; DROP TABLE"` (SQL injection attempt in field name) | `InfusionLoader::parse` returns `InfusionError::InvalidFieldSpec`; no UDF registered; no DataFusion crash (DRIFT-PIVOT-UDFNAME-VALIDATION-001; AC-007) |
+| EC-008 | `plugin_ref = "../../etc/passwd.prx"` (path traversal in TOML spec) | Canonicalization gate rejects the path; returns `InfusionError::InvalidFieldSpec`; no file I/O on the traversal target (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001; AC-011) |
+| EC-009 | `PluginError::SandboxViolation { url: "http://dtu-host:8080/v3/ip/1.2.3.4" }` surfaces from plugin call | WARN log does not contain the URL string; DEBUG log may contain it; `InfusionError` message does not embed the URL (DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001; AC-009) |
+| EC-010 | `InfusionLoader::load_all` fails on `/home/analyst/.prism/infusions/bad.toml` | MCP-surfaced error message contains only `bad.toml` (or `infusions/bad.toml`), NOT the absolute path `/home/analyst/.prism/infusions/bad.toml` (DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001; AC-012) |
 
 ---
 
@@ -549,5 +826,6 @@ Column in TOML with no DTU equivalent = **P1 CRITICAL** finding. `threat_source`
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.2 | 2026-06-17 | D-1205 MANDATORY security gate fold-in (story-writer pre-TDD pass). Added AC-007 through AC-012 covering all 6 DRIFT items: DRIFT-PIVOT-UDFNAME-VALIDATION-001 (UDF name identifier validation, AC-007), DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 (PluginInfusionSource.config encapsulation, AC-008), DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (SandboxViolation URL redaction, AC-009), DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 sync-WASM spawn_blocking gate (AC-010), DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 (path traversal rejection, AC-011), DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (path stripping in MCP errors, AC-012). Red Gate tests expanded from 6 to 15 (9 new security gate tests added). Tasks section expanded with MANDATORY SECURITY GATES section (6 security gate tasks, each with FAIL-first Red Gate test discipline). Architecture Compliance Rules updated with 6 security gate enforcement rows. Edge Cases EC-007 through EC-010 added. Token budget updated (~20,350 tokens, ~10.2% of 200k). Points remain 8 (security gates are implementation of existing code, not new functional scope). remove-uncertainty validate: wasmtime=44 (confirmed in prism-spec-engine/Cargo.toml), wasm-tools=1.248.0, wit-bindgen=0.51 — all confirmed correct in workspace. No new technology uncertainties found. |
 | v1.1 | 2026-06-12 | D-1109 remove-uncertainty closure: U1/U9/U10/U11/U12/U13/U14/U15/U16/U17/U18 applied (scanner + research-agent + architect rulings 1-4, WO-D1109 v1.1). enrich syntax → function-call form. reqwest/tokio removed from WASM guest crates (host WIT import host.http-request). ThreatIntel endpoints corrected: three separate routes GET /v3/{ip,domain,hash}/:value (NOT unified). threat_sources declared as Json array (NOT string). NVD route corrected: GET /rest/json/cves/2.0?cveId= (confirmed cves.rs). NVD wire names corrected to camelCase. cargo-component removed; Justfile wasm-tools pipeline (Ruling 4). ThreatIntel auth corrected to ?key=/Bearer (NOT X-Admin-Token). NVD auth: ?apiKey=. Spec location: config_dir/infusions/ (loader.rs:45). Plugin crates relocated to crates/plugins/ out-of-workspace (Ruling 3). Ruling 1b: NVD enrich field device_cves_first; Armis TOML column scope in this story, generator projection in STORY-003. |
 | v1.0 | 2026-06-12 | Initial draft per WO-D1109 §Story 2. Grounded against DTU clone route surfaces. Depends on 001; blocks 003. Two new plugin crates. SAP-2 compliance note included. BC-2.19.001 as primary anchor; PO to confirm at materialization. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: ["OOD-001-adjudication-2026-06-17"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -32,7 +32,8 @@ The `check_sensor_health` tool returns structured health status for one or all s
 
 ## Preconditions
 - The `check_sensor_health` MCP tool is registered in `tools/list`
-- The tool accepts `client_id: String` (required) and `sensor_id: Option<SensorId>` (optional -- null means all sensors for client)
+- The tool accepts `client_id: String` (required — always present; the MCP caller must supply the client scope even in per-analyst stdio deployments where a single analyst services multiple clients) and `sensor_id: Option<SensorId>` (optional — null means all sensors for that client)
+- Implementation note: the `CheckSensorHealthParams` struct MUST have `pub client_id: String` as a required field. Any stub that omits `client_id` (e.g., `sensor: Option<String>` only) is non-conformant with this contract and MUST be corrected before Task 3 of S-5.03 is implemented (OOD-001 adjudication — SPEC WINS per CLAUDE.md §7). The struct field name MUST be `client_id` to match the MCP tool parameter name; the legacy `sensor` field (absent `client_id`) is incorrect.
 
 ## Postconditions
 - When `sensor_id` is provided: returns health status for that single sensor
@@ -91,6 +92,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | OOD-001-adjudication-2026-06-17 | 2026-06-17 | product-owner | OOD-001 adjudication — SPEC WINS. `client_id: String` is unambiguously required; expanded Preconditions to make this explicit and document the S-5.03 implementer obligation (add `client_id` field to `CheckSensorHealthParams`; `sensor: Option<String>`-only struct is non-conformant). No semantic contract change — the multi-client architecture has always required `client_id`; this version makes the implementer-visible contract text unambiguous. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

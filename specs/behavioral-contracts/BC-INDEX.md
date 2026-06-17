@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.69"
+version: "6.70"
 status: draft
 producer: state-manager
 timestamp: 2026-06-17T00:00:00Z
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.70 (2026-06-17, D-1207 resume-session prep+spec work durability burst):** state-manager | BC-2.08.005 v1.3→v1.4: OOD-001 SPEC-WINS adjudication (client_id required in CheckSensorHealthParams; S-5.03 implementer adds client_id + TD-VSDD-060 sibling-test sweep). Status UNCHANGED draft (story S-5.03 not yet merged). No count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.69→v6.70.
 
 **v6.69 (2026-06-16, D-1204 S-3.13 post-merge durability burst):** state-manager | POL-14 legacy-status-field sync: BC-2.16.007 inline row: draft→active — v1.5→v1.6; BC-2.16.007 file frontmatter: status draft→active (lifecycle_status was already active; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16). BC-2.16.001: status already active — idempotent no-op. BC-2.11.001: status already active — idempotent no-op. No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — BC-2.16.007 had lifecycle_status:active before this burst and was never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.68→v6.69.
 
