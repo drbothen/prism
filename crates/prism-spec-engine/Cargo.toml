@@ -288,3 +288,10 @@ required-features = ["test-helpers"]
 name = "bc_2_01_017_static_cookie_auth_provider"
 path = "tests/bc_2_01_017_static_cookie_auth_provider.rs"
 required-features = ["test-helpers"]
+
+# S-1.14-REDO: Red Gate tests for infusion sources (MMDB/CSV/JSON), LRU cache,
+# 3-tier lookup, InfusionLoader non-plugin types, E-INFUSE-008, VP-048 mirror, VP-049 proptest.
+# AC-1..9 coverage. No required-features (all paths use only stable deps).
+[[test]]
+name = "bc_2_19_redo_test"
+path = "tests/bc_2_19_redo_test.rs"
