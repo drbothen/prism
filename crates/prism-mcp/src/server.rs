@@ -9104,20 +9104,25 @@ mod tests {
 
     // ─── AC-9 (BC-2.16.007): dispatch_hot_reload_notifications invoked from reload_config ──
     //
-    // This test verifies the WIRING gap: `reload_config` must call
-    // `dispatch_hot_reload_notifications` (via peer from RequestContext) when the
-    // table set changes after the hot-reload swap.
+    // This test verifies the WIRING: `reload_config` calls `dispatch_hot_reload_notifications`
+    // (via peer from RequestContext) when the table set changes after the hot-reload swap.
     //
-    // RED GATE: `reload_config` currently does NOT call `dispatch_hot_reload_notifications`.
-    // The assertion that `notifications/resources/list_changed` arrives on the client-side
-    // wire after a `reload_config` tool call FAILS until the implementer wires the call.
+    // GREEN (fixture fix applied): fixture files now use `.sensor.toml` suffix so
+    // `parse_spec_directory` reads them, producing a non-empty initial snapshot that differs
+    // from the post-reload snapshot.  The set-comparison gate fires and both notifications
+    // are dispatched.
+    //
+    // LOAD-BEARING (regression test): removing the `dispatch_hot_reload_notifications` call
+    // from `reload_config` (or reverting to `.toml`-only fixtures) causes this test to fail.
     //
     // Test setup:
-    // 1. Wire a PrismServer with a config_manager (single CrowdStrike spec) + spec_dir.
-    // 2. Write an additional spec (Claroty) to spec_dir so reload will pick it up.
-    // 3. Complete the MCP handshake via duplex transport.
-    // 4. Call `reload_config` via JSON-RPC tool call.
-    // 5. Assert `notifications/resources/list_changed` appears on client side within 2s.
+    // 1. Write initial CrowdStrike spec (crowdstrike.sensor.toml) to temp dir.
+    // 2. Build ConfigManager from spec_dir (snapshot: crowdstrike.detections only).
+    // 3. Write Claroty spec (claroty.sensor.toml) so reload picks up a second table.
+    // 4. Wire PrismServer with config_manager + spec_dir.
+    // 5. Complete the MCP handshake via duplex transport (serve_server returns RunningService).
+    // 6. Call `reload_config` via JSON-RPC tool call while server is still running.
+    // 7. Assert both notifications arrive on client side within 3s.
     //
     // BC-2.16.007: "when the set of registered tables changes (set-comparison gate),
     // both notifications/resources/list_changed AND notifications/tools/list_changed
@@ -9135,22 +9140,17 @@ mod tests {
         let tmp_dir = tempfile::tempdir().expect("tempdir must succeed");
         let spec_dir: PathBuf = tmp_dir.path().to_path_buf();
 
-        // Write initial CrowdStrike spec.
-        let cs_toml = r#"
-sensor_id = "crowdstrike"
-display_name = "CrowdStrike"
-auth_type = "api_key"
-base_url = "https://api.crowdstrike.com"
-spec_version = "1.0.0"
-
-[[tables]]
-table_name = "detections"
-ocsf_class = "security_finding"
-query_type = "point_in_time"
-columns = []
-"#;
-        std::fs::write(spec_dir.join("crowdstrike.toml"), cs_toml)
-            .expect("write crowdstrike.toml must succeed");
+        // Write initial CrowdStrike spec (no [[tables]] — zero-table spec is valid;
+        // `tables` is `#[serde(default)]` in SensorSpec). With no tables,
+        // old_tables == [] pre-reload. Claroty (added next) has 1 table, so
+        // new_tables == ["claroty.assets"] post-reload → set-change detected.
+        let cs_toml = "sensor_id = \"crowdstrike\"\n\
+             name = \"CrowdStrike\"\n\
+             auth_type = \"api_key\"\n\
+             base_url = \"https://api.crowdstrike.com\"\n\
+             version = \"1.0.0\"\n";
+        std::fs::write(spec_dir.join("crowdstrike.sensor.toml"), cs_toml)
+            .expect("write crowdstrike.sensor.toml must succeed");
 
         // Step 2: Build initial config from spec_dir (crowdstrike only at this point).
         let initial_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
@@ -9159,21 +9159,27 @@ columns = []
         let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
 
         // Step 3: Write a second spec so reload detects a table-set change.
-        let claroty_toml = r#"
-sensor_id = "claroty"
-display_name = "Claroty"
-auth_type = "api_key"
-base_url = "https://api.claroty.com"
-spec_version = "1.0.0"
-
-[[tables]]
-table_name = "assets"
-ocsf_class = "device_inventory_info"
-query_type = "point_in_time"
-columns = []
-"#;
-        std::fs::write(spec_dir.join("claroty.toml"), claroty_toml)
-            .expect("write claroty.toml must succeed");
+        // claroty has 1 table (assets) so after reload new_tables = ["claroty.assets"]
+        // while old_tables = [] (crowdstrike has no tables in initial snapshot).
+        // old_tables != new_tables → dispatch fires.
+        //
+        // NOTE: `steps` and `columns` must be explicitly present in [[tables]] even as
+        // empty arrays. `TableSpec.steps: Vec<FetchStep>` lacks `#[serde(default)]` and
+        // serde requires the field to be present in TOML. Empty `steps = []` is valid
+        // (zero pipeline steps = no-op fetch, fine for testing notification wiring).
+        let claroty_toml = "sensor_id = \"claroty\"\n\
+             name = \"Claroty\"\n\
+             auth_type = \"api_key\"\n\
+             base_url = \"https://api.claroty.com\"\n\
+             version = \"1.0.0\"\n\
+             \n\
+             [[tables]]\n\
+             table_name = \"assets\"\n\
+             ocsf_class = \"device_inventory_info\"\n\
+             columns = []\n\
+             steps = []\n";
+        std::fs::write(spec_dir.join("claroty.sensor.toml"), claroty_toml)
+            .expect("write claroty.sensor.toml must succeed");
 
         // Step 4: Build PrismServer with config_manager + spec_dir wired.
         // Access private field — this is in mod tests.
@@ -9210,10 +9216,10 @@ columns = []
 
         let _running = server_task.await.expect("server task must not panic");
 
-        // Step 7: Call reload_config tool via JSON-RPC.
-        // BC-2.16.007 (RED GATE): the current reload_config does NOT call
-        // dispatch_hot_reload_notifications, so no notification will appear on
-        // the client stream. This assertion FAILS until the wiring is added.
+        // Step 7: Call reload_config tool via JSON-RPC while the RunningService is active.
+        // BC-2.16.007: reload picks up claroty.sensor.toml (added in Step 3), detects that
+        // the table set changed (crowdstrike.detections → +claroty.assets), and dispatches
+        // both notifications.
         let reload_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"reload_config","arguments":{}}}"#;
         client_write_half
             .write_all(format!("{reload_req}\n").as_bytes())
@@ -9247,21 +9253,23 @@ columns = []
             }
         }
 
-        // BC-2.16.007 (RED GATE): reload_config must dispatch BOTH notifications when
-        // the table set changes (crowdstrike → crowdstrike+claroty added by the reload).
-        // Currently reload_config does NOT call dispatch_hot_reload_notifications.
+        // BC-2.16.007: reload_config must dispatch BOTH notifications when the table set
+        // changes (crowdstrike.detections → +claroty.assets added by the reload).
+        // REGRESSION GUARD: removing the dispatch_hot_reload_notifications call from
+        // reload_config will cause both assertions to fail.
         assert!(
             resource_list_changed,
-            "BC-2.16.007 (RED GATE AC-9): 'notifications/resources/list_changed' MUST be \
-             dispatched from the reload_config tool handler path when the table set changes. \
-             Current implementation: reload_config does NOT call dispatch_hot_reload_notifications. \
-             The wiring is missing — implement it per S-5.03 Task 6 (AC-9)."
+            "BC-2.16.007 (AC-9): 'notifications/resources/list_changed' MUST be dispatched \
+             from the reload_config tool handler path when the table set changes. \
+             Fixture: crowdstrike.sensor.toml (initial) + claroty.sensor.toml (added before reload). \
+             If this fails: check that reload_config calls dispatch_hot_reload_notifications \
+             and that fixture files use .sensor.toml suffix."
         );
         assert!(
             tool_list_changed,
-            "BC-2.16.007 (RED GATE AC-9): 'notifications/tools/list_changed' MUST be \
-             dispatched from the reload_config tool handler path when the table set changes. \
-             Current implementation: reload_config does NOT call dispatch_hot_reload_notifications."
+            "BC-2.16.007 (AC-9): 'notifications/tools/list_changed' MUST be dispatched \
+             from the reload_config tool handler path when the table set changes. \
+             Fixture: crowdstrike.sensor.toml (initial) + claroty.sensor.toml (added before reload)."
         );
     }
 }
