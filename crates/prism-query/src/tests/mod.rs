@@ -15,6 +15,8 @@ pub mod alias_tests;
 // S-DEMO-002: Red Gate unit tests for AC-014 AQL push-down seeding.
 // Drives production code path (pushdown::predicate_tree_to_filter_map) without external DTU.
 pub mod aql_pushdown_tests;
+// S-3.13: Red Gate tests for dynamic table availability + E-QUERY-037 plan-time gate.
+// Tests covering BC-2.11.001 / BC-2.16.001 / BC-2.16.007 (table availability registry + gate).
 pub mod bc_gap_fill_tests;
 pub mod cache_tests;
 pub mod explain_tests;
@@ -23,5 +25,6 @@ pub mod materialization_tests;
 pub mod pagination_tests;
 pub mod parser_tests;
 pub mod regression_tests;
+pub mod table_registry_tests;
 pub(crate) mod util;
 pub mod write_parser_unit_tests;

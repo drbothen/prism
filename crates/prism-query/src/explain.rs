@@ -27,6 +27,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use prism_core::{OrgSlug, PrismError, SensorId};
+use prism_spec_engine::{ResolvedSensorSpec, ResolvedSpecKey};
 use serde::Serialize;
 
 use crate::{
@@ -35,6 +36,7 @@ use crate::{
     pushdown::classify_predicates,
     scoping::{resolve_clients, ClientRegistry},
     security::PRISM_MAX_QUERY_SIZE,
+    table_registry::{filter_to_org_visible_sensors, filter_to_org_visible_tables, TableRegistry},
     visit::{walk_ast, Visitor},
 };
 
@@ -112,6 +114,29 @@ pub struct ExplainOptions {
     // TODO(CR-007): replace with `AuditEmitter` trait from `prism-audit` when
     // wired (S-X.XX). The current `Arc<dyn Fn>` is a lightweight stand-in.
     pub audit_sink: Option<Arc<dyn Fn(AuditEvent) + Send + Sync>>,
+
+    /// S-3.13 / AC-6: Live `TableRegistry` for populating `available_tables` in
+    /// the explain result. When `Some`, `ExplainResult.available_tables` lists
+    /// only currently-registered tables. When `None`, `available_tables` is empty.
+    ///
+    /// In production, `prism-mcp` threads this from `QueryEngine::table_registry()`.
+    /// Tests that need AC-6 coverage provide a pre-populated `TableRegistry`.
+    pub table_registry: Option<Arc<TableRegistry>>,
+
+    /// SEC-003 / ADR-039: Resolved sensor spec map for org-scoped `available_tables`
+    /// filtering on the explain path.
+    ///
+    /// When `Some`, `ExplainResult.available_tables` is filtered to the sensors
+    /// accessible to `options.clients` (the requesting org(s)), preventing cross-tenant
+    /// vendor enumeration on the explain path (CWE-200).
+    ///
+    /// When `None` (single-tenant or no overlay config), `available_tables` is the
+    /// full global registry — preserving single-tenant backward compatibility.
+    ///
+    /// In production, `QueryEngine::explain` injects this from `self.resolved_spec_map`
+    /// (the same map used for SEC-001 on the execute path). Tests that need SEC-003
+    /// coverage provide the map directly.
+    pub resolved_spec_map: Option<Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>>,
 }
 
 impl std::fmt::Debug for ExplainOptions {
@@ -122,6 +147,17 @@ impl std::fmt::Debug for ExplainOptions {
             .field("sources", &self.sources)
             .field("alias_registry", &self.alias_registry)
             .field("audit_sink", &self.audit_sink.as_ref().map(|_| "<sink>"))
+            .field(
+                "table_registry",
+                &self.table_registry.as_ref().map(|_| "<TableRegistry>"),
+            )
+            .field(
+                "resolved_spec_map",
+                &self
+                    .resolved_spec_map
+                    .as_ref()
+                    .map(|m| format!("<{} entries>", m.len())),
+            )
             .finish()
     }
 }
@@ -171,6 +207,13 @@ pub struct ExplainResult {
 
     /// Structured cost estimate for the query. (BC-2.11.010)
     pub estimated_cost: CostEstimate,
+
+    /// S-3.13 / AC-6: Currently-registered table names from the live `TableRegistry`.
+    ///
+    /// Populated from `ExplainOptions::table_registry` if provided; empty otherwise.
+    /// Lists exactly the tables that are currently available for querying — not a
+    /// static list. Reflects hot-reload additions/removals immediately. (BC-2.16.001)
+    pub available_tables: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1095,6 +1138,56 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     };
 
     // ── Step 11: Assemble result ───────────────────────────────────────────────
+
+    // S-3.13 / AC-6: Populate available_tables from the live TableRegistry if provided.
+    // Called at explain time (not cached in the plan) so the list reflects
+    // hot-reload additions/removals. (BC-2.16.001)
+    //
+    // SEC-003 / ADR-039 / CWE-200: When `options.resolved_spec_map` is `Some` AND
+    // `options.clients` is `Some(orgs)`, filter the global table list to only the
+    // tables whose owning sensor is accessible to the requesting org(s). This prevents
+    // cross-tenant vendor enumeration on the explain path — the same CWE-200 class
+    // that ADR-039 / SEC-001 closed for the E-QUERY-037 error path.
+    //
+    // Single-tenant / `clients=None` / `resolved_spec_map=None` → fall back to
+    // global list (backward-compat rule, identical to SEC-001 rules).
+    let available_tables = if let Some(registry) = options.table_registry.as_deref() {
+        let global_tables = registry.registered_tables();
+
+        // Org-scope filter: apply only when both clients and resolved_spec_map are provided.
+        if options.clients.is_some() && options.resolved_spec_map.is_some() {
+            let org_scope: &[OrgSlug] = options.clients.as_deref().unwrap_or(&[]);
+            let spec_map_ref = options.resolved_spec_map.as_deref();
+
+            // Build sensor_by_table snapshot for the filter helper.
+            // OBS-2: take a SINGLE lock acquisition via sensor_by_table_snapshot()
+            // rather than calling sensor_for_table() once per table (N acquisitions).
+            // On poison the snapshot returns an empty map → tables filtered out
+            // (fail-closed), and the existing `table_registry.rwlock_poisoned` WARN
+            // fires — no new catalog row needed.  This mirrors the single-snapshot
+            // pattern used by check_availability_gate (table_registry.rs ~line 466).
+            let sensor_by_table: HashMap<String, String> = registry.sensor_by_table_snapshot();
+
+            let org_visible_sensors = filter_to_org_visible_sensors(
+                registry.registered_sensor_ids(),
+                Some(org_scope),
+                spec_map_ref,
+            );
+            filter_to_org_visible_tables(
+                global_tables,
+                &sensor_by_table,
+                &org_visible_sensors,
+                Some(org_scope),
+                spec_map_ref,
+            )
+        } else {
+            // Single-tenant / no org scope — return global list unchanged.
+            global_tables
+        }
+    } else {
+        Vec::new()
+    };
+
     let result = ExplainResult {
         parsed_mode,
         original_query: query_str.to_string(),
@@ -1116,6 +1209,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             summary,
             warnings,
         },
+        available_tables,
     };
 
     // ── DI-004: Emit success audit event ──────────────────────────────────────

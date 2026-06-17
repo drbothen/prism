@@ -78,6 +78,10 @@ tokio-util = { version = "0.7", default-features = false }
 prism-audit = { path = "../prism-audit" }
 # S-3.07 — ULID generation for operation_id and audit_intent_id.
 ulid = { version = "1", features = ["serde"] }
+# S-3.13 — Levenshtein distance for table-name did_you_mean suggestions (AC-3).
+# Already in Cargo.lock transitively; adding as a direct dep for explicit awareness.
+# Use strsim::levenshtein(candidate, requested); suggest only if distance ≤ 3. (D-1163)
+strsim = "0.11"
 
 [dev-dependencies]
 # S-2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)

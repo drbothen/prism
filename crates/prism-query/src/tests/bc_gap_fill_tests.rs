@@ -1,7 +1,7 @@
 //! BC Gap-fill tests for S-3.02 — Query Materialization.
 //!
 //! This module adds missing coverage identified in the test-writer gap-fill
-//! audit. The stub-architect's 14 tests in `integration_tests.rs` scaffold
+//! audit. The stub-architect tests in `integration_tests.rs` scaffold
 //! AC-1..AC-9. This file covers:
 //!
 //! # Categories

@@ -159,7 +159,7 @@ fn extract_impl_type_name(lines: &[&str], from_line_idx: usize) -> Option<String
             let after_impl = after_impl.trim_start();
             let after_generics = if after_impl.starts_with('<') {
                 // Find matching `>`
-                let depth_iter = after_impl.char_indices().scan(0i32, |depth, (i, c)| {
+                let mut depth_iter = after_impl.char_indices().scan(0i32, |depth, (i, c)| {
                     if c == '<' {
                         *depth += 1;
                     } else if c == '>' {
@@ -168,8 +168,7 @@ fn extract_impl_type_name(lines: &[&str], from_line_idx: usize) -> Option<String
                     Some((i, c, *depth))
                 });
                 let end = depth_iter
-                    .skip_while(|&(_, _, d)| d > 0)
-                    .next()
+                    .find(|&(_, _, d)| d == 0)
                     .map(|(i, _, _)| i + 1)
                     .unwrap_or(after_impl.len());
                 after_impl[end..].trim_start()
