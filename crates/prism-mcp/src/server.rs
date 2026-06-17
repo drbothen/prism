@@ -2944,25 +2944,73 @@ impl PrismServer {
         .await?;
 
         // S-5.03: Return a structured SensorHealthStructuredContent per BC-2.08.005.
-        // BC-2.08.005 postcondition: `reachable` reflects whether the sensor spec is
-        // loaded and available in TableRegistry (spec-level reachability).
-        // A sensor present in TableRegistry has a valid spec loaded and is available
-        // for query fan-out — this is the correct S-5.03-scope reachability value.
-        // S-5.04 will add real network/API endpoint probing (adapter fan-out) to
-        // verify live connectivity; spec-level reachability is the strongest
-        // correctness claim S-5.03 can make without making real API calls.
+        // BC-2.08.005 v1.5 two-phase probe contract: this is the spec-only phase.
+        // probe_level="spec-only"; reachable/auth_valid are null (no live probe).
         // trust_level="internal" (health data is Prism-generated, not sensor-sourced).
-        let sensor_ids: Vec<String> = if let Some(ref qe) = self.query_engine {
-            qe.table_registry()
-                .map(|r| r.registered_sensor_ids())
-                .unwrap_or_default()
+        //
+        // DI-008 / F-S503-ADV-001: scope sensor enumeration by client_id.
+        // When resolved_spec_map is wired (multi-tenant mode): return only the sensors
+        // provisioned for this org via resolved_spec_map. An org registered in
+        // OrgRegistry with zero overlay entries returns empty (BC-2.10.008 v1.9 Option B).
+        // An unknown client_id is rejected with INVALID_PARAMS (BC-2.08.005 §Errors).
+        // When resolved_spec_map is not wired (single-tenant / test mode): fall back to
+        // the global TableRegistry (existing pre-multi-tenant behaviour).
+
+        // Validate client_id as an OrgSlug (rejects path traversal and invalid chars).
+        let org_slug = prism_core::OrgSlug::new(&params.client_id);
+        if org_slug.is_err() {
+            return Err(to_error_data(PrismError::ClientNotFound {
+                client_id: params.client_id.clone(),
+            }));
+        }
+        let org_slug = org_slug.expect("checked above");
+
+        // Pull org_registry and resolved_spec_map from the wired query engine (if any).
+        let resolved_spec_map = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.resolved_spec_map());
+        let org_registry = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.org_registry())
+            .or_else(|| self.org_registry.clone());
+
+        let sensor_ids: Vec<String> = if let Some(ref spec_map) = resolved_spec_map {
+            // Multi-tenant mode: validate org is known when OrgRegistry is wired.
+            if let Some(ref reg) = org_registry {
+                if !reg.slug_exists(&org_slug) {
+                    return Err(to_error_data(PrismError::ClientNotFound {
+                        client_id: params.client_id.clone(),
+                    }));
+                }
+            }
+            // Filter spec_map by OrgSlug == client_id to get this org's sensors only.
+            // An org with zero overlay entries yields an empty vec (EC-10-017 / Option B).
+            let mut ids: Vec<String> = spec_map
+                .iter()
+                .filter(|((org, _sensor), _spec)| org.as_str() == org_slug.as_str())
+                .map(|((_org, sensor_id), _spec)| sensor_id.as_ref().to_string())
+                .collect();
+            ids.sort(); // deterministic ordering
+            ids
         } else {
-            vec![]
+            // Single-tenant / test fallback: enumerate from TableRegistry (global).
+            if let Some(ref qe) = self.query_engine {
+                qe.table_registry()
+                    .map(|r| r.registered_sensor_ids())
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            }
         };
 
-        // Filter by sensor_id if specified
+        // Filter by sensor_id if specified (optional single-sensor probe).
         let sensor_ids_to_check: Vec<String> = match &params.sensor_id {
-            Some(sid) => sensor_ids.into_iter().filter(|s| s == sid).collect(),
+            Some(sid) => sensor_ids
+                .into_iter()
+                .filter(|s| s == sid.as_str())
+                .collect(),
             None => sensor_ids,
         };
 
@@ -9093,6 +9141,233 @@ mod tests {
             "BC-2.08.005 postcondition 7: trust_level must be 'internal' (health data \
              is Prism-generated, not sensor-sourced); got: {:?}",
             sc["trust_level"]
+        );
+    }
+
+    // ─── F-S503-ADV-001: check_sensor_health scoped by client_id (DI-008 / BC-2.08.005 §Errors) ──
+    //
+    // LOAD-BEARING: verifies per-client sensor scoping when resolved_spec_map is wired.
+    //
+    // Three assertions:
+    //   (a) acme sees only its own sensor (crowdstrike), NOT globex's sensor (armis).
+    //   (b) globex sees only its own sensor (armis), NOT acme's sensor (crowdstrike).
+    //   (c) unknown client_id "no-such-org" → INVALID_PARAMS (-32602).
+    //
+    // If the scoping logic is broken and returns global inventory, acme would see BOTH
+    // crowdstrike AND armis — the first assertion fails.
+    //
+    // SID-1: unit test in the production handler boundary with a fully-wired QueryEngine
+    // (new_full with resolved_spec_map) — no #[ignore] or external service needed.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_F_S503_ADV_001_check_sensor_health_scoped_by_client_id() {
+        use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{
+            alias_store::AliasStore,
+            engine::{QueryEngine, QueryEngineConfig},
+            scoping::ClientRegistry,
+            table_registry::TableRegistry,
+        };
+        use prism_sensors::{
+            adapter::SensorError, auth::SensorAuth, registry::AdapterRegistry, CredentialResolver,
+        };
+        use prism_spec_engine::{
+            overlay::{OverlayLoader, SensorInstanceOverlay},
+            spec_parser::{AuthType, SensorSpec, TableSpec},
+            ResolvedSpecKey,
+        };
+        use prism_storage::memory_backend::InMemoryBackend;
+        use uuid::Uuid;
+
+        // ── Null stubs for new_full ───────────────────────────────────────────────────
+        struct NullCredStore;
+        #[async_trait::async_trait]
+        impl prism_credentials::CredentialStore for NullCredStore {
+            async fn get(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<Option<secrecy::SecretString>, prism_core::error::PrismError> {
+                Ok(None)
+            }
+            async fn set(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+                _v: secrecy::SecretString,
+            ) -> Result<(), prism_core::error::PrismError> {
+                Ok(())
+            }
+            async fn delete(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, prism_core::error::PrismError> {
+                Ok(false)
+            }
+            async fn list(
+                &self,
+                _t: &OrgSlug,
+            ) -> Result<
+                Vec<(String, prism_credentials::namespace::CredentialName)>,
+                prism_core::error::PrismError,
+            > {
+                Ok(vec![])
+            }
+            async fn exists(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, prism_core::error::PrismError> {
+                Ok(false)
+            }
+        }
+        struct NullCredResolver;
+        impl CredentialResolver for NullCredResolver {
+            fn resolve(&self, _c: &str, _s: SensorId) -> Result<Box<dyn SensorAuth>, SensorError> {
+                Err(SensorError::ConfigValidation {
+                    sensor: "stub".to_string(),
+                    detail: "null resolver".to_string(),
+                })
+            }
+        }
+
+        // ── Build resolved_spec_map: acme→crowdstrike, globex→armis ─────────────────
+        let make_resolved = |sensor_id: &str, table: &str, org: &str| {
+            let spec = SensorSpec::new(
+                sensor_id,
+                format!("{sensor_id} sensor"),
+                AuthType::ApiKey,
+                "https://example.com",
+                vec![TableSpec::new_point_in_time(
+                    table,
+                    "security_finding",
+                    vec![],
+                    vec![],
+                )],
+                None,
+                "1.0.0",
+                vec![],
+            );
+            let overlay_toml =
+                format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+            let overlay: SensorInstanceOverlay =
+                toml::from_str(&overlay_toml).expect("fixture overlay must parse");
+            let org_slug = OrgSlug::new(org);
+            let resolved =
+                OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+            let key: ResolvedSpecKey = (org_slug, SensorId::new(sensor_id));
+            (key, resolved)
+        };
+
+        let mut spec_map = std::collections::HashMap::new();
+        let (k, v) = make_resolved("crowdstrike", "detections", "acme");
+        spec_map.insert(k, v);
+        let (k, v) = make_resolved("armis", "devices", "globex");
+        spec_map.insert(k, v);
+        let spec_map_arc = std::sync::Arc::new(spec_map);
+
+        // ── Build OrgRegistry with both orgs ─────────────────────────────────────────
+        let org_registry = std::sync::Arc::new(OrgRegistry::new());
+        org_registry
+            .register(OrgSlug::new("acme"), OrgId::from_uuid_v7(Uuid::now_v7()))
+            .expect("register acme must not fail");
+        org_registry
+            .register(OrgSlug::new("globex"), OrgId::from_uuid_v7(Uuid::now_v7()))
+            .expect("register globex must not fail");
+
+        // ── Build alias store and storage (required by new_full) ─────────────────────
+        let alias_tmpdir = tempfile::tempdir().expect("tempdir for alias store");
+        let alias_store = std::sync::Arc::new(std::sync::Mutex::new(AliasStore::empty(
+            alias_tmpdir.path().join("aliases.toml"),
+        )));
+        let storage: std::sync::Arc<dyn prism_storage::backend::RocksStorageBackend> =
+            std::sync::Arc::new(InMemoryBackend::new());
+
+        // ── Build QueryEngine::new_full with resolved_spec_map + org_registry ────────
+        let engine = QueryEngine::new_full(
+            std::sync::Arc::new(AdapterRegistry::new()),
+            std::sync::Arc::new(NullCredStore),
+            std::sync::Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            std::sync::Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            std::sync::Arc::new(NullCredResolver),
+            org_registry,
+            storage,
+            spec_map_arc,
+            alias_store,
+        );
+
+        // Wire into PrismServer.
+        let mut server = PrismServer::new();
+        server.query_engine = Some(std::sync::Arc::new(engine));
+
+        // ── (a) acme sees only crowdstrike ────────────────────────────────────────────
+        let result = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client("acme")))
+            .await
+            .expect("F-S503-ADV-001: check_sensor_health must succeed for known client 'acme'");
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("F-S503-ADV-001: structured_content must be present");
+        let sensors_acme = sc["sensors"]
+            .as_array()
+            .expect("F-S503-ADV-001: structured_content.sensors must be a JSON array");
+        let acme_ids: Vec<&str> = sensors_acme
+            .iter()
+            .filter_map(|s| s["sensor_id"].as_str())
+            .collect();
+        assert_eq!(
+            acme_ids,
+            vec!["crowdstrike"],
+            "F-S503-ADV-001 (DI-008): acme MUST see only 'crowdstrike'; \
+             global inventory (armis also showing) would mean scoping is broken. Got: {acme_ids:?}"
+        );
+
+        // ── (b) globex sees only armis ────────────────────────────────────────────────
+        let result = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client("globex")))
+            .await
+            .expect("F-S503-ADV-001: check_sensor_health must succeed for known client 'globex'");
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("F-S503-ADV-001: structured_content must be present");
+        let sensors_globex = sc["sensors"]
+            .as_array()
+            .expect("F-S503-ADV-001: structured_content.sensors must be a JSON array");
+        let globex_ids: Vec<&str> = sensors_globex
+            .iter()
+            .filter_map(|s| s["sensor_id"].as_str())
+            .collect();
+        assert_eq!(
+            globex_ids,
+            vec!["armis"],
+            "F-S503-ADV-001 (DI-008): globex MUST see only 'armis'; \
+             acme's sensor (crowdstrike) must NOT appear. Got: {globex_ids:?}"
+        );
+
+        // ── (c) unknown client_id → INVALID_PARAMS (-32602) ───────────────────────────
+        let err = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client(
+                "no-such-org",
+            )))
+            .await
+            .expect_err("F-S503-ADV-001: unknown client_id must return Err(INVALID_PARAMS)");
+        assert_eq!(
+            err.code.0,
+            crate::error_mapping::codes::INVALID_PARAMS,
+            "F-S503-ADV-001 (BC-2.08.005 §Errors): unknown client_id must map to \
+             INVALID_PARAMS (-32602). Got code: {}",
+            err.code.0
         );
     }
 

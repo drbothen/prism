@@ -58,6 +58,13 @@ ulid = { version = "1", features = ["serde"] }
 # requires SensorInstanceOverlay TOML deserialization; OrgId::new() mints a fresh UUID).
 toml = "0.8"
 uuid = { version = "1", features = ["v4"] }
+# prism-storage: needed to build QueryEngine::new_full for F-S503-ADV-001 per-client scoping test.
+# test-utils feature exposes InMemoryBackend (filesystem-free RocksStorageBackend stub).
+# Already a transitive dep via prism-query; explicit pin for test-binary compilation.
+prism-storage = { path = "../prism-storage", features = ["test-utils"] }
+# secrecy: needed by NullCredStore stub implementing CredentialStore (SecretString param).
+# Already a transitive dep via prism-credentials; explicit pin for test-binary compilation.
+secrecy = "0.8"
 
 [lints.clippy]
 # From workspace

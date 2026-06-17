@@ -778,13 +778,21 @@ pub fn render_sensors_health_resource(
     let clients_payload: std::collections::BTreeMap<String, serde_json::Value> = clients_map
         .iter()
         .map(|(client_id, entries)| {
+            // OBS-1: propagate serialization errors instead of silently degrading to null.
+            // SensorHealthResult contains only JSON-native types (String, bool, DateTime);
+            // serialization realistically cannot fail, but an explicit error surface is
+            // correct per the production-grade default (CLAUDE.md §Canonical Principle).
             let sensors: Vec<serde_json::Value> = entries
                 .iter()
-                .map(|e| serde_json::to_value(&e.result).unwrap_or(serde_json::Value::Null))
-                .collect();
-            (client_id.clone(), serde_json::json!({ "sensors": sensors }))
+                .map(|e| {
+                    serde_json::to_value(&e.result).map_err(|err| {
+                        internal_error(format!("health result serialize error: {err}"))
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok((client_id.clone(), serde_json::json!({ "sensors": sensors })))
         })
-        .collect();
+        .collect::<Result<_, ErrorData>>()?;
 
     let payload = serde_json::json!({
         "clients": clients_payload,
