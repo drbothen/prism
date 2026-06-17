@@ -1402,18 +1402,23 @@ async fn test_SEC_001_e_query_037_filters_available_sensors_to_requesting_org() 
 
     match result {
         Err(PrismError::TableNotAvailable(ref details)) => {
-            let sensors = &details.available_sensors;
-            // acme's sensor (armis) MUST be present.
+            // OBS-1: split the ", "-delimited string into an exact-membership collection
+            // to avoid false-pass when a future sensor id is a substring of another
+            // (e.g. "armis" ⊂ "armistice").
+            let sensor_set: Vec<&str> = details.available_sensors.split(", ").collect();
+            // acme's sensor (armis) MUST be present (exact match).
             assert!(
-                sensors.contains("armis"),
-                "SEC-001: acme's sensor 'armis' must appear in available_sensors. \
-                 Got: '{sensors}'"
+                sensor_set.contains(&"armis"),
+                "SEC-001: acme's sensor 'armis' must appear in available_sensors (exact). \
+                 Got: '{}'",
+                details.available_sensors
             );
-            // contoso's sensor (crowdstrike) MUST NOT be present.
+            // contoso's sensor (crowdstrike) MUST NOT be present (exact match).
             assert!(
-                !sensors.contains("crowdstrike"),
+                !sensor_set.contains(&"crowdstrike"),
                 "SEC-001 / CWE-200: contoso's sensor 'crowdstrike' must NOT appear in \
-                 available_sensors for org=acme. Got: '{sensors}'"
+                 available_sensors for org=acme (exact). Got: '{}'",
+                details.available_sensors
             );
         }
         other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
@@ -1443,18 +1448,23 @@ async fn test_SEC_001_e_query_037_filters_available_tables_to_requesting_org() {
 
     match result {
         Err(PrismError::TableNotAvailable(ref details)) => {
-            let tables = &details.available_tables;
-            // acme's table (armis_devices) MUST be present.
+            // OBS-1: split the ", "-delimited string into an exact-membership collection
+            // to avoid false-pass when a table name is a substring of another
+            // (e.g. "armis_devices" ⊂ "armis_devices_extra").
+            let table_set: Vec<&str> = details.available_tables.split(", ").collect();
+            // acme's table (armis_devices) MUST be present (exact match).
             assert!(
-                tables.contains("armis_devices"),
-                "SEC-001: acme's table 'armis_devices' must appear in available_tables. \
-                 Got: '{tables}'"
+                table_set.contains(&"armis_devices"),
+                "SEC-001: acme's table 'armis_devices' must appear in available_tables (exact). \
+                 Got: '{}'",
+                details.available_tables
             );
-            // contoso's table (crowdstrike_alerts) MUST NOT be present.
+            // contoso's table (crowdstrike_alerts) MUST NOT be present (exact match).
             assert!(
-                !tables.contains("crowdstrike_alerts"),
+                !table_set.contains(&"crowdstrike_alerts"),
                 "SEC-001 / CWE-200: contoso's table 'crowdstrike_alerts' must NOT appear in \
-                 available_tables for org=acme. Got: '{tables}'"
+                 available_tables for org=acme (exact). Got: '{}'",
+                details.available_tables
             );
         }
         other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
@@ -1490,8 +1500,14 @@ async fn test_SEC_001_e_query_037_did_you_mean_filtered_to_requesting_org() {
     match result {
         Err(PrismError::TableNotAvailable(ref details)) => {
             let suggestion = &details.did_you_mean;
-            assert!(
-                !suggestion.contains("crowdstrike_alerts"),
+            // OBS-1: the suggestion is either "" or " Did you mean: 'X'?" — not a
+            // multi-value list, so we verify the exact name is absent from the
+            // suggestion string rather than doing a substring-contains on a list.
+            // The name "crowdstrike_alerts" would appear as-is in the suggestion
+            // if the filter were broken.
+            assert_ne!(
+                suggestion.as_str(),
+                " Did you mean: 'crowdstrike_alerts'?",
                 "SEC-001 / CWE-200: did_you_mean must NOT suggest contoso's table \
                  'crowdstrike_alerts' when org=acme. Got: '{suggestion}'"
             );
@@ -1519,29 +1535,34 @@ async fn test_SEC_001_e_query_037_single_tenant_unaffected() {
 
     match result {
         Err(PrismError::TableNotAvailable(ref details)) => {
-            let sensors = &details.available_sensors;
-            let tables = &details.available_tables;
-            // Both sensors must appear in single-tenant mode.
+            // OBS-1: split the ", "-delimited strings and assert exact membership.
+            let sensor_set: Vec<&str> = details.available_sensors.split(", ").collect();
+            let table_set: Vec<&str> = details.available_tables.split(", ").collect();
+            // Both sensors must appear in single-tenant mode (exact match).
             assert!(
-                sensors.contains("armis"),
-                "SEC-001 backward-compat: 'armis' must appear in single-tenant available_sensors. \
-                 Got: '{sensors}'"
+                sensor_set.contains(&"armis"),
+                "SEC-001 backward-compat: 'armis' must appear in single-tenant \
+                 available_sensors (exact). Got: '{}'",
+                details.available_sensors
             );
             assert!(
-                sensors.contains("crowdstrike"),
+                sensor_set.contains(&"crowdstrike"),
                 "SEC-001 backward-compat: 'crowdstrike' must appear in single-tenant \
-                 available_sensors. Got: '{sensors}'"
+                 available_sensors (exact). Got: '{}'",
+                details.available_sensors
             );
-            // Both tables must appear.
+            // Both tables must appear (exact match).
             assert!(
-                tables.contains("armis_devices"),
+                table_set.contains(&"armis_devices"),
                 "SEC-001 backward-compat: 'armis_devices' must appear in single-tenant \
-                 available_tables. Got: '{tables}'"
+                 available_tables (exact). Got: '{}'",
+                details.available_tables
             );
             assert!(
-                tables.contains("crowdstrike_alerts"),
+                table_set.contains(&"crowdstrike_alerts"),
                 "SEC-001 backward-compat: 'crowdstrike_alerts' must appear in single-tenant \
-                 available_tables. Got: '{tables}'"
+                 available_tables (exact). Got: '{}'",
+                details.available_tables
             );
         }
         other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),
@@ -1572,28 +1593,34 @@ async fn test_SEC_001_e_query_037_no_resolved_spec_map_falls_back_to_global() {
 
     match result {
         Err(PrismError::TableNotAvailable(ref details)) => {
-            let sensors = &details.available_sensors;
-            let tables = &details.available_tables;
-            // Both sensors must appear (global fallback).
+            // OBS-1: split the ", "-delimited strings and assert exact membership.
+            let sensor_set: Vec<&str> = details.available_sensors.split(", ").collect();
+            let table_set: Vec<&str> = details.available_tables.split(", ").collect();
+            // Both sensors must appear (global fallback, exact match).
             assert!(
-                sensors.contains("armis"),
-                "SEC-001 no-map fallback: 'armis' must appear in available_sensors. Got: '{sensors}'"
+                sensor_set.contains(&"armis"),
+                "SEC-001 no-map fallback: 'armis' must appear in available_sensors (exact). \
+                 Got: '{}'",
+                details.available_sensors
             );
             assert!(
-                sensors.contains("crowdstrike"),
-                "SEC-001 no-map fallback: 'crowdstrike' must appear in available_sensors. \
-                 Got: '{sensors}'"
+                sensor_set.contains(&"crowdstrike"),
+                "SEC-001 no-map fallback: 'crowdstrike' must appear in available_sensors (exact). \
+                 Got: '{}'",
+                details.available_sensors
             );
-            // Both tables must appear (global fallback).
+            // Both tables must appear (global fallback, exact match).
             assert!(
-                tables.contains("armis_devices"),
-                "SEC-001 no-map fallback: 'armis_devices' must appear in available_tables. \
-                 Got: '{tables}'"
+                table_set.contains(&"armis_devices"),
+                "SEC-001 no-map fallback: 'armis_devices' must appear in available_tables (exact). \
+                 Got: '{}'",
+                details.available_tables
             );
             assert!(
-                tables.contains("crowdstrike_alerts"),
-                "SEC-001 no-map fallback: 'crowdstrike_alerts' must appear in available_tables. \
-                 Got: '{tables}'"
+                table_set.contains(&"crowdstrike_alerts"),
+                "SEC-001 no-map fallback: 'crowdstrike_alerts' must appear in available_tables \
+                 (exact). Got: '{}'",
+                details.available_tables
             );
         }
         other => panic!("SEC-001: expected Err(PrismError::TableNotAvailable), got: {other:?}"),

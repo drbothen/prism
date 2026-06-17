@@ -274,6 +274,33 @@ impl TableRegistry {
         }
     }
 
+    /// Return a single-lock snapshot of the entire `sensor_by_table` map.
+    ///
+    /// Acquires `sensor_by_table` ONCE and returns an owned clone. Callers that
+    /// need to look up the owning sensor for multiple tables should prefer this over
+    /// calling [`sensor_for_table`] in a loop, which would acquire and release the
+    /// read-lock N times (one per table).
+    ///
+    /// On `RwLock` poison: returns an empty `HashMap` (fail-closed — same behaviour as
+    /// the gate in `check_availability_gate`) and the existing
+    /// `table_registry.rwlock_poisoned` WARN fires so operators can observe the
+    /// condition. No NEW `event_type` is introduced; this reuses the existing catalog
+    /// row. (OBS-2 fix, BC-2.16.002 row `table_registry.rwlock_poisoned`)
+    pub(crate) fn sensor_by_table_snapshot(&self) -> HashMap<String, String> {
+        match self.sensor_by_table.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => {
+                tracing::warn!(
+                    event_type = "table_registry.rwlock_poisoned",
+                    method = "sensor_by_table_snapshot",
+                    "TableRegistry::sensor_by_table_snapshot: RwLock poisoned — returning empty \
+                     map (fail-closed). Another thread panicked while holding the lock."
+                );
+                HashMap::new()
+            }
+        }
+    }
+
     /// Compute the `did_you_mean` suggestion field for `TableNotAvailable`.
     ///
     /// Uses `strsim::levenshtein(candidate, requested)` over all registered table

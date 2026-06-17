@@ -1160,13 +1160,13 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             let spec_map_ref = options.resolved_spec_map.as_deref();
 
             // Build sensor_by_table snapshot for the filter helper.
-            // We re-use the registry's internal data via registered_sensor_ids / registered_tables.
-            // The filter helpers expect a HashMap<table_name → sensor_id>; reconstruct from
-            // registered_sensor_ids and the registry's per-table sensor lookup.
-            let sensor_by_table: HashMap<String, String> = global_tables
-                .iter()
-                .filter_map(|t| registry.sensor_for_table(t).map(|s| (t.clone(), s)))
-                .collect();
+            // OBS-2: take a SINGLE lock acquisition via sensor_by_table_snapshot()
+            // rather than calling sensor_for_table() once per table (N acquisitions).
+            // On poison the snapshot returns an empty map → tables filtered out
+            // (fail-closed), and the existing `table_registry.rwlock_poisoned` WARN
+            // fires — no new catalog row needed.  This mirrors the single-snapshot
+            // pattern used by check_availability_gate (table_registry.rs ~line 466).
+            let sensor_by_table: HashMap<String, String> = registry.sensor_by_table_snapshot();
 
             let org_visible_sensors = filter_to_org_visible_sensors(
                 registry.registered_sensor_ids(),
