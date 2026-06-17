@@ -228,6 +228,14 @@ pub(crate) fn map_plugin_error_to_infusion_error(
     // security requirement wins over the earlier general mechanism.
     // The URL is emitted at DEBUG level in `enrich_single` before calling this function.
     match err {
+        prism_core::PluginError::EnrichCallFailed {
+            plugin_id: ref epid,
+            ref reason,
+        } => InfusionError::PluginCallFailed {
+            plugin_id: epid.clone(),
+            infusion_id: plugin_id.to_string(),
+            reason: reason.clone(),
+        },
         prism_core::PluginError::SandboxViolation {
             plugin_id: ref sandbox_pid,
             ..
@@ -256,6 +264,43 @@ pub(crate) fn map_plugin_error_to_infusion_error(
                 infusion_id: plugin_id.to_string(),
                 reason,
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// E-INFUSE-008: EnrichCallFailed reason propagates verbatim when it contains no
+    /// path or credential-like content. "bad json" contains none of the redaction triggers.
+    #[test]
+    fn test_map_plugin_error_enrich_call_failed_maps_to_plugin_call_failed() {
+        let err = prism_core::PluginError::EnrichCallFailed {
+            plugin_id: "ti".to_string(),
+            reason: "bad json".to_string(),
+        };
+        let result = map_plugin_error_to_infusion_error("ti", err);
+        match result {
+            InfusionError::PluginCallFailed {
+                ref plugin_id,
+                ref infusion_id,
+                ref reason,
+            } => {
+                assert_eq!(plugin_id, "ti", "plugin_id must match");
+                assert_eq!(
+                    infusion_id, "ti",
+                    "infusion_id must match plugin_id argument"
+                );
+                assert_eq!(
+                    reason, "bad json",
+                    "reason must propagate from EnrichCallFailed (no path/credential content)"
+                );
+            }
+            other => panic!(
+                "EnrichCallFailed must map to PluginCallFailed, got: {:?}",
+                other
+            ),
         }
     }
 }

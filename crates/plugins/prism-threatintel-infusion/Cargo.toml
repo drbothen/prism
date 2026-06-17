@@ -30,6 +30,3 @@ serde_json = { version = "1", default-features = false, features = ["alloc"] }
 # reqwest = "..."  — DO NOT ADD
 # tokio = "..."   — DO NOT ADD
 
-[lints.clippy]
-# todo_used is expected — every non-trivial function body is a stub (BC-5.38.001)
-todo_used = "allow"

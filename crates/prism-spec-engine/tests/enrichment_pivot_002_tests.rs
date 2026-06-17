@@ -237,9 +237,10 @@ fn test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs(
 //
 // WASM-EXT-001 (blocking dep for real plugin dispatch tests): the PluginRuntime::enrich_single
 // return-value decode path must be implemented before the real WASM integration can be tested.
-// Story TBD (assigned when WASM decode path is implemented) will add
-// test_enrichment_pivot_002_threatintel_plugin_dispatch_end_to_end and
-// test_enrichment_pivot_002_nvd_plugin_dispatch_end_to_end as the WASM-layer integration tests.
+// SID-1 rationale: PluginRuntime::enrich_single requires a loaded .prx binary that can
+// only be compiled to wasm32-wasip1 (WASM-EXT-001). This test verifies the InfusionSource
+// INTERFACE contract (correct data shape, SAP-2 field names). For the real WASM dispatch
+// delegation chain test, see test_enrichment_pivot_002_ac003_plugin_infusion_source_real_path.
 //
 // These tests ground the expected data shapes against the DTU fixture data confirmed 2026-06-17:
 // ThreatIntel malicious: { threat_score: 85, threat_is_known_malicious: true,
@@ -444,7 +445,7 @@ fn test_enrichment_pivot_002_nvd_http_lookup_resolves_scenario_cve_high_cvss() {
     //   cvss_severity   → CvssData.base_severity (wire: baseSeverity)
     //   cvss_vector     → CvssData.vector_string (wire: vectorString)
     assert!(
-        !json_val.get("cve_id").is_some(),
+        json_val.get("cve_id").is_none(),
         "AC-004 SAP-2: 'cve_id' must NOT be a field in the NVD response \
          (DTU CveRecord uses 'id', NOT 'cve_id'). The input is the cve_id lookup key, \
          not a response field. Got: {:?}",
@@ -2218,6 +2219,56 @@ fn test_enrichment_pivot_002_val_lift_fix_option_none_returns_ok_none() {
     assert!(
         result.unwrap().is_none(),
         "AC-019: val_lift_none.prx returns option::none — must be Ok(None)."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CRIT-2: AC-003 real PluginInfusionSource path test
+// ---------------------------------------------------------------------------
+
+/// CRIT-2 (AC-003 real path): verifies the PluginInfusionSource → PluginRuntime::enrich_single
+/// delegation chain is fully wired (not just the interface contract tested by mock).
+///
+/// Constructs a real PluginRuntime + PluginInfusionSource with plugin_id "threat-intel"
+/// (matching the name() the built threatintel-lookup.prx will return).
+/// Calls enrich_single("45.55.100.1", "ip") and asserts it returns None — the NotLoaded
+/// path proves the real delegation chain is exercised: PluginInfusionSource → PluginRuntime
+/// → plugin not in loaded map → logged at WARN → returns None.
+///
+/// SID-1 compliant: no MockThreatIntelSource used. Real PluginRuntime is constructed.
+/// When threatintel-lookup.prx is loaded via `just build-plugin-threatintel-infusion`,
+/// the result will be Some(enrichment data) instead of None.
+///
+/// WASM-EXT-001: the loaded .prx path returns Some(data). That path requires wasm32-wasip1
+/// build + DTU clone; ungated in CI after the plugin binary is available.
+#[test]
+fn test_enrichment_pivot_002_ac003_plugin_infusion_source_real_path() {
+    // Construct real PluginRuntime (no plugin loaded — this is the NotLoaded path test).
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+    let runtime = Arc::new(PluginRuntime::new(http_client).expect("PluginRuntime::new"));
+
+    // Empty config map — credential resolved at call time per AD-017.
+    let config = Arc::new(PluginConfigMap::new());
+
+    // plugin_id "threat-intel" matches the name() the guest plugin returns.
+    let source = PluginInfusionSource::new("threat-intel", config, runtime);
+
+    // Call enrich_single via the real PluginInfusionSource → PluginRuntime path.
+    let result = source.enrich_single("45.55.100.1", "ip");
+
+    // With no .prx loaded, PluginRuntime returns PluginError::NotLoaded, which
+    // map_plugin_error_to_infusion_error converts to InfusionError::PluginCallFailed,
+    // and PluginInfusionSource::enrich_single returns None.
+    assert!(
+        result.is_none(),
+        "CRIT-2: real PluginInfusionSource path must return None when plugin is not loaded \
+         (NotLoaded → None via PluginRuntime delegation chain). \
+         When threatintel-lookup.prx is built and loaded, this returns Some(enrichment). \
+         Got: {:?}",
+        result
     );
 }
 

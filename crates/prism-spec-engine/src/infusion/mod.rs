@@ -844,9 +844,19 @@ impl InfusionRegistry {
         // - LocalLookup specs with a source_config: real file-backed source via load_source.
         // - LocalLookup specs without source_config (test stubs): NullSource.
         let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::Plugin {
+            // Resolve credentials at spec load time per AD-017 pattern.
+            // Each CredentialRef carries the env_var name; the value is read from the environment
+            // and inserted into the PluginConfigMap keyed by field_name.
+            // PluginConfigMap values are SecretString — credential bytes never stored as plain String.
+            // Credential values MUST NOT be logged or stored beyond the PluginConfigMap (INV-INFUSE-005).
+            let mut config_map = PluginConfigMap::new();
+            for cred in &spec.credentials {
+                let value = std::env::var(&cred.env_var).unwrap_or_default();
+                config_map.insert(cred.field_name.clone(), secrecy::SecretString::new(value));
+            }
             Arc::new(plugin_bridge::PluginInfusionSource::new(
                 spec.infusion_id.clone(),
-                Arc::new(PluginConfigMap::new()),
+                Arc::new(config_map),
                 runtime,
             ))
         } else if let Some(ref source_config) = spec.source {

@@ -88,6 +88,12 @@ fn validate_ssrf_safe(base_url: &str, spec_path: &str) -> Result<(), InfusionErr
     // Try to parse the host directly as an IP address (IP literal in URL).
     if let Ok(ip) = host.parse::<IpAddr>() {
         if is_private_or_loopback(ip) {
+            tracing::warn!(
+                infusion_id = %spec_path,
+                spec_path = %spec_path,
+                event_type = "http_lookup_ssrf_rejected",
+                "SSRF protection rejected http_lookup infusion base_url"
+            );
             return Err(InfusionError::SsrfRejected {
                 infusion_id: spec_path.to_string(),
                 spec_path: spec_path.to_string(),
@@ -99,21 +105,33 @@ fn validate_ssrf_safe(base_url: &str, spec_path: &str) -> Result<(), InfusionErr
     // Hostname: perform synchronous DNS resolution and check each resolved address.
     // Fail-closed: any resolution failure rejects the spec.
     let port = parsed.port_or_known_default().unwrap_or(443);
-    let addrs: Vec<SocketAddr> = format!("{host}:{port}")
-        .to_socket_addrs()
-        .map_err(|_e| {
+    let addrs: Vec<SocketAddr> = match format!("{host}:{port}").to_socket_addrs() {
+        Ok(iter) => iter.collect(),
+        Err(_) => {
             // DNS failure → fail-closed: reject the spec (ADR-040 D8.5 note).
             // Do NOT expose the hostname or error details in the message (CWE-209).
-            InfusionError::SsrfRejected {
+            tracing::warn!(
+                infusion_id = %spec_path,
+                spec_path = %spec_path,
+                event_type = "http_lookup_ssrf_rejected",
+                "SSRF protection rejected http_lookup infusion base_url"
+            );
+            return Err(InfusionError::SsrfRejected {
                 infusion_id: spec_path.to_string(),
                 spec_path: spec_path.to_string(),
-            }
-        })?
-        .collect();
+            });
+        }
+    };
 
     for addr in &addrs {
         if is_private_or_loopback(addr.ip()) {
             // Found a private/loopback address — reject without exposing the IP (CWE-209).
+            tracing::warn!(
+                infusion_id = %spec_path,
+                spec_path = %spec_path,
+                event_type = "http_lookup_ssrf_rejected",
+                "SSRF protection rejected http_lookup infusion base_url"
+            );
             return Err(InfusionError::SsrfRejected {
                 infusion_id: spec_path.to_string(),
                 spec_path: spec_path.to_string(),
@@ -191,12 +209,26 @@ impl InfusionSource for HttpLookupSource {
     /// they are NEVER surfaced in the return type (InfusionSource::enrich_single is Option).
     /// Credential VALUES are never logged (AD-017 / INV-INFUSE-005).
     fn enrich_single(&self, input: &str, _input_type: &str) -> Option<serde_json::Value> {
-        // Build a single-threaded tokio runtime to drive the async HTTP call from the
-        // synchronous InfusionSource::enrich_single interface.
-        let rt = tokio::runtime::Runtime::new()
-            .expect("HttpLookupSource: failed to create tokio runtime for HTTP call");
-
-        rt.block_on(self.enrich_single_async(input))
+        // This is called from spawn_blocking, so we need a current-thread runtime.
+        // Using new_current_thread() is correct here — we're already on a blocking thread.
+        match tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(rt) => rt.block_on(self.enrich_single_async(input)),
+            Err(e) => {
+                tracing::warn!(
+                    infusion_id = %self.spec_path,
+                    spec_path = %self.spec_path,
+                    event_type = "http_lookup_enrich_failed",
+                    error_code = "E-INFUSE-009",
+                    error_kind = "runtime_build_error",
+                    "failed to build tokio runtime for HTTP lookup: {}",
+                    e
+                );
+                None
+            }
+        }
     }
 
     fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
@@ -224,7 +256,7 @@ impl HttpLookupSource {
                         infusion_id = %self.spec_path,
                         spec_path = %self.spec_path,
                         credential_ref = %cred.ref_name,
-                        event_type = "infusion.http_lookup.failed",
+                        event_type = "http_lookup_enrich_failed",
                         error_code = "E-INFUSE-010",
                         "credential resolution failed: env var not set"
                     );
@@ -242,7 +274,7 @@ impl HttpLookupSource {
         tracing::debug!(
             infusion_id = %self.spec_path,
             spec_path = %self.spec_path,
-            event_type = "infusion.http_lookup.started",
+            event_type = "http_lookup_enrich_started",
             method = %config.method,
             "starting HTTP lookup enrichment"
         );
@@ -255,7 +287,7 @@ impl HttpLookupSource {
                 tracing::warn!(
                     infusion_id = %self.spec_path,
                     spec_path = %self.spec_path,
-                    event_type = "infusion.http_lookup.failed",
+                    event_type = "http_lookup_enrich_failed",
                     error_code = "E-INFUSE-009",
                     method = %other,
                     "unsupported HTTP method"
@@ -278,7 +310,7 @@ impl HttpLookupSource {
                 tracing::warn!(
                     infusion_id = %self.spec_path,
                     spec_path = %self.spec_path,
-                    event_type = "infusion.http_lookup.failed",
+                    event_type = "http_lookup_enrich_failed",
                     error_code = "E-INFUSE-009",
                     // Do NOT log e directly — may contain URL with credential (AD-017)
                     message = "HTTP call failed",
@@ -294,7 +326,7 @@ impl HttpLookupSource {
             tracing::warn!(
                 infusion_id = %self.spec_path,
                 spec_path = %self.spec_path,
-                event_type = "infusion.http_lookup.failed",
+                event_type = "http_lookup_enrich_failed",
                 error_code = "E-INFUSE-009",
                 status_code = status.as_u16(),
                 "HTTP lookup returned non-2xx status"
@@ -309,7 +341,7 @@ impl HttpLookupSource {
                 tracing::warn!(
                     infusion_id = %self.spec_path,
                     spec_path = %self.spec_path,
-                    event_type = "infusion.http_lookup.failed",
+                    event_type = "http_lookup_enrich_failed",
                     error_code = "E-INFUSE-009",
                     error_kind = %classify_reqwest_error(&e),
                     "failed to read HTTP response body"
@@ -324,7 +356,7 @@ impl HttpLookupSource {
                 tracing::warn!(
                     infusion_id = %self.spec_path,
                     spec_path = %self.spec_path,
-                    event_type = "infusion.http_lookup.failed",
+                    event_type = "http_lookup_enrich_failed",
                     error_code = "E-INFUSE-009",
                     "HTTP response body is not valid JSON"
                 );
@@ -338,7 +370,7 @@ impl HttpLookupSource {
                 tracing::debug!(
                     infusion_id = %self.spec_path,
                     spec_path = %self.spec_path,
-                    event_type = "infusion.http_lookup.succeeded",
+                    event_type = "http_lookup_enrich_succeeded",
                     "HTTP lookup enrichment succeeded"
                 );
                 Some(subtree)
@@ -444,7 +476,7 @@ mod tests {
             .await;
 
         let config = HttpLookupConfig::new(
-            &mock_server.uri(),
+            mock_server.uri(),
             "/rest/json/cves/2.0?cveId=${input}",
             "GET",
             "$.vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData",
@@ -478,6 +510,29 @@ mod tests {
         );
     }
 
+    /// Verify validate_ssrf_safe rejects a loopback URL with SsrfRejected error.
+    /// SID-1: unit test drives the real validate_ssrf_safe code path without external deps.
+    #[test]
+    fn test_validate_ssrf_safe_rejects_loopback_ip_url() {
+        let result = validate_ssrf_safe("http://127.0.0.1:8080/api", "test.infusion.toml");
+        assert!(
+            matches!(result, Err(InfusionError::SsrfRejected { .. })),
+            "validate_ssrf_safe must return SsrfRejected for loopback IP URL; got: {:?}",
+            result
+        );
+    }
+
+    /// Verify validate_ssrf_safe rejects a private RFC-1918 IP URL.
+    #[test]
+    fn test_validate_ssrf_safe_rejects_rfc1918_ip_url() {
+        let result = validate_ssrf_safe("http://192.168.1.1/api", "test.infusion.toml");
+        assert!(
+            matches!(result, Err(InfusionError::SsrfRejected { .. })),
+            "validate_ssrf_safe must return SsrfRejected for RFC-1918 IP URL; got: {:?}",
+            result
+        );
+    }
+
     /// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must return None when
     /// response_path does not match any node in the HTTP response.
     ///
@@ -496,7 +551,7 @@ mod tests {
             .await;
 
         let config = HttpLookupConfig::new(
-            &mock_server.uri(),
+            mock_server.uri(),
             "/rest/json/cves/2.0?cveId=${input}",
             "GET",
             "$.nonexistent.path.that.will.never.match",
