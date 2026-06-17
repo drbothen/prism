@@ -101,7 +101,10 @@ pub struct InfusionAsyncUdf {
     tier3_cache: Option<Arc<InfusionTier3Cache>>,
     /// TTL (seconds) to use when writing to Tier 2 + Tier 3 after a source call.
     ///
-    /// Comes from `infusion_spec.cache_ttl_secs` (default 3600s).
+    /// Comes from `InfusionUdfDescriptor::cache_ttl_secs`, which is sourced from
+    /// `InfusionSpec::cache_ttl_secs` (default 3600s) by `register_infusion_udfs_impl`
+    /// (F-TTL-1 fix: per-descriptor TTL is now honoured; the old hardcoded
+    /// `DEFAULT_CACHE_TTL_SECS` is no longer used at UDF-construction time).
     cache_ttl_secs: u64,
 }
 
@@ -149,7 +152,9 @@ impl InfusionAsyncUdf {
     /// Tier 1 (QueryScoped dedup) is allocated fresh per `invoke_async_with_args` call.
     ///
     /// `cache_ttl_secs`: TTL applied when writing fresh source results to Tier 2 + Tier 3.
-    /// Typically comes from `InfusionSpec::cache_ttl_secs`; defaults to 3600 when not set.
+    /// Set by `register_infusion_udfs_impl` from `InfusionUdfDescriptor::cache_ttl_secs`,
+    /// which is sourced from `InfusionSpec::cache_ttl_secs` (default 3600).
+    /// Each infusion UDF honours its own spec's TTL (F-TTL-1).
     pub fn new_with_cache(
         descriptor: InfusionUdfDescriptor,
         lru_cache: Arc<InfusionLruCache>,
@@ -445,7 +450,9 @@ pub fn register_infusion_udfs(
 /// `lru_cache`: process-shared `Arc<InfusionLruCache>` — typically one instance per
 /// `QueryEngine` shared across all UDFs for the same infusion.
 /// `tier3_cache`: process-shared `Arc<InfusionTier3Cache>` — RocksDB `infusion_cache` CF.
-/// `cache_ttl_secs`: TTL applied when writing fresh source results to Tier 2 + Tier 3.
+/// `cache_ttl_secs`: Retained for backward compatibility. Superseded by the per-descriptor
+/// `InfusionUdfDescriptor::cache_ttl_secs` field (F-TTL-1): each UDF now uses its own
+/// spec's TTL so different infusions can have different cache lifetimes (BC-2.19.002).
 pub fn register_infusion_udfs_with_cache(
     ctx: &SessionContext,
     descriptors: Vec<InfusionUdfDescriptor>,
@@ -491,8 +498,14 @@ fn register_infusion_udfs_impl(
             )));
         }
         let udf_impl = match &cache_opts {
-            Some((lru, t3, ttl)) => {
-                InfusionAsyncUdf::new_with_cache(descriptor, Arc::clone(lru), Arc::clone(t3), *ttl)
+            Some((lru, t3, _)) => {
+                // F-TTL-1: use the per-descriptor TTL from the infusion spec
+                // (sourced from `InfusionSpec::cache_ttl_secs`, default 3600).
+                // The shared `_ttl` parameter is intentionally unused here; each UDF
+                // carries its own TTL so different infusions can have different cache
+                // lifetimes (Story Task 6 + Task 8, BC-2.19.002).
+                let ttl = descriptor.cache_ttl_secs;
+                InfusionAsyncUdf::new_with_cache(descriptor, Arc::clone(lru), Arc::clone(t3), ttl)
             }
             None => InfusionAsyncUdf::new(descriptor),
         };
@@ -624,6 +637,7 @@ mod tests {
             infusion_id: infusion_id.to_string(),
             source,
             source_column: None,
+            cache_ttl_secs: super::DEFAULT_CACHE_TTL_SECS,
         }
     }
 
@@ -640,6 +654,7 @@ mod tests {
             infusion_id: infusion_id.to_string(),
             source,
             source_column: Some(source_column.to_string()),
+            cache_ttl_secs: super::DEFAULT_CACHE_TTL_SECS,
         }
     }
 
@@ -1210,6 +1225,189 @@ mod tests {
         assert_eq!(
             count_after_q2, 5,
             "AC-7: Q1 source call count must remain 5 after Q2 executes; got {count_after_q2}"
+        );
+    }
+
+    // ── F-TTL-1 load-bearing test: per-descriptor cache_ttl_secs is honoured ──────────────
+
+    /// F-TTL-1 / Task 6+8: a descriptor with `cache_ttl_secs = 300` must cause the Tier-3
+    /// cache entry to be written with an expiry of approximately `now + 300s`, NOT `now + 3600s`.
+    ///
+    /// Before the F-TTL-1 fix, both `execute_inner` and `execute_scheduled_inner` passed the
+    /// hardcoded `DEFAULT_CACHE_TTL_SECS` (3600) to `register_infusion_udfs_with_cache`.
+    /// Any value set in the `.infusion.toml` `cache_ttl_secs` field was silently dropped.
+    ///
+    /// After the fix:
+    /// - `InfusionUdfDescriptor::cache_ttl_secs` carries the per-spec TTL.
+    /// - `register_infusion_udfs_impl` uses `descriptor.cache_ttl_secs` (not the shared arg).
+    /// - Each UDF's Tier-3 write uses the spec's TTL.
+    ///
+    /// This test is LOAD-BEARING: if the TTL reverts to the hardcoded default (3600),
+    /// `expiry_unix_secs` would be ~`now + 3600`, violating the `< now + 400` assertion.
+    #[tokio::test]
+    async fn test_f_ttl_1_non_default_ttl_honored_in_tier3_cache_entry() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+        use prism_spec_engine::infusion::cache::Tier3CacheEntry;
+        use prism_spec_engine::InfusionTier3Cache;
+
+        // CapturingCacheBackend records the raw bytes written to the backend so we can
+        // decode the Tier3CacheEntry and inspect `expiry_unix_secs`.
+        #[derive(Debug, Default)]
+        struct CapturingCacheBackend {
+            written: tokio::sync::Mutex<Vec<(Vec<u8>, Vec<u8>)>>,
+        }
+
+        impl CapturingCacheBackend {
+            fn new() -> Arc<Self> {
+                Arc::new(Self::default())
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl prism_core::CacheBackend for CapturingCacheBackend {
+            async fn get(
+                &self,
+                _domain: prism_core::storage::StorageDomain,
+                _key: &[u8],
+            ) -> Result<Option<Vec<u8>>, prism_core::PrismError> {
+                // Always miss — we only care about writes (source always called).
+                Ok(None)
+            }
+
+            async fn set(
+                &self,
+                _domain: prism_core::storage::StorageDomain,
+                key: &[u8],
+                value: &[u8],
+            ) -> Result<(), prism_core::PrismError> {
+                let mut written = self.written.lock().await;
+                written.push((key.to_vec(), value.to_vec()));
+                Ok(())
+            }
+
+            async fn delete(
+                &self,
+                _domain: prism_core::storage::StorageDomain,
+                key: &[u8],
+            ) -> Result<(), prism_core::PrismError> {
+                let mut written = self.written.lock().await;
+                written.retain(|(k, _)| k != key);
+                Ok(())
+            }
+        }
+
+        // Capture the current time before UDF invocation (lower bound for expiry calculation).
+        let now_before = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("enriched-result");
+
+        // Descriptor with NON-DEFAULT TTL = 300s (not the 3600 default).
+        // F-TTL-1: this must be what gets written to Tier-3 — not 3600.
+        const NON_DEFAULT_TTL: u64 = 300;
+        let descriptor = InfusionUdfDescriptor {
+            name: "ttl_test_udf".to_string(),
+            input_type: "ip".to_string(),
+            output_type: "string".to_string(),
+            infusion_id: "ttl_test_infusion".to_string(),
+            source: src,
+            source_column: None,
+            cache_ttl_secs: NON_DEFAULT_TTL,
+        };
+
+        let lru = Arc::new(InfusionLruCache::new(10_000));
+        let backend = CapturingCacheBackend::new();
+        let tier3 = Arc::new(InfusionTier3Cache::new(
+            Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
+        ));
+
+        // Register via production path — engine.rs uses this when caches are wired.
+        // F-TTL-1: the shared `cache_ttl_secs` arg (3600) must be IGNORED in favour of
+        // the per-descriptor `descriptor.cache_ttl_secs` (300). If the bug regresses,
+        // the assertion below will fail because expiry will be ~now+3600, not ~now+300.
+        register_infusion_udfs_with_cache(
+            &ctx,
+            vec![descriptor],
+            Arc::clone(&lru),
+            Arc::clone(&tier3),
+            super::DEFAULT_CACHE_TTL_SECS, // intentionally pass the default (3600) here;
+                                           // per-descriptor TTL (300) must override it.
+        )
+        .expect("F-TTL-1: registration must succeed");
+
+        // Register a single-row table and run a query to trigger the UDF.
+        let schema = Arc::new(Schema::new(vec![Field::new("ip", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["10.1.2.3"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("F-TTL-1: RecordBatch must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("F-TTL-1: MemTable must succeed");
+        ctx.register_table("ttl_test_events", Arc::new(table))
+            .expect("F-TTL-1: register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT ttl_test_udf(ip) AS enriched FROM ttl_test_events")
+            .await
+            .expect("F-TTL-1: SQL must parse");
+        df.collect().await.expect("F-TTL-1: query must execute");
+
+        // Capture time after execution (upper bound for expiry range check).
+        let now_after = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        // Verify the Tier-3 backend received exactly one write (for "10.1.2.3").
+        let written = backend.written.lock().await;
+        assert_eq!(
+            written.len(),
+            1,
+            "F-TTL-1: Tier-3 backend must have received exactly 1 write (one unique IP); got {}",
+            written.len()
+        );
+
+        // Decode the written Tier3CacheEntry to inspect expiry_unix_secs.
+        let (_, raw_value) = &written[0];
+        let (entry, _): (Tier3CacheEntry, _) =
+            bincode::serde::decode_from_slice(raw_value, bincode::config::standard())
+                .expect("F-TTL-1: must decode Tier3CacheEntry from written bytes");
+
+        // Assert expiry is approximately now + NON_DEFAULT_TTL (300s), NOT now + 3600s.
+        //
+        // Expected range: [now_before + 250, now_before + 400]
+        //   - Lower bound (250): accounting for any clock/scheduling jitter.
+        //   - Upper bound (400): must be < 3600 to prove the default TTL wasn't used.
+        //
+        // If the F-TTL-1 bug regresses (TTL hardcoded to 3600), `expiry_unix_secs` would be
+        // approximately `now + 3600` (~3600 seconds from now), failing the `< now + 400`
+        // assertion.
+        let expiry = entry.expiry_unix_secs;
+        assert!(
+            expiry > now_before + 250,
+            "F-TTL-1: Tier-3 entry expiry must be > now_before + 250 (TTL=300 must have been applied); \
+             expiry={expiry}, now_before={now_before}, now_before+250={}",
+            now_before + 250
+        );
+        assert!(
+            expiry < now_after + 400,
+            "F-TTL-1: Tier-3 entry expiry must be < now_after + 400 (must NOT be 3600; if this fails, \
+             the DEFAULT_CACHE_TTL_SECS hardcode has regressed); expiry={expiry}, now_after={now_after}, \
+             now_after+400={}",
+            now_after + 400
+        );
+        // Explicit distance check: expiry must be within ~300s of now, not within ~3600s.
+        // This fires if someone passes 1800 (half-way default) instead of 300.
+        let distance = expiry.saturating_sub(now_before);
+        assert!(
+            distance <= 500,
+            "F-TTL-1: expiry distance from now must be <= 500s (consistent with TTL=300, not TTL=3600); \
+             distance={distance}s. If this fails, the per-descriptor TTL is not being applied."
         );
     }
 }

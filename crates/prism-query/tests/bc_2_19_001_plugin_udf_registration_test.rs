@@ -328,6 +328,7 @@ async fn test_BC_2_19_001_real_infusion_async_udf_delegates_to_stub_source() {
         infusion_id: "pivot_test".to_string(),
         source: stub_source,
         source_column: None,
+        cache_ttl_secs: 3600,
     };
 
     // Build a SessionContext.

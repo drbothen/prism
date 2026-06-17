@@ -1347,6 +1347,7 @@ mod alias_wiring_tests {
                 infusion_id: "threatintel_v1".to_string(),
                 source: Arc::new(NullSrc),
                 source_column: None,
+                cache_ttl_secs: 3600,
             },
             InfusionUdfDescriptor {
                 name: "threat_score".to_string(), // duplicate name
@@ -1355,6 +1356,7 @@ mod alias_wiring_tests {
                 infusion_id: "threatintel_v2".to_string(),
                 source: Arc::new(NullSrc),
                 source_column: None,
+                cache_ttl_secs: 3600,
             },
         ];
 

@@ -527,6 +527,7 @@ impl InfusionRegistry {
 
         // Build descriptors — one per field (INV-INFUSE-001 / VP-048).
         let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        let cache_ttl_secs = spec.cache_ttl_secs.unwrap_or(3600);
         let descriptors: Vec<udf::InfusionUdfDescriptor> = spec
             .fields
             .iter()
@@ -537,6 +538,7 @@ impl InfusionRegistry {
                 infusion_id: spec.infusion_id.clone(),
                 source: source.clone(),
                 source_column: field.source_column.clone(),
+                cache_ttl_secs,
             })
             .collect();
 
@@ -615,6 +617,8 @@ impl InfusionRegistry {
         // source is constructed above. Returning the NullSource-backed descriptors would be a
         // latent footgun: a future caller using the return value to register UDFs would silently
         // get NullSource (all enrichment → None) even though the registry holds a real source.
+        // F-TTL-1: `cache_ttl_secs` is preserved from the spec (already set on `d` by
+        // `validate_spec_against`), so the real descriptor carries the correct per-spec TTL.
         let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
             .iter()
             .map(|d| udf::InfusionUdfDescriptor {
@@ -624,6 +628,7 @@ impl InfusionRegistry {
                 infusion_id: d.infusion_id.clone(),
                 source: source.clone(),
                 source_column: d.source_column.clone(),
+                cache_ttl_secs: d.cache_ttl_secs,
             })
             .collect();
 
@@ -704,6 +709,7 @@ impl InfusionRegistry {
 
         // OBS-1 fix: rebuild returned descriptors with the REAL source (same pattern as
         // load_spec — see that method for the detailed rationale).
+        // F-TTL-1: `cache_ttl_secs` preserved from descriptor (set by `validate_spec_against`).
         let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
             .iter()
             .map(|d| udf::InfusionUdfDescriptor {
@@ -713,6 +719,7 @@ impl InfusionRegistry {
                 infusion_id: d.infusion_id.clone(),
                 source: source.clone(),
                 source_column: d.source_column.clone(),
+                cache_ttl_secs: d.cache_ttl_secs,
             })
             .collect();
 
@@ -734,6 +741,9 @@ impl InfusionRegistry {
             .values()
             .flat_map(|(spec, stored_source)| {
                 let source = stored_source.clone();
+                // F-TTL-1: propagate per-spec TTL into every descriptor so prism-query
+                // uses the correct TTL when writing to Tier 2 / Tier 3 cache.
+                let cache_ttl_secs = spec.cache_ttl_secs.unwrap_or(3600);
                 spec.fields
                     .iter()
                     .map(move |field| udf::InfusionUdfDescriptor {
@@ -743,6 +753,7 @@ impl InfusionRegistry {
                         infusion_id: spec.infusion_id.clone(),
                         source: source.clone(),
                         source_column: field.source_column.clone(),
+                        cache_ttl_secs,
                     })
             })
             .collect()
@@ -880,6 +891,7 @@ impl InfusionRegistry {
 
         // OBS-1 fix: rebuild returned descriptors with the REAL source (same pattern as
         // load_spec — see that method for the detailed rationale).
+        // F-TTL-1: `cache_ttl_secs` preserved from descriptor (set by `validate_spec_against`).
         let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
             .iter()
             .map(|d| udf::InfusionUdfDescriptor {
@@ -889,6 +901,7 @@ impl InfusionRegistry {
                 infusion_id: d.infusion_id.clone(),
                 source: source.clone(),
                 source_column: d.source_column.clone(),
+                cache_ttl_secs: d.cache_ttl_secs,
             })
             .collect();
 

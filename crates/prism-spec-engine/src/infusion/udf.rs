@@ -37,4 +37,9 @@ pub struct InfusionUdfDescriptor {
     pub source: Arc<dyn InfusionSource>,
     /// The source column to extract from the enrichment result.
     pub source_column: Option<String>,
+    /// Per-infusion cache TTL (seconds). Sourced from `InfusionSpec::cache_ttl_secs`; default 3600.
+    ///
+    /// Used by `prism-query::InfusionAsyncUdf` when writing entries to Tier 2 (LRU) and
+    /// Tier 3 (RocksDB) after a live source call (BC-2.19.002 / Story Task 6 + Task 8).
+    pub cache_ttl_secs: u64,
 }
