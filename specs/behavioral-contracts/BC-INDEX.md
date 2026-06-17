@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.71"
+version: "6.72"
 status: draft
 producer: state-manager
 timestamp: 2026-06-17T00:00:00Z
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.80 (D-1200 2026-06-16: OBS-2 — `sensor_by_table_snapshot` added as 6th `table_registry.rwlock_poisoned` emitting method; was v1.79: CR-001 `check_availability_gate` as 5th emitting method) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.81 (D-1215 2026-06-17: SAP-1/PG-LP11-001 dual-path infusion catalog expansion — 5 new event_type rows: `infusion.http_lookup.started`, `infusion.http_lookup.failed`, `infusion.http_lookup.succeeded`, `plugin_enrich_json_parse_error`, `plugin_enrich_unexpected_val`; catalog v1.48→v1.49; event count 73→78; was v1.80: OBS-2 `sensor_by_table_snapshot` 6th emitting method D-1200) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -245,7 +245,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v1.7 |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v1.8 (D-1216 2026-06-17: `http_lookup` added as valid InfusionType per ADR-040 v2.0 §D8.3; E-INFUSE-004 valid-types extended; two-phase RUNTIME wiring for HttpLookup documented; was v1.7) |
 | BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v1.3 |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.72 (2026-06-17, D-1215–D-1216 out-of-band reconciliation burst — PIVOT-002 BC catalog amendments):** state-manager | (1) BC-2.16.002 inline row: v1.80→v1.81 — SAP-1/PG-LP11-001 dual-path infusion catalog expansion: 5 new event_type rows added (`infusion.http_lookup.started`, `infusion.http_lookup.failed`, `infusion.http_lookup.succeeded`, `plugin_enrich_json_parse_error`, `plugin_enrich_unexpected_val`); catalog v1.48→v1.49; event count 73→78; scope statement extended to cover HttpLookupSource emissions. (2) BC-2.19.001 inline row: v1.7→v1.8 — `http_lookup` added as valid InfusionType per ADR-040 v2.0 §D8.3; E-INFUSE-004 valid-types extended; two-phase RUNTIME wiring for HttpLookup (SSRF validation, E-INFUSE-011) documented. Reconciliation note: these BC changes were originally committed out-of-band by the PIVOT-002 implementer in commit 3e327e99 (unpushed); soft-reset and re-committed here as a single state-manager burst per TD-VSDD-053. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.71→v6.72.
 
 **v6.71 (2026-06-17, D-1211 resume-session cascade round-2 + dual-path architecture burst):** state-manager | BC-2.08.005 v1.4→v1.5: two-phase probe (S-5.03 spec-only null / S-5.04 live); BC-2.10.008 v1.7→v1.8: DI-008 client-scoping + api_base_url required; BC-2.08.009 v1.3→v1.4: AC-10 unregistered_table_queries relocated from S-5.03 to S-5.08. No lifecycle/status flips. No count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.70→v6.71.
 

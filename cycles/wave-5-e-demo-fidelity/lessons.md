@@ -1539,3 +1539,46 @@ The adversary MUST probe both properties on every pass over a new story:
 **Outcome:**
 
 All three stories entered CRIT fix-burst mode. PIVOT-001: real `PluginInfusionSource` wiring added. S-3.13: `TableRegistry` wired into boot.rs + `QueryEngine` Arc-DI + hot-reload path. S-5.02: `build_structured_error_response` routed from all `map_prism_error` call sites. Adversary re-run NEXT on all three lanes. LOCAL streaks reset.
+
+---
+
+## z25 — [process-gap] Implementer Direct `.factory/` Commit Bypasses State-Manager Index+STATE Sync (D-1217, 2026-06-17)
+
+**Date recorded:** 2026-06-17
+**D-NNN anchor:** D-1217 (out-of-band reconciliation burst)
+**Story:** S-DEMO-ENRICHMENT-PIVOT-002
+**Tags:** [process-gap] [out-of-band-commit] [state-manager] [TD-VSDD-053] [SAP-1] [PG-LP11-001]
+**Classification:** PROCESS-GAP — implementer committed BC amendments directly to factory-artifacts, bypassing the state-manager flow.
+
+**What happened:**
+
+The PIVOT-002 implementer committed BC-2.16.002 v1.81 + BC-2.19.001 v1.8 directly to the `factory-artifacts` branch (as unpushed commit `3e327e99`) without routing through state-manager. The BC content itself (SAP-1/PG-LP11-001 catalog expansion + http_lookup valid-type) was correct and within the implementer's scope. The process failure was:
+
+1. BC-INDEX.md was not updated (both inline rows stayed at old versions).
+2. STATE.md frontmatter `bc_index_version` and `version` were not bumped.
+3. Decision log entries D-1215/D-1216/D-1217 were not recorded.
+4. The commit was unpushed, so it was not backed up to origin.
+
+**Root cause:**
+
+The implementer had direct shell access to `.factory/` and committed manually rather than dispatching the state-manager. This is correct agent scope (BC amendments are implementer-owned per PG-LP11-001), but the COMMIT + index/STATE sync + push must route through state-manager per TD-VSDD-053 single-commit discipline. The division of responsibilities is:
+
+- **Implementer:** authors BC catalog amendments, stages the BC files.
+- **State-manager:** adds index row updates + STATE frontmatter sync + decision log entries, commits all as ONE atomic burst, pushes.
+
+**Correct protocol (codified rule):**
+
+When an implementer has BC amendments ready for SAP-1/PG-LP11-001 compliance:
+
+1. Implementer writes the BC file edits (does NOT commit).
+2. Implementer dispatches state-manager with: "BC-X.YY.ZZZ updated to vN.M: [summary]. Please commit, bump BC-INDEX, bump STATE, record decisions, and push."
+3. State-manager bundles all changes (BC files + BC-INDEX + STATE) into ONE commit per TD-VSDD-053.
+4. State-manager pushes to origin/factory-artifacts per D-1066 standing authorization.
+
+**Why the BC content is correct despite the process gap:**
+
+PG-LP11-001 explicitly assigns implementer ownership of same-commit catalog row amendments at the time a new `event_type` emission site is added. The content (5 new event rows, http_lookup valid-type) is exactly what SAP-1 requires. The content is NOT in dispute — only the commit routing violated the single-commit discipline.
+
+**Recovery (this burst):**
+
+`git reset --soft HEAD~1` (un-committed `3e327e99`, preserving BC file changes as staged). Then state-manager added BC-INDEX + STATE updates and re-committed as a single atomic burst. Push to origin/factory-artifacts completed per D-1066.
