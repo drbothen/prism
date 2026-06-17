@@ -254,18 +254,20 @@ impl InfusionLoader {
             }
         }
 
-        // Build InfusionField list.
-        let fields: Vec<InfusionField> = raw_fields
-            .into_iter()
-            .map(|rf| InfusionField {
+        // Build InfusionField list — validate each field name at parse time (AC-007).
+        let mut fields: Vec<InfusionField> = Vec::with_capacity(raw_fields.len());
+        for rf in raw_fields {
+            // DRIFT-PIVOT-UDFNAME-VALIDATION-001: validate name before UDF registration.
+            Self::validate_field_name(&rf.name, source_path)?;
+            fields.push(InfusionField {
                 name: rf.name,
                 input_field: rf.input_field,
                 input_type: rf.input_type,
                 output_type: rf.output_type,
                 description: rf.description,
                 source_column: rf.source_column,
-            })
-            .collect();
+            });
+        }
 
         // Build plugin_config from either [source].plugin_ref or [infusion.plugin_config].
         let plugin_config = if let Some(ref top_source) = raw.source {
@@ -408,20 +410,45 @@ impl InfusionLoader {
             }
 
             let source_path = path.to_string_lossy().to_string();
+            // Sanitize path for MCP-surfaced errors (AC-012 / SEC-002 CWE-209).
+            // Internal debug logging MAY retain the full path.
+            let sanitized_path = Self::sanitize_error_path(&source_path, &self.config_dir);
+
             let mut content = String::new();
             if let Err(e) =
                 std::fs::File::open(&path).and_then(|mut f| f.read_to_string(&mut content))
             {
+                // Log full path internally before sanitizing for the error surface.
+                tracing::debug!(
+                    path = %source_path,
+                    error = %e,
+                    "infusion file io_error (full path for diagnostics)"
+                );
                 errors.push(InfusionError::MissingRequiredField {
                     field: format!("io_error: {}", e),
-                    spec_path: source_path,
+                    spec_path: sanitized_path,
                 });
                 continue;
             }
 
             match Self::parse(&content, &source_path) {
                 Ok(spec) => specs.push(spec),
-                Err(e) => errors.push(e),
+                Err(parse_err) => {
+                    // Sanitize spec_path in the parse error before surfacing to MCP.
+                    // The parse error was created with the absolute path; replace it.
+                    // AC-012 / SEC-002 CWE-209: absolute paths must not reach MCP surface.
+                    let sanitized_err = match parse_err {
+                        InfusionError::MissingRequiredField { field, .. } => {
+                            InfusionError::MissingRequiredField {
+                                field,
+                                spec_path: sanitized_path.clone(),
+                            }
+                        }
+                        // Other variants don't carry a spec_path field — pass through as-is.
+                        other => other,
+                    };
+                    errors.push(sanitized_err);
+                }
             }
         }
 
@@ -509,15 +536,52 @@ impl InfusionLoader {
     ///
     /// # Examples of rejected names
     /// `"threat; DROP TABLE"`, `" leading_space"`, `"has-hyphen"`, `"1starts_with_digit"`, `""`
-    pub fn validate_field_name(_name: &str, _spec_path: &str) -> Result<(), InfusionError> {
-        todo!(
-            "validate_field_name stub — S-DEMO-ENRICHMENT-PIVOT-002 implementer: \
-             apply regex ^[a-zA-Z][a-zA-Z0-9_]*$ to name; \
-             return Err(InfusionError::InvalidFieldSpec {{ field: name, spec_path, message: \
-             \"field name must match [a-zA-Z][a-zA-Z0-9_]* ...\" }}) on violation; \
-             empty string rejected; called in parse() before UDF registration \
-             (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)"
-        )
+    pub fn validate_field_name(name: &str, spec_path: &str) -> Result<(), InfusionError> {
+        // DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20:
+        // Identifier regex: ^[a-zA-Z][a-zA-Z0-9_]*$ — must start with letter, followed by
+        // alphanumerics or underscore. Empty string rejected. SQL-injection chars (;, space, -)
+        // and leading digits all rejected. Validated char-by-char (zero-dep, no regex crate).
+        if name.is_empty() {
+            return Err(InfusionError::MissingRequiredField {
+                field: "field name must match [a-zA-Z][a-zA-Z0-9_]* — got empty string \
+                        (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)"
+                    .to_string(),
+                spec_path: spec_path.to_string(),
+            });
+        }
+
+        let mut chars = name.chars();
+
+        // First character must be ASCII alpha.
+        let first = chars.next().expect("non-empty string has a first char");
+        if !first.is_ascii_alphabetic() {
+            return Err(InfusionError::MissingRequiredField {
+                field: format!(
+                    "field name must match [a-zA-Z][a-zA-Z0-9_]* — '{}' starts with '{}' \
+                     (must start with [a-zA-Z]) \
+                     (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)",
+                    name, first
+                ),
+                spec_path: spec_path.to_string(),
+            });
+        }
+
+        // Remaining characters must be ASCII alphanumeric or underscore.
+        for ch in chars {
+            if !ch.is_ascii_alphanumeric() && ch != '_' {
+                return Err(InfusionError::MissingRequiredField {
+                    field: format!(
+                        "field name must match [a-zA-Z][a-zA-Z0-9_]* — '{}' contains invalid \
+                         character '{}' (only [a-zA-Z0-9_] allowed after first char) \
+                         (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)",
+                        name, ch
+                    ),
+                    spec_path: spec_path.to_string(),
+                });
+            }
+        }
+
+        Ok(())
     }
 
     /// Validate that a `plugin_ref` path resolves within the designated plugin directory.
@@ -526,25 +590,56 @@ impl InfusionLoader {
     /// 1. Resolve the `plugin_ref` relative to `plugin_dir`.
     /// 2. Call `std::fs::canonicalize(resolved_path)` — follows symlinks, resolves `..`.
     /// 3. Assert `canonicalized_path.starts_with(&plugin_dir_canonical)`.
-    ///    If not: return `Err(InfusionError::InvalidFieldSpec { field: "plugin_ref", ... })`.
+    ///    If not: return `Err(InfusionError::MissingRequiredField { field: ..., ... })`.
     ///    Do NOT include the attempted path in the error message surfaced to callers.
     /// 4. Relative paths within plugin_dir (e.g. `subdir/plugin.prx`) are accepted.
     ///
     /// Called before any `std::fs::read` or `File::open` on the `.prx` path.
     pub fn validate_plugin_path(
-        _plugin_ref: &str,
-        _plugin_dir: &std::path::Path,
-        _spec_path: &str,
+        plugin_ref: &str,
+        plugin_dir: &std::path::Path,
+        spec_path: &str,
     ) -> Result<std::path::PathBuf, InfusionError> {
-        todo!(
-            "validate_plugin_path stub — S-DEMO-ENRICHMENT-PIVOT-002 implementer: \
-             resolve plugin_ref relative to plugin_dir; \
-             canonicalize (rejects .. escapes); \
-             assert starts_with(plugin_dir_canonical); \
-             return Err(InfusionError::InvalidFieldSpec) if traversal detected; \
-             do NOT include attempted path in error message surfaced to callers \
-             (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
-        )
+        // Step 1: Canonicalize the plugin_dir itself first.
+        // This is needed so starts_with comparisons work correctly even when plugin_dir
+        // is a relative or symlinked path.
+        let plugin_dir_canonical =
+            std::fs::canonicalize(plugin_dir).map_err(|_| InfusionError::MissingRequiredField {
+                field: "plugin_dir cannot be resolved \
+                        (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                    .to_string(),
+                spec_path: spec_path.to_string(),
+            })?;
+
+        // Step 2: Resolve plugin_ref relative to plugin_dir (before canonicalize, while dir exists).
+        let candidate = plugin_dir.join(plugin_ref);
+
+        // Step 3: Canonicalize the resolved path (resolves `..`, symlinks, etc.).
+        // If the file doesn't exist, canonicalize returns an error — that's an access error,
+        // not a traversal error. We must call canonicalize to detect `..` escapes.
+        let candidate_canonical =
+            std::fs::canonicalize(&candidate).map_err(|_| InfusionError::MissingRequiredField {
+                field: "plugin_ref cannot be resolved within plugin_dir — file not found or \
+                        path traversal detected \
+                        (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                    .to_string(),
+                spec_path: spec_path.to_string(),
+            })?;
+
+        // Step 4: Assert the canonicalized path starts_with the canonicalized plugin_dir.
+        // If it escapes the directory (via `../` or symlink), this fails.
+        if !candidate_canonical.starts_with(&plugin_dir_canonical) {
+            // AC-011: do NOT include the traversal target path in the error message.
+            return Err(InfusionError::MissingRequiredField {
+                field: "plugin_ref resolved outside designated plugin_dir — \
+                        path traversal rejected \
+                        (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                    .to_string(),
+                spec_path: spec_path.to_string(),
+            });
+        }
+
+        Ok(candidate_canonical)
     }
 
     /// Sanitize an `InfusionError` message for MCP surface exposure by stripping
@@ -560,15 +655,25 @@ impl InfusionLoader {
     ///
     /// # Security
     /// DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (AC-012 / SEC-002 CWE-209).
-    pub fn sanitize_error_path(_absolute_path: &str, _config_dir: &str) -> String {
-        todo!(
-            "sanitize_error_path stub — S-DEMO-ENRICHMENT-PIVOT-002 implementer: \
-             strip absolute path prefix from spec_path using Path::file_name() or \
-             path.strip_prefix(config_dir) → relative path; \
-             return filename-only or relative form; \
-             internal tracing MAY retain full path — only MCP-surfaced string stripped \
-             (DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 / AC-012 / SEC-002 CWE-209)"
-        )
+    pub fn sanitize_error_path(absolute_path: &str, config_dir: &str) -> String {
+        let path = Path::new(absolute_path);
+        let base = Path::new(config_dir);
+
+        // Attempt 1: strip the config_dir prefix to get a relative path.
+        // e.g., "/tmp/abc/infusions/bad.infusion.toml" → "infusions/bad.infusion.toml"
+        if let Ok(relative) = path.strip_prefix(base) {
+            return relative.to_string_lossy().to_string();
+        }
+
+        // Attempt 2: return just the filename (last component).
+        // e.g., "/tmp/abc/infusions/bad.infusion.toml" → "bad.infusion.toml"
+        if let Some(filename) = path.file_name() {
+            return filename.to_string_lossy().to_string();
+        }
+
+        // Fallback: return a fully redacted path indicator (should never be reached
+        // since even bare file paths have a file_name component).
+        "<redacted-path>".to_string()
     }
 }
 

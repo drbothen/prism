@@ -139,6 +139,33 @@ impl InfusionSource for PluginInfusionSource {
                 );
                 None
             }
+            Err(prism_core::PluginError::SandboxViolation {
+                plugin_id: ref sandbox_pid,
+                ref url,
+            }) => {
+                // DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (AC-009 / SEC-003 CWE-209):
+                // Emit the URL at DEBUG level for operator diagnostics.
+                // Do NOT emit at WARN — the WARN log must not expose the DTU endpoint address.
+                tracing::debug!(
+                    plugin_id = %sandbox_pid,
+                    sandbox_url = %url,
+                    "plugin sandbox violation URL (debug-only; URL excluded from WARN per AC-009)"
+                );
+                let infusion_err = map_plugin_error_to_infusion_error(
+                    &self.plugin_id,
+                    prism_core::PluginError::SandboxViolation {
+                        plugin_id: sandbox_pid.clone(),
+                        url: url.clone(),
+                    },
+                );
+                tracing::warn!(
+                    plugin_id = %self.plugin_id,
+                    input_type = %input_type,
+                    error = %infusion_err,
+                    "plugin sandbox violation — returning None for input"
+                );
+                None
+            }
             Err(plugin_err) => {
                 let infusion_err = map_plugin_error_to_infusion_error(&self.plugin_id, plugin_err);
                 tracing::warn!(
@@ -184,19 +211,52 @@ impl InfusionSource for PluginInfusionSource {
 /// (AD-017: credential/path values must never transit AI context or external logging surfaces).
 ///
 /// Variants that do NOT embed paths or credentials (e.g., `Trapped`, `Timeout`, `MemoryExceeded`,
-/// `NotLoaded`, `SandboxViolation`) are passed through verbatim.
+/// `NotLoaded`) are passed through verbatim. `SandboxViolation` is handled by a dedicated match
+/// arm (DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 / AC-009 / SEC-003 CWE-209) that explicitly
+/// excludes the `url` field — the URL is emitted at DEBUG level in `enrich_single` only.
 pub(crate) fn map_plugin_error_to_infusion_error(
     plugin_id: &str,
     err: prism_core::PluginError,
 ) -> InfusionError {
-    let raw_reason = err.to_string();
-    let reason = redact_if_sensitive(&raw_reason);
-    InfusionError::PluginCallFailed {
-        plugin_id: plugin_id.to_string(),
-        // In current wiring, infusion_id == plugin_id (set at PluginInfusionSource construction
-        // from spec.infusion_id). Kept as a separate field for future cases where they diverge.
-        infusion_id: plugin_id.to_string(),
-        reason,
+    // DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (AC-009 / SEC-003 CWE-209):
+    // `SandboxViolation.url` MUST NOT appear in the InfusionError message surfaced at WARN level
+    // or MCP error responses. This arm is LOAD-BEARING: it encodes the CWE-209 exclusion
+    // explicitly rather than relying on the incidental side-effect of `redact_if_sensitive`
+    // detecting the `/` path separator in URLs (Source-of-Truth Precedence — PIVOT-002's
+    // explicit security requirement supersedes the incidental redaction in S-1.14-REDO).
+    // Per CLAUDE.md §Source-of-Truth Precedence rule 1: later, more-specific story-level
+    // security requirement wins over the earlier general mechanism.
+    // The URL is emitted at DEBUG level in `enrich_single` before calling this function.
+    match err {
+        prism_core::PluginError::SandboxViolation {
+            plugin_id: ref sandbox_pid,
+            ..
+        } => {
+            // AC-009: URL is intentionally excluded from the message to prevent CWE-209 leakage.
+            // The url field is available in the original error but MUST NOT appear here.
+            InfusionError::MissingRequiredField {
+                field: format!(
+                    "plugin_call_failed({}): sandbox policy violation \
+                     (DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 / AC-009 / SEC-003 CWE-209)",
+                    sandbox_pid
+                ),
+                spec_path: plugin_id.to_string(),
+            }
+        }
+        other => {
+            // For non-SandboxViolation errors: use `redact_if_sensitive` to scrub filesystem
+            // paths and credential-like patterns from the reason string (E-INFUSE-008 / AD-017).
+            let raw_reason = other.to_string();
+            let reason = redact_if_sensitive(&raw_reason);
+            InfusionError::PluginCallFailed {
+                plugin_id: plugin_id.to_string(),
+                // In current wiring, infusion_id == plugin_id (set at PluginInfusionSource
+                // construction from spec.infusion_id). Kept as a separate field for future
+                // cases where they diverge.
+                infusion_id: plugin_id.to_string(),
+                reason,
+            }
+        }
     }
 }
 

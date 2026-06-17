@@ -303,6 +303,18 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
 
         // Enrich each row via three-tier cache + source.
         // NULL input rows short-circuit to NULL output without dispatching to any tier.
+        //
+        // AC-010 (BC-2.19.001 postcondition): WASM plugin calls are synchronous — they run
+        // the WASM component to completion via wasmtime's synchronous Linker. Wrapping in
+        // `tokio::task::spawn_blocking` moves each synchronous call to the blocking thread
+        // pool so the tokio async runtime worker threads are not stalled (CWE-400).
+        // The source is `Arc<dyn InfusionSource>` which is `Send + Sync`, so it can be
+        // safely moved into the spawn_blocking closure.
+        //
+        // LOCK DISCIPLINE: `lru.get()` and `lru.insert()` each acquire and release the
+        // tokio::sync::Mutex in their own scope — the lock is NEVER held across the
+        // spawn_blocking `.await`. This is enforced by calling `lru.get().await` to
+        // completion (obtaining an owned `Option<Value>`) before the spawn_blocking call.
         let mut enriched: Vec<Option<String>> = Vec::with_capacity(inputs.len());
         for opt_input in &inputs {
             let input_str = match opt_input.as_deref() {
@@ -353,7 +365,22 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             }
 
             // Step 4: All tiers missed — call source.
-            let source_result = self.descriptor.source.enrich_single(input_str, input_type);
+            // For plugin/WASM sources, `enrich_single` is synchronous (wasmtime synchronous
+            // Linker). Wrap in spawn_blocking to avoid stalling tokio worker threads (AC-010).
+            // The LRU mutex is NOT held here — `lru.get()` above acquired and released it
+            // before reaching this point (lock-free across the spawn_blocking boundary).
+            let source_clone = Arc::clone(&self.descriptor.source);
+            let input_owned = input_str.to_owned();
+            let input_type_owned = input_type.clone();
+            let source_result = tokio::task::spawn_blocking(move || {
+                source_clone.enrich_single(&input_owned, &input_type_owned)
+            })
+            .await
+            .map_err(|join_err| {
+                datafusion::error::DataFusionError::Execution(format!(
+                    "InfusionAsyncUdf: spawn_blocking join error: {join_err}"
+                ))
+            })?;
 
             // Populate all tiers with the source result (including None for negative cache).
             tier1.insert(infusion_id, input_str, source_result.clone());
