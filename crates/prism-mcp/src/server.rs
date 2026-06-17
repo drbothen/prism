@@ -134,8 +134,6 @@ pub struct PrismServer {
     /// Shared via `Arc` across tool handlers that need to read/write per-server
     /// state (e.g., `check_sensor_health` writes health cache,
     /// `prism://sensors/health` resource reads it).
-    #[allow(dead_code)]
-    // stub — implementer will read/write this field; unused until todo!() bodies filled in
     context: Arc<PrismContext>,
 }
 
@@ -2912,7 +2910,17 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CheckSensorHealthParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // BC-2.08.005 v1.4: client_id is required — validate it is non-empty and length-bounded.
+        // BC-2.08.005 v1.4: client_id is required — reject empty string first (OOD-001).
+        // validate_text_field only checks max_bytes (> 256); it does NOT reject empty strings.
+        // An explicit empty check is required here per BC-2.08.005 precondition.
+        if params.client_id.is_empty() {
+            return Err(rmcp::model::ErrorData::new(
+                rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                "Invalid client_id: must not be empty (BC-2.08.005 precondition, OOD-001)"
+                    .to_string(),
+                None,
+            ));
+        }
         validate_text_field("client_id", params.client_id.as_str(), 256)?;
         self.scan_inputs_audited(
             "check_sensor_health",
@@ -2935,9 +2943,72 @@ impl PrismServer {
         )
         .await?;
 
-        // S-5.03 stub: real implementation wires adapter fan-out in Task 3.
-        // Full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH.
-        todo!("S-5.03 Task 3: implement check_sensor_health with adapter fan-out per BC-2.08.005")
+        // S-5.03: Return a structured SensorHealthStructuredContent per BC-2.08.005.
+        // Adapter fan-out (hitting real sensor APIs) is implemented in S-5.04.
+        // Here we return a "not-yet-checked" result scoped to the client, with
+        // trust_level="internal" (health data is Prism-generated, not sensor-sourced).
+        //
+        // The context health cache is populated here after adapter dispatch completes
+        // (S-5.04). For now, we build an empty health result and write it to cache.
+        let sensor_ids: Vec<String> = if let Some(ref qe) = self.query_engine {
+            qe.table_registry()
+                .map(|r| r.registered_sensor_ids())
+                .unwrap_or_default()
+        } else {
+            vec![]
+        };
+
+        // Filter by sensor_id if specified
+        let sensor_ids_to_check: Vec<String> = match &params.sensor_id {
+            Some(sid) => sensor_ids.into_iter().filter(|s| s == sid).collect(),
+            None => sensor_ids,
+        };
+
+        let sensors: Vec<resources::SensorHealthResult> = sensor_ids_to_check
+            .iter()
+            .map(|sid| {
+                resources::SensorHealthResult::new(sid.clone(), params.client_id.clone())
+                    // S-5.04 will fill in reachable/auth_valid via adapter fan-out.
+                    // For now: unknown state (reachable=false, auth_valid=false).
+                    .with_reachable(false)
+                    .with_auth_valid(false)
+            })
+            .collect();
+
+        // Write to health cache so prism://sensors/health reflects last run.
+        for sensor in &sensors {
+            self.context.health_cache.insert(
+                sensor.client_id.clone(),
+                sensor.sensor_id.clone(),
+                resources::SensorHealthResult::new(
+                    sensor.sensor_id.clone(),
+                    sensor.client_id.clone(),
+                ),
+            );
+        }
+
+        let healthy_count = sensors
+            .iter()
+            .filter(|s| s.reachable && s.auth_valid)
+            .count();
+        let total_count = sensors.len();
+        let summary = format!(
+            "{healthy_count} of {total_count} sensors healthy for client '{}'",
+            params.client_id
+        );
+        let pressure = resources::ResourcePressure::new(0, 0);
+        let structured =
+            resources::SensorHealthStructuredContent::new(sensors, pressure, summary.clone());
+
+        let structured_value = serde_json::to_value(&structured).map_err(|e| {
+            rmcp::model::ErrorData::new(
+                rmcp::model::ErrorCode(codes::INTERNAL_ERROR),
+                format!("Failed to serialize health response: {e}"),
+                None,
+            )
+        })?;
+
+        Ok(rmcp::model::CallToolResult::structured(structured_value))
     }
 
     /// Retrieve diagnostic information for a specific sensor or all sensors.
@@ -5125,7 +5196,7 @@ impl ServerHandler for PrismServer {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
-        todo!("S-5.03 Task 1: implement list_resources — return prism:// resource catalogue")
+        Ok(resources::build_resource_list())
     }
 
     async fn list_resource_templates(
@@ -5133,17 +5204,23 @@ impl ServerHandler for PrismServer {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, ErrorData> {
-        todo!("S-5.03 Task 1: implement list_resource_templates — return prism:// URI templates")
+        Ok(resources::build_resource_template_list())
     }
 
     async fn read_resource(
         &self,
-        _request: ReadResourceRequestParams,
+        request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, ErrorData> {
         // Dispatch to resources.rs based on URI pattern.
         // The context Arc provides access to health cache (BC-2.08.006).
-        todo!("S-5.03 Task 1+4: implement read_resource — dispatch to resources::dispatch_read_resource")
+        resources::dispatch_read_resource(
+            &request.uri,
+            &self.context,
+            self.query_engine.as_ref(),
+            self.config_manager.as_ref(),
+        )
+        .await
     }
 }
 
@@ -7781,7 +7858,7 @@ mod tests {
             codes::INVALID_PARAMS,
             "check_sensor_health: 257-byte sensor_id must return INVALID_PARAMS (-32602); \
              mental-deletion proof: removing validate_text_field(\"sensor_id\",...) causes the \
-             handler to return todo!() panic, not INVALID_PARAMS — assertion fails"
+             handler to skip the check and not return INVALID_PARAMS — assertion fails"
         );
     }
 
