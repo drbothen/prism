@@ -1,11 +1,11 @@
 # Evidence Report — S-5.02
 
 **Story:** prism-mcp: Tool Routing, Errors, and Client Scoping
-**Story version:** v1.10
+**Story version:** v1.12
 **Story ID:** S-5.02
 **BCs:** BC-2.10.004 v2.8 · BC-2.10.007 v1.8 · BC-2.10.011 v1.6
 **Product type:** MCP server (Rust library, no UI) — TEST-EXECUTION evidence per POL-10
-**Code under test (HEAD):** 9f56115a
+**Code under test:** feature/S-5.02 (base develop@1b2e9a31); evidence anchored to story v1.12 ACs + named Red Gate tests
 **Evidence recorded:** 2026-06-16
 **Test command:** `cargo nextest run -p prism-mcp`
 **Result:** 204 tests run — 204 passed, 0 skipped, 0 failed
@@ -36,7 +36,7 @@
 
 ## CRIT/HIGH Adversarial-Convergence Tests
 
-These tests were added during the LOCAL adversarial cascade to close specific findings. All pass at HEAD 9f56115a.
+These tests were added during the LOCAL adversarial cascade to close specific findings. All pass on feature/S-5.02 (story v1.12).
 
 | Test | Finding closed | Assertion |
 |------|----------------|-----------|
@@ -194,7 +194,7 @@ Sensor HTTP 401 and 403 status codes map to `category: "authentication"` (not `"
 - `test_BC_2_10_007_sensor_http_403_category_is_authentication` — PASS
 - `test_BC_2_10_007_sensor_http_502_category_is_upstream_error` — PASS (502 correctly stays `upstream_error`)
 
-Final commit on this story: `9f56115a` — "fix(S-5.02): update list_capabilities tool description to BC-2.10.011 v1.6 tri-state model".
+Evidence is anchored to story v1.12 ACs and the named Red Gate tests listed below — not to any feature-tip commit SHA (TD-VSDD-091).
 
 ---
 
@@ -210,7 +210,7 @@ Summary [0.895s]
 - `prism-mcp` (lib tests): `error_mapping::tests` · `safety_envelope::tests` · `server::tests`
 - `prism-mcp` (integration): `bc_2_09_001_test` · `bc_2_09_004_test` · `bc_2_09_005_test` · `bc_2_09_006_test` · `bc_2_09_008_test` · `tool_dispatch_tests`
 
-**S-5.02 Red Gate tests (story spec v1.10 — 22 required, 22 present, 22 passing):**
+**S-5.02 Red Gate tests (story spec v1.12 — 22 required, 22 present, 22 passing):**
 
 Original 13 from story spec v1.6:
 ```
