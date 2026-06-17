@@ -198,16 +198,32 @@ T1–T4 DONE
   → T4-A MERGED (PR #181 develop@c287b00d) — per-client distinct seeded data; BC-2.06.018 v1.6 active
   → T5 MERGED (PR #185 develop@7fd35b77 2026-06-13) — unfolding-attack scenario; BC-2.06.019 v1.7 + BC-2.06.020 v1.6 active
   → T6 MERGED (PR #187 develop@664566e9 2026-06-14) — multi-tenant DTU overlay; BC-2.06.017 v1.10 active
+  → T10 MERGED (PR #188 develop@7241f5ef 2026-06-15) — multi-org isolation smoke test; BC-2.06.017/018 verified
+  → T11 MERGED (PR #190 develop@c3ecf6c8 2026-06-16) — launcher consolidation; start-multi Rust subcommand
+  → T12 MERGED (PR #189 develop@1b2e9a31 2026-06-16) — PIVOT-001 plugin-type UDF; BC-2.19.001+BC-2.19.003 active
+  → T15a S-5.02 MERGED (PR #191 develop@bec894a2 2026-06-17) — MCP tool routing + client scoping; BC-2.10.011 active
+  → T15d S-3.13 MERGED (PR #192 develop@60249ccc 2026-06-16) — dynamic table availability; BC-2.16.007 active
 
-  *** CURRENT POINTER: T10 (S-DEMO-004 delivery) ***
-  → T10 S-DEMO-004 delivery (12-gate TDD; ready v1.6; PRE-TDD CLEAR D-1161)
-  → capability-discovery block [REQUIRED — D-1162 2026-06-14]:
-      Chain A: S-5.01-verify → T15a S-5.02 → T15b S-5.03 → T15c S-5.04
-      Chain B: S-1.12-verify → T15d S-3.13 (parallel; PO authors dedicated BCs first)
-  → S-1.15 (WASM runtime) + S-1.14-REDO (infusion engine) [FOUNDATIONAL — parallel with cap-discovery]
-  → S-DEMO-ENRICHMENT-PIVOT-001 → PIVOT-002 → PIVOT-003 (REQUIRED per D-1164 — real `| enrich` pivot through prism code path)
-  → T11 launcher consolidation (S-DEMO-LAUNCHER-CONSOLIDATION-001) [parallel with enrichment chain]
-  → T13 capstone (multi-client SOC-analyst narrative story) [LAST before recording — AFTER all enrichment stories merged]
+  *** CURRENT POINTER: L-POST — ALL prior lanes CLOSED; develop@60249ccc ***
+  *** SCOPING RESOLVED (D-1205 2026-06-16): PIVOT-002+PIVOT-003+S-1.14-REDO DEMO-BLOCKING ***
+
+  PARALLEL BLOCK (all start now; T13 waits for all):
+  → S-1.14-REDO [DEMO-BLOCKING D-1205; deps S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME SATISFIED]
+      Full infusion engine: non-plugin InfusionSource types + three-tier cache + VP-048 Kani + VP-049 proptest
+  → PIVOT-002 [DEMO-BLOCKING D-1205; deps PIVOT-001 MERGED]
+      MANDATORY pre-start security gates: DRIFT-PIVOT-UDFNAME-VALIDATION-001 +
+        DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 + DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001
+      Delivers: prism-threatintel-infusion + prism-nvd-infusion WASM .prx plugin crates
+  → T15b S-5.03 [DEMO-BLOCKING per D-1162; deps S-5.02 SATISFIED]
+      remove-uncertainty before TDD; hard prereq of S-5.04
+  PIVOT-003 [DEMO-BLOCKING D-1205; deps PIVOT-002 MERGED]
+      Real IOC/CVE field stamping in Cyberint/CrowdStrike DTU fixtures
+      Canonical | enrich pivot-query validation at scenario stage >= 3
+      Closes BC-2.06.019 §Interim State _ioc_value violation
+      Closes TD-PLUGIN-P0-002 (P0)
+  → T15c S-5.04 [DEMO-BLOCKING per D-1162; deps S-5.03 MERGED]
+      Sensor health subsystem; remove-uncertainty before TDD
+  → T13 capstone [LAST before recording — AFTER all enrichment + capability-discovery + S-1.14-REDO merged]
   → T14 demo recording
 ```
 
