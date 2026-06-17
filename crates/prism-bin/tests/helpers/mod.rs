@@ -707,16 +707,19 @@ impl McpStdioHandle {
     }
 
     /// Send a JSON-RPC `method` with `params` and return the full parsed response,
-    /// including the `"error"` object when a JSON-RPC error is returned.
+    /// including the `"error"` object when a JSON-RPC protocol-level error is returned.
     ///
     /// Unlike `send_request`, this method does NOT treat a JSON-RPC error response
     /// as `Err`. Instead it returns `Ok(full_response_json)` so callers can inspect
     /// the `"error"` field.  Only I/O and parse failures are returned as `Err`.
     ///
-    /// Used by AC-005 (S-DEMO-004 cross-org isolation): the `query` handler returns a
-    /// JSON-RPC error (code -32602) when `resolve_source_refs` raises E-QUERY-032
-    /// (sensor not registered for the requesting org); the test must capture that
-    /// error object and verify it carries the E-QUERY-032 signal — it must NOT panic.
+    /// # When to use
+    ///
+    /// Use this for tests that need to assert on genuine JSON-RPC protocol-level errors
+    /// (e.g., unknown method, malformed request, fatal pre-handler failures). For user-visible
+    /// domain errors (E-QUERY-032, validation, permission, etc.), use `send_request` directly —
+    /// post BC-2.10.007 v1.5 (F-2 fix), domain errors return `{ "result": { "isError": true, ... } }`
+    /// which `send_request` handles correctly without error propagation.
     fn send_request_allow_rpc_error(
         &mut self,
         method: &str,
@@ -824,19 +827,27 @@ impl McpStdioHandle {
         self.tool_query_with_params(pql, Some(org_slug))
     }
 
-    /// Send `tools/call` for the `query` tool scoped to an org, expecting a JSON-RPC error.
+    /// Send `tools/call` for the `query` tool scoped to an org, returning the full raw
+    /// JSON-RPC response object (including any top-level `"error"` field).
     ///
-    /// Used exclusively by AC-005 (S-DEMO-004 cross-org isolation). When `resolve_source_refs`
-    /// raises E-QUERY-032 (sensor not registered for the requesting org), the MCP server
-    /// emits a JSON-RPC error response with code -32602.
-    /// `tool_query_scoped` (which calls `send_request`) would propagate this as `Err` and
-    /// `.expect()` would panic — hiding the error content the test needs to inspect.
+    /// # When to use
     ///
-    /// This method uses `send_request_allow_rpc_error` so the full JSON-RPC response
-    /// (including the `"error"` object) is returned as `Ok(json)`. The test then asserts
-    /// the error contains the E-QUERY-032 / "is not registered for org" signal.
+    /// Use this method ONLY when testing genuine **JSON-RPC protocol-level errors** — i.e.,
+    /// errors where the server returns `{ "error": { "code": N, "message": "..." } }` at the
+    /// JSON-RPC transport layer (e.g., malformed requests, unknown methods, fatal boot failures
+    /// that prevent the server from calling the tool handler at all).
     ///
-    /// For success-path tests use `tool_query_scoped` instead.
+    /// For **user-visible domain errors** (E-QUERY-032 cross-org isolation, validation errors,
+    /// permission errors, etc.), use `tool_query_scoped` instead. Post BC-2.10.007 v1.5 (F-2
+    /// fix), domain errors return `Ok(CallToolResult { isError: true, structuredContent: {...} })`
+    /// — a JSON-RPC success with `isError=true` in the result — NOT a protocol-level error.
+    /// `send_request` handles those correctly; this method is not needed for them.
+    ///
+    /// # What it returns
+    ///
+    /// Returns `Ok(full_json_rpc_response)` for both success and protocol-level error responses.
+    /// The caller must inspect `response.get("error")` vs `response.get("result")` directly.
+    /// Only transport-level I/O and parse failures are returned as `Err`.
     pub fn tool_query_scoped_expect_rpc_error(
         &mut self,
         pql: &str,

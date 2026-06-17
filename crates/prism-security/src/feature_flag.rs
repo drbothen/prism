@@ -263,6 +263,35 @@ impl FeatureFlagEvaluator {
     pub fn client_exists(&self, client_id: &str) -> bool {
         self.client_capabilities.contains_key(client_id)
     }
+
+    /// Return all capability paths configured for a specific client.
+    ///
+    /// Used by `list_capabilities` to enumerate client-configured capability paths
+    /// so that capabilities configured in TOML but absent from the `WriteEndpointRegistry`
+    /// can be reported as `compile_time_disabled`.
+    ///
+    /// Returns an empty `Vec` if the client is not found in the configuration.
+    pub fn capability_paths_for_client(&self, client_id: &str) -> Vec<String> {
+        self.client_capabilities
+            .get(client_id)
+            .map(|caps| {
+                caps.capabilities_for_display()
+                    .into_iter()
+                    .map(|(path, _effect)| path.as_str().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Return all configured client IDs.
+    ///
+    /// Used by `list_capabilities` cross-client summary mode to enumerate clients.
+    pub fn client_ids(&self) -> Vec<&str> {
+        self.client_capabilities
+            .keys()
+            .map(|s| s.as_str())
+            .collect()
+    }
 }
 
 // ─────────────────────────────────────────────────────────────

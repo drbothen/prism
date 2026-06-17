@@ -5150,6 +5150,7 @@ dependencies = [
  "chrono",
  "prism-audit",
  "prism-core",
+ "prism-credentials",
  "prism-ocsf",
  "prism-query",
  "prism-security",

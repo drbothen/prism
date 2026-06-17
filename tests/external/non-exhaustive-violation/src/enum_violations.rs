@@ -4,13 +4,16 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60 (16 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65 (17 total E0004 expected).
 //!
 //! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
 //!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
 //!
 //! S-DEMO-001 additions (prism-bin pub enum types):
 //!   48. prism_bin::spec_driven_adapter::AdapterAuthStrategy — enum, spec_driven_adapter.rs
+//!
+//! S-5.02 follow-up fix-burst (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep):
+//!   65. prism_mcp::CapabilityStatus — enum, server.rs (re-exported from lib.rs)
 
 use prism_core::{ColumnOptions, ColumnType, PluginError};
 use prism_spec_engine::infusion::{BuiltInSourceType, InfusionType};
@@ -257,5 +260,28 @@ pub fn v60_multi_instance_bind_error_match() {
         MultiInstanceBindError::DuplicateName { .. } => {}
         MultiInstanceBindError::BindFailure(_) => {}
         // After S-DEMO-MULTI-TENANT-DTU-001: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 65: prism_mcp::CapabilityStatus exhaustive match (E0004).
+///
+/// `CapabilityStatus` is the tri-state capability status in the `list_capabilities` response
+/// (BC-2.10.011 v1.5, S-5.02 R4). `#[non_exhaustive]` ensures that new status variants
+/// (e.g., `TemporarilyDisabled`, `RequiresElevation`) can be added without requiring all
+/// external match arms to be updated immediately.
+/// External callers MUST include `_ => {}`.
+///
+/// Added: S-5.02 follow-up fix-burst (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep).
+/// ci.yml EXPECTED bumped from 61 to 64 (together with v63 CapabilityEntry + v64 ResolutionStep
+/// struct violations).
+#[allow(dead_code)]
+pub fn v65_capability_status_match() {
+    use prism_mcp::CapabilityStatus;
+    let status: CapabilityStatus = CapabilityStatus::Enabled;
+    match status {
+        CapabilityStatus::Enabled => {}
+        CapabilityStatus::RuntimeDisabled => {}
+        CapabilityStatus::CompileTimeDisabled => {}
+        // After S-5.02: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

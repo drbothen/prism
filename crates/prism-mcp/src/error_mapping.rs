@@ -208,12 +208,24 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-SENSOR-*: Sensor adapter errors → -32000 Internal
+        // E-SENSOR-020: Sensor rate limited — EXPLICIT arm required.
+        // BC-2.10.007 §115-116: bind both fields; sensor→source (used in
+        // prism_error_to_structured_call_result), retry_after_ms/1000→retry_after_seconds.
+        // Kept separate so `sensor` is bound for the structured error caller to use.
+        // SEC-002 (CWE-200): message must NOT contain sensor name or retry_after_ms —
+        // those are sensor-identifying details that belong in upstream_message only
+        // (which is null per DI-006 — the rate limit notice is synthesized by Prism,
+        // not raw upstream text). Generic message prevents dual-channel disclosure.
+        PrismError::SensorRateLimited { .. } => (
+            codes::INTERNAL_ERROR,
+            "Internal error; see audit log".to_owned(),
+        ),
+
+        // E-SENSOR-001..003: Other sensor adapter errors → -32000 Internal
         // (external service failures; detail in audit log)
         PrismError::SensorHttpError { .. }
         | PrismError::SensorTimeout { .. }
-        | PrismError::SensorResponseParse { .. }
-        | PrismError::SensorRateLimited { .. } => (
+        | PrismError::SensorResponseParse { .. } => (
             codes::INTERNAL_ERROR,
             "Internal error; see audit log".to_owned(),
         ),
@@ -396,6 +408,888 @@ pub fn to_error_data(err: PrismError) -> ErrorData {
 }
 
 // ---------------------------------------------------------------------------
+// BC-2.10.007 v1.5 — structured error envelope API
+// ---------------------------------------------------------------------------
+
+/// BC-2.10.007 v1.7 wire shape — 9 fields inside `structuredContent.error`.
+///
+/// Carries the structured error envelope that every user-visible MCP tool error response
+/// must include (BC-2.10.007 postcondition). The builder [`build_structured_error_response`]
+/// serialises these fields into `structuredContent.error` with an explicit-null
+/// invariant for `retry_after_seconds` and `upstream_message` (null-not-absent).
+///
+/// # Construction
+///
+/// `#[non_exhaustive]` prevents external struct-literal construction, which would
+/// need updating every time a field is added. External callers (including tests)
+/// MUST use [`StructuredErrorFields::new`]:
+///
+/// ```
+/// use prism_mcp::error_mapping::StructuredErrorFields;
+/// let fields = StructuredErrorFields::new(
+///     "E-MCP-001", "invalid client_id format: ''", "validation",
+///     false, None, "Provide a client_id matching [a-zA-Z0-9_-]{1,64}.", "prism_mcp",
+///     false, None,
+/// );
+/// ```
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StructuredErrorFields {
+    /// Canonical error code (e.g. `"E-MCP-001"`, `"E-CFG-100"`).
+    pub code: String,
+    /// Human-readable error message (never contains raw sensor text — DI-006).
+    pub message: String,
+    /// Error category — must be a legal BC-2.10.007 §77 enum value:
+    /// `"transient"` | `"authentication"` | `"validation"` | `"not_found"` |
+    /// `"permission"` | `"upstream_error"` | `"configuration"` | `"safety"` |
+    /// `"internal"` (v1.7: Prism-side infrastructure/invariant failures; sensor not reached).
+    pub category: String,
+    /// Whether the caller may retry.
+    pub retryable: bool,
+    /// Seconds to wait before retry; `null` when not applicable (BC-2.10.007 null-not-absent).
+    pub retry_after_seconds: Option<u64>,
+    /// Actionable suggestion for the caller.
+    pub suggestion: String,
+    /// Error source identifier (e.g. `"prism_mcp"`).
+    pub source: String,
+    /// Whether the original request parameters were structurally valid.
+    pub original_params_valid: bool,
+    /// Raw upstream sensor message; `null` for errors originating in Prism (DI-006).
+    pub upstream_message: Option<String>,
+}
+
+impl StructuredErrorFields {
+    /// Construct all 9 BC-2.10.007 v1.5 structured error fields.
+    ///
+    /// External callers MUST use this constructor — struct literal syntax is blocked by
+    /// `#[non_exhaustive]` (HC-3, S-5.02).
+    ///
+    /// # Arguments (positional, matching field order)
+    /// 1. `code` — canonical E-* error code (e.g. `"E-MCP-001"`)
+    /// 2. `message` — human-readable message (no raw sensor text, DI-006)
+    /// 3. `category` — legal BC-2.10.007 §77 enum value: `"transient"` | `"authentication"` |
+    ///    `"validation"` | `"not_found"` | `"permission"` | `"upstream_error"` |
+    ///    `"configuration"` | `"safety"` | `"internal"` (v1.7)
+    /// 4. `retryable` — whether the caller may retry
+    /// 5. `retry_after_seconds` — wait hint (null when not applicable)
+    /// 6. `suggestion` — actionable suggestion for the caller
+    /// 7. `source` — error source identifier (e.g. `"prism_mcp"`)
+    /// 8. `original_params_valid` — whether the original request params were structurally valid
+    /// 9. `upstream_message` — raw upstream sensor text (null for Prism-originating errors, DI-006)
+    ///
+    /// # Bool layout (F-11)
+    ///
+    /// Two `bool` args: position 4 = `retryable`, position 8 = `original_params_valid`.
+    /// Use `StructuredErrorFields::builder()` when the call site has no adjacent type context
+    /// to disambiguate the two booleans.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        category: impl Into<String>,
+        retryable: bool,
+        retry_after_seconds: Option<u64>,
+        suggestion: impl Into<String>,
+        source: impl Into<String>,
+        original_params_valid: bool,
+        upstream_message: Option<String>,
+    ) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+            category: category.into(),
+            retryable,
+            retry_after_seconds,
+            suggestion: suggestion.into(),
+            source: source.into(),
+            original_params_valid,
+            upstream_message,
+        }
+    }
+
+    /// Named-field builder for `StructuredErrorFields` (F-11).
+    ///
+    /// Prefer this over `new()` at call sites where both `bool` args cannot be
+    /// verified from adjacent context.  Named setters eliminate the bool-swap risk.
+    pub fn builder() -> StructuredErrorFieldsBuilder {
+        StructuredErrorFieldsBuilder::default()
+    }
+}
+
+/// Builder for [`StructuredErrorFields`] (F-11 — prevents bool-swap risk).
+///
+/// Obtain via [`StructuredErrorFields::builder()`].
+#[derive(Debug, Default)]
+pub struct StructuredErrorFieldsBuilder {
+    code: Option<String>,
+    message: Option<String>,
+    category: Option<String>,
+    retryable: bool,
+    retry_after_seconds: Option<u64>,
+    suggestion: Option<String>,
+    source: Option<String>,
+    original_params_valid: bool,
+    upstream_message: Option<String>,
+}
+
+impl StructuredErrorFieldsBuilder {
+    pub fn code(mut self, v: impl Into<String>) -> Self {
+        self.code = Some(v.into());
+        self
+    }
+    pub fn message(mut self, v: impl Into<String>) -> Self {
+        self.message = Some(v.into());
+        self
+    }
+    pub fn category(mut self, v: impl Into<String>) -> Self {
+        self.category = Some(v.into());
+        self
+    }
+    pub fn retryable(mut self, v: bool) -> Self {
+        self.retryable = v;
+        self
+    }
+    pub fn retry_after_seconds(mut self, v: Option<u64>) -> Self {
+        self.retry_after_seconds = v;
+        self
+    }
+    pub fn suggestion(mut self, v: impl Into<String>) -> Self {
+        self.suggestion = Some(v.into());
+        self
+    }
+    pub fn source(mut self, v: impl Into<String>) -> Self {
+        self.source = Some(v.into());
+        self
+    }
+    pub fn original_params_valid(mut self, v: bool) -> Self {
+        self.original_params_valid = v;
+        self
+    }
+    pub fn upstream_message(mut self, v: Option<String>) -> Self {
+        self.upstream_message = v;
+        self
+    }
+    /// Build the `StructuredErrorFields`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `code`, `message`, `category`, `suggestion`, or `source` were not set.
+    pub fn build(self) -> StructuredErrorFields {
+        StructuredErrorFields {
+            code: self
+                .code
+                .expect("StructuredErrorFieldsBuilder: code is required"),
+            message: self
+                .message
+                .expect("StructuredErrorFieldsBuilder: message is required"),
+            category: self
+                .category
+                .expect("StructuredErrorFieldsBuilder: category is required"),
+            retryable: self.retryable,
+            retry_after_seconds: self.retry_after_seconds,
+            suggestion: self
+                .suggestion
+                .expect("StructuredErrorFieldsBuilder: suggestion is required"),
+            source: self
+                .source
+                .expect("StructuredErrorFieldsBuilder: source is required"),
+            original_params_valid: self.original_params_valid,
+            upstream_message: self.upstream_message,
+        }
+    }
+}
+
+/// Build the nested BC-2.10.007 `structuredContent.error` envelope as an error `CallToolResult`.
+///
+/// This is the PRODUCTION tool error boundary: tool handlers return
+/// `Ok(build_structured_error_response(...))` for all user-visible domain errors so that
+/// `structuredContent.error` carries the 9-field schema and `_meta.trust_level:"internal"`.
+///
+/// Protocol-level errors (injection rejection, write-tool audit fail-closed, rmcp framework
+/// errors) remain as `Err(ErrorData)` — those are returned before the tool handler body
+/// executes and are not user-visible at the domain level.
+///
+/// Produces the BC-2.10.007 v1.7 wire shape:
+/// ```json
+/// {
+///   "isError": true,
+///   "content": [{"type": "text", "text": "<content_text>"}],
+///   "structuredContent": {
+///     "error": {
+///       "code": "...", "message": "...", "category": "...",
+///       "retryable": false, "retry_after_seconds": null,
+///       "suggestion": "...", "source": "...",
+///       "original_params_valid": false, "upstream_message": null
+///     },
+///     "_meta": {"trust_level": "internal"}
+///   }
+/// }
+/// ```
+///
+/// `retry_after_seconds` and `upstream_message` are always present in the JSON
+/// as explicit `null` when not applicable (null-not-absent invariant, BC-2.10.007 v1.5).
+///
+/// # Parameters
+/// - `fields`: the 9 structured error fields per BC-2.10.007 v1.5
+/// - `content_text`: the human-readable `content[].text` string ("`ERROR: [{category}] - ...`")
+pub fn build_structured_error_response(
+    fields: StructuredErrorFields,
+    content_text: String,
+) -> rmcp::model::CallToolResult {
+    // Build retry_after_seconds and upstream_message as explicit JSON null when None.
+    // serde_json::Value::Null ensures the field is PRESENT in the object as `null`,
+    // not absent (BC-2.10.007 null-not-absent invariant).
+    let retry_after_seconds = match fields.retry_after_seconds {
+        Some(s) => serde_json::Value::Number(s.into()),
+        None => serde_json::Value::Null,
+    };
+    let upstream_message = match fields.upstream_message {
+        Some(msg) => serde_json::Value::String(msg),
+        None => serde_json::Value::Null,
+    };
+
+    let structured_content = serde_json::json!({
+        "error": {
+            "code": fields.code,
+            "message": fields.message,
+            "category": fields.category,
+            "retryable": fields.retryable,
+            "retry_after_seconds": retry_after_seconds,
+            "suggestion": fields.suggestion,
+            "source": fields.source,
+            "original_params_valid": fields.original_params_valid,
+            "upstream_message": upstream_message,
+        },
+        "_meta": {
+            "trust_level": "internal"
+        }
+    });
+
+    // CallToolResult is #[non_exhaustive] — cannot use struct literal from external crate.
+    // Use structured_error() as the constructor, then replace the content vector with
+    // the human-readable content_text instead of the JSON-serialized structured content.
+    let mut result = rmcp::model::CallToolResult::structured_error(structured_content);
+    result.content = vec![rmcp::model::Content::text(content_text)];
+    result
+}
+
+/// BC-2.10.007 spec R2 flat-path helper: extract `retry_after_ms` from `SensorRateLimited`
+/// alongside the flat [`ErrorData`] representation.
+///
+/// # Design role (BC-2.10.007 §"to_error_data_with_retry helper contract")
+///
+/// BC-2.10.007 §108 mandates a helper function **"or equivalent inline mapping"** for
+/// extracting `retry_after_ms` from `SensorRateLimited`. This function is the **flat-path**
+/// variant of that helper (return type `(ErrorData, u64)`) — it covers the case where a
+/// caller already operates on the flat `Err(ErrorData)` MCP error boundary and needs the
+/// `retry_after_ms` value alongside the error data.
+///
+/// The **structured path** ([`prism_error_to_structured_call_result`]) satisfies the same
+/// BC requirement via the "equivalent inline mapping" clause: it binds `retry_after_ms`
+/// directly in its `SensorRateLimited` arm and applies the SEC-001 `.max(1)` floor
+/// (`(retry_after_ms / 1000).max(1)`). Both paths are BC-compliant; they serve different
+/// error-surface boundaries.
+///
+/// # Contract
+///
+/// - Intended for use with `PrismError::SensorRateLimited { .. }`. For any other variant,
+///   returns `retry_after_ms = 0` (graceful — no panic). OBS-1 de-footgun fix: the prior
+///   `panic!` on misuse made this public function unsafe to call from match arms that include
+///   non-rate-limited variants.
+/// - Returns `(ErrorData, retry_after_ms_raw_u64)` — the `u64` is the raw millisecond value.
+///   Callers converting to `retry_after_seconds` MUST apply `.max(1)` (SEC-001 floor).
+/// - For non-`SensorRateLimited` variants: returns `retry_after_ms = 0`.
+///   Callers applying `.max(1)` will produce 1s minimum retry hint.
+///
+/// # Note
+///
+/// This function has no production caller in the current server implementation because
+/// `SensorRateLimited` is always routed to `prism_error_to_structured_call_result` (the
+/// structured path). It remains part of the public API as the BC-2.10.007 spec R2 flat-path
+/// helper contract, exercised by `test_BC_2_10_007_sensor_rate_limited_retry_after_seconds_ms_to_s_conversion`.
+pub fn to_error_data_with_retry(err: PrismError) -> (ErrorData, u64) {
+    // Extract retry_after_ms BEFORE consuming err via map_prism_error.
+    // For non-SensorRateLimited variants, return 0 (no retry hint) — no panic.
+    // OBS-1: the prior panic! was a public-function footgun; 0u64 is the graceful
+    // (ErrorData, u64) equivalent of BC-2.10.007 §111 "return None for other variants".
+    // Callers applying .max(1) floor will produce 1s minimum.
+    let retry_after_ms = match &err {
+        PrismError::SensorRateLimited { retry_after_ms, .. } => *retry_after_ms,
+        _other => 0u64, // graceful: no retry hint; callers apply .max(1) SEC-001 floor
+    };
+    let (code, message) = map_prism_error(err);
+    (
+        ErrorData::new(ErrorCode(code), message, None),
+        retry_after_ms,
+    )
+}
+
+/// Convert a `PrismError` into a BC-2.10.007 structured `CallToolResult` (is_error=true).
+///
+/// This is the PRODUCTION domain-error boundary for tool handlers. All user-visible
+/// domain errors (QueryEngine failures, WriteExecutor rejections, validation failures)
+/// route through here so the caller receives `structuredContent.error` with all
+/// 9 required fields + `_meta.trust_level:"internal"`.
+///
+/// Protocol-level errors (injection rejection, write-tool fail-closed audit) remain as
+/// `Err(ErrorData)` because they fire before or around the tool handler body.
+///
+/// # Usage in tool handlers
+///
+/// ```ignore
+/// // BEFORE (flat error — violates BC-2.10.007):
+/// return Err(to_error_data(PrismError::QueryTimeout { elapsed_ms: 30_000 }));
+///
+/// // AFTER (structured error — BC-2.10.007 compliant):
+/// return Ok(prism_error_to_structured_call_result(PrismError::QueryTimeout { elapsed_ms: 30_000 }));
+/// ```
+pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::CallToolResult {
+    // Inspect err by reference BEFORE consuming it with map_prism_error.
+    // Temporary struct to capture variant-level metadata.
+    //
+    // BC-2.10.007 v1.7 §category legal enum (9 values):
+    //   transient | authentication | validation | not_found | permission |
+    //   upstream_error | configuration | safety | internal
+    // BC-2.10.007 §81 source values:
+    //   "prism_mcp" for MCP-layer errors; sensor API name for sensor errors;
+    //   "prism_config" for configuration errors.
+    // BC-2.10.007 DI-006 / EC-10-013: raw sensor text goes in upstream_message ONLY.
+    struct VariantMeta {
+        category: &'static str,
+        /// Static suggestion string for variants with no per-instance guidance.
+        suggestion: &'static str,
+        /// Runtime-owned suggestion override — used when a variant carries its own
+        /// actionable guidance that must be surfaced verbatim (e.g. CapabilityDenied.suggestion).
+        /// When `Some`, takes precedence over `suggestion`.
+        /// MED-1 (BC-2.10.007 v1.8): threads CapabilityDenied's own actionable guidance
+        /// through instead of discarding it in favour of a static string.
+        owned_suggestion: Option<String>,
+        retryable: bool,
+        retry_after_seconds: Option<u64>,
+        original_params_valid: bool,
+        /// Override source for sensor errors; `None` → default "prism_mcp".
+        source_override: Option<String>,
+        /// Raw upstream sensor text for DI-006 isolation; `None` for Prism-originating errors.
+        upstream_message: Option<String>,
+        /// Pin the canonical E-* error code directly (F-1 fix).
+        /// When `Some`, bypasses message-string-based code inference in `map_prism_error`.
+        /// Required for variants where `map_prism_error` returns the generic
+        /// "Internal error; see audit log" message (no E- prefix to infer from).
+        ec_code_override: Option<&'static str>,
+    }
+    let meta = match &err {
+        // ── Authentication errors: credential invalid or identity format failure ─
+        // BC-2.10.007 v1.7 §Category rule: "Credential invalid or identity validation
+        // failure" → category "authentication". LLM-agent strategy: re-authenticate;
+        // check credential_ref.
+        //
+        // Two sub-cases:
+        //   (a) Identity FORMAT failures (InvalidOrgSlug, InvalidAnalystId, InvalidClientId):
+        //       The identity string was malformed — original_params_valid: false.
+        //       E-AUTH-001/002/003 codes are inferred from the Display prefix (map_prism_error
+        //       returns the formatted message which starts with "E-AUTH-NNN: ...").
+        //
+        //   (b) Valid-format credential failures (AuthTokenExpired, AuthTokenInvalid):
+        //       The token format was structurally valid but the credential is expired/invalid.
+        //       original_params_valid: true (params were well-formed; the credential failed).
+        //       ec_code_override required: map_prism_error returns INTERNAL_ERROR with
+        //       "Internal error; see audit log" for these variants — no E- prefix to infer.
+        //       Pin E-AUTH-010/011 directly.
+        //
+        // HIGH-1 fix (BC-2.10.007 v1.7 §Category rule):
+        //   - InvalidOrgSlug/InvalidAnalystId/InvalidClientId: moved FROM "validation"
+        //   - AuthTokenExpired/AuthTokenInvalid: moved FROM catch-all "upstream_error"
+
+        // (a) Identity format failures: malformed → original_params_valid: false
+        PrismError::InvalidOrgSlug { .. }
+        | PrismError::InvalidAnalystId { .. }
+        | PrismError::InvalidClientId { .. } => VariantMeta {
+            category: "authentication",
+            suggestion: "Check the identity format and re-authenticate.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            // E-AUTH-001/002/003 inferred from map_prism_error Display prefix (starts "E-AUTH-").
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // (b) Valid-format credential failures: token expired/invalid → original_params_valid: true
+        PrismError::AuthTokenExpired => VariantMeta {
+            category: "authentication",
+            suggestion: "The auth token has expired. Re-authenticate and obtain a fresh token.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
+            // variant — no E- prefix. Pin E-AUTH-010 directly.
+            owned_suggestion: None,
+            ec_code_override: Some("E-AUTH-010"),
+        },
+
+        PrismError::AuthTokenInvalid { .. } => VariantMeta {
+            category: "authentication",
+            suggestion: "The auth token is invalid. Re-authenticate and obtain a valid token.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            // map_prism_error returns INTERNAL_ERROR/"Internal error; see audit log" for this
+            // variant — no E- prefix. Pin E-AUTH-011 directly.
+            owned_suggestion: None,
+            ec_code_override: Some("E-AUTH-011"),
+        },
+
+        // ── Validation errors: caller-supplied bad parameters ────────────────
+        // ClientNotFound is intentionally EXCLUDED from this group per BC-2.10.004 §87:
+        // a well-formed-but-unregistered client_id is a configuration error, not a
+        // bad-parameter error — `original_params_valid: true`.
+        // Write-policy variants (WriteUnbounded, WriteBatchLimitExceeded, etc.) are
+        // EXCLUDED from this group per F-3: the params are structurally valid but
+        // the write policy denied them — `original_params_valid: true`.
+        // InvalidOrgSlug/InvalidAnalystId/InvalidClientId are EXCLUDED from this group
+        // per HIGH-1 fix: identity FORMAT failures map to "authentication" (BC-2.10.007 v1.7).
+        // AuthTokenExpired/AuthTokenInvalid are EXCLUDED: moved to "authentication" arm above.
+        // SensorNotRegisteredForOrg is EXCLUDED from this group per OBS-1 (BC-2.10.007 v1.8):
+        // cross-org sensor isolation is a scoping/permission denial, NOT a param-validation
+        // failure. The org slug and sensor name are structurally valid. Moved to "permission".
+        PrismError::QueryParseFailed { .. }
+        | PrismError::McpParameterInvalid { .. }
+        | PrismError::McpToolNotFound { .. }
+        | PrismError::InvalidCapabilityPath { .. }
+        | PrismError::QueryLimitExceeded { .. }
+        | PrismError::QuerySecurityLimitExceeded { .. }
+        | PrismError::UnknownSourceTable { .. }
+        | PrismError::AliasNotFound { .. }
+        | PrismError::AliasCycleDetected { .. }
+        | PrismError::AliasDepthExceeded { .. }
+        | PrismError::AliasParameterInvalid { .. }
+        | PrismError::AliasDependentsExist { .. }
+        | PrismError::AliasNameConflict { .. }
+        | PrismError::CursorExpired
+        | PrismError::CursorPageSizeInvalid
+        | PrismError::CursorTokenUnknown
+        | PrismError::CursorCapExceeded => VariantMeta {
+            category: "validation",
+            suggestion: "Check the request parameters and retry.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── Write-policy errors: structurally valid params, policy denied ────
+        // F-3 fix: these are NOT malformed-parameter errors — the params were
+        // structurally valid. The write policy denied the operation (e.g., missing
+        // WHERE clause, batch too large). `original_params_valid: true`.
+        PrismError::WriteUnbounded
+        | PrismError::WriteTargetCompositeSource { .. }
+        | PrismError::WriteBatchLimitExceeded { .. }
+        | PrismError::WriteTargetingInternalTable { .. }
+        | PrismError::WriteVerbNotAvailable { .. }
+        | PrismError::WriteTargetTableUnknown { .. }
+        | PrismError::WriteAdapterNotConfiguredForClient { .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Check the write policy constraints and retry with a bounded query.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── Configuration errors: well-formed params but not in config ───────
+        // BC-2.10.004 §87 case (c): ClientNotFound → category "configuration",
+        // original_params_valid: true (params were structurally valid).
+        // BC-2.10.007 §81 source: "prism_config" for configuration errors.
+        PrismError::ClientNotFound { .. }
+        | PrismError::Spec(_)
+        | PrismError::SpecNotFound { .. }
+        | PrismError::SpecValidationFailed { .. }
+        | PrismError::SpecHotReloadFailed { .. }
+        | PrismError::ConfigNotFound { .. }
+        | PrismError::ConfigParseFailed { .. }
+        | PrismError::ConfigValidationFailed { .. }
+        | PrismError::ConfigSnapshotStale { .. } => VariantMeta {
+            category: "configuration",
+            suggestion: "Check operator configuration; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: Some("prism_config".to_owned()),
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── Permission errors: capability denied, auth failures, org-scoping ──
+        // BC-2.10.007 legal category: "permission" (not "authorization").
+        // MED-1 (BC-2.10.007 v1.8): each sub-class of permission error carries its own
+        // suggestion text. The OBS-1 fix incorrectly shared the org-scoping string across
+        // ALL permission variants. Fixed by splitting into three dedicated sub-arms:
+        //   (a) SensorNotRegisteredForOrg — org-scoping guidance (the OBS-1 intent)
+        //   (b) CapabilityDenied — threads the variant's own suggestion field verbatim
+        //   (c) All other permission variants — generic permission/confirmation guidance
+
+        // (a) SensorNotRegisteredForOrg: org-scoping guidance.
+        // OBS-1 (BC-2.10.007 v1.8): cross-org sensor isolation is a scoping/permission denial.
+        // The org slug and sensor name are structurally valid; access was refused at the
+        // org-scoping boundary. original_params_valid: true. LLM-agent: verify sensor is
+        // registered under the target org.
+        PrismError::SensorNotRegisteredForOrg { .. } => VariantMeta {
+            category: "permission",
+            suggestion:
+                "Check sensor registration for the target org. Verify the sensor is configured \
+                 under the requested org slug in prism.toml.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // (b) CapabilityDenied: thread the variant's own suggestion field verbatim.
+        // MED-1 (BC-2.10.007 v1.8): CapabilityDenied carries an actionable "exact TOML path
+        // + restart instruction" suggestion generated by the capability resolver at check time.
+        // This guidance is variant-specific and must not be discarded. owned_suggestion threads
+        // it through to the structured response; suggestion is a never-used fallback.
+        PrismError::CapabilityDenied { suggestion, .. } => VariantMeta {
+            category: "permission",
+            suggestion: "Inspect capability configuration; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: Some(suggestion.clone()),
+            ec_code_override: None,
+        },
+
+        // (c) All other permission variants: generic permission/confirmation guidance.
+        // FeatureFlagEvalError, Unauthorized, McpPromptInjectionDetected, token variants,
+        // WriteRequiresClientId, CredentialAccessDenied, AuditTableAccessDenied.
+        // None of these carry sensor-registration context; org-scoping text would actively
+        // misdirect the LLM agent (e.g., for prompt-injection rejection or expired tokens).
+        PrismError::FeatureFlagEvalError { .. }
+        | PrismError::Unauthorized { .. }
+        | PrismError::McpPromptInjectionDetected { .. }
+        | PrismError::TokenExpired { .. }
+        | PrismError::TokenAlreadyConsumed { .. }
+        | PrismError::TokenContentHashMismatch { .. }
+        | PrismError::TokenCapExceeded
+        | PrismError::TokenNotFound { .. }
+        | PrismError::ConfirmClientIdMismatch { .. }
+        | PrismError::WriteRequiresClientId
+        | PrismError::CredentialAccessDenied { .. }
+        | PrismError::AuditTableAccessDenied => VariantMeta {
+            category: "permission",
+            suggestion: "Inspect permissions and use the confirmation flow if required.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── Transient errors: retryable, no permanent fix needed ─────────────
+        // BC-2.10.007 legal category: "transient" (not "timeout" or "internal").
+        PrismError::QueryTimeout { .. } => VariantMeta {
+            category: "transient",
+            suggestion: "Retry the query with a shorter time range or narrower scope.",
+            retryable: true,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // BC-2.10.007 §115: SensorRateLimited requires explicit arm binding both fields.
+        // BC-2.10.007 §81: source = sensor name (not "prism_mcp").
+        // BC-2.10.007 DI-006: upstream_message must be null for SensorRateLimited —
+        //   the rate-limit notice is synthesized by Prism, not raw upstream text (F-5 fix).
+        //   A 429 response from the upstream sensor typically has no body with specific
+        //   detail to preserve; the Retry-After value is captured in retry_after_seconds.
+        // BC-2.10.007 legal category: "transient" (retryable 429 → transient).
+        // SEC-001 fix: apply .max(1) floor so sub-second ms values produce 1s, not 0s
+        //   (prevents immediate retry storms, CWE-400).
+        // SEC-002 fix: source_override carries the sensor name for audit purposes, but
+        //   the message field uses the generic redacted string from map_prism_error (which
+        //   now returns "Internal error; see audit log" for this variant — DI-006 / CWE-200).
+        PrismError::SensorRateLimited {
+            sensor,
+            retry_after_ms,
+        } => VariantMeta {
+            category: "transient",
+            suggestion: "Retry after the indicated delay.",
+            retryable: true,
+            // SEC-001: .max(1) floor prevents 0-second retry hints for sub-second values.
+            retry_after_seconds: Some((retry_after_ms / 1000).max(1)),
+            original_params_valid: true,
+            source_override: Some(sensor.clone()),
+            // F-5 / DI-006: upstream_message must be null — Prism synthesizes the rate-limit
+            // notice; there is no raw upstream body text to preserve here.
+            upstream_message: None,
+            // F-1: pin canonical code directly (map_prism_error returns generic message for this).
+            owned_suggestion: None,
+            ec_code_override: Some("E-SENSOR-020"),
+        },
+
+        // BC-2.10.007 §81: source = sensor name; DI-006: body → upstream_message.
+        // BC-2.10.007 Canonical Test Vector: 401 → category "authentication", retryable: false.
+        // 403 is also an authentication/authorization failure (bad credentials or insufficient
+        // scope) — same category. All other HTTP status codes remain "upstream_error".
+        // F-1: pin canonical code E-SENSOR-001 directly (map_prism_error returns generic message).
+        // SEC-004: cap body at 4096 bytes before embedding in upstream_message (CWE-400).
+        PrismError::SensorHttpError {
+            sensor,
+            status,
+            body,
+        } => {
+            let (category, suggestion) = match status {
+                401 | 403 => (
+                    "authentication",
+                    "Check sensor credential configuration in prism.toml. See audit log.",
+                ),
+                _ => (
+                    "upstream_error",
+                    "Check sensor API status. If the problem persists, see audit log.",
+                ),
+            };
+            // SEC-004 (CWE-400): cap upstream_message at 4096 bytes to prevent unbounded
+            // allocation when sensor returns a large HTML error page or other verbose body.
+            // The cap is on the FINAL string length (including the "HTTP N: " prefix).
+            const UPSTREAM_MSG_CAP: usize = 4096;
+            let suffix = "…[truncated]";
+            let raw_body = format!("HTTP {status}: {body}");
+            let capped_body = if raw_body.len() > UPSTREAM_MSG_CAP {
+                // Truncate to (cap - suffix_len) to ensure final string <= cap.
+                let cut = UPSTREAM_MSG_CAP.saturating_sub(suffix.len());
+                // Find the last valid UTF-8 boundary at or before `cut` (rfind is idiomatic
+                // for DoubleEndedIterator — avoids clippy::double_ended_iterator_last).
+                let cut = raw_body
+                    .char_indices()
+                    .map(|(i, _)| i)
+                    .rfind(|&i| i <= cut)
+                    .unwrap_or(0);
+                let mut truncated = raw_body[..cut].to_owned();
+                truncated.push_str(suffix);
+                truncated
+            } else {
+                raw_body
+            };
+            VariantMeta {
+                category,
+                suggestion,
+                retryable: false,
+                retry_after_seconds: None,
+                original_params_valid: true,
+                source_override: Some(sensor.clone()),
+                // Raw body text → upstream_message ONLY (DI-006 injection isolation, EC-10-013).
+                upstream_message: Some(capped_body),
+                // F-1: pin canonical code directly (map_prism_error returns generic message).
+                owned_suggestion: None,
+                ec_code_override: Some("E-SENSOR-001"),
+            }
+        }
+
+        // BC-2.10.007 §81: source = sensor name; "upstream_error" for sensor timeouts/parse.
+        // F-1: pin canonical codes E-SENSOR-002 / E-SENSOR-003 directly
+        //   (map_prism_error returns "Internal error; see audit log" for these variants;
+        //   without the override, the fallback fires and produces "E-INT-001").
+        PrismError::SensorTimeout { sensor, .. } => VariantMeta {
+            category: "upstream_error",
+            suggestion: "Check sensor API status. If the problem persists, see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: Some(sensor.clone()),
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: Some("E-SENSOR-002"),
+        },
+
+        PrismError::SensorResponseParse { sensor, .. } => VariantMeta {
+            category: "upstream_error",
+            suggestion: "Check sensor API status. If the problem persists, see audit log.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: Some(sensor.clone()),
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: Some("E-SENSOR-003"),
+        },
+
+        // AuditPersistenceFailed is retryable and transient (not permanent "internal").
+        PrismError::AuditPersistenceFailed => VariantMeta {
+            category: "transient",
+            suggestion:
+                "Retry the operation. If the problem persists, check the audit log storage.",
+            retryable: true,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── Prism-side infrastructure failures → category "internal" ────────
+        // BC-2.10.007 v1.7 §F-4: these variants indicate a failure in Prism's own
+        // runtime (disk I/O, RocksDB, internal invariant). The sensor was NEVER
+        // reached. Emitting "upstream_error" for these was semantically incorrect:
+        // it told LLM agents to investigate sensor health for a Prism-internal fault.
+        // "internal" is the 9th legal BC-2.10.007 category value added in v1.7.
+        //
+        // BC-2.10.007 v1.7 canonical list:
+        //   Internal, Io, StorageOpenFailed, StorageWriteFailed, StorageReadFailed,
+        //   StorageDomainNotFound, StorageKeyNotFound, StorageLockHeld,
+        //   StorageHealthCheckFailed, SchemaMismatch, StorageBatchFailed
+        PrismError::Internal { .. }
+        | PrismError::Io(_)
+        | PrismError::StorageOpenFailed { .. }
+        | PrismError::StorageWriteFailed { .. }
+        | PrismError::StorageReadFailed { .. }
+        | PrismError::StorageDomainNotFound { .. }
+        | PrismError::StorageKeyNotFound { .. }
+        | PrismError::StorageLockHeld { .. }
+        | PrismError::StorageHealthCheckFailed { .. }
+        | PrismError::SchemaMismatch { .. }
+        | PrismError::StorageBatchFailed { .. } => VariantMeta {
+            category: "internal",
+            suggestion:
+                "Prism infrastructure failure. Contact Prism operator; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── MCP serialization error → fallback (not a sensor failure, not listed in
+        // BC-2.10.007 v1.7 "internal" list — remains catch-all pending future BC amendment)
+        PrismError::McpSerializationError { .. } => VariantMeta {
+            category: "upstream_error",
+            suggestion:
+                "See audit log for details. Contact Prism operator if the problem persists.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── Process-supervision watchdog failures → category "internal" ────────
+        // BC-2.10.007 v1.8 §OBS-2: Watchdog variants are Prism-side process supervision
+        // failures. WatchdogKilled is reachable on user-visible MCP tool paths via the
+        // query execution path (prism-storage::watchdog::check_query → ? propagation →
+        // tool handler → prism_error_to_structured_call_result). Category "internal"
+        // is correct: the fault domain is Prism's own memory budget, not a sensor failure.
+        // Catch-all "upstream_error" was semantically wrong — it directed LLM agents to
+        // investigate sensor health for a Prism-internal resource constraint.
+        // WatchdogHeartbeatMissed and WatchdogRestartLimitExceeded share the same
+        // "Prism-side process supervision failure" fault domain and are categorized
+        // identically for forward compatibility.
+        PrismError::WatchdogKilled { .. }
+        | PrismError::WatchdogHeartbeatMissed { .. }
+        | PrismError::WatchdogRestartLimitExceeded { .. } => VariantMeta {
+            category: "internal",
+            suggestion: "Prism process supervision failure (memory or watchdog). \
+                 Contact Prism operator; see audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+
+        // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
+        // "upstream_error" is the safest legal fallback for variants that don't fit
+        // the specific categories above (non_exhaustive catch-all).
+        _ => VariantMeta {
+            category: "upstream_error",
+            suggestion: "See audit log for details.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: true,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+        },
+    };
+
+    // Now consume err to get the canonical code + message.
+    let (code_i32, message) = map_prism_error(err);
+    // Derive E-* code string.
+    // F-1 fix: if the variant pinned an explicit ec_code_override, use it directly.
+    // This is required for variants where map_prism_error returns the generic
+    // "Internal error; see audit log" message (no E- prefix to infer the code from).
+    // Without the override, the fallback "E-INT-001" fires incorrectly for
+    // SensorHttpError (should be E-SENSOR-001), SensorTimeout (E-SENSOR-002), etc.
+    let ec_code = if let Some(pinned_code) = meta.ec_code_override {
+        pinned_code.to_owned()
+    } else if message.starts_with("E-") {
+        message.split(':').next().unwrap_or("E-INT-001").to_owned()
+    } else {
+        match code_i32 {
+            codes::INVALID_PARAMS => "E-MCP-002".to_owned(),
+            codes::FORBIDDEN => "E-FLAG-001".to_owned(),
+            codes::TIMEOUT => "E-QUERY-004".to_owned(),
+            codes::NOT_IMPLEMENTED => "E-MCP-003".to_owned(),
+            _ => "E-INT-001".to_owned(),
+        }
+    };
+
+    let source = meta
+        .source_override
+        .unwrap_or_else(|| "prism_mcp".to_owned());
+
+    let fields = StructuredErrorFields {
+        code: ec_code,
+        message,
+        category: meta.category.to_owned(),
+        retryable: meta.retryable,
+        retry_after_seconds: meta.retry_after_seconds,
+        // MED-1 (BC-2.10.007 v1.8): use owned_suggestion when the variant carries its own
+        // actionable guidance (e.g. CapabilityDenied.suggestion); fall back to static string.
+        suggestion: meta
+            .owned_suggestion
+            .unwrap_or_else(|| meta.suggestion.to_owned()),
+        source,
+        original_params_valid: meta.original_params_valid,
+        upstream_message: meta.upstream_message,
+    };
+    let content_text = format!(
+        "ERROR: [{}] - {}. {}",
+        fields.category, fields.message, fields.suggestion
+    );
+    build_structured_error_response(fields, content_text)
+}
+
+// ---------------------------------------------------------------------------
 // Unit tests for error_mapping
 // ---------------------------------------------------------------------------
 
@@ -445,6 +1339,687 @@ mod tests {
             code,
             codes::INTERNAL_ERROR,
             "UnknownSourceTable must NOT map to INTERNAL_ERROR (-32000); got: {code}"
+        );
+    }
+
+    // ── BC-2.10.007 v1.6 Canonical Test Vectors — SensorHttpError auth mis-categorization ──
+
+    /// BC-2.10.007 Canonical Test Vector: Sensor API returns 401 → category "authentication".
+    ///
+    /// Verifies that `SensorHttpError { status: 401 }` produces `category: "authentication"`,
+    /// `retryable: false` in `prism_error_to_structured_call_result`. Before this fix the arm
+    /// was unconditional `"upstream_error"`, causing analysts to see a misleading "outage/retry"
+    /// signal for a credential failure.
+    #[test]
+    fn test_BC_2_10_007_sensor_http_401_category_is_authentication() {
+        let err = PrismError::SensorHttpError {
+            sensor: "crowdstrike_falcon_api".to_owned(),
+            status: 401,
+            body: "Unauthorized".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        // Extract structuredContent.error from the CallToolResult.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "authentication",
+            "SensorHttpError{{status:401}} must map to category 'authentication' (BC-2.10.007 Canonical Test Vector); got '{category}'"
+        );
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("structuredContent.error.retryable must be a bool");
+        assert!(
+            !retryable,
+            "SensorHttpError{{status:401}} must be retryable:false (auth failures are not transient)"
+        );
+        // upstream_message must still carry the raw body per DI-006.
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("structuredContent.error.upstream_message must be present (null-not-absent)");
+        assert!(
+            upstream_message.is_string(),
+            "upstream_message must be a string (not null) for SensorHttpError; got: {upstream_message:?}"
+        );
+        assert!(
+            upstream_message.as_str().unwrap().contains("401"),
+            "upstream_message must include the HTTP status; got: {upstream_message}"
+        );
+    }
+
+    /// BC-2.10.007 v1.6: SensorHttpError { status: 403 } → category "authentication".
+    ///
+    /// 403 is Forbidden / insufficient scope — a credential/auth failure, not an upstream
+    /// service outage. Analysts must receive the same "authentication" signal as 401.
+    #[test]
+    fn test_BC_2_10_007_sensor_http_403_category_is_authentication() {
+        let err = PrismError::SensorHttpError {
+            sensor: "armis_api".to_owned(),
+            status: 403,
+            body: "Forbidden: insufficient scope".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "authentication",
+            "SensorHttpError{{status:403}} must map to category 'authentication' (BC-2.10.007); got '{category}'"
+        );
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "SensorHttpError{{status:403}} must be retryable:false"
+        );
+    }
+
+    /// BC-2.10.007 control case: SensorHttpError { status: 502 } → category "upstream_error".
+    ///
+    /// Ensures the 401/403 branch is correctly scoped — other HTTP errors must NOT be
+    /// re-categorized as "authentication". 502 Bad Gateway is a genuine upstream outage.
+    #[test]
+    fn test_BC_2_10_007_sensor_http_502_category_is_upstream_error() {
+        let err = PrismError::SensorHttpError {
+            sensor: "claroty_api".to_owned(),
+            status: 502,
+            body: "Bad Gateway".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "SensorHttpError{{status:502}} must remain 'upstream_error' (not 'authentication'); got '{category}'"
+        );
+    }
+
+    // ── BC-2.10.007 v1.7 Canonical Test Vectors — "internal" category for Prism infra failures ──
+
+    /// BC-2.10.007 v1.7 Test Vector: PrismError::Internal → category "internal".
+    ///
+    /// Before v1.7 the F-4 arm used "upstream_error" as a fallback, which told LLM
+    /// agents to investigate sensor health for a Prism-side invariant failure. The
+    /// sensor was never reached — Prism itself failed. "internal" is the correct
+    /// semantic category per the v1.7 category decision rule table.
+    #[test]
+    fn test_BC_2_10_007_v1_7_internal_category_is_internal() {
+        let err = PrismError::Internal {
+            detail: "invariant violated in test".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "PrismError::Internal must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+        );
+        // retryable must be false — Prism invariant failures are not transient.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "PrismError::Internal must be retryable:false (invariant violation is not transient)"
+        );
+        // upstream_message must be null — no sensor was involved (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "PrismError::Internal upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.7 Test Vector: PrismError::Io → category "internal".
+    ///
+    /// Prism I/O failure (disk, file system). The sensor was never reached.
+    /// Before v1.7 this fell through to "upstream_error", which was semantically wrong.
+    #[test]
+    fn test_BC_2_10_007_v1_7_io_category_is_internal() {
+        let err = PrismError::Io("disk read error in test".to_owned());
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "PrismError::Io must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+        );
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "PrismError::Io upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.7 Test Vector: PrismError::StorageWriteFailed → category "internal".
+    ///
+    /// RocksDB / storage layer failure. The sensor was never reached.
+    /// Before v1.7 this fell through to "upstream_error", which was semantically wrong.
+    #[test]
+    fn test_BC_2_10_007_v1_7_storage_write_failed_category_is_internal() {
+        let err = PrismError::StorageWriteFailed {
+            domain: "audit".to_owned(),
+            detail: "RocksDB write error in test".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "PrismError::StorageWriteFailed must map to category 'internal' (BC-2.10.007 v1.7 F-4); got '{category}'"
+        );
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "PrismError::StorageWriteFailed upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.7 Regression guard: PrismError::SensorHttpError → category "upstream_error".
+    ///
+    /// The F-4 fix MUST NOT change the "upstream_error" category for genuine sensor
+    /// boundary failures. SensorHttpError (non-auth) remains "upstream_error".
+    /// This test guards against an over-broad fix that reclassifies sensor errors as "internal".
+    #[test]
+    fn test_BC_2_10_007_v1_7_sensor_http_503_category_is_upstream_error_regression_guard() {
+        let err = PrismError::SensorHttpError {
+            sensor: "cyberint_api".to_owned(),
+            status: 503,
+            body: "Service Unavailable".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "PrismError::SensorHttpError (non-auth) must remain 'upstream_error' — NOT 'internal' (BC-2.10.007 v1.7 regression guard); got '{category}'"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 OBS-1: SensorNotRegisteredForOrg → category "permission" ──
+
+    /// BC-2.10.007 v1.8 OBS-1: SensorNotRegisteredForOrg maps to category "permission",
+    /// original_params_valid: true (BC-2.10.007 §OBS-1 adjudication).
+    ///
+    /// Cross-org sensor isolation is a scoping/permission denial, NOT a parameter
+    /// validation failure. The org slug and sensor name are structurally valid; access
+    /// was refused at the org-scoping boundary. original_params_valid: true because the
+    /// parameters were correct — the sensor is not registered under that org.
+    ///
+    /// JSON-RPC code (-32602) and error code (E-QUERY-032) are unchanged.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_not_registered_for_org_category_is_permission() {
+        let err = PrismError::SensorNotRegisteredForOrg {
+            sensor_id: "claroty".to_owned(),
+            org_slug: "demo-org-a".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-1: category must be "permission" (not "validation").
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "permission",
+            "SensorNotRegisteredForOrg must map to category 'permission' (BC-2.10.007 v1.8 OBS-1); got '{category}'"
+        );
+
+        // OBS-1: original_params_valid must be true.
+        let original_params_valid = error_obj
+            .get("original_params_valid")
+            .and_then(|v| v.as_bool())
+            .expect("structuredContent.error.original_params_valid must be a bool");
+        assert!(
+            original_params_valid,
+            "SensorNotRegisteredForOrg must have original_params_valid:true (params were structurally \
+             correct; access was refused at org-scoping boundary)"
+        );
+
+        // retryable must be false — org-scoping errors are not transient.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "SensorNotRegisteredForOrg must be retryable:false"
+        );
+
+        // Error code must still be E-QUERY-032 (unchanged per OBS-1 adjudication).
+        let code = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.code must be a string");
+        assert!(
+            code.contains("E-QUERY-032"),
+            "SensorNotRegisteredForOrg error code must contain 'E-QUERY-032' (unchanged by OBS-1); got '{code}'"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "SensorNotRegisteredForOrg upstream_message must be null (Prism-originating error, DI-006); got: {upstream_message:?}"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 OBS-2: Watchdog* → category "internal" ──
+
+    /// BC-2.10.007 v1.8 OBS-2: WatchdogKilled maps to category "internal",
+    /// original_params_valid: true, retryable: false, upstream_message: null.
+    ///
+    /// WatchdogKilled is a Prism-side process supervision failure (memory budget exceeded).
+    /// The query was killed by Prism's own watchdog — the sensor was never reached.
+    /// "internal" is correct; "upstream_error" was semantically wrong (it directed
+    /// LLM agents to investigate sensor health for a Prism-internal resource constraint).
+    ///
+    /// WatchdogKilled is reachable on user-visible MCP tool paths via:
+    /// prism-storage::watchdog::check_query → ? propagation → tool handler →
+    /// prism_error_to_structured_call_result.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_watchdog_killed_category_is_internal() {
+        let err = PrismError::WatchdogKilled {
+            budget_bytes: 512_000_000,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-2: category must be "internal".
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "WatchdogKilled must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+        );
+
+        // retryable must be false — watchdog termination is not transient.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "WatchdogKilled must be retryable:false (watchdog termination is not a transient condition)"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "WatchdogKilled upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.8 OBS-2: WatchdogHeartbeatMissed maps to category "internal",
+    /// retryable: false, upstream_message: null.
+    ///
+    /// WatchdogHeartbeatMissed shares the explicit `|` arm with WatchdogKilled and
+    /// WatchdogRestartLimitExceeded. This test closes the TD-VSDD-059 mutation-coverage hole:
+    /// without it, a mutation dropping HeartbeatMissed from the arm would pass undetected.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_heartbeat_missed_maps_to_internal_category() {
+        let err = PrismError::WatchdogHeartbeatMissed {
+            component: "test-component".to_owned(),
+            elapsed_ms: 5_000,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-2: category must be "internal".
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "WatchdogHeartbeatMissed must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+        );
+
+        // retryable must be false — missed heartbeat is not a transient sensor condition.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "WatchdogHeartbeatMissed must be retryable:false (watchdog supervision failure is not transient)"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "WatchdogHeartbeatMissed upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    /// BC-2.10.007 v1.8 OBS-2: WatchdogRestartLimitExceeded maps to category "internal",
+    /// retryable: false, upstream_message: null.
+    ///
+    /// WatchdogRestartLimitExceeded shares the explicit `|` arm with WatchdogKilled and
+    /// WatchdogHeartbeatMissed. This test closes the TD-VSDD-059 mutation-coverage hole:
+    /// without it, a mutation dropping RestartLimitExceeded from the arm would pass undetected.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_restart_limit_exceeded_maps_to_internal_category() {
+        let err = PrismError::WatchdogRestartLimitExceeded {
+            component: "test-component".to_owned(),
+            count: 3,
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+
+        // OBS-2: category must be "internal".
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "internal",
+            "WatchdogRestartLimitExceeded must map to category 'internal' (BC-2.10.007 v1.8 OBS-2); got '{category}'"
+        );
+
+        // retryable must be false — restart limit exceeded is not a transient sensor condition.
+        let retryable = error_obj
+            .get("retryable")
+            .and_then(|v| v.as_bool())
+            .expect("retryable must be a bool");
+        assert!(
+            !retryable,
+            "WatchdogRestartLimitExceeded must be retryable:false (restart limit exceeded is not transient)"
+        );
+
+        // upstream_message must be null — no sensor was reached (DI-006).
+        let upstream_message = error_obj
+            .get("upstream_message")
+            .expect("upstream_message must be present (null-not-absent invariant)");
+        assert!(
+            upstream_message.is_null(),
+            "WatchdogRestartLimitExceeded upstream_message must be null (sensor not reached); got: {upstream_message:?}"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 MED-1: suggestion text correctness per-variant ──
+
+    /// MED-1 (BC-2.10.007 v1.8): SensorNotRegisteredForOrg suggestion must contain
+    /// org-scoping guidance (keyword "org") — e.g., "Check sensor registration for the
+    /// target org; verify the sensor is configured under the requested org slug in
+    /// prism.toml."
+    ///
+    /// Before MED-1 this was correct, but the fix was shared with ALL permission variants.
+    /// After MED-1 this must be in a DEDICATED sub-arm, not a shared one.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_sensor_not_registered_for_org_suggestion_contains_org_scoping() {
+        let err = PrismError::SensorNotRegisteredForOrg {
+            sensor_id: "crowdstrike".to_owned(),
+            org_slug: "acme-corp".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert!(
+            suggestion.contains("org"),
+            "SensorNotRegisteredForOrg suggestion must contain org-scoping guidance ('org'); \
+             got '{suggestion}'"
+        );
+    }
+
+    /// MED-1 (BC-2.10.007 v1.8): McpPromptInjectionDetected suggestion must NOT contain
+    /// the org-scoping text "Check sensor registration for the target org". Before MED-1
+    /// the shared permission arm prepended the org-scoping string to ALL permission variants,
+    /// actively misdirecting the LLM agent for injection rejections.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_mcp_prompt_injection_suggestion_does_not_contain_org_scoping_text() {
+        let err = PrismError::McpPromptInjectionDetected {
+            tool: "prism_query".to_owned(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert!(
+            !suggestion.contains("sensor registration for the target org"),
+            "McpPromptInjectionDetected suggestion must NOT contain org-scoping text \
+             (MED-1: different variants need different suggestions); got '{suggestion}'"
+        );
+    }
+
+    /// MED-1 (BC-2.10.007 v1.8): CapabilityDenied must thread its own `suggestion` field
+    /// through to the structured error response. Before MED-1 the shared permission arm
+    /// discarded CapabilityDenied.suggestion in favour of the static org-scoping string.
+    /// CapabilityDenied carries an actionable "exact TOML path + restart instruction"
+    /// suggestion generated by the capability resolver — it must not be silently discarded.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_10_007_capability_denied_suggestion_threads_own_suggestion_field() {
+        let err = PrismError::CapabilityDenied {
+            capability: "sensor.crowdstrike.containment".to_owned(),
+            client_id: "test-client".to_owned(),
+            reason: "compile-time disabled".to_owned(),
+            suggestion: "Enable sensor.crowdstrike.containment = true in prism.toml and rebuild."
+                .to_owned(),
+            resolution_trace: vec!["root=disabled".to_owned()],
+        };
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let suggestion = error_obj
+            .get("suggestion")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.suggestion must be a string");
+        assert!(
+            suggestion.contains("sensor.crowdstrike.containment"),
+            "CapabilityDenied suggestion must thread the variant's own suggestion field through \
+             (MED-1); got '{suggestion}'"
+        );
+        assert!(
+            !suggestion.contains("sensor registration for the target org"),
+            "CapabilityDenied suggestion must NOT contain org-scoping text (MED-1); got '{suggestion}'"
+        );
+    }
+
+    // ── BC-2.10.007 v1.8 catch-all guard: genuinely unmapped variants → "upstream_error" ──
+
+    /// BC-2.10.007 catch-all arm: genuinely unmapped PrismError variants fall to
+    /// "upstream_error" via the non_exhaustive catch-all.
+    ///
+    /// PrismError::Infusion has no explicit arm in prism_error_to_structured_call_result
+    /// (it is handled by the catch-all `_` arm). This test asserts that the catch-all
+    /// still maps to "upstream_error" after OBS-2 added the explicit Watchdog* arm.
+    ///
+    /// Previously this test used WatchdogKilled to exercise the catch-all. After OBS-2
+    /// added an explicit arm for WatchdogKilled, this test was repurposed to use
+    /// PrismError::Infusion — a genuinely unmapped variant that still hits the catch-all.
+    #[test]
+    fn test_CRIT_B_catch_all_category_is_upstream_error() {
+        let err = PrismError::Infusion(prism_core::error::InfusionError::UnknownInfusion {
+            name: "test_catch_all_enrichment".to_owned(),
+        });
+        let result = prism_error_to_structured_call_result(err);
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.10.007)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let category = error_obj
+            .get("category")
+            .and_then(|v| v.as_str())
+            .expect("structuredContent.error.category must be a string");
+        assert_eq!(
+            category, "upstream_error",
+            "Genuinely unmapped PrismError variants must fall to catch-all 'upstream_error'; \
+             got '{category}'. If this fails after a new explicit arm was added, switch to \
+             a different genuinely-unmapped variant."
+        );
+    }
+
+    /// OBS-1 de-footgun: `to_error_data_with_retry` must NOT panic for non-SensorRateLimited
+    /// variants (load-bearing regression guard).
+    ///
+    /// BC-2.10.007 §111 specifies graceful "return None for all other variants" semantics.
+    /// The prior implementation `panic!`'d, making the public function a latent footgun.
+    /// After the fix: non-SensorRateLimited variants return `retry_after_ms = 0` gracefully.
+    ///
+    /// Uses `PrismError::QueryTimeout` as a representative non-SensorRateLimited variant.
+    #[test]
+    fn test_to_error_data_with_retry_non_rate_limited_does_not_panic() {
+        let err = PrismError::QueryTimeout { elapsed_ms: 30_000 };
+        // Must NOT panic — graceful return with retry_after_ms = 0 (no retry hint).
+        let (_error_data, retry_after_ms) = to_error_data_with_retry(err);
+        assert_eq!(
+            retry_after_ms, 0u64,
+            "OBS-1: non-SensorRateLimited variant must return retry_after_ms=0 (graceful, \
+             no panic); got {retry_after_ms}"
+        );
+    }
+
+    /// OBS-1 companion: `to_error_data_with_retry` with `SensorRateLimited` still works
+    /// correctly after the de-footgun refactor (regression guard on the happy path).
+    #[test]
+    fn test_to_error_data_with_retry_rate_limited_still_correct_after_obs1_fix() {
+        let err = PrismError::SensorRateLimited {
+            sensor: "armis".to_owned(),
+            retry_after_ms: 60_000,
+        };
+        let (_error_data, retry_after_ms) = to_error_data_with_retry(err);
+        assert_eq!(
+            retry_after_ms, 60_000u64,
+            "OBS-1 regression guard: SensorRateLimited path must still return retry_after_ms \
+             unchanged after de-footgun fix; got {retry_after_ms}"
         );
     }
 }

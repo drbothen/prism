@@ -13,8 +13,11 @@
 # S-DEMO-MULTI-TENANT-DTU-001: bumped 52→60 for MultiInstanceConfig, InstanceEntry, DemoBindError,
 #   MultiInstanceBindError (U-006), MultiInstanceServers (D-1075-API-GAP-001), MultiInstanceHarness,
 #   HarnessEntry, BindError.
+# S-5.02: bumped 60→61 for prism_mcp::error_mapping::StructuredErrorFields (BC-2.10.007 v1.5 9-field struct).
+# S-5.02 follow-up fix-burst: bumped 61→64 for prism_mcp::{CapabilityEntry, ResolutionStep} (struct literals)
+#   and prism_mcp::CapabilityStatus (enum match) — CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep.
 
-EXPECTED=60
+EXPECTED=64
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

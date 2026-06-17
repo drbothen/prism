@@ -475,14 +475,24 @@ async fn test_BC_2_01_013_org_c_all_4_sensors_return_independent_data() {
 ///
 /// Given: Org A has CrowdStrike + Armis registered; Cyberint is NOT registered for Org A.
 /// When: `tool_query "SELECT * FROM cyberint_alerts LIMIT 5" client_id="org-a"` is sent.
-/// Then: Response envelope contains an error (AdapterNotFound or SensorNotAvailableForOrg);
+/// Then: Response envelope has `isError: true` and `structuredContent.error.code == "E-QUERY-032"`;
 ///       NO data rows are returned; NO data from Org B leaks into Org A's response.
 ///
 /// EC-003: Empty data looks like a "soft pass" but is a BC-3.2.001 violation —
 ///         the isolation error MUST be explicit. This test asserts on the error code,
 ///         not just "no rows".
 ///
-/// (traces to BC-3.2.001 invariant: no cross-org data leakage)
+/// # Wire shape (post F-2 / BC-2.10.007 v1.5+)
+///
+/// The MCP `query` handler routes all user-visible domain errors (including E-QUERY-032)
+/// through `prism_error_to_structured_call_result`, which returns:
+///   `Ok(CallToolResult { isError: true, structuredContent: { error: { code: "E-QUERY-032", ... } } })`
+/// rather than the pre-F-2 JSON-RPC protocol-level error (`{"error": {...}}`).
+/// BC-2.10.007 (later, more-specific contract) governs the wire shape; BC-3.2.001 governs
+/// the isolation semantics. Both are satisfied: the error is observably an error (isError=true)
+/// with E-QUERY-032 signal; no data leaks.
+///
+/// (traces to BC-3.2.001 postcondition 5 invariant: no cross-org data leakage)
 ///
 /// RED GATE TEST (one of 4 designated Red Gate tests per story frontmatter).
 ///
@@ -500,65 +510,79 @@ async fn test_BC_3_2_001_cross_org_query_returns_isolation_error() {
     mcp.initialize().expect("MCP initialize failed");
 
     // AC-005: org-a queries Cyberint (a sensor NOT registered for org-a).
-    // Expect a JSON-RPC error (E-QUERY-032 / AdapterNotFound / SensorNotAvailableForOrg).
-    // Use tool_query_scoped_expect_rpc_error so we can inspect the error object
-    // (tool_query_scoped would propagate the JSON-RPC error as Err and panic on expect()).
+    // Expect a BC-2.10.007 structured error: CallToolResult with isError=true and
+    // structuredContent.error.code = "E-QUERY-032" (SensorNotRegisteredForOrg).
+    //
+    // Post F-2: `prism_error_to_structured_call_result` wraps all domain errors as
+    // Ok(CallToolResult{isError:true}) — NOT a JSON-RPC protocol-level error.
+    // `tool_query_scoped` calls `send_request` (returns the result field on success)
+    // and then normalizes the envelope. For an isError=true response, `content[0].text`
+    // is the "ERROR: [validation] - ..." string (not JSON), so `tool_query_with_params`
+    // falls back to the raw CallToolResult object. We inspect it directly here.
+    //
     // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query_scoped_expect_rpc_error(
-            "SELECT * FROM cyberint_alerts LIMIT 5",
-            helpers::ORG_A_SLUG,
-        )
+        .tool_query_scoped("SELECT * FROM cyberint_alerts LIMIT 5", helpers::ORG_A_SLUG)
         .expect("I/O or parse failure sending isolation probe");
 
-    // Assert the response contains a JSON-RPC error field.
-    let error_obj = response.get("error");
+    // AC-005 assertion 1: isError must be true (BC-2.10.007 structured error shape).
+    // The response is the normalized CallToolResult: { "isError": true, "structuredContent": {...}, ... }.
+    let is_error = response
+        .get("isError")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     assert!(
-        error_obj.is_some(),
+        is_error,
         "AC-005 / BC-3.2.001: org-a querying cyberint (not registered for org-a) \
-         MUST return a JSON-RPC error (AdapterNotFound / E-QUERY-032), \
-         NOT data rows. BC-3.2.001 invariant: no cross-org data leakage. \
+         MUST return isError=true (BC-2.10.007 structured error envelope). \
+         BC-3.2.001 invariant: no cross-org data leakage. \
          EC-003: empty data is NOT an acceptable isolation response. \
          Full response: {response:?}"
     );
 
-    let error_msg = error_obj
+    // AC-005 assertion 2: structuredContent.error.code must signal E-QUERY-032.
+    let sc_error_code = response
+        .get("structuredContent")
+        .and_then(|sc| sc.get("error"))
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_str())
+        .unwrap_or("");
+    assert!(
+        sc_error_code.contains("E-QUERY-032"),
+        "AC-005 / BC-3.2.001: structuredContent.error.code must be 'E-QUERY-032' \
+         (sensor not registered for org). Got: {sc_error_code:?}. \
+         The error must indicate the sensor is not registered for the requesting org. \
+         Full response: {response:?}"
+    );
+
+    // AC-005 assertion 3: structuredContent.error.message must mention isolation signals.
+    let sc_error_msg = response
+        .get("structuredContent")
+        .and_then(|sc| sc.get("error"))
         .and_then(|e| e.get("message"))
         .and_then(|m| m.as_str())
         .unwrap_or("");
-    let error_code = error_obj
-        .and_then(|e| e.get("code"))
-        .and_then(|c| c.as_i64())
-        .unwrap_or(0);
-
-    // The error must signal isolation failure — not a generic server error.
-    // E-QUERY-032 is the canonical code for "sensor not registered for org".
-    // Accept either the numeric code (-32602) or the string signal in the message.
-    let signals_isolation_error = error_code == -32602
-        || error_msg.to_lowercase().contains("not registered")
-        || error_msg.to_lowercase().contains("adapter not found")
-        || error_msg.to_lowercase().contains("e-query-032");
-
+    let signals_isolation = sc_error_msg.to_lowercase().contains("not registered")
+        || sc_error_msg.to_lowercase().contains("adapter not found")
+        || sc_error_msg.to_lowercase().contains("e-query-032");
     assert!(
-        signals_isolation_error,
-        "AC-005 / BC-3.2.001: isolation error must signal AdapterNotFound or E-QUERY-032. \
-         Got code={error_code}, message={error_msg:?}. \
-         The error must indicate the sensor is not registered for the requesting org. \
-         Full error object: {error_obj:?}"
+        signals_isolation,
+        "AC-005 / BC-3.2.001: structuredContent.error.message must signal isolation failure \
+         (contains 'not registered', 'adapter not found', or 'E-QUERY-032'). \
+         Got: {sc_error_msg:?}. Full response: {response:?}"
     );
 
-    // Confirm NO data rows are present (belt-and-suspenders: the JSON-RPC error
-    // above already implies no result, but we verify explicitly per EC-003).
-    let has_result_rows = response
-        .get("result")
-        .and_then(|r| r.get("rows"))
+    // Confirm NO data rows are present (belt-and-suspenders, EC-003).
+    // For an isError=true CallToolResult there is no ResponseEnvelope rows field.
+    let has_rows = response
+        .get("rows")
         .and_then(|rows| rows.as_array())
         .map(|arr| !arr.is_empty())
         .unwrap_or(false);
     assert!(
-        !has_result_rows,
+        !has_rows,
         "AC-005 / BC-3.2.001: isolation error response MUST NOT contain data rows. \
-         Got result.rows in error response — this indicates cross-org data leakage. \
+         Got non-empty rows — this indicates cross-org data leakage. \
          Full response: {response:?}"
     );
 

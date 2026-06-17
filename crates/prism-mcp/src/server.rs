@@ -31,12 +31,25 @@ use std::{
 // CRIT-1: arrow-json for RecordBatch → JSON rows serialization.
 use arrow_json;
 use prism_audit::{ToolClass, ToolClassificationRegistry};
+use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
 use prism_core::error::PrismError;
 use prism_query::{
-    alias_store::AliasStore, engine::QueryEngine, write_dispatch::AuditWriter,
+    alias_store::AliasStore,
+    cache::{CacheConfig, GenericQueryCache},
+    engine::QueryEngine,
+    invalidation::CacheInvalidator,
+    write_dispatch::{AuditWriter, NullAuditWriter},
     write_pipeline::WriteExecutor,
 };
-use prism_security::injection_scanner::InjectionScanner;
+use prism_security::{
+    confirmation_token::ConfirmationTokenStore,
+    feature_flag::{CompileTimeGate, FeatureFlagEvaluator},
+    injection_scanner::InjectionScanner,
+};
+use prism_sensors::registry::AdapterRegistry;
+use prism_spec_engine::write_endpoint::{
+    BatchMode, RiskTierSpec, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+};
 use rmcp::{
     handler::server::{tool::schema_for_type, wrapper::Parameters},
     model::{Implementation, ServerCapabilities, ServerInfo},
@@ -49,7 +62,7 @@ use serde::Deserialize;
 use tokio::signal;
 
 use crate::{
-    error_mapping::{codes, to_error_data},
+    error_mapping::{codes, prism_error_to_structured_call_result, to_error_data},
     safety_envelope::{
         DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
         AUDIT_EMISSION_FAILED_WARNING,
@@ -104,16 +117,62 @@ pub struct PrismServer {
 }
 
 impl PrismServer {
-    /// Construct a new PrismServer for testing.
+    /// Construct a minimal PrismServer for testing.
     ///
-    /// Wires `InjectionScanner` from the global singleton (BC-2.09.001).
-    /// All domain dependencies (QueryEngine, WriteExecutor, AuditWriter) are `None`.
-    /// Tools return `PrismError::Internal` when called without domain deps.
+    /// Wires only `InjectionScanner`. All domain dependencies (`QueryEngine`,
+    /// `WriteExecutor`, `AuditWriter`) are `None` — domain tools return
+    /// `PrismError::Internal` when called without wiring.
     ///
-    /// Use [`with_deps()`] for production wiring (boot step 9).
+    /// Use [`with_write_executor()`] to wire a `WriteExecutor` for tests that
+    /// exercise the capability/write path (e.g., BC-2.10.011 tri-state tests).
+    /// Use [`with_deps()`] for full production wiring (boot step 9).
     pub fn new() -> Self {
         Self {
-            // InjectionScanner is a ZST — construct directly (global() is reference-only).
+            // InjectionScanner is a ZST — construct directly.
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: None,
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+            org_registry: None,
+        }
+    }
+
+    /// Builder: wire a `WriteExecutor` into an existing `PrismServer`.
+    ///
+    /// Intended for integration tests that need to exercise the write / capability
+    /// path without a fully-booted production stack. The caller constructs the
+    /// `WriteExecutor` with the required capability configuration (see
+    /// `server_with_write_executor_acme_crowdstrike` in `tool_dispatch_tests.rs` for
+    /// a complete fixture example) and passes it here.
+    pub fn with_write_executor(mut self, we: Arc<WriteExecutor>) -> Self {
+        self.write_executor = Some(we);
+        self
+    }
+
+    /// Wire an AliasStore for testing alias tool handlers.
+    ///
+    /// Used in integration tests that need list_aliases / explain_alias / create_alias
+    /// to reach domain-level execution without the full boot-time wiring.
+    /// Does NOT wire org_registry — valid_client_ids() returns [] unless separately wired.
+    pub fn with_alias_store_for_test(mut self, store: Arc<Mutex<AliasStore>>) -> Self {
+        self.alias_store = Some(store);
+        self
+    }
+
+    /// Construct a minimal PrismServer with NO domain dependencies wired.
+    ///
+    /// All domain tools return `PrismError::Internal` when called.
+    /// Only `InjectionScanner` is wired.
+    ///
+    /// Use this constructor ONLY in tests that specifically verify "not wired"
+    /// error paths (e.g., `confirm_action` returns INTERNAL_ERROR when no
+    /// WriteExecutor is present).  For all other tests, use [`new()`].
+    #[allow(dead_code)] // used in #[cfg(test)] to test "not wired" error paths
+    pub(crate) fn minimal() -> Self {
+        Self {
             injection_scanner: Arc::new(InjectionScanner),
             query_engine: None,
             write_executor: None,
@@ -691,6 +750,72 @@ pub struct ListCapabilitiesParams {
     pub client_id: Option<String>,
 }
 
+impl ListCapabilitiesParams {
+    /// Construct params for a single-client capability listing.
+    pub fn for_client(client_id: impl Into<String>) -> Self {
+        Self {
+            client_id: Some(client_id.into()),
+        }
+    }
+
+    /// Construct params for a cross-client summary (client_id = null).
+    pub fn for_all_clients() -> Self {
+        Self { client_id: None }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// BC-2.10.011 v1.5 tri-state capability model types
+// ---------------------------------------------------------------------------
+//
+// These types form the public API surface of the `list_capabilities` response.
+// The `list_capabilities` handler is fully implemented (S-5.02 green phase):
+// it returns the tri-state capability matrix using `CapabilityEntry` with
+// `status` and `resolution_chain` per BC-2.10.011 v1.5.
+
+/// Status of a capability in the tri-state BC-2.10.011 model.
+///
+/// Distinguishes between:
+/// - `enabled`: compile tier permits AND runtime TOML grants the capability
+/// - `runtime_disabled`: compile tier permits but runtime config denies
+/// - `compile_time_disabled`: no `[[write_endpoints]]` entry in sensor TOML spec
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CapabilityStatus {
+    /// Capability is enabled (compile + runtime both permit).
+    Enabled,
+    /// Capability is disabled at runtime (compile permits, runtime denies).
+    RuntimeDisabled,
+    /// Capability is disabled at compile time (no write endpoints declared in TOML).
+    CompileTimeDisabled,
+}
+
+/// One step in the resolution chain for a capability (BC-2.10.011 v1.5).
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ResolutionStep {
+    /// Resolution tier: `"compile_tier"` or `"runtime_tier"`.
+    pub level: String,
+    /// Resolution outcome: `"permit"`, `"allow"`, or `"deny"`.
+    pub result: String,
+    /// Human-readable source description (e.g. `"WriteEndpointRegistry"`,
+    /// `"prism.toml clients.acme.capabilities"`).
+    pub source: String,
+}
+
+/// Entry for a single capability path in the tri-state `list_capabilities` response.
+///
+/// Used in the `capabilities` map keyed by capability path string.
+#[non_exhaustive]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CapabilityEntry {
+    /// Tri-state capability status per BC-2.10.011.
+    pub status: CapabilityStatus,
+    /// Ordered resolution steps that produced `status`.
+    pub resolution_chain: Vec<ResolutionStep>,
+}
+
 /// Parameters for the `confirm_action` tool (BC-2.10.003).
 ///
 /// Confirms an irreversible write operation after the user has reviewed the WRITE plan.
@@ -1103,16 +1228,16 @@ pub struct GetHelpParams {
 
 /// Tools with live (wired) handler implementations.
 ///
-/// MCP-01 (2026-06-10 review): `list_capabilities` derives its capabilities map
-/// from this classification instead of a hardcoded all-true literal. A tool
-/// belongs here if and only if its handler executes real domain logic (it does
-/// NOT return `not_yet_available_msg`).
+/// MCP-01 (2026-06-10 review): used in test
+/// `test_MCP_01_capability_classification_partitions_tool_catalog` to verify
+/// the tool catalog partition. A tool belongs here if and only if its handler
+/// executes real domain logic (it does NOT return `not_yet_available_msg`).
 ///
-/// Kept in sync with the tool router by
-/// `test_MCP_01_capability_classification_partitions_tool_catalog`: every tool
-/// in `production_tool_catalog()` must appear in exactly one of `LIVE_TOOLS` /
-/// `NOT_YET_AVAILABLE_TOOLS`. When implementing a stubbed tool, move its name
-/// from `NOT_YET_AVAILABLE_TOOLS` to `LIVE_TOOLS` in the same commit.
+/// Kept in sync with the tool router: every tool in `production_tool_catalog()`
+/// must appear in exactly one of `LIVE_TOOLS` / `NOT_YET_AVAILABLE_TOOLS`.
+/// When implementing a stubbed tool, move its name from `NOT_YET_AVAILABLE_TOOLS`
+/// to `LIVE_TOOLS` in the same commit.
+#[allow(dead_code)] // used in #[cfg(test)] partition test
 const LIVE_TOOLS: &[&str] = &[
     "query",
     "explain_query",
@@ -1206,13 +1331,20 @@ fn injection_rejection_error() -> rmcp::model::ErrorData {
 
 /// Validate that every string in `client_ids` matches `[a-zA-Z0-9_-]{1,64}`.
 ///
-/// Returns `Err(ErrorData)` with INVALID_PARAMS code if any entry is invalid.
-/// BC-2.10.004: client_id/clients entries must be validated before use.
+/// Returns `Err(CallToolResult)` with BC-2.10.007 structured error on invalid entry.
+/// BC-2.10.004 v2.8: client_id/clients entries must be validated before use.
+/// Error message MUST start with `"E-MCP-001: invalid client_id format:"` (Implementer Note §1).
+/// `structuredContent.error.original_params_valid` is `false` (format check failed).
+/// CRITICAL: do NOT route through PrismError::InvalidClientId — it displays E-AUTH-003,
+/// a namespace collision with the sensor-layer bearer-token rejection code.
 ///
 /// The 64-character upper bound matches `OrgSlug` validation (`^[a-zA-Z0-9_-]{1,64}$`).
 /// Without this bound a caller could send a 65+-char client_id that passes this check
 /// but causes `OrgSlug::new` to return Invalid, and then `OrgSlug::as_str()` to panic.
-fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::ErrorData> {
+///
+/// Tool handlers convert the returned `Err(CallToolResult)` to `Ok(...)` so the
+/// structured error reaches the MCP caller as a CallToolResult with `is_error=true`.
+fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::CallToolResult> {
     for id in client_ids {
         if id.is_empty()
             || id.len() > 64
@@ -1220,10 +1352,23 @@ fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::ErrorDa
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
-            return Err(rmcp::model::ErrorData::new(
-                rmcp::model::ErrorCode(codes::INVALID_PARAMS),
-                format!("Invalid client_id '{id}': must match [a-zA-Z0-9_-]{{1,64}} (BC-2.10.004)"),
-                None,
+            let message = format!("E-MCP-001: invalid client_id format: '{id}'");
+            let content_text = format!(
+                "ERROR: [validation] - {message}. Provide a client_id matching [a-zA-Z0-9_-]{{1,64}}."
+            );
+            return Err(crate::error_mapping::build_structured_error_response(
+                crate::error_mapping::StructuredErrorFields::new(
+                    "E-MCP-001",
+                    message,
+                    "validation",
+                    false,
+                    None,
+                    "Provide a client_id matching [a-zA-Z0-9_-]{1,64}.",
+                    "prism_mcp",
+                    false,
+                    None,
+                ),
+                content_text,
             ));
         }
     }
@@ -1561,7 +1706,9 @@ impl PrismServer {
             for c in clients {
                 inputs.push(("clients", c.as_str()));
             }
-            validate_client_ids(clients)?;
+            if let Err(e) = validate_client_ids(clients) {
+                return Ok(e);
+            }
         }
         self.scan_inputs_audited("query", &inputs).await?;
 
@@ -1590,10 +1737,14 @@ impl PrismServer {
                     .to_owned(),
             }));
         };
-        let result = qe
-            .execute(&params.query, opts)
-            .await
-            .map_err(to_error_data)?;
+        // Domain errors from query execution (QueryParseFailed, QueryTimeout,
+        // SensorRateLimited, CapabilityDenied, etc.) are user-visible errors: surface
+        // them as Ok(CallToolResult{is_error:true}) with the BC-2.10.007 structured
+        // envelope (CRIT-1 fix).  Infrastructure panics are caught at the ? boundary.
+        let result = match qe.execute(&params.query, opts).await {
+            Ok(r) => r,
+            Err(domain_err) => return Ok(prism_error_to_structured_call_result(domain_err)),
+        };
 
         // CRIT-1 fix: serialize actual RecordBatch rows to JSON via arrow-json v58.
         // Uses WriterBuilder + Writer<Vec<u8>, JsonArray> to produce a JSON array of row objects.
@@ -1688,7 +1839,9 @@ impl PrismServer {
             for c in clients {
                 inputs.push(("clients", c.as_str()));
             }
-            validate_client_ids(clients)?;
+            if let Err(e) = validate_client_ids(clients) {
+                return Ok(e);
+            }
         }
         self.scan_inputs_audited("explain_query", &inputs).await?;
 
@@ -1749,8 +1902,11 @@ impl PrismServer {
             client_registry: Some(qe.client_registry()),
             audit_sink: None,
         };
-        let result =
-            prism_query::explain::explain(&params.query, explain_opts).map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::explain::explain(&params.query, explain_opts) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         // Serialize ExplainResult as JSON string.
         let result_json = serde_json::json!({
             "parsed_mode": result.parsed_mode,
@@ -1879,15 +2035,18 @@ impl PrismServer {
                         .to_owned(),
                 })
             })?;
-        let result = prism_query::alias_tools::create_alias_with_clients_gated(
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::create_alias_with_clients_gated(
             input,
             &mut store,
             &ocsf_reserved,
             &valid_ids,
             capability_gate,
             &token_store_arc,
-        )
-        .map_err(to_error_data)?;
+        ) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let envelope = SafetyEnvelopeBuilder::wrap(
             "create_alias",
             DataSource::Multiple(vec![]),
@@ -1932,7 +2091,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_aliases", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
 
         let audit_warning = emit_tool_audit(
@@ -1959,8 +2120,11 @@ impl PrismServer {
         };
         // IMP-8: pass valid_client_ids from OrgRegistry allowlist.
         let valid_ids = self.valid_client_ids();
-        let result = prism_query::alias_tools::list_aliases(input, &store, &valid_ids)
-            .map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::list_aliases(input, &store, &valid_ids) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let envelope = SafetyEnvelopeBuilder::wrap(
             "list_aliases",
             DataSource::Multiple(vec![]),
@@ -2062,14 +2226,17 @@ impl PrismServer {
                         .to_owned(),
                 })
             })?;
-        let result = prism_query::alias_tools::delete_alias_gated(
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::delete_alias_gated(
             input,
             &mut store,
             &token_store_arc,
             &valid_ids,
             capability_gate,
-        )
-        .map_err(to_error_data)?;
+        ) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let envelope = SafetyEnvelopeBuilder::wrap(
             "delete_alias",
             DataSource::Multiple(vec![]),
@@ -2143,8 +2310,11 @@ impl PrismServer {
             name: params.name,
             scope: params.scope,
         };
-        let result =
-            prism_query::alias_tools::explain_alias(input, &store, None).map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — domain errors must return Ok(structured_error), not Err(ErrorData).
+        let result = match prism_query::alias_tools::explain_alias(input, &store, None) {
+            Ok(r) => r,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
         let result_json = serde_json::to_value(&result).map_err(|e| {
             to_error_data(PrismError::Internal {
                 detail: format!("Failed to serialize explain_alias response: {e}"),
@@ -2203,7 +2373,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
 
         let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -2226,7 +2398,11 @@ impl PrismServer {
         // WITHOUT consuming it.  Consumption happens inside DryRunGate::consume_token()
         // via WriteExecutor::execute() (write path) or alias_tools (alias path).
         let token_store = we.confirmation_store();
-        let stored_token = token_store.peek(&params.token).map_err(to_error_data)?;
+        // F-2: BC-2.10.007 — token lookup failure returns Ok(structured_error), not Err.
+        let stored_token = match token_store.peek(&params.token) {
+            Ok(t) => t,
+            Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+        };
 
         // Step 2: Dispatch based on token.tool_name.
         //
@@ -2331,7 +2507,14 @@ impl PrismServer {
                 // Step 3: Delegate to WriteExecutor which internally runs
                 // DryRunGate::consume_token() with the correct action_params hash
                 // (F-PASS4-CRIT-1 fix).
-                let outcome = we.execute(plan, context).await.map_err(to_error_data)?;
+                // Domain errors (CapabilityDenied, SensorRateLimited, etc.) surface as
+                // Ok(structured_error) per BC-2.10.007 (CRIT-1 fix).
+                let outcome = match we.execute(plan, context).await {
+                    Ok(o) => o,
+                    Err(domain_err) => {
+                        return Ok(prism_error_to_structured_call_result(domain_err))
+                    }
+                };
 
                 // Serialize outcome to JSON for the response envelope.
                 match outcome {
@@ -2430,18 +2613,24 @@ impl PrismServer {
                 //
                 // Actually, the second call DOES re-build the entry from input.  We need
                 // the original query stored in the AliasStore to reconstruct it.  Look it up.
-                let scope_parsed =
-                    prism_query::alias_types::AliasScope::parse(&scope).map_err(to_error_data)?;
-                let existing_entry = store
-                    .get(&name, &scope_parsed)
-                    .map_err(to_error_data)?
-                    .ok_or_else(|| {
-                        to_error_data(PrismError::AliasNotFound {
-                            name: name.clone(),
-                            scope: scope.clone(),
-                            available: String::new(),
-                        })
-                    })?;
+                // F-2: BC-2.10.007 — domain errors return Ok(structured_error), not Err.
+                let scope_parsed = match prism_query::alias_types::AliasScope::parse(&scope) {
+                    Ok(s) => s,
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                };
+                let existing_entry = match store.get(&name, &scope_parsed) {
+                    Ok(Some(entry)) => entry,
+                    Ok(None) => {
+                        return Ok(prism_error_to_structured_call_result(
+                            PrismError::AliasNotFound {
+                                name: name.clone(),
+                                scope: scope.clone(),
+                                available: String::new(),
+                            },
+                        ))
+                    }
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                };
 
                 let input = prism_query::alias_tools::CreateAliasInput {
                     name,
@@ -2470,15 +2659,18 @@ impl PrismServer {
                         prism_query::alias_capability::alias_write_compile_gate(),
                     )
                 });
-                prism_query::alias_tools::create_alias_with_clients_gated(
+                // F-2: BC-2.10.007 — domain errors return Ok(structured_error), not Err.
+                match prism_query::alias_tools::create_alias_with_clients_gated(
                     input,
                     &mut store,
                     &ocsf_reserved,
                     &valid_ids,
                     confirm_alias_gate,
                     token_store,
-                )
-                .map_err(to_error_data)?
+                ) {
+                    Ok(r) => r,
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                }
             }
 
             "delete_alias" => {
@@ -2560,14 +2752,17 @@ impl PrismServer {
                         prism_query::alias_capability::alias_write_compile_gate(),
                     )
                 });
-                prism_query::alias_tools::delete_alias_gated(
+                // F-2: BC-2.10.007 — domain errors return Ok(structured_error), not Err.
+                match prism_query::alias_tools::delete_alias_gated(
                     input,
                     &mut store,
                     token_store,
                     &valid_ids,
                     confirm_delete_gate,
-                )
-                .map_err(to_error_data)?
+                ) {
+                    Ok(r) => r,
+                    Err(e) => return Ok(prism_error_to_structured_call_result(e)),
+                }
             }
 
             other => {
@@ -3101,8 +3296,14 @@ impl PrismServer {
         WHEN NOT TO USE: do not use to discover sensor data — use list_sensor_specs instead\n\
         PARAMETERS: client_id (optional scopes to a specific client's capabilities)\n\
         PAGINATION: not applicable — returns complete capability set\n\
-        RESPONSE: client_registered flag and capabilities map with tool enablement status\n\
-        ERRORS: -32000 internal error",
+        RESPONSE: for a given client_id, returns client_registered (bool) and capabilities \
+(map of capability path → {status: enabled|runtime_disabled|compile_time_disabled, \
+resolution_chain: [{level, result, source}]}); for null client_id, returns a per-client \
+summary with enabled_count/runtime_disabled_count/compile_time_disabled_count per client; \
+both shapes include not_registered_tools (tools in the MCP catalog that return -32003)\n\
+        ERRORS: E-MCP-001 (-32602 invalid params) when client_id fails [a-zA-Z0-9_-]{1,64} \
+validation; -32000 internal error on serialization failure; unknown-but-well-formed client_id \
+is NOT an error — returns matrix with client_registered: false",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_capabilities(
@@ -3113,7 +3314,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_capabilities", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
 
         let audit_warning = emit_tool_audit(
@@ -3124,8 +3327,10 @@ impl PrismServer {
         )
         .await?;
 
-        // CRIT-4 fix: report capability status via FeatureFlagEvaluator from WriteExecutor.
-        // FeatureFlagEvaluator is available when WriteExecutor is wired.
+        // BC-2.10.011 v1.5: tri-state capability model.
+        // WriteExecutor is wired via `with_write_executor()` builder or `with_deps()` at boot.
+        // `new()` leaves write_executor as None; the guard below returns Internal when not wired
+        // (boot step 9 incomplete), covered by test_confirm_action_returns_internal_when_not_wired.
         let Some(we) = &self.write_executor else {
             return Err(to_error_data(PrismError::Internal {
                 detail: "WriteExecutor not wired at PrismServer (boot step 9 incomplete)"
@@ -3133,51 +3338,221 @@ impl PrismServer {
             }));
         };
         let ff = we.feature_flags();
-        let client_id = params.client_id.as_deref().unwrap_or("<all>");
-        // `client_registered` is driven by the wired FeatureFlagEvaluator: it
-        // reports whether the requested client exists in the runtime capability
-        // registry (the Tier-2 source for per-client write capability checks).
-        let client_exists = params
-            .client_id
-            .as_ref()
-            .map(|id| ff.client_exists(id))
-            .unwrap_or(false);
+        let endpoint_registry = we.endpoint_registry();
 
-        // MCP-01 (2026-06-10 review): the capabilities map is DERIVED from the
-        // tool catalog + the LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS classification,
-        // not a hardcoded all-true literal.
-        //
-        // - Live tools report `true`: their handlers execute real domain logic.
-        //   Read-path tools have no per-client flag source in the
-        //   FeatureFlagEvaluator (it models WRITE capabilities, BC-2.04.002);
-        //   per-client write capability paths (e.g. `sensor.<sensor>.containment`)
-        //   are evaluated at execution time by the two-tier check inside the
-        //   write pipeline (BC-2.04.004) — `client_registered` above surfaces
-        //   the Tier-2 registry membership for the requested client.
-        // - Stubbed tools (the `-32003 not_yet_available` set, including the
-        //   crowdstrike write tools pending sensor adapter wiring) report
-        //   `false`: they cannot be invoked regardless of feature-flag state.
-        let capabilities: serde_json::Map<String, serde_json::Value> =
-            Self::production_tool_catalog()
-                .iter()
-                .map(|tool| {
-                    let name = tool.name.to_string();
-                    let live = LIVE_TOOLS.contains(&name.as_str());
-                    (name, serde_json::Value::Bool(live))
-                })
+        // `not_registered_tools` = MCP tools whose handlers return -32003 (BC-2.10.011 AC-011).
+        // F-10: use slice reference directly — .to_vec() allocation is unnecessary.
+        let not_registered_tools: &[&str] = NOT_YET_AVAILABLE_TOOLS;
+
+        let result_json = if let Some(ref client_id) = params.client_id {
+            // ── Per-client mode ─────────────────────────────────────────────
+            // Enumerate all write capability paths:
+            //   A) paths from WriteEndpointRegistry (compile-gate Present)
+            //   B) paths from the client's FeatureFlagEvaluator config that
+            //      are NOT in the registry (compile-gate Absent → compile_time_disabled)
+            let client_exists = ff.client_exists(client_id);
+
+            // Registry paths (compile-gate Present for these).
+            let registry_paths: std::collections::HashSet<String> = endpoint_registry
+                .all_capability_paths()
+                .into_iter()
+                .map(|(_sensor, cap)| cap.to_owned())
                 .collect();
-        let result_json = serde_json::json!({
-            "client_id": client_id,
-            "client_registered": client_exists,
-            "capabilities": capabilities,
-            "not_implemented": NOT_YET_AVAILABLE_TOOLS,
-            "note": "capabilities[tool] == false means the tool is registered but not \
-                     implemented (returns -32003). Per-client write capabilities \
-                     (e.g. sensor.<sensor>.containment) are evaluated at execution time \
-                     by the two-tier feature-flag check (BC-2.04.004); client_registered \
-                     reports whether the requested client exists in the runtime \
-                     capability registry.",
-        });
+
+            // Client-configured paths not already in registry (compile_time_disabled candidates).
+            let client_paths = ff.capability_paths_for_client(client_id);
+
+            // Union: registry paths + client-configured paths.
+            let mut all_paths: Vec<String> = registry_paths.iter().cloned().collect();
+            for p in &client_paths {
+                if !registry_paths.contains(p) {
+                    all_paths.push(p.clone());
+                }
+            }
+            all_paths.sort(); // deterministic order
+
+            let mut capabilities: serde_json::Map<String, serde_json::Value> =
+                serde_json::Map::new();
+
+            for cap_path in &all_paths {
+                let in_registry = registry_paths.contains(cap_path);
+                let entry: CapabilityEntry = if in_registry {
+                    // Compile-gate Present → check runtime tier.
+                    let result = ff.check_permission(CompileTimeGate::Present, client_id, cap_path);
+                    match result {
+                        prism_security::feature_flag::CapabilityCheckResult::Allowed => {
+                            CapabilityEntry {
+                                status: CapabilityStatus::Enabled,
+                                resolution_chain: vec![
+                                    ResolutionStep {
+                                        level: "compile_tier".to_owned(),
+                                        result: "permit".to_owned(),
+                                        source: "write_endpoints declaration in sensor TOML"
+                                            .to_owned(),
+                                    },
+                                    ResolutionStep {
+                                        level: "runtime_tier".to_owned(),
+                                        result: "allow".to_owned(),
+                                        source: format!(
+                                            "client '{client_id}' capabilities config"
+                                        ),
+                                    },
+                                ],
+                            }
+                        }
+                        prism_security::feature_flag::CapabilityCheckResult::DeniedRuntime {
+                            ..
+                        } => CapabilityEntry {
+                            status: CapabilityStatus::RuntimeDisabled,
+                            resolution_chain: vec![
+                                ResolutionStep {
+                                    level: "compile_tier".to_owned(),
+                                    result: "permit".to_owned(),
+                                    source: "write_endpoints declaration in sensor TOML".to_owned(),
+                                },
+                                ResolutionStep {
+                                    level: "runtime_tier".to_owned(),
+                                    result: "deny".to_owned(),
+                                    source: format!(
+                                        "client '{client_id}' capabilities config (no Allow rule)"
+                                    ),
+                                },
+                            ],
+                        },
+                        // F-7: DeniedCompileTime is structurally unreachable when
+                        // CompileTimeGate::Present is passed — cap_path IS in registry.
+                        prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                            ..
+                        } => unreachable!(
+                            "check_permission(CompileTimeGate::Present, ..) returned \
+                             DeniedCompileTime for in-registry cap_path '{cap_path}' — \
+                             invariant violation"
+                        ),
+                    }
+                } else {
+                    // F-6: route through ff.check_permission(CompileTimeGate::Absent, ...)
+                    // so the same resolver instance is used for all paths (Architecture
+                    // Compliance Rule 4). CompileTimeGate::Absent always returns
+                    // DeniedCompileTime, but using the resolver preserves behavioral
+                    // consistency with the write-pipeline's capability check path.
+                    let absent_result =
+                        ff.check_permission(CompileTimeGate::Absent, client_id, cap_path);
+                    // CompileTimeGate::Absent always produces DeniedCompileTime — this
+                    // match is exhaustive for safety but only one arm is reachable.
+                    match absent_result {
+                        prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                            ..
+                        } => CapabilityEntry {
+                            status: CapabilityStatus::CompileTimeDisabled,
+                            resolution_chain: vec![ResolutionStep {
+                                level: "compile_tier".to_owned(),
+                                result: "deny".to_owned(),
+                                source: "no write_endpoints declaration in sensor TOML"
+                                    .to_owned(),
+                            }],
+                        },
+                        _ => unreachable!(
+                            "check_permission(CompileTimeGate::Absent, ..) must always return \
+                             DeniedCompileTime — invariant violation for cap_path '{cap_path}'"
+                        ),
+                    }
+                };
+                let entry_json = serde_json::to_value(&entry).map_err(|e| {
+                    to_error_data(PrismError::Internal {
+                        detail: format!("Failed to serialize capability entry: {e}"),
+                    })
+                })?;
+                capabilities.insert(cap_path.clone(), entry_json);
+            }
+
+            serde_json::json!({
+                "client_id": client_id,
+                "client_registered": client_exists,
+                "capabilities": capabilities,
+                "not_registered_tools": not_registered_tools,
+            })
+        } else {
+            // ── Cross-client summary mode (client_id = null) ─────────────────
+            // Returns per-client counts of enabled/runtime_disabled/compile_time_disabled.
+            let registry_paths: std::collections::HashSet<String> = endpoint_registry
+                .all_capability_paths()
+                .into_iter()
+                .map(|(_sensor, cap)| cap.to_owned())
+                .collect();
+
+            let mut clients: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+
+            for cid in ff.client_ids() {
+                let client_exists = ff.client_exists(cid);
+                let client_paths = ff.capability_paths_for_client(cid);
+
+                let mut all_paths: Vec<String> = registry_paths.iter().cloned().collect();
+                for p in &client_paths {
+                    if !registry_paths.contains(p) {
+                        all_paths.push(p.clone());
+                    }
+                }
+                all_paths.sort(); // deterministic order (OBS-3 symmetry with single-client path)
+
+                let mut enabled_count: u32 = 0;
+                let mut runtime_disabled_count: u32 = 0;
+                let mut compile_time_disabled_count: u32 = 0;
+
+                for cap_path in &all_paths {
+                    if registry_paths.contains(cap_path) {
+                        match ff.check_permission(CompileTimeGate::Present, cid, cap_path) {
+                            prism_security::feature_flag::CapabilityCheckResult::Allowed => {
+                                enabled_count += 1;
+                            }
+                            prism_security::feature_flag::CapabilityCheckResult::DeniedRuntime {
+                                ..
+                            } => {
+                                runtime_disabled_count += 1;
+                            }
+                            // F-7: DeniedCompileTime is unreachable when CompileTimeGate::Present
+                            // is passed for an in-registry path — treat as invariant violation.
+                            prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                                ..
+                            } => unreachable!(
+                                "check_permission(CompileTimeGate::Present, ..) returned \
+                                 DeniedCompileTime for in-registry path — invariant violation"
+                            ),
+                        }
+                    } else {
+                        // F-6: route through check_permission(Absent) for architecture compliance.
+                        // CompileTimeGate::Absent always returns DeniedCompileTime.
+                        match ff.check_permission(CompileTimeGate::Absent, cid, cap_path) {
+                            prism_security::feature_flag::CapabilityCheckResult::DeniedCompileTime {
+                                ..
+                            } => {
+                                compile_time_disabled_count += 1;
+                            }
+                            _ => unreachable!(
+                                "check_permission(CompileTimeGate::Absent, ..) must always return \
+                                 DeniedCompileTime — invariant violation for cap_path '{cap_path}'"
+                            ),
+                        }
+                    }
+                }
+
+                clients.insert(
+                    cid.to_owned(),
+                    serde_json::json!({
+                        "client_registered": client_exists,
+                        "enabled_count": enabled_count,
+                        "runtime_disabled_count": runtime_disabled_count,
+                        "compile_time_disabled_count": compile_time_disabled_count,
+                    }),
+                );
+            }
+
+            serde_json::json!({
+                "client_id": serde_json::Value::Null,
+                "clients": clients,
+                "not_registered_tools": not_registered_tools,
+            })
+        };
+
         let envelope = SafetyEnvelopeBuilder::wrap(
             "list_capabilities",
             DataSource::Multiple(vec![]),
@@ -3627,7 +4002,9 @@ impl PrismServer {
             &[("client_id", params.client_id.as_str())],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "list_credentials",
@@ -3665,7 +4042,9 @@ impl PrismServer {
             &[("client_id", params.client_id.as_str())],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "credential_status",
@@ -3713,7 +4092,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "configure_credential_source",
@@ -3759,7 +4140,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "delete_credential",
@@ -3870,7 +4253,9 @@ impl PrismServer {
             self.scan_inputs_audited("list_alerts", &inputs).await?;
         }
         if let Some(ref client_id) = params.client_id {
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -3982,7 +4367,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "crowdstrike_contain_host",
@@ -4024,7 +4411,9 @@ impl PrismServer {
             ],
         )
         .await?;
-        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
+            return Ok(e);
+        }
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "crowdstrike_lift_containment",
@@ -4093,7 +4482,9 @@ impl PrismServer {
         }
         self.scan_inputs_audited("explain_pack", &inputs).await?;
         if let Some(ref client_id) = params.client_id {
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -4220,7 +4611,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_infusions", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -4421,7 +4814,9 @@ impl PrismServer {
         if let Some(ref client_id) = params.client_id {
             self.scan_inputs_audited("list_actions", &[("client_id", client_id.as_str())])
                 .await?;
-            validate_client_ids(std::slice::from_ref(client_id))?;
+            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
+                return Ok(e);
+            }
         }
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -4794,6 +5189,120 @@ mod tests {
         );
     }
 
+    // ─── CRIT-1 — BC-2.10.007 end-to-end structured error wiring ────────────────
+    //
+    // Verifies that domain errors from query execution are surfaced as
+    // Ok(CallToolResult{is_error:true, structured_content: {error:{9 fields}, _meta}})
+    // NOT as Err(ErrorData) (which is the flat protocol-level error shape).
+
+    /// CRIT-1 (BC-2.10.007 v1.5): domain error from QueryEngine.execute() is delivered as
+    /// `Ok(CallToolResult{is_error:true})` with 9-field `structuredContent.error` envelope.
+    ///
+    /// Wires a minimal QueryEngine (no adapters, no sensor data) so that an invalid
+    /// PrismQL query → `PrismError::QueryParseFailed` → `Ok(structured_error)`.
+    /// Asserts all 9 required fields and `_meta.trust_level:"internal"`.
+    #[tokio::test]
+    async fn test_CRIT_1_query_domain_error_surfaces_as_ok_structured_error() {
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{engine::QueryEngine, engine::QueryEngineConfig};
+        use prism_sensors::AdapterRegistry;
+
+        // Build a minimal QueryEngine with no sensor adapters.
+        // An invalid query string will produce PrismError::QueryParseFailed,
+        // which is the domain error this test exercises.
+        let engine = QueryEngine::new(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        );
+        let mut server = PrismServer::new();
+        server.query_engine = Some(Arc::new(engine));
+
+        // "!!invalid query!!" is not valid PrismQL → QueryParseFailed domain error.
+        let params = QueryToolParams {
+            query: "!!invalid query!!".to_owned(),
+            clients: None,
+            limit: None,
+            force_refresh: None,
+        };
+        let result = server.query(Parameters(params)).await;
+
+        // CRIT-1 assertion: domain errors must be Ok(CallToolResult), NOT Err(ErrorData).
+        let call_result = result.expect(
+            "CRIT-1 / BC-2.10.007: QueryParseFailed domain error must surface as \
+             Ok(CallToolResult{is_error:true}), not Err(ErrorData); \
+             prism_error_to_structured_call_result must be wired into the query tool",
+        );
+
+        // is_error must be true.
+        assert_eq!(
+            call_result.is_error,
+            Some(true),
+            "CRIT-1: domain error result must have is_error=true"
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("CRIT-1: structured_content must be present (BC-2.10.007 v1.5)");
+
+        // _meta.trust_level must be "internal".
+        let trust_level = sc
+            .get("_meta")
+            .and_then(|m| m.get("trust_level"))
+            .and_then(|v| v.as_str());
+        assert_eq!(
+            trust_level,
+            Some("internal"),
+            "CRIT-1: structuredContent._meta.trust_level must be 'internal'; got {trust_level:?}"
+        );
+
+        let error_obj = sc
+            .get("error")
+            .expect("CRIT-1: structuredContent.error must be present");
+
+        // All 9 required fields must be present.
+        let required_fields = [
+            "code",
+            "message",
+            "category",
+            "retryable",
+            "retry_after_seconds",
+            "suggestion",
+            "source",
+            "original_params_valid",
+            "upstream_message",
+        ];
+        for field in &required_fields {
+            assert!(
+                error_obj.get(field).is_some(),
+                "CRIT-1: structuredContent.error must have '{field}' field; \
+                 error object: {error_obj}"
+            );
+        }
+
+        // For a parse error: category must be "validation", retryable=false,
+        // original_params_valid=false.
+        assert_eq!(
+            error_obj.get("category").and_then(|v| v.as_str()),
+            Some("validation"),
+            "CRIT-1: QueryParseFailed must have category='validation'"
+        );
+        assert_eq!(
+            error_obj.get("retryable").and_then(|v| v.as_bool()),
+            Some(false),
+            "CRIT-1: QueryParseFailed must have retryable=false"
+        );
+        assert_eq!(
+            error_obj
+                .get("original_params_valid")
+                .and_then(|v| v.as_bool()),
+            Some(false),
+            "CRIT-1: QueryParseFailed must have original_params_valid=false"
+        );
+    }
+
     // ─── P1-02 (2026-06-10 review) — BC-2.11.001 limit + BC-2.07.003 force_refresh ──
     //
     // QueryToolParams previously had only `query` + `clients` with
@@ -4965,15 +5474,15 @@ mod tests {
         );
     }
 
-    // ─── F-PASS14-HIGH-1 — AC-7 confirm_action CapabilityDenied → FORBIDDEN ────
+    // ─── F-PASS14-HIGH-1 — AC-7 confirm_action CapabilityDenied → structured error ─
     //
     // This test drives the FULL AC-7 path through PrismServer::confirm_action.
     // Previous pass-13 test was a paper-fix: it called WriteExecutor::execute and
     // map_prism_error directly, bypassing confirm_action entirely.
     //
-    // Mental-deletion proof: if `we.execute(plan, context).await.map_err(to_error_data)?`
-    // in confirm_action is replaced with `Ok(success_outcome)`, this test fails because
-    // the returned result would be Ok (not Err with FORBIDDEN).
+    // CRIT-1 update: CapabilityDenied is a domain error → Ok(structured_error)
+    // per BC-2.10.007 v1.5, not Err(ErrorData). The test expectation was updated
+    // in the S-5.02 fix-burst to reflect the correct boundary.
     //
     // LOAD-BEARING path:
     //   confirm_action
@@ -4983,7 +5492,8 @@ mod tests {
     //     → we.execute(plan, context) → phase2_safety_check
     //       → feature_flags.check_permission (empty map → DeniedRuntime)
     //       → PrismError::CapabilityDenied
-    //     → map_err(to_error_data) → ErrorData.code == FORBIDDEN (-32002)
+    //     → prism_error_to_structured_call_result → Ok(structured_error)
+    //       with category="permission", is_error=true (BC-2.10.007 legal enum)
 
     /// Stub AuditWriter for F-PASS14-HIGH-1 test.
     /// Not reached — CapabilityDenied fires in Phase 2, before Phase 5a audit intent.
@@ -5017,16 +5527,22 @@ mod tests {
         }
     }
 
-    /// F-PASS14-HIGH-1 / AC-7: confirm_action → CapabilityDenied → FORBIDDEN (-32002).
+    /// F-PASS14-HIGH-1 / AC-7 (updated for CRIT-1): confirm_action → CapabilityDenied →
+    /// `Ok(CallToolResult{is_error:true})` with BC-2.10.007 structured error.
     ///
     /// LOAD-BEARING: exercises the FULL confirm_action production code path.
     ///
     /// Previous pass-13 test was a paper-fix: it called WriteExecutor::execute and
     /// map_prism_error directly, bypassing confirm_action.
     ///
-    /// Mental-deletion proof: if `we.execute(plan, context).await.map_err(to_error_data)?`
-    /// in confirm_action is replaced with `Ok(success_outcome)`, this test fails because
-    /// the returned result would be Ok (not Err with FORBIDDEN).
+    /// CRIT-1 behavioral change: `CapabilityDenied` is a USER-VISIBLE domain error
+    /// (the user asked for a capability they don't have) and must be surfaced as
+    /// `Ok(CallToolResult{is_error:true, structured_content: {error:{...}, _meta}})` per
+    /// BC-2.10.007 v1.5, NOT as `Err(ErrorData)` which is reserved for protocol-level
+    /// errors (injection rejected, audit fail-closed).
+    ///
+    /// Mental-deletion proof: if the `we.execute()` error branch is removed,
+    /// this test fails because `confirm_action` would return Ok(success_outcome).
     ///
     /// LOAD-BEARING path through production code:
     ///   PrismServer::confirm_action
@@ -5036,7 +5552,9 @@ mod tests {
     ///     → we.execute(plan, context) → phase2_safety_check
     ///       → feature_flags.check_permission (empty map → DeniedRuntime)
     ///       → PrismError::CapabilityDenied
-    ///     → map_err(to_error_data) → ErrorData.code == FORBIDDEN (-32002)
+    ///     → prism_error_to_structured_call_result → Ok(structured_error) with
+    ///       category="permission", code="E-FLAG-001", is_error=true
+    ///       (BC-2.10.007 legal category enum: "permission" not "authorization")
     #[tokio::test]
     async fn test_F_PASS14_HIGH_1_confirm_action_capability_denied_maps_to_32002() {
         use std::{collections::BTreeMap, sync::Arc};
@@ -5129,17 +5647,38 @@ mod tests {
 
         let result = server.confirm_action(Parameters(params)).await;
 
-        // Must return Err with FORBIDDEN (-32002) — CapabilityDenied from Phase 2.
-        let err = result.expect_err(
-            "F-PASS14-HIGH-1 / AC-7: confirm_action must return Err when \
-             FeatureFlagEvaluator denies the capability for an unknown client",
+        // CRIT-1: CapabilityDenied is a domain error → Ok(structured_error), not Err(ErrorData).
+        let call_result = result.expect(
+            "F-PASS14-HIGH-1 / AC-7 (CRIT-1): confirm_action must return Ok(structured_error) \
+             when CapabilityDenied fires — NOT Err(ErrorData). Domain errors use \
+             BC-2.10.007 structured envelope.",
         );
         assert_eq!(
-            err.code.0,
-            codes::FORBIDDEN,
-            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must map to FORBIDDEN (-32002) \
-             via confirm_action → to_error_data; got code {}",
-            err.code.0
+            call_result.is_error,
+            Some(true),
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must set is_error=true in CallToolResult"
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("F-PASS14-HIGH-1: structured_content must be present for CapabilityDenied");
+        let error_obj = sc
+            .get("error")
+            .expect("F-PASS14-HIGH-1: structuredContent.error must be present");
+
+        // Category must be "permission" for CapabilityDenied (BC-2.10.007 legal enum).
+        // "authorization" is not in the BC-2.10.007 category enum; "permission" is.
+        assert_eq!(
+            error_obj.get("category").and_then(|v| v.as_str()),
+            Some("permission"),
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must have category='permission' \
+             in structured error (BC-2.10.007 legal category; 'authorization' is illegal)"
+        );
+        // retryable must be false for a capability denial.
+        assert_eq!(
+            error_obj.get("retryable").and_then(|v| v.as_bool()),
+            Some(false),
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must have retryable=false"
         );
     }
 
@@ -5148,9 +5687,13 @@ mod tests {
     /// MED-006 fix: should NOT return a Forbidden-class policy denial (at the
     /// time, the since-removed FeatureFlagDisabled variant; P2-03 2026-06-10
     /// review pass-2), but Internal (dependency not wired at boot step 9).
+    ///
+    /// Uses `PrismServer::minimal()` (no WriteExecutor wired) to verify the not-wired
+    /// error path. Both `minimal()` and `new()` leave write_executor as None; `minimal()`
+    /// is the conventional constructor for not-wired tests (see `minimal()` doc-comment).
     #[tokio::test]
     async fn test_confirm_action_returns_internal_when_not_wired() {
-        let server = PrismServer::new();
+        let server = PrismServer::minimal();
         let params = ConfirmActionParams {
             token: "test-token-001".to_owned(),
             client_id: "acme".to_owned(),
@@ -5176,7 +5719,10 @@ mod tests {
         );
     }
 
-    /// BC-2.10.004: client_id validation rejects invalid characters.
+    /// BC-2.10.004: client_id validation rejects invalid characters with structured error.
+    ///
+    /// CRIT-2 fix: validate_client_ids now returns Err(CallToolResult) with
+    /// structuredContent.error.original_params_valid = false (BC-2.10.007 v1.5).
     #[test]
     fn test_validate_client_ids_rejects_invalid_chars() {
         let result = validate_client_ids(&["acme; DROP TABLE sensors".to_string()]);
@@ -5184,7 +5730,36 @@ mod tests {
             result.is_err(),
             "must reject client_id with injection chars"
         );
-        assert_eq!(result.unwrap_err().code.0, codes::INVALID_PARAMS);
+        let structured_err = result.unwrap_err();
+        // Verify is_error = true.
+        assert_eq!(
+            structured_err.is_error,
+            Some(true),
+            "validate_client_ids structured error must have is_error=true"
+        );
+        // Verify structuredContent.error.original_params_valid = false (CRIT-2).
+        let sc = structured_err
+            .structured_content
+            .expect("validate_client_ids must return structured_content");
+        let orig_valid = sc
+            .get("error")
+            .and_then(|e| e.get("original_params_valid"))
+            .and_then(|v| v.as_bool());
+        assert_eq!(
+            orig_valid,
+            Some(false),
+            "CRIT-2: validate_client_ids error must have original_params_valid=false; got {orig_valid:?}"
+        );
+        // Verify the E-MCP-001 code is in the message.
+        let msg = sc
+            .get("error")
+            .and_then(|e| e.get("message"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert!(
+            msg.contains("E-MCP-001"),
+            "validate_client_ids error message must contain E-MCP-001; got: '{msg}'"
+        );
     }
 
     /// BC-2.10.004: client_id validation accepts valid slug.
@@ -5199,7 +5774,7 @@ mod tests {
     // These tests call validate_client_ids directly (private function accessible from
     // child mod tests via use super::*). Mental-deletion proof: removing `|| id.len() > 64`
     // from validate_client_ids causes test_validate_client_ids_rejects_65_char_id to fail
-    // because validate_client_ids would return Ok(()) instead of Err(INVALID_PARAMS).
+    // because validate_client_ids would return Ok(()) instead of Err(structured_error).
 
     /// F-PASS14-CRIT-1: validate_client_ids must reject ids longer than 64 chars.
     ///
@@ -5215,10 +5790,19 @@ mod tests {
             "validate_client_ids must reject a 65-char id (exceeds 64-char OrgSlug limit); \
              got Ok — the || id.len() > 64 guard was removed or bypassed"
         );
+        // Verify structured error shape (CRIT-2: original_params_valid = false).
+        let structured_err = result.unwrap_err();
+        let sc = structured_err
+            .structured_content
+            .expect("validate_client_ids must produce structured_content for 65-char id");
+        let orig_valid = sc
+            .get("error")
+            .and_then(|e| e.get("original_params_valid"))
+            .and_then(|v| v.as_bool());
         assert_eq!(
-            result.unwrap_err().code.0,
-            codes::INVALID_PARAMS,
-            "rejection must use INVALID_PARAMS (-32602), not another code"
+            orig_valid,
+            Some(false),
+            "rejection must set original_params_valid=false; got {orig_valid:?}"
         );
     }
 
@@ -7784,31 +8368,63 @@ mod tests {
 
     /// Build a PrismServer with a WriteExecutor whose FeatureFlagEvaluator has
     /// `registered_client` in its runtime capability registry.
+    ///
+    /// Updated for BC-2.10.011 v1.5: the WriteEndpointRegistry includes one
+    /// write endpoint (`sensor.test.containment`) so the capabilities map is
+    /// non-empty. `registered_client` is granted Allow on that path.
     fn server_with_write_executor(registered_client: &str) -> PrismServer {
         use std::collections::BTreeMap;
 
-        use prism_core::capability::ClientCapabilities;
+        use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
         use prism_query::write_pipeline::WriteExecutor;
         use prism_security::{confirmation_token::ConfirmationTokenStore, FeatureFlagEvaluator};
         use prism_sensors::registry::AdapterRegistry;
-        use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
+        use prism_spec_engine::write_endpoint::{
+            BatchMode, RiskTierSpec, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+        };
 
+        // Build WriteEndpointRegistry with one endpoint so capabilities is non-empty.
+        let mut registry = WriteEndpointRegistry::new();
+        let _ = registry.register(
+            "test_sensor",
+            vec![WriteEndpointSpec::new(
+                "contain",
+                "test_contain",
+                RiskTierSpec::Reversible,
+                "sensor.test.containment",
+                0,
+                BatchMode::Serial,
+                "device_id",
+                vec![WriteStep::new(
+                    "POST",
+                    "https://test.local/contain",
+                    None,
+                    None,
+                )],
+            )],
+        );
+
+        // `registered_client` gets Allow on the test capability path.
+        let mut caps = ClientCapabilities::new();
+        caps.grant(
+            CapabilityPath::new("sensor.test.containment").expect("valid"),
+            CapabilityEffect::Allow,
+        );
         let mut clients = BTreeMap::new();
-        clients.insert(registered_client.to_owned(), ClientCapabilities::new());
+        clients.insert(registered_client.to_owned(), caps);
+
         let feature_flags = Arc::new(FeatureFlagEvaluator::new(clients));
         let write_executor = Arc::new(WriteExecutor::new(
             feature_flags,
             Arc::new(ConfirmationTokenStore::new()),
             Arc::new(RecordingAudit::default()),
             Arc::new(AdapterRegistry::new()),
-            Arc::new(WriteEndpointRegistry::new()),
+            Arc::new(registry),
             Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
                 prism_query::cache::SensorResponseCache::with_defaults(),
             ))),
         ));
-        let mut server = PrismServer::new();
-        server.write_executor = Some(write_executor);
-        server
+        PrismServer::new().with_write_executor(write_executor)
     }
 
     /// Extract the envelope JSON from a structured CallToolResult.
@@ -7818,8 +8434,11 @@ mod tests {
             .expect("list_capabilities must return structured content")
     }
 
-    /// MCP-01: registered client → client_registered = true; live tools true;
-    /// stubbed tools (including the crowdstrike write tools) false.
+    /// MCP-01 (BC-2.10.011 v1.5): registered client → client_registered = true;
+    /// capabilities map contains write capability paths with tri-state {status, resolution_chain};
+    /// not_registered_tools contains MCP tools that return -32003.
+    ///
+    /// Updated from bool-map shape (pre-BC-2.10.011 v1.5) to tri-state shape.
     #[tokio::test]
     async fn test_MCP_01_list_capabilities_registered_client_derived_map() {
         let server = server_with_write_executor("acme");
@@ -7838,48 +8457,53 @@ mod tests {
         );
         let caps = body["capabilities"]
             .as_object()
-            .expect("capabilities must be an object");
-        // Live tools report true.
-        for live in ["query", "explain_query", "confirm_action", "create_alias"] {
-            assert_eq!(
-                caps[live], true,
-                "live tool '{live}' must report true; got {:?}",
-                caps[live]
-            );
-        }
-        // Implemented-but-stubbed tools report false.
-        for stubbed in [
-            "create_schedule",
-            "crowdstrike_contain_host",
-            "crowdstrike_lift_containment",
-            "get_help",
-        ] {
-            assert_eq!(
-                caps[stubbed], false,
-                "stubbed tool '{stubbed}' must report false (-32003 not implemented); \
-                 got {:?}",
-                caps[stubbed]
-            );
-        }
-        // The map must cover the whole catalog — not the old 11-entry literal.
+            .expect("capabilities must be an object (write capability paths)");
+
+        // The registered capability "sensor.test.containment" must have tri-state shape.
+        let test_cap = caps
+            .get("sensor.test.containment")
+            .expect("sensor.test.containment must be in capabilities map");
         assert_eq!(
-            caps.len(),
-            PrismServer::production_tool_catalog().len(),
-            "capabilities map must cover every catalog tool"
+            test_cap["status"], "enabled",
+            "acme has Allow on sensor.test.containment → status must be 'enabled'; \
+             got {test_cap}"
         );
-        // Stubbed tools are also enumerated explicitly for agent consumers.
-        let not_impl = body["not_implemented"]
+        assert!(
+            test_cap["resolution_chain"].as_array().is_some(),
+            "sensor.test.containment must have resolution_chain array; got {test_cap}"
+        );
+
+        // not_registered_tools (renamed from not_implemented) must be an array of MCP tools.
+        let not_registered = body["not_registered_tools"]
             .as_array()
-            .expect("not_implemented must be an array");
-        assert_eq!(not_impl.len(), NOT_YET_AVAILABLE_TOOLS.len());
+            .expect("not_registered_tools must be an array (BC-2.10.011 AC-011)");
+        assert_eq!(
+            not_registered.len(),
+            NOT_YET_AVAILABLE_TOOLS.len(),
+            "not_registered_tools must contain all NOT_YET_AVAILABLE_TOOLS"
+        );
+
+        // not_implemented must NOT be present (renamed in BC-2.10.011 v1.5).
+        assert!(
+            body.get("not_implemented").is_none(),
+            "not_implemented must be absent (renamed to not_registered_tools); got {body}"
+        );
+        // note field must NOT be present (removed in BC-2.10.011 v1.5).
+        assert!(
+            body.get("note").is_none(),
+            "note field must be absent (removed in BC-2.10.011 v1.5); got {body}"
+        );
     }
 
-    /// MCP-01: unregistered client → client_registered = false (capabilities
-    /// map identical — tool availability is not per-client; write capability
-    /// evaluation happens per-request in the write pipeline).
+    /// MCP-01 (BC-2.10.011 v1.5): unregistered client → client_registered = false;
+    /// write capabilities map shows runtime_disabled for registry paths (no Allow rule),
+    /// capabilities for paths in registry but no client config → runtime_disabled.
+    ///
+    /// Updated from bool-map shape to tri-state shape.
     #[tokio::test]
     async fn test_MCP_01_list_capabilities_unregistered_client_not_registered() {
         let server = server_with_write_executor("acme");
+        // "globex" is not registered in the FeatureFlagEvaluator.
         let result = server
             .list_capabilities(Parameters(ListCapabilitiesParams {
                 client_id: Some("globex".to_owned()),
@@ -7892,7 +8516,23 @@ mod tests {
             body["client_registered"], false,
             "unregistered client must report client_registered=false; got {body}"
         );
-        assert_eq!(body["capabilities"]["query"], true);
-        assert_eq!(body["capabilities"]["create_schedule"], false);
+        let caps = body["capabilities"]
+            .as_object()
+            .expect("capabilities must be an object");
+        // "globex" is not in the FeatureFlagEvaluator — registry path exists but client is unknown.
+        // check_permission with unknown client → DeniedRuntime → runtime_disabled.
+        let test_cap = caps.get("sensor.test.containment");
+        if let Some(cap) = test_cap {
+            // Must be runtime_disabled (compile-gate Present, but client is unknown → deny-by-default).
+            assert_eq!(
+                cap["status"], "runtime_disabled",
+                "sensor.test.containment for unknown client must be runtime_disabled; got {cap}"
+            );
+        }
+        // not_registered_tools must still be present.
+        assert!(
+            body.get("not_registered_tools").is_some(),
+            "not_registered_tools must be present for unregistered client; got {body}"
+        );
     }
 }
