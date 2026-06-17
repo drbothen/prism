@@ -1435,12 +1435,12 @@ output_type = "boolean"
     }
 }
 
-/// EC-001: load_all ignores mmdb/csv/json_lookup types (deferred to S-1.14-REDO).
+/// S-1.14-REDO implements maxmind_mmdb/csv/json_lookup source types.
+/// load_all must now successfully parse these types (no longer UnknownSourceType).
 ///
-/// When load_all encounters a non-plugin type it cannot handle, it should return
-/// an error for that spec and continue (not panic).
-///
-/// Red Gate failure: `InfusionLoader::load_all` panics with `unimplemented!()`.
+/// Previously (S-DEMO-ENRICHMENT-PIVOT-001 scope) this test asserted that maxmind_mmdb
+/// returned UnknownSourceType. S-1.14-REDO implements the full local-lookup path,
+/// so the correct behavior is 1 spec, 0 errors.
 #[test]
 fn test_BC_2_19_001_load_all_returns_error_for_unsupported_source_type() {
     use std::io::Write;
@@ -1450,7 +1450,7 @@ fn test_BC_2_19_001_load_all_returns_error_for_unsupported_source_type() {
     let infusions_dir = temp_dir.path().join("infusions");
     std::fs::create_dir_all(&infusions_dir).expect("EC-001: infusions dir must be created");
 
-    // MMDB type — deferred to S-1.14-REDO, must not silently succeed.
+    // maxmind_mmdb type — S-1.14-REDO implements this; load_all must now succeed.
     let mmdb_toml = r#"
 [infusion]
 infusion_id = "geoip"
@@ -1475,52 +1475,26 @@ output_type = "string"
             .expect("EC-001: write must succeed");
     }
 
-    // FAILS RED: InfusionLoader::load_all is unimplemented!()
     let loader = InfusionLoader::new(temp_dir.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
-    // The mmdb spec must produce exactly 1 error (UnknownSourceType) and 0 valid specs.
-    // A regression to any other error variant OR to silent success (0 errors, 1 spec) must fail.
+    // S-1.14-REDO: maxmind_mmdb is now a supported type — expect 1 spec, 0 errors.
     assert_eq!(
         specs.len(),
-        0,
-        "BC-2.19.001 EC-001: load_all must not silently load maxmind_mmdb type \
-         (deferred to S-1.14-REDO). Got {} specs (expected 0).",
-        specs.len()
+        1,
+        "BC-2.19.001: S-1.14-REDO must successfully parse maxmind_mmdb spec. \
+         Got {} specs (expected 1). Errors: {:?}",
+        specs.len(),
+        errors
     );
     assert_eq!(
         errors.len(),
-        1,
-        "BC-2.19.001 EC-001: load_all must produce exactly 1 error for maxmind_mmdb type. \
-         Got {} errors.",
-        errors.len()
+        0,
+        "BC-2.19.001: no errors expected for valid maxmind_mmdb spec. Got {} errors: {:?}",
+        errors.len(),
+        errors
     );
-
-    // Pin the error variant: must be UnknownSourceType (E-INFUSE-004), not any other variant.
-    match &errors[0] {
-        InfusionError::UnknownSourceType { type_name } => {
-            assert!(
-                type_name.contains("maxmind_mmdb") || type_name.contains("mmdb"),
-                "BC-2.19.001 EC-001: UnknownSourceType error must name the rejected type. \
-                 Got type_name: '{}'",
-                type_name
-            );
-        }
-        other => panic!(
-            "BC-2.19.001 EC-001: expected InfusionError::UnknownSourceType for maxmind_mmdb, \
-             got: {:?}. A regression to a different variant would not be caught by a weak assertion.",
-            other
-        ),
-    }
-
-    // Pin the error code: message must contain E-INFUSE-004.
-    let err_msg = errors[0].to_string();
-    assert!(
-        err_msg.contains("E-INFUSE-004"),
-        "BC-2.19.001 EC-001: UnknownSourceType error message must contain 'E-INFUSE-004'. \
-         Got: '{}'",
-        err_msg
-    );
+    assert_eq!(specs[0].infusion_id, "geoip");
 }
 
 // ---------------------------------------------------------------------------

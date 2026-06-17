@@ -608,6 +608,13 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     prism_query::invalidation::register_builtin_write_tools()
         .map_err(|e| BootError::InternalError(format!("write tool registration failed: {e}")))?;
 
+    // Step 7.6 [NON-BLOCKING]: Infusion loading — S-1.14-REDO AC-10 hollow-feature fix.
+    // Positioned AFTER step 7.5 (plugin-load) and BEFORE step 9 (MCP server start)
+    // so that the InfusionRegistry is populated before the first query is processed.
+    // Non-fatal: individual spec load failures are WARN-logged; the registry is returned
+    // empty on error rather than aborting boot (BC-2.22.001 §Step 7.6).
+    let infusion_registry = Arc::new(infusion_load_step(config_dir));
+
     // Step 7 [BLOCKING]: Storage + internal-tables provider init.
     // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
     // Pass ctx.rocksdb_backend (opened in step 6) so step7 can health-check it.
@@ -620,6 +627,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // credential_store) to step9 for wiring (CRIT-5: real deps, not empty placeholders).
     // CRIT-4: also pass spec_dir (for reload_config/add_sensor_spec) and config_dir
     // (for alias store file path).
+    // S-1.14-REDO AC-10: also pass infusion_registry so step9 wires it into QueryEngine.
     let mcp_server_task = step9_start_mcp_server(
         Arc::clone(&ctx.rocksdb_backend),
         Arc::clone(&ctx.config_manager),
@@ -630,6 +638,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
         config.spec_dir.clone(),
         config_dir.to_path_buf(),
         plugin_result.plugin_auth_providers,
+        infusion_registry,
     )
     .await?;
     step10_start_hot_reload().await?;
@@ -2538,6 +2547,8 @@ pub async fn step9_start_mcp_server(
         String,
         Arc<prism_spec_engine::PluginAuthProvider>,
     >,
+    // S-1.14-REDO AC-10: infusion registry from infusion_load_step — wired into QueryEngine.
+    infusion_registry: Arc<prism_spec_engine::InfusionRegistry>,
 ) -> Result<tokio::task::JoinHandle<Result<(), rmcp::RmcpError>>, BootError> {
     use std::collections::BTreeMap;
 
@@ -2739,7 +2750,10 @@ pub async fn step9_start_mcp_server(
         // S-3.13 CRIT-1: wire the pre-populated TableRegistry so the plan-time
         // E-QUERY-037 gate fires on real queries (AC-2, AC-8). The hot-reload
         // swap listener (CRIT-2) shares this same Arc<TableRegistry> instance.
-        .with_table_registry(Arc::clone(&table_registry)),
+        .with_table_registry(Arc::clone(&table_registry))
+        // S-1.14-REDO AC-10: wire infusion registry so InfusionUdfs are registered in
+        // each ephemeral DataFusion SessionContext (BC-2.19.001 / BC-2.22.001 §Step 7.6).
+        .with_infusion_registry(infusion_registry),
     );
 
     // ── Build WriteExecutor ───────────────────────────────────────────────────
@@ -2911,23 +2925,49 @@ pub async fn step11_install_signal_handlers(
 /// registry construction via InfusionRegistry::load_spec() for each valid spec,
 /// and emit the INFO/WARN structured events per AC-10 contract.
 ///
-/// NOTE: `#[allow(dead_code)]` because `run_boot_sequence` does not yet call this function
-/// (it will call it once S-1.14-REDO implements it; for now the integration test calls it directly
-/// to establish the RED gate).
-#[allow(dead_code)]
-pub fn infusion_load_step(_config_dir: &Path) -> prism_spec_engine::InfusionRegistry {
-    // TODO(S-1.14-REDO): implement infusion_load_step —
-    // 1. let loader = prism_spec_engine::infusion::loader::InfusionLoader::new(config_dir)
-    // 2. let (specs, errors) = loader.load_all()
-    // 3. log errors as WARN, log count of specs as INFO
-    // 4. for each spec, call registry.load_spec(spec) or registry.load_spec_with_runtime(spec, runtime)
-    // 5. return registry for QueryEngine::with_infusion_registry() wiring in run_boot_sequence
-    todo!(
-        "S-1.14-REDO AC-10: implement infusion_load_step — call InfusionLoader::load_all, \
-         register specs into InfusionRegistry, log WARN on failures, log INFO on success count. \
-         Then call QueryEngine::with_infusion_registry(Arc::new(registry)) in run_boot_sequence \
-         before step9_start_mcp_server (BC-2.22.001 §Step 7.6)"
-    )
+/// S-1.14-REDO AC-10: infusion_load_step is wired into run_boot_sequence (non-hollow).
+/// The registry returned here is passed to step9 via with_infusion_registry().
+pub fn infusion_load_step(config_dir: &Path) -> prism_spec_engine::InfusionRegistry {
+    use prism_spec_engine::InfusionRegistry;
+    use prism_spec_engine::infusion::loader::InfusionLoader;
+
+    let registry = InfusionRegistry::new();
+    let loader = InfusionLoader::new(config_dir.to_string_lossy().as_ref());
+    let (specs, errors) = loader.load_all();
+
+    // Log each error as WARN (non-fatal — one bad spec must not block others).
+    for err in &errors {
+        tracing::warn!(
+            error = %err,
+            "boot: infusion spec load failed (non-fatal) — skipping this spec"
+        );
+    }
+
+    // Register each valid spec into the registry.
+    let mut registered = 0usize;
+    for spec in specs {
+        let infusion_id = spec.infusion_id.clone();
+        match registry.load_spec(spec) {
+            Ok(_) => {
+                registered += 1;
+            }
+            Err(err) => {
+                tracing::warn!(
+                    infusion_id = %infusion_id,
+                    error = %err,
+                    "boot: failed to register infusion spec into registry (non-fatal)"
+                );
+            }
+        }
+    }
+
+    tracing::info!(
+        count = registered,
+        parse_errors = errors.len(),
+        "boot: infusion load step complete (S-1.14-REDO AC-10)"
+    );
+
+    registry
 }
 
 // ---------------------------------------------------------------------------

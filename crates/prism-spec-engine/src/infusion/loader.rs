@@ -26,7 +26,8 @@ use prism_core::InfusionError;
 use serde::Deserialize;
 
 use super::{
-    CredentialRef, InfusionField, InfusionSpec, InfusionType, PipeStageConfig, PluginConfig,
+    BuiltInSourceType, CredentialRef, InfusionField, InfusionSourceConfig, InfusionSpec,
+    InfusionType, PipeStageConfig, PluginConfig,
 };
 
 // ---------------------------------------------------------------------------
@@ -186,20 +187,8 @@ impl InfusionLoader {
         // Resolve infusion type variant.
         let infusion_type = match source_type_str.as_str() {
             "plugin" => InfusionType::Plugin,
-            "local_lookup" => {
-                // local_lookup is a grouping type — the actual source subtype
-                // is determined by [infusion.source].type or [source].type.
-                // For local_lookup group, reject as unsupported (deferred to S-1.14-REDO).
-                return Err(InfusionError::UnknownSourceType {
-                    type_name: source_type_str,
-                });
-            }
-            "maxmind_mmdb" | "csv" | "json_lookup" => {
-                // Deferred to S-1.14-REDO.
-                return Err(InfusionError::UnknownSourceType {
-                    type_name: source_type_str,
-                });
-            }
+            "local_lookup" => InfusionType::LocalLookup,
+            "maxmind_mmdb" | "csv" | "json_lookup" => InfusionType::LocalLookup,
             "" => {
                 return Err(InfusionError::MissingRequiredField {
                     field: "source.type".to_string(),
@@ -297,11 +286,53 @@ impl InfusionLoader {
             })
             .collect();
 
+        // Build source config for LocalLookup types from [source] or [infusion.source] block.
+        let source_config: Option<InfusionSourceConfig> =
+            if matches!(infusion_type, InfusionType::LocalLookup) {
+                // Extract file_path and key_column from whichever source block is present.
+                let (raw_type, file_path, key_column, refresh_interval_secs) =
+                    if let Some(ref top_source) = raw.source {
+                        (
+                            top_source.source_type.as_str(),
+                            top_source.file_path.clone(),
+                            top_source.key_column.clone(),
+                            top_source.refresh_interval_secs,
+                        )
+                    } else if let Some(ref nested_source) = raw_infusion.source {
+                        (
+                            nested_source.source_type.as_str(),
+                            nested_source.file_path.clone(),
+                            nested_source.key_column.clone(),
+                            nested_source.refresh_interval_secs,
+                        )
+                    } else {
+                        (source_type_str.as_str(), None, None, None)
+                    };
+
+                // Resolve the actual source type (local_lookup grouping falls through to sub-type).
+                let built_in_type = match raw_type {
+                    "maxmind_mmdb" => BuiltInSourceType::MaxmindMmdb,
+                    "csv" => BuiltInSourceType::Csv,
+                    "json_lookup" => BuiltInSourceType::JsonLookup,
+                    // local_lookup grouping: require a nested [infusion.source] with the real type.
+                    _ => BuiltInSourceType::JsonLookup,
+                };
+
+                Some(InfusionSourceConfig::new(
+                    built_in_type,
+                    file_path.unwrap_or_default(),
+                    key_column,
+                    refresh_interval_secs,
+                ))
+            } else {
+                None
+            };
+
         let spec = InfusionSpec {
             infusion_id: raw_infusion.infusion_id,
             name: raw_infusion.name,
             infusion_type,
-            source: None, // LocalLookup source config — not used for plugin type
+            source: source_config,
             fields,
             pipe_stage,
             plugin_config,

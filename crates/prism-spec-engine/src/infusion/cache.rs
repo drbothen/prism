@@ -134,30 +134,41 @@ impl InfusionLruCache {
     /// Returns `None` on cache miss or on TTL expiry (lazy eviction: pop the stale key).
     /// On hit: return `Some(value)` if `entry.expiry_unix_secs > now`.
     ///
-    /// Implementer: use `self.inner.lock().await` + lru 0.17 `.get(&key)` API.
-    /// Key format must be consistent with `QueryScopedInfusionCache` (S-1.14-REDO Task 6).
-    pub async fn get(&self, _infusion_id: &str, _input_value: &str) -> Option<Value> {
-        todo!(
-            "S-1.14-REDO: implement InfusionLruCache::get — composite key lookup with lazy TTL \
-             eviction using lru 0.17 API — BC-2.19.002 / AC-7"
-        )
+    /// Key format is consistent with `QueryScopedInfusionCache` (BC-2.19.002).
+    pub async fn get(&self, infusion_id: &str, input_value: &str) -> Option<Value> {
+        let key = format!("{}:{}", infusion_id, input_value);
+        let mut cache = self.inner.lock().await;
+        if let Some(entry) = cache.get(&key) {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            if entry.expiry_unix_secs > now {
+                return Some(entry.value.clone());
+            }
+            // Expired — lazy eviction.
+            cache.pop(&key);
+        }
+        None
     }
 
     /// Insert an entry with the given TTL (seconds).
     ///
     /// Key format: `"{infusion_id}:{input_value}"`.
     /// `expiry_unix_secs = now + ttl_secs`.
-    /// Implementer: use `self.inner.lock().await` + lru 0.17 `.put(key, LruCacheEntry { value, expiry_unix_secs })`.
-    pub async fn insert(
-        &self,
-        _infusion_id: &str,
-        _input_value: &str,
-        _value: Value,
-        _ttl_secs: u64,
-    ) {
-        todo!(
-            "S-1.14-REDO: implement InfusionLruCache::insert — TTL-bounded put with lru 0.17 API \
-             — BC-2.19.002 / AC-7"
-        )
+    pub async fn insert(&self, infusion_id: &str, input_value: &str, value: Value, ttl_secs: u64) {
+        let key = format!("{}:{}", infusion_id, input_value);
+        let expiry_unix_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            .saturating_add(ttl_secs);
+        self.inner.lock().await.put(
+            key,
+            LruCacheEntry {
+                value,
+                expiry_unix_secs,
+            },
+        );
     }
 }
