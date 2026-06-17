@@ -1,18 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.845"
+version: "7.846"
 status: current
-timestamp: 2026-06-17T00:00:00Z
+timestamp: 2026-06-17T01:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1202 BURST (2026-06-17) — S-5.02 POST-MERGE DURABILITY SNAPSHOT: develop_head bec894a2. PR #191 S-5.02 MERGED develop@bec894a2 (PR-LEVEL 3/3 strict on frozen 86842768; pr-reviewer APPROVE; CI 43/43; POL-14 BC-2.10.011 status:draft→active). PR #192 S-3.13 OPEN @7f192e31 — NEXT: rebase onto develop@bec894a2; ci.yml EXPECTED=66; CLAUDE.md count=66; PR-LEVEL 3-CLEAN → merge. S-5.03 + S-5.08 UNBLOCKED. DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open. BC-INDEX v6.68. STORY-INDEX v2.418. STATE v7.845.**
+> **D-1203 BURST (2026-06-17) — LANE-B PROPAGATION FIXES + BOOKKEEPING: develop_head bec894a2 UNCHANGED. error-taxonomy v1.86 (E-QUERY-037 org-scoped per ADR-039; F-S313-PRL-MED-001 CLOSED). interface-definitions v2.8 (explain_query outputSchema org-scoped available_tables; SEC-003 CLOSED). S-3.13 frozen HEAD 7f192e31→47a6ad65 (post-rebase@bec894a2 + ci.yml EXPECTED=66 + CLAUDE.md count=66). PR #192 S-3.13 @47a6ad65 PR-LEVEL 3-CLEAN 0/3 NEXT. Process-gap codified: ADR §Required Implementation Changes must enumerate same-surface PRD supplements. STORY-INDEX v2.419. STATE v7.846.**
+>
+> **D-1202 BURST (2026-06-17) — S-5.02 POST-MERGE: develop_head bec894a2. PR #191 S-5.02 MERGED (PR-LEVEL 3/3 strict on frozen 86842768; CI 43/43; POL-14 BC-2.10.011 status:draft→active). BC-INDEX v6.68. STORY-INDEX v2.418. STATE v7.845.**
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1196 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1195 notes SUPERSEDED. D-1197..D-1202 durability bursts layer on top of D-1196.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1196 below (with D-1202 overlay) are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
-> develop HEAD `bec894a2` (feat(S-5.02): MCP tool routing, structured error responses, tri-state client scoping; D-1202 burst). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1202 burst). STATE v7.845.
+> develop HEAD `bec894a2` (feat(S-5.02): MCP tool routing, structured error responses, tri-state client scoping; D-1202 merge). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1203 burst). STATE v7.846.
 
 ---
 

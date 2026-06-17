@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.7"
+version: "2.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -589,6 +589,11 @@ Configures where Prism resolves a named credential for a given `(client_id, sens
           "sensors_to_query": { "type": "array", "items": { "type": "string" } },
           "estimated_api_calls": { "type": "integer", "description": "Estimated number of sensor API calls." }
         }
+      },
+      "available_tables": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Org-scoped list of currently registered table names available to the requesting client. In multi-tenant overlay deployments (ADR-029 per-org overlay map present, `clients` non-empty), this list is filtered to tables registered for the requesting org(s) only — tables belonging to other orgs are NEVER enumerated (ADR-039 v1.1 SEC-003/CWE-200 invariant). In single-tenant deployments or when `clients` is null/omitted (`resolved_spec_map` absent), lists all globally registered tables — identical to pre-ADR-039 behavior. When no sensors are configured, returns an empty array. Consumers: LLM agents use this field to identify valid tables for query formulation without sending a query first."
       }
     }
   },
