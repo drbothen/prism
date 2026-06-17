@@ -872,6 +872,24 @@ pub struct CheckSensorHealthParams {
     pub sensor_id: Option<String>,
 }
 
+impl CheckSensorHealthParams {
+    /// Construct params for a client-scoped health check (all sensors for the client).
+    pub fn for_client(client_id: impl Into<String>) -> Self {
+        Self {
+            client_id: client_id.into(),
+            sensor_id: None,
+        }
+    }
+
+    /// Construct params for a specific sensor health check.
+    pub fn for_sensor(client_id: impl Into<String>, sensor_id: impl Into<String>) -> Self {
+        Self {
+            client_id: client_id.into(),
+            sensor_id: Some(sensor_id.into()),
+        }
+    }
+}
+
 /// Parameters for the `get_diagnostics` tool.
 #[non_exhaustive]
 #[derive(Debug, Deserialize, JsonSchema)]

@@ -17,8 +17,9 @@ pub mod tools;
 
 pub use context::PrismContext;
 pub use prompts::{
-    build_prompt_router, render_triage_alerts, PROMPT_CLIENT_OVERVIEW, PROMPT_CROSS_CLIENT_STATUS,
-    PROMPT_INVESTIGATE_HOST, PROMPT_TRIAGE_ALERTS, SECURITY_REMINDER,
+    build_prompt_router, render_client_overview, render_cross_client_status,
+    render_investigate_host, render_triage_alerts, PROMPT_CLIENT_OVERVIEW,
+    PROMPT_CROSS_CLIENT_STATUS, PROMPT_INVESTIGATE_HOST, PROMPT_TRIAGE_ALERTS, SECURITY_REMINDER,
 };
 pub use resources::{
     dispatch_hot_reload_notifications, render_client_list_resource, render_client_sensors_resource,
@@ -28,6 +29,7 @@ pub use resources::{
 };
 pub use safety_envelope::{ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder};
 pub use server::{
-    CapabilityEntry, CapabilityStatus, ListCapabilitiesParams, PrismServer, ResolutionStep,
+    CapabilityEntry, CapabilityStatus, CheckSensorHealthParams, ListCapabilitiesParams,
+    PrismServer, ResolutionStep,
 };
 pub use tool_registry::{ToolDescriptionRegistrar, ToolRegistration};

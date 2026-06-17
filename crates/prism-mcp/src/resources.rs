@@ -137,6 +137,16 @@ pub struct ResourcePressure {
     pub active_token_count: usize,
 }
 
+impl ResourcePressure {
+    /// Construct a ResourcePressure snapshot.
+    pub fn new(active_cursor_count: usize, active_token_count: usize) -> Self {
+        Self {
+            active_cursor_count,
+            active_token_count,
+        }
+    }
+}
+
 /// Top-level structured content shape for `check_sensor_health` (BC-2.08.005).
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,6 +161,32 @@ pub struct SensorHealthStructuredContent {
     pub summary: String,
     /// Clients that failed health check (cross-client mode only).
     pub partial_failures: Vec<String>,
+}
+
+impl SensorHealthStructuredContent {
+    /// Construct a `SensorHealthStructuredContent` with the given sensors and summary.
+    ///
+    /// `trust_level` is always `"internal"` — it is set unconditionally here per
+    /// BC-2.08.005 postcondition 7 (health data is Prism-generated, not sensor-sourced).
+    pub fn new(
+        sensors: Vec<SensorHealthResult>,
+        resource_pressure: ResourcePressure,
+        summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            sensors,
+            resource_pressure,
+            trust_level: "internal".to_string(),
+            summary: summary.into(),
+            partial_failures: vec![],
+        }
+    }
+
+    /// Builder: set partial_failures list (cross-client mode only).
+    pub fn with_partial_failures(mut self, partial_failures: Vec<String>) -> Self {
+        self.partial_failures = partial_failures;
+        self
+    }
 }
 
 // ─── URI constants ─────────────────────────────────────────────────────────────
