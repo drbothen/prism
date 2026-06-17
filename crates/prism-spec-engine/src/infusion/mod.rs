@@ -589,7 +589,7 @@ impl InfusionRegistry {
         for field in &spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
         }
-        new_entries.insert(spec.infusion_id.clone(), (spec, source));
+        new_entries.insert(spec.infusion_id.clone(), (spec, source.clone()));
 
         // Atomic swap (AD-007 / CI-002).
         self.inner.store(Arc::new(InfusionRegistryInner {
@@ -597,7 +597,25 @@ impl InfusionRegistry {
             udf_to_infusion: new_udf_to_infusion,
         }));
 
-        Ok(descriptors)
+        // OBS-1 fix: rebuild returned descriptors with the REAL source so the caller always
+        // receives a descriptor whose `source` matches the stored entry. `validate_spec_against`
+        // builds descriptors with `NullSource` for duplicate-detection purposes only; the real
+        // source is constructed above. Returning the NullSource-backed descriptors would be a
+        // latent footgun: a future caller using the return value to register UDFs would silently
+        // get NullSource (all enrichment → None) even though the registry holds a real source.
+        let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
+            .iter()
+            .map(|d| udf::InfusionUdfDescriptor {
+                name: d.name.clone(),
+                input_type: d.input_type.clone(),
+                output_type: d.output_type.clone(),
+                infusion_id: d.infusion_id.clone(),
+                source: source.clone(),
+                source_column: d.source_column.clone(),
+            })
+            .collect();
+
+        Ok(real_descriptors)
     }
 
     /// Load and validate a single `InfusionSpec` into the registry, wiring a real
@@ -664,7 +682,7 @@ impl InfusionRegistry {
         for field in &spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
         }
-        new_entries.insert(spec.infusion_id.clone(), (spec, source));
+        new_entries.insert(spec.infusion_id.clone(), (spec, source.clone()));
 
         // Atomic swap (AD-007 / CI-002).
         self.inner.store(Arc::new(InfusionRegistryInner {
@@ -672,7 +690,21 @@ impl InfusionRegistry {
             udf_to_infusion: new_udf_to_infusion,
         }));
 
-        Ok(descriptors)
+        // OBS-1 fix: rebuild returned descriptors with the REAL source (same pattern as
+        // load_spec — see that method for the detailed rationale).
+        let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
+            .iter()
+            .map(|d| udf::InfusionUdfDescriptor {
+                name: d.name.clone(),
+                input_type: d.input_type.clone(),
+                output_type: d.output_type.clone(),
+                infusion_id: d.infusion_id.clone(),
+                source: source.clone(),
+                source_column: d.source_column.clone(),
+            })
+            .collect();
+
+        Ok(real_descriptors)
     }
 
     /// Return all currently registered UDF descriptors.
@@ -681,9 +713,8 @@ impl InfusionRegistry {
     ///
     /// Uses the stored `InfusionSource` for each entry (BC-2.19.001 v1.4: plugin-type
     /// descriptors carry a real `PluginInfusionSource` when the registry was populated via
-    /// `load_spec_with_runtime`; entries loaded via bare `load_spec` carry `NullSource`
-    /// and are only appropriate for local-lookup specs without a source config, or tests
-    /// that do not need live enrichment data).
+    /// `load_spec_with_runtime`; entries loaded via bare `load_spec` carry the real
+    /// constructed source — matching the stored registry state).
     pub fn udf_descriptors(&self) -> Vec<udf::InfusionUdfDescriptor> {
         let current = self.inner.load();
         current
@@ -825,14 +856,31 @@ impl InfusionRegistry {
         for field in &updated_spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), updated_spec.infusion_id.clone());
         }
-        new_entries.insert(updated_spec.infusion_id.clone(), (updated_spec, source));
+        new_entries.insert(
+            updated_spec.infusion_id.clone(),
+            (updated_spec, source.clone()),
+        );
 
         self.inner.store(Arc::new(InfusionRegistryInner {
             entries: new_entries,
             udf_to_infusion: new_udf_to_infusion,
         }));
 
-        Ok(descriptors)
+        // OBS-1 fix: rebuild returned descriptors with the REAL source (same pattern as
+        // load_spec — see that method for the detailed rationale).
+        let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
+            .iter()
+            .map(|d| udf::InfusionUdfDescriptor {
+                name: d.name.clone(),
+                input_type: d.input_type.clone(),
+                output_type: d.output_type.clone(),
+                infusion_id: d.infusion_id.clone(),
+                source: source.clone(),
+                source_column: d.source_column.clone(),
+            })
+            .collect();
+
+        Ok(real_descriptors)
     }
 }
 

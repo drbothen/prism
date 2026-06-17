@@ -11,8 +11,8 @@
 //! # Implementation status (S-DEMO-ENRICHMENT-PIVOT-001 — fully implemented)
 //! `InfusionUdfDescriptor` is actively consumed by prism-query's `InfusionAsyncUdf` wrapper.
 //! Plugin-type descriptors are built by `InfusionRegistry::load_spec_with_runtime` with a
-//! real `Arc<PluginInfusionSource>`; parse-phase descriptors carry `Arc<NullSource>` until
-//! the runtime phase wires the real source.
+//! real `Arc<PluginInfusionSource>`. `load_spec` returns descriptors carrying the REAL
+//! constructed source (same as the stored registry state — OBS-1 fix, S-1.14-REDO).
 
 use std::sync::Arc;
 

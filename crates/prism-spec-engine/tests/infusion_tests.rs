@@ -1835,3 +1835,132 @@ adds_columns = ["threat_score", "nonexistent_field"]
         ),
     }
 }
+
+// ---------------------------------------------------------------------------
+// OBS-1 fix: load_spec return value carries REAL source (not NullSource)
+// ---------------------------------------------------------------------------
+//
+// Regression guard: ensures the returned descriptors from load_spec carry the
+// REAL file-backed InfusionSource, not the NullSource used internally by
+// validate_spec_against for duplicate-detection.
+//
+// Load-bearing mechanism: the test calls enrich_single on a descriptor from the
+// load_spec return value and asserts it returns Some(real_data). A NullSource
+// regression would return None here, causing the assertion to fail.
+
+/// OBS-1: load_spec return value descriptors carry the real file-backed source.
+///
+/// Traces to: OBS-1 adversarial finding, S-1.14-REDO burst-4+1.
+///
+/// The asset_inventory CSV fixture (fixtures/asset_inventory.csv) has:
+///   ip_address=192.168.1.10, department=Engineering, owner=alice
+///
+/// If load_spec returned NullSource-backed descriptors, enrich_single would return
+/// None and the test would fail with a clear regression signal.
+#[test]
+fn test_OBS_1_load_spec_return_value_carries_real_source_not_null_source() {
+    use std::path::PathBuf;
+
+    // Build a CSV-backed LocalLookup spec using the existing fixture file.
+    // The fixture lives at crates/prism-spec-engine/fixtures/asset_inventory.csv
+    // relative to the workspace root — resolve via env!("CARGO_MANIFEST_DIR").
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let csv_path = PathBuf::from(manifest_dir)
+        .join("fixtures")
+        .join("asset_inventory.csv");
+    let csv_path_str = csv_path
+        .to_str()
+        .expect("OBS-1: CSV fixture path must be valid UTF-8");
+
+    let fields = vec![
+        InfusionField::with_all(
+            "obs1_asset_department",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("department".to_string()),
+        ),
+        InfusionField::with_all(
+            "obs1_asset_owner",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("owner".to_string()),
+        ),
+    ];
+    let mut spec = InfusionSpec::new(
+        "obs1_asset_inventory",
+        "OBS-1 Asset Inventory CSV",
+        InfusionType::LocalLookup,
+        fields,
+        "obs1_asset_inventory.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        csv_path_str,
+        Some("ip_address".to_string()),
+        None,
+    ));
+
+    let registry = InfusionRegistry::new();
+
+    // Get the descriptors from load_spec return value.
+    let returned_descriptors = registry
+        .load_spec(spec)
+        .expect("OBS-1: asset_inventory spec must load successfully");
+
+    assert_eq!(
+        returned_descriptors.len(),
+        2,
+        "OBS-1: load_spec must return 2 descriptors for a 2-field spec"
+    );
+
+    // Use the returned descriptor to enrich — this is the LOAD-BEARING assertion.
+    // A NullSource would return None; the real CsvSource returns Some(row_data).
+    //
+    // fixture: ip_address=192.168.1.10 → department=Engineering, owner=alice
+    let dept_descriptor = returned_descriptors
+        .iter()
+        .find(|d| d.name == "obs1_asset_department")
+        .expect("OBS-1: obs1_asset_department descriptor must be in the returned set");
+
+    let enrichment_result = dept_descriptor.source.enrich_single("192.168.1.10", "ip");
+
+    assert!(
+        enrichment_result.is_some(),
+        "OBS-1: load_spec return descriptor must carry the REAL CsvSource, not NullSource. \
+         Expected Some(row_data) for IP 192.168.1.10 (fixture: department=Engineering), \
+         got None. A None result here means the returned descriptor is backed by NullSource — \
+         the OBS-1 regression has been re-introduced."
+    );
+
+    // Verify the enrichment returned the correct department from the fixture.
+    let row = enrichment_result.unwrap();
+    let department = row
+        .get("department")
+        .and_then(|v| v.as_str())
+        .expect("OBS-1: enrichment result must have 'department' field from CSV row");
+
+    assert_eq!(
+        department, "Engineering",
+        "OBS-1: enrichment via load_spec return descriptor must return 'Engineering' \
+         for IP 192.168.1.10 (fixture row). Got: '{}'",
+        department
+    );
+
+    // Confirm the stored registry also has the real source (udf_descriptors must match).
+    let registry_descriptors = registry.udf_descriptors();
+    let stored_dept = registry_descriptors
+        .iter()
+        .find(|d| d.name == "obs1_asset_department")
+        .expect("OBS-1: obs1_asset_department must be in udf_descriptors()");
+
+    let stored_result = stored_dept.source.enrich_single("192.168.1.10", "ip");
+    assert!(
+        stored_result.is_some(),
+        "OBS-1: udf_descriptors() must also carry the real CsvSource (consistency check). \
+         Got None — stored source is NullSource."
+    );
+}
