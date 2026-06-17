@@ -1849,6 +1849,116 @@ mod sec003_engine_path_tests {
             result.available_tables
         );
     }
+    /// SEC-001 production-path regression test (S-3.13 MED-A / sibling-coverage gap).
+    ///
+    /// Verifies that calling `QueryEngine::execute()` — the EXECUTE production code path,
+    /// not the explain path — correctly uses `self.resolved_spec_map` + `options.clients`
+    /// to filter the E-QUERY-037 enumeration to the requesting org's visible sensors only.
+    ///
+    /// # What this test proves
+    ///
+    /// The 5 existing `test_SEC_001_*` tests in `table_registry_tests.rs` call
+    /// `check_availability_gate` DIRECTLY, bypassing the engine. The existing engine-path
+    /// test (`test_S3_13_engine_execute_with_wired_registry_returns_e_query_037_before_fanout`)
+    /// uses `QueryOptions::default()` (clients=None) + no `resolved_spec_map`, so it never
+    /// exercises the org-FILTER path. This test closes that gap.
+    ///
+    /// # Load-bearing guarantee
+    ///
+    /// The E-QUERY-037 enumeration depends on both:
+    /// 1. `engine.resolved_spec_map` being wired (injected via `execute_inner` into
+    ///    `check_table_availability`), AND
+    /// 2. `options.clients` carrying the requesting org's slug (used as `org_scope`).
+    ///
+    /// If either plumbing is removed, the filter reverts to global scope and
+    /// `available_sensors`/`available_tables` would contain BOTH orgs — causing this test
+    /// to fail on the `!contains("crowdstrike")` / `!contains("crowdstrike_alerts")` asserts.
+    ///
+    /// # Fixture
+    ///
+    /// acme → armis (armis_devices), contoso → crowdstrike (crowdstrike_alerts).
+    /// Execute with `clients=Some([acme])` on `unknown_table`.
+    /// E-QUERY-037 must enumerate acme's tables only (armis_devices) — NOT contoso's.
+    ///
+    /// # Execution note
+    ///
+    /// `check_table_availability` fires BEFORE `resolve_clients`, so the empty
+    /// `ClientRegistry` in `make_engine_with_spec_map` is acceptable — `resolve_clients`
+    /// is never reached when the gate returns E-QUERY-037.
+    ///
+    /// `#[tokio::test]` required: `QueryEngine::new_with_cache_config` spawns the cursor
+    /// cleanup background task which requires a tokio runtime context.
+    ///
+    /// BC-2.11.001 / ADR-039 / SEC-001 / CWE-200.
+    #[tokio::test]
+    #[allow(non_snake_case, clippy::expect_used)]
+    async fn test_SEC_001_e_query_037_production_path_via_query_engine_filters_other_org() {
+        let registry = make_two_sensor_registry();
+        let spec_map = make_two_org_spec_map();
+        let acme = OrgSlug::new("acme");
+
+        let engine = make_engine_with_spec_map(registry, spec_map);
+
+        // Execute against an unknown table so E-QUERY-037 fires.
+        // clients=Some([acme]) is the org-scope the gate must use for filtering.
+        // check_table_availability fires BEFORE resolve_clients — the empty ClientRegistry
+        // in make_engine_with_spec_map is acceptable for this test path.
+        let result = engine
+            .execute(
+                "SELECT * FROM unknown_table LIMIT 5",
+                QueryOptions {
+                    clients: Some(vec![acme]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::TableNotAvailable(ref details)) => {
+                // available_sensors must contain acme's sensor ("armis")
+                // and must NOT contain contoso's sensor ("crowdstrike").
+                let sensors: Vec<&str> = details.available_sensors.split(", ").collect();
+                assert!(
+                    sensors.contains(&"armis"),
+                    "SEC-001 execute production path: acme's sensor 'armis' must appear \
+                     in E-QUERY-037 available_sensors. Got: '{}'",
+                    details.available_sensors
+                );
+                assert!(
+                    !sensors.contains(&"crowdstrike"),
+                    "SEC-001 / CWE-200 execute production path: contoso's sensor 'crowdstrike' \
+                     must NOT appear in E-QUERY-037 available_sensors when requesting org is acme. \
+                     Got: '{}'",
+                    details.available_sensors
+                );
+
+                // available_tables must contain acme's table ("armis_devices")
+                // and must NOT contain contoso's table ("crowdstrike_alerts").
+                let tables: Vec<&str> = details.available_tables.split(", ").collect();
+                assert!(
+                    tables.contains(&"armis_devices"),
+                    "SEC-001 execute production path: acme's table 'armis_devices' must appear \
+                     in E-QUERY-037 available_tables. Got: '{}'",
+                    details.available_tables
+                );
+                assert!(
+                    !tables.contains(&"crowdstrike_alerts"),
+                    "SEC-001 / CWE-200 execute production path: contoso's table 'crowdstrike_alerts' \
+                     must NOT appear in E-QUERY-037 available_tables when requesting org is acme. \
+                     Got: '{}'",
+                    details.available_tables
+                );
+            }
+            Ok(_) => panic!(
+                "SEC-001 execute production path: QueryEngine::execute must NOT succeed for \
+                 unknown table 'unknown_table' when registry is wired — E-QUERY-037 must fire"
+            ),
+            Err(other) => panic!(
+                "SEC-001 execute production path: expected PrismError::TableNotAvailable, \
+                 got different error: {other:?}"
+            ),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
