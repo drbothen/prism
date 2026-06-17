@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.853"
+version: "7.854"
 producer: state-manager
 timestamp: 2026-06-17T15:00:00Z
 inputs: []
@@ -19,7 +19,7 @@ safe_to_compact: true
 develop_head: "60249ccc"
 bc_index_version: "6.73"
 vp_index_version: "1.79"
-story_index_version: "v2.422"
+story_index_version: "v2.423"
 arch_index_version: "2.137"
 error_taxonomy_version: "1.88"
 total_stories: 201
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1219 PO BC AMENDMENTS BURST (TD-VSDD-053 single-commit). BC-2.10.008 v1.8→v1.9 (S-5.03 org-with-no-overlay = Option B: zero sensors when resolved_spec_map has no entries for org; EC-10-017 added; grounded in BC-2.06.012 EC-012-003). BC-2.16.002 v1.81→v1.82 (ADR-040 §D8.7 correction: replaced 3 PIVOT-002 dotted-name rows with 2 ADR-mandated names http_lookup_enrich_failed + http_lookup_ssrf_rejected; catalog v1.49→v1.50; event count 78→77). BC-INDEX v6.72→v6.73. develop_head UNCHANGED 60249ccc. STATE v7.852→v7.853."
+current_step: "D-1220 S-1.14-REDO v1.1→v1.2 (story-writer: Task 7 wording corrected — Tier-1 cache bucket is per-DataFusion-batch not per-execute(); behavior unchanged and verified correct). STORY-INDEX v2.422→v2.423. develop_head UNCHANGED 60249ccc. STATE v7.853→v7.854."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-17 (D-1219 PO BC amendments: BC-2.10.008 v1.9 + BC-2.16.002 v1.82 + BC-INDEX v6.73; STATE v7.853)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-17 (D-1220 S-1.14-REDO v1.2 Task 7 wording correction; STORY-INDEX v2.423; STATE v7.854)
 
 ## Active Objective (North Star)
 
@@ -150,7 +150,9 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1220 | state-manager | 2026-06-17 | **S-1.14-REDO v1.1→v1.2 — Task 7 wording correction (story-writer).** Task 7 Tier-1 cache bucket description corrected: "per-DataFusion-batch" not "per-execute()". Behavior unchanged and verified correct; wording was imprecise. No AC/BC/Red Gate change. STORY-INDEX v2.422→v2.423. develop_head UNCHANGED 60249ccc. STATE v7.853→v7.854. | wave-5-e-demo-fidelity | 2026-06-17 |
 | D-1219 | state-manager | 2026-06-17 | **BC-2.16.002 v1.81→v1.82 — ADR-040 §D8.7 event-name correction (PO).** Replaced 3 PIVOT-002 dotted-name catalog rows with 2 ADR-mandated names (`http_lookup_enrich_failed` warn + `http_lookup_ssrf_rejected` warn per ADR-040 §D8.7); catalog v1.49→v1.50; event count 78→77. Implementer must rename `tracing::warn!` site + add SSRF-rejection emit. ADR wins per CLAUDE.md precedence §2. SAP-1 started/succeeded mismatch to be verified by next adversary pass. BC-INDEX v6.72→v6.73. STATE v7.852→v7.853. | wave-5-e-demo-fidelity | 2026-06-17 |
+| D-1220 | state-manager | 2026-06-17 | **S-1.14-REDO v1.1→v1.2 — Task 7 wording corrected (story-writer).** Task 7 Tier-1 cache bucket description corrected: "per-DataFusion-batch" not "per-execute()". Behavior is unchanged and verified correct; wording was imprecise. No AC/BC/Red Gate change. STORY-INDEX v2.422→v2.423. develop_head UNCHANGED 60249ccc. STATE v7.853→v7.854. |
 | D-1218 | state-manager | 2026-06-17 | **BC-2.10.008 v1.8→v1.9 — S-5.03 org-with-no-overlay = Option B: zero sensors (PO).** Org with no `resolved_spec_map` entries returns ZERO sensors from `prism://resources/sensors`. EC-10-017 added (`org_has_no_overlay` → zero-entry list). Postcondition 1 extended with zero-sensor clause. Grounded in BC-2.06.012 EC-012-003. BC-INDEX v6.72→v6.73. STATE v7.852→v7.853. | wave-5-e-demo-fidelity | 2026-06-17 |
 | D-1207 | state-manager | 2026-06-17 | **RESUME SESSION 2026-06-17: factory-worktree-health PASS; 2 stale worktrees pruned (S-DEMO-ENRICHMENT-PIVOT-001, S-DEMO-LAUNCHER-CONSOLIDATION-001 + branches); develop HEAD 60249ccc confirmed; NO OPEN PRs.** Pipeline health verified before L-POST dispatch. | wave-5-e-demo-fidelity | 2026-06-17 |
 | D-1208 | state-manager | 2026-06-17 | **L-POST PARALLEL DISPATCH STARTED: 3 demo-blocking lanes entering TDD.** (a) S-5.03 worktree created + remove-uncertainty complete → story v1.13→v1.14: rmcp 1.4→1.7 pin corrected, prompt-name field corrected, SensorHealthResult schema corrections, OOD-001 resolved SPEC-WINS. (b) S-1.14-REDO worktree created + remove-uncertainty complete → story v1.0→v1.1: maxminddb 0.28 / csv 1.4 / lru 0.17 / bincode 2.x pins grounded; hollow-feature AC-10 + Task 13 added. (c) PIVOT-002 6 security gates folded in as AC-007..012 → story v1.1→v1.2; red_gate_tests 15. Worktrees created for S-1.14-REDO + S-DEMO-ENRICHMENT-PIVOT-002; S-5.03 worktree in progress. | wave-5-e-demo-fidelity | 2026-06-17 |
@@ -273,17 +275,17 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1219 — 2026-06-17; STATE v7.853)
+## Session Resume Checkpoint (D-1220 — 2026-06-17; STATE v7.854)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206** (still authoritative for session context; D-1207..D-1219 are overlay updates). D-1196 and overlay chain D-1197..D-1205 remain SUPERSEDED by D-1206.
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206** (still authoritative for session context; D-1207..D-1220 are overlay updates). D-1196 and overlay chain D-1197..D-1205 remain SUPERSEDED by D-1206.
 
-**STATE v7.853. CURRENT POSITION: L-POST — CASCADE ROUND-2 IN PROGRESS. develop@60249ccc. total_stories 201. NO OPEN PRs. Non-exhaustive gate: ci.yml EXPECTED=66 (S-1.14-REDO will bump to 67 on merge). ADR-040 v2.0 RATIFIED: dual-path HttpLookup+WASM. ACTIVE CASCADES: (a) S-5.03 v1.16 — fix-burst (F-001..F-007) + BC-2.10.008 v1.9 Option B zero-sensor semantics wired; streak 0/3; (b) S-1.14-REDO v1.1 — pass-3 findings; fix-burst-3 IN PROGRESS; streak 0/3; (c) PIVOT-002 v1.3 — dual-path re-scoped; BC-2.16.002 v1.82 ADR-040 §D8.7 correction (event-name rename required at tracing site + SSRF-rejection emit); not yet re-implemented; streak 0/3. bc_index_version 6.73. story_index_version v2.422. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
+**STATE v7.854. CURRENT POSITION: L-POST — CASCADE ROUND-2 IN PROGRESS. develop@60249ccc. total_stories 201. NO OPEN PRs. Non-exhaustive gate: ci.yml EXPECTED=66 (S-1.14-REDO will bump to 67 on merge). ADR-040 v2.0 RATIFIED: dual-path HttpLookup+WASM. ACTIVE CASCADES: (a) S-5.03 v1.16 — fix-burst (F-001..F-007) + BC-2.10.008 v1.9 Option B zero-sensor semantics wired; streak 0/3; (b) S-1.14-REDO v1.2 — pass-3 findings; fix-burst-3 IN PROGRESS; streak 0/3; (c) PIVOT-002 v1.3 — dual-path re-scoped; BC-2.16.002 v1.82 ADR-040 §D8.7 correction (event-name rename required at tracing site + SSRF-rejection emit); not yet re-implemented; streak 0/3. bc_index_version 6.73. story_index_version v2.423. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206 (plus D-1207..D-1219 overlay in STATE.md Current Phase Steps + Decisions Log). UPDATED: ADR-040 v2.0 dual-path ratified (D-1211); BC-2.16.002 v1.82 ADR-040 §D8.7 event-name correction (D-1219); BC-2.10.008 v1.9 Option B zero-sensor semantics (D-1218); BC-2.19.001 v1.8 (D-1216); bc_index_version 6.73 (D-1219); stories at v1.16/v1.1/v1.3.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206 (plus D-1207..D-1220 overlay in STATE.md Current Phase Steps + Decisions Log). UPDATED: ADR-040 v2.0 dual-path ratified (D-1211); BC-2.16.002 v1.82 ADR-040 §D8.7 event-name correction (D-1219); BC-2.10.008 v1.9 Option B zero-sensor semantics (D-1218); BC-2.19.001 v1.8 (D-1216); bc_index_version 6.73 (D-1219); S-1.14-REDO v1.2 Task 7 wording corrected (D-1220); stories at v1.16/v1.2/v1.3.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `60249ccc` (or newer).
 3. `gh pr list --state open --base develop` → expect NONE.
 4. Check worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED superseded) — leave alone.
 5. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) is critical.
-6. **EXACT NEXT ACTIONS:** (a) S-5.03 v1.16 → complete fix-burst (F-001..F-007) → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; (b) S-1.14-REDO v1.1 → complete fix-burst-3 (HIGH-1 cache-unwired/HIGH-2 redaction/LOW-1/OBS-1) → re-pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; (c) PIVOT-002 v1.3 — AWAIT PO http_lookup BC-2.19.001 E-INFUSE-004 addition FIRST → TDD dual-path (ThreatIntel WASM + NVD HttpLookup) → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge. T13 capstone PO+story-writer dispatch after all three merged. Autonomy grant D-989+D-1090 remains active.
+6. **EXACT NEXT ACTIONS:** (a) S-5.03 v1.16 → complete fix-burst (F-001..F-007) → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; (b) S-1.14-REDO v1.2 → complete fix-burst-3 (HIGH-1 cache-unwired/HIGH-2 redaction/LOW-1/OBS-1) → re-pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; (c) PIVOT-002 v1.3 — AWAIT PO http_lookup BC-2.19.001 E-INFUSE-004 addition FIRST → TDD dual-path (ThreatIntel WASM + NVD HttpLookup) → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge. T13 capstone PO+story-writer dispatch after all three merged. Autonomy grant D-989+D-1090 remains active.
