@@ -612,7 +612,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // Positioned AFTER step 7.5 (plugin-load) and BEFORE step 9 (MCP server start)
     // so that the InfusionRegistry is populated before the first query is processed.
     // Non-fatal: individual spec load failures are WARN-logged; the registry is returned
-    // empty on error rather than aborting boot (BC-2.22.001 §Step 7.6).
+    // empty on error rather than aborting boot (BC-2.22.001 §Sequencing Invariant).
     let infusion_registry = Arc::new(infusion_load_step(config_dir));
 
     // Step 7 [BLOCKING]: Storage + internal-tables provider init.
@@ -2752,7 +2752,7 @@ pub async fn step9_start_mcp_server(
         // swap listener (CRIT-2) shares this same Arc<TableRegistry> instance.
         .with_table_registry(Arc::clone(&table_registry))
         // S-1.14-REDO AC-10: wire infusion registry so InfusionUdfs are registered in
-        // each ephemeral DataFusion SessionContext (BC-2.19.001 / BC-2.22.001 §Step 7.6).
+        // each ephemeral DataFusion SessionContext (BC-2.19.001 / BC-2.22.001 §Sequencing Invariant).
         .with_infusion_registry(infusion_registry),
     );
 
@@ -2892,10 +2892,10 @@ pub async fn step11_install_signal_handlers(
 }
 
 // ---------------------------------------------------------------------------
-// Step 7.6 [BLOCKING]: Infusion loading — S-1.14-REDO (AC-10 hollow-feature fix)
+// Step 7.6 [NON-BLOCKING]: Infusion loading — S-1.14-REDO (AC-10 hollow-feature fix)
 // ---------------------------------------------------------------------------
 
-/// Step 7.6 [BLOCKING]: Load all `.infusion.toml` files from `{config_dir}/infusions/` and
+/// Step 7.6 [NON-BLOCKING]: Load all `.infusion.toml` files from `{config_dir}/infusions/` and
 /// return an `InfusionRegistry` wired with the loaded specs (S-1.14-REDO AC-10).
 ///
 /// # Boot sequence position (BC-2.22.001)
