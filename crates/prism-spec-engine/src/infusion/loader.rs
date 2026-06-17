@@ -65,10 +65,16 @@ struct RawInfusion {
 ///
 /// Fields `file_path`, `key_column`, `refresh_interval_secs` are active for MMDB/CSV/JSON-lookup
 /// paths; `plugin_ref` is used for the plugin-type path.
+///
+/// `source_type` is optional here because the http_lookup schema (ADR-040 v2.0 D8.1)
+/// uses `[source.http]` and `[source.credential]` subtables WITHOUT a top-level
+/// `[source] type = ...` key — the discriminant lives in `[infusion] type = "http_lookup"`.
+/// With `#[serde(default)]`, TOML subtable schemas parse without error; the empty string
+/// causes the source-type resolution to fall through to `raw_infusion.infusion_type_str`.
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct RawTopLevelSource {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", default)]
     source_type: String,
     /// For plugin-type: reference to the `.prx` plugin file.
     plugin_ref: Option<String>,
@@ -78,6 +84,35 @@ struct RawTopLevelSource {
     key_column: Option<String>,
     /// Refresh interval for file-backed sources (seconds).
     refresh_interval_secs: Option<u64>,
+    /// For http_lookup: the [source.http] subtable (ADR-040 v2.0 D8.1).
+    /// Accepted at parse time; populated into `HttpLookupConfig` by the implementer.
+    http: Option<RawHttpSubtable>,
+    /// For http_lookup: the [source.credential] subtable (AD-017).
+    /// Accepted at parse time; credential values never stored — reference-only (INV-INFUSE-005).
+    credential: Option<RawHttpCredentialSubtable>,
+}
+
+/// `[source.http]` subtable for http_lookup specs (ADR-040 v2.0 D8.1).
+/// Parsed at stub level; implementer populates `HttpLookupConfig` from these fields.
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct RawHttpSubtable {
+    base_url: Option<String>,
+    url_template: Option<String>,
+    method: Option<String>,
+    response_path: Option<String>,
+}
+
+/// `[source.credential]` subtable for http_lookup specs (AD-017 / INV-INFUSE-005).
+/// Credential references only — no inline values.
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct RawHttpCredentialSubtable {
+    #[serde(rename = "ref")]
+    credential_ref: Option<String>,
+    env_var: Option<String>,
+    auth: Option<String>,
+    param_name: Option<String>,
 }
 
 /// Nested `[infusion.source]` block (used in the fixture TOML schema).
@@ -164,12 +199,23 @@ impl InfusionLoader {
         let raw_infusion = raw.infusion;
 
         // Determine source type — authoritative resolution order:
-        // 1. Top-level `[source].type` (test TOML schema).
+        // 1. Top-level `[source].type` (non-empty — test TOML schema).
+        //    For http_lookup specs (ADR-040 v2.0 D8.1) the [source] table uses subtables
+        //    ([source.http], [source.credential]) with NO top-level `type` key; `source_type`
+        //    defaults to "" and is skipped so resolution continues to step 3.
         // 2. Nested `[infusion.source].type` (fixture TOML schema).
         // 3. `[infusion].type` field.
         // 4. `[infusion].source_type` field (fallback).
         let source_type_str = if let Some(ref top) = raw.source {
-            top.source_type.clone()
+            if !top.source_type.is_empty() {
+                top.source_type.clone()
+            } else if let Some(ref nested) = raw_infusion.source {
+                nested.source_type.clone()
+            } else if !raw_infusion.infusion_type_str.is_empty() {
+                raw_infusion.infusion_type_str.clone()
+            } else {
+                raw_infusion.source_type_fallback.clone()
+            }
         } else if let Some(ref nested) = raw_infusion.source {
             nested.source_type.clone()
         } else if !raw_infusion.infusion_type_str.is_empty() {
