@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -78,9 +78,18 @@ diagnostic tool.
       "fanout": { "status": "ok", "error_rate_1h": 0.0 },
       "watchdog": { "status": "ok", "rss_mb": 187 },
       "storage": { "status": "ok", "total_cf_size_mb": 48 }
-    }
+    },
+    "unregistered_table_queries": [
+      {"table": "armis_alerts", "count": 3, "last_attempted": "2026-06-17T10:05:00Z"}
+    ]
   }
   ```
+- `unregistered_table_queries`: array of tables attempted in queries but absent from
+  `TableRegistry::registered_tables()` in the last hour. Each entry has `table: String`,
+  `count: u32` (total attempts in window), `last_attempted: DateTime<Utc>`. Empty array
+  when no unregistered queries occurred. This field is always present (never absent).
+  Source: `UnregisteredQueryLog` accumulator in `prism-query`, accessible via `QueryEngine`.
+  Implemented by S-5.08 Task 8; depends on S-5.03 delivering `TableRegistry` wiring.
 - `_meta.trust_level` is `"untrusted_external"` if any subsystem summary includes
   sensor-derived content
 
@@ -187,6 +196,7 @@ Integration test: `tests/diagnostics_tests.rs` — "Read prism://diagnostics/cre
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | PO-scope-adjudication-AC10 | 2026-06-17 | product-owner | Schema amendment: added `unregistered_table_queries` field to `prism://diagnostics/summary` postcondition. Field is always present; contains entries for tables queried but absent from `TableRegistry` in the last hour. `UnregisteredQueryLog` accumulator in `prism-query` is the data source. Implementing story: S-5.08 Task 8 / AC-8. Relocated from S-5.03 AC-10 (originally S-3.13 Task 7) via PO adjudication. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added missing lifecycle fields (deprecated, deprecated_by, replacement, retired, removed, removal_reason); added ## Canonical Test Vectors scaffolding; added ## Changelog. |

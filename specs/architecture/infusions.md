@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "infusions"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T22:00:00
@@ -53,13 +53,20 @@ graph LR
     style RESULT fill:#27ae60,stroke:#2ecc71,color:#fff
 ```
 
-## Design Principle: Same Two-Tier Pattern as Sensors
+## Design Principle: Three-Tier Pattern (ADR-040 v2.0)
 
-Infusions follow the same architecture as sensor adapters — TOML spec for simple lookups, `.prx` WASM plugin for complex external API calls. This means:
+Infusions follow the same architecture as sensor adapters — TOML spec for lookups, `.prx` WASM plugin for complex external API calls — with a third tier added in PIVOT-002:
+
+| Tier | `type` value | When to use |
+|------|-------------|-------------|
+| **1 — Local Lookup** | `local_lookup` | File-backed (MMDB, CSV, JSON). No HTTP. Permitted in detection rule filters. |
+| **2 — HTTP Lookup** | `http_lookup` | Single stateless HTTP GET → JSONPath → field map. No custom code. PROHIBITED in detection rule filters (API-backed, E-RULE-012). |
+| **3 — Plugin (WASM)** | `plugin` | Custom logic (IOC classification, multi-hop, aggregation). PROHIBITED in detection rule filters (API-backed, E-RULE-012). |
+
+The `http_lookup` tier is a permanent built-in (not a demo shortcut). Selection rule: choose the lowest tier that satisfies the enrichment requirement. This means:
 - Same file watching and hot-reload (AD-018)
-- Same plugin sandbox security model (AD-019)
-- Same polyglot support (Rust, Go, Python, JS, C#)
-- Same eat-our-own-dog-food philosophy
+- Same plugin sandbox security model (AD-019) for Tier 3
+- Same eat-our-own-dog-food philosophy: Tier 2 reuses `Interpolator` and `extract_at_path` from the sensor pipeline
 
 ### Decision: Infusions as Composable Enrichment (AD-020)
 
@@ -204,9 +211,63 @@ input_field = "ip"
 adds_columns = ["asset_owner", "asset_criticality", "asset_location"]
 ```
 
-### Tier 2: Plugin (External API Enrichment)
+### Tier 2: HTTP Lookup (Declarative External GET — ADR-040 v2.0)
 
-For enrichments requiring external API calls (threat intel, live vulnerability databases):
+For enrichments that are a single stateless HTTP GET + JSONPath extraction. No WASM, no custom code.
+Production example: NVD CVSS Lookup.
+
+```toml
+# nvd.infusion.toml
+[infusion]
+infusion_id = "nvd"
+name        = "NVD CVSS Lookup"
+type        = "http_lookup"           # Tier 2 — permanent built-in (ADR-040 §D7)
+
+[source.http]
+base_url      = "https://services.nvd.nist.gov"
+url_template  = "/rest/json/cves/2.0?cveId=${input}"
+method        = "GET"
+response_path = "$.vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData"
+
+[source.credential]
+ref        = "nvd.api_key"
+env_var    = "PRISM_NVD_API_KEY"
+auth       = "query_param"
+param_name = "apiKey"
+
+[[infusion.fields]]
+name          = "cvss_base_score"
+input_field   = "device_cves_first"
+input_type    = "cve_id"
+output_type   = "float"
+source_column = "baseScore"
+
+[[infusion.fields]]
+name          = "cvss_severity"
+input_field   = "device_cves_first"
+input_type    = "cve_id"
+output_type   = "string"
+source_column = "baseSeverity"
+
+[[infusion.fields]]
+name          = "cvss_vector"
+input_field   = "device_cves_first"
+input_type    = "cve_id"
+output_type   = "string"
+source_column = "vectorString"
+
+[infusion.pipe_stage]
+adds_columns = ["cvss_base_score", "cvss_severity", "cvss_vector"]
+```
+
+The `HttpLookupSource` implementation reuses `Interpolator`, `extract_at_path`, and
+`build_http_client_with_timeout(30)` from `pipeline.rs` (the proven sensor fetch pipeline).
+SSRF protection: `base_url` is validated at registry-load time against RFC-1918 / loopback
+ranges (bypassed only when `PRISM_DTU_MODE=true`).
+Both `http_lookup` and `plugin` types are API-backed and PROHIBITED in detection rule filters
+(BC-2.19.003 / INV-INFUSE-003 / E-RULE-012).
+
+### Tier 3: Plugin (External API Enrichment — Custom Logic)
 
 ```toml
 # threat_intel.infusion.toml

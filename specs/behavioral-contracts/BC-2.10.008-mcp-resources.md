@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-008, CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["cycle-1-burst-45", "cycle-1-burst-49", "pass-69-housekeeping", "pass-73-fix", "pass-79-fix"]
+modified: ["cycle-1-burst-45", "cycle-1-burst-49", "pass-69-housekeeping", "pass-73-fix", "pass-79-fix", "F-S503-002-adjudication-2026-06-17"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,6 +30,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | F-S503-002-adjudication-2026-06-17 | 2026-06-17 | product-owner | **F-S503-002 adjudication — per-client scoping and host-only URL field clarified.** (1) Postcondition 2 rewritten to be unambiguous: `prism://config/clients/{client_id}/sensors` MUST filter by the `client_id` URI segment — returning all sensors regardless of `client_id` is a DI-008 violation; this is IN SCOPE for S-5.03. `api_base_url` field added explicitly to the postcondition with the requirement that it be present and contain only scheme+host+port (no path, no query string, no credentials). (2) DI-008 Invariant strengthened: the `client_id` path segment is the authorization boundary; ignoring it is a data separation defect, not a multi-tenant deferral. DI-002 Invariant expanded to call out `api_base_url` host-only requirement. (3) VP-050 proptest already verifies the URL redaction; no VP change required. Story-writer propagation required for S-5.03: update AC-2 to explicitly assert per-client filtering and `api_base_url` host-only field presence. **Bumped v1.7→v1.8.** |
 | 1.7 | pass-79-fix | 2026-04-20 | state-manager | MED-001 fix: removed stale `pass-72-fix` entry from modified array (no corresponding changelog row existed; pass-72 did not touch this file). |
 | 1.6 | pass-73-fix | 2026-04-20 | state-manager | Renumbered changelog to close v1.4 gap: old v1.5→v1.4; old v1.6→v1.5; this row closes the sequence at v1.6. Original v1.3→v1.5 spanned two distinct burst events that were conflated at authoring time. |
 | 1.5 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. (originally recorded as v1.6; renumbered by pass-73-fix) |
@@ -51,7 +52,7 @@ This BC governs the MCP resources that expose client inventory and per-client se
 ## Postconditions
 
 1. `prism://config/clients` resource returns a JSON array of all configured clients with: `client_id`, `display_name`, `sensors` (list of enabled sensor IDs), `capabilities_summary` (count of enabled write capabilities)
-2. `prism://config/clients/{client_id}/sensors` resource returns detailed sensor inventory for a specific client: sensor ID, API base URL (redacted to host only), enabled status, configured data sources
+2. `prism://config/clients/{client_id}/sensors` resource returns detailed sensor inventory SCOPED TO THE SPECIFIED `client_id` ONLY — the handler MUST filter by the `client_id` URI segment before returning results. Each entry includes: `sensor_id`, `api_base_url` (host+port component only — full URL and path MUST be stripped; no credentials), `enabled` status, and `configured_sources` (list of data source identifiers). **The `api_base_url` field MUST be present and MUST contain only the scheme+host+port (e.g., `"https://api.crowdstrike.com"`); full URL paths, query strings, and credentials MUST NOT appear in this field.** Any implementation that returns the full API URL, omits `api_base_url`, or returns sensors from a `client_id` different from the URI segment violates this postcondition.
 3. `prism://sensors/health` resource returns cached health status per BC-2.08.006 (global cross-client matrix)
 4. Resource content uses `application/json` MIME type
 5. Resources are read-only and reflect startup-time configuration (no live updates until `reload_config`)
@@ -59,8 +60,8 @@ This BC governs the MCP resources that expose client inventory and per-client se
 
 ## Invariants
 
-- DI-002: Credential isolation — no credential values in resource responses; API URLs redacted to host only
-- DI-008: Client data separation — `prism://config/clients/{client_id}/sensors` scoped to the specified client_id
+- DI-002: Credential isolation — no credential values in resource responses; `api_base_url` contains host+port only; full URLs and credentials MUST NOT appear in any field of the response
+- DI-008: Client data separation — `prism://config/clients/{client_id}/sensors` MUST filter strictly to the `client_id` in the URI. An implementation that queries all sensors and returns them regardless of the `client_id` parameter violates DI-008. This is IN SCOPE for S-5.03 — not deferred to a multi-tenant story. The `client_id` path segment is the authorization boundary; ignoring it is a data separation defect.
 
 ## Error Cases
 
