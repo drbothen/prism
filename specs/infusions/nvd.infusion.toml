@@ -1,0 +1,64 @@
+# NVD CVSS infusion spec — S-DEMO-ENRICHMENT-PIVOT-002.
+#
+# Grounded against prism-dtu-nvd route surface (ADR-028/ADR-031, SAP-2):
+#   Route: GET /rest/json/cves/2.0?cveId=<id> (NOT /nvd/cves/{id} — confirmed cves.rs)
+#   Auth: ?apiKey=<key> query param (CveQueryParams, confirmed cves.rs)
+#
+# Response envelope (confirmed 2026-06-12 from prism-dtu-nvd/src/types.rs,
+# all serde rename_all=camelCase wire names):
+#   vulnerabilities[0].cve.id (NOT cve_id — wire name is "id")
+#   vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData.baseScore  → f64
+#   vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData.baseSeverity → String
+#   vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData.vectorString → String
+#
+# NOTE (U17/Ruling 1b): the enrich input field is `device_cves_first` (scalar String
+# projected by S-DEMO-ENRICHMENT-PIVOT-003 Armis fixture generator), NOT `device_cves[0]`
+# (bracket-index not supported by FieldPath).
+#
+# Location: {config_dir}/infusions/ per InfusionLoader loader.rs:45.
+# Table layout matches InfusionSpec deserialization at infusion/mod.rs:295-319.
+# Credential reference uses keyring path per ADR-032 / AD-017 (no inline values).
+
+[infusion]
+infusion_id = "nvd"
+name = "NVD CVSS Lookup"
+type = "plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "nvd-lookup.prx"
+
+# Credential reference — AI-opaque per AD-017 / ADR-032.
+# Auth mechanism: ?apiKey= query param (confirmed cves.rs CveQueryParams).
+# Value resolved at call time from keyring; NEVER stored inline.
+[source.credential]
+ref = "nvd.api_key"
+
+# DTU-grounded fields (SAP-2 verified 2026-06-12 from types.rs camelCase wire names):
+# cvss_base_score: maps to cvssData.baseScore (f64) → Float
+# cvss_severity: maps to cvssData.baseSeverity (String) → String
+# cvss_vector: maps to cvssData.vectorString (String) → String
+
+[[infusion.fields]]
+name = "cvss_base_score"
+input_field = "device_cves_first"
+input_type = "cve_id"
+output_type = "float"
+description = "CVSS v3.1 base score (0.0-10.0); maps to cvssData.baseScore (camelCase wire)"
+
+[[infusion.fields]]
+name = "cvss_severity"
+input_field = "device_cves_first"
+input_type = "cve_id"
+output_type = "string"
+description = "CVSS v3.1 base severity (e.g. HIGH, CRITICAL); maps to cvssData.baseSeverity"
+
+[[infusion.fields]]
+name = "cvss_vector"
+input_field = "device_cves_first"
+input_type = "cve_id"
+output_type = "string"
+description = "CVSS v3.1 vector string; maps to cvssData.vectorString"
+
+[infusion.pipe_stage]
+adds_columns = ["cvss_base_score", "cvss_severity", "cvss_vector"]

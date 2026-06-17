@@ -490,6 +490,86 @@ impl InfusionLoader {
         }
         Ok(())
     }
+
+    /// Validate that an `InfusionField.name` matches the identifier regex
+    /// `^[a-zA-Z][a-zA-Z0-9_]*$` (must start with a letter, followed by alphanumerics
+    /// or underscores; empty is rejected).
+    ///
+    /// Called during `parse` for every `[[infusion.fields]]` entry BEFORE `SessionContext`
+    /// UDF registration, so malformed names never reach DataFusion.
+    ///
+    /// Returns `Ok(())` if the name is valid, or `Err(InfusionError::InvalidFieldSpec)` if not.
+    ///
+    /// # Security
+    /// DRIFT-PIVOT-UDFNAME-VALIDATION-001 (AC-007 / SEC-001 CWE-20).
+    /// SQL-injection characters (`;`, space, `-`, starting digits) are all rejected.
+    ///
+    /// # Examples of valid names
+    /// `threat_is_known_malicious`, `cvss_base_score`, `field1`, `THREAT_SCORE`
+    ///
+    /// # Examples of rejected names
+    /// `"threat; DROP TABLE"`, `" leading_space"`, `"has-hyphen"`, `"1starts_with_digit"`, `""`
+    pub fn validate_field_name(_name: &str, _spec_path: &str) -> Result<(), InfusionError> {
+        todo!(
+            "validate_field_name stub — S-DEMO-ENRICHMENT-PIVOT-002 implementer: \
+             apply regex ^[a-zA-Z][a-zA-Z0-9_]*$ to name; \
+             return Err(InfusionError::InvalidFieldSpec {{ field: name, spec_path, message: \
+             \"field name must match [a-zA-Z][a-zA-Z0-9_]* ...\" }}) on violation; \
+             empty string rejected; called in parse() before UDF registration \
+             (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)"
+        )
+    }
+
+    /// Validate that a `plugin_ref` path resolves within the designated plugin directory.
+    ///
+    /// Steps (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22):
+    /// 1. Resolve the `plugin_ref` relative to `plugin_dir`.
+    /// 2. Call `std::fs::canonicalize(resolved_path)` — follows symlinks, resolves `..`.
+    /// 3. Assert `canonicalized_path.starts_with(&plugin_dir_canonical)`.
+    ///    If not: return `Err(InfusionError::InvalidFieldSpec { field: "plugin_ref", ... })`.
+    ///    Do NOT include the attempted path in the error message surfaced to callers.
+    /// 4. Relative paths within plugin_dir (e.g. `subdir/plugin.prx`) are accepted.
+    ///
+    /// Called before any `std::fs::read` or `File::open` on the `.prx` path.
+    pub fn validate_plugin_path(
+        _plugin_ref: &str,
+        _plugin_dir: &std::path::Path,
+        _spec_path: &str,
+    ) -> Result<std::path::PathBuf, InfusionError> {
+        todo!(
+            "validate_plugin_path stub — S-DEMO-ENRICHMENT-PIVOT-002 implementer: \
+             resolve plugin_ref relative to plugin_dir; \
+             canonicalize (rejects .. escapes); \
+             assert starts_with(plugin_dir_canonical); \
+             return Err(InfusionError::InvalidFieldSpec) if traversal detected; \
+             do NOT include attempted path in error message surfaced to callers \
+             (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+        )
+    }
+
+    /// Sanitize an `InfusionError` message for MCP surface exposure by stripping
+    /// the absolute filesystem path prefix from `spec_path`.
+    ///
+    /// Internal tracing (DEBUG/INFO for operator diagnostics) MAY retain the full path.
+    /// Only the MCP-surfaced error string must be sanitized (AC-012 / SEC-002 CWE-209).
+    ///
+    /// Acceptable output forms:
+    /// - Filename only: `bad.infusion.toml` (using `Path::file_name()`)
+    /// - Relative path from config dir: `infusions/bad.infusion.toml`
+    /// - Redacted path: `<infusions-dir>/bad.infusion.toml`
+    ///
+    /// # Security
+    /// DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (AC-012 / SEC-002 CWE-209).
+    pub fn sanitize_error_path(_absolute_path: &str, _config_dir: &str) -> String {
+        todo!(
+            "sanitize_error_path stub — S-DEMO-ENRICHMENT-PIVOT-002 implementer: \
+             strip absolute path prefix from spec_path using Path::file_name() or \
+             path.strip_prefix(config_dir) → relative path; \
+             return filename-only or relative form; \
+             internal tracing MAY retain full path — only MCP-surfaced string stripped \
+             (DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 / AC-012 / SEC-002 CWE-209)"
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------

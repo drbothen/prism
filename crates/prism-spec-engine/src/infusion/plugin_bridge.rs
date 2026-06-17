@@ -49,7 +49,11 @@ pub struct PluginInfusionSource {
     /// Constructed as an empty `PluginConfigMap` in `InfusionRegistry::load_spec_with_runtime`;
     /// credential values are resolved at call time from env vars per AD-017, not pre-populated
     /// here. Passed as `config` to `PluginRuntime::enrich_single`.
-    pub config: Arc<PluginConfigMap>,
+    ///
+    /// MUST be `pub(crate)` — not `pub` — before PIVOT-002 wires real credentials.
+    /// External crates MUST NOT read resolved credential values through struct field access
+    /// (DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 / AC-008 / SEC-002 CWE-200).
+    pub(crate) config: Arc<PluginConfigMap>,
 
     /// Reference to the shared `PluginRuntime` for WASM dispatch.
     ///
