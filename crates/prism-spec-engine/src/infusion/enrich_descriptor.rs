@@ -2,9 +2,6 @@
 //!
 //! Actual RecordBatch manipulation (extracting values, calling InfusionSource::enrich_batch,
 //! joining columns) lives in prism-query (S-3.02). This crate MUST NOT import Arrow (AD-015).
-//!
-//! # Stub
-//! All methods are `unimplemented!()` — implementation in S-1.14.
 
 /// Descriptor for the `ENRICH <infusion_name> ON <field_ref>` PrismQL pipe stage.
 ///

@@ -4,18 +4,20 @@
 //!   single query execution, dropped at query end. Ensures unique-value lookups only.
 //! - Tier 2 — In-memory LRU: cross-query shared LRU with configurable capacity and TTL.
 //! - Tier 3 — Persistent: RocksDB `infusion_cache` CF via `CacheBackend` trait injection.
+//!   Key: SHA-256(`"{infusion_id}:{input_value}"`). Value: bincode 2.x encoded
+//!   `(Option<Value>, expiry_unix_secs: u64)`.  Lazy TTL eviction on read.
 //!
 //! Lookup order: Tier 1 → Tier 2 → Tier 3 → call InfusionSource → populate all tiers.
 //!
 //! # Key design (VP-049)
 //! Per-query dedup MUST be allocated fresh for each `QueryEngine::execute()` call.
 //! Cross-query sharing of dedup state is PROHIBITED.
-//!
-//! # Stub
-//! All methods are `unimplemented!()` — implementation in S-1.14.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use prism_core::{CacheBackend, storage::StorageDomain};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Tier 1 per-query dedup cache.
@@ -81,11 +83,6 @@ pub struct LruCacheEntry {
 /// Default capacity: 10,000 entries. Per-infusion TTL (default 3600s).
 /// Guarded by `tokio::sync::Mutex`.
 pub struct InfusionLruCache {
-    // S-1.14-REDO: renamed from `_inner` to `inner` — implementer uses `.inner.lock().await`
-    // in get/insert bodies. Field was `_inner` in the S-1.14 stub to suppress dead-code
-    // warnings; removing the underscore prefix prepares it for real implementation.
-    // `#[allow(dead_code)]` suppresses the warning until S-1.14-REDO implements get/insert.
-    #[allow(dead_code)]
     inner: tokio::sync::Mutex<lru::LruCache<String, LruCacheEntry>>,
     capacity: usize,
 }
@@ -170,5 +167,131 @@ impl InfusionLruCache {
                 expiry_unix_secs,
             },
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tier 3 — Persistent RocksDB cache via CacheBackend trait injection
+// ---------------------------------------------------------------------------
+
+/// Wire format for a Tier-3 cache entry: value + expiry_unix_secs.
+///
+/// Serialized with bincode 2.x (`encode_to_vec` / `decode_from_slice`).
+/// `value` is the JSON-serialized enrichment result (None = negative cache entry).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Tier3CacheEntry {
+    /// JSON-serialized enrichment result. `None` = negative cache hit (no enrichment).
+    pub value_json: Option<String>,
+    /// Unix timestamp (seconds) at which this entry expires.
+    pub expiry_unix_secs: u64,
+}
+
+/// Tier 3 persistent infusion cache backed by `CacheBackend` (RocksDB `infusion_cache` CF).
+///
+/// Key: SHA-256(`"{infusion_id}:{input_value}"`) as raw bytes.
+/// Value: bincode 2.x encoded `Tier3CacheEntry`.
+/// TTL enforced lazily on read: expired entries are treated as misses (not deleted eagerly).
+///
+/// Injected at boot by `prism-bin` which wires the `RocksDbBackend` implementation.
+/// Tests may inject an in-memory `CacheBackend` implementation.
+#[derive(Clone)]
+pub struct InfusionTier3Cache {
+    backend: Arc<dyn CacheBackend>,
+}
+
+impl std::fmt::Debug for InfusionTier3Cache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InfusionTier3Cache").finish_non_exhaustive()
+    }
+}
+
+impl InfusionTier3Cache {
+    /// Construct a new Tier-3 cache with the given `CacheBackend`.
+    pub fn new(backend: Arc<dyn CacheBackend>) -> Self {
+        Self { backend }
+    }
+
+    /// Compute the SHA-256 key for `"{infusion_id}:{input_value}"`.
+    fn cache_key(infusion_id: &str, input_value: &str) -> Vec<u8> {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(infusion_id.as_bytes());
+        hasher.update(b":");
+        hasher.update(input_value.as_bytes());
+        hasher.finalize().to_vec()
+    }
+
+    /// Look up an enrichment result in the RocksDB cache.
+    ///
+    /// Returns `Some(Some(value))` on hit with value, `Some(None)` on hit with NULL
+    /// (negative cache), `None` on cache miss or TTL expiry (lazy eviction: treat as miss).
+    pub async fn get(&self, infusion_id: &str, input_value: &str) -> Option<Option<Value>> {
+        let key = Self::cache_key(infusion_id, input_value);
+        let raw = match self.backend.get(StorageDomain::InfusionCache, &key).await {
+            Ok(Some(data)) => data,
+            Ok(None) => return None,
+            Err(_) => return None, // Backend error → treat as miss (non-blocking)
+        };
+
+        // Decode the bincode 2.x wire format.
+        let entry: Tier3CacheEntry =
+            match bincode::serde::decode_from_slice(&raw, bincode::config::standard()) {
+                Ok((e, _)) => e,
+                Err(_) => return None, // Corrupt entry → treat as miss
+            };
+
+        // Lazy TTL eviction: check expiry.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if entry.expiry_unix_secs <= now {
+            // Entry expired — treat as miss (we do NOT eagerly delete here per spec: lazy eviction).
+            return None;
+        }
+
+        // Deserialize the JSON value.
+        match entry.value_json {
+            None => Some(None), // Negative cache hit
+            Some(ref json_str) => match serde_json::from_str(json_str) {
+                Ok(v) => Some(Some(v)),
+                Err(_) => None, // Corrupt JSON → treat as miss
+            },
+        }
+    }
+
+    /// Insert an enrichment result into the RocksDB cache with TTL.
+    ///
+    /// `value = None` stores a negative cache entry (enrichment miss — prevents re-lookup).
+    pub async fn set(
+        &self,
+        infusion_id: &str,
+        input_value: &str,
+        value: Option<Value>,
+        ttl_secs: u64,
+    ) {
+        let key = Self::cache_key(infusion_id, input_value);
+        let expiry_unix_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            .saturating_add(ttl_secs);
+
+        let value_json = value.as_ref().map(|v| v.to_string());
+        let entry = Tier3CacheEntry {
+            value_json,
+            expiry_unix_secs,
+        };
+
+        let encoded = match bincode::serde::encode_to_vec(&entry, bincode::config::standard()) {
+            Ok(b) => b,
+            Err(_) => return, // Encoding failure → skip cache set (non-blocking)
+        };
+
+        // Ignore write errors — cache write failures are non-blocking.
+        let _ = self
+            .backend
+            .set(StorageDomain::InfusionCache, &key, &encoded)
+            .await;
     }
 }

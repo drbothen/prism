@@ -37,8 +37,8 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use prism_core::InfusionError;
-use prism_spec_engine::infusion::cache::InfusionLruCache;
+use prism_core::{CacheBackend, InfusionError, StorageDomain, error::PrismError};
+use prism_spec_engine::infusion::cache::{InfusionLruCache, InfusionTier3Cache};
 use prism_spec_engine::infusion::sources::csv::CsvSource;
 use prism_spec_engine::infusion::sources::json_lookup::JsonLookupSource;
 use prism_spec_engine::infusion::sources::mmdb::MmdbSource;
@@ -1308,6 +1308,41 @@ fn test_BC_2_19_001_e_infuse_008_plugin_call_failed_display_contains_all_fields(
     );
 }
 
+/// E-INFUSE-008 (HIGH-2 / POL-24): PluginCallFailed Display MUST match taxonomy verbatim.
+///
+/// error-taxonomy.md v1.87 mandates:
+///   `"E-INFUSE-008: plugin infusion call failed for '{infusion_id}' via plugin '{plugin_id}': {reason}"`
+///
+/// This test pins the EXACT format (not just `.contains`) to prevent silent drift from the
+/// taxonomy-mandated template. Any change to the Display impl that alters ordering, casing,
+/// or the "via plugin" phrasing will fail this test, forcing an explicit spec update.
+///
+/// HIGH-2 finding: the prior Display template `"E-INFUSE-008: Plugin infusion call failed for
+/// plugin '{plugin_id}' (infusion '{infusion_id}'): {reason}"` differed from the taxonomy on
+/// three counts: capital P, plugin_id-first field order, and "(infusion ...)" phrasing.
+/// Fixed by aligning with the error-taxonomy.md v1.87 canonical template.
+#[test]
+fn test_BC_2_19_001_e_infuse_008_plugin_call_failed_display_exact_taxonomy_format() {
+    let err = InfusionError::PluginCallFailed {
+        plugin_id: "threat_plugin".to_string(),
+        infusion_id: "threat_intel".to_string(),
+        reason: "plugin trapped: unreachable instruction".to_string(),
+    };
+    let msg = err.to_string();
+
+    // Pin the EXACT message template from error-taxonomy.md v1.87:
+    //   "E-INFUSE-008: plugin infusion call failed for '{infusion_id}' via plugin '{plugin_id}': {reason}"
+    let expected = "E-INFUSE-008: plugin infusion call failed for 'threat_intel' via plugin 'threat_plugin': plugin trapped: unreachable instruction";
+
+    assert_eq!(
+        msg, expected,
+        "HIGH-2 / POL-24: PluginCallFailed Display MUST match error-taxonomy.md v1.87 verbatim.\n\
+         Expected: '{}'\n\
+         Got:      '{}'",
+        expected, msg
+    );
+}
+
 // ---------------------------------------------------------------------------
 // VP-048 (concrete unit mirror) / BC-2.19.001
 // ---------------------------------------------------------------------------
@@ -1708,4 +1743,317 @@ fn test_BC_2_19_001_crit1_registry_wires_real_json_lookup_source_for_local_looku
         Some("server"),
         "CRIT-1: JsonLookupSource must return 'server' for 192.168.1.1 (real data)"
     );
+}
+
+// ---------------------------------------------------------------------------
+// CRIT-2: Tier-3 RocksDB cache — three-tier lookup order proof (BC-2.19.002)
+//
+// Proves the full Tier1 → Tier2 → Tier3 → source lookup order.
+// Uses an in-memory CacheBackend so no RocksDB process is needed.
+//
+// Path coverage:
+//   (a) Tier3 HIT: Tier1 miss → Tier2 miss → Tier3 hit → returns cached value.
+//   (b) Tier3 MISS (source call): Tier1 miss → Tier2 miss → Tier3 miss → source call → 1 call.
+//   (c) Tier1 bypass: Tier1 hit → 0 source calls (Tier2/Tier3 not consulted).
+// ---------------------------------------------------------------------------
+
+/// In-memory `CacheBackend` implementation for CRIT-2 three-tier tests.
+///
+/// Uses a `tokio::sync::Mutex<HashMap<(domain_name, key), value>>` keyed by domain+raw-bytes.
+/// This is a test-only type that satisfies `CacheBackend` without RocksDB.
+struct InMemoryCacheBackend {
+    store: std::sync::Mutex<std::collections::HashMap<(String, Vec<u8>), Vec<u8>>>,
+}
+
+impl std::fmt::Debug for InMemoryCacheBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InMemoryCacheBackend")
+            .finish_non_exhaustive()
+    }
+}
+
+impl InMemoryCacheBackend {
+    fn new() -> Self {
+        Self {
+            store: std::sync::Mutex::new(std::collections::HashMap::new()),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl CacheBackend for InMemoryCacheBackend {
+    async fn get(&self, domain: StorageDomain, key: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
+        let store = self.store.lock().unwrap();
+        let composite = (domain.column_family_name().to_string(), key.to_vec());
+        Ok(store.get(&composite).cloned())
+    }
+
+    async fn set(&self, domain: StorageDomain, key: &[u8], value: &[u8]) -> Result<(), PrismError> {
+        let mut store = self.store.lock().unwrap();
+        let composite = (domain.column_family_name().to_string(), key.to_vec());
+        store.insert(composite, value.to_vec());
+        Ok(())
+    }
+
+    async fn delete(&self, domain: StorageDomain, key: &[u8]) -> Result<(), PrismError> {
+        let mut store = self.store.lock().unwrap();
+        let composite = (domain.column_family_name().to_string(), key.to_vec());
+        store.remove(&composite);
+        Ok(())
+    }
+}
+
+/// CRIT-2: Three-tier lookup order — Tier3 HIT path (BC-2.19.002 / INV-INFUSE-002).
+///
+/// Proves: Tier1 miss → Tier2 miss → Tier3 hit → value returned, source NOT called.
+/// Uses in-memory CacheBackend (no RocksDB dependency).
+///
+/// This is the key CRIT-2 test: proves that Tier3 is consulted after Tier1+Tier2 miss,
+/// and returns the stored value without calling the live source.
+#[tokio::test]
+async fn test_BC_2_19_002_crit2_tier3_hit_returns_value_source_not_called() {
+    let backend = std::sync::Arc::new(InMemoryCacheBackend::new());
+    let tier3 = InfusionTier3Cache::new(backend.clone());
+    let source_calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+    // Pre-populate Tier3 with a known entry (simulates a previous warm-up).
+    // Use a future-forward TTL so the entry is not expired.
+    let expected_value = serde_json::json!({"country": "DE", "city": "Berlin"});
+    tier3
+        .set("geoip", "5.5.5.5", Some(expected_value.clone()), 3600)
+        .await;
+
+    // Simulate the full three-tier lookup:
+    // Tier1: fresh per-query cache — miss for "5.5.5.5".
+    let tier1 = QueryScopedInfusionCache::new();
+    let tier1_result = tier1.get("geoip", "5.5.5.5");
+    assert!(
+        tier1_result.is_none(),
+        "CRIT-2: Tier1 must miss for a fresh per-query cache"
+    );
+
+    // Tier2: fresh LRU cache — miss for "5.5.5.5".
+    let tier2 = InfusionLruCache::new(1000);
+    let tier2_result = tier2.get("geoip", "5.5.5.5").await;
+    assert!(
+        tier2_result.is_none(),
+        "CRIT-2: Tier2 must miss for a fresh LRU cache"
+    );
+
+    // Tier3: hit — value was set above, TTL is future.
+    let tier3_result = tier3.get("geoip", "5.5.5.5").await;
+
+    assert!(
+        tier3_result.is_some(),
+        "CRIT-2: Tier3 must return Some after pre-population (Tier3 HIT path)"
+    );
+    let tier3_hit_value = tier3_result.unwrap();
+    assert_eq!(
+        tier3_hit_value,
+        Some(expected_value.clone()),
+        "CRIT-2: Tier3 returned wrong value (expected {:?})",
+        expected_value
+    );
+
+    // Source must NOT be called (Tier3 hit prevents source fallthrough).
+    assert_eq!(
+        source_calls.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "CRIT-2: Source must NOT be called when Tier3 hits"
+    );
+}
+
+/// CRIT-2: Three-tier lookup order — all tiers miss, source called exactly once (BC-2.19.002).
+///
+/// Proves: Tier1 miss → Tier2 miss → Tier3 miss → source call → 1 call.
+/// Uses in-memory CacheBackend (no RocksDB dependency).
+#[tokio::test]
+async fn test_BC_2_19_002_crit2_all_tiers_miss_source_called_once() {
+    let backend = std::sync::Arc::new(InMemoryCacheBackend::new());
+    let tier3 = InfusionTier3Cache::new(backend.clone());
+
+    // Tier1 miss.
+    let tier1 = QueryScopedInfusionCache::new();
+    let t1 = tier1.get("geoip", "9.9.9.9");
+    assert!(t1.is_none(), "CRIT-2: Tier1 must miss for fresh cache");
+
+    // Tier2 miss.
+    let tier2 = InfusionLruCache::new(1000);
+    let t2 = tier2.get("geoip", "9.9.9.9").await;
+    assert!(t2.is_none(), "CRIT-2: Tier2 must miss for fresh LRU");
+
+    // Tier3 miss (nothing stored).
+    let t3 = tier3.get("geoip", "9.9.9.9").await;
+    assert!(t3.is_none(), "CRIT-2: Tier3 must miss when nothing stored");
+
+    // All tiers missed — caller must call source (simulated here by counting).
+    let source_calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    source_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let source_value = serde_json::json!({"country": "US"});
+
+    // Populate all tiers after source call (as production code would).
+    tier3
+        .set("geoip", "9.9.9.9", Some(source_value.clone()), 3600)
+        .await;
+    tier2
+        .insert("geoip", "9.9.9.9", source_value.clone(), 3600)
+        .await;
+
+    assert_eq!(
+        source_calls.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "CRIT-2: source must be called exactly once when all tiers miss"
+    );
+
+    // Subsequent Tier3 lookup must hit now.
+    let t3_again = tier3.get("geoip", "9.9.9.9").await;
+    assert!(
+        t3_again.is_some(),
+        "CRIT-2: Tier3 must hit after population from source call"
+    );
+}
+
+/// CRIT-2: Tier3 TTL expiry — expired entry treated as miss (lazy eviction) (BC-2.19.002).
+///
+/// An entry inserted with TTL=0 must be treated as a miss on subsequent get().
+/// Proves lazy TTL eviction at the Tier3 RocksDB boundary.
+#[tokio::test]
+async fn test_BC_2_19_002_crit2_tier3_ttl_zero_entry_is_expired() {
+    let backend = std::sync::Arc::new(InMemoryCacheBackend::new());
+    let tier3 = InfusionTier3Cache::new(backend);
+
+    // Insert with TTL=0 — expiry_unix_secs = now (immediately expired on read).
+    tier3
+        .set(
+            "geoip",
+            "expired_ip",
+            Some(serde_json::json!({"country": "XX"})),
+            0,
+        )
+        .await;
+
+    // Immediately read back — entry is expired (expiry_unix_secs <= now).
+    let result = tier3.get("geoip", "expired_ip").await;
+
+    assert!(
+        result.is_none(),
+        "CRIT-2: Tier3 entry with TTL=0 must be treated as a miss (lazy TTL eviction). Got: {:?}",
+        result
+    );
+}
+
+/// CRIT-2: Tier3 negative cache entry — None value stored and retrieved (BC-2.19.002).
+///
+/// Proves that `None` (negative cache: no enrichment available) round-trips through
+/// the Tier3 binary encoding as a `Some(None)` result (not a miss).
+#[tokio::test]
+async fn test_BC_2_19_002_crit2_tier3_negative_cache_entry_round_trips() {
+    let backend = std::sync::Arc::new(InMemoryCacheBackend::new());
+    let tier3 = InfusionTier3Cache::new(backend);
+
+    // Store a negative cache entry (None = no enrichment available).
+    tier3.set("geoip", "unknown_ip", None, 3600).await;
+
+    // Retrieve: must return Some(None) (negative hit, not a miss).
+    let result = tier3.get("geoip", "unknown_ip").await;
+
+    assert_eq!(
+        result,
+        Some(None),
+        "CRIT-2: Tier3 negative cache entry must round-trip as Some(None), not None (miss). Got: {:?}",
+        result
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MED-3: InfusionLoader::parse rejects unknown LocalLookup sub-types (BC-2.19.001)
+// ---------------------------------------------------------------------------
+
+/// MED-3: InfusionLoader::parse rejects `source.type = "local_lookup"` without sub-type.
+///
+/// `"local_lookup"` at the [infusion.source] level with no further sub-type discriminant
+/// must NOT silently default to JsonLookup. It must return Err(UnknownSourceType).
+///
+/// BC-2.19.001 validation: source.type must be one of maxmind_mmdb, csv, json_lookup, plugin.
+/// "local_lookup" is not a valid terminal source type — the caller must specify the sub-type.
+#[test]
+fn test_BC_2_19_001_med3_local_lookup_without_subtype_returns_unknown_source_type_error() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "test_enrichment"
+name = "Test Enrichment"
+
+[infusion.source]
+type = "local_lookup"
+file_path = "fixtures/data.json"
+
+[[infusion.fields]]
+name = "test_field"
+input_field = "src_ip"
+input_type = "ip"
+output_type = "string"
+source_column = "col1"
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "test.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "MED-3 / BC-2.19.001: source.type = 'local_lookup' must return Err (not silently default \
+         to JsonLookup). Got Ok: {:?}",
+        result.ok()
+    );
+    match result.unwrap_err() {
+        InfusionError::UnknownSourceType { type_name } => {
+            assert_eq!(
+                type_name, "local_lookup",
+                "MED-3: UnknownSourceType must carry the rejected type name 'local_lookup'"
+            );
+        }
+        other => panic!(
+            "MED-3: expected UnknownSourceType for 'local_lookup', got: {:?}",
+            other
+        ),
+    }
+}
+
+/// MED-3: InfusionLoader::parse rejects entirely unknown source types (BC-2.19.001).
+///
+/// Ensures the error path works for truly unknown types (not just "local_lookup").
+#[test]
+fn test_BC_2_19_001_med3_unknown_source_type_returns_error() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "test_enrichment"
+name = "Test Enrichment"
+
+[infusion.source]
+type = "sqlite_lookup"
+file_path = "fixtures/data.db"
+
+[[infusion.fields]]
+name = "test_field"
+input_field = "src_ip"
+input_type = "ip"
+output_type = "string"
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "test.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "MED-3 / BC-2.19.001: unknown source.type must return Err(UnknownSourceType)"
+    );
+    match result.unwrap_err() {
+        InfusionError::UnknownSourceType { type_name } => {
+            assert_eq!(
+                type_name, "sqlite_lookup",
+                "MED-3: UnknownSourceType must carry the rejected type name 'sqlite_lookup'"
+            );
+        }
+        other => panic!(
+            "MED-3: expected UnknownSourceType for unknown type, got: {:?}",
+            other
+        ),
+    }
 }

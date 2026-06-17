@@ -2,7 +2,7 @@
 //!
 //! Dispatches to the appropriate source implementation based on `BuiltInSourceType`.
 //! Called from `InfusionRegistry::load_spec` / `load_all` to wire the real file-backed
-//! source for LocalLookup specs (BC-2.19.001, S-1.14-REDO).
+//! source for LocalLookup specs (BC-2.19.001).
 
 pub mod csv;
 pub mod json_lookup;

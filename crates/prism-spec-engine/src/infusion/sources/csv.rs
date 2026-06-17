@@ -15,6 +15,11 @@ use super::super::InfusionSource;
 ///
 /// Data is loaded at construction time into a `HashMap<key, row-columns-map>`.
 /// `arc_swap::ArcSwap` holds the data for lock-free hot-reload support.
+///
+/// `#[non_exhaustive]`: forward-compat for infusion engine evolution — fields may expand
+/// (e.g., reload policy, column subset filter) without a breaking semver change.
+/// External callers must use `CsvSource::load()` for construction.
+#[non_exhaustive]
 #[derive(Debug)]
 pub struct CsvSource {
     pub csv_path: String,

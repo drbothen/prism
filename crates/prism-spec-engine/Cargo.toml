@@ -53,7 +53,7 @@ semver = "1"
 # notify: cross-platform filesystem event watcher (AD-018 / S-1.12 / S-1.15)
 notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "deflate", "brotli"], default-features = false }
-bincode = "2"
+bincode = { version = "2", features = ["serde"] }
 anyhow = "1"
 # ADR-028 §D8-B/C — multi-format timestamp parsing in PipelineExecutor normalization
 # F-LP3-MEDIUM-002: default-features=false to control build surface.

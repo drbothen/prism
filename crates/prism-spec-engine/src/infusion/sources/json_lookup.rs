@@ -8,6 +8,11 @@ use super::super::InfusionSource;
 /// JSON static lookup infusion source.
 ///
 /// `data` holds the loaded JSON map (key → object) under `arc_swap` for hot-reload support.
+///
+/// `#[non_exhaustive]`: forward-compat for infusion engine evolution — fields may expand
+/// (e.g., reload policy, key transformation) without a breaking semver change.
+/// External callers must use `JsonLookupSource::load()` for construction.
+#[non_exhaustive]
 #[derive(Debug)]
 pub struct JsonLookupSource {
     pub json_path: String,

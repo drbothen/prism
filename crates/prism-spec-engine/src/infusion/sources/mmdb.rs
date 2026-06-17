@@ -23,6 +23,11 @@ impl std::fmt::Debug for ReaderWrapper {
 ///
 /// Holds the `maxminddb::Reader<Vec<u8>>` (in-memory, loaded at construction time)
 /// and the declared `field_names` from the `[[infusion.fields]]` spec entries.
+///
+/// `#[non_exhaustive]`: forward-compat for infusion engine evolution — fields may expand
+/// (e.g., reload policy, cache warm-up flag, MMDB metadata) without a breaking semver change.
+/// External callers must use `MmdbSource::load()` for construction.
+#[non_exhaustive]
 #[derive(Debug)]
 pub struct MmdbSource {
     /// Path of the loaded `.mmdb` file (for diagnostics).

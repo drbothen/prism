@@ -11,8 +11,9 @@
 //!
 //! # Plugin-type specs (BC-2.19.001 v1.4)
 //! Use `load_spec_with_runtime` to populate plugin-type specs with a real
-//! `Arc<PluginInfusionSource>`. Bare `load_spec` uses `NullSource` for all types and is only
-//! appropriate for local-lookup specs (S-1.14-REDO) or tests that do not need live enrichment.
+//! `Arc<PluginInfusionSource>`. Bare `load_spec` wires real file-backed sources for
+//! `LocalLookup` specs; plugin-type specs receive `NullSource` and should use
+//! `load_spec_with_runtime` for live enrichment.
 
 pub mod cache;
 pub mod enrich_descriptor;
@@ -599,8 +600,8 @@ impl InfusionRegistry {
     ///   from env vars per AD-017; the config map is not pre-populated here)
     /// - `runtime` = the supplied `Arc<PluginRuntime>`
     ///
-    /// For non-plugin specs, falls back to `NullSource` (S-1.14-REDO will supply the real
-    /// file-backed source for MMDB/CSV/JSON-lookup types).
+    /// For non-plugin specs with a `source` config, wires the real file-backed source via
+    /// `sources::load_source` (MMDB/CSV/JSON-lookup). Without a source config: `NullSource`.
     ///
     /// Returns `Err(InfusionError::DuplicateUdfName)` if any field name conflicts with an
     /// already-registered UDF (BC-2.19.001 / INV-INFUSE-001 / VP-048).
@@ -658,8 +659,8 @@ impl InfusionRegistry {
     /// Uses the stored `InfusionSource` for each entry (BC-2.19.001 v1.4: plugin-type
     /// descriptors carry a real `PluginInfusionSource` when the registry was populated via
     /// `load_spec_with_runtime`; entries loaded via bare `load_spec` carry `NullSource`
-    /// and are only appropriate for local-lookup specs where S-1.14-REDO will supply the
-    /// real file-backed source).
+    /// and are only appropriate for local-lookup specs without a source config, or tests
+    /// that do not need live enrichment data).
     pub fn udf_descriptors(&self) -> Vec<udf::InfusionUdfDescriptor> {
         let current = self.inner.load();
         current

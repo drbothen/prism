@@ -7,17 +7,13 @@
 //! - `infusion_id` must be present and non-empty.
 //! - At least one `[[infusion.fields]]` entry required.
 //! - `source.type` must be one of: `maxmind_mmdb`, `csv`, `json_lookup`, `plugin`.
+//!   Unknown types return `InfusionError::UnknownSourceType`.
 //! - Credential references must use reference-based model (no inline values, AD-017).
 //! - `pipe_stage.adds_columns` must match the `[[infusion.fields]]` names.
 //! - On validation error: return `Err` — do NOT partially register.
 //!
 //! # Credential redaction (INV-INFUSE-005 / AD-017)
 //! Credential values MUST NOT appear in any error message or log output.
-//!
-//! # S-DEMO-ENRICHMENT-PIVOT-001
-//! Implements the `source.type = "plugin"` path only.
-//! `source.type = "maxmind_mmdb"`, `"csv"`, `"json_lookup"` return
-//! `InfusionError::UnknownSourceType` (deferred to S-1.14-REDO).
 
 use std::io::Read;
 use std::path::Path;
@@ -67,9 +63,8 @@ struct RawInfusion {
 
 /// Top-level `[source]` block (alternative schema form used by tests).
 ///
-/// Fields `file_path`, `key_column`, `refresh_interval_secs` are parsed but unused
-/// in the plugin-type path (S-DEMO-ENRICHMENT-PIVOT-001); they become active when
-/// S-1.14-REDO implements the MMDB/CSV/JSON-lookup paths.
+/// Fields `file_path`, `key_column`, `refresh_interval_secs` are active for MMDB/CSV/JSON-lookup
+/// paths; `plugin_ref` is used for the plugin-type path.
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct RawTopLevelSource {
@@ -77,18 +72,18 @@ struct RawTopLevelSource {
     source_type: String,
     /// For plugin-type: reference to the `.prx` plugin file.
     plugin_ref: Option<String>,
-    /// For file-backed types: path to the data file (S-1.14-REDO).
+    /// For file-backed types (maxmind_mmdb, csv, json_lookup): path to the data file.
     file_path: Option<String>,
-    /// For CSV: the key column name (S-1.14-REDO).
+    /// For CSV: the column to use as lookup key.
     key_column: Option<String>,
-    /// Refresh interval (S-1.14-REDO).
+    /// Refresh interval for file-backed sources (seconds).
     refresh_interval_secs: Option<u64>,
 }
 
 /// Nested `[infusion.source]` block (used in the fixture TOML schema).
 ///
-/// Fields `file_path`, `key_column`, `refresh_interval_secs` are parsed but unused
-/// in the plugin-type path (S-DEMO-ENRICHMENT-PIVOT-001); they become active in S-1.14-REDO.
+/// Fields `file_path`, `key_column`, `refresh_interval_secs` are active for MMDB/CSV/JSON-lookup
+/// paths; `plugin_ref` is used for the plugin-type path.
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct RawNestedSource {
@@ -96,11 +91,11 @@ struct RawNestedSource {
     source_type: String,
     /// For plugin-type: reference to the `.prx` plugin file.
     plugin_ref: Option<String>,
-    /// For file-backed types (S-1.14-REDO).
+    /// For file-backed types (maxmind_mmdb, csv, json_lookup): path to the data file.
     file_path: Option<String>,
-    /// For CSV (S-1.14-REDO).
+    /// For CSV: the column to use as lookup key.
     key_column: Option<String>,
-    /// Refresh interval (S-1.14-REDO).
+    /// Refresh interval for file-backed sources (seconds).
     refresh_interval_secs: Option<u64>,
 }
 
@@ -153,9 +148,8 @@ impl InfusionLoader {
 
     /// Parse a single TOML string into an `InfusionSpec`.
     ///
-    /// Implements the `source.type = "plugin"` path (S-DEMO-ENRICHMENT-PIVOT-001).
-    /// Returns `InfusionError::UnknownSourceType` for `maxmind_mmdb`, `csv`, `json_lookup`
-    /// (deferred to S-1.14-REDO).
+    /// Supports `source.type` values: `"plugin"`, `"maxmind_mmdb"`, `"csv"`, `"json_lookup"`.
+    /// Unknown source types return `InfusionError::UnknownSourceType`.
     ///
     /// Returns `Ok(InfusionSpec)` or `Err(InfusionError)` — never panics.
     /// Validation failures return descriptive errors without credential values.
@@ -309,13 +303,17 @@ impl InfusionLoader {
                         (source_type_str.as_str(), None, None, None)
                     };
 
-                // Resolve the actual source type (local_lookup grouping falls through to sub-type).
+                // Resolve the actual source type.
+                // Unknown types error — no silent default to JsonLookup (MED-3 / BC-2.19.001).
                 let built_in_type = match raw_type {
                     "maxmind_mmdb" => BuiltInSourceType::MaxmindMmdb,
                     "csv" => BuiltInSourceType::Csv,
                     "json_lookup" => BuiltInSourceType::JsonLookup,
-                    // local_lookup grouping: require a nested [infusion.source] with the real type.
-                    _ => BuiltInSourceType::JsonLookup,
+                    other => {
+                        return Err(InfusionError::UnknownSourceType {
+                            type_name: other.to_string(),
+                        });
+                    }
                 };
 
                 Some(InfusionSourceConfig::new(
@@ -357,8 +355,8 @@ impl InfusionLoader {
     /// Returns (specs, errors): valid specs continue loading even if others fail.
     /// Invalid specs produce `InfusionError` values but do not block valid specs.
     ///
-    /// Implements only the `source.type = "plugin"` path (S-DEMO-ENRICHMENT-PIVOT-001).
-    /// Other source types return `InfusionError::UnknownSourceType` in the errors vec.
+    /// Supports `plugin`, `maxmind_mmdb`, `csv`, and `json_lookup` source types.
+    /// Unknown source types produce `InfusionError::UnknownSourceType` in the errors vec.
     pub fn load_all(&self) -> (Vec<InfusionSpec>, Vec<InfusionError>) {
         let infusions_dir = Path::new(&self.config_dir).join("infusions");
 

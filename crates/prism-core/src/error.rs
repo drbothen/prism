@@ -1266,8 +1266,7 @@ pub enum InfusionError {
     /// `#[non_exhaustive]`: `InfusionError` is already `#[non_exhaustive]`; this variant
     /// inherits that constraint. External match arms must include a wildcard arm.
     #[error(
-        "E-INFUSE-008: Plugin infusion call failed for plugin '{plugin_id}' \
-         (infusion '{infusion_id}'): {reason}"
+        "E-INFUSE-008: plugin infusion call failed for '{infusion_id}' via plugin '{plugin_id}': {reason}"
     )]
     PluginCallFailed {
         /// The plugin_id as registered in PluginRuntime (e.g., `"threat_intel"`).
