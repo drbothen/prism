@@ -35,7 +35,8 @@
 //! - test_BC_2_16_007_hot_reload_sends_mcp_list_changed_notification (AC-9)
 //! - test_BC_2_10_008_invariant_zero_clients_returns_empty_array (BC-2.10.008 EC-10-014)
 
-use chrono;
+use std::sync::Arc;
+
 use prism_mcp::{
     context::PrismContext,
     prompts::{
@@ -44,39 +45,251 @@ use prism_mcp::{
         PROMPT_CROSS_CLIENT_STATUS, PROMPT_INVESTIGATE_HOST, PROMPT_TRIAGE_ALERTS,
     },
     resources::{
-        dispatch_hot_reload_notifications, render_sensors_health_resource, SensorHealthResult,
-        SensorHealthStructuredContent,
+        dispatch_hot_reload_notifications, render_client_list_resource,
+        render_client_sensors_resource, render_sensors_health_resource, ResourcePressure,
+        SensorHealthResult, SensorHealthStructuredContent,
     },
     server::PrismServer,
     CheckSensorHealthParams,
 };
+use rmcp::handler::server::wrapper::Parameters;
+
+// ─── Test fixture helpers ─────────────────────────────────────────────────────
+
+/// Build a minimal `ConfigManager` with two sensor specs: "acme-crowdstrike" and
+/// "globex-claroty". Used by AC-1 and EC-10-014 fixtures.
+///
+/// Note: the multi-tenant client model maps sensor_id prefixes to client IDs.
+/// We register two distinct sensors to verify that both appear in the resource.
+fn make_config_manager_two_sensors() -> Arc<arc_swap::ArcSwap<prism_spec_engine::ConfigManager>> {
+    use prism_spec_engine::types::ConfigSnapshot;
+    use prism_spec_engine::{AuthType, ConfigManager, SensorSpec, TableSpec};
+
+    let cs_spec = SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike sensor",
+        AuthType::ApiKey,
+        "https://api.crowdstrike.com",
+        vec![TableSpec::new_point_in_time(
+            "detections",
+            "security_finding",
+            vec![],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    let cl_spec = SensorSpec::new(
+        "claroty",
+        "Claroty sensor",
+        AuthType::ApiKey,
+        "https://api.claroty.com",
+        vec![TableSpec::new_point_in_time(
+            "assets",
+            "device_inventory_info",
+            vec![],
+            vec![],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let mut sensor_specs = std::collections::HashMap::new();
+    sensor_specs.insert("crowdstrike".to_string(), cs_spec);
+    sensor_specs.insert("claroty".to_string(), cl_spec);
+
+    let snapshot = ConfigSnapshot {
+        sensor_specs,
+        ..ConfigSnapshot::empty()
+    };
+    let cm = ConfigManager::new(snapshot);
+    Arc::new(arc_swap::ArcSwap::from_pointee(cm))
+}
+
+/// Build a minimal `QueryEngine` with a `TableRegistry` pre-populated with the
+/// given sensor IDs. Each sensor gets a single table named `{sensor_id}_table`.
+///
+/// Requires a tokio runtime context (QueryEngine spawns a cursor cleanup background task).
+fn make_query_engine_with_sensors(sensor_ids: &[&str]) -> Arc<prism_query::engine::QueryEngine> {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    use prism_sensors::registry::AdapterRegistry;
+    use prism_spec_engine::{AuthType, SensorSpec, TableSpec};
+
+    let registry = TableRegistry::new();
+    for sensor_id in sensor_ids {
+        let table_name = format!("{sensor_id}_table");
+        let spec = SensorSpec::new(
+            *sensor_id,
+            format!("{sensor_id} sensor"),
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                &table_name,
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        registry
+            .register_sensor(&spec)
+            .expect("register_sensor must not fail");
+    }
+
+    let engine = QueryEngine::new(
+        Arc::new(AdapterRegistry::new()),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(registry));
+
+    Arc::new(engine)
+}
 
 // ─── AC-1: prism://config/clients returns all configured clients ──────────────
 
 /// AC-1 (BC-2.10.008 postcondition 1): `prism://config/clients` response includes
 /// all configured clients with `sensor_count` and `enabled_sensors` populated.
+///
+/// RED GATE: The current implementation returns a single `"(all)"` aggregate entry
+/// rather than per-client entries. AC-1 requires separate entries for "acme" and
+/// "globex" (or separate per-client grouping). This assertion fails until
+/// `render_client_list_resource` is updated to produce per-client entries.
+///
+/// BC-2.10.008 postcondition 1: "Response is a JSON array of `ClientInventoryEntry`
+/// objects — one per configured client."
 #[tokio::test]
 async fn test_BC_2_10_008_config_clients_returns_all_clients() {
-    // Requires: PrismServer configured with two clients ("acme", "globex").
-    // When: prism://config/clients is read.
-    // Then: response contains both clients with sensor_count and enabled_sensors.
-    //
-    // NOTE: This test will fail against stubs (todo!() bodies) — Red Gate holds.
-    todo!("AC-1: implement render_client_list_resource to make this test pass")
+    let config_manager = make_config_manager_two_sensors();
+    let query_engine = make_query_engine_with_sensors(&["crowdstrike", "claroty"]);
+
+    let result = render_client_list_resource(&config_manager, &query_engine)
+        .await
+        .expect("render_client_list_resource must return Ok");
+
+    // Extract the JSON text from the resource contents.
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    // BC-2.10.008 postcondition 1: response is a JSON array.
+    let parsed: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("AC-1: prism://config/clients response must be valid JSON");
+    let entries = parsed
+        .as_array()
+        .expect("AC-1: prism://config/clients response must be a JSON array");
+
+    // BC-2.10.008: at minimum two entries (one per configured sensor/client group).
+    // The current stub returns a single "(all)" synthetic entry — assertion fails.
+    assert!(
+        entries.len() >= 2,
+        "AC-1: prism://config/clients must return at least 2 entries for a 2-sensor config; \
+         got {} entries. Current implementation returns a single '(all)' aggregate — \
+         Red Gate: per-client entries not yet implemented. \
+         Response: {content_text:?}",
+        entries.len()
+    );
+
+    // BC-2.10.008: no entry must use the sentinel client_id "(all)".
+    for entry in entries {
+        let client_id = entry
+            .get("client_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("(missing)");
+        assert_ne!(
+            client_id, "(all)",
+            "AC-1: BC-2.10.008 forbids synthetic '(all)' client_id in response; \
+             each entry must represent a real configured client. \
+             Red Gate: per-client mapping not yet implemented."
+        );
+    }
+
+    // BC-2.10.008: each entry must have sensor_count > 0 (sensors are registered).
+    for entry in entries {
+        let sensor_count = entry
+            .get("sensor_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        assert!(
+            sensor_count > 0,
+            "AC-1: each ClientInventoryEntry must have sensor_count > 0 \
+             when sensors are configured; got sensor_count=0 for entry: {entry:?}"
+        );
+    }
 }
 
 // ─── AC-2: prism://config/clients/{client_id}/sensors with invalid client_id ────
 
 /// AC-2 / EC-001 (BC-2.10.008): `prism://config/clients/{client_id}/sensors` with
 /// invalid `client_id` returns a 404-equivalent error (not a server error).
+///
+/// RED GATE: The current implementation returns `Err` for invalid client_ids (OrgSlug
+/// validation works), but it ECHOES the raw client_id path in the error message.
+/// BC-2.10.008 requires prompt-injection-safe error messages — the raw path traversal
+/// string `../../etc/passwd` must NOT appear verbatim in the error response
+/// (credential/path-traversal echo prevention, BC-2.10.008 postcondition).
+///
+/// BC-2.10.008 postcondition: "Error messages for invalid client_id must not echo
+/// attacker-controlled path traversal strings (prompt injection defense)."
 #[tokio::test]
 async fn test_BC_2_10_008_client_sensors_invalid_id_returns_error() {
-    // Requires: a PrismServer with any valid config.
-    // When: prism://config/clients/../../etc/passwd/sensors is read.
-    // Then: error is returned; TenantId::new() rejected before any CF scan.
+    // Use an empty config manager — the validation fires before config is consulted.
+    let config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::ConfigManager>> = Arc::new(
+        arc_swap::ArcSwap::from_pointee(prism_spec_engine::ConfigManager::empty()),
+    );
+
+    // Path-traversal client_id: must be rejected before any CF scan.
+    let result = render_client_sensors_resource("../../etc/passwd", &config_manager).await;
+
+    assert!(
+        result.is_err(),
+        "AC-2/EC-001: prism://config/clients/../../etc/passwd/sensors must return Err; \
+         OrgSlug::new() must reject path traversal before any CF scan"
+    );
+
+    let err = result.unwrap_err();
+    let err_msg = err.message.to_string();
+
+    // BC-2.10.008 prompt-injection defense: the raw path traversal string must NOT
+    // appear verbatim in the error response. Echoing attacker-controlled path
+    // components creates a prompt-injection vector when the error is forwarded to
+    // the MCP client (an LLM agent context).
     //
-    // NOTE: This test will fail against stubs (todo!() bodies) — Red Gate holds.
-    todo!("AC-2/EC-001: implement render_client_sensors_resource validation to make this test pass")
+    // RED GATE: The current implementation uses `format!("... '{client_id}' ...")` which
+    // echoes "../../etc/passwd" directly into the error message.
+    assert!(
+        !err_msg.contains("../../etc/passwd"),
+        "AC-2/EC-001 prompt-injection defense: error message must NOT echo the raw \
+         path traversal string '../../etc/passwd' (attacker-controlled input). \
+         BC-2.10.008 requires prompt-injection-safe error messages. \
+         Current error message: {err_msg:?}"
+    );
+
+    // Additional: error should indicate the nature of the problem without leaking the path.
+    assert!(
+        err_msg.contains("invalid") || err_msg.contains("not found"),
+        "AC-2/EC-001: error message must indicate 'invalid' or 'not found' without \
+         echoing the raw client_id; got: {err_msg:?}"
+    );
 }
 
 // ─── AC-3: prompts/list includes four mandated prompts ───────────────────────
@@ -149,18 +362,59 @@ fn test_BC_2_10_009_triage_alerts_includes_security_reminder() {
 
 // ─── AC-4: check_sensor_health returns structured per-sensor result ───────────
 
-/// AC-4 (BC-2.08.005 postconditions 1, 6, 7, 8): `check_sensor_health` with a
-/// reachable mock sensor returns a `SensorHealthResult` with correct fields and
-/// `structuredContent` + `content[].text` prose summary.
+/// AC-4 (BC-2.08.005 postconditions 5, 6, 7): `check_sensor_health` returns a
+/// `structured_content` JSON value with `trust_level: "internal"`.
+///
+/// NOTE: The full RED GATE for AC-4 (reachable=true assertion) lives in
+/// `crates/prism-mcp/src/server.rs::test_BC_2_08_005_check_sensor_health_returns_structured_result_with_reachable`
+/// because that test requires wiring `PrismServer.query_engine` (a private field).
+/// Per SID-1, we write the failing unit test in the module where private fields are
+/// accessible. This integration test verifies the response *shape* (structured_content
+/// presence, trust_level field) accessible from the public API.
+///
+/// RED GATE: BC-2.08.005 postcondition 5 requires `structured_content` to be present
+/// in the response. The current implementation DOES return structured_content, so this
+/// test verifies the shape rather than reachable=true. The reachable=true assertion
+/// is the primary RED GATE and lives in server.rs unit tests.
+///
+/// BC-2.08.005 postcondition 7: "Response metadata includes `trust_level: 'internal'`."
 #[tokio::test]
 async fn test_BC_2_08_005_check_sensor_health_returns_structured_result() {
-    // Requires: PrismServer with a mock reachable CrowdStrike sensor for "acme".
-    // When: check_sensor_health(client_id: "acme") is called.
-    // Then: SensorHealthResult has sensor_id="crowdstrike", reachable=true, auth_valid=true,
-    //       last_successful_query_at populated; response has trust_level="internal".
-    //
-    // NOTE: This test will fail against stubs (todo!() bodies) — Red Gate holds.
-    todo!("AC-4: implement check_sensor_health to make this test pass")
+    let server = PrismServer::new();
+
+    // Call with a valid client_id — server has no query_engine wired so returns
+    // "0 of 0 sensors healthy" but MUST still return structured_content.
+    let params = CheckSensorHealthParams::for_client("acme".to_string());
+    let result = server
+        .check_sensor_health(Parameters(params))
+        .await
+        .expect("BC-2.08.005: check_sensor_health must return Ok for a valid client_id");
+
+    // BC-2.08.005 postcondition 5: structured_content must be present in the response.
+    let sc = result.structured_content.as_ref().expect(
+        "BC-2.08.005 postcondition 5 (RED GATE): structured_content must be present \
+                 in check_sensor_health response; current implementation must use \
+                 CallToolResult::structured() not CallToolResult::success()",
+    );
+
+    // BC-2.08.005 postcondition 7: trust_level = "internal".
+    // This assertion FAILS if the implementation omits trust_level or uses a wrong value.
+    assert_eq!(
+        sc["trust_level"].as_str(),
+        Some("internal"),
+        "BC-2.08.005 postcondition 7 (RED GATE): structured_content.trust_level must be \
+         'internal' (health data is Prism-generated, not sensor-sourced). \
+         Got: {:?}",
+        sc["trust_level"]
+    );
+
+    // BC-2.08.005 postcondition 5: sensors array must be present (may be empty without
+    // a wired query_engine, but the field itself must exist).
+    assert!(
+        sc.get("sensors").is_some(),
+        "BC-2.08.005 postcondition 5: structured_content must contain 'sensors' array; \
+         got structured_content: {sc:?}"
+    );
 }
 
 // ─── AC-5: prism://sensors/health returns cached data after health check ─────
@@ -255,17 +509,122 @@ fn test_BC_2_08_006_sensors_health_resource_returns_unknown_before_check() {
 /// lists only sensors present in `table_registry.registered_tables()`. Sensors absent
 /// from `TableRegistry` must NOT appear in the response.
 ///
+/// RED GATE: The current implementation returns a synthetic `"(all)"` entry rather
+/// than per-client or per-sensor entries. While the current code DOES filter by
+/// TableRegistry intersection, it does NOT produce the per-sensor entry structure
+/// required by BC-2.10.008. The assertion that client_id must NOT be "(all)" fails.
+///
+/// BC-2.10.008 postcondition 1: "Response must not contain sensors absent from
+/// `TableRegistry.registered_tables()` (e.g., Armis and Cyberint if not registered)."
+///
 /// Prerequisite: S-3.13 must be merged (provides `TableRegistry::registered_tables()` API).
+/// S-3.13 IS merged (this branch is based on develop@60249ccc, the S-3.13 merge commit).
 #[tokio::test]
 async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
-    // Requires: S-3.13 merged; QueryEngine with TableRegistry containing only
-    //           CrowdStrike and Claroty tables (not Armis or Cyberint).
-    // When: prism://config/clients is read.
-    // Then: response lists exactly CrowdStrike and Claroty sensors; Armis and Cyberint absent.
+    // Config has all 4 sensors registered.
+    let config_manager = {
+        use prism_spec_engine::types::ConfigSnapshot;
+        use prism_spec_engine::{AuthType, ConfigManager, SensorSpec, TableSpec};
+
+        let mut sensor_specs = std::collections::HashMap::new();
+        for sensor_id in &["crowdstrike", "claroty", "armis", "cyberint"] {
+            let spec = SensorSpec::new(
+                *sensor_id,
+                format!("{sensor_id} sensor"),
+                AuthType::ApiKey,
+                format!("https://api.{sensor_id}.com"),
+                vec![TableSpec::new_point_in_time(
+                    &format!("{sensor_id}_table"),
+                    "security_finding",
+                    vec![],
+                    vec![],
+                )],
+                None,
+                "1.0.0",
+                vec![],
+            );
+            sensor_specs.insert(sensor_id.to_string(), spec);
+        }
+        let snapshot = ConfigSnapshot {
+            sensor_specs,
+            ..ConfigSnapshot::empty()
+        };
+        Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::new(
+            snapshot,
+        )))
+    };
+
+    // Registry has ONLY crowdstrike and claroty registered (not armis or cyberint).
+    let query_engine = make_query_engine_with_sensors(&["crowdstrike", "claroty"]);
+
+    let result = render_client_list_resource(&config_manager, &query_engine)
+        .await
+        .expect("render_client_list_resource must return Ok");
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    // BC-2.10.008: "armis" and "cyberint" must NOT appear in the resource response
+    // because they are not in the TableRegistry.
     //
-    // NOTE: This test will fail against stubs (todo!() bodies) — Red Gate holds.
-    // NOTE: Requires S-3.13 to be merged before this test can be fully implemented.
-    todo!("AC-8: implement TableRegistry-backed resource listing to make this test pass")
+    // This assertion PASSES with current code (intersection filter removes them).
+    // However, the "(all)" client_id check below reveals the incomplete implementation.
+    assert!(
+        !content_text.contains("\"armis\"") || content_text.contains("\"enabled_sensors\""),
+        "AC-8: if armis appears in the response, it must only be in 'enabled_sensors' \
+         of the '(all)' entry — verify the intersection filter is working"
+    );
+
+    // Verify armis and cyberint are NOT in enabled_sensors.
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content_text).expect("AC-8: response must be valid JSON");
+    let entries = parsed
+        .as_array()
+        .expect("AC-8: response must be a JSON array");
+
+    for entry in entries {
+        let enabled = entry
+            .get("enabled_sensors")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|s| s.as_str()).collect::<Vec<_>>())
+            .unwrap_or_default();
+
+        assert!(
+            !enabled.contains(&"armis"),
+            "AC-8: 'armis' must NOT appear in enabled_sensors — not registered in TableRegistry. \
+             Got enabled_sensors: {enabled:?}"
+        );
+        assert!(
+            !enabled.contains(&"cyberint"),
+            "AC-8: 'cyberint' must NOT appear in enabled_sensors — not registered in TableRegistry. \
+             Got enabled_sensors: {enabled:?}"
+        );
+
+        // RED GATE: The client_id must NOT be the synthetic sentinel "(all)".
+        // BC-2.10.008 postcondition 1 requires per-sensor or per-client entries.
+        // The current implementation uses "(all)" — this assertion FAILS.
+        let client_id = entry
+            .get("client_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("(missing)");
+        assert_ne!(
+            client_id, "(all)",
+            "AC-8 (RED GATE): BC-2.10.008 requires per-sensor or per-client entries, \
+             not the synthetic '(all)' aggregate. The response must list real sensor IDs \
+             (e.g., 'crowdstrike', 'claroty') as client_id or a separate per-sensor structure. \
+             Current implementation returns a single '(all)' entry — not yet fully implemented."
+        );
+    }
 }
 
 // ─── AC-9: hot-reload sends MCP list_changed notifications ───────────────────
@@ -274,18 +633,157 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
 /// `notifications/resources/list_changed` AND `notifications/tools/list_changed`.
 /// A swap that does NOT change the table set dispatches NEITHER notification.
 ///
-/// Prerequisite: S-3.13 must be merged (provides `TableRegistry::registered_tables()` API).
+/// This test uses a real `tokio::io::duplex` transport + `rmcp::serve_server` to
+/// get a genuine `Peer<RoleServer>` (since `Peer::new()` is `pub(crate)` in rmcp).
+/// The client side reads JSON-RPC messages and verifies both notifications arrive.
+///
+/// RED GATE STATUS: `dispatch_hot_reload_notifications` IS implemented. This test
+/// verifies the correct end-to-end behavior: changed tables → both notifications
+/// received on the wire; same tables → zero notifications.
+/// If both assertions pass, the test is GREEN (implementation complete for this function).
+/// The remaining gap is the wiring of `dispatch_hot_reload_notifications` into the
+/// `reload_config` tool handler (requires a `RequestContext` parameter addition —
+/// tracked as S-5.03 AC-9 implementer task).
 #[tokio::test]
 async fn test_BC_2_16_007_hot_reload_sends_mcp_list_changed_notification() {
-    // Requires: S-3.13 merged; a mock Peer<RoleServer> that captures notifications.
-    // When: dispatch_hot_reload_notifications is called with changed table set.
-    // Then: both notifications are dispatched.
-    // When: dispatch_hot_reload_notifications is called with SAME table set.
-    // Then: no notifications are dispatched.
-    //
-    // NOTE: This test will fail against stubs (todo!() bodies) — Red Gate holds.
-    // NOTE: Requires S-3.13 merged + a Peer<RoleServer> mock infrastructure.
-    todo!("AC-9: implement dispatch_hot_reload_notifications to make this test pass")
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    // Step 1: Create a duplex transport pair (server side / client side).
+    let (server_stream, client_stream) = tokio::io::duplex(65536);
+
+    // Step 2: Spawn the MCP server initialization on the server stream.
+    // `rmcp::serve_server` completes the MCP handshake and returns a RunningService.
+    let server_task = tokio::spawn(async move {
+        rmcp::serve_server(PrismServer::new(), server_stream)
+            .await
+            .expect("serve_server must complete MCP handshake successfully")
+    });
+
+    // Step 3: Complete the MCP handshake from the client side.
+    let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+    let mut client_read_buf = BufReader::new(client_read_half);
+
+    // Send: initialize request
+    let init_req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"prism-test","version":"0.0.1"}}}"#;
+    client_write_half
+        .write_all(format!("{init_req}\n").as_bytes())
+        .await
+        .unwrap();
+
+    // Read: server's initialize response
+    let mut line = String::new();
+    client_read_buf.read_line(&mut line).await.unwrap();
+
+    // Send: initialized notification
+    let init_notif = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+    client_write_half
+        .write_all(format!("{init_notif}\n").as_bytes())
+        .await
+        .unwrap();
+    client_write_half.flush().await.unwrap();
+
+    // Step 4: Wait for the server task to complete initialization.
+    let running_service = server_task.await.expect("server task must not panic");
+
+    // Step 5: Call dispatch_hot_reload_notifications with CHANGED table set.
+    // BC-2.16.007: old ≠ new → both notifications dispatched.
+    let old_tables = vec!["crowdstrike_detections".to_string()];
+    let new_tables = vec![
+        "crowdstrike_detections".to_string(),
+        "claroty_assets".to_string(),
+    ];
+
+    let dispatch_result =
+        dispatch_hot_reload_notifications(old_tables.clone(), new_tables, running_service.peer())
+            .await;
+
+    // Both notifications must be dispatched without error.
+    assert!(
+        dispatch_result.is_ok(),
+        "BC-2.16.007: dispatch_hot_reload_notifications must return Ok when table set changes; \
+         got: {:?}",
+        dispatch_result.err()
+    );
+
+    // Step 6: Read the dispatched notifications from the client stream.
+    // Both `notifications/resources/list_changed` AND `notifications/tools/list_changed`
+    // must appear in the client-side message stream.
+    let read_timeout = std::time::Duration::from_secs(2);
+    let mut resource_list_changed_received = false;
+    let mut tool_list_changed_received = false;
+
+    // Read up to 3 lines (notifications) with a timeout.
+    for _ in 0..3 {
+        let mut notif_line = String::new();
+        let read_result =
+            tokio::time::timeout(read_timeout, client_read_buf.read_line(&mut notif_line)).await;
+        match read_result {
+            Ok(Ok(0)) | Err(_) => break, // EOF or timeout
+            Ok(Ok(_)) => {
+                let trimmed = notif_line.trim();
+                if trimmed.contains("notifications/resources/list_changed") {
+                    resource_list_changed_received = true;
+                }
+                if trimmed.contains("notifications/tools/list_changed") {
+                    tool_list_changed_received = true;
+                }
+                if resource_list_changed_received && tool_list_changed_received {
+                    break;
+                }
+            }
+            Ok(Err(_)) => break,
+        }
+    }
+
+    // BC-2.16.007 postcondition: BOTH notifications must be received.
+    assert!(
+        resource_list_changed_received,
+        "BC-2.16.007: 'notifications/resources/list_changed' must be dispatched when \
+         table set changes (crowdstrike_detections only → +claroty_assets added). \
+         RED GATE: notification not received on client side within 2s timeout."
+    );
+    assert!(
+        tool_list_changed_received,
+        "BC-2.16.007: 'notifications/tools/list_changed' must be dispatched when \
+         table set changes. RED GATE: notification not received on client side."
+    );
+
+    // Step 7: Verify SAME table set → NO notifications dispatched.
+    // BC-2.16.007: when old == new, neither notification is sent.
+    // We cannot easily verify "no message sent" via the stream (would require a timeout
+    // absence check), so we verify at the function-return level.
+    let same_result =
+        dispatch_hot_reload_notifications(old_tables.clone(), old_tables, running_service.peer())
+            .await;
+
+    assert!(
+        same_result.is_ok(),
+        "BC-2.16.007: dispatch_hot_reload_notifications must return Ok when table set unchanged; \
+         got: {:?}",
+        same_result.err()
+    );
+    // No additional notifications should appear on the wire for same-table-set case.
+    // Verified by the 2s timeout on any new line read returning no notifications.
+    let mut extra_line = String::new();
+    let no_notif = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        client_read_buf.read_line(&mut extra_line),
+    )
+    .await;
+    match no_notif {
+        Err(_) => {}    // timeout = no message sent (correct behavior)
+        Ok(Ok(0)) => {} // EOF = no message
+        Ok(Ok(_)) => {
+            // A message was sent — check it's not a list_changed notification
+            let trimmed = extra_line.trim();
+            assert!(
+                !trimmed.contains("list_changed"),
+                "BC-2.16.007: when table set is UNCHANGED, neither 'list_changed' notification \
+                 should be dispatched; got unexpected message: {trimmed:?}"
+            );
+        }
+        Ok(Err(_)) => {} // error = acceptable
+    }
 }
 
 // ─── AC-3 extended: remaining 3 prompts include DI-006 security reminder ─────
@@ -512,7 +1010,6 @@ fn test_BC_2_08_005_check_sensor_health_structured_content_shape() {
 /// This test asserts that the `client_id` field exists and is non-empty-validated.
 #[tokio::test]
 async fn test_BC_2_08_005_check_sensor_health_requires_client_id() {
-    use rmcp::handler::server::wrapper::Parameters;
     // When: check_sensor_health is called with an empty client_id.
     // Then: it returns an INVALID_PARAMS error (validate_text_field rejects empty string).
     //
@@ -583,13 +1080,54 @@ fn test_BC_2_08_006_sensors_health_zero_clients_returns_empty_object() {
 /// BC-2.10.008 EC-10-014: `prism://config/clients` with zero configured clients
 /// returns an empty JSON array `[]`, not an error.
 ///
-/// BC-2.10.008: "EC-10-014: Zero clients configured → `prism://config/clients` returns empty JSON array `[]`"
+/// RED GATE: The current implementation returns a single `"(all)"` synthetic entry
+/// (sensor_count=0, enabled_sensors=[]) even when no sensors are configured.
+/// BC-2.10.008 EC-10-014 requires an empty array `[]` — no entries at all.
+/// This assertion fails until `render_client_list_resource` is updated to return `[]`
+/// when no sensors are registered in the TableRegistry.
+///
+/// BC-2.10.008: "EC-10-014: Zero clients configured → `prism://config/clients` returns
+/// empty JSON array `[]`"
 #[tokio::test]
 async fn test_BC_2_10_008_invariant_zero_clients_returns_empty_array() {
-    // Requires: a PrismServer configured with zero clients.
-    // When: prism://config/clients is read.
-    // Then: response is a JSON array `[]` (not an error, not null).
+    use prism_spec_engine::ConfigManager;
+
+    // Empty config: no sensor specs.
+    let config_manager: Arc<arc_swap::ArcSwap<ConfigManager>> =
+        Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::empty()));
+
+    // Empty registry: no tables registered.
+    let query_engine = make_query_engine_with_sensors(&[]);
+
+    let result = render_client_list_resource(&config_manager, &query_engine)
+        .await
+        .expect(
+            "BC-2.10.008 EC-10-014: render_client_list_resource must return Ok with zero clients",
+        );
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    // BC-2.10.008 EC-10-014: must be an empty JSON array, not a synthetic "(all)" entry.
     //
-    // NOTE: This test will fail against stubs (todo!() bodies) — Red Gate holds.
-    todo!("BC-2.10.008 EC-10-014: implement render_client_list_resource with empty config to make this test pass")
+    // RED GATE: Current implementation returns [{"client_id":"(all)","sensor_count":0,...}].
+    // The correct behavior is: return [] when no sensors are registered.
+    assert_eq!(
+        content_text.trim(),
+        "[]",
+        "BC-2.10.008 EC-10-014 (RED GATE): prism://config/clients with zero configured \
+         clients must return empty JSON array '[]', not a synthetic entry. \
+         Current implementation returns a '(all)' aggregate with sensor_count=0, which \
+         violates the EC-10-014 postcondition. Response: {content_text:?}"
+    );
 }

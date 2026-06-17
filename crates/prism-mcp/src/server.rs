@@ -8859,4 +8859,116 @@ mod tests {
             "not_registered_tools must be present for unregistered client; got {body}"
         );
     }
+
+    // ─── AC-4 (BC-2.08.005): check_sensor_health returns reachable=true ─────
+    //
+    // This test MUST live in `mod tests` (not `tests/resources.rs`) because it
+    // needs to wire `PrismServer.query_engine` directly — the field is private.
+    //
+    // RED GATE: The current S-5.03 implementation hardcodes `reachable = false`
+    // for every sensor (adapter fan-out deferred to S-5.04). The assertion
+    // `reachable: true` fails until S-5.04 wires the real adapter fan-out.
+    //
+    // BC-2.08.005 postcondition 1: "SensorHealthResult.reachable = true when
+    // the sensor API endpoint responds to the lightweight probe within timeout."
+    //
+    // SID-1: this unit test exercises the production `check_sensor_health`
+    // handler with a wired QueryEngine + TableRegistry, mocking the sensor
+    // adapter at the dependency boundary (S-5.04 is the implementing story).
+    #[tokio::test]
+    async fn test_BC_2_08_005_check_sensor_health_returns_structured_result_with_reachable() {
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{
+            engine::{QueryEngine, QueryEngineConfig},
+            table_registry::TableRegistry,
+        };
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build a TableRegistry with "crowdstrike" sensor registered.
+        let registry = TableRegistry::new();
+        let crowdstrike_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor (mock)",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        registry
+            .register_sensor(&crowdstrike_spec)
+            .expect("register_sensor must not fail");
+
+        // Build a QueryEngine with the registry wired.
+        let engine = QueryEngine::new(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        )
+        .with_table_registry(Arc::new(registry));
+
+        // Wire the engine into PrismServer (private field access — test mod only).
+        let mut server = PrismServer::new();
+        server.query_engine = Some(Arc::new(engine));
+
+        // Call check_sensor_health for client "acme".
+        let params = CheckSensorHealthParams::for_client("acme".to_string());
+        let result = server
+            .check_sensor_health(Parameters(params))
+            .await
+            .expect("BC-2.08.005: check_sensor_health must return Ok for valid client_id");
+
+        // The structured_content field holds the SensorHealthStructuredContent JSON.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("BC-2.08.005 postcondition 5: structured_content must be present");
+
+        // Verify at least one sensor appears in the structured content.
+        let sensors = sc["sensors"]
+            .as_array()
+            .expect("BC-2.08.005: structured_content.sensors must be a JSON array");
+        assert!(
+            !sensors.is_empty(),
+            "BC-2.08.005: check_sensor_health must return at least one sensor entry \
+             when a TableRegistry with 'crowdstrike' is wired; got empty sensors array. \
+             Did the engine wiring fail?"
+        );
+
+        // BC-2.08.005 postcondition 1 (RED GATE): reachable=true requires S-5.04.
+        // The current S-5.03 implementation returns reachable=false for all sensors.
+        // This assertion FAILS until S-5.04 wires real adapter fan-out.
+        let crowdstrike_entry = sensors
+            .iter()
+            .find(|s| s["sensor_id"].as_str() == Some("crowdstrike"))
+            .expect(
+                "BC-2.08.005: 'crowdstrike' sensor entry must appear in structured_content.sensors",
+            );
+
+        assert!(
+            crowdstrike_entry["reachable"].as_bool() == Some(true),
+            "BC-2.08.005 postcondition 1 (RED GATE): check_sensor_health must return \
+             reachable=true for a healthy sensor. \
+             Current S-5.03 implementation returns reachable=false (stub — adapter fan-out \
+             requires S-5.04). Got sensor entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 postcondition 7: trust_level = "internal".
+        assert_eq!(
+            sc["trust_level"].as_str(),
+            Some("internal"),
+            "BC-2.08.005 postcondition 7: trust_level must be 'internal' (health data \
+             is Prism-generated, not sensor-sourced); got: {:?}",
+            sc["trust_level"]
+        );
+    }
 }
