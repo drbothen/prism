@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
-status: draft
+version: "1.6"
+status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
@@ -122,6 +122,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | D-1204-POL-14 | 2026-06-16 | state-manager | POL-14 auto-promotion: `status:` field synced draft→active (lifecycle_status was already active; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16). No contract content change. |
 | 1.5 | S-3.13-LOCAL-adversary-OBS-1 | 2026-06-16 | product-owner | Prose drift fix: §Postconditions and §Error Conditions table-name separator corrected from DOT to UNDERSCORE at 6 sites (reload result arrays `"added"`, `"removed"`, `"modified"`, E-QUERY-035 message inline citation in Postconditions and Error Conditions rows, edge-case `removed_sensor_table`, test vector `vendor_table1`). Aligns with BC-2.11.001 authoritative convention and `table_registry.rs::register_sensor` `format!("{}_{}", ...)`. The v1.4 changelog entry referencing the old DOT pinned text is preserved as historical record. Note: E-QUERY-035 message format in error-taxonomy.md also uses DOT form — that is a parallel drift outside this BC's scope; flagged for taxonomy sweep under the same OBS-1 finding. |
 | 1.4 | review-2026-06-10-PO-micro | 2026-06-10 | product-owner | MCP cascade P4-05 re-home citation sweep (architect adjudication, error-taxonomy v1.72 / ADR-038 v1.4 D5 family): removed-after-reload error code `E-QUERY-011` → `E-QUERY-035` at all 3 citation sites (Postconditions removed-spec bullet, Error Conditions row, Canonical Test Vectors remove-spec row). E-QUERY-011 retained by the live audit-capability condition (BC-2.15.011, `PrismError::AuditTableAccessDenied` shipped display); this BC's reload condition RE-HOMED to E-QUERY-035, next sequential free at the namespace tail. Message text UNCHANGED — taxonomy v1.72 harmonized the E-QUERY-035 Message Format TO this BC's pinned text ("Table '{sensor_id}.{table_name}' is no longer available. The sensor spec was removed."); no shipped display binds (zero code emitters; future scope S-3.13). No semantic, edge-case, VP, or lifecycle changes. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |

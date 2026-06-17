@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.846"
+version: "7.847"
 producer: state-manager
-timestamp: 2026-06-17T01:00:00Z
+timestamp: 2026-06-16T23:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,10 +16,10 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "bec894a2"
-bc_index_version: "6.68"
+develop_head: "60249ccc"
+bc_index_version: "6.69"
 vp_index_version: "1.79"
-story_index_version: "v2.419"
+story_index_version: "v2.420"
 arch_index_version: "2.135"
 error_taxonomy_version: "1.86"
 total_stories: 201
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1203 LANE-B PROPAGATION FIXES + BOOKKEEPING DURABILITY BURST (TD-VSDD-053 single-commit). Lane B (S-3.13 PR #192): PR-LEVEL pass-1 CLEAN(strict); pass-2 found F-S313-PRL-MED-001 (error-taxonomy E-QUERY-037 row described enumeration as global, not propagated with ADR-039 org-scoping) — CLOSED via error-taxonomy v1.85→v1.86. Proactive same-surface sweep also found + closed interface-definitions.md explain_query outputSchema missing org-scoped available_tables field (SEC-003 gap) → v2.8. Fixes are .factory/-only; feature HEAD UNCHANGED. Frozen HEAD updated 7f192e31→47a6ad65 (rebase onto develop@bec894a2 + ci.yml EXPECTED=66 + CLAUDE.md count=66 applied). PR-LEVEL 3-CLEAN re-gate NEXT from 0/3 on 47a6ad65. Process-gap codification: ADR §Required Implementation Changes should enumerate same-surface PRD supplements (error-taxonomy.md, interface-definitions.md) that a contract amendment must propagate to (ADR-039 omitted them; caused F-S313-PRL-MED-001 + interface-definitions gap to surface late). STATE v7.845→v7.846."
+current_step: "D-1204 S-3.13 POST-MERGE DURABILITY BURST (TD-VSDD-053 single-commit). PR #192 S-3.13 squash-merged develop@60249ccc 2026-06-16. Lane B PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65; pr-reviewer APPROVE; CI green. POL-14: BC-2.16.007 status:draft→active (lifecycle_status was already active — legacy-field sync only; no count change). BC-2.16.001+BC-2.11.001 idempotent (already active). BOTH open lanes NOW CLOSED: Lane A (S-5.02 PR #191 D-1202 develop@bec894a2) + Lane B (S-3.13 PR #192 D-1204 develop@60249ccc). develop_head bec894a2→60249ccc. DRIFT-S313-EVIDENCE-STALE-SHA tracked (cosmetic provenance; all tests pass CI). DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 OPEN. L-POST roadmap unblocked: S-5.03/S-5.04/T13/T14. OPEN USER SCOPING QUESTION: PIVOT-002/003 (+S-1.14-REDO) demo-blocking vs post-demo. Non-exhaustive reconciliation CONFIRMED: ci.yml EXPECTED=66 on develop@60249ccc + CLAUDE.md reads '66 types...EXPECTED=66' (S-5.02 +4 + S-3.13 +2 = 66; local checkout stale at bec894a2). BC-INDEX v6.68→v6.69. STORY-INDEX v2.419→v2.420. STATE v7.846→v7.847."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-17 (D-1203 Lane-B propagation fixes: error-taxonomy v1.86 + interface-definitions v2.8; S-3.13 frozen HEAD 7f192e31→47a6ad65; STORY-INDEX v2.419; STATE v7.846)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-16 (D-1204 S-3.13 post-merge: PR #192 develop@60249ccc; BC-2.16.007 status:draft→active; BOTH lanes CLOSED; STORY-INDEX v2.420; STATE v7.847)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **T12** (T1–T12 ALL DONE; develop@bec894a2). PARALLEL: Lane A (S-5.02 MERGED PR #191 develop@bec894a2 2026-06-17; POL-14 BC-2.10.011 status:draft→active; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 OPEN wave-gate follow-up), Lane B (S-3.13 v1.19 PR #192 OPEN @47a6ad65 — ALL findings CLOSED; error-taxonomy v1.86 + interface-definitions v2.8 (F-S313-PRL-MED-001 + SEC-003 gap CLOSED); red_gate_tests 31; ci.yml EXPECTED=66; CLAUDE.md count=66; PR-LEVEL 3-CLEAN re-gate 0/3 NEXT), C (PIVOT-001 MERGED PR #189 develop@1b2e9a31 2026-06-16), D (CLOSED), E (LAUNCHER MERGED PR #190 develop@c3ecf6c8 2026-06-16). SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1196 + D-1197..D-1202 durability bursts.
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (BOTH lanes CLOSED; develop@60249ccc). ALL LANES CLOSED: Lane A (S-5.02 MERGED PR #191 develop@bec894a2 2026-06-17; D-1202), Lane B (S-3.13 MERGED PR #192 develop@60249ccc 2026-06-16; D-1204; POL-14 BC-2.16.007 status:draft→active), C (PIVOT-001 MERGED PR #189 2026-06-16), D (CLOSED), E (LAUNCHER MERGED PR #190 2026-06-16). OPEN: DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 (wave-gate follow-up). OPEN USER SCOPING QUESTION: PIVOT-002/003 (+S-1.14-REDO) demo-blocking vs post-demo. NEXT: S-5.03 (depends S-5.02+S-3.13 both merged) → S-5.04 → T13 capstone → T14 demo recording. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1196 + D-1197..D-1204 durability bursts.
 
 ## Phase Progress
 
@@ -103,12 +103,14 @@ pre_compact_snapshot_at: "2026-06-15"
 | **5: S-DEMO-LAUNCHER-CONSOLIDATION-001 (T11)** | **MERGED** | 2026-06-15 | 2026-06-16 | PR #190 develop@c3ecf6c8 | PR-LEVEL 3/3 strict CONVERGED (passes on frozen 8e183f03; BC-5.39.001 D-779); POL-14 all 5 BCs idempotent (already active); non-exhaustive gate UNCHANGED (EXPECTED=60) |
 | **5: S-DEMO-ENRICHMENT-PIVOT-001 (T12 / PR #189)** | **MERGED** | 2026-06-15 | 2026-06-16 | PR #189 develop@1b2e9a31 | PR-LEVEL 3/3 strict CONVERGED (passes 1/2/3 on frozen 5553cc91; BC-5.39.001 D-779); POL-14 BC-2.19.001+BC-2.19.003 status: draft→active (legacy sync; lifecycle_status already active); non-exhaustive gate UNCHANGED (EXPECTED=60; PIVOT added no gate-scoped types) |
 | **5: S-5.02 (D-1107 SCOPE-IN)** | **MERGED** | 2026-06-12 | 2026-06-17 | PR #191 develop@bec894a2 | Lane A PR-LEVEL 3/3 strict CONVERGED on frozen 86842768; pr-reviewer APPROVE; CI 43/43 green; POL-14 BC-2.10.011 status:draft→active (lifecycle_status already active — legacy sync); BC-2.10.004+BC-2.10.007 idempotent; non-exhaustive EXPECTED 60→64 (+4 pub types); DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open |
+| **5: S-3.13 (D-1107 SCOPE-IN)** | **MERGED** | 2026-06-12 | 2026-06-16 | PR #192 develop@60249ccc | Lane B PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65; pr-reviewer APPROVE; CI green; POL-14 BC-2.16.007 status:draft→active (lifecycle_status already active — legacy sync); BC-2.16.001+BC-2.11.001 idempotent; non-exhaustive EXPECTED 64→66 (+2 pub types: TableNotAvailableDetails + TableRegistry); DRIFT-S313-EVIDENCE-STALE-SHA tracked; BOTH open lanes CLOSED |
 
 ## Current Phase Steps
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log._
+| D-1204 | state-manager | 2026-06-16 | **S-3.13 POST-MERGE DURABILITY BURST (TD-VSDD-053 single-commit).** develop_head bec894a2→60249ccc (PR #192 squash-merged 2026-06-16). **POL-14 BC promotions:** BC-2.16.007 status: draft→active (lifecycle_status was already active — legacy-field sync only; no active_contracts/draft_contracts count change; active 235 / draft 2 UNCHANGED). BC-2.16.001: idempotent (already active). BC-2.11.001: idempotent (already active). **Actual flips: BC-2.16.007 only.** **Story:** S-3.13 status: ready→merged; story v1.19→v1.20; merged_pr 192, merged_sha 60249ccc, merged_at 2026-06-16. **BOTH lanes NOW CLOSED.** **Drift items:** DRIFT-S313-EVIDENCE-STALE-SHA — merged docs/demo-evidence/S-3.13/evidence-report.md cites pre-rebase SHA 148ed284 + understated test counts 22/25 vs actual 31; cosmetic provenance staleness; all referenced tests pass CI; fix on next docs touch / maintenance sweep. DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 OPEN (unchanged). **D-1203 date typo corrected:** STORY-INDEX v2.419 row date 2026-06-17→2026-06-16. **Non-exhaustive reconciliation CONFIRMED:** develop@60249ccc ci.yml EXPECTED=66 + CLAUDE.md reads '66 types...EXPECTED=66' (cumulative S-5.02 +4 + S-3.13 +2; local checkout stale at bec894a2; origin authoritative). **L-POST roadmap NOW UNBLOCKED:** S-5.03 (depends S-5.02+S-3.13 both merged), S-5.04, T13 capstone SOC-analyst narrative (PO+story-writer), T14 demo recording. OPEN USER SCOPING QUESTION: PIVOT-002/003 (+S-1.14-REDO) demo-blocking vs post-demo. BC-INDEX v6.68→v6.69. STORY-INDEX v2.419→v2.420. STATE v7.846→v7.847. |
 | D-1202 | state-manager | 2026-06-17 | **S-5.02 POST-MERGE DURABILITY BURST (TD-VSDD-053 single-commit).** develop_head 1b2e9a31→bec894a2 (PR #191 squash-merged 2026-06-17). **POL-14 BC promotions:** BC-2.10.004 idempotent (status already active); BC-2.10.007 idempotent (status already active); BC-2.10.011 status: draft→active (lifecycle_status was already active — legacy-field sync only; no active_contracts/draft_contracts count change; active 235 / draft 2 UNCHANGED). **Story:** S-5.02 status: ready→merged; story v1.12→v1.13; merged_pr 191, merged_sha bec894a2, merged_at 2026-06-17. **Lane A CLOSED.** **Lane B (S-3.13 PR #192 @7f192e31):** NEXT ACTION — rebase onto develop@bec894a2; set ci.yml EXPECTED=66; set CLAUDE.md count=66 (cumulative S-5.02+S-3.13); then PR-LEVEL 3-CLEAN(strict) cascade. **DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001** remains open (wave-gate follow-up, BC-2.11.001). **Non-exhaustive gate:** ci.yml EXPECTED now 64 on develop (S-5.02 added 4 pub types: StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus); CLAUDE.md count transient 60 until S-3.13 merge (ci.yml is enforced authority). BC-INDEX v6.67→v6.68. STORY-INDEX v2.417→v2.418. STATE v7.844→v7.845. |
 | D-1203 | state-manager | 2026-06-17 | **LANE-B PROPAGATION FIXES + BOOKKEEPING DURABILITY BURST (TD-VSDD-053 single-commit).** develop_head UNCHANGED bec894a2. **Lane B (S-3.13 PR #192):** PR-LEVEL pass-1 CLEAN(strict); pass-2 found **F-S313-PRL-MED-001** — error-taxonomy E-QUERY-037 row described enumeration as global (not org-scoped) per ADR-039 v1.1 / BC-2.11.001 v1.9 — CLOSED via **error-taxonomy v1.85→v1.86**. Proactive same-surface propagation sweep also found + closed interface-definitions.md explain_query `outputSchema` missing org-scoped `available_tables` field (SEC-003 CWE-200 gap per ADR-039 fix) → **interface-definitions v2.7→v2.8**. Feature HEAD UNCHANGED; fixes are .factory/-only. **Bookkeeping fix:** S-3.13 frozen HEAD updated 7f192e31→47a6ad65 (rebase onto develop@bec894a2 + ci.yml EXPECTED=66 + CLAUDE.md count=66 applied before this burst; all current-state prose corrected). **PR-LEVEL 3-CLEAN re-gate from 0/3 on 47a6ad65 NEXT.** **[PROCESS-GAP codified]:** ADR §Required Implementation Changes / file-list should enumerate same-surface PRD supplements (error-taxonomy.md, interface-definitions.md) that a contract amendment must propagate to. ADR-039 omitted them, causing F-S313-PRL-MED-001 + the interface-definitions gap to surface late in the cascade. Recorded as process-improvement follow-up per Cycle-Closing Checklist (not a story-blocker). Lane A CLOSED (D-1202). STORY-INDEX v2.418→v2.419. error_taxonomy_version 1.85→1.86. STATE v7.845→v7.846. |
 | D-1200 | state-manager | 2026-06-16 | **DUAL-LANE DURABILITY BURST (TD-VSDD-053 single-commit).** No code change; develop_head UNCHANGED 1b2e9a31. **Lane A (S-5.02 PR #191 @9b605f2c):** PR-LEVEL pass-1 (on 77ceb5e5) found 2 LOW — F-S502-PRL-LOW-1 (evidence-report Option<u64> prose) CLOSED @9b605f2c (pushed); F-S502-PRL-LOW-2 (Red Gate test-name drift — 7 names reconciled to shipped verbatim) CLOSED via story v1.12 (spec-only; feature HEAD UNCHANGED; push to @9b605f2c reflects prior low-fix). Hollow-integration PASS. PR-LEVEL 3-CLEAN re-gate NEXT on frozen 9b605f2c (streak 0/3). DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 SPEC-ACCEPTED — do NOT re-raise. DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 registered (out-of-perimeter). **Lane B (S-3.13 PR #192 @c8175395):** PR-LEVEL pass-1 (on 3338a8c3) confirmed SEC-001/002/003+NB-1+CR-002 all CLOSED (security CLEAR); MED-1 (AC-10 test-location drift — table_registry_tests.rs→explain_tests.rs at 3 sites; production-path engine.rs test enrolled; red_gate_tests 29→30) CLOSED via story v1.18; OBS-1 (substring→exact-membership assertions) + OBS-2 (explain.rs single-snapshot sensor_by_table_snapshot accessor; BC-2.16.002 v1.80) CLOSED @c8175395. PR-LEVEL 3-CLEAN re-gate NEXT on frozen c8175395 (streak 0/3). S-3.13 branch EXPECTED=62. Merge-coord at merge: S-5.02 branch EXPECTED=64, S-3.13 branch EXPECTED=62 → cumulative 66; CLAUDE.md project-root count + edit orchestrator-owned at merge. STORY-INDEX v2.415→v2.416. BC-INDEX v6.66→v6.67. BC-2.16.002 v1.79→v1.80. S-5.02 v1.11→v1.12. S-3.13 v1.17→v1.18. STATE v7.842→v7.843. |
@@ -252,19 +254,19 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 
 Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archive-D700-D1054.md · decisions-archive-D1055-D1123.md · **decisions-archive-D1124-D1138.md** · **drift-items-resolved.md** · **phase-5-deferred-findings.md** · frontmatter-cascade-archive.md · session-handoff-archive.md · convergence-trajectory.md · lessons.md. Prior cycles: wave-0-plugin-prereqs/ · wave-3-multi-tenant/ · wave-4-operations/.
 
-_PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). OPEN: PR #192 S-3.13 v1.19 @47a6ad65 (ALL findings CLOSED; error-taxonomy v1.86 + interface-definitions v2.8 propagated; PR-LEVEL 3-CLEAN 0/3 NEXT on frozen 47a6ad65). SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1203 durability bursts)._
+_PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1203 — 2026-06-17; STATE v7.846)
+## Session Resume Checkpoint (D-1204 — 2026-06-16; STATE v7.847)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1196**. Read that first (D-1197..D-1203 are spec/bookkeeping durability bursts; SESSION-HANDOFF resume snapshot D-1196 remains authoritative for code state).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1196**. Read that first (D-1197..D-1204 are spec/bookkeeping/merge durability bursts; SESSION-HANDOFF resume snapshot D-1196 remains authoritative for code state).
 
-**STATE v7.846. CURRENT POSITION: T11+T12 DONE + Lane A (S-5.02) MERGED. develop@bec894a2. total_stories 201. OPEN PRs: PR #192 (S-3.13 v1.19 @47a6ad65 — ALL findings CLOSED; error-taxonomy v1.86 + interface-definitions v2.8; PR-LEVEL 3-CLEAN re-gate NEXT 0/3 on frozen 47a6ad65). MERGE-COORD: S-3.13 branch EXPECTED=66; ci.yml EXPECTED=66; CLAUDE.md count=66 (all applied before this burst). OPEN SCOPING QUESTION: PIVOT-002/003 demo-blocking vs post-demo (user confirmation needed). error-taxonomy v1.86. BC-2.10.007 v1.8. bc_index_version 6.68. story_index_version v2.419. arch_index_version 2.135.**
+**STATE v7.847. CURRENT POSITION: ALL LANES CLOSED. develop@60249ccc. total_stories 201. NO OPEN PRs. L-POST roadmap UNBLOCKED: S-5.03 (depends S-5.02+S-3.13 both merged; story v1.13 exists — run remove-uncertainty before TDD) → S-5.04 → T13 capstone (not-authored) → T14 demo recording. OPEN SCOPING QUESTION: PIVOT-002/003 demo-blocking vs post-demo (user confirmation needed). Non-exhaustive CONFIRMED: ci.yml EXPECTED=66 + CLAUDE.md '66 types'. bc_index_version 6.69. story_index_version v2.420. arch_index_version 2.135. error_taxonomy_version 1.86.**
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1196. It is authoritative. D-1197..D-1203 are spec/bookkeeping bursts; code state per D-1202 (develop@bec894a2).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1196. It is authoritative. D-1197..D-1204 are spec/bookkeeping bursts.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `bec894a2`.
-3. Per worktree: `git -C .worktrees/S-3.13 rev-parse --short HEAD` → expect `47a6ad65` (ALL findings closed; error-taxonomy v1.86 + interface-definitions v2.8 propagated; PR-LEVEL 3-CLEAN re-gate 0/3 NEXT; ci.yml EXPECTED=66; CLAUDE.md count=66).
-4. `gh pr view 192` (S-3.13 @47a6ad65; PR-LEVEL 3-CLEAN 0/3 NEXT).
+2. `git log --oneline -1 origin/develop` → expect `60249ccc`.
+3. Worktrees .worktrees/S-3.13 + .worktrees/S-5.02 are STALE (cleanup pending; devops-engineer). .worktrees/S-3.09 (FROZEN) + W3-FIX-S307-001 (BLOCKED superseded) — leave alone.
+4. NO open PRs. Execute L-POST: dispatch story-writer for S-5.03 TDD setup, then `dclaude:remove-uncertainty` before TDD.
 5. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
 6. **NEXT ACTIONS:** Lane B (S-3.13): PR-LEVEL adversary pass-1 on frozen 47a6ad65 (streak 0/3). At convergence, S-3.13 merges second (second-to-merge; EXPECTED already 66 on branch). Then S-5.03 → S-5.04 → T13 → T14. ASK USER: PIVOT-002/003 demo-blocking or post-demo.

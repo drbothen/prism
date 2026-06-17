@@ -1,20 +1,22 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.846"
+version: "7.847"
 status: current
-timestamp: 2026-06-17T01:00:00Z
+timestamp: 2026-06-16T23:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1203 BURST (2026-06-17) — LANE-B PROPAGATION FIXES + BOOKKEEPING: develop_head bec894a2 UNCHANGED. error-taxonomy v1.86 (E-QUERY-037 org-scoped per ADR-039; F-S313-PRL-MED-001 CLOSED). interface-definitions v2.8 (explain_query outputSchema org-scoped available_tables; SEC-003 CLOSED). S-3.13 frozen HEAD 7f192e31→47a6ad65 (post-rebase@bec894a2 + ci.yml EXPECTED=66 + CLAUDE.md count=66). PR #192 S-3.13 @47a6ad65 PR-LEVEL 3-CLEAN 0/3 NEXT. Process-gap codified: ADR §Required Implementation Changes must enumerate same-surface PRD supplements. STORY-INDEX v2.419. STATE v7.846.**
+> **D-1204 BURST (2026-06-16) — S-3.13 POST-MERGE: develop_head bec894a2→60249ccc (PR #192 squash-merged). BOTH open lanes CLOSED: Lane A (S-5.02 D-1202) + Lane B (S-3.13 D-1204). POL-14 BC-2.16.007 status:draft→active (only actual flip; BC-2.16.001+BC-2.11.001 idempotent). D-1203 date typo corrected (2026-06-17→2026-06-16). DRIFT-S313-EVIDENCE-STALE-SHA tracked (cosmetic; all tests pass CI). Non-exhaustive reconciliation CONFIRMED: develop@60249ccc ci.yml EXPECTED=66 + CLAUDE.md '66 types'. L-POST roadmap unblocked: S-5.03→S-5.04→T13→T14. BC-INDEX v6.69. STORY-INDEX v2.420. STATE v7.847.**
+>
+> **D-1203 BURST (2026-06-16) — LANE-B PROPAGATION FIXES + BOOKKEEPING: develop_head bec894a2 UNCHANGED. error-taxonomy v1.86 (E-QUERY-037 org-scoped per ADR-039; F-S313-PRL-MED-001 CLOSED). interface-definitions v2.8 (explain_query outputSchema org-scoped available_tables; SEC-003 CLOSED). S-3.13 frozen HEAD 7f192e31→47a6ad65 (post-rebase@bec894a2 + ci.yml EXPECTED=66 + CLAUDE.md count=66). PR #192 S-3.13 @47a6ad65 PR-LEVEL 3-CLEAN 0/3 NEXT. Process-gap codified: ADR §Required Implementation Changes must enumerate same-surface PRD supplements. STORY-INDEX v2.419. STATE v7.846.**
 >
 > **D-1202 BURST (2026-06-17) — S-5.02 POST-MERGE: develop_head bec894a2. PR #191 S-5.02 MERGED (PR-LEVEL 3/3 strict on frozen 86842768; CI 43/43; POL-14 BC-2.10.011 status:draft→active). BC-INDEX v6.68. STORY-INDEX v2.418. STATE v7.845.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1196 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1195 notes SUPERSEDED. D-1197..D-1202 durability bursts layer on top of D-1196.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1196 below (with D-1202 overlay) are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
-> develop HEAD `bec894a2` (feat(S-5.02): MCP tool routing, structured error responses, tri-state client scoping; D-1202 merge). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1203 burst). STATE v7.846.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1196 below (contains RESTART PROTOCOL + TASK LEDGER), then STATE.md frontmatter. All prior D-1101..D-1195 notes SUPERSEDED. D-1197..D-1204 durability bursts layer on top of D-1196.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md frontmatter (`develop_head`, `current_step`) + §RESUME SNAPSHOT D-1196 below (with D-1204 overlay) are AUTHORITATIVE for current position and next action. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE and NARRATIVE reference — its STATUS values track build progress but it is NOT the live pipeline position tracker.
+> develop HEAD `60249ccc` (feat(S-3.13): dynamic table availability — TableRegistry + E-QUERY-037 plan-time gate; D-1204 merge). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization; D-1204 burst). STATE v7.847.
 
 ---
 
@@ -102,7 +104,7 @@ A fresh session with NO prior context runs these steps in order before taking an
 ```bash
 git log --oneline -1 origin/develop
 ```
-Expected: `bec894a2` (or newer if a lane merged since D-1202).
+Expected: `60249ccc` (or newer if additional work has merged since D-1204).
 
 **Step 3.** Verify each worktree HEAD against PINNED STATE below:
 ```bash
@@ -129,7 +131,7 @@ gh pr view 192  # S-3.13 — expect: OPEN, base develop, head 87c0008e
 
 | Artifact | Value | Notes |
 |----------|-------|-------|
-| develop HEAD | `bec894a2` | feat(S-5.02): MCP tool routing, structured error responses, tri-state client scoping; D-1202. (Prior: 1b2e9a31 at D-1192.) |
+| develop HEAD | `60249ccc` | feat(S-3.13): dynamic table availability — TableRegistry + E-QUERY-037 plan-time gate; D-1204. (Prior: bec894a2 at D-1202; 1b2e9a31 at D-1192.) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
 | S-DEMO-004 worktree | REMOVED | feature/S-DEMO-004 DELETED — PR #188 MERGED develop@7241f5ef |
 | PIVOT-001 worktree | STALE (PR MERGED) | feature/S-DEMO-ENRICHMENT-PIVOT-001 DELETED at merge; PR #189 MERGED develop@1b2e9a31; T12 DONE; worktree .worktrees/S-DEMO-ENRICHMENT-PIVOT-001 still mounted (cleanup pending) |
@@ -158,14 +160,14 @@ gh pr view 192  # S-3.13 — expect: OPEN, base develop, head 87c0008e
 
 ### TASK LEDGER (durable; replaces orchestrator in-session task list)
 
-Execute Lanes A and B in parallel; both are independent (no engine.rs conflict between prism-mcp and prism-query).
+**BOTH LANES CLOSED (D-1204 2026-06-16).** L-POST roadmap now unblocked. See L-POST row.
 
 | ID | Status | Task | Agent | Notes |
 |----|--------|------|-------|-------|
-| **L-A** | **PR #191 OPEN — PR-LEVEL 2/3 — PUSH-PENDING** | S-5.02 v1.10: worktree HEAD 9763a25a; origin @aa796518. FIRST ACTION: push 9763a25a to origin/feature/S-5.02 (devops-engineer or direct git push). Then: re-gate PR-LEVEL 3-CLEAN on frozen 9763a25a. DO NOT re-raise DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 (SPEC-ACCEPTED by orchestrator; AD-017 intentional; BC-2.10.007 §Category test vectors assert category-only for internal variants). After CLEAN 3/3: final pr-reviewer + security on frozen HEAD → merge. Orchestrator sets EXPECTED 60→64 + CLAUDE.md count at merge. Count bump: S-5.02 adds 4 pub types (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus) → EXPECTED=64. | devops-engineer (push) → adversary → pr-reviewer → security → pr-manager | INDEPENDENT of S-3.13. Frozen-HEAD rule: do NOT push any more commits mid-3-CLEAN cascade after 9763a25a is pushed. |
-| **L-B** | **PR #192 OPEN — FIX-BURST PENDING** | S-3.13 v1.15: @87c0008e. pr-reviewer APPROVE (0 blocking) + security APPROVE received. PENDING FIX-BURST (implementer dispatch died on transient API error — dispatch again): (1) NB-1: RwLock poison on read path returns fail-closed default SILENTLY — add tracing::error!/warn! at the poison site; KEEP fail-closed (not a safety regression, a visibility fix). (2) SEC-002 LOW CWE-407: add 128-char cap on user-supplied table name before passing to TableRegistry::did_you_mean Levenshtein computation; add test. (3) SEC-001 MEDIUM CWE-200: E-QUERY-037 error variant enumerates all configured sensor/table names to MCP caller — assess whether the list respects the requesting client's org scope; if it leaks cross-org names, fix to scope-to-client; if it correctly scopes, document and surface as an explicit design decision for human review — do NOT guess. After fix-burst commits: push → pr-reviewer re-review + security re-review → PR-LEVEL 3-CLEAN(strict) → merge. Count bump: +1 pub type (TableNotAvailableDetails) → orchestrator sets cumulative EXPECTED at merge. | implementer (fix-burst) → devops-engineer (push) → pr-reviewer → security → adversary → pr-manager | INDEPENDENT of S-5.02. S-5.03 depends_on S-3.13 MERGED. |
+| **L-A** | **CLOSED — MERGED** | S-5.02: PR #191 squash-merged develop@bec894a2 2026-06-17. PR-LEVEL 3/3 strict CONVERGED on frozen 86842768. POL-14 BC-2.10.011 status:draft→active. EXPECTED=64. D-1202. | — | CLOSED. |
+| **L-B** | **CLOSED — MERGED** | S-3.13: PR #192 squash-merged develop@60249ccc 2026-06-16. PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65. POL-14 BC-2.16.007 status:draft→active. EXPECTED=66. D-1204. | — | CLOSED. |
 | **L-T10/T11/T12** | **DONE** | S-DEMO-004 PR #188 MERGED develop@7241f5ef. LAUNCHER PR #190 MERGED develop@c3ecf6c8. PIVOT-001 PR #189 MERGED develop@1b2e9a31. | — | CLOSED. |
-| **L-POST** | BLOCKED-ON-L-A,L-B | After both A+B merge: S-5.03 (depends S-5.02+S-3.13 merged; story v1.13 exists — remove-uncertainty before TDD) → S-5.04 → T13 capstone SOC-analyst narrative (PO+story-writer) → T14 demo recording. PIVOT-002/003/S-1.14-REDO: scoping PENDING user confirmation (see Open Scoping Question below). | story-writer → implementer → demo-recorder | S-5.03 BC-2.16.007 anchor; S-5.04 depends_on S-5.03; T13 not-authored. |
+| **L-POST** | **UNBLOCKED** | Both A+B merged. NEXT: S-5.03 (depends S-5.02+S-3.13 merged; story v1.13 exists — run remove-uncertainty before TDD) → S-5.04 → T13 capstone SOC-analyst narrative (PO+story-writer; not-authored) → T14 demo recording. PIVOT-002/003/S-1.14-REDO: scoping PENDING user confirmation (see Open Scoping Question below). | story-writer → implementer → demo-recorder | S-5.03 BC-2.16.007 anchor; S-5.04 depends_on S-5.03; T13 not-authored. |
 
 **Convergence rule (all lanes):** every lane needs 3 CONSECUTIVE CLEAN(strict) passes. Any finding resets streak to 0/3. Orchestrator drives cascade (pr-manager lacks Agent tool).
 
@@ -215,6 +217,8 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 | LAUNCHER PR #190 — all closures | MERGED develop@c3ecf6c8 (T11 DONE). All findings closed. DO-NOT-REFLAG. | PR #190 merged 2026-06-16 |
 | PIVOT-001 PR #189 — all closures | MERGED develop@1b2e9a31 (T12 DONE). All findings closed. 3 security LOWs deferred to PIVOT-002. DO-NOT-REFLAG. | PR #189 merged 2026-06-16 |
 | All T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) PR-LEVEL closures | FULLY CONVERGED (29 passes, merged PR #185). See §3 T5 STORY STATUS and cascade ledger below. | PR #185 merged develop@7fd35b77 |
+| S-5.02 PR #191 — all closures | MERGED develop@bec894a2 (D-1202 Lane A DONE). All findings closed. POL-14 BC-2.10.011 status:draft→active. DO-NOT-REFLAG. | PR #191 merged 2026-06-17 |
+| S-3.13 PR #192 — all closures | MERGED develop@60249ccc (D-1204 Lane B DONE). NB-1+SEC-001+SEC-002 CLOSED; PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65. POL-14 BC-2.16.007 status:draft→active. DRIFT-S313-EVIDENCE-STALE-SHA tracked (cosmetic provenance; non-blocker). DO-NOT-REFLAG any S-3.13 finding. | PR #192 merged 2026-06-16 |
 
 ---
 
@@ -227,8 +231,8 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 | **T10 (DONE)** | S-DEMO-004 | REMOVED | `feature/S-DEMO-004 (DELETED)` | — | **MERGED PR #188 develop@7241f5ef** | **CLOSED.** |
 | **T11 (DONE)** | LAUNCHER | STALE (cleanup pending) | `feature/S-DEMO-LAUNCHER-CONSOLIDATION-001 (DELETED)` | — | **MERGED PR #190 develop@c3ecf6c8** | **CLOSED.** T11 DONE. |
 | **T12 (DONE)** | PIVOT-001 | STALE (cleanup pending) | `feature/S-DEMO-ENRICHMENT-PIVOT-001 (DELETED)` | — | **MERGED PR #189 develop@1b2e9a31** | **CLOSED.** T12 DONE. |
-| **Lane A** | S-5.02 | `/Users/jmagady/Dev/prism/.worktrees/S-5.02` | `feature/S-5.02` | worktree `9763a25a` / origin `aa796518` PUSH-PENDING | PR-LEVEL **2/3** (streak on d1c69e44) | **FIRST ACTION: push 9763a25a to origin.** Then: re-gate PR-LEVEL 3-CLEAN on frozen 9763a25a (do NOT re-raise DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001) → final pr-reviewer + security → merge. EXPECTED=64 at merge. |
-| **Lane B** | S-3.13 | `/Users/jmagady/Dev/prism/.worktrees/S-3.13` | `feature/S-3.13` | `87c0008e` | fix-burst PENDING; PR #192 OPEN | **fix-burst (NB-1+SEC-002+SEC-001)** → push → pr-reviewer + security re-review → PR-LEVEL 3-CLEAN(strict) → merge. Story v1.15 (ACs 7 / RG 22). EXPECTED=61 at merge. |
+| **Lane A (CLOSED)** | S-5.02 | STALE (cleanup pending) | `feature/S-5.02 (DELETED)` | — | **MERGED PR #191 develop@bec894a2** | **CLOSED.** D-1202 2026-06-17. POL-14 BC-2.10.011 status:draft→active. EXPECTED=64. |
+| **Lane B (CLOSED)** | S-3.13 | STALE (cleanup pending) | `feature/S-3.13 (DELETED)` | — | **MERGED PR #192 develop@60249ccc** | **CLOSED.** D-1204 2026-06-16. POL-14 BC-2.16.007 status:draft→active. EXPECTED=66. |
 | **Lane D** | — | — | — | — | **CLOSED** (D-1168) | S-1.15 DROPPED. Permanently closed. |
 
 ---
@@ -291,32 +295,26 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 
 ---
 
-### INDEX VERSIONS (as of D-1196 snapshot)
+### INDEX VERSIONS (updated through D-1204)
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.839 | D-1196 burst; develop_head 1b2e9a31; DRIFT-MCP-INTERNAL-CODE-GRANULARITY-001 registered |
-| BC-INDEX | v6.64 | active 235 / draft 2 / retired 6; total 250; BC-2.10.007 v1.8 (D-1191); BC-2.10.011 v1.6 |
-| STORY-INDEX | v2.412 | 201 stories; S-5.02 v1.10 (D-1194); S-3.13 v1.15 @87c0008e PR #192; PIVOT-001 v1.12 MERGED; LAUNCHER v2.10 MERGED |
-| error-taxonomy | v1.85 | BC-2.16.001 + BC-2.16.007 table-naming convention sweep dot→underscore; E-AUTH-001/002/003 collision documented; E-AUTH-010/011/020 ratified |
-| ARCH-INDEX | v2.133 | — |
+| STATE.md | v7.847 | D-1204 burst; develop_head 60249ccc; BOTH lanes CLOSED |
+| BC-INDEX | v6.69 | active 235 / draft 2 / retired 6; total 250; BC-2.16.007 v1.6 (D-1204 POL-14 draft→active legacy-field sync) |
+| STORY-INDEX | v2.420 | 201 stories; S-3.13 v1.20 MERGED PR #192; S-5.02 v1.13 MERGED PR #191 |
+| error-taxonomy | v1.86 | E-QUERY-037 org-scoped enumeration (D-1203 F-S313-PRL-MED-001 CLOSED) |
+| ARCH-INDEX | v2.135 | ADR-039 v1.1 (D-1198) |
 | VP-INDEX | v1.79 | 157 registered |
 | prd | v1.12 | — |
 | policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes |
 | prismql-grammar | v1.1 | enrich function-call form |
-| develop HEAD | `1b2e9a31` | feat(S-DEMO-ENRICHMENT-PIVOT-001) commit 2026-06-16 D-1192; UNCHANGED through D-1196 |
-| Open PRs | PR #191 + PR #192 | PR #191 OPEN (S-5.02 v1.10 @9763a25a PUSH-PENDING — origin @aa796518; PR-LEVEL 2/3; streak on d1c69e44). PR #192 OPEN (S-3.13 @87c0008e; fix-burst pending NB-1+SEC-002+SEC-001). PR #189+#190 MERGED. |
+| develop HEAD | `60249ccc` | feat(S-3.13): dynamic table availability; D-1204 merge |
+| Open PRs | NONE | PR #191 MERGED (S-5.02 develop@bec894a2 D-1202). PR #192 MERGED (S-3.13 develop@60249ccc D-1204). All lanes CLOSED. |
 
-### MERGE COORDINATION
+### MERGE COORDINATION (COMPLETE — D-1204)
 
-- **S-5.02** (prism-mcp) and **S-3.13** (prism-query) are INDEPENDENT — no engine.rs conflict between them. PIVOT-001 (which had the engine.rs conflict with S-3.13) has already MERGED. S-3.13 is already rebased onto develop@1b2e9a31.
-- Both can merge in any order. The second-to-merge MUST rebase onto post-first-merge develop.
-- **Cumulative #[non_exhaustive] count at merge** (orchestrator owns CLAUDE.md count edits per D-1178):
-  - develop current: 60 (ci.yml EXPECTED=60; gate is a FLOOR `-lt`)
-  - S-5.02 branch adds: +4 (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus) → EXPECTED=64 at S-5.02 merge
-  - S-3.13 branch adds: +1 (TableNotAvailableDetails) → EXPECTED=61 at S-3.13 merge (or +1 more if S-5.02 merged first → 65)
-  - Cumulative EXPECTED=65 after both merged (regardless of order)
-  - LAUNCHER + PIVOT do NOT bump the gate (types outside the gated crates / compile-fail set)
+- **S-5.02** MERGED PR #191 develop@bec894a2 (D-1202 2026-06-17). **S-3.13** MERGED PR #192 develop@60249ccc (D-1204 2026-06-16). BOTH lanes CLOSED.
+- **Cumulative #[non_exhaustive] count RECONCILED** (develop@60249ccc): EXPECTED=66. ci.yml EXPECTED=66 CONFIRMED. CLAUDE.md reads '66 types...EXPECTED=66' CONFIRMED. S-5.02 +4 (StructuredErrorFields, CapabilityEntry, ResolutionStep, CapabilityStatus) + S-3.13 +2 (TableNotAvailableDetails + TableRegistry) = 66 total. Consistent across ci.yml / CLAUDE.md on develop@60249ccc.
 
 ### POST-LANE ROADMAP (North Star = multi-client SOC-analyst live demo)
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.68"
+version: "6.69"
 status: draft
 producer: state-manager
 timestamp: 2026-06-17T00:00:00Z
@@ -222,7 +222,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
-| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft — v1.5 |
+| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | active (promoted draft→active D-1204 per POL-14; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16) — v1.6 |
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.10 |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.69 (2026-06-16, D-1204 S-3.13 post-merge durability burst):** state-manager | POL-14 legacy-status-field sync: BC-2.16.007 inline row: draft→active — v1.5→v1.6; BC-2.16.007 file frontmatter: status draft→active (lifecycle_status was already active; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16). BC-2.16.001: status already active — idempotent no-op. BC-2.11.001: status already active — idempotent no-op. No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — BC-2.16.007 had lifecycle_status:active before this burst and was never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.68→v6.69.
 
 **v6.68 (2026-06-17, D-1202 S-5.02 post-merge durability burst):** state-manager | POL-14 legacy-status-field sync: BC-2.10.011 inline row and file frontmatter: status draft→active (lifecycle_status was already active; anchor story S-5.02 merged PR #191 develop@bec894a2 2026-06-17). BC-2.10.004: status already active — idempotent no-op. BC-2.10.007: status already active — idempotent no-op. No lifecycle_status flip on any BC. No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — BC-2.10.011 had lifecycle_status:active before this burst and was never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.67→v6.68.
 
