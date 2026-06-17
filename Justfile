@@ -294,32 +294,7 @@ build-plugin-threatintel-infusion:
         (echo "ERROR: threatintel-lookup.prx is a core WASM module, not a Component"; exit 1)
     @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
 
-# S-DEMO-ENRICHMENT-PIVOT-002: Build prism-nvd-infusion WASM plugin → .prx artifact.
-# Pattern mirrors build-plugin-crowdstrike-oauth2 (U14/Ruling 4).
-# Output: crates/prism-spec-engine/plugins/nvd-lookup/nvd-lookup.prx
-build-plugin-nvd-infusion:
-    @echo "Building prism-nvd-infusion plugin (wasm32-wasip1 → Component)"
-    test -f tests/fixtures/wasi_snapshot_preview1.wasm || \
-        (echo "ERROR: tests/fixtures/wasi_snapshot_preview1.wasm is missing (required for --adapt)"; exit 1)
-    cargo build \
-        --manifest-path crates/plugins/prism-nvd-infusion/Cargo.toml \
-        --target wasm32-wasip1 \
-        --release
-    @echo "Lifting to WASM Component via wasm-tools..."
-    mkdir -p crates/prism-spec-engine/plugins/nvd-lookup
-    wasm-tools component new \
-        target/wasm32-wasip1/release/prism_nvd_infusion.wasm \
-        --adapt wasi_snapshot_preview1=tests/fixtures/wasi_snapshot_preview1.wasm \
-        -o crates/prism-spec-engine/plugins/nvd-lookup/nvd-lookup.prx || \
-        (echo "ERROR: wasm-tools component new --adapt failed — build aborted"; exit 1)
-    @echo "Validating Component Model binary..."
-    wasm-tools validate \
-        --features=component-model \
-        crates/prism-spec-engine/plugins/nvd-lookup/nvd-lookup.prx || \
-        (echo "ERROR: nvd-lookup.prx failed Component Model validation"; exit 1)
-    wasm-tools print \
-        crates/prism-spec-engine/plugins/nvd-lookup/nvd-lookup.prx | \
-        grep -q '(component' || \
-        (echo "ERROR: nvd-lookup.prx is a core WASM module, not a Component"; exit 1)
-    @echo "Done: crates/prism-spec-engine/plugins/nvd-lookup/nvd-lookup.prx"
+# S-DEMO-ENRICHMENT-PIVOT-002 v1.3: build-plugin-nvd-infusion REMOVED (ADR-040 D9).
+# NVD enrichment is now served by InfusionType::HttpLookup (permanent built-in).
+# The prism-nvd-infusion WASM plugin crate has been deleted.
 

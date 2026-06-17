@@ -55,6 +55,9 @@ pub enum InfusionType {
     /// WASM plugin delegation (may make external HTTP calls).
     /// PROHIBITED in detection rule filters (E-RULE-012).
     Plugin,
+    /// HTTP lookup (single GET → JSONPath extraction). PROHIBITED in detection rule filters
+    /// (E-RULE-012) — API-backed.
+    HttpLookup,
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +305,99 @@ impl PluginConfig {
 }
 
 // ---------------------------------------------------------------------------
+// HttpLookup configuration (ADR-040 v2.0 D8.2)
+// ---------------------------------------------------------------------------
+
+/// Authentication type for HTTP lookup credentials.
+///
+/// `#[non_exhaustive]`: forward-compat for new auth mechanisms.
+/// External match arms must include a wildcard arm.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HttpLookupAuthType {
+    /// Append `?{param_name}={credential_value}` to the URL.
+    QueryParam { param_name: String },
+    /// Add `Authorization: Bearer {credential_value}` header.
+    BearerHeader,
+    /// Add `{header_name}: {credential_value}` header.
+    ApiKeyHeader { header_name: String },
+}
+
+/// Credential configuration for an http_lookup-type infusion (AD-017).
+///
+/// The credential value is resolved at call time from `env_var`; it is NEVER stored
+/// in this struct. Only `ref_name` (logical name, safe to log) and `env_var` (name only,
+/// not value) are stored.
+///
+/// `#[non_exhaustive]`: forward-compat for new credential resolution mechanisms.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpLookupCredentialConfig {
+    /// Logical credential reference name (for diagnostics — safe to log).
+    pub ref_name: String,
+    /// Environment variable name from which the credential value is resolved at call time.
+    pub env_var: String,
+    /// How the resolved credential value is applied to the HTTP request.
+    pub auth: HttpLookupAuthType,
+}
+
+impl HttpLookupCredentialConfig {
+    /// Construct an `HttpLookupCredentialConfig`.
+    pub fn new(
+        ref_name: impl Into<String>,
+        env_var: impl Into<String>,
+        auth: HttpLookupAuthType,
+    ) -> Self {
+        Self {
+            ref_name: ref_name.into(),
+            env_var: env_var.into(),
+            auth,
+        }
+    }
+}
+
+/// Configuration for an `InfusionType::HttpLookup` infusion source.
+///
+/// Contains the HTTP endpoint specification and optional credential reference.
+/// Credential VALUES are never stored here — only references (AD-017).
+///
+/// `#[non_exhaustive]`: forward-compat for new HTTP configuration options.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpLookupConfig {
+    /// Base URL of the HTTP service (e.g., `"https://services.nvd.nist.gov"`).
+    pub base_url: String,
+    /// URL path template with `${input}` placeholder (e.g., `"/rest/json/cves/2.0?cveId=${input}"`).
+    pub url_template: String,
+    /// HTTP method: `"GET"` or `"POST"`.
+    pub method: String,
+    /// JSONPath to the subtree containing enrichment fields (e.g., `"$.vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData"`).
+    pub response_path: String,
+    /// Optional credential reference. `None` = unauthenticated.
+    pub credential: Option<HttpLookupCredentialConfig>,
+}
+
+impl HttpLookupConfig {
+    /// Construct an `HttpLookupConfig`.
+    pub fn new(
+        base_url: impl Into<String>,
+        url_template: impl Into<String>,
+        method: impl Into<String>,
+        response_path: impl Into<String>,
+        credential: Option<HttpLookupCredentialConfig>,
+    ) -> Self {
+        Self {
+            base_url: base_url.into(),
+            url_template: url_template.into(),
+            method: method.into(),
+            response_path: response_path.into(),
+            credential,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // InfusionSpec
 // ---------------------------------------------------------------------------
 
@@ -331,6 +427,8 @@ pub struct InfusionSpec {
     pub pipe_stage: Option<PipeStageConfig>,
     /// Plugin configuration (for Plugin infusions).
     pub plugin_config: Option<PluginConfig>,
+    /// HTTP lookup configuration (for HttpLookup infusions).
+    pub http_lookup_config: Option<HttpLookupConfig>,
     /// Credential references (AI-opaque — values resolved at runtime).
     pub credentials: Vec<CredentialRef>,
     /// Path of the source file this spec was loaded from.
@@ -349,6 +447,7 @@ impl Default for InfusionSpec {
             fields: vec![],
             pipe_stage: None,
             plugin_config: None,
+            http_lookup_config: None,
             credentials: vec![],
             source_path: String::new(),
             cache_ttl_secs: None,
@@ -376,6 +475,7 @@ impl InfusionSpec {
             fields,
             pipe_stage: None,
             plugin_config: None,
+            http_lookup_config: None,
             credentials: vec![],
             source_path: source_path.into(),
             cache_ttl_secs: None,
@@ -891,7 +991,10 @@ impl InfusionRegistry {
         if let Some(infusion_id) = current.udf_to_infusion.get(udf_name)
             && let Some((spec, _)) = current.entries.get(infusion_id)
         {
-            return spec.infusion_type == InfusionType::Plugin;
+            return matches!(
+                spec.infusion_type,
+                InfusionType::Plugin | InfusionType::HttpLookup
+            );
         }
         false
     }

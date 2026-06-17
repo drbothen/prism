@@ -354,6 +354,7 @@ impl InfusionLoader {
             fields,
             pipe_stage,
             plugin_config,
+            http_lookup_config: None, // S-DEMO-ENRICHMENT-PIVOT-002 v1.3: populated by implementer for http_lookup type
             credentials,
             source_path: source_path.to_string(),
             cache_ttl_secs: raw_infusion.cache_ttl_secs,

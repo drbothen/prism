@@ -1258,6 +1258,14 @@ pub enum InfusionError {
         infusion_id: String,
     },
 
+    /// E-INFUSE-006: Invalid field specification in infusion spec.
+    #[error("E-INFUSE-006: Invalid field '{field}' in infusion spec '{spec_path}': {message}")]
+    InvalidFieldSpec {
+        field: String,
+        spec_path: String,
+        message: String,
+    },
+
     /// E-INFUSE-008: Plugin infusion call failed at the WASM runtime boundary.
     ///
     /// Returned by `map_plugin_error_to_infusion_error` in `plugin_bridge.rs` when
@@ -1279,6 +1287,33 @@ pub enum InfusionError {
         /// Human-readable failure reason derived from PluginError display.
         /// Credential values MUST NOT appear here (INV-INFUSE-005 / AD-017).
         reason: String,
+    },
+
+    /// E-INFUSE-009: HTTP lookup failed for an http_lookup-type infusion.
+    /// `message` MUST NOT contain credential values (AD-017).
+    #[error("E-INFUSE-009: HTTP lookup failed for infusion '{infusion_id}' (spec: '{spec_path}'): {message}")]
+    HttpLookupFailed {
+        infusion_id: String,
+        spec_path: String,
+        status_code: Option<u16>,
+        message: String,
+    },
+
+    /// E-INFUSE-010: Credential resolution failed for an http_lookup-type infusion.
+    /// The env var name MUST NOT appear in the message (AD-017).
+    #[error("E-INFUSE-010: credential resolution failed for infusion '{infusion_id}' (spec: '{spec_path}'): credential '{credential_ref}' not available at call time")]
+    CredentialResolutionFailed {
+        infusion_id: String,
+        spec_path: String,
+        credential_ref: String,
+    },
+
+    /// E-INFUSE-011: SSRF protection rejected the base_url for an http_lookup-type infusion.
+    /// The resolved IP address MUST NOT appear in the message (CWE-209).
+    #[error("E-INFUSE-011: SSRF protection rejected infusion '{infusion_id}' (spec: '{spec_path}'): base_url resolves to a private or loopback address; set PRISM_DTU_MODE=true to override for test/demo deployments")]
+    SsrfRejected {
+        infusion_id: String,
+        spec_path: String,
     },
 
     /// E-INFUSE-012: Infusion source file exceeds `MAX_SOURCE_FILE_BYTES` (100 MiB).
@@ -1464,6 +1499,12 @@ pub enum PluginError {
          KV store (guest AuthError::ResponseParse or missing kv_set call): {message}"
     )]
     AuthTokenNotCached { plugin_id: String, message: String },
+
+    /// E-PLUGIN-023: Plugin `enrich-single` call completed but returned an invalid or
+    /// unparseable result — the JSON string returned by the guest could not be deserialized,
+    /// OR the Val type in `results[0]` was not the expected `Val::Option<Val::String>`.
+    #[error("plugin '{plugin_id}' enrich-single call failed: {reason}")]
+    EnrichCallFailed { plugin_id: String, reason: String },
 }
 
 // ---------------------------------------------------------------------------

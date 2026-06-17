@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-70 (52 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72 (54 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -1159,4 +1159,55 @@ pub fn v76_sensor_health_structured_content() {
         summary: "0 sensors".to_string(),
     };
     let _ = _content;
+}
+
+// ─── S-DEMO-ENRICHMENT-PIVOT-002 v1.3: http_lookup infusion types ─────────────
+//
+// These 2 structs are the configuration API surface for http_lookup-type infusions
+// (ADR-040 v2.0 D8.2). `#[non_exhaustive]` ensures new configuration fields can be
+// added without breaking downstream callers. Renumbered v77-v78 (S-5.03 used v71-v76).
+
+/// Violation 77: prism_spec_engine::infusion::HttpLookupCredentialConfig struct literal (E0639).
+///
+/// `HttpLookupCredentialConfig` is the credential configuration for http_lookup-type
+/// infusions (ADR-040 v2.0 D8.2). `#[non_exhaustive]` ensures external crates cannot
+/// use struct-literal construction — callers MUST use `HttpLookupCredentialConfig::new()`.
+/// Future fields (e.g., token_refresh_url, rotation_policy) can be added without breaking
+/// external callers.
+///
+/// Added: S-DEMO-ENRICHMENT-PIVOT-002 v1.3. Renumbered v77 (was v71 pre-rebase;
+/// S-5.03 claimed v71-v76 on develop@85ac7b06).
+#[allow(dead_code)]
+pub fn v77_http_lookup_credential_config() {
+    use prism_spec_engine::infusion::HttpLookupAuthType;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _cred = prism_spec_engine::infusion::HttpLookupCredentialConfig {
+        ref_name: "nvd.api_key".to_string(),
+        env_var: "PRISM_NVD_API_KEY".to_string(),
+        auth: HttpLookupAuthType::BearerHeader,
+    };
+    let _ = _cred;
+}
+
+/// Violation 78: prism_spec_engine::infusion::HttpLookupConfig struct literal (E0639).
+///
+/// `HttpLookupConfig` is the HTTP endpoint configuration for http_lookup-type infusions
+/// (ADR-040 v2.0 D8.2). `#[non_exhaustive]` ensures external crates cannot use
+/// struct-literal construction — callers MUST use `HttpLookupConfig::new()`.
+/// Future fields (e.g., timeout_secs, retry_count, custom_headers) can be added without
+/// breaking external callers.
+///
+/// Added: S-DEMO-ENRICHMENT-PIVOT-002 v1.3. Renumbered v78 (was v72 pre-rebase;
+/// S-5.03 claimed v71-v76 on develop@85ac7b06).
+#[allow(dead_code)]
+pub fn v78_http_lookup_config() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _cfg = prism_spec_engine::infusion::HttpLookupConfig {
+        base_url: "https://services.nvd.nist.gov".to_string(),
+        url_template: "/rest/json/cves/2.0?cveId=${input}".to_string(),
+        method: "GET".to_string(),
+        response_path: "$.vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData".to_string(),
+        credential: None,
+    };
+    let _ = _cfg;
 }

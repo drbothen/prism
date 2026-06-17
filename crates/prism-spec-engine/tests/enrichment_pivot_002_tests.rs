@@ -1,25 +1,26 @@
-//! S-DEMO-ENRICHMENT-PIVOT-002 Red Gate tests.
+//! S-DEMO-ENRICHMENT-PIVOT-002 Red Gate tests — v1.3.
 //!
-//! 19 tests covering ThreatIntel/NVD infusion specs, plugin loading, pipe stage
-//! integration, 6 mandatory security gates, SAP-2 DTU↔TOML parity, and additional
-//! BC-2.19.001 clause coverage (E-INFUSE-002 duplicate detection, EC-19-001 zero-field).
+//! 32 tests covering ThreatIntel/NVD infusion specs, plugin loading, pipe stage
+//! integration, 6 mandatory security gates, SAP-2 DTU↔TOML parity, HttpLookup
+//! architecture (ADR-040 v2.0), error taxonomy, SSRF protection, and Val-lift fix.
 //!
-//! Tests 1-2: TOML spec loading and UDF registration (AC-001, AC-002). GREEN-BY-DESIGN.
-//! Tests 3-6: Plugin integration tests requiring demo server (AC-003-006). RED.
+//! Tests 1-2: TOML spec loading and UDF registration (AC-001, AC-002). RED (loader stubs).
+//! Tests 3-6: InfusionSource boundary tests (AC-003-006). GREEN-BY-DESIGN.
 //! Tests 7-9: AC-007 UDF name identifier validation (SEC-001 CWE-20). RED.
 //! Test 10: AC-008 PluginInfusionSource.config not pub (SEC-002 CWE-200). GREEN-BY-DESIGN.
-//! Test 11: AC-009 SandboxViolation URL not in WARN log (SEC-003 CWE-209). RED.
-//! Test 12: AC-010 spawn_blocking gate for async UDF (CWE-400). RED.
-//! Tests 13-14: AC-011 path traversal rejection (SEC-003 CWE-22). RED (13: stub todo; 14: stub todo).
+//! Test 11: AC-009 SandboxViolation URL not in WARN log (SEC-003 CWE-209). GREEN-BY-DESIGN.
+//! Test 12: AC-010 spawn_blocking gate for async UDF (CWE-400). GREEN-BY-DESIGN.
+//! Tests 13-14: AC-011 path traversal rejection (SEC-003 CWE-22). RED (stub todo).
 //! Test 15: AC-012 load_all error does not leak absolute path (SEC-002 CWE-209). RED.
 //! Tests 16-17: SAP-2 DTU↔TOML parity (ThreatIntel + NVD column-to-field mapping). RED.
 //! Test 18: BC-2.19.001 E-INFUSE-002 duplicate UDF name rejection. RED.
 //! Test 19: BC-2.19.001 EC-19-001 zero-field spec rejection. RED.
+//! Tests 16-32 (v1.3 NEW): HttpLookup type parsing, error format, source construction,
+//!   SSRF protection, nvd crate removal, Val-lift fix. All RED (todo!() stubs).
 //!
-//! All tests are RED (failing) against the stubs — this is the Red Gate invariant.
-//! Tests 3-6 require the demo server running with scenario.enabled = true.
-//! Per SID-1, tests 3-6 are NOT #[ignore]'d — in-process demo server harness required.
-//! GREEN-BY-DESIGN tests (1, 2, 10): stubs already implemented these structural invariants.
+//! All RED tests fail against stubs — this is the Red Gate invariant (BC-5.38.001).
+//! GREEN-BY-DESIGN tests (3-6, 10, 11, 12): in-process mock sources; no external deps.
+//! Per SID-1, no tests are #[ignore]'d without a specific story ID and test name citation.
 
 #![allow(
     clippy::unwrap_used,
@@ -32,8 +33,10 @@
 use std::sync::Arc;
 
 use prism_core::InfusionError;
+use prism_spec_engine::infusion::sources::HttpLookupSource;
 use prism_spec_engine::{
-    InfusionLoader, InfusionRegistry, InfusionType, PluginConfigMap, PluginInfusionSource,
+    HttpLookupAuthType, HttpLookupConfig, HttpLookupCredentialConfig, InfusionLoader,
+    InfusionRegistry, InfusionSource, InfusionType, PluginConfigMap, PluginInfusionSource,
     PluginRuntime,
 };
 
@@ -118,22 +121,28 @@ fn test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 2: AC-002 — nvd.infusion.toml parses and loads as plugin-type
+// Test 2: AC-002 — nvd.infusion.toml parses and loads as http_lookup-type (v1.3 CHANGED)
 // ---------------------------------------------------------------------------
 
-/// AC-002 (BC-2.19.001 postcondition): nvd.infusion.toml parses and loads 3 UDFs.
+/// AC-002 (BC-2.19.001 postcondition): nvd.infusion.toml parses and loads 3 UDFs as http_lookup.
 ///
-/// Given `specs/infusions/nvd.infusion.toml` with source.type = "plugin",
+/// CHANGED v1.3: nvd.infusion.toml is now type="http_lookup" (ADR-040 D8.1/D9).
+/// The spec must parse as InfusionType::HttpLookup (not Plugin) and must have
+/// http_lookup_config populated (not None).
+///
+/// Given `specs/infusions/nvd.infusion.toml` with type="http_lookup",
 /// [[infusion.fields]] declaring cvss_base_score (Float), cvss_severity (String),
 /// cvss_vector (String) — grounded against prism-dtu-nvd camelCase wire names.
 ///
 /// when InfusionLoader::load_all runs,
-/// then InfusionRegistry contains 3 InfusionUdfDescriptors and
-/// registry.is_api_backed("cvss_base_score") returns true.
+/// then InfusionRegistry contains 3 InfusionUdfDescriptors,
+/// spec.infusion_type == InfusionType::HttpLookup,
+/// spec.http_lookup_config.is_some(),
+/// and registry.is_api_backed("cvss_base_score") returns true.
 ///
-/// RED GATE: fails against stubs.
+/// RED GATE: fails because InfusionLoader::parse doesn't yet handle "http_lookup" type.
 #[test]
-fn test_enrichment_pivot_002_nvd_toml_loads_and_registers_3_udfs() {
+fn test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs() {
     use std::io::Write;
     use tempfile::TempDir;
 
@@ -150,9 +159,10 @@ fn test_enrichment_pivot_002_nvd_toml_loads_and_registers_3_udfs() {
     let loader = InfusionLoader::new(tmp.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
+    // RED GATE: fails until InfusionLoader::parse handles "http_lookup" type.
     assert!(
         errors.is_empty(),
-        "BC-2.19.001: nvd.infusion.toml must parse without errors; got: {:?}",
+        "BC-2.19.001: nvd.infusion.toml (http_lookup) must parse without errors; got: {:?}",
         errors
     );
     assert_eq!(
@@ -163,9 +173,25 @@ fn test_enrichment_pivot_002_nvd_toml_loads_and_registers_3_udfs() {
 
     let registry = InfusionRegistry::new();
     let spec = specs.into_iter().next().unwrap();
+
+    // v1.3: assert the type is HttpLookup, NOT Plugin.
+    assert_eq!(
+        spec.infusion_type,
+        InfusionType::HttpLookup,
+        "AC-002 v1.3: nvd spec infusion_type must be InfusionType::HttpLookup (not Plugin). \
+         ADR-040 D8.1: NVD moves from WASM plugin to HttpLookup permanent built-in."
+    );
+
+    // v1.3: assert http_lookup_config is populated.
+    assert!(
+        spec.http_lookup_config.is_some(),
+        "AC-002 v1.3: nvd spec http_lookup_config must be Some(...) (populated by loader). \
+         ADR-040 D8.2: HttpLookupConfig must be deserialized from [source.http] block."
+    );
+
     let descriptors = registry
         .load_spec(spec)
-        .expect("BC-2.19.001: load_spec must succeed for valid nvd spec");
+        .expect("BC-2.19.001: load_spec must succeed for valid nvd http_lookup spec");
 
     assert_eq!(
         descriptors.len(),
@@ -190,7 +216,7 @@ fn test_enrichment_pivot_002_nvd_toml_loads_and_registers_3_udfs() {
 
     assert!(
         registry.is_api_backed("cvss_base_score"),
-        "BC-2.19.001: is_api_backed('cvss_base_score') must return true for plugin-type spec"
+        "BC-2.19.001: is_api_backed('cvss_base_score') must return true for http_lookup-type spec"
     );
 }
 
@@ -335,7 +361,7 @@ fn test_enrichment_pivot_002_threatintel_plugin_resolves_scenario_ioc_as_malicio
 /// a running DTU server or compiled .prx WASM plugin.
 /// WASM-EXT-001: real WASM dispatch test pending PluginRuntime return-value decode implementation.
 #[test]
-fn test_enrichment_pivot_002_nvd_plugin_resolves_scenario_cve_high_cvss() {
+fn test_enrichment_pivot_002_nvd_http_lookup_resolves_scenario_cve_high_cvss() {
     use prism_spec_engine::InfusionSource;
 
     // MockNvdSource returns the HIGH severity fixture shape from prism-dtu-nvd.
@@ -1485,4 +1511,641 @@ adds_columns = []
          'field' or 'E-INFUSE-003'. Got: '{}'",
         err_str
     );
+}
+
+// ---------------------------------------------------------------------------
+// Tests 16-32: v1.3 NEW — HttpLookup architecture (ADR-040 v2.0)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Test 16: HttpLookup TOML type parses correctly
+// ---------------------------------------------------------------------------
+
+/// AC-002 v1.3 (ADR-040 D8.1): nvd.infusion.toml with type="http_lookup" parses as
+/// InfusionType::HttpLookup and has http_lookup_config populated.
+///
+/// RED GATE: fails because InfusionLoader::parse does not yet handle "http_lookup".
+#[test]
+fn test_enrichment_pivot_002_http_lookup_infusion_type_parses_nvd_spec() {
+    let toml_content = include_str!("../../../specs/infusions/nvd.infusion.toml");
+
+    // RED GATE: InfusionLoader::parse currently does not handle type="http_lookup".
+    // When implemented, must parse and produce InfusionType::HttpLookup.
+    let result = InfusionLoader::parse(toml_content, "nvd.infusion.toml");
+
+    let spec = result.expect(
+        "AC-002 v1.3: nvd.infusion.toml with type='http_lookup' must parse without error. \
+         RED GATE until InfusionLoader::parse handles http_lookup type (ADR-040 D8.1).",
+    );
+
+    assert_eq!(
+        spec.infusion_type,
+        InfusionType::HttpLookup,
+        "AC-002 v1.3: spec.infusion_type must be InfusionType::HttpLookup for type='http_lookup'"
+    );
+
+    assert!(
+        spec.http_lookup_config.is_some(),
+        "AC-002 v1.3: spec.http_lookup_config must be Some(...) after parsing [source.http] block"
+    );
+
+    let http_cfg = spec.http_lookup_config.unwrap();
+    assert!(
+        http_cfg.url_template.contains("${input}"),
+        "AC-002 v1.3: http_lookup url_template must contain '${{input}}' placeholder. \
+         Got: '{}'",
+        http_cfg.url_template
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 17: HttpLookup rejects missing ${input} placeholder
+// ---------------------------------------------------------------------------
+
+/// AC-016 (ADR-040 D8.3): InfusionLoader must reject http_lookup specs where url_template
+/// does not contain `${input}` — the interpolation placeholder is required.
+///
+/// RED GATE: fails because loader doesn't yet validate url_template.
+#[test]
+fn test_enrichment_pivot_002_http_lookup_parse_rejects_missing_input_placeholder() {
+    let bad_toml = r#"
+[infusion]
+infusion_id = "bad_lookup"
+name = "Bad Lookup"
+type = "http_lookup"
+
+[source.http]
+base_url      = "https://services.nvd.nist.gov"
+url_template  = "/rest/json/cves/2.0?cveId=HARDCODED"
+method        = "GET"
+response_path = "$.data"
+
+[[infusion.fields]]
+name        = "cvss_score"
+input_field = "cve_id"
+input_type  = "cve_id"
+output_type = "float"
+
+[infusion.pipe_stage]
+adds_columns = ["cvss_score"]
+"#;
+
+    let result = InfusionLoader::parse(bad_toml, "bad_lookup.infusion.toml");
+
+    // RED GATE: InfusionLoader::parse must return Err for missing ${input} placeholder.
+    // When loader is not yet implemented, this test panics with todo!() — correct RED.
+    assert!(
+        result.is_err(),
+        "AC-016: url_template without the input placeholder must be rejected at parse time. \
+         Got Ok — missing validation in InfusionLoader::parse (ADR-040 D8.3)."
+    );
+
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, InfusionError::InvalidFieldSpec { .. }),
+        "AC-016: error must be InfusionError::InvalidFieldSpec. Got: {:?}",
+        err
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 18: HttpLookup rejects invalid HTTP method
+// ---------------------------------------------------------------------------
+
+/// AC-016 (ADR-040 D8.3): InfusionLoader must reject http_lookup specs with unsupported
+/// HTTP methods. Only "GET" and "POST" are permitted.
+///
+/// RED GATE: fails because loader doesn't yet validate method field.
+#[test]
+fn test_enrichment_pivot_002_http_lookup_parse_rejects_invalid_method() {
+    let bad_toml = r#"
+[infusion]
+infusion_id = "delete_lookup"
+name = "Delete Lookup"
+type = "http_lookup"
+
+[source.http]
+base_url      = "https://example.com"
+url_template  = "/api?id=${input}"
+method        = "DELETE"
+response_path = "$.data"
+
+[[infusion.fields]]
+name        = "result"
+input_field = "some_field"
+input_type  = "string"
+output_type = "string"
+
+[infusion.pipe_stage]
+adds_columns = ["result"]
+"#;
+
+    let result = InfusionLoader::parse(bad_toml, "delete_lookup.infusion.toml");
+
+    // RED GATE: InfusionLoader::parse must return Err for unsupported method "DELETE".
+    assert!(
+        result.is_err(),
+        "AC-016: http_lookup method='DELETE' must be rejected at parse time. \
+         Only 'GET' and 'POST' are permitted (ADR-040 D8.3)."
+    );
+
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, InfusionError::InvalidFieldSpec { .. }),
+        "AC-016: method validation error must be InfusionError::InvalidFieldSpec. Got: {:?}",
+        err
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 19: plugin enrich call failed maps to InfusionError
+// ---------------------------------------------------------------------------
+
+/// AC-019 v1.3 (ADR-040 D2): PluginError::EnrichCallFailed must be constructable and
+/// its Display must contain "enrich-single call failed".
+///
+/// This is a GREEN-BY-DESIGN test — the variant is defined in the stubs and the Display
+/// is provided by the #[error()] macro. Verifies the error variant is wired up correctly.
+#[test]
+fn test_enrichment_pivot_002_plugin_enrich_call_failed_maps_to_infusion_error() {
+    use prism_core::PluginError;
+
+    let err = PluginError::EnrichCallFailed {
+        plugin_id: "test".to_string(),
+        reason: "bad json".to_string(),
+    };
+
+    let display = format!("{}", err);
+    assert!(
+        display.contains("enrich-single call failed"),
+        "AC-019: PluginError::EnrichCallFailed Display must contain 'enrich-single call failed'. \
+         Got: '{}'",
+        display
+    );
+
+    assert!(
+        display.contains("test"),
+        "AC-019: PluginError::EnrichCallFailed Display must contain plugin_id 'test'. \
+         Got: '{}'",
+        display
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 20: HttpLookupFailed error format excludes credentials
+// ---------------------------------------------------------------------------
+
+/// AC-017 (AD-017 / CWE-312): InfusionError::HttpLookupFailed Display must NOT contain
+/// credential values — only status code and a sanitized message.
+///
+/// GREEN-BY-DESIGN: the error format is defined in the stub. Verifies the message
+/// does not accidentally include a credential sentinel value.
+#[test]
+fn test_enrichment_pivot_002_http_lookup_failed_error_format_excludes_credentials() {
+    let err = InfusionError::HttpLookupFailed {
+        infusion_id: "nvd".to_string(),
+        spec_path: "nvd.toml".to_string(),
+        status_code: Some(403),
+        message: "forbidden".to_string(),
+    };
+
+    let display = format!("{}", err);
+
+    // Verify the sentinel credential value is NOT in the message.
+    assert!(
+        !display.contains("secret_api_key"),
+        "AC-017 AD-017: HttpLookupFailed Display must NOT contain credential value 'secret_api_key'. \
+         Got: '{}'",
+        display
+    );
+
+    // Verify the error code is present.
+    assert!(
+        display.contains("E-INFUSE-009"),
+        "AC-017: HttpLookupFailed Display must contain error code 'E-INFUSE-009'. \
+         Got: '{}'",
+        display
+    );
+
+    // Verify infusion_id is in the message.
+    assert!(
+        display.contains("nvd"),
+        "AC-017: HttpLookupFailed Display must contain infusion_id 'nvd'. \
+         Got: '{}'",
+        display
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 21: CredentialResolutionFailed excludes env var name
+// ---------------------------------------------------------------------------
+
+/// AC-017 (AD-017 / CWE-312): InfusionError::CredentialResolutionFailed Display must
+/// contain the logical credential ref name (safe to log) but NOT the env var name.
+///
+/// The env var name itself is considered sensitive — it reveals the naming convention
+/// of the credential management system (AD-017).
+///
+/// GREEN-BY-DESIGN: the error format is defined in the stub.
+#[test]
+fn test_enrichment_pivot_002_credential_resolution_failed_excludes_env_var_name() {
+    let err = InfusionError::CredentialResolutionFailed {
+        infusion_id: "nvd".to_string(),
+        spec_path: "nvd.toml".to_string(),
+        credential_ref: "nvd.api_key".to_string(),
+    };
+
+    let display = format!("{}", err);
+
+    // Verify the logical credential ref name IS present (safe to log).
+    assert!(
+        display.contains("nvd.api_key"),
+        "AC-017: CredentialResolutionFailed Display must contain credential_ref 'nvd.api_key'. \
+         Got: '{}'",
+        display
+    );
+
+    // Verify the env var name is NOT present (AD-017: env var names are sensitive).
+    assert!(
+        !display.contains("PRISM_NVD_API_KEY"),
+        "AC-017 AD-017: CredentialResolutionFailed Display must NOT contain env var name \
+         'PRISM_NVD_API_KEY'. Got: '{}'",
+        display
+    );
+
+    // Verify the error code is present.
+    assert!(
+        display.contains("E-INFUSE-010"),
+        "AC-017: CredentialResolutionFailed Display must contain error code 'E-INFUSE-010'. \
+         Got: '{}'",
+        display
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 22: SsrfRejected error excludes resolved IP address
+// ---------------------------------------------------------------------------
+
+/// AC-017 (CWE-209): InfusionError::SsrfRejected Display must NOT contain any resolved
+/// IP address — the resolved address reveals internal network topology (CWE-209).
+///
+/// GREEN-BY-DESIGN: the error format is defined in the stub.
+#[test]
+fn test_enrichment_pivot_002_ssrf_rejected_error_excludes_resolved_ip() {
+    let err = InfusionError::SsrfRejected {
+        infusion_id: "nvd".to_string(),
+        spec_path: "nvd.toml".to_string(),
+    };
+
+    let display = format!("{}", err);
+
+    // Verify no IP address pattern appears in the message.
+    // The resolved IP must never appear in error messages (CWE-209).
+    assert!(
+        !display.contains("127.0.0.1"),
+        "AC-017 CWE-209: SsrfRejected Display must NOT contain resolved IP '127.0.0.1'. \
+         Got: '{}'",
+        display
+    );
+    assert!(
+        !display.contains("192.168"),
+        "AC-017 CWE-209: SsrfRejected Display must NOT contain private IP prefix '192.168'. \
+         Got: '{}'",
+        display
+    );
+    assert!(
+        !display.contains("10.0"),
+        "AC-017 CWE-209: SsrfRejected Display must NOT contain private IP prefix '10.0'. \
+         Got: '{}'",
+        display
+    );
+
+    // Verify the error code is present.
+    assert!(
+        display.contains("E-INFUSE-011"),
+        "AC-017: SsrfRejected Display must contain error code 'E-INFUSE-011'. \
+         Got: '{}'",
+        display
+    );
+
+    // Verify PRISM_DTU_MODE override hint is present.
+    assert!(
+        display.contains("PRISM_DTU_MODE"),
+        "AC-017: SsrfRejected Display must mention PRISM_DTU_MODE override. \
+         Got: '{}'",
+        display
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 23: HttpLookupSource enrich_single calls url_template interpolation
+// ---------------------------------------------------------------------------
+
+/// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must interpolate `${input}`
+/// in the url_template before issuing the HTTP request.
+///
+/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+#[test]
+fn test_enrichment_pivot_002_http_lookup_source_enrich_single_calls_url_template() {
+    // RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+    // AC-016: enrich_single must interpolate url_template with ${input}.
+    let config = HttpLookupConfig::new(
+        "https://services.nvd.nist.gov",
+        "/rest/json/cves/2.0?cveId=${input}",
+        "GET",
+        "$.vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData",
+        None,
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+    // todo!() in new() will panic here — correct RED behavior.
+    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
+    let result = source.enrich_single("CVE-2024-1234", "cve_id");
+    // When implemented: result must be Some(...) with the CVSS subtree.
+    assert!(
+        result.is_some(),
+        "AC-016: enrich_single must return Some for valid CVE input"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 24: HttpLookupSource extracts response_path fields
+// ---------------------------------------------------------------------------
+
+/// AC-016 (ADR-040 D8.4): HttpLookupSource must extract the subtree at `response_path`
+/// from the HTTP response JSON and return it as the enrichment value.
+///
+/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+#[test]
+fn test_enrichment_pivot_002_http_lookup_source_extracts_response_path_fields() {
+    let config = HttpLookupConfig::new(
+        "https://services.nvd.nist.gov",
+        "/rest/json/cves/2.0?cveId=${input}",
+        "GET",
+        "$.vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData",
+        None,
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+    // RED GATE: todo!() in new() panics — correct RED behavior.
+    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
+    let result = source.enrich_single("CVE-2024-1234", "cve_id");
+    let json_val = result.expect("AC-016: enrich_single must return Some for valid CVE");
+    // The subtree at response_path must contain the CVSS fields.
+    assert!(
+        json_val.get("baseScore").is_some() || json_val.get("cvss_base_score").is_some(),
+        "AC-016: response_path extraction must include baseScore field. Got: {:?}",
+        json_val
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 25: HttpLookupSource returns None on path not found
+// ---------------------------------------------------------------------------
+
+/// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must return `Ok(None)` when
+/// the `response_path` JSONPath does not match any node in the HTTP response.
+///
+/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+#[test]
+fn test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found() {
+    let config = HttpLookupConfig::new(
+        "https://services.nvd.nist.gov",
+        "/rest/json/cves/2.0?cveId=${input}",
+        "GET",
+        "$.nonexistent.path.that.will.never.match",
+        None,
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+    // RED GATE: todo!() in new() panics — correct RED behavior.
+    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
+    let result = source.enrich_single("CVE-2024-1234", "cve_id");
+    // When implemented: must return None (path not found → no enrichment).
+    assert!(
+        result.is_none(),
+        "AC-016: enrich_single must return None when response_path doesn't match. Got: {:?}",
+        result
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 26: HttpLookupSource returns Err on non-2xx
+// ---------------------------------------------------------------------------
+
+/// AC-016 (ADR-040 D8.4): HttpLookupSource::enrich_single must propagate
+/// `E-INFUSE-009` when the HTTP server returns a non-2xx status code.
+///
+/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+/// NOTE: InfusionSource::enrich_single currently returns Option<Value> not Result.
+/// This test documents the INTENDED behavior once the trait is updated to return Result.
+#[test]
+fn test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx() {
+    // This test documents the intended behavior post-implementation.
+    // Currently enrich_single returns Option<Value>, not Result.
+    // The implementer must either:
+    //   a) Update InfusionSource::enrich_single to return Result<Option<Value>, InfusionError>, OR
+    //   b) Handle the error internally and return None with a tracing::warn! (logging the
+    //      E-INFUSE-009 without surfacing it in the return type).
+    // The test verifies option (b): non-2xx → None is returned (error is logged, not panicked).
+    let config = HttpLookupConfig::new(
+        "https://services.nvd.nist.gov",
+        "/rest/json/cves/2.0?cveId=${input}",
+        "GET",
+        "$.data",
+        None,
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+    // RED GATE: todo!() in new() panics — correct RED behavior.
+    let source = HttpLookupSource::new(client, config, "nvd.infusion.toml").expect("construct");
+    // When implemented with a mock that returns 403: expect None (error handled internally).
+    let result = source.enrich_single("CVE-NONEXISTENT-9999", "cve_id");
+    // Non-2xx must not panic the caller — returns None with logged E-INFUSE-009.
+    assert!(
+        result.is_none(),
+        "AC-016: non-2xx HTTP response must return None (not panic). Got: {:?}",
+        result
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 27: SSRF rejects private base_url without DTU mode
+// ---------------------------------------------------------------------------
+
+/// AC-015 (CWE-918): HttpLookupSource::new must reject base_url that resolves to a
+/// private/loopback address when PRISM_DTU_MODE is not set.
+///
+/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+#[test]
+fn test_enrichment_pivot_002_ssrf_rejects_private_base_url_without_dtu_mode() {
+    // Ensure PRISM_DTU_MODE is not set.
+    // SAFETY: test-only env manipulation; single-threaded test context.
+    unsafe { std::env::remove_var("PRISM_DTU_MODE") };
+
+    let config = HttpLookupConfig::new(
+        "http://127.0.0.1:8080",
+        "/api?id=${input}",
+        "GET",
+        "$.data",
+        None,
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+
+    // RED GATE: todo!() in new() panics — correct RED behavior.
+    // When implemented: must return Err(InfusionError::SsrfRejected { .. }).
+    let result = HttpLookupSource::new(client, config, "test.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "AC-015 CWE-918: base_url='http://127.0.0.1:8080' must be rejected by SSRF guard \
+         when PRISM_DTU_MODE is not set. Got Ok — SSRF protection missing (ADR-040 D8.5)."
+    );
+
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, InfusionError::SsrfRejected { .. }),
+        "AC-015: SSRF rejection must produce InfusionError::SsrfRejected. Got: {:?}",
+        err
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 28: SSRF accepts private base_url with DTU mode
+// ---------------------------------------------------------------------------
+
+/// AC-015 (ADR-040 D8.5): HttpLookupSource::new must allow private base_url when
+/// PRISM_DTU_MODE=true (for test/demo deployments using local DTU clones).
+///
+/// RED GATE: HttpLookupSource::new is todo!() — panics until implemented.
+#[test]
+fn test_enrichment_pivot_002_ssrf_accepts_private_base_url_with_dtu_mode() {
+    // Set PRISM_DTU_MODE to allow private addresses (test/demo override).
+    // SAFETY: test-only env manipulation; single-threaded test context.
+    unsafe { std::env::set_var("PRISM_DTU_MODE", "true") };
+
+    let config = HttpLookupConfig::new(
+        "http://127.0.0.1:8080",
+        "/api?id=${input}",
+        "GET",
+        "$.data",
+        None,
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build");
+
+    // RED GATE: todo!() in new() panics — correct RED behavior.
+    // When implemented: PRISM_DTU_MODE=true must allow private addresses.
+    let result = HttpLookupSource::new(client, config, "test.infusion.toml");
+
+    // Clean up env var after test.
+    // SAFETY: test-only env manipulation; single-threaded test context.
+    unsafe { std::env::remove_var("PRISM_DTU_MODE") };
+
+    assert!(
+        result.is_ok(),
+        "AC-015: PRISM_DTU_MODE=true must allow private base_url 'http://127.0.0.1:8080'. \
+         Got Err: {:?}",
+        result.err()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 29: nvd plugin crate removed
+// ---------------------------------------------------------------------------
+
+/// AC-018 (ADR-040 D9): prism-nvd-infusion WASM plugin crate must not exist in the
+/// workspace. NVD enrichment uses InfusionType::HttpLookup permanently.
+///
+/// GREEN-BY-DESIGN: the crate was removed in CHANGE 6 of the v1.3 stubs.
+#[test]
+fn test_enrichment_pivot_002_nvd_plugin_crate_removed() {
+    // AC-018: prism-nvd-infusion WASM plugin crate must not exist (ADR-040 v2.0 D9).
+    // NVD enrichment is served by InfusionType::HttpLookup; the WASM crate is dead code.
+    let nvd_plugin_crate = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap() // crates/prism-spec-engine → crates/
+        .parent()
+        .unwrap() // crates/ → workspace root
+        .join("crates/plugins/prism-nvd-infusion");
+    assert!(
+        !nvd_plugin_crate.exists(),
+        "AC-018 ADR-040 D9: crates/plugins/prism-nvd-infusion must be removed — NVD uses HttpLookup. Path: {:?}",
+        nvd_plugin_crate
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Tests 30-32: Val-lift fix (AC-019 F-003 rigor)
+// ---------------------------------------------------------------------------
+
+/// AC-019 F-003 rigor: PluginRuntime::enrich_single must return Ok(Some(json_value))
+/// when the WASM component returns Val::Option(Some(Val::String(json))).
+///
+/// Pre-fix behavior: always returns Ok(None) (F-001 CRIT defect).
+/// This test verifies the fix drives the PRODUCTION code path (not a reimplementation).
+///
+/// RED GATE: requires a WAT fixture or minimal .prx Component Model binary. Until that
+/// fixture is available, this test panics with todo!() to signal the RED gate.
+/// The implementer must provide a WAT or .prx fixture that exports enrich-single
+/// returning Val::Option(Some(Box<Val::String("{}")))). See ADR-040 D2 / AC-019.
+#[test]
+fn test_enrichment_pivot_002_val_lift_fix_option_some_returns_json_value() {
+    // RED GATE: AC-019: implement with WAT fixture or minimal .prx Component Model binary
+    // returning Val::Option(Some(Val::String(json))).
+    //
+    // The implementer must:
+    //   1. Create a WAT fixture that exports enrich-single returning Val::Option(Some(...))
+    //   2. Load it into PluginRuntime and call enrich_single
+    //   3. Assert result == Ok(Some(serde_json::Value::Object(...)))
+    todo!(
+        "AC-019: implement with WAT fixture or minimal .prx Component Model binary returning Val::Option(Some(Val::String(json)))"
+    )
+}
+
+/// AC-019 F-003 rigor: PluginRuntime::enrich_single must return Ok(None)
+/// when the WASM component returns Val::Option(None) (no enrichment found).
+///
+/// RED GATE: requires a WAT fixture returning Val::Option(None).
+#[test]
+fn test_enrichment_pivot_002_val_lift_fix_option_none_returns_ok_none() {
+    // RED GATE: AC-019: implement with WAT fixture returning Val::Option(None).
+    //
+    // The implementer must:
+    //   1. Create a WAT fixture that exports enrich-single returning Val::Option(None)
+    //   2. Load it into PluginRuntime and call enrich_single
+    //   3. Assert result == Ok(None)
+    todo!("AC-019: implement with WAT fixture returning Val::Option(None) for the None branch")
+}
+
+/// AC-019 F-003 rigor: PluginRuntime::enrich_single must return
+/// Err(PluginError::EnrichCallFailed { .. }) when the WASM component returns an unexpected
+/// Val type (e.g., Val::String directly instead of Val::Option).
+///
+/// RED GATE: requires a WAT fixture returning an unexpected Val type.
+#[test]
+fn test_enrichment_pivot_002_val_lift_fix_unexpected_val_returns_enrich_call_failed() {
+    // RED GATE: AC-019: implement with WAT fixture returning unexpected Val type.
+    //
+    // The implementer must:
+    //   1. Create a WAT fixture that exports enrich-single returning Val::String("raw")
+    //      (not wrapped in Val::Option — an unexpected/invalid return type)
+    //   2. Load it into PluginRuntime and call enrich_single
+    //   3. Assert result == Err(PluginError::EnrichCallFailed { plugin_id, reason })
+    todo!(
+        "AC-019: implement with WAT fixture returning unexpected Val type (not Val::Option) — must map to PluginError::EnrichCallFailed"
+    )
 }
