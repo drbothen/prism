@@ -2957,13 +2957,19 @@ impl PrismServer {
         // the global TableRegistry (existing pre-multi-tenant behaviour).
 
         // Validate client_id as an OrgSlug (rejects path traversal and invalid chars).
+        // DI-006: do NOT echo the raw untrusted client_id in the error message —
+        // attacker-controlled input must never appear verbatim in MCP responses
+        // forwarded to AI agent contexts (BC-2.10.008 postcondition, DI-006 invariant).
         let org_slug = prism_core::OrgSlug::new(&params.client_id);
         if org_slug.is_err() {
-            return Err(to_error_data(PrismError::ClientNotFound {
-                client_id: params.client_id.clone(),
-            }));
+            return Err(rmcp::model::ErrorData::new(
+                rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                "E-CFG-100: client not found in configuration".to_string(),
+                None,
+            ));
         }
-        let org_slug = org_slug.expect("checked above");
+        // org_slug is Valid here (is_err() guard above ensures this);
+        // use it directly without rebinding via expect() to keep the code panic-shape-free.
 
         // Pull org_registry and resolved_spec_map from the wired query engine (if any).
         let resolved_spec_map = self
@@ -2978,11 +2984,15 @@ impl PrismServer {
 
         let sensor_ids: Vec<String> = if let Some(ref spec_map) = resolved_spec_map {
             // Multi-tenant mode: validate org is known when OrgRegistry is wired.
+            // DI-006: use a generic non-echoing message — do not reflect the raw
+            // client_id value back into the MCP response (BC-2.10.008, DI-006).
             if let Some(ref reg) = org_registry {
                 if !reg.slug_exists(&org_slug) {
-                    return Err(to_error_data(PrismError::ClientNotFound {
-                        client_id: params.client_id.clone(),
-                    }));
+                    return Err(rmcp::model::ErrorData::new(
+                        rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                        "E-CFG-100: client not found in configuration".to_string(),
+                        None,
+                    ));
                 }
             }
             // Filter spec_map by OrgSlug == client_id to get this org's sensors only.

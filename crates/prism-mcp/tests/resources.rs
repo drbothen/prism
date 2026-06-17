@@ -819,7 +819,7 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
                 AuthType::ApiKey,
                 format!("https://api.{sensor_id}.com"),
                 vec![TableSpec::new_point_in_time(
-                    &format!("{sensor_id}_table"),
+                    format!("{sensor_id}_table"),
                     "security_finding",
                     vec![],
                     vec![],
