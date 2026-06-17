@@ -22,8 +22,9 @@ use prism_core::InfusionError;
 use serde::Deserialize;
 
 use super::{
-    BuiltInSourceType, CredentialRef, InfusionField, InfusionSourceConfig, InfusionSpec,
-    InfusionType, PipeStageConfig, PluginConfig,
+    BuiltInSourceType, CredentialRef, HttpLookupAuthType, HttpLookupConfig,
+    HttpLookupCredentialConfig, InfusionField, InfusionSourceConfig, InfusionSpec, InfusionType,
+    PipeStageConfig, PluginConfig,
 };
 
 // ---------------------------------------------------------------------------
@@ -227,6 +228,7 @@ impl InfusionLoader {
         // Resolve infusion type variant.
         let infusion_type = match source_type_str.as_str() {
             "plugin" => InfusionType::Plugin,
+            "http_lookup" => InfusionType::HttpLookup,
             "local_lookup" => InfusionType::LocalLookup,
             "maxmind_mmdb" | "csv" | "json_lookup" => InfusionType::LocalLookup,
             "" => {
@@ -276,6 +278,124 @@ impl InfusionLoader {
                 spec_path: source_path.to_string(),
             });
         }
+
+        // For http_lookup type: parse [source.http] and [source.credential] subtables
+        // and validate url_template / method fields (ADR-040 D8.3).
+        let http_lookup_config_parsed: Option<HttpLookupConfig> = if matches!(
+            infusion_type,
+            InfusionType::HttpLookup
+        ) {
+            let http_sub = raw
+                .source
+                .as_ref()
+                .and_then(|s| s.http.as_ref())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "[source.http] block required for type=\"http_lookup\"".to_string(),
+                    spec_path: source_path.to_string(),
+                })?;
+
+            let base_url = http_sub
+                .base_url
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "source.http.base_url must be non-empty".to_string(),
+                    spec_path: source_path.to_string(),
+                })?
+                .to_string();
+
+            let url_template = http_sub
+                .url_template
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "source.http.url_template must be non-empty".to_string(),
+                    spec_path: source_path.to_string(),
+                })?
+                .to_string();
+
+            // D8.3 validation: url_template must contain "${input}" placeholder.
+            if !url_template.contains("${input}") {
+                return Err(InfusionError::InvalidFieldSpec {
+                    field: "url_template".to_string(),
+                    spec_path: source_path.to_string(),
+                    message: "url_template must contain \"${input}\" interpolation placeholder \
+                                  (ADR-040 D8.3 / AC-016)"
+                        .to_string(),
+                });
+            }
+
+            let method = http_sub
+                .method
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "source.http.method must be non-empty".to_string(),
+                    spec_path: source_path.to_string(),
+                })?
+                .to_string();
+
+            // D8.3 validation: method must be "GET" or "POST".
+            if method != "GET" && method != "POST" {
+                return Err(InfusionError::InvalidFieldSpec {
+                    field: "method".to_string(),
+                    spec_path: source_path.to_string(),
+                    message: format!(
+                        "method must be \"GET\" or \"POST\", got \"{}\" (ADR-040 D8.3 / AC-016)",
+                        method
+                    ),
+                });
+            }
+
+            let response_path = http_sub
+                .response_path
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "source.http.response_path must be non-empty".to_string(),
+                    spec_path: source_path.to_string(),
+                })?
+                .to_string();
+
+            // Parse [source.credential] subtable if present.
+            let credential_config = raw
+                .source
+                .as_ref()
+                .and_then(|s| s.credential.as_ref())
+                .and_then(|c| {
+                    let ref_name = c.credential_ref.clone().unwrap_or_default();
+                    let env_var = c.env_var.clone().unwrap_or_default();
+                    let auth_str = c.auth.as_deref().unwrap_or("bearer_header");
+                    let param_name = c.param_name.clone();
+
+                    if ref_name.is_empty() || env_var.is_empty() {
+                        return None;
+                    }
+
+                    let auth = match auth_str {
+                        "query_param" => HttpLookupAuthType::QueryParam {
+                            param_name: param_name.unwrap_or_default(),
+                        },
+                        "bearer_header" => HttpLookupAuthType::BearerHeader,
+                        "api_key_header" => HttpLookupAuthType::ApiKeyHeader {
+                            header_name: param_name.unwrap_or_default(),
+                        },
+                        _ => HttpLookupAuthType::BearerHeader,
+                    };
+
+                    Some(HttpLookupCredentialConfig::new(ref_name, env_var, auth))
+                });
+
+            Some(HttpLookupConfig::new(
+                base_url,
+                url_template,
+                method,
+                response_path,
+                credential_config,
+            ))
+        } else {
+            None
+        };
 
         // For plugin type: validate plugin_ref is present.
         if matches!(infusion_type, InfusionType::Plugin) {
@@ -400,7 +520,7 @@ impl InfusionLoader {
             fields,
             pipe_stage,
             plugin_config,
-            http_lookup_config: None, // S-DEMO-ENRICHMENT-PIVOT-002 v1.3: populated by implementer for http_lookup type
+            http_lookup_config: http_lookup_config_parsed,
             credentials,
             source_path: source_path.to_string(),
             cache_ttl_secs: raw_infusion.cache_ttl_secs,

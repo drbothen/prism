@@ -951,28 +951,113 @@ impl PluginRuntime {
             )
         })?;
 
-        let func = instance
-            .get_func(&mut store, "enrich-single")
-            .ok_or_else(|| PluginError::InvalidInterface {
-                path: plugin_id.to_string(),
-                missing_export: "enrich-single".to_string(),
-            })?;
+        // ADR-040 D2: two-phase function resolution.
+        // Phase 1: try bare name (works for WAT test fixtures exported at component level).
+        // Phase 2: scan for the interface instance export (real .prx Component Model binaries).
+        let func = {
+            let bare = instance.get_func(&mut store, "enrich-single");
+            if bare.is_some() {
+                bare
+            } else {
+                let component = plugin.pre_instance.component();
+                let interface_candidates: Vec<String> = {
+                    let known = "prism:infusion-plugin/infusion-plugin@0.1.0".to_string();
+                    let mut candidates = vec![known];
+                    for (name, _) in component.component_type().exports(&self.engine) {
+                        if name.contains("/infusion-plugin@")
+                            && !candidates.contains(&name.to_string())
+                        {
+                            candidates.push(name.to_string());
+                        }
+                    }
+                    candidates
+                };
+                let mut found = None;
+                'outer: for iface_name in &interface_candidates {
+                    if let Some(iface_idx) = component.get_export_index(None, iface_name.as_str())
+                        && let Some(fn_idx) =
+                            component.get_export_index(Some(&iface_idx), "enrich-single")
+                        && let Some(f) = instance.get_func(&mut store, fn_idx)
+                    {
+                        found = Some(f);
+                        break 'outer;
+                    }
+                }
+                found
+            }
+        };
 
+        let func = func.ok_or_else(|| PluginError::InvalidInterface {
+            path: plugin_id.to_string(),
+            missing_export: "enrich-single".to_string(),
+        })?;
+
+        // ADR-040 D2: pass string arguments as Val::String (Component Model canonical ABI).
+        // The wasmtime runtime lowers Val::String into the guest's linear memory automatically.
+        // Do NOT use Val::S32 ptr/len pairs — the Component Model ABI does not use raw pointers.
         let params = [
-            wasmtime::component::Val::S32(0),
-            wasmtime::component::Val::S32(input_value.len() as i32),
-            wasmtime::component::Val::S32(0),
-            wasmtime::component::Val::S32(input_type.len() as i32),
+            wasmtime::component::Val::String(input_value.to_string()),
+            wasmtime::component::Val::String(input_type.to_string()),
         ];
-        let mut results = vec![wasmtime::component::Val::S32(0)];
+        // Pre-populate results with Val::Option(None) to match the WIT return type `option<string>`.
+        // wasmtime overwrites this with the actual return value from the guest.
+        let mut results = vec![wasmtime::component::Val::Option(None)];
 
         let call_result = func.call(&mut store, &params, &mut results);
         // post_return removed — no longer needed in wasmtime >=44 (no-op, deprecated).
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
 
+        // ADR-040 D2: lift the result from Val::Option per the WIT return type `option<string>`.
         match call_result {
-            Ok(_) => Ok(None),
+            Ok(_) => match results.into_iter().next() {
+                Some(wasmtime::component::Val::Option(Some(boxed_val))) => match *boxed_val {
+                    wasmtime::component::Val::String(json_str) => {
+                        match serde_json::from_str::<Value>(&json_str) {
+                            Ok(v) => Ok(Some(v)),
+                            Err(e) => {
+                                error!(
+                                    event_type = "plugin_enrich_json_parse_error",
+                                    plugin_id = %plugin_id,
+                                    error = %e,
+                                    "plugin enrich-single returned non-JSON string"
+                                );
+                                Err(classify_enrich_call_failed(plugin_id, &e.to_string()))
+                            }
+                        }
+                    }
+                    other => {
+                        error!(
+                            event_type = "plugin_enrich_unexpected_val",
+                            plugin_id = %plugin_id,
+                            "plugin enrich-single returned unexpected Val type inside Option<Some>"
+                        );
+                        Err(classify_enrich_call_failed(
+                            plugin_id,
+                            &format!("unexpected Val inside Option::Some: {:?}", other),
+                        ))
+                    }
+                },
+                Some(wasmtime::component::Val::Option(None)) | None => {
+                    // Plugin returned option::none — no enrichment data available.
+                    Ok(None)
+                }
+                Some(other) => {
+                    // Plugin returned wrong type entirely — protocol error (E-PLUGIN-023).
+                    error!(
+                        event_type = "plugin_enrich_unexpected_val",
+                        plugin_id = %plugin_id,
+                        "plugin enrich-single returned unexpected Val variant (expected option<string>)"
+                    );
+                    Err(classify_enrich_call_failed(
+                        plugin_id,
+                        &format!(
+                            "unexpected result Val (expected option<string>): {:?}",
+                            other
+                        ),
+                    ))
+                }
+            },
             Err(e) => Err(classify_wasm_error(
                 plugin_id,
                 e.into(),
@@ -1246,6 +1331,23 @@ pub(crate) fn emit_acquire_token_parse_error_and_fail(
                   (guest AuthError::ResponseParse or missing kv_set call)"
             .to_string(),
     })
+}
+
+/// Build a `PluginError::EnrichCallFailed` (E-PLUGIN-023) for unexpected or unparseable
+/// return values from `enrich-single`.
+///
+/// Called when the guest returns:
+/// - A non-JSON string inside `Val::Option(Some(Val::String(...)))`
+/// - An unexpected `Val` variant inside `Val::Option(Some(...))`
+/// - An unexpected top-level `Val` variant (not `Val::Option`)
+///
+/// Mapped to `InfusionError::PluginCallFailed` (E-INFUSE-008) at the `plugin_bridge.rs`
+/// boundary per ADR-040 D5.
+fn classify_enrich_call_failed(plugin_id: &str, reason: &str) -> PluginError {
+    PluginError::EnrichCallFailed {
+        plugin_id: plugin_id.to_string(),
+        reason: reason.to_string(),
+    }
 }
 
 // ---------------------------------------------------------------------------
