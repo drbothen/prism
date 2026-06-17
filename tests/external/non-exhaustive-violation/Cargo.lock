@@ -4420,6 +4420,7 @@ dependencies = [
 name = "prism-storage"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bincode",
  "dashmap 5.5.3",
  "prism-core",

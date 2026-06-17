@@ -16,7 +16,8 @@ use std::{
     sync::Arc,
 };
 
-use prism_core::{PrismError, StorageDomain};
+use async_trait::async_trait;
+use prism_core::{CacheBackend, PrismError, StorageDomain};
 use rocksdb::{
     BlockBasedOptions, ColumnFamily, ColumnFamilyDescriptor, DBCompressionType, Direction,
     IteratorMode, Options, WriteBatch, WriteOptions, DB,
@@ -414,6 +415,43 @@ impl RocksStorageBackend for RocksDbBackend {
             results.push((k.to_vec(), v.to_vec()));
         }
         Ok(results)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CacheBackend impl — async wrapper over synchronous RocksStorageBackend ops
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Allows `RocksDbBackend` to be injected as `Arc<dyn CacheBackend>` into the
+// Tier-3 infusion cache (`InfusionTier3Cache`) without an intermediate adapter.
+// Methods delegate to the synchronous `RocksStorageBackend` methods.
+// `get` → `RocksStorageBackend::get`
+// `set` → `RocksStorageBackend::put`
+// `delete` → `RocksStorageBackend::remove`
+//
+// The async surface is required by `CacheBackend`; the synchronous RocksDB
+// operations are not blocking in the I/O-bound sense (they are CPU-bound
+// memory-mapped writes), so wrapping them in an `async` method without
+// `spawn_blocking` is acceptable for the cache write path (S-1.14-REDO CRIT-1).
+
+#[async_trait]
+impl CacheBackend for RocksDbBackend {
+    /// Retrieve the value for `key` in `domain`, or `None` if absent.
+    async fn get(&self, domain: StorageDomain, key: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
+        use crate::backend::RocksStorageBackend;
+        RocksStorageBackend::get(self, domain, key)
+    }
+
+    /// Store `value` at `key` in `domain`, overwriting any existing value.
+    async fn set(&self, domain: StorageDomain, key: &[u8], value: &[u8]) -> Result<(), PrismError> {
+        use crate::backend::RocksStorageBackend;
+        RocksStorageBackend::put(self, domain, key, value)
+    }
+
+    /// Remove the value at `key` in `domain`. No-op if absent.
+    async fn delete(&self, domain: StorageDomain, key: &[u8]) -> Result<(), PrismError> {
+        use crate::backend::RocksStorageBackend;
+        RocksStorageBackend::remove(self, domain, key)
     }
 }
 

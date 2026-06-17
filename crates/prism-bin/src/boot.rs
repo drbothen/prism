@@ -2712,6 +2712,13 @@ pub async fn step9_start_mcp_server(
     // MCP-02 (2026-06-10 review): retain storage Arc for the boot AuditWriter so
     // MCP tool-call audit records land durably in the RocksDB audit_buffer CF.
     let storage_for_audit = Arc::clone(&storage);
+    // S-1.14-REDO CRIT-1: retain a CacheBackend-cast Arc of the RocksDB backend so
+    // with_infusion_caches can wire the real Tier-3 persistent cache (AC-7 production fix).
+    // `RocksDbBackend` implements `CacheBackend` (S-1.14-REDO burst-4 — prism-storage).
+    // Cloned here (before `storage` is moved into QueryEngine::new_full) so both the
+    // query engine and the Tier-3 infusion cache share the same RocksDB handle.
+    let infusion_cache_backend: Arc<dyn prism_core::CacheBackend> =
+        Arc::clone(&storage) as Arc<dyn prism_core::CacheBackend>;
 
     // S-3.13 CRIT-1: Build TableRegistry from the initial ConfigSnapshot so the
     // plan-time E-QUERY-037 gate is live on the first query (BC-2.11.001, BC-2.16.001).
@@ -2753,7 +2760,19 @@ pub async fn step9_start_mcp_server(
         .with_table_registry(Arc::clone(&table_registry))
         // S-1.14-REDO AC-10: wire infusion registry so InfusionUdfs are registered in
         // each ephemeral DataFusion SessionContext (BC-2.19.001 / BC-2.22.001 §Sequencing Invariant).
-        .with_infusion_registry(infusion_registry),
+        .with_infusion_registry(infusion_registry)
+        // S-1.14-REDO CRIT-1 (burst-4): wire the real RocksDB-backed Tier-3 cache so that
+        // subsequent queries can read infusion results from the `infusion_cache` CF without
+        // calling the source again (AC-7 production fix). `with_infusion_registry` wires a
+        // NullCacheBackend placeholder; this call replaces it with the real RocksDB backend.
+        // Both Tier-2 LRU capacity (10 000 entries) and Tier-3 backend are re-specified here
+        // so the production path is explicit and reviewable.
+        .with_infusion_caches(
+            Arc::new(prism_spec_engine::InfusionLruCache::new(10_000)),
+            Arc::new(prism_spec_engine::InfusionTier3Cache::new(
+                infusion_cache_backend,
+            )),
+        ),
     );
 
     // ── Build WriteExecutor ───────────────────────────────────────────────────

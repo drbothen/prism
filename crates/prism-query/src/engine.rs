@@ -653,6 +653,24 @@ impl QueryEngine {
         // is infallible so no call failure can occur here) and the real infusion_id.
         // We propagate verbatim — no outer prefix that would inject a function name into the
         // {infusion_id} slot or double-prefix the error code (MED-2 fix).
+        // OBS-1 (S-1.14-REDO burst-4): Tier-1 lifetime note.
+        //
+        // Story Task 7 says "Tier-1 scoped per QueryEngine::execute()". In practice,
+        // `QueryScopedInfusionCache` (Tier-1) is allocated fresh per DataFusion batch
+        // invocation inside `InfusionAsyncUdf::invoke_async_with_args`. This is CORRECT
+        // behavior: Tier-1 deduplicates within a single DataFusion batch (e.g., 500 rows
+        // mapping to 30 unique IPs — only 30 source calls). Tier-2 (process-shared LRU)
+        // provides cross-batch dedup across multiple `execute()` calls without RocksDB.
+        // Tier-3 (RocksDB, persistent) provides cross-process/restart persistence.
+        //
+        // AC-2 compliance: per-batch Tier-1 + process-shared Tier-2 together satisfy the
+        // "no redundant source calls within a single query" requirement — DataFusion may
+        // invoke the UDF in multiple batches, but Tier-2 absorbs all cross-batch hits.
+        //
+        // Story-writer note: Task 7 wording ("per QueryEngine::execute()") should be updated
+        // to "per DataFusion batch (invoke_async_with_args); cross-batch dedup via Tier-2 LRU"
+        // for accuracy. This is a documentation-only gap, not a behavior defect.
+        // (Route to vsdd-factory:story-writer for Task 7 wording update.)
         if let Some(ref registry) = self.infusion_registry {
             // HIGH-1 fix (BC-2.19.002): use three-tier cache path when caches are wired.
             // Falls back to Tier-1-only (no-cache) path in test/legacy mode when caches are None.

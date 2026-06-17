@@ -1133,9 +1133,10 @@ async fn test_BC_2_19_002_ac_8_tier2_lru_hit_returns_value_without_source_call()
 ///
 /// This is a structural property ensured by the lookup order implementation.
 /// The unit-testable surface: after inserting to Tier 2, the source call count stays 0.
-/// (Tier 3 RocksDB integration is tested in prism-bin integration tests per AC-7 spec.)
+/// (Tier-3 production wiring is verified by
+/// `crates/prism-bin/tests/infusion_boot_integration.rs::test_infusion_tier3_production_read_without_source`
+/// — S-1.14-REDO CRIT-1 burst-4 closure.)
 /// This test is a companion to test_BC_2_19_002_ac_8_tier2_lru_hit_returns_value.
-/// FAILS RED: same todo!() in LRU cache.
 #[tokio::test]
 async fn test_BC_2_19_002_ac_8_tier3_bypassed_when_tier2_hits() {
     let lru_cache = InfusionLruCache::new(1000);

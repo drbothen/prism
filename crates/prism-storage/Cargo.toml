@@ -16,6 +16,7 @@ test-utils = []
 
 [dependencies]
 prism-core = { path = "../prism-core", version = "0.2.0" }
+async-trait = "0.1"
 rocksdb = { version = "0.24" }
 bincode = { version = "2", features = ["serde"] }
 thiserror = "1"
