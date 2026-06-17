@@ -27,11 +27,6 @@ mod vp_050_tests {
         "[A-Za-z0-9+/]{32,64}".prop_map(|s| format!("Bearer {s}"))
     }
 
-    /// Generate a base64 credential of 32+ characters.
-    fn base64_credential() -> impl Strategy<Value = String> {
-        "[A-Za-z0-9+/]{32,64}={0,2}".prop_map(|s| s)
-    }
-
     /// Generate a full URL including path, query parameters, and optional credentials.
     fn full_url_with_path() -> impl Strategy<Value = String> {
         (

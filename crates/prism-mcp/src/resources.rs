@@ -375,14 +375,12 @@ pub async fn render_client_list_resource(
     // Collect sensor IDs from the config snapshot.
     let spec_sensor_ids: BTreeSet<String> = snapshot.sensor_specs.keys().cloned().collect();
 
-    // Get registered tables from S-3.13 TableRegistry (Option<Arc<TableRegistry>>).
+    // Get registered sensor IDs from S-3.13 TableRegistry (Option<Arc<TableRegistry>>).
+    // Use registered_sensor_ids() directly — it reads the sensor_by_table reverse map
+    // and returns unique sensor IDs without requiring table-name parsing.
     let registry_sensor_ids: BTreeSet<String> =
         if let Some(registry) = query_engine.table_registry() {
-            registry
-                .registered_tables()
-                .into_iter()
-                .filter_map(|t| t.split('.').next().map(|s| s.to_string()))
-                .collect::<BTreeSet<_>>()
+            registry.registered_sensor_ids().into_iter().collect()
         } else {
             BTreeSet::new()
         };
@@ -393,14 +391,29 @@ pub async fn render_client_list_resource(
         .cloned()
         .collect();
 
-    // Without multi-tenant client_id mapping (depends on S-3.13 org-scope work),
-    // we return a single synthetic entry representing the server-level sensor inventory.
-    // AC-1 (multi-client entries) requires additional work tracked in AC-1 story.
-    let entries = vec![ClientInventoryEntry {
-        client_id: "(all)".to_string(),
-        sensor_count: enabled_sensors.len(),
-        enabled_sensors,
-    }];
+    // BC-2.10.008 postcondition 1: return one entry per sensor registered in
+    // TableRegistry. In the current single-tenant deployment model, sensor_id
+    // serves as the client_id (each sensor is its own client group).
+    // AC-8: only sensors present in the intersection of config AND TableRegistry
+    // appear — sensors absent from TableRegistry are excluded.
+    // EC-10-014: if no sensors are registered, return [] (empty array), never
+    // the synthetic "(all)" aggregate.
+    let entries: Vec<ClientInventoryEntry> = enabled_sensors
+        .iter()
+        .map(|sensor_id| {
+            // Collect the table names for this sensor from the config snapshot.
+            let sensor_tables: Vec<String> = snapshot
+                .sensor_specs
+                .get(sensor_id)
+                .map(|spec| spec.tables.iter().map(|t| t.table_name.clone()).collect())
+                .unwrap_or_default();
+            ClientInventoryEntry {
+                client_id: sensor_id.clone(),
+                sensor_count: 1,
+                enabled_sensors: sensor_tables,
+            }
+        })
+        .collect();
 
     let text = serde_json::to_string(&entries)
         .map_err(|e| internal_error(format!("JSON serialize error: {e}")))?;
@@ -428,11 +441,16 @@ pub async fn render_client_sensors_resource(
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
 ) -> Result<ReadResourceResult, ErrorData> {
     // Validate client_id via OrgSlug — rejects path traversal and invalid chars.
+    // BC-2.10.008 prompt-injection defense: do NOT echo the raw untrusted client_id
+    // in the error message — attacker-controlled input must never appear verbatim
+    // in MCP responses forwarded to AI agent contexts (BC-2.10.008 postcondition,
+    // DI-006 invariant). Use a generic rejection message instead.
     let slug = prism_core::OrgSlug::new(client_id);
     if slug.is_err() {
-        return Err(not_found_error(format!(
-            "Resource not found: invalid client_id '{client_id}' (path traversal rejected)"
-        )));
+        return Err(not_found_error(
+            "Resource not found: invalid client_id (path traversal or invalid characters rejected)"
+                .to_string(),
+        ));
     }
 
     let cm_guard = config_manager.load();

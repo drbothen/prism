@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 818c7d2da04d5f2f29a06cb80693ee82b0be4d1cb789b492ddf873c371737cdb # shrinks to cred = "aaa0aaaa-00a0-aa00-a000-0a0a0a000a00"
+cc c408e1c13aba27af881c43ea52752fd7f5cf1717eb0c799e381ac890b22a7924 # shrinks to cred = "Bearer Aa0Aa+00a+0AaAA/a+AA+/A0aaaAA0/+"
+cc 616121e61fb078903cb77fe08a6d087fa63dcbe196b494198076dbc2a1acc651 # shrinks to full_url = "https://aaa.example.com:0000/aaa/aaa?aaa=aa0a0AaA"
