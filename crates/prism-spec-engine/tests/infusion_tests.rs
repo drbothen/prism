@@ -276,6 +276,112 @@ fn test_BC_2_19_001_rejects_duplicate_udf_name_across_specs() {
     }
 }
 
+/// TV-19-001-overwrite-purge: load_spec with duplicate infusion_id purges stale udf_to_infusion entries.
+///
+/// Traces to: BC-2.19.001 v2.0 Postcondition (A3 — duplicate infusion_id purge) / TV-19-001-overwrite-purge.
+///
+/// Scenario:
+///   1. Load spec A: infusion_id="geoip", fields=[geoip_country, geoip_asn], LocalLookup
+///   2. Load spec B: infusion_id="geoip", fields=[geoip_city], Plugin type
+///   3. Assert `is_api_backed("geoip_country")` returns false:
+///      - WITHOUT purge: udf_to_infusion["geoip_country"] still points to "geoip", entries["geoip"] is
+///        spec B (Plugin) → is_api_backed returns TRUE (stale entry causes wrong result)
+///      - WITH purge: geoip_country removed from udf_to_infusion → is_api_backed returns FALSE (correct)
+///   4. Assert `is_api_backed("geoip_asn")` returns false (same reasoning as geoip_country)
+///   5. Assert `is_api_backed("geoip_city")` returns true (spec B is Plugin, geoip_city is valid)
+///   6. Assert `udf_descriptors()` contains ONLY geoip_city (spec B's field)
+///
+/// FAILS RED before the fix: is_api_backed("geoip_country") returns true (stale entry).
+/// PASSES GREEN after the fix: stale entries purged on overwrite.
+#[test]
+fn test_BC_2_19_001_overwrite_purge_clears_stale_udf_to_infusion_entries() {
+    let registry = InfusionRegistry::new();
+
+    // Step 1: Load spec A — infusion_id="geoip", fields=[geoip_country, geoip_asn], LocalLookup.
+    let fields_a = vec![
+        InfusionField::new("geoip_country", "device_ip", "ip", "string"),
+        InfusionField::new("geoip_asn", "device_ip", "ip", "integer"),
+    ];
+    let spec_a = InfusionSpec::new(
+        "geoip",
+        "GeoIP v1",
+        InfusionType::LocalLookup,
+        fields_a,
+        "geoip_v1.infusion.toml",
+    );
+    registry
+        .load_spec(spec_a)
+        .expect("TV-19-001-overwrite-purge: spec A (geoip, [geoip_country, geoip_asn]) must load");
+
+    // Confirm initial state: both old fields registered.
+    assert!(
+        !registry.is_api_backed("geoip_country"),
+        "TV-19-001-overwrite-purge: geoip_country should not be API-backed before overwrite"
+    );
+
+    // Step 2: Load spec B — infusion_id="geoip", fields=[geoip_city], Plugin type.
+    // This is the last-writer-wins overwrite. After this, entries["geoip"] = spec B (Plugin).
+    let fields_b = vec![InfusionField::new(
+        "geoip_city",
+        "device_ip",
+        "ip",
+        "string",
+    )];
+    let mut spec_b = InfusionSpec::new(
+        "geoip",
+        "GeoIP v2 Plugin",
+        InfusionType::Plugin,
+        fields_b,
+        "geoip_v2.infusion.toml",
+    );
+    spec_b.plugin_config = Some(prism_spec_engine::infusion::PluginConfig::new(
+        "plugins/geoip_v2.prx",
+    ));
+    registry
+        .load_spec(spec_b)
+        .expect("TV-19-001-overwrite-purge: spec B (geoip, [geoip_city], Plugin) must load");
+
+    // Step 3: geoip_country MUST NOT be considered API-backed.
+    // WITHOUT the purge fix: udf_to_infusion["geoip_country"] → "geoip" → entries["geoip"] is
+    // spec B (Plugin) → is_api_backed returns TRUE (stale, wrong).
+    // WITH the purge fix: geoip_country is absent from udf_to_infusion → returns FALSE (correct).
+    assert!(
+        !registry.is_api_backed("geoip_country"),
+        "TV-19-001-overwrite-purge (BC-2.19.001 A3): is_api_backed('geoip_country') must return \
+         false after overwrite — geoip_country belongs to the replaced spec A (LocalLookup). \
+         WITHOUT the purge fix, stale udf_to_infusion['geoip_country'] → 'geoip' (spec B, Plugin) \
+         causes is_api_backed to return TRUE (incorrect). This assertion FAILS RED before fix."
+    );
+
+    // Step 4: geoip_asn also must not be considered API-backed (same reason).
+    assert!(
+        !registry.is_api_backed("geoip_asn"),
+        "TV-19-001-overwrite-purge (BC-2.19.001 A3): is_api_backed('geoip_asn') must return \
+         false after overwrite — geoip_asn belongs to the replaced spec A (LocalLookup)."
+    );
+
+    // Step 5: geoip_city IS from spec B (Plugin) and must be API-backed.
+    assert!(
+        registry.is_api_backed("geoip_city"),
+        "TV-19-001-overwrite-purge: is_api_backed('geoip_city') must return true — \
+         geoip_city belongs to spec B (Plugin type)."
+    );
+
+    // Step 6: udf_descriptors() must contain ONLY geoip_city (spec B's field, not spec A's).
+    let descriptors = registry.udf_descriptors();
+    assert_eq!(
+        descriptors.len(),
+        1,
+        "TV-19-001-overwrite-purge: udf_descriptors() must return exactly 1 descriptor \
+         (only geoip_city from spec B). Got: {:?}",
+        descriptors.iter().map(|d| &d.name).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        descriptors[0].name, "geoip_city",
+        "TV-19-001-overwrite-purge: the sole descriptor must be geoip_city"
+    );
+}
+
 /// After loading geoip spec, `udf_descriptors()` returns all 4 UDFs.
 /// Traces to: BC-2.19.001 / AC-1.
 #[test]
@@ -296,6 +402,13 @@ fn test_BC_2_19_001_udf_descriptors_returns_all_registered_udfs() {
 
 /// `enrich_descriptor` returns the correct descriptor for a loaded infusion.
 /// Traces to: BC-2.19.001 / AC-3.
+///
+/// TV-19-001-enrich-desc: spec with pipe_stage → output_columns = pipe_stage.adds_columns in
+/// declared order (BC-2.19.001 v2.0 postcondition, PO ruling A1 Option b).
+/// build_geoip_spec() carries pipe_stage.adds_columns = ["geoip_country","geoip_city","geoip_asn","geoip_is_tor"]
+/// so output_columns MUST equal that exact ordered vec.
+///
+/// TD-VSDD-059: assertion is ordered equality (assert_eq!) not .contains() — a reorder fails the test.
 #[test]
 fn test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns() {
     let registry = InfusionRegistry::new();
@@ -309,16 +422,20 @@ fn test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns() {
 
     assert_eq!(descriptor.infusion_name, "geoip");
     assert_eq!(descriptor.input_field, "device_ip");
+    // TD-VSDD-059: ordered equality — a reorder of output_columns must fail this assertion.
+    // build_geoip_spec() has pipe_stage.adds_columns in declaration order; output_columns must match.
     assert_eq!(
-        descriptor.output_columns.len(),
-        4,
-        "BC-2.19.001: enrich descriptor must list all 4 geoip output columns"
+        descriptor.output_columns,
+        vec![
+            "geoip_country".to_string(),
+            "geoip_city".to_string(),
+            "geoip_asn".to_string(),
+            "geoip_is_tor".to_string(),
+        ],
+        "BC-2.19.001 AC-3 (TV-19-001-enrich-desc): output_columns must equal pipe_stage.adds_columns \
+         in declared order: [geoip_country, geoip_city, geoip_asn, geoip_is_tor]. \
+         A reorder is a behavioral regression."
     );
-    let cols = &descriptor.output_columns;
-    assert!(cols.contains(&"geoip_country".to_string()));
-    assert!(cols.contains(&"geoip_city".to_string()));
-    assert!(cols.contains(&"geoip_asn".to_string()));
-    assert!(cols.contains(&"geoip_is_tor".to_string()));
 }
 
 /// `enrich_descriptor` with unknown name returns E-INFUSE-001.
@@ -900,7 +1017,9 @@ fn test_ac_1_geoip_spec_exports_four_udf_descriptors() {
     );
 }
 
-/// AC-3: `| enrich geoip ON device_ip` → output schema includes 4 geoip columns.
+/// AC-3: `| enrich geoip ON device_ip` → output schema includes 4 geoip columns in declared order.
+///
+/// TD-VSDD-059: ordered equality — a reorder of output_columns must fail this assertion.
 #[test]
 fn test_ac_3_enrich_descriptor_includes_all_geoip_columns() {
     let registry = InfusionRegistry::new();
@@ -912,10 +1031,17 @@ fn test_ac_3_enrich_descriptor_includes_all_geoip_columns() {
         .enrich_descriptor("geoip")
         .expect("AC-3: enrich_descriptor must return descriptor for 'geoip'");
 
+    // TD-VSDD-059: ordered equality — a reorder must fail this test.
+    // build_geoip_spec() pipe_stage.adds_columns = ["geoip_country","geoip_city","geoip_asn","geoip_is_tor"]
     assert_eq!(
-        desc.output_columns.len(),
-        4,
-        "AC-3: enrich descriptor must list 4 output columns"
+        desc.output_columns,
+        vec![
+            "geoip_country".to_string(),
+            "geoip_city".to_string(),
+            "geoip_asn".to_string(),
+            "geoip_is_tor".to_string(),
+        ],
+        "AC-3: enrich descriptor output_columns must equal pipe_stage.adds_columns in declared order"
     );
 }
 

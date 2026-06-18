@@ -568,8 +568,42 @@ impl InfusionRegistry {
     ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
         let current = self.inner.load();
 
-        // Validate against current state (pure — does not mutate).
-        let descriptors = self.validate_spec_against(&spec, &current)?;
+        // BC-2.19.001 v2.0 A3 — last-writer-wins overwrite: if this infusion_id is already
+        // registered, build a temporary view of the registry WITHOUT the old spec before
+        // running duplicate-name validation. This mirrors hot_reload's pattern and ensures:
+        // 1. validate_spec_against doesn't false-positive on the old spec's field names
+        //    (a reload may legitimately reuse the same UDF names under the same infusion_id).
+        // 2. stale udf_to_infusion entries for the OLD spec's fields are removed before the
+        //    new spec's entries are inserted (TV-19-001-overwrite-purge).
+        let infusion_id = spec.infusion_id.clone();
+        let (validation_inner, mut new_entries, mut new_udf_to_infusion) =
+            if current.entries.contains_key(&infusion_id) {
+                // Remove the old spec's entries from a working copy for validation.
+                let mut temp_entries = current.entries.clone();
+                let mut temp_udf_map = current.udf_to_infusion.clone();
+                if let Some((old_spec, _)) = temp_entries.remove(&infusion_id) {
+                    for old_field in &old_spec.fields {
+                        temp_udf_map.remove(&old_field.name);
+                    }
+                }
+                let validation_inner = InfusionRegistryInner {
+                    entries: temp_entries.clone(),
+                    udf_to_infusion: temp_udf_map.clone(),
+                };
+                (validation_inner, temp_entries, temp_udf_map)
+            } else {
+                // First registration for this infusion_id — validate against full current state.
+                let new_entries = current.entries.clone();
+                let new_udf_to_infusion = current.udf_to_infusion.clone();
+                let validation_inner = InfusionRegistryInner {
+                    entries: new_entries.clone(),
+                    udf_to_infusion: new_udf_to_infusion.clone(),
+                };
+                (validation_inner, new_entries, new_udf_to_infusion)
+            };
+
+        // Validate against the (purged) state — pure, does not mutate shared state.
+        let descriptors = self.validate_spec_against(&spec, &validation_inner)?;
 
         // For LocalLookup specs with a source config, wire the real file-backed source.
         // Plugin specs use NullSource here; callers must use load_spec_with_runtime for plugin.
@@ -601,10 +635,7 @@ impl InfusionRegistry {
             Arc::new(NullSource)
         };
 
-        // Build updated inner: clone existing state and add the new spec.
-        let mut new_entries = current.entries.clone();
-        let mut new_udf_to_infusion = current.udf_to_infusion.clone();
-
+        // Build updated inner: insert the new spec into the purged working copy.
         for field in &spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
         }
@@ -662,8 +693,35 @@ impl InfusionRegistry {
     ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
         let current = self.inner.load();
 
-        // Validate against current state (pure — does not mutate).
-        let descriptors = self.validate_spec_against(&spec, &current)?;
+        // BC-2.19.001 v2.0 A3 — last-writer-wins overwrite: same purge-before-validate
+        // pattern as load_spec and hot_reload (see load_spec for detailed rationale).
+        let infusion_id = spec.infusion_id.clone();
+        let (validation_inner, mut new_entries, mut new_udf_to_infusion) =
+            if current.entries.contains_key(&infusion_id) {
+                let mut temp_entries = current.entries.clone();
+                let mut temp_udf_map = current.udf_to_infusion.clone();
+                if let Some((old_spec, _)) = temp_entries.remove(&infusion_id) {
+                    for old_field in &old_spec.fields {
+                        temp_udf_map.remove(&old_field.name);
+                    }
+                }
+                let validation_inner = InfusionRegistryInner {
+                    entries: temp_entries.clone(),
+                    udf_to_infusion: temp_udf_map.clone(),
+                };
+                (validation_inner, temp_entries, temp_udf_map)
+            } else {
+                let new_entries = current.entries.clone();
+                let new_udf_to_infusion = current.udf_to_infusion.clone();
+                let validation_inner = InfusionRegistryInner {
+                    entries: new_entries.clone(),
+                    udf_to_infusion: new_udf_to_infusion.clone(),
+                };
+                (validation_inner, new_entries, new_udf_to_infusion)
+            };
+
+        // Validate against the (purged) state — pure, does not mutate shared state.
+        let descriptors = self.validate_spec_against(&spec, &validation_inner)?;
 
         // Build the real source:
         // - Plugin specs: PluginInfusionSource wired to the runtime.
@@ -697,10 +755,7 @@ impl InfusionRegistry {
             Arc::new(NullSource)
         };
 
-        // Build updated inner: clone existing state and add the new spec.
-        let mut new_entries = current.entries.clone();
-        let mut new_udf_to_infusion = current.udf_to_infusion.clone();
-
+        // Build updated inner: insert the new spec into the purged working copy.
         for field in &spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
         }
