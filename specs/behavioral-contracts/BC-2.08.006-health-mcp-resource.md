@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["cycle-1-burst-45", "RECONCILIATION-2-health-resource-shape-2026-06-17"]
+modified: ["cycle-1-burst-45", "RECONCILIATION-2-health-resource-shape-2026-06-17", "RECONCILIATION-2-EC-08-013-retirement-2026-06-18"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,6 +30,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | RECONCILIATION-2-EC-08-013-retirement-2026-06-18 | 2026-06-18 | product-owner | **RECONCILIATION-2 (architect Ruling 4) — EC-08-013 retired/subsumed into EC-08-011.** EC-08-013 ("zero clients configured → `{\"clients\":{}}`") is marked retired with strikethrough in the edge cases table; ID preserved per append-only numbering policy (must not be reused). Reachability analysis (`crates/prism-mcp/src/server.rs::check_sensor_health`): the tool always returns `not_yet_available_msg` (GAP-002-A; S-5.04 scope) — the health cache is never written, making both EC-08-013 and EC-08-011 paths currently pre-implementation. Post-S-5.04, a zero-client deployment where `check_sensor_health` is explicitly invoked could technically reach `{"clients":{}}`, so an un-retire condition is attached: un-retire when S-5.04 ships with cache write semantics and a zero-client integration test is required. Until then, the correct response for the zero-clients state is the EC-08-011 sentinel (no check has run → empty cache → sentinel). Bump v1.5 → v1.6. |
 | 1.5 | RECONCILIATION-2-health-resource-shape-2026-06-17 | 2026-06-17 | product-owner | **RECONCILIATION-2 — Propagated BC-2.08.005 v1.5 two-phase probe model; resolved array-vs-keyed-object shape; reconciled `status`/`last_checked_at` contradiction.** Three fixes: (1) **Two-phase model propagation:** Postcondition 3 rewritten to use `SensorHealthResult` fields from BC-2.08.005 v1.5 (`probe_level`, `reachable: null` for spec-only, `auth_valid: null` for spec-only, `last_successful_query_at`). The retired `status: "up"|"down"|"degraded"|"auth_invalid"|"unknown"` and `last_checked_at` fields are removed — they were the pre-v1.5 shape that BC-2.08.005 superseded. (2) **Keyed-object shape (code change required):** Postcondition 2 explicitly states `sensors` MUST be a JSON object keyed by `sensor_id` (not a JSON array). The current `render_sensors_health_resource` code emits `"sensors": [array]` — this violates postcondition 2. The implementer must fix `render_sensors_health_resource` to emit a `BTreeMap<sensor_id, SensorHealthResult>` under each client key. (3) **Sentinel vs empty-clients disambiguation:** Postcondition 5 explicitly separates the "no health check run" sentinel response (`{ status: "unknown", message: "..." }`) from the normal `clients` keyed-object response — they are different JSON shapes, which the code already implements correctly. EC-08-011/012 updated to remove stale `last_checked_at` references. Canonical test vectors updated to show both S-5.03 and S-5.04 scoped variants. **Implementer must change:** `render_sensors_health_resource` in `resources.rs` must emit `sensors` as a keyed object (`BTreeMap<String, &SensorHealthResult>`) rather than the current `Vec`. **Bumped v1.4→v1.5.** |
 | 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix; normalized changelog schema to canonical 5-col form. |
@@ -71,7 +72,7 @@ This BC governs the `prism://sensors/health` MCP resource, which exposes cached 
 |----|-------------|-------------------|
 | EC-08-011 | Resource read immediately after startup, before any `check_sensor_health` call | Returns sentinel `{ "status": "unknown", "message": "Run check_sensor_health to populate this resource." }` — not an error, not a `clients` object |
 | EC-08-012 | Health data is stale (last check was 10+ minutes ago) | Resource returns cached data with top-level `stale: true` flag; no automatic expiry; consumer uses `last_successful_query_at` per-sensor field to assess freshness |
-| EC-08-013 | Zero clients configured | Resource returns `{ "clients": {} }` — empty object, not an error |
+| ~~EC-08-013~~ | ~~Zero clients configured~~ | ~~Resource returns `{ "clients": {} }` — empty object, not an error~~ **RETIRED — subsumed by EC-08-011 (architect Ruling 4, 2026-06-18).** With zero clients configured, no `check_sensor_health` call is semantically meaningful, so the health cache remains empty and the resource returns the EC-08-011 sentinel `{ "status": "unknown", "message": "Run check_sensor_health to populate this resource." }`. Code-path reachability analysis (`crates/prism-mcp/src/server.rs::check_sensor_health`): the tool currently always returns `not_yet_available_msg` (GAP-002-A; S-5.04 scope); once S-5.04 ships, a call with zero configured clients iterates over an empty client set and writes `{ clients: {} }` to the cache — this is the same-cache path as a normal run, making EC-08-013's `{"clients":{}}` technically reachable post-S-5.04 if an explicit tool call is made on a zero-client deployment. **Un-retire condition:** un-retire EC-08-013 (remove strikethrough) when S-5.04 ships `check_sensor_health` with cache write semantics and a zero-client integration test is needed to assert the `{"clients":{}}` shape. ID EC-08-013 is reserved and must not be reused. |
 
 ## Canonical Test Vectors
 

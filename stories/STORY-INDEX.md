@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.427"
+version: "v2.428"
 status: draft
 producer: state-manager
-timestamp: 2026-06-18T01:00:00Z
+timestamp: 2026-06-18T16:00:00Z
 phase: 3
-total_stories: 201
+total_stories: 203
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -20,6 +20,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
+- **D-1231 round-4 LOCAL 3-CLEAN fix-burst — STORY-INDEX v2.427→v2.428 (2026-06-18):** (POL-11/POL-32 changelog row) S-5.03 not-started v1.20→v1.21 (BC-2.16.007 v1.7 incorporated — table-set-delta gate ratified; column-delta → S-5.11; BC-2.08.006 v1.6 incorporated — EC-08-013 retired; silent dispatch-result discard fixed → tracing::warn on Err; HEAD b9f6db25; just check 4475 green; non-exhaustive gate 72). 2 new draft stubs registered: S-5.11 (column-delta notifications; 3 pts; depends S-5.03+S-3.13; Wave 5), S-5.12 (add_sensor_spec notification dispatch; 2 pts; depends S-5.03; Wave 5). BC-INDEX v6.76→v6.77. develop_head UNCHANGED 60249ccc. total_stories 201→203. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.427→v2.428.
 - **D-1230 round-3 LOCAL 3-CLEAN fix-burst — STORY-INDEX v2.426→v2.427 (2026-06-18):** (POL-11/POL-32 changelog row) 1 story row advanced: S-5.03 not-started v1.19→v1.20 (BC-2.10.008 v1.12 incorporated — sensor-inventory shape SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; EC-10-015 retired; BC-2.08.005 v1.7 incorporated — cross-client null mode removed, dead with_partial_failures path removed; reload_config carries forward org_display_names (regression test); HEAD 92c6e4d2; just check 4475 green; non-exhaustive gate 72). BC-INDEX v6.75→v6.76. develop_head UNCHANGED 60249ccc. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.426→v2.427.
 - **D-1229 round-2 LOCAL 3-CLEAN fix-burst — STORY-INDEX v2.425→v2.426 (2026-06-18):** (POL-11/POL-32 changelog row) 3 story rows advanced: S-1.14-REDO not-started v1.3→v1.4 (BC-2.19.001 v2.0 incorporated — output_columns Option-b subset, infusion_name=registry-key, dup-infusion_id last-writer-wins+purge; AC-3 strengthened ordered assert_eq; HEAD 0fd3a5d1; just check 4500 green). S-5.03 not-started v1.18→v1.19 (BC-2.10.008 v1.11 incorporated — display_name String|null from [[orgs]].name; capabilities_summary excluded (canonical=BC-2.10.011); non-exhaustive gate 72 UNCHANGED; HEAD 9216c744). S-2.03 merged v1.4→v1.5 (doc-reference correction: client_name source [[orgs]].name per BC-2.15.010 v1.4). BC-INDEX v6.74→v6.75. develop_head UNCHANGED 60249ccc. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.425→v2.426.
 - **D-1228 spec reconciliation burst — STORY-INDEX v2.424→v2.425 (2026-06-18):** (POL-11/POL-32 changelog row) 3 story rows advanced: S-1.14-REDO not-started v1.2→v1.3 (Task10/AC-3 pipe-mode |enrich runtime scope deferred to S-3.01 anchor per architect adjudication; #[non_exhaustive] retrofit fix-in-scope; HEAD ce56a7de). S-5.03 not-started v1.17→v1.18 (keyed-object sensors health resource; resource_pressure Option<usize> null; BC-2.08.005 v1.6/BC-2.08.006 v1.5/BC-2.10.008 v1.10 all incorporated; S-5.04 obligation: QueryEngine cursor_count()/token_count() accessors; HEAD ce257895). S-DEMO-ENRICHMENT-PIVOT-002 draft v1.3→v1.4 (E-INFUSE-004 http_lookup sync obligation recorded; BLOCKED on rebase onto S-1.14-REDO D-1221). BC-INDEX v6.73→v6.74. develop_head UNCHANGED 60249ccc. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.424→v2.425.
@@ -430,7 +431,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.08 | Action Delivery Framework [v1.23 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration [effective-merged-by: S-5.01-FOLLOWUP-MCP-BOOT PR #163 develop@e898c3c9 2026-05-29 — dep gate SATISFIED via metadata reconciliation D-1163] | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**merged v1.13** (D-1202 2026-06-17: PR #191 squash-merged develop@bec894a2; LOCAL 3/3 strict + PR-LEVEL 3/3 strict CONVERGED on frozen 86842768; pr-reviewer APPROVE; CI 43/43; POL-14 BC-2.10.011 status:draft→active; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open; was D-1201 2026-06-16: ready v1.12 streak 2/3 on 86842768)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
-| S-5.03 | Resources and Prompts [**not-started v1.20** (D-1230 2026-06-18: BC-2.10.008 v1.12 incorporated — sensor-inventory shape SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; EC-10-015 retired; BC-2.08.005 v1.7 incorporated — cross-client null mode removed, dead with_partial_failures path removed; reload_config carries forward org_display_names (regression test); HEAD 92c6e4d2; just check 4475 green; non-exhaustive gate 72; was v1.19: D-1229 2026-06-18)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
+| S-5.03 | Resources and Prompts [**not-started v1.21** (D-1231 2026-06-18: BC-2.16.007 v1.7 incorporated — table-set-delta gate ratified; column-delta → S-5.11; BC-2.08.006 v1.6 incorporated — EC-08-013 retired; silent dispatch-result discard fixed → tracing::warn on Err, non-fatal; HEAD b9f6db25; just check 4475 green; non-exhaustive gate 72; was v1.20: D-1230 2026-06-18)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
 | S-5.04 | Sensor Health Subsystem [**not-started v1.7** (D-1211 2026-06-17: AC-7 live-probe; BC-2.08.005 v1.5 added to arrays; was v1.6: depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession)] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
 | S-5.06 | Action and Infusion MCP Tools [v1.11] | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |
@@ -438,6 +439,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs [**not-started v1.6** (D-1211 2026-06-17: Task 8 + AC-8 = relocated AC-10 from S-5.03; BC-2.08.009 v1.4 owner)] | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
 | S-5.09 | External Log Forwarding Subsystem | prism-mcp | 5 | VP-061,VP-062 | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
 | S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 8 | VP-039,VP-056 | 3 | S-2.04, S-5.09 |
+| S-5.11 | Column-Schema-Change MCP Notifications [**draft v1.0** (D-1231 2026-06-18: new stub — column-delta notifications deferred from S-5.03 per BC-2.16.007 v1.7; depends S-5.03+S-3.13; Wave 5; 3 pts)] | prism-mcp | 3 | -- | 5 | S-5.03,S-3.13 |
+| S-5.12 | add_sensor_spec MCP Notification Dispatch [**draft v1.0** (D-1231 2026-06-18: new stub — add_sensor_spec notification asymmetry deferred from S-5.03; depends S-5.03; Wave 5; 2 pts)] | prism-mcp | 2 | -- | 5 | S-5.03 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-030"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-16"
+modified: "2026-06-18"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -59,9 +59,10 @@ validation, it is rejected and the previous version remains active.
 
 - **Modified spec files** (file hash changed):
   - The sensor's tables are re-registered with updated schemas and fetch pipelines
-  - If column definitions changed (added/removed/type changed), the `notifications/tools/list_changed` MCP notification is sent
-  - If only non-schema fields changed (e.g., rate_limit_hints, step URLs, pagination config), no notification is sent
   - A reload result entry is emitted: `"modified": ["{sensor_id}_{table_name}", ...]` with `"schema_changed": true/false`
+  - **MCP notification gate — table-set delta only:** `notifications/tools/list_changed` (and `notifications/resources/list_changed`) are dispatched if and only if the **set of registered table names** changes (tables added or removed). A spec-attribute or column-only change that does not alter the table-name set does NOT trigger these notifications in this contract version.
+  - If a modified spec adds or removes tables (changing the table-name set), both notifications are dispatched; if no table names are added or removed, neither notification is sent — even if column definitions, rate limits, or pagination config changed.
+  - **Deferred — column-delta notification (S-5.11):** Notifying MCP clients when column definitions change within an existing table (no table-name-set change) is explicitly deferred to S-5.11 (`S-5.11-column-schema-change-notifications`). Until S-5.11 ships, a column-only spec change does not cause a notification.
 
 - **Unchanged spec files** (file hash identical):
   - No action taken; existing table registrations remain
@@ -88,8 +89,10 @@ validation, it is rejected and the previous version remains active.
 |----|-------------|-------------------|
 | In-flight query during reload | query started before reload; reload completes mid-query | Query uses pre-reload schema; completes normally |
 | Scheduled query on removed table | schedule references `removed_sensor_table` | Schedule runs; produces empty results with sensor_errors entry; schedule not disabled |
-| Non-schema spec change | rate_limit_hints changed; column definitions unchanged | Tables re-registered; no `notifications/tools/list_changed` |
-| Schema change | column added to spec | Tables re-registered; `notifications/tools/list_changed` sent |
+| Column-only spec change | column added to existing table; table-name set unchanged | Tables re-registered; `schema_changed: true` in result; no `notifications/tools/list_changed` (table-name set unchanged — deferred to S-5.11) |
+| Non-schema spec change | rate_limit_hints changed; column definitions and table-name set unchanged | Tables re-registered; no `notifications/tools/list_changed` (table-name set unchanged) |
+| Table-set change — add table | new table name appears in updated spec | Tables re-registered; `notifications/tools/list_changed` + `notifications/resources/list_changed` sent (table-name set grew) |
+| Table-set change — remove table | existing table name absent from updated spec | Tables re-registered; `notifications/tools/list_changed` + `notifications/resources/list_changed` sent (table-name set shrank) |
 
 ## Canonical Test Vectors
 
@@ -99,8 +102,9 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 |----------|-------|-----------------|
 | Add new spec | new `vendor.sensor.toml` appears in directory | Tables registered; `"added": ["vendor_table1"]` in result |
 | Remove spec | existing spec file deleted | Tables unregistered; queries on removed tables get `E-QUERY-035` |
-| Modify spec — schema change | column added | Tables re-registered; `notifications/tools/list_changed` sent; `schema_changed: true` |
-| Modify spec — no schema change | rate limit changed | Tables re-registered; no notification; `schema_changed: false` |
+| Modify spec — column added (table set unchanged) | column added to existing table; table names identical before and after | Tables re-registered; `schema_changed: true`; NO `notifications/tools/list_changed` (table-name set unchanged; column-delta notification deferred to S-5.11) |
+| Modify spec — table added (table set grows) | new table name added to spec | Tables re-registered; `notifications/tools/list_changed` + `notifications/resources/list_changed` sent; `schema_changed: true` |
+| Modify spec — no schema change | rate limit changed; table names and column definitions identical | Tables re-registered; no notification; `schema_changed: false` |
 | Modified spec fails validation | invalid TOML after edit | Previous version retained; validation error in result |
 
 ## Verification Properties
@@ -122,6 +126,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | RECONCILIATION-1-architect-ruling-2026-06-18 | 2026-06-18 | product-owner | **RECONCILIATION-1 (architect Ruling 1) — MCP notification gate corrected to table-set-delta semantics.** §Postconditions (Modified spec files) rewritten: `notifications/tools/list_changed` + `notifications/resources/list_changed` fire if and only if the **set of registered table names** changes (tables added or removed); a column-only or non-schema-only change that does not alter the table-name set does NOT trigger notifications. The previous clause ("if column definitions changed, notification is sent") was stale and contradicted the AC-9 scope established in S-5.03 (table-set delta gate) and the DEFERRED-TO-S-5.03 annotation in S-3.13. Column-delta notification (notifying when column definitions change within an existing table with no table-name-set change) explicitly deferred to **S-5.11** (`S-5.11-column-schema-change-notifications`). Edge cases updated: replaced the two-row "Non-schema / Schema change" pair with four rows covering column-only (no notify), non-schema (no notify), table-add (notify), table-remove (notify). Canonical test vectors updated: "Modify spec — schema change" split into "column added table set unchanged" (no notify, S-5.11 deferred) and "table added" (notify). Bump v1.6 → v1.7. |
 | 1.6 | D-1204-POL-14 | 2026-06-16 | state-manager | POL-14 auto-promotion: `status:` field synced draft→active (lifecycle_status was already active; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16). No contract content change. |
 | 1.5 | S-3.13-LOCAL-adversary-OBS-1 | 2026-06-16 | product-owner | Prose drift fix: §Postconditions and §Error Conditions table-name separator corrected from DOT to UNDERSCORE at 6 sites (reload result arrays `"added"`, `"removed"`, `"modified"`, E-QUERY-035 message inline citation in Postconditions and Error Conditions rows, edge-case `removed_sensor_table`, test vector `vendor_table1`). Aligns with BC-2.11.001 authoritative convention and `table_registry.rs::register_sensor` `format!("{}_{}", ...)`. The v1.4 changelog entry referencing the old DOT pinned text is preserved as historical record. Note: E-QUERY-035 message format in error-taxonomy.md also uses DOT form — that is a parallel drift outside this BC's scope; flagged for taxonomy sweep under the same OBS-1 finding. |
 | 1.4 | review-2026-06-10-PO-micro | 2026-06-10 | product-owner | MCP cascade P4-05 re-home citation sweep (architect adjudication, error-taxonomy v1.72 / ADR-038 v1.4 D5 family): removed-after-reload error code `E-QUERY-011` → `E-QUERY-035` at all 3 citation sites (Postconditions removed-spec bullet, Error Conditions row, Canonical Test Vectors remove-spec row). E-QUERY-011 retained by the live audit-capability condition (BC-2.15.011, `PrismError::AuditTableAccessDenied` shipped display); this BC's reload condition RE-HOMED to E-QUERY-035, next sequential free at the namespace tail. Message text UNCHANGED — taxonomy v1.72 harmonized the E-QUERY-035 Message Format TO this BC's pinned text ("Table '{sensor_id}.{table_name}' is no longer available. The sensor spec was removed."); no shipped display binds (zero code emitters; future scope S-3.13). No semantic, edge-case, VP, or lifecycle changes. |

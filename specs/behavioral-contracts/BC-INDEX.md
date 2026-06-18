@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.76"
+version: "6.77"
 status: draft
 producer: state-manager
-timestamp: 2026-06-18T01:00:00Z
+timestamp: 2026-06-18T16:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -129,7 +129,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.08.003 | Rate Limit State Detection Per Sensor | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.004 | Last Successful Query Timestamp Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.005 | Health Check MCP Tool | 08 - Sensor Health | CAP-008 | P1 | draft (v1.7 — D-1230 2026-06-18: cross-client client_id:null mode removed → deferred to S-5.04; with_partial_failures dead path removed; was v1.6 — D-1228 2026-06-18: resource_pressure two-phase: null in S-5.03, live counts deferred to S-5.04 named anchor) |
-| BC-2.08.006 | Health Status MCP Resource | 08 - Sensor Health | CAP-008 | P1 | draft (v1.5 — D-1228 2026-06-18: keyed-object sensors map; sibling two-phase SensorHealthResult propagated from BC-2.08.005 v1.6; status/last_checked_at retired) |
+| BC-2.08.006 | Health Status MCP Resource | 08 - Sensor Health | CAP-008 | P1 | draft (v1.6 — D-1231 2026-06-18: EC-08-013 retired/subsumed into EC-08-011 per architect Ruling 4; append-only strikethrough; un-retire on S-5.04 cache-write; was v1.5 — D-1228 2026-06-18: keyed-object sensors map; sibling two-phase SensorHealthResult propagated from BC-2.08.005 v1.6; status/last_checked_at retired) |
 | BC-2.08.007 | Partial Health Status (Mixed Sensor Availability) | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.008 | `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.009 | Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources | 08 - Sensor Health | CAP-008 | P1 | draft (v1.4 — D-1212 2026-06-17: AC-10 unregistered_table_queries relocated from S-5.03 to S-5.08) |
@@ -222,7 +222,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
-| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | active (promoted draft→active D-1204 per POL-14; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16) — v1.6 |
+| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | active (promoted draft→active D-1204 per POL-14; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16) — v1.7 (D-1231 2026-06-18: notification gate reconciled to table-set-delta; column-delta deferred to S-5.11) |
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.10 |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.77 (2026-06-18, D-1231 round-4 LOCAL 3-CLEAN fix-burst — BC amendments + S-5.11/S-5.12 stub registration):** state-manager | (1) BC-2.16.007 inline row: v1.6→v1.7 — notification gate reconciled to table-set-delta; column-delta deferred to S-5.11 named anchor. (2) BC-2.08.006 inline row: v1.5→v1.6 — EC-08-013 retired/subsumed into EC-08-011 per architect Ruling 4; append-only strikethrough; un-retire on S-5.04 cache-write. No active/draft/retired COUNT change: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.76→v6.77.
 
 **v6.76 (2026-06-18, D-1230 round-3 LOCAL 3-CLEAN fix-burst — Lane B BC amendments):** state-manager | (1) BC-2.10.008 inline row: v1.11→v1.12 — postcondition 2 sensor-inventory shape reconciled to shipped SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; status="active" definitional in overlay model; EC-10-015 retired. (2) BC-2.08.005 inline row: v1.6→v1.7 — cross-client client_id:null mode removed → deferred to S-5.04; with_partial_failures dead path removed. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.75→v6.76.
 
