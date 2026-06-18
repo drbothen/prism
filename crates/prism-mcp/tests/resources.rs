@@ -795,10 +795,9 @@ fn test_BC_2_08_006_sensors_health_resource_returns_unknown_before_check() {
 /// lists only sensors present in `table_registry.registered_tables()`. Sensors absent
 /// from `TableRegistry` must NOT appear in the response.
 ///
-/// RED GATE: The current implementation returns a synthetic `"(all)"` entry rather
-/// than per-client or per-sensor entries. While the current code DOES filter by
-/// TableRegistry intersection, it does NOT produce the per-sensor entry structure
-/// required by BC-2.10.008. The assertion that client_id must NOT be "(all)" fails.
+/// GREEN: Implementation uses TableRegistry intersection to filter sensors. The synthetic
+/// "(all)" entry was removed in S-5.03; the response now contains per-sensor entries
+/// (client_id = sensor_id in single-tenant fallback mode).
 ///
 /// BC-2.10.008 postcondition 1: "Response must not contain sensors absent from
 /// `TableRegistry.registered_tables()` (e.g., Armis and Cyberint if not registered)."
@@ -862,13 +861,10 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
 
     // BC-2.10.008: "armis" and "cyberint" must NOT appear in the resource response
     // because they are not in the TableRegistry.
-    //
-    // This assertion PASSES with current code (intersection filter removes them).
-    // However, the "(all)" client_id check below reveals the incomplete implementation.
     assert!(
         !content_text.contains("\"armis\"") || content_text.contains("\"enabled_sensors\""),
         "AC-8: if armis appears in the response, it must only be in 'enabled_sensors' \
-         of the '(all)' entry — verify the intersection filter is working"
+         of a per-sensor entry — verify the intersection filter is working"
     );
 
     // Verify armis and cyberint are NOT in enabled_sensors.
@@ -896,19 +892,18 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
              Got enabled_sensors: {enabled:?}"
         );
 
-        // RED GATE: The client_id must NOT be the synthetic sentinel "(all)".
-        // BC-2.10.008 postcondition 1 requires per-sensor or per-client entries.
-        // The current implementation uses "(all)" — this assertion FAILS.
+        // Regression guard: the synthetic "(all)" sentinel entry was removed in S-5.03.
+        // The response must list real sensor IDs (e.g., "crowdstrike", "claroty") as client_id.
         let client_id = entry
             .get("client_id")
             .and_then(|v| v.as_str())
             .unwrap_or("(missing)");
         assert_ne!(
             client_id, "(all)",
-            "AC-8 (RED GATE): BC-2.10.008 requires per-sensor or per-client entries, \
+            "AC-8: BC-2.10.008 requires per-sensor or per-client entries, \
              not the synthetic '(all)' aggregate. The response must list real sensor IDs \
-             (e.g., 'crowdstrike', 'claroty') as client_id or a separate per-sensor structure. \
-             Current implementation returns a single '(all)' entry — not yet fully implemented."
+             (e.g., 'crowdstrike', 'claroty') as client_id. \
+             Got client_id: {client_id:?}"
         );
     }
 }
@@ -1214,7 +1209,7 @@ fn test_BC_2_08_005_check_sensor_health_trust_level_is_internal() {
     let sensors = vec![SensorHealthResult::new("crowdstrike", "acme")
         .with_reachable(true)
         .with_auth_valid(true)];
-    let pressure = prism_mcp::resources::ResourcePressure::new(0, 0);
+    let pressure = prism_mcp::resources::ResourcePressure::new(Some(0), Some(0));
     let content = SensorHealthStructuredContent::new(
         sensors,
         pressure,
@@ -1250,7 +1245,7 @@ fn test_BC_2_08_005_check_sensor_health_structured_content_shape() {
         .with_reachable(true)
         .with_auth_valid(true)
         .with_last_successful_query_at(chrono::Utc::now())];
-    let pressure = prism_mcp::resources::ResourcePressure::new(3, 7);
+    let pressure = prism_mcp::resources::ResourcePressure::new(Some(3), Some(7));
     let content = SensorHealthStructuredContent::new(
         sensors,
         pressure,
@@ -1367,11 +1362,8 @@ fn test_BC_2_08_006_sensors_health_zero_clients_returns_empty_object() {
 /// BC-2.10.008 EC-10-014: `prism://config/clients` with zero configured clients
 /// returns an empty JSON array `[]`, not an error.
 ///
-/// RED GATE: The current implementation returns a single `"(all)"` synthetic entry
-/// (sensor_count=0, enabled_sensors=[]) even when no sensors are configured.
-/// BC-2.10.008 EC-10-014 requires an empty array `[]` — no entries at all.
-/// This assertion fails until `render_client_list_resource` is updated to return `[]`
-/// when no sensors are registered in the TableRegistry.
+/// GREEN: The synthetic "(all)" entry was removed in S-5.03. When no sensors are registered
+/// in the TableRegistry, `render_client_list_resource` now returns `[]` as required.
 ///
 /// BC-2.10.008: "EC-10-014: Zero clients configured → `prism://config/clients` returns
 /// empty JSON array `[]`"
@@ -1405,17 +1397,14 @@ async fn test_BC_2_10_008_invariant_zero_clients_returns_empty_array() {
         .collect::<Vec<_>>()
         .join("");
 
-    // BC-2.10.008 EC-10-014: must be an empty JSON array, not a synthetic "(all)" entry.
-    //
-    // RED GATE: Current implementation returns [{"client_id":"(all)","sensor_count":0,...}].
-    // The correct behavior is: return [] when no sensors are registered.
+    // BC-2.10.008 EC-10-014: must be an empty JSON array when no sensors are registered.
+    // Regression guard: the synthetic "(all)" entry was removed in S-5.03.
     assert_eq!(
         content_text.trim(),
         "[]",
-        "BC-2.10.008 EC-10-014 (RED GATE): prism://config/clients with zero configured \
+        "BC-2.10.008 EC-10-014: prism://config/clients with zero configured \
          clients must return empty JSON array '[]', not a synthetic entry. \
-         Current implementation returns a '(all)' aggregate with sensor_count=0, which \
-         violates the EC-10-014 postcondition. Response: {content_text:?}"
+         Response: {content_text:?}"
     );
 }
 
@@ -2040,4 +2029,152 @@ fn test_OBS_1_prompt_render_rejects_injection_shaped_args() {
         .expect("OBS-1 positive control: None time_range must return Ok");
     render_cross_client_status(Some("24h"))
         .expect("OBS-1 positive control: '24h' time_range must return Ok");
+}
+
+// ─── CODE-CHANGE-1 load-bearing: sensors health keyed-object shape ─────────────
+
+/// BC-2.08.006 v1.5 postcondition 2 (CODE-CHANGE-1): `prism://sensors/health`
+/// MUST emit `sensors` as a JSON object keyed by `sensor_id`, NOT a JSON array.
+///
+/// AI consumers must be able to look up `clients["acme"]["sensors"]["crowdstrike"]["probe_level"]`
+/// directly without scanning an array. The old array shape `"sensors": [{...}]` was
+/// non-conformant. This test pins the keyed-object shape.
+///
+/// LOAD-BEARING: This test FAILS if `render_sensors_health_resource` emits an array.
+#[test]
+fn test_BC_2_08_006_sensors_health_resource_keyed_object_shape() {
+    let context = PrismContext::new();
+
+    // Populate cache with a spec-only result for client "acme", sensor "crowdstrike".
+    let cached_result = SensorHealthResult::new("crowdstrike", "acme");
+    context
+        .health_cache
+        .insert("acme".to_string(), "crowdstrike".to_string(), cached_result);
+
+    let result = render_sensors_health_resource(&context)
+        .expect("BC-2.08.006: render_sensors_health_resource must succeed with cached data");
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    let payload: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("BC-2.08.006: sensors/health response must be valid JSON");
+
+    // Assert keyed-object shape: clients["acme"]["sensors"] must be an object, not an array.
+    let sensors_value = &payload["clients"]["acme"]["sensors"];
+    assert!(
+        sensors_value.is_object(),
+        "BC-2.08.006 v1.5 postcondition 2 (CODE-CHANGE-1): \
+         clients[\"acme\"][\"sensors\"] MUST be a JSON object keyed by sensor_id, NOT an array. \
+         Got: {sensors_value:?}"
+    );
+
+    // Assert direct indexability: clients["acme"]["sensors"]["crowdstrike"]["probe_level"]
+    let probe_level = &payload["clients"]["acme"]["sensors"]["crowdstrike"]["probe_level"];
+    assert!(
+        probe_level.is_string(),
+        "BC-2.08.006 v1.5 postcondition 2: sensors[\"crowdstrike\"][\"probe_level\"] \
+         must be directly indexable as a string; got: {probe_level:?}"
+    );
+    assert_eq!(
+        probe_level.as_str().unwrap_or(""),
+        "spec-only",
+        "BC-2.08.006 v1.5: probe_level for S-5.03 spec-only result must be 'spec-only'; \
+         got: {probe_level:?}"
+    );
+}
+
+// ─── CODE-CHANGE-2 load-bearing: resource_pressure null encoding ──────────────
+
+/// BC-2.08.005 v1.6 RECONCILIATION-3 (CODE-CHANGE-2): `check_sensor_health` in S-5.03
+/// scope MUST emit `resource_pressure.active_cursor_count` and
+/// `resource_pressure.active_token_count` as JSON `null`, NOT `0`.
+///
+/// An AI consumer receiving `0` cannot distinguish "not yet wired" from a genuine
+/// zero count (no active cursors). JSON `null` encodes the honest-unknown state
+/// required by BC-2.08.005 v1.6.
+///
+/// LOAD-BEARING: This test FAILS if `ResourcePressure::new(None, None)` serializes
+/// the counts as `0` instead of `null`.
+#[test]
+fn test_BC_2_08_005_resource_pressure_null_encoding_in_s503_scope() {
+    // Build a ResourcePressure with None counts (S-5.03 scope).
+    let pressure = prism_mcp::resources::ResourcePressure::new(None, None);
+    let json = serde_json::to_string(&pressure).expect("ResourcePressure must serialize");
+
+    // Assert the counts serialize as JSON null, not 0.
+    assert!(
+        json.contains(r#""active_cursor_count":null"#),
+        "BC-2.08.005 v1.6 RECONCILIATION-3 (CODE-CHANGE-2): \
+         active_cursor_count MUST serialize as null in S-5.03 scope (not 0). \
+         Got: {json:?}"
+    );
+    assert!(
+        json.contains(r#""active_token_count":null"#),
+        "BC-2.08.005 v1.6 RECONCILIATION-3 (CODE-CHANGE-2): \
+         active_token_count MUST serialize as null in S-5.03 scope (not 0). \
+         Got: {json:?}"
+    );
+}
+
+// ─── LOW-3 load-bearing: co-wiring invariant for unknown-client guard ─────────
+
+/// LOW-3 (co-wiring invariant): in multi-tenant mode, `org_registry` and
+/// `resolved_spec_map` are always co-wired together (they both come from `QueryEngine`).
+/// An unknown client_id is rejected (E-CFG-100) when both are wired.
+/// When neither is wired (test / single-tenant mode), no rejection occurs (fallback path).
+///
+/// This test verifies the production-grade co-wiring path via `render_client_sensors_resource`:
+/// when `org_registry` is wired and the client is not registered, the function returns a
+/// 404-equivalent error — the asymmetric-wiring gap (resolved_spec_map but no org_registry)
+/// is documented as a contract violation that cannot occur in production.
+///
+/// LOAD-BEARING: regression guard that the unknown-client guard fires under co-wired mode.
+#[tokio::test]
+async fn test_LOW_3_unknown_client_rejected_in_co_wired_mode() {
+    use prism_core::{OrgRegistry, OrgSlug};
+    use prism_spec_engine::ConfigManager;
+    use std::collections::HashMap;
+
+    // Empty config and empty resolved_spec_map.
+    let config_manager: Arc<arc_swap::ArcSwap<ConfigManager>> =
+        Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::empty()));
+    let resolved_spec_map: Arc<
+        HashMap<prism_spec_engine::ResolvedSpecKey, prism_spec_engine::ResolvedSensorSpec>,
+    > = Arc::new(HashMap::new());
+
+    // OrgRegistry with NO registered orgs — "acme" is unknown.
+    let org_registry = Arc::new(OrgRegistry::new());
+
+    // Attempt to read sensors for unknown client "acme".
+    let result = render_client_sensors_resource(
+        "acme",
+        &config_manager,
+        Some(&resolved_spec_map),
+        Some(&org_registry),
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "LOW-3: render_client_sensors_resource with co-wired org_registry MUST return Err \
+         for an unknown client_id; got Ok"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.message.contains("not found"),
+        "LOW-3: error message must indicate 'not found' for unknown client; \
+         got: {:?}",
+        err.message
+    );
 }

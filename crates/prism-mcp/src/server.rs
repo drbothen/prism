@@ -2892,20 +2892,21 @@ impl PrismServer {
 
     /// Check the connectivity and authentication status of configured sensors.
     ///
-    /// DATA TRUST LEVEL: External/untrusted — sensor connectivity status is sensor-originated.
-    /// SECURITY NOTE: Sensor name parameter scanned for prompt injection.
-    /// DATA SOURCE: Configured sensor adapters.
+    /// DATA TRUST LEVEL: Internal — health status is Prism-generated (probe_level field
+    /// distinguishes spec-only from live probe results).
+    /// SECURITY NOTE: client_id and sensor_id parameters scanned for prompt injection.
+    /// DATA SOURCE: Prism-generated (S-5.03 spec-only scope); live probe added in S-5.04.
     #[tool(
-        description = "Check the connectivity and authentication status of configured sensors.\n\
-        DATA TRUST LEVEL: External/untrusted — connectivity status is sensor-originated.\n\
-        SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
-        DATA SOURCE: Configured sensor adapters.\n\
-        WHEN TO USE: when diagnosing connectivity or authentication issues with sensors\n\
+        description = "Check the connectivity and authentication status of configured sensors for a client.\n\
+        DATA TRUST LEVEL: Internal — health data is Prism-generated (trust_level: 'internal').\n\
+        SECURITY NOTE: client_id and sensor_id parameters scanned for prompt injection.\n\
+        DATA SOURCE: Prism-generated spec-only in S-5.03; live probe added in S-5.04.\n\
+        WHEN TO USE: when diagnosing sensor availability or authentication state for a client\n\
         WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
-        PARAMETERS: sensor (optional specific sensor name; omit for all sensors)\n\
+        PARAMETERS: client_id (required — the client scope), sensor_id (optional — null means all sensors)\n\
         PAGINATION: not applicable\n\
-        RESPONSE: connectivity and authentication status per sensor\n\
-        ERRORS: -32003 not yet implemented, -32000 internal error",
+        RESPONSE: per-sensor health with probe_level, reachable, auth_valid, resource_pressure\n\
+        ERRORS: -32602 invalid client_id or sensor_id, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn check_sensor_health(
@@ -3059,7 +3060,10 @@ impl PrismServer {
             "{total_count} sensor(s) available for client '{}' (spec-only: no live probe performed)",
             params.client_id
         );
-        let pressure = resources::ResourcePressure::new(0, 0);
+        // BC-2.08.005 v1.6 RECONCILIATION-3: S-5.03 scope MUST emit null for both counts
+        // (not the misleading zero-valued ResourcePressure::new(0,0)) so the AI consumer
+        // can distinguish "not yet wired" from a genuine zero count. S-5.04 wires live values.
+        let pressure = resources::ResourcePressure::new(None, None);
         let structured =
             resources::SensorHealthStructuredContent::new(sensors, pressure, summary.clone());
 

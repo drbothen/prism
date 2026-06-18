@@ -158,18 +158,28 @@ pub struct RateLimitInfo {
 }
 
 /// Resource pressure section in `check_sensor_health` response (BC-2.08.005 postcondition).
+///
+/// BC-2.08.005 v1.6 two-phase resource_pressure behavior (RECONCILIATION-3 anchor):
+/// - S-5.03 scope: both counts are `None` — emitted as JSON `null` so the AI consumer can
+///   distinguish "not yet wired" from a genuine zero (hardcoded `0` is FORBIDDEN in S-5.03).
+/// - S-5.04 scope: live counts wired via `QueryEngine::cursor_count()` / `::token_count()`.
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourcePressure {
     /// Current number of non-expired cursors (out of 200 cap).
-    pub active_cursor_count: usize,
+    /// `None` in S-5.03 scope (not yet wired); `Some(usize)` in S-5.04 after live wiring.
+    pub active_cursor_count: Option<usize>,
     /// Current number of unexpired, unconsumed confirmation tokens (out of 100 cap).
-    pub active_token_count: usize,
+    /// `None` in S-5.03 scope (not yet wired); `Some(usize)` in S-5.04 after live wiring.
+    pub active_token_count: Option<usize>,
 }
 
 impl ResourcePressure {
     /// Construct a ResourcePressure snapshot.
-    pub fn new(active_cursor_count: usize, active_token_count: usize) -> Self {
+    ///
+    /// Pass `None` for both counts in S-5.03 scope to emit JSON `null` (not `0`).
+    /// Pass `Some(n)` in S-5.04 scope with live-wired count values.
+    pub fn new(active_cursor_count: Option<usize>, active_token_count: Option<usize>) -> Self {
         Self {
             active_cursor_count,
             active_token_count,
@@ -778,18 +788,23 @@ pub fn render_sensors_health_resource(
     let clients_payload: std::collections::BTreeMap<String, serde_json::Value> = clients_map
         .iter()
         .map(|(client_id, entries)| {
+            // BC-2.08.006 v1.5 postcondition 2: `sensors` MUST be a JSON object keyed by
+            // `sensor_id` — NOT a JSON array. AI consumers look up sensors directly by ID
+            // without scanning an array.
+            //
             // OBS-1: propagate serialization errors instead of silently degrading to null.
             // SensorHealthResult contains only JSON-native types (String, bool, DateTime);
             // serialization realistically cannot fail, but an explicit error surface is
             // correct per the production-grade default (CLAUDE.md §Canonical Principle).
-            let sensors: Vec<serde_json::Value> = entries
+            let sensors: std::collections::BTreeMap<String, serde_json::Value> = entries
                 .iter()
                 .map(|e| {
-                    serde_json::to_value(&e.result).map_err(|err| {
+                    let value = serde_json::to_value(&e.result).map_err(|err| {
                         internal_error(format!("health result serialize error: {err}"))
-                    })
+                    })?;
+                    Ok((e.result.sensor_id.clone(), value))
                 })
-                .collect::<Result<Vec<_>, _>>()?;
+                .collect::<Result<std::collections::BTreeMap<_, _>, ErrorData>>()?;
             Ok((client_id.clone(), serde_json::json!({ "sensors": sensors })))
         })
         .collect::<Result<_, ErrorData>>()?;
