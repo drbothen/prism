@@ -858,8 +858,10 @@ pub struct ConfirmActionParams {
 
 /// Parameters for the `check_sensor_health` tool (BC-2.08.005 precondition).
 ///
-/// BC-2.08.005 v1.4 (OOD-001 adjudication — SPEC WINS): `client_id` is required.
+/// BC-2.08.005 v1.5 (OOD-001 adjudication — SPEC WINS): `client_id` is required.
 /// The legacy `sensor: Option<String>` stub (absent `client_id`) was non-conformant.
+/// v1.5 amendment: two-phase probe model — S-5.03 scope returns `probe_level: "spec-only"`
+/// with `reachable: None` / `auth_valid: None`; S-5.04 adds live probe results.
 #[non_exhaustive]
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3218,7 +3220,10 @@ impl PrismServer {
             tables
         } else {
             // Fallback: derive table set from config_manager snapshot.
-            // Fully-qualified name: `{sensor_id}.{table_name}` (DataFusion convention).
+            // MUST use `{sensor_id}_{table_name}` (underscore) — same format as
+            // `TableRegistry::register_sensor` (table_registry.rs line 149).
+            // Using `.` (dot) here mismatches the real registry and breaks the
+            // old == new set-comparison (F-OBS-2 separator fix).
             self.config_manager
                 .as_ref()
                 .map(|cm_arc_swap| {
@@ -3229,7 +3234,7 @@ impl PrismServer {
                         .flat_map(|spec| {
                             spec.tables
                                 .iter()
-                                .map(move |t| format!("{}.{}", spec.sensor_id, t.table_name))
+                                .map(move |t| format!("{}_{}", spec.sensor_id, t.table_name))
                         })
                         .collect()
                 })
@@ -3251,6 +3256,8 @@ impl PrismServer {
             tables
         } else {
             // Fallback: derive table set from config_manager snapshot (post-reload).
+            // MUST use `{sensor_id}_{table_name}` (underscore) — matching the old_tables
+            // fallback format and `TableRegistry::register_sensor` (F-OBS-2 separator fix).
             self.config_manager
                 .as_ref()
                 .map(|cm_arc_swap| {
@@ -3261,7 +3268,7 @@ impl PrismServer {
                         .flat_map(|spec| {
                             spec.tables
                                 .iter()
-                                .map(move |t| format!("{}.{}", spec.sensor_id, t.table_name))
+                                .map(move |t| format!("{}_{}", spec.sensor_id, t.table_name))
                         })
                         .collect()
                 })

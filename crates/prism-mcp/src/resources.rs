@@ -903,17 +903,59 @@ fn looks_like_raw_credential(s: &str) -> bool {
 ///
 /// Input: `https://api.example.com:443/v1/events?token=secret`
 /// Output: `https://api.example.com:443`
+///
+/// Input: `https://user:secret@host:443/path` (F-OBS-1 / AD-017)
+/// Output: `https://host:443` — userinfo (`user:pass@`) is stripped.
+///
+/// The URL authority section may contain userinfo in the form `user:pass@host:port`.
+/// Userinfo is stripped because it may contain embedded credentials that must not
+/// transit into MCP resource responses forwarded to AI agent contexts (AD-017 /
+/// DI-002 / BC-2.19.005 credential-redaction spirit).
 fn strip_url_to_host_port(url: &str) -> String {
     // Find the scheme (e.g., "https://")
-    let after_scheme = if let Some(rest) = url.strip_prefix("https://") {
-        format!("https://{}", strip_path_from_authority(rest))
+    if let Some(rest) = url.strip_prefix("https://") {
+        let authority = strip_path_from_authority(strip_userinfo(rest));
+        format!("https://{authority}")
     } else if let Some(rest) = url.strip_prefix("http://") {
-        format!("http://{}", strip_path_from_authority(rest))
+        let authority = strip_path_from_authority(strip_userinfo(rest));
+        format!("http://{authority}")
     } else {
-        // No known scheme — strip at first '/' after any existing content
-        strip_path_from_authority(url).to_string()
+        // No known scheme — strip path, then userinfo.
+        strip_path_from_authority(strip_userinfo(url)).to_string()
+    }
+}
+
+/// Strip URL userinfo (`user:pass@`) from the authority section (F-OBS-1 / AD-017).
+///
+/// RFC 3986 §3.2.1: userinfo is the segment before the last `@` in the authority.
+/// For `user:secret@host:443/path`, returns `host:443/path`.
+/// For `host:443/path` (no userinfo), returns the input unchanged.
+fn strip_userinfo(authority_and_rest: &str) -> &str {
+    // Split the path-part off first so we don't accidentally find `@` in a query value.
+    // The authority ends at the first `/` or `?`.
+    let (authority_section, rest_suffix) = if let Some(slash_pos) = authority_and_rest.find('/') {
+        (
+            &authority_and_rest[..slash_pos],
+            &authority_and_rest[slash_pos..],
+        )
+    } else if let Some(q_pos) = authority_and_rest.find('?') {
+        (&authority_and_rest[..q_pos], &authority_and_rest[q_pos..])
+    } else {
+        (authority_and_rest, "")
     };
-    after_scheme
+
+    // Find the last `@` in the authority section — everything before it is userinfo.
+    if let Some(at_pos) = authority_section.rfind('@') {
+        // Reconstruct: skip the userinfo prefix and re-attach any path/query suffix.
+        // `rest_suffix` already starts with `/` or `?`, so direct concatenation is safe.
+        // We return a subslice of the original `authority_and_rest` that starts right
+        // after the `@`. The suffix offset is at_pos + 1 within authority_section,
+        // which is the same byte position in authority_and_rest.
+        let _ = rest_suffix; // consumed by the pointer arithmetic below
+        &authority_and_rest[at_pos + 1..]
+    } else {
+        authority_and_rest
+    }
 }
 
 /// Strip path/query/fragment from an authority (host:port) string.

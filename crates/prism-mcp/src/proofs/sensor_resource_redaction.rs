@@ -42,6 +42,85 @@ mod vp_050_tests {
 
     // ─── VP-050 proptest ──────────────────────────────────────────────────────
 
+    // ─── Unit test: userinfo stripping (F-OBS-1) ─────────────────────────────
+
+    /// VP-050 / F-OBS-1: `strip_url_to_host_port` MUST strip URL userinfo (the
+    /// `user:pass@` segment before the host). A URL containing embedded credentials
+    /// in the authority section MUST NOT leak `user:pass@` into the output.
+    ///
+    /// This is a LOAD-BEARING test: it FAILS before the fix (current implementation
+    /// returns `"https://user:secret@host:443"` — userinfo leaks). After the fix,
+    /// the output MUST be `"https://host:443"`.
+    ///
+    /// Threat model: a misconfigured `base_url` in a sensor TOML spec like
+    /// `https://user:secret@api.vendor.com:443/v1` would expose the credential
+    /// in the MCP resource response forwarded to AI agent context (AD-017 / DI-002
+    /// / BC-2.19.005 credential-redaction spirit).
+    #[test]
+    fn test_vp050_strip_url_to_host_port_strips_userinfo() {
+        use crate::resources::render_sensor_inventory_resource;
+
+        // Case 1: https with userinfo + path
+        let entry = render_sensor_inventory_resource(
+            "crowdstrike",
+            "cred-ref-1234",
+            "https://user:secret@host.example.com:443/v1/events",
+            &["detections".to_string()],
+        );
+        let serialized = serde_json::to_string(&entry).unwrap();
+        // VP-050 F-OBS-1 LOAD-BEARING: the userinfo segment MUST NOT appear in output.
+        assert!(
+            !serialized.contains("user:secret@"),
+            "VP-050 F-OBS-1: userinfo 'user:secret@' leaked into api_base_url. \
+             strip_url_to_host_port must strip the `user:pass@` authority prefix. \
+             Got serialized: {serialized}"
+        );
+        assert!(
+            !serialized.contains("user:secret"),
+            "VP-050 F-OBS-1: credential value 'user:secret' leaked into api_base_url. \
+             Got serialized: {serialized}"
+        );
+        // The host MUST still appear (not a blank output).
+        assert!(
+            serialized.contains("host.example.com"),
+            "VP-050 F-OBS-1: host must be present after userinfo is stripped. \
+             Got serialized: {serialized}"
+        );
+
+        // Case 2: http with userinfo, no port, no path
+        let entry2 = render_sensor_inventory_resource(
+            "claroty",
+            "cred-ref-5678",
+            "http://admin:pass@internal.claroty.com",
+            &["assets".to_string()],
+        );
+        let serialized2 = serde_json::to_string(&entry2).unwrap();
+        assert!(
+            !serialized2.contains("admin:pass@"),
+            "VP-050 F-OBS-1: userinfo 'admin:pass@' leaked (http, no port). \
+             Got serialized: {serialized2}"
+        );
+        assert!(
+            serialized2.contains("internal.claroty.com"),
+            "VP-050 F-OBS-1: host must be present after userinfo stripped (http). \
+             Got serialized: {serialized2}"
+        );
+
+        // Case 3: userinfo with no port and a path
+        let entry3 = render_sensor_inventory_resource(
+            "armis",
+            "cred-ref-9012",
+            "https://token:x@api.armis.com/api/v1/devices",
+            &["devices".to_string()],
+        );
+        let serialized3 = serde_json::to_string(&entry3).unwrap();
+        assert!(
+            !serialized3.contains("token:x@"),
+            "VP-050 F-OBS-1: userinfo 'token:x@' leaked (no port). \
+             Got serialized: {serialized3}"
+        );
+    }
+
     proptest! {
         /// VP-050: render_sensor_inventory_resource redacts API keys.
         ///
