@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.860"
+version: "7.861"
 status: current
-timestamp: 2026-06-17T22:00:00Z
+timestamp: 2026-06-17T23:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1226 BURST (2026-06-17) — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT. develop_head UNCHANGED 60249ccc. 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE. MERGE SEQUENCING LOCKED (D-1221): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. §RESUME SNAPSHOT D-1226 WRITTEN (supersedes D-1206 + D-1207..D-1225 overlay chain). STATE v7.859→v7.860.**
+> **D-1227 MICRO-UPDATE (2026-06-17) — S-1.14-REDO HEAD CORRECTED. eda52123 + staged-uncommitted → 2020dbf0 CLEAN (all fixes committed; just check 4499/4499 green; non-exhaustive gate 67). D-1226 snapshot remains authoritative; Step 5 now COMPLETE (no pending commit). EXACT NEXT ACTION: LOCAL 3-CLEAN streak on frozen HEAD 2020dbf0. STATE v7.860→v7.861.** _Prior D-1226 banner: COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT. develop_head UNCHANGED 60249ccc. 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE. MERGE SEQUENCING LOCKED (D-1221): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent._
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1226** (authoritative zero-context restart protocol, 3 lane HEADs + merge sequencing + DO-NOT-REFLAG + exact resume protocol). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1225 notes SUPERSEDED.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1226** (authoritative zero-context restart protocol, 3 lane HEADs + merge sequencing + DO-NOT-REFLAG + exact resume protocol; D-1227 HEAD correction applied). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1225 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1226 below + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `60249ccc` (feat(S-3.13): dynamic table availability — TableRegistry + E-QUERY-037 plan-time gate; D-1204 merge). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.860.
+> develop HEAD `60249ccc` (feat(S-3.13): dynamic table availability — TableRegistry + E-QUERY-037 plan-time gate; D-1204 merge). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.861.
 
 ---
 
@@ -72,15 +72,15 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | 5 | **S-DEMO-LAUNCHER-CONSOLIDATION-001** | **MERGED** (T11 DONE — PR #190 develop@c3ecf6c8 2026-06-16; PR-LEVEL 3/3 strict; POL-14 all 5 BCs idempotent) | 8 | BC-2.06.001, BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.017 | S-DEMO-003 (SATISFIED) | T11 DONE |
 | 6 — capstone | **Multi-client SOC-analyst narrative story** (not yet named or authored) | **not-authored** (no story file, no STORY-INDEX row; owner: product-owner + story-writer; after enrichment chain + capability-discovery + S-1.14-REDO all merged) | TBD | TBD | S-1.14-REDO + PIVOT-003 + S-5.04 all MERGED | T13 → T14 demo recording; the demo's capstone deliverable |
 | **D-1107 SCOPE-IN** | **S-5.02** | **MERGED** (PR #191 develop@bec894a2 2026-06-17; PR-LEVEL 3/3 strict; POL-14 BC-2.10.011 status:draft→active) | 5 | BC-2.10.004, BC-2.10.007, BC-2.10.011 (all active) | S-5.01-FOLLOWUP-MCP-BOOT (SATISFIED) | T15a DONE |
-| **D-1107 SCOPE-IN** | **S-5.03** | **IN PROGRESS — 3-CLEAN NEEDED** @23aac4ca | 4 | BC-2.08.005, BC-2.08.006 | S-5.02 MERGED + S-3.13 MERGED (SATISFIED) | CLEAN(PR-merge)=yes; strict-clean re-pass needed on frozen 23aac4ca; OBS-3 DEC-004 → product-owner S-5.04/targeted story (out of scope); **DEMO-CRITICAL-PATH** |
+| **D-1107 SCOPE-IN** | **S-5.03** | **IN PROGRESS — 3-CLEAN NEEDED** @5a444a5f | 4 | BC-2.08.005, BC-2.08.006 | S-5.02 MERGED + S-3.13 MERGED (SATISFIED) | CLEAN(PR-merge)=yes; fix 3 strict-only OBS (F-OBS-1 userinfo strip + separator cosmetic + stale comment) → freeze HEAD → 3-CLEAN; OBS-3 DEC-004 → product-owner S-5.04/targeted story (out of scope); **DEMO-CRITICAL-PATH** |
 | **D-1107 SCOPE-IN** | **S-5.04** | not-started | 5 | -- | S-5.03, S-DEMO-001 | Sensor Health Subsystem — remove-uncertainty before TDD; **DEMO-CRITICAL-PATH** |
 | **D-1107 SCOPE-IN** | **S-3.13** | **MERGED** (PR #192 develop@60249ccc 2026-06-16; PR-LEVEL 3/3 strict; POL-14 BC-2.16.007 status:draft→active) | 3 | BC-2.16.007, BC-2.16.001, BC-2.11.001 (all active) | S-3.02, S-1.12 (SATISFIED) | T15d DONE |
 | **D-1164 REQUIRED** | **S-DEMO-ENRICHMENT-PIVOT-001** | **MERGED** (T12 DONE — PR #189 develop@1b2e9a31 2026-06-16; PR-LEVEL 3/3 strict; BC-2.19.001+BC-2.19.003 active) | 5 | BC-2.19.001 (active), BC-2.19.003 (active) | S-1.14 (via S-1.14-REDO) | T12 DONE |
 | **D-1205 DEMO-BLOCKING** | **S-DEMO-ENRICHMENT-PIVOT-002** | **IN PROGRESS — BLOCKED on rebase** @0f958261 | 8 | BC-2.19.001 | PIVOT-001 MERGED; CRIT-1/2a/2b/HIGH-1+all HIGH/MED closed; BLOCKED on rebase onto S-1.14-REDO (F-SV-1 dep; ThreatIntel prod enrichment requires infusion_load_step→PluginRuntime wiring) | MERGES AFTER S-1.14-REDO; rebase → verify prod enrichment → 3-CLEAN → merge |
-| **D-1205 DEMO-BLOCKING** | **S-1.14-REDO** | **IN PROGRESS — 3-CLEAN NEEDED** @20bdb0d6 | 8 | -- | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME (SATISFIED) | **MERGES FIRST (D-1221)** — 8 fix-bursts done incl. F-SV-1 hollow-feature; fresh adversary pass on frozen 20bdb0d6 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; EXPECTED 66→67 |
+| **D-1205 DEMO-BLOCKING** | **S-1.14-REDO** | **IN PROGRESS — 3-CLEAN NEEDED** @2020dbf0 (CLEAN; D-1227) | 8 | -- | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME (SATISFIED) | **MERGES FIRST (D-1221)** — all fixes committed (just check 4499/4499 green; non-exhaustive gate 67); dispatch 3 INDEPENDENT fresh-context adversary passes on frozen 2020dbf0 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; EXPECTED 66→67 |
 | **D-1205 DEMO-BLOCKING** | **S-DEMO-ENRICHMENT-PIVOT-003** | not-started | 8 | -- | PIVOT-002 MERGED | Real IOC fields in DTU fixtures + canonical pivot proof; closes BC-2.06.019 §Interim State _ioc_value violation; closes TD-PLUGIN-P0-002 P0 |
 
-**NEXT CONCRETE ACTION (D-1221..D-1224 overlay): 3 lanes frozen — CASCADE ROUND-2 complete. (a) S-1.14-REDO @20bdb0d6: fresh adversary pass on frozen HEAD → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → MERGE FIRST; EXPECTED 66→67. (b) S-5.03 @23aac4ca: strict-clean re-pass on frozen HEAD → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge (INDEPENDENT; no sequencing dep); EXPECTED →72. (c) PIVOT-002 @0f958261: AWAIT S-1.14-REDO merge → orchestrator dispatches devops-engineer to rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge; EXPECTED →76. OBS-3 DEC-004 → product-owner routes to S-5.04/targeted story (DO-NOT-REFLAG as S-5.03 blocker). T13 capstone (not-authored; PO+story-writer) after all three merged. D-989+D-1090 autonomy grant remains active.**
+**NEXT CONCRETE ACTION (D-1221..D-1227): 3 lanes frozen — CASCADE ROUND-2 complete + D-1227 HEAD correction. (a) S-1.14-REDO @2020dbf0: worktree CLEAN; dispatch 3 INDEPENDENT fresh-context adversary passes on frozen HEAD 2020dbf0 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → MERGE FIRST; EXPECTED 66→67. (b) S-5.03 @5a444a5f: fix 3 strict-only OBS (F-OBS-1 userinfo strip + separator cosmetic + stale comment) → freeze HEAD → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge (INDEPENDENT; no sequencing dep); EXPECTED →72. (c) PIVOT-002 @0f958261: AWAIT S-1.14-REDO merge → orchestrator dispatches devops-engineer to rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge; EXPECTED →76. OBS-3 DEC-004 → product-owner routes to S-5.04/targeted story (DO-NOT-REFLAG as S-5.03 blocker). T13 capstone (not-authored; PO+story-writer) after all three merged. D-989+D-1090 autonomy grant remains active.**
 
 **Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: L-POST (D-1205 SCOPING RESOLVED — all prior lanes CLOSED; develop@60249ccc). T1+T2+T3+T4+T4-A+T5+T6+T8+T9+T10+T11+T12 DONE. NO OPEN PRs. develop@60249ccc (D-1204 S-3.13 merge). BC-INDEX v6.69. ARCH-INDEX v2.135. STORY-INDEX v2.420. error-taxonomy v1.86. VP-INDEX v1.79 (157). policies v1.33. prd v1.12. BC-2.19.001 v1.7 ACTIVE. BC-2.06.017 v1.10 ACTIVE. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.848 (D-1205 scope-decision burst).**
 
@@ -88,7 +88,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 ## §RESUME SNAPSHOT — D-1226 (2026-06-17 — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT; develop_head 60249ccc; 3 LANES IN LOCAL CONVERGENCE; MERGE SEQUENCING D-1221 LOCKED; STATE v7.860)
 
-> **D-1226: COMPREHENSIVE ZERO-CONTEXT DURABILITY SNAPSHOT. develop_head 60249ccc (feat(S-3.13): dynamic table availability — unchanged since D-1204 2026-06-16). NO OPEN PRs. ci.yml EXPECTED=66 + CLAUDE.md '66 types...EXPECTED=66' CONFIRMED on develop@60249ccc. 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE: (1) S-1.14-REDO @eda52123 branch feature/S-1.14-REDO — staged-uncommitted fix on disk (F-2REV-LOW-1 + OBS-1 + OBS-2); RESUME MUST complete commit before adversary dispatch; story v1.2; MERGES FIRST (D-1221; EXPECTED 66→67). (2) S-5.03 @5a444a5f branch feature/S-5.03 — clean; story v1.17; CLEAN(PR-merge)=yes; needs strict-clean 3-CLEAN re-pass; independent; EXPECTED 66→72 after merge. (3) PIVOT-002 @0f958261 branch feature/S-DEMO-ENRICHMENT-PIVOT-002 — clean; story v1.3; BLOCKED on rebase onto S-1.14-REDO post-merge (F-SV-1 ThreatIntel dep); EXPECTED →76 after merge. MERGE SEQUENCING LOCKED (D-1221): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. ARCHITECTURE DECISIONS (D-1226): DUAL-PATH INFUSION (ADR-040 v2.0): InfusionType::HttpLookup (declarative TOML, reuses pipeline.rs) for NVD + InfusionType::Plugin (WASM) for ThreatIntel. BC-2.10.008 v1.9 (org-no-overlay→0 sensors, Option B; EC-10-017). BC-2.08.005 v1.5 (two-phase probe: S-5.03 spec-only/null, S-5.04 live). error-taxonomy v1.88 (E-INFUSE-009/010/011 + E-PLUGIN-023). User autonomy grant D-989+D-1090 remains active. D-1206 snapshot and D-1207..D-1225 overlay chain SUPERSEDED by this D-1226 snapshot.**
+> **D-1226 (updated D-1227): COMPREHENSIVE ZERO-CONTEXT DURABILITY SNAPSHOT. develop_head 60249ccc (feat(S-3.13): dynamic table availability — unchanged since D-1204 2026-06-16). NO OPEN PRs. ci.yml EXPECTED=66 + CLAUDE.md '66 types...EXPECTED=66' CONFIRMED on develop@60249ccc. 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE: (1) S-1.14-REDO @2020dbf0 branch feature/S-1.14-REDO — worktree CLEAN; all fixes committed (just check 4499/4499 green; non-exhaustive gate 67); story v1.2; MERGES FIRST (D-1221; EXPECTED 66→67). (2) S-5.03 @5a444a5f branch feature/S-5.03 — clean; story v1.17; CLEAN(PR-merge)=yes; needs strict-clean 3-CLEAN re-pass; independent; EXPECTED 66→72 after merge. (3) PIVOT-002 @0f958261 branch feature/S-DEMO-ENRICHMENT-PIVOT-002 — clean; story v1.3; BLOCKED on rebase onto S-1.14-REDO post-merge (F-SV-1 ThreatIntel dep); EXPECTED →76 after merge. MERGE SEQUENCING LOCKED (D-1221): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. ARCHITECTURE DECISIONS (D-1226): DUAL-PATH INFUSION (ADR-040 v2.0): InfusionType::HttpLookup (declarative TOML, reuses pipeline.rs) for NVD + InfusionType::Plugin (WASM) for ThreatIntel. BC-2.10.008 v1.9 (org-no-overlay→0 sensors, Option B; EC-10-017). BC-2.08.005 v1.5 (two-phase probe: S-5.03 spec-only/null, S-5.04 live). error-taxonomy v1.88 (E-INFUSE-009/010/011 + E-PLUGIN-023). User autonomy grant D-989+D-1090 remains active. D-1206 snapshot and D-1207..D-1225 overlay chain SUPERSEDED by this D-1226 snapshot. D-1227 HEAD correction applied.**
 
 ---
 
@@ -118,11 +118,11 @@ git worktree list
 ```
 Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.worktrees/S-1.14-REDO` + `.worktrees/S-5.03` + `.worktrees/S-DEMO-ENRICHMENT-PIVOT-002` + `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded). Stale worktrees from prior merged lanes may be present — safe to prune (devops-engineer). Leave S-3.09 and W3-FIX-S307-001 alone.
 
-**Step 5.** Handle S-1.14-REDO staged-uncommitted fix. **CRITICAL — do before any adversary dispatch:**
+**Step 5.** Verify S-1.14-REDO worktree state. **Confirm before adversary dispatch:**
 ```bash
-cd .worktrees/S-1.14-REDO && git status
+cd .worktrees/S-1.14-REDO && git log --oneline -1 && git status
 ```
-If staged changes are present (F-2REV-LOW-1 doc→inert/reserved comment + OBS-1 InfusionLruCache::new(NonZeroUsize) via const + OBS-2 AC-7 integration test with sentinel-source): complete the commit with a conventional message (no AI attribution) then run `just check`. If the commit was already completed and HEAD is already past eda52123, skip this step — live git HEAD is authoritative.
+Expected: HEAD `2020dbf0` (fix(S-1.14-REDO): F-2REV-LOW-1 refresh_interval_secs doc + OBS-1 NonZeroUsize cache ctor + OBS-2 strengthen AC-7 integration test), worktree CLEAN (no staged/unstaged changes). The staged-uncommitted fix is COMMITTED as of D-1227. If HEAD differs (e.g., additional commits were added), use live git HEAD as authoritative. If worktree still shows staged changes, complete commit with conventional message (no AI attribution) then run `just check`.
 
 **Step 6.** Apply lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) and lesson z25 (implementer must NOT commit .factory directly) are both critical.
 
@@ -137,7 +137,7 @@ If staged changes are present (F-2REV-LOW-1 doc→inert/reserved comment + OBS-1
 | develop HEAD | `60249ccc` | feat(S-3.13): dynamic table availability — TableRegistry + E-QUERY-037 plan-time gate; D-1204 2026-06-16. UNCHANGED since D-1206. |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
 | Open PRs | **NONE** | All prior PRs merged. Last: PR #192 S-3.13 MERGED develop@60249ccc (D-1204). |
-| S-1.14-REDO worktree | ACTIVE | `.worktrees/S-1.14-REDO` — branch feature/S-1.14-REDO — HEAD eda52123 + STAGED-UNCOMMITTED fix on disk; MERGES FIRST |
+| S-1.14-REDO worktree | ACTIVE | `.worktrees/S-1.14-REDO` — branch feature/S-1.14-REDO — HEAD 2020dbf0 — CLEAN; all fixes committed; MERGES FIRST |
 | S-5.03 worktree | ACTIVE | `.worktrees/S-5.03` — branch feature/S-5.03 — HEAD 5a444a5f — clean |
 | PIVOT-002 worktree | ACTIVE (BLOCKED) | `.worktrees/S-DEMO-ENRICHMENT-PIVOT-002` — branch feature/S-DEMO-ENRICHMENT-PIVOT-002 — HEAD 0f958261 — clean; BLOCKED pending S-1.14-REDO merge + rebase |
 | S-3.09 worktree | FROZEN | `.worktrees/S-3.09` — leave alone |
@@ -160,7 +160,7 @@ If staged changes are present (F-2REV-LOW-1 doc→inert/reserved comment + OBS-1
 
 | Lane | Story | Worktree | Branch | HEAD (D-1226) | Phase / Streak | EXACT NEXT ACTION |
 |------|-------|----------|--------|---------------|----------------|-------------------|
-| **L-POST-A (MERGES FIRST — D-1221)** | S-1.14-REDO (Full Infusion Engine) | `.worktrees/S-1.14-REDO` | `feature/S-1.14-REDO` | **eda52123** + STAGED-UNCOMMITTED fix on disk | LOCAL convergence — 0/3 streak, re-entering | **STEP A1:** `cd .worktrees/S-1.14-REDO && git status` — if staged changes present, complete commit (conventional, NO AI attribution). **STEP A2:** `just check` on worktree. **STEP A3:** Dispatch 3 INDEPENDENT fresh-context adversary passes on FROZEN HEAD (each pass uses a fresh subagent with no prior context; zero information from prior passes; SAP-1 + SAP-2 + production-grade lens + lesson z24 hollow-feature production-path tracing). **STEP A4:** After LOCAL 3-CLEAN(strict) — push feature branch. **STEP A5:** pr-manager → PR → PR-LEVEL 3-CLEAN(strict) → squash-merge. EXPECTED 66→67. |
+| **L-POST-A (MERGES FIRST — D-1221)** | S-1.14-REDO (Full Infusion Engine) | `.worktrees/S-1.14-REDO` | `feature/S-1.14-REDO` | **2020dbf0** — CLEAN (all fixes committed; just check 4499/4499 green; non-exhaustive gate 67) | LOCAL convergence — 0/3 streak, re-entering | **STEP A1:** Dispatch 3 INDEPENDENT fresh-context adversary passes on FROZEN HEAD 2020dbf0 (each pass uses a fresh subagent with no prior context; zero information from prior passes; SAP-1 + SAP-2 + production-grade lens + lesson z24 hollow-feature production-path tracing). DO-NOT-REFLAG CRIT-1/CRIT-2/HIGH-A/F-SV-1/F-SV-2/F-TTL-1/F-2REV-LOW-1/OBS-1/OBS-2 — ALL CLOSED. **STEP A2:** After LOCAL 3-CLEAN(strict) — push feature branch. **STEP A3:** pr-manager → PR → PR-LEVEL 3-CLEAN(strict) → squash-merge. EXPECTED 66→67. |
 | **L-POST-B (INDEPENDENT)** | S-5.03 (MCP Resources & Prompts) | `.worktrees/S-5.03` | `feature/S-5.03` | **5a444a5f** (clean) | LOCAL convergence — 0/3 streak, re-entering | **STEP B1:** Dispatch 3 INDEPENDENT fresh-context adversary passes on FROZEN HEAD 5a444a5f. Fix open strict-only OBS before streak: (a) F-OBS-1 strip_url_to_host_port userinfo → strip user:pass@ before '@' + VP-050 userinfo proptest case; (b) OBS reload_config separator '.' vs '_' cosmetic fix; (c) OBS stale "BC-2.08.005 v1.4" comment in CheckSensorHealthParams (now v1.5). After fixes, freeze HEAD and start fresh 3-CLEAN(strict) streak. **STEP B2:** After LOCAL 3-CLEAN — push → pr-manager → PR-LEVEL 3-CLEAN → merge. EXPECTED S-5.03 contribution: +6 non-exhaustive types → ci.yml EXPECTED bumps at merge. OBS-3 DEC-004 (BC-2.08.005 zero-sensor message) → product-owner for S-5.04 or targeted story: DO-NOT-REFLAG as S-5.03 blocker. |
 | **L-POST-C (BLOCKED on rebase)** | PIVOT-002 (ThreatIntel/NVD dual-path) | `.worktrees/S-DEMO-ENRICHMENT-PIVOT-002` | `feature/S-DEMO-ENRICHMENT-PIVOT-002` | **0f958261** (clean; pre-rebase) | BLOCKED — awaiting S-1.14-REDO merge | **STEP C1 (AFTER S-1.14-REDO MERGES):** devops-engineer rebases PIVOT-002 onto updated develop (includes F-SV-1 plugin boot-wiring from S-1.14-REDO). **STEP C2:** Verify production ThreatIntel enrichment uses real InfusionSource (not NullSource) after rebase. **STEP C3:** LOCAL 3-CLEAN(strict) adversary passes on rebased frozen HEAD. **STEP C4:** Push → PR-LEVEL 3-CLEAN → merge. EXPECTED →76. |
 
@@ -195,9 +195,9 @@ If staged changes are present (F-2REV-LOW-1 doc→inert/reserved comment + OBS-1
 | F-SV-1 plugin boot-wiring (hollow-feature) | CLOSED | infusion_load_step → PluginRuntime wired in boot.rs; CONFIRMED by independent multi-pass |
 | F-SV-2 InfusionRegistry not registered in engine | CLOSED | Registered at engine init |
 | F-TTL-1 per-descriptor TTL non-default | CLOSED | Per-descriptor TTL wired; non-default-TTL test load-bearing |
-| F-2REV-LOW-1 refresh_interval_secs doc comment | CLOSED (pending commit) | doc→inert/reserved comment; staged-uncommitted on disk |
-| OBS-1 InfusionLruCache::new(NonZeroUsize) via const | CLOSED (pending commit) | Uses const; staged on disk |
-| OBS-2 AC-7 integration test sentinel-source | CLOSED (pending commit) | Test strengthened; staged on disk |
+| F-2REV-LOW-1 refresh_interval_secs doc comment | CLOSED | doc→inert/reserved comment; committed 2020dbf0 (D-1227) |
+| OBS-1 InfusionLruCache::new(NonZeroUsize) via const | CLOSED | Uses const; committed 2020dbf0 (D-1227) |
+| OBS-2 AC-7 integration test sentinel-source | CLOSED | Test strengthened; committed 2020dbf0 (D-1227) |
 
 **S-5.03 closures:**
 

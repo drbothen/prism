@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.32"
+version: "1.33"
 producer: state-manager
 status: active
-timestamp: 2026-06-17T22:00:00Z
+timestamp: 2026-06-17T23:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -42,18 +42,17 @@ Foundations: COMPLETE (reused). Build: 9/15 tasks done; T4 DONE; T4-A DONE; T5 D
 
 ## CURRENT POINTER
 
-**L-POST: 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE (D-1226 2026-06-17). develop@60249ccc. NO OPEN PRs. ALL PRIOR LANES CLOSED. MERGE SEQUENCING LOCKED (D-1221): S-1.14-REDO MERGES FIRST → PIVOT-002 rebases → S-5.03 independent. ACTIVE LANE HEADS: S-1.14-REDO @eda52123 (staged-uncommitted fix on disk — complete commit before adversary), S-5.03 @5a444a5f (clean; 3 strict-only OBS to fix), PIVOT-002 @0f958261 (BLOCKED on rebase onto S-1.14-REDO). D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226 (authoritative; supersedes D-1206+overlays).**
+**L-POST: 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE (D-1226/D-1227 2026-06-17). develop@60249ccc. NO OPEN PRs. ALL PRIOR LANES CLOSED. MERGE SEQUENCING LOCKED (D-1221): S-1.14-REDO MERGES FIRST → PIVOT-002 rebases → S-5.03 independent. ACTIVE LANE HEADS: S-1.14-REDO @2020dbf0 (worktree CLEAN; all fixes committed; just check 4499/4499 green; non-exhaustive gate 67 — D-1227 correction), S-5.03 @5a444a5f (clean; 3 strict-only OBS to fix before 3-CLEAN), PIVOT-002 @0f958261 (BLOCKED on rebase onto S-1.14-REDO). D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226 (authoritative; D-1227 HEAD correction applied; supersedes D-1206+overlays).**
 
 ## NEXT ACTION (verbatim, for cold resume — D-1226 2026-06-17)
 
 **L-POST — 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE. develop@60249ccc. MERGE SEQUENCING LOCKED (D-1221): S-1.14-REDO FIRST.**
 
 **(a) S-1.14-REDO (T16-FOUND-B) — MERGES FIRST:**
-- STEP A1: `cd .worktrees/S-1.14-REDO && git status`. If staged changes present (F-2REV-LOW-1 doc→inert/reserved comment + OBS-1 InfusionLruCache::new(NonZeroUsize) via const + OBS-2 AC-7 integration test with sentinel-source), complete the commit (conventional msg, NO AI attribution).
-- STEP A2: `just check` on worktree to verify build clean.
-- STEP A3: Dispatch 3 INDEPENDENT fresh-context adversary passes on FROZEN HEAD eda52123. Passes must be independent subagents with no prior-pass context. SAP-1 + SAP-2 + production-grade lens + lesson z24 hollow-feature production-path tracing. DO-NOT-REFLAG any CRIT-1/CRIT-2/HIGH-A/F-SV-1/F-SV-2/F-TTL-1/F-2REV-LOW-1/OBS-1/OBS-2 — ALL CLOSED.
-- STEP A4: After LOCAL 3-CLEAN(strict) — push feature/S-1.14-REDO to origin.
-- STEP A5: pr-manager → PR → PR-LEVEL adversary 3-CLEAN(strict) + pr-reviewer APPROVE + security CLEAR → CI → squash-merge. EXPECTED 66→67.
+- Worktree CLEAN at HEAD 2020dbf0. All fixes committed (D-1227). No pending commit step.
+- STEP A1: Dispatch 3 INDEPENDENT fresh-context adversary passes on FROZEN HEAD 2020dbf0. Passes must be independent subagents with no prior-pass context. SAP-1 + SAP-2 + production-grade lens + lesson z24 hollow-feature production-path tracing. DO-NOT-REFLAG any CRIT-1/CRIT-2/HIGH-A/F-SV-1/F-SV-2/F-TTL-1/F-2REV-LOW-1/OBS-1/OBS-2 — ALL CLOSED.
+- STEP A2: After LOCAL 3-CLEAN(strict) — push feature/S-1.14-REDO to origin.
+- STEP A3: pr-manager → PR → PR-LEVEL adversary 3-CLEAN(strict) + pr-reviewer APPROVE + security CLEAR → CI → squash-merge. EXPECTED 66→67.
 
 **(b) S-5.03 (T15b) — INDEPENDENT (no sequencing dep on S-1.14-REDO):**
 - STEP B1: Fix 3 open strict-only OBS before starting 3-CLEAN streak: (i) F-OBS-1 strip_url_to_host_port userinfo — strip user:pass@ before '@' + VP-050 userinfo proptest case; (ii) OBS reload_config separator '.' vs '_' table-name cosmetic; (iii) OBS stale "BC-2.08.005 v1.4" comment in CheckSensorHealthParams (now v1.5).
@@ -258,7 +257,7 @@ Status vocab: `not-started` | `in-progress` | `blocked` | `done`
 | T15d | **done** | per-story delivery | S-1.12 via ConfigManager (SATISFIED D-1163) | S-3.13 | **DONE D-1204 2026-06-16 — PR #192 squash-merged develop@60249ccc. PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65. POL-14 BC-2.16.007 status:draft→active. non-exhaustive EXPECTED 64→66 (+2 pub types). DRIFT-S313-EVIDENCE-STALE-SHA tracked (cosmetic).** |
 | **T16-ARCH-PLAN** | **not-started** (REQUIRED before enrichment delivery) | architect | T10, T15a-d (or parallel) | architect planning (no story file) | Architect determines exact build order for Full Option-A enrichment: adjudicate whether PIVOT-001 scope folds into S-1.14-REDO (avoid double-implementing plugin-type loader). Ruling MUST precede T16a dispatch. |
 | **T16-FOUND-A** | **DROPPED from demo lane** (D-1168 architect verdict 2026-06-14) | — | — | S-1.15 | **D-1168 ARCHITECT VERDICT: S-1.15 REMOVED from demo enrichment lane.** S-1.15's remaining work is TD-PLUGIN-P0-008 (`fire_alert`/`fire_case`/`fire_report` action-plugin dispatch) — write-back/TDE DEFERRED. `enrich_single` is already operational. Demo enrichment lane does NOT require S-1.15. S-1.15 deferred-TDE alongside S-4.08. Lane D CLOSED. S-1.15 story STILL EXISTS in STORY-INDEX (total_stories unchanged). |
-| **T16-FOUND-B** | **in-progress** (REQUIRED — D-1164; **DEMO-BLOCKING D-1205; MERGES FIRST D-1221**) | per-story delivery | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME (BOTH SATISFIED) | S-1.14-REDO | **IN PROGRESS: .worktrees/S-1.14-REDO @eda52123 + STAGED-UNCOMMITTED fix on disk (F-2REV-LOW-1 doc→inert/reserved + OBS-1 InfusionLruCache const + OBS-2 AC-7 sentinel-source). Production-grade and verified across ~10 fix-bursts; PR-merge-clean. MERGES FIRST (D-1221). RESUME: complete staged commit → just check → LOCAL 3-CLEAN(strict) independent passes → push → PR-LEVEL 3-CLEAN → squash-merge. EXPECTED 66→67. Closes TD-PLUGIN-P0-002 (P0) upon merge.** |
+| **T16-FOUND-B** | **in-progress** (REQUIRED — D-1164; **DEMO-BLOCKING D-1205; MERGES FIRST D-1221**) | per-story delivery | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME (BOTH SATISFIED) | S-1.14-REDO | **IN PROGRESS: .worktrees/S-1.14-REDO @2020dbf0 (CLEAN; all fixes committed; just check 4499/4499 green; non-exhaustive gate 67 — D-1227 correction). Production-grade and verified across ~10 fix-bursts. MERGES FIRST (D-1221). NEXT: LOCAL 3-CLEAN(strict) independent passes on frozen HEAD 2020dbf0 → push → PR-LEVEL 3-CLEAN → squash-merge. EXPECTED 66→67. Closes TD-PLUGIN-P0-002 (P0) upon merge.** |
 | **T16a** | **done** | per-story delivery | T16-ARCH-PLAN (parallel with T16-FOUND-A) | S-DEMO-ENRICHMENT-PIVOT-001 | **DONE T12 — PR #189 squash-merged develop@1b2e9a31 2026-06-16.** PIVOT-001 delivered: plugin-type `InfusionLoader::parse` + `PluginInfusionSource` + DataFusion `ScalarUDF` registration in prism-query. BC-2.19.001 v1.7 + BC-2.19.003 v1.6 active. 3 security LOWs deferred to PIVOT-002 start (DRIFT-PIVOT-UDFNAME-VALIDATION-001/DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001/DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001). |
 | **T16b** | **in-progress** (REQUIRED — D-1164; **DEMO-BLOCKING D-1205; BLOCKED on rebase**) | per-story delivery | T16a (SATISFIED — PIVOT-001 MERGED); S-1.14-REDO merge (PENDING) | S-DEMO-ENRICHMENT-PIVOT-002 | **IN PROGRESS: .worktrees/S-DEMO-ENRICHMENT-PIVOT-002 @0f958261 (clean; story v1.3). Security gates CLOSED (folded as AC-007..012): DRIFT-PIVOT-UDFNAME-VALIDATION-001 (CWE-20) + DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 (CWE-200) + DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (CWE-209) + SEC-001 sync-WASM (spawn_blocking). CRIT-1/2a/2b/HIGH-1/2/3/4 ALL CLOSED. NVD uses InfusionType::HttpLookup (ADR-040 v2.0); ThreatIntel uses InfusionType::Plugin WASM. BLOCKED: ThreatIntel prod enrichment requires F-SV-1 plugin boot-wiring from S-1.14-REDO. NEXT (after S-1.14-REDO merge): devops-engineer rebase → verify prod ThreatIntel uses real InfusionSource → LOCAL 3-CLEAN(strict) → push → PR-LEVEL 3-CLEAN → merge. EXPECTED →76.** |
 | **T16c** | **not-started** (REQUIRED — D-1164; **DEMO-BLOCKING D-1205**) | per-story delivery | T16b (PIVOT-002 MERGED) | S-DEMO-ENRICHMENT-PIVOT-003 | **D-1205 2026-06-16: DEMO-BLOCKING confirmed.** PIVOT-003 delivered: real IOC/CVE field stamping in Cyberint/CrowdStrike DTU fixtures + canonical `\| enrich threat_intel(ioc_value)` / `\| enrich nvd(device_cves_first)` pivot-query validation at demo server scenario stage >= 3; closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation; closes TD-PLUGIN-P0-002 P0. 12-gate TDD + remove-uncertainty. |
