@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.863"
+version: "7.864"
 producer: state-manager
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-06-18T01:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,9 +17,9 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "60249ccc"
-bc_index_version: "6.75"
+bc_index_version: "6.76"
 vp_index_version: "1.79"
-story_index_version: "v2.426"
+story_index_version: "v2.427"
 arch_index_version: "2.137"
 error_taxonomy_version: "1.88"
 total_stories: 201
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1229 ROUND-2 LOCAL 3-CLEAN FIX-BURST + BC/STORY AMENDMENTS: BC-INDEX v6.74→v6.75 + STORY-INDEX v2.425→v2.426. Lane A (S-1.14-REDO): round-2 LOCAL 3-CLEAN streak (3 fresh passes on ce56a7de) found enrich_descriptor cluster (0/3). Core engine re-verified solid (z24/SAP-1/production-grade clean). PO ruled BC-2.19.001 v2.0 (output_columns Option-b subset-legitimate, NO enrich_descriptor/validator change; infusion_name prose corrected; dup-infusion_id last-writer-wins + stale udf_to_infusion purge). Implementer fix-burst → HEAD 0fd3a5d1 (load_spec/load_spec_with_runtime purge stale udf mappings on infusion_id overwrite + load-bearing overwrite-purge test; AC-3 strengthened to ordered assert_eq; just check 4500 green). Story v1.4. Worktree CLEAN. Lane B (S-5.03): human approved adding display_name to prism://config/clients (capabilities_summary stays OUT — list_capabilities/BC-2.10.011 canonical). Architect ruled client_id==OrgSlug, source = new OrgEntry.name ([[orgs]].name), no ADR. PO: BC-2.10.008 v1.11 + BC-2.15.010 v1.4. Implementer fix-burst → HEAD 9216c744 (OrgEntry.name Option<String> #[serde(default)]; ConfigSnapshot.org_display_names; ClientInventoryEntry.display_name render; decorator_context.rs doc fix; load-bearing present/null tests; just check green; non-exhaustive gate 72 UNCHANGED). Story v1.19; S-2.03 v1.5 doc-reference correction. PIVOT-002: UNCHANGED — BLOCKED on rebase onto S-1.14-REDO post-merge (D-1221). PRODUCT DECISION RESOLVED (D-1229): display_name ADDED to config/clients MCP surface per human approval; capabilities_summary intentionally excluded (canonical capability-discovery = list_capabilities/BC-2.10.011). Closes D-1228 PRODUCT-DECISION-FLAGGED item. NEXT ACTION: re-freeze both lanes at new HEADs (Lane A 0fd3a5d1, Lane B 9216c744) → fresh LOCAL 3-CLEAN(strict) streaks → push → PR-LEVEL 3-CLEAN. Merge sequencing D-1221 UNCHANGED: S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. Expected post-merge non-exhaustive: S-1.14-REDO→69, S-5.03→72. BC-INDEX v6.74→v6.75. STORY-INDEX v2.425→v2.426. develop_head UNCHANGED 60249ccc. STATE v7.862→v7.863."
+current_step: "D-1230 ROUND-3 LOCAL 3-CLEAN FIX-BURST + BC/STORY AMENDMENTS: BC-INDEX v6.75→v6.76 + STORY-INDEX v2.426→v2.427. Lane A (S-1.14-REDO): round-3 found AC-3 canonical-vector test-coverage gap (TV-19-001-enrich-desc no-pipe-stage + -pipe strict-subset uncovered/mis-anchored) + empty adds_columns not rejected. Implementer fix-burst → HEAD 9fb5f682 (4 AC-3 vector tests added + 2 relabeled exercising no-pipe_stage fallback branch; non-empty adds_columns guard in validate_pipe_stage_columns; just check 4504 green; non-exhaustive gate 69). Worktree CLEAN. No story change (v1.4 already covers). Lane B (S-5.03): round-3 found HIGH (display_name silently wiped to null on every reload_config — boot-only population, reload rebuilt fresh empty snapshot; TD-VSDD-060 sibling-sweep miss) + MED spec reconciliations. Implementer fix-burst → reload_config carries forward org_display_names (HEAD f48756e2, regression test) → dead cross-client partial_failures removal (HEAD 92c6e4d2). PO: BC-2.10.008 v1.12 (postcondition 2 reconciled to shipped SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; status='active' definitional; EC-10-015 retired) + BC-2.08.005 v1.7 (cross-client null mode removed → S-5.04; dead with_partial_failures path removed). Story v1.20. just check 4475 green; non-exhaustive gate 72. Worktree CLEAN. PIVOT-002: UNCHANGED — BLOCKED on rebase onto S-1.14-REDO post-merge (D-1221). NEXT ACTION: re-freeze both lanes at new HEADs (Lane A 9fb5f682, Lane B 92c6e4d2) → fresh LOCAL 3-CLEAN(strict) round-4 streaks → push → PR-LEVEL 3-CLEAN. Merge sequencing D-1221 UNCHANGED: S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. Expected post-merge non-exhaustive: S-1.14-REDO→69, S-5.03→72. BC-INDEX v6.75→v6.76. STORY-INDEX v2.426→v2.427. develop_head UNCHANGED 60249ccc. STATE v7.863→v7.864."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-18 (D-1229 round-2 fix-burst: BC-2.19.001 v2.0/BC-2.10.008 v1.11/BC-2.15.010 v1.4; S-1.14-REDO v1.4/S-5.03 v1.19/S-2.03 v1.5; Lane A HEAD 0fd3a5d1, Lane B HEAD 9216c744; STATE v7.863)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-18 (D-1230 round-3 fix-burst: BC-2.10.008 v1.12/BC-2.08.005 v1.7; S-5.03 v1.20; Lane A HEAD 9fb5f682, Lane B HEAD 92c6e4d2; STATE v7.864)
 
 ## Active Objective (North Star)
 
@@ -291,23 +291,23 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1229 — 2026-06-18; STATE v7.863)
+## Session Resume Checkpoint (D-1230 — 2026-06-18; STATE v7.864)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226** (authoritative; D-1227 HEAD correction + D-1228/D-1229 BC/story spec amendments applied; D-1206 + D-1207..D-1228 SUPERSEDED by D-1226 + D-1229 amendments).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226** (authoritative; D-1227 HEAD correction + D-1228/D-1229/D-1230 BC/story spec amendments applied).
 
-**STATE v7.863. CURRENT POSITION: L-POST — 3 DEMO-BLOCKING LANES AT NEW HEADs; READY FOR FRESH LOCAL 3-CLEAN. develop@60249ccc. total_stories 201. NO OPEN PRs. ci.yml EXPECTED=66. ADR-040 v2.0 dual-path. bc_index_version 6.75. story_index_version v2.426. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
+**STATE v7.864. CURRENT POSITION: L-POST — 3 DEMO-BLOCKING LANES AT NEW HEADs; READY FOR FRESH LOCAL 3-CLEAN ROUND-4. develop@60249ccc. total_stories 201. NO OPEN PRs. ci.yml EXPECTED=66. ADR-040 v2.0 dual-path. bc_index_version 6.76. story_index_version v2.427. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
 
 **3 ACTIVE LANES:**
-- **S-1.14-REDO @0fd3a5d1** — worktree CLEAN; BC-2.19.001 v2.0 fix-burst committed (overwrite-purge test + ordered AC-3 assert); just check 4500 green; non-exhaustive gate 69. NEXT: fresh LOCAL 3-CLEAN(strict) independent passes on frozen HEAD 0fd3a5d1 → push → PR-LEVEL 3-CLEAN → **MERGE FIRST (D-1221)**.
-- **S-5.03 @9216c744** — worktree CLEAN; BC-2.10.008 v1.11 display_name fix-burst committed (OrgEntry.name, ConfigSnapshot.org_display_names, present/null tests); just check green; gate at 72 UNCHANGED. NEXT: fresh LOCAL 3-CLEAN(strict) independent passes on frozen HEAD 9216c744 → push → PR-LEVEL 3-CLEAN → merge (INDEPENDENT).
+- **S-1.14-REDO @9fb5f682** — worktree CLEAN; round-3 fixes committed (4 AC-3 vector tests added + 2 relabeled; non-empty adds_columns guard; just check 4504 green; non-exhaustive gate 69). NEXT: fresh LOCAL 3-CLEAN(strict) round-4 on frozen HEAD 9fb5f682 → push → PR-LEVEL 3-CLEAN → **MERGE FIRST (D-1221)**.
+- **S-5.03 @92c6e4d2** — worktree CLEAN; round-3 fixes committed (reload_config carries org_display_names; dead cross-client path removed; BC-2.10.008 v1.12/BC-2.08.005 v1.7; just check 4475 green; gate 72). NEXT: fresh LOCAL 3-CLEAN(strict) round-4 on frozen HEAD 92c6e4d2 → push → PR-LEVEL 3-CLEAN → merge (INDEPENDENT).
 - **PIVOT-002 @0f958261** — BLOCKED on rebase onto S-1.14-REDO. AWAIT S-1.14-REDO merge → rebase → verify prod ThreatIntel enrichment → 3-CLEAN → merge.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226 (authoritative; D-1229 amendments supersede D-1207..D-1228 BC/story refs).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226 (authoritative; D-1230 amendments supersede BC/story refs through D-1229).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `60249ccc`.
 3. `gh pr list --state open --base develop` → expect NONE.
 4. `git worktree list` → 3 active lanes + S-3.09 FROZEN + W3-FIX-S307-001 BLOCKED.
-5. Lane A worktree is CLEAN at 0fd3a5d1. Lane B worktree is CLEAN at 9216c744. Dispatch adversary (fresh-context, no prior pass context).
-6. Apply lessons (a)–(z26) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+5. Lane A worktree is CLEAN at 9fb5f682. Lane B worktree is CLEAN at 92c6e4d2. Dispatch adversary (fresh-context, no prior pass context).
+6. Apply lessons (a)–(z14) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
 7. Drive lanes per EXACT NEXT ACTION above. Autonomy D-989+D-1090 active.

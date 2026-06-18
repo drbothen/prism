@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.75"
+version: "6.76"
 status: draft
 producer: state-manager
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-06-18T01:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -128,7 +128,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.003 | Rate Limit State Detection Per Sensor | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.004 | Last Successful Query Timestamp Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
-| BC-2.08.005 | Health Check MCP Tool | 08 - Sensor Health | CAP-008 | P1 | draft (v1.6 — D-1228 2026-06-18: resource_pressure two-phase: null in S-5.03, live counts deferred to S-5.04 named anchor; was v1.5 — D-1212 2026-06-17: two-phase probe: S-5.03 spec-only null / S-5.04 live) |
+| BC-2.08.005 | Health Check MCP Tool | 08 - Sensor Health | CAP-008 | P1 | draft (v1.7 — D-1230 2026-06-18: cross-client client_id:null mode removed → deferred to S-5.04; with_partial_failures dead path removed; was v1.6 — D-1228 2026-06-18: resource_pressure two-phase: null in S-5.03, live counts deferred to S-5.04 named anchor) |
 | BC-2.08.006 | Health Status MCP Resource | 08 - Sensor Health | CAP-008 | P1 | draft (v1.5 — D-1228 2026-06-18: keyed-object sensors map; sibling two-phase SensorHealthResult propagated from BC-2.08.005 v1.6; status/last_checked_at retired) |
 | BC-2.08.007 | Partial Health Status (Mixed Sensor Availability) | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.008 | `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense | 08 - Sensor Health | CAP-008 | P1 | draft |
@@ -148,7 +148,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.005 | notifications/tools/list_changed on Config Reload | 10 - MCP Interface | CAP-005, CAP-009 | P0 | draft |
 | BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active (v1.8 — D-1191 2026-06-16: S-5.02 PR #191 OBS-1+OBS-2 adjudication — E-QUERY-032/SensorNotRegisteredForOrg → category "permission"/original_params_valid:true; WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded → category "internal"/original_params_valid:true; +2 canonical test vectors; §Implementer Code Follow-Up restructured into F-4/OBS-1/OBS-2 sections; IMPLEMENTER CODE FOLLOW-UP PENDING in S-5.02 feature branch) |
-| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft (v1.11 — D-1229 2026-06-18: display_name String\|null added to ClientInventoryEntry, sourced from [[orgs]].name; capabilities_summary remains OUT — canonical = BC-2.10.011; was v1.10 — D-1228 2026-06-18: config/clients ClientInventoryEntry shape catch-up) |
+| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft (v1.12 — D-1230 2026-06-18: postcondition 2 sensor-inventory shape reconciled to shipped SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; status="active" definitional in overlay model; EC-10-015 retired; was v1.11 — D-1229 2026-06-18: display_name String\|null added to ClientInventoryEntry, sourced from [[orgs]].name; capabilities_summary remains OUT — canonical = BC-2.10.011) |
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active (status:draft→active D-1202 per POL-14; anchor story S-5.02 merged PR #191 develop@bec894a2 2026-06-17; lifecycle_status was already active) |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.76 (2026-06-18, D-1230 round-3 LOCAL 3-CLEAN fix-burst — Lane B BC amendments):** state-manager | (1) BC-2.10.008 inline row: v1.11→v1.12 — postcondition 2 sensor-inventory shape reconciled to shipped SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; status="active" definitional in overlay model; EC-10-015 retired. (2) BC-2.08.005 inline row: v1.6→v1.7 — cross-client client_id:null mode removed → deferred to S-5.04; with_partial_failures dead path removed. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.75→v6.76.
 
 **v6.75 (2026-06-18, D-1229 round-2 LOCAL 3-CLEAN fix-burst — Lane A+B BC amendments):** state-manager | (1) BC-2.19.001 inline row: v1.9→v2.0 — output_columns = pipe_stage.adds_columns subset-in-declared-order [Option b]; infusion_name = registry lookup key == infusion_id; duplicate infusion_id last-writer-wins WITH stale udf_to_infusion purge; load_spec/load_spec_with_runtime purge stale udf mappings on infusion_id overwrite. (2) BC-2.10.008 inline row: v1.10→v1.11 — display_name String|null added to ClientInventoryEntry, sourced from [[orgs]].name; capabilities_summary remains OUT (canonical = BC-2.10.011). (3) BC-2.15.010 inline row: draft → draft (v1.4) — client_name source annotation corrected [clients.{id}]→[[orgs]].name. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.74→v6.75.
 

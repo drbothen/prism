@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["OOD-001-adjudication-2026-06-17", "F-S503-004-adjudication-2026-06-17", "RECONCILIATION-3-resource-pressure-scope-2026-06-17"]
+modified: ["OOD-001-adjudication-2026-06-17", "F-S503-004-adjudication-2026-06-17", "RECONCILIATION-3-resource-pressure-scope-2026-06-17", "RECONCILIATION-2-cross-client-null-removal-2026-06-18"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -28,7 +28,9 @@ removal_reason: null
 
 ## Description
 
-The `check_sensor_health` tool returns structured health status for one or all sensors for a given client, or a cross-client health matrix when `client_id` is null. Each response includes per-sensor connectivity, auth validity, rate limit state, and last successful query timestamp, plus a `resource_pressure` section with active cursor count and token count. The response uses `structuredContent` for machine-parseable data and `content[].text` prose summary. Trust level is `"internal"` since health data is Prism-generated.
+The `check_sensor_health` tool returns structured health status for one or all sensors for a given client. `client_id: String` is REQUIRED — the tool always operates within a single client scope (OOD-001 adjudication, v1.4). Each response includes per-sensor connectivity, auth validity, rate limit state, and last successful query timestamp, plus a `resource_pressure` section with active cursor count and token count. The response uses `structuredContent` for machine-parseable data and `content[].text` prose summary. Trust level is `"internal"` since health data is Prism-generated.
+
+**Cross-client health matrix (deferred to S-5.04):** A cross-client mode (checking all clients at once) is a legitimate MSSP use case but is NOT part of this contract. It is deferred to S-5.04 (`S-5.04-sensor-health.md`) which owns the live probe work and where the `client_id` optionality question can be revisited with real adapter wiring in place. S-5.04 must explicitly decide whether to extend this contract with an optional `client_id` or define a separate tool for cross-client health. Until S-5.04 acts, `client_id` remains a required String and null is rejected.
 
 **Two-phase probe behavior (F-S503-004 adjudication):** This BC specifies BOTH S-5.03-scoped and S-5.04 live-probe behavior. An implementation that returns `reachable: true, auth_valid: true` as unverified hardcoded positives violates this contract — it sends a FALSE-POSITIVE health signal to the AI consumer, which may act on it believing sensors are reachable and authenticated when they may not be. The correct two-phase model is:
 
@@ -41,10 +43,10 @@ The `check_sensor_health` tool returns structured health status for one or all s
 - Implementation note: the `CheckSensorHealthParams` struct MUST have `pub client_id: String` as a required field. Any stub that omits `client_id` (e.g., `sensor: Option<String>` only) is non-conformant with this contract and MUST be corrected before Task 3 of S-5.03 is implemented (OOD-001 adjudication — SPEC WINS per CLAUDE.md §7). The struct field name MUST be `client_id` to match the MCP tool parameter name; the legacy `sensor` field (absent `client_id`) is incorrect.
 
 ## Postconditions
-- When `sensor_id` is provided: returns health status for that single sensor
-- When `sensor_id` is null: returns health status for all configured sensors for the client
-- When `client_id` is null (cross-client): returns health status for all sensors across all configured clients. Each entry includes the `client_id` field so results can be attributed. The `summary` section aggregates counts across all clients. `partial_failures` lists any clients whose health check failed (e.g., credential unavailable) without blocking results from other clients.
-- Each sensor health entry contains: `sensor_id`, `client_id` (always present in cross-client responses), `probe_level` (either `"spec-only"` or `"live"`), `reachable` (`true`/`false` for live probe; `null` for spec-only), `auth_valid` (`true`/`false` for live probe; `null` for spec-only), `rate_limit`, `last_successful_query_at` (`null` for spec-only). **`reachable: null` and `auth_valid: null` MUST be used in S-5.03-scoped (spec-only) responses — hardcoded `true` values for unverified fields are forbidden.**
+- When `sensor_id` is provided: returns health status for that single sensor within the specified client
+- When `sensor_id` is null: returns health status for all configured sensors for the specified client
+- ~~When `client_id` is null (cross-client): returns health status for all sensors across all configured clients.~~ **REMOVED (v1.7, RECONCILIATION-2):** Cross-client mode (`client_id: null`) contradicts the OOD-001 adjudication (v1.4) which made `client_id: String` a REQUIRED field. This postcondition is structurally impossible given the required precondition. Cross-client health is deferred to S-5.04 — see Description for the deferral anchor and the conditions under which S-5.04 may extend this contract. The dead `SensorHealthStructuredContent::with_partial_failures` builder and `partial_failures` field in any S-5.03 implementation MUST be removed (they exist only to serve the now-removed cross-client path) — see Implementer Work Items below.
+- Each sensor health entry contains: `sensor_id`, `client_id` (echoed from the request parameter for auditability), `probe_level` (either `"spec-only"` or `"live"`), `reachable` (`true`/`false` for live probe; `null` for spec-only), `auth_valid` (`true`/`false` for live probe; `null` for spec-only), `rate_limit`, `last_successful_query_at` (`null` for spec-only). **`reachable: null` and `auth_valid: null` MUST be used in S-5.03-scoped (spec-only) responses — hardcoded `true` values for unverified fields are forbidden.**
 - The response includes a `resource_pressure` section with: `active_cursor_count` (current number of non-expired cursors, out of 200 cap) and `active_token_count` (current number of unexpired, unconsumed confirmation tokens, out of 100 cap). This gives the agent visibility into resource pressure without needing a separate tool. **Two-phase resource_pressure behavior (RECONCILIATION-3 anchor):** `QueryEngine` currently exposes no accessor for `CursorManager` or token-store counts; wiring live counts requires a new `QueryEngine` accessor or direct `Arc<CursorManager>` + `Arc<TokenStore>` plumbing in `PrismServer`. Until S-5.04 wires these accessors, the `resource_pressure` section MUST use `null` for both fields (to distinguish "not yet wired" from a genuine zero) — NOT the misleading zero-valued `ResourcePressure::new(0, 0)` which an AI consumer cannot distinguish from a real "zero active cursors" reading. S-5.04 MUST wire live counts and return `Some(usize)` for both fields. The `ResourcePressure` type must be nullable at the call site (use `Option<ResourcePressure>` in `SensorHealthStructuredContent` or null-encode the two count fields as `Option<usize>`). See code change requirement below.
 - Response uses `structuredContent` for machine-parseable health data
 - Response includes `content[].text` prose summary. **S-5.03-scoped implementations MUST include the phrase `"spec-only: no live probe performed"` in the prose summary** so the AI consumer cannot mistake the response for a live health check. S-5.04-scoped implementations use `"live probe"` phrasing (e.g., "2 of 3 sensors healthy for client 'acme' (live probe)").
@@ -54,7 +56,7 @@ The `check_sensor_health` tool returns structured health status for one or all s
 
 ## Invariants
 - DI-004: Audit completeness -- exactly one AuditEntry emitted per tool invocation
-- DI-008: Client data separation -- only the specified client's sensors are checked
+- DI-008: Client data separation -- only the specified client's sensors are checked; cross-client mode is not supported in this contract (see Description for S-5.04 deferral)
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -62,6 +64,16 @@ The `check_sensor_health` tool returns structured health status for one or all s
 | `PrismError::InvalidInput` | Invalid `client_id` format | Structured error with validation details |
 | `PrismError::Config` | `client_id` not found in config | Structured error with suggestion to check config |
 | `PrismError::InvalidInput` | Invalid `sensor_id` value | Structured error listing valid sensor IDs from loaded spec files |
+
+## Implementer Work Items (S-5.03 scope)
+
+These are code changes required in S-5.03 that flow from this BC reconciliation:
+
+1. **`CheckSensorHealthParams` struct (REQUIRED — already flagged in OOD-001):** Add `pub client_id: String` to `CheckSensorHealthParams` in `crates/prism-mcp/src/server.rs`. The existing `sensor: Option<String>` field should be renamed `sensor_id: Option<String>` to match the BC parameter name. The current struct (`sensor: Option<String>` with no `client_id`) is non-conformant.
+
+2. **Remove `with_partial_failures` builder and `partial_failures` field:** The `SensorHealthStructuredContent::with_partial_failures` builder (if created during S-5.03 implementation) exists only to serve the now-removed cross-client path. Remove it. The `partial_failures` field on any health response struct likewise serves only the removed cross-client path. Remove it. If the implementer has not yet added this builder (S-5.03 is in draft), simply do not add it.
+
+3. **`ResourcePressure` null encoding (already in RECONCILIATION-3, restated for completeness):** Use `Option<ResourcePressure>` or `Option<usize>` for both count fields — not `ResourcePressure::new(0, 0)`. See Postconditions for full rationale.
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -75,7 +87,7 @@ The `check_sensor_health` tool returns structured health status for one or all s
 |-------|----------------|----------|
 | `check_sensor_health("acme", sensor_id: null)` — S-5.03 scope (spec-only) | `structuredContent` with all sensors `probe_level: "spec-only"`, `reachable: null`, `auth_valid: null`, `last_successful_query_at: null`; prose includes "spec-only: no live probe performed" | happy-path (S-5.03) |
 | `check_sensor_health("acme", sensor_id: null)` — S-5.04 scope (live probe) | `structuredContent` with all sensors `probe_level: "live"`, `reachable: true`, `auth_valid: true`; prose "3 of 3 sensors healthy for client 'acme' (live probe)" | happy-path (S-5.04) |
-| `check_sensor_health(null)` — cross-client, S-5.03 scope | Health matrix across all clients; each entry includes `client_id`, `probe_level: "spec-only"`, `reachable: null`, `auth_valid: null` | happy-path (S-5.03) |
+| ~~`check_sensor_health(null)` — cross-client~~ | **REMOVED (v1.7):** `client_id` is a required String; `null` is rejected. Cross-client mode deferred to S-5.04. | retired |
 | One sensor healthy, one unreachable — S-5.04 scope | Partial results; healthy sensor `reachable: true`; unreachable sensor `reachable: false` | edge-case (S-5.04) |
 | Client with zero sensors configured | Empty array; message "Client 'x' has no sensors configured" | edge-case |
 
@@ -99,6 +111,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | RECONCILIATION-2-cross-client-null-removal-2026-06-18 | 2026-06-18 | product-owner | **RECONCILIATION-2 — cross-client `client_id: null` language removed from Description and Postcondition 3; `with_partial_failures` builder flagged for removal; v1.6→v1.7.** Finding: the Description and Postcondition 3 still described a cross-client mode (`client_id: null`) that is structurally impossible given the v1.4 OOD-001 adjudication (which made `client_id: String` REQUIRED). The contradiction rendered Postcondition 3 dead prose and the planned `SensorHealthStructuredContent::with_partial_failures` builder unreachable. **Ruling:** Cross-client health is a legitimate MSSP use case but is deferred to S-5.04 (`S-5.04-sensor-health.md`). S-5.04 owns the live probe work and must explicitly extend this contract if cross-client mode is desired (by adding `client_id: Option<String>` or defining a new tool). **Changes:** (1) Description: removed "or a cross-client health matrix when `client_id` is null" sentence; added cross-client deferral block with S-5.04 anchor. (2) Postcondition 3 (`client_id: null` cross-client bullet): replaced with struck-out removal text citing OOD-001 contradiction and S-5.04 deferral. (3) Postcondition 4 (per-sensor entry): `client_id` noted as "echoed from request parameter for auditability" (not "always present in cross-client responses"). (4) Invariants: DI-008 expanded with "cross-client mode is not supported in this contract". (5) Error Cases: no new error added (null `client_id` is a missing required field — MCP schema enforcement, not a domain error). (6) Implementer Work Items section added: struct `client_id` field, removal of `with_partial_failures` builder and `partial_failures` field, ResourcePressure null encoding (RECONCILIATION-3 restatement). (7) Canonical Test Vectors: cross-client test row struck through and retired; no replacement row (cross-client belongs in S-5.04 test suite). (8) Story-writer propagation required: S-5.03 story body should note that cross-client health is S-5.04 scope; no AC change needed (ACs already operate on single-client scope). |
 | 1.6 | RECONCILIATION-3-resource-pressure-scope-2026-06-17 | 2026-06-17 | product-owner | **RECONCILIATION-3 — resource_pressure live-wiring scope clarified; hardcoded zero-value forbidden; S-5.04 anchor set.** Finding: `check_sensor_health` emits `ResourcePressure::new(0, 0)` always (hardcoded), but the postcondition's word "current" implies live values. `QueryEngine` has no accessor for `CursorManager::active_count()` or token-store counts. Ruling: the `resource_pressure` zero-value is NOT S-5.04-deferred in the sense that `reachable`/`auth_valid` are — it is an implementer gap. However, since the accessor wiring is non-trivial (requires new `QueryEngine` method or direct `Arc` plumbing), and S-5.04 already owns the sensor-health live-probe work where this wiring naturally lands, the live-count wiring is anchored to S-5.04 as a named obligation. **What changes in S-5.03 (code change required):** the current `ResourcePressure::new(0, 0)` must be replaced with `null` (or `Option::None`) for both fields so the AI consumer can distinguish "not yet wired" from genuine zero counts. The `ResourcePressure` struct or the containing type must make the counts `Option<usize>` (or the whole `resource_pressure` field be `Option<ResourcePressure>`). **What S-5.04 must do:** wire `CursorManager::active_count()` and the token-store count into a new `QueryEngine::resource_pressure()` accessor (or pass `Arc<CursorManager>` + `Arc<TokenStore>` to `PrismServer` directly), and return live `usize` values. **Implementer action:** change `ResourcePressure::new(0, 0)` to null/None encoding. **S-5.04 action:** add `QueryEngine::cursor_count()` / `QueryEngine::token_count()` accessors and wire them. **Bumped v1.5→v1.6.** |
 | 1.5 | F-S503-004-adjudication-2026-06-17 | 2026-06-17 | product-owner | **F-S503-004 adjudication — honest-unknown semantics for S-5.03 scope; live-probe anchored to S-5.04.** Ruling: S-5.03 MUST NOT return `reachable: true, auth_valid: true` as unverified hardcoded positives — this sends a false-positive health signal to the AI consumer and violates the production-grade default (CLAUDE.md Canonical Principle Rule 1). Correct S-5.03-scoped behavior: `probe_level: "spec-only"`, `reachable: null`, `auth_valid: null`, `last_successful_query_at: null`. Prose summary MUST include "spec-only: no live probe performed". S-5.04 delivers `probe_level: "live"` with real probe results. Changes: (1) Description section expanded with Two-phase probe behavior block. (2) Postconditions updated: `probe_level` field added to health entry definition; `reachable`/`auth_valid` spec'd as `null` for spec-only; hardcoded-true prohibition made explicit; prose-summary S-5.03 requirement added; S-5.04 anchor added. (3) Canonical Test Vectors updated to show both scope variants. (4) Live-probe deferral anchored to S-5.04 (real story ID, not "a wave"). **Story-writer propagation required for S-5.03:** update AC-4 to assert `probe_level: "spec-only"`, `reachable: null`, `auth_valid: null` (not `true`) and prose contains "spec-only: no live probe performed". Story-writer propagation required for S-5.04: AC must assert `probe_level: "live"` and live `reachable`/`auth_valid` values. **Bumped v1.4→v1.5.** |
 | 1.4 | OOD-001-adjudication-2026-06-17 | 2026-06-17 | product-owner | OOD-001 adjudication — SPEC WINS. `client_id: String` is unambiguously required; expanded Preconditions to make this explicit and document the S-5.03 implementer obligation (add `client_id` field to `CheckSensorHealthParams`; `sensor: Option<String>`-only struct is non-conformant). No semantic contract change — the multi-client architecture has always required `client_id`; this version makes the implementer-visible contract text unambiguous. |
