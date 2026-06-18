@@ -530,6 +530,12 @@ impl InfusionRegistry {
             }
         }
 
+        // Story Task 1 / BC-2.19.001: pipe_stage.adds_columns must be non-empty (if pipe_stage present)
+        // and must reference only declared field names. Both constraints are enforced here so
+        // load_spec (in-memory path) and load_spec_with_runtime share the same gate as parse
+        // (TOML path). validate_pipe_stage_columns is the single implementation of both checks.
+        loader::InfusionLoader::validate_pipe_stage_columns(spec)?;
+
         // Build descriptors — one per field (INV-INFUSE-001 / VP-048).
         let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
         let cache_ttl_secs = spec.cache_ttl_secs.unwrap_or(3600);

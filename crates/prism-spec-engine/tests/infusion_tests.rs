@@ -400,15 +400,14 @@ fn test_BC_2_19_001_udf_descriptors_returns_all_registered_udfs() {
     );
 }
 
-/// `enrich_descriptor` returns the correct descriptor for a loaded infusion.
-/// Traces to: BC-2.19.001 / AC-3.
+/// TV-19-001-enrich-desc-pipe: spec WITH pipe_stage carrying the full 4-column adds_columns list.
 ///
-/// TV-19-001-enrich-desc: spec with pipe_stage → output_columns = pipe_stage.adds_columns in
-/// declared order (BC-2.19.001 v2.0 postcondition, PO ruling A1 Option b).
-/// build_geoip_spec() carries pipe_stage.adds_columns = ["geoip_country","geoip_city","geoip_asn","geoip_is_tor"]
-/// so output_columns MUST equal that exact ordered vec.
+/// Traces to: BC-2.19.001 v2.0 / AC-3 / TV-19-001-enrich-desc-pipe (partial).
 ///
-/// TD-VSDD-059: assertion is ordered equality (assert_eq!) not .contains() — a reorder fails the test.
+/// `build_geoip_spec()` sets `pipe_stage.adds_columns = [all 4 columns]`.
+/// This test covers the pipe_stage branch where adds_columns == all field names (full set).
+///
+/// TD-VSDD-059: assertion is ordered equality (assert_eq!) — a reorder fails the test.
 #[test]
 fn test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns() {
     let registry = InfusionRegistry::new();
@@ -423,7 +422,7 @@ fn test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns() {
     assert_eq!(descriptor.infusion_name, "geoip");
     assert_eq!(descriptor.input_field, "device_ip");
     // TD-VSDD-059: ordered equality — a reorder of output_columns must fail this assertion.
-    // build_geoip_spec() has pipe_stage.adds_columns in declaration order; output_columns must match.
+    // build_geoip_spec() has pipe_stage.adds_columns = all 4 in declaration order; output_columns must match.
     assert_eq!(
         descriptor.output_columns,
         vec![
@@ -432,9 +431,200 @@ fn test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns() {
             "geoip_asn".to_string(),
             "geoip_is_tor".to_string(),
         ],
-        "BC-2.19.001 AC-3 (TV-19-001-enrich-desc): output_columns must equal pipe_stage.adds_columns \
-         in declared order: [geoip_country, geoip_city, geoip_asn, geoip_is_tor]. \
+        "BC-2.19.001 AC-3 (pipe_stage full-set branch): output_columns must equal \
+         pipe_stage.adds_columns in declared order when adds_columns covers all fields. \
          A reorder is a behavioral regression."
+    );
+}
+
+/// TV-19-001-enrich-desc: geoip spec with 4 fields and NO pipe_stage.
+///
+/// Traces to: BC-2.19.001 v2.0 / AC-3 / TV-19-001-enrich-desc (canonical — no pipe_stage).
+///
+/// When `spec.pipe_stage` is `None`, `enrich_descriptor` MUST fall back to all
+/// `[[infusion.fields]]` names in declaration order (the `.unwrap_or_else(||
+/// spec.fields...)` branch in `enrich_descriptor`).
+///
+/// This test is **load-bearing for regression detection**: if the fallback branch is
+/// removed or regressed to returning an empty vec, this assertion fails RED.
+///
+/// TD-VSDD-059: ordered equality — a reorder or truncation fails the test.
+#[test]
+fn test_BC_2_19_001_enrich_descriptor_no_pipe_stage_returns_all_field_names() {
+    // Build a geoip spec WITHOUT any pipe_stage (TV-19-001-enrich-desc canonical input).
+    let fields = vec![
+        InfusionField::with_all(
+            "geoip_country",
+            "device_ip",
+            "ip",
+            "string",
+            Some("ISO 3166-1 alpha-2 country code".to_string()),
+            Some("country_iso_code".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_city",
+            "device_ip",
+            "ip",
+            "string",
+            Some("City name".to_string()),
+            Some("city_name".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_asn",
+            "device_ip",
+            "ip",
+            "integer",
+            Some("ASN".to_string()),
+            Some("asn".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_is_tor",
+            "device_ip",
+            "ip",
+            "boolean",
+            Some("Tor exit node flag".to_string()),
+            Some("is_tor".to_string()),
+        ),
+    ];
+    // Intentionally NO pipe_stage — this is the TV-19-001-enrich-desc vector.
+    let spec = InfusionSpec::new(
+        "geoip",
+        "MaxMind GeoIP2",
+        InfusionType::LocalLookup,
+        fields,
+        "geoip_no_pipe.infusion.toml",
+    );
+
+    let registry = InfusionRegistry::new();
+    registry
+        .load_spec(spec)
+        .expect("BC-2.19.001: geoip spec without pipe_stage must load");
+
+    let descriptor = registry
+        .enrich_descriptor("geoip")
+        .expect("BC-2.19.001: enrich_descriptor must return a descriptor for 'geoip'");
+
+    assert_eq!(
+        descriptor.infusion_name, "geoip",
+        "BC-2.19.001 TV-19-001-enrich-desc: infusion_name must be the lookup key 'geoip'"
+    );
+    assert_eq!(
+        descriptor.infusion_id, "geoip",
+        "BC-2.19.001 TV-19-001-enrich-desc: infusion_id must equal infusion_name (lookup key)"
+    );
+    assert_eq!(
+        descriptor.input_field, "device_ip",
+        "BC-2.19.001 TV-19-001-enrich-desc: input_field must come from the first field's input_field"
+    );
+
+    // TD-VSDD-059: ordered equality — truncation or reorder MUST fail this test.
+    // The fallback branch must return ALL 4 field names in declaration order.
+    // REGRESSION INDICATOR: if this assertion fails with an empty vec, the
+    // `.unwrap_or_else(|| spec.fields...)` fallback branch has been removed or regressed.
+    assert_eq!(
+        descriptor.output_columns,
+        vec![
+            "geoip_country".to_string(),
+            "geoip_city".to_string(),
+            "geoip_asn".to_string(),
+            "geoip_is_tor".to_string(),
+        ],
+        "BC-2.19.001 TV-19-001-enrich-desc: when spec.pipe_stage is None, output_columns must \
+         equal ALL [[infusion.fields]] names in declaration order. \
+         Got: {:?}. A regression to empty means the fallback branch was removed.",
+        descriptor.output_columns
+    );
+}
+
+/// TV-19-001-enrich-desc-pipe (strict subset): geoip spec WITH pipe_stage carrying only 2 of 4 columns.
+///
+/// Traces to: BC-2.19.001 v2.0 / AC-3 / TV-19-001-enrich-desc-pipe (strict subset vector).
+///
+/// When `pipe_stage.adds_columns` is a strict subset of the spec fields, `enrich_descriptor`
+/// MUST return only the listed columns — NOT all 4. This proves a pipe stage can legitimately
+/// project a strict subset for selective `| enrich` pipeline projection.
+///
+/// TD-VSDD-059: ordered equality — geoip_asn and geoip_is_tor must be ABSENT.
+#[test]
+fn test_BC_2_19_001_enrich_descriptor_pipe_stage_strict_subset_returns_subset_only() {
+    // Build a geoip spec WITH pipe_stage.adds_columns = ["geoip_country","geoip_city"] (2 of 4).
+    let fields = vec![
+        InfusionField::with_all(
+            "geoip_country",
+            "device_ip",
+            "ip",
+            "string",
+            Some("ISO 3166-1 alpha-2 country code".to_string()),
+            Some("country_iso_code".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_city",
+            "device_ip",
+            "ip",
+            "string",
+            Some("City name".to_string()),
+            Some("city_name".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_asn",
+            "device_ip",
+            "ip",
+            "integer",
+            Some("ASN".to_string()),
+            Some("asn".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_is_tor",
+            "device_ip",
+            "ip",
+            "boolean",
+            Some("Tor exit node flag".to_string()),
+            Some("is_tor".to_string()),
+        ),
+    ];
+    let mut spec = InfusionSpec::new(
+        "geoip",
+        "MaxMind GeoIP2",
+        InfusionType::LocalLookup,
+        fields,
+        "geoip_subset_pipe.infusion.toml",
+    );
+    // pipe_stage.adds_columns = strict 2-column subset — geoip_asn and geoip_is_tor excluded.
+    spec.pipe_stage = Some(prism_spec_engine::infusion::PipeStageConfig::new(vec![
+        "geoip_country".to_string(),
+        "geoip_city".to_string(),
+    ]));
+
+    let registry = InfusionRegistry::new();
+    registry
+        .load_spec(spec)
+        .expect("BC-2.19.001: geoip spec with strict-subset pipe_stage must load");
+
+    let descriptor = registry
+        .enrich_descriptor("geoip")
+        .expect("BC-2.19.001: enrich_descriptor must return a descriptor for 'geoip'");
+
+    // TD-VSDD-059: ordered equality — output_columns must be EXACTLY the 2-element subset.
+    // geoip_asn and geoip_is_tor must be ABSENT from the result.
+    assert_eq!(
+        descriptor.output_columns,
+        vec!["geoip_country".to_string(), "geoip_city".to_string()],
+        "BC-2.19.001 TV-19-001-enrich-desc-pipe (strict subset): output_columns must equal \
+         pipe_stage.adds_columns in declared order — only [geoip_country, geoip_city]. \
+         geoip_asn and geoip_is_tor must be absent. Got: {:?}",
+        descriptor.output_columns
+    );
+
+    // Confirm the absent columns are genuinely absent (belt-and-suspenders beyond assert_eq).
+    assert!(
+        !descriptor.output_columns.contains(&"geoip_asn".to_string()),
+        "BC-2.19.001 TV-19-001-enrich-desc-pipe: geoip_asn must be absent from subset output_columns"
+    );
+    assert!(
+        !descriptor
+            .output_columns
+            .contains(&"geoip_is_tor".to_string()),
+        "BC-2.19.001 TV-19-001-enrich-desc-pipe: geoip_is_tor must be absent from subset output_columns"
     );
 }
 
@@ -1019,9 +1209,15 @@ fn test_ac_1_geoip_spec_exports_four_udf_descriptors() {
 
 /// AC-3: `| enrich geoip ON device_ip` → output schema includes 4 geoip columns in declared order.
 ///
+/// Uses `build_geoip_spec()` which carries `pipe_stage.adds_columns = [all 4 columns]`.
+/// This exercises the pipe_stage branch (same branch as
+/// `test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns`).
+/// The no-pipe_stage fallback branch is covered by
+/// `test_BC_2_19_001_enrich_descriptor_no_pipe_stage_returns_all_field_names`.
+///
 /// TD-VSDD-059: ordered equality — a reorder of output_columns must fail this assertion.
 #[test]
-fn test_ac_3_enrich_descriptor_includes_all_geoip_columns() {
+fn test_ac_3_enrich_descriptor_pipe_stage_full_set_returns_all_columns() {
     let registry = InfusionRegistry::new();
     registry
         .load_spec(build_geoip_spec())
@@ -1041,7 +1237,8 @@ fn test_ac_3_enrich_descriptor_includes_all_geoip_columns() {
             "geoip_asn".to_string(),
             "geoip_is_tor".to_string(),
         ],
-        "AC-3: enrich descriptor output_columns must equal pipe_stage.adds_columns in declared order"
+        "AC-3: enrich descriptor output_columns must equal pipe_stage.adds_columns in declared order \
+         (pipe_stage present, full 4-column set)"
     );
 }
 
@@ -1957,6 +2154,134 @@ adds_columns = ["threat_score", "nonexistent_field"]
         other => panic!(
             "BC-2.19.001: expected MissingRequiredField error for unknown pipe_stage column, \
              got: {:?}",
+            other
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FIX 2 (Story Task 1): non-empty adds_columns enforcement
+//
+// pipe_stage present with adds_columns = [] is now rejected by
+// validate_pipe_stage_columns. The load_spec and parse paths both call this
+// validator, so the constraint is enforced on all entry points.
+//
+// Load-bearing test: spec with pipe_stage.adds_columns = [] MUST fail load.
+// Without the is_empty() guard, the loop never runs and the spec is accepted.
+// ---------------------------------------------------------------------------
+
+/// Story Task 1: pipe_stage present with empty adds_columns is rejected.
+///
+/// Traces to: BC-2.19.001 / Story Task 1 / validate_pipe_stage_columns.
+///
+/// LOAD-BEARING assertion: without the `is_empty()` guard in
+/// `validate_pipe_stage_columns`, the subset loop never runs for an empty
+/// slice — the spec would be ACCEPTED (false green). This test is RED before
+/// the guard is added and GREEN after.
+///
+/// The error variant used is `MissingRequiredField` (the closest existing variant
+/// for "pipe_stage config is structurally invalid"). No new error variant was
+/// introduced (conforming to "use closest existing" per fix-burst instructions).
+#[test]
+fn test_BC_2_19_001_load_spec_rejects_pipe_stage_with_empty_adds_columns() {
+    // Build a geoip spec with pipe_stage present but adds_columns = [].
+    let fields = vec![InfusionField::new(
+        "geoip_country",
+        "device_ip",
+        "ip",
+        "string",
+    )];
+    let mut spec = InfusionSpec::new(
+        "geoip_empty_pipe",
+        "GeoIP empty pipe",
+        InfusionType::LocalLookup,
+        fields,
+        "geoip_empty_pipe.infusion.toml",
+    );
+    // pipe_stage present, adds_columns intentionally empty — INVALID per Story Task 1.
+    spec.pipe_stage = Some(prism_spec_engine::infusion::PipeStageConfig::new(vec![]));
+
+    let registry = InfusionRegistry::new();
+    let result = registry.load_spec(spec);
+
+    assert!(
+        result.is_err(),
+        "Story Task 1 (BC-2.19.001): load_spec must REJECT a spec with pipe_stage.adds_columns = []. \
+         A spec with pipe_stage must list at least one column. \
+         FAILS RED without the is_empty() guard in validate_pipe_stage_columns — \
+         the empty loop is a silent pass that falsely accepts the spec."
+    );
+
+    match result.unwrap_err() {
+        InfusionError::MissingRequiredField { field, .. } => {
+            assert!(
+                field.contains("pipe_stage")
+                    || field.contains("adds_columns")
+                    || field.contains("empty"),
+                "Story Task 1: MissingRequiredField must reference pipe_stage/adds_columns. Got field: '{}'",
+                field
+            );
+        }
+        other => panic!(
+            "Story Task 1: expected MissingRequiredField for empty adds_columns, got: {:?}",
+            other
+        ),
+    }
+}
+
+/// Story Task 1: parse path also rejects pipe_stage with empty adds_columns.
+///
+/// Traces to: BC-2.19.001 / Story Task 1 / InfusionLoader::parse → validate_pipe_stage_columns.
+///
+/// The TOML parse path calls validate_pipe_stage_columns after building the spec.
+/// This test confirms the rejection is wired through the TOML loader, not just
+/// the in-memory load_spec path.
+#[test]
+fn test_BC_2_19_001_parse_rejects_pipe_stage_with_empty_adds_columns() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "geoip_empty"
+name = "GeoIP empty pipe"
+
+[source]
+type = "maxmind_mmdb"
+file_path = "fixtures/test.mmdb"
+
+[[infusion.fields]]
+name = "geoip_country"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+
+[infusion.pipe_stage]
+adds_columns = []
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "geoip_empty_pipe.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "Story Task 1 (BC-2.19.001): InfusionLoader::parse must reject a spec with \
+         pipe_stage.adds_columns = []. \
+         FAILS RED without the is_empty() guard in validate_pipe_stage_columns."
+    );
+
+    match result.unwrap_err() {
+        InfusionError::MissingRequiredField { field, spec_path } => {
+            assert!(
+                field.contains("pipe_stage")
+                    || field.contains("adds_columns")
+                    || field.contains("empty"),
+                "Story Task 1: rejection error must reference pipe_stage/adds_columns. Got field: '{}'",
+                field
+            );
+            assert_eq!(
+                spec_path, "geoip_empty_pipe.infusion.toml",
+                "Story Task 1: rejection error must include the spec path"
+            );
+        }
+        other => panic!(
+            "Story Task 1: expected MissingRequiredField for empty adds_columns in parse path, got: {:?}",
             other
         ),
     }

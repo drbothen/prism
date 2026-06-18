@@ -412,9 +412,24 @@ impl InfusionLoader {
 
     /// Validate that `pipe_stage.adds_columns` matches the `[[infusion.fields]]` names.
     ///
-    /// Returns `Ok(())` or a list of mismatched names.
+    /// Enforces two constraints (BC-2.19.001 / Story Task 1):
+    /// 1. Every name in `adds_columns` must be a declared `[[infusion.fields]]` name (subset rule).
+    /// 2. `adds_columns` must be non-empty — a `pipe_stage` present with an empty column list is
+    ///    rejected; callers must either omit `pipe_stage` entirely or list at least one column.
+    ///
+    /// Returns `Ok(())` on success; `Err(InfusionError::MissingRequiredField)` otherwise.
     pub fn validate_pipe_stage_columns(spec: &InfusionSpec) -> Result<(), InfusionError> {
         if let Some(ref pipe_stage) = spec.pipe_stage {
+            // Story Task 1: non-empty constraint — pipe_stage present with 0 adds_columns is invalid.
+            if pipe_stage.adds_columns.is_empty() {
+                return Err(InfusionError::MissingRequiredField {
+                    field: "pipe_stage.adds_columns must not be empty — \
+                            omit pipe_stage entirely or list at least one column (E-INFUSE-003)"
+                        .to_string(),
+                    spec_path: spec.source_path.clone(),
+                });
+            }
+
             let field_names: std::collections::HashSet<&str> =
                 spec.fields.iter().map(|f| f.name.as_str()).collect();
             for col in &pipe_stage.adds_columns {
