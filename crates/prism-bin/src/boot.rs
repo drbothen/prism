@@ -2771,7 +2771,11 @@ pub async fn step9_start_mcp_server(
         // Both Tier-2 LRU capacity (10 000 entries) and Tier-3 backend are re-specified here
         // so the production path is explicit and reviewable.
         .with_infusion_caches(
-            Arc::new(prism_spec_engine::InfusionLruCache::new(10_000)),
+            // `const { }` enforces nonzero at compile time — no runtime panic possible
+            // (OBS-1, S-1.14-REDO: `InfusionLruCache::new` accepts `NonZeroUsize`, not `usize`).
+            Arc::new(prism_spec_engine::InfusionLruCache::new(
+                const { std::num::NonZeroUsize::new(10_000).unwrap() },
+            )),
             Arc::new(prism_spec_engine::InfusionTier3Cache::new(
                 infusion_cache_backend,
             )),

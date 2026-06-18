@@ -999,7 +999,9 @@ mod tests {
         let descriptor = make_descriptor("tier1_dedup_udf", "tier1_infusion", src);
 
         // Wire the full three-tier cache (production path).
-        let lru = Arc::new(InfusionLruCache::new(10_000));
+        let lru = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        ));
         let backend = InMemoryCacheBackend::new();
         let tier3 = Arc::new(InfusionTier3Cache::new(
             Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
@@ -1116,7 +1118,9 @@ mod tests {
 
         // === Query 1: 5 unique IPs × 2 rows each = 10 rows total. 5 source calls expected. ===
         let ctx1 = SessionContext::new();
-        let lru1 = Arc::new(InfusionLruCache::new(10_000));
+        let lru1 = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        ));
         let tier3_a = Arc::new(InfusionTier3Cache::new(
             Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
         ));
@@ -1167,7 +1171,9 @@ mod tests {
         // === Query 2: fresh LRU (simulates process restart / eviction), same backend. ===
         // Results are now only in T3 (InMemoryCacheBackend). T2 is empty.
         let ctx2 = SessionContext::new();
-        let lru2 = Arc::new(InfusionLruCache::new(10_000)); // fresh LRU — empty
+        let lru2 = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        )); // fresh LRU — empty
 
         // Shared in-memory backend — same Arc as Q1, so T3 has all 5 entries.
         let tier3_b = Arc::new(InfusionTier3Cache::new(
@@ -1321,7 +1327,9 @@ mod tests {
             cache_ttl_secs: NON_DEFAULT_TTL,
         };
 
-        let lru = Arc::new(InfusionLruCache::new(10_000));
+        let lru = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        ));
         let backend = CapturingCacheBackend::new();
         let tier3 = Arc::new(InfusionTier3Cache::new(
             Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>

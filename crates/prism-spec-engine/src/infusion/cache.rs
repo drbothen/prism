@@ -117,12 +117,16 @@ impl std::fmt::Debug for InfusionLruCache {
 
 impl InfusionLruCache {
     /// Create a new in-memory LRU cache with the given capacity.
-    pub fn new(capacity: usize) -> Self {
+    ///
+    /// The capacity is a `NonZeroUsize` to enforce the invariant at the type level —
+    /// `lru::LruCache` requires a nonzero capacity, and accepting `NonZeroUsize` directly
+    /// removes the need for a runtime panic (OBS-1, S-1.14-REDO). All callers pass literal
+    /// constants (e.g. `NonZeroUsize::new(10_000).unwrap()`); the `.unwrap()` at call sites
+    /// is justified because the literal is compile-time known to be nonzero.
+    pub fn new(capacity: std::num::NonZeroUsize) -> Self {
         InfusionLruCache {
-            inner: tokio::sync::Mutex::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(capacity).expect("capacity must be > 0"),
-            )),
-            capacity,
+            inner: tokio::sync::Mutex::new(lru::LruCache::new(capacity)),
+            capacity: capacity.get(),
         }
     }
 

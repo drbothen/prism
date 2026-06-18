@@ -447,7 +447,11 @@ impl QueryEngine {
         registry: Arc<prism_spec_engine::InfusionRegistry>,
     ) -> Self {
         // Allocate Tier 2 LRU cache (10 000-entry capacity, default per BC-2.19.002 / cache.rs).
-        let lru = Arc::new(prism_spec_engine::InfusionLruCache::new(10_000));
+        // `const { }` enforces the nonzero invariant at compile time — no runtime panic possible
+        // (OBS-1, S-1.14-REDO: `InfusionLruCache::new` accepts `NonZeroUsize`, not `usize`).
+        let lru = Arc::new(prism_spec_engine::InfusionLruCache::new(
+            const { std::num::NonZeroUsize::new(10_000).unwrap() },
+        ));
         // Allocate Tier 3 cache with NullCacheBackend (no RocksDB dependency at this call site;
         // production boot calls with_infusion_caches to wire the real RocksDB backend).
         let tier3 = Arc::new(prism_spec_engine::InfusionTier3Cache::new(Arc::new(

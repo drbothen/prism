@@ -471,7 +471,9 @@ adds_columns = ["tier3_asset_name"]
     // Wire the three-tier cache chain — SAME chain as production boot path:
     //   .with_infusion_registry(reg).with_infusion_caches(lru, tier3)
     // ---------------------------------------------------------------------------
-    let lru = Arc::new(InfusionLruCache::new(10_000));
+    let lru = Arc::new(InfusionLruCache::new(
+        std::num::NonZeroUsize::new(10_000).unwrap(),
+    ));
     let tracking_backend = TrackingCacheBackend::new();
     let tier3 = Arc::new(InfusionTier3Cache::new(
         Arc::clone(&tracking_backend) as Arc<dyn CacheBackend>
@@ -539,13 +541,36 @@ adds_columns = ["tier3_asset_name"]
     let get_calls_before_second = tracking_backend.get_calls();
 
     // ---------------------------------------------------------------------------
+    // OBS-2 load-bearing sentinel: overwrite the CSV source file with a DIFFERENT value
+    // before issuing the second query. If Tier-3 cache serves the second query correctly,
+    // the OLD cached value "prod-server-01" is returned. If the source is re-called
+    // (cache miss / regression), the NEW sentinel value "SENTINEL-SOURCE-RECALLED" is
+    // returned — causing the assertion below to fail.
+    //
+    // This makes the test truly load-bearing: prior to this strengthening, both code paths
+    // (cache hit AND source re-call) would have returned "prod-server-01" from the unmodified
+    // CSV, so the test could pass even if Tier-3 were not serving the second query (OBS-2).
+    // ---------------------------------------------------------------------------
+    {
+        use std::io::Write;
+        let mut f = std::fs::File::create(&csv_path)
+            .expect("AC-7/OBS-2: overwrite CSV with sentinel value must succeed");
+        f.write_all(
+            b"device_ip,asset_name\n192.168.1.1,SENTINEL-SOURCE-RECALLED\n192.168.1.2,prod-server-02\n",
+        )
+        .expect("AC-7/OBS-2: sentinel CSV write must succeed");
+    }
+
+    // ---------------------------------------------------------------------------
     // Second call: Tier-3 backend must be queried (get() is called), returning a hit.
     // Re-register UDFs in a new context (Tier-1 is per-invoke; Tier-2 LRU is shared).
     // Sharing the same LRU means Tier-2 may hit on second call — use a fresh LRU to
     // force Tier-3 to be the tier that proves persistence.
     // ---------------------------------------------------------------------------
     let ctx2 = SessionContext::new();
-    let fresh_lru = Arc::new(InfusionLruCache::new(10_000)); // fresh — no Tier-2 hits
+    let fresh_lru = Arc::new(InfusionLruCache::new(
+        std::num::NonZeroUsize::new(10_000).unwrap(),
+    )); // fresh — no Tier-2 hits
     register_infusion_udfs_with_cache(&ctx2, descriptors, fresh_lru, Arc::clone(&tier3), 3600)
         .expect("AC-7: second register_infusion_udfs_with_cache must succeed");
 
@@ -576,7 +601,10 @@ adds_columns = ["tier3_asset_name"]
         get_calls_after_second
     );
 
-    // Verify second call returns same value from Tier-3 cache (not a source re-call).
+    // OBS-2 load-bearing assertion: second call MUST return the cached value "prod-server-01",
+    // NOT the sentinel "SENTINEL-SOURCE-RECALLED" written to the CSV after the first call.
+    // If this assertion fails, Tier-3 is not serving the second query — source was re-called,
+    // which is a CRIT-1 regression (three-tier cache not wired correctly in production path).
     let name_col2 = batches2[0]
         .column(0)
         .as_any()
@@ -585,8 +613,10 @@ adds_columns = ["tier3_asset_name"]
     assert_eq!(
         name_col2.value(0),
         "prod-server-01",
-        "AC-7: second call must return 'prod-server-01' from Tier-3 cache (same as first call); \
-         a different value would indicate source was re-called instead of cache read"
+        "AC-7/OBS-2: second call must return cached 'prod-server-01' from Tier-3 cache, NOT \
+         'SENTINEL-SOURCE-RECALLED' from the overwritten CSV file; a sentinel value here means \
+         the source was re-called on the second query instead of being served from Tier-3 \
+         (CRIT-1 regression: three-tier cache not wired correctly in production path)"
     );
 }
 

@@ -864,7 +864,7 @@ output_type = "string"
 /// FAILS RED: `todo!()` in InfusionLruCache::insert and get before implementation.
 #[tokio::test]
 async fn test_BC_2_19_002_lru_cache_hit_within_ttl_returns_value() {
-    let cache = InfusionLruCache::new(100);
+    let cache = InfusionLruCache::new(std::num::NonZeroUsize::new(100).unwrap());
 
     let value = serde_json::json!({"country": "US", "city": "New York"});
 
@@ -888,7 +888,7 @@ async fn test_BC_2_19_002_lru_cache_hit_within_ttl_returns_value() {
 /// FAILS RED: `todo!()` in InfusionLruCache::get before implementation.
 #[tokio::test]
 async fn test_BC_2_19_002_lru_cache_miss_returns_none() {
-    let cache = InfusionLruCache::new(100);
+    let cache = InfusionLruCache::new(std::num::NonZeroUsize::new(100).unwrap());
 
     // FAILS RED: todo!() in get.
     let result = cache.get("geoip", "not_inserted").await;
@@ -905,7 +905,7 @@ async fn test_BC_2_19_002_lru_cache_miss_returns_none() {
 /// FAILS RED: `todo!()` in InfusionLruCache::insert/get before implementation.
 #[tokio::test]
 async fn test_BC_2_19_002_lru_cache_ttl_zero_entry_is_expired_immediately() {
-    let cache = InfusionLruCache::new(100);
+    let cache = InfusionLruCache::new(std::num::NonZeroUsize::new(100).unwrap());
     let value = serde_json::json!({"country": "DE"});
 
     // Insert with TTL=0 — expires at current second.
@@ -927,7 +927,7 @@ async fn test_BC_2_19_002_lru_cache_ttl_zero_entry_is_expired_immediately() {
 async fn test_BC_2_19_002_lru_cache_capacity_evicts_lru_entry() {
     // Use small capacity for test speed.
     let capacity = 10usize;
-    let cache = InfusionLruCache::new(capacity);
+    let cache = InfusionLruCache::new(std::num::NonZeroUsize::new(capacity).unwrap());
 
     // Insert `capacity` entries.
     for i in 0..capacity {
@@ -971,7 +971,7 @@ async fn test_BC_2_19_002_lru_cache_capacity_evicts_lru_entry() {
 /// FAILS RED: `todo!()` in insert/get before implementation.
 #[tokio::test]
 async fn test_BC_2_19_002_lru_cache_composite_key_isolates_infusion_ids() {
-    let cache = InfusionLruCache::new(100);
+    let cache = InfusionLruCache::new(std::num::NonZeroUsize::new(100).unwrap());
 
     let geoip_val = serde_json::json!({"country": "US"});
     let threat_val = serde_json::json!({"score": 0.9});
@@ -1068,7 +1068,7 @@ fn test_BC_2_19_002_ac_8_tier1_hit_avoids_source_call() {
 /// FAILS RED: `todo!()` in InfusionLruCache::get/insert.
 #[tokio::test]
 async fn test_BC_2_19_002_ac_8_tier2_lru_hit_returns_value_without_source_call() {
-    let lru_cache = InfusionLruCache::new(1000);
+    let lru_cache = InfusionLruCache::new(std::num::NonZeroUsize::new(1000).unwrap());
     let source_calls = std::sync::Arc::new(AtomicUsize::new(0));
     let counter = source_calls.clone();
 
@@ -1139,7 +1139,7 @@ async fn test_BC_2_19_002_ac_8_tier2_lru_hit_returns_value_without_source_call()
 /// This test is a companion to test_BC_2_19_002_ac_8_tier2_lru_hit_returns_value.
 #[tokio::test]
 async fn test_BC_2_19_002_ac_8_tier3_bypassed_when_tier2_hits() {
-    let lru_cache = InfusionLruCache::new(1000);
+    let lru_cache = InfusionLruCache::new(std::num::NonZeroUsize::new(1000).unwrap());
 
     // Insert into Tier 2.
     // FAILS RED: todo!() in insert.
@@ -1838,7 +1838,7 @@ async fn test_BC_2_19_002_crit2_tier3_hit_returns_value_source_not_called() {
     );
 
     // Tier2: fresh LRU cache — miss for "5.5.5.5".
-    let tier2 = InfusionLruCache::new(1000);
+    let tier2 = InfusionLruCache::new(std::num::NonZeroUsize::new(1000).unwrap());
     let tier2_result = tier2.get("geoip", "5.5.5.5").await;
     assert!(
         tier2_result.is_none(),
@@ -1883,7 +1883,7 @@ async fn test_BC_2_19_002_crit2_all_tiers_miss_source_called_once() {
     assert!(t1.is_none(), "CRIT-2: Tier1 must miss for fresh cache");
 
     // Tier2 miss.
-    let tier2 = InfusionLruCache::new(1000);
+    let tier2 = InfusionLruCache::new(std::num::NonZeroUsize::new(1000).unwrap());
     let t2 = tier2.get("geoip", "9.9.9.9").await;
     assert!(t2.is_none(), "CRIT-2: Tier2 must miss for fresh LRU");
 

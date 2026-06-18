@@ -89,7 +89,12 @@ pub struct InfusionSourceConfig {
     pub file_path: String,
     /// For CSV: the column to use as lookup key.
     pub key_column: Option<String>,
-    /// Refresh interval in seconds (0 = no refresh).
+    /// Reserved: interval-driven source refresh — currently INERT (not consumed by any runtime code).
+    ///
+    /// This field is parsed from TOML and stored for forward-compatibility, but no background refresh
+    /// task reads it. Hot-reload of source data is handled by the file-watcher path deferred to
+    /// S-1.12-FOLLOWUP (BC-2.22.001 §step10-deferred-contract). Until that story ships, writing
+    /// `refresh_interval_secs = N` in a spec has no effect at runtime.
     pub refresh_interval_secs: Option<u64>,
 }
 
