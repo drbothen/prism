@@ -1213,6 +1213,10 @@ pub struct SpecError {
 ///
 /// These errors are produced by `InfusionRegistry` and `InfusionLoader` during
 /// spec loading, hot reload, and credential resolution.
+///
+/// Marked `#[non_exhaustive]` per CLAUDE.md pub-API surface discipline — external
+/// match arms must include a wildcard `_ => {}` arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum InfusionError {
     /// E-INFUSE-001: Unknown infusion name referenced in a query or pipe stage.
@@ -1263,9 +1267,7 @@ pub enum InfusionError {
     ///
     /// Added in S-1.14-REDO (task from `plugin_bridge.rs` TODO comment).
     ///
-    /// Note: `InfusionError` is exhaustive (no `#[non_exhaustive]` on the enum).
-    /// External match arms do NOT need a wildcard arm for this reason, though
-    /// good practice is to add one to handle future variants added in later stories.
+    /// `InfusionError` is `#[non_exhaustive]` per CLAUDE.md pub-API surface discipline.
     #[error(
         "E-INFUSE-008: plugin infusion call failed for '{infusion_id}' via plugin '{plugin_id}': {reason}"
     )]
