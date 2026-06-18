@@ -10,6 +10,16 @@
 //! dynamically generated. Each prompt message includes a security reminder about
 //! untrusted sensor data (DI-006 invariant).
 //!
+//! # Argument validation (DI-006 / OBS-1)
+//!
+//! `client_id` is validated via `OrgSlug::new` (rejects path-traversal chars,
+//! control characters, and injection payloads — same guard as tool calls and
+//! resource handlers). `hostname` and `time_range` are validated to contain only
+//! printable ASCII (no control characters, no shell/SQL metacharacters likely to
+//! be confused as prompt instructions). On invalid input the render functions
+//! return `Err(ErrorData::invalid_params(...))` with a GENERIC message that does
+//! NOT echo the raw payload (avoids log-injection and AI-prompt-injection vectors).
+//!
 //! # Wiring
 //!
 //! `build_prompt_router()` is called during `PrismServer` construction to produce
@@ -20,9 +30,67 @@
 use rmcp::{
     handler::server::router::prompt::{PromptRoute, PromptRouter},
     model::{GetPromptResult, Prompt, PromptArgument, PromptMessage, PromptMessageRole},
+    ErrorData,
 };
 
 use crate::server::PrismServer;
+
+// ─── Argument validation helpers (DI-006 / OBS-1) ────────────────────────────
+
+/// Validate `client_id` via `OrgSlug::new`.
+///
+/// Rejects any string that does not match `^[a-zA-Z0-9_-]{1,64}$`.
+/// Returns a generic `ErrorData::invalid_params` that does NOT echo the raw
+/// payload (no log-injection / AI-prompt-injection vector).
+fn validate_client_id(client_id: &str) -> Result<(), ErrorData> {
+    let slug = prism_core::OrgSlug::new(client_id);
+    if slug.is_err() {
+        return Err(ErrorData::invalid_params(
+            "prompt argument 'client_id' is invalid: must match [a-zA-Z0-9_-]{1,64}",
+            None,
+        ));
+    }
+    Ok(())
+}
+
+/// Validate `hostname` (or any free-text prompt argument used in SQL-like templates).
+///
+/// Accepts printable ASCII (0x20–0x7E) only. Rejects:
+/// - Control characters (NUL, CR, LF, TAB, ESC, etc.)
+/// - Non-ASCII bytes (Unicode, high-byte injections)
+/// - Empty strings
+/// - Strings longer than 253 characters (FQDN/IP practical maximum)
+///
+/// Returns a generic `ErrorData::invalid_params` that does NOT echo the raw payload.
+fn validate_hostname(hostname: &str) -> Result<(), ErrorData> {
+    let is_valid = !hostname.is_empty()
+        && hostname.len() <= 253
+        && hostname.bytes().all(|b| (0x20..=0x7e).contains(&b));
+    if !is_valid {
+        return Err(ErrorData::invalid_params(
+            "prompt argument 'hostname' is invalid: must be printable ASCII, 1-253 characters",
+            None,
+        ));
+    }
+    Ok(())
+}
+
+/// Validate an optional free-text `time_range` argument.
+///
+/// Same printable-ASCII rule as `validate_hostname`; max 32 characters.
+/// Returns `Ok(())` for `None` (the argument is optional).
+fn validate_time_range(time_range: &str) -> Result<(), ErrorData> {
+    let is_valid = !time_range.is_empty()
+        && time_range.len() <= 32
+        && time_range.bytes().all(|b| (0x20..=0x7e).contains(&b));
+    if !is_valid {
+        return Err(ErrorData::invalid_params(
+            "prompt argument 'time_range' is invalid: must be printable ASCII, 1-32 characters",
+            None,
+        ));
+    }
+    Ok(())
+}
 
 // ─── Security reminder constant (DI-006) ─────────────────────────────────────
 
@@ -108,7 +176,7 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
                     .and_then(|a| a.get("client_id"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("(unknown)");
-                Ok(render_triage_alerts(client_id))
+                render_triage_alerts(client_id)
             })
         }))
         .with_route(PromptRoute::new_dyn(investigate_host_attr, |ctx| {
@@ -125,7 +193,7 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
                     .and_then(|a| a.get("hostname"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("(unknown)");
-                Ok(render_investigate_host(client_id, hostname))
+                render_investigate_host(client_id, hostname)
             })
         }))
         .with_route(PromptRoute::new_dyn(client_overview_attr, |ctx| {
@@ -136,7 +204,7 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
                     .and_then(|a| a.get("client_id"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("(unknown)");
-                Ok(render_client_overview(client_id))
+                render_client_overview(client_id)
             })
         }))
         .with_route(PromptRoute::new_dyn(cross_client_status_attr, |ctx| {
@@ -146,7 +214,7 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
                     .as_ref()
                     .and_then(|a| a.get("time_range"))
                     .and_then(|v| v.as_str());
-                Ok(render_cross_client_status(time_range))
+                render_cross_client_status(time_range)
             })
         }))
 }
@@ -155,10 +223,15 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
 
 /// Render the `triage_alerts` prompt for the given `client_id`.
 ///
+/// Validates `client_id` via `OrgSlug::new` before interpolation (DI-006 / OBS-1).
+/// Returns `Err(ErrorData::invalid_params(...))` with a generic message that does NOT
+/// echo the raw payload if `client_id` fails validation.
+///
 /// Guides the agent through checking all sensors for open high/critical alerts.
 /// Argument: `client_id` (required).
 /// Includes SECURITY_REMINDER (DI-006).
-pub fn render_triage_alerts(client_id: &str) -> GetPromptResult {
+pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorData> {
+    validate_client_id(client_id)?;
     let body = format!(
         "Triage open alerts for client '{client_id}'.\n\n\
          Step 1: Run check_sensor_health to verify all sensors are reachable.\n\
@@ -169,17 +242,29 @@ pub fn render_triage_alerts(client_id: &str) -> GetPromptResult {
          Step 3: Group alerts by sensor and present a summary count.\n\
          Step 4: Highlight any alerts requiring immediate attention.{SECURITY_REMINDER}",
     );
-    GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, body)])
+    Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+        PromptMessageRole::User,
+        body,
+    )]))
 }
 
 // ─── investigate_host ─────────────────────────────────────────────────────────
 
 /// Render the `investigate_host` prompt for the given `client_id` and `hostname`.
 ///
+/// Validates `client_id` via `OrgSlug::new` and `hostname` via printable-ASCII check
+/// before interpolation (DI-006 / OBS-1). Returns `Err(ErrorData::invalid_params(...))`
+/// with a generic message that does NOT echo the raw payload on validation failure.
+///
 /// Guides cross-sensor correlation by hostname or IP address.
 /// Arguments: `client_id` (required), `hostname` (required).
 /// Includes SECURITY_REMINDER (DI-006).
-pub fn render_investigate_host(client_id: &str, hostname: &str) -> GetPromptResult {
+pub fn render_investigate_host(
+    client_id: &str,
+    hostname: &str,
+) -> Result<GetPromptResult, ErrorData> {
+    validate_client_id(client_id)?;
+    validate_hostname(hostname)?;
     let body = format!(
         "Investigate host '{hostname}' for client '{client_id}' across all sensors.\n\n\
          Step 1: Check sensor health to ensure all data sources are available.\n\
@@ -190,17 +275,25 @@ pub fn render_investigate_host(client_id: &str, hostname: &str) -> GetPromptResu
          Step 3: Correlate findings across sensors for a unified view.\n\
          Step 4: Check for any associated alerts or anomalies.{SECURITY_REMINDER}",
     );
-    GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, body)])
+    Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+        PromptMessageRole::User,
+        body,
+    )]))
 }
 
 // ─── client_overview ─────────────────────────────────────────────────────────
 
 /// Render the `client_overview` prompt for the given `client_id`.
 ///
+/// Validates `client_id` via `OrgSlug::new` before interpolation (DI-006 / OBS-1).
+/// Returns `Err(ErrorData::invalid_params(...))` with a generic message that does NOT
+/// echo the raw payload if `client_id` fails validation.
+///
 /// Guides pulling alert counts, health status, and recent activity.
 /// Argument: `client_id` (required).
 /// Includes SECURITY_REMINDER (DI-006).
-pub fn render_client_overview(client_id: &str) -> GetPromptResult {
+pub fn render_client_overview(client_id: &str) -> Result<GetPromptResult, ErrorData> {
+    validate_client_id(client_id)?;
     let body = format!(
         "Generate a security posture overview for client '{client_id}'.\n\n\
          Step 1: Run check_sensor_health(client_id: '{client_id}') to get sensor status.\n\
@@ -210,19 +303,29 @@ pub fn render_client_overview(client_id: &str) -> GetPromptResult {
          Step 3: Read prism://sensors/health for resource pressure metrics.\n\
          Step 4: Summarise: total alerts by severity, sensor health status, and top concerns.{SECURITY_REMINDER}",
     );
-    GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, body)])
+    Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+        PromptMessageRole::User,
+        body,
+    )]))
 }
 
 // ─── cross_client_status ─────────────────────────────────────────────────────
 
 /// Render the `cross_client_status` prompt.
 ///
+/// Validates `time_range` (when provided) via printable-ASCII check before interpolation
+/// (DI-006 / OBS-1). Returns `Err(ErrorData::invalid_params(...))` with a generic message
+/// that does NOT echo the raw payload if validation fails.
+///
 /// Guides checking all clients for critical alerts.
 /// Argument: `time_range` (optional).
 /// Includes SECURITY_REMINDER (DI-006).
-pub fn render_cross_client_status(time_range: Option<&str>) -> GetPromptResult {
+pub fn render_cross_client_status(time_range: Option<&str>) -> Result<GetPromptResult, ErrorData> {
     let time_clause = match time_range {
-        Some(r) => format!(" in the last {r}"),
+        Some(r) => {
+            validate_time_range(r)?;
+            format!(" in the last {r}")
+        }
         None => String::new(),
     };
     let body = format!(
@@ -234,5 +337,8 @@ pub fn render_cross_client_status(time_range: Option<&str>) -> GetPromptResult {
          Step 4: Highlight clients with active critical alerts requiring immediate attention.\n\
          Step 5: Produce a cross-client risk matrix summary.{SECURITY_REMINDER}",
     );
-    GetPromptResult::new(vec![PromptMessage::new_text(PromptMessageRole::User, body)])
+    Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+        PromptMessageRole::User,
+        body,
+    )]))
 }
