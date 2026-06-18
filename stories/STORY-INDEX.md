@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.423"
+version: "v2.424"
 status: draft
 producer: state-manager
-timestamp: 2026-06-17T00:00:00Z
+timestamp: 2026-06-17T21:00:00Z
 phase: 3
 total_stories: 201
 total_active_bcs: 222
@@ -20,6 +20,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
+- **D-1225 S-5.03 BC-2.10.008 version-cite sweep — STORY-INDEX v2.423→v2.424 (2026-06-17):** (POL-11/POL-32 changelog row) S-5.03 not-started v1.16→v1.17 (story-writer: BC-2.10.008 body-table cite v1.8→v1.9 version-cite sweep per POL-7/POL-23; no AC/BC/Red Gate change; OBS-1 (F-TTL-1 MED) CLOSED on S-1.14-REDO @eda52123 — per-descriptor TTL wired through, load-bearing non-default-TTL test; re-entering 3-CLEAN streak on frozen eda52123; OBS-1 (OBS-1 prompt-arg sanitization DI-006 parity) CLOSED on S-5.03 @5a444a5f). STORY-INDEX v2.423→v2.424. develop_head UNCHANGED 60249ccc. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED.
 - **D-1220 S-1.14-REDO Task 7 wording correction — STORY-INDEX v2.422→v2.423 (2026-06-17):** (POL-11/POL-32 changelog row) S-1.14-REDO not-started v1.1→v1.2 (story-writer Task 7 wording corrected: Tier-1 cache bucket described as per-DataFusion-batch not per-execute(); behavior unchanged and verified correct; no AC/BC/Red Gate change). STORY-INDEX v2.422→v2.423. develop_head UNCHANGED 60249ccc. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED.
 - **D-1211 resume-session cascade round-2 + dual-path architecture burst — STORY-INDEX v2.421→v2.422 (2026-06-17):** (POL-11/POL-32 changelog row) 4 story rows advanced: S-5.03 not-started v1.14→v1.16 (AC-2 client-scoping+URL; AC-4 spec-only null per BC-2.08.005 v1.5 two-phase). S-5.04 not-started v1.6→v1.7 (AC-7 live-probe; BC-2.08.005 v1.5 added to arrays). S-5.08 not-started →v1.6 (Task 8 + AC-8 = relocated AC-10 from S-5.03; BC-2.08.009 v1.4 owner). S-DEMO-ENRICHMENT-PIVOT-002 draft v1.2→v1.3 (dual-path re-scope per ADR-040 v2.0: ThreatIntel→WASM, NVD→HttpLookup; 32 red_gate_tests; 13 pts). ADR-040 v2.0 ratified (dual-path). error-taxonomy v1.87→v1.88 (E-INFUSE-009/010/011 + http_lookup E-INFUSE-004). BC-2.08.005 v1.4→v1.5 / BC-2.10.008 v1.7→v1.8 / BC-2.08.009 v1.3→v1.4. BC-INDEX v6.70→v6.71. ARCH-INDEX v2.136→v2.137. Decisions D-1211..D-1214 recorded. develop_head UNCHANGED 60249ccc. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.421→v2.422.
 - **D-1207 resume-session prep+spec work durability burst — STORY-INDEX v2.420→v2.421 (2026-06-17):** (POL-11/POL-32 changelog row) 3 story rows advanced: S-5.03 not-started v1.13→v1.14 (pre-TDD prep + remove-uncertainty: rmcp 1.4→1.7 pin corrected, prompt-name field corrected, SensorHealthResult schema corrected; OOD-001 SPEC-WINS resolved vs BC-2.08.005 v1.4). S-1.14-REDO not-started v1.0→v1.1 (pre-TDD remove-uncertainty: maxminddb 0.28 / csv 1.4 / lru 0.17 / bincode 2.x pins; hollow-feature AC-10 + Task 13 added). S-DEMO-ENRICHMENT-PIVOT-002 draft v1.1→v1.2 (6 security gates folded in as AC-007..012; red_gate_tests 15). BC-2.08.005 v1.4 (OOD-001 SPEC-WINS adjudication; client_id required — BC-INDEX v6.69→v6.70). error-taxonomy v1.87 (E-INFUSE-008 registered for S-1.14-REDO plugin_bridge boundary failures). Decisions D-1207..D-1210 recorded. develop_head UNCHANGED 60249ccc. total_stories 201 UNCHANGED. active_contracts 235 / draft_contracts 2 UNCHANGED. STORY-INDEX v2.420→v2.421.
@@ -426,7 +427,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.08 | Action Delivery Framework [v1.23 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration [effective-merged-by: S-5.01-FOLLOWUP-MCP-BOOT PR #163 develop@e898c3c9 2026-05-29 — dep gate SATISFIED via metadata reconciliation D-1163] | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping [depends_on repointed → S-5.01-FOLLOWUP-MCP-BOOT D-1163; BCs BC-2.10.004/007/011 are DEDICATED authored/active BCs — stale "proxy BCs; no dedicated BC yet" note CORRECTED] [**merged v1.13** (D-1202 2026-06-17: PR #191 squash-merged develop@bec894a2; LOCAL 3/3 strict + PR-LEVEL 3/3 strict CONVERGED on frozen 86842768; pr-reviewer APPROVE; CI 43/43; POL-14 BC-2.10.011 status:draft→active; DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open; was D-1201 2026-06-16: ready v1.12 streak 2/3 on 86842768)] | prism-mcp | 5 | -- | 2 | S-5.01-FOLLOWUP-MCP-BOOT |
-| S-5.03 | Resources and Prompts [**not-started v1.16** (D-1211 2026-06-17: AC-2 client-scoping+URL; AC-4 spec-only null per BC-2.08.005 v1.5 two-phase; BC-2.10.008 v1.8 wired; was v1.14: D-1207 2026-06-17)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
+| S-5.03 | Resources and Prompts [**not-started v1.17** (D-1225 2026-06-17: BC-2.10.008 body-table cite v1.8→v1.9 version-cite sweep; POL-7/POL-23; was v1.16: D-1211 2026-06-17)] | prism-mcp | 4 | VP-050 | 2 | S-5.02,S-3.13 |
 | S-5.04 | Sensor Health Subsystem [**not-started v1.7** (D-1211 2026-06-17: AC-7 live-probe; BC-2.08.005 v1.5 added to arrays; was v1.6: depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession)] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
 | S-5.06 | Action and Infusion MCP Tools [v1.11] | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |

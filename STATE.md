@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.858"
+version: "7.859"
 producer: state-manager
-timestamp: 2026-06-17T20:00:00Z
+timestamp: 2026-06-17T21:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -19,7 +19,7 @@ safe_to_compact: true
 develop_head: "60249ccc"
 bc_index_version: "6.73"
 vp_index_version: "1.79"
-story_index_version: "v2.423"
+story_index_version: "v2.424"
 arch_index_version: "2.137"
 error_taxonomy_version: "1.88"
 total_stories: 201
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1224 CASCADE ROUND-2 LEDGER + MERGE SEQUENCING (state-manager). S-1.14-REDO @20bdb0d6 production-grade; 8 fix-bursts closed; needs fresh 3-CLEAN streak on frozen HEAD. S-5.03 @23aac4ca PR-merge-clean; needs strict-clean 3-CLEAN; OBS-3 DEC-004 → product-owner for S-5.04/targeted story. PIVOT-002 @0f958261 BLOCKED on rebase onto S-1.14-REDO (F-SV-1 boot-wiring dep). MERGE SEQUENCING: S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. develop_head UNCHANGED 60249ccc. STATE v7.854→v7.858."
+current_step: "D-1225 S-5.03 BC-2.10.008 v1.8→v1.9 version-cite sweep; story v1.16→v1.17; STORY-INDEX v2.423→v2.424 (state-manager). CASCADE LEDGER: S-1.14-REDO @eda52123 F-TTL-1 CLOSED — per-descriptor TTL wired, non-default-TTL test load-bearing; re-entering 3-CLEAN streak. S-5.03 @5a444a5f OBS-1 (prompt-arg sanitization DI-006 parity) CLOSED + v1.17 label sweep; re-entering 3-CLEAN streak; PR-merge-clean. PIVOT-002 @0f958261 parked pending rebase onto S-1.14-REDO merge. MERGE SEQUENCING (D-1221 unchanged): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. develop_head UNCHANGED 60249ccc. STATE v7.858→v7.859."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-17 (D-1221..D-1224 cascade ledger + merge sequencing; 3 lanes frozen: S-1.14-REDO@20bdb0d6/S-5.03@23aac4ca/PIVOT-002@0f958261; STATE v7.858)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-17 (D-1225 S-5.03 v1.16→v1.17 BC-2.10.008 version-cite sweep; cascade ledger F-TTL-1 + OBS-1 CLOSED; STATE v7.859)
 
 ## Active Objective (North Star)
 
@@ -158,6 +158,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1225 | state-manager | 2026-06-17 | **S-5.03 BC-2.10.008 v1.8→v1.9 VERSION-CITE SWEEP; CASCADE LEDGER UPDATE (TD-VSDD-053 single-commit).** S-5.03 story v1.16→v1.17: BC-2.10.008 body-table cite updated v1.8→v1.9 per POL-7/POL-23 version-cite sweep; no AC/BC/Red Gate change. CASCADE LEDGER: (1) S-1.14-REDO @eda52123 — F-TTL-1 (MED: per-spec cache_ttl_secs not honored; all infusions used 3600 default) CLOSED — per-descriptor TTL wired through infusion engine; load-bearing non-default-TTL test; re-entering 3-CLEAN streak on frozen eda52123. Prior streak reset at pass-B by F-TTL-1 (pass-A/C clean). (2) S-5.03 @5a444a5f — OBS-1 (prompt-arg sanitization, DI-006 parity) CLOSED + story v1.17 label sweep; re-entering 3-CLEAN streak on frozen 5a444a5f; CLEAN(PR-merge)=yes. (3) PIVOT-002 @0f958261 — parked pending rebase onto merged S-1.14-REDO. Merge order D-1221 UNCHANGED: S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. STORY-INDEX v2.423→v2.424. develop_head UNCHANGED 60249ccc. STATE v7.858→v7.859. | wave-5-e-demo-fidelity | 2026-06-17 |
 | D-1224 | state-manager | 2026-06-17 | **PIVOT-002 BLOCKED ON REBASE — AWAITING S-1.14-REDO MERGE.** HEAD feature/S-DEMO-ENRICHMENT-PIVOT-002@0f958261. Dual-path (NVD HttpLookup + ThreatIntel WASM) CRIT-1/2a/2b/HIGH-1+all HIGH/MED closed. BLOCKED: branched from develop@60249ccc (pre-F-SV-1 boot-wiring). ThreatIntel production enrichment requires S-1.14-REDO's F-SV-1. REBASE PROTOCOL: after S-1.14-REDO merges → rebase onto new develop → verify production enrichment → 3-CLEAN → merge. develop_head UNCHANGED 60249ccc. STATE v7.857→v7.858. | wave-5-e-demo-fidelity | 2026-06-17 |
 | D-1223 | state-manager | 2026-06-17 | **S-5.03 PR-MERGE-CLEAN; NEEDS STRICT-CLEAN 3-CLEAN. OBS-3 DEC-004 → product-owner.** HEAD feature/S-5.03@23aac4ca. Per-org scoping, DI-008, DI-006 hardening, EXPECTED=72, OBS-1/2/4 closed. CLEAN(PR-merge)=yes; CLEAN(strict)=pending re-pass. OBS-3: BC-2.08.005 DEC-004 zero-sensor message out of S-5.03 scope → product-owner for S-5.04/targeted story; anchored to BC-2.08.005 DEC-004. DO-NOT-REFLAG as S-5.03 blocker. STATE v7.856→v7.857. | wave-5-e-demo-fidelity | 2026-06-17 |
 | D-1222 | state-manager | 2026-06-17 | **S-1.14-REDO PRODUCTION-GRADE VERIFIED — NEEDS FRESH 3-CLEAN STREAK.** HEAD feature/S-1.14-REDO@20bdb0d6 FROZEN. 8 fix-bursts closed: CRIT-1 sources wiring, CRIT-2 Tier-3+RocksDB boot, source_column projection, E-INFUSE-008 redaction, OBS-1 load_spec real source, F-LOCAL-1/2/3, F-SV-1 plugin boot-wiring (infusion_load_step→PluginRuntime; closes hollow-feature cross-lane defect caught by independent multi-pass verification — 8 prior passes missed it), F-SV-2 dead param. Story v1.2. Prior streak reset when F-SV-1 caught. NEXT: fresh adversary pass on frozen 20bdb0d6 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge FIRST (per D-1221 sequencing). STATE v7.855→v7.856. | wave-5-e-demo-fidelity | 2026-06-17 |
@@ -287,15 +288,15 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1224 — 2026-06-17; STATE v7.858)
+## Session Resume Checkpoint (D-1225 — 2026-06-17; STATE v7.859)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206** (authoritative for session context; D-1207..D-1224 are overlay updates). D-1196 and overlay chain D-1197..D-1205 remain SUPERSEDED by D-1206.
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206** (authoritative for session context; D-1207..D-1225 are overlay updates). D-1196 and overlay chain D-1197..D-1205 remain SUPERSEDED by D-1206.
 
-**STATE v7.858. CURRENT POSITION: L-POST — CASCADE ROUND-2 COMPLETE; 3 LANES AWAITING 3-CLEAN. develop@60249ccc. total_stories 201. NO OPEN PRs. Non-exhaustive gate: ci.yml EXPECTED=66. ADR-040 v2.0 RATIFIED: dual-path HttpLookup+WASM. bc_index_version 6.73. story_index_version v2.423. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
+**STATE v7.859. CURRENT POSITION: L-POST — CASCADE ROUND-2 COMPLETE; 3 LANES AWAITING 3-CLEAN. develop@60249ccc. total_stories 201. NO OPEN PRs. Non-exhaustive gate: ci.yml EXPECTED=66. ADR-040 v2.0 RATIFIED: dual-path HttpLookup+WASM. bc_index_version 6.73. story_index_version v2.424. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
 
 **3 ACTIVE LANES (worktree HEADs frozen):**
-- **S-1.14-REDO @20bdb0d6** — feature/S-1.14-REDO; story v1.2; 8 fix-bursts closed including F-SV-1 hollow-feature; NEXT: fresh adversary pass on frozen 20bdb0d6 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → **merge FIRST**
-- **S-5.03 @23aac4ca** — feature/S-5.03; CLEAN(PR-merge)=yes; NEXT: strict-clean re-pass on frozen 23aac4ca → 3-CLEAN → PR-LEVEL 3-CLEAN → merge (independent; no sequencing dep)
+- **S-1.14-REDO @eda52123** — feature/S-1.14-REDO; story v1.2; F-TTL-1 CLOSED; re-entering 3-CLEAN streak; NEXT: adversary pass on frozen eda52123 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → **merge FIRST**
+- **S-5.03 @5a444a5f** — feature/S-5.03; story v1.17; OBS-1 CLOSED; CLEAN(PR-merge)=yes; re-entering 3-CLEAN streak; NEXT: strict-clean re-pass on frozen 5a444a5f → 3-CLEAN → PR-LEVEL 3-CLEAN → merge (independent)
 - **PIVOT-002 @0f958261** — feature/S-DEMO-ENRICHMENT-PIVOT-002; BLOCKED on rebase; NEXT: await S-1.14-REDO merge → rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge
 
 **MERGE SEQUENCING (D-1221):** S-1.14-REDO FIRST (→67) → PIVOT-002 rebase → 3-CLEAN → merge (→76). S-5.03 independent (→72). Each merge: orchestrator bumps EXPECTED + CLAUDE.md.
@@ -305,10 +306,10 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 **CROSS-LANE LESSON (D-1222):** Independent multi-pass verification caught F-SV-1 hollow-feature that 8 sequential passes missed. Confirms DRIFT-HOLLOW-FEATURE-INTEGRATION-001 lesson z24 pattern.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206 (plus D-1207..D-1224 overlay in STATE.md Current Phase Steps + Decisions Log). Key updates since D-1206: D-1221 merge-sequencing; D-1222 S-1.14-REDO verified@20bdb0d6; D-1223 S-5.03@23aac4ca strict-clean needed; D-1224 PIVOT-002@0f958261 blocked-on-rebase.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206 (plus D-1207..D-1225 overlay in STATE.md Current Phase Steps + Decisions Log). Key updates since D-1206: D-1221 merge-sequencing; D-1222 S-1.14-REDO verified; D-1223 S-5.03 strict-clean needed; D-1224 PIVOT-002 blocked-on-rebase; D-1225 F-TTL-1+OBS-1 CLOSED, frozen HEADs updated (S-1.14-REDO@eda52123, S-5.03@5a444a5f).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `60249ccc` (or newer).
 3. `gh pr list --state open --base develop` → expect NONE.
 4. Check worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED superseded) — leave alone.
 5. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) is critical.
-6. **EXACT NEXT ACTIONS:** (a) S-1.14-REDO @20bdb0d6 → fresh adversary pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge FIRST; (b) S-5.03 @23aac4ca → strict-clean re-pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge (independent); (c) PIVOT-002 @0f958261 → AWAIT S-1.14-REDO merge → rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge. T13 capstone PO+story-writer dispatch after all three merged. Autonomy grant D-989+D-1090 remains active.
+6. **EXACT NEXT ACTIONS:** (a) S-1.14-REDO @eda52123 → fresh adversary pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge FIRST; (b) S-5.03 @5a444a5f → strict-clean re-pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge (independent); (c) PIVOT-002 @0f958261 → AWAIT S-1.14-REDO merge → rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge. T13 capstone PO+story-writer dispatch after all three merged. Autonomy grant D-989+D-1090 remains active.
