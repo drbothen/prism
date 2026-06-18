@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.859"
+version: "7.860"
 producer: state-manager
-timestamp: 2026-06-17T21:00:00Z
+timestamp: 2026-06-17T22:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -35,7 +35,7 @@ workspace_test_count: 4273
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1225 S-5.03 BC-2.10.008 v1.8→v1.9 version-cite sweep; story v1.16→v1.17; STORY-INDEX v2.423→v2.424 (state-manager). CASCADE LEDGER: S-1.14-REDO @eda52123 F-TTL-1 CLOSED — per-descriptor TTL wired, non-default-TTL test load-bearing; re-entering 3-CLEAN streak. S-5.03 @5a444a5f OBS-1 (prompt-arg sanitization DI-006 parity) CLOSED + v1.17 label sweep; re-entering 3-CLEAN streak; PR-merge-clean. PIVOT-002 @0f958261 parked pending rebase onto S-1.14-REDO merge. MERGE SEQUENCING (D-1221 unchanged): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. develop_head UNCHANGED 60249ccc. STATE v7.858→v7.859."
+current_step: "D-1226 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT (state-manager). SESSION-HANDOFF §RESUME SNAPSHOT D-1226 WRITTEN (supersedes D-1206 + D-1207..D-1225 overlay chain). 3 active lanes: S-1.14-REDO @eda52123 (staged-uncommitted fix on disk; MERGES FIRST D-1221; EXPECTED 66→67) + S-5.03 @5a444a5f (3 strict-only OBS to fix before 3-CLEAN; independent; EXPECTED →72) + PIVOT-002 @0f958261 (BLOCKED on rebase onto S-1.14-REDO). ARCHITECTURE DECISIONS: ADR-040 v2.0 dual-path (HttpLookup for NVD + Plugin WASM for ThreatIntel); BC-2.10.008 v1.9; BC-2.08.005 v1.5; error-taxonomy v1.88. DO-NOT-REFLAG: S-1.14-REDO CRIT-1/CRIT-2/HIGH-A/F-SV-1 ALL CLOSED; S-5.03 DI-008/spec-only-health/OBS-1 ALL CLOSED; PIVOT-002 CRIT-1/2a/2b/HIGH-1/2/3/4 ALL CLOSED. OPEN STRICT-ONLY OBS (S-5.03): F-OBS-1 userinfo strip + separator cosmetic + stale comment — fix before 3-CLEAN. OBS-3 → product-owner S-5.04. SESSION LESSONS: z25 implementer must NOT commit .factory directly. multi-pass independent adversary catches hollow-feature. develop_head UNCHANGED 60249ccc. STATE v7.859→v7.860."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-17 (D-1225 S-5.03 v1.16→v1.17 BC-2.10.008 version-cite sweep; cascade ledger F-TTL-1 + OBS-1 CLOSED; STATE v7.859)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-17 (D-1226 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT; SESSION-HANDOFF §RESUME SNAPSHOT D-1226; 3 lanes S-1.14-REDO@eda52123/S-5.03@5a444a5f/PIVOT-002@0f958261; merge sequencing D-1221 locked; STATE v7.860)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (BOTH lanes CLOSED; develop@60249ccc). ALL LANES CLOSED: Lane A (S-5.02 MERGED PR #191 develop@bec894a2 2026-06-17; D-1202), Lane B (S-3.13 MERGED PR #192 develop@60249ccc 2026-06-16; D-1204; POL-14 BC-2.16.007 status:draft→active), C (PIVOT-001 MERGED PR #189 2026-06-16), D (CLOSED), E (LAUNCHER MERGED PR #190 2026-06-16). OPEN: DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 (wave-gate follow-up). **SCOPING RESOLVED (D-1205):** PIVOT-002 + PIVOT-003 + S-1.14-REDO are DEMO-BLOCKING; S-1.15 remains DROPPED. DEMO-CRITICAL-PATH: S-1.14-REDO (∥ PIVOT chain) + PIVOT-002 (MANDATORY pre-start security gates) + PIVOT-003 + S-5.03 → S-5.04 → T13 capstone → T14 demo recording. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206 (authoritative; supersedes D-1196 + D-1197..D-1205).
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (3 active lanes in LOCAL convergence; develop@60249ccc). ALL PRIOR LANES CLOSED: Lane A (S-5.02 MERGED PR #191), Lane B (S-3.13 MERGED PR #192), C (PIVOT-001 MERGED PR #189), D (CLOSED), E (LAUNCHER MERGED PR #190), T10/T11/T12 DONE. DEMO-BLOCKING LANES IN PROGRESS: S-1.14-REDO @eda52123 (MERGES FIRST D-1221) + S-5.03 @5a444a5f (independent) + PIVOT-002 @0f958261 (BLOCKED on rebase). MERGE SEQUENCING (D-1221): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226 (authoritative; supersedes D-1206 + D-1207..D-1225).
 
 ## Phase Progress
 
@@ -288,28 +288,23 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1225 — 2026-06-17; STATE v7.859)
+## Session Resume Checkpoint (D-1226 — 2026-06-17; STATE v7.860)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206** (authoritative for session context; D-1207..D-1225 are overlay updates). D-1196 and overlay chain D-1197..D-1205 remain SUPERSEDED by D-1206.
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226** (authoritative; D-1206 + D-1207..D-1225 SUPERSEDED by D-1226).
 
-**STATE v7.859. CURRENT POSITION: L-POST — CASCADE ROUND-2 COMPLETE; 3 LANES AWAITING 3-CLEAN. develop@60249ccc. total_stories 201. NO OPEN PRs. Non-exhaustive gate: ci.yml EXPECTED=66. ADR-040 v2.0 RATIFIED: dual-path HttpLookup+WASM. bc_index_version 6.73. story_index_version v2.424. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
+**STATE v7.860. CURRENT POSITION: L-POST — 3 DEMO-BLOCKING LANES IN LOCAL CONVERGENCE. develop@60249ccc. total_stories 201. NO OPEN PRs. ci.yml EXPECTED=66. ADR-040 v2.0 dual-path. bc_index_version 6.73. story_index_version v2.424. arch_index_version 2.137. error_taxonomy_version 1.88. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
 
-**3 ACTIVE LANES (worktree HEADs frozen):**
-- **S-1.14-REDO @eda52123** — feature/S-1.14-REDO; story v1.2; F-TTL-1 CLOSED; re-entering 3-CLEAN streak; NEXT: adversary pass on frozen eda52123 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → **merge FIRST**
-- **S-5.03 @5a444a5f** — feature/S-5.03; story v1.17; OBS-1 CLOSED; CLEAN(PR-merge)=yes; re-entering 3-CLEAN streak; NEXT: strict-clean re-pass on frozen 5a444a5f → 3-CLEAN → PR-LEVEL 3-CLEAN → merge (independent)
-- **PIVOT-002 @0f958261** — feature/S-DEMO-ENRICHMENT-PIVOT-002; BLOCKED on rebase; NEXT: await S-1.14-REDO merge → rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge
-
-**MERGE SEQUENCING (D-1221):** S-1.14-REDO FIRST (→67) → PIVOT-002 rebase → 3-CLEAN → merge (→76). S-5.03 independent (→72). Each merge: orchestrator bumps EXPECTED + CLAUDE.md.
-
-**OBS-3 FOLLOW-UP (D-1223):** BC-2.08.005 DEC-004 zero-sensor message → product-owner for S-5.04 or targeted story. DO-NOT-REFLAG as S-5.03 blocker.
-
-**CROSS-LANE LESSON (D-1222):** Independent multi-pass verification caught F-SV-1 hollow-feature that 8 sequential passes missed. Confirms DRIFT-HOLLOW-FEATURE-INTEGRATION-001 lesson z24 pattern.
+**3 ACTIVE LANES:**
+- **S-1.14-REDO @eda52123** — staged-uncommitted fix on disk (F-2REV-LOW-1/OBS-1/OBS-2). RESUME: git status in worktree → complete commit → just check → LOCAL 3-CLEAN independent passes → **MERGE FIRST (D-1221)**.
+- **S-5.03 @5a444a5f** — clean. Fix 3 strict-only OBS (F-OBS-1 userinfo strip, separator, stale comment) → freeze HEAD → LOCAL 3-CLEAN → merge (INDEPENDENT).
+- **PIVOT-002 @0f958261** — BLOCKED on rebase onto S-1.14-REDO. AWAIT merge → rebase → verify prod ThreatIntel enrichment → 3-CLEAN → merge.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1206 (plus D-1207..D-1225 overlay in STATE.md Current Phase Steps + Decisions Log). Key updates since D-1206: D-1221 merge-sequencing; D-1222 S-1.14-REDO verified; D-1223 S-5.03 strict-clean needed; D-1224 PIVOT-002 blocked-on-rebase; D-1225 F-TTL-1+OBS-1 CLOSED, frozen HEADs updated (S-1.14-REDO@eda52123, S-5.03@5a444a5f).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226 (authoritative).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `60249ccc` (or newer).
+2. `git log --oneline -1 origin/develop` → expect `60249ccc`.
 3. `gh pr list --state open --base develop` → expect NONE.
-4. Check worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED superseded) — leave alone.
-5. Apply lessons (a)–(z24) from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) is critical.
-6. **EXACT NEXT ACTIONS:** (a) S-1.14-REDO @eda52123 → fresh adversary pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge FIRST; (b) S-5.03 @5a444a5f → strict-clean re-pass → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge (independent); (c) PIVOT-002 @0f958261 → AWAIT S-1.14-REDO merge → rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge. T13 capstone PO+story-writer dispatch after all three merged. Autonomy grant D-989+D-1090 remains active.
+4. `git worktree list` → 3 active lanes + S-3.09 FROZEN + W3-FIX-S307-001 BLOCKED.
+5. S-1.14-REDO: `cd .worktrees/S-1.14-REDO && git status`; if staged changes present, complete commit → `just check`.
+6. Apply lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+7. Drive lanes per EXACT NEXT ACTION in §RESUME SNAPSHOT D-1226. Autonomy D-989+D-1090 active.
