@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "2.0"
 status: active
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -74,12 +74,27 @@ This is INV-INFUSE-001.
 - **`enrich_descriptor()` API (AC-3):** `InfusionRegistry::enrich_descriptor(name: &str)` returns an
   `EnrichStageDescriptor` (defined in `prism-spec-engine::infusion::enrich_descriptor`) for any loaded
   infusion. The descriptor carries:
-  - `infusion_name` — the infusion name exactly as declared in the spec
-  - `input_field` — the `input_field` from the spec's first `[[infusion.fields]]` entry (the join key)
-  - `output_columns` — the `name` of every `[[infusion.fields]]` entry in declaration order
+  - `infusion_name` — the registry lookup key passed to `enrich_descriptor()`, which EQUALS
+    `infusion_id` (NOT the human-readable `spec.name` field). This is the key used to look up the
+    infusion in `InfusionRegistryInner::entries`.
+  - `input_field` — the `input_field` from the spec's first `[[infusion.fields]]` entry (the join key;
+    all fields share the same input column)
+  - `output_columns` — when `spec.pipe_stage` is `Some`, `pipe_stage.adds_columns` in declared order
+    (validated by `InfusionLoader::validate_pipe_stage_columns` to be a subset of field names); when
+    `spec.pipe_stage` is `None`, all `[[infusion.fields]]` names in declaration order. A pipe stage
+    is permitted to surface a STRICT SUBSET of infusion fields — this is by design to allow selective
+    projection in a `| enrich` pipeline step.
   - `infusion_id` — the `infusion_id` from the spec root
   This descriptor is consumed by `prism-query` (S-3.02) to execute the `| enrich` pipe stage
   transformation. Unknown name returns `E-INFUSE-001`.
+- **Duplicate `infusion_id` on `load_spec` / `load_spec_with_runtime`:** If a spec is loaded with an
+  `infusion_id` that is already registered, the new spec REPLACES the prior entry (last-writer-wins
+  semantics). The implementation MUST purge stale `udf_to_infusion` reverse-index entries for ALL
+  UDF names that belonged to the OLD spec's fields before inserting the new spec's UDF names. Failure
+  to purge creates dangling reverse-index entries pointing to the replaced `infusion_id`, which can
+  cause `is_api_backed()` to return incorrect results. Note: `hot_reload` already handles this
+  correctly by removing the old spec's UDF mappings before validation. `load_spec` and
+  `load_spec_with_runtime` must apply the same purge logic.
 - **Scope boundary — pipe-mode `| enrich` runtime execution (S-3.01 anchor, NOT this BC):**
   This BC's contract surface is fully satisfied when:
   (a) each `[[infusion.fields]]` entry registers exactly one DataFusion scalar UDF (SQL-mode
@@ -131,8 +146,10 @@ This is INV-INFUSE-001.
 | TV-19-001-10fields | Spec with 10 valid fields | 10 descriptors exported exactly | EC-19-002 |
 | TV-19-001-dup | Two specs both declare `geoip_country` | Second spec rejected with `E-INFUSE-002`; first retained | Error row 1 |
 | TV-19-001-empty | Spec with 0 `[[infusion.fields]]` | Rejected: zero fields | EC-19-001 |
-| TV-19-001-enrich-desc | `geoip.infusion.toml` with 4 fields loaded; call `enrich_descriptor("geoip")` | Returns `EnrichStageDescriptor { infusion_name: "geoip", input_field: "device_ip", output_columns: ["geoip_country","geoip_city","geoip_asn","geoip_is_tor"], infusion_id: "geoip" }` | AC-3 |
+| TV-19-001-enrich-desc | `geoip.infusion.toml` with 4 fields (`geoip_country`, `geoip_city`, `geoip_asn`, `geoip_is_tor`), NO `pipe_stage`; call `enrich_descriptor("geoip")` | Returns `EnrichStageDescriptor { infusion_name: "geoip", input_field: "device_ip", output_columns: ["geoip_country","geoip_city","geoip_asn","geoip_is_tor"], infusion_id: "geoip" }`. `infusion_name` == lookup key == `infusion_id`; NOT `spec.name` (human name). `output_columns` = all 4 field names in declaration order (no pipe_stage). | AC-3 |
+| TV-19-001-enrich-desc-pipe | Same spec with `[infusion.pipe_stage]\nadds_columns = ["geoip_country","geoip_city"]`; call `enrich_descriptor("geoip")` | Returns `EnrichStageDescriptor { infusion_name: "geoip", input_field: "device_ip", output_columns: ["geoip_country","geoip_city"], infusion_id: "geoip" }`. `output_columns` = `adds_columns` (2-element subset); `geoip_asn` and `geoip_is_tor` are excluded. | A1 pipe-stage subset |
 | TV-19-001-enrich-desc-unknown | Call `enrich_descriptor("nonexistent_infusion")` on empty registry | Returns `Err(InfusionError::UnknownInfusion { name: "nonexistent_infusion" })` | E-INFUSE-001 |
+| TV-19-001-overwrite-purge | Load spec A (infusion_id="geoip", fields=[geoip_country, geoip_asn]); then load spec B (infusion_id="geoip", fields=[geoip_city]) | After B loads: `udf_to_infusion` contains only `geoip_city → "geoip"`; `geoip_country` and `geoip_asn` keys are ABSENT from `udf_to_infusion` (stale entries purged). `is_api_backed("geoip_country")` returns `false` (unknown → false). | A3 overwrite-purge |
 
 ## Verification Properties
 
@@ -175,6 +192,7 @@ Integration test: `tests/infusion_tests.rs` — "Load `geoip.infusion.toml` → 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.0 | round-2-adversary-cluster-A1-A2-A3 | 2026-06-18 | product-owner | **Round-2 adversary cluster adjudication (A1/A2/A3).** **(A1 — `output_columns` source-of-truth):** Ruled Option (b): `output_columns = pipe_stage.adds_columns` (validated subset of field names, in declared order) when `pipe_stage` is present, else all field names in declaration order. A pipe stage may legitimately project a strict subset. `validate_pipe_stage_columns` subset validation is CORRECT as-is (no tightening needed); no code change to `enrich_descriptor()` required. Added TV-19-001-enrich-desc-pipe test vector. **(A2 — `infusion_name` definition):** Corrected prose: `infusion_name` = registry lookup key == `infusion_id`, NOT the human `spec.name` field. Updated TV-19-001-enrich-desc notes to state "NOT `spec.name`." **(A3 — duplicate `infusion_id` on `load_spec`):** Ruled last-writer-wins replacement; implementer MUST purge stale `udf_to_infusion` entries for the old spec's fields on overwrite (same pattern as `hot_reload`). Added postcondition clause and TV-19-001-overwrite-purge test vector. |
 | 1.9 | S-1.14-REDO-Q1-scope-clarification | 2026-06-18 | product-owner | **Scope clarification per architect ruling S-1.14-REDO Q1 (2026-06-18).** (1) Added `enrich_descriptor()` API postcondition (AC-3): `InfusionRegistry::enrich_descriptor(name)` returns `EnrichStageDescriptor` carrying `infusion_name`, `input_field`, `output_columns`, and `infusion_id`; unknown name returns `E-INFUSE-001`. (2) Added explicit "Scope boundary — pipe-mode `| enrich` runtime execution" postcondition clarifying that this BC's contract is satisfied by UDF descriptor registration (SQL-mode) + `enrich_descriptor()` returning a well-formed `EnrichStageDescriptor`; `| enrich` pipe RUNTIME dispatch (Ast::Pipe arm, RecordBatch hydration) is universally unimplemented for ALL pipe stages and is owned by **S-3.01** — not a S-1.14-REDO gap; fresh-context adversaries must not flag this as BC-2.19.001 defect. (3) Added `E-INFUSE-001` to Error Conditions table (was tested but absent). (4) Added AC-3 canonical test vectors `TV-19-001-enrich-desc` and `TV-19-001-enrich-desc-unknown`. |
 | 1.8 | PIVOT-002-bc-amendment-http-lookup | 2026-06-17 | product-owner | **Added `http_lookup` as valid `InfusionType` source per ADR-040 v2.0 §D8.3 and error-taxonomy.md v1.88.** (1) E-INFUSE-004 valid-types list: `maxmind_mmdb, csv, json_lookup, plugin` → `maxmind_mmdb, csv, json_lookup, plugin, http_lookup`. (2) Two-phase source wiring postcondition expanded: heading renamed from "Plugin-type source wiring" to "API-backed source wiring" to cover both `Plugin` and `HttpLookup` types; RUNTIME PHASE now explicitly branches on `InfusionType` — `Plugin` path unchanged, `HttpLookup` path (ADR-040 §D8.6) documents `HttpLookupSource` construction with SSRF validation and `E-INFUSE-011` rejection. `NullSource` defect note extended to cover both `Plugin` and `HttpLookup`. Scope confirmed: `HttpLookup` flows through the same `InfusionLoader::parse` (PARSE PHASE) + `InfusionRegistry::load_spec_with_runtime` (RUNTIME PHASE) two-phase path already specified by this BC — no sibling BC needed. |
 | 1.7 | PIVOT-001-LOW-2-regression-fix | 2026-06-15 | product-owner | Regression fix (PIVOT-001 LOW-2): v1.6 reword incorrectly re-introduced `load_all` as constructor of `PluginInfusionSource`. Corrected to accurate two-phase model: PARSE PHASE (`load_all`) returns `(Vec<InfusionSpec>, Vec<InfusionError>)` and does NOT construct `PluginInfusionSource`; RUNTIME PHASE (`load_spec_with_runtime`) builds `PluginInfusionSource` (carrying `plugin_id`/`config` from the spec) and attaches it as `descriptor.source`. Reverses the v1.6 regression; restores and extends the v1.5 accuracy. |

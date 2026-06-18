@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -51,7 +51,7 @@ Phases apply in order with last-write-wins for overlapping keys: periodic > quer
   **Phase 1: Config-time (static metadata)**
   - Populated once at startup and on config reload
   - Sources: TOML configuration file
-  - Fields: `_client_name` (from `[clients.{id}]` section), `_prism_version` (from build metadata), sensor endpoint metadata
+  - Fields: `_client_name` (from `[[orgs]].name` in `prism.toml` — the `OrgEntry.name: Option<String>` field; `null` when absent), `_prism_version` (from build metadata), sensor endpoint metadata
   - Stored in a `DecorationStore` (thread-safe map) keyed by client_id
   - Updated only on config reload (not per-query)
 
@@ -86,7 +86,7 @@ Phases apply in order with last-write-wins for overlapping keys: periodic > quer
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-15-037 | Config reload changes `_client_name` | New name takes effect for subsequent queries; in-flight queries use the old name |
+| EC-15-037 | Config reload changes `_client_name` (i.e., `[[orgs]].name` for the tenant is updated in `prism.toml`) | New name takes effect for subsequent queries; in-flight queries use the old name |
 | EC-15-038 | Periodic refresh interval set to 0 | Periodic decorators are refreshed before every query (expensive; warning logged) |
 | EC-15-039 | First query executes before first periodic refresh completes | Periodic decorator values are null for that query; config-time and query-time values are present |
 | EC-15-040 | 50 clients with periodic health checks | 50 health checks every 300 seconds; bounded concurrency (max 8 concurrent checks) |
@@ -99,7 +99,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 |----------|-------|-----------------|
 | Happy path — all phases | startup complete, periodic refresh done, interactive query | All three phase values present; periodic wins on overlapping keys |
 | Periodic refresh fails | health check times out | Stale cached values used; warning logged; no error to query caller |
-| Config reload | `_client_name` changed in TOML | Next query uses new name; in-flight query unaffected |
+| Config reload | `[[orgs]].name` changed in `prism.toml` for a tenant (i.e., `OrgEntry.name` updated) | Next query uses new `_client_name` value; in-flight query unaffected |
 | Pre-first-refresh query | query before periodic refresh completes | Periodic fields null; config-time + query-time fields present |
 
 ## Verification Properties
@@ -119,6 +119,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | B2-client-name-source-correction-2026-06-18 | 2026-06-18 | product-owner | **B2 — `_client_name` source annotation corrected.** Phase 1 postcondition: `_client_name` source was incorrectly cited as `[clients.{id}]` TOML section (which never existed in the `prism.toml` schema). Corrected to `[[orgs]].name` in `prism.toml` — the `OrgEntry.name: Option<String>` field (added by the human-approved `display_name` architect ruling). `_client_name` is `null` when `OrgEntry.name` is absent. EC-15-037 and Config-reload test vector updated to cite the correct TOML key. No semantic change to phase priority or merge logic. Note: `DecoratorContext.client_name` doc comment in `prism-core/src/decorator_context.rs` also cites the old `[clients.{id}]` path and must be updated by the implementer. Bumped v1.3→v1.4. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |
