@@ -620,9 +620,16 @@ impl InfusionRegistry {
             if let Some(ref source_config) = spec.source {
                 match sources::load_source(source_config) {
                     Ok(s) => s,
-                    // File not found or corrupt at load time: fall through to NullSource so
-                    // load_all continues loading other specs rather than aborting. Emit WARN
-                    // (LOW-A: failed source must be distinguishable from no-match).
+                    // E-INFUSE-012: source file exceeds the 100 MiB OOM guard — MUST NOT degrade
+                    // to NullSource. Propagate as Err so load_spec returns Err and registers NO
+                    // entry (AC-11 / EC-19-007). The atomic swap is NOT performed.
+                    // SEC-001 (CWE-400); BC-2.19.001 §Error Conditions E-INFUSE-012.
+                    Err(err @ InfusionError::SourceFileTooLarge { .. }) => {
+                        return Err(err);
+                    }
+                    // Non-oversize failure (file not found or corrupt): fall through to NullSource
+                    // so load_all continues loading other specs rather than aborting. Emit WARN
+                    // (EC-19-004 / LOW-A: failed source must be distinguishable from no-match).
                     // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
                     // NO file_path or credential values in the log (AD-017).
                     Err(ref err) => {
@@ -745,7 +752,14 @@ impl InfusionRegistry {
         } else if let Some(ref source_config) = spec.source {
             match sources::load_source(source_config) {
                 Ok(s) => s,
-                // Source file not found or corrupt — fall back to NullSource with WARN.
+                // E-INFUSE-012: source file exceeds the 100 MiB OOM guard — MUST NOT degrade
+                // to NullSource. Propagate as Err so load_spec_with_runtime returns Err and
+                // registers NO entry (AC-11 / EC-19-007). The atomic swap is NOT performed.
+                // SEC-001 (CWE-400); BC-2.19.001 §Error Conditions E-INFUSE-012.
+                Err(err @ InfusionError::SourceFileTooLarge { .. }) => {
+                    return Err(err);
+                }
+                // Non-oversize failure (file not found or corrupt): fall back to NullSource.
                 // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
                 // NO file_path or credential values in the log (AD-017).
                 Err(ref err) => {
@@ -921,7 +935,15 @@ impl InfusionRegistry {
                 if let Some(ref source_config) = updated_spec.source {
                     match sources::load_source(source_config) {
                         Ok(s) => s,
-                        // Source file not found or corrupt at hot-reload time — fall back with WARN.
+                        // E-INFUSE-012: source file exceeds the 100 MiB OOM guard — MUST NOT
+                        // degrade to NullSource and MUST NOT perform the atomic swap. Return Err
+                        // so hot_reload returns Err and the PRIOR registration is preserved
+                        // unchanged (EC-19-007 / AC-11). SEC-001 (CWE-400).
+                        Err(err @ InfusionError::SourceFileTooLarge { .. }) => {
+                            return Err(err);
+                        }
+                        // Non-oversize failure (file not found or corrupt) at hot-reload time:
+                        // fall back to NullSource with WARN (EC-19-004 preserved).
                         // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
                         // NO file_path or credential values in the log (AD-017).
                         Err(ref err) => {

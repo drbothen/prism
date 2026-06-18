@@ -978,8 +978,8 @@ pub fn v68_tier3_cache_entry() {
 /// without breaking external callers. External callers MUST use
 /// `InfusionUdfDescriptor::new(...)`.
 ///
-/// Added: S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE).
-/// ci.yml EXPECTED bumped from 67 to 68.
+/// Added: S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE, together with v70).
+/// ci.yml EXPECTED bumped from 67 to 69 (both v69 and v70 added in the same burst).
 #[allow(dead_code)]
 pub fn v69_infusion_udf_descriptor() {
     use prism_spec_engine::{InfusionSource, InfusionUdfDescriptor};
@@ -1006,8 +1006,8 @@ pub fn v69_infusion_udf_descriptor() {
 /// without a semver-breaking change. External callers MUST use
 /// `EnrichStageDescriptor::new(...)`.
 ///
-/// Added: S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE).
-/// ci.yml EXPECTED bumped from 68 to 69.
+/// Added: S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE, together with v69).
+/// ci.yml EXPECTED bumped from 67 to 69 (both v69 and v70 added in the same burst).
 #[allow(dead_code)]
 pub fn v70_enrich_stage_descriptor() {
     use prism_spec_engine::EnrichStageDescriptor;

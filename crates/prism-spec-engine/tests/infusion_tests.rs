@@ -2632,3 +2632,255 @@ fn test_BC_2_19_001_source_file_too_large_mmdb() {
         Ok(_) => panic!("expected Err(SourceFileTooLarge), got Ok — size guard not firing"),
     }
 }
+
+// ---------------------------------------------------------------------------
+// AC-11 / EC-19-007 — registry callers must NOT swallow E-INFUSE-012 into NullSource
+//
+// Before the fix: all three callers (load_spec, load_spec_with_runtime, hot_reload)
+// had a generic `Err(ref err) => NullSource` arm that swallowed SourceFileTooLarge.
+// Result: load_spec/load_spec_with_runtime returned Ok with a NullSource entry; hot_reload
+// replaced the prior good registration with NullSource.
+//
+// After the fix: SourceFileTooLarge is discriminated BEFORE the generic arm with a
+// `Err(err @ InfusionError::SourceFileTooLarge { .. }) => return Err(err)` arm.
+// The generic arm still handles benign missing/corrupt files (EC-19-004 preserved).
+//
+// LOAD-BEARING: both tests FAIL RED before the fix, PASS GREEN after.
+// ---------------------------------------------------------------------------
+
+/// AC-11 / EC-19-007: load_spec with an oversized source returns Err(SourceFileTooLarge)
+/// and registers NO entry.
+///
+/// Traces to: BC-2.19.001 v2.1 / AC-11 / EC-19-006 / E-INFUSE-012 / SEC-001.
+///
+/// Before fix: load_spec swallowed SourceFileTooLarge into NullSource → returned Ok with
+///             a NullSource-backed registration (silent security violation).
+/// After fix:  load_spec propagates SourceFileTooLarge as Err → no registration, no swap.
+///
+/// FAILS RED before fix (returns Ok with NullSource entry instead of Err).
+/// PASSES GREEN after discriminating SourceFileTooLarge before the generic Err arm.
+#[test]
+fn test_BC_2_19_001_load_spec_oversized_source_returns_err_no_registration() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.csv");
+
+    // Sparse-allocate a file of MAX_SOURCE_FILE_BYTES+1 (no real data on disk).
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let fields = vec![InfusionField::new(
+        "oversized_field",
+        "device_ip",
+        "ip",
+        "string",
+    )];
+    let mut spec = InfusionSpec::new(
+        "oversized_infusion",
+        "Oversized CSV infusion",
+        InfusionType::LocalLookup,
+        fields,
+        "oversized.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        oversized_path.to_str().unwrap(),
+        Some("id".to_string()),
+        None,
+    ));
+
+    let registry = InfusionRegistry::new();
+    let result = registry.load_spec(spec);
+
+    // AC-11: must return Err(SourceFileTooLarge), NOT Ok with a NullSource entry.
+    // FAILS RED before fix: result is Ok (SourceFileTooLarge swallowed into NullSource).
+    assert!(
+        result.is_err(),
+        "AC-11 / EC-19-006: load_spec MUST return Err(SourceFileTooLarge) for an oversized \
+         source file. Before the fix this returned Ok(NullSource) — a silent contract violation \
+         that defeats the CWE-400 OOM guard. FAILS RED before the discriminating match arm is added."
+    );
+    match result.unwrap_err() {
+        InfusionError::SourceFileTooLarge { .. } => { /* correct — E-INFUSE-012 propagated */ }
+        other => panic!(
+            "AC-11: expected SourceFileTooLarge (E-INFUSE-012), got: {:?}. \
+             The generic Err → NullSource arm must NOT catch SourceFileTooLarge.",
+            other
+        ),
+    }
+
+    // No entry must be registered — the infusion must be absent from udf_descriptors.
+    let descriptors = registry.udf_descriptors();
+    assert!(
+        descriptors.is_empty(),
+        "AC-11: after a SourceFileTooLarge Err, InfusionRegistry must contain NO entries. \
+         Got {} descriptors — the atomic swap must NOT have occurred.",
+        descriptors.len()
+    );
+
+    // is_api_backed must return false (nothing registered).
+    assert!(
+        !registry.is_api_backed("oversized_field"),
+        "AC-11: is_api_backed must return false for the un-registered field."
+    );
+}
+
+/// EC-19-007: hot_reload with an oversized source returns Err(SourceFileTooLarge)
+/// and PRESERVES the prior (good) registration — no atomic swap performed.
+///
+/// Traces to: BC-2.19.001 v2.1 / EC-19-007 / E-INFUSE-012 / SEC-001.
+///
+/// Scenario:
+///   1. Load a small (valid) CSV-backed spec — 1 field registered successfully.
+///   2. Prepare an oversized version of that source file (MAX_SOURCE_FILE_BYTES+1).
+///   3. hot_reload with the oversized spec → must return Err(SourceFileTooLarge).
+///   4. The PRIOR (small-source) registration must still be active.
+///      - udf_descriptors() still returns the 1 registered descriptor.
+///      - enrich_single on a known fixture key still returns Some (live source intact).
+///
+/// Before fix: hot_reload swallowed SourceFileTooLarge → replaced the good registration
+///             with a NullSource entry (enrichment silently broken after reload attempt).
+/// After fix:  hot_reload propagates SourceFileTooLarge → prior registration preserved.
+///
+/// FAILS RED before fix (NullSource replaces the good entry; enrich returns None).
+/// PASSES GREEN after the discriminating match arm is added to hot_reload.
+#[test]
+fn test_BC_2_19_001_hot_reload_oversized_source_preserves_prior_registry() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use std::fs::OpenOptions;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+
+    // Step 1: set up a small (valid) CSV fixture to use as the initial source.
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let small_csv_path = PathBuf::from(manifest_dir)
+        .join("fixtures")
+        .join("asset_inventory.csv");
+    let small_csv_str = small_csv_path
+        .to_str()
+        .expect("fixture path must be valid UTF-8");
+
+    let fields = vec![InfusionField::with_all(
+        "ec19007_asset_department",
+        "device_ip",
+        "ip",
+        "string",
+        None,
+        Some("department".to_string()),
+    )];
+    let mut initial_spec = InfusionSpec::new(
+        "ec19007_asset_inventory",
+        "EC-19-007 Asset Inventory (initial)",
+        InfusionType::LocalLookup,
+        fields,
+        "ec19007_asset.infusion.toml",
+    );
+    initial_spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        small_csv_str,
+        Some("ip_address".to_string()),
+        None,
+    ));
+
+    let registry = InfusionRegistry::new();
+    registry
+        .load_spec(initial_spec)
+        .expect("EC-19-007: initial small-source spec must load successfully");
+
+    // Confirm initial enrichment works (fixture: ip_address=192.168.1.10 → department=Engineering).
+    let initial_descriptors = registry.udf_descriptors();
+    assert_eq!(
+        initial_descriptors.len(),
+        1,
+        "EC-19-007: initial load must register 1 UDF descriptor"
+    );
+    let initial_result = initial_descriptors[0]
+        .source
+        .enrich_single("192.168.1.10", "ip");
+    assert!(
+        initial_result.is_some(),
+        "EC-19-007: initial registration must have a working CsvSource (pre-condition check)"
+    );
+
+    // Step 2: sparse-allocate an oversized CSV (MAX_SOURCE_FILE_BYTES+1) for hot_reload.
+    let oversized_path = dir.path().join("oversized_reload.csv");
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let reload_fields = vec![InfusionField::with_all(
+        "ec19007_asset_department",
+        "device_ip",
+        "ip",
+        "string",
+        None,
+        Some("department".to_string()),
+    )];
+    let mut oversized_spec = InfusionSpec::new(
+        "ec19007_asset_inventory",
+        "EC-19-007 Asset Inventory (oversized reload)",
+        InfusionType::LocalLookup,
+        reload_fields,
+        "ec19007_asset_oversized.infusion.toml",
+    );
+    oversized_spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        oversized_path.to_str().unwrap(),
+        Some("ip_address".to_string()),
+        None,
+    ));
+
+    // Step 3: hot_reload with the oversized spec — MUST return Err(SourceFileTooLarge).
+    // FAILS RED before fix: hot_reload returns Ok(NullSource) and replaces the good entry.
+    let reload_result = registry.hot_reload(oversized_spec);
+    assert!(
+        reload_result.is_err(),
+        "EC-19-007: hot_reload MUST return Err(SourceFileTooLarge) for an oversized source. \
+         Before the fix this returned Ok(NullSource) — replacing the good registration with \
+         a silent NullSource. FAILS RED before the discriminating match arm is added to hot_reload."
+    );
+    match reload_result.unwrap_err() {
+        InfusionError::SourceFileTooLarge { .. } => { /* correct */ }
+        other => panic!(
+            "EC-19-007: expected SourceFileTooLarge (E-INFUSE-012) from hot_reload, got: {:?}",
+            other
+        ),
+    }
+
+    // Step 4: PRIOR registration must be intact — registry unchanged.
+    let post_reload_descriptors = registry.udf_descriptors();
+    assert_eq!(
+        post_reload_descriptors.len(),
+        1,
+        "EC-19-007: after Err(SourceFileTooLarge) hot_reload, the registry MUST still contain \
+         exactly 1 descriptor (the prior good registration). Before the fix the registry \
+         contained 1 NullSource-backed descriptor (silent enrichment breakage)."
+    );
+
+    // The prior (good) source must still be active — enrich_single returns Some, not None.
+    let post_result = post_reload_descriptors[0]
+        .source
+        .enrich_single("192.168.1.10", "ip");
+    assert!(
+        post_result.is_some(),
+        "EC-19-007: the prior CsvSource registration MUST still be active after a failed \
+         hot_reload (SourceFileTooLarge). enrich_single('192.168.1.10') must return Some. \
+         Before the fix this returned None — the good CsvSource was replaced by NullSource."
+    );
+}
