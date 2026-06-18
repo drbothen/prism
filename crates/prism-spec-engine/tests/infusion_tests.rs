@@ -2486,3 +2486,149 @@ fn test_OBS_1_load_spec_return_value_carries_real_source_not_null_source() {
          Got None — stored source is NullSource."
     );
 }
+
+// ---------------------------------------------------------------------------
+// SEC-001 (CWE-400) — infusion source file size guard tests (E-INFUSE-012)
+//
+// Uses `File::set_len()` to allocate sparse files (no real data written) so
+// tests complete in <1ms even for sizes slightly above MAX_SOURCE_FILE_BYTES.
+// ---------------------------------------------------------------------------
+
+/// SEC-001: CSV source exceeding MAX_SOURCE_FILE_BYTES → Err(SourceFileTooLarge).
+///
+/// test_BC_2_19_001_source_file_too_large_csv
+/// Verifies the size guard fires BEFORE any file read (Red before guard, Green after).
+#[test]
+fn test_BC_2_19_001_source_file_too_large_csv() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::csv::CsvSource;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.csv");
+
+    // Sparse-allocate a file of MAX_SOURCE_FILE_BYTES+1 (no data written to disk pages).
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let result = CsvSource::load(oversized_path.to_str().unwrap(), "id");
+    match result {
+        Err(InfusionError::SourceFileTooLarge { size, limit, .. }) => {
+            assert_eq!(size, MAX_SOURCE_FILE_BYTES + 1, "size field must be exact");
+            assert_eq!(
+                limit, MAX_SOURCE_FILE_BYTES,
+                "limit must be MAX_SOURCE_FILE_BYTES"
+            );
+        }
+        Err(other) => panic!("expected SourceFileTooLarge, got: {:?}", other),
+        Ok(_) => panic!("expected Err(SourceFileTooLarge), got Ok — size guard not firing"),
+    }
+}
+
+/// SEC-001: CSV source at exactly MAX_SOURCE_FILE_BYTES → accepted (boundary case).
+///
+/// test_BC_2_19_001_source_file_at_limit_csv
+/// Verifies the guard is `> limit`, not `>= limit` — exact-limit file is accepted.
+/// An empty CSV at the allocated size causes a parse error (not a size error) → Ok/Err check.
+#[test]
+fn test_BC_2_19_001_source_file_at_limit_csv() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::csv::CsvSource;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let limit_path = dir.path().join("at_limit.csv");
+
+    // Sparse-allocate exactly MAX_SOURCE_FILE_BYTES.
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&limit_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES).unwrap();
+    }
+
+    let result = CsvSource::load(limit_path.to_str().unwrap(), "id");
+    // The file is sparse (NUL bytes) → CSV parser may succeed with 0 records or
+    // return a parse/header error — but it MUST NOT return SourceFileTooLarge.
+    assert!(
+        !matches!(result, Err(InfusionError::SourceFileTooLarge { .. })),
+        "file at exactly MAX_SOURCE_FILE_BYTES must NOT trigger size guard; got SourceFileTooLarge"
+    );
+}
+
+/// SEC-001: JSON lookup source exceeding MAX_SOURCE_FILE_BYTES → Err(SourceFileTooLarge).
+///
+/// test_BC_2_19_001_source_file_too_large_json
+#[test]
+fn test_BC_2_19_001_source_file_too_large_json() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::json_lookup::JsonLookupSource;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.json");
+
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let result = JsonLookupSource::load(oversized_path.to_str().unwrap());
+    match result {
+        Err(InfusionError::SourceFileTooLarge { size, limit, .. }) => {
+            assert_eq!(size, MAX_SOURCE_FILE_BYTES + 1);
+            assert_eq!(limit, MAX_SOURCE_FILE_BYTES);
+        }
+        Err(other) => panic!("expected SourceFileTooLarge, got: {:?}", other),
+        Ok(_) => panic!("expected Err(SourceFileTooLarge), got Ok — size guard not firing"),
+    }
+}
+
+/// SEC-001: MMDB source exceeding MAX_SOURCE_FILE_BYTES → Err(SourceFileTooLarge).
+///
+/// test_BC_2_19_001_source_file_too_large_mmdb
+#[test]
+fn test_BC_2_19_001_source_file_too_large_mmdb() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::mmdb::MmdbSource;
+    use std::fs::OpenOptions;
+    use std::path::Path;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.mmdb");
+
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let result = MmdbSource::load(Path::new(oversized_path.to_str().unwrap()));
+    match result {
+        Err(InfusionError::SourceFileTooLarge { size, limit, .. }) => {
+            assert_eq!(size, MAX_SOURCE_FILE_BYTES + 1);
+            assert_eq!(limit, MAX_SOURCE_FILE_BYTES);
+        }
+        Err(other) => panic!("expected SourceFileTooLarge, got: {:?}", other),
+        Ok(_) => panic!("expected Err(SourceFileTooLarge), got Ok — size guard not firing"),
+    }
+}

@@ -66,9 +66,12 @@ fn test_BC_2_19_001_mmdb_source_load_nonexistent_file_returns_error() {
     );
     match result.unwrap_err() {
         InfusionError::MissingRequiredField { field, .. } => {
+            // SEC-001: for non-existent files, `fs::metadata()` fails before `open_readfile`,
+            // so the error is now "mmdb_metadata_failed: ..." rather than "mmdb_open_failed: ...".
+            // Both are valid "non-existent file" error signals; accept either.
             assert!(
-                field.contains("mmdb_open_failed"),
-                "BC-2.19.001: load error must contain 'mmdb_open_failed'. Got: '{}'",
+                field.contains("mmdb_metadata_failed") || field.contains("mmdb_open_failed"),
+                "BC-2.19.001: load error must contain 'mmdb_metadata_failed' or 'mmdb_open_failed'. Got: '{}'",
                 field
             );
         }

@@ -31,9 +31,28 @@ pub struct CsvSource {
 impl CsvSource {
     /// Load a CSV file and return a `CsvSource`.
     ///
+    /// SEC-001 (CWE-400): checks `fs::metadata().len()` against `MAX_SOURCE_FILE_BYTES`
+    /// BEFORE reading the file into memory. Files exceeding the limit are rejected with
+    /// `InfusionError::SourceFileTooLarge` (E-INFUSE-012) to prevent unbounded-memory OOM.
+    ///
     /// Uses `csv::ReaderBuilder::new().has_headers(true).from_path(path)`.
     /// Keys each row by the value in `key_column`. Stores all columns in the inner map.
     pub fn load(csv_path: &str, key_column: &str) -> Result<Self, prism_core::InfusionError> {
+        // SEC-001 (CWE-400): size guard — BEFORE any file read.
+        let file_size = std::fs::metadata(csv_path)
+            .map_err(|e| prism_core::InfusionError::MissingRequiredField {
+                field: format!("csv_metadata_failed: {}", e),
+                spec_path: csv_path.to_string(),
+            })?
+            .len();
+        if file_size > super::MAX_SOURCE_FILE_BYTES {
+            return Err(prism_core::InfusionError::SourceFileTooLarge {
+                path: csv_path.to_string(),
+                size: file_size,
+                limit: super::MAX_SOURCE_FILE_BYTES,
+            });
+        }
+
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(true)
             .from_path(csv_path)

@@ -1278,6 +1278,31 @@ pub enum InfusionError {
         /// Credential values MUST NOT appear here (INV-INFUSE-005 / AD-017).
         reason: String,
     },
+
+    /// E-INFUSE-012: Infusion source file exceeds `MAX_SOURCE_FILE_BYTES` (100 MiB).
+    ///
+    /// Detected via `fs::metadata(&path)?.len()` BEFORE any file read, preventing
+    /// CWE-400 unbounded-memory OOM. Fires at load time and hot-reload time for
+    /// CSV, JSON-lookup, and MMDB sources.
+    ///
+    /// `{path}` — file path (safe to log, not a credential per AD-017).
+    /// `{size}` — actual file byte-length from `fs::metadata`.
+    /// `{limit}` — configured limit constant (default `MAX_SOURCE_FILE_BYTES = 104857600`).
+    ///
+    /// MCP surface: propagates as a spec load error; the infusion is unavailable
+    /// until the file is reduced or the limit is raised. Non-retryable without a
+    /// file or config change. SEC-001 (CWE-400); BC-2.19.001 §Error Conditions E-INFUSE-012.
+    #[error(
+        "E-INFUSE-012: infusion source file '{path}' exceeds maximum size ({size} bytes > {limit} bytes); reduce the file or raise MAX_SOURCE_FILE_BYTES"
+    )]
+    SourceFileTooLarge {
+        /// The file path (safe to log — not a credential per AD-017).
+        path: String,
+        /// Actual file size in bytes from `fs::metadata().len()`.
+        size: u64,
+        /// The configured limit (default `MAX_SOURCE_FILE_BYTES = 104_857_600`).
+        limit: u64,
+    },
 }
 
 // ---------------------------------------------------------------------------

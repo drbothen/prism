@@ -22,7 +22,10 @@ pub mod plugin_bridge;
 pub mod sources;
 pub mod udf;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use arc_swap::ArcSwap;
 use prism_core::InfusionError;
@@ -502,9 +505,9 @@ impl InfusionRegistry {
         }
 
         // VP-048: check for within-spec duplicate field names.
-        let mut seen_within_spec: HashMap<&str, ()> = HashMap::new();
+        let mut seen_within_spec: HashSet<&str> = HashSet::new();
         for field in &spec.fields {
-            if seen_within_spec.insert(field.name.as_str(), ()).is_some() {
+            if !seen_within_spec.insert(field.name.as_str()) {
                 return Err(InfusionError::DuplicateUdfName {
                     udf_name: field.name.clone(),
                     path1: spec.source_path.clone(),

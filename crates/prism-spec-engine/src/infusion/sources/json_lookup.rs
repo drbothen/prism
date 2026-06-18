@@ -22,8 +22,27 @@ pub struct JsonLookupSource {
 impl JsonLookupSource {
     /// Load a JSON lookup file and return a `JsonLookupSource`.
     ///
+    /// SEC-001 (CWE-400): checks `fs::metadata().len()` against `MAX_SOURCE_FILE_BYTES`
+    /// BEFORE reading the file into memory. Files exceeding the limit are rejected with
+    /// `InfusionError::SourceFileTooLarge` (E-INFUSE-012) to prevent unbounded-memory OOM.
+    ///
     /// Deserializes the file as `serde_json::Map<String, serde_json::Value>`.
     pub fn load(json_path: &str) -> Result<Self, prism_core::InfusionError> {
+        // SEC-001 (CWE-400): size guard — BEFORE any file read.
+        let file_size = std::fs::metadata(json_path)
+            .map_err(|e| prism_core::InfusionError::MissingRequiredField {
+                field: format!("json_metadata_failed: {}", e),
+                spec_path: json_path.to_string(),
+            })?
+            .len();
+        if file_size > super::MAX_SOURCE_FILE_BYTES {
+            return Err(prism_core::InfusionError::SourceFileTooLarge {
+                path: json_path.to_string(),
+                size: file_size,
+                limit: super::MAX_SOURCE_FILE_BYTES,
+            });
+        }
+
         let content = std::fs::read_to_string(json_path).map_err(|e| {
             prism_core::InfusionError::MissingRequiredField {
                 field: format!("json_open_failed: {}", e),

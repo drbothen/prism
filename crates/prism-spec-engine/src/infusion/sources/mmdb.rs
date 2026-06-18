@@ -42,6 +42,10 @@ pub struct MmdbSource {
 impl MmdbSource {
     /// Load a MaxMind MMDB file and return an `MmdbSource`.
     ///
+    /// SEC-001 (CWE-400): checks `fs::metadata().len()` against `MAX_SOURCE_FILE_BYTES`
+    /// BEFORE opening the MMDB reader. Files exceeding the limit are rejected with
+    /// `InfusionError::SourceFileTooLarge` (E-INFUSE-012) to prevent unbounded-memory OOM.
+    ///
     /// Uses `maxminddb::Reader::open_readfile(path)` (0.28 API).
     /// Maps MMDB open errors to `InfusionError::MissingRequiredField` with a
     /// `"mmdb_open_failed: {e}"` field descriptor.
@@ -49,6 +53,21 @@ impl MmdbSource {
     /// Column projection is handled at the UDF layer via `InfusionUdfDescriptor::source_column`;
     /// `MmdbSource` itself returns the full GeoIP record as JSON from every lookup.
     pub fn load(mmdb_path: &Path) -> Result<Self, prism_core::InfusionError> {
+        // SEC-001 (CWE-400): size guard — BEFORE maxminddb::Reader::open_readfile.
+        let file_size = std::fs::metadata(mmdb_path)
+            .map_err(|e| prism_core::InfusionError::MissingRequiredField {
+                field: format!("mmdb_metadata_failed: {}", e),
+                spec_path: mmdb_path.to_string_lossy().to_string(),
+            })?
+            .len();
+        if file_size > super::MAX_SOURCE_FILE_BYTES {
+            return Err(prism_core::InfusionError::SourceFileTooLarge {
+                path: mmdb_path.to_string_lossy().to_string(),
+                size: file_size,
+                limit: super::MAX_SOURCE_FILE_BYTES,
+            });
+        }
+
         let reader = maxminddb::Reader::open_readfile(mmdb_path).map_err(|e| {
             prism_core::InfusionError::MissingRequiredField {
                 field: format!("mmdb_open_failed: {}", e),

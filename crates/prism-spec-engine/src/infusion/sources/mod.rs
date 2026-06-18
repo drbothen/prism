@@ -3,10 +3,27 @@
 //! Dispatches to the appropriate source implementation based on `BuiltInSourceType`.
 //! Called from `InfusionRegistry::load_spec` / `load_all` to wire the real file-backed
 //! source for LocalLookup specs (BC-2.19.001).
+//!
+//! # SEC-001 (CWE-400) — source file size guard
+//! All three built-in source loaders (`CsvSource::load`, `JsonLookupSource::load`,
+//! `MmdbSource::load`) check `fs::metadata(&path)?.len()` against `MAX_SOURCE_FILE_BYTES`
+//! BEFORE reading the file into memory. A file that exceeds the limit is rejected with
+//! `InfusionError::SourceFileTooLarge` (E-INFUSE-012), preventing unbounded-memory OOM.
 
 pub mod csv;
 pub mod json_lookup;
 pub mod mmdb;
+
+/// Maximum allowed size (in bytes) for an infusion source data file.
+///
+/// 100 MiB = 104,857,600 bytes. Enforced at load time and hot-reload time for
+/// CSV, JSON-lookup, and MMDB sources — before any file read — to prevent
+/// unbounded-memory OOM (CWE-400). SEC-001, BC-2.19.001 §Error Conditions E-INFUSE-012.
+///
+/// Operators needing larger files may raise this limit by modifying this constant
+/// and rebuilding. The error message (E-INFUSE-012) includes the remedy text:
+/// "reduce the file or raise MAX_SOURCE_FILE_BYTES".
+pub const MAX_SOURCE_FILE_BYTES: u64 = 104_857_600;
 
 use std::path::Path;
 use std::sync::Arc;

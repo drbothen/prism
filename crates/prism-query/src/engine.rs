@@ -678,6 +678,10 @@ impl QueryEngine {
                     registry.udf_descriptors(),
                     Arc::clone(lru),
                     Arc::clone(t3),
+                    // DEFAULT_CACHE_TTL_SECS is the Tier-2/3 write TTL fallback; it is
+                    // OVERRIDDEN per-UDF by descriptor.cache_ttl_secs when set on the
+                    // infusion spec (F-TTL-1). The literal 3600 here is NOT the effective
+                    // TTL for specs that declare `cache_ttl_secs`.
                     crate::infusion_udf::DEFAULT_CACHE_TTL_SECS,
                 ),
                 _ => crate::infusion_udf::register_infusion_udfs(
@@ -931,6 +935,10 @@ impl QueryEngine {
                     registry.udf_descriptors(),
                     Arc::clone(lru),
                     Arc::clone(t3),
+                    // DEFAULT_CACHE_TTL_SECS is the Tier-2/3 write TTL fallback; it is
+                    // OVERRIDDEN per-UDF by descriptor.cache_ttl_secs when set on the
+                    // infusion spec (F-TTL-1). The literal 3600 here is NOT the effective
+                    // TTL for specs that declare `cache_ttl_secs`.
                     crate::infusion_udf::DEFAULT_CACHE_TTL_SECS,
                 ),
                 _ => crate::infusion_udf::register_infusion_udfs(
