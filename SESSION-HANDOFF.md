@@ -292,7 +292,7 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 | ID | Status | Task | Notes |
 |----|--------|------|-------|
 | **L-A through L-T12** | **CLOSED** | S-5.02 / S-3.13 / T10 / T11 / T12 — all merged. | DONE. |
-| **L-POST-A** | **IN PROGRESS** | S-1.14-REDO @eda52123: staged-uncommitted fix → complete commit → just check → LOCAL 3-CLEAN(strict) independent passes → push → PR-LEVEL 3-CLEAN → merge FIRST (D-1221). EXPECTED 66→67. | MERGES FIRST |
+| **L-POST-A** | **IN PROGRESS** | S-1.14-REDO @2020dbf0 (CLEAN — D-1227): LOCAL 3-CLEAN(strict) independent passes on frozen HEAD → push → PR-LEVEL 3-CLEAN → merge FIRST (D-1221). EXPECTED 66→67. | MERGES FIRST |
 | **L-POST-B** | **IN PROGRESS** | S-5.03 @5a444a5f: fix 3 open strict-only OBS (F-OBS-1 userinfo strip + separator cosmetic + stale comment) → freeze HEAD → LOCAL 3-CLEAN(strict) independent passes → push → PR-LEVEL 3-CLEAN → merge (INDEPENDENT). EXPECTED +6 types. | INDEPENDENT |
 | **L-POST-C** | **BLOCKED** | PIVOT-002 @0f958261: AWAIT S-1.14-REDO merge → devops-engineer rebase → verify production ThreatIntel enrichment (real source, not NullSource) → LOCAL 3-CLEAN → push → PR-LEVEL 3-CLEAN → merge. EXPECTED →76. | Blocked on S-1.14-REDO merge |
 | **L-POST-D** | not-started | S-5.04: remove-uncertainty → 12-gate TDD; depends S-5.03 MERGED. | After L-POST-B |
@@ -363,8 +363,8 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 | **Lane A (CLOSED)** | S-5.02 | STALE (cleanup pending) | `feature/S-5.02 (DELETED)` | — | **MERGED PR #191 develop@bec894a2** | **CLOSED.** D-1202 2026-06-17. POL-14 BC-2.10.011 status:draft→active. EXPECTED=64. |
 | **Lane B (CLOSED)** | S-3.13 | STALE (cleanup pending) | `feature/S-3.13 (DELETED)` | — | **MERGED PR #192 develop@60249ccc** | **CLOSED.** D-1204 2026-06-16. POL-14 BC-2.16.007 status:draft→active. EXPECTED=66. |
 | **Lane D** | — | — | — | — | **CLOSED** (D-1168) | S-1.15 DROPPED. Permanently closed. |
-| **L-POST-A (MERGES FIRST)** | S-1.14-REDO | `.worktrees/S-1.14-REDO` | `feature/S-1.14-REDO` | **20bdb0d6** (frozen) | IN PROGRESS — 0/3 streak | Fresh adversary pass on frozen HEAD → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; EXPECTED 66→67 |
-| **L-POST-B (INDEPENDENT)** | S-5.03 | `.worktrees/S-5.03` | `feature/S-5.03` | **23aac4ca** (frozen) | IN PROGRESS — 0/3 streak | Strict-clean re-pass on frozen HEAD → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; EXPECTED →72; OBS-3 → product-owner |
+| **L-POST-A (MERGES FIRST)** | S-1.14-REDO | `.worktrees/S-1.14-REDO` | `feature/S-1.14-REDO` | **2020dbf0** (CLEAN — D-1227) | IN PROGRESS — 0/3 streak | Adversary passes on frozen 2020dbf0 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; EXPECTED 66→67 |
+| **L-POST-B (INDEPENDENT)** | S-5.03 | `.worktrees/S-5.03` | `feature/S-5.03` | **5a444a5f** (clean) | IN PROGRESS — 0/3 streak | Fix 3 strict-only OBS → freeze HEAD → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge; EXPECTED →72; OBS-3 → product-owner |
 | **L-POST-C (BLOCKED on rebase)** | PIVOT-002 | `.worktrees/S-DEMO-ENRICHMENT-PIVOT-002` | `feature/S-DEMO-ENRICHMENT-PIVOT-002` | **0f958261** (current; pre-rebase) | BLOCKED — 0/3 streak | Await S-1.14-REDO merge → rebase → verify prod ThreatIntel enrichment → 3-CLEAN → merge; EXPECTED →76 |
 
 ---
@@ -390,10 +390,10 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 
 | Story | Status | Depends On | Notes |
 |-------|--------|------------|-------|
-| S-5.03 | **IN PROGRESS — 3-CLEAN NEEDED** @23aac4ca v1.16 | S-5.02 MERGED + S-3.13 MERGED (SATISFIED) | CLEAN(PR-merge)=yes; strict-clean re-pass on frozen 23aac4ca; OBS-3 DEC-004 → product-owner S-5.04; EXPECTED →72; hard prereq of S-5.04 |
+| S-5.03 | **IN PROGRESS — 3-CLEAN NEEDED** @5a444a5f v1.17 | S-5.02 MERGED + S-3.13 MERGED (SATISFIED) | CLEAN(PR-merge)=yes; fix 3 strict-only OBS → freeze HEAD → strict-clean 3-CLEAN; OBS-3 DEC-004 → product-owner S-5.04; EXPECTED →72; hard prereq of S-5.04 |
 | S-5.04 | not-started | S-5.03 MERGED | Sensor Health Subsystem; 5 pts |
 | PIVOT-002 | **IN PROGRESS — BLOCKED on rebase** @0f958261 v1.3 **DEMO-BLOCKING (D-1205)** | PIVOT-001 MERGED; BLOCKED on rebase onto S-1.14-REDO post-merge (F-SV-1 dep) | CRIT-1/2a/2b/HIGH-1+all HIGH/MED closed; security gates folded in as AC-007..012; EXPECTED →76; MERGES AFTER S-1.14-REDO |
-| S-1.14-REDO | **IN PROGRESS — 3-CLEAN NEEDED** @20bdb0d6 v1.2 **DEMO-BLOCKING (D-1205) — MERGES FIRST** | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME SATISFIED | 8 fix-bursts done incl. F-SV-1 hollow-feature; fresh adversary pass on frozen 20bdb0d6; EXPECTED 66→67 |
+| S-1.14-REDO | **IN PROGRESS — 3-CLEAN NEEDED** @2020dbf0 v1.2 CLEAN (D-1227) **DEMO-BLOCKING (D-1205) — MERGES FIRST** | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME SATISFIED | all fixes committed (just check 4499 green; non-exhaustive gate 67); adversary passes on frozen 2020dbf0; EXPECTED 66→67 |
 | PIVOT-003 | not-started **DEMO-BLOCKING (D-1205)** | PIVOT-002 MERGED | Real IOC fields + canonical pivot proof; closes BC-2.06.019 §Interim State _ioc_value violation; closes TD-PLUGIN-P0-002 P0 |
 | T13 narrative capstone | not-authored | S-1.14-REDO + PIVOT-003 + S-5.04 all MERGED | PO+story-writer; SOC-analyst workflow story |
 | T14 demo recording | not-started | T13 MERGED | demo-recorder |
@@ -431,7 +431,7 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.858 | D-1221..D-1224 burst; develop_head 60249ccc UNCHANGED; 3 lanes frozen (S-1.14-REDO@20bdb0d6/S-5.03@23aac4ca/PIVOT-002@0f958261); merge sequencing locked |
+| STATE.md | v7.861 | D-1227 HEAD correction; develop_head 60249ccc UNCHANGED; 3 lanes: S-1.14-REDO@2020dbf0 CLEAN/S-5.03@5a444a5f/PIVOT-002@0f958261; merge sequencing locked (D-1221) |
 | BC-INDEX | v6.69 | active 235 / draft 2 / retired 6; total 250; BC-2.16.007 v1.6 (D-1204 POL-14 draft→active legacy-field sync) |
 | STORY-INDEX | v2.420 | 201 stories; S-3.13 v1.20 MERGED PR #192; S-5.02 v1.13 MERGED PR #191 |
 | error-taxonomy | v1.86 | E-QUERY-037 org-scoped enumeration (D-1203 F-S313-PRL-MED-001 CLOSED) |
@@ -454,10 +454,10 @@ After all 4 active lanes merge, the queued sequence (per `.factory/objectives/mu
 
 | Story | Depends On | Status | Notes |
 |-------|-----------|--------|-------|
-| S-5.03 (Resources/Prompts) | S-5.02 MERGED + S-3.13 MERGED (SATISFIED) | **IN PROGRESS — 3-CLEAN NEEDED** @23aac4ca v1.16 | CLEAN(PR-merge)=yes; strict-clean re-pass on frozen 23aac4ca; OBS-3 DEC-004 → product-owner S-5.04; EXPECTED →72; INDEPENDENT |
+| S-5.03 (Resources/Prompts) | S-5.02 MERGED + S-3.13 MERGED (SATISFIED) | **IN PROGRESS — 3-CLEAN NEEDED** @5a444a5f v1.17 | CLEAN(PR-merge)=yes; fix 3 strict-only OBS → freeze HEAD → 3-CLEAN; OBS-3 DEC-004 → product-owner S-5.04; EXPECTED →72; INDEPENDENT |
 | S-5.04 (Sensor Health) | S-5.03 MERGED | not-started | 5 pts; remove-uncertainty before TDD |
 | PIVOT-002 | PIVOT-001 MERGED | **IN PROGRESS — BLOCKED on rebase** @0f958261 v1.3 **DEMO-BLOCKING (D-1205)** | BLOCKED on rebase onto S-1.14-REDO post-merge (F-SV-1 dep); security gates addressed (AC-007..012); EXPECTED →76; MERGES AFTER S-1.14-REDO |
-| S-1.14-REDO | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME SATISFIED | **IN PROGRESS — 3-CLEAN NEEDED** @20bdb0d6 v1.2 **DEMO-BLOCKING (D-1205) — MERGES FIRST** | 8 fix-bursts done incl. F-SV-1 hollow-feature; fresh adversary pass on frozen 20bdb0d6; EXPECTED 66→67 |
+| S-1.14-REDO | S-WAVE5-PREP-01+S-3.02-FOLLOWUP-RUNTIME SATISFIED | **IN PROGRESS — 3-CLEAN NEEDED** @2020dbf0 v1.2 CLEAN (D-1227) **DEMO-BLOCKING (D-1205) — MERGES FIRST** | all fixes committed (just check 4499 green); adversary passes on frozen 2020dbf0; EXPECTED 66→67 |
 | PIVOT-003 | PIVOT-002 MERGED | not-started **DEMO-BLOCKING (D-1205)** | Adds real IOC fields to Cyberint/CrowdStrike DTU fixtures + canonical pivot proof; closes BC-2.06.019 §Interim State _ioc_value violation; closes TD-PLUGIN-P0-002 P0 |
 | T13 capstone (SOC-analyst narrative) | All above MERGED | not-authored | PO + story-writer; the demo's capstone deliverable |
 | T14 demo recording | T13 MERGED | not-started | demo-recorder |
