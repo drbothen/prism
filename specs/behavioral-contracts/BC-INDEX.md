@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.77"
+version: "6.78"
 status: draft
 producer: state-manager
-timestamp: 2026-06-18T16:00:00Z
+timestamp: 2026-06-18T17:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -245,7 +245,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v2.0 (D-1229 2026-06-18: output_columns = pipe_stage.adds_columns subset-in-declared-order [Option b]; infusion_name = registry lookup key == infusion_id; duplicate infusion_id last-writer-wins WITH stale udf_to_infusion purge; was v1.9 — D-1228 2026-06-18: enrich_descriptor() API postcondition + pipe-mode \| enrich runtime scope boundary) |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v2.1 (D-1233 2026-06-18: E-INFUSE-012 MAX_SOURCE_FILE_BYTES=100 MiB source-file size guard; InfusionError::SourceFileTooLarge{path,size,limit}; SEC-001/CWE-400; precondition + postcondition row added; was v2.0 — D-1229 2026-06-18: output_columns Option-b subset; infusion_name registry-key; dup-infusion_id last-writer-wins+purge) |
 | BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v1.3 |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.78 (2026-06-18, D-1233 SEC-001 CWE-400 fix-in-scope spec burst):** state-manager | BC-2.19.001 inline row: v2.0→v2.1 — E-INFUSE-012 added: MAX_SOURCE_FILE_BYTES=100 MiB source-file size guard; InfusionError::SourceFileTooLarge{path,size,limit} error variant; SEC-001/CWE-400; precondition table row (file size ≤ 100 MiB) + postcondition entry added; applies to CsvSource/JsonLookupSource/MmdbSource. Human-approved fix-in-scope 2026-06-18 (user directive). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.77→v6.78.
 
 **v6.77 (2026-06-18, D-1231 round-4 LOCAL 3-CLEAN fix-burst — BC amendments + S-5.11/S-5.12 stub registration):** state-manager | (1) BC-2.16.007 inline row: v1.6→v1.7 — notification gate reconciled to table-set-delta; column-delta deferred to S-5.11 named anchor. (2) BC-2.08.006 inline row: v1.5→v1.6 — EC-08-013 retired/subsumed into EC-08-011 per architect Ruling 4; append-only strikethrough; un-retire on S-5.04 cache-write. No active/draft/retired COUNT change: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.76→v6.77.
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.0"
+version: "2.1"
 status: active
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -128,6 +128,7 @@ This is INV-INFUSE-001.
 | `E-INFUSE-002` | Duplicate UDF name across specs | Second spec rejected; first retained; `ERROR` log |
 | `E-INFUSE-003` | Missing required field in spec (`infusion_id`, `[[infusion.fields]]`) | Spec rejected with per-field error list; other specs continue |
 | `E-INFUSE-004` | Source type not recognized (`type = "unknown"`) | Spec rejected; `E-INFUSE-004: "Unknown source type 'unknown'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup."` |
+| `E-INFUSE-012` | Infusion source file (CSV, JSON-lookup, or MMDB) exceeds `MAX_SOURCE_FILE_BYTES` (100 MiB = 104,857,600 bytes) at load or hot-reload time | Spec rejected before any bytes are read into memory; `E-INFUSE-012: "infusion source file '{path}' exceeds maximum size ({size} bytes > {limit} bytes); reduce the file or raise MAX_SOURCE_FILE_BYTES"`. Other infusion specs continue loading. CWE-400 guard. |
 
 ## Edge Cases
 
@@ -137,6 +138,9 @@ This is INV-INFUSE-001.
 | EC-19-002 | Spec with 10 fields, all valid | 10 `InfusionUdfDescriptor` objects exported |
 | EC-19-003 | Hot reload adds a new spec with 3 fields | 3 new descriptors exported; `prism-query` notified to register new UDFs; old UDFs from other specs unchanged |
 | EC-19-004 | Spec loaded but source file (MMDB, CSV) missing | Spec is registered but `InfusionSource::enrich_single` returns `None` for all lookups; spec is not rejected (source file may be mounted later) |
+| EC-19-005 | Source file (CSV, JSON-lookup, or MMDB) is exactly `MAX_SOURCE_FILE_BYTES` bytes (boundary value) | Spec is accepted; the guard fires only for sizes **strictly greater than** the limit |
+| EC-19-006 | Source file is `MAX_SOURCE_FILE_BYTES + 1` bytes | Spec is rejected with `E-INFUSE-012`; `{size}` = `MAX_SOURCE_FILE_BYTES + 1`, `{limit}` = `MAX_SOURCE_FILE_BYTES`; no bytes are read into memory |
+| EC-19-007 | Hot-reload triggered while an oversized source file is on disk (file grew beyond limit after initial load) | Hot-reload path rejects the spec with `E-INFUSE-012`; the previously loaded (acceptable-size) version of the spec remains active (atomic swap semantics per BC-2.19.004) |
 
 ## Canonical Test Vectors
 
@@ -150,6 +154,10 @@ This is INV-INFUSE-001.
 | TV-19-001-enrich-desc-pipe | Same spec with `[infusion.pipe_stage]\nadds_columns = ["geoip_country","geoip_city"]`; call `enrich_descriptor("geoip")` | Returns `EnrichStageDescriptor { infusion_name: "geoip", input_field: "device_ip", output_columns: ["geoip_country","geoip_city"], infusion_id: "geoip" }`. `output_columns` = `adds_columns` (2-element subset); `geoip_asn` and `geoip_is_tor` are excluded. | A1 pipe-stage subset |
 | TV-19-001-enrich-desc-unknown | Call `enrich_descriptor("nonexistent_infusion")` on empty registry | Returns `Err(InfusionError::UnknownInfusion { name: "nonexistent_infusion" })` | E-INFUSE-001 |
 | TV-19-001-overwrite-purge | Load spec A (infusion_id="geoip", fields=[geoip_country, geoip_asn]); then load spec B (infusion_id="geoip", fields=[geoip_city]) | After B loads: `udf_to_infusion` contains only `geoip_city → "geoip"`; `geoip_country` and `geoip_asn` keys are ABSENT from `udf_to_infusion` (stale entries purged). `is_api_backed("geoip_country")` returns `false` (unknown → false). | A3 overwrite-purge |
+| TV-19-001-oversized-csv | A CSV infusion spec referencing a source file whose `fs::metadata().len()` = `MAX_SOURCE_FILE_BYTES + 1` bytes (104,857,601 bytes) | Returns `Err(InfusionError::SourceFileTooLarge { path: "<path>", size: 104857601, limit: 104857600 })`; display string starts with `"E-INFUSE-012: infusion source file '"`; zero bytes of the file are read into memory; other infusion specs in the same registry load continue unaffected | EC-19-006; SEC-001; CWE-400 |
+| TV-19-001-at-limit-csv | A CSV source file whose `fs::metadata().len()` = `MAX_SOURCE_FILE_BYTES` bytes exactly (104,857,600 bytes) | Spec accepted; `Ok(descriptor)` returned; the boundary value is NOT rejected | EC-19-005 (strictly-greater-than semantics) |
+| TV-19-001-oversized-mmdb | An MMDB infusion spec referencing a MaxMind MMDB file whose `fs::metadata().len()` = `MAX_SOURCE_FILE_BYTES + 1` bytes | Returns `Err(InfusionError::SourceFileTooLarge { .. })`; MMDB reader is never opened; display starts with `"E-INFUSE-012:"` | EC-19-006; MMDB variant |
+| TV-19-001-oversized-json | A JSON-lookup infusion spec referencing a JSON file whose `fs::metadata().len()` = `MAX_SOURCE_FILE_BYTES + 1` bytes | Returns `Err(InfusionError::SourceFileTooLarge { .. })`; JSON bytes never read; display starts with `"E-INFUSE-012:"` | EC-19-006; JSON-lookup variant |
 
 ## Verification Properties
 
@@ -192,6 +200,7 @@ Integration test: `tests/infusion_tests.rs` — "Load `geoip.infusion.toml` → 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.1 | SEC-001-CWE-400-source-file-size-bound | 2026-06-18 | product-owner | **E-INFUSE-012 source-file size guard added (SEC-001, CWE-400, human-approved in-scope fix).** (1) Error Conditions table: new row `E-INFUSE-012` — infusion source file (CSV, JSON-lookup, MMDB) exceeds `MAX_SOURCE_FILE_BYTES` (100 MiB = 104,857,600 bytes) at load or hot-reload time; spec rejected before any bytes are read; other specs continue. (2) Edge Cases: EC-19-005 (at-limit boundary, accepted), EC-19-006 (over-limit, rejected), EC-19-007 (hot-reload with file that grew beyond limit). (3) Canonical Test Vectors: TV-19-001-oversized-csv, TV-19-001-at-limit-csv, TV-19-001-oversized-mmdb, TV-19-001-oversized-json — covering all three source types and the boundary-value semantics. No existing BC semantics weakened. |
 | 2.0 | round-2-adversary-cluster-A1-A2-A3 | 2026-06-18 | product-owner | **Round-2 adversary cluster adjudication (A1/A2/A3).** **(A1 — `output_columns` source-of-truth):** Ruled Option (b): `output_columns = pipe_stage.adds_columns` (validated subset of field names, in declared order) when `pipe_stage` is present, else all field names in declaration order. A pipe stage may legitimately project a strict subset. `validate_pipe_stage_columns` subset validation is CORRECT as-is (no tightening needed); no code change to `enrich_descriptor()` required. Added TV-19-001-enrich-desc-pipe test vector. **(A2 — `infusion_name` definition):** Corrected prose: `infusion_name` = registry lookup key == `infusion_id`, NOT the human `spec.name` field. Updated TV-19-001-enrich-desc notes to state "NOT `spec.name`." **(A3 — duplicate `infusion_id` on `load_spec`):** Ruled last-writer-wins replacement; implementer MUST purge stale `udf_to_infusion` entries for the old spec's fields on overwrite (same pattern as `hot_reload`). Added postcondition clause and TV-19-001-overwrite-purge test vector. |
 | 1.9 | S-1.14-REDO-Q1-scope-clarification | 2026-06-18 | product-owner | **Scope clarification per architect ruling S-1.14-REDO Q1 (2026-06-18).** (1) Added `enrich_descriptor()` API postcondition (AC-3): `InfusionRegistry::enrich_descriptor(name)` returns `EnrichStageDescriptor` carrying `infusion_name`, `input_field`, `output_columns`, and `infusion_id`; unknown name returns `E-INFUSE-001`. (2) Added explicit "Scope boundary — pipe-mode `| enrich` runtime execution" postcondition clarifying that this BC's contract is satisfied by UDF descriptor registration (SQL-mode) + `enrich_descriptor()` returning a well-formed `EnrichStageDescriptor`; `| enrich` pipe RUNTIME dispatch (Ast::Pipe arm, RecordBatch hydration) is universally unimplemented for ALL pipe stages and is owned by **S-3.01** — not a S-1.14-REDO gap; fresh-context adversaries must not flag this as BC-2.19.001 defect. (3) Added `E-INFUSE-001` to Error Conditions table (was tested but absent). (4) Added AC-3 canonical test vectors `TV-19-001-enrich-desc` and `TV-19-001-enrich-desc-unknown`. |
 | 1.8 | PIVOT-002-bc-amendment-http-lookup | 2026-06-17 | product-owner | **Added `http_lookup` as valid `InfusionType` source per ADR-040 v2.0 §D8.3 and error-taxonomy.md v1.88.** (1) E-INFUSE-004 valid-types list: `maxmind_mmdb, csv, json_lookup, plugin` → `maxmind_mmdb, csv, json_lookup, plugin, http_lookup`. (2) Two-phase source wiring postcondition expanded: heading renamed from "Plugin-type source wiring" to "API-backed source wiring" to cover both `Plugin` and `HttpLookup` types; RUNTIME PHASE now explicitly branches on `InfusionType` — `Plugin` path unchanged, `HttpLookup` path (ADR-040 §D8.6) documents `HttpLookupSource` construction with SSRF validation and `E-INFUSE-011` rejection. `NullSource` defect note extended to cover both `Plugin` and `HttpLookup`. Scope confirmed: `HttpLookup` flows through the same `InfusionLoader::parse` (PARSE PHASE) + `InfusionRegistry::load_spec_with_runtime` (RUNTIME PHASE) two-phase path already specified by this BC — no sibling BC needed. |
