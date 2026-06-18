@@ -2288,6 +2288,77 @@ adds_columns = []
 }
 
 // ---------------------------------------------------------------------------
+// Cache-key collision fix: reject ':' delimiter in infusion_id
+// ---------------------------------------------------------------------------
+//
+// All three infusion cache tiers compose keys as `format!("{}:{}", infusion_id, input_value)`.
+// A spec with infusion_id="a:b" enriching input "c" produces key "a:b:c", which is
+// indistinguishable from infusion_id="a" enriching "b:c" — a theoretical cross-infusion
+// cache collision. The guard-at-parse approach is the production-grade fix:
+// reject any infusion_id containing ':' at spec load time, before any caching occurs.
+//
+// Load-bearing mechanism: the test calls InfusionLoader::parse with infusion_id = "a:b"
+// (a colon-containing id) and asserts the result is Err(MissingRequiredField) with
+// a message that references the delimiter. WITHOUT the guard in loader.rs::parse,
+// the parse succeeds and this test FAILS RED.
+
+/// Cache-key collision fix: InfusionLoader::parse rejects infusion_id containing ':'.
+///
+/// Traces to: LOW finding (round-4) — cache composite-key non-injectivity.
+/// Guard location: loader.rs::parse, after the non-empty infusion_id check.
+///
+/// FAILS RED without the ':' guard — parse would accept the spec, returning Ok.
+/// PASSES GREEN after adding `if raw_infusion.infusion_id.contains(':')` guard.
+#[test]
+fn test_infusion_loader_rejects_colon_in_infusion_id_cache_key_delimiter() {
+    // infusion_id = "a:b" contains the ':' cache-key delimiter — must be rejected.
+    let toml_input = r#"
+[infusion]
+infusion_id = "a:b"
+name = "Colon ID test"
+
+[source]
+type = "maxmind_mmdb"
+file_path = "fixtures/test.mmdb"
+
+[[infusion.fields]]
+name = "geoip_country"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "colon_id_test.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "Cache-key collision fix: InfusionLoader::parse MUST reject infusion_id containing ':' \
+         (the cache-key delimiter). A colon in infusion_id enables cross-infusion cache key \
+         collisions: id='a:b' enriching 'c' produces key 'a:b:c', identical to id='a' enriching 'b:c'. \
+         FAILS RED without the guard in loader.rs::parse — parse returns Ok for this spec."
+    );
+
+    match result.unwrap_err() {
+        InfusionError::MissingRequiredField { field, spec_path } => {
+            assert!(
+                field.contains(':') || field.contains("delimiter") || field.contains("infusion_id"),
+                "Cache-key collision fix: MissingRequiredField message must reference the \
+                 ':' delimiter or infusion_id. Got field: '{}'",
+                field
+            );
+            assert_eq!(
+                spec_path, "colon_id_test.infusion.toml",
+                "Cache-key collision fix: rejection error must include the spec path"
+            );
+        }
+        other => panic!(
+            "Cache-key collision fix: expected MissingRequiredField for colon in infusion_id, got: {:?}",
+            other
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // OBS-1 fix: load_spec return value carries REAL source (not NullSource)
 // ---------------------------------------------------------------------------
 //

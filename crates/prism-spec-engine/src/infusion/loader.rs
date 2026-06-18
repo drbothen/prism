@@ -204,6 +204,24 @@ impl InfusionLoader {
             });
         }
 
+        // Validate infusion_id does NOT contain ':' (the cache-key delimiter).
+        //
+        // All three infusion cache tiers compose keys as `format!("{}:{}", infusion_id, input_value)`.
+        // A colon in infusion_id makes the composite key non-injective: id="a:b" enriching "c"
+        // produces key "a:b:c", which is indistinguishable from id="a" enriching "b:c".
+        // This is the only delimiter used across all three tiers (TD-VSDD-060 grep confirmed:
+        // cache.rs lines 50, 58, 140, 161 all use `format!("{}:{}", infusion_id, input_value)`).
+        // Tier 3 hashes the composed key via SHA-256 so the raw collision still applies.
+        // Guard-at-parse prevents any infusion_id containing ':' from ever reaching the cache.
+        if raw_infusion.infusion_id.contains(':') {
+            return Err(InfusionError::MissingRequiredField {
+                field: "infusion_id must not contain ':' (cache-key delimiter — \
+                        prevents cross-infusion cache key collision)"
+                    .to_string(),
+                spec_path: source_path.to_string(),
+            });
+        }
+
         // Validate at least one field.
         let raw_fields = raw_infusion.fields.unwrap_or_default();
         if raw_fields.is_empty() {
