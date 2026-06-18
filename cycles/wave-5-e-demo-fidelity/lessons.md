@@ -1582,3 +1582,7 @@ PG-LP11-001 explicitly assigns implementer ownership of same-commit catalog row 
 **Recovery (this burst):**
 
 `git reset --soft HEAD~1` (un-committed `3e327e99`, preserving BC file changes as staged). Then state-manager added BC-INDEX + STATE updates and re-committed as a single atomic burst. Push to origin/factory-artifacts completed per D-1066.
+
+---
+
+**(z13) [process-gap] Two-phase/shape amendments to a BC MUST sweep sibling BCs in the same SS layer in the same burst — sibling propagation is not optional.** D-1228 cascade: BC-2.08.005 was amended to v1.6 (resource_pressure two-phase: null in S-5.03, live counts deferred to S-5.04 named anchor). This change altered the SensorHealthResult shape contract that BC-2.08.006 (sibling in SS-08, Health Status MCP Resource) also propagates. BC-2.08.006 was NOT updated in the same burst — the omission was caught only in the subsequent fresh-context adversary pass. **Rule:** whenever a BC amendment changes a shared carrier-struct shape, response schema, or contract field (e.g., SensorHealthResult, ClientInventoryEntry, any type crossing SS boundaries), the burst MUST grep all BCs in the same SS layer for references to that type/field and update every sibling in the SAME commit. **Antidote:** add to state-manager pre-commit checklist: "Did this BC change alter any shared type or two-phase contract? If yes, grep siblings (BC-S.SS.*) for the type name and sweep all in-burst." **Source:** D-1228 BC-2.08.005 v1.6 → BC-2.08.006 v1.5 sibling-propagation gap.

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["cycle-1-burst-45"]
+modified: ["cycle-1-burst-45", "RECONCILIATION-2-health-resource-shape-2026-06-17"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,6 +30,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | RECONCILIATION-2-health-resource-shape-2026-06-17 | 2026-06-17 | product-owner | **RECONCILIATION-2 — Propagated BC-2.08.005 v1.5 two-phase probe model; resolved array-vs-keyed-object shape; reconciled `status`/`last_checked_at` contradiction.** Three fixes: (1) **Two-phase model propagation:** Postcondition 3 rewritten to use `SensorHealthResult` fields from BC-2.08.005 v1.5 (`probe_level`, `reachable: null` for spec-only, `auth_valid: null` for spec-only, `last_successful_query_at`). The retired `status: "up"|"down"|"degraded"|"auth_invalid"|"unknown"` and `last_checked_at` fields are removed — they were the pre-v1.5 shape that BC-2.08.005 superseded. (2) **Keyed-object shape (code change required):** Postcondition 2 explicitly states `sensors` MUST be a JSON object keyed by `sensor_id` (not a JSON array). The current `render_sensors_health_resource` code emits `"sensors": [array]` — this violates postcondition 2. The implementer must fix `render_sensors_health_resource` to emit a `BTreeMap<sensor_id, SensorHealthResult>` under each client key. (3) **Sentinel vs empty-clients disambiguation:** Postcondition 5 explicitly separates the "no health check run" sentinel response (`{ status: "unknown", message: "..." }`) from the normal `clients` keyed-object response — they are different JSON shapes, which the code already implements correctly. EC-08-011/012 updated to remove stale `last_checked_at` references. Canonical test vectors updated to show both S-5.03 and S-5.04 scoped variants. **Implementer must change:** `render_sensors_health_resource` in `resources.rs` must emit `sensors` as a keyed object (`BTreeMap<String, &SensorHealthResult>`) rather than the current `Vec`. **Bumped v1.4→v1.5.** |
 | 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix; normalized changelog schema to canonical 5-col form. |
 | 1.2 | cycle-1-burst-45 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.1→1.2). |
@@ -48,11 +49,11 @@ This BC governs the `prism://sensors/health` MCP resource, which exposes cached 
 
 ## Postconditions
 
-1. Reading the resource returns the most recent health status for all sensors across all configured clients as a health matrix keyed by `(client_id, sensor_id)`
-2. The resource content is `application/json` with schema: `{ clients: { [client_id]: { sensors: { [sensor_id]: SensorHealthResult } } } }`
-3. `SensorHealthResult` fields: `status: "up"|"down"|"degraded"|"auth_invalid"|"unknown"`, `reachable: bool|null`, `auth_valid: bool|null`, `last_checked_at: DateTime<Utc>|null`
-4. The resource reflects cached data from the most recent `check_sensor_health` invocation (not a live check)
-5. If no health check has been run for a given sensor, that entry reports `status: "unknown"`, `reachable: null`, `auth_valid: null`, `last_checked_at: null`
+1. Reading the resource returns the most recent health status for all sensors across all configured clients as a health matrix, grouped by client.
+2. The resource content is `application/json` with schema: `{ clients: { [client_id]: { sensors: { [sensor_id]: SensorHealthResult } } } }`. The inner `sensors` value MUST be a JSON object keyed by `sensor_id` — NOT a JSON array. This keyed-object shape is required for AI consumer lookup by sensor ID without scanning an array. Any implementation that emits `sensors` as a JSON array rather than a keyed object violates this postcondition (code change required if array is currently emitted).
+3. `SensorHealthResult` fields (aligned with BC-2.08.005 v1.5 two-phase probe model): `sensor_id: String`, `client_id: String`, `probe_level: "spec-only"|"live"`, `reachable: bool|null` (`null` for spec-only scope; `bool` for live probe per S-5.04), `auth_valid: bool|null` (`null` for spec-only scope; `bool` for live probe per S-5.04), `rate_limit: RateLimitInfo|null`, `last_successful_query_at: DateTime<Utc>|null` (`null` for spec-only scope; `DateTime` after a live query per S-5.04), `error: String|null`. **The retired `status: "up"|"down"|"degraded"|"auth_invalid"|"unknown"` and `last_checked_at` fields do NOT appear in the S-5.03+ SensorHealthResult shape — they were replaced by the two-phase probe fields in BC-2.08.005 v1.5.**
+4. The resource reflects cached data from the most recent `check_sensor_health` invocation (not a live check). Stale entries (older than the 5-minute TTL) are returned with a top-level `stale: true` flag in the payload.
+5. If no `check_sensor_health` has been run at all (empty cache), the resource returns `{ "status": "unknown", "message": "Run check_sensor_health to populate this resource." }` — NOT an error, NOT an empty `clients` object. This is the sentinel "uninitialized" response. Once any health check has run, the `clients` keyed-object schema (postcondition 2) is used.
 
 ## Invariants
 
@@ -68,16 +69,17 @@ This BC governs the `prism://sensors/health` MCP resource, which exposes cached 
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-08-011 | Resource read immediately after startup, before any `check_sensor_health` call | All sensor entries report `status: "unknown"`, `reachable: null`, `auth_valid: null`, `last_checked_at: null` |
-| EC-08-012 | Health data is stale (last check was 10+ minutes ago) | Resource includes `last_checked_at` per entry so the consumer can assess freshness; no automatic expiry |
+| EC-08-011 | Resource read immediately after startup, before any `check_sensor_health` call | Returns sentinel `{ "status": "unknown", "message": "Run check_sensor_health to populate this resource." }` — not an error, not a `clients` object |
+| EC-08-012 | Health data is stale (last check was 10+ minutes ago) | Resource returns cached data with top-level `stale: true` flag; no automatic expiry; consumer uses `last_successful_query_at` per-sensor field to assess freshness |
 | EC-08-013 | Zero clients configured | Resource returns `{ "clients": {} }` — empty object, not an error |
 
 ## Canonical Test Vectors
 
 | Input | Expected Output | Category |
 |-------|----------------|----------|
-| Read `prism://sensors/health` after `check_sensor_health("acme")` with CrowdStrike returning up | `{ "clients": { "acme": { "sensors": { "crowdstrike": { "status": "up", "reachable": true, "auth_valid": true, "last_checked_at": "<timestamp>" } } } } }` | happy-path |
-| Read `prism://sensors/health` immediately after startup (no checks run) | All sensor entries have `status: "unknown"`, `reachable: null`, `auth_valid: null`, `last_checked_at: null` | edge-case |
+| Read `prism://sensors/health` after `check_sensor_health("acme")` — S-5.03 scope | `{ "clients": { "acme": { "sensors": { "crowdstrike": { "sensor_id": "crowdstrike", "client_id": "acme", "probe_level": "spec-only", "reachable": null, "auth_valid": null, "last_successful_query_at": null, "rate_limit": null, "error": null } } } }, "stale": false }` | happy-path (S-5.03) |
+| Read `prism://sensors/health` after `check_sensor_health("acme")` — S-5.04 scope (live probe) | `{ "clients": { "acme": { "sensors": { "crowdstrike": { "sensor_id": "crowdstrike", "client_id": "acme", "probe_level": "live", "reachable": true, "auth_valid": true, "last_successful_query_at": "<timestamp>", "rate_limit": null, "error": null } } } }, "stale": false }` | happy-path (S-5.04) |
+| Read `prism://sensors/health` immediately after startup (no checks run) | `{ "status": "unknown", "message": "Run check_sensor_health to populate this resource." }` — the uninitialized sentinel, NOT a `clients` object | edge-case |
 | Read `prism://sensors/health` when Prism failed to register resources | MCP resource error response (protocol-level) | error |
 
 ## Verification Properties

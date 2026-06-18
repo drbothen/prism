@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
@@ -32,16 +32,18 @@ crates_touched: [prism-spec-engine, prism-core, prism-dtu-threatintel, prism-dtu
 #   NVD uses the new InfusionType::HttpLookup permanent built-in (no WASM toolchain).
 #   prism-core is now in crates_touched because new InfusionError + PluginError variants
 #   are added in this story (ADR-040 D5 + D8.5).
-# BC status: pending PO authorship
+# BC status: BC-2.19.001 v1.9 is the current authoritative version (PO amendment complete).
 # BC-2.19.001 governs infusion spec loading and UDF registration (nearest anchor).
-# PO routing note: BC-2.19.001 v1.6 E-INFUSE-004 error-case table still lists valid types
-#   as "maxmind_mmdb, csv, json_lookup, plugin" — does NOT yet include "http_lookup".
-#   The error-taxonomy v1.88 updated E-INFUSE-004 to include http_lookup (ADR-040 v2.0 §D8.3),
-#   but BC-2.19.001 body has not been amended to reflect this. PO MUST amend BC-2.19.001
-#   to add http_lookup to the E-INFUSE-004 valid-types list before or during PIVOT-002
-#   implementation. No new dedicated BC is required; BC-2.19.001 covers HttpLookup loading
-#   semantics by scope (all InfusionType variants go through InfusionLoader::parse).
-#   BC-2.06.020 would be the second anchor if PO confirms scope overlap — not listed until confirmed.
+# PO amendment complete (v1.8, 2026-06-17): BC-2.19.001 E-INFUSE-004 valid-types list
+#   was amended to add "http_lookup" — the error message now reads:
+#   "Unknown source type '...'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup."
+#   No further PO routing required for BC-2.19.001 http_lookup scope.
+# E-INFUSE-004 error.rs sync obligation (architect ruling S-1.14-REDO Q3, 2026-06-18):
+#   When PIVOT-002 adds InfusionType::HttpLookup to infusion/mod.rs, the implementer MUST
+#   also update InfusionError::UnknownSourceType Display in error.rs to include http_lookup
+#   in the valid-types string in the SAME COMMIT. Until PIVOT-002 lands, error.rs
+#   intentionally omits http_lookup. See body Behavioral Contracts section + Phase 1 tasks.
+#   BC-2.06.020 scope: not anchored here until PO confirms overlap.
 behavioral_contracts: [BC-2.19.001]
 # BC array propagation note: BC-2.19.001 is cited by AC-001, AC-002, AC-003, AC-004, AC-013
 #   through AC-018 (bidirectional trace satisfied for all ACs in this story).
@@ -191,16 +193,25 @@ projection.
 
 | BC | Title | Key Clauses |
 |----|-------|-------------|
-| BC-2.19.001 v1.6 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` registered in `SessionContext`. Precondition: spec is structurally valid (`InfusionLoader::parse` validates field names and source type). Invariant: credential data does not leak through public API surface. Error cases: E-INFUSE-004 (unknown source type). |
+| BC-2.19.001 v1.9 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | Postcondition: each field in `[[infusion.fields]]` produces exactly one `InfusionUdfDescriptor` registered in `SessionContext`. Precondition: spec is structurally valid (`InfusionLoader::parse` validates field names and source type). Invariant: credential data does not leak through public API surface. Error cases: E-INFUSE-004 valid types: `maxmind_mmdb, csv, json_lookup, plugin, http_lookup` (v1.9 — `http_lookup` added at v1.8). |
 
-**PO routing required — BC-2.19.001 amendment needed (ADR-040 v2.0 §D8.3):**
-BC-2.19.001 v1.6 E-INFUSE-004 error-case table lists valid source types as
-`"maxmind_mmdb, csv, json_lookup, plugin"` — it does NOT yet include `"http_lookup"`.
-The error-taxonomy v1.88 updated E-INFUSE-004 (see taxonomy entry) to include
-`http_lookup`, but the BC body has not been amended. The product-owner MUST amend
-BC-2.19.001 E-INFUSE-004 valid-types list to add `http_lookup` before or during
-PIVOT-002 implementation. No new dedicated BC is required — BC-2.19.001 governs
-all `InfusionType` variants by scope. Routed to: `vsdd-factory:product-owner`.
+**BC-2.19.001 v1.9 (current) — E-INFUSE-004 valid-types list status:**
+BC-2.19.001 was amended at v1.8 (burst PIVOT-002-bc-amendment-http-lookup, 2026-06-17) to add
+`http_lookup` to the E-INFUSE-004 valid-types list. The current v1.9 BC body already reads:
+`E-INFUSE-004: "Unknown source type 'unknown'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup."`
+The PO amendment is COMPLETE — no further PO routing is required for E-INFUSE-004.
+
+**E-INFUSE-004 message sync obligation (architect ruling S-1.14-REDO Q3, 2026-06-18):**
+When PIVOT-002 adds `InfusionType::HttpLookup` and the `"http_lookup"` arm in
+`InfusionLoader::parse`, the `prism_core::error::InfusionError::UnknownSourceType` (or equivalent)
+Display implementation in `error.rs` MUST also update its valid-types string to include
+`, http_lookup` — matching the BC-2.19.001 v1.9 E-INFUSE-004 error message.
+Until PIVOT-002 lands, `error.rs` intentionally omits `http_lookup` from the valid-types list
+(the type does not yet exist). The implementer MUST update the error message in the same commit
+that adds `InfusionType::HttpLookup` to `infusion/mod.rs`.
+If editing the frontmatter `behavioral_contracts:` array risks merge conflicts with concurrent
+BC amendments, this obligation is recorded here in the body only — the frontmatter array
+update may be deferred to state-manager's post-merge burst.
 
 ---
 
@@ -977,6 +988,12 @@ PIVOT-002 code merges.
 - [ ] Add `InfusionType::HttpLookup` variant to `infusion/mod.rs` with doc comment:
   "HTTP lookup (single GET → JSONPath extraction). PROHIBITED in detection rule filters
   (E-RULE-012) — API-backed."
+- [ ] **E-INFUSE-004 message sync (architect ruling S-1.14-REDO Q3):** In the same commit,
+  update `prism_core::error::InfusionError::UnknownSourceType` (or the equivalent `Display`
+  implementation in `error.rs`) to include `, http_lookup` in the valid-types string so the
+  error message matches BC-2.19.001 v1.9 E-INFUSE-004: `"Unknown source type '...'. Valid types:
+  maxmind_mmdb, csv, json_lookup, plugin, http_lookup."`. Until this commit lands,
+  `error.rs` intentionally omits `http_lookup`.
 - [ ] Add `HttpLookupAuthType` (`#[non_exhaustive]`), `HttpLookupCredentialConfig` (`#[non_exhaustive]`),
   `HttpLookupConfig` (`#[non_exhaustive]`) to `infusion/mod.rs`
 - [ ] Add `http_lookup_config: Option<HttpLookupConfig>` field to `InfusionSpec`
@@ -1357,6 +1374,7 @@ Column in TOML with no DTU equivalent = **P1 CRITICAL** finding. `threat_source`
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.4 | 2026-06-18 | **BC-2.19.001 v1.9 propagation + E-INFUSE-004 sync obligation (architect ruling S-1.14-REDO Q3).** (1) Frontmatter BC comment updated: PO amendment complete (v1.8 added `http_lookup` to E-INFUSE-004); `# BC status: pending PO authorship` marker replaced with resolved status note. (2) BC table row: BC-2.19.001 v1.6 → v1.9; E-INFUSE-004 valid types now include `http_lookup`. (3) Behavioral Contracts section: PO routing note replaced with E-INFUSE-004 sync obligation — when PIVOT-002 adds `InfusionType::HttpLookup`, implementer MUST update `InfusionError::UnknownSourceType` Display in `error.rs` to include `, http_lookup` in the same commit; until then, error.rs intentionally omits it. (4) Phase 1 tasks: bullet added to add `http_lookup` to the valid-types string in `error.rs` in the same commit as `InfusionType::HttpLookup`. Story version bumped v1.3→v1.4. |
 | v1.3 | 2026-06-17 | ADR-040 v2.0 dual-path pivot re-scope (story-writer). Title updated. **NVD → HttpLookup (AC-002 rewrite):** AC-002 now specifies `type = "http_lookup"` (NOT `"plugin"`), full ADR-040 D8.1 TOML schema (url_template, response_path, source_column fields, PRISM_DTU_MODE bypass note), `HttpLookupSource` as the source (not `PluginInfusionSource`). Red Gate test 2 renamed to `..._nvd_toml_loads_as_http_lookup_...`. **New HttpLookup infrastructure ACs (AC-013 through AC-017):** InfusionType::HttpLookup variant + four new #[non_exhaustive] types (AC-013); PluginError::EnrichCallFailed + InfusionError::PluginCallFailed variants (AC-014); InfusionError::HttpLookupFailed/CredentialResolutionFailed/SsrfRejected (AC-015); HttpLookupSource implementation reusing Interpolator/extract_at_path/build_http_client_with_timeout from pipeline.rs (AC-016); SSRF validation at construction time with PRISM_DTU_MODE bypass (AC-017). **NVD plugin crate removal (AC-018):** explicit AC to assert `prism-nvd-infusion/` does not exist. **AC-003 updated (ThreatIntel WASM):** now includes Val::String params + Val::Option result lift contract (ADR-040 D2) + wit_bindgen::generate! requirement (D3). **AC-004 rewritten (NVD now HttpLookup):** drives HttpLookupSource.enrich_single via mock HTTP/DTU, not a WASM plugin. **F-001 CRIT Val-lift fix (AC-019):** new AC requiring PluginRuntime::enrich_single test to drive PRODUCTION path (F-003 rigor), covering Option::Some/None/unexpected-Val sub-cases. **AC-020 (spawn_blocking F-004 rigor):** supersedes v1.2 AC-010 with explicit requirement that test drives real InfusionAsyncUdf::invoke_with_args (not a reimplementation). **AC-021 (SAP-1 BC-2.16.002):** explicit AC for all 4 new event_types (plugin_enrich_json_parse_error, plugin_enrich_unexpected_val, http_lookup_enrich_failed, http_lookup_ssrf_rejected) to have BC-2.16.002 catalog rows in same commit. **F-005 file-location fix:** AC-002 now says `{config_dir}/infusions/nvd.infusion.toml` (NOT `specs/infusions/`); Architecture Mapping updated from stale `specs/infusions/` to `{config_dir}/infusions/`. **PO routing flag:** BC-2.19.001 E-INFUSE-004 valid-types list needs `http_lookup` addition — surfaced in Behavioral Contracts section. **Points:** 8 → 13 (scope expanded: HttpLookup built-in + Val-lift CRIT fix + 4 new error variants + SSRF validation; NVD WASM plugin removed). **Red Gate tests:** 15 → 32. **Tasks restructured:** 10 phases (Phase 0 error foundation first, then HttpLookup infrastructure, NVD crate removal, ThreatIntel TOML, Val-lift CRIT fix, ThreatIntel WASM plugin, pipe stage tests, BC-2.16.002 catalog rows, final gates). **Token budget:** ~20,350 → ~35,800 tokens (~17.9% of 200k, within ceiling). **ADR-040 v2.0 23-step implementation order** added to Previous Story Intelligence. **Frontmatter:** crates_touched adds prism-core (new error variants); comment updated for single new WASM plugin crate + NVD retirement note. |
 | v1.2 | 2026-06-17 | D-1205 MANDATORY security gate fold-in (story-writer pre-TDD pass). Added AC-007 through AC-012 covering all 6 DRIFT items: DRIFT-PIVOT-UDFNAME-VALIDATION-001 (UDF name identifier validation, AC-007), DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 (PluginInfusionSource.config encapsulation, AC-008), DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (SandboxViolation URL redaction, AC-009), DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001 sync-WASM spawn_blocking gate (AC-010), DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 (path traversal rejection, AC-011), DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (path stripping in MCP errors, AC-012). Red Gate tests expanded from 6 to 15 (9 new security gate tests added). Tasks section expanded with MANDATORY SECURITY GATES section (6 security gate tasks, each with FAIL-first Red Gate test discipline). Architecture Compliance Rules updated with 6 security gate enforcement rows. Edge Cases EC-007 through EC-010 added. Token budget updated (~20,350 tokens, ~10.2% of 200k). Points remain 8 (security gates are implementation of existing code, not new functional scope). remove-uncertainty validate: wasmtime=44 (confirmed in prism-spec-engine/Cargo.toml), wasm-tools=1.248.0, wit-bindgen=0.51 — all confirmed correct in workspace. No new technology uncertainties found. |
 | v1.1 | 2026-06-12 | D-1109 remove-uncertainty closure: U1/U9/U10/U11/U12/U13/U14/U15/U16/U17/U18 applied (scanner + research-agent + architect rulings 1-4, WO-D1109 v1.1). enrich syntax → function-call form. reqwest/tokio removed from WASM guest crates (host WIT import host.http-request). ThreatIntel endpoints corrected: three separate routes GET /v3/{ip,domain,hash}/:value (NOT unified). threat_sources declared as Json array (NOT string). NVD route corrected: GET /rest/json/cves/2.0?cveId= (confirmed cves.rs). NVD wire names corrected to camelCase. cargo-component removed; Justfile wasm-tools pipeline (Ruling 4). ThreatIntel auth corrected to ?key=/Bearer (NOT X-Admin-Token). NVD auth: ?apiKey=. Spec location: config_dir/infusions/ (loader.rs:45). Plugin crates relocated to crates/plugins/ out-of-workspace (Ruling 3). Ruling 1b: NVD enrich field device_cves_first; Armis TOML column scope in this story, generator projection in STORY-003. |

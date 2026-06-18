@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: active
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-19"
 capability: "CAP-031"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-06-17
+modified: 2026-06-18
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -71,6 +71,26 @@ This is INV-INFUSE-001.
     or failed silently — is a loading defect equivalent to `E-INFUSE-003`: `NullSource` returns
     `None` for all enrichment lookups, making enrichment silently inoperative.
 - `prism-query` (S-3.02) consumes `udf_descriptors()` and registers each as a DataFusion `ScalarUDF`
+- **`enrich_descriptor()` API (AC-3):** `InfusionRegistry::enrich_descriptor(name: &str)` returns an
+  `EnrichStageDescriptor` (defined in `prism-spec-engine::infusion::enrich_descriptor`) for any loaded
+  infusion. The descriptor carries:
+  - `infusion_name` — the infusion name exactly as declared in the spec
+  - `input_field` — the `input_field` from the spec's first `[[infusion.fields]]` entry (the join key)
+  - `output_columns` — the `name` of every `[[infusion.fields]]` entry in declaration order
+  - `infusion_id` — the `infusion_id` from the spec root
+  This descriptor is consumed by `prism-query` (S-3.02) to execute the `| enrich` pipe stage
+  transformation. Unknown name returns `E-INFUSE-001`.
+- **Scope boundary — pipe-mode `| enrich` runtime execution (S-3.01 anchor, NOT this BC):**
+  This BC's contract surface is fully satisfied when:
+  (a) each `[[infusion.fields]]` entry registers exactly one DataFusion scalar UDF (SQL-mode
+      `SELECT udf(field)` path, wired by `prism-query` S-3.02), AND
+  (b) `InfusionRegistry::enrich_descriptor(name)` returns a well-formed `EnrichStageDescriptor`.
+  The pipe-stage `| enrich` RUNTIME dispatch — i.e., resolving `Ast::Pipe { stage: Enrich, ... }`
+  through materialization into actual RecordBatch column hydration — is universally unimplemented
+  for ALL pipe stages and is owned by **S-3.01** (the PrismQL pipe-execution story). This is not
+  a S-1.14-REDO gap; it is a system-wide materialization gap. Fresh-context adversaries MUST NOT
+  flag the `| enrich` pipe-mode no-op as a S-1.14-REDO or BC-2.19.001 defect. Architect ruling:
+  S-1.14-REDO Q1 (2026-06-18). The `enrich_descriptor()` API is the correct handoff boundary.
 - **Duplicate UDF name detection:** If two specs declare the same `[[infusion.fields]]` name
   (e.g., both declare `name = "geoip_country"`), the second spec is rejected with:
   `E-INFUSE-002: "Duplicate UDF name 'geoip_country' in '{path2}' — already registered from '{path1}'."`
@@ -89,6 +109,7 @@ This is INV-INFUSE-001.
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
+| `E-INFUSE-001` | `enrich_descriptor(name)` called with unknown infusion name | Returns `InfusionError::UnknownInfusion { name }` |
 | `E-INFUSE-002` | Duplicate UDF name across specs | Second spec rejected; first retained; `ERROR` log |
 | `E-INFUSE-003` | Missing required field in spec (`infusion_id`, `[[infusion.fields]]`) | Spec rejected with per-field error list; other specs continue |
 | `E-INFUSE-004` | Source type not recognized (`type = "unknown"`) | Spec rejected; `E-INFUSE-004: "Unknown source type 'unknown'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup."` |
@@ -110,6 +131,8 @@ This is INV-INFUSE-001.
 | TV-19-001-10fields | Spec with 10 valid fields | 10 descriptors exported exactly | EC-19-002 |
 | TV-19-001-dup | Two specs both declare `geoip_country` | Second spec rejected with `E-INFUSE-002`; first retained | Error row 1 |
 | TV-19-001-empty | Spec with 0 `[[infusion.fields]]` | Rejected: zero fields | EC-19-001 |
+| TV-19-001-enrich-desc | `geoip.infusion.toml` with 4 fields loaded; call `enrich_descriptor("geoip")` | Returns `EnrichStageDescriptor { infusion_name: "geoip", input_field: "device_ip", output_columns: ["geoip_country","geoip_city","geoip_asn","geoip_is_tor"], infusion_id: "geoip" }` | AC-3 |
+| TV-19-001-enrich-desc-unknown | Call `enrich_descriptor("nonexistent_infusion")` on empty registry | Returns `Err(InfusionError::UnknownInfusion { name: "nonexistent_infusion" })` | E-INFUSE-001 |
 
 ## Verification Properties
 
@@ -152,6 +175,7 @@ Integration test: `tests/infusion_tests.rs` — "Load `geoip.infusion.toml` → 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | S-1.14-REDO-Q1-scope-clarification | 2026-06-18 | product-owner | **Scope clarification per architect ruling S-1.14-REDO Q1 (2026-06-18).** (1) Added `enrich_descriptor()` API postcondition (AC-3): `InfusionRegistry::enrich_descriptor(name)` returns `EnrichStageDescriptor` carrying `infusion_name`, `input_field`, `output_columns`, and `infusion_id`; unknown name returns `E-INFUSE-001`. (2) Added explicit "Scope boundary — pipe-mode `| enrich` runtime execution" postcondition clarifying that this BC's contract is satisfied by UDF descriptor registration (SQL-mode) + `enrich_descriptor()` returning a well-formed `EnrichStageDescriptor`; `| enrich` pipe RUNTIME dispatch (Ast::Pipe arm, RecordBatch hydration) is universally unimplemented for ALL pipe stages and is owned by **S-3.01** — not a S-1.14-REDO gap; fresh-context adversaries must not flag this as BC-2.19.001 defect. (3) Added `E-INFUSE-001` to Error Conditions table (was tested but absent). (4) Added AC-3 canonical test vectors `TV-19-001-enrich-desc` and `TV-19-001-enrich-desc-unknown`. |
 | 1.8 | PIVOT-002-bc-amendment-http-lookup | 2026-06-17 | product-owner | **Added `http_lookup` as valid `InfusionType` source per ADR-040 v2.0 §D8.3 and error-taxonomy.md v1.88.** (1) E-INFUSE-004 valid-types list: `maxmind_mmdb, csv, json_lookup, plugin` → `maxmind_mmdb, csv, json_lookup, plugin, http_lookup`. (2) Two-phase source wiring postcondition expanded: heading renamed from "Plugin-type source wiring" to "API-backed source wiring" to cover both `Plugin` and `HttpLookup` types; RUNTIME PHASE now explicitly branches on `InfusionType` — `Plugin` path unchanged, `HttpLookup` path (ADR-040 §D8.6) documents `HttpLookupSource` construction with SSRF validation and `E-INFUSE-011` rejection. `NullSource` defect note extended to cover both `Plugin` and `HttpLookup`. Scope confirmed: `HttpLookup` flows through the same `InfusionLoader::parse` (PARSE PHASE) + `InfusionRegistry::load_spec_with_runtime` (RUNTIME PHASE) two-phase path already specified by this BC — no sibling BC needed. |
 | 1.7 | PIVOT-001-LOW-2-regression-fix | 2026-06-15 | product-owner | Regression fix (PIVOT-001 LOW-2): v1.6 reword incorrectly re-introduced `load_all` as constructor of `PluginInfusionSource`. Corrected to accurate two-phase model: PARSE PHASE (`load_all`) returns `(Vec<InfusionSpec>, Vec<InfusionError>)` and does NOT construct `PluginInfusionSource`; RUNTIME PHASE (`load_spec_with_runtime`) builds `PluginInfusionSource` (carrying `plugin_id`/`config` from the spec) and attaches it as `descriptor.source`. Reverses the v1.6 regression; restores and extends the v1.5 accuracy. |
 | 1.6 | OBS-plugin-id-type-correction | 2026-06-15 | product-owner | Prose precision fix (OBS finding): `plugin_id`/`config` are NOT fields on `InfusionUdfDescriptor` — they live on `PluginInfusionSource`, reachable via `descriptor.source`. Reworded plugin-type source wiring postcondition to name `PluginInfusionSource` as the carrier struct and `descriptor.source` as the access path. Contract semantics unchanged; implementation was already correct. |
