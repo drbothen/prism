@@ -204,8 +204,6 @@ pub struct SensorHealthStructuredContent {
     pub trust_level: String,
     /// Prose summary text (e.g., "2 of 3 sensors healthy for client 'acme'").
     pub summary: String,
-    /// Clients that failed health check (cross-client mode only).
-    pub partial_failures: Vec<String>,
 }
 
 impl SensorHealthStructuredContent {
@@ -223,14 +221,7 @@ impl SensorHealthStructuredContent {
             resource_pressure,
             trust_level: "internal".to_string(),
             summary: summary.into(),
-            partial_failures: vec![],
         }
-    }
-
-    /// Builder: set partial_failures list (cross-client mode only).
-    pub fn with_partial_failures(mut self, partial_failures: Vec<String>) -> Self {
-        self.partial_failures = partial_failures;
-        self
     }
 }
 
