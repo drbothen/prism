@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DecoratorContext {
     // ── Phase 1: config-time (static metadata) ───────────────────────────────
-    /// Human-readable client name from the TOML `[clients.{id}]` section.
+    /// Human-readable client name from `[[orgs]].name` in prism.toml (`OrgEntry.name`).
     /// NOT the OrgSlug — the display name (e.g., "Acme Corp").
     pub client_name: Option<String>,
 

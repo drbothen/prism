@@ -34,6 +34,11 @@ use crate::context::PrismContext;
 pub struct ClientInventoryEntry {
     /// The client identifier (OrgSlug).
     pub client_id: String,
+    /// Human-readable display name for the client (BC-2.10.008 v1.11).
+    ///
+    /// Sourced from `[[orgs]].name` in `prism.toml` (`OrgEntry.name`).
+    /// Serializes as JSON `null` when the org has no configured display name.
+    pub display_name: Option<String>,
     /// Number of sensors configured for this client.
     pub sensor_count: usize,
     /// Sensor IDs enabled for this client.
@@ -479,6 +484,14 @@ pub async fn render_client_list_resource(
             // ── Per-org path (IMP-8 / BC-2.10.008 v1.9) ──────────────────────────
             // Enumerate all registered org slugs. For each org, collect the sensor IDs
             // that have an overlay entry in resolved_spec_map.
+            //
+            // BC-2.10.008 v1.11: source display_name from org_display_names in the snapshot.
+            // Populated at boot step 4b.5 from [[orgs]].name in prism.toml (OrgEntry.name).
+            // No new Arc plumbing — read from config_manager snapshot directly.
+            let cm_guard = config_manager.load();
+            let snapshot = cm_guard.load();
+            let org_display_names = &snapshot.org_display_names;
+
             let mut result: Vec<ClientInventoryEntry> = org_reg
                 .list_slugs()
                 .into_iter()
@@ -492,8 +505,15 @@ pub async fn render_client_list_resource(
                         .map(|(_org, sensor_id)| sensor_id.as_ref().to_string())
                         .collect();
                     let sensor_count = sensors_for_org.len();
+                    // BC-2.10.008 v1.11: look up display_name from org_display_names.
+                    // None when the org has no name configured in prism.toml.
+                    let display_name = org_display_names
+                        .get(slug_str.as_str())
+                        .cloned()
+                        .unwrap_or(None);
                     ClientInventoryEntry {
                         client_id: slug_str,
+                        display_name,
                         sensor_count,
                         enabled_sensors: sensors_for_org,
                     }
@@ -534,6 +554,9 @@ pub async fn render_client_list_resource(
                         .unwrap_or_default();
                     ClientInventoryEntry {
                         client_id: sensor_id.clone(),
+                        // Fallback path: no org_display_names available (test/MVP mode).
+                        // display_name is always null in this path — no prism.toml org context.
+                        display_name: None,
                         sensor_count: 1,
                         enabled_sensors: sensor_tables,
                     }

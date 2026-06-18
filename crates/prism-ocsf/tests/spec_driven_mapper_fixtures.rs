@@ -100,6 +100,7 @@ fn config_manager_with_ocsf_columns(
         sensor_specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "test-hash".to_string(),
+        org_display_names: HashMap::new(),
     };
 
     Arc::new(ConfigManager::new(snapshot))

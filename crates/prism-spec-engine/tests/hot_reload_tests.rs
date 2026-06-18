@@ -139,6 +139,7 @@ fn snapshot_with_one_spec(sensor_id: &str) -> ConfigSnapshot {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "snapshot_hash_v1".to_string(),
+        org_display_names: HashMap::new(),
     }
 }
 
@@ -459,6 +460,7 @@ fn test_BC_2_16_007_modified_spec_schema_change_reregisters_tables() {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "old_snapshot_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
     let manager = Arc::new(ConfigManager::new(old_snapshot));
 
@@ -786,6 +788,7 @@ fn test_BC_2_16_010_sensor_id_filter_returns_only_matching() {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "multi_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
     let manager = ConfigManager::new(snapshot);
 
@@ -850,6 +853,7 @@ fn test_BC_2_16_010_failed_spec_shows_failed_validation_status() {
         sensor_specs: HashMap::new(),
         failed_specs: failed,
         snapshot_hash: "partial_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
     let manager = ConfigManager::new(snapshot);
 
@@ -1000,6 +1004,7 @@ fn test_VP_032_unit_direct_failed_validation_invariant() {
         sensor_specs: HashMap::new(),
         failed_specs: HashMap::new(),
         snapshot_hash: "bad_candidate_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
 
     let validation_result = validate_snapshot(&bad_candidate);

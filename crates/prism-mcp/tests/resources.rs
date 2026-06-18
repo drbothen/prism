@@ -2127,6 +2127,168 @@ fn test_BC_2_08_005_resource_pressure_null_encoding_in_s503_scope() {
     );
 }
 
+// ─── BC-2.10.008 v1.11: display_name present/null on config/clients ──────────
+
+/// BC-2.10.008 v1.11 LOAD-BEARING — display_name is present when OrgEntry.name is set:
+/// An org configured with `name = "Acme Corp"` in prism.toml MUST produce a
+/// `ClientInventoryEntry` with `display_name: "Acme Corp"` in the JSON response.
+///
+/// This test FAILS if:
+/// - The per-org path does not read `org_display_names` from the snapshot.
+/// - The `org_display_names` key lookup is wrong.
+/// - The `display_name` field is missing from `ClientInventoryEntry`.
+///
+/// BC-2.10.008 v1.11 postcondition: "display_name is sourced from [[orgs]].name in
+/// prism.toml (OrgEntry.name), serialized as JSON null when absent."
+#[tokio::test]
+async fn test_BC_2_10_008_v1_11_display_name_present_when_org_name_configured() {
+    use prism_spec_engine::{types::ConfigSnapshot, ConfigManager};
+    use std::collections::HashMap;
+
+    // Build a ConfigSnapshot with org_display_names: acme => Some("Acme Corp").
+    let mut org_display_names: HashMap<String, Option<String>> = HashMap::new();
+    org_display_names.insert("acme".to_string(), Some("Acme Corp".to_string()));
+    org_display_names.insert("globex".to_string(), None);
+
+    let snapshot = ConfigSnapshot {
+        org_display_names,
+        ..ConfigSnapshot::empty()
+    };
+    let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::new(
+        snapshot,
+    )));
+    let query_engine = make_query_engine_with_sensors(&[]);
+
+    let spec_map = make_two_org_resolved_spec_map();
+    let org_registry = make_two_org_registry();
+
+    let result = render_client_list_resource(
+        &config_manager,
+        &query_engine,
+        Some(&org_registry),
+        Some(&spec_map),
+    )
+    .await
+    .expect("BC-2.10.008 v1.11: render_client_list_resource must return Ok with org_display_names");
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("BC-2.10.008 v1.11: response must be valid JSON");
+    let entries = parsed
+        .as_array()
+        .expect("BC-2.10.008 v1.11: response must be a JSON array");
+
+    // Find the "acme" entry.
+    let acme_entry = entries
+        .iter()
+        .find(|e| e.get("client_id").and_then(|v| v.as_str()) == Some("acme"))
+        .expect(
+            "BC-2.10.008 v1.11: 'acme' must appear in client list. \
+             Full response: {content_text:?}",
+        );
+
+    // LOAD-BEARING: display_name for "acme" must be "Acme Corp" (not null, not missing).
+    let display_name = acme_entry.get("display_name").expect(
+        "BC-2.10.008 v1.11: 'display_name' field MUST be present in ClientInventoryEntry JSON. \
+         If this field is missing, the struct is not being serialized or the field was removed.",
+    );
+    assert_eq!(
+        display_name.as_str(),
+        Some("Acme Corp"),
+        "BC-2.10.008 v1.11: acme display_name MUST be 'Acme Corp' when OrgEntry.name = 'Acme Corp'. \
+         Got: {display_name:?}. Full response: {content_text:?}"
+    );
+}
+
+/// BC-2.10.008 v1.11 LOAD-BEARING — display_name is null when OrgEntry.name is absent:
+/// An org configured WITHOUT `name =` in prism.toml MUST produce a `ClientInventoryEntry`
+/// with `display_name: null` in the JSON response.
+///
+/// This test FAILS if:
+/// - `display_name` serializes as a non-null value for an org without a name.
+/// - The `display_name` field is omitted entirely (must be present as JSON null).
+///
+/// BC-2.10.008 v1.11 postcondition: "JSON null when name is absent."
+#[tokio::test]
+async fn test_BC_2_10_008_v1_11_display_name_null_when_org_name_absent() {
+    use prism_spec_engine::{types::ConfigSnapshot, ConfigManager};
+    use std::collections::HashMap;
+
+    // Build a ConfigSnapshot with org_display_names: globex => None (name not set).
+    let mut org_display_names: HashMap<String, Option<String>> = HashMap::new();
+    org_display_names.insert("acme".to_string(), Some("Acme Corp".to_string()));
+    org_display_names.insert("globex".to_string(), None);
+
+    let snapshot = ConfigSnapshot {
+        org_display_names,
+        ..ConfigSnapshot::empty()
+    };
+    let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::new(
+        snapshot,
+    )));
+    let query_engine = make_query_engine_with_sensors(&[]);
+
+    let spec_map = make_two_org_resolved_spec_map();
+    let org_registry = make_two_org_registry();
+
+    let result = render_client_list_resource(
+        &config_manager,
+        &query_engine,
+        Some(&org_registry),
+        Some(&spec_map),
+    )
+    .await
+    .expect("BC-2.10.008 v1.11: render_client_list_resource must return Ok for org with null name");
+
+    let content_text = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value = serde_json::from_str(&content_text)
+        .expect("BC-2.10.008 v1.11: response must be valid JSON");
+    let entries = parsed
+        .as_array()
+        .expect("BC-2.10.008 v1.11: response must be a JSON array");
+
+    // Find the "globex" entry.
+    let globex_entry = entries
+        .iter()
+        .find(|e| e.get("client_id").and_then(|v| v.as_str()) == Some("globex"))
+        .expect("BC-2.10.008 v1.11: 'globex' must appear in client list");
+
+    // LOAD-BEARING: display_name for "globex" must be JSON null (not a string, not missing).
+    let display_name = globex_entry.get("display_name").expect(
+        "BC-2.10.008 v1.11: 'display_name' field MUST be present in ClientInventoryEntry JSON \
+         even when null. Field must not be omitted (use #[serde(skip_serializing_if)] would break this).",
+    );
+    assert!(
+        display_name.is_null(),
+        "BC-2.10.008 v1.11: globex display_name MUST be JSON null when OrgEntry.name is None. \
+         Got: {display_name:?}. Full response: {content_text:?}"
+    );
+}
+
 // ─── LOW-3 load-bearing: co-wiring invariant for unknown-client guard ─────────
 
 /// LOW-3 (co-wiring invariant): in multi-tenant mode, `org_registry` and
