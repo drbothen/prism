@@ -1362,6 +1362,62 @@ fn test_p1_03_reload_config_validation_failed_does_not_fire_swap_listener() {
     );
 }
 
+/// Regression: reload_config must carry forward org_display_names from the prior snapshot.
+///
+/// org_display_names is populated once at boot from prism.toml [[orgs]]. parse_spec_directory
+/// (called by reload_config) only scans *.sensor.toml files and always returns an empty
+/// org_display_names. Without carry-forward, every reload wipes org_display_names and
+/// render_client_list_resource returns null display_name for all orgs after first reload.
+///
+/// Mirrors the add_sensor_spec clone-and-preserve pattern (TD-VSDD-060 sibling-sweep).
+///
+/// RED before fix: post-reload snapshot has empty org_display_names.
+/// GREEN after fix: org_display_names is carried forward intact.
+#[test]
+fn test_reload_config_preserves_org_display_names() {
+    let dir = TempDir::new().unwrap();
+
+    // Write a sensor file so the reload sees a change (non-empty spec directory).
+    write_sensor_file(&dir, "acme_sensor");
+
+    // Build a ConfigSnapshot pre-populated with org_display_names.
+    let mut initial_snapshot = ConfigSnapshot::empty();
+    initial_snapshot.org_display_names = {
+        let mut m = HashMap::new();
+        m.insert("acme".to_string(), Some("Acme Corp".to_string()));
+        m.insert("globex".to_string(), None);
+        m
+    };
+    // Give the initial snapshot a non-matching hash so the reload path does not
+    // short-circuit via the Unchanged path (requires the new hash to differ from
+    // the initial hash, which is the empty-snapshot hash vs. the spec-dir hash).
+    let manager = ConfigManager::new(initial_snapshot);
+
+    let result = reload_config(&manager, dir.path(), ReloadConfigArgs { dry_run: false })
+        .expect("reload_config must succeed");
+
+    assert!(
+        result.status == ReloadStatus::Ok || result.status == ReloadStatus::PartialReload,
+        "pre-condition: reload must have applied; got {:?}",
+        result.status
+    );
+
+    // Post-reload snapshot must still carry the org_display_names set at boot.
+    let post_reload = manager.load();
+    let display_name = post_reload.org_display_names.get("acme").cloned().flatten();
+    assert_eq!(
+        display_name,
+        Some("Acme Corp".to_string()),
+        "reload_config must carry forward org_display_names from the prior snapshot; \
+         display_name for 'acme' was wiped to None after reload (regression)"
+    );
+    // Verify globex (None entry) also carries forward.
+    assert!(
+        post_reload.org_display_names.contains_key("globex"),
+        "reload_config must carry forward ALL org_display_names entries, including None-valued ones"
+    );
+}
+
 /// P1-03: `add_sensor_spec` (non-dry-run, applied) swaps the snapshot via
 /// `ConfigManager::store` and therefore must fire the swap listener.
 #[test]

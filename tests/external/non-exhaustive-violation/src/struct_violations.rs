@@ -1151,7 +1151,7 @@ pub fn v76_sensor_health_structured_content() {
     // Triggers E0639 (#[non_exhaustive]).
     let _content = SensorHealthStructuredContent {
         sensors: vec![],
-        resource_pressure: ResourcePressure::new(0, 0),
+        resource_pressure: ResourcePressure::new(None, None),
         trust_level: "internal".to_string(),
         summary: "0 sensors".to_string(),
         partial_failures: vec![],

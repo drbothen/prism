@@ -117,6 +117,20 @@ pub fn reload_config(
         });
     }
 
+    // Carry forward org_display_names from the old snapshot before applying.
+    //
+    // org_display_names is populated once at boot (step 4b.5 in boot.rs) from
+    // prism.toml [[orgs]] entries. parse_spec_directory only scans *.sensor.toml
+    // files and cannot reconstruct org_display_names (it has no access to prism.toml).
+    // Without this carry-forward, every reload replaces org_display_names with an
+    // empty HashMap, making render_client_list_resource return null display_name
+    // for all orgs after the first reload.
+    //
+    // Mirrors the add_sensor_spec carry-forward pattern in add_sensor_spec.rs
+    // (TD-VSDD-060 sibling-sweep: add_sensor_spec already clones the prior snapshot,
+    // preserving org_display_names; reload_config was the only path that dropped it).
+    candidate.org_display_names = old_snapshot.org_display_names.clone();
+
     // Apply the new snapshot (partial or full success)
     manager.store(candidate);
 
