@@ -3280,7 +3280,14 @@ impl PrismServer {
         };
 
         // Dispatch notifications if the table set changed (non-fatal if peer is gone).
-        let _ = resources::dispatch_hot_reload_notifications(old_tables, new_tables, &peer).await;
+        if let Err(e) =
+            resources::dispatch_hot_reload_notifications(old_tables, new_tables, &peer).await
+        {
+            tracing::warn!(
+                error = %e,
+                "hot-reload list_changed notification dispatch failed (non-fatal; peer may have disconnected)"
+            );
+        }
 
         Ok(result)
     }
