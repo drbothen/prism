@@ -36,8 +36,9 @@ pub fn load_source(
     #[allow(unreachable_patterns)]
     match config.source_type {
         BuiltInSourceType::MaxmindMmdb => {
-            let field_names: Vec<String> = vec![]; // field_names unused by mmdb lookup (reads all)
-            let source = MmdbSource::load(Path::new(&config.file_path), field_names)?;
+            // MmdbSource::load takes only the path — column projection is handled
+            // at the UDF layer via InfusionUdfDescriptor::source_column.
+            let source = MmdbSource::load(Path::new(&config.file_path))?;
             Ok(Arc::new(source))
         }
         BuiltInSourceType::Csv => {

@@ -21,8 +21,11 @@ impl std::fmt::Debug for ReaderWrapper {
 
 /// MaxMind MMDB-backed infusion source.
 ///
-/// Holds the `maxminddb::Reader<Vec<u8>>` (in-memory, loaded at construction time)
-/// and the declared `field_names` from the `[[infusion.fields]]` spec entries.
+/// Holds the `maxminddb::Reader<Vec<u8>>` (in-memory, loaded at construction time).
+/// Column projection (field selection) happens at the UDF layer via
+/// `InfusionUdfDescriptor::source_column` — not at this source level.
+/// The MMDB lookup returns the full GeoIP record as JSON; the descriptor's
+/// `source_column` selects which field to surface in the query result.
 ///
 /// `#[non_exhaustive]`: forward-compat for infusion engine evolution — fields may expand
 /// (e.g., reload policy, cache warm-up flag, MMDB metadata) without a breaking semver change.
@@ -32,8 +35,6 @@ impl std::fmt::Debug for ReaderWrapper {
 pub struct MmdbSource {
     /// Path of the loaded `.mmdb` file (for diagnostics).
     pub mmdb_path: String,
-    /// Declared output field names from the infusion spec.
-    pub field_names: Vec<String>,
     /// The MMDB reader.
     reader: ReaderWrapper,
 }
@@ -44,10 +45,10 @@ impl MmdbSource {
     /// Uses `maxminddb::Reader::open_readfile(path)` (0.28 API).
     /// Maps MMDB open errors to `InfusionError::MissingRequiredField` with a
     /// `"mmdb_open_failed: {e}"` field descriptor.
-    pub fn load(
-        mmdb_path: &Path,
-        field_names: Vec<String>,
-    ) -> Result<Self, prism_core::InfusionError> {
+    ///
+    /// Column projection is handled at the UDF layer via `InfusionUdfDescriptor::source_column`;
+    /// `MmdbSource` itself returns the full GeoIP record as JSON from every lookup.
+    pub fn load(mmdb_path: &Path) -> Result<Self, prism_core::InfusionError> {
         let reader = maxminddb::Reader::open_readfile(mmdb_path).map_err(|e| {
             prism_core::InfusionError::MissingRequiredField {
                 field: format!("mmdb_open_failed: {}", e),
@@ -57,7 +58,6 @@ impl MmdbSource {
 
         Ok(MmdbSource {
             mmdb_path: mmdb_path.to_string_lossy().to_string(),
-            field_names,
             reader: ReaderWrapper(reader),
         })
     }

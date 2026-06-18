@@ -1344,24 +1344,24 @@ mod alias_wiring_tests {
         }
 
         let descriptors = vec![
-            InfusionUdfDescriptor {
-                name: "threat_score".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                infusion_id: "threatintel_v1".to_string(),
-                source: Arc::new(NullSrc),
-                source_column: None,
-                cache_ttl_secs: 3600,
-            },
-            InfusionUdfDescriptor {
-                name: "threat_score".to_string(), // duplicate name
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                infusion_id: "threatintel_v2".to_string(),
-                source: Arc::new(NullSrc),
-                source_column: None,
-                cache_ttl_secs: 3600,
-            },
+            InfusionUdfDescriptor::new(
+                "threat_score",
+                "ip",
+                "string",
+                "threatintel_v1",
+                Arc::new(NullSrc),
+                None,
+                3600,
+            ),
+            InfusionUdfDescriptor::new(
+                "threat_score", // duplicate name
+                "ip",
+                "string",
+                "threatintel_v2",
+                Arc::new(NullSrc),
+                None,
+                3600,
+            ),
         ];
 
         // Simulate the map_err pattern used in execute_inner — FIXED version (propagates

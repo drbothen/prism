@@ -57,9 +57,8 @@ use prism_spec_engine::{
 #[test]
 fn test_BC_2_19_001_mmdb_source_load_nonexistent_file_returns_error() {
     let path = Path::new("/tmp/definitely_does_not_exist_prism_test_abc123.mmdb");
-    let field_names = vec!["geoip_country".to_string()];
 
-    let result = MmdbSource::load(path, field_names);
+    let result = MmdbSource::load(path);
 
     assert!(
         result.is_err(),
@@ -80,7 +79,7 @@ fn test_BC_2_19_001_mmdb_source_load_nonexistent_file_returns_error() {
     }
 }
 
-/// AC-1: MmdbSource::load succeeds with a valid .mmdb file; has correct field_names.
+/// AC-1: MmdbSource::load succeeds with a valid .mmdb file; has correct mmdb_path.
 ///
 /// This test requires the fixture mmdb file. It will FAIL RED with todo!() before
 /// implementation, and will require test.mmdb to be present after implementation.
@@ -90,6 +89,11 @@ fn test_BC_2_19_001_mmdb_source_load_nonexistent_file_returns_error() {
 /// # SID-1 compliance
 /// Unit test at the dependency boundary — exercises the production code path without
 /// external live service. No `#[ignore]` needed for the file-backed source path.
+///
+/// Note: `field_names` was removed from `MmdbSource` in S-1.14-REDO fix-burst (Fix 4 —
+/// inert field removal). Column projection is handled at the UDF layer via
+/// `InfusionUdfDescriptor::source_column`. The `mmdb_path` field is retained for
+/// diagnostics.
 #[test]
 fn test_BC_2_19_001_mmdb_source_load_valid_file_succeeds() {
     // The fixture file geoip.infusion.toml references fixtures/test.mmdb.
@@ -99,15 +103,7 @@ fn test_BC_2_19_001_mmdb_source_load_valid_file_succeeds() {
     let mmdb_path = Path::new(manifest_dir).join("fixtures").join("test.mmdb");
 
     // FAILS RED even before mmdb exists: todo!() in load() panics first.
-    let result = MmdbSource::load(
-        &mmdb_path,
-        vec![
-            "geoip_country".to_string(),
-            "geoip_city".to_string(),
-            "geoip_asn".to_string(),
-            "geoip_is_tor".to_string(),
-        ],
-    );
+    let result = MmdbSource::load(&mmdb_path);
 
     assert!(
         result.is_ok(),
@@ -118,14 +114,9 @@ fn test_BC_2_19_001_mmdb_source_load_valid_file_succeeds() {
     );
 
     let source = result.unwrap();
-    assert_eq!(
-        source.field_names.len(),
-        4,
-        "BC-2.19.001: loaded MmdbSource must retain the 4 declared field names"
-    );
     assert!(
-        source.field_names.contains(&"geoip_country".to_string()),
-        "BC-2.19.001: field_names must include 'geoip_country'"
+        !source.mmdb_path.is_empty(),
+        "BC-2.19.001: loaded MmdbSource must retain the mmdb_path for diagnostics"
     );
 }
 
@@ -141,7 +132,7 @@ fn test_BC_2_19_001_mmdb_source_enrich_single_documentation_ip_returns_none() {
 
     // FAILS RED: todo!() in MmdbSource::load panics before even checking file existence.
     // After implementation: also requires fixtures/test.mmdb to exist.
-    let source = match MmdbSource::load(&mmdb_path, vec!["geoip_country".to_string()]) {
+    let source = match MmdbSource::load(&mmdb_path) {
         Ok(s) => s,
         Err(_) => {
             // load() returned Err (e.g., file not found after implementation) — test fixture needed.
@@ -170,7 +161,7 @@ fn test_BC_2_19_001_mmdb_source_enrich_single_invalid_ip_returns_none() {
     let mmdb_path = Path::new(manifest_dir).join("fixtures").join("test.mmdb");
 
     // FAILS RED: todo!() in MmdbSource::load panics before checking file existence.
-    let source = match MmdbSource::load(&mmdb_path, vec!["geoip_country".to_string()]) {
+    let source = match MmdbSource::load(&mmdb_path) {
         Ok(s) => s,
         Err(_) => return, // file-not-found after todo!() removed — fixture needed
     };
@@ -197,7 +188,7 @@ fn test_BC_2_19_001_mmdb_source_enrich_batch_returns_parallel_results() {
     let mmdb_path = Path::new(manifest_dir).join("fixtures").join("test.mmdb");
 
     // FAILS RED: todo!() in MmdbSource::load panics before checking file existence.
-    let source = match MmdbSource::load(&mmdb_path, vec!["geoip_country".to_string()]) {
+    let source = match MmdbSource::load(&mmdb_path) {
         Ok(s) => s,
         Err(_) => return, // file-not-found after todo!() removed — fixture needed
     };

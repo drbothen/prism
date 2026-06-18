@@ -432,9 +432,19 @@ impl InfusionLoader {
         Ok(())
     }
 
-    /// Validate that all credential entries use the reference-based model (no inline values).
+    /// Validate that all credential entries use the reference-based model (structural check only).
     ///
-    /// Returns `Ok(())` or `Err` — credential values MUST NOT appear in the error (INV-INFUSE-005).
+    /// Checks that every `CredentialRef.env_var` field is non-empty — i.e., the TOML spec
+    /// provides a named environment-variable reference for each credential. This is a
+    /// **structural** check performed at spec load time.
+    ///
+    /// It does NOT resolve the environment variable or verify the credential value exists at
+    /// this point. Per AD-017, credentials are resolved at call time (never at load time);
+    /// the actual env-var lookup happens in the source backend when `enrich_single` is called.
+    ///
+    /// Returns `Ok(())` if all credential refs are structurally valid, or
+    /// `Err(InfusionError::CredentialUnresolved)` for the first empty `env_var` found.
+    /// Credential VALUES MUST NOT appear in any returned error (INV-INFUSE-005 / AD-017).
     pub fn validate_credentials(spec: &InfusionSpec) -> Result<(), InfusionError> {
         for cred in &spec.credentials {
             if cred.env_var.is_empty() {

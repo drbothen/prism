@@ -22,6 +22,13 @@ use super::InfusionSource;
 ///
 /// One descriptor is produced per `[[infusion.fields]]` entry (INV-INFUSE-001 / BC-2.19.001).
 /// Consumed by prism-query (S-3.02) to register `datafusion::logical_expr::ScalarUDF`.
+///
+/// # `#[non_exhaustive]` note
+/// Marked `#[non_exhaustive]` so that future fields (e.g., per-UDF rate-limit hints,
+/// a `description` string, or additional caching metadata) can be added without a
+/// semver-breaking change. External callers MUST use `InfusionUdfDescriptor::new(...)`
+/// rather than struct-literal construction (E0639 will fire otherwise).
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct InfusionUdfDescriptor {
     /// UDF name (global within a DataFusion SessionContext).
@@ -42,4 +49,31 @@ pub struct InfusionUdfDescriptor {
     /// Used by `prism-query::InfusionAsyncUdf` when writing entries to Tier 2 (LRU) and
     /// Tier 3 (RocksDB) after a live source call (BC-2.19.002 / Story Task 6 + Task 8).
     pub cache_ttl_secs: u64,
+}
+
+impl InfusionUdfDescriptor {
+    /// Construct an `InfusionUdfDescriptor`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction from
+    /// outside `prism-spec-engine`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        name: impl Into<String>,
+        input_type: impl Into<String>,
+        output_type: impl Into<String>,
+        infusion_id: impl Into<String>,
+        source: Arc<dyn InfusionSource>,
+        source_column: Option<String>,
+        cache_ttl_secs: u64,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            input_type: input_type.into(),
+            output_type: output_type.into(),
+            infusion_id: infusion_id.into(),
+            source,
+            source_column,
+            cache_ttl_secs,
+        }
+    }
 }

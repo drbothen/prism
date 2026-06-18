@@ -1263,8 +1263,9 @@ pub enum InfusionError {
     ///
     /// Added in S-1.14-REDO (task from `plugin_bridge.rs` TODO comment).
     ///
-    /// `#[non_exhaustive]`: `InfusionError` is already `#[non_exhaustive]`; this variant
-    /// inherits that constraint. External match arms must include a wildcard arm.
+    /// Note: `InfusionError` is exhaustive (no `#[non_exhaustive]` on the enum).
+    /// External match arms do NOT need a wildcard arm for this reason, though
+    /// good practice is to add one to handle future variants added in later stories.
     #[error(
         "E-INFUSE-008: plugin infusion call failed for '{infusion_id}' via plugin '{plugin_id}': {reason}"
     )]

@@ -630,15 +630,15 @@ mod tests {
         infusion_id: &str,
         source: Arc<dyn InfusionSource>,
     ) -> InfusionUdfDescriptor {
-        InfusionUdfDescriptor {
-            name: name.to_string(),
-            input_type: "ip".to_string(),
-            output_type: "string".to_string(),
-            infusion_id: infusion_id.to_string(),
+        InfusionUdfDescriptor::new(
+            name,
+            "ip",
+            "string",
+            infusion_id,
             source,
-            source_column: None,
-            cache_ttl_secs: super::DEFAULT_CACHE_TTL_SECS,
-        }
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+        )
     }
 
     fn make_descriptor_with_source_column(
@@ -647,15 +647,15 @@ mod tests {
         source: Arc<dyn InfusionSource>,
         source_column: &str,
     ) -> InfusionUdfDescriptor {
-        InfusionUdfDescriptor {
-            name: name.to_string(),
-            input_type: "ip".to_string(),
-            output_type: "string".to_string(),
-            infusion_id: infusion_id.to_string(),
+        InfusionUdfDescriptor::new(
+            name,
+            "ip",
+            "string",
+            infusion_id,
             source,
-            source_column: Some(source_column.to_string()),
-            cache_ttl_secs: super::DEFAULT_CACHE_TTL_SECS,
-        }
+            Some(source_column.to_string()),
+            super::DEFAULT_CACHE_TTL_SECS,
+        )
     }
 
     /// Stub `InfusionSource` that returns a fixed JSON object (full row) — simulating
@@ -1317,15 +1317,15 @@ mod tests {
         // Descriptor with NON-DEFAULT TTL = 300s (not the 3600 default).
         // F-TTL-1: this must be what gets written to Tier-3 — not 3600.
         const NON_DEFAULT_TTL: u64 = 300;
-        let descriptor = InfusionUdfDescriptor {
-            name: "ttl_test_udf".to_string(),
-            input_type: "ip".to_string(),
-            output_type: "string".to_string(),
-            infusion_id: "ttl_test_infusion".to_string(),
-            source: src,
-            source_column: None,
-            cache_ttl_secs: NON_DEFAULT_TTL,
-        };
+        let descriptor = InfusionUdfDescriptor::new(
+            "ttl_test_udf",
+            "ip",
+            "string",
+            "ttl_test_infusion",
+            src,
+            None,
+            NON_DEFAULT_TTL,
+        );
 
         let lru = Arc::new(InfusionLruCache::new(
             std::num::NonZeroUsize::new(10_000).unwrap(),
