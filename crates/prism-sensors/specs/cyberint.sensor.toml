@@ -106,7 +106,7 @@ ocsf_class = "detection_finding"
   # ---------------------------------------------------------------------------
   # AC-006 (S-DEMO-ENRICHMENT-PIVOT-003): IOC columns — real-schema fields added
   # to support the canonical ThreatIntel pivot query (AC-007).
-  # BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix: Cyberint alerts carry IOC fields.
+  # BC-2.06.019 v1.10 Per-Sensor IOC-Surface Matrix: Cyberint alerts carry IOC fields.
   # SAP-2 compliance: all columns have matching fields in prism-dtu-cyberint/src/types.rs
   # Alert struct (ioc: Option<Ioc>, iocs: Vec<Ioc>, alert_data: Option<AlertData>).
   #
@@ -114,7 +114,7 @@ ocsf_class = "detection_finding"
   # `iocs[].type` is the PRIMARY wire key per `#[serde(rename = "type")]` on Ioc.ioc_type.
   # The serde alias `ioc_type` is NOT a separate TOML column — it is resolved at the Rust
   # struct level transparently. TOML spec uses the primary wire names only.
-  # (BC-2.06.019 v1.8 INCONCLUSIVE inner-key pending live-tenant validation)
+  # (BC-2.06.019 v1.10 INCONCLUSIVE inner-key pending live-tenant validation)
   # ---------------------------------------------------------------------------
 
   # Singleton top-level IOC — PENDING-LIVE-VALIDATION (may be removed if absent in live API).
@@ -136,7 +136,7 @@ ocsf_class = "detection_finding"
 
   # DTU: Alert.iocs[].value (primary wire key: "value").
   # This is the field used in the canonical ThreatIntel pivot query:
-  #   FROM cyberint_alerts | where severity = "high" | enrich threat_intel(ioc.value)
+  #   FROM cyberint_alerts | where severity = "high" | enrich threat_intel(iocs[].value)
   [[tables.columns]]
   name = "iocs[].value"
   column_type = "string"

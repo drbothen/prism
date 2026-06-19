@@ -596,8 +596,8 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns
         .expect("Test 11: register_table must succeed");
 
     // Step 7 — Execute the enrich SQL query through DataFusion.
-    // This is the canonical NVD pivot query equivalent (BC-2.06.019 v1.9 AC-008):
-    //   FROM armis_devices | enrich nvd(device_cves_first) | where nvd_cvss_score > 7.0
+    // This is the canonical NVD pivot query equivalent (BC-2.06.019 v1.10 AC-008):
+    //   FROM armis_devices | where has device_cves_first | enrich nvd(device_cves_first) | where cvss_base_score >= 7.0
     // Translated to SQL using the registered async UDF:
     let df = ctx
         .sql(
