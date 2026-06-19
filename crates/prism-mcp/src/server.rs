@@ -67,6 +67,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 use tokio::signal;
+use uuid::Uuid;
 
 use crate::{
     context::PrismContext,
@@ -3120,14 +3121,45 @@ impl PrismServer {
         if let Some(ref health_checker) = self.health_checker {
             // S-5.04 LIVE PROBE PATH (BC-2.08.005 v1.5 postcondition — AC-7)
             //
-            // Resolve OrgId from the OrgRegistry (falls back to OrgId::new() for
-            // single-tenant / test mode where no OrgRegistry is wired).
-            // org_slug was validated above (is_err() guard) — safe to unwrap here.
-            let valid_slug = org_slug.expect("org_slug validated by is_err() guard above");
-            let org_id = org_registry
-                .as_ref()
-                .and_then(|reg| reg.resolve(&valid_slug))
-                .unwrap_or_default();
+            // Resolve OrgId from the OrgRegistry.
+            // F-S504-P2-006: replace org_slug.expect() with is_err() structural guard.
+            //   org_slug is OrgSlug (internal validity state), not Result<OrgSlug, _>.
+            //   The is_err() guard at line ~2983 already returns early when invalid;
+            //   we add a second guard here as a structural safety belt — no expect() in prod.
+            // F-S504-P1-003: when org_registry is wired but resolve() returns None, that is a
+            //   registry inconsistency (slug_exists() passed above); surface E-CFG-100 rather
+            //   than silently producing a random OrgId that makes every sensor appear Down.
+            //   When org_registry is None (single-tenant mode), OrgId is resolved lazily
+            //   inside probe_connectivity via AdapterRegistry::get_all_for_sensor() fallback.
+            if org_slug.is_err() {
+                // Should never reach here — is_err() guard above returns early.
+                // Structural safety: do not fall through to expect() in any code path.
+                return Err(rmcp::model::ErrorData::new(
+                    rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                    "E-CFG-100: client not found in configuration".to_string(),
+                    None,
+                ));
+            }
+            // When org_registry is wired, resolve() must succeed (slug_exists() verified above).
+            // Failure here means registry inconsistency — return structured error (BC-2.08.005 EC).
+            // When org_registry is None (single-tenant), pass nil OrgId as a sentinel; the
+            // probe_connectivity fallback uses get_all_for_sensor() to find the registered adapter.
+            let org_id = if let Some(ref reg) = org_registry {
+                match reg.resolve(&org_slug) {
+                    Some(id) => id,
+                    None => {
+                        return Err(rmcp::model::ErrorData::new(
+                            rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                            "E-CFG-100: client not found in configuration".to_string(),
+                            None,
+                        ));
+                    }
+                }
+            } else {
+                // Single-tenant mode: no OrgRegistry wired. Use nil sentinel;
+                // probe_connectivity falls back to get_all_for_sensor() to find the adapter.
+                prism_core::OrgId::from_uuid(Uuid::nil())
+            };
 
             // Convert Vec<String> to Vec<SensorId>
             let sensor_id_vec: Vec<prism_core::SensorId> = sensor_ids_to_check

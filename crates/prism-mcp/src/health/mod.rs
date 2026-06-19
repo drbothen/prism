@@ -27,10 +27,13 @@ use chrono::{DateTime, Utc};
 use prism_core::{OrgId, SensorId};
 use prism_sensors::registry::AdapterRegistry;
 
-use crate::context::PrismContext;
+use crate::context::{PrismContext, SensorKey};
 use crate::health::connectivity::ConnectivityStatus;
-use crate::health::{auth::AuthStatus, connectivity::ProbeOutcome, rate_limit::RateLimitState};
-use crate::resources::SensorHealthResult;
+use crate::health::{
+    auth::AuthStatus, connectivity::ProbeOutcome, rate_limit::extract_rate_limit_state,
+    rate_limit::RateLimitState,
+};
+use crate::resources::{RateLimitInfo, SensorHealthResult};
 
 // ── HealthCheckResult ─────────────────────────────────────────────────────────
 
@@ -174,8 +177,55 @@ impl SensorHealthChecker {
                 let reachable = probe.connectivity != ConnectivityStatus::Down;
                 let auth_valid = matches!(probe.auth, AuthStatus::Valid);
 
+                // F-S504-P1-001: when HTTP 429 observed, extract rate-limit state and persist
+                // to context.rate_limit_states (BC-2.08.003 postcondition).
+                let rate_limit_info = if probe.is_rate_limited {
+                    // Convert retry_after_ms from the adapter to a Retry-After header string
+                    // for extract_rate_limit_state — use delta-seconds form.
+                    let retry_after_secs = probe
+                        .rate_limit_retry_after_ms
+                        .map(|ms| (ms / 1000).max(1))
+                        .unwrap_or(crate::health::rate_limit::DEFAULT_RETRY_AFTER_SECS);
+                    let header_str = retry_after_secs.to_string();
+                    let state = extract_rate_limit_state(Some(header_str.as_str()));
+                    // Persist to context for subsequent queries to read (BC-2.08.003 postcondition)
+                    let key = SensorKey {
+                        client_id: client_id.to_owned(),
+                        sensor_id: sensor_id.as_ref().to_owned(),
+                    };
+                    let mut guard = match context.rate_limit_states.lock() {
+                        Ok(g) => g,
+                        Err(p) => p.into_inner(),
+                    };
+                    let reset_at = state.retry_after;
+                    guard.insert(key, state);
+                    // Populate SensorHealthResult.rate_limit from the observed state
+                    Some(RateLimitInfo {
+                        remaining: None,
+                        limit: None,
+                        reset_at,
+                    })
+                } else {
+                    // Clear stale rate-limit state if it has expired (auto-expiry BC-2.08.003)
+                    let key = SensorKey {
+                        client_id: client_id.to_owned(),
+                        sensor_id: sensor_id.as_ref().to_owned(),
+                    };
+                    let mut guard = match context.rate_limit_states.lock() {
+                        Ok(g) => g,
+                        Err(p) => p.into_inner(),
+                    };
+                    if let Some(state) = guard.get(&key) {
+                        if state.is_cleared() {
+                            guard.remove(&key);
+                        }
+                    }
+                    None
+                };
+
                 // Record successful query timestamp when both reachable and auth valid
-                let last_successful_query_at = if reachable && auth_valid {
+                let last_successful_query_at = if reachable && auth_valid && !probe.is_rate_limited
+                {
                     let now = chrono::Utc::now();
                     self.record_successful_query(client_id, sensor_id, now, context);
                     Some(now)
@@ -187,6 +237,7 @@ impl SensorHealthChecker {
                     .with_reachable(reachable)
                     .with_auth_valid(auth_valid);
                 result.probe_level = "live".to_string();
+                result.rate_limit = rate_limit_info;
                 if let Some(ts) = last_successful_query_at {
                     result = result.with_last_successful_query_at(ts);
                 }

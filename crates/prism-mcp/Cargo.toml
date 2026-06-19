@@ -39,6 +39,10 @@ async-trait = "0.1"
 # arrow-json: RecordBatch → JSON rows serialization for the query tool (CRIT-1).
 # Transitive via arrow←datafusion; explicit dep pins the same version.
 arrow-json = "58"
+# uuid: needed for OrgId::from_uuid(Uuid::nil()) single-tenant sentinel in check_sensor_health
+# (F-S504-P1-003 fix; nil OrgId triggers get_all_for_sensor fallback in probe_connectivity).
+# Transitive via prism-core; explicit pin for production code in server.rs.
+uuid = { version = "1", features = ["v7"] }
 
 [dev-dependencies]
 proptest = "1"

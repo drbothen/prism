@@ -47,6 +47,10 @@ pub struct AuthProbeResult {
     pub http_status: Option<u16>,
     /// Sanitised error text, if applicable.
     pub error: Option<String>,
+    /// Whether the probe observed HTTP 429 (rate-limited) (F-S504-P1-001/002).
+    pub is_rate_limited: bool,
+    /// Retry-after delay in milliseconds from the 429 response (F-S504-P1-001).
+    pub rate_limit_retry_after_ms: Option<u64>,
 }
 
 // ── probe_auth ────────────────────────────────────────────────────────────────
@@ -80,7 +84,9 @@ pub async fn probe_auth(
             (AuthStatus::Unknown, ConnectivityStatus::Down)
         }
         ConnectivityStatus::Up | ConnectivityStatus::Degraded => {
-            // HTTP response received — classify by status code
+            // HTTP response received — classify by status code.
+            // F-S504-P1-002: HTTP 429 is NOT auth failure; sensor is reachable and auth
+            // status cannot be determined during rate-limit (treat as Valid for this probe).
             let auth = match outcome.http_status {
                 Some(401) | Some(403) => AuthStatus::Invalid,
                 _ => AuthStatus::Valid,
@@ -94,6 +100,8 @@ pub async fn probe_auth(
         auth,
         http_status: outcome.http_status,
         error: outcome.error,
+        is_rate_limited: outcome.is_rate_limited,
+        rate_limit_retry_after_ms: outcome.rate_limit_retry_after_ms,
     })
 }
 
