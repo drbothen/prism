@@ -1,18 +1,96 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.879"
+version: "7.881"
 status: current
-timestamp: 2026-06-19T14:00:00Z
+timestamp: 2026-06-19T15:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1250 (2026-06-19): Pre-TDD remove-uncertainty CLEARED on PIVOT-003 ‖ S-5.04 front-runner lanes (SPEC-ONLY burst). BC-2.06.019 v1.7→v1.8 (CrowdStrike ioc_type enum corrected; Cyberint dual-alias serde). PIVOT-003 v1.8→v1.9 (red_gate_tests 9→10; TDD-READY). S-5.04 v1.7→v1.8 (probe path corrected; TDD-READY). STORY-INDEX v2.435→v2.436. BC-INDEX v6.82→v6.83. D-1110 pre-TDD obligation SATISFIED for both front-runner lanes. §RESUME SNAPSHOT D-1250 authored (supersedes D-1249). develop_head UNCHANGED 9114e028. STATE v7.878→v7.879.**
+> **D-1252 (2026-06-19): PIVOT-003 mid-cascade (LOCAL r3 — 1 HIGH F-PIVOT003-R3-001 closing) + S-5.04 PARKED on S-1.11 (USER SCOPE DECISION). BC-2.06.019 v1.8→v1.9 (iocs[].value canonical; PC-4 fail-closed). PIVOT-003 v1.9→v2.0. S-5.04 v1.8→v1.9 (+S-1.11 depends_on; BLOCKING-DEPENDENCY; lane PARKED). STORY-INDEX v2.436→v2.437. BC-INDEX v6.83→v6.84. §RESUME SNAPSHOT D-1252 authored (supersedes D-1250). develop_head UNCHANGED 9114e028. STATE v7.879→v7.881.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1250** (authoritative zero-context restart protocol; supersedes D-1249). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1249 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1250 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1250 spec-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.879.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1252** (authoritative zero-context restart protocol; supersedes D-1250). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1251 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1252 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1252 spec-state burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.881.
+
+---
+
+## §RESUME SNAPSHOT — D-1252 (2026-06-19 — PIVOT-003 MID-CASCADE + S-5.04 PARKED ON S-1.11; develop_head 9114e028 UNCHANGED; STATE v7.881)
+
+> **D-1252 burst (2026-06-19).** SPEC-STATE burst — develop_head UNCHANGED at 9114e028. D-1251: LOCAL adversary PIVOT-003 rounds 1–3 cascade — 4 findings genuinely closed (CRIT-001 CrowdStrike IOC stamping wired, CRIT-002 Armis device_cves_first wired, HIGH-004 iocs[].value canonical, MED-005 PC-4 fail-closed); ONE HIGH remains (F-PIVOT003-R3-001 paper-fix: implementer adding real end-to-end enrich-pipeline test). BC-2.06.019 v1.8→v1.9. PIVOT-003 v1.9→v2.0. D-1252: USER SCOPE DECISION 2026-06-19 — S-5.04 live probe hollow (F-S504-R2-001: `SpecDrivenSensorAdapter::fetch` returns Ok([]) without HTTP because no read-side tables in shipped sensor specs; S-1.11 deferred). User directed: S-1.11 is a HARD PREREQUISITE for S-5.04. S-5.04 v1.8→v1.9 (+S-1.11 depends_on; lane PARKED). BC-INDEX v6.83→v6.84. STORY-INDEX v2.436→v2.437. STATE v7.881.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1252 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1252 snapshot first. It is authoritative.
+
+**Step 1.** `vsdd-factory:factory-worktree-health` — BLOCKING gate. Do not proceed if this fails.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `9114e028` (PIVOT-002 squash + D-1178 CLAUDE.md count bump; develop UNCHANGED through D-1252).
+
+**Step 3.** Verify no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Apply carry-forward lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+
+**Step 5.** Apply DO-NOT-REFLAG items from §DO-NOT-REFLAG section below.
+
+**Step 6.** Drive per the WHAT'S NEXT table below.
+
+---
+
+### PINNED STATE (D-1252 — verified 2026-06-19)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19 (D-1240). UNCHANGED through D-1252. |
+| factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
+| Open PRs | **NONE** | S-5.03 PR #194 MERGED. PIVOT-002 PR #195 MERGED. No new PRs. |
+| PIVOT-003 worktree | feature/S-DEMO-ENRICHMENT-PIVOT-003 | LOCAL cascade mid-flight; F-PIVOT003-R3-001 HIGH closing (implementer). |
+| S-5.04 worktree | feature/S-5.04 4282c997 | PARKED — implementation complete + green, BLOCKED on S-1.11 read-side tables (D-1252 user decision). |
+| ci.yml EXPECTED | `79` | Unchanged from D-1250 (spec-state burst). Authority: `ci.yml`. |
+| CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@9114e028. |
+| BC-INDEX | **v6.84** | active 235 / draft 8 / retired 6 / total 256. BC-2.06.019 v1.8→v1.9 (D-1251). |
+| STORY-INDEX | **v2.437** | 206 stories. PIVOT-003 v1.9→v2.0 (D-1251). S-5.04 v1.8→v1.9 +S-1.11 (D-1252). |
+| STATE.md | v7.881 | D-1252 burst. |
+| error_taxonomy | v1.91 | Unchanged. |
+| arch_index | v2.138 | Unchanged. |
+| vp_index | v1.79 | Unchanged. |
+| active_contracts | 235 | Unchanged through D-1252. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1251 + D-1252)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1251 (2026-06-19) | LOCAL adversary PIVOT-003 rounds 1–3: CRIT-001/CRIT-002/HIGH-004/MED-005 all CLOSED. 1 HIGH remains (F-PIVOT003-R3-001 paper-fix). BC-2.06.019 v1.8→v1.9. PIVOT-003 v1.9→v2.0. BC-INDEX v6.83→v6.84. |
+| D-1252 (2026-06-19) | USER SCOPE DECISION: S-1.11 is HARD PREREQUISITE for S-5.04 (live probe hollow — F-S504-R2-001). S-5.04 v1.8→v1.9 (+S-1.11 depends_on; PARKED). STORY-INDEX v2.436→v2.437. SESSION-HANDOFF D-1252 authored. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1252)
+
+| Priority | Story | Status | Pts | Hard Prerequisites | Notes |
+|----------|-------|--------|-----|--------------------|-------|
+| **NEXT-A (IN PROGRESS)** | **S-DEMO-ENRICHMENT-PIVOT-003** | draft v2.0 (**LOCAL cascade mid-flight — F-PIVOT003-R3-001 HIGH closing**) | 8 | PIVOT-002 MERGED (SATISFIED) | Implementer closing F-PIVOT003-R3-001 (real end-to-end enrich-pipeline test). After closure → 3-CLEAN(strict) streak → demo → PR 9-step → merge. **DEMO-BLOCKING.** |
+| **NEW LANE NEEDED** | **S-1.11 read-side-tables** | partial-merge — read-side gap | TBD | — | HARD PREREQUISITE for S-5.04 (D-1252 user decision). Needs architect/PO scoping: complete S-1.11 vs scoped follow-up story. Unblocks S-5.04. |
+| **NEXT-B (PARKED)** | **S-5.04** | not-started v1.9 (**PARKED — blocked on S-1.11**) | 5 | S-5.03 MERGED + **S-1.11 read-side-tables** | All 8 implementation fix-bursts VERIFIED genuine. Remaining: F-S504-R2-002 MED (rate-limited-aggregates-healthy) + LOW/OBS. Resume after S-1.11. **DEMO-BLOCKING.** |
+| **NEXT-C (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.0 | 7 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. Pipelines behind S-5.04. |
+| **NEXT-D (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.0 | 6 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. Pipelines behind PIVOT-003. |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | **PIVOT-003 + S-5.04 + 001-A + 001-B — all 4 must MERGE** | PO + story-writer. Hard gates all 4. |
+
+**Remove-uncertainty rule (D-1110):** PIVOT-003 + S-5.04 SATISFIED. 001-A + 001-B still pending their pre-TDD remove-uncertainty pass.
+
+**S-5.04 / S-1.11 lane planning:** The S-1.11 read-side-tables gap needs architect/PO scoping before S-5.04 can resume. Options: (a) complete the S-1.11 partial-merge scope (read-side-tables portion) as a scoped burst, or (b) author a new story targeting S-1.11's missing read-side-table delivery. D-1252 user decision does NOT prescribe which option — that is architect/PO authority.
 
 ---
 
