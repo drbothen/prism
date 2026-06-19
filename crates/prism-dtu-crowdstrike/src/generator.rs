@@ -46,6 +46,87 @@ use serde_json::{json, Value};
 // Public API
 // ---------------------------------------------------------------------------
 
+/// Generate a `FixtureSet` for the CrowdStrike sensor with scenario IOC hashes stamped.
+///
+/// AC-004 / F-PIVOT003-R2-001: parallel to Armis `generate_with_scenario_cves`.
+/// For `CompromisedEndpoint`, detection 0 (the detection linked to the primary contained
+/// device) receives `behaviors[0].ioc_value = ioc_hashes[0]` so the ThreatIntel pivot
+/// `enrich threat_intel(iocs[].value)` resolves against the catalog at stage ≥ 3.
+///
+/// For all other archetypes, delegates to `generate()` unchanged.
+///
+/// If `ioc_hashes` is empty, no IOC stamping occurs (has_ioc_value filter → 0 results;
+/// that is the expected behavior for an empty catalog).
+pub fn generate_with_scenario_iocs(
+    org_id: OrgId,
+    archetype: Archetype,
+    opts: GenOpts,
+    ioc_hashes: &[String],
+) -> FixtureSet {
+    if archetype != Archetype::CompromisedEndpoint || ioc_hashes.is_empty() {
+        return generate(org_id, archetype, opts);
+    }
+
+    let slug = org_slug(&org_id);
+    let dev_count = scaled(50, opts.scale, 1);
+    let det_count = scaled(20, opts.scale, 1);
+
+    let device_ids: Vec<String> = (0..dev_count)
+        .map(|n| format!("dev-{slug}-{}-{n}", opts.seed))
+        .collect();
+
+    // Ensure at least 1 contained device (mirrors gen_compromised_endpoint).
+    let mut records: Vec<Value> = device_ids
+        .iter()
+        .enumerate()
+        .map(|(n, id)| {
+            let mut dev = make_device(id, &opts);
+            if n == 0 {
+                dev["containment_status"] = json!("contained");
+                dev["status"] = json!("contained");
+            } else {
+                dev["containment_status"] = json!("normal");
+            }
+            dev
+        })
+        .collect();
+
+    // Stamp ioc_hashes[0] on detection 0 — the detection linked to the primary device
+    // (device_ids[0 % dev_count] = device_ids[0]).
+    // Detection 0 is the anchor for the ThreatIntel pivot: it carries the IOC that
+    // identifies the compromised endpoint in the scenario.
+    let ioc_hash = ioc_hashes[0].as_str();
+    let det_records: Vec<Value> = (0..det_count)
+        .map(|n| {
+            let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
+            let severity_id = if n < 5 { 4_u8 } else { 2_u8 };
+            let scenario_hash = if n == 0 { Some(ioc_hash) } else { None };
+            make_detection_with_ioc(
+                &det_id,
+                &device_ids[n % device_ids.len()],
+                severity_id,
+                n,
+                &opts,
+                scenario_hash,
+            )
+        })
+        .collect();
+
+    records.extend(det_records);
+
+    FixtureSet {
+        records,
+        cursors: Vec::new(),
+        provenance: prism_dtu_common::generator::Provenance {
+            org_id,
+            sensor_id: SensorId::from("crowdstrike"),
+            archetype,
+            seed: opts.seed,
+            schema_valid: true,
+        },
+    }
+}
+
 /// Generate a `FixtureSet` for the CrowdStrike sensor.
 ///
 /// Implements BC-3.4.001 (determinism), BC-3.4.002 (schema validity),

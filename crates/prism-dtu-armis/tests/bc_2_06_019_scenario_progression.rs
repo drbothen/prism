@@ -100,6 +100,7 @@ async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
         org.clone(),
         Arc::clone(&timeline_stage0),
         time_anchor_stage0,
+        &catalog,
     )
     .expect("new_with_scenario must succeed for stage-0 server");
 
@@ -184,6 +185,7 @@ async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
         org,
         Arc::clone(&timeline_stage1),
         time_anchor_stage1,
+        &catalog,
     )
     .expect("new_with_scenario must succeed for stage-1 server");
 
@@ -314,6 +316,7 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
         org.clone(),
         Arc::clone(&timeline_stage0),
         time_anchor_stage0,
+        &catalog,
     )
     .expect("new_with_scenario must succeed for stage-0 server");
 
@@ -400,6 +403,7 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
         org,
         Arc::clone(&timeline_stage2),
         time_anchor_stage2,
+        &catalog,
     )
     .expect("new_with_scenario must succeed for stage-2 server");
 
@@ -465,4 +469,96 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
         .stop()
         .await
         .expect("stage-2 server stop must succeed");
+}
+
+// ---------------------------------------------------------------------------
+// F-PIVOT003-R2-002 load-bearing test
+// ---------------------------------------------------------------------------
+
+/// LOAD-BEARING TEST — F-PIVOT003-R2-002: Armis device_cves_first wired on production path.
+///
+/// `ArmisClone::new_with_scenario` MUST produce device records where CompromisedEndpoint
+/// asset records (identified by presence of `asset_id`) carry `device_cves_first` =
+/// `catalog.device_cves[0]`.
+///
+/// This exercises the PRODUCTION CONSTRUCTOR path (`new_with_scenario`), NOT the generator
+/// helper directly. It proves that the demo server, which calls `new_with_scenario`, will
+/// serve CVE-stamped device records enabling the NVD pivot (AC-008 / BC-2.06.019 v1.9,
+/// F-PIVOT003-R2-002).
+///
+/// TD-VSDD-059: load-bearing — verifies production path, not the helper function.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_06_019_scenario_clone_device_records_carry_device_cves_first() {
+    let org = deadbeef_org();
+    let seed: u64 = 100;
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+
+    // Require catalog.device_cves non-empty for the test to be meaningful.
+    assert!(
+        !catalog.device_cves.is_empty(),
+        "build_scenario_entity_catalog must produce a non-empty device_cves slice; \
+         got empty. BC-2.06.019 v1.9 F-PIVOT003-R2-002."
+    );
+    let expected_cve = catalog.device_cves[0].clone();
+
+    let now = chrono::Utc::now().timestamp();
+    let start_secs: i64 = now - 10;
+    let timeline = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_secs,
+        &[],
+    ));
+    let time_anchor = chrono::DateTime::from_timestamp(start_secs, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    // Call the PRODUCTION constructor (the same one harness.rs uses).
+    let clone = ArmisClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org,
+        Arc::clone(&timeline),
+        time_anchor,
+        &catalog,
+    )
+    .expect("new_with_scenario must succeed for device_cves_first test");
+
+    // Find asset records (have `asset_id` field — discriminates from alert records).
+    let asset_records: Vec<&serde_json::Value> = clone
+        .state
+        .generated_records
+        .iter()
+        .filter(|rec| rec.get("asset_id").is_some())
+        .collect();
+
+    assert!(
+        !asset_records.is_empty(),
+        "AC-008 / F-PIVOT003-R2-002: generated_records must contain at least one asset record \
+         (with 'asset_id' field) for CompromisedEndpoint archetype; got 0. \
+         The production constructor must invoke generate_with_scenario_cves."
+    );
+
+    // All asset records must carry device_cves_first = catalog.device_cves[0].
+    let missing: Vec<&&serde_json::Value> = asset_records
+        .iter()
+        .filter(|rec| {
+            rec.get("device_cves_first")
+                .and_then(|v| v.as_str())
+                .map(|v| v != expected_cve.as_str())
+                .unwrap_or(true) // key absent → missing
+        })
+        .collect();
+
+    assert!(
+        missing.is_empty(),
+        "AC-008 / F-PIVOT003-R2-002: {} of {} asset records are missing \
+         'device_cves_first' = '{}'; these records will produce empty NVD pivot results. \
+         ArmisClone::new_with_scenario MUST call generate_with_scenario_cves to stamp CVEs \
+         on the production path (not just the helper function).",
+        missing.len(),
+        asset_records.len(),
+        expected_cve
+    );
 }

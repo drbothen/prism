@@ -104,6 +104,7 @@ async fn test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only() {
         org.clone(),
         Arc::clone(&timeline_stage2),
         time_anchor_stage2,
+        &catalog,
     );
 
     clone_stage2
@@ -200,6 +201,7 @@ async fn test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only() {
         org,
         Arc::clone(&timeline_stage4),
         time_anchor_stage4,
+        &catalog,
     );
 
     clone_stage4
@@ -320,6 +322,7 @@ async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
         org.clone(),
         Arc::clone(&timeline_stage0),
         time_anchor_stage0,
+        &catalog,
     );
 
     clone_stage0
@@ -437,6 +440,7 @@ async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
         org,
         Arc::clone(&timeline_stage2),
         time_anchor_stage2,
+        &catalog,
     );
 
     clone_stage2
@@ -531,4 +535,114 @@ async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
         .stop()
         .await
         .expect("stage-2 server stop must succeed");
+}
+
+// ---------------------------------------------------------------------------
+// F-PIVOT003-R2-001 load-bearing test
+// ---------------------------------------------------------------------------
+
+/// LOAD-BEARING TEST — F-PIVOT003-R2-001: CrowdStrike IOC stamping wired on production path.
+///
+/// `CrowdstrikeClone::new_with_scenario` MUST produce detection records where detection 0
+/// (the detection linked to the primary contained device) carries `behaviors[0].ioc_value`
+/// from `catalog.ioc_hashes[0]`.
+///
+/// This exercises the PRODUCTION CONSTRUCTOR path (`new_with_scenario`), NOT the generator
+/// helper directly. It proves that the demo server, which calls `new_with_scenario`, will
+/// serve IOC-stamped detections (AC-004 / BC-2.06.019 v1.9, F-PIVOT003-R2-001).
+///
+/// TD-VSDD-059: load-bearing — verifies production path, not the helper function.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_catalog() {
+    let org = deadbeef_org();
+    let seed: u64 = 100;
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+
+    // Require catalog.ioc_hashes non-empty for the test to be meaningful.
+    assert!(
+        !catalog.ioc_hashes.is_empty(),
+        "build_scenario_entity_catalog must produce a non-empty ioc_hashes slice; \
+         got empty. BC-2.06.019 v1.9 F-PIVOT003-R2-001."
+    );
+    let expected_ioc_hash = catalog.ioc_hashes[0].clone();
+
+    let now = chrono::Utc::now().timestamp();
+    let start_secs: i64 = now - 10;
+    let timeline = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_secs,
+        &[],
+    ));
+    let time_anchor = chrono::DateTime::from_timestamp(start_secs, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    // Call the PRODUCTION constructor (the same one harness.rs uses).
+    let clone = CrowdstrikeClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org,
+        Arc::clone(&timeline),
+        time_anchor,
+        &catalog,
+    );
+
+    // Detection 0 is the detection linked to the primary device (device_ids[0 % dev_count]).
+    // It MUST carry behaviors[0].ioc_value = catalog.ioc_hashes[0].
+    let det_0 = clone.state.generated_detections.iter().find(|rec| {
+        // Detection 0 has the lowest creation timestamp (or can be found by id pattern).
+        // Safest: find the detection with device_id = primary device.
+        rec.get("device_id")
+            .and_then(|v| v.as_str())
+            .map(|id| id == catalog.primary_device_id_cs.as_str())
+            .unwrap_or(false)
+    });
+
+    assert!(
+        det_0.is_some(),
+        "AC-004 / F-PIVOT003-R2-001: no detection record linked to primary device '{}'; \
+         generated_detections: {} total. The production constructor must generate detection 0 \
+         linked to the primary device (device_ids[0 % dev_count]).",
+        catalog.primary_device_id_cs,
+        clone.state.generated_detections.len()
+    );
+
+    let det_0 = det_0.unwrap();
+    let empty_vec: Vec<serde_json::Value> = vec![];
+    let behaviors = det_0
+        .get("behaviors")
+        .and_then(|v| v.as_array())
+        .unwrap_or(&empty_vec);
+
+    assert!(
+        !behaviors.is_empty(),
+        "AC-004 / F-PIVOT003-R2-001: detection linked to primary device must have a non-empty \
+         'behaviors' array; got empty. Scenario path must stamp IOC via generate_with_scenario_iocs."
+    );
+
+    let ioc_value = behaviors[0].get("ioc_value").and_then(|v| v.as_str());
+
+    assert_eq!(
+        ioc_value,
+        Some(expected_ioc_hash.as_str()),
+        "AC-004 / F-PIVOT003-R2-001: detection 0 behaviors[0].ioc_value MUST equal \
+         catalog.ioc_hashes[0] = '{}'; got {:?}. \
+         The PRODUCTION constructor CrowdstrikeClone::new_with_scenario must call \
+         generate_with_scenario_iocs, threading the catalog's IOC hashes.",
+        expected_ioc_hash,
+        ioc_value
+    );
+
+    // Also verify ioc_type is "hash_sha256" (BC-2.06.019 v1.8 algorithm-qualified token).
+    let ioc_type = behaviors[0].get("ioc_type").and_then(|v| v.as_str());
+
+    assert_eq!(
+        ioc_type,
+        Some("hash_sha256"),
+        "AC-004 / BC-2.06.019 v1.8: behaviors[0].ioc_type MUST be 'hash_sha256' \
+         (algorithm-qualified); got {:?}.",
+        ioc_type
+    );
 }

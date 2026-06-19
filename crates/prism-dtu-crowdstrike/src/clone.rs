@@ -180,9 +180,11 @@ impl CrowdstrikeClone {
 
     /// Construct a `CrowdstrikeClone` with the scenario timeline layer.
     ///
-    /// 5-arg form per ADR-036 v2.3 §2.4. Internally calls
-    /// `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (NOT the 3-arg
-    /// `new_with_seed` which would produce stale timestamps for a June 2026 demo).
+    /// 6-arg form per ADR-036 v2.3 §2.4 + F-PIVOT003-R2-001 (catalog wiring).
+    /// Internally calls `generate_with_scenario_iocs` so that CompromisedEndpoint
+    /// detection 0 carries `behaviors[0].ioc_value = catalog.ioc_hashes[0]` — the
+    /// anchor that makes the ThreatIntel pivot `enrich threat_intel(iocs[].value)`
+    /// resolve at stage ≥ 3 (AC-004 / BC-2.06.019 v1.9).
     ///
     /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
     /// compute the current stage and apply StageMask filtering.
@@ -195,34 +197,57 @@ impl CrowdstrikeClone {
         org_id: prism_dtu_common::OrgId,
         timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
         time_anchor: chrono::DateTime<chrono::Utc>,
+        catalog: &prism_dtu_common::ScenarioEntityCatalog,
     ) -> Self {
-        // Call new_with_seed_anchored (NOT the 3-arg new_with_seed) to use the
-        // caller-supplied time_anchor for era-coherent generated timestamps.
-        // ADR-036 v2.3 §2.3: the 3-arg path anchors at demo_time_anchor() = 2026-01-01
-        // which is stale for a June 2026 demo. Forbidden pattern per story spec.
-        let mut clone = Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor);
+        use crate::generator::generate_with_scenario_iocs;
+        use prism_dtu_common::GenOpts;
+
+        // F-PIVOT003-R2-001: generate with scenario IOC hashes from catalog so that
+        // CrowdStrike detections carry behaviors[].ioc_value on the production path.
+        // (Calling new_with_seed_anchored then replacing detections would work too,
+        // but generating directly avoids a redundant plain generate() call.)
+        let opts = GenOpts {
+            seed,
+            time_anchor,
+            ..GenOpts::default()
+        };
+        let fixture =
+            generate_with_scenario_iocs(org_id.clone(), archetype, opts, &catalog.ioc_hashes);
+
+        // Split records by _record_type (same logic as new_with_seed_anchored).
+        let mut generated_devices = Vec::new();
+        let mut generated_detections = Vec::new();
+        for record in fixture.records {
+            match record.get("_record_type").and_then(|v| v.as_str()) {
+                Some("device") => generated_devices.push(record),
+                Some("detection") => generated_detections.push(record),
+                _ => {}
+            }
+        }
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state = crate::state::CrowdstrikeState::with_admin_token(admin_token.clone());
+        state.generated_devices = generated_devices;
+        state.generated_detections = generated_detections;
+        state.fixture_gen_seeded = true;
+
         // Attach the timeline BEFORE any other reference can be taken.
         //
-        // Structural threading (B-P5-OBS-1): use Arc::try_unwrap to reclaim the state
-        // struct (refcount=1 immediately post-construction), set timeline, then re-wrap.
-        // This is safe because new_with_seed_anchored just returned the only Arc clone;
-        // no other thread can hold a reference at this point.
-        //
-        // Prefer try_unwrap over get_mut to avoid silent-drop risk: if a future refactor
-        // creates a second Arc clone before this point, try_unwrap returns Err with the
-        // original Arc, which we catch with expect() so the bug is loud.
-        //
         // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
-        let mut state = Arc::try_unwrap(clone.state).unwrap_or_else(|_| {
-            panic!(
-                "CrowdstrikeClone::new_with_scenario: Arc refcount must be 1 immediately \
-                 after new_with_seed_anchored; a second Arc clone would indicate a refactor \
-                 invariant violation (B-P5-OBS-1)"
-            )
-        });
+        // We build state directly (rather than going through new_with_seed_anchored then
+        // Arc::try_unwrap) to avoid the redundant plain-generate call.
         state.timeline = Some(Arc::clone(&timeline));
-        clone.state = Arc::new(state);
-        clone
+
+        Self {
+            config: prism_dtu_common::StubConfig::default(),
+            state: Arc::new(state),
+            server_handle: None,
+            bound_addr: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        }
     }
 }
 
