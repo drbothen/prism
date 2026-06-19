@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.873"
+version: "7.874"
 status: current
-timestamp: 2026-06-19T07:00:00Z
+timestamp: 2026-06-19T08:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1240 (2026-06-19): PIVOT-002 MERGED PR #195 develop@9114e028. POL-14 BC-2.19.001 idempotent (already active). CLAUDE.md non-exhaustive=79; ci.yml EXPECTED=79. ALL DEMO-BLOCKING LANES DONE. REMAINING: PIVOT-003 → S-5.04 → T13 → T14. STATE v7.872→v7.873.**
+> **D-1241 (2026-06-19): PrismQL LLM-onboarding DESIGN PACKAGE committed (spec-only burst). ADR-041 v1.1 + 7 BCs (BC-2.10.012/013/014 + BC-2.11.016/017/018 + amendments) + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft. OPD-1 ADOPTED: normalized_pql field. develop_head UNCHANGED 9114e028. BC-INDEX v6.82. total_stories 204. draft_contracts 8. STATE v7.873→v7.874.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1240** (authoritative zero-context restart protocol; supersedes D-1238). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1238 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1240 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.873.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1241** (authoritative zero-context restart protocol; supersedes D-1240). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1240 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1241 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1241 spec-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.874.
 
 ---
 
@@ -83,6 +83,37 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 **NEXT CONCRETE ACTION (D-1221..D-1227): 3 lanes frozen — CASCADE ROUND-2 complete + D-1227 HEAD correction. (a) S-1.14-REDO @2020dbf0: worktree CLEAN; dispatch 3 INDEPENDENT fresh-context adversary passes on frozen HEAD 2020dbf0 → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → MERGE FIRST; EXPECTED 66→67. (b) S-5.03 @5a444a5f: fix 3 strict-only OBS (F-OBS-1 userinfo strip + separator cosmetic + stale comment) → freeze HEAD → LOCAL 3-CLEAN → PR-LEVEL 3-CLEAN → merge (INDEPENDENT; no sequencing dep); EXPECTED →72. (c) PIVOT-002 @0f958261: AWAIT S-1.14-REDO merge → orchestrator dispatches devops-engineer to rebase → verify production ThreatIntel enrichment → 3-CLEAN → merge; EXPECTED →76. OBS-3 DEC-004 → product-owner routes to S-5.04/targeted story (DO-NOT-REFLAG as S-5.03 blocker). T13 capstone (not-authored; PO+story-writer) after all three merged. D-989+D-1090 autonomy grant remains active.**
 
 **Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: L-POST (D-1205 SCOPING RESOLVED — all prior lanes CLOSED; develop@60249ccc). T1+T2+T3+T4+T4-A+T5+T6+T8+T9+T10+T11+T12 DONE. NO OPEN PRs. develop@60249ccc (D-1204 S-3.13 merge). BC-INDEX v6.69. ARCH-INDEX v2.135. STORY-INDEX v2.420. error-taxonomy v1.86. VP-INDEX v1.79 (157). policies v1.33. prd v1.12. BC-2.19.001 v1.7 ACTIVE. BC-2.06.017 v1.10 ACTIVE. BC-2.06.018 v1.6 ACTIVE. BC-2.06.019 v1.7 ACTIVE. BC-2.06.020 v1.6 ACTIVE. STATE v7.848 (D-1205 scope-decision burst).**
+
+---
+
+## §RESUME SNAPSHOT — D-1241 (2026-06-19 — PrismQL LLM-onboarding DESIGN PACKAGE; develop_head 9114e028 UNCHANGED; STATE v7.874)
+
+> **D-1241 burst (2026-06-19).** SPEC-ONLY burst — develop_head UNCHANGED at 9114e028. ADR-041 v1.1 authored (4-layer LLM auto-onboarding teaching surface; OPD-1 RESOLVED: normalized_pql field ADOPTED). 6 new BCs (BC-2.10.012/013/014 draft + BC-2.11.016/017/018 draft) + 2 BC amendments (BC-2.10.009 v1.4, BC-2.11.001 v1.10). E-QUERY-038 column-not-found plan-time gate registered in error-taxonomy v1.91. S-DEMO-PRISMQL-ONBOARDING-001 draft story authored (13 pts, 7 BCs, depends S-5.03+S-3.13, wave TBD). BC-INDEX v6.82 (250→256 total; 2→8 draft). STORY-INDEX v2.434 (203→204). ARCH-INDEX v2.138 (ADR-041 v1.0→v1.1 PROPOSED). D-1240 SUPERSEDED by D-1241.
+
+---
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1241 (run in this order)
+
+**Step 1.** `vsdd-factory:factory-worktree-health` — confirm .factory/ worktree on factory-artifacts branch.
+
+**Step 2.** `git log --oneline -1 origin/develop` → expect `9114e028`.
+
+**Step 3.** `gh pr list --state open --base develop` → expect NO open demo-blocking PRs (all prior lanes merged).
+
+**Step 4.** Apply lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+
+**Step 5.** Execute PIVOT-003 lane (NEXT DEMO-BLOCKING impl story):
+- PIVOT-003 adds real IOC fields (ioc_value, ioc_type, ioc_severity) to Cyberint/CrowdStrike DTU fixtures + canonical end-to-end pivot proof.
+- Closes TD-PLUGIN-P0-002 P0. Closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation.
+- story-writer must author PIVOT-003 spec if not yet materialized; remove-uncertainty before TDD.
+
+**Step 6.** DESIGN TRACK queued (post-T13 scheduling): S-DEMO-PRISMQL-ONBOARDING-001 implements ADR-041 4-layer LLM teaching surface. Not a blocker for PIVOT-003 or S-5.04. Will be scheduled as part of T13 capstone planning.
+
+**After PIVOT-003:** S-5.04 (Sensor Health Subsystem) → T13 capstone narrative (schedule S-DEMO-PRISMQL-ONBOARDING-001 here) → T14 demo recording.
+
+**DO-NOT-REFLAG (PIVOT-002 closures; all verified pre-rebase and through merge):** CRIT-1 (sync-WASM SEC-001 spawn_blocking), CRIT-2a (path traversal DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001), CRIT-2b (load disclosure DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001), HIGH-1 (UDF-name validation DRIFT-PIVOT-UDFNAME-VALIDATION-001), HIGH-2 (config pub field DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001), HIGH-3 (SandboxViolation URL log DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001), HIGH-4 (PluginId vs InfusionId DRIFT-PIVOT-PLUGINID-INFUSIONID-001).
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit.
 
 ---
 
@@ -444,20 +475,20 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 
 ---
 
-### INDEX VERSIONS (updated through D-1240)
+### INDEX VERSIONS (updated through D-1241)
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.873 | D-1240 PIVOT-002 merged PR #195; develop_head 9114e028; ALL DEMO-BLOCKING LANES DONE |
-| BC-INDEX | v6.80 | active 235 / draft 2 / retired 6; total 250; UNCHANGED (BC-2.19.001 already active — idempotent) |
-| STORY-INDEX | v2.433 | 203 stories; S-5.03 v1.22 merged (D-1238); PIVOT-002 v1.5 merged (D-1240) |
-| error-taxonomy | v1.90 | E-INFUSE-013 (InvalidFieldSpec; D-1239); UNCHANGED |
-| ARCH-INDEX | v2.137 | ADR-040 v2.0 (dual-path infusion); UNCHANGED (ADR-041 pending separate design burst) |
+| STATE.md | v7.874 | D-1241 PrismQL LLM-onboarding design package; develop_head 9114e028 UNCHANGED (spec-only burst) |
+| BC-INDEX | v6.82 | active 235 / draft 8 / retired 6; total 256; +6 new BCs (D-1241); 2 amendments (BC-2.10.009 v1.4, BC-2.11.001 v1.10) |
+| STORY-INDEX | v2.434 | 204 stories; S-DEMO-PRISMQL-ONBOARDING-001 draft added (D-1241) |
+| error-taxonomy | v1.91 | E-QUERY-038 column-not-found plan-time gate (D-1241); E-INFUSE-013 (D-1239) |
+| ARCH-INDEX | v2.138 | ADR-041 v1.1 PROPOSED (4-layer LLM onboarding; D-1241) |
 | VP-INDEX | v1.79 | 157 registered |
 | prd | v1.12 | — |
 | policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes |
-| develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028 2026-06-19 (D-1240) |
-| Open PRs | none | S-5.03 PR #194 MERGED; PIVOT-002 PR #195 MERGED |
+| develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028 2026-06-19 (D-1240); UNCHANGED through D-1241 (spec-only) |
+| Open PRs | none | S-5.03 PR #194 MERGED; PIVOT-002 PR #195 MERGED; no new PRs from spec-only burst |
 
 
 ### 2 ACTIVE LANES — Current SHAs + Phase + Next Action (D-1196 baseline)

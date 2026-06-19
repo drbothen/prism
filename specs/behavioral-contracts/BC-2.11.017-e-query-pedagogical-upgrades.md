@@ -1,0 +1,210 @@
+---
+document_type: behavioral-contract
+level: L3
+version: "1.0"
+status: draft
+producer: product-owner
+timestamp: 2026-06-19T00:00:00Z
+phase: 1a
+inputs: [".factory/specs/domain-spec/capabilities.md", ".factory/specs/domain-spec/invariants.md", ".factory/specs/architecture/decisions/ADR-041-prismql-llm-auto-onboarding-4-layer-teaching-surface-for-automatic-agent-query-authoring.md"]
+input-hash: "TBD"
+traces_to: ["CAP-015"]
+extracted_from: null
+origin: greenfield
+subsystem: "SS-11"
+capability: "CAP-015"
+lifecycle_status: active
+introduced: ADR-041-teaching-burst-2026-06-19
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
+---
+
+# BC-2.11.017: E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037)
+
+## Description
+
+Four existing E-QUERY error codes are enriched with additional actionable fields to complete the L4 pedagogical self-correction loop defined in ADR-041. Each enrichment adds structured data that an LLM agent can read to self-correct its PQL query without human intervention: `near_text` and a reference pointer for E-QUERY-001 (parse errors), `valid_operators_for_type` for E-QUERY-002 (type errors), `how_to_fix` for E-QUERY-003 (security limit violations), and `did_you_mean` for E-QUERY-037 (table unavailable — already pedagogically rich; this adds the fuzzy-match suggestion field that was specified in ADR-041 but whose implementation requirement is explicitly captured here). These are ADDITIVE enrichments to existing error codes — no existing fields are removed or renamed; no new error codes are allocated.
+
+## Preconditions
+
+1. A PQL query has been submitted to the `query` or `explain_query` tool.
+2. The query triggers one of the four target error codes during parsing or planning.
+3. The relevant `PrismError` variants already exist in `prism-core/src/error.rs` with display strings that include their respective `E-QUERY-NNN` prefixes.
+
+## Postconditions
+
+### E-QUERY-001 (parse error) — additive fields
+
+**Current state:** `"Query parse error at position {pos}: {message}"` — message only.
+
+**New postcondition additions:**
+
+The E-QUERY-001 structured error response (BC-2.10.007 format) MUST include:
+
+1. `near_text: String` — the offending token or short substring (≤ 50 characters) near the parse failure position. This is the text that caused the parse error. Sourced from the Chumsky parser's error context at the position `{pos}`. If the parser cannot provide a token (e.g., unexpected end of input), `near_text` is the empty string `""`.
+
+2. `reference_pointer: "prismql://reference"` — a literal string in the error response pointing to the grammar reference resource. This allows the LLM agent to fetch the full grammar when it cannot self-diagnose from the error message alone. The field value is the static string `"prismql://reference"` (the MCP resource URI registered in BC-2.10.014).
+
+**Implementation note:** The existing `PrismError::ParseError` (or equivalent) variant needs two additional fields: `near_text: String` and `reference_pointer: &'static str` (or the structured error response builder adds them at error-map time from the parse error's context). The display string `"Query parse error at position {pos}: {message}"` is UNCHANGED — the new fields are additional structured metadata in the MCP structured error response, not changes to the display string.
+
+**Injection-safety:** `near_text` is a substring of the model's own PQL query string (the input it submitted). It does not contain sensor data. The `near_text` field MUST be truncated to ≤ 50 characters to prevent log bloat and to discourage relay of raw model PQL text as error context.
+
+### E-QUERY-002 (type error) — additive field
+
+**Current state:** `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` — field, actual_type, operator.
+
+**New postcondition addition:**
+
+The E-QUERY-002 structured error response MUST include:
+
+`valid_operators_for_type: [String]` — an array of operator strings that ARE valid for `{actual_type}`. For example: if `actual_type` is `"String"`, then `valid_operators_for_type` includes `["=", "!=", "LIKE", "IN", "NOT IN"]`; if `actual_type` is `"Integer"`, then `["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"]`; etc.
+
+The complete per-type operator table is fixed at compile time (it reflects PQL semantics, not per-client config):
+
+| ColumnType | Valid operators |
+|------------|----------------|
+| `String` | `=`, `!=`, `LIKE`, `IN`, `NOT IN` |
+| `Integer` | `=`, `!=`, `<`, `>`, `<=`, `>=`, `BETWEEN`, `IN`, `NOT IN` |
+| `Float` | `=`, `!=`, `<`, `>`, `<=`, `>=`, `BETWEEN` |
+| `Boolean` | `=`, `!=` |
+| `Datetime` | `=`, `!=`, `<`, `>`, `<=`, `>=`, `BETWEEN` |
+| `Json` | `=`, `!=` (top-level), path-access (implementation-defined) |
+
+**Implementation note:** A `fn valid_operators_for_type(t: ColumnType) -> &'static [&'static str]` helper in `prism-query` (or `prism-core`) is sufficient. The display string `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` is UNCHANGED.
+
+### E-QUERY-003 (security limits) — additive field
+
+**Current state:** `"E-QUERY-003: {limit_detail}"` — single string describing the limit violation.
+
+**New postcondition addition:**
+
+The E-QUERY-003 structured error response MUST include:
+
+`how_to_fix: String` — a human/model-readable actionable suggestion for resolving the specific limit that was violated. The suggestion is determined by the `{limit_detail}` category:
+
+| Limit violated | `how_to_fix` value |
+|----------------|--------------------|
+| Query size > 64KB | `"Shorten the query. Remove large IN (...) lists or break into multiple queries."` |
+| Nesting depth > 64 | `"Flatten nested conditions. Use AND/OR instead of deeply nested parentheses."` |
+| Pipe stage count > 32 | `"Reduce the number of pipe stages. Combine adjacent filter conditions."` |
+| Regex pattern > 1024 bytes | `"Use a shorter regex pattern. Consider using LIKE instead of regex for simple pattern matching."` |
+| Expanded query > 64KB (after alias expansion) | `"The alias expansion produced a query over 64KB. Simplify the aliased query or use a narrower alias."` |
+
+If the limit category is not recognized (implementation catch-all), `how_to_fix` is `"Simplify or shorten the query."`.
+
+**Implementation note:** The `PrismError::QuerySecurityLimitExceeded { detail }` variant currently carries a single `detail: String`. The `how_to_fix` field can be computed at error-map time from the `detail` string (pattern-matching the known limit prefixes) and added to the structured response without modifying the `PrismError` variant. The display string is UNCHANGED.
+
+### E-QUERY-037 (table unavailable) — additive field (did_you_mean)
+
+**Note:** E-QUERY-037 already carries `did_you_mean` as part of its implementation per ADR-039 and BC-2.11.001 v1.9. This postcondition REAFFIRMS the `did_you_mean` requirement as an explicit L4 pedagogical contract element and adds the reference to `prismql://reference` in the error suggestion.
+
+The E-QUERY-037 structured error response ALREADY includes (per BC-2.11.001):
+- `available_sensors` (org-scoped)
+- `available_tables` (org-scoped)
+- `did_you_mean` (optional, Levenshtein ≤ 3 over org-visible tables)
+
+**New postcondition addition (additive only):**
+
+The E-QUERY-037 structured error `suggestion` field MUST include a reference to `prism_describe` as the discovery path:
+
+`suggestion: "Call prism_describe('<client_id>') to see available tables and columns. If you meant '<did_you_mean_value>', retry with that table name."` (when `did_you_mean` is present)
+
+OR:
+
+`suggestion: "Call prism_describe('<client_id>') to see available tables and columns for this client."` (when `did_you_mean` is absent)
+
+This adds the `prism_describe` discovery pointer to the E-QUERY-037 self-correction path, closing the loop: table-not-found error → model reads suggestion → model calls `prism_describe` → model discovers real tables → model retries.
+
+**Implementation note:** The `suggestion` field is already part of the BC-2.10.007 structured error envelope. The E-QUERY-037 error handler in `prism-query/src/engine.rs` (or wherever `PrismError::TableNotAvailable` is constructed) already populates this field; it should be updated to include the `prism_describe` pointer text.
+
+### No new PrismError variants required
+
+All four enrichments are additive to existing error handling:
+- E-QUERY-001: new fields in structured response builder (not new variant)
+- E-QUERY-002: new `valid_operators_for_type` field in structured response builder
+- E-QUERY-003: new `how_to_fix` field in structured response builder (computed from `detail`)
+- E-QUERY-037: updated `suggestion` string text (existing field, new content)
+
+No new `PrismError` enum variants are needed. No new E-QUERY codes are allocated. The error taxonomy rows for 001, 002, 003, and 037 are updated to document the new fields (see taxonomy update in error-taxonomy.md — handled separately by this burst's taxonomy version bump to v1.91).
+
+## Invariants
+
+- DI-004: All four error codes are emitted during `query` or `explain_query` tool calls; the `AuditEntry` for the tool call already captures the rejection.
+- DI-019: The security limits themselves (E-QUERY-003) are not relaxed by this enrichment. The `how_to_fix` field is guidance for the model, not a new limit or exception path.
+- DI-006: `near_text` (E-QUERY-001) is a substring of the model's own PQL input — not sensor data. Truncated to ≤ 50 characters. No sensor API response data flows into any of these enrichment fields.
+- DI-002: None of these enrichment fields (`near_text`, `valid_operators_for_type`, `how_to_fix`, updated `suggestion`) contain credential values or internal API URLs.
+
+## Error Cases
+
+These postconditions describe enrichments to existing error codes, not new error codes. No new error cases are introduced.
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-11-046 | E-QUERY-001 parse error at end-of-input (model submitted an incomplete query) | `near_text: ""` (empty string — no offending token to show); `reference_pointer: "prismql://reference"` still present |
+| EC-11-047 | E-QUERY-002 for ColumnType `Json` (operator semantics are implementation-defined) | `valid_operators_for_type` includes at minimum `["=", "!="]`; additional operators listed if implemented |
+| EC-11-048 | E-QUERY-003 with unrecognized limit category (future limit added without updating this table) | `how_to_fix: "Simplify or shorten the query."` (catch-all) |
+| EC-11-049 | E-QUERY-037 with `did_you_mean` present | `suggestion` includes both the `did_you_mean` retry hint AND the `prism_describe` discovery pointer |
+| EC-11-050 | E-QUERY-037 with `did_you_mean` absent | `suggestion` includes only the `prism_describe` discovery pointer |
+
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `query("SELECT * FROM events WHERE sevrity > 5")` with `severity` as a String column (type mismatch + near-typo) | E-QUERY-002 with `valid_operators_for_type: ["=", "!=", "LIKE", "IN", "NOT IN"]` (String operators); E-QUERY-002, not E-QUERY-038, because the field exists but the operator is wrong | type-error-enriched |
+| `query("SELECT * FROM (((((((... deeply nested ...")` | E-QUERY-003 with `how_to_fix: "Flatten nested conditions. Use AND/OR instead of deeply nested parentheses."` | security-limit-how-to-fix |
+| `query("SELCT * FROM crowdstrike_alerts")` (typo in SELECT keyword) | E-QUERY-001 with `near_text: "SELCT"` (the offending token), `reference_pointer: "prismql://reference"` | parse-error-enriched |
+| `query("SELECT * FROM crowdstrike_alert")` when `crowdstrike_alerts` is registered | E-QUERY-037 with `did_you_mean: "crowdstrike_alerts"` AND `suggestion` containing "Call prism_describe" AND "crowdstrike_alerts" retry hint | table-not-found-suggestion |
+| `query("SELECT * FROM crowdstrike_bogustable")` when no close match exists | E-QUERY-037 with `did_you_mean` absent AND `suggestion` containing "Call prism_describe('...')" | table-not-found-no-suggestion |
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (VP-TBD) | E-QUERY-001 structured response always contains `near_text` (may be empty string) and `reference_pointer: "prismql://reference"` | unit test |
+| (VP-TBD) | E-QUERY-002 structured response always contains `valid_operators_for_type` as a non-null array | unit test |
+| (VP-TBD) | E-QUERY-003 structured response always contains `how_to_fix` as a non-empty string | unit test |
+| (VP-TBD) | E-QUERY-037 `suggestion` always contains the substring `"prism_describe"` | unit test |
+
+## Traceability
+
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-015 |
+| Capability Anchor Justification | CAP-015 ("Ephemeral OCSF Query Engine") per capabilities.md §CAP-015 — this BC specifies enrichments to existing E-QUERY-NNN parse-time and plan-time error responses emitted by the PQL query engine. CAP-015 governs the query engine including its structured error responses ("Violations return structured errors with actionable suggestions"). Pedagogical field enrichments to E-QUERY-001/002/003/037 are improvements to the error actionability within the query engine surface that CAP-015 owns. |
+| L2 Invariants | DI-002, DI-004, DI-006, DI-019 |
+| ADR | ADR-041 v1.1 §L4 — "Codes getting the full pedagogical treatment (new or upgraded)" table; §Consequences — "The E-QUERY-038 column-not-found error with available_columns + did_you_mean gives the model everything it needs to self-correct" |
+| Architecture Module | SS-11 (Query Execution) |
+| Priority | P1 |
+
+## Related BCs
+
+- BC-2.11.001 — depends on: all four enriched error codes are error cases of the `query` MCP tool (BC-2.11.001 Error Cases table); story-writer must propagate E-QUERY-001/002/003/037 enrichment details to BC-2.11.001 body (under `bc_array_changes_propagate_to_body_and_acs` policy)
+- BC-2.11.016 — composes with: E-QUERY-038 (new code) is part of the same L4 pedagogical suite; together, BCs 016 and 017 constitute the complete L4 error enrichment
+- BC-2.10.014 — composes with: E-QUERY-001 `reference_pointer: "prismql://reference"` points to the grammar resource; E-QUERY-037 `suggestion` references `prism_describe` which in turn references `prismql://reference`
+- BC-2.11.010 — depends on: `explain_query` calls also go through the plan-time validation pipeline and trigger E-QUERY-001/002/003/037/038; these enrichments apply to explain responses as well
+
+## Architecture Anchors
+
+- `architecture/decisions/ADR-041` §L4 — "Pedagogical E-QUERY-NNN Self-Correction Loop": error-shape contract, per-code upgrade table
+- `architecture/decisions/ADR-039` — E-QUERY-037 `did_you_mean` is already implemented per ADR-039; this BC reaffirms and adds the `prism_describe` suggestion text
+
+## Story Anchor
+
+S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)
+
+## VP Anchors
+
+VP assignments TBD — assigned after VP authoring pass.
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L4 pedagogical enrichments to E-QUERY-001/002/003/037 |

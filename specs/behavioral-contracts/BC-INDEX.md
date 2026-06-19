@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.81"
+version: "6.82"
 status: draft
 producer: state-manager
 timestamp: 2026-06-19T00:00:00Z
 phase: 3.A
-total_contracts: 250
+total_contracts: 256
 active_contracts: 235
-draft_contracts: 2
+draft_contracts: 8
 deprecated_contracts: 0
 removed_contracts: 7
 retired_contracts: 6
@@ -16,7 +16,7 @@ retired_contracts: 6
 
 # Behavioral Contract Index
 
-Flat index of all 250 behavioral contracts for Prism (250 total files, 235 active, 2 draft, 0 deprecated, 7 removed, 6 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 256 behavioral contracts for Prism (256 total files, 235 active, 8 draft, 0 deprecated, 7 removed, 6 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
 (active + draft + deprecated + removed + retired = 235 + 2 + 0 + 7 + 6 = 250). D-1158 (2026-06-14): BC-2.06.017 v1.10 promoted draft→active per POL-14 (anchor story S-DEMO-MULTI-TENANT-DTU-001 merged PR #187 develop@664566e9 2026-06-14); active 234→235, draft 3→2. D-1139 (2026-06-13): BC-2.06.019 v1.7 + BC-2.06.020 v1.6 promoted draft→active per POL-14 (anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B merged PR #185 develop@7fd35b77 2026-06-13); active 232→234, draft 5→3. ADR-037 disposition (2026-06-10, v6.11): BC-3.3.001 v0.8 + BC-3.3.002 v0.5 + BC-3.3.003 v0.4 + BC-3.3.004 v1.1 RETIRED per ADR-037 (prism-customer-config crate retirement; ADR-010 superseded) — replacements: BC-2.06.017 / BC-2.06.003 / none (schema retired, ADR-037 §Consequences) / BC-2.21.001 respectively; lifecycle_status active→retired ×4, so active 236→232, retired 2→6. D-1089 (2026-06-10): BC-2.06.018 v1.5→v1.6 promoted draft→active per POL-14 (anchor story S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d); active 235→236, draft 6→5. D-1078: BC-2.06.019 Demo-Server Scenario Progression + BC-2.06.020 Demo-Server Enrichment Correlation registered (both draft; SS-01; CAP-036; P2). D-1077: BC-2.06.018 Demo-Server Config-Time Data Seeding registered (draft; SS-01; CAP-036; P2). D-1074: BC-2.06.017 Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing registered (draft; SS-01; CAP-036; P2). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
@@ -149,10 +149,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active (v1.8 — D-1191 2026-06-16: S-5.02 PR #191 OBS-1+OBS-2 adjudication — E-QUERY-032/SensorNotRegisteredForOrg → category "permission"/original_params_valid:true; WatchdogKilled/WatchdogHeartbeatMissed/WatchdogRestartLimitExceeded → category "internal"/original_params_valid:true; +2 canonical test vectors; §Implementer Code Follow-Up restructured into F-4/OBS-1/OBS-2 sections; IMPLEMENTER CODE FOLLOW-UP PENDING in S-5.02 feature branch) |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | active (promoted draft→active D-1238 per POL-14; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19; lifecycle_status was already active) — v1.12 (D-1230 2026-06-18: postcondition 2 sensor-inventory shape reconciled to shipped SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; status="active" definitional in overlay model; EC-10-015 retired) |
-| BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | active (promoted draft→active D-1238 per POL-14; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19; lifecycle_status was already active) — v1.3 |
+| BC-2.10.009 | MCP Prompts for Common Workflows (Including PQL Query Tutorial) | 10 - MCP Interface | CAP-034 | P1 | active (promoted draft→active D-1238 per POL-14; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19; lifecycle_status was already active) — v1.4 (D-1241 2026-06-19: ADR-041 L1 query_tutorial prompt added as 5th prompt; query tool description upgraded with PQL primer ≤500 tokens; BC file amended) |
+| BC-2.10.012 | `prism_describe` Schema Discovery Tool (L2) | 10 - MCP Interface | CAP-034 | P0 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-10; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
+| BC-2.10.013 | `prismql://schema/{client_id}` Resource Template (L2) | 10 - MCP Interface | CAP-034 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-10; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
+| BC-2.10.014 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 10 - MCP Interface | CAP-034 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-10; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active (status:draft→active D-1202 per POL-14; anchor story S-5.02 merged PR #191 develop@bec894a2 2026-06-17; lifecycle_status was already active) |
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.9 (D-1197 2026-06-16: org-scoped E-QUERY-037 enumeration invariant; EC-11-037/EC-11-038 org-isolation edge cases; test vectors for cross-org did_you_mean filtering; ADR-039 refs; 5 test_SEC_001_* Red Gate tests wired; was v1.8: S-3.13 pre-TDD 2026-06-14: table-availability postcondition + E-QUERY-037 error case added) |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.10 (D-1241 2026-06-19: cross-references to BC-2.11.016/017/018 — E-QUERY-038 column-not-found, pedagogical field enrichments, normalized_pql field; related_bcs frontmatter updated; was v1.9: D-1197 2026-06-16: org-scoped E-QUERY-037 enumeration invariant) |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active |
@@ -167,6 +170,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.013 | `list_aliases` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
+| BC-2.11.016 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
+| BC-2.11.017 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
+| BC-2.11.018 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
 | BC-2.12.001 | `create_schedule` MCP Tool — Create a Scheduled Query | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.002 | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.003 | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | 12 - Scheduler | CAP-017 | P0 | draft |
@@ -380,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.82 (2026-06-19, D-1241 ADR-041 PrismQL LLM-onboarding design package):** state-manager | 6 new BCs registered (ADR-041-teaching-burst-2026-06-19): BC-2.10.012 (`prism_describe` L2 tool; SS-10; CAP-034; P0; draft), BC-2.10.013 (`prismql://schema/{client_id}` resource template; SS-10; CAP-034; P1; draft), BC-2.10.014 (`prismql://reference` static grammar resource; SS-10; CAP-034; P1; draft), BC-2.11.016 (E-QUERY-038 column-not-found gate; SS-11; CAP-015; P1; draft), BC-2.11.017 (E-QUERY pedagogical enrichments 001/002/003/037; SS-11; CAP-015; P1; draft), BC-2.11.018 (`normalized_pql` echo field / OPD-1; SS-11; CAP-015; P1; draft). BC-2.10.009 inline row: v1.3→v1.4 (ADR-041 L1 query_tutorial prompt + PQL primer in query tool description; H1 title updated to include "(Including PQL Query Tutorial)"). BC-2.11.001 inline row: v1.9→v1.10 (cross-references to BC-2.11.016/017/018 added; related_bcs frontmatter). **Count changes: total_contracts 250→256, draft_contracts 2→8** (BC-2.10.012/013/014/016/017/018 all lifecycle_status:draft; BC-2.06.011 + BC-2.21.001 remain draft — 6+2=8); active_contracts 235 UNCHANGED. BC-INDEX v6.81→v6.82.
 
 **v6.81 (2026-06-19, PR #195 FIND-1 SpecEngineError→PluginError catalog correction):** state-manager | BC-2.16.002 inline row: v1.83→v1.84 — PR #195 PR-LEVEL FIND-1: two §Postconditions Canonical Structured Event Catalog rows corrected `SpecEngineError::EnrichCallFailed` → `PluginError::EnrichCallFailed`; product-owner edit confirmed in working tree. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.80→v6.81.
 
