@@ -437,6 +437,13 @@ impl RocksStorageBackend for RocksDbBackend {
 // project rule ("Do not block the tokio thread pool with synchronous I/O",
 // CLAUDE.md §Channels/async).
 //
+// Domain isolation: the active_domains allowlist check mirrors `resolve_cf()`
+// semantics and is performed synchronously on the async thread (before entering
+// `spawn_blocking`) so that `&self.active_domains` remains accessible. The
+// allowlist check is non-blocking (in-memory HashSet lookup). RocksDB I/O is
+// then offloaded via `spawn_blocking`. This preserves BC-2.15.002 / EC-005
+// domain-isolation on BOTH the sync and async code paths.
+//
 // `JoinError` from `spawn_blocking` (task panic) is mapped to the appropriate
 // `PrismError::StorageReadFailed` (for `get`) or `StorageWriteFailed` (for
 // `set`/`delete`) with the domain name and panic message in `detail`.
@@ -445,15 +452,18 @@ impl RocksStorageBackend for RocksDbBackend {
 impl CacheBackend for RocksDbBackend {
     /// Retrieve the value for `key` in `domain`, or `None` if absent.
     ///
-    /// The synchronous RocksDB read is offloaded via `tokio::task::spawn_blocking`
-    /// because a block-cache miss may require a synchronous disk read.
+    /// The active_domains allowlist is checked synchronously (non-blocking,
+    /// in-memory) before offloading the RocksDB read to `spawn_blocking`.
     async fn get(&self, domain: StorageDomain, key: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
+        // Allowlist check — mirrors resolve_cf() ordering: allowlist → CF handle.
+        // Performed before spawn_blocking so &self is still accessible.
+        if !self.active_domains.contains(&domain) {
+            return Err(PrismError::StorageDomainNotFound {
+                domain: domain.column_family_name().to_owned(),
+            });
+        }
         let db = Arc::clone(&self.db);
         let key_owned = key.to_vec();
-        // Construct a lightweight clone of just the active_domains set and the
-        // state_dir for the blocking closure. We cannot move `self` (borrowed),
-        // so we reconstruct the minimal state needed to call resolve_cf inside
-        // the closure. Instead, we call the DB directly to avoid the borrow.
         let domain_cf_name = domain.column_family_name().to_owned();
         tokio::task::spawn_blocking(move || {
             let cf =
@@ -476,9 +486,15 @@ impl CacheBackend for RocksDbBackend {
 
     /// Store `value` at `key` in `domain`, overwriting any existing value.
     ///
-    /// The synchronous RocksDB write is offloaded via `tokio::task::spawn_blocking`
-    /// because WAL append/fsync may block the calling thread.
+    /// The active_domains allowlist is checked synchronously (non-blocking,
+    /// in-memory) before offloading the RocksDB write to `spawn_blocking`.
     async fn set(&self, domain: StorageDomain, key: &[u8], value: &[u8]) -> Result<(), PrismError> {
+        // Allowlist check — mirrors resolve_cf() ordering: allowlist → CF handle.
+        if !self.active_domains.contains(&domain) {
+            return Err(PrismError::StorageDomainNotFound {
+                domain: domain.column_family_name().to_owned(),
+            });
+        }
         let db = Arc::clone(&self.db);
         let key_owned = key.to_vec();
         let value_owned = value.to_vec();
@@ -504,9 +520,15 @@ impl CacheBackend for RocksDbBackend {
 
     /// Remove the value at `key` in `domain`. No-op if absent.
     ///
-    /// The synchronous RocksDB delete is offloaded via `tokio::task::spawn_blocking`
-    /// because WAL append/fsync may block the calling thread.
+    /// The active_domains allowlist is checked synchronously (non-blocking,
+    /// in-memory) before offloading the RocksDB delete to `spawn_blocking`.
     async fn delete(&self, domain: StorageDomain, key: &[u8]) -> Result<(), PrismError> {
+        // Allowlist check — mirrors resolve_cf() ordering: allowlist → CF handle.
+        if !self.active_domains.contains(&domain) {
+            return Err(PrismError::StorageDomainNotFound {
+                domain: domain.column_family_name().to_owned(),
+            });
+        }
         let db = Arc::clone(&self.db);
         let key_owned = key.to_vec();
         let domain_cf_name = domain.column_family_name().to_owned();
