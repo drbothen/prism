@@ -11236,8 +11236,12 @@ mod adr_042_tests {
     /// S-5.04 IMPLEMENTED: result must show probe_level="live", reachable=Some(bool),
     /// auth_valid=Some(bool), last_successful_query_at=Some(DateTime), and prose
     /// containing "live probe" rather than "spec-only: no live probe performed".
+    ///
+    /// F-S504-P2-007: renamed from `test_BC_2_08_005_S504_live_probe_todo_panics` (the old
+    /// name implied a todo!/panic outcome; the test actually verifies Green behavior since
+    /// S-5.04 implemented the live-probe path).
     #[tokio::test]
-    async fn test_BC_2_08_005_S504_live_probe_todo_panics() {
+    async fn test_BC_2_08_005_S504_live_probe_sets_probe_level_live() {
         use arrow::record_batch::RecordBatch;
         use async_trait::async_trait;
         use prism_core::{OrgId, SensorId};
@@ -11410,7 +11414,7 @@ mod adr_042_tests {
 
     /// AC-7 (SID-1): integration test requiring live DTU + boot step 9A (blocked).
     ///
-    /// Companion: `test_BC_2_08_005_S504_live_probe_todo_panics` (above).
+    /// Companion: `test_BC_2_08_005_S504_live_probe_sets_probe_level_live` (above).
     #[tokio::test]
     #[ignore = "DTU-EXT-001: requires prism-dtu-crowdstrike clone; ungated after S-DEMO-001 wires boot step 9A"]
     async fn test_BC_2_08_005_S504_live_probe_with_real_dtu() {

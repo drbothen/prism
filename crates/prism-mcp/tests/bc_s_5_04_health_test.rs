@@ -45,6 +45,9 @@
 //! | RECONCILIATION-3 — cursor_count accessor | test_BC_2_08_005_query_engine_cursor_count_accessor |
 //! | RECONCILIATION-3 — token_count accessor | test_BC_2_08_005_query_engine_token_count_accessor |
 //! | FIX-001/v1.6 invariant — no direct reqwest::Client | test_BC_S_5_04_invariant_no_direct_reqwest_client_in_health_module |
+//! | F-S504-P1-001/002 — 429→Up + rate_limit populated in SensorHealthResult | test_BC_2_08_003_live_probe_429_yields_up_and_populates_rate_limit |
+//! | F-S504-P1-002 core — probe_connectivity RateLimited arm → ConnectivityStatus::Up | test_BC_2_08_001_live_probe_429_status_is_up_not_down |
+//! | F-S504-P2-008 — sanitize_error truncates long body; strips control chars | test_BC_2_08_001_live_probe_error_body_is_sanitized |
 //!
 //! # AC-7 (BC-2.08.005 live-probe path) tests
 //! Tests requiring `PrismServer.health_checker` (a private field set only from
@@ -192,6 +195,71 @@ impl SensorAdapter for MockAdapterConnectionRefused {
 
     fn sensor_name(&self) -> &'static str {
         "crowdstrike-mock-connection-refused"
+    }
+}
+
+/// Mock adapter simulating HTTP 429 Too Many Requests with a retry-after hint.
+///
+/// Returns `SensorError::RateLimited { retry_after_ms: 30_000 }` to verify:
+/// - F-S504-P1-002: RateLimited → ConnectivityStatus::Up (NOT Down)
+/// - F-S504-P1-001: `is_rate_limited=true` + `rate_limit_retry_after_ms=Some(30_000)` propagate
+///   through ProbeOutcome → AuthProbeResult → SensorHealthResult.rate_limit
+struct MockAdapterRateLimited;
+
+#[async_trait]
+impl SensorAdapter for MockAdapterRateLimited {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("crowdstrike")
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        Err(SensorError::RateLimited {
+            sensor: "crowdstrike".to_string(),
+            retry_after_ms: 30_000,
+        })
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike-mock-rate-limited"
+    }
+}
+
+/// Mock adapter simulating an HTTP error with a hostile, oversized body.
+///
+/// Returns `SensorError::HttpError { status: 500, body: long_hostile }` to verify
+/// F-S504-P2-008 sanitize_error: body is truncated to 512 chars and control chars
+/// are replaced with spaces.
+struct MockAdapterHostileBody;
+
+#[async_trait]
+impl SensorAdapter for MockAdapterHostileBody {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("crowdstrike")
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        // Hostile body: 2000 chars + embedded control characters (ANSI escape + null + newline)
+        // The sanitizer should truncate at 512 chars and strip control chars.
+        let long_body = format!("INJECTED\x1b[31mRED\x1b[0m\x00\n\r{}", "A".repeat(2000));
+        Err(SensorError::HttpError {
+            sensor: "crowdstrike".to_string(),
+            status: 500,
+            body: long_body,
+        })
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike-mock-hostile-body"
     }
 }
 
@@ -1007,4 +1075,170 @@ fn test_BC_S_5_04_invariant_no_direct_reqwest_client_in_health_module() {
              health module must NOT use reqwest::ClientBuilder"
         );
     }
+}
+
+// ─── F-S504-P1-001/002 — HTTP 429 probe_connectivity + check_one ────────────
+
+/// F-S504-P1-002 (core): `probe_connectivity` with a `SensorError::RateLimited` mock
+/// MUST return `ConnectivityStatus::Up` (NOT `Down`).
+///
+/// Closing test: the RateLimited explicit arm in connectivity.rs must not fall
+/// through to the catch-all `Err(e) => Down` arm.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_live_probe_429_status_is_up_not_down() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterRateLimited));
+
+    let outcome = probe_connectivity(&registry, org_id, &sensor_id, "acme")
+        .await
+        .expect("F-S504-P1-002: probe_connectivity must return Ok for RateLimited response");
+
+    assert_eq!(
+        outcome.status,
+        ConnectivityStatus::Up,
+        "F-S504-P1-002: SensorError::RateLimited MUST yield ConnectivityStatus::Up (sensor is \
+         reachable; HTTP 429 confirms an HTTP exchange occurred). Got: {:?}",
+        outcome.status
+    );
+    assert_eq!(
+        outcome.http_status,
+        Some(429),
+        "F-S504-P1-002: http_status must be 429 for RateLimited response. Got: {:?}",
+        outcome.http_status
+    );
+    assert!(
+        outcome.is_rate_limited,
+        "F-S504-P1-001: ProbeOutcome.is_rate_limited must be true for RateLimited response"
+    );
+    assert_eq!(
+        outcome.rate_limit_retry_after_ms,
+        Some(30_000),
+        "F-S504-P1-001: rate_limit_retry_after_ms must propagate from SensorError. \
+         Got: {:?}",
+        outcome.rate_limit_retry_after_ms
+    );
+}
+
+/// F-S504-P1-001 (wiring): `check_one` with a `MockAdapterRateLimited` MUST populate
+/// `SensorHealthResult.rate_limit` with a `RateLimitInfo` value (not None).
+///
+/// This verifies the full wiring path:
+///   SensorError::RateLimited → ProbeOutcome.is_rate_limited=true
+///   → extract_rate_limit_state → context.rate_limit_states persisted
+///   → SensorHealthResult.rate_limit = Some(RateLimitInfo { reset_at: Some(...) })
+///
+/// Closing test for F-S504-P1-001: rate_limit_states and SensorHealthResult.rate_limit
+/// were dead code before this wiring; this test forces the full production path.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_003_live_probe_429_yields_up_and_populates_rate_limit() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterRateLimited));
+
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+
+    let result = checker
+        .check_one(org_id, "acme", &sensor_id, &context)
+        .await;
+
+    // F-S504-P1-002: sensor is reachable (Up, not Down) when rate-limited.
+    assert_eq!(
+        result.reachable,
+        Some(true),
+        "F-S504-P1-002: reachable must be Some(true) for HTTP 429 (sensor responded). \
+         Got: {:?}",
+        result.reachable
+    );
+
+    // F-S504-P1-001: rate_limit MUST be populated (was always None before the fix).
+    assert!(
+        result.rate_limit.is_some(),
+        "F-S504-P1-001: SensorHealthResult.rate_limit MUST be Some(RateLimitInfo) when \
+         HTTP 429 observed; was always None (dead-code path) before this fix. Got: {:?}",
+        result.rate_limit
+    );
+
+    // The reset_at timestamp must be in the future (extract_rate_limit_state adds ~30s).
+    let rate_limit = result.rate_limit.unwrap();
+    if let Some(reset_at) = rate_limit.reset_at {
+        assert!(
+            reset_at > chrono::Utc::now(),
+            "F-S504-P1-001: rate_limit.reset_at must be in the future (retry_after=30s). \
+             Got: {reset_at:?}"
+        );
+    } else {
+        panic!(
+            "F-S504-P1-001: rate_limit.reset_at must be Some(DateTime) when \
+             retry_after_ms=30_000. Got None"
+        );
+    }
+
+    // F-S504-P1-001: context.rate_limit_states must be persisted.
+    let guard = context.rate_limit_states.lock().unwrap();
+    let key = prism_mcp::context::SensorKey {
+        client_id: "acme".to_string(),
+        sensor_id: "crowdstrike".to_string(),
+    };
+    assert!(
+        guard.contains_key(&key),
+        "F-S504-P1-001: context.rate_limit_states must contain the (acme, crowdstrike) key \
+         after a 429 probe. Keys present: {:?}",
+        guard.keys().collect::<Vec<_>>()
+    );
+}
+
+// ─── F-S504-P2-008 — sanitize_error load-bearing test ───────────────────────
+
+/// F-S504-P2-008 (load-bearing): `probe_connectivity` with a hostile oversized error body
+/// MUST produce a sanitized `ProbeOutcome.error` — truncated to 512 chars and stripped
+/// of ASCII control characters.
+///
+/// This is the load-bearing test for sanitize_error() (CWE-116 / prompt-injection defense).
+/// Without this test the sanitize_error path had no coverage verifying the output.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_live_probe_error_body_is_sanitized() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterHostileBody));
+
+    let outcome = probe_connectivity(&registry, org_id, &sensor_id, "acme")
+        .await
+        .expect("F-S504-P2-008: probe_connectivity must return Ok for HTTP 500");
+
+    let error_str = outcome.error.as_deref().unwrap_or("");
+
+    // 1. Length MUST be <= 512 chars (MAX_ERROR_LEN).
+    assert!(
+        error_str.chars().count() <= 512,
+        "F-S504-P2-008 (CWE-116): sanitized error MUST be at most 512 chars; \
+         got {} chars: {:?}",
+        error_str.chars().count(),
+        &error_str[..error_str.len().min(100)]
+    );
+
+    // 2. Control characters (ESC, NUL, newline, CR) MUST be replaced with spaces.
+    assert!(
+        !error_str.chars().any(|c| c.is_ascii_control()),
+        "F-S504-P2-008 (CWE-116): sanitized error MUST contain no ASCII control chars. \
+         Found control chars: {:?}",
+        error_str
+            .chars()
+            .filter(|c| c.is_ascii_control())
+            .collect::<String>()
+    );
+
+    // 3. ANSI escape sequence start (ESC = 0x1b) must not survive.
+    assert!(
+        !error_str.contains('\x1b'),
+        "F-S504-P2-008: ESC character (ANSI escape start) must be stripped. \
+         Got: {error_str:?}"
+    );
 }
