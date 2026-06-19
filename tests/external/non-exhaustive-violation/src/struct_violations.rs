@@ -1054,6 +1054,7 @@ pub fn v71_client_inventory_entry() {
     // Triggers E0639 (#[non_exhaustive]).
     let _entry = ClientInventoryEntry {
         client_id: "acme".to_string(),
+        display_name: None,
         sensor_count: 3,
         enabled_sensors: vec![],
     };
@@ -1154,7 +1155,6 @@ pub fn v76_sensor_health_structured_content() {
         resource_pressure: ResourcePressure::new(None, None),
         trust_level: "internal".to_string(),
         summary: "0 sensors".to_string(),
-        partial_failures: vec![],
     };
     let _ = _content;
 }

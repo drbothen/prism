@@ -57,7 +57,7 @@ ulid = { version = "1", features = ["serde"] }
 # toml + uuid: needed for IMP-8 per-org scoping test fixtures (OverlayLoader::merge_overlay_onto_type_spec
 # requires SensorInstanceOverlay TOML deserialization; OrgId::new() mints a fresh UUID).
 toml = "0.8"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v7"] }
 # prism-storage: needed to build QueryEngine::new_full for F-S503-ADV-001 per-client scoping test.
 # test-utils feature exposes InMemoryBackend (filesystem-free RocksStorageBackend stub).
 # Already a transitive dep via prism-query; explicit pin for test-binary compilation.
