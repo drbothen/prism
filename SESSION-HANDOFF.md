@@ -1,18 +1,93 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.881"
+version: "7.882"
 status: current
-timestamp: 2026-06-19T15:00:00Z
+timestamp: 2026-06-19T16:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1252 (2026-06-19): PIVOT-003 mid-cascade (LOCAL r3 — 1 HIGH F-PIVOT003-R3-001 closing) + S-5.04 PARKED on S-1.11 (USER SCOPE DECISION). BC-2.06.019 v1.8→v1.9 (iocs[].value canonical; PC-4 fail-closed). PIVOT-003 v1.9→v2.0. S-5.04 v1.8→v1.9 (+S-1.11 depends_on; BLOCKING-DEPENDENCY; lane PARKED). STORY-INDEX v2.436→v2.437. BC-INDEX v6.83→v6.84. §RESUME SNAPSHOT D-1252 authored (supersedes D-1250). develop_head UNCHANGED 9114e028. STATE v7.879→v7.881.**
+> **D-1253 (2026-06-19): PIVOT-003 LOCAL cascade rounds 4-5 (doc/spec-coherence convergence) — BC-2.06.019 v1.9→v1.10 (AC-008 canonical NVD pivot query `where has device_cves_first`, `cvss_base_score >= 7.0`; closes F-PIVOT003-R5B-001 MED + R5B-002 OBS). PIVOT-003 v2.0→v2.1; BC-INDEX v6.84→v6.85; STORY-INDEX v2.437→v2.438. §RESUME SNAPSHOT D-1253 authored (supersedes D-1252). develop_head UNCHANGED 9114e028. STATE v7.881→v7.882.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1252** (authoritative zero-context restart protocol; supersedes D-1250). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1251 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1252 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1252 spec-state burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.881.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1253** (authoritative zero-context restart protocol; supersedes D-1252). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1252 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1253 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1253 spec-state burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.882.
+
+---
+
+## §RESUME SNAPSHOT — D-1253 (2026-06-19 — PIVOT-003 LOCAL r5 ALL FINDINGS CLOSED; develop_head 9114e028 UNCHANGED; STATE v7.882)
+
+> **D-1253 burst (2026-06-19).** SPEC-STATE burst — develop_head UNCHANGED at 9114e028. PIVOT-003 LOCAL adversary rounds 4-5 complete. R4: 2 LOW stale doc-comments (cyberint + armis generator files; sibling-sweep miss from D-1251) — closed. R5 (3 parallel independent passes run on frozen HEAD 47a3daee): pass A CLEAN(strict); pass B found F-R5B-001 MED (AC-008 canonical NVD pivot query referenced `device_cves` array which is never surfaced — demo would return 0 rows; canonical scalar field is `device_cves_first`) + F-R5B-002 OBS (CVSS filter used `nvd_cvss_score >` instead of `cvss_base_score >= 7.0`); pass C found doc-comment staleness. ALL findings closed. BC-2.06.019 v1.9→v1.10. PIVOT-003 v2.0→v2.1. BC-INDEX v6.84→v6.85. STORY-INDEX v2.437→v2.438. STATE v7.882. NEXT: one more LOCAL 3-CLEAN(strict) verification round on frozen HEAD 47a3daee → push → PR-LEVEL 3-CLEAN → merge. No new pub types; ci.yml EXPECTED stays 79.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1253 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1253 snapshot first. It is authoritative.
+
+**Step 1.** `vsdd-factory:factory-worktree-health` — BLOCKING gate. Do not proceed if this fails.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19; D-1253 spec-state burst — develop UNCHANGED).
+
+**Step 3.** Verify no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Apply carry-forward lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+
+**Step 5.** Apply DO-NOT-REFLAG items from §DO-NOT-REFLAG section below.
+
+**Step 6.** Drive per the WHAT'S NEXT table below.
+
+---
+
+### PINNED STATE (D-1253 — verified 2026-06-19)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19 (D-1240). UNCHANGED through D-1253. |
+| factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
+| Open PRs | **NONE** | S-5.03 PR #194 MERGED. PIVOT-002 PR #195 MERGED. No new PRs. |
+| PIVOT-003 worktree | feature/S-DEMO-ENRICHMENT-PIVOT-003 HEAD 47a3daee | LOCAL r5 ALL findings closed. NEXT: 1 more LOCAL 3-CLEAN(strict) on frozen HEAD → push → PR-LEVEL. |
+| S-5.04 worktree | feature/S-5.04 4282c997 | PARKED — implementation complete + green, BLOCKED on S-1.11 read-side tables (D-1252 user decision). |
+| ci.yml EXPECTED | `79` | No new pub types in PIVOT-003. Authority: `ci.yml`. |
+| CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@9114e028. |
+| BC-INDEX | **v6.85** | active 235 / draft 8 / retired 6 / total 256. BC-2.06.019 v1.9→v1.10 (D-1253). |
+| STORY-INDEX | **v2.438** | 206 stories. PIVOT-003 v2.0→v2.1 (D-1253). |
+| STATE.md | v7.882 | D-1253 burst. |
+| error_taxonomy | v1.91 | Unchanged. |
+| arch_index | v2.138 | Unchanged. |
+| vp_index | v1.79 | Unchanged. |
+| active_contracts | 235 | Unchanged through D-1253. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1253)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1253 (2026-06-19) | LOCAL adversary PIVOT-003 rounds 4-5: R4 2 LOW doc-comment staleness closed. R5 3 independent passes: pass A CLEAN(strict); pass B F-R5B-001 MED (device_cves array → device_cves_first scalar) + R5B-002 OBS (cvss_base_score >= 7.0 standardized). ALL closed. BC-2.06.019 v1.9→v1.10. PIVOT-003 v2.0→v2.1. BC-INDEX v6.84→v6.85. STORY-INDEX v2.437→v2.438. develop UNCHANGED 9114e028. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1253)
+
+| Priority | Story | Status | Pts | Hard Prerequisites | Notes |
+|----------|-------|--------|-----|--------------------|-------|
+| **NEXT-A (IN PROGRESS)** | **S-DEMO-ENRICHMENT-PIVOT-003** | draft v2.1 (**LOCAL r5 ALL findings closed — 1 more 3-CLEAN(strict) on frozen HEAD 47a3daee**) | 8 | PIVOT-002 MERGED (SATISFIED) | Run 1 more LOCAL 3-CLEAN(strict) on frozen 47a3daee → push → PR-LEVEL 3-CLEAN → merge. No new pub types; EXPECTED stays 79. **DEMO-BLOCKING.** |
+| **NEW LANE NEEDED** | **S-1.11 read-side-tables** | partial-merge — read-side gap | TBD | — | HARD PREREQUISITE for S-5.04 (D-1252 user decision). Needs architect/PO scoping. Unblocks S-5.04. |
+| **NEXT-B (PARKED)** | **S-5.04** | not-started v1.9 (**PARKED — blocked on S-1.11**) | 5 | S-5.03 MERGED + **S-1.11 read-side-tables** | F-S504-R2-002 MED (rate-limited aggregates healthy) + LOW/OBS remain. Resume after S-1.11. **DEMO-BLOCKING.** |
+| **NEXT-C (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.0 | 7 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. |
+| **NEXT-D (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.0 | 6 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | **PIVOT-003 + S-5.04 + 001-A + 001-B — all 4 must MERGE** | PO + story-writer. Hard gates all 4. |
+
+**Remove-uncertainty rule (D-1110):** PIVOT-003 + S-5.04 SATISFIED. 001-A + 001-B still pending their pre-TDD remove-uncertainty pass.
 
 ---
 

@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
-version: "1.9"
+version: "1.10"
 status: active
 lifecycle_status: active
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-19T00:00:00Z"
+modified: "2026-06-19T12:00:00Z"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -204,6 +204,25 @@ via the scenario path gains:
   `/api/v1/devices` (Armis), `/devices/v2` (CrowdStrike), and equivalent device endpoint responses.
 - `lateral_devices=false`: devices with IDs in `catalog.lateral_devices` are excluded.
 - `device_cves=false`: CVE-related enrichment fields on device records are omitted or set to `[]`.
+  **The `device_cves` array field is NEVER stamped on generated records and is NOT declared as a
+  TOML column (Ruling 1b, U17 from remove-uncertainty pass 2026-06-12).** Only the scalar
+  projection `device_cves_first` (String — first CVE ID from `catalog.device_cves`) is surfaced
+  on device records. The canonical NVD pivot query MUST use `has device_cves_first` as its
+  existence filter, never `has device_cves`:
+  ```
+  from armis.devices
+  | where has device_cves_first
+  | enrich nvd(device_cves_first)
+  | where cvss_base_score >= 7.0
+  | sort cvss_base_score desc
+  ```
+  The CVSS filter MUST use `cvss_base_score >= 7.0` (canonical column name per
+  `infusions.md` §NVD infusion spec + ADR-040 §3.2; NOT `nvd_cvss_score`, NOT `>` with strict
+  inequality — the canonical form is `>=` with `cvss_base_score`). Any reference to
+  `has device_cves` as a PrismQL filter, or `nvd_cvss_score` as a CVSS column name, is stale
+  and MUST be treated as a P1 finding in adversarial review.
+  This query returns non-empty results only at stage 4 (Containment), when `device_cves=true`
+  in the StageMask causes `device_cves_first` to be present on device records.
 - `primary_device=true` at `Containment` stage: `containment_status` field for the primary device
   is `"contained"` (the pre-built `FixtureSet` record already carries this value per the
   `CompromisedEndpoint` generator; the Containment stage makes it visible).
@@ -570,6 +589,7 @@ VP-019-A through VP-019-I (above) — verified by integration/unit tests in S-DE
 
 | Version | Change |
 |---------|--------|
+| v1.10 | PO spec-coherence reconciliation 2026-06-19 (F-PIVOT003-R5B-001 MED + F-PIVOT003-R5B-002 OBS). **Root cause:** AC-008 of S-DEMO-ENRICHMENT-PIVOT-003 referenced `where has device_cves` as the NVD pivot query existence filter, but the `device_cves` array field is NEVER stamped on generated records and is NOT declared as a TOML column (Ruling 1b). The filter would match zero records, making the canonical NVD pivot query return 0 rows against the demo server. The scalar projection `device_cves_first` IS surfaced on device records and IS the correct pivot field. **Changes:** (1) Extended `device_cves=false` bullet in §PC-4 General Filtering Semantics to explicitly state that `device_cves` array is never stamped on generated records (Ruling 1b), that only the scalar `device_cves_first` is surfaced, and to define the canonical NVD pivot query with the corrected filter `where has device_cves_first` and the canonical CVSS filter form `where cvss_base_score >= 7.0`. (2) Added adversary-probe note: any reference to `has device_cves` (array form) as a PrismQL filter, or `nvd_cvss_score` as a CVSS column name, is stale and must be treated as a P1 finding. **Story-writer propagates:** the corrected canonical NVD pivot query to S-DEMO-ENRICHMENT-PIVOT-003 AC-008 query text, EC-008 explanation, and all related prose referencing `has device_cves` or `nvd_cvss_score`. |
 | v1.9 | PO coherence fix 2026-06-19 (F-PIVOT003-R2-004 HIGH) — Canonical ThreatIntel pivot query field reconciliation. **Root cause:** the canonical pivot query (AC-007 of S-DEMO-ENRICHMENT-PIVOT-003) targeted `ioc.value` (singleton), but `generate_with_scenario_iocs` stamps only the plural `iocs[]` array, never the singleton `Alert.ioc`. The singleton has no public-documentation basis and was already flagged for likely removal in v1.8. Resolving with `iocs[].value` as the canonical pivot target. **Changes:** (1) Per-Sensor IOC-Surface Matrix Cyberint row updated: `iocs[].value` explicitly marked as "canonical pivot target"; singleton `ioc.value` explicitly marked "NOT stamped by scenario generator, NOT targeted by canonical pivot query — case for removal strengthens now that no pivot query depends on it." (2) Route Coverage Table INTERIM row: future-state guard mechanism description now explicitly states the replacement filter checks `iocs[].value` (dual-alias) and `alert_data.ip`/`domain`, and does NOT check singleton `ioc.value`. (3) IOC filtering semantics (PC-4) already correctly used `iocs[].value` — no change required there. **PC-4 fail-closed ruling (for implementer):** PC-4's projection-integrity postcondition requires fail-closed behavior; alert-surface records that do not deserialize as `Alert` MUST be withheld (not passed through). See explicit §PC-4 note below. Story-writer propagates the `ioc.value` → `iocs[].value` change to story AC-007 canonical query text. |
 | v1.8 | PO fidelity correction 2026-06-19 — True-DTU ioc_type enum correction (ADR-031) for CrowdStrike and Cyberint rows in Per-Sensor IOC-Surface Matrix. **CrowdStrike:** `behaviors[].ioc_type` value set corrected from `{hash, domain, filename, registry, cmdline}` to `{hash_sha256, hash_md5, domain, filename, registry_key}`. Bare `hash` → split into algorithm-qualified `hash_sha256` + `hash_md5`. Bare `registry` → `registry_key`. `cmdline` removed from the ioc_type value set — it is a SEPARATE sibling behavior field (`behaviors[].cmdline`), never an `ioc_type` value. `domain`/`filename` unchanged. ipv4/ipv6 exclusion retained (confirmed correct). Added tolerant-unknown-type policy: CrowdStrike publishes no normative exhaustive enum; parser must treat unknown `ioc_type` tokens as non-fatal. **Cyberint:** Inner IOC key names for `iocs[]` elements marked INCONCLUSIVE-pending-live-validation. DTU implementation MUST use serde dual-alias (`type`/`value` AND `ioc_type`/`ioc_value`) rather than a single hard-coded guess. Singleton top-level `ioc` field flagged for likely removal (no public-documentation basis found). `iocs[]` array and `alert_data.url` confirmed; `alert_data.ip`/`domain` remain plausible-unconfirmed. IOC filtering semantics updated to use dual-alias reference for Cyberint `iocs[].value`. Source: uncertainty-pivot003-s504-2026-06-19.md §Item 1 (HIGH confidence) + §Item 2 (INCONCLUSIVE). |
 | v1.7 | PO micro-fix 2026-06-12 (BPRL-P7-01) — Inventory verification note prose corrected. Replaced fabricated claim that `prism-dtu-claroty/src/routes/alerts.rs` "appears in both grep sets due to `scenario_stage_ctx` or similar context references" with the accurate statement: the file does NOT appear in either grep set; its PERMANENT EXEMPT table row stands solely on real-API grounds (no structured IOC fields in the real Claroty xDome API per 2026-06-12 research; no `device_id` emitted on alert records). No table change, no semantic change. |
