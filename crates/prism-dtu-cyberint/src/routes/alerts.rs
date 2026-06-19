@@ -149,7 +149,7 @@ pub(crate) fn check_auth(
 ///    mask field (`ioc_ips`, `ioc_domains`, or `ioc_hashes`) is `false`.
 ///    BC-2.06.019 v1.8 PC-4 alert-surface semantics: `ioc_ips/ioc_domains/ioc_hashes=false`
 ///    → alert records referencing those catalog IOCs are excluded from the response.
-///    NOTE: the synthetic `_ioc_value` filter has been REMOVED (BC-2.06.019 v1.8 §Interim State);
+///    NOTE: the synthetic synthetic-ioc filter has been REMOVED (BC-2.06.019 v1.8 §Interim State);
 ///    IOC field access uses `Ioc.value` deserialized from `#[serde(rename = "type", alias = "ioc_type")]`
 ///    on `Ioc.ioc_type` and the primary `value` field (AC-003 / S-DEMO-ENRICHMENT-PIVOT-003).
 ///
@@ -269,10 +269,14 @@ pub async fn get_alerts(
                 .into_iter()
                 .filter(|rec| {
                     // Try to deserialize as typed Alert for IOC access.
-                    // Records that don't deserialize pass through (non-IOC alerts unaffected).
+                    // BC-2.06.019 v1.9 PC-4 step 6: fail-closed.
+                    // Records that cannot be deserialized as Alert MUST be withheld:
+                    // the StageMask IOC filter cannot be correctly applied to untyped data,
+                    // so surfacing an undeserializable record would violate the IOC masking
+                    // guarantee. (F-PIVOT003-R2-005: changed from pass-through to withhold.)
                     let typed: crate::types::Alert = match serde_json::from_value((*rec).clone()) {
                         Ok(a) => a,
-                        Err(_) => return true, // non-typed → pass through
+                        Err(_) => return false, // fail-closed: withhold undeserializable records
                     };
 
                     let ioc_vals = ioc_values_for(&typed);

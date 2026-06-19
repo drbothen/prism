@@ -833,3 +833,144 @@ async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matchin
         ids3
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test 11 — F-PIVOT003-R2-005: fail-closed projection integrity (BC-2.06.019 v1.9 PC-4 §6)
+// ---------------------------------------------------------------------------
+
+/// Test 11 — BC-2.06.019 v1.9 PC-4 step 6: fail-closed projection integrity.
+///
+/// A record that CANNOT be deserialized as `Alert` (e.g., missing required fields)
+/// MUST be WITHHELD from the response — not passed through.
+///
+/// Rationale: the StageMask IOC filter cannot be correctly applied to an
+/// undeserializable record, so surfacing it would violate the IOC masking guarantee
+/// (F-PIVOT003-R2-005, BC-2.06.019 v1.9 PC-4 §6).
+///
+/// LOAD-BEARING (production path): goes through `CyberintClone::new_with_scenario`
+/// (the same constructor harness.rs uses), starts an HTTP server, and asserts the
+/// injected malformed record is absent from the response.
+///
+/// BC-2.06.019 v1.9 PC-4 step 6. F-PIVOT003-R2-005.
+#[tokio::test]
+async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
+    let org = deadbeef_org();
+    let seed: u64 = 77;
+    let demo_token = "test-demo-token-fail-closed".to_owned();
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+    let now = chrono::Utc::now().timestamp();
+
+    // Stage 3 server (elapsed ≈ 400s): all IOC mask fields true.
+    // A malformed record must still be withheld even when all mask bits are true.
+    let start_stage3: i64 = now - 400;
+    let time_anchor = chrono::DateTime::from_timestamp(start_stage3, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+    let timeline = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage3,
+        &[],
+    ));
+
+    let mut clone_stage3 = CyberintClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org.clone(),
+        Arc::clone(&timeline),
+        time_anchor,
+        &catalog,
+    )
+    .expect("new_with_scenario must succeed for fail-closed test");
+
+    clone_stage3.state.register_access_token(demo_token.clone());
+
+    {
+        let state_mut = Arc::get_mut(&mut clone_stage3.state)
+            .expect("Arc refcount must be 1 before server start");
+
+        // Inject a record that is entirely wrong — missing ALL required Alert fields.
+        // serde_json::from_value::<Alert>(...) will Err → must be withheld (fail-closed).
+        state_mut.generated_records.push(json!({
+            "not_an_alert_field": "this record cannot deserialize as Alert",
+            "random_noise": 42,
+            "_surface": "alert"
+        }));
+
+        // Inject a valid alert to confirm the server is functioning (non-vacuous).
+        state_mut.generated_records.push(json!({
+            "alert_id": "valid-alert-fail-closed-test11",
+            "id": "valid-alert-fail-closed-test11",
+            "ref_id": "REF-valid-fc-test11",
+            "environment": "production",
+            "confidence": 80u64,
+            "status": "open",
+            "severity": "medium",
+            "severity_id": 3u64,
+            "created_at": "2026-01-01T00:00:00Z",
+            "created_by": "system",
+            "category": "Phishing",
+            "type": "phishing",
+            "source_category": "external",
+            "source": "cyberint",
+            "affected_assets": [],
+            "title": "Valid Alert (fail-closed test11)",
+            "modification_date": "2026-01-01T00:01:00Z",
+            "description": "Valid alert — must appear in response.",
+            "recommendation": "Review.",
+            "update_date": "2026-01-01T00:01:00Z",
+            "_surface": "alert"
+        }));
+    }
+
+    clone_stage3
+        .start()
+        .await
+        .expect("stage-3 server must start for fail-closed test");
+    let base_url = clone_stage3.base_url();
+    let client = prism_dtu_common::build_test_client();
+
+    let resp = client
+        .get(format!("{base_url}/api/v1/alerts"))
+        .header("Cookie", access_token_cookie(&demo_token))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts (fail-closed) must reach the server");
+
+    assert_eq!(resp.status().as_u16(), 200, "must return HTTP 200");
+
+    let body: serde_json::Value = resp.json().await.expect("response must be JSON");
+    let data = body["data"].as_array().cloned().unwrap_or_default();
+
+    // The malformed record must NOT appear — fail-closed withholds it.
+    // Since the malformed record has no alert_id, check by count and absence of noise field.
+    let noise_records: Vec<&serde_json::Value> = data
+        .iter()
+        .filter(|rec| rec.get("not_an_alert_field").is_some())
+        .collect();
+
+    assert!(
+        noise_records.is_empty(),
+        "BC-2.06.019 v1.9 PC-4 §6 / F-PIVOT003-R2-005: fail-closed — malformed record \
+         with 'not_an_alert_field' key MUST be withheld from the response; \
+         found {} such record(s) in response. The fail-open path was changed to fail-closed.",
+        noise_records.len()
+    );
+
+    // The valid alert must appear (confirms server is running and response is not empty).
+    let valid_ids: Vec<String> = data
+        .iter()
+        .filter_map(|rec| {
+            rec.get("alert_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .collect();
+
+    assert!(
+        valid_ids.contains(&"valid-alert-fail-closed-test11".to_owned()),
+        "BC-2.06.019 v1.9 PC-4 §6: valid alert 'valid-alert-fail-closed-test11' must be PRESENT; \
+         not found in: {:?}",
+        valid_ids
+    );
+}
