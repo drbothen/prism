@@ -424,34 +424,109 @@ impl RocksStorageBackend for RocksDbBackend {
 //
 // Allows `RocksDbBackend` to be injected as `Arc<dyn CacheBackend>` into the
 // Tier-3 infusion cache (`InfusionTier3Cache`) without an intermediate adapter.
-// Methods delegate to the synchronous `RocksStorageBackend` methods.
-// `get` → `RocksStorageBackend::get`
-// `set` → `RocksStorageBackend::put`
-// `delete` → `RocksStorageBackend::remove`
+// Methods delegate to the synchronous `RocksStorageBackend` methods via
+// `tokio::task::spawn_blocking` because:
 //
-// The async surface is required by `CacheBackend`; the synchronous RocksDB
-// operations are not blocking in the I/O-bound sense (they are CPU-bound
-// memory-mapped writes), so wrapping them in an `async` method without
-// `spawn_blocking` is acceptable for the cache write path (S-1.14-REDO CRIT-1).
+// - `get` → RocksDB block-cache miss triggers a synchronous disk read.
+// - `set` → RocksDB WAL append may trigger an fsync under certain durability
+//   settings; write buffer flush can also stall briefly.
+// - `delete` → same WAL path as `set`.
+//
+// Wrapping in `spawn_blocking` moves these potentially-blocking calls off the
+// tokio thread pool onto the dedicated blocking thread pool, satisfying the
+// project rule ("Do not block the tokio thread pool with synchronous I/O",
+// CLAUDE.md §Channels/async).
+//
+// `JoinError` from `spawn_blocking` (task panic) is mapped to the appropriate
+// `PrismError::StorageReadFailed` (for `get`) or `StorageWriteFailed` (for
+// `set`/`delete`) with the domain name and panic message in `detail`.
 
 #[async_trait]
 impl CacheBackend for RocksDbBackend {
     /// Retrieve the value for `key` in `domain`, or `None` if absent.
+    ///
+    /// The synchronous RocksDB read is offloaded via `tokio::task::spawn_blocking`
+    /// because a block-cache miss may require a synchronous disk read.
     async fn get(&self, domain: StorageDomain, key: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
-        use crate::backend::RocksStorageBackend;
-        RocksStorageBackend::get(self, domain, key)
+        let db = Arc::clone(&self.db);
+        let key_owned = key.to_vec();
+        // Construct a lightweight clone of just the active_domains set and the
+        // state_dir for the blocking closure. We cannot move `self` (borrowed),
+        // so we reconstruct the minimal state needed to call resolve_cf inside
+        // the closure. Instead, we call the DB directly to avoid the borrow.
+        let domain_cf_name = domain.column_family_name().to_owned();
+        tokio::task::spawn_blocking(move || {
+            let cf =
+                db.cf_handle(&domain_cf_name)
+                    .ok_or_else(|| PrismError::StorageDomainNotFound {
+                        domain: domain_cf_name.clone(),
+                    })?;
+            db.get_cf(cf, &key_owned)
+                .map_err(|e| PrismError::StorageReadFailed {
+                    domain: domain_cf_name,
+                    detail: e.to_string(),
+                })
+        })
+        .await
+        .map_err(|e| PrismError::StorageReadFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: format!("spawn_blocking panicked: {e}"),
+        })?
     }
 
     /// Store `value` at `key` in `domain`, overwriting any existing value.
+    ///
+    /// The synchronous RocksDB write is offloaded via `tokio::task::spawn_blocking`
+    /// because WAL append/fsync may block the calling thread.
     async fn set(&self, domain: StorageDomain, key: &[u8], value: &[u8]) -> Result<(), PrismError> {
-        use crate::backend::RocksStorageBackend;
-        RocksStorageBackend::put(self, domain, key, value)
+        let db = Arc::clone(&self.db);
+        let key_owned = key.to_vec();
+        let value_owned = value.to_vec();
+        let domain_cf_name = domain.column_family_name().to_owned();
+        tokio::task::spawn_blocking(move || {
+            let cf =
+                db.cf_handle(&domain_cf_name)
+                    .ok_or_else(|| PrismError::StorageDomainNotFound {
+                        domain: domain_cf_name.clone(),
+                    })?;
+            db.put_cf(cf, &key_owned, &value_owned)
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: domain_cf_name,
+                    detail: e.to_string(),
+                })
+        })
+        .await
+        .map_err(|e| PrismError::StorageWriteFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: format!("spawn_blocking panicked: {e}"),
+        })?
     }
 
     /// Remove the value at `key` in `domain`. No-op if absent.
+    ///
+    /// The synchronous RocksDB delete is offloaded via `tokio::task::spawn_blocking`
+    /// because WAL append/fsync may block the calling thread.
     async fn delete(&self, domain: StorageDomain, key: &[u8]) -> Result<(), PrismError> {
-        use crate::backend::RocksStorageBackend;
-        RocksStorageBackend::remove(self, domain, key)
+        let db = Arc::clone(&self.db);
+        let key_owned = key.to_vec();
+        let domain_cf_name = domain.column_family_name().to_owned();
+        tokio::task::spawn_blocking(move || {
+            let cf =
+                db.cf_handle(&domain_cf_name)
+                    .ok_or_else(|| PrismError::StorageDomainNotFound {
+                        domain: domain_cf_name.clone(),
+                    })?;
+            db.delete_cf(cf, &key_owned)
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: domain_cf_name,
+                    detail: e.to_string(),
+                })
+        })
+        .await
+        .map_err(|e| PrismError::StorageWriteFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: format!("spawn_blocking panicked: {e}"),
+        })?
     }
 }
 
