@@ -218,6 +218,21 @@ fn test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs(
         registry.is_api_backed("cvss_base_score"),
         "BC-2.19.001: is_api_backed('cvss_base_score') must return true for http_lookup-type spec"
     );
+
+    // FIX-1 / AC-002 load-bearing hollow-feature assertion (TD-VSDD-059):
+    // Assert that the source on each descriptor is an HttpLookupSource — NOT a NullSource.
+    // A NullSource would pass all descriptor-count assertions above but silently return
+    // None for every enrichment call, making NVD enrichment a dead feature at runtime.
+    // This assertion must FAIL against the old wiring (NullSource) and PASS only after FIX-1.
+    for descriptor in &descriptors {
+        assert!(
+            descriptor.source.is_http_lookup_backed(),
+            "AC-002 FIX-1: descriptor '{}' source must be an HttpLookupSource (not NullSource). \
+             The source is NullSource — InfusionType::HttpLookup was not wired in load_spec. \
+             This is the hollow-feature defect guard (FIX-1 / TD-VSDD-059).",
+            descriptor.name
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -625,30 +640,36 @@ fn test_enrichment_pivot_002_enrich_nvd_pipe_stage_returns_high_cvss_for_scenari
 /// RED GATE: fails until validate_field_name is implemented (currently todo!()).
 #[test]
 fn test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars() {
+    use prism_core::InfusionError;
     let spec_path = "test.infusion.toml";
 
     let result = InfusionLoader::validate_field_name("threat; DROP TABLE", spec_path);
     assert!(
-        result.is_err(),
-        "AC-007: 'threat; DROP TABLE' must be rejected by validate_field_name (CWE-20)"
+        matches!(result, Err(InfusionError::InvalidFieldSpec { .. })),
+        "AC-007: 'threat; DROP TABLE' must return Err(InvalidFieldSpec) from validate_field_name \
+         (E-INFUSE-013 / CWE-20); got: {:?}",
+        result
     );
 
     let result2 = InfusionLoader::validate_field_name(" leading_space", spec_path);
     assert!(
-        result2.is_err(),
-        "AC-007: ' leading_space' (leading space) must be rejected by validate_field_name"
+        matches!(result2, Err(InfusionError::InvalidFieldSpec { .. })),
+        "AC-007: ' leading_space' (leading space) must return Err(InvalidFieldSpec); got: {:?}",
+        result2
     );
 
     let result3 = InfusionLoader::validate_field_name("has-hyphen", spec_path);
     assert!(
-        result3.is_err(),
-        "AC-007: 'has-hyphen' (hyphen) must be rejected by validate_field_name"
+        matches!(result3, Err(InfusionError::InvalidFieldSpec { .. })),
+        "AC-007: 'has-hyphen' (hyphen) must return Err(InvalidFieldSpec); got: {:?}",
+        result3
     );
 
     let result4 = InfusionLoader::validate_field_name("", spec_path);
     assert!(
-        result4.is_err(),
-        "AC-007: empty string must be rejected by validate_field_name"
+        matches!(result4, Err(InfusionError::InvalidFieldSpec { .. })),
+        "AC-007: empty string must return Err(InvalidFieldSpec); got: {:?}",
+        result4
     );
 }
 
@@ -661,18 +682,21 @@ fn test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars() {
 /// RED GATE: fails until validate_field_name is implemented (currently todo!()).
 #[test]
 fn test_enrichment_pivot_002_sec001_udf_name_rejects_leading_digit() {
+    use prism_core::InfusionError;
     let spec_path = "test.infusion.toml";
 
     let result = InfusionLoader::validate_field_name("1starts_with_digit", spec_path);
     assert!(
-        result.is_err(),
-        "AC-007: '1starts_with_digit' (starts with digit) must be rejected (^[a-zA-Z] required)"
+        matches!(result, Err(InfusionError::InvalidFieldSpec { .. })),
+        "AC-007: '1starts_with_digit' must return Err(InvalidFieldSpec) (E-INFUSE-013); got: {:?}",
+        result
     );
 
     let result2 = InfusionLoader::validate_field_name("0threat", spec_path);
     assert!(
-        result2.is_err(),
-        "AC-007: '0threat' (starts with 0) must be rejected"
+        matches!(result2, Err(InfusionError::InvalidFieldSpec { .. })),
+        "AC-007: '0threat' must return Err(InvalidFieldSpec) (E-INFUSE-013); got: {:?}",
+        result2
     );
 }
 

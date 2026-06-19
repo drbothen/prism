@@ -450,4 +450,39 @@ mod redaction_tests {
             "Safe string must pass through verbatim"
         );
     }
+
+    /// CWE-209 load-bearing regression guard (AC-009 / DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001).
+    ///
+    /// Calls `map_plugin_error_to_infusion_error` with a `SandboxViolation` that has a
+    /// URL containing a recognizable host and path. The resulting `InfusionError` Display
+    /// output MUST NOT contain either "dtu:8080" (host) or "/secret/path" (path).
+    ///
+    /// SID-1: this is a unit test at the production code boundary — no external dependencies.
+    /// Without this test, a future refactor that accidentally exposes the URL would pass
+    /// the existing tests but violate CWE-209.
+    ///
+    /// Tests the `map_plugin_error_to_infusion_error` function directly (not via enrich_single)
+    /// so the test runs in all CI environments without a running PluginRuntime.
+    #[test]
+    fn test_sandbox_violation_url_excluded_from_infusion_error_display() {
+        use prism_core::PluginError;
+        let err = PluginError::SandboxViolation {
+            plugin_id: "pid".to_string(),
+            url: "http://dtu:8080/secret/path".to_string(),
+        };
+        let infusion_err = map_plugin_error_to_infusion_error("pid", err);
+        let display_str = infusion_err.to_string();
+        assert!(
+            !display_str.contains("dtu:8080"),
+            "CWE-209: SandboxViolation URL host 'dtu:8080' must NOT appear in InfusionError \
+             Display output (AC-009 / DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001). Got: {:?}",
+            display_str
+        );
+        assert!(
+            !display_str.contains("/secret/path"),
+            "CWE-209: SandboxViolation URL path '/secret/path' must NOT appear in InfusionError \
+             Display output (AC-009 / DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001). Got: {:?}",
+            display_str
+        );
+    }
 }

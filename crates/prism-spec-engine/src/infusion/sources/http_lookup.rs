@@ -5,7 +5,7 @@
 //! Handles credential resolution (AD-017), SSRF validation (CWE-918),
 //! and error taxonomy (E-INFUSE-009/010/011).
 
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 
 use prism_core::InfusionError;
 use url::Url;
@@ -144,53 +144,79 @@ fn validate_ssrf_safe(base_url: &str, spec_path: &str) -> Result<(), InfusionErr
 
 /// Returns `true` if the IP address is private, loopback, or link-local.
 ///
-/// Checked ranges (RFC-1918 + loopback + link-local):
-/// - 10.0.0.0/8
-/// - 172.16.0.0/12 (172.16.x.x – 172.31.x.x)
-/// - 192.168.0.0/16
-/// - 127.0.0.0/8 (loopback)
-/// - ::1 (IPv6 loopback)
-/// - 169.254.0.0/16 (link-local)
-/// - fd00::/8 (IPv6 unique local — starts with 0xfd)
+/// Checked ranges (RFC-1918 + loopback + link-local + extended CWE-918 blocks):
+/// - 10.0.0.0/8  — RFC-1918
+/// - 172.16.0.0/12 (172.16.x.x – 172.31.x.x) — RFC-1918
+/// - 192.168.0.0/16 — RFC-1918
+/// - 127.0.0.0/8 — loopback
+/// - 0.0.0.0/8 — "this" network (RFC-1122)
+/// - 100.64.0.0/10 — CGNAT shared address space (RFC-6598)
+/// - 169.254.0.0/16 — IPv4 link-local
+/// - ::1 — IPv6 loopback
+/// - ::ffff:0:0/96 — IPv4-mapped IPv6 (canonicalized to IPv4 for check)
+/// - fe80::/10 — IPv6 link-local
+/// - fd00::/8 — IPv6 unique local (starts with 0xfd)
 fn is_private_or_loopback(ip: IpAddr) -> bool {
     match ip {
-        IpAddr::V4(v4) => {
-            let octets = v4.octets();
-            // 127.0.0.0/8 — loopback
-            if octets[0] == 127 {
-                return true;
-            }
-            // 10.0.0.0/8 — RFC-1918
-            if octets[0] == 10 {
-                return true;
-            }
-            // 172.16.0.0/12 — RFC-1918 (172.16 through 172.31)
-            if octets[0] == 172 && (16..=31).contains(&octets[1]) {
-                return true;
-            }
-            // 192.168.0.0/16 — RFC-1918
-            if octets[0] == 192 && octets[1] == 168 {
-                return true;
-            }
-            // 169.254.0.0/16 — link-local
-            if octets[0] == 169 && octets[1] == 254 {
-                return true;
-            }
-            false
-        }
+        IpAddr::V4(v4) => is_private_or_loopback_v4(v4),
         IpAddr::V6(v6) => {
             // ::1 — IPv6 loopback
             if v6.is_loopback() {
                 return true;
             }
-            // fd00::/8 — IPv6 unique local (first byte 0xfd)
+            // ::ffff:0:0/96 — IPv4-mapped IPv6: canonicalize to IPv4 and apply IPv4 checks.
+            // `to_ipv4_mapped()` returns Some(v4) for ::ffff:x.x.x.x addresses.
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return is_private_or_loopback_v4(v4);
+            }
+            // fe80::/10 — IPv6 link-local
+            // First segment high 10 bits = 0b1111_1110_10 = 0xfe80..0xfebf
             let segments = v6.segments();
+            if segments[0] & 0xffc0 == 0xfe80 {
+                return true;
+            }
+            // fd00::/8 — IPv6 unique local (first byte 0xfd)
             if (segments[0] >> 8) == 0xfd {
                 return true;
             }
             false
         }
     }
+}
+
+/// IPv4-only helper extracted so IPv4-mapped IPv6 can reuse the same logic.
+fn is_private_or_loopback_v4(v4: Ipv4Addr) -> bool {
+    let octets = v4.octets();
+    // 127.0.0.0/8 — loopback
+    if octets[0] == 127 {
+        return true;
+    }
+    // 0.0.0.0/8 — "this" network (RFC-1122); SSRF-relevant as wildcard bind address
+    if octets[0] == 0 {
+        return true;
+    }
+    // 10.0.0.0/8 — RFC-1918
+    if octets[0] == 10 {
+        return true;
+    }
+    // 172.16.0.0/12 — RFC-1918 (172.16 through 172.31)
+    if octets[0] == 172 && (16..=31).contains(&octets[1]) {
+        return true;
+    }
+    // 192.168.0.0/16 — RFC-1918
+    if octets[0] == 192 && octets[1] == 168 {
+        return true;
+    }
+    // 100.64.0.0/10 — CGNAT shared address space (RFC-6598)
+    // Range: 100.64.0.0 – 100.127.255.255 (octets[1] & 0xc0 == 0x40)
+    if octets[0] == 100 && (64..=127).contains(&octets[1]) {
+        return true;
+    }
+    // 169.254.0.0/16 — IPv4 link-local
+    if octets[0] == 169 && octets[1] == 254 {
+        return true;
+    }
+    false
 }
 
 impl InfusionSource for HttpLookupSource {
@@ -237,6 +263,15 @@ impl InfusionSource for HttpLookupSource {
             .iter()
             .map(|i| self.enrich_single(i, input_type))
             .collect()
+    }
+
+    /// Returns `true` — this source IS an `HttpLookupSource`.
+    ///
+    /// Overrides the default `false` from `InfusionSource`. Used by AC-002 load-bearing
+    /// tests to assert that `load_spec` wired a real `HttpLookupSource` (not `NullSource`)
+    /// for `InfusionType::HttpLookup` specs (FIX-1 / hollow-feature guard / TD-VSDD-059).
+    fn is_http_lookup_backed(&self) -> bool {
+        true
     }
 }
 
@@ -555,6 +590,70 @@ mod tests {
             result.is_none(),
             "AC-016: must return None when response_path doesn't match. Got: {:?}",
             result
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // FIX-5 extended SSRF range tests (CWE-918)
+    // -----------------------------------------------------------------------
+
+    /// IPv4-mapped IPv6 loopback (::ffff:127.0.0.1) must be rejected (FIX-5 / CWE-918).
+    #[test]
+    fn test_is_private_or_loopback_ipv4_mapped_loopback_blocked() {
+        let ip: IpAddr = "::ffff:127.0.0.1".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "FIX-5: ::ffff:127.0.0.1 (IPv4-mapped loopback) must be blocked by is_private_or_loopback"
+        );
+    }
+
+    /// IPv4-mapped IPv6 RFC-1918 (::ffff:10.0.0.1) must be rejected (FIX-5 / CWE-918).
+    #[test]
+    fn test_is_private_or_loopback_ipv4_mapped_rfc1918_blocked() {
+        let ip: IpAddr = "::ffff:10.0.0.1".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "FIX-5: ::ffff:10.0.0.1 (IPv4-mapped RFC-1918) must be blocked by is_private_or_loopback"
+        );
+    }
+
+    /// 0.0.0.0 (RFC-1122 "this" network) must be rejected (FIX-5 / CWE-918).
+    #[test]
+    fn test_is_private_or_loopback_zero_host_blocked() {
+        let ip: IpAddr = "0.0.0.0".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "FIX-5: 0.0.0.0 must be blocked by is_private_or_loopback (RFC-1122)"
+        );
+    }
+
+    /// 100.64.0.1 (RFC-6598 CGNAT) must be rejected (FIX-5 / CWE-918).
+    #[test]
+    fn test_is_private_or_loopback_cgnat_blocked() {
+        let ip: IpAddr = "100.64.0.1".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "FIX-5: 100.64.0.1 (RFC-6598 CGNAT) must be blocked by is_private_or_loopback"
+        );
+    }
+
+    /// fe80::1 (IPv6 link-local) must be rejected (FIX-5 / CWE-918).
+    #[test]
+    fn test_is_private_or_loopback_ipv6_link_local_blocked() {
+        let ip: IpAddr = "fe80::1".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "FIX-5: fe80::1 (IPv6 link-local) must be blocked by is_private_or_loopback"
+        );
+    }
+
+    /// A public IPv4 address (1.1.1.1) must NOT be blocked (regression guard).
+    #[test]
+    fn test_is_private_or_loopback_public_ipv4_allowed() {
+        let ip: IpAddr = "1.1.1.1".parse().unwrap();
+        assert!(
+            !is_private_or_loopback(ip),
+            "FIX-5 regression guard: 1.1.1.1 (public) must NOT be blocked by is_private_or_loopback"
         );
     }
 }

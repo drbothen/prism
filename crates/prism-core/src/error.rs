@@ -1258,8 +1258,14 @@ pub enum InfusionError {
         infusion_id: String,
     },
 
-    /// E-INFUSE-006: Invalid field specification in infusion spec.
-    #[error("E-INFUSE-006: Invalid field '{field}' in infusion spec '{spec_path}': {message}")]
+    /// E-INFUSE-013: Invalid field specification in infusion spec.
+    ///
+    /// E-INFUSE-006 ("Infusion not found") is already the tombstoned code for the
+    /// `SpecNotFound` variant (see §BC-2.19.001 error taxonomy). This variant uses
+    /// E-INFUSE-013 to avoid the collision (PO allocation 2026-06-19).
+    #[error(
+        "E-INFUSE-013: invalid field name '{field}' in infusion spec '{spec_path}': {message}"
+    )]
     InvalidFieldSpec {
         field: String,
         spec_path: String,

@@ -377,8 +377,12 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             })
             .await
             .map_err(|join_err| {
+                // E-QUERY-034: generic query execution error — spawn_blocking task was
+                // cancelled or panicked (e.g., blocked-thread pool exhausted, WASM
+                // enrich_single panic). Taxonomy code enables operator triage without
+                // requiring code-level analysis of bare DataFusionError::Execution messages.
                 datafusion::error::DataFusionError::Execution(format!(
-                    "InfusionAsyncUdf: spawn_blocking join error: {join_err}"
+                    "E-QUERY-034: InfusionAsyncUdf spawn_blocking join error: {join_err}"
                 ))
             })?;
 

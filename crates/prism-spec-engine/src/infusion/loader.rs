@@ -743,12 +743,18 @@ impl InfusionLoader {
         // Identifier regex: ^[a-zA-Z][a-zA-Z0-9_]*$ — must start with letter, followed by
         // alphanumerics or underscore. Empty string rejected. SQL-injection chars (;, space, -)
         // and leading digits all rejected. Validated char-by-char (zero-dep, no regex crate).
+        // AC-007 / BC-2.19.001: validate_field_name MUST return InvalidFieldSpec (E-INFUSE-013),
+        // NOT MissingRequiredField (E-INFUSE-003), for invalid field name characters.
+        // This is a load-bearing contract distinction: callers that match on the variant
+        // (e.g., test_enrichment_pivot_002_sec001_udf_name_rejects_*) assert the specific
+        // variant — not just is_err() — to ensure the correct E-INFUSE-013 code is emitted.
         if name.is_empty() {
-            return Err(InfusionError::MissingRequiredField {
+            return Err(InfusionError::InvalidFieldSpec {
                 field: "field name must match [a-zA-Z][a-zA-Z0-9_]* — got empty string \
                         (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)"
                     .to_string(),
                 spec_path: spec_path.to_string(),
+                message: "field name must not be empty".to_string(),
             });
         }
 
@@ -757,28 +763,30 @@ impl InfusionLoader {
         // First character must be ASCII alpha.
         let first = chars.next().expect("non-empty string has a first char");
         if !first.is_ascii_alphabetic() {
-            return Err(InfusionError::MissingRequiredField {
-                field: format!(
+            return Err(InfusionError::InvalidFieldSpec {
+                field: name.to_string(),
+                spec_path: spec_path.to_string(),
+                message: format!(
                     "field name must match [a-zA-Z][a-zA-Z0-9_]* — '{}' starts with '{}' \
                      (must start with [a-zA-Z]) \
                      (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)",
                     name, first
                 ),
-                spec_path: spec_path.to_string(),
             });
         }
 
         // Remaining characters must be ASCII alphanumeric or underscore.
         for ch in chars {
             if !ch.is_ascii_alphanumeric() && ch != '_' {
-                return Err(InfusionError::MissingRequiredField {
-                    field: format!(
+                return Err(InfusionError::InvalidFieldSpec {
+                    field: name.to_string(),
+                    spec_path: spec_path.to_string(),
+                    message: format!(
                         "field name must match [a-zA-Z][a-zA-Z0-9_]* — '{}' contains invalid \
                          character '{}' (only [a-zA-Z0-9_] allowed after first char) \
                          (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)",
                         name, ch
                     ),
-                    spec_path: spec_path.to_string(),
                 });
             }
         }
