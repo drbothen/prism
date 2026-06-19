@@ -1594,3 +1594,100 @@ PG-LP11-001 explicitly assigns implementer ownership of same-commit catalog row 
 ---
 
 **(z15) [process-gap] When asserting a wiring/hollow-feature HIGH ("this notification never fires"), adversary MUST trace store()/setter side-effects and all boot-registered listeners — not just direct call sites in the immediate function under inspection.** D-1231 cascade: fresh-context adversary flagged a FALSE-POSITIVE HIGH (AC-9 notifications "never fire") by tracing the spec-engine `reload_config` function in isolation. The adversary concluded notifications were dead because it did not trace `ConfigManager::store()` which is called by `reload_config` and has a synchronous side-effect: `notify_swap_listeners()`. That method invokes the boot-wired `wire_table_registry_swap_listener` callback, which mutates the shared `Arc<TableRegistry>` before the `new_tables` capture — meaning notifications DO fire in production on every `reload_config` call. The HIGH was DISMISSED after architect adjudication. **Rule:** when asserting a wiring or hollow-feature HIGH finding ("path X is wired but never triggered"), the adversary MUST: (1) grep for ALL listeners registered at boot on the relevant manager/event bus, (2) trace every code path that calls the store()/notify() method (not just the top-level function), and (3) confirm zero listeners exist before asserting "never fires." A finding that cannot survive the question "did I check boot-registered listeners?" is not ready to be filed as HIGH. **Source:** D-1231 S-5.03 round-4 FALSE-POSITIVE HIGH — architect adjudication required to dismiss; wasted one cascade pass.
+
+---
+
+## Process-Gap Lesson 1 — CI clippy `--all-targets` missing; test-code lints not caught by CI or pre-push gate (D-1236, 2026-06-19)
+
+**Date recorded:** 2026-06-19
+**D-NNN anchor:** D-1236 (comprehensive zero-context restart snapshot)
+**Story:** S-5.03
+**Tags:** [process-gap] [CI] [clippy] [lint] [test-code]
+**Classification:** PROCESS-GAP — CI and pre-push clippy run `cargo clippy --all-features` WITHOUT `--all-targets` / `--tests`, so test-code lints (e.g., `unused_mut` in `test_SEC_003`) slip past local and CI gates and are only caught by the adversary's more thorough clippy invocation.
+
+**What happened:**
+
+During S-5.03 PR-LEVEL round-1, the adversary caught an `unused_mut` warning in `test_SEC_003` via `cargo clippy --all-features --all-targets --tests`. This finding recurred across multiple PR-LEVEL passes because neither the CI job nor the local `just check` recipe included `--all-targets` or `--tests` in their clippy invocations.
+
+**Root cause:**
+
+`ci.yml` and `Justfile check` recipe both invoke `cargo clippy --all-features -D warnings` without `--all-targets`. Test-module code (`#[cfg(test)] mod tests`) and integration tests under `crates/<crate>/tests/` are therefore not linted by default gates.
+
+**Rule (codified):**
+
+1. `ci.yml` clippy job MUST be updated to `cargo clippy --all-features --all-targets -D warnings` (or equivalent `--tests` flag).
+2. `Justfile check` recipe MUST match: add `-- --all-targets` to the existing clippy invocation.
+3. Until this is fixed, implementers MUST run `cargo clippy --all-features --all-targets -D warnings -p <crate>` as a local self-check before declaring a PR-LEVEL pass clean.
+4. Adversary MUST run `--all-targets` in its clippy probe; if the adversary's clippy scope differs from CI's, the adversary MUST note the discrepancy.
+
+**Follow-up story:** Add `--all-targets` to `ci.yml` clippy job + `Justfile check` recipe (1-line change each; ~15 min; off current demo critical path; add as maintenance story or fold into next CI hygiene burst).
+
+**Source:** S-5.03 PR-LEVEL r1 `unused_mut` in test_SEC_003; recurred in comprehensive sweep at 14189f22 (closed); D-1236 cycle-closing record.
+
+---
+
+## Process-Gap Lesson 2 — Fix-bursts that rename or add tests MUST sweep docs/demo-evidence/ for stale/phantom test-name citations (D-1236, 2026-06-19)
+
+**Date recorded:** 2026-06-19
+**D-NNN anchor:** D-1236 (comprehensive zero-context restart snapshot)
+**Story:** S-5.03
+**Tags:** [process-gap] [demo-evidence] [test-name-integrity] [POL-10] [phantom-citation]
+**Classification:** PROCESS-GAP — Recurred 2× in S-5.03 PR-LEVEL cascade: a renamed test left a stale citation in evidence (r2), and a fabricated test name "IMP-8" appeared in evidence without a corresponding test (r3). Both were caught only by the adversary's evidence-integrity audit.
+
+**What happened:**
+
+- PR-LEVEL r2: A test was renamed during a fix-burst. The evidence-report under `docs/demo-evidence/` still cited the old test name. The adversary caught the stale citation.
+- PR-LEVEL r3: Evidence cited a test named "IMP-8" that did not exist in the codebase. The adversary performed a `grep -r` sweep and confirmed 33/33 other test citations were valid, but the phantom IMP-8 citation was the sole fabrication.
+
+**Root cause:**
+
+Fix-burst discipline did not include a mandatory test-name citation sweep of `docs/demo-evidence/`. The demo-evidence check (POL-10) was applied reactively (adversary catches it) rather than proactively (implementer sweeps before declaring done).
+
+**Rule (codified):**
+
+When a fix-burst renames, adds, or removes a test:
+1. Grep `docs/demo-evidence/` for the old test name (if renamed) and confirm zero residual citations.
+2. Grep `docs/demo-evidence/` for the new test name (if renamed) and confirm all evidence citations are updated.
+3. For every test name cited in evidence-reports, run `grep -r "<test_name>" crates/ --type rust` to confirm the test exists. Any citation without a corresponding `fn <test_name>` is a phantom — remove or correct immediately.
+4. This sweep is the IMPLEMENTER's responsibility at fix-burst time, not the adversary's. The adversary verifying it is a backstop, not the primary gate.
+
+**Antidote:** Add to implementer pre-declaration checklist: "Did I rename or add any test? If yes, sweep docs/demo-evidence/ for stale/phantom citations."
+
+**Source:** S-5.03 PR-LEVEL r2 renamed-test citation + r3 IMP-8 phantom citation; closed at 14189f22 (33/33 test-name integrity audit passing); D-1236 cycle-closing record.
+
+---
+
+## Process-Gap Lesson 3 — Adopt comprehensive PR-diff doc-accuracy sweep at first fix-burst rather than one-off per finding (D-1236, 2026-06-19)
+
+**Date recorded:** 2026-06-19
+**D-NNN anchor:** D-1236 (comprehensive zero-context restart snapshot)
+**Story:** S-5.03
+**Tags:** [process-gap] [doc-accuracy] [adversary-efficiency] [fix-burst-discipline]
+**Classification:** PROCESS-GAP — S-5.03 PR-LEVEL cascade produced 4 consecutive rounds (r1–r4), each surfacing a new doc-accuracy nit. Each nit was individually trivial (wrong doc comment, stale flag description, incorrect rationale) but collectively they consumed 4 independent adversary passes and forced 4 push-resets of the frozen-HEAD streak. The root cause: fix-bursts addressed individual findings in isolation rather than sweeping the entire PR diff for doc-accuracy issues at once.
+
+**What happened:**
+
+- r1: SEC-001 URI echo in error-path doc comment.
+- r2: validate_time_range doc (None-contract stated; stale hostname coupling reference).
+- r3: validate_time_range doc again (slight residual inaccuracy in None-contract removal).
+- r4: ConfigSnapshot non-exhaustive rationale doc + validate_snapshot doc + render_sensors_health response-root stale-flag doc.
+
+After r4, the implementer adopted a comprehensive PR-diff doc-accuracy sweep (14189f22 commit message: "comprehensive PR-diff doc-accuracy sweep"). This single commit closed all residual doc-accuracy issues at once.
+
+**Root cause:**
+
+Implementers fix the specific finding reported by the adversary and re-submit. But doc-accuracy issues tend to cluster: if one doc comment is stale, neighboring comments, sibling functions, and related evidence prose are likely to have similar staleness. Fixing one at a time guarantees the adversary will find another nearby.
+
+**Rule (codified):**
+
+At the first fix-burst following a doc-accuracy finding:
+1. Read the ENTIRE PR diff (all changed files), not just the file containing the reported finding.
+2. For every changed function, struct, enum, trait, and module: verify every `///` doc comment, `//` inline comment, and `#[doc]` attribute accurately describes the CURRENT implementation.
+3. For changed error-path branches: verify the error message does not echo user input (SEC-001 class).
+4. For changed response-construction paths: verify doc comments accurately describe the response shape.
+5. Flag and fix ALL inaccuracies found in this sweep in the SAME fix-burst commit — do not defer to the next adversary pass.
+6. Run `cargo doc --no-deps -p <crate> 2>&1 | grep warning` to surface rustdoc warnings.
+
+**Antidote:** Add to implementer pre-declaration checklist: "Did I do a comprehensive doc-accuracy sweep of the entire PR diff? (Not just the reported finding's file.)"
+
+**Source:** S-5.03 PR-LEVEL r1–r4 recurring doc-accuracy findings; resolved comprehensively at 14189f22; D-1236 cycle-closing record.
