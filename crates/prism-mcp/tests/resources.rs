@@ -2607,9 +2607,6 @@ async fn test_SEC_003_display_name_sanitized_before_ai_context() {
     spec_map.insert(k, v);
     let spec_map_arc = Arc::new(spec_map);
 
-    let mut org_registry = OrgRegistry::new();
-    let _ = org_registry; // rebuild via Arc
-
     // Use Arc-wrapped OrgRegistry.
     let org_reg = Arc::new({
         let reg = prism_core::OrgRegistry::new();

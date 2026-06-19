@@ -401,9 +401,9 @@ pub async fn dispatch_read_resource(
                 .await
             }
             None => {
-                return Err(not_found_error(format!(
-                    "Client sensors resource not available (config manager not wired): {uri}"
-                )))
+                return Err(not_found_error(
+                    "Client sensors resource not available (config manager not wired)",
+                ))
             }
         }
     }
@@ -417,9 +417,9 @@ pub async fn dispatch_read_resource(
             match config_manager {
                 Some(cm) => return render_schema_resource(sensor_id, table_name, cm).await,
                 None => {
-                    return Err(not_found_error(format!(
-                        "Schema resource not available (config manager not wired): {uri}"
-                    )))
+                    return Err(not_found_error(
+                        "Schema resource not available (config manager not wired)",
+                    ))
                 }
             }
         }

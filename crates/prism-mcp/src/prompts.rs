@@ -84,7 +84,10 @@ fn validate_hostname(hostname: &str) -> Result<(), ErrorData> {
 
 /// Validate an optional free-text `time_range` argument.
 ///
-/// Same printable-ASCII rule as `validate_hostname`; max 32 characters.
+/// Accepts any printable ASCII character (0x20..=0x7e); max 32 characters.
+/// This deliberately allows characters such as `/`, space, and digits that
+/// are valid in time-range expressions (e.g. "24h", "7d", "2026-01-01/2026-01-07")
+/// but would be rejected by the stricter hostname allowlist.
 /// Returns `Ok(())` for `None` (the argument is optional).
 fn validate_time_range(time_range: &str) -> Result<(), ErrorData> {
     let is_valid = !time_range.is_empty()
