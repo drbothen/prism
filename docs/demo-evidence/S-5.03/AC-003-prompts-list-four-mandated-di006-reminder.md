@@ -33,20 +33,17 @@ cargo nextest run -p prism-mcp -E 'test(BC_2_10_009_prompts) or test(BC_2_10_009
 ## Output
 
 ```
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
 ────────────
- Nextest run ID 65771c65-a469-47b7-be75-aaeec6b5827b with nextest profile: default
-    Starting 4 tests across 8 binaries (240 tests skipped)
-        PASS [   0.032s] (1/4) prism-mcp::resources test_BC_2_10_009_cross_client_status_includes_security_reminder
-        PASS [   0.032s] (2/4) prism-mcp::resources test_BC_2_10_009_triage_alerts_includes_security_reminder
-        PASS [   0.033s] (3/4) prism-mcp::resources test_BC_2_10_009_client_overview_includes_security_reminder
-        PASS [   0.033s] (4/4) prism-mcp::resources test_BC_2_10_009_investigate_host_includes_security_reminder
-
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
-    Starting 1 test across 8 binaries (243 tests skipped)
-        PASS [   0.033s] (1/1) prism-mcp::resources test_BC_2_10_009_prompts_list_includes_four_mandated_prompts
+ Nextest run ID a99e402b-eecb-471d-a439-8747d16db3ad with nextest profile: default
+    Starting 5 tests across 8 binaries (242 tests skipped)
+        PASS [   0.031s] (1/5) prism-mcp::resources test_BC_2_10_009_prompts_list_includes_four_mandated_prompts
+        PASS [   0.031s] (2/5) prism-mcp::resources test_BC_2_10_009_cross_client_status_includes_security_reminder
+        PASS [   0.031s] (3/5) prism-mcp::resources test_BC_2_10_009_client_overview_includes_security_reminder
+        PASS [   0.031s] (4/5) prism-mcp::resources test_BC_2_10_009_investigate_host_includes_security_reminder
+        PASS [   0.032s] (5/5) prism-mcp::resources test_BC_2_10_009_triage_alerts_includes_security_reminder
 ────────────
-     Summary [   0.034s] 5 tests run: 5 passed, 0 skipped
+     Summary [   0.032s] 5 tests run: 5 passed, 242 skipped
 ```
 
 ## Assertions verified

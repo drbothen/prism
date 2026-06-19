@@ -40,16 +40,16 @@ cargo nextest run -p prism-mcp -E 'test(BC_2_08_006_sensors_health)'
 ## Output
 
 ```
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.76s
 ────────────
- Nextest run ID 5a6a8530-0652-4223-85f9-bc71f1d10021 with nextest profile: default
-    Starting 4 tests across 8 binaries (240 tests skipped)
-        PASS [   0.032s] (1/4) prism-mcp::resources test_BC_2_08_006_sensors_health_zero_clients_returns_empty_object
-        PASS [   0.032s] (2/4) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_keyed_object_shape
-        PASS [   0.032s] (3/4) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_returns_cached_data
-        PASS [   0.032s] (4/4) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_returns_unknown_before_check
+ Nextest run ID 0d0ffaf2-78d0-4b15-b46b-6ebe91ec21ef with nextest profile: default
+    Starting 4 tests across 8 binaries (243 tests skipped)
+        PASS [   0.031s] (1/4) prism-mcp::resources test_BC_2_08_006_sensors_health_zero_clients_returns_unknown_sentinel
+        PASS [   0.031s] (2/4) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_returns_unknown_before_check
+        PASS [   0.031s] (3/4) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_returns_cached_data
+        PASS [   0.031s] (4/4) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_keyed_object_shape
 ────────────
-     Summary [   0.032s] 4 tests run: 4 passed, 240 skipped
+     Summary [   0.032s] 4 tests run: 4 passed, 243 skipped
 ```
 
 ## Assertions verified

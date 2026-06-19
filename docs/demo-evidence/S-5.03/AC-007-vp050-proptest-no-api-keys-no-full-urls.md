@@ -31,16 +31,16 @@ cargo nextest run -p prism-mcp -E 'test(vp_050) or test(prop_vp050)'
 ## Output
 
 ```
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
 ────────────
- Nextest run ID 6a29f3ad-129a-4299-930d-59f6d9f6e19b with nextest profile: default
-    Starting 4 tests across 8 binaries (240 tests skipped)
+ Nextest run ID bc4ba92d-8b63-4502-8238-be75c6ffc09f with nextest profile: default
+    Starting 4 tests across 8 binaries (243 tests skipped)
         PASS [   0.034s] (1/4) prism-mcp proofs::sensor_resource_redaction::vp_050_tests::test_vp050_strip_url_to_host_port_strips_userinfo
-        PASS [   0.068s] (2/4) prism-mcp proofs::sensor_resource_redaction::vp_050_tests::prop_vp050_bearer_credential_redacted
-        PASS [   0.070s] (3/4) prism-mcp proofs::sensor_resource_redaction::vp_050_tests::prop_vp050_uuid_credential_redacted
+        PASS [   0.066s] (2/4) prism-mcp proofs::sensor_resource_redaction::vp_050_tests::prop_vp050_bearer_credential_redacted
+        PASS [   0.071s] (3/4) prism-mcp proofs::sensor_resource_redaction::vp_050_tests::prop_vp050_uuid_credential_redacted
         PASS [   0.084s] (4/4) prism-mcp proofs::sensor_resource_redaction::vp_050_tests::prop_vp050_url_stripped_to_host_port
 ────────────
-     Summary [   0.085s] 4 tests run: 4 passed, 240 skipped
+     Summary [   0.084s] 4 tests run: 4 passed, 243 skipped
 ```
 
 ## Assertions verified

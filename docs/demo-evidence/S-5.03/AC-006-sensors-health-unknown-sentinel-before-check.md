@@ -26,13 +26,13 @@ cargo nextest run -p prism-mcp -E 'test(BC_2_08_006_sensors_health_resource_retu
 ## Output
 
 ```
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
 ────────────
- Nextest run ID 5a6a8530-0652-4223-85f9-bc71f1d10021 with nextest profile: default
-    Starting 4 tests across 8 binaries (240 tests skipped)
-        PASS [   0.032s] (4/4) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_returns_unknown_before_check
+ Nextest run ID 8ea11069-457d-4fef-8fe7-70bd4e1082ba with nextest profile: default
+    Starting 1 test across 8 binaries (246 tests skipped)
+        PASS [   0.033s] (1/1) prism-mcp::resources test_BC_2_08_006_sensors_health_resource_returns_unknown_before_check
 ────────────
-     Summary [   0.032s] 4 tests run: 4 passed, 240 skipped
+     Summary [   0.033s] 1 test run: 1 passed, 246 skipped
 ```
 
 ## Assertions verified
