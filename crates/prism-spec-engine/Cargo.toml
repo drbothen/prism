@@ -37,6 +37,12 @@ hex = "0.4"
 # uuid v7 for time-ordered confirmation tokens (TD-S112-001)
 uuid = { version = "1", features = ["v7"] }
 lru = "0.17"
+# S-1.14-REDO: MaxMind MMDB GeoIP reader for MmdbSource (BC-2.19.001 / AC-1).
+# 0.28 API returns LookupResult<'_, T> from lookup() — NOT bare T (see story Task 4).
+maxminddb = "0.28"
+# S-1.14-REDO: CSV file-backed source for CsvSource (BC-2.19.001 / AC-7).
+# Use csv::ReaderBuilder::new().has_headers(true).from_path(path) pattern.
+csv = "1.4"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 tracing = "0.1"
 
@@ -47,7 +53,7 @@ semver = "1"
 # notify: cross-platform filesystem event watcher (AD-018 / S-1.12 / S-1.15)
 notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "deflate", "brotli"], default-features = false }
-bincode = "2"
+bincode = { version = "2", features = ["serde"] }
 anyhow = "1"
 # ADR-028 §D8-B/C — multi-format timestamp parsing in PipelineExecutor normalization
 # F-LP3-MEDIUM-002: default-features=false to control build surface.
@@ -282,3 +288,10 @@ required-features = ["test-helpers"]
 name = "bc_2_01_017_static_cookie_auth_provider"
 path = "tests/bc_2_01_017_static_cookie_auth_provider.rs"
 required-features = ["test-helpers"]
+
+# S-1.14-REDO: Red Gate tests for infusion sources (MMDB/CSV/JSON), LRU cache,
+# 3-tier lookup, InfusionLoader non-plugin types, E-INFUSE-008, VP-048 mirror, VP-049 proptest.
+# AC-1..9 coverage. No required-features (all paths use only stable deps).
+[[test]]
+name = "bc_2_19_redo_test"
+path = "tests/bc_2_19_redo_test.rs"

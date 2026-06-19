@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-67 (49 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-70 (52 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -23,6 +23,11 @@
 //! ci.yml EXPECTED bumped from 64 to 66. Note: v65 is reserved for CapabilityStatus in
 //! enum_violations.rs; S-3.13 struct violations use v66/v67 to maintain the global monotonic
 //! ladder across both files with no collision.
+//! v68 (Tier3CacheEntry) added by S-1.14-REDO burst-2 (MED-1-RESIDUAL — missing
+//! #[non_exhaustive] on pub cache wire-format type). ci.yml EXPECTED bumped from 66 to 67.
+//! v69 (InfusionUdfDescriptor) and v70 (EnrichStageDescriptor) added by S-1.14-REDO
+//! fix-burst (architect-ruled FIX-IN-SCOPE — descriptor types exported to prism-query
+//! lacked #[non_exhaustive]). ci.yml EXPECTED bumped from 67 to 69.
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -940,4 +945,78 @@ pub fn v67_table_registry() {
     // Note: TableRegistry fields are private; the E0639 check fires before E0603.
     let _reg = prism_query::table_registry::TableRegistry {};
     let _ = _reg;
+}
+
+/// Violation 68: prism_spec_engine::infusion::cache::Tier3CacheEntry struct literal (E0639).
+///
+/// `Tier3CacheEntry` is the wire-format struct for the Tier-3 RocksDB infusion cache.
+/// `#[non_exhaustive]` ensures external crates cannot use struct-literal construction
+/// — callers must rely on `InfusionTier3Cache::set()` to write entries. Future fields
+/// (e.g., compression flag, schema_version, source_ttl_hint) can be added without
+/// breaking external callers.
+///
+/// Added: S-1.14-REDO burst-2 (MED-1-RESIDUAL).
+/// ci.yml EXPECTED bumped from 66 to 67.
+#[allow(dead_code)]
+pub fn v68_tier3_cache_entry() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _entry = prism_spec_engine::infusion::cache::Tier3CacheEntry {
+        value_json: None,
+        expiry_unix_secs: 0u64,
+    };
+    let _ = _entry;
+}
+
+/// Violation 69: prism_spec_engine::InfusionUdfDescriptor struct literal (E0639).
+///
+/// `InfusionUdfDescriptor` is the exported UDF descriptor produced by
+/// `InfusionRegistry` and consumed by prism-query to register DataFusion
+/// scalar UDFs (BC-2.19.001). `#[non_exhaustive]` was added in S-1.14-REDO
+/// fix-burst because the story added `cache_ttl_secs` as a new field, which
+/// was a cross-crate breaking change without the attribute. Future fields
+/// (e.g., per-UDF rate-limit hints, description string) can now be added
+/// without breaking external callers. External callers MUST use
+/// `InfusionUdfDescriptor::new(...)`.
+///
+/// Added: S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE, together with v70).
+/// ci.yml EXPECTED bumped from 67 to 69 (both v69 and v70 added in the same burst).
+#[allow(dead_code)]
+pub fn v69_infusion_udf_descriptor() {
+    use prism_spec_engine::{InfusionSource, InfusionUdfDescriptor};
+    use std::sync::Arc;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _descriptor = InfusionUdfDescriptor {
+        name: "geoip_country".to_string(),
+        input_type: "ip".to_string(),
+        output_type: "string".to_string(),
+        infusion_id: "geoip".to_string(),
+        source: todo!() as Arc<dyn InfusionSource>,
+        source_column: None,
+        cache_ttl_secs: 3600,
+    };
+    let _ = _descriptor;
+}
+
+/// Violation 70: prism_spec_engine::EnrichStageDescriptor struct literal (E0639).
+///
+/// `EnrichStageDescriptor` is the exported descriptor for the `| enrich` PrismQL
+/// pipe stage, produced by `InfusionRegistry::enrich_descriptor` and consumed by
+/// prism-query (BC-2.19.001 / AC-3). `#[non_exhaustive]` ensures that future
+/// fields (e.g., per-stage timeout hints, batch-size metadata) can be added
+/// without a semver-breaking change. External callers MUST use
+/// `EnrichStageDescriptor::new(...)`.
+///
+/// Added: S-1.14-REDO fix-burst (architect-ruled FIX-IN-SCOPE, together with v69).
+/// ci.yml EXPECTED bumped from 67 to 69 (both v69 and v70 added in the same burst).
+#[allow(dead_code)]
+pub fn v70_enrich_stage_descriptor() {
+    use prism_spec_engine::EnrichStageDescriptor;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _descriptor = EnrichStageDescriptor {
+        infusion_name: "geoip".to_string(),
+        input_field: "src_ip".to_string(),
+        output_columns: vec![],
+        infusion_id: "geoip".to_string(),
+    };
+    let _ = _descriptor;
 }

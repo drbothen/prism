@@ -83,7 +83,8 @@ pub use column_mapping::{ColumnMapping, MappingResult};
 pub use config_manager::ConfigManager;
 pub use error::SpecEngineError;
 // S-1.14 infusion exports
-pub use infusion::cache::QueryScopedInfusionCache;
+pub use infusion::cache::{InfusionLruCache, InfusionTier3Cache, QueryScopedInfusionCache};
+pub use infusion::sources::MAX_SOURCE_FILE_BYTES;
 pub use infusion::{
     BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionRegistryInner,
     InfusionSource, InfusionSourceConfig, InfusionSpec, InfusionType, PipeStageConfig,

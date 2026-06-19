@@ -4,7 +4,8 @@
 //   - 7 AC-derived tests (AC-1 through AC-7)
 //   - 5 edge-case tests   (EC-001 through EC-005)
 //   - 12 BC-state tests   (BC-2.15.001 × 3, BC-2.15.002 × 6, BC-2.15.005 × 3)
-// Total: 24 tests.
+//   - 1 async-path regression test (BC-2.15.002 async CacheBackend domain-isolation)
+// Total: 25 tests.
 
 use std::path::PathBuf;
 
@@ -736,5 +737,66 @@ fn test_BC_2_15_005_invariant_startup_recovery_idempotent() {
         first_result,
         second_result,
         "BC-2.15.005: check_dirty_on_startup is idempotent — two consecutive calls must return the same list"
+    );
+}
+
+// =============================================================================
+// ASYNC CACHE-BACKEND PATH TESTS (1 test)
+// Regression gate for BC-2.15.002 / EC-005 on the async CacheBackend trait path.
+// =============================================================================
+
+/// BC-2.15.002 / EC-005 async-path: CacheBackend::get and ::set on an excluded
+/// domain return StorageDomainNotFound (active_domains allowlist enforced).
+///
+/// This is a LOAD-BEARING regression test for the fix to the spawn_blocking
+/// active_domains bypass (PR #193 MED finding). The test:
+///   1. Opens a backend with StorageDomain::EventBuffer excluded via
+///      `open_excluding_domain` (the domain is absent from active_domains).
+///   2. Calls the async `CacheBackend::get` trait method — NOT the sync
+///      `RocksStorageBackend::get` — and asserts StorageDomainNotFound.
+///   3. Calls the async `CacheBackend::set` trait method and asserts
+///      StorageDomainNotFound.
+///
+/// This test MUST FAIL against code that does NOT check active_domains before
+/// spawn_blocking (the pre-fix code path goes straight to db.cf_handle(), which
+/// finds the CF in the DB and returns Ok — the exclusion is invisible to it).
+/// After the fix, the synchronous allowlist check fires before spawn_blocking
+/// and returns Err(StorageDomainNotFound) immediately.
+///
+/// Exercises the async `CacheBackend` trait path via dynamic dispatch
+/// (`Arc<dyn CacheBackend>`) to confirm the trait vtable path is covered.
+#[tokio::test]
+async fn test_BC_2_15_002_async_cache_backend_domain_exclusion_returns_not_found() {
+    use prism_core::CacheBackend;
+    use std::sync::Arc;
+
+    let (_tempdir, path) = setup_temp_db_path();
+
+    // Construct a backend with EventBuffer excluded from active_domains.
+    // This mirrors the EC-005 pattern but exercises the async CacheBackend path.
+    let backend = RocksDbBackend::open_excluding_domain(path, StorageDomain::EventBuffer)
+        .expect("open_excluding_domain must succeed");
+
+    // Cast to Arc<dyn CacheBackend> to exercise the vtable dispatch path.
+    let cache: Arc<dyn CacheBackend> = Arc::new(backend);
+
+    // CacheBackend::get on excluded domain must return StorageDomainNotFound.
+    let get_result = cache.get(StorageDomain::EventBuffer, b"any-key").await;
+    assert!(
+        matches!(get_result, Err(PrismError::StorageDomainNotFound { .. })),
+        "BC-2.15.002 async: CacheBackend::get on excluded domain must return StorageDomainNotFound \
+         (active_domains allowlist must be checked before spawn_blocking); got {:?}",
+        get_result
+    );
+
+    // CacheBackend::set on excluded domain must return StorageDomainNotFound.
+    let set_result = cache
+        .set(StorageDomain::EventBuffer, b"any-key", b"any-val")
+        .await;
+    assert!(
+        matches!(set_result, Err(PrismError::StorageDomainNotFound { .. })),
+        "BC-2.15.002 async: CacheBackend::set on excluded domain must return StorageDomainNotFound \
+         (active_domains allowlist must be checked before spawn_blocking); got {:?}",
+        set_result
     );
 }

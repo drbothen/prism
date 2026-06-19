@@ -608,6 +608,16 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     prism_query::invalidation::register_builtin_write_tools()
         .map_err(|e| BootError::InternalError(format!("write tool registration failed: {e}")))?;
 
+    // Step 7.6 [NON-BLOCKING]: Infusion loading — S-1.14-REDO AC-10 hollow-feature fix.
+    // Positioned AFTER step 7.5 (plugin-load) and BEFORE step 9 (MCP server start)
+    // so that the InfusionRegistry is populated before the first query is processed.
+    // Non-fatal: individual spec load failures are WARN-logged; the registry is returned
+    // empty on error rather than aborting boot (BC-2.22.001 §Sequencing Invariant).
+    //
+    // Task 13 (F-SV-1): thread plugin_result.runtime so plugin-type infusion specs are
+    // wired with a real PluginInfusionSource instead of NullSource.
+    let infusion_registry = Arc::new(infusion_load_step(config_dir, &plugin_result.runtime));
+
     // Step 7 [BLOCKING]: Storage + internal-tables provider init.
     // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
     // Pass ctx.rocksdb_backend (opened in step 6) so step7 can health-check it.
@@ -620,6 +630,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // credential_store) to step9 for wiring (CRIT-5: real deps, not empty placeholders).
     // CRIT-4: also pass spec_dir (for reload_config/add_sensor_spec) and config_dir
     // (for alias store file path).
+    // S-1.14-REDO AC-10: also pass infusion_registry so step9 wires it into QueryEngine.
     let mcp_server_task = step9_start_mcp_server(
         Arc::clone(&ctx.rocksdb_backend),
         Arc::clone(&ctx.config_manager),
@@ -630,6 +641,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
         config.spec_dir.clone(),
         config_dir.to_path_buf(),
         plugin_result.plugin_auth_providers,
+        infusion_registry,
     )
     .await?;
     step10_start_hot_reload().await?;
@@ -2538,6 +2550,8 @@ pub async fn step9_start_mcp_server(
         String,
         Arc<prism_spec_engine::PluginAuthProvider>,
     >,
+    // S-1.14-REDO AC-10: infusion registry from infusion_load_step — wired into QueryEngine.
+    infusion_registry: Arc<prism_spec_engine::InfusionRegistry>,
 ) -> Result<tokio::task::JoinHandle<Result<(), rmcp::RmcpError>>, BootError> {
     use std::collections::BTreeMap;
 
@@ -2701,6 +2715,13 @@ pub async fn step9_start_mcp_server(
     // MCP-02 (2026-06-10 review): retain storage Arc for the boot AuditWriter so
     // MCP tool-call audit records land durably in the RocksDB audit_buffer CF.
     let storage_for_audit = Arc::clone(&storage);
+    // S-1.14-REDO CRIT-1: retain a CacheBackend-cast Arc of the RocksDB backend so
+    // with_infusion_caches can wire the real Tier-3 persistent cache (AC-7 production fix).
+    // `RocksDbBackend` implements `CacheBackend` (S-1.14-REDO burst-4 — prism-storage).
+    // Cloned here (before `storage` is moved into QueryEngine::new_full) so both the
+    // query engine and the Tier-3 infusion cache share the same RocksDB handle.
+    let infusion_cache_backend: Arc<dyn prism_core::CacheBackend> =
+        Arc::clone(&storage) as Arc<dyn prism_core::CacheBackend>;
 
     // S-3.13 CRIT-1: Build TableRegistry from the initial ConfigSnapshot so the
     // plan-time E-QUERY-037 gate is live on the first query (BC-2.11.001, BC-2.16.001).
@@ -2739,7 +2760,26 @@ pub async fn step9_start_mcp_server(
         // S-3.13 CRIT-1: wire the pre-populated TableRegistry so the plan-time
         // E-QUERY-037 gate fires on real queries (AC-2, AC-8). The hot-reload
         // swap listener (CRIT-2) shares this same Arc<TableRegistry> instance.
-        .with_table_registry(Arc::clone(&table_registry)),
+        .with_table_registry(Arc::clone(&table_registry))
+        // S-1.14-REDO AC-10: wire infusion registry so InfusionUdfs are registered in
+        // each ephemeral DataFusion SessionContext (BC-2.19.001 / BC-2.22.001 §Sequencing Invariant).
+        .with_infusion_registry(infusion_registry)
+        // S-1.14-REDO CRIT-1 (burst-4): wire the real RocksDB-backed Tier-3 cache so that
+        // subsequent queries can read infusion results from the `infusion_cache` CF without
+        // calling the source again (AC-7 production fix). `with_infusion_registry` wires a
+        // NullCacheBackend placeholder; this call replaces it with the real RocksDB backend.
+        // Both Tier-2 LRU capacity (10 000 entries) and Tier-3 backend are re-specified here
+        // so the production path is explicit and reviewable.
+        .with_infusion_caches(
+            // `const { }` enforces nonzero at compile time — no runtime panic possible
+            // (OBS-1, S-1.14-REDO: `InfusionLruCache::new` accepts `NonZeroUsize`, not `usize`).
+            Arc::new(prism_spec_engine::InfusionLruCache::new(
+                const { std::num::NonZeroUsize::new(10_000).unwrap() },
+            )),
+            Arc::new(prism_spec_engine::InfusionTier3Cache::new(
+                infusion_cache_backend,
+            )),
+        ),
     );
 
     // ── Build WriteExecutor ───────────────────────────────────────────────────
@@ -2875,6 +2915,96 @@ pub async fn step11_install_signal_handlers(
          SIGTERM/SIGINT handled by PrismServer::serve_stdio (BC-2.10.010)"
     );
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Step 7.6 [NON-BLOCKING]: Infusion loading — S-1.14-REDO (AC-10 hollow-feature fix)
+// ---------------------------------------------------------------------------
+
+/// Step 7.6 [NON-BLOCKING]: Load all `.infusion.toml` files from `{config_dir}/infusions/` and
+/// return an `InfusionRegistry` wired with the loaded specs (S-1.14-REDO AC-10).
+///
+/// # Boot sequence position (BC-2.22.001)
+/// Executes AFTER step 7.5 (plugin-load) so that plugin-type infusions can be wired
+/// with a real `Arc<PluginRuntime>`. Executes BEFORE step 9 (MCP server start) so that
+/// `QueryEngine::with_infusion_registry()` is called before the first query is processed.
+///
+/// # Non-fatal partial failures (AC-10 contract)
+/// Individual spec load failures are non-fatal: a WARN log is emitted per failed spec
+/// and the remaining valid specs continue loading. An INFO log is emitted with the count of
+/// successfully loaded infusion specs on completion.
+///
+/// # Wiring into QueryEngine (AC-10)
+/// The caller (`run_boot_sequence`) passes the returned registry to
+/// `QueryEngine::with_infusion_registry()`, which registers all infusion UDFs into the
+/// DataFusion SessionContext before the first query is processed.
+///
+/// # Plugin-type vs LocalLookup routing (Task 13, F-SV-1)
+/// - `InfusionType::Plugin` specs → `InfusionRegistry::load_spec_with_runtime(spec, runtime)`:
+///   wires a real `PluginInfusionSource` backed by the supplied `Arc<PluginRuntime>`.
+///   This enables live enrichment for plugin-type infusions (e.g., ThreatIntel plugin).
+///   Without this routing, plugin-type specs would receive `NullSource` (always returns None).
+/// - All other specs → `InfusionRegistry::load_spec(spec)`: wires real file-backed sources for
+///   `LocalLookup` specs (MMDB/CSV/JSON-lookup) and `NullSource` for specs without a source config.
+///
+/// The `runtime` parameter is the `Arc<PluginRuntime>` produced by step 7.5 (plugin-load).
+/// It MUST be passed from `run_boot_sequence` after `plugin_load_step_with_audit` returns.
+pub fn infusion_load_step(
+    config_dir: &Path,
+    runtime: &Arc<prism_spec_engine::plugin::PluginRuntime>,
+) -> prism_spec_engine::InfusionRegistry {
+    use prism_spec_engine::InfusionRegistry;
+    use prism_spec_engine::infusion::InfusionType;
+    use prism_spec_engine::infusion::loader::InfusionLoader;
+
+    let registry = InfusionRegistry::new();
+    let loader = InfusionLoader::new(config_dir.to_string_lossy().as_ref());
+    let (specs, errors) = loader.load_all();
+
+    // Log each error as WARN (non-fatal — one bad spec must not block others).
+    for err in &errors {
+        tracing::warn!(
+            error = %err,
+            "boot: infusion spec load failed (non-fatal) — skipping this spec"
+        );
+    }
+
+    // Register each valid spec into the registry.
+    // Task 13 (F-SV-1): branch by spec type so plugin-type specs get a real
+    // PluginInfusionSource (not NullSource which silently returns None for all enrichment calls).
+    let mut registered = 0usize;
+    for spec in specs {
+        let infusion_id = spec.infusion_id.clone();
+        let is_plugin = spec.infusion_type == InfusionType::Plugin;
+        let result = if is_plugin {
+            // Plugin-type: wire a real PluginInfusionSource backed by the boot-step runtime.
+            registry.load_spec_with_runtime(spec, Arc::clone(runtime))
+        } else {
+            // LocalLookup (and any other non-plugin type): wire real file-backed source or
+            // NullSource (for specs without a source config). Same behaviour as before.
+            registry.load_spec(spec)
+        };
+        match result {
+            Ok(_) => {
+                registered += 1;
+            }
+            Err(err) => {
+                tracing::warn!(
+                    infusion_id = %infusion_id,
+                    error = %err,
+                    "boot: failed to register infusion spec into registry (non-fatal)"
+                );
+            }
+        }
+    }
+
+    tracing::info!(
+        count = registered,
+        parse_errors = errors.len(),
+        "boot: infusion load step complete (S-1.14-REDO AC-10)"
+    );
+
+    registry
 }
 
 // ---------------------------------------------------------------------------

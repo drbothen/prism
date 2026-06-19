@@ -3320,6 +3320,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnetwork"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf370abdafd54d13e54a620e8c3e1145f28e46cc9d704bc6d94414559df41763"
+
+[[package]]
 name = "iri-string"
 version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3777,6 +3783,19 @@ name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
+
+[[package]]
+name = "maxminddb"
+version = "0.28.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faf6467428ad055b71e588bcedcbaf2ff605b3251deb0c52be4a04b674c546dd"
+dependencies = [
+ "ipnetwork",
+ "log",
+ "memchr",
+ "serde",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "md-5"
@@ -5286,9 +5305,11 @@ dependencies = [
  "async-trait",
  "bincode",
  "chrono",
+ "csv",
  "flate2",
  "hex",
  "lru",
+ "maxminddb",
  "notify",
  "percent-encoding",
  "prism-core",
@@ -5325,6 +5346,7 @@ dependencies = [
 name = "prism-storage"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bincode",
  "dashmap 5.5.3",
  "prism-core",
@@ -7089,7 +7111,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

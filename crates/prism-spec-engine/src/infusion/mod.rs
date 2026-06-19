@@ -11,8 +11,9 @@
 //!
 //! # Plugin-type specs (BC-2.19.001 v1.4)
 //! Use `load_spec_with_runtime` to populate plugin-type specs with a real
-//! `Arc<PluginInfusionSource>`. Bare `load_spec` uses `NullSource` for all types and is only
-//! appropriate for local-lookup specs (S-1.14-REDO) or tests that do not need live enrichment.
+//! `Arc<PluginInfusionSource>`. Bare `load_spec` wires real file-backed sources for
+//! `LocalLookup` specs; plugin-type specs receive `NullSource` and should use
+//! `load_spec_with_runtime` for live enrichment.
 
 pub mod cache;
 pub mod enrich_descriptor;
@@ -21,7 +22,10 @@ pub mod plugin_bridge;
 pub mod sources;
 pub mod udf;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use arc_swap::ArcSwap;
 use prism_core::InfusionError;
@@ -88,7 +92,12 @@ pub struct InfusionSourceConfig {
     pub file_path: String,
     /// For CSV: the column to use as lookup key.
     pub key_column: Option<String>,
-    /// Refresh interval in seconds (0 = no refresh).
+    /// Reserved: interval-driven source refresh — currently INERT (not consumed by any runtime code).
+    ///
+    /// This field is parsed from TOML and stored for forward-compatibility, but no background refresh
+    /// task reads it. Hot-reload of source data is handled by the file-watcher path deferred to
+    /// S-1.12-FOLLOWUP (BC-2.22.001 §step10-deferred-contract). Until that story ships, writing
+    /// `refresh_interval_secs = N` in a spec has no effect at runtime.
     pub refresh_interval_secs: Option<u64>,
 }
 
@@ -388,6 +397,18 @@ pub trait InfusionSource: Send + Sync + std::fmt::Debug {
 
     /// Enrich a batch of input values. Returns parallel `Option<Value>` results.
     fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>>;
+
+    /// Returns `true` if this source is backed by the WASM plugin runtime.
+    ///
+    /// Default implementation returns `false` (for `NullSource`, `MmdbSource`, `CsvSource`,
+    /// `JsonLookupSource`). `PluginInfusionSource` overrides to return `true`.
+    ///
+    /// Used by tests (and diagnostics) to assert that `infusion_load_step` wired a
+    /// `PluginInfusionSource` — not a `NullSource` — for plugin-type infusion specs
+    /// (Task 13 / F-SV-1 load-bearing assertion).
+    fn is_plugin_backed(&self) -> bool {
+        false
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -484,9 +505,9 @@ impl InfusionRegistry {
         }
 
         // VP-048: check for within-spec duplicate field names.
-        let mut seen_within_spec: HashMap<&str, ()> = HashMap::new();
+        let mut seen_within_spec: HashSet<&str> = HashSet::new();
         for field in &spec.fields {
-            if seen_within_spec.insert(field.name.as_str(), ()).is_some() {
+            if !seen_within_spec.insert(field.name.as_str()) {
                 return Err(InfusionError::DuplicateUdfName {
                     udf_name: field.name.clone(),
                     path1: spec.source_path.clone(),
@@ -512,8 +533,15 @@ impl InfusionRegistry {
             }
         }
 
+        // Story Task 1 / BC-2.19.001: pipe_stage.adds_columns must be non-empty (if pipe_stage present)
+        // and must reference only declared field names. Both constraints are enforced here so
+        // load_spec (in-memory path) and load_spec_with_runtime share the same gate as parse
+        // (TOML path). validate_pipe_stage_columns is the single implementation of both checks.
+        loader::InfusionLoader::validate_pipe_stage_columns(spec)?;
+
         // Build descriptors — one per field (INV-INFUSE-001 / VP-048).
         let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        let cache_ttl_secs = spec.cache_ttl_secs.unwrap_or(3600);
         let descriptors: Vec<udf::InfusionUdfDescriptor> = spec
             .fields
             .iter()
@@ -524,6 +552,7 @@ impl InfusionRegistry {
                 infusion_id: spec.infusion_id.clone(),
                 source: source.clone(),
                 source_column: field.source_column.clone(),
+                cache_ttl_secs,
             })
             .collect();
 
@@ -536,6 +565,10 @@ impl InfusionRegistry {
     /// Returns `Err(InfusionError::DuplicateUdfName)` if any field name conflicts with
     /// an already-registered UDF (BC-2.19.001 / INV-INFUSE-001 / VP-048).
     ///
+    /// For `LocalLookup` specs, the real file-backed `InfusionSource` is constructed via
+    /// `sources::load_source` and stored in the registry. Plugin-type specs use
+    /// `NullSource` here — use `load_spec_with_runtime` to wire a real `PluginInfusionSource`.
+    ///
     /// On validation error: returns `Err` — does NOT partially register.
     /// On success: the registry `ArcSwap` is updated atomically.
     pub fn load_spec(
@@ -544,18 +577,85 @@ impl InfusionRegistry {
     ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
         let current = self.inner.load();
 
-        // Validate against current state (pure — does not mutate).
-        let descriptors = self.validate_spec_against(&spec, &current)?;
+        // BC-2.19.001 v2.0 A3 — last-writer-wins overwrite: if this infusion_id is already
+        // registered, build a temporary view of the registry WITHOUT the old spec before
+        // running duplicate-name validation. This mirrors hot_reload's pattern and ensures:
+        // 1. validate_spec_against doesn't false-positive on the old spec's field names
+        //    (a reload may legitimately reuse the same UDF names under the same infusion_id).
+        // 2. stale udf_to_infusion entries for the OLD spec's fields are removed before the
+        //    new spec's entries are inserted (TV-19-001-overwrite-purge).
+        let infusion_id = spec.infusion_id.clone();
+        let (validation_inner, mut new_entries, mut new_udf_to_infusion) =
+            if current.entries.contains_key(&infusion_id) {
+                // Remove the old spec's entries from a working copy for validation.
+                let mut temp_entries = current.entries.clone();
+                let mut temp_udf_map = current.udf_to_infusion.clone();
+                if let Some((old_spec, _)) = temp_entries.remove(&infusion_id) {
+                    for old_field in &old_spec.fields {
+                        temp_udf_map.remove(&old_field.name);
+                    }
+                }
+                let validation_inner = InfusionRegistryInner {
+                    entries: temp_entries.clone(),
+                    udf_to_infusion: temp_udf_map.clone(),
+                };
+                (validation_inner, temp_entries, temp_udf_map)
+            } else {
+                // First registration for this infusion_id — validate against full current state.
+                let new_entries = current.entries.clone();
+                let new_udf_to_infusion = current.udf_to_infusion.clone();
+                let validation_inner = InfusionRegistryInner {
+                    entries: new_entries.clone(),
+                    udf_to_infusion: new_udf_to_infusion.clone(),
+                };
+                (validation_inner, new_entries, new_udf_to_infusion)
+            };
 
-        // Build updated inner: clone existing state and add the new spec.
-        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
-        let mut new_entries = current.entries.clone();
-        let mut new_udf_to_infusion = current.udf_to_infusion.clone();
+        // Validate against the (purged) state — pure, does not mutate shared state.
+        let descriptors = self.validate_spec_against(&spec, &validation_inner)?;
 
+        // For LocalLookup specs with a source config, wire the real file-backed source.
+        // Plugin specs use NullSource here; callers must use load_spec_with_runtime for plugin.
+        let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::LocalLookup {
+            if let Some(ref source_config) = spec.source {
+                match sources::load_source(source_config) {
+                    Ok(s) => s,
+                    // E-INFUSE-012: source file exceeds the 100 MiB OOM guard — MUST NOT degrade
+                    // to NullSource. Propagate as Err so load_spec returns Err and registers NO
+                    // entry (AC-11 / EC-19-007). The atomic swap is NOT performed.
+                    // SEC-001 (CWE-400); BC-2.19.001 §Error Conditions E-INFUSE-012.
+                    Err(err @ InfusionError::SourceFileTooLarge { .. }) => {
+                        return Err(err);
+                    }
+                    // Non-oversize failure (file not found or corrupt): fall through to NullSource
+                    // so load_all continues loading other specs rather than aborting. Emit WARN
+                    // (EC-19-004 / LOW-A: failed source must be distinguishable from no-match).
+                    // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
+                    // NO file_path or credential values in the log (AD-017).
+                    Err(ref err) => {
+                        tracing::warn!(
+                            infusion_id = %spec.infusion_id,
+                            source_type = ?source_config.source_type,
+                            error_kind = %err,
+                            "infusion: source load failed for LocalLookup spec — falling back to NullSource; \
+                             enrichment calls will return None until the source file is corrected and the \
+                             spec is hot-reloaded (LOW-A, S-1.14-REDO)"
+                        );
+                        Arc::new(NullSource)
+                    }
+                }
+            } else {
+                Arc::new(NullSource)
+            }
+        } else {
+            Arc::new(NullSource)
+        };
+
+        // Build updated inner: insert the new spec into the purged working copy.
         for field in &spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
         }
-        new_entries.insert(spec.infusion_id.clone(), (spec, source));
+        new_entries.insert(spec.infusion_id.clone(), (spec, source.clone()));
 
         // Atomic swap (AD-007 / CI-002).
         self.inner.store(Arc::new(InfusionRegistryInner {
@@ -563,7 +663,28 @@ impl InfusionRegistry {
             udf_to_infusion: new_udf_to_infusion,
         }));
 
-        Ok(descriptors)
+        // OBS-1 fix: rebuild returned descriptors with the REAL source so the caller always
+        // receives a descriptor whose `source` matches the stored entry. `validate_spec_against`
+        // builds descriptors with `NullSource` for duplicate-detection purposes only; the real
+        // source is constructed above. Returning the NullSource-backed descriptors would be a
+        // latent footgun: a future caller using the return value to register UDFs would silently
+        // get NullSource (all enrichment → None) even though the registry holds a real source.
+        // F-TTL-1: `cache_ttl_secs` is preserved from the spec (already set on `d` by
+        // `validate_spec_against`), so the real descriptor carries the correct per-spec TTL.
+        let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
+            .iter()
+            .map(|d| udf::InfusionUdfDescriptor {
+                name: d.name.clone(),
+                input_type: d.input_type.clone(),
+                output_type: d.output_type.clone(),
+                infusion_id: d.infusion_id.clone(),
+                source: source.clone(),
+                source_column: d.source_column.clone(),
+                cache_ttl_secs: d.cache_ttl_secs,
+            })
+            .collect();
+
+        Ok(real_descriptors)
     }
 
     /// Load and validate a single `InfusionSpec` into the registry, wiring a real
@@ -576,8 +697,8 @@ impl InfusionRegistry {
     ///   from env vars per AD-017; the config map is not pre-populated here)
     /// - `runtime` = the supplied `Arc<PluginRuntime>`
     ///
-    /// For non-plugin specs, falls back to `NullSource` (S-1.14-REDO will supply the real
-    /// file-backed source for MMDB/CSV/JSON-lookup types).
+    /// For non-plugin specs with a `source` config, wires the real file-backed source via
+    /// `sources::load_source` (MMDB/CSV/JSON-lookup). Without a source config: `NullSource`.
     ///
     /// Returns `Err(InfusionError::DuplicateUdfName)` if any field name conflicts with an
     /// already-registered UDF (BC-2.19.001 / INV-INFUSE-001 / VP-048).
@@ -588,28 +709,80 @@ impl InfusionRegistry {
     ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
         let current = self.inner.load();
 
-        // Validate against current state (pure — does not mutate).
-        let descriptors = self.validate_spec_against(&spec, &current)?;
+        // BC-2.19.001 v2.0 A3 — last-writer-wins overwrite: same purge-before-validate
+        // pattern as load_spec and hot_reload (see load_spec for detailed rationale).
+        let infusion_id = spec.infusion_id.clone();
+        let (validation_inner, mut new_entries, mut new_udf_to_infusion) =
+            if current.entries.contains_key(&infusion_id) {
+                let mut temp_entries = current.entries.clone();
+                let mut temp_udf_map = current.udf_to_infusion.clone();
+                if let Some((old_spec, _)) = temp_entries.remove(&infusion_id) {
+                    for old_field in &old_spec.fields {
+                        temp_udf_map.remove(&old_field.name);
+                    }
+                }
+                let validation_inner = InfusionRegistryInner {
+                    entries: temp_entries.clone(),
+                    udf_to_infusion: temp_udf_map.clone(),
+                };
+                (validation_inner, temp_entries, temp_udf_map)
+            } else {
+                let new_entries = current.entries.clone();
+                let new_udf_to_infusion = current.udf_to_infusion.clone();
+                let validation_inner = InfusionRegistryInner {
+                    entries: new_entries.clone(),
+                    udf_to_infusion: new_udf_to_infusion.clone(),
+                };
+                (validation_inner, new_entries, new_udf_to_infusion)
+            };
 
-        // Build the real source for plugin-type specs.
+        // Validate against the (purged) state — pure, does not mutate shared state.
+        let descriptors = self.validate_spec_against(&spec, &validation_inner)?;
+
+        // Build the real source:
+        // - Plugin specs: PluginInfusionSource wired to the runtime.
+        // - LocalLookup specs with a source_config: real file-backed source via load_source.
+        // - LocalLookup specs without source_config (test stubs): NullSource.
         let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::Plugin {
             Arc::new(plugin_bridge::PluginInfusionSource::new(
                 spec.infusion_id.clone(),
                 Arc::new(PluginConfigMap::new()),
                 runtime,
             ))
+        } else if let Some(ref source_config) = spec.source {
+            match sources::load_source(source_config) {
+                Ok(s) => s,
+                // E-INFUSE-012: source file exceeds the 100 MiB OOM guard — MUST NOT degrade
+                // to NullSource. Propagate as Err so load_spec_with_runtime returns Err and
+                // registers NO entry (AC-11 / EC-19-007). The atomic swap is NOT performed.
+                // SEC-001 (CWE-400); BC-2.19.001 §Error Conditions E-INFUSE-012.
+                Err(err @ InfusionError::SourceFileTooLarge { .. }) => {
+                    return Err(err);
+                }
+                // Non-oversize failure (file not found or corrupt): fall back to NullSource.
+                // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
+                // NO file_path or credential values in the log (AD-017).
+                Err(ref err) => {
+                    tracing::warn!(
+                        infusion_id = %spec.infusion_id,
+                        source_type = ?source_config.source_type,
+                        error_kind = %err,
+                        "infusion: source load failed in load_spec_with_runtime — falling back to \
+                         NullSource; enrichment calls will return None until source is corrected \
+                         and the spec is hot-reloaded (LOW-A, S-1.14-REDO)"
+                    );
+                    Arc::new(NullSource)
+                }
+            }
         } else {
             Arc::new(NullSource)
         };
 
-        // Build updated inner: clone existing state and add the new spec.
-        let mut new_entries = current.entries.clone();
-        let mut new_udf_to_infusion = current.udf_to_infusion.clone();
-
+        // Build updated inner: insert the new spec into the purged working copy.
         for field in &spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
         }
-        new_entries.insert(spec.infusion_id.clone(), (spec, source));
+        new_entries.insert(spec.infusion_id.clone(), (spec, source.clone()));
 
         // Atomic swap (AD-007 / CI-002).
         self.inner.store(Arc::new(InfusionRegistryInner {
@@ -617,7 +790,23 @@ impl InfusionRegistry {
             udf_to_infusion: new_udf_to_infusion,
         }));
 
-        Ok(descriptors)
+        // OBS-1 fix: rebuild returned descriptors with the REAL source (same pattern as
+        // load_spec — see that method for the detailed rationale).
+        // F-TTL-1: `cache_ttl_secs` preserved from descriptor (set by `validate_spec_against`).
+        let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
+            .iter()
+            .map(|d| udf::InfusionUdfDescriptor {
+                name: d.name.clone(),
+                input_type: d.input_type.clone(),
+                output_type: d.output_type.clone(),
+                infusion_id: d.infusion_id.clone(),
+                source: source.clone(),
+                source_column: d.source_column.clone(),
+                cache_ttl_secs: d.cache_ttl_secs,
+            })
+            .collect();
+
+        Ok(real_descriptors)
     }
 
     /// Return all currently registered UDF descriptors.
@@ -626,9 +815,8 @@ impl InfusionRegistry {
     ///
     /// Uses the stored `InfusionSource` for each entry (BC-2.19.001 v1.4: plugin-type
     /// descriptors carry a real `PluginInfusionSource` when the registry was populated via
-    /// `load_spec_with_runtime`; entries loaded via bare `load_spec` carry `NullSource`
-    /// and are only appropriate for local-lookup specs where S-1.14-REDO will supply the
-    /// real file-backed source).
+    /// `load_spec_with_runtime`; entries loaded via bare `load_spec` carry the real
+    /// constructed source — matching the stored registry state).
     pub fn udf_descriptors(&self) -> Vec<udf::InfusionUdfDescriptor> {
         let current = self.inner.load();
         current
@@ -636,6 +824,9 @@ impl InfusionRegistry {
             .values()
             .flat_map(|(spec, stored_source)| {
                 let source = stored_source.clone();
+                // F-TTL-1: propagate per-spec TTL into every descriptor so prism-query
+                // uses the correct TTL when writing to Tier 2 / Tier 3 cache.
+                let cache_ttl_secs = spec.cache_ttl_secs.unwrap_or(3600);
                 spec.fields
                     .iter()
                     .map(move |field| udf::InfusionUdfDescriptor {
@@ -645,6 +836,7 @@ impl InfusionRegistry {
                         infusion_id: spec.infusion_id.clone(),
                         source: source.clone(),
                         source_column: field.source_column.clone(),
+                        cache_ttl_secs,
                     })
             })
             .collect()
@@ -737,21 +929,74 @@ impl InfusionRegistry {
         let descriptors = self.validate_spec_against(&updated_spec, &temp_inner)?;
 
         // Validation passed — build new inner and swap atomically.
-        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        // Wire the real source for LocalLookup specs (same policy as load_spec).
+        let source: Arc<dyn InfusionSource> =
+            if updated_spec.infusion_type == InfusionType::LocalLookup {
+                if let Some(ref source_config) = updated_spec.source {
+                    match sources::load_source(source_config) {
+                        Ok(s) => s,
+                        // E-INFUSE-012: source file exceeds the 100 MiB OOM guard — MUST NOT
+                        // degrade to NullSource and MUST NOT perform the atomic swap. Return Err
+                        // so hot_reload returns Err and the PRIOR registration is preserved
+                        // unchanged (EC-19-007 / AC-11). SEC-001 (CWE-400).
+                        Err(err @ InfusionError::SourceFileTooLarge { .. }) => {
+                            return Err(err);
+                        }
+                        // Non-oversize failure (file not found or corrupt) at hot-reload time:
+                        // fall back to NullSource with WARN (EC-19-004 preserved).
+                        // NO event_type field to avoid BC-2.16.002 catalog requirement (SAP-1).
+                        // NO file_path or credential values in the log (AD-017).
+                        Err(ref err) => {
+                            tracing::warn!(
+                                infusion_id = %updated_spec.infusion_id,
+                                source_type = ?source_config.source_type,
+                                error_kind = %err,
+                                "infusion: source load failed during hot_reload — falling back to \
+                                 NullSource; enrichment calls will return None until the source \
+                                 file is corrected and hot-reload retried (LOW-A, S-1.14-REDO)"
+                            );
+                            Arc::new(NullSource)
+                        }
+                    }
+                } else {
+                    Arc::new(NullSource)
+                }
+            } else {
+                Arc::new(NullSource)
+            };
         let mut new_entries = temp_inner.entries;
         let mut new_udf_to_infusion = temp_inner.udf_to_infusion;
 
         for field in &updated_spec.fields {
             new_udf_to_infusion.insert(field.name.clone(), updated_spec.infusion_id.clone());
         }
-        new_entries.insert(updated_spec.infusion_id.clone(), (updated_spec, source));
+        new_entries.insert(
+            updated_spec.infusion_id.clone(),
+            (updated_spec, source.clone()),
+        );
 
         self.inner.store(Arc::new(InfusionRegistryInner {
             entries: new_entries,
             udf_to_infusion: new_udf_to_infusion,
         }));
 
-        Ok(descriptors)
+        // OBS-1 fix: rebuild returned descriptors with the REAL source (same pattern as
+        // load_spec — see that method for the detailed rationale).
+        // F-TTL-1: `cache_ttl_secs` preserved from descriptor (set by `validate_spec_against`).
+        let real_descriptors: Vec<udf::InfusionUdfDescriptor> = descriptors
+            .iter()
+            .map(|d| udf::InfusionUdfDescriptor {
+                name: d.name.clone(),
+                input_type: d.input_type.clone(),
+                output_type: d.output_type.clone(),
+                infusion_id: d.infusion_id.clone(),
+                source: source.clone(),
+                source_column: d.source_column.clone(),
+                cache_ttl_secs: d.cache_ttl_secs,
+            })
+            .collect();
+
+        Ok(real_descriptors)
     }
 }
 

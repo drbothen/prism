@@ -45,7 +45,11 @@ use datafusion::logical_expr::async_udf::{AsyncScalarUDF, AsyncScalarUDFImpl};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use prism_spec_engine::InfusionUdfDescriptor;
+use prism_spec_engine::{InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor};
+
+// Default per-infusion cache TTL (1 hour). Used when no `cache_ttl_secs` is set in spec.
+// `pub(crate)` so engine.rs can reference it for the three-tier cache wiring call sites.
+pub(crate) const DEFAULT_CACHE_TTL_SECS: u64 = 3600;
 
 // ---------------------------------------------------------------------------
 // InfusionAsyncUdf — AsyncScalarUDFImpl wrapper for an infusion descriptor
@@ -56,8 +60,16 @@ use prism_spec_engine::InfusionUdfDescriptor;
 /// Registered per field (INV-INFUSE-001 / BC-2.19.001): each `[[infusion.fields]]`
 /// entry produces one `InfusionAsyncUdf` instance registered in the `SessionContext`.
 ///
-/// `invoke_async_with_args` performs the actual enrichment call via the descriptor's
-/// `InfusionSource`. `invoke_with_args` returns `not_impl_err!` to force the async path —
+/// `invoke_async_with_args` performs the three-tier cache lookup (BC-2.19.002):
+/// - Tier 1: per-invocation `QueryScopedInfusionCache` (fresh per call — ensures
+///   unique-value dedup within a single batch execution).
+/// - Tier 2: shared `InfusionLruCache` (cross-query process-shared LRU with TTL).
+/// - Tier 3: shared `InfusionTier3Cache` (RocksDB `infusion_cache` CF with TTL).
+/// - Source: `descriptor.source.enrich_single` (live enrichment call).
+///
+/// Each tier is written on source call so subsequent queries read from cache.
+///
+/// `invoke_with_args` returns `not_impl_err!` to force the async path —
 /// this is the correct pattern; an incorrectly-wrapped UDF fails loudly.
 ///
 /// # PartialEq / Eq / Hash keying
@@ -75,6 +87,25 @@ pub struct InfusionAsyncUdf {
     signature: Signature,
     /// Function name — stored separately so `ScalarUDFImpl::name` can return `&str`.
     name: String,
+    /// Tier 2: process-shared LRU cache (cross-query, in-memory, with TTL).
+    ///
+    /// Shared across all UDF invocations for the same infusion_id. Populated on source
+    /// call and consulted on Tier 1 miss. `None` when the UDF is constructed without
+    /// cache support (test-only path for backward compatibility with existing tests that
+    /// do not thread cache structs through).
+    lru_cache: Option<Arc<InfusionLruCache>>,
+    /// Tier 3: persistent RocksDB cache via `CacheBackend` trait injection.
+    ///
+    /// Keyed by `SHA-256("{infusion_id}:{input_value}")`. Consulted on Tier 2 miss.
+    /// `None` when the UDF is constructed without cache support (same test-only path).
+    tier3_cache: Option<Arc<InfusionTier3Cache>>,
+    /// TTL (seconds) to use when writing to Tier 2 + Tier 3 after a source call.
+    ///
+    /// Comes from `InfusionUdfDescriptor::cache_ttl_secs`, which is sourced from
+    /// `InfusionSpec::cache_ttl_secs` (default 3600s) by `register_infusion_udfs_impl`
+    /// (F-TTL-1 fix: per-descriptor TTL is now honoured; the old hardcoded
+    /// `DEFAULT_CACHE_TTL_SECS` is no longer used at UDF-construction time).
+    cache_ttl_secs: u64,
 }
 
 impl PartialEq for InfusionAsyncUdf {
@@ -94,12 +125,11 @@ impl Hash for InfusionAsyncUdf {
 }
 
 impl InfusionAsyncUdf {
-    /// Construct an `InfusionAsyncUdf` from an `InfusionUdfDescriptor`.
+    /// Construct an `InfusionAsyncUdf` from an `InfusionUdfDescriptor` (no cache).
+    ///
+    /// Used by tests that do not need cache support.  Production code must use
+    /// `new_with_cache` to satisfy the three-tier cache contract (BC-2.19.002).
     pub fn new(descriptor: InfusionUdfDescriptor) -> Self {
-        // Simplified signature: one Utf8 input → Utf8 output.
-        // The full typed-output mapping (descriptor.input_type / descriptor.output_type →
-        // canonical Arrow DataType) is out of scope for S-DEMO-ENRICHMENT-PIVOT-001 and is
-        // deferred to S-1.14-REDO (tracked as DRIFT-PIVOT-UDF-OUTPUT-TYPE-001).
         let signature = Signature::new(
             TypeSignature::Exact(vec![DataType::Utf8]),
             Volatility::Volatile,
@@ -109,6 +139,40 @@ impl InfusionAsyncUdf {
             descriptor,
             signature,
             name,
+            lru_cache: None,
+            tier3_cache: None,
+            cache_ttl_secs: DEFAULT_CACHE_TTL_SECS,
+        }
+    }
+
+    /// Construct an `InfusionAsyncUdf` with the full three-tier cache wired.
+    ///
+    /// Production registration path (BC-2.19.002): `register_infusion_udfs` uses this
+    /// constructor to wire Tier 2 (LRU) and Tier 3 (RocksDB) caches.
+    /// Tier 1 (QueryScoped dedup) is allocated fresh per `invoke_async_with_args` call.
+    ///
+    /// `cache_ttl_secs`: TTL applied when writing fresh source results to Tier 2 + Tier 3.
+    /// Set by `register_infusion_udfs_impl` from `InfusionUdfDescriptor::cache_ttl_secs`,
+    /// which is sourced from `InfusionSpec::cache_ttl_secs` (default 3600).
+    /// Each infusion UDF honours its own spec's TTL (F-TTL-1).
+    pub fn new_with_cache(
+        descriptor: InfusionUdfDescriptor,
+        lru_cache: Arc<InfusionLruCache>,
+        tier3_cache: Arc<InfusionTier3Cache>,
+        cache_ttl_secs: u64,
+    ) -> Self {
+        let signature = Signature::new(
+            TypeSignature::Exact(vec![DataType::Utf8]),
+            Volatility::Volatile,
+        );
+        let name = descriptor.name.clone();
+        Self {
+            descriptor,
+            signature,
+            name,
+            lru_cache: Some(lru_cache),
+            tier3_cache: Some(tier3_cache),
+            cache_ttl_secs,
         }
     }
 }
@@ -155,17 +219,25 @@ impl ScalarUDFImpl for InfusionAsyncUdf {
 // Without it, the compiler reports "lifetimes do not match method in trait".
 #[async_trait]
 impl AsyncScalarUDFImpl for InfusionAsyncUdf {
-    /// Async enrichment call — the production execution path.
+    /// Async enrichment call — the production execution path (BC-2.19.002 / HIGH-1 fix).
     ///
-    /// For each row in the input batch, calls `self.descriptor.source.enrich_single(input, input_type)`
-    /// and returns the enriched values as a `StringArray` wrapped in `ColumnarValue::Array`.
+    /// Implements the three-tier cache lookup order:
+    ///   Tier 1 (per-call QueryScopedInfusionCache) → Tier 2 (LRU) → Tier 3 (RocksDB) → source.
     ///
-    /// If the source returns `None` for a row (plugin failure, no enrichment available),
-    /// the row's output is `null` in the output array.
+    /// Tier 1 is a fresh `QueryScopedInfusionCache` allocated at the top of each
+    /// `invoke_async_with_args` call. It deduplicates within a single batch: if 500 rows
+    /// contain the same IP, only 1 source call is made for that IP within this invocation.
     ///
-    /// If the source returns `Some(Value)`, the JSON value is serialized to a string.
-    /// For plain strings in the JSON value (the common case for plugin enrichment results),
-    /// the string is returned unwrapped to avoid double-quoting.
+    /// When all tiers miss and the source is called, the result is written back to all three
+    /// tiers (T1, T2, T3) so subsequent calls in the same batch and subsequent queries benefit.
+    ///
+    /// If `lru_cache` or `tier3_cache` are `None` (legacy `new()` constructor path),
+    /// only Tier 1 dedup is performed and the source is called for each unique input.
+    ///
+    /// If `descriptor.source_column` is set AND the source returns a JSON object, the
+    /// declared column is projected from the object (HIGH-A fix, S-1.14-REDO burst 2).
+    ///
+    /// NULL input rows short-circuit to NULL output without any cache/source dispatch.
     ///
     /// # Input argument
     /// Expects exactly one `Utf8` column as the first argument (enforced by the `Signature`).
@@ -176,6 +248,7 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
     ) -> DataFusionResult<ColumnarValue> {
         use datafusion::arrow::array::{Array, StringArray};
         use datafusion::common::ScalarValue;
+        use prism_spec_engine::QueryScopedInfusionCache;
 
         // Extract the input column — must be the first arg.
         let input_col = args.args.first().ok_or_else(|| {
@@ -224,27 +297,85 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             }
         };
 
-        // Enrich each row via the plugin source.
-        // NULL input rows short-circuit to NULL output without dispatching to the source
-        // (a NULL IOC has no enrichment key — calling enrich_single("", ...) is incorrect).
-        let enriched: Vec<Option<String>> = inputs
-            .iter()
-            .map(|opt_input| {
-                let input_str = opt_input.as_deref()?;
-                let result = self
-                    .descriptor
-                    .source
-                    .enrich_single(input_str, &self.descriptor.input_type);
-                result.map(|json_val| {
-                    // If the plugin returns a plain JSON string, unwrap it to avoid
-                    // double-quoting ("value" → value). Other JSON shapes are serialized as-is.
-                    match json_val {
-                        serde_json::Value::String(s) => s,
-                        other => other.to_string(),
+        // Tier 1: per-call dedup cache (fresh per invoke_async_with_args invocation).
+        // Ensures 500 rows with 30 unique IPs → 30 source calls, not 500 (AC-2 / INV-INFUSE-002).
+        let mut tier1 = QueryScopedInfusionCache::new();
+
+        // Enrich each row via three-tier cache + source.
+        // NULL input rows short-circuit to NULL output without dispatching to any tier.
+        let mut enriched: Vec<Option<String>> = Vec::with_capacity(inputs.len());
+        for opt_input in &inputs {
+            let input_str = match opt_input.as_deref() {
+                Some(s) => s,
+                None => {
+                    enriched.push(None);
+                    continue;
+                }
+            };
+
+            let infusion_id = &self.descriptor.infusion_id;
+            let input_type = &self.descriptor.input_type;
+
+            // Step 1: Tier 1 (per-call dedup) lookup.
+            if let Some(cached) = tier1.get(infusion_id, input_str) {
+                // Tier 1 hit — cached is `&Option<Value>`, None means negative cache.
+                let result_str = cached.as_ref().map(|v| self.project_value(v));
+                enriched.push(result_str);
+                continue;
+            }
+
+            // Step 2: Tier 2 (LRU) lookup.
+            if let Some(ref lru) = self.lru_cache {
+                if let Some(cached_val) = lru.get(infusion_id, input_str).await {
+                    // Tier 2 hit — populate Tier 1 for subsequent rows in this batch.
+                    tier1.insert(infusion_id, input_str, Some(cached_val.clone()));
+                    let result_str = self.project_value(&cached_val);
+                    enriched.push(Some(result_str));
+                    continue;
+                }
+            }
+
+            // Step 3: Tier 3 (RocksDB) lookup.
+            if let Some(ref t3) = self.tier3_cache {
+                if let Some(cached_opt) = t3.get(infusion_id, input_str).await {
+                    // Tier 3 hit — populate Tier 1 + Tier 2 for subsequent lookups.
+                    tier1.insert(infusion_id, input_str, cached_opt.clone());
+                    if let Some(ref lru) = self.lru_cache {
+                        if let Some(ref val) = cached_opt {
+                            lru.insert(infusion_id, input_str, val.clone(), self.cache_ttl_secs)
+                                .await;
+                        }
                     }
-                })
-            })
-            .collect();
+                    let result_str = cached_opt.as_ref().map(|v| self.project_value(v));
+                    enriched.push(result_str);
+                    continue;
+                }
+            }
+
+            // Step 4: All tiers missed — call source.
+            let source_result = self.descriptor.source.enrich_single(input_str, input_type);
+
+            // Populate all tiers with the source result (including None for negative cache).
+            tier1.insert(infusion_id, input_str, source_result.clone());
+            if let Some(ref lru) = self.lru_cache {
+                if let Some(ref val) = source_result {
+                    lru.insert(infusion_id, input_str, val.clone(), self.cache_ttl_secs)
+                        .await;
+                }
+            }
+            if let Some(ref t3) = self.tier3_cache {
+                t3.set(
+                    infusion_id,
+                    input_str,
+                    source_result.clone(),
+                    self.cache_ttl_secs,
+                )
+                .await;
+            }
+
+            let result_str = source_result.as_ref().map(|v| self.project_value(v));
+            enriched.push(result_str);
+        }
 
         // Build the output StringArray (nulls where enrichment returned None).
         let output = StringArray::from(
@@ -257,18 +388,41 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
     }
 }
 
+impl InfusionAsyncUdf {
+    /// Project the declared `source_column` from a JSON object value, or passthrough.
+    ///
+    /// HIGH-A fix: if the descriptor declares a `source_column` AND the value is a JSON
+    /// object, extract that specific field. Otherwise serialize the value (or unwrap plain
+    /// JSON strings to avoid double-quoting). Called after any cache hit or source call.
+    fn project_value(&self, json_val: &serde_json::Value) -> String {
+        if let Some(col) = &self.descriptor.source_column {
+            if let serde_json::Value::Object(obj) = json_val {
+                return match obj.get(col.as_str()) {
+                    Some(serde_json::Value::String(s)) => s.clone(),
+                    Some(other) => other.to_string(),
+                    None => String::new(),
+                };
+            }
+        }
+        match json_val {
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // register_infusion_udfs — wire descriptors into SessionContext
 // ---------------------------------------------------------------------------
 
-/// Register all infusion UDF descriptors as DataFusion async scalar UDFs.
+/// Register all infusion UDF descriptors as DataFusion async scalar UDFs (no cache).
 ///
-/// Called at both `SessionContext` construction sites in `engine.rs`:
-/// - the `execute` path (`execute_inner`)
-/// - the `execute_scheduled` path
+/// Backward-compatible variant: uses `InfusionAsyncUdf::new` (Tier-1 dedup only).
+/// Tests that do not need Tier 2/3 cache use this path.
 ///
-/// Each `InfusionUdfDescriptor` from `registry.udf_descriptors()` becomes one
-/// `AsyncScalarUDF` registered via `ctx.register_udf(...)`.
+/// Production code uses `register_infusion_udfs_with_cache` to satisfy BC-2.19.002
+/// (three-tier cache contract). Call this function ONLY in tests or contexts where
+/// Tier 2/3 cache is intentionally absent.
 ///
 /// # DataFusion 53.1 async UDF wiring (RESEARCH CONFIRMED)
 /// `ctx.register_udf(AsyncScalarUDF::new(Arc::new(impl)).into_scalar_udf())` alone
@@ -282,6 +436,45 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
 pub fn register_infusion_udfs(
     ctx: &SessionContext,
     descriptors: Vec<InfusionUdfDescriptor>,
+) -> datafusion::error::Result<()> {
+    register_infusion_udfs_impl(ctx, descriptors, None)
+}
+
+/// Register all infusion UDF descriptors with the full three-tier cache wired (BC-2.19.002).
+///
+/// Production registration path: `engine.rs` calls this variant when an `InfusionRegistry`
+/// is configured. Each UDF is constructed via `InfusionAsyncUdf::new_with_cache` so that
+/// `invoke_async_with_args` consults Tier 1 (per-call dedup) → Tier 2 (LRU) → Tier 3 (RocksDB)
+/// before falling through to the live source.
+///
+/// `lru_cache`: process-shared `Arc<InfusionLruCache>` — typically one instance per
+/// `QueryEngine` shared across all UDFs for the same infusion.
+/// `tier3_cache`: process-shared `Arc<InfusionTier3Cache>` — RocksDB `infusion_cache` CF.
+/// `cache_ttl_secs`: Retained for backward compatibility. Superseded by the per-descriptor
+/// `InfusionUdfDescriptor::cache_ttl_secs` field (F-TTL-1): each UDF now uses its own
+/// spec's TTL so different infusions can have different cache lifetimes (BC-2.19.002).
+pub fn register_infusion_udfs_with_cache(
+    ctx: &SessionContext,
+    descriptors: Vec<InfusionUdfDescriptor>,
+    lru_cache: Arc<InfusionLruCache>,
+    tier3_cache: Arc<InfusionTier3Cache>,
+    cache_ttl_secs: u64,
+) -> datafusion::error::Result<()> {
+    register_infusion_udfs_impl(
+        ctx,
+        descriptors,
+        Some((lru_cache, tier3_cache, cache_ttl_secs)),
+    )
+}
+
+/// Internal implementation — shared by `register_infusion_udfs` and
+/// `register_infusion_udfs_with_cache`.
+///
+/// When `cache_opts` is `Some((lru, tier3, ttl))`, uses `new_with_cache`; otherwise `new`.
+fn register_infusion_udfs_impl(
+    ctx: &SessionContext,
+    descriptors: Vec<InfusionUdfDescriptor>,
+    cache_opts: Option<(Arc<InfusionLruCache>, Arc<InfusionTier3Cache>, u64)>,
 ) -> datafusion::error::Result<()> {
     // Detect duplicate UDF names before registration (registration-time defense-in-depth guard).
     // DataFusion's `register_udf` silently overwrites duplicates, which would cause
@@ -304,7 +497,18 @@ pub fn register_infusion_udfs(
                 descriptor.name, descriptor.infusion_id,
             )));
         }
-        let udf_impl = InfusionAsyncUdf::new(descriptor);
+        let udf_impl = match &cache_opts {
+            Some((lru, t3, _)) => {
+                // F-TTL-1: use the per-descriptor TTL from the infusion spec
+                // (sourced from `InfusionSpec::cache_ttl_secs`, default 3600).
+                // The shared `_ttl` parameter is intentionally unused here; each UDF
+                // carries its own TTL so different infusions can have different cache
+                // lifetimes (Story Task 6 + Task 8, BC-2.19.002).
+                let ttl = descriptor.cache_ttl_secs;
+                InfusionAsyncUdf::new_with_cache(descriptor, Arc::clone(lru), Arc::clone(t3), ttl)
+            }
+            None => InfusionAsyncUdf::new(descriptor),
+        };
         let async_udf = AsyncScalarUDF::new(Arc::new(udf_impl));
         ctx.register_udf(async_udf.into_scalar_udf());
     }
@@ -316,14 +520,72 @@ pub fn register_infusion_udfs(
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::new_ret_no_self)]
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
     use datafusion::execution::context::SessionContext;
-    use prism_spec_engine::{InfusionSource, InfusionUdfDescriptor};
+    use prism_spec_engine::{
+        InfusionLruCache, InfusionSource, InfusionTier3Cache, InfusionUdfDescriptor,
+    };
 
-    use super::register_infusion_udfs;
+    use super::{register_infusion_udfs, register_infusion_udfs_with_cache};
+
+    // ── in-memory CacheBackend for AC-7 Tier-3 tests ────────────────────────
+
+    /// In-memory `CacheBackend` for unit tests that need Tier-3 cache wiring.
+    ///
+    /// Uses a `tokio::sync::Mutex<HashMap<Vec<u8>, Vec<u8>>>` to store raw bytes
+    /// keyed by raw key bytes. Domain is ignored (single flat namespace — sufficient
+    /// for unit tests that use only the `InfusionCache` domain).
+    #[derive(Debug, Default)]
+    struct InMemoryCacheBackend {
+        store: tokio::sync::Mutex<std::collections::HashMap<Vec<u8>, Vec<u8>>>,
+        /// Count of get calls — verifiable in AC-7 to confirm T3 hit path.
+        get_count: std::sync::atomic::AtomicUsize,
+    }
+
+    impl InMemoryCacheBackend {
+        fn new() -> Arc<Self> {
+            Arc::new(Self::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl prism_core::CacheBackend for InMemoryCacheBackend {
+        async fn get(
+            &self,
+            _domain: prism_core::storage::StorageDomain,
+            key: &[u8],
+        ) -> Result<Option<Vec<u8>>, prism_core::PrismError> {
+            self.get_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let store = self.store.lock().await;
+            Ok(store.get(key).cloned())
+        }
+
+        async fn set(
+            &self,
+            _domain: prism_core::storage::StorageDomain,
+            key: &[u8],
+            value: &[u8],
+        ) -> Result<(), prism_core::PrismError> {
+            let mut store = self.store.lock().await;
+            store.insert(key.to_vec(), value.to_vec());
+            Ok(())
+        }
+
+        async fn delete(
+            &self,
+            _domain: prism_core::storage::StorageDomain,
+            key: &[u8],
+        ) -> Result<(), prism_core::PrismError> {
+            let mut store = self.store.lock().await;
+            store.remove(key);
+            Ok(())
+        }
+    }
 
     // ── test helpers ────────────────────────────────────────────────────────
 
@@ -368,13 +630,78 @@ mod tests {
         infusion_id: &str,
         source: Arc<dyn InfusionSource>,
     ) -> InfusionUdfDescriptor {
-        InfusionUdfDescriptor {
-            name: name.to_string(),
-            input_type: "ip".to_string(),
-            output_type: "string".to_string(),
-            infusion_id: infusion_id.to_string(),
+        InfusionUdfDescriptor::new(
+            name,
+            "ip",
+            "string",
+            infusion_id,
             source,
-            source_column: None,
+            None,
+            super::DEFAULT_CACHE_TTL_SECS,
+        )
+    }
+
+    fn make_descriptor_with_source_column(
+        name: &str,
+        infusion_id: &str,
+        source: Arc<dyn InfusionSource>,
+        source_column: &str,
+    ) -> InfusionUdfDescriptor {
+        InfusionUdfDescriptor::new(
+            name,
+            "ip",
+            "string",
+            infusion_id,
+            source,
+            Some(source_column.to_string()),
+            super::DEFAULT_CACHE_TTL_SECS,
+        )
+    }
+
+    /// Stub `InfusionSource` that returns a fixed JSON object (full row) — simulating
+    /// a CSV source that returns the whole row for any input.
+    ///
+    /// Used by the HIGH-A distinct-column-projection test to verify that two UDFs
+    /// registered against the same CSV source with different `source_column` values
+    /// return DISTINCT projected values instead of the identical whole-row object.
+    #[derive(Debug)]
+    struct CsvRowSource {
+        /// The fixed row to return (simulates: `{"name": "server-01", "owner": "security-team"}`).
+        row: serde_json::Value,
+    }
+
+    impl CsvRowSource {
+        /// Create a `CsvRowSource` that returns a row with `name` and `owner` fields.
+        fn new(name: &str, owner: &str) -> Arc<dyn InfusionSource> {
+            let mut obj = serde_json::Map::new();
+            obj.insert(
+                "name".to_string(),
+                serde_json::Value::String(name.to_string()),
+            );
+            obj.insert(
+                "owner".to_string(),
+                serde_json::Value::String(owner.to_string()),
+            );
+            Arc::new(CsvRowSource {
+                row: serde_json::Value::Object(obj),
+            })
+        }
+    }
+
+    impl InfusionSource for CsvRowSource {
+        fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
+            Some(self.row.clone())
+        }
+
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
+            inputs
+                .iter()
+                .map(|i| self.enrich_single(i, input_type))
+                .collect()
         }
     }
 
@@ -531,6 +858,564 @@ mod tests {
             output_col.value(1),
             SENTINEL,
             "non-NULL row must produce the sentinel enrichment value"
+        );
+    }
+
+    // ── HIGH-A distinct-column-projection test ────────────────────────────────
+
+    /// HIGH-A: two UDFs registered against the same CSV row source with DISTINCT
+    /// `source_column` values must return DISTINCT projected values.
+    ///
+    /// Before the HIGH-A fix: both UDFs returned the identical whole-row JSON object
+    /// `{"name":"server-01","owner":"security-team"}` because `invoke_async_with_args`
+    /// ignored `descriptor.source_column`. The fix projects the declared column from
+    /// the returned object.
+    ///
+    /// Setup:
+    ///   - CsvRowSource returns `{"name": "server-01", "owner": "security-team"}` for any IP.
+    ///   - UDF `asset_name` has `source_column = "name"`.
+    ///   - UDF `asset_owner` has `source_column = "owner"`.
+    ///
+    /// Assertions:
+    ///   - `asset_name("10.0.0.1")` returns `"server-01"` (NOT the whole row object).
+    ///   - `asset_owner("10.0.0.1")` returns `"security-team"` (NOT the whole row object).
+    ///   - The two results are DISTINCT strings, not identical whole-row objects.
+    ///
+    /// Traces to: AC-3 (output schema includes the declared columns), S-1.14-REDO HIGH-A.
+    #[tokio::test]
+    async fn test_source_column_projection_produces_distinct_values_not_whole_row() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        // Both UDFs share the same backing source (the same Arc<CsvRowSource>).
+        // This directly tests the scenario described in HIGH-A: the source returns
+        // the WHOLE row; the UDF must project `source_column` to return the right field.
+        let shared_source = CsvRowSource::new("server-01", "security-team");
+
+        let name_desc = make_descriptor_with_source_column(
+            "asset_name",
+            "asset_inventory",
+            Arc::clone(&shared_source),
+            "name",
+        );
+        let owner_desc = make_descriptor_with_source_column(
+            "asset_owner",
+            "asset_inventory",
+            Arc::clone(&shared_source),
+            "owner",
+        );
+
+        register_infusion_udfs(&ctx, vec![name_desc, owner_desc])
+            .expect("HIGH-A: registration must succeed for two distinct UDF names");
+
+        // Register a single-row MemTable with one IP address.
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "device_ip",
+            DataType::Utf8,
+            false,
+        )]));
+        let arr = StringArray::from(vec!["10.0.0.1"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("RecordBatch construction must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("MemTable construction must succeed");
+        ctx.register_table("test_devices", Arc::new(table))
+            .expect("register_table must succeed");
+
+        // Execute a query that applies BOTH UDFs to the same row.
+        let df = ctx
+            .sql("SELECT asset_name(device_ip) AS aname, asset_owner(device_ip) AS aowner FROM test_devices")
+            .await
+            .expect("HIGH-A: SQL must parse and plan");
+        let batches = df.collect().await.expect("HIGH-A: query must execute");
+
+        assert_eq!(batches.len(), 1, "HIGH-A: must have exactly 1 output batch");
+        let batch = &batches[0];
+        assert_eq!(
+            batch.num_rows(),
+            1,
+            "HIGH-A: must have exactly 1 output row"
+        );
+
+        let name_col = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("HIGH-A: asset_name column must be StringArray");
+        let owner_col = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("HIGH-A: asset_owner column must be StringArray");
+
+        let name_val = name_col.value(0);
+        let owner_val = owner_col.value(0);
+
+        assert_eq!(
+            name_val, "server-01",
+            "HIGH-A: asset_name UDF must return the projected 'name' field value 'server-01', \
+             not the whole-row object; got: {:?}",
+            name_val
+        );
+        assert_eq!(
+            owner_val, "security-team",
+            "HIGH-A: asset_owner UDF must return the projected 'owner' field value 'security-team', \
+             not the whole-row object; got: {:?}",
+            owner_val
+        );
+        assert_ne!(
+            name_val, owner_val,
+            "HIGH-A: asset_name and asset_owner must return DISTINCT values, \
+             not the same whole-row object; name={:?}, owner={:?}",
+            name_val, owner_val
+        );
+    }
+
+    // ── HIGH-1 production-path tests (three-tier cache, BC-2.19.002) ─────────
+
+    /// AC-2 / INV-INFUSE-002: 500 rows with 30 unique inputs → exactly 30 source calls.
+    ///
+    /// This test exercises the PRODUCTION path through `register_infusion_udfs_with_cache`,
+    /// which constructs `InfusionAsyncUdf::new_with_cache`. The UDF executes a real DataFusion
+    /// SQL query over 500 rows; Tier 1 per-call dedup ensures only 30 `enrich_single` calls.
+    ///
+    /// Before the HIGH-1 fix, `invoke_async_with_args` called `enrich_single` once per row
+    /// (500 calls). After the fix, Tier 1 dedup reduces this to one call per unique input (30).
+    ///
+    /// Traces to: BC-2.19.002 §INV-INFUSE-002, S-1.14-REDO AC-2.
+    #[tokio::test]
+    async fn test_tier1_dedup_500_rows_30_unique_calls_source_exactly_30_times() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        let ctx = SessionContext::new();
+        let (call_count, src) = CountingSource::new_returning("enriched-value");
+
+        let descriptor = make_descriptor("tier1_dedup_udf", "tier1_infusion", src);
+
+        // Wire the full three-tier cache (production path).
+        let lru = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        ));
+        let backend = InMemoryCacheBackend::new();
+        let tier3 = Arc::new(InfusionTier3Cache::new(
+            Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
+        ));
+
+        register_infusion_udfs_with_cache(
+            &ctx,
+            vec![descriptor],
+            Arc::clone(&lru),
+            Arc::clone(&tier3),
+            3600,
+        )
+        .expect("AC-2: registration must succeed");
+
+        // Build 500-row table with exactly 30 unique IP values.
+        // IPs cycle: "10.0.0.0" .. "10.0.0.29" repeated ~17x to reach 500.
+        let ips: Vec<&str> = (0..500)
+            .map(|i| {
+                // We use a static lookup to avoid heap allocation inside the closure.
+                // 30 unique IPs × ceil(500/30) ≈ 17 repeats = 510, truncated to 500.
+                match i % 30 {
+                    0 => "10.0.0.0",
+                    1 => "10.0.0.1",
+                    2 => "10.0.0.2",
+                    3 => "10.0.0.3",
+                    4 => "10.0.0.4",
+                    5 => "10.0.0.5",
+                    6 => "10.0.0.6",
+                    7 => "10.0.0.7",
+                    8 => "10.0.0.8",
+                    9 => "10.0.0.9",
+                    10 => "10.0.0.10",
+                    11 => "10.0.0.11",
+                    12 => "10.0.0.12",
+                    13 => "10.0.0.13",
+                    14 => "10.0.0.14",
+                    15 => "10.0.0.15",
+                    16 => "10.0.0.16",
+                    17 => "10.0.0.17",
+                    18 => "10.0.0.18",
+                    19 => "10.0.0.19",
+                    20 => "10.0.0.20",
+                    21 => "10.0.0.21",
+                    22 => "10.0.0.22",
+                    23 => "10.0.0.23",
+                    24 => "10.0.0.24",
+                    25 => "10.0.0.25",
+                    26 => "10.0.0.26",
+                    27 => "10.0.0.27",
+                    28 => "10.0.0.28",
+                    _ => "10.0.0.29",
+                }
+            })
+            .collect();
+
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "src_ip",
+            DataType::Utf8,
+            false,
+        )]));
+        let arr = StringArray::from(ips);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("AC-2: RecordBatch construction must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("AC-2: MemTable construction must succeed");
+        ctx.register_table("events", Arc::new(table))
+            .expect("AC-2: register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT tier1_dedup_udf(src_ip) AS enriched FROM events")
+            .await
+            .expect("AC-2: SQL must parse");
+        let batches = df.collect().await.expect("AC-2: query must execute");
+
+        // Verify 500 output rows.
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 500,
+            "AC-2: must have 500 output rows; got {total_rows}"
+        );
+
+        // Verify exactly 30 source calls (Tier 1 dedup: unique-value deduplication).
+        let count = call_count.load(Ordering::SeqCst);
+        assert_eq!(
+            count, 30,
+            "AC-2: enrich_single call_count must be 30 (one per unique input); \
+             before HIGH-1 fix this was 500 (one per row). Got: {count}"
+        );
+    }
+
+    /// AC-7 / BC-2.19.002: second query reads entirely from Tier 3 — zero new source calls.
+    ///
+    /// This test exercises the persistent-cache path:
+    ///   1. First query: 5 unique inputs → 5 source calls → results cached in T2 + T3.
+    ///   2. Drop the LRU cache (simulates process restart / LRU eviction) so T2 misses.
+    ///   3. Second query over the same 5 inputs → T3 hits → 0 new source calls.
+    ///
+    /// The `InMemoryCacheBackend` (test-only `CacheBackend` impl) simulates RocksDB
+    /// persistence between queries. The T2 cache is fresh (empty) for the second query
+    /// to ensure the T3 path is exercised.
+    ///
+    /// Traces to: BC-2.19.002 §AC-7 (second query reads from T3 without calling source).
+    #[tokio::test]
+    async fn test_tier3_cache_second_query_reads_from_t3_without_calling_source() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+
+        // Shared in-memory backend — persists between the two queries.
+        let backend = InMemoryCacheBackend::new();
+        let (call_count, src) = CountingSource::new_returning("geo-result");
+        let descriptor1 = make_descriptor("ac7_udf", "ac7_infusion", Arc::clone(&src));
+
+        // === Query 1: 5 unique IPs × 2 rows each = 10 rows total. 5 source calls expected. ===
+        let ctx1 = SessionContext::new();
+        let lru1 = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        ));
+        let tier3_a = Arc::new(InfusionTier3Cache::new(
+            Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
+        ));
+
+        register_infusion_udfs_with_cache(
+            &ctx1,
+            vec![descriptor1],
+            Arc::clone(&lru1),
+            Arc::clone(&tier3_a),
+            3600,
+        )
+        .expect("AC-7: first registration must succeed");
+
+        let ips_q1: Vec<&str> = vec![
+            "192.168.0.1",
+            "192.168.0.2",
+            "192.168.0.3",
+            "192.168.0.4",
+            "192.168.0.5",
+            "192.168.0.1",
+            "192.168.0.2",
+            "192.168.0.3",
+            "192.168.0.4",
+            "192.168.0.5",
+        ];
+        let schema = Arc::new(Schema::new(vec![Field::new("ip", DataType::Utf8, false)]));
+        let arr1 = StringArray::from(ips_q1);
+        let batch1 = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr1)])
+            .expect("AC-7: Q1 RecordBatch must succeed");
+        let table1 = MemTable::try_new(Arc::clone(&schema), vec![vec![batch1]])
+            .expect("AC-7: Q1 MemTable must succeed");
+        ctx1.register_table("q1_events", Arc::new(table1))
+            .expect("AC-7: Q1 register_table must succeed");
+
+        let df1 = ctx1
+            .sql("SELECT ac7_udf(ip) AS enriched FROM q1_events")
+            .await
+            .expect("AC-7: Q1 SQL must parse");
+        df1.collect().await.expect("AC-7: Q1 must execute");
+
+        let count_after_q1 = call_count.load(Ordering::SeqCst);
+        assert_eq!(
+            count_after_q1, 5,
+            "AC-7: first query must call source exactly 5 times (5 unique inputs, T1 dedup); \
+             got {count_after_q1}"
+        );
+
+        // === Query 2: fresh LRU (simulates process restart / eviction), same backend. ===
+        // Results are now only in T3 (InMemoryCacheBackend). T2 is empty.
+        let ctx2 = SessionContext::new();
+        let lru2 = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        )); // fresh LRU — empty
+
+        // Shared in-memory backend — same Arc as Q1, so T3 has all 5 entries.
+        let tier3_b = Arc::new(InfusionTier3Cache::new(
+            Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
+        ));
+
+        // Capture Q2's own source counter so we can assert directly on it.
+        // Previously the counter was discarded via `(_, src2)`, meaning the assertion
+        // on Q1's `call_count` would pass regardless of T3 hit/miss (F-LOCAL-3 fix).
+        let (call_count_q2, src2) = CountingSource::new_returning("geo-result");
+        let descriptor2 = make_descriptor("ac7_udf", "ac7_infusion", src2);
+
+        register_infusion_udfs_with_cache(
+            &ctx2,
+            vec![descriptor2],
+            Arc::clone(&lru2),
+            Arc::clone(&tier3_b),
+            3600,
+        )
+        .expect("AC-7: second registration must succeed");
+
+        let ips_q2: Vec<&str> = vec![
+            "192.168.0.1",
+            "192.168.0.2",
+            "192.168.0.3",
+            "192.168.0.4",
+            "192.168.0.5",
+        ];
+        let arr2 = StringArray::from(ips_q2);
+        let batch2 = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr2)])
+            .expect("AC-7: Q2 RecordBatch must succeed");
+        let table2 = MemTable::try_new(Arc::clone(&schema), vec![vec![batch2]])
+            .expect("AC-7: Q2 MemTable must succeed");
+        ctx2.register_table("q2_events", Arc::new(table2))
+            .expect("AC-7: Q2 register_table must succeed");
+
+        let df2 = ctx2
+            .sql("SELECT ac7_udf(ip) AS enriched FROM q2_events")
+            .await
+            .expect("AC-7: Q2 SQL must parse");
+        df2.collect().await.expect("AC-7: Q2 must execute");
+
+        // Assert directly on Q2's own source counter — must be 0.
+        // T3 must have served all 5 IPs without calling the live source.
+        // If T3 missed even one IP, call_count_q2 would be > 0 and this assertion fails.
+        let q2_source_calls = call_count_q2.load(Ordering::SeqCst);
+        assert_eq!(
+            q2_source_calls, 0,
+            "AC-7: second query must NOT call source at all (all 5 IPs must be served from T3 \
+             cache). Got {q2_source_calls} source calls — T3 cache miss detected."
+        );
+
+        // Sanity: Q1 source must still show exactly 5 calls (unchanged after Q2).
+        let count_after_q2 = call_count.load(Ordering::SeqCst);
+        assert_eq!(
+            count_after_q2, 5,
+            "AC-7: Q1 source call count must remain 5 after Q2 executes; got {count_after_q2}"
+        );
+    }
+
+    // ── F-TTL-1 load-bearing test: per-descriptor cache_ttl_secs is honoured ──────────────
+
+    /// F-TTL-1 / Task 6+8: a descriptor with `cache_ttl_secs = 300` must cause the Tier-3
+    /// cache entry to be written with an expiry of approximately `now + 300s`, NOT `now + 3600s`.
+    ///
+    /// Before the F-TTL-1 fix, both `execute_inner` and `execute_scheduled_inner` passed the
+    /// hardcoded `DEFAULT_CACHE_TTL_SECS` (3600) to `register_infusion_udfs_with_cache`.
+    /// Any value set in the `.infusion.toml` `cache_ttl_secs` field was silently dropped.
+    ///
+    /// After the fix:
+    /// - `InfusionUdfDescriptor::cache_ttl_secs` carries the per-spec TTL.
+    /// - `register_infusion_udfs_impl` uses `descriptor.cache_ttl_secs` (not the shared arg).
+    /// - Each UDF's Tier-3 write uses the spec's TTL.
+    ///
+    /// This test is LOAD-BEARING: if the TTL reverts to the hardcoded default (3600),
+    /// `expiry_unix_secs` would be ~`now + 3600`, violating the `< now + 400` assertion.
+    #[tokio::test]
+    async fn test_f_ttl_1_non_default_ttl_honored_in_tier3_cache_entry() {
+        use datafusion::arrow::array::StringArray;
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+        use prism_spec_engine::infusion::cache::Tier3CacheEntry;
+        use prism_spec_engine::InfusionTier3Cache;
+
+        // CapturingCacheBackend records the raw bytes written to the backend so we can
+        // decode the Tier3CacheEntry and inspect `expiry_unix_secs`.
+        #[derive(Debug, Default)]
+        struct CapturingCacheBackend {
+            written: tokio::sync::Mutex<Vec<(Vec<u8>, Vec<u8>)>>,
+        }
+
+        impl CapturingCacheBackend {
+            fn new() -> Arc<Self> {
+                Arc::new(Self::default())
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl prism_core::CacheBackend for CapturingCacheBackend {
+            async fn get(
+                &self,
+                _domain: prism_core::storage::StorageDomain,
+                _key: &[u8],
+            ) -> Result<Option<Vec<u8>>, prism_core::PrismError> {
+                // Always miss — we only care about writes (source always called).
+                Ok(None)
+            }
+
+            async fn set(
+                &self,
+                _domain: prism_core::storage::StorageDomain,
+                key: &[u8],
+                value: &[u8],
+            ) -> Result<(), prism_core::PrismError> {
+                let mut written = self.written.lock().await;
+                written.push((key.to_vec(), value.to_vec()));
+                Ok(())
+            }
+
+            async fn delete(
+                &self,
+                _domain: prism_core::storage::StorageDomain,
+                key: &[u8],
+            ) -> Result<(), prism_core::PrismError> {
+                let mut written = self.written.lock().await;
+                written.retain(|(k, _)| k != key);
+                Ok(())
+            }
+        }
+
+        // Capture the current time before UDF invocation (lower bound for expiry calculation).
+        let now_before = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let ctx = SessionContext::new();
+        let (_, src) = CountingSource::new_returning("enriched-result");
+
+        // Descriptor with NON-DEFAULT TTL = 300s (not the 3600 default).
+        // F-TTL-1: this must be what gets written to Tier-3 — not 3600.
+        const NON_DEFAULT_TTL: u64 = 300;
+        let descriptor = InfusionUdfDescriptor::new(
+            "ttl_test_udf",
+            "ip",
+            "string",
+            "ttl_test_infusion",
+            src,
+            None,
+            NON_DEFAULT_TTL,
+        );
+
+        let lru = Arc::new(InfusionLruCache::new(
+            std::num::NonZeroUsize::new(10_000).unwrap(),
+        ));
+        let backend = CapturingCacheBackend::new();
+        let tier3 = Arc::new(InfusionTier3Cache::new(
+            Arc::clone(&backend) as Arc<dyn prism_core::CacheBackend>
+        ));
+
+        // Register via production path — engine.rs uses this when caches are wired.
+        // F-TTL-1: the shared `cache_ttl_secs` arg (3600) must be IGNORED in favour of
+        // the per-descriptor `descriptor.cache_ttl_secs` (300). If the bug regresses,
+        // the assertion below will fail because expiry will be ~now+3600, not ~now+300.
+        register_infusion_udfs_with_cache(
+            &ctx,
+            vec![descriptor],
+            Arc::clone(&lru),
+            Arc::clone(&tier3),
+            super::DEFAULT_CACHE_TTL_SECS, // intentionally pass the default (3600) here;
+                                           // per-descriptor TTL (300) must override it.
+        )
+        .expect("F-TTL-1: registration must succeed");
+
+        // Register a single-row table and run a query to trigger the UDF.
+        let schema = Arc::new(Schema::new(vec![Field::new("ip", DataType::Utf8, false)]));
+        let arr = StringArray::from(vec!["10.1.2.3"]);
+        let batch = RecordBatch::try_new(Arc::clone(&schema), vec![Arc::new(arr)])
+            .expect("F-TTL-1: RecordBatch must succeed");
+        let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
+            .expect("F-TTL-1: MemTable must succeed");
+        ctx.register_table("ttl_test_events", Arc::new(table))
+            .expect("F-TTL-1: register_table must succeed");
+
+        let df = ctx
+            .sql("SELECT ttl_test_udf(ip) AS enriched FROM ttl_test_events")
+            .await
+            .expect("F-TTL-1: SQL must parse");
+        df.collect().await.expect("F-TTL-1: query must execute");
+
+        // Capture time after execution (upper bound for expiry range check).
+        let now_after = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        // Verify the Tier-3 backend received exactly one write (for "10.1.2.3").
+        let written = backend.written.lock().await;
+        assert_eq!(
+            written.len(),
+            1,
+            "F-TTL-1: Tier-3 backend must have received exactly 1 write (one unique IP); got {}",
+            written.len()
+        );
+
+        // Decode the written Tier3CacheEntry to inspect expiry_unix_secs.
+        let (_, raw_value) = &written[0];
+        let (entry, _): (Tier3CacheEntry, _) =
+            bincode::serde::decode_from_slice(raw_value, bincode::config::standard())
+                .expect("F-TTL-1: must decode Tier3CacheEntry from written bytes");
+
+        // Assert expiry is approximately now + NON_DEFAULT_TTL (300s), NOT now + 3600s.
+        //
+        // Expected range: [now_before + 250, now_before + 400]
+        //   - Lower bound (250): accounting for any clock/scheduling jitter.
+        //   - Upper bound (400): must be < 3600 to prove the default TTL wasn't used.
+        //
+        // If the F-TTL-1 bug regresses (TTL hardcoded to 3600), `expiry_unix_secs` would be
+        // approximately `now + 3600` (~3600 seconds from now), failing the `< now + 400`
+        // assertion.
+        let expiry = entry.expiry_unix_secs;
+        assert!(
+            expiry > now_before + 250,
+            "F-TTL-1: Tier-3 entry expiry must be > now_before + 250 (TTL=300 must have been applied); \
+             expiry={expiry}, now_before={now_before}, now_before+250={}",
+            now_before + 250
+        );
+        assert!(
+            expiry < now_after + 400,
+            "F-TTL-1: Tier-3 entry expiry must be < now_after + 400 (must NOT be 3600; if this fails, \
+             the DEFAULT_CACHE_TTL_SECS hardcode has regressed); expiry={expiry}, now_after={now_after}, \
+             now_after+400={}",
+            now_after + 400
+        );
+        // Explicit distance check: expiry must be within ~300s of now, not within ~3600s.
+        // This fires if someone passes 1800 (half-way default) instead of 300.
+        let distance = expiry.saturating_sub(now_before);
+        assert!(
+            distance <= 500,
+            "F-TTL-1: expiry distance from now must be <= 500s (consistent with TTL=300, not TTL=3600); \
+             distance={distance}s. If this fails, the per-descriptor TTL is not being applied."
         );
     }
 }

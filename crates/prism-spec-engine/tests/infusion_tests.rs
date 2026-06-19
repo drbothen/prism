@@ -276,6 +276,112 @@ fn test_BC_2_19_001_rejects_duplicate_udf_name_across_specs() {
     }
 }
 
+/// TV-19-001-overwrite-purge: load_spec with duplicate infusion_id purges stale udf_to_infusion entries.
+///
+/// Traces to: BC-2.19.001 v2.0 Postcondition (A3 — duplicate infusion_id purge) / TV-19-001-overwrite-purge.
+///
+/// Scenario:
+///   1. Load spec A: infusion_id="geoip", fields=[geoip_country, geoip_asn], LocalLookup
+///   2. Load spec B: infusion_id="geoip", fields=[geoip_city], Plugin type
+///   3. Assert `is_api_backed("geoip_country")` returns false:
+///      - WITHOUT purge: udf_to_infusion["geoip_country"] still points to "geoip", entries["geoip"] is
+///        spec B (Plugin) → is_api_backed returns TRUE (stale entry causes wrong result)
+///      - WITH purge: geoip_country removed from udf_to_infusion → is_api_backed returns FALSE (correct)
+///   4. Assert `is_api_backed("geoip_asn")` returns false (same reasoning as geoip_country)
+///   5. Assert `is_api_backed("geoip_city")` returns true (spec B is Plugin, geoip_city is valid)
+///   6. Assert `udf_descriptors()` contains ONLY geoip_city (spec B's field)
+///
+/// FAILS RED before the fix: is_api_backed("geoip_country") returns true (stale entry).
+/// PASSES GREEN after the fix: stale entries purged on overwrite.
+#[test]
+fn test_BC_2_19_001_overwrite_purge_clears_stale_udf_to_infusion_entries() {
+    let registry = InfusionRegistry::new();
+
+    // Step 1: Load spec A — infusion_id="geoip", fields=[geoip_country, geoip_asn], LocalLookup.
+    let fields_a = vec![
+        InfusionField::new("geoip_country", "device_ip", "ip", "string"),
+        InfusionField::new("geoip_asn", "device_ip", "ip", "integer"),
+    ];
+    let spec_a = InfusionSpec::new(
+        "geoip",
+        "GeoIP v1",
+        InfusionType::LocalLookup,
+        fields_a,
+        "geoip_v1.infusion.toml",
+    );
+    registry
+        .load_spec(spec_a)
+        .expect("TV-19-001-overwrite-purge: spec A (geoip, [geoip_country, geoip_asn]) must load");
+
+    // Confirm initial state: both old fields registered.
+    assert!(
+        !registry.is_api_backed("geoip_country"),
+        "TV-19-001-overwrite-purge: geoip_country should not be API-backed before overwrite"
+    );
+
+    // Step 2: Load spec B — infusion_id="geoip", fields=[geoip_city], Plugin type.
+    // This is the last-writer-wins overwrite. After this, entries["geoip"] = spec B (Plugin).
+    let fields_b = vec![InfusionField::new(
+        "geoip_city",
+        "device_ip",
+        "ip",
+        "string",
+    )];
+    let mut spec_b = InfusionSpec::new(
+        "geoip",
+        "GeoIP v2 Plugin",
+        InfusionType::Plugin,
+        fields_b,
+        "geoip_v2.infusion.toml",
+    );
+    spec_b.plugin_config = Some(prism_spec_engine::infusion::PluginConfig::new(
+        "plugins/geoip_v2.prx",
+    ));
+    registry
+        .load_spec(spec_b)
+        .expect("TV-19-001-overwrite-purge: spec B (geoip, [geoip_city], Plugin) must load");
+
+    // Step 3: geoip_country MUST NOT be considered API-backed.
+    // WITHOUT the purge fix: udf_to_infusion["geoip_country"] → "geoip" → entries["geoip"] is
+    // spec B (Plugin) → is_api_backed returns TRUE (stale, wrong).
+    // WITH the purge fix: geoip_country is absent from udf_to_infusion → returns FALSE (correct).
+    assert!(
+        !registry.is_api_backed("geoip_country"),
+        "TV-19-001-overwrite-purge (BC-2.19.001 A3): is_api_backed('geoip_country') must return \
+         false after overwrite — geoip_country belongs to the replaced spec A (LocalLookup). \
+         WITHOUT the purge fix, stale udf_to_infusion['geoip_country'] → 'geoip' (spec B, Plugin) \
+         causes is_api_backed to return TRUE (incorrect). This assertion FAILS RED before fix."
+    );
+
+    // Step 4: geoip_asn also must not be considered API-backed (same reason).
+    assert!(
+        !registry.is_api_backed("geoip_asn"),
+        "TV-19-001-overwrite-purge (BC-2.19.001 A3): is_api_backed('geoip_asn') must return \
+         false after overwrite — geoip_asn belongs to the replaced spec A (LocalLookup)."
+    );
+
+    // Step 5: geoip_city IS from spec B (Plugin) and must be API-backed.
+    assert!(
+        registry.is_api_backed("geoip_city"),
+        "TV-19-001-overwrite-purge: is_api_backed('geoip_city') must return true — \
+         geoip_city belongs to spec B (Plugin type)."
+    );
+
+    // Step 6: udf_descriptors() must contain ONLY geoip_city (spec B's field, not spec A's).
+    let descriptors = registry.udf_descriptors();
+    assert_eq!(
+        descriptors.len(),
+        1,
+        "TV-19-001-overwrite-purge: udf_descriptors() must return exactly 1 descriptor \
+         (only geoip_city from spec B). Got: {:?}",
+        descriptors.iter().map(|d| &d.name).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        descriptors[0].name, "geoip_city",
+        "TV-19-001-overwrite-purge: the sole descriptor must be geoip_city"
+    );
+}
+
 /// After loading geoip spec, `udf_descriptors()` returns all 4 UDFs.
 /// Traces to: BC-2.19.001 / AC-1.
 #[test]
@@ -294,8 +400,14 @@ fn test_BC_2_19_001_udf_descriptors_returns_all_registered_udfs() {
     );
 }
 
-/// `enrich_descriptor` returns the correct descriptor for a loaded infusion.
-/// Traces to: BC-2.19.001 / AC-3.
+/// TV-19-001-enrich-desc-pipe: spec WITH pipe_stage carrying the full 4-column adds_columns list.
+///
+/// Traces to: BC-2.19.001 v2.0 / AC-3 / TV-19-001-enrich-desc-pipe (partial).
+///
+/// `build_geoip_spec()` sets `pipe_stage.adds_columns = [all 4 columns]`.
+/// This test covers the pipe_stage branch where adds_columns == all field names (full set).
+///
+/// TD-VSDD-059: assertion is ordered equality (assert_eq!) — a reorder fails the test.
 #[test]
 fn test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns() {
     let registry = InfusionRegistry::new();
@@ -309,16 +421,211 @@ fn test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns() {
 
     assert_eq!(descriptor.infusion_name, "geoip");
     assert_eq!(descriptor.input_field, "device_ip");
+    // TD-VSDD-059: ordered equality — a reorder of output_columns must fail this assertion.
+    // build_geoip_spec() has pipe_stage.adds_columns = all 4 in declaration order; output_columns must match.
     assert_eq!(
-        descriptor.output_columns.len(),
-        4,
-        "BC-2.19.001: enrich descriptor must list all 4 geoip output columns"
+        descriptor.output_columns,
+        vec![
+            "geoip_country".to_string(),
+            "geoip_city".to_string(),
+            "geoip_asn".to_string(),
+            "geoip_is_tor".to_string(),
+        ],
+        "BC-2.19.001 AC-3 (pipe_stage full-set branch): output_columns must equal \
+         pipe_stage.adds_columns in declared order when adds_columns covers all fields. \
+         A reorder is a behavioral regression."
     );
-    let cols = &descriptor.output_columns;
-    assert!(cols.contains(&"geoip_country".to_string()));
-    assert!(cols.contains(&"geoip_city".to_string()));
-    assert!(cols.contains(&"geoip_asn".to_string()));
-    assert!(cols.contains(&"geoip_is_tor".to_string()));
+}
+
+/// TV-19-001-enrich-desc: geoip spec with 4 fields and NO pipe_stage.
+///
+/// Traces to: BC-2.19.001 v2.0 / AC-3 / TV-19-001-enrich-desc (canonical — no pipe_stage).
+///
+/// When `spec.pipe_stage` is `None`, `enrich_descriptor` MUST fall back to all
+/// `[[infusion.fields]]` names in declaration order (the `.unwrap_or_else(||
+/// spec.fields...)` branch in `enrich_descriptor`).
+///
+/// This test is **load-bearing for regression detection**: if the fallback branch is
+/// removed or regressed to returning an empty vec, this assertion fails RED.
+///
+/// TD-VSDD-059: ordered equality — a reorder or truncation fails the test.
+#[test]
+fn test_BC_2_19_001_enrich_descriptor_no_pipe_stage_returns_all_field_names() {
+    // Build a geoip spec WITHOUT any pipe_stage (TV-19-001-enrich-desc canonical input).
+    let fields = vec![
+        InfusionField::with_all(
+            "geoip_country",
+            "device_ip",
+            "ip",
+            "string",
+            Some("ISO 3166-1 alpha-2 country code".to_string()),
+            Some("country_iso_code".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_city",
+            "device_ip",
+            "ip",
+            "string",
+            Some("City name".to_string()),
+            Some("city_name".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_asn",
+            "device_ip",
+            "ip",
+            "integer",
+            Some("ASN".to_string()),
+            Some("asn".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_is_tor",
+            "device_ip",
+            "ip",
+            "boolean",
+            Some("Tor exit node flag".to_string()),
+            Some("is_tor".to_string()),
+        ),
+    ];
+    // Intentionally NO pipe_stage — this is the TV-19-001-enrich-desc vector.
+    let spec = InfusionSpec::new(
+        "geoip",
+        "MaxMind GeoIP2",
+        InfusionType::LocalLookup,
+        fields,
+        "geoip_no_pipe.infusion.toml",
+    );
+
+    let registry = InfusionRegistry::new();
+    registry
+        .load_spec(spec)
+        .expect("BC-2.19.001: geoip spec without pipe_stage must load");
+
+    let descriptor = registry
+        .enrich_descriptor("geoip")
+        .expect("BC-2.19.001: enrich_descriptor must return a descriptor for 'geoip'");
+
+    assert_eq!(
+        descriptor.infusion_name, "geoip",
+        "BC-2.19.001 TV-19-001-enrich-desc: infusion_name must be the lookup key 'geoip'"
+    );
+    assert_eq!(
+        descriptor.infusion_id, "geoip",
+        "BC-2.19.001 TV-19-001-enrich-desc: infusion_id must equal infusion_name (lookup key)"
+    );
+    assert_eq!(
+        descriptor.input_field, "device_ip",
+        "BC-2.19.001 TV-19-001-enrich-desc: input_field must come from the first field's input_field"
+    );
+
+    // TD-VSDD-059: ordered equality — truncation or reorder MUST fail this test.
+    // The fallback branch must return ALL 4 field names in declaration order.
+    // REGRESSION INDICATOR: if this assertion fails with an empty vec, the
+    // `.unwrap_or_else(|| spec.fields...)` fallback branch has been removed or regressed.
+    assert_eq!(
+        descriptor.output_columns,
+        vec![
+            "geoip_country".to_string(),
+            "geoip_city".to_string(),
+            "geoip_asn".to_string(),
+            "geoip_is_tor".to_string(),
+        ],
+        "BC-2.19.001 TV-19-001-enrich-desc: when spec.pipe_stage is None, output_columns must \
+         equal ALL [[infusion.fields]] names in declaration order. \
+         Got: {:?}. A regression to empty means the fallback branch was removed.",
+        descriptor.output_columns
+    );
+}
+
+/// TV-19-001-enrich-desc-pipe (strict subset): geoip spec WITH pipe_stage carrying only 2 of 4 columns.
+///
+/// Traces to: BC-2.19.001 v2.0 / AC-3 / TV-19-001-enrich-desc-pipe (strict subset vector).
+///
+/// When `pipe_stage.adds_columns` is a strict subset of the spec fields, `enrich_descriptor`
+/// MUST return only the listed columns — NOT all 4. This proves a pipe stage can legitimately
+/// project a strict subset for selective `| enrich` pipeline projection.
+///
+/// TD-VSDD-059: ordered equality — geoip_asn and geoip_is_tor must be ABSENT.
+#[test]
+fn test_BC_2_19_001_enrich_descriptor_pipe_stage_strict_subset_returns_subset_only() {
+    // Build a geoip spec WITH pipe_stage.adds_columns = ["geoip_country","geoip_city"] (2 of 4).
+    let fields = vec![
+        InfusionField::with_all(
+            "geoip_country",
+            "device_ip",
+            "ip",
+            "string",
+            Some("ISO 3166-1 alpha-2 country code".to_string()),
+            Some("country_iso_code".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_city",
+            "device_ip",
+            "ip",
+            "string",
+            Some("City name".to_string()),
+            Some("city_name".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_asn",
+            "device_ip",
+            "ip",
+            "integer",
+            Some("ASN".to_string()),
+            Some("asn".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_is_tor",
+            "device_ip",
+            "ip",
+            "boolean",
+            Some("Tor exit node flag".to_string()),
+            Some("is_tor".to_string()),
+        ),
+    ];
+    let mut spec = InfusionSpec::new(
+        "geoip",
+        "MaxMind GeoIP2",
+        InfusionType::LocalLookup,
+        fields,
+        "geoip_subset_pipe.infusion.toml",
+    );
+    // pipe_stage.adds_columns = strict 2-column subset — geoip_asn and geoip_is_tor excluded.
+    spec.pipe_stage = Some(prism_spec_engine::infusion::PipeStageConfig::new(vec![
+        "geoip_country".to_string(),
+        "geoip_city".to_string(),
+    ]));
+
+    let registry = InfusionRegistry::new();
+    registry
+        .load_spec(spec)
+        .expect("BC-2.19.001: geoip spec with strict-subset pipe_stage must load");
+
+    let descriptor = registry
+        .enrich_descriptor("geoip")
+        .expect("BC-2.19.001: enrich_descriptor must return a descriptor for 'geoip'");
+
+    // TD-VSDD-059: ordered equality — output_columns must be EXACTLY the 2-element subset.
+    // geoip_asn and geoip_is_tor must be ABSENT from the result.
+    assert_eq!(
+        descriptor.output_columns,
+        vec!["geoip_country".to_string(), "geoip_city".to_string()],
+        "BC-2.19.001 TV-19-001-enrich-desc-pipe (strict subset): output_columns must equal \
+         pipe_stage.adds_columns in declared order — only [geoip_country, geoip_city]. \
+         geoip_asn and geoip_is_tor must be absent. Got: {:?}",
+        descriptor.output_columns
+    );
+
+    // Confirm the absent columns are genuinely absent (belt-and-suspenders beyond assert_eq).
+    assert!(
+        !descriptor.output_columns.contains(&"geoip_asn".to_string()),
+        "BC-2.19.001 TV-19-001-enrich-desc-pipe: geoip_asn must be absent from subset output_columns"
+    );
+    assert!(
+        !descriptor
+            .output_columns
+            .contains(&"geoip_is_tor".to_string()),
+        "BC-2.19.001 TV-19-001-enrich-desc-pipe: geoip_is_tor must be absent from subset output_columns"
+    );
 }
 
 /// `enrich_descriptor` with unknown name returns E-INFUSE-001.
@@ -900,9 +1207,17 @@ fn test_ac_1_geoip_spec_exports_four_udf_descriptors() {
     );
 }
 
-/// AC-3: `| enrich geoip ON device_ip` → output schema includes 4 geoip columns.
+/// AC-3: `| enrich geoip ON device_ip` → output schema includes 4 geoip columns in declared order.
+///
+/// Uses `build_geoip_spec()` which carries `pipe_stage.adds_columns = [all 4 columns]`.
+/// This exercises the pipe_stage branch (same branch as
+/// `test_BC_2_19_001_enrich_descriptor_returns_correct_output_columns`).
+/// The no-pipe_stage fallback branch is covered by
+/// `test_BC_2_19_001_enrich_descriptor_no_pipe_stage_returns_all_field_names`.
+///
+/// TD-VSDD-059: ordered equality — a reorder of output_columns must fail this assertion.
 #[test]
-fn test_ac_3_enrich_descriptor_includes_all_geoip_columns() {
+fn test_ac_3_enrich_descriptor_pipe_stage_full_set_returns_all_columns() {
     let registry = InfusionRegistry::new();
     registry
         .load_spec(build_geoip_spec())
@@ -912,10 +1227,18 @@ fn test_ac_3_enrich_descriptor_includes_all_geoip_columns() {
         .enrich_descriptor("geoip")
         .expect("AC-3: enrich_descriptor must return descriptor for 'geoip'");
 
+    // TD-VSDD-059: ordered equality — a reorder must fail this test.
+    // build_geoip_spec() pipe_stage.adds_columns = ["geoip_country","geoip_city","geoip_asn","geoip_is_tor"]
     assert_eq!(
-        desc.output_columns.len(),
-        4,
-        "AC-3: enrich descriptor must list 4 output columns"
+        desc.output_columns,
+        vec![
+            "geoip_country".to_string(),
+            "geoip_city".to_string(),
+            "geoip_asn".to_string(),
+            "geoip_is_tor".to_string(),
+        ],
+        "AC-3: enrich descriptor output_columns must equal pipe_stage.adds_columns in declared order \
+         (pipe_stage present, full 4-column set)"
     );
 }
 
@@ -1435,12 +1758,12 @@ output_type = "boolean"
     }
 }
 
-/// EC-001: load_all ignores mmdb/csv/json_lookup types (deferred to S-1.14-REDO).
+/// S-1.14-REDO implements maxmind_mmdb/csv/json_lookup source types.
+/// load_all must now successfully parse these types (no longer UnknownSourceType).
 ///
-/// When load_all encounters a non-plugin type it cannot handle, it should return
-/// an error for that spec and continue (not panic).
-///
-/// Red Gate failure: `InfusionLoader::load_all` panics with `unimplemented!()`.
+/// Previously (S-DEMO-ENRICHMENT-PIVOT-001 scope) this test asserted that maxmind_mmdb
+/// returned UnknownSourceType. S-1.14-REDO implements the full local-lookup path,
+/// so the correct behavior is 1 spec, 0 errors.
 #[test]
 fn test_BC_2_19_001_load_all_returns_error_for_unsupported_source_type() {
     use std::io::Write;
@@ -1450,7 +1773,7 @@ fn test_BC_2_19_001_load_all_returns_error_for_unsupported_source_type() {
     let infusions_dir = temp_dir.path().join("infusions");
     std::fs::create_dir_all(&infusions_dir).expect("EC-001: infusions dir must be created");
 
-    // MMDB type — deferred to S-1.14-REDO, must not silently succeed.
+    // maxmind_mmdb type — S-1.14-REDO implements this; load_all must now succeed.
     let mmdb_toml = r#"
 [infusion]
 infusion_id = "geoip"
@@ -1475,52 +1798,26 @@ output_type = "string"
             .expect("EC-001: write must succeed");
     }
 
-    // FAILS RED: InfusionLoader::load_all is unimplemented!()
     let loader = InfusionLoader::new(temp_dir.path().to_str().unwrap());
     let (specs, errors) = loader.load_all();
 
-    // The mmdb spec must produce exactly 1 error (UnknownSourceType) and 0 valid specs.
-    // A regression to any other error variant OR to silent success (0 errors, 1 spec) must fail.
+    // S-1.14-REDO: maxmind_mmdb is now a supported type — expect 1 spec, 0 errors.
     assert_eq!(
         specs.len(),
-        0,
-        "BC-2.19.001 EC-001: load_all must not silently load maxmind_mmdb type \
-         (deferred to S-1.14-REDO). Got {} specs (expected 0).",
-        specs.len()
+        1,
+        "BC-2.19.001: S-1.14-REDO must successfully parse maxmind_mmdb spec. \
+         Got {} specs (expected 1). Errors: {:?}",
+        specs.len(),
+        errors
     );
     assert_eq!(
         errors.len(),
-        1,
-        "BC-2.19.001 EC-001: load_all must produce exactly 1 error for maxmind_mmdb type. \
-         Got {} errors.",
-        errors.len()
+        0,
+        "BC-2.19.001: no errors expected for valid maxmind_mmdb spec. Got {} errors: {:?}",
+        errors.len(),
+        errors
     );
-
-    // Pin the error variant: must be UnknownSourceType (E-INFUSE-004), not any other variant.
-    match &errors[0] {
-        InfusionError::UnknownSourceType { type_name } => {
-            assert!(
-                type_name.contains("maxmind_mmdb") || type_name.contains("mmdb"),
-                "BC-2.19.001 EC-001: UnknownSourceType error must name the rejected type. \
-                 Got type_name: '{}'",
-                type_name
-            );
-        }
-        other => panic!(
-            "BC-2.19.001 EC-001: expected InfusionError::UnknownSourceType for maxmind_mmdb, \
-             got: {:?}. A regression to a different variant would not be caught by a weak assertion.",
-            other
-        ),
-    }
-
-    // Pin the error code: message must contain E-INFUSE-004.
-    let err_msg = errors[0].to_string();
-    assert!(
-        err_msg.contains("E-INFUSE-004"),
-        "BC-2.19.001 EC-001: UnknownSourceType error message must contain 'E-INFUSE-004'. \
-         Got: '{}'",
-        err_msg
-    );
+    assert_eq!(specs[0].infusion_id, "geoip");
 }
 
 // ---------------------------------------------------------------------------
@@ -1860,4 +2157,730 @@ adds_columns = ["threat_score", "nonexistent_field"]
             other
         ),
     }
+}
+
+// ---------------------------------------------------------------------------
+// FIX 2 (Story Task 1): non-empty adds_columns enforcement
+//
+// pipe_stage present with adds_columns = [] is now rejected by
+// validate_pipe_stage_columns. The load_spec and parse paths both call this
+// validator, so the constraint is enforced on all entry points.
+//
+// Load-bearing test: spec with pipe_stage.adds_columns = [] MUST fail load.
+// Without the is_empty() guard, the loop never runs and the spec is accepted.
+// ---------------------------------------------------------------------------
+
+/// Story Task 1: pipe_stage present with empty adds_columns is rejected.
+///
+/// Traces to: BC-2.19.001 / Story Task 1 / validate_pipe_stage_columns.
+///
+/// LOAD-BEARING assertion: without the `is_empty()` guard in
+/// `validate_pipe_stage_columns`, the subset loop never runs for an empty
+/// slice — the spec would be ACCEPTED (false green). This test is RED before
+/// the guard is added and GREEN after.
+///
+/// The error variant used is `MissingRequiredField` (the closest existing variant
+/// for "pipe_stage config is structurally invalid"). No new error variant was
+/// introduced (conforming to "use closest existing" per fix-burst instructions).
+#[test]
+fn test_BC_2_19_001_load_spec_rejects_pipe_stage_with_empty_adds_columns() {
+    // Build a geoip spec with pipe_stage present but adds_columns = [].
+    let fields = vec![InfusionField::new(
+        "geoip_country",
+        "device_ip",
+        "ip",
+        "string",
+    )];
+    let mut spec = InfusionSpec::new(
+        "geoip_empty_pipe",
+        "GeoIP empty pipe",
+        InfusionType::LocalLookup,
+        fields,
+        "geoip_empty_pipe.infusion.toml",
+    );
+    // pipe_stage present, adds_columns intentionally empty — INVALID per Story Task 1.
+    spec.pipe_stage = Some(prism_spec_engine::infusion::PipeStageConfig::new(vec![]));
+
+    let registry = InfusionRegistry::new();
+    let result = registry.load_spec(spec);
+
+    assert!(
+        result.is_err(),
+        "Story Task 1 (BC-2.19.001): load_spec must REJECT a spec with pipe_stage.adds_columns = []. \
+         A spec with pipe_stage must list at least one column. \
+         FAILS RED without the is_empty() guard in validate_pipe_stage_columns — \
+         the empty loop is a silent pass that falsely accepts the spec."
+    );
+
+    match result.unwrap_err() {
+        InfusionError::MissingRequiredField { field, .. } => {
+            assert!(
+                field.contains("pipe_stage")
+                    || field.contains("adds_columns")
+                    || field.contains("empty"),
+                "Story Task 1: MissingRequiredField must reference pipe_stage/adds_columns. Got field: '{}'",
+                field
+            );
+        }
+        other => panic!(
+            "Story Task 1: expected MissingRequiredField for empty adds_columns, got: {:?}",
+            other
+        ),
+    }
+}
+
+/// Story Task 1: parse path also rejects pipe_stage with empty adds_columns.
+///
+/// Traces to: BC-2.19.001 / Story Task 1 / InfusionLoader::parse → validate_pipe_stage_columns.
+///
+/// The TOML parse path calls validate_pipe_stage_columns after building the spec.
+/// This test confirms the rejection is wired through the TOML loader, not just
+/// the in-memory load_spec path.
+#[test]
+fn test_BC_2_19_001_parse_rejects_pipe_stage_with_empty_adds_columns() {
+    let toml_input = r#"
+[infusion]
+infusion_id = "geoip_empty"
+name = "GeoIP empty pipe"
+
+[source]
+type = "maxmind_mmdb"
+file_path = "fixtures/test.mmdb"
+
+[[infusion.fields]]
+name = "geoip_country"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+
+[infusion.pipe_stage]
+adds_columns = []
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "geoip_empty_pipe.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "Story Task 1 (BC-2.19.001): InfusionLoader::parse must reject a spec with \
+         pipe_stage.adds_columns = []. \
+         FAILS RED without the is_empty() guard in validate_pipe_stage_columns."
+    );
+
+    match result.unwrap_err() {
+        InfusionError::MissingRequiredField { field, spec_path } => {
+            assert!(
+                field.contains("pipe_stage")
+                    || field.contains("adds_columns")
+                    || field.contains("empty"),
+                "Story Task 1: rejection error must reference pipe_stage/adds_columns. Got field: '{}'",
+                field
+            );
+            assert_eq!(
+                spec_path, "geoip_empty_pipe.infusion.toml",
+                "Story Task 1: rejection error must include the spec path"
+            );
+        }
+        other => panic!(
+            "Story Task 1: expected MissingRequiredField for empty adds_columns in parse path, got: {:?}",
+            other
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cache-key collision fix: reject ':' delimiter in infusion_id
+// ---------------------------------------------------------------------------
+//
+// All three infusion cache tiers compose keys as `format!("{}:{}", infusion_id, input_value)`.
+// A spec with infusion_id="a:b" enriching input "c" produces key "a:b:c", which is
+// indistinguishable from infusion_id="a" enriching "b:c" — a theoretical cross-infusion
+// cache collision. The guard-at-parse approach is the production-grade fix:
+// reject any infusion_id containing ':' at spec load time, before any caching occurs.
+//
+// Load-bearing mechanism: the test calls InfusionLoader::parse with infusion_id = "a:b"
+// (a colon-containing id) and asserts the result is Err(MissingRequiredField) with
+// a message that references the delimiter. WITHOUT the guard in loader.rs::parse,
+// the parse succeeds and this test FAILS RED.
+
+/// Cache-key collision fix: InfusionLoader::parse rejects infusion_id containing ':'.
+///
+/// Traces to: LOW finding (round-4) — cache composite-key non-injectivity.
+/// Guard location: loader.rs::parse, after the non-empty infusion_id check.
+///
+/// FAILS RED without the ':' guard — parse would accept the spec, returning Ok.
+/// PASSES GREEN after adding `if raw_infusion.infusion_id.contains(':')` guard.
+#[test]
+fn test_infusion_loader_rejects_colon_in_infusion_id_cache_key_delimiter() {
+    // infusion_id = "a:b" contains the ':' cache-key delimiter — must be rejected.
+    let toml_input = r#"
+[infusion]
+infusion_id = "a:b"
+name = "Colon ID test"
+
+[source]
+type = "maxmind_mmdb"
+file_path = "fixtures/test.mmdb"
+
+[[infusion.fields]]
+name = "geoip_country"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+"#;
+
+    let result = InfusionLoader::parse(toml_input, "colon_id_test.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "Cache-key collision fix: InfusionLoader::parse MUST reject infusion_id containing ':' \
+         (the cache-key delimiter). A colon in infusion_id enables cross-infusion cache key \
+         collisions: id='a:b' enriching 'c' produces key 'a:b:c', identical to id='a' enriching 'b:c'. \
+         FAILS RED without the guard in loader.rs::parse — parse returns Ok for this spec."
+    );
+
+    match result.unwrap_err() {
+        InfusionError::MissingRequiredField { field, spec_path } => {
+            assert!(
+                field.contains(':') || field.contains("delimiter") || field.contains("infusion_id"),
+                "Cache-key collision fix: MissingRequiredField message must reference the \
+                 ':' delimiter or infusion_id. Got field: '{}'",
+                field
+            );
+            assert_eq!(
+                spec_path, "colon_id_test.infusion.toml",
+                "Cache-key collision fix: rejection error must include the spec path"
+            );
+        }
+        other => panic!(
+            "Cache-key collision fix: expected MissingRequiredField for colon in infusion_id, got: {:?}",
+            other
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OBS-1 fix: load_spec return value carries REAL source (not NullSource)
+// ---------------------------------------------------------------------------
+//
+// Regression guard: ensures the returned descriptors from load_spec carry the
+// REAL file-backed InfusionSource, not the NullSource used internally by
+// validate_spec_against for duplicate-detection.
+//
+// Load-bearing mechanism: the test calls enrich_single on a descriptor from the
+// load_spec return value and asserts it returns Some(real_data). A NullSource
+// regression would return None here, causing the assertion to fail.
+
+/// OBS-1: load_spec return value descriptors carry the real file-backed source.
+///
+/// Traces to: OBS-1 adversarial finding, S-1.14-REDO burst-4+1.
+///
+/// The asset_inventory CSV fixture (fixtures/asset_inventory.csv) has:
+///   ip_address=192.168.1.10, department=Engineering, owner=alice
+///
+/// If load_spec returned NullSource-backed descriptors, enrich_single would return
+/// None and the test would fail with a clear regression signal.
+#[test]
+fn test_OBS_1_load_spec_return_value_carries_real_source_not_null_source() {
+    use std::path::PathBuf;
+
+    // Build a CSV-backed LocalLookup spec using the existing fixture file.
+    // The fixture lives at crates/prism-spec-engine/fixtures/asset_inventory.csv
+    // relative to the workspace root — resolve via env!("CARGO_MANIFEST_DIR").
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let csv_path = PathBuf::from(manifest_dir)
+        .join("fixtures")
+        .join("asset_inventory.csv");
+    let csv_path_str = csv_path
+        .to_str()
+        .expect("OBS-1: CSV fixture path must be valid UTF-8");
+
+    let fields = vec![
+        InfusionField::with_all(
+            "obs1_asset_department",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("department".to_string()),
+        ),
+        InfusionField::with_all(
+            "obs1_asset_owner",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("owner".to_string()),
+        ),
+    ];
+    let mut spec = InfusionSpec::new(
+        "obs1_asset_inventory",
+        "OBS-1 Asset Inventory CSV",
+        InfusionType::LocalLookup,
+        fields,
+        "obs1_asset_inventory.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        csv_path_str,
+        Some("ip_address".to_string()),
+        None,
+    ));
+
+    let registry = InfusionRegistry::new();
+
+    // Get the descriptors from load_spec return value.
+    let returned_descriptors = registry
+        .load_spec(spec)
+        .expect("OBS-1: asset_inventory spec must load successfully");
+
+    assert_eq!(
+        returned_descriptors.len(),
+        2,
+        "OBS-1: load_spec must return 2 descriptors for a 2-field spec"
+    );
+
+    // Use the returned descriptor to enrich — this is the LOAD-BEARING assertion.
+    // A NullSource would return None; the real CsvSource returns Some(row_data).
+    //
+    // fixture: ip_address=192.168.1.10 → department=Engineering, owner=alice
+    let dept_descriptor = returned_descriptors
+        .iter()
+        .find(|d| d.name == "obs1_asset_department")
+        .expect("OBS-1: obs1_asset_department descriptor must be in the returned set");
+
+    let enrichment_result = dept_descriptor.source.enrich_single("192.168.1.10", "ip");
+
+    assert!(
+        enrichment_result.is_some(),
+        "OBS-1: load_spec return descriptor must carry the REAL CsvSource, not NullSource. \
+         Expected Some(row_data) for IP 192.168.1.10 (fixture: department=Engineering), \
+         got None. A None result here means the returned descriptor is backed by NullSource — \
+         the OBS-1 regression has been re-introduced."
+    );
+
+    // Verify the enrichment returned the correct department from the fixture.
+    let row = enrichment_result.unwrap();
+    let department = row
+        .get("department")
+        .and_then(|v| v.as_str())
+        .expect("OBS-1: enrichment result must have 'department' field from CSV row");
+
+    assert_eq!(
+        department, "Engineering",
+        "OBS-1: enrichment via load_spec return descriptor must return 'Engineering' \
+         for IP 192.168.1.10 (fixture row). Got: '{}'",
+        department
+    );
+
+    // Confirm the stored registry also has the real source (udf_descriptors must match).
+    let registry_descriptors = registry.udf_descriptors();
+    let stored_dept = registry_descriptors
+        .iter()
+        .find(|d| d.name == "obs1_asset_department")
+        .expect("OBS-1: obs1_asset_department must be in udf_descriptors()");
+
+    let stored_result = stored_dept.source.enrich_single("192.168.1.10", "ip");
+    assert!(
+        stored_result.is_some(),
+        "OBS-1: udf_descriptors() must also carry the real CsvSource (consistency check). \
+         Got None — stored source is NullSource."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// SEC-001 (CWE-400) — infusion source file size guard tests (E-INFUSE-012)
+//
+// Uses `File::set_len()` to allocate sparse files (no real data written) so
+// tests complete in <1ms even for sizes slightly above MAX_SOURCE_FILE_BYTES.
+// ---------------------------------------------------------------------------
+
+/// SEC-001: CSV source exceeding MAX_SOURCE_FILE_BYTES → Err(SourceFileTooLarge).
+///
+/// test_BC_2_19_001_source_file_too_large_csv
+/// Verifies the size guard fires BEFORE any file read (Red before guard, Green after).
+#[test]
+fn test_BC_2_19_001_source_file_too_large_csv() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::csv::CsvSource;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.csv");
+
+    // Sparse-allocate a file of MAX_SOURCE_FILE_BYTES+1 (no data written to disk pages).
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let result = CsvSource::load(oversized_path.to_str().unwrap(), "id");
+    match result {
+        Err(InfusionError::SourceFileTooLarge { size, limit, .. }) => {
+            assert_eq!(size, MAX_SOURCE_FILE_BYTES + 1, "size field must be exact");
+            assert_eq!(
+                limit, MAX_SOURCE_FILE_BYTES,
+                "limit must be MAX_SOURCE_FILE_BYTES"
+            );
+        }
+        Err(other) => panic!("expected SourceFileTooLarge, got: {:?}", other),
+        Ok(_) => panic!("expected Err(SourceFileTooLarge), got Ok — size guard not firing"),
+    }
+}
+
+/// SEC-001: CSV source at exactly MAX_SOURCE_FILE_BYTES → accepted (boundary case).
+///
+/// test_BC_2_19_001_source_file_at_limit_csv
+/// Verifies the guard is `> limit`, not `>= limit` — exact-limit file is accepted.
+/// An empty CSV at the allocated size causes a parse error (not a size error) → Ok/Err check.
+#[test]
+fn test_BC_2_19_001_source_file_at_limit_csv() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::csv::CsvSource;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let limit_path = dir.path().join("at_limit.csv");
+
+    // Sparse-allocate exactly MAX_SOURCE_FILE_BYTES.
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&limit_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES).unwrap();
+    }
+
+    let result = CsvSource::load(limit_path.to_str().unwrap(), "id");
+    // The file is sparse (NUL bytes) → CSV parser may succeed with 0 records or
+    // return a parse/header error — but it MUST NOT return SourceFileTooLarge.
+    assert!(
+        !matches!(result, Err(InfusionError::SourceFileTooLarge { .. })),
+        "file at exactly MAX_SOURCE_FILE_BYTES must NOT trigger size guard; got SourceFileTooLarge"
+    );
+}
+
+/// SEC-001: JSON lookup source exceeding MAX_SOURCE_FILE_BYTES → Err(SourceFileTooLarge).
+///
+/// test_BC_2_19_001_source_file_too_large_json
+#[test]
+fn test_BC_2_19_001_source_file_too_large_json() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::json_lookup::JsonLookupSource;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.json");
+
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let result = JsonLookupSource::load(oversized_path.to_str().unwrap());
+    match result {
+        Err(InfusionError::SourceFileTooLarge { size, limit, .. }) => {
+            assert_eq!(size, MAX_SOURCE_FILE_BYTES + 1);
+            assert_eq!(limit, MAX_SOURCE_FILE_BYTES);
+        }
+        Err(other) => panic!("expected SourceFileTooLarge, got: {:?}", other),
+        Ok(_) => panic!("expected Err(SourceFileTooLarge), got Ok — size guard not firing"),
+    }
+}
+
+/// SEC-001: MMDB source exceeding MAX_SOURCE_FILE_BYTES → Err(SourceFileTooLarge).
+///
+/// test_BC_2_19_001_source_file_too_large_mmdb
+#[test]
+fn test_BC_2_19_001_source_file_too_large_mmdb() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use prism_spec_engine::infusion::sources::mmdb::MmdbSource;
+    use std::fs::OpenOptions;
+    use std::path::Path;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.mmdb");
+
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let result = MmdbSource::load(Path::new(oversized_path.to_str().unwrap()));
+    match result {
+        Err(InfusionError::SourceFileTooLarge { size, limit, .. }) => {
+            assert_eq!(size, MAX_SOURCE_FILE_BYTES + 1);
+            assert_eq!(limit, MAX_SOURCE_FILE_BYTES);
+        }
+        Err(other) => panic!("expected SourceFileTooLarge, got: {:?}", other),
+        Ok(_) => panic!("expected Err(SourceFileTooLarge), got Ok — size guard not firing"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AC-11 / EC-19-007 — registry callers must NOT swallow E-INFUSE-012 into NullSource
+//
+// Before the fix: all three callers (load_spec, load_spec_with_runtime, hot_reload)
+// had a generic `Err(ref err) => NullSource` arm that swallowed SourceFileTooLarge.
+// Result: load_spec/load_spec_with_runtime returned Ok with a NullSource entry; hot_reload
+// replaced the prior good registration with NullSource.
+//
+// After the fix: SourceFileTooLarge is discriminated BEFORE the generic arm with a
+// `Err(err @ InfusionError::SourceFileTooLarge { .. }) => return Err(err)` arm.
+// The generic arm still handles benign missing/corrupt files (EC-19-004 preserved).
+//
+// LOAD-BEARING: both tests FAIL RED before the fix, PASS GREEN after.
+// ---------------------------------------------------------------------------
+
+/// AC-11 / EC-19-007: load_spec with an oversized source returns Err(SourceFileTooLarge)
+/// and registers NO entry.
+///
+/// Traces to: BC-2.19.001 v2.1 / AC-11 / EC-19-006 / E-INFUSE-012 / SEC-001.
+///
+/// Before fix: load_spec swallowed SourceFileTooLarge into NullSource → returned Ok with
+///             a NullSource-backed registration (silent security violation).
+/// After fix:  load_spec propagates SourceFileTooLarge as Err → no registration, no swap.
+///
+/// FAILS RED before fix (returns Ok with NullSource entry instead of Err).
+/// PASSES GREEN after discriminating SourceFileTooLarge before the generic Err arm.
+#[test]
+fn test_BC_2_19_001_load_spec_oversized_source_returns_err_no_registration() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use std::fs::OpenOptions;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let oversized_path = dir.path().join("oversized.csv");
+
+    // Sparse-allocate a file of MAX_SOURCE_FILE_BYTES+1 (no real data on disk).
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let fields = vec![InfusionField::new(
+        "oversized_field",
+        "device_ip",
+        "ip",
+        "string",
+    )];
+    let mut spec = InfusionSpec::new(
+        "oversized_infusion",
+        "Oversized CSV infusion",
+        InfusionType::LocalLookup,
+        fields,
+        "oversized.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        oversized_path.to_str().unwrap(),
+        Some("id".to_string()),
+        None,
+    ));
+
+    let registry = InfusionRegistry::new();
+    let result = registry.load_spec(spec);
+
+    // AC-11: must return Err(SourceFileTooLarge), NOT Ok with a NullSource entry.
+    // FAILS RED before fix: result is Ok (SourceFileTooLarge swallowed into NullSource).
+    assert!(
+        result.is_err(),
+        "AC-11 / EC-19-006: load_spec MUST return Err(SourceFileTooLarge) for an oversized \
+         source file. Before the fix this returned Ok(NullSource) — a silent contract violation \
+         that defeats the CWE-400 OOM guard. FAILS RED before the discriminating match arm is added."
+    );
+    match result.unwrap_err() {
+        InfusionError::SourceFileTooLarge { .. } => { /* correct — E-INFUSE-012 propagated */ }
+        other => panic!(
+            "AC-11: expected SourceFileTooLarge (E-INFUSE-012), got: {:?}. \
+             The generic Err → NullSource arm must NOT catch SourceFileTooLarge.",
+            other
+        ),
+    }
+
+    // No entry must be registered — the infusion must be absent from udf_descriptors.
+    let descriptors = registry.udf_descriptors();
+    assert!(
+        descriptors.is_empty(),
+        "AC-11: after a SourceFileTooLarge Err, InfusionRegistry must contain NO entries. \
+         Got {} descriptors — the atomic swap must NOT have occurred.",
+        descriptors.len()
+    );
+
+    // is_api_backed must return false (nothing registered).
+    assert!(
+        !registry.is_api_backed("oversized_field"),
+        "AC-11: is_api_backed must return false for the un-registered field."
+    );
+}
+
+/// EC-19-007: hot_reload with an oversized source returns Err(SourceFileTooLarge)
+/// and PRESERVES the prior (good) registration — no atomic swap performed.
+///
+/// Traces to: BC-2.19.001 v2.1 / EC-19-007 / E-INFUSE-012 / SEC-001.
+///
+/// Scenario:
+///   1. Load a small (valid) CSV-backed spec — 1 field registered successfully.
+///   2. Prepare an oversized version of that source file (MAX_SOURCE_FILE_BYTES+1).
+///   3. hot_reload with the oversized spec → must return Err(SourceFileTooLarge).
+///   4. The PRIOR (small-source) registration must still be active.
+///      - udf_descriptors() still returns the 1 registered descriptor.
+///      - enrich_single on a known fixture key still returns Some (live source intact).
+///
+/// Before fix: hot_reload swallowed SourceFileTooLarge → replaced the good registration
+///             with a NullSource entry (enrichment silently broken after reload attempt).
+/// After fix:  hot_reload propagates SourceFileTooLarge → prior registration preserved.
+///
+/// FAILS RED before fix (NullSource replaces the good entry; enrich returns None).
+/// PASSES GREEN after the discriminating match arm is added to hot_reload.
+#[test]
+fn test_BC_2_19_001_hot_reload_oversized_source_preserves_prior_registry() {
+    use prism_spec_engine::MAX_SOURCE_FILE_BYTES;
+    use std::fs::OpenOptions;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+
+    // Step 1: set up a small (valid) CSV fixture to use as the initial source.
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let small_csv_path = PathBuf::from(manifest_dir)
+        .join("fixtures")
+        .join("asset_inventory.csv");
+    let small_csv_str = small_csv_path
+        .to_str()
+        .expect("fixture path must be valid UTF-8");
+
+    let fields = vec![InfusionField::with_all(
+        "ec19007_asset_department",
+        "device_ip",
+        "ip",
+        "string",
+        None,
+        Some("department".to_string()),
+    )];
+    let mut initial_spec = InfusionSpec::new(
+        "ec19007_asset_inventory",
+        "EC-19-007 Asset Inventory (initial)",
+        InfusionType::LocalLookup,
+        fields,
+        "ec19007_asset.infusion.toml",
+    );
+    initial_spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        small_csv_str,
+        Some("ip_address".to_string()),
+        None,
+    ));
+
+    let registry = InfusionRegistry::new();
+    registry
+        .load_spec(initial_spec)
+        .expect("EC-19-007: initial small-source spec must load successfully");
+
+    // Confirm initial enrichment works (fixture: ip_address=192.168.1.10 → department=Engineering).
+    let initial_descriptors = registry.udf_descriptors();
+    assert_eq!(
+        initial_descriptors.len(),
+        1,
+        "EC-19-007: initial load must register 1 UDF descriptor"
+    );
+    let initial_result = initial_descriptors[0]
+        .source
+        .enrich_single("192.168.1.10", "ip");
+    assert!(
+        initial_result.is_some(),
+        "EC-19-007: initial registration must have a working CsvSource (pre-condition check)"
+    );
+
+    // Step 2: sparse-allocate an oversized CSV (MAX_SOURCE_FILE_BYTES+1) for hot_reload.
+    let oversized_path = dir.path().join("oversized_reload.csv");
+    {
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&oversized_path)
+            .unwrap();
+        f.set_len(MAX_SOURCE_FILE_BYTES + 1).unwrap();
+    }
+
+    let reload_fields = vec![InfusionField::with_all(
+        "ec19007_asset_department",
+        "device_ip",
+        "ip",
+        "string",
+        None,
+        Some("department".to_string()),
+    )];
+    let mut oversized_spec = InfusionSpec::new(
+        "ec19007_asset_inventory",
+        "EC-19-007 Asset Inventory (oversized reload)",
+        InfusionType::LocalLookup,
+        reload_fields,
+        "ec19007_asset_oversized.infusion.toml",
+    );
+    oversized_spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        oversized_path.to_str().unwrap(),
+        Some("ip_address".to_string()),
+        None,
+    ));
+
+    // Step 3: hot_reload with the oversized spec — MUST return Err(SourceFileTooLarge).
+    // FAILS RED before fix: hot_reload returns Ok(NullSource) and replaces the good entry.
+    let reload_result = registry.hot_reload(oversized_spec);
+    assert!(
+        reload_result.is_err(),
+        "EC-19-007: hot_reload MUST return Err(SourceFileTooLarge) for an oversized source. \
+         Before the fix this returned Ok(NullSource) — replacing the good registration with \
+         a silent NullSource. FAILS RED before the discriminating match arm is added to hot_reload."
+    );
+    match reload_result.unwrap_err() {
+        InfusionError::SourceFileTooLarge { .. } => { /* correct */ }
+        other => panic!(
+            "EC-19-007: expected SourceFileTooLarge (E-INFUSE-012) from hot_reload, got: {:?}",
+            other
+        ),
+    }
+
+    // Step 4: PRIOR registration must be intact — registry unchanged.
+    let post_reload_descriptors = registry.udf_descriptors();
+    assert_eq!(
+        post_reload_descriptors.len(),
+        1,
+        "EC-19-007: after Err(SourceFileTooLarge) hot_reload, the registry MUST still contain \
+         exactly 1 descriptor (the prior good registration). Before the fix the registry \
+         contained 1 NullSource-backed descriptor (silent enrichment breakage)."
+    );
+
+    // The prior (good) source must still be active — enrich_single returns Some, not None.
+    let post_result = post_reload_descriptors[0]
+        .source
+        .enrich_single("192.168.1.10", "ip");
+    assert!(
+        post_result.is_some(),
+        "EC-19-007: the prior CsvSource registration MUST still be active after a failed \
+         hot_reload (SourceFileTooLarge). enrich_single('192.168.1.10') must return Some. \
+         Before the fix this returned None — the good CsvSource was replaced by NullSource."
+    );
 }

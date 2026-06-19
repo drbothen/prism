@@ -16,7 +16,8 @@ use std::{
     sync::Arc,
 };
 
-use prism_core::{PrismError, StorageDomain};
+use async_trait::async_trait;
+use prism_core::{CacheBackend, PrismError, StorageDomain};
 use rocksdb::{
     BlockBasedOptions, ColumnFamily, ColumnFamilyDescriptor, DBCompressionType, Direction,
     IteratorMode, Options, WriteBatch, WriteOptions, DB,
@@ -414,6 +415,140 @@ impl RocksStorageBackend for RocksDbBackend {
             results.push((k.to_vec(), v.to_vec()));
         }
         Ok(results)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CacheBackend impl — async wrapper over synchronous RocksStorageBackend ops
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Allows `RocksDbBackend` to be injected as `Arc<dyn CacheBackend>` into the
+// Tier-3 infusion cache (`InfusionTier3Cache`) without an intermediate adapter.
+// Methods delegate to the synchronous `RocksStorageBackend` methods via
+// `tokio::task::spawn_blocking` because:
+//
+// - `get` → RocksDB block-cache miss triggers a synchronous disk read.
+// - `set` → RocksDB WAL append may trigger an fsync under certain durability
+//   settings; write buffer flush can also stall briefly.
+// - `delete` → same WAL path as `set`.
+//
+// Wrapping in `spawn_blocking` moves these potentially-blocking calls off the
+// tokio thread pool onto the dedicated blocking thread pool, satisfying the
+// project rule ("Do not block the tokio thread pool with synchronous I/O",
+// CLAUDE.md §Channels/async).
+//
+// Domain isolation: the active_domains allowlist check mirrors `resolve_cf()`
+// semantics and is performed synchronously on the async thread (before entering
+// `spawn_blocking`) so that `&self.active_domains` remains accessible. The
+// allowlist check is non-blocking (in-memory HashSet lookup). RocksDB I/O is
+// then offloaded via `spawn_blocking`. This preserves BC-2.15.002 / EC-005
+// domain-isolation on BOTH the sync and async code paths.
+//
+// `JoinError` from `spawn_blocking` (task panic) is mapped to the appropriate
+// `PrismError::StorageReadFailed` (for `get`) or `StorageWriteFailed` (for
+// `set`/`delete`) with the domain name and panic message in `detail`.
+
+#[async_trait]
+impl CacheBackend for RocksDbBackend {
+    /// Retrieve the value for `key` in `domain`, or `None` if absent.
+    ///
+    /// The active_domains allowlist is checked synchronously (non-blocking,
+    /// in-memory) before offloading the RocksDB read to `spawn_blocking`.
+    async fn get(&self, domain: StorageDomain, key: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
+        // Allowlist check — mirrors resolve_cf() ordering: allowlist → CF handle.
+        // Performed before spawn_blocking so &self is still accessible.
+        if !self.active_domains.contains(&domain) {
+            return Err(PrismError::StorageDomainNotFound {
+                domain: domain.column_family_name().to_owned(),
+            });
+        }
+        let db = Arc::clone(&self.db);
+        let key_owned = key.to_vec();
+        let domain_cf_name = domain.column_family_name().to_owned();
+        tokio::task::spawn_blocking(move || {
+            let cf =
+                db.cf_handle(&domain_cf_name)
+                    .ok_or_else(|| PrismError::StorageDomainNotFound {
+                        domain: domain_cf_name.clone(),
+                    })?;
+            db.get_cf(cf, &key_owned)
+                .map_err(|e| PrismError::StorageReadFailed {
+                    domain: domain_cf_name,
+                    detail: e.to_string(),
+                })
+        })
+        .await
+        .map_err(|e| PrismError::StorageReadFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: format!("spawn_blocking panicked: {e}"),
+        })?
+    }
+
+    /// Store `value` at `key` in `domain`, overwriting any existing value.
+    ///
+    /// The active_domains allowlist is checked synchronously (non-blocking,
+    /// in-memory) before offloading the RocksDB write to `spawn_blocking`.
+    async fn set(&self, domain: StorageDomain, key: &[u8], value: &[u8]) -> Result<(), PrismError> {
+        // Allowlist check — mirrors resolve_cf() ordering: allowlist → CF handle.
+        if !self.active_domains.contains(&domain) {
+            return Err(PrismError::StorageDomainNotFound {
+                domain: domain.column_family_name().to_owned(),
+            });
+        }
+        let db = Arc::clone(&self.db);
+        let key_owned = key.to_vec();
+        let value_owned = value.to_vec();
+        let domain_cf_name = domain.column_family_name().to_owned();
+        tokio::task::spawn_blocking(move || {
+            let cf =
+                db.cf_handle(&domain_cf_name)
+                    .ok_or_else(|| PrismError::StorageDomainNotFound {
+                        domain: domain_cf_name.clone(),
+                    })?;
+            db.put_cf(cf, &key_owned, &value_owned)
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: domain_cf_name,
+                    detail: e.to_string(),
+                })
+        })
+        .await
+        .map_err(|e| PrismError::StorageWriteFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: format!("spawn_blocking panicked: {e}"),
+        })?
+    }
+
+    /// Remove the value at `key` in `domain`. No-op if absent.
+    ///
+    /// The active_domains allowlist is checked synchronously (non-blocking,
+    /// in-memory) before offloading the RocksDB delete to `spawn_blocking`.
+    async fn delete(&self, domain: StorageDomain, key: &[u8]) -> Result<(), PrismError> {
+        // Allowlist check — mirrors resolve_cf() ordering: allowlist → CF handle.
+        if !self.active_domains.contains(&domain) {
+            return Err(PrismError::StorageDomainNotFound {
+                domain: domain.column_family_name().to_owned(),
+            });
+        }
+        let db = Arc::clone(&self.db);
+        let key_owned = key.to_vec();
+        let domain_cf_name = domain.column_family_name().to_owned();
+        tokio::task::spawn_blocking(move || {
+            let cf =
+                db.cf_handle(&domain_cf_name)
+                    .ok_or_else(|| PrismError::StorageDomainNotFound {
+                        domain: domain_cf_name.clone(),
+                    })?;
+            db.delete_cf(cf, &key_owned)
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: domain_cf_name,
+                    detail: e.to_string(),
+                })
+        })
+        .await
+        .map_err(|e| PrismError::StorageWriteFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: format!("spawn_blocking panicked: {e}"),
+        })?
     }
 }
 
