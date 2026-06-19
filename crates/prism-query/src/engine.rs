@@ -504,6 +504,36 @@ impl QueryEngine {
     pub fn table_registry(&self) -> Option<Arc<TableRegistry>> {
         self.table_registry.as_ref().map(Arc::clone)
     }
+
+    /// Return the `resolved_spec_map` arc, if wired (IMP-8 / BC-2.10.008 per-org scoping).
+    ///
+    /// The map holds `(OrgSlug, SensorId) → ResolvedSensorSpec` entries built at boot
+    /// from `customers/<slug>/*.overlay.toml` files. Only orgs with explicit overlay
+    /// entries appear as keys — an org registered in `OrgRegistry` but absent from this
+    /// map has zero provisioned sensors (BC-2.10.008 v1.9 Option B semantics).
+    ///
+    /// Returns `None` when no overlay config exists (test / MVP mode without multi-tenant).
+    pub fn resolved_spec_map(
+        &self,
+    ) -> Option<
+        Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    > {
+        self.resolved_spec_map.as_ref().map(Arc::clone)
+    }
+
+    /// Return the `OrgRegistry` arc, if wired (IMP-8 / BC-2.10.008 per-org enumeration).
+    ///
+    /// Used by `render_client_list_resource` to enumerate all registered orgs and pair
+    /// them with their sensor count from `resolved_spec_map`. Returns `None` when the
+    /// engine is running in test / MVP mode without multi-tenant org support.
+    pub fn org_registry(&self) -> Option<Arc<prism_core::OrgRegistry>> {
+        self.org_registry.as_ref().map(Arc::clone)
+    }
 }
 
 impl Drop for QueryEngine {

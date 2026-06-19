@@ -139,6 +139,7 @@ fn snapshot_with_one_spec(sensor_id: &str) -> ConfigSnapshot {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "snapshot_hash_v1".to_string(),
+        org_display_names: HashMap::new(),
     }
 }
 
@@ -459,6 +460,7 @@ fn test_BC_2_16_007_modified_spec_schema_change_reregisters_tables() {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "old_snapshot_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
     let manager = Arc::new(ConfigManager::new(old_snapshot));
 
@@ -786,6 +788,7 @@ fn test_BC_2_16_010_sensor_id_filter_returns_only_matching() {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "multi_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
     let manager = ConfigManager::new(snapshot);
 
@@ -850,6 +853,7 @@ fn test_BC_2_16_010_failed_spec_shows_failed_validation_status() {
         sensor_specs: HashMap::new(),
         failed_specs: failed,
         snapshot_hash: "partial_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
     let manager = ConfigManager::new(snapshot);
 
@@ -1000,6 +1004,7 @@ fn test_VP_032_unit_direct_failed_validation_invariant() {
         sensor_specs: HashMap::new(),
         failed_specs: HashMap::new(),
         snapshot_hash: "bad_candidate_hash".to_string(),
+        org_display_names: HashMap::new(),
     };
 
     let validation_result = validate_snapshot(&bad_candidate);
@@ -1354,6 +1359,62 @@ fn test_p1_03_reload_config_validation_failed_does_not_fire_swap_listener() {
         0,
         "P1-03: full validation failure retains old config and must not fire \
          the swap listener (DI-031 fail-closed, no swap occurred)"
+    );
+}
+
+/// Regression: reload_config must carry forward org_display_names from the prior snapshot.
+///
+/// org_display_names is populated once at boot from prism.toml [[orgs]]. parse_spec_directory
+/// (called by reload_config) only scans *.sensor.toml files and always returns an empty
+/// org_display_names. Without carry-forward, every reload wipes org_display_names and
+/// render_client_list_resource returns null display_name for all orgs after first reload.
+///
+/// Mirrors the add_sensor_spec clone-and-preserve pattern (TD-VSDD-060 sibling-sweep).
+///
+/// RED before fix: post-reload snapshot has empty org_display_names.
+/// GREEN after fix: org_display_names is carried forward intact.
+#[test]
+fn test_reload_config_preserves_org_display_names() {
+    let dir = TempDir::new().unwrap();
+
+    // Write a sensor file so the reload sees a change (non-empty spec directory).
+    write_sensor_file(&dir, "acme_sensor");
+
+    // Build a ConfigSnapshot pre-populated with org_display_names.
+    let mut initial_snapshot = ConfigSnapshot::empty();
+    initial_snapshot.org_display_names = {
+        let mut m = HashMap::new();
+        m.insert("acme".to_string(), Some("Acme Corp".to_string()));
+        m.insert("globex".to_string(), None);
+        m
+    };
+    // Give the initial snapshot a non-matching hash so the reload path does not
+    // short-circuit via the Unchanged path (requires the new hash to differ from
+    // the initial hash, which is the empty-snapshot hash vs. the spec-dir hash).
+    let manager = ConfigManager::new(initial_snapshot);
+
+    let result = reload_config(&manager, dir.path(), ReloadConfigArgs { dry_run: false })
+        .expect("reload_config must succeed");
+
+    assert!(
+        result.status == ReloadStatus::Ok || result.status == ReloadStatus::PartialReload,
+        "pre-condition: reload must have applied; got {:?}",
+        result.status
+    );
+
+    // Post-reload snapshot must still carry the org_display_names set at boot.
+    let post_reload = manager.load();
+    let display_name = post_reload.org_display_names.get("acme").cloned().flatten();
+    assert_eq!(
+        display_name,
+        Some("Acme Corp".to_string()),
+        "reload_config must carry forward org_display_names from the prior snapshot; \
+         display_name for 'acme' was wiped to None after reload (regression)"
+    );
+    // Verify globex (None entry) also carries forward.
+    assert!(
+        post_reload.org_display_names.contains_key("globex"),
+        "reload_config must carry forward ALL org_display_names entries, including None-valued ones"
     );
 }
 

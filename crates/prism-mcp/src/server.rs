@@ -51,18 +51,27 @@ use prism_spec_engine::write_endpoint::{
     BatchMode, RiskTierSpec, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
 };
 use rmcp::{
-    handler::server::{tool::schema_for_type, wrapper::Parameters},
-    model::{Implementation, ServerCapabilities, ServerInfo},
+    handler::server::{router::prompt::PromptRouter, tool::schema_for_type, wrapper::Parameters},
+    model::{
+        ErrorData, GetPromptRequestParams, GetPromptResult, Implementation, ListPromptsResult,
+        ListResourceTemplatesResult, ListResourcesResult, PaginatedRequestParams,
+        ReadResourceRequestParams, ReadResourceResult, ServerCapabilities, ServerInfo,
+    },
+    prompt_handler,
     schemars::JsonSchema,
+    service::RequestContext,
     tool, tool_handler, tool_router,
     transport::stdio,
-    ServerHandler, ServiceExt,
+    RoleServer, ServerHandler, ServiceExt,
 };
 use serde::Deserialize;
 use tokio::signal;
 
 use crate::{
+    context::PrismContext,
     error_mapping::{codes, prism_error_to_structured_call_result, to_error_data},
+    prompts::build_prompt_router,
+    resources,
     safety_envelope::{
         DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
         AUDIT_EMISSION_FAILED_WARNING,
@@ -114,6 +123,18 @@ pub struct PrismServer {
     /// IMP-8: wired at boot step 9 via list_slugs(); alias handlers call
     /// valid_client_ids() to build the allowlist before passing it to alias_tools.
     org_registry: Option<Arc<prism_core::OrgRegistry>>,
+    /// PromptRouter — holds the four static MCP prompt templates (BC-2.10.009).
+    ///
+    /// Consumed by `#[prompt_handler(router = self.prompt_router)]` on the
+    /// `impl ServerHandler for PrismServer` block. Built at construction time
+    /// via `build_prompt_router()`.
+    prompt_router: PromptRouter<Self>,
+    /// PrismContext — per-server mutable state (health cache, etc.) (BC-2.08.006).
+    ///
+    /// Shared via `Arc` across tool handlers that need to read/write per-server
+    /// state (e.g., `check_sensor_health` writes health cache,
+    /// `prism://sensors/health` resource reads it).
+    context: Arc<PrismContext>,
 }
 
 impl PrismServer {
@@ -137,6 +158,8 @@ impl PrismServer {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         }
     }
 
@@ -181,6 +204,8 @@ impl PrismServer {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         }
     }
 
@@ -218,6 +243,8 @@ impl PrismServer {
             spec_dir: Some(spec_dir),
             alias_store: Some(alias_store),
             org_registry: Some(org_registry),
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         }
     }
 
@@ -829,13 +856,38 @@ pub struct ConfirmActionParams {
     pub client_id: String,
 }
 
-/// Parameters for the `check_sensor_health` tool.
+/// Parameters for the `check_sensor_health` tool (BC-2.08.005 precondition).
+///
+/// BC-2.08.005 v1.5 (OOD-001 adjudication — SPEC WINS): `client_id` is required.
+/// The legacy `sensor: Option<String>` stub (absent `client_id`) was non-conformant.
+/// v1.5 amendment: two-phase probe model — S-5.03 scope returns `probe_level: "spec-only"`
+/// with `reachable: None` / `auth_valid: None`; S-5.04 adds live probe results.
 #[non_exhaustive]
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CheckSensorHealthParams {
-    /// Specific sensor name to check (optional — all sensors checked if absent).
-    pub sensor: Option<String>,
+    /// Client identifier — REQUIRED (BC-2.08.005 precondition, OOD-001 adjudication).
+    pub client_id: String,
+    /// Specific sensor to check (optional — null means all sensors for the client).
+    pub sensor_id: Option<String>,
+}
+
+impl CheckSensorHealthParams {
+    /// Construct params for a client-scoped health check (all sensors for the client).
+    pub fn for_client(client_id: impl Into<String>) -> Self {
+        Self {
+            client_id: client_id.into(),
+            sensor_id: None,
+        }
+    }
+
+    /// Construct params for a specific sensor health check.
+    pub fn for_sensor(client_id: impl Into<String>, sensor_id: impl Into<String>) -> Self {
+        Self {
+            client_id: client_id.into(),
+            sensor_id: Some(sensor_id.into()),
+        }
+    }
 }
 
 /// Parameters for the `get_diagnostics` tool.
@@ -2840,30 +2892,49 @@ impl PrismServer {
 
     /// Check the connectivity and authentication status of configured sensors.
     ///
-    /// DATA TRUST LEVEL: External/untrusted — sensor connectivity status is sensor-originated.
-    /// SECURITY NOTE: Sensor name parameter scanned for prompt injection.
-    /// DATA SOURCE: Configured sensor adapters.
+    /// DATA TRUST LEVEL: Internal — health status is Prism-generated (probe_level field
+    /// distinguishes spec-only from live probe results).
+    /// SECURITY NOTE: client_id and sensor_id parameters scanned for prompt injection.
+    /// DATA SOURCE: Prism-generated (S-5.03 spec-only scope); live probe added in S-5.04.
     #[tool(
-        description = "Check the connectivity and authentication status of configured sensors.\n\
-        DATA TRUST LEVEL: External/untrusted — connectivity status is sensor-originated.\n\
-        SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
-        DATA SOURCE: Configured sensor adapters.\n\
-        WHEN TO USE: when diagnosing connectivity or authentication issues with sensors\n\
+        description = "Check the connectivity and authentication status of configured sensors for a client.\n\
+        DATA TRUST LEVEL: Internal — health data is Prism-generated (trust_level: 'internal').\n\
+        SECURITY NOTE: client_id and sensor_id parameters scanned for prompt injection.\n\
+        DATA SOURCE: Prism-generated spec-only in S-5.03; live probe added in S-5.04.\n\
+        WHEN TO USE: when diagnosing sensor availability or authentication state for a client\n\
         WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
-        PARAMETERS: sensor (optional specific sensor name; omit for all sensors)\n\
+        PARAMETERS: client_id (required — the client scope), sensor_id (optional — null means all sensors)\n\
         PAGINATION: not applicable\n\
-        RESPONSE: connectivity and authentication status per sensor\n\
-        ERRORS: -32003 not yet implemented, -32000 internal error",
+        RESPONSE: per-sensor health with probe_level, reachable, auth_valid, resource_pressure\n\
+        ERRORS: -32602 invalid client_id or sensor_id, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn check_sensor_health(
         &self,
         Parameters(params): Parameters<CheckSensorHealthParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        if let Some(ref sensor) = params.sensor {
-            // F-PR163-PASS3-MED-1: sensor name is length-bounded before injection scan (256-byte cap).
-            validate_text_field("sensor", sensor.as_str(), 256)?;
-            self.scan_inputs_audited("check_sensor_health", &[("sensor", sensor.as_str())])
+        // BC-2.08.005 v1.4: client_id is required — reject empty string first (OOD-001).
+        // validate_text_field only checks max_bytes (> 256); it does NOT reject empty strings.
+        // An explicit empty check is required here per BC-2.08.005 precondition.
+        if params.client_id.is_empty() {
+            return Err(rmcp::model::ErrorData::new(
+                rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                "Invalid client_id: must not be empty (BC-2.08.005 precondition, OOD-001)"
+                    .to_string(),
+                None,
+            ));
+        }
+        validate_text_field("client_id", params.client_id.as_str(), 256)?;
+        self.scan_inputs_audited(
+            "check_sensor_health",
+            &[("client_id", params.client_id.as_str())],
+        )
+        .await?;
+
+        if let Some(ref sensor_id) = params.sensor_id {
+            // F-PR163-PASS3-MED-1: sensor_id name is length-bounded before injection scan (256-byte cap).
+            validate_text_field("sensor_id", sensor_id.as_str(), 256)?;
+            self.scan_inputs_audited("check_sensor_health", &[("sensor_id", sensor_id.as_str())])
                 .await?;
         }
 
@@ -2875,14 +2946,136 @@ impl PrismServer {
         )
         .await?;
 
-        // CRIT-4 fix: sensor health check requires live adapter pings (GAP-002-A).
-        // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
-        // PluginAuthProvider (ADR-028 §D10). Direct adapter fan-out wires in S-5.04.
-        // Return a structured not-yet-available response rather than Internal (which implies
-        // a wiring defect — this is a known architectural gap, not a missing dependency).
-        Err(not_yet_available_msg(
-            "sensor health — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
-        ))
+        // S-5.03: Return a structured SensorHealthStructuredContent per BC-2.08.005.
+        // BC-2.08.005 v1.5 two-phase probe contract: this is the spec-only phase.
+        // probe_level="spec-only"; reachable/auth_valid are null (no live probe).
+        // trust_level="internal" (health data is Prism-generated, not sensor-sourced).
+        //
+        // DI-008 / F-S503-ADV-001: scope sensor enumeration by client_id.
+        // When resolved_spec_map is wired (multi-tenant mode): return only the sensors
+        // provisioned for this org via resolved_spec_map. An org registered in
+        // OrgRegistry with zero overlay entries returns empty (BC-2.10.008 v1.9 Option B).
+        // An unknown client_id is rejected with INVALID_PARAMS (BC-2.08.005 §Errors).
+        // When resolved_spec_map is not wired (single-tenant / test mode): fall back to
+        // the global TableRegistry (existing pre-multi-tenant behaviour).
+
+        // Validate client_id as an OrgSlug (rejects path traversal and invalid chars).
+        // DI-006: do NOT echo the raw untrusted client_id in the error message —
+        // attacker-controlled input must never appear verbatim in MCP responses
+        // forwarded to AI agent contexts (BC-2.10.008 postcondition, DI-006 invariant).
+        let org_slug = prism_core::OrgSlug::new(&params.client_id);
+        if org_slug.is_err() {
+            return Err(rmcp::model::ErrorData::new(
+                rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                "E-CFG-100: client not found in configuration".to_string(),
+                None,
+            ));
+        }
+        // org_slug is Valid here (is_err() guard above ensures this);
+        // use it directly without rebinding via expect() to keep the code panic-shape-free.
+
+        // Pull org_registry and resolved_spec_map from the wired query engine (if any).
+        let resolved_spec_map = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.resolved_spec_map());
+        let org_registry = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.org_registry())
+            .or_else(|| self.org_registry.clone());
+
+        let sensor_ids: Vec<String> = if let Some(ref spec_map) = resolved_spec_map {
+            // Multi-tenant mode: validate org is known when OrgRegistry is wired.
+            // DI-006: use a generic non-echoing message — do not reflect the raw
+            // client_id value back into the MCP response (BC-2.10.008, DI-006).
+            if let Some(ref reg) = org_registry {
+                if !reg.slug_exists(&org_slug) {
+                    return Err(rmcp::model::ErrorData::new(
+                        rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                        "E-CFG-100: client not found in configuration".to_string(),
+                        None,
+                    ));
+                }
+            }
+            // Filter spec_map by OrgSlug == client_id to get this org's sensors only.
+            // An org with zero overlay entries yields an empty vec (EC-10-017 / Option B).
+            let mut ids: Vec<String> = spec_map
+                .iter()
+                .filter(|((org, _sensor), _spec)| org.as_str() == org_slug.as_str())
+                .map(|((_org, sensor_id), _spec)| sensor_id.as_ref().to_string())
+                .collect();
+            ids.sort(); // deterministic ordering
+            ids
+        } else {
+            // Single-tenant / test fallback: enumerate from TableRegistry (global).
+            if let Some(ref qe) = self.query_engine {
+                qe.table_registry()
+                    .map(|r| r.registered_sensor_ids())
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            }
+        };
+
+        // Filter by sensor_id if specified (optional single-sensor probe).
+        let sensor_ids_to_check: Vec<String> = match &params.sensor_id {
+            Some(sid) => sensor_ids
+                .into_iter()
+                .filter(|s| s == sid.as_str())
+                .collect(),
+            None => sensor_ids,
+        };
+
+        // BC-2.08.005 v1.5 two-phase probe model (F-S503-004 adjudication):
+        // S-5.03 scope = spec-only: probe_level="spec-only", reachable=null, auth_valid=null.
+        // Hardcoding reachable=true / auth_valid=true is FORBIDDEN — it sends a false-positive
+        // health signal to the AI consumer (which may act on it as if sensors are live and
+        // authenticated when they have not been probed). S-5.04 delivers the live probe.
+        let sensors: Vec<resources::SensorHealthResult> = sensor_ids_to_check
+            .iter()
+            .map(|sid| {
+                // SensorHealthResult::new() sets probe_level="spec-only", reachable=None,
+                // auth_valid=None, last_successful_query_at=None per the S-5.03 contract.
+                // Do NOT call with_reachable/with_auth_valid here — that is S-5.04 scope only.
+                resources::SensorHealthResult::new(sid.clone(), params.client_id.clone())
+            })
+            .collect();
+
+        // Write to health cache so prism://sensors/health reflects last run.
+        for sensor in &sensors {
+            self.context.health_cache.insert(
+                sensor.client_id.clone(),
+                sensor.sensor_id.clone(),
+                sensor.clone(),
+            );
+        }
+
+        let total_count = sensors.len();
+        // BC-2.08.005 v1.5 postcondition 6: the prose summary MUST contain
+        // "spec-only: no live probe performed" so the AI consumer cannot mistake
+        // this response for a live health check (F-S503-004 adjudication).
+        // S-5.04 will use "live probe" phrasing when real probing is performed.
+        let summary = format!(
+            "{total_count} sensor(s) available for client '{}' (spec-only: no live probe performed)",
+            params.client_id
+        );
+        // BC-2.08.005 v1.6 RECONCILIATION-3: S-5.03 scope MUST emit null for both counts
+        // (not the misleading zero-valued ResourcePressure::new(0,0)) so the AI consumer
+        // can distinguish "not yet wired" from a genuine zero count. S-5.04 wires live values.
+        let pressure = resources::ResourcePressure::new(None, None);
+        let structured =
+            resources::SensorHealthStructuredContent::new(sensors, pressure, summary.clone());
+
+        let structured_value = serde_json::to_value(&structured).map_err(|e| {
+            rmcp::model::ErrorData::new(
+                rmcp::model::ErrorCode(codes::INTERNAL_ERROR),
+                format!("Failed to serialize health response: {e}"),
+                None,
+            )
+        })?;
+
+        Ok(rmcp::model::CallToolResult::structured(structured_value))
     }
 
     /// Retrieve diagnostic information for a specific sensor or all sensors.
@@ -2933,25 +3126,13 @@ impl PrismServer {
 
     // ─── Config tools ─────────────────────────────────────────────────────────
 
-    /// Hot-reload the running configuration from disk.
+    /// Core reload logic — separated so the existing audit-failure unit test can
+    /// call it directly without needing a `Peer<RoleServer>`.
     ///
-    /// DATA TRUST LEVEL: Internal — configuration is operator-controlled.
-    /// SECURITY NOTE: No user-controlled parameters; safe to call without parameter scan.
-    /// DATA SOURCE: Prism config directory on disk.
-    #[tool(
-        description = "Hot-reload the running configuration from disk.\n\
-        DATA TRUST LEVEL: Internal — configuration is operator-controlled.\n\
-        SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Prism config directory on disk.\n\
-        WHEN TO USE: after modifying sensor spec TOML files on disk to apply changes\n\
-        WHEN NOT TO USE: do not call repeatedly without spec file changes\n\
-        PARAMETERS: none — operates on the configured spec directory\n\
-        PAGINATION: not applicable\n\
-        RESPONSE: reload result with added, removed, modified, and unchanged sensor counts\n\
-        ERRORS: -32000 internal error, spec parse failure details included in message",
-        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
-    )]
-    pub async fn reload_config(
+    /// Returns the `CallToolResult` on success (audit + disk reload + JSON serialization).
+    /// BC-2.16.007 notification dispatch is handled by the `reload_config` `#[tool]`
+    /// wrapper that calls this core and then dispatches via the peer.
+    pub(super) async fn reload_config_core(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let audit_warning =
@@ -3004,6 +3185,111 @@ impl PrismServer {
                     detail: format!("Failed to serialize response: {e}"),
                 })
             })
+    }
+
+    /// Hot-reload the running configuration from disk.
+    ///
+    /// DATA TRUST LEVEL: Internal — configuration is operator-controlled.
+    /// SECURITY NOTE: No user-controlled parameters; safe to call without parameter scan.
+    /// DATA SOURCE: Prism config directory on disk.
+    #[tool(
+        description = "Hot-reload the running configuration from disk.\n\
+        DATA TRUST LEVEL: Internal — configuration is operator-controlled.\n\
+        SECURITY NOTE: No user-controlled parameters.\n\
+        DATA SOURCE: Prism config directory on disk.\n\
+        WHEN TO USE: after modifying sensor spec TOML files on disk to apply changes\n\
+        WHEN NOT TO USE: do not call repeatedly without spec file changes\n\
+        PARAMETERS: none — operates on the configured spec directory\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: reload result with added, removed, modified, and unchanged sensor counts\n\
+        ERRORS: -32000 internal error, spec parse failure details included in message",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn reload_config(
+        &self,
+        peer: rmcp::Peer<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // AC-9 (BC-2.16.007): capture the pre-reload registered table set for
+        // set-comparison. Prefer the query_engine registry when available (wired in
+        // production); fall back to the config_manager snapshot (available in tests
+        // and during early boot before query_engine wiring). The notification fires
+        // only when the table set changes (tables added or removed); spec-attribute-only
+        // changes do NOT fire.
+        let old_tables: Vec<String> = if let Some(tables) = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.table_registry())
+            .map(|r| r.registered_tables())
+        {
+            tables
+        } else {
+            // Fallback: derive table set from config_manager snapshot.
+            // MUST use `{sensor_id}_{table_name}` (underscore) — same format as
+            // `TableRegistry::register_sensor` (table_registry.rs line 149).
+            // Using `.` (dot) here mismatches the real registry and breaks the
+            // old == new set-comparison (F-OBS-2 separator fix).
+            self.config_manager
+                .as_ref()
+                .map(|cm_arc_swap| {
+                    let cm_guard = cm_arc_swap.load();
+                    let snap = cm_guard.load();
+                    snap.sensor_specs
+                        .values()
+                        .flat_map(|spec| {
+                            spec.tables
+                                .iter()
+                                .map(move |t| format!("{}_{}", spec.sensor_id, t.table_name))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+
+        // Execute the core reload (audit + spec-engine swap + JSON serialization).
+        let result = self.reload_config_core().await?;
+
+        // AC-9 (BC-2.16.007): capture post-reload table set and dispatch notifications
+        // if the set changed. `dispatch_hot_reload_notifications` is a no-op when
+        // old == new (no notification sent on spec-attribute-only changes).
+        let new_tables: Vec<String> = if let Some(tables) = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.table_registry())
+            .map(|r| r.registered_tables())
+        {
+            tables
+        } else {
+            // Fallback: derive table set from config_manager snapshot (post-reload).
+            // MUST use `{sensor_id}_{table_name}` (underscore) — matching the old_tables
+            // fallback format and `TableRegistry::register_sensor` (F-OBS-2 separator fix).
+            self.config_manager
+                .as_ref()
+                .map(|cm_arc_swap| {
+                    let cm_guard = cm_arc_swap.load();
+                    let snap = cm_guard.load();
+                    snap.sensor_specs
+                        .values()
+                        .flat_map(|spec| {
+                            spec.tables
+                                .iter()
+                                .map(move |t| format!("{}_{}", spec.sensor_id, t.table_name))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+
+        // Dispatch notifications if the table set changed (non-fatal if peer is gone).
+        if let Err(e) =
+            resources::dispatch_hot_reload_notifications(old_tables, new_tables, &peer).await
+        {
+            tracing::warn!(
+                error = %e,
+                "hot-reload list_changed notification dispatch failed (non-fatal; peer may have disconnected)"
+            );
+        }
+
+        Ok(result)
     }
 
     /// Add or update a sensor spec from a TOML string.
@@ -5031,10 +5317,12 @@ is NOT an error — returns matrix with client_registered: false",
     }
 }
 
-// ─── ServerHandler impl — override get_info for correct capabilities ──────────
+// ─── ServerHandler impl — override get_info, resources, and prompt routing ────
 
 /// HIGH-006 fix: server name is "prism" (not the crate name "prism_mcp").
 /// HIGH-007 fix: declare tools + prompts + resources capabilities.
+/// S-5.03: #[prompt_handler] wires PromptRouter; resource overrides serve prism:// URIs.
+#[prompt_handler(router = self.prompt_router)]
 #[tool_handler(
     name = "prism",
     version = "0.1.0",
@@ -5047,11 +5335,7 @@ impl ServerHandler for PrismServer {
         // HIGH-006 fix: server name is "prism" (not the crate name "prism_mcp").
         // F-PASS11-MED-3 fix: declare tools + prompts + resources capabilities.
         // rmcp-1.7.0 ServerCapabilities::builder() supports all three; prompts and
-        // resources are declared as empty stubs so MCP clients know to negotiate
-        // their presence (MCP capability negotiation protocol). The list_prompts and
-        // list_resources handlers are provided by the default ServerHandler impl
-        // (empty lists), which satisfies the MCP spec for declared-but-empty
-        // capability sets (clients must not assume capabilities are non-empty).
+        // resources are declared as active capability sets (S-5.03 implements all three).
         ServerInfo::new(
             ServerCapabilities::builder()
                 .enable_tools()
@@ -5060,6 +5344,43 @@ impl ServerHandler for PrismServer {
                 .build(),
         )
         .with_server_info(Implementation::new("prism", "0.1.0"))
+    }
+
+    // ─── Resource overrides (rmcp 1.7 — no #[resource_handler] macro exists) ───
+    //
+    // Resources are served by overriding these three ServerHandler methods directly.
+    // Confirmed against rmcp-1.7.0/src/handler/server.rs default impls.
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, ErrorData> {
+        Ok(resources::build_resource_list())
+    }
+
+    async fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, ErrorData> {
+        Ok(resources::build_resource_template_list())
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResult, ErrorData> {
+        // Dispatch to resources.rs based on URI pattern.
+        // The context Arc provides access to health cache (BC-2.08.006).
+        resources::dispatch_read_resource(
+            &request.uri,
+            &self.context,
+            self.query_engine.as_ref(),
+            self.config_manager.as_ref(),
+        )
+        .await
     }
 }
 
@@ -5654,6 +5975,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         // Call confirm_action with the pre-stored token and matching client_id.
@@ -5988,6 +6311,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 'p' chars — 1 over the 256-char limit.
         let oversized_pack_id = "p".repeat(257);
@@ -6100,6 +6425,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = ConfirmActionParams {
@@ -6838,6 +7165,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "r".repeat(257);
@@ -6868,6 +7197,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "c".repeat(257);
@@ -6897,6 +7228,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "u".repeat(257);
@@ -6993,6 +7326,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         (server, confirmation_store, tmpdir)
@@ -7178,6 +7513,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = CreateAliasParams {
@@ -7222,6 +7559,8 @@ mod tests {
             spec_dir: None,
             alias_store: Some(alias_store),
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = DeleteAliasParams {
@@ -7659,23 +7998,27 @@ mod tests {
         );
     }
 
-    /// F-PR163-PASS3-MED-1: check_sensor_health rejects a 257-byte sensor name with INVALID_PARAMS.
+    /// F-PR163-PASS3-MED-1: check_sensor_health rejects a 257-byte sensor_id with INVALID_PARAMS.
+    ///
+    /// Updated for BC-2.08.005 v1.4 (OOD-001 adjudication): struct now has
+    /// `client_id: String` (required) and `sensor_id: Option<String>` (renamed from `sensor`).
     #[tokio::test]
     async fn test_F_PR163_PASS3_MED_1_check_sensor_health_sensor_length_bounded() {
         let server = PrismServer::new();
         let params = CheckSensorHealthParams {
-            sensor: Some("s".repeat(257)),
+            client_id: "acme".to_string(),
+            sensor_id: Some("s".repeat(257)),
         };
         let err = server
             .check_sensor_health(Parameters(params))
             .await
-            .expect_err("check_sensor_health must reject a 257-byte sensor name");
+            .expect_err("check_sensor_health must reject a 257-byte sensor_id");
         assert_eq!(
             err.code.0,
             codes::INVALID_PARAMS,
-            "check_sensor_health: 257-byte sensor must return INVALID_PARAMS (-32602); \
-             mental-deletion proof: removing validate_text_field(\"sensor\",...) causes the \
-             handler to return NOT_IMPLEMENTED (-32003), not INVALID_PARAMS — assertion fails"
+            "check_sensor_health: 257-byte sensor_id must return INVALID_PARAMS (-32602); \
+             mental-deletion proof: removing validate_text_field(\"sensor_id\",...) causes the \
+             handler to skip the check and not return INVALID_PARAMS — assertion fails"
         );
     }
 
@@ -8261,7 +8604,7 @@ mod tests {
         let hash_before = cm_for_check.load().current_hash();
         server.spec_dir = Some(tmpdir.path().to_path_buf());
 
-        let result = server.reload_config().await;
+        let result = server.reload_config_core().await;
 
         let err = result.expect_err(
             "BC-2.05.001 DEC-014 / PRL-P4-01: reload_config must ABORT when \
@@ -8593,6 +8936,8 @@ mod tests {
             spec_dir: None,
             alias_store: None,
             org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
         };
 
         let params = ExplainQueryParams {
@@ -8672,6 +9017,556 @@ mod tests {
         assert!(
             body.get("not_registered_tools").is_some(),
             "not_registered_tools must be present for unregistered client; got {body}"
+        );
+    }
+
+    // ─── AC-4 (BC-2.08.005 v1.5): check_sensor_health spec-only contract ────
+    //
+    // This test MUST live in `mod tests` (not `tests/resources.rs`) because it
+    // needs to wire `PrismServer.query_engine` directly — the field is private.
+    //
+    // BC-2.08.005 v1.5 two-phase probe contract (F-S503-004 adjudication):
+    // - S-5.03 scope: `probe_level: "spec-only"`, `reachable: null`, `auth_valid: null`
+    //   `last_successful_query_at: null`, prose contains "spec-only: no live probe performed".
+    // - S-5.04 scope: `probe_level: "live"`, real `reachable`/`auth_valid` bool values.
+    //
+    // GREEN: Implementation corrected in S-5.03 pass-1. `check_sensor_health` now uses
+    // `SensorHealthResult::new()` (sets probe_level="spec-only", reachable=None,
+    // auth_valid=None, last_successful_query_at=None) and the prose summary includes
+    // "spec-only: no live probe performed". All assertions below pass.
+    //
+    // SID-1: unit test at the production handler boundary with wired QueryEngine.
+    #[tokio::test]
+    async fn test_BC_2_08_005_check_sensor_health_returns_spec_only_probe_level() {
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{
+            engine::{QueryEngine, QueryEngineConfig},
+            table_registry::TableRegistry,
+        };
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build a TableRegistry with "crowdstrike" sensor registered.
+        let registry = TableRegistry::new();
+        let crowdstrike_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor (mock)",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        registry
+            .register_sensor(&crowdstrike_spec)
+            .expect("register_sensor must not fail");
+
+        // Build a QueryEngine with the registry wired.
+        let engine = QueryEngine::new(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        )
+        .with_table_registry(Arc::new(registry));
+
+        // Wire the engine into PrismServer (private field access — test mod only).
+        let mut server = PrismServer::new();
+        server.query_engine = Some(Arc::new(engine));
+
+        // Call check_sensor_health for client "acme".
+        let params = CheckSensorHealthParams::for_client("acme".to_string());
+        let result = server
+            .check_sensor_health(Parameters(params))
+            .await
+            .expect("BC-2.08.005: check_sensor_health must return Ok for valid client_id");
+
+        // The structured_content field holds the SensorHealthStructuredContent JSON.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("BC-2.08.005 postcondition 5: structured_content must be present");
+
+        // Verify at least one sensor appears in the structured content.
+        let sensors = sc["sensors"]
+            .as_array()
+            .expect("BC-2.08.005: structured_content.sensors must be a JSON array");
+        assert!(
+            !sensors.is_empty(),
+            "BC-2.08.005: check_sensor_health must return at least one sensor entry \
+             when a TableRegistry with 'crowdstrike' is wired; got empty sensors array. \
+             Did the engine wiring fail?"
+        );
+
+        let crowdstrike_entry = sensors
+            .iter()
+            .find(|s| s["sensor_id"].as_str() == Some("crowdstrike"))
+            .expect(
+                "BC-2.08.005: 'crowdstrike' sensor entry must appear in structured_content.sensors",
+            );
+
+        // BC-2.08.005 v1.5 postcondition: S-5.03 scope requires probe_level="spec-only".
+        assert_eq!(
+            crowdstrike_entry["probe_level"].as_str(),
+            Some("spec-only"),
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
+             MUST set probe_level='spec-only'. \
+             Got entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 v1.5 postcondition: reachable MUST be null for spec-only scope.
+        // Hardcoding reachable=true is FORBIDDEN — false-positive health signal.
+        assert!(
+            crowdstrike_entry["reachable"].is_null(),
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
+             MUST return reachable=null (honest-unknown — no live probe). \
+             Got entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 v1.5 postcondition: auth_valid MUST be null for spec-only scope.
+        assert!(
+            crowdstrike_entry["auth_valid"].is_null(),
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
+             MUST return auth_valid=null (honest-unknown — no live probe). \
+             Got entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 v1.5 postcondition: last_successful_query_at MUST be null.
+        assert!(
+            crowdstrike_entry["last_successful_query_at"].is_null(),
+            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped \
+             check_sensor_health MUST return last_successful_query_at=null. \
+             Got entry: {crowdstrike_entry:?}"
+        );
+
+        // BC-2.08.005 v1.5 postcondition: prose summary MUST contain
+        // "spec-only: no live probe performed" so the AI consumer cannot mistake this
+        // response for a live health check.
+        let prose = result
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.as_str().to_owned()))
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            prose.contains("spec-only: no live probe performed"),
+            "BC-2.08.005 v1.5 postcondition (AC-4): prose summary MUST contain \
+             'spec-only: no live probe performed' so the AI consumer cannot mistake this \
+             response for a live health check. Got prose: {prose:?}"
+        );
+
+        // BC-2.08.005 postcondition 7: trust_level = "internal" (unchanged by v1.5).
+        assert_eq!(
+            sc["trust_level"].as_str(),
+            Some("internal"),
+            "BC-2.08.005 postcondition 7: trust_level must be 'internal' (health data \
+             is Prism-generated, not sensor-sourced); got: {:?}",
+            sc["trust_level"]
+        );
+    }
+
+    // ─── F-S503-ADV-001: check_sensor_health scoped by client_id (DI-008 / BC-2.08.005 §Errors) ──
+    //
+    // LOAD-BEARING: verifies per-client sensor scoping when resolved_spec_map is wired.
+    //
+    // Three assertions:
+    //   (a) acme sees only its own sensor (crowdstrike), NOT globex's sensor (armis).
+    //   (b) globex sees only its own sensor (armis), NOT acme's sensor (crowdstrike).
+    //   (c) unknown client_id "no-such-org" → INVALID_PARAMS (-32602).
+    //
+    // If the scoping logic is broken and returns global inventory, acme would see BOTH
+    // crowdstrike AND armis — the first assertion fails.
+    //
+    // SID-1: unit test in the production handler boundary with a fully-wired QueryEngine
+    // (new_full with resolved_spec_map) — no #[ignore] or external service needed.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_F_S503_ADV_001_check_sensor_health_scoped_by_client_id() {
+        use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{
+            alias_store::AliasStore,
+            engine::{QueryEngine, QueryEngineConfig},
+            scoping::ClientRegistry,
+            table_registry::TableRegistry,
+        };
+        use prism_sensors::{
+            adapter::SensorError, auth::SensorAuth, registry::AdapterRegistry, CredentialResolver,
+        };
+        use prism_spec_engine::{
+            overlay::{OverlayLoader, SensorInstanceOverlay},
+            spec_parser::{AuthType, SensorSpec, TableSpec},
+            ResolvedSpecKey,
+        };
+        use prism_storage::memory_backend::InMemoryBackend;
+        use uuid::Uuid;
+
+        // ── Null stubs for new_full ───────────────────────────────────────────────────
+        struct NullCredStore;
+        #[async_trait::async_trait]
+        impl prism_credentials::CredentialStore for NullCredStore {
+            async fn get(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<Option<secrecy::SecretString>, prism_core::error::PrismError> {
+                Ok(None)
+            }
+            async fn set(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+                _v: secrecy::SecretString,
+            ) -> Result<(), prism_core::error::PrismError> {
+                Ok(())
+            }
+            async fn delete(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, prism_core::error::PrismError> {
+                Ok(false)
+            }
+            async fn list(
+                &self,
+                _t: &OrgSlug,
+            ) -> Result<
+                Vec<(String, prism_credentials::namespace::CredentialName)>,
+                prism_core::error::PrismError,
+            > {
+                Ok(vec![])
+            }
+            async fn exists(
+                &self,
+                _t: &OrgSlug,
+                _s: &str,
+                _n: &prism_credentials::namespace::CredentialName,
+            ) -> Result<bool, prism_core::error::PrismError> {
+                Ok(false)
+            }
+        }
+        struct NullCredResolver;
+        impl CredentialResolver for NullCredResolver {
+            fn resolve(&self, _c: &str, _s: SensorId) -> Result<Box<dyn SensorAuth>, SensorError> {
+                Err(SensorError::ConfigValidation {
+                    sensor: "stub".to_string(),
+                    detail: "null resolver".to_string(),
+                })
+            }
+        }
+
+        // ── Build resolved_spec_map: acme→crowdstrike, globex→armis ─────────────────
+        let make_resolved = |sensor_id: &str, table: &str, org: &str| {
+            let spec = SensorSpec::new(
+                sensor_id,
+                format!("{sensor_id} sensor"),
+                AuthType::ApiKey,
+                "https://example.com",
+                vec![TableSpec::new_point_in_time(
+                    table,
+                    "security_finding",
+                    vec![],
+                    vec![],
+                )],
+                None,
+                "1.0.0",
+                vec![],
+            );
+            let overlay_toml =
+                format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+            let overlay: SensorInstanceOverlay =
+                toml::from_str(&overlay_toml).expect("fixture overlay must parse");
+            let org_slug = OrgSlug::new(org);
+            let resolved =
+                OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+            let key: ResolvedSpecKey = (org_slug, SensorId::new(sensor_id));
+            (key, resolved)
+        };
+
+        let mut spec_map = std::collections::HashMap::new();
+        let (k, v) = make_resolved("crowdstrike", "detections", "acme");
+        spec_map.insert(k, v);
+        let (k, v) = make_resolved("armis", "devices", "globex");
+        spec_map.insert(k, v);
+        let spec_map_arc = std::sync::Arc::new(spec_map);
+
+        // ── Build OrgRegistry with both orgs ─────────────────────────────────────────
+        let org_registry = std::sync::Arc::new(OrgRegistry::new());
+        org_registry
+            .register(OrgSlug::new("acme"), OrgId::from_uuid_v7(Uuid::now_v7()))
+            .expect("register acme must not fail");
+        org_registry
+            .register(OrgSlug::new("globex"), OrgId::from_uuid_v7(Uuid::now_v7()))
+            .expect("register globex must not fail");
+
+        // ── Build alias store and storage (required by new_full) ─────────────────────
+        let alias_tmpdir = tempfile::tempdir().expect("tempdir for alias store");
+        let alias_store = std::sync::Arc::new(std::sync::Mutex::new(AliasStore::empty(
+            alias_tmpdir.path().join("aliases.toml"),
+        )));
+        let storage: std::sync::Arc<dyn prism_storage::backend::RocksStorageBackend> =
+            std::sync::Arc::new(InMemoryBackend::new());
+
+        // ── Build QueryEngine::new_full with resolved_spec_map + org_registry ────────
+        let engine = QueryEngine::new_full(
+            std::sync::Arc::new(AdapterRegistry::new()),
+            std::sync::Arc::new(NullCredStore),
+            std::sync::Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            std::sync::Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            std::sync::Arc::new(NullCredResolver),
+            org_registry,
+            storage,
+            spec_map_arc,
+            alias_store,
+        );
+
+        // Wire into PrismServer.
+        let mut server = PrismServer::new();
+        server.query_engine = Some(std::sync::Arc::new(engine));
+
+        // ── (a) acme sees only crowdstrike ────────────────────────────────────────────
+        let result = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client("acme")))
+            .await
+            .expect("F-S503-ADV-001: check_sensor_health must succeed for known client 'acme'");
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("F-S503-ADV-001: structured_content must be present");
+        let sensors_acme = sc["sensors"]
+            .as_array()
+            .expect("F-S503-ADV-001: structured_content.sensors must be a JSON array");
+        let acme_ids: Vec<&str> = sensors_acme
+            .iter()
+            .filter_map(|s| s["sensor_id"].as_str())
+            .collect();
+        assert_eq!(
+            acme_ids,
+            vec!["crowdstrike"],
+            "F-S503-ADV-001 (DI-008): acme MUST see only 'crowdstrike'; \
+             global inventory (armis also showing) would mean scoping is broken. Got: {acme_ids:?}"
+        );
+
+        // ── (b) globex sees only armis ────────────────────────────────────────────────
+        let result = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client("globex")))
+            .await
+            .expect("F-S503-ADV-001: check_sensor_health must succeed for known client 'globex'");
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("F-S503-ADV-001: structured_content must be present");
+        let sensors_globex = sc["sensors"]
+            .as_array()
+            .expect("F-S503-ADV-001: structured_content.sensors must be a JSON array");
+        let globex_ids: Vec<&str> = sensors_globex
+            .iter()
+            .filter_map(|s| s["sensor_id"].as_str())
+            .collect();
+        assert_eq!(
+            globex_ids,
+            vec!["armis"],
+            "F-S503-ADV-001 (DI-008): globex MUST see only 'armis'; \
+             acme's sensor (crowdstrike) must NOT appear. Got: {globex_ids:?}"
+        );
+
+        // ── (c) unknown client_id → INVALID_PARAMS (-32602) ───────────────────────────
+        let err = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client(
+                "no-such-org",
+            )))
+            .await
+            .expect_err("F-S503-ADV-001: unknown client_id must return Err(INVALID_PARAMS)");
+        assert_eq!(
+            err.code.0,
+            crate::error_mapping::codes::INVALID_PARAMS,
+            "F-S503-ADV-001 (BC-2.08.005 §Errors): unknown client_id must map to \
+             INVALID_PARAMS (-32602). Got code: {}",
+            err.code.0
+        );
+    }
+
+    // ─── AC-9 (BC-2.16.007): dispatch_hot_reload_notifications invoked from reload_config ──
+    //
+    // This test verifies the WIRING: `reload_config` calls `dispatch_hot_reload_notifications`
+    // (via peer from RequestContext) when the table set changes after the hot-reload swap.
+    //
+    // GREEN (fixture fix applied): fixture files now use `.sensor.toml` suffix so
+    // `parse_spec_directory` reads them, producing a non-empty initial snapshot that differs
+    // from the post-reload snapshot.  The set-comparison gate fires and both notifications
+    // are dispatched.
+    //
+    // LOAD-BEARING (regression test): removing the `dispatch_hot_reload_notifications` call
+    // from `reload_config` (or reverting to `.toml`-only fixtures) causes this test to fail.
+    //
+    // Test setup:
+    // 1. Write initial CrowdStrike spec (crowdstrike.sensor.toml) to temp dir.
+    // 2. Build ConfigManager from spec_dir (snapshot: crowdstrike.detections only).
+    // 3. Write Claroty spec (claroty.sensor.toml) so reload picks up a second table.
+    // 4. Wire PrismServer with config_manager + spec_dir.
+    // 5. Complete the MCP handshake via duplex transport (serve_server returns RunningService).
+    // 6. Call `reload_config` via JSON-RPC tool call while server is still running.
+    // 7. Assert both notifications arrive on client side within 3s.
+    //
+    // BC-2.16.007: "when the set of registered tables changes (set-comparison gate),
+    // both notifications/resources/list_changed AND notifications/tools/list_changed
+    // are dispatched from the reload_config tool handler path."
+    //
+    // SID-1: this unit test drives the `reload_config` ENTRY POINT, not the leaf
+    // `dispatch_hot_reload_notifications` function — the existing AC-9 test in
+    // tests/resources.rs already covers the leaf function.
+    #[tokio::test]
+    async fn test_BC_2_16_007_reload_config_wires_dispatch_hot_reload_notifications() {
+        use std::path::PathBuf;
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+        // Step 1: Create a temp spec directory with one sensor spec.
+        let tmp_dir = tempfile::tempdir().expect("tempdir must succeed");
+        let spec_dir: PathBuf = tmp_dir.path().to_path_buf();
+
+        // Write initial CrowdStrike spec (no [[tables]] — zero-table spec is valid;
+        // `tables` is `#[serde(default)]` in SensorSpec). With no tables,
+        // old_tables == [] pre-reload. Claroty (added next) has 1 table, so
+        // new_tables == ["claroty.assets"] post-reload → set-change detected.
+        let cs_toml = "sensor_id = \"crowdstrike\"\n\
+             name = \"CrowdStrike\"\n\
+             auth_type = \"api_key\"\n\
+             base_url = \"https://api.crowdstrike.com\"\n\
+             version = \"1.0.0\"\n";
+        std::fs::write(spec_dir.join("crowdstrike.sensor.toml"), cs_toml)
+            .expect("write crowdstrike.sensor.toml must succeed");
+
+        // Step 2: Build initial config from spec_dir (crowdstrike only at this point).
+        let initial_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+            .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+        let cm = prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot);
+        let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
+
+        // Step 3: Write a second spec so reload detects a table-set change.
+        // claroty has 1 table (assets) so after reload new_tables = ["claroty.assets"]
+        // while old_tables = [] (crowdstrike has no tables in initial snapshot).
+        // old_tables != new_tables → dispatch fires.
+        //
+        // NOTE: `steps` and `columns` must be explicitly present in [[tables]] even as
+        // empty arrays. `TableSpec.steps: Vec<FetchStep>` lacks `#[serde(default)]` and
+        // serde requires the field to be present in TOML. Empty `steps = []` is valid
+        // (zero pipeline steps = no-op fetch, fine for testing notification wiring).
+        let claroty_toml = "sensor_id = \"claroty\"\n\
+             name = \"Claroty\"\n\
+             auth_type = \"api_key\"\n\
+             base_url = \"https://api.claroty.com\"\n\
+             version = \"1.0.0\"\n\
+             \n\
+             [[tables]]\n\
+             table_name = \"assets\"\n\
+             ocsf_class = \"device_inventory_info\"\n\
+             columns = []\n\
+             steps = []\n";
+        std::fs::write(spec_dir.join("claroty.sensor.toml"), claroty_toml)
+            .expect("write claroty.sensor.toml must succeed");
+
+        // Step 4: Build PrismServer with config_manager + spec_dir wired.
+        // Access private field — this is in mod tests.
+        let mut server = PrismServer::new();
+        server.config_manager = Some(cm_arc);
+        server.spec_dir = Some(spec_dir);
+
+        // Step 5: Create duplex transport and spin up MCP server.
+        let (server_stream, client_stream) = tokio::io::duplex(65536);
+        let server_task = tokio::spawn(async move {
+            rmcp::serve_server(server, server_stream)
+                .await
+                .expect("serve_server must complete handshake")
+        });
+
+        // Step 6: Complete MCP handshake from client side.
+        let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+        let mut client_read_buf = BufReader::new(client_read_half);
+
+        let init_req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"prism-reload-test","version":"0.0.1"}}}"#;
+        client_write_half
+            .write_all(format!("{init_req}\n").as_bytes())
+            .await
+            .unwrap();
+        let mut line = String::new();
+        client_read_buf.read_line(&mut line).await.unwrap(); // init response
+
+        let init_notif = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        client_write_half
+            .write_all(format!("{init_notif}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        let _running = server_task.await.expect("server task must not panic");
+
+        // Step 7: Call reload_config tool via JSON-RPC while the RunningService is active.
+        // BC-2.16.007: reload picks up claroty.sensor.toml (added in Step 3), detects that
+        // the table set changed (crowdstrike.detections → +claroty.assets), and dispatches
+        // both notifications.
+        let reload_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"reload_config","arguments":{}}}"#;
+        client_write_half
+            .write_all(format!("{reload_req}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        // Step 8: Collect messages — expect tool response + notification within 3s.
+        let mut resource_list_changed = false;
+        let mut tool_list_changed = false;
+        let read_timeout = std::time::Duration::from_secs(3);
+
+        for _ in 0..5 {
+            let mut msg = String::new();
+            let r = tokio::time::timeout(read_timeout, client_read_buf.read_line(&mut msg)).await;
+            match r {
+                Ok(Ok(0)) | Err(_) => break,
+                Ok(Ok(_)) => {
+                    let t = msg.trim();
+                    if t.contains("notifications/resources/list_changed") {
+                        resource_list_changed = true;
+                    }
+                    if t.contains("notifications/tools/list_changed") {
+                        tool_list_changed = true;
+                    }
+                    if resource_list_changed && tool_list_changed {
+                        break;
+                    }
+                }
+                Ok(Err(_)) => break,
+            }
+        }
+
+        // BC-2.16.007: reload_config must dispatch BOTH notifications when the table set
+        // changes (crowdstrike.detections → +claroty.assets added by the reload).
+        // REGRESSION GUARD: removing the dispatch_hot_reload_notifications call from
+        // reload_config will cause both assertions to fail.
+        assert!(
+            resource_list_changed,
+            "BC-2.16.007 (AC-9): 'notifications/resources/list_changed' MUST be dispatched \
+             from the reload_config tool handler path when the table set changes. \
+             Fixture: crowdstrike.sensor.toml (initial) + claroty.sensor.toml (added before reload). \
+             If this fails: check that reload_config calls dispatch_hot_reload_notifications \
+             and that fixture files use .sensor.toml suffix."
+        );
+        assert!(
+            tool_list_changed,
+            "BC-2.16.007 (AC-9): 'notifications/tools/list_changed' MUST be dispatched \
+             from the reload_config tool handler path when the table set changes. \
+             Fixture: crowdstrike.sensor.toml (initial) + claroty.sensor.toml (added before reload)."
         );
     }
 }

@@ -37,6 +37,7 @@ arc-swap = "1"
 arrow-json = "58"
 
 [dev-dependencies]
+proptest = "1"
 serde_json = "1"
 prism-security = { path = "../prism-security", version = "0.1.0" }
 # prism-credentials: needed to construct InMemoryCredentialStore for QueryEngine in MED-1 test.
@@ -53,6 +54,17 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 # Both are already transitive dependencies via prism-query; pinned here for test stability.
 async-trait = "0.1"
 ulid = { version = "1", features = ["serde"] }
+# toml + uuid: needed for IMP-8 per-org scoping test fixtures (OverlayLoader::merge_overlay_onto_type_spec
+# requires SensorInstanceOverlay TOML deserialization; OrgId::new() mints a fresh UUID).
+toml = "0.8"
+uuid = { version = "1", features = ["v7"] }
+# prism-storage: needed to build QueryEngine::new_full for F-S503-ADV-001 per-client scoping test.
+# test-utils feature exposes InMemoryBackend (filesystem-free RocksStorageBackend stub).
+# Already a transitive dep via prism-query; explicit pin for test-binary compilation.
+prism-storage = { path = "../prism-storage", features = ["test-utils"] }
+# secrecy: needed by NullCredStore stub implementing CredentialStore (SecretString param).
+# Already a transitive dep via prism-credentials; explicit pin for test-binary compilation.
+secrecy = "0.8"
 
 [lints.clippy]
 # From workspace

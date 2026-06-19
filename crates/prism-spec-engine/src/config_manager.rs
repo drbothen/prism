@@ -238,6 +238,7 @@ pub fn parse_spec_directory(spec_dir: &Path) -> Result<ConfigSnapshot, SpecEngin
         sensor_specs,
         failed_specs,
         snapshot_hash,
+        org_display_names: std::collections::HashMap::new(),
     })
 }
 
