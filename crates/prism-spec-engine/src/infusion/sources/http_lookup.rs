@@ -157,6 +157,9 @@ fn validate_ssrf_safe(base_url: &str, spec_path: &str) -> Result<(), InfusionErr
 ///   On dual-stack hosts, a socket bound to `::` accepts connections on ALL interfaces
 ///   including loopback. An attacker supplying `http://[::]/` can reach any such service.
 /// - ::ffff:0:0/96 — IPv4-mapped IPv6 (canonicalized to IPv4 for check)
+/// - ::/96 (IPv4-compatible IPv6, non-zero last 32 bits) — deprecated RFC-4291 §2.5.5.1 form
+///   `::a.b.c.d` where segments 0..5 are zero. Reconstructed as IPv4 and checked.
+///   (LOW-SSRF-IPV4COMPAT-001 / CWE-918)
 /// - fe80::/10 — IPv6 link-local
 /// - fd00::/8 — IPv6 unique local (starts with 0xfd)
 fn is_private_or_loopback(ip: IpAddr) -> bool {
@@ -178,9 +181,33 @@ fn is_private_or_loopback(ip: IpAddr) -> bool {
             if let Some(v4) = v6.to_ipv4_mapped() {
                 return is_private_or_loopback_v4(v4);
             }
+            // IPv4-compatible IPv6 form `::a.b.c.d` (deprecated RFC-4291 §2.5.5.1).
+            // These have segments[0..5] all zero and segments[6] or segments[7] non-zero
+            // (the `::` and `::1` cases are already handled above via is_unspecified/is_loopback).
+            // Reconstruct the embedded IPv4 address and apply IPv4 private/loopback checks.
+            // (LOW-SSRF-IPV4COMPAT-001 / CWE-918)
+            let segments = v6.segments();
+            if segments[0] == 0
+                && segments[1] == 0
+                && segments[2] == 0
+                && segments[3] == 0
+                && segments[4] == 0
+                && segments[5] == 0
+                && (segments[6] != 0 || segments[7] != 0)
+            {
+                // Reconstruct IPv4 from the last two 16-bit segments.
+                // segments[6] = high_byte:low_byte of first two octets (a.b)
+                // segments[7] = high_byte:low_byte of last two octets (c.d)
+                let embedded_v4 = Ipv4Addr::new(
+                    (segments[6] >> 8) as u8,
+                    (segments[6] & 0xff) as u8,
+                    (segments[7] >> 8) as u8,
+                    (segments[7] & 0xff) as u8,
+                );
+                return is_private_or_loopback_v4(embedded_v4);
+            }
             // fe80::/10 — IPv6 link-local
             // First segment high 10 bits = 0b1111_1110_10 = 0xfe80..0xfebf
-            let segments = v6.segments();
             if segments[0] & 0xffc0 == 0xfe80 {
                 return true;
             }
@@ -728,6 +755,59 @@ mod tests {
             is_private_or_loopback(ip),
             "SSRF-IPV6-UNSPECIFIED-001 regression guard: ::1 (IPv6 loopback) must still \
              be blocked by is_private_or_loopback after adding the `::` unspecified check"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // LOW-SSRF-IPV4COMPAT-001 tests — IPv4-compatible IPv6 form `::a.b.c.d` (CWE-918)
+    // -----------------------------------------------------------------------
+
+    /// IPv4-compatible IPv6 loopback `::127.0.0.1` must be blocked.
+    ///
+    /// `::127.0.0.1` is the deprecated RFC-4291 §2.5.5.1 IPv4-compatible form with
+    /// segments[0..5] = 0 and segments[6..7] encoding 127.0.0.1.
+    /// Without this check, an attacker can bypass SSRF protection by supplying
+    /// `http://[::127.0.0.1]/` which resolves to the loopback interface on many stacks.
+    /// (LOW-SSRF-IPV4COMPAT-001 / CWE-918)
+    #[test]
+    fn test_is_private_or_loopback_ipv4_compat_loopback_blocked() {
+        // ::127.0.0.1 — IPv4-compatible IPv6 loopback
+        let ip: IpAddr = "::127.0.0.1".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "LOW-SSRF-IPV4COMPAT-001: `::127.0.0.1` (IPv4-compatible loopback) must be \
+             blocked by is_private_or_loopback (CWE-918)"
+        );
+    }
+
+    /// IPv4-compatible IPv6 RFC-1918 address `::10.0.0.1` must be blocked.
+    ///
+    /// Same form as `::127.0.0.1` but encoding a private RFC-1918 address.
+    /// (LOW-SSRF-IPV4COMPAT-001 / CWE-918)
+    #[test]
+    fn test_is_private_or_loopback_ipv4_compat_rfc1918_blocked() {
+        // ::10.0.0.1 — IPv4-compatible IPv6 private address
+        let ip: IpAddr = "::10.0.0.1".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "LOW-SSRF-IPV4COMPAT-001: `::10.0.0.1` (IPv4-compatible RFC-1918) must be \
+             blocked by is_private_or_loopback (CWE-918)"
+        );
+    }
+
+    /// IPv4-compatible IPv6 public address `::1.1.1.1` must NOT be blocked.
+    ///
+    /// Regression guard: the IPv4-compatible fix must not block public addresses.
+    /// `::1.1.1.1` has segments[0..5]=0, segments[6]=0x0101, segments[7]=0x0101.
+    /// (LOW-SSRF-IPV4COMPAT-001 regression guard)
+    #[test]
+    fn test_is_private_or_loopback_ipv4_compat_public_allowed() {
+        // ::1.1.1.1 — IPv4-compatible IPv6 with public IPv4 1.1.1.1
+        let ip: IpAddr = "::1.1.1.1".parse().unwrap();
+        assert!(
+            !is_private_or_loopback(ip),
+            "LOW-SSRF-IPV4COMPAT-001 regression guard: `::1.1.1.1` (IPv4-compatible with \
+             public IPv4) must NOT be blocked by is_private_or_loopback"
         );
     }
 }

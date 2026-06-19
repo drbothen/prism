@@ -1021,12 +1021,32 @@ fn test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_re
          canonicalize + starts_with check must reject paths escaping plugin_dir"
     );
 
-    // Verify the error message does NOT include the traversal path itself (AC-012 companion).
+    // LOAD-BEARING VARIANT ASSERTION (F-PIVOT002-ADV-1 / E-INFUSE-013 sub-condition 6):
+    // must be InvalidFieldSpec, NOT MissingRequiredField.
+    // Fails if code reverts to MissingRequiredField for path traversal.
     let err = result.unwrap_err();
+    assert!(
+        matches!(err, InfusionError::InvalidFieldSpec { .. }),
+        "AC-011 E-INFUSE-013 sub-condition 6: path traversal rejection MUST return \
+         InfusionError::InvalidFieldSpec (not MissingRequiredField). \
+         Got: {:?}",
+        err
+    );
+
+    // LOAD-BEARING CODE ASSERTION: Display must contain "E-INFUSE-013".
     let err_str = format!("{}", err);
     assert!(
+        err_str.contains("E-INFUSE-013"),
+        "AC-011 E-INFUSE-013: path traversal rejection Display must contain 'E-INFUSE-013'. \
+         Got: '{}'",
+        err_str
+    );
+
+    // Verify the error message does NOT include the traversal path itself (AC-012 companion).
+    assert!(
         !err_str.contains("etc/passwd"),
-        "AC-011: error message must not disclose the traversal target path"
+        "AC-011: error message must not disclose the traversal target path. Got: '{}'",
+        err_str
     );
 }
 
@@ -2682,5 +2702,128 @@ output_type = "string"
         "CRIT-2a AC-012 CWE-209: error message must not disclose the traversal target path. \
          Got: '{}'",
         err_msg
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-PIVOT002-ADV-1: E-INFUSE-013 sub-condition 3 — base_url empty
+// ---------------------------------------------------------------------------
+
+/// F-PIVOT002-ADV-1 / E-INFUSE-013 sub-condition 3: `source.http.base_url` empty MUST return
+/// `InfusionError::InvalidFieldSpec` (not `MissingRequiredField`).
+///
+/// The error taxonomy v1.90 explicitly enumerates "base_url is empty" as sub-condition 3 of
+/// E-INFUSE-013 and states: "emit this variant (not MissingRequiredField) for all sub-conditions
+/// listed above." This test is LOAD-BEARING: it fails if the code reverts to MissingRequiredField
+/// for the empty-base_url path.
+#[test]
+fn test_enrichment_pivot_002_e_infuse_013_sc3_base_url_empty_returns_invalid_field_spec() {
+    let toml = r#"
+[infusion]
+infusion_id = "base_url_empty_test"
+name = "Base URL Empty Test"
+type = "http_lookup"
+
+[source.http]
+base_url      = ""
+url_template  = "/api?id=${input}"
+method        = "GET"
+response_path = "$.data"
+
+[[infusion.fields]]
+name        = "result"
+input_field = "some_field"
+input_type  = "string"
+output_type = "string"
+"#;
+
+    let result = InfusionLoader::parse(toml, "base_url_empty_test.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "F-PIVOT002-ADV-1 E-INFUSE-013 SC3: empty base_url must be rejected at parse time; \
+         got Ok"
+    );
+
+    let err = result.unwrap_err();
+
+    // LOAD-BEARING VARIANT ASSERTION: must be InvalidFieldSpec, NOT MissingRequiredField.
+    // Fails if code reverts to MissingRequiredField for the empty base_url condition.
+    assert!(
+        matches!(err, InfusionError::InvalidFieldSpec { .. }),
+        "F-PIVOT002-ADV-1 E-INFUSE-013 SC3: empty base_url MUST return \
+         InfusionError::InvalidFieldSpec (not MissingRequiredField). \
+         Got: {:?}",
+        err
+    );
+
+    // LOAD-BEARING CODE ASSERTION: Display must contain "E-INFUSE-013".
+    let err_str = format!("{}", err);
+    assert!(
+        err_str.contains("E-INFUSE-013"),
+        "F-PIVOT002-ADV-1 E-INFUSE-013 SC3: empty base_url error Display must contain \
+         'E-INFUSE-013'. Got: '{}'",
+        err_str
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-PIVOT002-ADV-1: E-INFUSE-013 sub-condition 5 — response_path empty
+// ---------------------------------------------------------------------------
+
+/// F-PIVOT002-ADV-1 / E-INFUSE-013 sub-condition 5: `source.http.response_path` empty MUST return
+/// `InfusionError::InvalidFieldSpec` (not `MissingRequiredField`).
+///
+/// The error taxonomy v1.90 explicitly enumerates "response_path is empty" as sub-condition 5 of
+/// E-INFUSE-013. This test is LOAD-BEARING: it fails if the code reverts to MissingRequiredField
+/// for the empty-response_path path.
+#[test]
+fn test_enrichment_pivot_002_e_infuse_013_sc5_response_path_empty_returns_invalid_field_spec() {
+    let toml = r#"
+[infusion]
+infusion_id = "response_path_empty_test"
+name = "Response Path Empty Test"
+type = "http_lookup"
+
+[source.http]
+base_url      = "https://api.example.com"
+url_template  = "/api?id=${input}"
+method        = "GET"
+response_path = ""
+
+[[infusion.fields]]
+name        = "result"
+input_field = "some_field"
+input_type  = "string"
+output_type = "string"
+"#;
+
+    let result = InfusionLoader::parse(toml, "response_path_empty_test.infusion.toml");
+
+    assert!(
+        result.is_err(),
+        "F-PIVOT002-ADV-1 E-INFUSE-013 SC5: empty response_path must be rejected at parse time; \
+         got Ok"
+    );
+
+    let err = result.unwrap_err();
+
+    // LOAD-BEARING VARIANT ASSERTION: must be InvalidFieldSpec, NOT MissingRequiredField.
+    // Fails if code reverts to MissingRequiredField for the empty response_path condition.
+    assert!(
+        matches!(err, InfusionError::InvalidFieldSpec { .. }),
+        "F-PIVOT002-ADV-1 E-INFUSE-013 SC5: empty response_path MUST return \
+         InfusionError::InvalidFieldSpec (not MissingRequiredField). \
+         Got: {:?}",
+        err
+    );
+
+    // LOAD-BEARING CODE ASSERTION: Display must contain "E-INFUSE-013".
+    let err_str = format!("{}", err);
+    assert!(
+        err_str.contains("E-INFUSE-013"),
+        "F-PIVOT002-ADV-1 E-INFUSE-013 SC5: empty response_path error Display must contain \
+         'E-INFUSE-013'. Got: '{}'",
+        err_str
     );
 }

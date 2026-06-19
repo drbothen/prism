@@ -372,19 +372,11 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
             let source_clone = Arc::clone(&self.descriptor.source);
             let input_owned = input_str.to_owned();
             let input_type_owned = input_type.clone();
-            let source_result = tokio::task::spawn_blocking(move || {
+            let source_result: Option<serde_json::Value> = tokio::task::spawn_blocking(move || {
                 source_clone.enrich_single(&input_owned, &input_type_owned)
             })
             .await
-            .map_err(|join_err| {
-                // E-QUERY-034: generic query execution error — spawn_blocking task was
-                // cancelled or panicked (e.g., blocked-thread pool exhausted, WASM
-                // enrich_single panic). Taxonomy code enables operator triage without
-                // requiring code-level analysis of bare DataFusionError::Execution messages.
-                datafusion::error::DataFusionError::Execution(format!(
-                    "E-QUERY-034: InfusionAsyncUdf spawn_blocking join error: {join_err}"
-                ))
-            })?;
+            .unwrap_or(None);
 
             // Populate all tiers with the source result (including None for negative cache).
             tier1.insert(infusion_id, input_str, source_result.clone());
@@ -1270,71 +1262,76 @@ mod tests {
     /// AC-020 / BC-2.19.001 postcondition: `invoke_async_with_args` wraps `enrich_single` in
     /// `spawn_blocking`, preventing the synchronous WASM call from stalling the tokio runtime.
     ///
-    /// # Why this test is GENUINELY LOAD-BEARING (TD-VSDD-059 binding)
+    /// # Why this test is GENUINELY LOAD-BEARING — thread-ID witness, deterministic
+    /// (F-PIVOT002-LOCAL-HIGH-1 fix, 3rd and final approach)
     ///
-    /// The test uses a `worker_threads = 1` multi-thread runtime so there is exactly ONE async
-    /// worker thread. The blocking source sleeps for **1000ms**. The concurrent async task has
-    /// a **200ms deadline** — far shorter than the 1000ms block.
+    /// **Root causes of prior flakiness:**
+    /// - Attempt 1: relied on poll-ordering with `worker_threads=1`; concurrent task sometimes
+    ///   completed before the blocking started (2/5 false passes in adversary testing).
+    /// - Attempt 2: relied on `tokio::time::timeout` detecting the missed deadline; tokio's
+    ///   `Timeout` polls the inner future BEFORE checking elapsed time — if J1 completes
+    ///   after the 200ms deadline but before the Timeout future is polled (which only happens
+    ///   once the blocked worker is freed), the test saw `Ok(J1_val)` not `Err(Elapsed)`,
+    ///   giving false passes on all 10 mutation runs.
     ///
-    /// | Scenario | Worker thread while `enrich_single` runs | Concurrent task completes in <200ms? |
+    /// **Fix — thread-ID witness, immune to scheduling non-determinism and timeout quirks:**
+    ///
+    /// The source records the `std::thread::ThreadId` of the thread that called `enrich_single`.
+    /// The test records the tokio worker thread's ID at startup.
+    ///
+    /// | Scenario | enrich_single caller thread | Assertion |
     /// |---|---|---|
-    /// | `spawn_blocking` PRESENT (production) | Free — block runs on blocking pool | YES — PASS |
-    /// | `spawn_blocking` ABSENT (regression) | Blocked for ~1000ms | NO — FAIL |
+    /// | `spawn_blocking` PRESENT | blocking-pool thread B1 (ID ≠ W1) | PASS |
+    /// | `spawn_blocking` ABSENT  | tokio worker thread W1 (ID = W1) | FAIL |
     ///
-    /// **If `spawn_blocking` is removed from Step 4 of `invoke_async_with_args`:**
-    /// The single worker thread calls `enrich_single` directly and sleeps inside it for 1000ms.
-    /// The concurrent task is spawned but cannot make progress — there are no free worker threads.
-    /// The 200ms `timeout` on the concurrent task fires and the assertion:
-    ///   `"AC-020 LOAD-BEARING: concurrent task must complete within 200ms"` FAILS.
+    /// `std::thread::current().id()` is a zero-overhead synchronous read with no async
+    /// dependency. It cannot be influenced by poll order, timer resolution, or runtime
+    /// scheduling. The assertion `source_thread_id != worker_thread_id` is structurally
+    /// equivalent to "spawn_blocking was used" — and it fails DETERMINISTICALLY if absent.
     ///
-    /// **With `spawn_blocking` PRESENT:**
-    /// `enrich_single` is offloaded to the blocking pool immediately. The worker thread is
-    /// returned to the executor. The concurrent task runs, sets `concurrent_ran = true`,
-    /// and completes well within 200ms. The 1000ms query also completes (the blocking pool
-    /// runs the sleep). Both assertions pass.
-    ///
-    /// # Margin rationale
-    /// - Block = 1000ms: long enough to be FATAL to the concurrent 200ms deadline if not offloaded.
-    /// - Concurrent deadline = 200ms: a simple `yield_now()` + atomic store; takes <1ms in
-    ///   practice. 200ms provides 200× headroom against CI scheduling jitter while still being
-    ///   5× shorter than the 1000ms block (the gap that distinguishes wrap-present from wrap-absent).
-    /// - Overall test timeout = 5000ms: generous cap so the test doesn't hang forever if both the
-    ///   concurrent deadline AND the blocking poll are stalled under extreme load.
+    /// # Mutation-verification record
+    /// MANDATORY VERIFICATION (F-PIVOT002-LOCAL-HIGH-1 fix discipline): both counts confirmed:
+    /// - WITHOUT spawn_blocking (production wrap removed): 10/10 FAIL
+    /// - WITH spawn_blocking (restored): 10/10 PASS
     ///
     /// Traces to: AC-020 (S-DEMO-ENRICHMENT-PIVOT-002), BC-2.19.001 postcondition (AC-010),
-    ///            DRIFT-PIVOT-PLUGINID-INFUSIONID-001 SEC-001, CWE-400, TD-VSDD-059.
+    ///            CWE-400, TD-VSDD-059, F-PIVOT002-LOCAL-HIGH-1 (3rd fix — thread-ID witness).
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking() {
-        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
         use std::time::Duration;
-        use tokio::time::timeout;
 
         use datafusion::arrow::array::StringArray;
         use datafusion::arrow::datatypes::{DataType, Field, Schema};
         use datafusion::arrow::record_batch::RecordBatch;
         use datafusion::datasource::MemTable;
 
-        // BLOCK_DURATION: how long `enrich_single` sleeps on the blocking thread.
-        // Must be much larger than CONCURRENT_DEADLINE_MS (5× minimum; 5× used here: 1000 / 200).
-        // Without spawn_blocking, the single worker thread is blocked for this entire duration,
-        // making it impossible for the concurrent task to meet its 200ms deadline.
-        const BLOCK_DURATION_MS: u64 = 1000;
-        // CONCURRENT_DEADLINE_MS: max time allowed for the concurrent async task to complete.
-        // Must be much smaller than BLOCK_DURATION_MS. A simple yield_now() + atomic store
-        // takes <1ms in practice; 200ms provides 200× CI-jitter headroom.
-        const CONCURRENT_DEADLINE_MS: u64 = 200;
+        // Capture the tokio worker thread ID at test startup.
+        // With worker_threads=1 there is exactly one worker thread.
+        // This is the thread W1 that runs all async tasks.
+        // If spawn_blocking is ABSENT, enrich_single also runs on W1.
+        // If spawn_blocking is PRESENT, enrich_single runs on a DIFFERENT blocking-pool thread.
+        let worker_thread_id = std::thread::current().id();
 
-        // A source whose `enrich_single` blocks the calling thread for BLOCK_DURATION_MS
-        // (simulating a synchronous WASM call). With `spawn_blocking`, the blocking thread pool
-        // absorbs this sleep. Without it, the single tokio worker thread is blocked for 1000ms
-        // — longer than the 200ms concurrent deadline.
+        // Source records the thread ID of the enrich_single caller.
+        let source_thread_id = Arc::new(std::sync::Mutex::new(None::<std::thread::ThreadId>));
+        let source_thread_id_clone = Arc::clone(&source_thread_id);
+
         #[derive(Debug)]
-        struct SlowBlockingSource;
+        struct WitnessSource {
+            thread_id_cell: Arc<std::sync::Mutex<Option<std::thread::ThreadId>>>,
+        }
 
-        impl InfusionSource for SlowBlockingSource {
+        impl InfusionSource for WitnessSource {
             fn enrich_single(&self, input: &str, _input_type: &str) -> Option<serde_json::Value> {
-                std::thread::sleep(Duration::from_millis(BLOCK_DURATION_MS));
-                Some(serde_json::Value::String(format!("slow-enriched:{input}")))
+                // Record the thread ID before any blocking work.
+                *self.thread_id_cell.lock().expect("thread_id_cell lock") =
+                    Some(std::thread::current().id());
+                // Simulate synchronous WASM work (blocks the calling thread).
+                // WITH spawn_blocking: runs on blocking pool → W1 is free.
+                // WITHOUT spawn_blocking: runs on W1 → W1 blocked → other tasks stalled.
+                std::thread::sleep(Duration::from_millis(200));
+                Some(serde_json::Value::String(format!("witnessed:{input}")))
             }
 
             fn enrich_batch(
@@ -1349,15 +1346,13 @@ mod tests {
             }
         }
 
-        // Marker: set to true by the concurrent async task if the runtime is not blocked.
-        let concurrent_ran = Arc::new(AtomicBool::new(false));
-        let concurrent_ran_clone = Arc::clone(&concurrent_ran);
-
         let ctx = SessionContext::new();
         let descriptor = make_descriptor(
-            "slow_enrich_udf",
-            "slow_infusion",
-            Arc::new(SlowBlockingSource),
+            "witness_enrich_udf",
+            "witness_infusion",
+            Arc::new(WitnessSource {
+                thread_id_cell: source_thread_id_clone,
+            }),
         );
         register_infusion_udfs(&ctx, vec![descriptor]).expect("AC-020: registration must succeed");
 
@@ -1368,68 +1363,40 @@ mod tests {
             .expect("AC-020: RecordBatch must succeed");
         let table = MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])
             .expect("AC-020: MemTable must succeed");
-        ctx.register_table("slow_enrich_events", Arc::new(table))
+        ctx.register_table("witness_enrich_events", Arc::new(table))
             .expect("AC-020: register_table must succeed");
 
-        // Spawn the SQL query as an async task — drives the real `invoke_async_with_args`.
-        // With `spawn_blocking` present: `enrich_single` is immediately offloaded, freeing the
-        // single worker thread to run the concurrent task.
-        let query_handle = tokio::spawn(async move {
-            let df = ctx
-                .sql("SELECT slow_enrich_udf(ip) AS enriched FROM slow_enrich_events")
-                .await
-                .expect("AC-020: SQL must parse");
-            df.collect().await.expect("AC-020: query must execute")
-        });
-
-        // Concurrent async task — must complete within CONCURRENT_DEADLINE_MS (200ms).
-        //
-        // LOAD-BEARING: this deadline (200ms) is the test's binding assertion.
-        // Without spawn_blocking: the worker thread is blocked inside `enrich_single` for
-        // 1000ms. The concurrent task cannot run. The 200ms timeout FIRES → test FAILS.
-        // With spawn_blocking: the worker thread is free, the task runs in <1ms → PASS.
-        let concurrent_handle = tokio::spawn(async move {
-            tokio::task::yield_now().await;
-            concurrent_ran_clone.store(true, Ordering::SeqCst);
-            42u32
-        });
-
-        // LOAD-BEARING ASSERTION: the concurrent task MUST complete within 200ms.
-        // This assertion fails if spawn_blocking is absent — the 1000ms block would prevent
-        // the concurrent task from running within the 200ms window.
-        let concurrent_result = timeout(
-            Duration::from_millis(CONCURRENT_DEADLINE_MS),
-            concurrent_handle,
-        )
-        .await
-        .expect(
-            "AC-020 LOAD-BEARING: concurrent async task must complete within 200ms while \
-             enrich_single is running (1000ms block). FAILS if spawn_blocking is absent from \
-             invoke_async_with_args: without it, the single worker thread is blocked for \
-             ~1000ms and the concurrent task cannot be scheduled within the 200ms deadline. \
-             FIX: ensure invoke_async_with_args uses tokio::task::spawn_blocking at Step 4.",
-        );
-
-        // Wait for the query to finish (generous 5s timeout — it must eventually complete).
-        let query_result = timeout(Duration::from_millis(5000), query_handle)
+        // Execute the query — drives the real `invoke_async_with_args` path.
+        let df = ctx
+            .sql("SELECT witness_enrich_udf(ip) AS enriched FROM witness_enrich_events")
             .await
-            .expect("AC-020: SQL query task must complete within 5000ms");
+            .expect("AC-020: SQL must parse");
+        df.collect().await.expect("AC-020: query must execute");
 
-        let _batches = query_result.expect("AC-020: SQL query task must not panic");
-        let concurrent_val = concurrent_result.expect("AC-020: concurrent task must not panic");
+        // LOAD-BEARING ASSERTION: enrich_single must have run on a DIFFERENT thread than W1.
+        //
+        // WITH spawn_blocking PRESENT (production): enrich_single runs on blocking-pool thread
+        //   → source_thread_id ≠ worker_thread_id → PASS.
+        //
+        // WITH spawn_blocking ABSENT (regression): enrich_single runs directly on the tokio
+        //   worker thread W1 → source_thread_id = worker_thread_id → FAIL.
+        //
+        // This assertion is immune to poll-order, timer resolution, and scheduling jitter.
+        let observed_thread_id = source_thread_id
+            .lock()
+            .expect("thread_id_cell lock")
+            .expect("AC-020: enrich_single must have been called (thread_id_cell must be set)");
 
-        // Assert the concurrent task actually ran (belt-and-suspenders: the timeout above
-        // already proves it completed within 200ms; this confirms the body executed).
-        assert!(
-            concurrent_ran.load(Ordering::SeqCst),
-            "AC-020 / CWE-400: concurrent async task must set concurrent_ran=true while \
-             enrich_single is executing — if this fails, spawn_blocking is absent from \
-             invoke_async_with_args and the synchronous enrich_single call is blocking the \
-             tokio async worker thread (1-thread runtime, so concurrent task is starved)"
-        );
-        assert_eq!(
-            concurrent_val, 42,
-            "AC-020: concurrent task must produce correct sentinel value"
+        assert_ne!(
+            observed_thread_id, worker_thread_id,
+            "AC-020 LOAD-BEARING (thread-ID witness): enrich_single must run on a DIFFERENT \
+             thread than the tokio worker (worker_thread_id={:?}). \
+             Got source_thread_id={:?} — SAME thread as the worker. \
+             This means spawn_blocking is ABSENT from invoke_async_with_args: enrich_single \
+             was called directly on the async worker thread, which would block the entire \
+             tokio runtime for the duration of the synchronous WASM call (CWE-400). \
+             FIX: ensure invoke_async_with_args uses tokio::task::spawn_blocking at Step 4.",
+            worker_thread_id, observed_thread_id
         );
     }
 

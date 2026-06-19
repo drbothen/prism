@@ -298,9 +298,12 @@ impl InfusionLoader {
                 .base_url
                 .as_deref()
                 .filter(|s| !s.is_empty())
-                .ok_or_else(|| InfusionError::MissingRequiredField {
-                    field: "source.http.base_url must be non-empty".to_string(),
+                .ok_or_else(|| InfusionError::InvalidFieldSpec {
+                    field: "base_url".to_string(),
                     spec_path: source_path.to_string(),
+                    message: "source.http.base_url must be non-empty \
+                              (E-INFUSE-013 sub-condition 3 / AC-013 / ADR-040 D8.3)"
+                        .to_string(),
                 })?
                 .to_string();
 
@@ -351,9 +354,12 @@ impl InfusionLoader {
                 .response_path
                 .as_deref()
                 .filter(|s| !s.is_empty())
-                .ok_or_else(|| InfusionError::MissingRequiredField {
-                    field: "source.http.response_path must be non-empty".to_string(),
+                .ok_or_else(|| InfusionError::InvalidFieldSpec {
+                    field: "response_path".to_string(),
                     spec_path: source_path.to_string(),
+                    message: "source.http.response_path must be non-empty \
+                              (E-INFUSE-013 sub-condition 5 / AC-013 / ADR-040 D8.3)"
+                        .to_string(),
                 })?
                 .to_string();
 
@@ -797,10 +803,13 @@ impl InfusionLoader {
     /// Validate that a `plugin_ref` path resolves within the designated plugin directory.
     ///
     /// Steps (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22):
+    /// 0. Structural pre-check: reject `plugin_ref` containing `..` components immediately —
+    ///    this fires before any I/O and is the primary E-INFUSE-013 sub-condition 6 gate.
+    ///    Absolute paths (starting with `/` on Unix or `\\` on Windows) are also rejected.
     /// 1. Resolve the `plugin_ref` relative to `plugin_dir`.
     /// 2. Call `std::fs::canonicalize(resolved_path)` — follows symlinks, resolves `..`.
     /// 3. Assert `canonicalized_path.starts_with(&plugin_dir_canonical)`.
-    ///    If not: return `Err(InfusionError::MissingRequiredField { field: ..., ... })`.
+    ///    If not: return `Err(InfusionError::InvalidFieldSpec { ... })`.
     ///    Do NOT include the attempted path in the error message surfaced to callers.
     /// 4. Relative paths within plugin_dir (e.g. `subdir/plugin.prx`) are accepted.
     ///
@@ -810,6 +819,49 @@ impl InfusionLoader {
         plugin_dir: &std::path::Path,
         spec_path: &str,
     ) -> Result<std::path::PathBuf, InfusionError> {
+        // Step 0 (STRUCTURAL PRE-CHECK): detect `..` path components and absolute paths
+        // in the plugin_ref string BEFORE attempting any filesystem operation.
+        //
+        // E-INFUSE-013 sub-condition 6 — "plugin_ref contains path-traversal characters
+        // (`..`, `/`, `\`)" — fires here when the string-level check catches the traversal.
+        // This ensures the test fires deterministically (without requiring the traversal
+        // target to exist on the filesystem), and also provides defense-in-depth against
+        // symlink-based traversals which only the canonicalize check (step 3-4) can catch.
+        //
+        // We scan the Path components for any `..` (CurDir is never a traversal concern).
+        // Absolute paths (Component::RootDir or Component::Prefix) are also rejected
+        // because plugin_ref must be relative to plugin_dir by contract.
+        use std::path::{Component, Path};
+        for component in Path::new(plugin_ref).components() {
+            match component {
+                Component::ParentDir => {
+                    return Err(InfusionError::InvalidFieldSpec {
+                        field: "plugin_ref".to_string(),
+                        spec_path: spec_path.to_string(),
+                        message: "plugin_ref contains '..' path component — \
+                                  path traversal characters not allowed in plugin_ref \
+                                  (E-INFUSE-013 sub-condition 6 / \
+                                  DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                            .to_string(),
+                    });
+                }
+                Component::RootDir | Component::Prefix(_) => {
+                    return Err(InfusionError::InvalidFieldSpec {
+                        field: "plugin_ref".to_string(),
+                        spec_path: spec_path.to_string(),
+                        message: "plugin_ref must be a relative path — \
+                                  absolute paths not allowed in plugin_ref \
+                                  (E-INFUSE-013 sub-condition 6 / \
+                                  DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                            .to_string(),
+                    });
+                }
+                Component::CurDir | Component::Normal(_) => {
+                    // Acceptable — relative path component within plugin_dir.
+                }
+            }
+        }
+
         // Step 1: Canonicalize the plugin_dir itself first.
         // This is needed so starts_with comparisons work correctly even when plugin_dir
         // is a relative or symlinked path.
@@ -840,12 +892,15 @@ impl InfusionLoader {
         // If it escapes the directory (via `../` or symlink), this fails.
         if !candidate_canonical.starts_with(&plugin_dir_canonical) {
             // AC-011: do NOT include the traversal target path in the error message.
-            return Err(InfusionError::MissingRequiredField {
-                field: "plugin_ref resolved outside designated plugin_dir — \
-                        path traversal rejected \
-                        (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
-                    .to_string(),
+            // E-INFUSE-013 sub-condition 6: plugin_ref path-traversal (CWE-22).
+            return Err(InfusionError::InvalidFieldSpec {
+                field: "plugin_ref".to_string(),
                 spec_path: spec_path.to_string(),
+                message: "plugin_ref resolved outside designated plugin_dir — \
+                          path traversal rejected \
+                          (E-INFUSE-013 sub-condition 6 / DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 \
+                          / AC-011 / SEC-003 CWE-22)"
+                    .to_string(),
             });
         }
 
