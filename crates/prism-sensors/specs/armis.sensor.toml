@@ -150,9 +150,9 @@ ocsf_class = "device"
   column_type = "string"
   options = ["INDEX"]
 
-  # S-DEMO-ENRICHMENT-PIVOT-002: device_cves_first column declaration (U17/Ruling 1b).
-  # The generator projection (extracting the first element of device_cves array as a scalar)
-  # is scoped to S-DEMO-ENRICHMENT-PIVOT-003. This column declaration is in STORY-002.
+  # S-DEMO-ENRICHMENT-PIVOT-003: device_cves_first column declaration (U17/Ruling 1b).
+  # The generator projection (stamping the first element of catalog.device_cves as a scalar)
+  # was wired in S-DEMO-ENRICHMENT-PIVOT-003 (F-PIVOT003-R2-002), not STORY-002.
   # column_type = "string": CVE IDs are strings (e.g. "CVE-2024-12345").
   # Used as the input field for `| enrich nvd(device_cves_first)` enrichment pipe stage.
   # NOTE: `device_cves[0]` bracket-index is NOT supported by FieldPath — scalar field only.

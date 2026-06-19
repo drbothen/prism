@@ -16,7 +16,7 @@
 //!   ThreatIntel pivot (stage >= 3, Exfil):
 //!     FROM cyberint_alerts
 //!     | where severity = "high"
-//!     | enrich threat_intel(ioc.value)
+//!     | enrich threat_intel(iocs[].value)
 //!     | where threat_is_known_malicious = true
 //!     | sort threat_score desc
 //!     | head 10
@@ -68,12 +68,16 @@ fn deadbeef_org() -> OrgId {
 /// ```prismql
 /// FROM cyberint_alerts
 /// | where severity = "high"
-/// | enrich threat_intel(ioc.value)
+/// | enrich threat_intel(iocs[].value)
 /// | where threat_is_known_malicious = true
 /// | sort threat_score desc
 /// | head 10
 /// ```
 /// would operate on.
+///
+/// NOTE: BC-2.06.019 v1.9 correction — canonical pivot targets `iocs[].value` (array form),
+/// NOT the singleton `ioc.value` field. The singular `Alert.ioc` field is retained for
+/// live-tenant backward-compatibility per v1.9 but is NOT populated by the scenario generator.
 ///
 /// Specifically asserts:
 /// 1. `CyberintClone::new_with_scenario` generates at least 1 alert record with `iocs[].value`
@@ -230,26 +234,31 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
 /// ```
 /// would operate on.
 ///
+/// F-PIVOT003-R2-003: exercises the PRODUCTION PATH (`ArmisClone::new_with_scenario`)
+/// rather than calling the `generate_with_scenario_cves` helper directly.
+/// This proves the demo server's Armis clone actually carries `device_cves_first`
+/// in its `state.generated_records` (not merely that the helper can stamp it).
+///
 /// Specifically asserts:
-/// 1. `generate_with_scenario_cves` stamps `device_cves_first = catalog.device_cves[0]`
-///    onto CompromisedEndpoint device records (AC-008 / U17/Ruling 1b).
+/// 1. `ArmisClone::new_with_scenario` stamps `device_cves_first = catalog.device_cves[0]`
+///    onto CompromisedEndpoint asset records in `state.generated_records` (AC-008 / U17/Ruling 1b).
 /// 2. `NvdState` pre-populated with catalog CVEs has `base_score=8.1 >= 7.0` (HIGH) for
 ///    each scenario CVE (BC-2.06.020 PC-3 + PC-4).
 /// 3. For every device record with `device_cves_first`, `NvdState::lookup_and_count(cve_id)`
 ///    returns `Some(record)` with `base_score >= 7.0`.
 ///
-/// BC-2.06.019 v1.8 PC-2 StageMask: `device_cves` visible at stage >= 4 (Containment).
+/// BC-2.06.019 v1.9 PC-2 StageMask: `device_cves` visible at stage >= 4 (Containment).
 /// BC-2.06.020 INV-NVD-CVE-CORRELATION-001: scenario CVEs appear in NvdClone with HIGH score.
 /// U17/Ruling 1b: `device_cves_first` = `catalog.device_cves[0]` (scalar projection).
 ///
 /// LOAD-BEARING: this test FAILS if:
-/// (a) AC-008 is incomplete: device records do not carry `device_cves_first`, OR
+/// (a) AC-008 is incomplete: ArmisClone::new_with_scenario does NOT call
+///     generate_with_scenario_cves (production path DEAD, hollow feature), OR
 /// (b) catalog.device_cves is empty (vacuous pass guard fires), OR
 /// (c) NvdState does not have HIGH CVSS for catalog CVEs.
 #[test]
 fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_stage() {
-    use prism_dtu_armis::generator::generate_with_scenario_cves;
-    use prism_dtu_common::GenOpts;
+    use prism_dtu_armis::ArmisClone;
     use prism_dtu_nvd::{
         types::{CveMetrics, CveRecord, CvssData, CvssMetricV31, LangValue},
         NvdState,
@@ -257,7 +266,6 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
 
     let org = deadbeef_org();
     let seed: u64 = 100;
-    let org_slug = "deadbeef";
 
     // Step 1 — Build catalog.
     let catalog = build_scenario_entity_catalog(seed, &org);
@@ -266,33 +274,37 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
         !catalog.device_cves.is_empty(),
         "ScenarioEntityCatalog.device_cves must be non-empty for NVD pivot test; \
          got empty — secondary RNG derivation issue. \
-         BC-2.06.019 v1.8 PC-2 / U17/Ruling 1b / INV-NVD-CVE-CORRELATION-001"
+         BC-2.06.019 v1.9 PC-2 / U17/Ruling 1b / INV-NVD-CVE-CORRELATION-001"
     );
 
-    // Step 2 — Generate Armis CompromisedEndpoint records with device_cves_first stamped.
-    // AC-008: generate_with_scenario_cves stamps catalog.device_cves[0] onto device records.
+    // Step 2 — Construct ArmisClone via the PRODUCTION CONSTRUCTOR (F-PIVOT003-R2-003).
+    // This is the same constructor harness.rs uses — proves the production path carries
+    // device_cves_first, not merely that the helper generate_with_scenario_cves can stamp it.
     let scenario_start: i64 = chrono::Utc::now().timestamp() - 1_000;
+    let timeline = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        scenario_start,
+        &[],
+    ));
     let time_anchor = chrono::DateTime::from_timestamp(scenario_start, 0)
         .expect("valid timestamp")
         .with_timezone(&chrono::Utc);
-    let opts = GenOpts {
+
+    let armis_clone = ArmisClone::new_with_scenario(
         seed,
-        time_anchor,
-        ..GenOpts::default()
-    };
-
-    let fixture_set = generate_with_scenario_cves(
-        org.clone(),
-        org_slug,
         Archetype::CompromisedEndpoint,
-        &opts,
-        &catalog.device_cves,
-    );
+        org.clone(),
+        Arc::clone(&timeline),
+        time_anchor,
+        &catalog,
+    )
+    .expect("ArmisClone::new_with_scenario must succeed for NVD pivot test");
 
-    // Step 3 — Collect device records that have the device_cves_first field.
-    // AC-008: only CompromisedEndpoint device/asset records get the stamp.
-    let device_cve_records: Vec<&serde_json::Value> = fixture_set
-        .records
+    // Step 3 — Collect asset records from state.generated_records that have device_cves_first.
+    // AC-008: only CompromisedEndpoint asset records get the stamp (presence of asset_id).
+    let device_cve_records: Vec<&serde_json::Value> = armis_clone
+        .state
+        .generated_records
         .iter()
         .filter(|rec| rec.get("device_cves_first").is_some())
         .collect();
@@ -300,11 +312,12 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
     // Vacuous pass guard: at least one device must have device_cves_first.
     assert!(
         !device_cve_records.is_empty(),
-        "No device records with 'device_cves_first' field found in CompromisedEndpoint fixture \
-         (seed={seed}, org_slug={org_slug}). \
-         AC-008 / U17/Ruling 1b must stamp device_cves_first onto CompromisedEndpoint device records. \
+        "No device records with 'device_cves_first' field found in ArmisClone::new_with_scenario \
+         state.generated_records (seed={seed}). \
+         F-PIVOT003-R2-003: ArmisClone::new_with_scenario MUST call generate_with_scenario_cves \
+         (production path). AC-008 / U17/Ruling 1b requires device_cves_first on asset records. \
          catalog.device_cves={:?}. \
-         BC-2.06.019 v1.8 PC-2 + PC-4 [RED GATE: device_cves_first not stamped]",
+         BC-2.06.019 v1.9 PC-2 + PC-4 [RED GATE: production path does not stamp device_cves_first]",
         catalog.device_cves,
     );
 
