@@ -469,8 +469,11 @@ impl QueryEngine {
     /// after storage is initialized. Tests may inject an in-memory `CacheBackend` for Tier 3
     /// testing without a real RocksDB instance.
     ///
-    /// `with_infusion_registry` must be called before this method (silently no-op if the
-    /// infusion registry is not set).
+    /// Unconditionally stores `lru_cache` and `tier3_cache` on the engine regardless of whether
+    /// `with_infusion_registry` has been called. Caches stored without an infusion registry are
+    /// inert — they are allocated but never exercised, because `execute_inner` gates all infusion
+    /// UDF registration on `infusion_registry` being `Some`. The production boot path always calls
+    /// `with_infusion_registry` immediately before this method (see `boot.rs`).
     pub fn with_infusion_caches(
         mut self,
         lru_cache: Arc<prism_spec_engine::InfusionLruCache>,
