@@ -250,14 +250,14 @@ pub struct SensorSpecEntry {
 ///
 /// # AC-5 scope exclusion
 ///
-/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
-/// protocol wire type (request DTO / result / event / status), and its stability
-/// is governed by the MCP protocol specification rather than by the Rust
-/// forward-compatibility property. External consumers (Claude Code / MCP clients)
-/// exhaustively match against the protocol's enumerated variants; adding a new
-/// variant requires an MCP protocol version bump, not a Rust source-level
-/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
-/// adjudication.
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an internal
+/// Arc-swapped config type (AD-018), not an MCP protocol wire type. It is constructed
+/// via struct-literal at numerous sites across `prism-ocsf`, `prism-mcp`, and
+/// `prism-bin` tests/fixtures (and in `config_manager.rs`/`boot.rs` production paths).
+/// Adding `#[non_exhaustive]` would break all those struct-literal construction sites
+/// in downstream crates. `ConfigSnapshot` never appears in an MCP tool request, result,
+/// event, or status payload — it is an internal runtime data structure whose struct
+/// construction is intentionally kept accessible across crate boundaries.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigSnapshot {
     /// All successfully loaded sensor specs, keyed by sensor_id.

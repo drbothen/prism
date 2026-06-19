@@ -255,10 +255,12 @@ fn diff_snapshots(
 }
 
 /// Validate a candidate ConfigSnapshot before applying it.
-/// Returns Ok(()) if validation passes, or Err with all validation errors.
+/// Returns `Ok(())` if the candidate has no failed_specs (all parsed files were valid).
+/// Returns `Err(errors)` with the list of `ValidationError`s if any file failed to parse.
 ///
-/// For S-1.12, we accept any non-empty snapshot as valid. Empty snapshots
-/// (no specs, no failures) are considered invalid to prevent accidental clear.
+/// A snapshot with no sensor_specs and no failed_specs (completely empty) is considered
+/// valid by this function. The caller (`reload_config`) applies additional guards (e.g.,
+/// hash-based no-op detection, EC-001 full-failure retention) before acting on the result.
 pub fn validate_snapshot(candidate: &ConfigSnapshot) -> Result<(), Vec<ValidationError>> {
     // Collect any pre-existing validation errors from failed_specs
     let errors: Vec<ValidationError> = candidate.failed_specs.values().cloned().collect();

@@ -807,7 +807,8 @@ pub async fn render_schema_resource(
 ///
 /// Returns cached health data from the last `check_sensor_health` invocation.
 /// If no health check has been run for any client: returns the "unknown" sentinel.
-/// Stale entries (> 5 min) are returned with a `stale: true` flag (EC-003).
+/// If any cache entry is older than 5 minutes, the response includes `"stale": true`
+/// at the response root (EC-003). Staleness is a response-level flag, not per-entry.
 pub fn render_sensors_health_resource(
     context: &PrismContext,
 ) -> Result<ReadResourceResult, ErrorData> {
