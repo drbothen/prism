@@ -3,6 +3,10 @@
 //! Owned by `PrismServer`. Provides:
 //! - Per-client sensor health cache (BC-2.08.006): stores the last `check_sensor_health`
 //!   result keyed by `(client_id, sensor_id)` with a TTL of 5 minutes.
+//! - Last-successful-query timestamp map (BC-2.08.004 — S-5.04): in-memory cache of
+//!   the most recent successful query time per (client_id, sensor_id).
+//! - Rate-limit state map (BC-2.08.003 — S-5.04): tracks HTTP 429 per
+//!   (client_id, sensor_id) with auto-expiry based on Retry-After.
 //!
 //! Health cache is written by `check_sensor_health` and read by the
 //! `prism://sensors/health` resource handler.
@@ -15,6 +19,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 
+use crate::health::rate_limit::RateLimitState;
 use crate::resources::SensorHealthResult;
 
 /// TTL for health cache entries: 5 minutes (BC-2.08.006 EC-003).
@@ -148,10 +153,19 @@ impl HealthCache {
     }
 }
 
+/// Composite key for timestamp / rate-limit maps: (client_id, sensor_id).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SensorKey {
+    pub client_id: String,
+    pub sensor_id: String,
+}
+
 /// PrismContext — server-level context shared across tool handlers.
 ///
 /// Holds mutable per-server state that must persist across tool invocations:
 /// - Health cache for `prism://sensors/health` resource (BC-2.08.006)
+/// - Last-successful-query timestamp map (BC-2.08.004 — S-5.04)
+/// - Rate-limit state map (BC-2.08.003 — S-5.04)
 ///
 /// Wired as `Arc<PrismContext>` on `PrismServer`; individual fields use interior
 /// mutability (Arc<Mutex<>>) for safe concurrent access.
@@ -160,13 +174,31 @@ pub struct PrismContext {
     /// Per-client sensor health cache — written by `check_sensor_health`,
     /// read by `prism://sensors/health` resource handler (BC-2.08.006).
     pub health_cache: HealthCache,
+
+    /// Last-successful-query timestamps per (client_id, sensor_id) (BC-2.08.004 — S-5.04).
+    ///
+    /// Written by `SensorHealthChecker::record_successful_query` on every successful
+    /// sensor fetch or health probe.  Read by `check_sensor_health` to populate
+    /// `SensorHealthResult.last_successful_query_at`.
+    ///
+    /// In-memory cache only; RocksDB persistence is handled by
+    /// `health::timestamp::write_timestamp` and `health::timestamp::read_timestamp`.
+    pub last_query_timestamps: Arc<Mutex<HashMap<SensorKey, DateTime<Utc>>>>,
+
+    /// Rate-limit state per (client_id, sensor_id) (BC-2.08.003 — S-5.04).
+    ///
+    /// Written by `SensorHealthChecker` when a 429 response is observed.
+    /// Auto-expires when `RateLimitState::is_cleared()` returns `true`.
+    pub rate_limit_states: Arc<Mutex<HashMap<SensorKey, RateLimitState>>>,
 }
 
 impl PrismContext {
-    /// Create a new PrismContext with an empty health cache.
+    /// Create a new PrismContext with empty health cache, timestamp map, and rate-limit map.
     pub fn new() -> Self {
         Self {
             health_cache: HealthCache::new(),
+            last_query_timestamps: Arc::new(Mutex::new(HashMap::new())),
+            rate_limit_states: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }

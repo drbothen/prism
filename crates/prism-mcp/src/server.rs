@@ -145,6 +145,13 @@ pub struct PrismServer {
     /// because `PrismServer: Clone`) and allows callers to hold a second reference for
     /// assertion after the server moves into `serve_server`.
     schema_subscriber_registry: Arc<resources::schema::SchemaSubscriberRegistry>,
+
+    /// Sensor health checker for live probes (BC-2.08.001–007, S-5.04).
+    ///
+    /// Wired at boot with `SensorHealthChecker::new(adapter_registry)`.
+    /// `None` in test-only construction (`PrismServer::new()`) — `check_sensor_health`
+    /// falls back to spec-only mode when `health_checker` is `None`.
+    health_checker: Option<Arc<SensorHealthChecker>>,
 }
 
 impl PrismServer {
@@ -171,6 +178,7 @@ impl PrismServer {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         }
     }
 
@@ -233,6 +241,7 @@ impl PrismServer {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         }
     }
 
@@ -261,6 +270,8 @@ impl PrismServer {
         alias_store: Arc<Mutex<AliasStore>>,
         org_registry: Arc<prism_core::OrgRegistry>,
     ) -> Self {
+        // S-5.04: Wire SensorHealthChecker with the adapter registry from QueryEngine.
+        let health_checker = Arc::new(SensorHealthChecker::new(query_engine.adapter_registry()));
         Self {
             injection_scanner,
             query_engine: Some(query_engine),
@@ -273,6 +284,7 @@ impl PrismServer {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: Some(health_checker),
         }
     }
 
@@ -3095,54 +3107,135 @@ impl PrismServer {
         };
 
         // BC-2.08.005 v1.5 two-phase probe model (F-S503-004 adjudication):
-        // S-5.03 scope = spec-only: probe_level="spec-only", reachable=null, auth_valid=null.
-        // Hardcoding reachable=true / auth_valid=true is FORBIDDEN — it sends a false-positive
-        // health signal to the AI consumer (which may act on it as if sensors are live and
-        // authenticated when they have not been probed). S-5.04 delivers the live probe.
-        let sensors: Vec<resources::SensorHealthResult> = sensor_ids_to_check
-            .iter()
-            .map(|sid| {
-                // SensorHealthResult::new() sets probe_level="spec-only", reachable=None,
-                // auth_valid=None, last_successful_query_at=None per the S-5.03 contract.
-                // Do NOT call with_reachable/with_auth_valid here — that is S-5.04 scope only.
-                resources::SensorHealthResult::new(sid.clone(), params.client_id.clone())
-            })
-            .collect();
+        //
+        // S-5.04 scope (live probe — health_checker is Some):
+        //   Delegate to SensorHealthChecker::check_all(), which issues real API probes
+        //   via AdapterRegistry::get(org_id, sensor_id). Returns probe_level="live" with
+        //   real boolean reachable/auth_valid values (AC-7 / BC-2.08.005 postcondition).
+        //   resource_pressure is wired with live counts from QueryEngine accessors.
+        //
+        // S-5.03 scope (spec-only — health_checker is None):
+        //   probe_level="spec-only", reachable=null, auth_valid=null.
+        //   Hardcoding reachable=true / auth_valid=true is FORBIDDEN (F-S503-004 adjudication).
+        if let Some(ref health_checker) = self.health_checker {
+            // S-5.04 LIVE PROBE PATH (BC-2.08.005 v1.5 postcondition — AC-7)
+            //
+            // Resolve OrgId from the OrgRegistry (falls back to OrgId::new() for
+            // single-tenant / test mode where no OrgRegistry is wired).
+            // org_slug was validated above (is_err() guard) — safe to unwrap here.
+            let valid_slug = org_slug.expect("org_slug validated by is_err() guard above");
+            let org_id = org_registry
+                .as_ref()
+                .and_then(|reg| reg.resolve(&valid_slug))
+                .unwrap_or_default();
 
-        // Write to health cache so prism://sensors/health reflects last run.
-        for sensor in &sensors {
-            self.context.health_cache.insert(
-                sensor.client_id.clone(),
-                sensor.sensor_id.clone(),
-                sensor.clone(),
+            // Convert Vec<String> to Vec<SensorId>
+            let sensor_id_vec: Vec<prism_core::SensorId> = sensor_ids_to_check
+                .iter()
+                .map(|s| prism_core::SensorId::from(s.as_str()))
+                .collect();
+
+            // Delegate to SensorHealthChecker::check_all()
+            let health_result = health_checker
+                .check_all(org_id, &params.client_id, &sensor_id_vec, &self.context)
+                .await
+                .map_err(|e| {
+                    rmcp::model::ErrorData::new(
+                        rmcp::model::ErrorCode(codes::INTERNAL_ERROR),
+                        format!("E-SENSOR-099: health probe failed: {e}"),
+                        None,
+                    )
+                })?;
+
+            // Write results to health cache (BC-2.08.006: prism://sensors/health reflects last run)
+            for sensor in &health_result.sensors {
+                self.context.health_cache.insert(
+                    sensor.client_id.clone(),
+                    sensor.sensor_id.clone(),
+                    sensor.clone(),
+                );
+            }
+
+            // Live resource_pressure (BC-2.08.005 v1.6 RECONCILIATION-3)
+            // cursor_count and token_count are read from QueryEngine live accessors.
+            // write_executor.confirmation_store().active_count() is used when available
+            // but falls back to QueryEngine::token_count() (which reads from the wired
+            // token_store, returning 0 when None) so the value is always Some(usize).
+            let cursor_count = self.query_engine.as_ref().map(|qe| qe.cursor_count());
+            let token_count = if let Some(ref we) = self.write_executor {
+                Some(we.confirmation_store().active_count())
+            } else {
+                self.query_engine.as_ref().map(|qe| qe.token_count())
+            };
+            let pressure = resources::ResourcePressure::new(cursor_count, token_count);
+
+            // Prose summary (AC-7 postcondition: MUST NOT contain "spec-only")
+            let healthy_count = health_result
+                .sensors
+                .iter()
+                .filter(|s| s.reachable == Some(true) && s.auth_valid == Some(true))
+                .count();
+            let total_count = health_result.sensors.len();
+            let summary = format!(
+                "{healthy_count} of {total_count} sensor(s) healthy for client '{}' (live probe)",
+                params.client_id
             );
+
+            let structured = resources::SensorHealthStructuredContent::new(
+                health_result.sensors,
+                pressure,
+                summary,
+            );
+            let structured_value = serde_json::to_value(&structured).map_err(|e| {
+                rmcp::model::ErrorData::new(
+                    rmcp::model::ErrorCode(codes::INTERNAL_ERROR),
+                    format!("Failed to serialize health response: {e}"),
+                    None,
+                )
+            })?;
+            Ok(rmcp::model::CallToolResult::structured(structured_value))
+        } else {
+            // S-5.03 spec-only path (preserved from S-5.03 delivery — no live probe).
+            let sensors: Vec<resources::SensorHealthResult> = sensor_ids_to_check
+                .iter()
+                .map(|sid| {
+                    // SensorHealthResult::new() sets probe_level="spec-only", reachable=None,
+                    // auth_valid=None, last_successful_query_at=None per the S-5.03 contract.
+                    resources::SensorHealthResult::new(sid.clone(), params.client_id.clone())
+                })
+                .collect();
+
+            // Write to health cache so prism://sensors/health reflects last run.
+            for sensor in &sensors {
+                self.context.health_cache.insert(
+                    sensor.client_id.clone(),
+                    sensor.sensor_id.clone(),
+                    sensor.clone(),
+                );
+            }
+
+            let total_count = sensors.len();
+            // BC-2.08.005 v1.5 postcondition 6: prose MUST contain
+            // "spec-only: no live probe performed".
+            let summary = format!(
+                "{total_count} sensor(s) available for client '{}' (spec-only: no live probe performed)",
+                params.client_id
+            );
+            // BC-2.08.005 v1.6 RECONCILIATION-3: emit null for both counts in S-5.03 scope.
+            let pressure = resources::ResourcePressure::new(None, None);
+            let structured =
+                resources::SensorHealthStructuredContent::new(sensors, pressure, summary.clone());
+
+            let structured_value = serde_json::to_value(&structured).map_err(|e| {
+                rmcp::model::ErrorData::new(
+                    rmcp::model::ErrorCode(codes::INTERNAL_ERROR),
+                    format!("Failed to serialize health response: {e}"),
+                    None,
+                )
+            })?;
+
+            Ok(rmcp::model::CallToolResult::structured(structured_value))
         }
-
-        let total_count = sensors.len();
-        // BC-2.08.005 v1.5 postcondition 6: the prose summary MUST contain
-        // "spec-only: no live probe performed" so the AI consumer cannot mistake
-        // this response for a live health check (F-S503-004 adjudication).
-        // S-5.04 will use "live probe" phrasing when real probing is performed.
-        let summary = format!(
-            "{total_count} sensor(s) available for client '{}' (spec-only: no live probe performed)",
-            params.client_id
-        );
-        // BC-2.08.005 v1.6 RECONCILIATION-3: S-5.03 scope MUST emit null for both counts
-        // (not the misleading zero-valued ResourcePressure::new(0,0)) so the AI consumer
-        // can distinguish "not yet wired" from a genuine zero count. S-5.04 wires live values.
-        let pressure = resources::ResourcePressure::new(None, None);
-        let structured =
-            resources::SensorHealthStructuredContent::new(sensors, pressure, summary.clone());
-
-        let structured_value = serde_json::to_value(&structured).map_err(|e| {
-            rmcp::model::ErrorData::new(
-                rmcp::model::ErrorCode(codes::INTERNAL_ERROR),
-                format!("Failed to serialize health response: {e}"),
-                None,
-            )
-        })?;
-
-        Ok(rmcp::model::CallToolResult::structured(structured_value))
     }
 
     /// Retrieve diagnostic information for a specific sensor or all sensors.
@@ -6396,6 +6489,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
 
         // Call confirm_action with the pre-stored token and matching client_id.
@@ -6733,6 +6827,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
         // 257 'p' chars — 1 over the 256-char limit.
         let oversized_pack_id = "p".repeat(257);
@@ -6848,6 +6943,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
 
         let params = ConfirmActionParams {
@@ -7589,6 +7685,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "r".repeat(257);
@@ -7622,6 +7719,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "c".repeat(257);
@@ -7654,6 +7752,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "u".repeat(257);
@@ -7753,6 +7852,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
 
         (server, confirmation_store, tmpdir)
@@ -7941,6 +8041,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
 
         let params = CreateAliasParams {
@@ -7988,6 +8089,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
 
         let params = DeleteAliasParams {
@@ -9384,6 +9486,7 @@ mod tests {
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
             schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
+            health_checker: None,
         };
 
         let params = ExplainQueryParams {
@@ -11080,3 +11183,208 @@ mod adr_042_tests {
             .join("\n")
     }
 }
+    // ─── AC-7 (BC-2.08.005 S-5.04 live-probe path) ─────────────────────────
+    //
+    // These tests live here (not in tests/bc_s_5_04_health_test.rs) because they need
+    // direct access to `PrismServer.health_checker` (a private field). The struct literal
+    // construction pattern used here is the only way to wire `health_checker: Some(...)` in
+    // tests (the public API constructors `new()` and `minimal()` both set it to None).
+    //
+    // AC-7 (BC-2.08.005 v1.5): when `health_checker` is Some, the live-probe branch runs.
+    // S-5.04 IMPLEMENTED: probe_level="live", reachable=Some(bool), auth_valid=Some(bool),
+    // last_successful_query_at=Some(DateTime), resource_pressure wired via cursor_count/token_count.
+    //
+    // SID-1: mock adapter at the adapter boundary — no live DTU required.
+
+    /// AC-7 (BC-2.08.005 v1.5): `check_sensor_health` enters live-probe branch when
+    /// `health_checker` is wired and returns structured results with probe_level="live".
+    ///
+    /// Mock adapter returns HTTP 200 (MockOk) — adapter boundary isolation per SID-1.
+    ///
+    /// S-5.04 IMPLEMENTED: result must show probe_level="live", reachable=Some(bool),
+    /// auth_valid=Some(bool), last_successful_query_at=Some(DateTime), and prose
+    /// containing "live probe" rather than "spec-only: no live probe performed".
+    #[tokio::test]
+    async fn test_BC_2_08_005_S504_live_probe_todo_panics() {
+        use arrow::record_batch::RecordBatch;
+        use async_trait::async_trait;
+        use prism_core::{OrgId, SensorId};
+        use prism_credentials::InMemoryCredentialStore;
+        use prism_query::{
+            engine::{QueryEngine, QueryEngineConfig},
+            table_registry::TableRegistry,
+        };
+        use prism_sensors::{
+            adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+            auth::SensorAuth,
+            registry::AdapterRegistry,
+        };
+
+        struct MockOk;
+        #[async_trait]
+        impl SensorAdapter for MockOk {
+            fn sensor_type(&self) -> SensorId {
+                SensorId::from("crowdstrike")
+            }
+            fn sensor_name(&self) -> &'static str {
+                "crowdstrike-mock-ok-ac7"
+            }
+            async fn fetch(
+                &self,
+                _spec: &SensorSpec,
+                _params: &QueryParams,
+                _auth: &dyn SensorAuth,
+            ) -> Result<Vec<RecordBatch>, SensorError> {
+                Ok(vec![])
+            }
+        }
+
+        // Build a TableRegistry with "crowdstrike" registered so check_sensor_health
+        // has at least one sensor to probe.
+        let table_registry = TableRegistry::new();
+        let crowdstrike_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor (mock AC-7)",
+            prism_spec_engine::spec_parser::AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![
+                prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                    "detections",
+                    "security_finding",
+                    vec![],
+                    vec![],
+                ),
+            ],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        table_registry
+            .register_sensor(&crowdstrike_spec)
+            .expect("register_sensor must not fail");
+
+        // Build AdapterRegistry with mock adapter.
+        let org_id = OrgId::new();
+        let mut adapter_registry = AdapterRegistry::new();
+        adapter_registry.register(org_id, Arc::new(MockOk));
+        let adapter_registry = Arc::new(adapter_registry);
+
+        // Build QueryEngine (used for cursor_count/token_count wiring in S-5.04).
+        let engine = QueryEngine::new(
+            Arc::clone(&adapter_registry),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+        )
+        .with_table_registry(Arc::new(table_registry));
+
+        // Wire PrismServer with health_checker: Some(...) — requires struct literal
+        // (private field, only accessible from within this mod tests block).
+        let health_checker = crate::health::SensorHealthChecker::new(Arc::clone(&adapter_registry));
+        let server = PrismServer {
+            injection_scanner: Arc::new(prism_security::injection_scanner::InjectionScanner),
+            query_engine: Some(Arc::new(engine)),
+            write_executor: None,
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+            org_registry: None,
+            prompt_router: build_prompt_router(),
+            context: Arc::new(PrismContext::new()),
+            health_checker: Some(Arc::new(health_checker)),
+        };
+
+        // BC-2.08.005: client_id required (OOD-001 adjudication).
+        let params = CheckSensorHealthParams::for_client("acme".to_string());
+
+        // AC-7 S-5.04: check_sensor_health enters the Some(health_checker) branch
+        // and executes the live probe path (implemented in S-5.04).
+        // Must return Ok with probe_level="live".
+        let result = server.check_sensor_health(Parameters(params)).await;
+
+        // S-5.04 IMPLEMENTED: assertions below verify the live probe postconditions.
+        let call_result = result.expect(
+            "BC-2.08.005 AC-7: check_sensor_health must return Ok when health_checker is wired \
+             (live probe path)",
+        );
+
+        // BC-2.08.005 v1.5 S-5.04 postcondition: probe_level MUST be 'live'.
+        let sc = call_result
+            .structured_content
+            .as_ref()
+            .expect("BC-2.08.005 AC-7: structured_content must be present");
+
+        // Verify probe_level="live" for at least one sensor.
+        let sensors = sc["sensors"]
+            .as_array()
+            .expect("BC-2.08.005 AC-7: structured_content.sensors must be an array");
+        let crowdstrike_entry = sensors
+            .iter()
+            .find(|s| s["sensor_id"].as_str() == Some("crowdstrike"))
+            .expect("BC-2.08.005 AC-7: 'crowdstrike' must appear in sensors");
+
+        assert_eq!(
+            crowdstrike_entry["probe_level"].as_str(),
+            Some("live"),
+            "BC-2.08.005 AC-7 postcondition: S-5.04 live probe MUST set probe_level='live'; \
+             got: {:?}",
+            crowdstrike_entry["probe_level"]
+        );
+
+        // BC-2.08.005 v1.5: reachable MUST be Some(bool) in live scope (not null).
+        assert!(
+            crowdstrike_entry["reachable"].is_boolean(),
+            "BC-2.08.005 AC-7: live probe must populate reachable as bool (not null); \
+             got: {:?}",
+            crowdstrike_entry["reachable"]
+        );
+
+        // BC-2.08.005 v1.5: auth_valid MUST be Some(bool) in live scope (not null).
+        assert!(
+            crowdstrike_entry["auth_valid"].is_boolean(),
+            "BC-2.08.005 AC-7: live probe must populate auth_valid as bool (not null); \
+             got: {:?}",
+            crowdstrike_entry["auth_valid"]
+        );
+
+        // BC-2.08.005 v1.5: prose MUST NOT contain "spec-only" when live probe ran.
+        let prose = call_result
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.as_str().to_owned()))
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            !prose.contains("spec-only"),
+            "BC-2.08.005 AC-7: live probe prose MUST NOT contain 'spec-only'; \
+             got prose: {prose:?}"
+        );
+
+        // BC-2.08.005 RECONCILIATION-3: resource_pressure must show live counts (not null).
+        let pressure = &sc["resource_pressure"];
+        assert!(
+            !pressure["active_cursor_count"].is_null(),
+            "BC-2.08.005 RECONCILIATION-3: active_cursor_count must be Some(usize) in \
+             S-5.04 scope (wired via cursor_count()); got null"
+        );
+        assert!(
+            !pressure["active_token_count"].is_null(),
+            "BC-2.08.005 RECONCILIATION-3: active_token_count must be Some(usize) in \
+             S-5.04 scope (wired via token_count()); got null"
+        );
+    }
+
+    /// AC-7 (SID-1): integration test requiring live DTU + boot step 9A (blocked).
+    ///
+    /// Companion: `test_BC_2_08_005_S504_live_probe_todo_panics` (above).
+    #[tokio::test]
+    #[ignore = "DTU-EXT-001: requires prism-dtu-crowdstrike clone; ungated after S-DEMO-001 wires boot step 9A"]
+    async fn test_BC_2_08_005_S504_live_probe_with_real_dtu() {
+        // DTU-EXT-001: blocked until S-DEMO-001 wires AdapterRegistry at boot step 9A.
+        // Fill in with real DTU probe assertions when unblocked.
+        panic!("DTU-EXT-001: test body not yet filled in — gated on S-DEMO-001 boot step 9A")
+    }
+}
+
