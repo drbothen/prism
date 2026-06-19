@@ -191,7 +191,14 @@ async fn test_boot_with_csv_infusion_udf_query_resolves() {
 
     // Write a TOML with an ABSOLUTE file_path so the CSV loader resolves the file
     // regardless of the process cwd. This avoids flakiness from relative-path resolution.
-    let csv_abs_path = csv_path.to_string_lossy().to_string();
+    //
+    // Cross-platform note: on Windows `to_string_lossy()` produces backslash separators
+    // (e.g. `C:\Users\...\file.csv`). TOML basic strings treat `\` as the start of an
+    // escape sequence; `\U`, `\A`, `\T` etc. are not valid TOML escapes and cause a
+    // parse error, so `load_all()` returns 0 specs. Normalise to forward slashes before
+    // embedding in the TOML string — forward slashes are accepted by Rust's std::fs and
+    // the `csv` crate on all platforms including Windows.
+    let csv_abs_path = csv_path.to_string_lossy().replace('\\', "/");
     let csv_infusion_toml = format!(
         r#"
 [infusion]
@@ -425,7 +432,11 @@ async fn test_infusion_tier3_production_read_without_source() {
         .expect("AC-7: CSV write must succeed");
     }
 
-    let csv_abs = csv_path.to_string_lossy().to_string();
+    // Normalise to forward slashes: TOML basic strings treat `\` as an escape-sequence
+    // prefix; Windows backslash paths (e.g. `C:\Users\...`) contain sequences like `\U`
+    // or `\A` that are invalid TOML escapes, causing parse failure and 0 specs returned.
+    // Forward slashes are accepted by Rust's std::fs and the `csv` crate on all platforms.
+    let csv_abs = csv_path.to_string_lossy().replace('\\', "/");
     let toml_content = format!(
         r#"
 [infusion]

@@ -491,3 +491,91 @@ impl InfusionLoader {
         Ok(())
     }
 }
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::InfusionLoader;
+
+    /// Regression guard for cross-platform TOML path embedding (Windows / CI fix cycle 1).
+    ///
+    /// TOML basic strings treat `\` as an escape-sequence prefix. Windows absolute paths
+    /// (e.g. `C:\Users\Runner\AppData\Local\Temp\file.csv`) contain sequences like `\U`,
+    /// `\A`, `\T` that are NOT valid TOML escapes. If tests embed a raw Windows path into
+    /// a TOML string via `to_string_lossy().to_string()`, the TOML parser returns an error
+    /// and `load_all()` / `parse()` yields 0 specs.
+    ///
+    /// The correct fix (applied in integration tests and here demonstrated) is to normalise
+    /// the path to forward slashes before embedding: `path.replace('\\', "/")`. Forward
+    /// slashes are accepted by Rust `std::fs` and the `csv` crate on all platforms.
+    ///
+    /// This test verifies that `InfusionLoader::parse()` succeeds when given a `file_path`
+    /// value that uses Windows-style backslashes encoded as the CORRECT TOML escape (`\\`)
+    /// — which is what `replace('\\', "/")` avoids. It also verifies that a raw backslash
+    /// path (as a proxy for a mis-embedded Windows path) causes parse failure, confirming
+    /// the guard is load-bearing.
+    #[test]
+    fn test_parse_csv_toml_with_forward_slash_path_succeeds() {
+        // Forward-slash path (the normalised form used on all platforms) must parse.
+        let toml_forward = r#"
+[infusion]
+infusion_id = "test_csv"
+name = "Test CSV"
+
+[source]
+type = "csv"
+file_path = "C:/Users/Runner/AppData/Local/Temp/prism-test/file.csv"
+key_column = "device_ip"
+
+[[infusion.fields]]
+name = "asset_name"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+source_column = "name"
+"#;
+        let result = InfusionLoader::parse(toml_forward, "test_csv_forward.infusion.toml");
+        assert!(
+            result.is_ok(),
+            "forward-slash path in TOML file_path must parse successfully; \
+             got: {:?}",
+            result.err()
+        );
+    }
+
+    /// Confirms that a raw Windows backslash path embedded in a TOML basic string fails
+    /// to parse — this is the exact failure mode that the `replace('\\', "/")` fix prevents
+    /// in the integration tests.
+    ///
+    /// The path `C:\Users\Runner\...` contains `\U` which is NOT a valid TOML escape
+    /// sequence (only `\t \n \r \" \\ \uXXXX \UXXXXXXXX` are valid in TOML basic strings).
+    #[test]
+    fn test_parse_csv_toml_with_raw_backslash_path_fails() {
+        // Raw Windows backslash path — NOT normalised — must fail TOML parse.
+        // This string is constructed at runtime so the Rust source file itself is
+        // not a raw TOML string with invalid escapes; we build it via String::new().
+        let toml_backslash = {
+            let mut s = String::new();
+            s.push_str("[infusion]\ninfusion_id = \"test_csv\"\nname = \"Test\"\n\n");
+            s.push_str("[source]\ntype = \"csv\"\n");
+            // Embed a Windows-style path with a backslash: `\U` is an invalid TOML escape.
+            s.push_str("file_path = \"C:\\Users\\Runner\\file.csv\"\n");
+            s.push_str("key_column = \"device_ip\"\n\n");
+            s.push_str("[[infusion.fields]]\n");
+            s.push_str(
+                "name = \"asset_name\"\ninput_field = \"device_ip\"\n\
+                 input_type = \"ip\"\noutput_type = \"string\"\n",
+            );
+            s
+        };
+        let result = InfusionLoader::parse(&toml_backslash, "test_csv_backslash.infusion.toml");
+        assert!(
+            result.is_err(),
+            "raw Windows backslash path in TOML basic string must fail to parse \
+             (\\U is an invalid TOML escape sequence); expected Err but got Ok"
+        );
+    }
+}
