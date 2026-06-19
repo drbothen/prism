@@ -48,6 +48,7 @@
 //! | F-S504-P1-001/002 — 429→Up + rate_limit populated in SensorHealthResult | test_BC_2_08_003_live_probe_429_yields_up_and_populates_rate_limit |
 //! | F-S504-P1-002 core — probe_connectivity RateLimited arm → ConnectivityStatus::Up | test_BC_2_08_001_live_probe_429_status_is_up_not_down |
 //! | F-S504-P2-008 — sanitize_error truncates long body; strips control chars | test_BC_2_08_001_live_probe_error_body_is_sanitized |
+//! | F-S504-P1-004 — with_token_store wired: token_count reflects live store | test_BC_2_08_005_query_engine_token_count_reflects_wired_store |
 //!
 //! # AC-7 (BC-2.08.005 live-probe path) tests
 //! Tests requiring `PrismServer.health_checker` (a private field set only from
@@ -1240,5 +1241,68 @@ async fn test_BC_2_08_001_live_probe_error_body_is_sanitized() {
         !error_str.contains('\x1b'),
         "F-S504-P2-008: ESC character (ANSI escape start) must be stripped. \
          Got: {error_str:?}"
+    );
+}
+
+// ─── F-S504-P1-004 — with_token_store wired in boot.rs ────────────────────
+
+/// F-S504-P1-004 (load-bearing): `QueryEngine::token_count()` returns the actual live
+/// count from the wired `ConfirmationTokenStore` (not always 0).
+///
+/// Before the boot.rs fix, `with_token_store()` was never called, so `token_store`
+/// was always None and `token_count()` always returned 0 regardless of active tokens.
+///
+/// This test exercises the production code path: create a store, generate a token,
+/// wire the store into a QueryEngine via `with_token_store()`, assert count == 1.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_005_query_engine_token_count_reflects_wired_store() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_query::{engine::QueryEngine, engine::QueryEngineConfig};
+    use prism_security::confirmation_token::ConfirmationTokenStore;
+
+    let store = Arc::new(ConfirmationTokenStore::new());
+
+    // Generate a token so active_count() > 0.
+    store
+        .generate(
+            "acme",
+            "delete_host",
+            serde_json::json!({"host_id": "H001"}),
+            "Delete host H001 from acme",
+        )
+        .expect("generate must succeed (store is empty, below TOKEN_CAP)");
+
+    // Before wiring: fresh engine with no token store returns 0.
+    let engine_unwired = QueryEngine::new(
+        Arc::new(AdapterRegistry::new()),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    );
+    assert_eq!(
+        engine_unwired.token_count(),
+        0,
+        "F-S504-P1-004: unwired engine (no with_token_store) must return 0"
+    );
+
+    // After wiring: engine with the populated store returns 1.
+    let engine_wired = QueryEngine::new(
+        Arc::new(AdapterRegistry::new()),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_token_store(Arc::clone(&store));
+
+    assert_eq!(
+        engine_wired.token_count(),
+        1,
+        "F-S504-P1-004: wired engine MUST return 1 when store has 1 active token; \
+         before this fix with_token_store() was never called in boot.rs and \
+         token_count() always returned 0. Got: {}",
+        engine_wired.token_count()
     );
 }

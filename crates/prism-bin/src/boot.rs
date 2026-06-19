@@ -2771,6 +2771,14 @@ pub async fn step9_start_mcp_server(
         Arc::new(table_registry)
     };
 
+    // ── Build ConfirmationTokenStore before QueryEngine ───────────────────────
+    //
+    // S-5.04 F-S504-P1-004 (RECONCILIATION-3): token_count() in the health subsystem reads
+    // from the ConfirmationTokenStore wired via QueryEngine::with_token_store(). The store
+    // must be constructed before the QueryEngine so both can share the same Arc instance.
+    // WriteExecutor also receives Arc::clone(&confirmation_store) below.
+    let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+
     let query_engine = Arc::new(
         QueryEngine::new_full(
             adapter_registry.clone(),
@@ -2810,7 +2818,11 @@ pub async fn step9_start_mcp_server(
             Arc::new(prism_spec_engine::InfusionTier3Cache::new(
                 infusion_cache_backend,
             )),
-        ),
+        )
+        // S-5.04 F-S504-P1-004 (RECONCILIATION-3): wire the ConfirmationTokenStore so
+        // QueryEngine::token_count() reflects live write-path confirmation tokens rather
+        // than always returning 0 (dead-code path before this wiring).
+        .with_token_store(Arc::clone(&confirmation_store)),
     );
 
     // ── Build WriteExecutor ───────────────────────────────────────────────────
@@ -2819,7 +2831,7 @@ pub async fn step9_start_mcp_server(
     // until the per-client capability config loads (S-2.03). The deny-by-default posture matches
     // the production security-default; do not interpret the empty map as "all-open".
     let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
-    let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+    // confirmation_store was constructed before query_engine above (F-S504-P1-004).
 
     // BootAuditWriter (module-scope item below, P1-03 2026-06-10 review pass-1):
     // write-path intent/outcome records are structured tracing events
