@@ -1133,9 +1133,11 @@ pub fn v74_rate_limit_info() {
 #[allow(dead_code)]
 pub fn v75_resource_pressure() {
     // Triggers E0639 (#[non_exhaustive]).
+    // Fields are Option<usize>; use None to match the production contract
+    // (BC-2.08.005 v1.6: hardcoded 0 is FORBIDDEN in S-5.03 scope).
     let _pressure = ResourcePressure {
-        active_cursor_count: 0,
-        active_token_count: 0,
+        active_cursor_count: None,
+        active_token_count: None,
     };
     let _ = _pressure;
 }
