@@ -453,8 +453,11 @@ fn validate_resource_path_segment(segment: &str) -> Result<(), ()> {
 /// default").
 ///
 /// When `org_registry` or `resolved_spec_map` is `None` (test / MVP mode without
-/// multi-tenant support), falls back to the TableRegistry intersection logic for backwards
-/// compatibility with existing tests (AC-1, AC-8, EC-10-014).
+/// multi-tenant support), falls back to the TableRegistry intersection logic. In this
+/// path each `ClientInventoryEntry` represents one sensor, and `enabled_sensors` carries
+/// `[sensor_id]` — a sensor-ID string per BC-2.10.008 postcondition 1 ("array of sensor
+/// ID strings provisioned for this client"). Table names are NOT emitted in this field
+/// in either path.
 ///
 /// Returns a JSON array of `ClientInventoryEntry` objects.
 pub async fn render_client_list_resource(
@@ -535,22 +538,19 @@ pub async fn render_client_list_resource(
                 .collect();
 
             // EC-10-014: if no sensors are registered, return [] (empty array).
+            // BC-2.10.008 postcondition 1: `enabled_sensors` must carry sensor ID strings,
+            // NOT table names. In this single-entry-per-sensor fallback model, each entry
+            // represents one sensor, so `enabled_sensors = [sensor_id]`.
             enabled_sensors
                 .iter()
-                .map(|sensor_id| {
-                    let sensor_tables: Vec<String> = snapshot
-                        .sensor_specs
-                        .get(sensor_id)
-                        .map(|spec| spec.tables.iter().map(|t| t.table_name.clone()).collect())
-                        .unwrap_or_default();
-                    ClientInventoryEntry {
-                        client_id: sensor_id.clone(),
-                        // Fallback path: no org_display_names available (test/MVP mode).
-                        // display_name is always null in this path — no prism.toml org context.
-                        display_name: None,
-                        sensor_count: 1,
-                        enabled_sensors: sensor_tables,
-                    }
+                .map(|sensor_id| ClientInventoryEntry {
+                    client_id: sensor_id.clone(),
+                    // Fallback path: no org_display_names available (test/MVP mode).
+                    // display_name is always null in this path — no prism.toml org context.
+                    display_name: None,
+                    sensor_count: 1,
+                    // BC-2.10.008 postcondition 1: sensor ID strings, not table names.
+                    enabled_sensors: vec![sensor_id.clone()],
                 })
                 .collect()
         };
