@@ -1,18 +1,135 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.874"
+version: "7.875"
 status: current
-timestamp: 2026-06-19T08:00:00Z
+timestamp: 2026-06-19T09:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1241 (2026-06-19): PrismQL LLM-onboarding DESIGN PACKAGE committed (spec-only burst). ADR-041 v1.1 + 7 BCs (BC-2.10.012/013/014 + BC-2.11.016/017/018 + amendments) + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft. OPD-1 ADOPTED: normalized_pql field. develop_head UNCHANGED 9114e028. BC-INDEX v6.82. total_stories 204. draft_contracts 8. STATE v7.873→v7.874.**
+> **D-1242 (2026-06-19): COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT. Both demo-blocking lanes MERGED (S-5.03 PR #194 + PIVOT-002 PR #195). PrismQL-onboarding DESIGN PACKAGE committed (ADR-041 v1.1 + 7 BCs + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft). develop_head UNCHANGED 9114e028. STATE v7.874→v7.875.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1241** (authoritative zero-context restart protocol; supersedes D-1240). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1240 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1241 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1241 spec-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.874.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1242** (authoritative zero-context restart protocol; supersedes D-1241). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1241 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1242 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1242 docs-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.875.
+
+---
+
+## §RESUME SNAPSHOT — D-1242 (2026-06-19 — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT; develop_head 9114e028 UNCHANGED; STATE v7.875)
+
+> **D-1242 burst (2026-06-19).** DOCS/STATE-ONLY burst — develop_head UNCHANGED at 9114e028. Both demo-blocking lanes MERGED: S-5.03 PR #194 develop@85ac7b06 (D-1238) + PIVOT-002 PR #195 develop@9114e028 (D-1240). PrismQL-onboarding DESIGN PACKAGE committed (D-1241): ADR-041 v1.1 + 7 BCs (BC-2.10.012/013/014 draft + BC-2.11.016/017/018 draft) + 2 BC amendments + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft (13 pts). Task ledger advanced to v1.36. D-1236..D-1241 SUPERSEDED by D-1242.
+
+---
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1242 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1242 snapshot first. It is authoritative. Do NOT act on any other prior context.
+
+**Step 1.** Run `vsdd-factory:factory-worktree-health` (devops-engineer). **BLOCKING** — do not proceed until it passes.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19). If newer, use live HEAD as authoritative.
+
+**Step 3.** Confirm open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs (S-5.03 PR #194 MERGED, PIVOT-002 PR #195 MERGED; no new PRs from docs-only D-1242 burst).
+
+**Step 4.** Check worktree state:
+```bash
+git worktree list
+```
+Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded). Note: `.worktrees/S-5.03` is a stale worktree (merged — devops-engineer may prune). Leave S-3.09 and W3-FIX-S307-001 alone.
+
+**Step 5.** Read PINNED STATE table below and verify against live git. The table is self-consistent as of D-1242 authoring.
+
+**Step 6.** Apply lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) and z25 (implementer must NOT commit .factory directly) are critical. Process-gap 1 (CI clippy --all-targets), 2 (demo-evidence test-name sweep), 3 (comprehensive doc-accuracy sweep) are standing disciplines.
+
+---
+
+### PINNED STATE (D-1242 — verified 2026-06-19)
+
+| Artifact | Value | Notes |
+|----------|-------|-------|
+| develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19 (D-1240). UNCHANGED through D-1242 (docs-only). |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
+| Open PRs | **NONE** | S-5.03 PR #194 MERGED develop@85ac7b06. PIVOT-002 PR #195 MERGED develop@9114e028. No new PRs. |
+| Parked worktrees | S-3.09 FROZEN + W3-FIX-S307-001 BLOCKED | Leave alone. S-5.03 worktree stale (merged); devops-engineer may prune. |
+| ci.yml EXPECTED | `79` | After PIVOT-002 merge (+3 types: HttpLookupAuthType, HttpLookupCredentialConfig, HttpLookupConfig). Authority: `ci.yml`. |
+| CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@9114e028. |
+| scripts/check-non-exhaustive.sh | `EXPECTED=79` | Confirmed. |
+| STATE.md | v7.875 | D-1242 burst. |
+| BC-INDEX | v6.82 | active 235 / draft 8 / retired 6 / total 256. +6 new BCs D-1241 (BC-2.10.012/013/014 + BC-2.11.016/017/018). 2 amendments (BC-2.10.009 v1.4, BC-2.11.001 v1.10). |
+| STORY-INDEX | v2.434 | 204 stories. S-DEMO-PRISMQL-ONBOARDING-001 draft added D-1241. |
+| ARCH-INDEX | v2.138 | ADR-041 v1.1 PROPOSED (4-layer LLM onboarding; D-1241). |
+| error-taxonomy | v1.91 | E-QUERY-038 column-not-found plan-time gate (D-1241). |
+| VP-INDEX | v1.79 | 157 registered. |
+| prd | v1.12 | Unchanged. |
+| policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes. |
+| active_contracts | 235 | Unchanged through D-1242. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012, BC-2.10.013, BC-2.10.014, BC-2.11.016, BC-2.11.017, BC-2.11.018. |
+
+---
+
+### WHAT'S DONE THIS SESSION (D-1238..D-1241)
+
+| Burst | What Was Done |
+|-------|---------------|
+| D-1238 (2026-06-19) | S-5.03 MERGED PR #194 develop@85ac7b06. ci.yml EXPECTED=76; CLAUDE.md=76. POL-14 BC-2.08.005/BC-2.08.006/BC-2.10.008/BC-2.10.009 draft→active. |
+| D-1239 (2026-06-19) | error-taxonomy v1.90: E-INFUSE-013 (InvalidFieldSpec) added. BC-2.16.002 v1.83 (http_lookup_enrich_failed field-schema expanded). |
+| D-1240 (2026-06-19) | PIVOT-002 MERGED PR #195 develop@9114e028. ci.yml EXPECTED=79; CLAUDE.md=79. POL-14 BC-2.19.001 idempotent (already active). ALL DEMO-BLOCKING LANES DONE. |
+| D-1241 (2026-06-19) | PrismQL LLM-onboarding DESIGN PACKAGE: ADR-041 v1.1 (4-layer teaching surface; OPD-1 ADOPTED: normalized_pql field). 6 new BCs (BC-2.10.012/013/014 + BC-2.11.016/017/018 draft). 2 BC amendments (BC-2.10.009 v1.4, BC-2.11.001 v1.10). E-QUERY-038 in error-taxonomy v1.91. S-DEMO-PRISMQL-ONBOARDING-001 draft story (13 pts, 7 BCs, depends S-5.03+S-3.13, wave TBD). BC-INDEX v6.82. STORY-INDEX v2.434. develop UNCHANGED 9114e028. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (durable task list)
+
+| Order | Story / Task | Status | Pts | depends_on | Notes |
+|-------|-------------|--------|-----|------------|-------|
+| **NEXT-A (PICKABLE NOW)** | **S-DEMO-ENRICHMENT-PIVOT-003** | not-started | 8 | PIVOT-002 MERGED (SATISFIED) | Real IOC fields (ioc_value, ioc_type, ioc_severity) in Cyberint/CrowdStrike DTU fixtures + canonical end-to-end pivot proof. Closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation. Closes TD-PLUGIN-P0-002 P0. story-writer must author if not yet materialized; remove-uncertainty before TDD. |
+| **NEXT-B (PICKABLE NOW)** | **S-5.04** | not-started | 5 | S-5.03 MERGED (SATISFIED) | Sensor Health Subsystem. remove-uncertainty before TDD per D-1110. DEMO-CRITICAL-PATH. |
+| **NEXT-C (PICKABLE NOW, draft)** | **S-DEMO-PRISMQL-ONBOARDING-001** | draft (story file authored) | 13 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | 4-layer LLM auto-onboarding teaching surface. ADR-041 v1.1 design package ready. Schedule into T13 capstone planning wave. Not a blocker for PIVOT-003 or S-5.04. |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone (not yet named) | not-authored | TBD | PIVOT-003 + S-5.04 + S-DEMO-PRISMQL-ONBOARDING-001 all MERGED | PO + story-writer. The demo's capstone deliverable. Schedule S-DEMO-PRISMQL-ONBOARDING-001 into this wave. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
+
+---
+
+### DO-NOT-REFLAG / Ratified Decisions (carry-forward — fresh adversary/session must NOT reopen)
+
+| Item | Ruling | Anchor |
+|------|--------|--------|
+| ADR-040 v2.0 dual-path infusion | InfusionType::HttpLookup (NVD) + InfusionType::Plugin (ThreatIntel WASM) — LOCKED | D-1226 |
+| OPD-1 ADOPTED: normalized_pql field | echo-PQL mechanism adopted in PrismQL LLM-onboarding design | D-1241 |
+| All merged-PR closures (PRs #185..#195) | T5/T6/T10/T11/T12/T15a/T15d/S-1.14-REDO/S-5.03/PIVOT-002 MERGED and CLOSED — DO-NOT-REFLAG any | PRs merged 2026-06-13..2026-06-19 |
+| DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 | RESOLVED-MECHANISM (D-1178): count bumps land per-story at merge under orchestrator authority | D-1178 |
+| E-QUERY-034 reuse | Reuse ratified — no new error code needed for column-not-found beyond E-QUERY-034+E-QUERY-038 | D-1241 |
+| Wave-5 autonomy grant | D-989 + D-1090: full A→merge autonomous; pause only §7/product-business/Level-3/CLAUDE.md | D-989+D-1090 |
+| user_directive_persistent | No pragmatic convergence. Fix all issues before build. | STATE.md frontmatter |
+| user_directive_remove_uncertainty | Run dclaude:remove-uncertainty on every impl story BOTH immediately after story-writer AND again before TDD delivery | D-1110 extension |
+| DRIFT-ORCH-PRLEVEL-PUSH-001 (frozen-HEAD streak rule) | Pushing any commit mid-PR-LEVEL cascade resets streak to 0/3. Re-gate on pushed HEAD. | 2026-06-08 |
+| BC-2.08.005 v1.7 two-phase ratification | Spec-only health probe (S-5.03) / null-source; live probe delivered in S-5.04. OBS-3 DEC-004 → product-owner S-5.04 (NOT S-5.03 blocker). | D-1226 |
+| PIVOT-002 CRIT/HIGH closures | CRIT-1 (spawn_blocking), CRIT-2a (path traversal), CRIT-2b (loadall disclosure), HIGH-1 (UDF-name), HIGH-2 (config pub), HIGH-3 (SandboxViolation URL), HIGH-4 (PluginId vs InfusionId) — ALL VERIFIED CLOSED through merge. DO-NOT-REFLAG. | PRs #194+#195 |
+| factory-artifacts push standing auth | D-1066: state-manager pushes factory-artifacts after every burst (no per-burst re-authorization) | D-1066 |
+
+---
+
+### CONVERGENCE PROTOCOL REMINDERS (standing — fresh session)
+
+- **BC-5.39.001 3-CLEAN protocol:** CLEAN(strict) = ZERO findings of ANY severity. CLEAN(PR-merge) = ZERO CRIT+HIGH+MED (non-blocking). Adversary CLEAN reports MUST specify both.
+- **Frozen-HEAD rule (DRIFT-ORCH-PRLEVEL-PUSH-001):** Any commit mid-cascade resets streak to 0/3. Re-gate on new HEAD.
+- **TD-VSDD-005:** vsdd-factory:adversary tool-binding bug → use `general-purpose` agent as adversary (needs Grep/Bash for SAP-1/SAP-2 probes).
+- **Per adversary dispatch:** inject policy rubric from `.factory/policies.yaml`; apply SAP-1 + SAP-2 + production-grade lens. Embed (worktree-abs-path, feature-HEAD-SHA, story-id, canonical-repo-root) tuple per DRIFT-ORCH-ADVERSARY-TUPLE-001.
+- **Lesson z25:** Implementer must NOT commit .factory/ artifacts directly. BC/spec commits route via state-manager dispatch.
+- **INDEPENDENT multi-pass rule (lesson z24):** Run 3 INDEPENDENT fresh-context streak passes. Sequential single-pass cascades missed F-SV-1 for 8 passes.
+
+---
 
 ---
 
