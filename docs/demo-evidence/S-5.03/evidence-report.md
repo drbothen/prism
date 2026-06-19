@@ -95,7 +95,7 @@ These tests were added during the LOCAL adversarial cascade (passes 1–n). All 
 | `test_BC_2_10_008_per_org_scoping_acme_has_crowdstrike_and_claroty_not_armis` | IMP-8 DI-008 per-org scoping (CRIT) | `entries.len() == 2`, no armis for acme |
 | `test_BC_2_10_008_per_org_scoping_globex_has_armis_not_acme_sensors` | IMP-8 DI-008 cross-org isolation | `entries.len() == 1`, armis only for globex |
 | `test_BC_2_10_008_ec_10_017_org_with_no_overlay_returns_empty_sensors` | IMP-8 EC-10-017 Option B semantics | `content_text.trim() == "[]"` for zero-overlay org |
-| `test_BC_2_10_008_per_org_list_resource_enumerates_all_orgs_with_correct_counts` | IMP-8 prism://config/clients per-org list | acme→2 sensors, globex→1, empty-org→0 |
+| `test_BC_2_10_008_client_list_per_org_enumerates_all_registered_orgs` | IMP-8 prism://config/clients per-org list | acme→2 sensors, globex→1, empty-org→0 |
 | `test_BC_2_10_008_invariant_zero_clients_returns_empty_array` | EC-10-014 synthetic "(all)" entry removed | `content_text.trim() == "[]"` |
 | `test_BC_2_08_006_sensors_health_resource_keyed_object_shape` | Keyed-object `sensors` schema (array → object) | `parsed["clients"]["acme"]["sensors"].is_object()` |
 | `test_OBS_1_prompt_render_rejects_injection_shaped_args` | OBS-1 prompt argument DI-006 validation | injection-shaped `client_id` returns `Err(INVALID_PARAMS)` |
