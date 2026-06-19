@@ -1152,6 +1152,21 @@ fn build_paged_url_impl(
     }
 }
 
+/// Build a `reqwest::Client` with a 30-second timeout (CLAUDE.md §Conventions).
+///
+/// Used by `HttpLookupSource` and by the spec-driven adapter boot path.
+/// Callers MUST NOT call `reqwest::Client::new()` directly — that construction
+/// is forbidden because it sets no timeout (CLAUDE.md §Forbidden patterns).
+// Dead-code allow: used by HttpLookupSource::load_spec_with_runtime wiring (D8.6).
+// The warning appears because load_spec_with_runtime is in mod.rs; same crate, different file.
+#[allow(dead_code)]
+pub(crate) fn build_http_client_with_timeout() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("reqwest::Client::build: failed to create HTTP client with 30s timeout")
+}
+
 /// Extract the value at a JSONPath expression.
 ///
 /// ## Supported syntax (AC-2, S-PLUGIN-PREREQ-C)
@@ -1182,7 +1197,10 @@ fn build_paged_url_impl(
 /// - Key not found at any step
 /// - Bracket index out of bounds
 /// - Wildcard on non-array value (EC-002)
-fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, String> {
+pub(crate) fn extract_at_path(
+    body: &serde_json::Value,
+    path: &str,
+) -> Result<serde_json::Value, String> {
     let stripped = path
         .strip_prefix("$.")
         .ok_or_else(|| format!("path must start with '$.' : {path}"))?;

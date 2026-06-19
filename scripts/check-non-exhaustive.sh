@@ -22,8 +22,10 @@
 # S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE: bumped 69→70 for InfusionError (prism-core::error enum).
 # S-5.03 (F-007 process-gap): bumped 70→76 for 6 prism-mcp resources types (ClientInventoryEntry,
 #   SensorConfigEntry, SensorHealthResult, RateLimitInfo, ResourcePressure, SensorHealthStructuredContent).
+# S-DEMO-ENRICHMENT-PIVOT-002 v1.3: bumped 76→79 for 3 http_lookup infusion types
+#   (HttpLookupCredentialConfig E0639 v77, HttpLookupConfig E0639 v78, HttpLookupAuthType E0004 v79).
 
-EXPECTED=76
+EXPECTED=79
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

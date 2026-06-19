@@ -11,8 +11,11 @@
 //! `InfusionError::SourceFileTooLarge` (E-INFUSE-012), preventing unbounded-memory OOM.
 
 pub mod csv;
+pub mod http_lookup;
 pub mod json_lookup;
 pub mod mmdb;
+
+pub use http_lookup::HttpLookupSource;
 
 /// Maximum allowed size (in bytes) for an infusion source data file.
 ///

@@ -19,6 +19,12 @@ exclude = [
     # during `cargo build --workspace` on the default host target. Build explicitly with
     # --target wasm32-wasip1 when compiling to .prx artifact.
     "crates/plugins/ocsf-complex-transforms",
+    # S-DEMO-ENRICHMENT-PIVOT-002: ThreatIntel infusion WASM plugin — compiled for wasm32-wasip1 target.
+    # Excluded from workspace (U18/Ruling 3 — same pattern as ocsf-complex-transforms).
+    # Build via: just build-plugin-threatintel-infusion
+    "crates/plugins/prism-threatintel-infusion",
+    # S-DEMO-ENRICHMENT-PIVOT-002 v1.3: prism-nvd-infusion WASM plugin REMOVED (ADR-040 D9).
+    # NVD enrichment is now served by InfusionType::HttpLookup (permanent built-in).
 ]
 members = [
     "crates/ocsf-proto-gen",

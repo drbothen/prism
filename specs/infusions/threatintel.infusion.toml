@@ -1,0 +1,69 @@
+# ThreatIntel plugin-type infusion spec — S-DEMO-ENRICHMENT-PIVOT-002.
+#
+# Grounded against prism-dtu-threatintel route surface (ADR-028/ADR-031, SAP-2):
+#   - GET /v3/ip/:ip (lookup.rs:162)
+#   - GET /v3/domain/:domain (lookup.rs:187)
+#   - GET /v3/hash/:hash (lookup.rs:214)
+#
+# Auth: ?key=<api_key> query param OR Authorization: Bearer <token> header
+# (NOT X-Admin-Token — that is admin-surface only per lookup.rs lines 20-53).
+#
+# DTU response shape (confirmed 2026-06-12 from prism-dtu-threatintel/src/types.rs):
+#   threat_score: Integer (i64)
+#   threat_is_known_malicious: Boolean (bool)
+#   threat_sources: JSON ARRAY of source strings (SAP-2: NOT "threat_source" singular)
+#   greynoise_classification: String
+#   abuseipdb_confidence_score: Integer
+#   virustotal_detections: Integer
+#
+# Location: {config_dir}/infusions/ per InfusionLoader loader.rs:45.
+# Table layout matches InfusionSpec deserialization at infusion/mod.rs:295-319.
+# Credential reference uses keyring path per ADR-032 / AD-017 (no inline values).
+
+[infusion]
+infusion_id = "threat_intel"
+name = "ThreatIntel IOC Lookup"
+type = "plugin"
+
+[source]
+type = "plugin"
+plugin_ref = "threatintel-lookup.prx"
+
+# Credential reference — AI-opaque per AD-017 / ADR-032.
+# The plugin dispatches auth as ?key= param or Authorization: Bearer <token>
+# (NOT X-Admin-Token — admin surface only, excluded per lookup.rs lines 20-53).
+# Value resolved at call time from keyring; NEVER stored inline.
+[source.credential]
+ref = "threatintel.api_key"
+
+# DTU-grounded fields (SAP-2 verified 2026-06-12):
+# threat_is_known_malicious: bool in ThreatLookupResponse → Boolean
+# threat_score: i64 in ThreatLookupResponse → Integer
+# threat_sources: Vec<String> (JSON array) in ThreatLookupResponse → Json
+#
+# CRITICAL: field name is `threat_sources` (plural array), NOT `threat_source` (singular string).
+# Column in TOML with no DTU equivalent = P1 CRITICAL (SAP-2).
+
+[[infusion.fields]]
+name = "threat_is_known_malicious"
+input_field = "ioc_value"
+input_type = "ioc"
+output_type = "boolean"
+description = "True if the IOC is confirmed malicious by the ThreatIntel backend"
+
+[[infusion.fields]]
+name = "threat_score"
+input_field = "ioc_value"
+input_type = "ioc"
+output_type = "integer"
+description = "Threat intelligence confidence score (0-100)"
+
+[[infusion.fields]]
+name = "threat_sources"
+input_field = "ioc_value"
+input_type = "ioc"
+output_type = "json"
+description = "JSON array of source names that flagged this IOC (e.g. [\"greynoise\", \"abuseipdb\"])"
+
+[infusion.pipe_stage]
+adds_columns = ["threat_is_known_malicious", "threat_score", "threat_sources"]

@@ -298,6 +298,8 @@ pub fn v65_capability_status_match() {
 /// External callers MUST include `_ => {}`.
 ///
 /// Added: S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE. ci.yml EXPECTED bumped 69 → 70.
+/// Updated: S-DEMO-ENRICHMENT-PIVOT-002 adds InvalidFieldSpec, HttpLookupFailed,
+/// CredentialResolutionFailed, SsrfRejected variants.
 #[allow(dead_code)]
 pub fn v70_infusion_error_match() {
     let err: InfusionError = InfusionError::UnknownInfusion {
@@ -310,8 +312,35 @@ pub fn v70_infusion_error_match() {
         InfusionError::UnknownSourceType { .. } => {}
         InfusionError::CredentialUnresolved { .. } => {}
         InfusionError::ApiBackedUdfInDetectionRule { .. } => {}
+        InfusionError::InvalidFieldSpec { .. } => {}
         InfusionError::PluginCallFailed { .. } => {}
+        InfusionError::HttpLookupFailed { .. } => {}
+        InfusionError::CredentialResolutionFailed { .. } => {}
+        InfusionError::SsrfRejected { .. } => {}
         InfusionError::SourceFileTooLarge { .. } => {}
-        // After S-1.14-REDO OBS-1: E0004 — `_` arm required for #[non_exhaustive] enum
+        // After S-1.14-REDO OBS-1 + S-DEMO-ENRICHMENT-PIVOT-002: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 79: prism_spec_engine::infusion::HttpLookupAuthType exhaustive match (E0004).
+///
+/// `HttpLookupAuthType` is the authentication mechanism enum for http_lookup-type
+/// infusions (ADR-040 v2.0 D8.2). `#[non_exhaustive]` ensures new auth mechanisms
+/// (e.g., `MutualTls`, `Oauth2ClientCredentials`) can be added without requiring all
+/// external match arms to be updated immediately.
+/// External callers MUST include `_ => {}`.
+///
+/// Added: S-DEMO-ENRICHMENT-PIVOT-002 v1.3. Renumbered v79 (was v71 pre-rebase;
+/// S-5.03 claimed v71-v76 on develop@85ac7b06; struct violations v77-v78 are also
+/// S-DEMO-ENRICHMENT-PIVOT-002 in struct_violations.rs).
+#[allow(dead_code)]
+pub fn v79_http_lookup_auth_type_match() {
+    use prism_spec_engine::infusion::HttpLookupAuthType;
+    let auth: HttpLookupAuthType = HttpLookupAuthType::BearerHeader;
+    match auth {
+        HttpLookupAuthType::QueryParam { .. } => {}
+        HttpLookupAuthType::BearerHeader => {}
+        HttpLookupAuthType::ApiKeyHeader { .. } => {}
+        // After S-DEMO-ENRICHMENT-PIVOT-002: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

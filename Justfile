@@ -264,3 +264,47 @@ build-plugin-crowdstrike-oauth2:
         (echo "ERROR: get-token export absent from crowdstrike-oauth2.prx"; exit 1)
     @echo "PASS: crowdstrike-oauth2.prx has all 3 required sensor-auth WIT exports"
     @echo "Done: crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx"
+
+# S-DEMO-ENRICHMENT-PIVOT-002: Build prism-threatintel-infusion WASM plugin → .prx artifact.
+# Pattern mirrors build-plugin-crowdstrike-oauth2 (U14/Ruling 4).
+# Output: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+#         crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+#
+# HIGH-1 fix (S-DEMO-ENRICHMENT-PIVOT-002): the companion manifest is deployed alongside
+# the .prx binary. PluginRuntime::load_all_plugins reads the manifest `name` field as
+# the plugin_id — so the manifest `name = "threat_intel"` ensures the plugin registers
+# under "threat_intel", matching infusion_id in specs/infusions/threatintel.infusion.toml.
+build-plugin-threatintel-infusion:
+    @echo "Building prism-threatintel-infusion plugin (wasm32-wasip1 → Component)"
+    test -f tests/fixtures/wasi_snapshot_preview1.wasm || \
+        (echo "ERROR: tests/fixtures/wasi_snapshot_preview1.wasm is missing (required for --adapt)"; exit 1)
+    cargo build \
+        --manifest-path crates/plugins/prism-threatintel-infusion/Cargo.toml \
+        --target wasm32-wasip1 \
+        --release
+    @echo "Lifting to WASM Component via wasm-tools..."
+    mkdir -p crates/prism-spec-engine/plugins/threatintel-lookup
+    wasm-tools component new \
+        target/wasm32-wasip1/release/prism_threatintel_infusion.wasm \
+        --adapt wasi_snapshot_preview1=tests/fixtures/wasi_snapshot_preview1.wasm \
+        -o crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx || \
+        (echo "ERROR: wasm-tools component new --adapt failed — build aborted"; exit 1)
+    @echo "Validating Component Model binary..."
+    wasm-tools validate \
+        --features=component-model \
+        crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx || \
+        (echo "ERROR: threatintel-lookup.prx failed Component Model validation"; exit 1)
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx | \
+        grep -q '(component' || \
+        (echo "ERROR: threatintel-lookup.prx is a core WASM module, not a Component"; exit 1)
+    @echo "Deploying companion manifest (HIGH-1: name = threat_intel matches infusion_id)..."
+    cp crates/plugins/prism-threatintel-infusion/threatintel-lookup.manifest.toml \
+        crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+    @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
+    @echo "Done: crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml"
+
+# S-DEMO-ENRICHMENT-PIVOT-002 v1.3: build-plugin-nvd-infusion REMOVED (ADR-040 D9).
+# NVD enrichment is now served by InfusionType::HttpLookup (permanent built-in).
+# The prism-nvd-infusion WASM plugin crate has been deleted.
+

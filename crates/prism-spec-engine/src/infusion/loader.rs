@@ -6,7 +6,7 @@
 //! # Validation rules (BC-2.19.001)
 //! - `infusion_id` must be present and non-empty.
 //! - At least one `[[infusion.fields]]` entry required.
-//! - `source.type` must be one of: `maxmind_mmdb`, `csv`, `json_lookup`, `plugin`.
+//! - `source.type` must be one of: `maxmind_mmdb`, `csv`, `json_lookup`, `plugin`, `http_lookup`.
 //!   Unknown types return `InfusionError::UnknownSourceType`.
 //! - Credential references must use reference-based model (no inline values, AD-017).
 //! - `pipe_stage.adds_columns` must match the `[[infusion.fields]]` names.
@@ -22,8 +22,9 @@ use prism_core::InfusionError;
 use serde::Deserialize;
 
 use super::{
-    BuiltInSourceType, CredentialRef, InfusionField, InfusionSourceConfig, InfusionSpec,
-    InfusionType, PipeStageConfig, PluginConfig,
+    BuiltInSourceType, CredentialRef, HttpLookupAuthType, HttpLookupConfig,
+    HttpLookupCredentialConfig, InfusionField, InfusionSourceConfig, InfusionSpec, InfusionType,
+    PipeStageConfig, PluginConfig,
 };
 
 // ---------------------------------------------------------------------------
@@ -65,10 +66,16 @@ struct RawInfusion {
 ///
 /// Fields `file_path`, `key_column`, `refresh_interval_secs` are active for MMDB/CSV/JSON-lookup
 /// paths; `plugin_ref` is used for the plugin-type path.
+///
+/// `source_type` is optional here because the http_lookup schema (ADR-040 v2.0 D8.1)
+/// uses `[source.http]` and `[source.credential]` subtables WITHOUT a top-level
+/// `[source] type = ...` key — the discriminant lives in `[infusion] type = "http_lookup"`.
+/// With `#[serde(default)]`, TOML subtable schemas parse without error; the empty string
+/// causes the source-type resolution to fall through to `raw_infusion.infusion_type_str`.
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct RawTopLevelSource {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", default)]
     source_type: String,
     /// For plugin-type: reference to the `.prx` plugin file.
     plugin_ref: Option<String>,
@@ -78,6 +85,35 @@ struct RawTopLevelSource {
     key_column: Option<String>,
     /// Refresh interval for file-backed sources (seconds).
     refresh_interval_secs: Option<u64>,
+    /// For http_lookup: the [source.http] subtable (ADR-040 v2.0 D8.1).
+    /// Accepted at parse time; populated into `HttpLookupConfig` by the implementer.
+    http: Option<RawHttpSubtable>,
+    /// For http_lookup: the [source.credential] subtable (AD-017).
+    /// Accepted at parse time; credential values never stored — reference-only (INV-INFUSE-005).
+    credential: Option<RawHttpCredentialSubtable>,
+}
+
+/// `[source.http]` subtable for http_lookup specs (ADR-040 v2.0 D8.1).
+/// Parsed at stub level; implementer populates `HttpLookupConfig` from these fields.
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct RawHttpSubtable {
+    base_url: Option<String>,
+    url_template: Option<String>,
+    method: Option<String>,
+    response_path: Option<String>,
+}
+
+/// `[source.credential]` subtable for http_lookup specs (AD-017 / INV-INFUSE-005).
+/// Credential references only — no inline values.
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct RawHttpCredentialSubtable {
+    #[serde(rename = "ref")]
+    credential_ref: Option<String>,
+    env_var: Option<String>,
+    auth: Option<String>,
+    param_name: Option<String>,
 }
 
 /// Nested `[infusion.source]` block (used in the fixture TOML schema).
@@ -148,7 +184,7 @@ impl InfusionLoader {
 
     /// Parse a single TOML string into an `InfusionSpec`.
     ///
-    /// Supports `source.type` values: `"plugin"`, `"maxmind_mmdb"`, `"csv"`, `"json_lookup"`.
+    /// Supports `source.type` values: `"plugin"`, `"maxmind_mmdb"`, `"csv"`, `"json_lookup"`, `"http_lookup"`.
     /// Unknown source types return `InfusionError::UnknownSourceType`.
     ///
     /// Returns `Ok(InfusionSpec)` or `Err(InfusionError)` — never panics.
@@ -164,12 +200,23 @@ impl InfusionLoader {
         let raw_infusion = raw.infusion;
 
         // Determine source type — authoritative resolution order:
-        // 1. Top-level `[source].type` (test TOML schema).
+        // 1. Top-level `[source].type` (non-empty — test TOML schema).
+        //    For http_lookup specs (ADR-040 v2.0 D8.1) the [source] table uses subtables
+        //    ([source.http], [source.credential]) with NO top-level `type` key; `source_type`
+        //    defaults to "" and is skipped so resolution continues to step 3.
         // 2. Nested `[infusion.source].type` (fixture TOML schema).
         // 3. `[infusion].type` field.
         // 4. `[infusion].source_type` field (fallback).
         let source_type_str = if let Some(ref top) = raw.source {
-            top.source_type.clone()
+            if !top.source_type.is_empty() {
+                top.source_type.clone()
+            } else if let Some(ref nested) = raw_infusion.source {
+                nested.source_type.clone()
+            } else if !raw_infusion.infusion_type_str.is_empty() {
+                raw_infusion.infusion_type_str.clone()
+            } else {
+                raw_infusion.source_type_fallback.clone()
+            }
         } else if let Some(ref nested) = raw_infusion.source {
             nested.source_type.clone()
         } else if !raw_infusion.infusion_type_str.is_empty() {
@@ -181,6 +228,7 @@ impl InfusionLoader {
         // Resolve infusion type variant.
         let infusion_type = match source_type_str.as_str() {
             "plugin" => InfusionType::Plugin,
+            "http_lookup" => InfusionType::HttpLookup,
             "local_lookup" => InfusionType::LocalLookup,
             "maxmind_mmdb" | "csv" | "json_lookup" => InfusionType::LocalLookup,
             "" => {
@@ -231,6 +279,130 @@ impl InfusionLoader {
             });
         }
 
+        // For http_lookup type: parse [source.http] and [source.credential] subtables
+        // and validate url_template / method fields (ADR-040 D8.3).
+        let http_lookup_config_parsed: Option<HttpLookupConfig> = if matches!(
+            infusion_type,
+            InfusionType::HttpLookup
+        ) {
+            let http_sub = raw
+                .source
+                .as_ref()
+                .and_then(|s| s.http.as_ref())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "[source.http] block required for type=\"http_lookup\"".to_string(),
+                    spec_path: source_path.to_string(),
+                })?;
+
+            let base_url = http_sub
+                .base_url
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::InvalidFieldSpec {
+                    field: "base_url".to_string(),
+                    spec_path: source_path.to_string(),
+                    message: "source.http.base_url must be non-empty \
+                              (E-INFUSE-013 sub-condition 3 / AC-013 / ADR-040 D8.3)"
+                        .to_string(),
+                })?
+                .to_string();
+
+            let url_template = http_sub
+                .url_template
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "source.http.url_template must be non-empty".to_string(),
+                    spec_path: source_path.to_string(),
+                })?
+                .to_string();
+
+            // D8.3 validation: url_template must contain "${input}" placeholder.
+            if !url_template.contains("${input}") {
+                return Err(InfusionError::InvalidFieldSpec {
+                    field: "url_template".to_string(),
+                    spec_path: source_path.to_string(),
+                    message: "url_template must contain \"${input}\" interpolation placeholder \
+                                  (ADR-040 D8.3 / AC-016)"
+                        .to_string(),
+                });
+            }
+
+            let method = http_sub
+                .method
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::MissingRequiredField {
+                    field: "source.http.method must be non-empty".to_string(),
+                    spec_path: source_path.to_string(),
+                })?
+                .to_string();
+
+            // D8.3 validation: method must be "GET" or "POST".
+            if method != "GET" && method != "POST" {
+                return Err(InfusionError::InvalidFieldSpec {
+                    field: "method".to_string(),
+                    spec_path: source_path.to_string(),
+                    message: format!(
+                        "method must be \"GET\" or \"POST\", got \"{}\" (ADR-040 D8.3 / AC-016)",
+                        method
+                    ),
+                });
+            }
+
+            let response_path = http_sub
+                .response_path
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| InfusionError::InvalidFieldSpec {
+                    field: "response_path".to_string(),
+                    spec_path: source_path.to_string(),
+                    message: "source.http.response_path must be non-empty \
+                              (E-INFUSE-013 sub-condition 5 / AC-013 / ADR-040 D8.3)"
+                        .to_string(),
+                })?
+                .to_string();
+
+            // Parse [source.credential] subtable if present.
+            let credential_config = raw
+                .source
+                .as_ref()
+                .and_then(|s| s.credential.as_ref())
+                .and_then(|c| {
+                    let ref_name = c.credential_ref.clone().unwrap_or_default();
+                    let env_var = c.env_var.clone().unwrap_or_default();
+                    let auth_str = c.auth.as_deref().unwrap_or("bearer_header");
+                    let param_name = c.param_name.clone();
+
+                    if ref_name.is_empty() || env_var.is_empty() {
+                        return None;
+                    }
+
+                    let auth = match auth_str {
+                        "query_param" => HttpLookupAuthType::QueryParam {
+                            param_name: param_name.unwrap_or_default(),
+                        },
+                        "bearer_header" => HttpLookupAuthType::BearerHeader,
+                        "api_key_header" => HttpLookupAuthType::ApiKeyHeader {
+                            header_name: param_name.unwrap_or_default(),
+                        },
+                        _ => HttpLookupAuthType::BearerHeader,
+                    };
+
+                    Some(HttpLookupCredentialConfig::new(ref_name, env_var, auth))
+                });
+
+            Some(HttpLookupConfig::new(
+                base_url,
+                url_template,
+                method,
+                response_path,
+                credential_config,
+            ))
+        } else {
+            None
+        };
+
         // For plugin type: validate plugin_ref is present.
         if matches!(infusion_type, InfusionType::Plugin) {
             let has_plugin_ref = raw
@@ -254,18 +426,20 @@ impl InfusionLoader {
             }
         }
 
-        // Build InfusionField list.
-        let fields: Vec<InfusionField> = raw_fields
-            .into_iter()
-            .map(|rf| InfusionField {
+        // Build InfusionField list — validate each field name at parse time (AC-007).
+        let mut fields: Vec<InfusionField> = Vec::with_capacity(raw_fields.len());
+        for rf in raw_fields {
+            // DRIFT-PIVOT-UDFNAME-VALIDATION-001: validate name before UDF registration.
+            Self::validate_field_name(&rf.name, source_path)?;
+            fields.push(InfusionField {
                 name: rf.name,
                 input_field: rf.input_field,
                 input_type: rf.input_type,
                 output_type: rf.output_type,
                 description: rf.description,
                 source_column: rf.source_column,
-            })
-            .collect();
+            });
+        }
 
         // Build plugin_config from either [source].plugin_ref or [infusion.plugin_config].
         let plugin_config = if let Some(ref top_source) = raw.source {
@@ -352,6 +526,7 @@ impl InfusionLoader {
             fields,
             pipe_stage,
             plugin_config,
+            http_lookup_config: http_lookup_config_parsed,
             credentials,
             source_path: source_path.to_string(),
             cache_ttl_secs: raw_infusion.cache_ttl_secs,
@@ -373,7 +548,7 @@ impl InfusionLoader {
     /// Returns (specs, errors): valid specs continue loading even if others fail.
     /// Invalid specs produce `InfusionError` values but do not block valid specs.
     ///
-    /// Supports `plugin`, `maxmind_mmdb`, `csv`, and `json_lookup` source types.
+    /// Supports `plugin`, `maxmind_mmdb`, `csv`, `json_lookup`, and `http_lookup` source types.
     /// Unknown source types produce `InfusionError::UnknownSourceType` in the errors vec.
     pub fn load_all(&self) -> (Vec<InfusionSpec>, Vec<InfusionError>) {
         let infusions_dir = Path::new(&self.config_dir).join("infusions");
@@ -408,20 +583,80 @@ impl InfusionLoader {
             }
 
             let source_path = path.to_string_lossy().to_string();
+            // Sanitize path for MCP-surfaced errors (AC-012 / SEC-002 CWE-209).
+            // Internal debug logging MAY retain the full path.
+            let sanitized_path = Self::sanitize_error_path(&source_path, &self.config_dir);
+
             let mut content = String::new();
             if let Err(e) =
                 std::fs::File::open(&path).and_then(|mut f| f.read_to_string(&mut content))
             {
+                // Log full path internally before sanitizing for the error surface.
+                tracing::debug!(
+                    path = %source_path,
+                    error = %e,
+                    "infusion file io_error (full path for diagnostics)"
+                );
                 errors.push(InfusionError::MissingRequiredField {
                     field: format!("io_error: {}", e),
-                    spec_path: source_path,
+                    spec_path: sanitized_path,
                 });
                 continue;
             }
 
             match Self::parse(&content, &source_path) {
-                Ok(spec) => specs.push(spec),
-                Err(e) => errors.push(e),
+                Ok(spec) => {
+                    // CRIT-2a (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22):
+                    // For plugin-type specs, validate the plugin_ref path against the designated
+                    // plugin directory before the spec is returned for PluginRuntime loading.
+                    // This is the ONLY place where config_dir context is available to resolve
+                    // the relative plugin_ref path against the filesystem.
+                    //
+                    // plugin_dir = {config_dir}/plugins/ by convention (same directory scanned by
+                    // PluginRuntime::load_all_plugins at boot time).
+                    //
+                    // If the plugin directory does not yet exist (e.g., first run), the traversal
+                    // check cannot be performed via canonicalize — skip the check rather than reject
+                    // a valid spec (canonicalize returns Err when either path component doesn't exist).
+                    if spec.infusion_type == super::InfusionType::Plugin
+                        && let Some(ref plugin_cfg) = spec.plugin_config
+                    {
+                        let plugin_dir = Path::new(&self.config_dir).join("plugins");
+                        // Only validate if the plugin_dir exists — canonicalize requires
+                        // both the directory and the file to exist (D8 constraint, ADR-040).
+                        // If the dir is absent (first boot, CI), skip rather than reject.
+                        if plugin_dir.exists() {
+                            match Self::validate_plugin_path(
+                                &plugin_cfg.plugin_path,
+                                &plugin_dir,
+                                &sanitized_path,
+                            ) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    errors.push(e);
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                    specs.push(spec);
+                }
+                Err(parse_err) => {
+                    // Sanitize spec_path in the parse error before surfacing to MCP.
+                    // The parse error was created with the absolute path; replace it.
+                    // AC-012 / SEC-002 CWE-209: absolute paths must not reach MCP surface.
+                    let sanitized_err = match parse_err {
+                        InfusionError::MissingRequiredField { field, .. } => {
+                            InfusionError::MissingRequiredField {
+                                field,
+                                spec_path: sanitized_path.clone(),
+                            }
+                        }
+                        // Other variants don't carry a spec_path field — pass through as-is.
+                        other => other,
+                    };
+                    errors.push(sanitized_err);
+                }
             }
         }
 
@@ -489,6 +724,221 @@ impl InfusionLoader {
             }
         }
         Ok(())
+    }
+
+    /// Validate that an `InfusionField.name` matches the identifier regex
+    /// `^[a-zA-Z][a-zA-Z0-9_]*$` (must start with a letter, followed by alphanumerics
+    /// or underscores; empty is rejected).
+    ///
+    /// Called during `parse` for every `[[infusion.fields]]` entry BEFORE `SessionContext`
+    /// UDF registration, so malformed names never reach DataFusion.
+    ///
+    /// Returns `Ok(())` if the name is valid, or `Err(InfusionError::InvalidFieldSpec)` if not.
+    ///
+    /// # Security
+    /// DRIFT-PIVOT-UDFNAME-VALIDATION-001 (AC-007 / SEC-001 CWE-20).
+    /// SQL-injection characters (`;`, space, `-`, starting digits) are all rejected.
+    ///
+    /// # Examples of valid names
+    /// `threat_is_known_malicious`, `cvss_base_score`, `field1`, `THREAT_SCORE`
+    ///
+    /// # Examples of rejected names
+    /// `"threat; DROP TABLE"`, `" leading_space"`, `"has-hyphen"`, `"1starts_with_digit"`, `""`
+    pub fn validate_field_name(name: &str, spec_path: &str) -> Result<(), InfusionError> {
+        // DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20:
+        // Identifier regex: ^[a-zA-Z][a-zA-Z0-9_]*$ — must start with letter, followed by
+        // alphanumerics or underscore. Empty string rejected. SQL-injection chars (;, space, -)
+        // and leading digits all rejected. Validated char-by-char (zero-dep, no regex crate).
+        // AC-007 / BC-2.19.001: validate_field_name MUST return InvalidFieldSpec (E-INFUSE-013),
+        // NOT MissingRequiredField (E-INFUSE-003), for invalid field name characters.
+        // This is a load-bearing contract distinction: callers that match on the variant
+        // (e.g., test_enrichment_pivot_002_sec001_udf_name_rejects_*) assert the specific
+        // variant — not just is_err() — to ensure the correct E-INFUSE-013 code is emitted.
+        if name.is_empty() {
+            return Err(InfusionError::InvalidFieldSpec {
+                field: "field name must match [a-zA-Z][a-zA-Z0-9_]* — got empty string \
+                        (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)"
+                    .to_string(),
+                spec_path: spec_path.to_string(),
+                message: "field name must not be empty".to_string(),
+            });
+        }
+
+        let mut chars = name.chars();
+
+        // First character must be ASCII alpha.
+        let first = chars.next().expect("non-empty string has a first char");
+        if !first.is_ascii_alphabetic() {
+            return Err(InfusionError::InvalidFieldSpec {
+                field: name.to_string(),
+                spec_path: spec_path.to_string(),
+                message: format!(
+                    "field name must match [a-zA-Z][a-zA-Z0-9_]* — '{}' starts with '{}' \
+                     (must start with [a-zA-Z]) \
+                     (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)",
+                    name, first
+                ),
+            });
+        }
+
+        // Remaining characters must be ASCII alphanumeric or underscore.
+        for ch in chars {
+            if !ch.is_ascii_alphanumeric() && ch != '_' {
+                return Err(InfusionError::InvalidFieldSpec {
+                    field: name.to_string(),
+                    spec_path: spec_path.to_string(),
+                    message: format!(
+                        "field name must match [a-zA-Z][a-zA-Z0-9_]* — '{}' contains invalid \
+                         character '{}' (only [a-zA-Z0-9_] allowed after first char) \
+                         (DRIFT-PIVOT-UDFNAME-VALIDATION-001 / AC-007 / SEC-001 CWE-20)",
+                        name, ch
+                    ),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate that a `plugin_ref` path resolves within the designated plugin directory.
+    ///
+    /// Steps (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22):
+    /// 0. Structural pre-check: reject `plugin_ref` containing `..` components immediately —
+    ///    this fires before any I/O and is the primary E-INFUSE-013 sub-condition 6 gate.
+    ///    Absolute paths (starting with `/` on Unix or `\\` on Windows) are also rejected.
+    /// 1. Resolve the `plugin_ref` relative to `plugin_dir`.
+    /// 2. Call `std::fs::canonicalize(resolved_path)` — follows symlinks, resolves `..`.
+    /// 3. Assert `canonicalized_path.starts_with(&plugin_dir_canonical)`.
+    ///    If not: return `Err(InfusionError::InvalidFieldSpec { ... })`.
+    ///    Do NOT include the attempted path in the error message surfaced to callers.
+    /// 4. Relative paths within plugin_dir (e.g. `subdir/plugin.prx`) are accepted.
+    ///
+    /// Called before any `std::fs::read` or `File::open` on the `.prx` path.
+    pub fn validate_plugin_path(
+        plugin_ref: &str,
+        plugin_dir: &std::path::Path,
+        spec_path: &str,
+    ) -> Result<std::path::PathBuf, InfusionError> {
+        // Step 0 (STRUCTURAL PRE-CHECK): detect `..` path components and absolute paths
+        // in the plugin_ref string BEFORE attempting any filesystem operation.
+        //
+        // E-INFUSE-013 sub-condition 6 — "plugin_ref contains path-traversal characters
+        // (`..`, `/`, `\`)" — fires here when the string-level check catches the traversal.
+        // This ensures the test fires deterministically (without requiring the traversal
+        // target to exist on the filesystem), and also provides defense-in-depth against
+        // symlink-based traversals which only the canonicalize check (step 3-4) can catch.
+        //
+        // We scan the Path components for any `..` (CurDir is never a traversal concern).
+        // Absolute paths (Component::RootDir or Component::Prefix) are also rejected
+        // because plugin_ref must be relative to plugin_dir by contract.
+        use std::path::{Component, Path};
+        for component in Path::new(plugin_ref).components() {
+            match component {
+                Component::ParentDir => {
+                    return Err(InfusionError::InvalidFieldSpec {
+                        field: "plugin_ref".to_string(),
+                        spec_path: spec_path.to_string(),
+                        message: "plugin_ref contains '..' path component — \
+                                  path traversal characters not allowed in plugin_ref \
+                                  (E-INFUSE-013 sub-condition 6 / \
+                                  DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                            .to_string(),
+                    });
+                }
+                Component::RootDir | Component::Prefix(_) => {
+                    return Err(InfusionError::InvalidFieldSpec {
+                        field: "plugin_ref".to_string(),
+                        spec_path: spec_path.to_string(),
+                        message: "plugin_ref must be a relative path — \
+                                  absolute paths not allowed in plugin_ref \
+                                  (E-INFUSE-013 sub-condition 6 / \
+                                  DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                            .to_string(),
+                    });
+                }
+                Component::CurDir | Component::Normal(_) => {
+                    // Acceptable — relative path component within plugin_dir.
+                }
+            }
+        }
+
+        // Step 1: Canonicalize the plugin_dir itself first.
+        // This is needed so starts_with comparisons work correctly even when plugin_dir
+        // is a relative or symlinked path.
+        let plugin_dir_canonical =
+            std::fs::canonicalize(plugin_dir).map_err(|_| InfusionError::MissingRequiredField {
+                field: "plugin_dir cannot be resolved \
+                        (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                    .to_string(),
+                spec_path: spec_path.to_string(),
+            })?;
+
+        // Step 2: Resolve plugin_ref relative to plugin_dir (before canonicalize, while dir exists).
+        let candidate = plugin_dir.join(plugin_ref);
+
+        // Step 3: Canonicalize the resolved path (resolves `..`, symlinks, etc.).
+        // If the file doesn't exist, canonicalize returns an error — that's an access error,
+        // not a traversal error. We must call canonicalize to detect `..` escapes.
+        let candidate_canonical =
+            std::fs::canonicalize(&candidate).map_err(|_| InfusionError::MissingRequiredField {
+                field: "plugin_ref cannot be resolved within plugin_dir — file not found or \
+                        path traversal detected \
+                        (DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 / AC-011 / SEC-003 CWE-22)"
+                    .to_string(),
+                spec_path: spec_path.to_string(),
+            })?;
+
+        // Step 4: Assert the canonicalized path starts_with the canonicalized plugin_dir.
+        // If it escapes the directory (via `../` or symlink), this fails.
+        if !candidate_canonical.starts_with(&plugin_dir_canonical) {
+            // AC-011: do NOT include the traversal target path in the error message.
+            // E-INFUSE-013 sub-condition 6: plugin_ref path-traversal (CWE-22).
+            return Err(InfusionError::InvalidFieldSpec {
+                field: "plugin_ref".to_string(),
+                spec_path: spec_path.to_string(),
+                message: "plugin_ref resolved outside designated plugin_dir — \
+                          path traversal rejected \
+                          (E-INFUSE-013 sub-condition 6 / DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001 \
+                          / AC-011 / SEC-003 CWE-22)"
+                    .to_string(),
+            });
+        }
+
+        Ok(candidate_canonical)
+    }
+
+    /// Sanitize an `InfusionError` message for MCP surface exposure by stripping
+    /// the absolute filesystem path prefix from `spec_path`.
+    ///
+    /// Internal tracing (DEBUG/INFO for operator diagnostics) MAY retain the full path.
+    /// Only the MCP-surfaced error string must be sanitized (AC-012 / SEC-002 CWE-209).
+    ///
+    /// Acceptable output forms:
+    /// - Filename only: `bad.infusion.toml` (using `Path::file_name()`)
+    /// - Relative path from config dir: `infusions/bad.infusion.toml`
+    /// - Redacted path: `<infusions-dir>/bad.infusion.toml`
+    ///
+    /// # Security
+    /// DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001 (AC-012 / SEC-002 CWE-209).
+    pub fn sanitize_error_path(absolute_path: &str, config_dir: &str) -> String {
+        let path = Path::new(absolute_path);
+        let base = Path::new(config_dir);
+
+        // Attempt 1: strip the config_dir prefix to get a relative path.
+        // e.g., "/tmp/abc/infusions/bad.infusion.toml" → "infusions/bad.infusion.toml"
+        if let Ok(relative) = path.strip_prefix(base) {
+            return relative.to_string_lossy().to_string();
+        }
+
+        // Attempt 2: return just the filename (last component).
+        // e.g., "/tmp/abc/infusions/bad.infusion.toml" → "bad.infusion.toml"
+        if let Some(filename) = path.file_name() {
+            return filename.to_string_lossy().to_string();
+        }
+
+        // Fallback: return a fully redacted path indicator (should never be reached
+        // since even bare file paths have a file_name component).
+        "<redacted-path>".to_string()
     }
 }
 

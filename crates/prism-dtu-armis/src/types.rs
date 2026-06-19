@@ -38,6 +38,16 @@ pub struct DeviceRecord {
     pub site: Option<String>,
     /// Current tags on the device (merged with in-memory `tag_store` at query time).
     pub tags: Vec<String>,
+    /// CVE IDs associated with this device (e.g. unpatched vulnerabilities).
+    ///
+    /// Added for S-DEMO-ENRICHMENT-PIVOT-002 to support the `device_cves_first` sensor TOML
+    /// column (a Prism-computed scalar derived from the first element of this array via
+    /// S-DEMO-ENRICHMENT-PIVOT-003 generator projection).
+    ///
+    /// Serde default = empty vec for backwards compat with existing DTU fixtures that
+    /// don't include a `device_cves` field.
+    #[serde(default)]
+    pub device_cves: Vec<String>,
 }
 
 /// Top-level device list response wrapper.
