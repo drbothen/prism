@@ -321,14 +321,15 @@ async fn test_BC_2_19_001_real_infusion_async_udf_delegates_to_stub_source() {
     });
 
     // Construct the descriptor directly — no registry needed for this wiring path.
-    let descriptor = InfusionUdfDescriptor {
-        name: "pivot_enrich".to_string(),
-        input_type: "ip".to_string(),
-        output_type: "string".to_string(),
-        infusion_id: "pivot_test".to_string(),
-        source: stub_source,
-        source_column: None,
-    };
+    let descriptor = InfusionUdfDescriptor::new(
+        "pivot_enrich",
+        "ip",
+        "string",
+        "pivot_test",
+        stub_source,
+        None,
+        3600,
+    );
 
     // Build a SessionContext.
     let ctx = build_session_context(prism_query::memory::QUERY_MEMORY_POOL_BYTES)

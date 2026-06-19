@@ -4,7 +4,7 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65 (17 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70 (18 total E0004 expected).
 //!
 //! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
 //!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
@@ -14,8 +14,11 @@
 //!
 //! S-5.02 follow-up fix-burst (CRIT-1/HIGH-1 non-exhaustive gate sibling-sweep):
 //!   65. prism_mcp::CapabilityStatus — enum, server.rs (re-exported from lib.rs)
+//!
+//! S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE:
+//!   70. prism_core::InfusionError — enum, error.rs (re-exported from prism_core)
 
-use prism_core::{ColumnOptions, ColumnType, PluginError};
+use prism_core::{ColumnOptions, ColumnType, InfusionError, PluginError};
 use prism_spec_engine::infusion::{BuiltInSourceType, InfusionType};
 use prism_spec_engine::spec_parser::{AuthType, PaginationConfig};
 use prism_spec_engine::types::{
@@ -283,5 +286,32 @@ pub fn v65_capability_status_match() {
         CapabilityStatus::RuntimeDisabled => {}
         CapabilityStatus::CompileTimeDisabled => {}
         // After S-5.02: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 70: prism_core::InfusionError exhaustive match (E0004).
+///
+/// `InfusionError` is the pub-API error type for the infusion enrichment framework
+/// (BC-2.19.001 through BC-2.19.005, S-1.14-REDO). `#[non_exhaustive]` ensures
+/// that new error variants (e.g., future E-INFUSE-* codes) can be added without
+/// requiring all external match arms to be updated immediately.
+/// External callers MUST include `_ => {}`.
+///
+/// Added: S-1.14-REDO adversarial OBS-1 FIX-IN-SCOPE. ci.yml EXPECTED bumped 69 → 70.
+#[allow(dead_code)]
+pub fn v70_infusion_error_match() {
+    let err: InfusionError = InfusionError::UnknownInfusion {
+        name: "test".to_string(),
+    };
+    match err {
+        InfusionError::UnknownInfusion { .. } => {}
+        InfusionError::DuplicateUdfName { .. } => {}
+        InfusionError::MissingRequiredField { .. } => {}
+        InfusionError::UnknownSourceType { .. } => {}
+        InfusionError::CredentialUnresolved { .. } => {}
+        InfusionError::ApiBackedUdfInDetectionRule { .. } => {}
+        InfusionError::PluginCallFailed { .. } => {}
+        InfusionError::SourceFileTooLarge { .. } => {}
+        // After S-1.14-REDO OBS-1: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

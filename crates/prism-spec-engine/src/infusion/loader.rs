@@ -7,17 +7,13 @@
 //! - `infusion_id` must be present and non-empty.
 //! - At least one `[[infusion.fields]]` entry required.
 //! - `source.type` must be one of: `maxmind_mmdb`, `csv`, `json_lookup`, `plugin`.
+//!   Unknown types return `InfusionError::UnknownSourceType`.
 //! - Credential references must use reference-based model (no inline values, AD-017).
 //! - `pipe_stage.adds_columns` must match the `[[infusion.fields]]` names.
 //! - On validation error: return `Err` — do NOT partially register.
 //!
 //! # Credential redaction (INV-INFUSE-005 / AD-017)
 //! Credential values MUST NOT appear in any error message or log output.
-//!
-//! # S-DEMO-ENRICHMENT-PIVOT-001
-//! Implements the `source.type = "plugin"` path only.
-//! `source.type = "maxmind_mmdb"`, `"csv"`, `"json_lookup"` return
-//! `InfusionError::UnknownSourceType` (deferred to S-1.14-REDO).
 
 use std::io::Read;
 use std::path::Path;
@@ -26,7 +22,8 @@ use prism_core::InfusionError;
 use serde::Deserialize;
 
 use super::{
-    CredentialRef, InfusionField, InfusionSpec, InfusionType, PipeStageConfig, PluginConfig,
+    BuiltInSourceType, CredentialRef, InfusionField, InfusionSourceConfig, InfusionSpec,
+    InfusionType, PipeStageConfig, PluginConfig,
 };
 
 // ---------------------------------------------------------------------------
@@ -66,9 +63,8 @@ struct RawInfusion {
 
 /// Top-level `[source]` block (alternative schema form used by tests).
 ///
-/// Fields `file_path`, `key_column`, `refresh_interval_secs` are parsed but unused
-/// in the plugin-type path (S-DEMO-ENRICHMENT-PIVOT-001); they become active when
-/// S-1.14-REDO implements the MMDB/CSV/JSON-lookup paths.
+/// Fields `file_path`, `key_column`, `refresh_interval_secs` are active for MMDB/CSV/JSON-lookup
+/// paths; `plugin_ref` is used for the plugin-type path.
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct RawTopLevelSource {
@@ -76,18 +72,18 @@ struct RawTopLevelSource {
     source_type: String,
     /// For plugin-type: reference to the `.prx` plugin file.
     plugin_ref: Option<String>,
-    /// For file-backed types: path to the data file (S-1.14-REDO).
+    /// For file-backed types (maxmind_mmdb, csv, json_lookup): path to the data file.
     file_path: Option<String>,
-    /// For CSV: the key column name (S-1.14-REDO).
+    /// For CSV: the column to use as lookup key.
     key_column: Option<String>,
-    /// Refresh interval (S-1.14-REDO).
+    /// Refresh interval for file-backed sources (seconds).
     refresh_interval_secs: Option<u64>,
 }
 
 /// Nested `[infusion.source]` block (used in the fixture TOML schema).
 ///
-/// Fields `file_path`, `key_column`, `refresh_interval_secs` are parsed but unused
-/// in the plugin-type path (S-DEMO-ENRICHMENT-PIVOT-001); they become active in S-1.14-REDO.
+/// Fields `file_path`, `key_column`, `refresh_interval_secs` are active for MMDB/CSV/JSON-lookup
+/// paths; `plugin_ref` is used for the plugin-type path.
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct RawNestedSource {
@@ -95,11 +91,11 @@ struct RawNestedSource {
     source_type: String,
     /// For plugin-type: reference to the `.prx` plugin file.
     plugin_ref: Option<String>,
-    /// For file-backed types (S-1.14-REDO).
+    /// For file-backed types (maxmind_mmdb, csv, json_lookup): path to the data file.
     file_path: Option<String>,
-    /// For CSV (S-1.14-REDO).
+    /// For CSV: the column to use as lookup key.
     key_column: Option<String>,
-    /// Refresh interval (S-1.14-REDO).
+    /// Refresh interval for file-backed sources (seconds).
     refresh_interval_secs: Option<u64>,
 }
 
@@ -152,9 +148,8 @@ impl InfusionLoader {
 
     /// Parse a single TOML string into an `InfusionSpec`.
     ///
-    /// Implements the `source.type = "plugin"` path (S-DEMO-ENRICHMENT-PIVOT-001).
-    /// Returns `InfusionError::UnknownSourceType` for `maxmind_mmdb`, `csv`, `json_lookup`
-    /// (deferred to S-1.14-REDO).
+    /// Supports `source.type` values: `"plugin"`, `"maxmind_mmdb"`, `"csv"`, `"json_lookup"`.
+    /// Unknown source types return `InfusionError::UnknownSourceType`.
     ///
     /// Returns `Ok(InfusionSpec)` or `Err(InfusionError)` — never panics.
     /// Validation failures return descriptive errors without credential values.
@@ -186,20 +181,8 @@ impl InfusionLoader {
         // Resolve infusion type variant.
         let infusion_type = match source_type_str.as_str() {
             "plugin" => InfusionType::Plugin,
-            "local_lookup" => {
-                // local_lookup is a grouping type — the actual source subtype
-                // is determined by [infusion.source].type or [source].type.
-                // For local_lookup group, reject as unsupported (deferred to S-1.14-REDO).
-                return Err(InfusionError::UnknownSourceType {
-                    type_name: source_type_str,
-                });
-            }
-            "maxmind_mmdb" | "csv" | "json_lookup" => {
-                // Deferred to S-1.14-REDO.
-                return Err(InfusionError::UnknownSourceType {
-                    type_name: source_type_str,
-                });
-            }
+            "local_lookup" => InfusionType::LocalLookup,
+            "maxmind_mmdb" | "csv" | "json_lookup" => InfusionType::LocalLookup,
             "" => {
                 return Err(InfusionError::MissingRequiredField {
                     field: "source.type".to_string(),
@@ -217,6 +200,24 @@ impl InfusionLoader {
         if raw_infusion.infusion_id.is_empty() {
             return Err(InfusionError::MissingRequiredField {
                 field: "infusion_id".to_string(),
+                spec_path: source_path.to_string(),
+            });
+        }
+
+        // Validate infusion_id does NOT contain ':' (the cache-key delimiter).
+        //
+        // All three infusion cache tiers compose keys as `format!("{}:{}", infusion_id, input_value)`.
+        // A colon in infusion_id makes the composite key non-injective: id="a:b" enriching "c"
+        // produces key "a:b:c", which is indistinguishable from id="a" enriching "b:c".
+        // This is the only delimiter used across all three tiers (TD-VSDD-060 grep confirmed:
+        // cache.rs lines 50, 58, 140, 161 all use `format!("{}:{}", infusion_id, input_value)`).
+        // Tier 3 hashes the composed key via SHA-256 so the raw collision still applies.
+        // Guard-at-parse prevents any infusion_id containing ':' from ever reaching the cache.
+        if raw_infusion.infusion_id.contains(':') {
+            return Err(InfusionError::MissingRequiredField {
+                field: "infusion_id must not contain ':' (cache-key delimiter — \
+                        prevents cross-infusion cache key collision)"
+                    .to_string(),
                 spec_path: source_path.to_string(),
             });
         }
@@ -297,11 +298,57 @@ impl InfusionLoader {
             })
             .collect();
 
+        // Build source config for LocalLookup types from [source] or [infusion.source] block.
+        let source_config: Option<InfusionSourceConfig> =
+            if matches!(infusion_type, InfusionType::LocalLookup) {
+                // Extract file_path and key_column from whichever source block is present.
+                let (raw_type, file_path, key_column, refresh_interval_secs) =
+                    if let Some(ref top_source) = raw.source {
+                        (
+                            top_source.source_type.as_str(),
+                            top_source.file_path.clone(),
+                            top_source.key_column.clone(),
+                            top_source.refresh_interval_secs,
+                        )
+                    } else if let Some(ref nested_source) = raw_infusion.source {
+                        (
+                            nested_source.source_type.as_str(),
+                            nested_source.file_path.clone(),
+                            nested_source.key_column.clone(),
+                            nested_source.refresh_interval_secs,
+                        )
+                    } else {
+                        (source_type_str.as_str(), None, None, None)
+                    };
+
+                // Resolve the actual source type.
+                // Unknown types error — no silent default to JsonLookup (MED-3 / BC-2.19.001).
+                let built_in_type = match raw_type {
+                    "maxmind_mmdb" => BuiltInSourceType::MaxmindMmdb,
+                    "csv" => BuiltInSourceType::Csv,
+                    "json_lookup" => BuiltInSourceType::JsonLookup,
+                    other => {
+                        return Err(InfusionError::UnknownSourceType {
+                            type_name: other.to_string(),
+                        });
+                    }
+                };
+
+                Some(InfusionSourceConfig::new(
+                    built_in_type,
+                    file_path.unwrap_or_default(),
+                    key_column,
+                    refresh_interval_secs,
+                ))
+            } else {
+                None
+            };
+
         let spec = InfusionSpec {
             infusion_id: raw_infusion.infusion_id,
             name: raw_infusion.name,
             infusion_type,
-            source: None, // LocalLookup source config — not used for plugin type
+            source: source_config,
             fields,
             pipe_stage,
             plugin_config,
@@ -326,8 +373,8 @@ impl InfusionLoader {
     /// Returns (specs, errors): valid specs continue loading even if others fail.
     /// Invalid specs produce `InfusionError` values but do not block valid specs.
     ///
-    /// Implements only the `source.type = "plugin"` path (S-DEMO-ENRICHMENT-PIVOT-001).
-    /// Other source types return `InfusionError::UnknownSourceType` in the errors vec.
+    /// Supports `plugin`, `maxmind_mmdb`, `csv`, and `json_lookup` source types.
+    /// Unknown source types produce `InfusionError::UnknownSourceType` in the errors vec.
     pub fn load_all(&self) -> (Vec<InfusionSpec>, Vec<InfusionError>) {
         let infusions_dir = Path::new(&self.config_dir).join("infusions");
 
@@ -383,9 +430,24 @@ impl InfusionLoader {
 
     /// Validate that `pipe_stage.adds_columns` matches the `[[infusion.fields]]` names.
     ///
-    /// Returns `Ok(())` or a list of mismatched names.
+    /// Enforces two constraints (BC-2.19.001 / Story Task 1):
+    /// 1. Every name in `adds_columns` must be a declared `[[infusion.fields]]` name (subset rule).
+    /// 2. `adds_columns` must be non-empty — a `pipe_stage` present with an empty column list is
+    ///    rejected; callers must either omit `pipe_stage` entirely or list at least one column.
+    ///
+    /// Returns `Ok(())` on success; `Err(InfusionError::MissingRequiredField)` otherwise.
     pub fn validate_pipe_stage_columns(spec: &InfusionSpec) -> Result<(), InfusionError> {
         if let Some(ref pipe_stage) = spec.pipe_stage {
+            // Story Task 1: non-empty constraint — pipe_stage present with 0 adds_columns is invalid.
+            if pipe_stage.adds_columns.is_empty() {
+                return Err(InfusionError::MissingRequiredField {
+                    field: "pipe_stage.adds_columns must not be empty — \
+                            omit pipe_stage entirely or list at least one column (E-INFUSE-003)"
+                        .to_string(),
+                    spec_path: spec.source_path.clone(),
+                });
+            }
+
             let field_names: std::collections::HashSet<&str> =
                 spec.fields.iter().map(|f| f.name.as_str()).collect();
             for col in &pipe_stage.adds_columns {
@@ -403,9 +465,19 @@ impl InfusionLoader {
         Ok(())
     }
 
-    /// Validate that all credential entries use the reference-based model (no inline values).
+    /// Validate that all credential entries use the reference-based model (structural check only).
     ///
-    /// Returns `Ok(())` or `Err` — credential values MUST NOT appear in the error (INV-INFUSE-005).
+    /// Checks that every `CredentialRef.env_var` field is non-empty — i.e., the TOML spec
+    /// provides a named environment-variable reference for each credential. This is a
+    /// **structural** check performed at spec load time.
+    ///
+    /// It does NOT resolve the environment variable or verify the credential value exists at
+    /// this point. Per AD-017, credentials are resolved at call time (never at load time);
+    /// the actual env-var lookup happens in the source backend when `enrich_single` is called.
+    ///
+    /// Returns `Ok(())` if all credential refs are structurally valid, or
+    /// `Err(InfusionError::CredentialUnresolved)` for the first empty `env_var` found.
+    /// Credential VALUES MUST NOT appear in any returned error (INV-INFUSE-005 / AD-017).
     pub fn validate_credentials(spec: &InfusionSpec) -> Result<(), InfusionError> {
         for cred in &spec.credentials {
             if cred.env_var.is_empty() {
@@ -417,5 +489,93 @@ impl InfusionLoader {
             }
         }
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::InfusionLoader;
+
+    /// Regression guard for cross-platform TOML path embedding (Windows / CI fix cycle 1).
+    ///
+    /// TOML basic strings treat `\` as an escape-sequence prefix. Windows absolute paths
+    /// (e.g. `C:\Users\Runner\AppData\Local\Temp\file.csv`) contain sequences like `\U`,
+    /// `\A`, `\T` that are NOT valid TOML escapes. If tests embed a raw Windows path into
+    /// a TOML string via `to_string_lossy().to_string()`, the TOML parser returns an error
+    /// and `load_all()` / `parse()` yields 0 specs.
+    ///
+    /// The correct fix (applied in integration tests and here demonstrated) is to normalise
+    /// the path to forward slashes before embedding: `path.replace('\\', "/")`. Forward
+    /// slashes are accepted by Rust `std::fs` and the `csv` crate on all platforms.
+    ///
+    /// This test verifies that `InfusionLoader::parse()` succeeds when given a `file_path`
+    /// value that uses Windows-style backslashes encoded as the CORRECT TOML escape (`\\`)
+    /// — which is what `replace('\\', "/")` avoids. It also verifies that a raw backslash
+    /// path (as a proxy for a mis-embedded Windows path) causes parse failure, confirming
+    /// the guard is load-bearing.
+    #[test]
+    fn test_parse_csv_toml_with_forward_slash_path_succeeds() {
+        // Forward-slash path (the normalised form used on all platforms) must parse.
+        let toml_forward = r#"
+[infusion]
+infusion_id = "test_csv"
+name = "Test CSV"
+
+[source]
+type = "csv"
+file_path = "C:/Users/Runner/AppData/Local/Temp/prism-test/file.csv"
+key_column = "device_ip"
+
+[[infusion.fields]]
+name = "asset_name"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+source_column = "name"
+"#;
+        let result = InfusionLoader::parse(toml_forward, "test_csv_forward.infusion.toml");
+        assert!(
+            result.is_ok(),
+            "forward-slash path in TOML file_path must parse successfully; \
+             got: {:?}",
+            result.err()
+        );
+    }
+
+    /// Confirms that a raw Windows backslash path embedded in a TOML basic string fails
+    /// to parse — this is the exact failure mode that the `replace('\\', "/")` fix prevents
+    /// in the integration tests.
+    ///
+    /// The path `C:\Users\Runner\...` contains `\U` which is NOT a valid TOML escape
+    /// sequence (only `\t \n \r \" \\ \uXXXX \UXXXXXXXX` are valid in TOML basic strings).
+    #[test]
+    fn test_parse_csv_toml_with_raw_backslash_path_fails() {
+        // Raw Windows backslash path — NOT normalised — must fail TOML parse.
+        // This string is constructed at runtime so the Rust source file itself is
+        // not a raw TOML string with invalid escapes; we build it via String::new().
+        let toml_backslash = {
+            let mut s = String::new();
+            s.push_str("[infusion]\ninfusion_id = \"test_csv\"\nname = \"Test\"\n\n");
+            s.push_str("[source]\ntype = \"csv\"\n");
+            // Embed a Windows-style path with a backslash: `\U` is an invalid TOML escape.
+            s.push_str("file_path = \"C:\\Users\\Runner\\file.csv\"\n");
+            s.push_str("key_column = \"device_ip\"\n\n");
+            s.push_str("[[infusion.fields]]\n");
+            s.push_str(
+                "name = \"asset_name\"\ninput_field = \"device_ip\"\n\
+                 input_type = \"ip\"\noutput_type = \"string\"\n",
+            );
+            s
+        };
+        let result = InfusionLoader::parse(&toml_backslash, "test_csv_backslash.infusion.toml");
+        assert!(
+            result.is_err(),
+            "raw Windows backslash path in TOML basic string must fail to parse \
+             (\\U is an invalid TOML escape sequence); expected Err but got Ok"
+        );
     }
 }

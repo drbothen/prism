@@ -250,6 +250,16 @@ pub struct QueryEngine {
     /// on the ephemeral `SessionContext` so analyst queries using `| enrich infusion(field)` resolve.
     /// When `None`, no enrichment UDFs are registered (query-only / test mode without enrichment).
     pub(crate) infusion_registry: Option<Arc<prism_spec_engine::InfusionRegistry>>,
+    /// Tier 2 in-memory LRU cache for infusion enrichment (BC-2.19.002 / HIGH-1 fix).
+    ///
+    /// Process-shared across all queries; consulted on Tier 1 miss, populated on source call.
+    /// `None` when no infusion registry is configured (query-only / test mode).
+    pub(crate) infusion_lru_cache: Option<Arc<prism_spec_engine::InfusionLruCache>>,
+    /// Tier 3 RocksDB persistent cache for infusion enrichment (BC-2.19.002 / HIGH-1 fix).
+    ///
+    /// Backed by the `infusion_cache` CF via `CacheBackend` trait injection.
+    /// `None` when no infusion registry is configured (query-only / test mode).
+    pub(crate) infusion_tier3_cache: Option<Arc<prism_spec_engine::InfusionTier3Cache>>,
     /// Dynamic table registry — tracks which sensor tables are currently available.
     ///
     /// Populated from `ConfigSnapshot.sensor_specs` at startup. Updated on hot-reload
@@ -327,6 +337,9 @@ impl QueryEngine {
             resolved_spec_map: None,
             alias_store: None,
             infusion_registry: None,
+            // S-1.14-REDO HIGH-1: Tier 2/3 caches default to None; wired via with_infusion_registry.
+            infusion_lru_cache: None,
+            infusion_tier3_cache: None,
             // S-3.13: table_registry wired as None by default in new/new_with_cache_config.
             // Production boot uses new_full (with a real ConfigSnapshot) or
             // with_table_registry() to supply a pre-populated TableRegistry.
@@ -410,6 +423,9 @@ impl QueryEngine {
             resolved_spec_map: Some(resolved_spec_map),
             alias_store: Some(alias_store),
             infusion_registry: None,
+            // S-1.14-REDO HIGH-1: Tier 2/3 caches default to None; wired via with_infusion_registry.
+            infusion_lru_cache: None,
+            infusion_tier3_cache: None,
             // S-3.13: table_registry is None in new_full; callers that need it
             // (production boot path with spec engine loaded) use with_table_registry().
             table_registry: None,
@@ -418,15 +434,53 @@ impl QueryEngine {
 
     /// Set the infusion registry for plugin-backed enrichment UDF registration.
     ///
-    /// Intended to be called from the boot path by S-DEMO-ENRICHMENT-PIVOT-002/003
-    /// (production wiring deferred per sequencing); currently no production caller.
-    /// When set, `execute_inner` and `execute_scheduled_inner` call `register_infusion_udfs`
+    /// Also allocates the shared Tier 2 (LRU, 10 000-entry capacity) and Tier 3 (RocksDB via
+    /// `CacheBackend::NullCache` placeholder until `with_infusion_caches` is called with a
+    /// real backend) caches so that `execute_inner` can call `register_infusion_udfs_with_cache`
+    /// (BC-2.19.002 / HIGH-1 fix). Tests that need a real Tier 3 backend must call
+    /// `with_infusion_caches` after this method.
+    ///
+    /// When set, `execute_inner` and `execute_scheduled_inner` call `register_infusion_udfs_with_cache`
     /// on each ephemeral `SessionContext` before query execution.
     pub fn with_infusion_registry(
         mut self,
         registry: Arc<prism_spec_engine::InfusionRegistry>,
     ) -> Self {
+        // Allocate Tier 2 LRU cache (10 000-entry capacity, default per BC-2.19.002 / cache.rs).
+        // `const { }` enforces the nonzero invariant at compile time — no runtime panic possible
+        // (OBS-1, S-1.14-REDO: `InfusionLruCache::new` accepts `NonZeroUsize`, not `usize`).
+        let lru = Arc::new(prism_spec_engine::InfusionLruCache::new(
+            const { std::num::NonZeroUsize::new(10_000).unwrap() },
+        ));
+        // Allocate Tier 3 cache with NullCacheBackend (no RocksDB dependency at this call site;
+        // production boot calls with_infusion_caches to wire the real RocksDB backend).
+        let tier3 = Arc::new(prism_spec_engine::InfusionTier3Cache::new(Arc::new(
+            crate::null_cache::NullCacheBackend,
+        )));
         self.infusion_registry = Some(registry);
+        self.infusion_lru_cache = Some(lru);
+        self.infusion_tier3_cache = Some(tier3);
+        self
+    }
+
+    /// Override the Tier 2 + Tier 3 caches on an engine that already has an infusion registry.
+    ///
+    /// Called by `prism-bin` boot path (S-1.14-REDO AC-7) to wire the real RocksDB `CacheBackend`
+    /// after storage is initialized. Tests may inject an in-memory `CacheBackend` for Tier 3
+    /// testing without a real RocksDB instance.
+    ///
+    /// Unconditionally stores `lru_cache` and `tier3_cache` on the engine regardless of whether
+    /// `with_infusion_registry` has been called. Caches stored without an infusion registry are
+    /// inert — they are allocated but never exercised, because `execute_inner` gates all infusion
+    /// UDF registration on `infusion_registry` being `Some`. The production boot path always calls
+    /// `with_infusion_registry` immediately before this method (see `boot.rs`).
+    pub fn with_infusion_caches(
+        mut self,
+        lru_cache: Arc<prism_spec_engine::InfusionLruCache>,
+        tier3_cache: Arc<prism_spec_engine::InfusionTier3Cache>,
+    ) -> Self {
+        self.infusion_lru_cache = Some(lru_cache);
+        self.infusion_tier3_cache = Some(tier3_cache);
         self
     }
 
@@ -606,9 +660,39 @@ impl QueryEngine {
         // is infallible so no call failure can occur here) and the real infusion_id.
         // We propagate verbatim — no outer prefix that would inject a function name into the
         // {infusion_id} slot or double-prefix the error code (MED-2 fix).
+        // OBS-1 (S-1.14-REDO burst-4): Tier-1 lifetime note.
+        //
+        // `QueryScopedInfusionCache` (Tier-1) is allocated fresh per DataFusion batch
+        // invocation inside `InfusionAsyncUdf::invoke_async_with_args`. This is CORRECT
+        // behavior: Tier-1 deduplicates within a single DataFusion batch (e.g., 500 rows
+        // mapping to 30 unique IPs — only 30 source calls). Tier-2 (process-shared LRU)
+        // provides cross-batch dedup across multiple `execute()` calls without RocksDB.
+        // Tier-3 (RocksDB, persistent) provides cross-process/restart persistence.
+        //
+        // AC-2 compliance: per-batch Tier-1 + process-shared Tier-2 together satisfy the
+        // "no redundant source calls within a single query" requirement — DataFusion may
+        // invoke the UDF in multiple batches, but Tier-2 absorbs all cross-batch hits.
         if let Some(ref registry) = self.infusion_registry {
-            crate::infusion_udf::register_infusion_udfs(&session_ctx, registry.udf_descriptors())
-                .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
+            // HIGH-1 fix (BC-2.19.002): use three-tier cache path when caches are wired.
+            // Falls back to Tier-1-only (no-cache) path in test/legacy mode when caches are None.
+            match (&self.infusion_lru_cache, &self.infusion_tier3_cache) {
+                (Some(lru), Some(t3)) => crate::infusion_udf::register_infusion_udfs_with_cache(
+                    &session_ctx,
+                    registry.udf_descriptors(),
+                    Arc::clone(lru),
+                    Arc::clone(t3),
+                    // DEFAULT_CACHE_TTL_SECS is the Tier-2/3 write TTL fallback; it is
+                    // OVERRIDDEN per-UDF by descriptor.cache_ttl_secs when set on the
+                    // infusion spec (F-TTL-1). The literal 3600 here is NOT the effective
+                    // TTL for specs that declare `cache_ttl_secs`.
+                    crate::infusion_udf::DEFAULT_CACHE_TTL_SECS,
+                ),
+                _ => crate::infusion_udf::register_infusion_udfs(
+                    &session_ctx,
+                    registry.udf_descriptors(),
+                ),
+            }
+            .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
                 detail: e.to_string(),
             })?;
         }
@@ -847,8 +931,25 @@ impl QueryEngine {
         // Error propagation: propagate the inner error verbatim — same rationale as
         // execute_inner (MED-2 fix; see that site for the full explanation).
         if let Some(ref registry) = self.infusion_registry {
-            crate::infusion_udf::register_infusion_udfs(&session_ctx, registry.udf_descriptors())
-                .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
+            // HIGH-1 fix (BC-2.19.002): same three-tier cache wiring as execute_inner.
+            match (&self.infusion_lru_cache, &self.infusion_tier3_cache) {
+                (Some(lru), Some(t3)) => crate::infusion_udf::register_infusion_udfs_with_cache(
+                    &session_ctx,
+                    registry.udf_descriptors(),
+                    Arc::clone(lru),
+                    Arc::clone(t3),
+                    // DEFAULT_CACHE_TTL_SECS is the Tier-2/3 write TTL fallback; it is
+                    // OVERRIDDEN per-UDF by descriptor.cache_ttl_secs when set on the
+                    // infusion spec (F-TTL-1). The literal 3600 here is NOT the effective
+                    // TTL for specs that declare `cache_ttl_secs`.
+                    crate::infusion_udf::DEFAULT_CACHE_TTL_SECS,
+                ),
+                _ => crate::infusion_udf::register_infusion_udfs(
+                    &session_ctx,
+                    registry.udf_descriptors(),
+                ),
+            }
+            .map_err(|e| prism_core::PrismError::QueryExecutionFailed {
                 detail: e.to_string(),
             })?;
         }
@@ -1254,22 +1355,24 @@ mod alias_wiring_tests {
         }
 
         let descriptors = vec![
-            InfusionUdfDescriptor {
-                name: "threat_score".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                infusion_id: "threatintel_v1".to_string(),
-                source: Arc::new(NullSrc),
-                source_column: None,
-            },
-            InfusionUdfDescriptor {
-                name: "threat_score".to_string(), // duplicate name
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                infusion_id: "threatintel_v2".to_string(),
-                source: Arc::new(NullSrc),
-                source_column: None,
-            },
+            InfusionUdfDescriptor::new(
+                "threat_score",
+                "ip",
+                "string",
+                "threatintel_v1",
+                Arc::new(NullSrc),
+                None,
+                3600,
+            ),
+            InfusionUdfDescriptor::new(
+                "threat_score", // duplicate name
+                "ip",
+                "string",
+                "threatintel_v2",
+                Arc::new(NullSrc),
+                None,
+                3600,
+            ),
         ];
 
         // Simulate the map_err pattern used in execute_inner — FIXED version (propagates

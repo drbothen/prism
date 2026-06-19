@@ -172,6 +172,14 @@ path = "tests/vp153_rule_c_shaped_probe.rs"
 name = "pol_12_no_todo"
 path = "tests/pol_12_no_todo.rs"
 
+# S-1.14-REDO: AC-10 hollow-feature wiring test.
+# Verifies that infusion_load_step() is callable and wires InfusionRegistry into boot.
+# RED before S-1.14-REDO (panics on todo!); GREEN after implementation.
+# SID-1 compliant: exercises the real production path, not an #[ignore]'d placeholder.
+[[test]]
+name = "infusion_boot_integration"
+path = "tests/infusion_boot_integration.rs"
+
 # S-DEMO-001: Red Gate failing tests for SpecDrivenSensorAdapter + boot step 9A.
 # Covers: AC-001..009, AC-012, EC-007, OQ-2 Resolution.
 # BCs: BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001
