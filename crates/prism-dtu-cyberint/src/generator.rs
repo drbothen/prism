@@ -74,7 +74,11 @@ pub fn generate_with_catalog(
 /// `ScenarioEntityCatalog` to stamp on the generated alert records.
 /// `catalog_cves`: CVE IDs to stamp on CVE-surface records (same as `generate_with_catalog`).
 ///
-/// Stub: non-trivial IOC-stamping logic deferred to implementer (BC-5.38.001).
+/// For `CompromisedEndpoint` archetype, stamps `iocs[0]` on every alert-surface record
+/// with `{"type": "hash_sha256", "value": catalog_ioc_hashes[0]}` so the real-schema IOC
+/// filter in `routes/alerts.rs` can project it against the StageMask (BC-2.06.019 v1.8 PC-4).
+/// Non-CompromisedEndpoint archetypes receive no IOC stamping; catalog CVE IDs are still
+/// applied to CVE-surface records via `generate_inner` on all archetypes.
 pub fn generate_with_scenario_iocs(
     org_id: &OrgId,
     archetype: Archetype,

@@ -179,8 +179,11 @@ pub fn generate(org_id: OrgId, org_slug: &str, archetype: Archetype, opts: &GenO
 /// Stage visibility: `device_cves` is only visible at stage >= 4 (Containment) per
 /// BC-2.06.019 PC-2 StageMask table. The NVD pivot test MUST use stage 4.
 ///
-/// Stub: implementer stamps `"device_cves_first": catalog_device_cves[0]` onto
-/// scenario-enabled CompromisedEndpoint device records; non-scenario records omit the key.
+/// For `CompromisedEndpoint` archetype, stamps `"device_cves_first": catalog_device_cves[0]`
+/// onto every asset record (identified by presence of `asset_id`). Alert records (which lack
+/// `asset_id`) are skipped. If `catalog_device_cves` is empty no stamping occurs and the key
+/// is absent, which is the correct shape for the `has device_cves` filter to yield 0 results.
+/// Non-CompromisedEndpoint archetypes pass through unmodified.
 pub fn generate_with_scenario_cves(
     org_id: OrgId,
     org_slug: &str,
