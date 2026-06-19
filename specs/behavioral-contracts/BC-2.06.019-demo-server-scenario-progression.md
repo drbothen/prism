@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
-version: "1.7"
+version: "1.8"
 status: active
 lifecycle_status: active
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-12"
+modified: "2026-06-19"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -210,8 +210,8 @@ S-DEMO-ENRICHMENT-PIVOT-003.
 
 | Sensor | IOC-Surface | Real-Schema Field Path(s) | IOC Types Supported | Implementation Story | Fidelity Basis |
 |--------|-------------|---------------------------|---------------------|---------------------|----------------|
-| Cyberint alerts | YES (deferred) | `ioc.value` (single inline), `iocs[].value` (list), `alert_data.ip`, `alert_data.domain`, `alert_data.url` | ip, domain, url, hash | S-DEMO-ENRICHMENT-PIVOT-003 | Real Cyberint API populates `ioc`/`iocs[]` and typed `alert_data.*` observables per real-API research (research-agent 2026-06-12: Cyberint portal docs, ThreatQ/Elastic field maps) |
-| CrowdStrike detections | YES (deferred) | `behaviors[].ioc_value` (on detection records, NOT on host/device records) | hash, domain, filename, registry, cmdline — NOT ipv4/ipv6 (IPs only appear on streaming NetworkAccesses shape, not detection records) | S-DEMO-ENRICHMENT-PIVOT-003 | Real FalconPy SDK / CrowdStrike Detect API `behaviors[]` array carries `ioc_type`/`ioc_value`/`ioc_source`/`ioc_description` per real-API research (research-agent 2026-06-12: falconpy SDK, XSOAR/Elastic field maps) |
+| Cyberint alerts | YES (deferred) | `iocs[].value` (list — CONFIRMED); `alert_data.url` (CONFIRMED); `alert_data.ip`, `alert_data.domain` (UNCONFIRMED-plausible); `ioc.value` (singleton top-level — UNCONFIRMED, flagged for likely removal) | ip, domain, url, hash | S-DEMO-ENRICHMENT-PIVOT-003 | `iocs` array and `alert_data.url` confirmed via Check Point sk182975 + FortiSOAR connector (2026-06-19). Inner IOC key names for `iocs[]` elements are **INCONCLUSIVE-pending-live-validation**: the real Cyberint alerts API does not expose inner-element structure in any public doc. Two equally-plausible forms: `type`/`value` (short, prism's current bet) OR `ioc_type`/`ioc_value` (matching Cyberint feed convention per XSOAR Check Point EM Feed docs). DTU implementation MUST use serde dual-alias (`#[serde(rename = "type", alias = "ioc_type")]` and `#[serde(alias = "ioc_value")]`) to tolerate both forms until validated against a live tenant. Singleton top-level `ioc` field (prism's `Alert.ioc: Option<Ioc>`) has NO public-documentation basis; flagged for removal — confirm via live tenant whether it ever appears, remove if absent. Source: uncertainty-pivot003-s504-2026-06-19.md §Item 2. |
+| CrowdStrike detections | YES (deferred) | `behaviors[].ioc_value` (on detection records, NOT on host/device records) | `hash_sha256`, `hash_md5`, `domain`, `filename`, `registry_key` — NOT `hash` (bare, incorrect), NOT `registry` (bare, incorrect), NOT `cmdline` (NOT an ioc_type; it is a separate sibling behavior field `behaviors[].cmdline`), NOT ipv4/ipv6 (IPs only appear on separate custom-IOC / device-query surfaces, not on detection `behaviors[].ioc_type`) | S-DEMO-ENRICHMENT-PIVOT-003 | Real FalconPy SDK / CrowdStrike Detect API `behaviors[]` array carries `ioc_type`/`ioc_value`/`ioc_source`/`ioc_description` per real-API research. Corrected ioc_type token values per 2026-06-19 research (uncertainty-pivot003-s504-2026-06-19.md §Item 1): ThreatQ CrowdStrike Insight EDR CDF + XSOAR CrowdStrike Falcon integration confirm algorithm-qualified tokens (`hash_sha256`, `hash_md5`) and `_key`-suffixed registry token (`registry_key`); `cmdline` confirmed as separate sibling field, never an ioc_type value. **Tolerant-unknown-type policy:** CrowdStrike publishes no normative exhaustive enum for `behaviors[].ioc_type`; DTU parser MUST treat unknown tokens as non-fatal (log + preserve raw string) rather than rejecting, to avoid breakage if undocumented or licence-gated types (e.g., URL/email) are encountered. |
 | CrowdStrike devices (hosts) | NO | — | — | — | Host/device records do not carry IOC fields; IOCs live on detection records only |
 | Armis alerts | NO (permanent) | — | — | — | Armis alert payloads are reference-only (deviceIds, activityUUIDs, endpoints). No structured IOC fields in the real Armis API. Fabricating IOC fields would violate the DTU=True-DTU fidelity principle (ADR-031). This exclusion is permanent — not a deferral. |
 | Claroty xDome alerts | NO (permanent) | — | — | — | Claroty alerts carry IP addresses only as free text in `alert_name`; no structured IOC schema in the real API. Fabricating structured IOC fields would violate ADR-031. This exclusion is permanent — not a deferral. |
@@ -219,12 +219,13 @@ S-DEMO-ENRICHMENT-PIVOT-003.
 **IOC filtering semantics for sensors WITH IOC surface (Cyberint, CrowdStrike detections):**
 
 - `ioc_hashes=false`: detection records where `behaviors[].ioc_value` matches a value in
-  `catalog.ioc_hashes` (CrowdStrike), or alert records where `ioc.value` / `iocs[].value` matches
-  a hash-type IOC in `catalog.ioc_hashes` (Cyberint), are withheld from the response.
-- `ioc_ips=false`: Cyberint alert records where `ioc.value`, `iocs[].value`, or `alert_data.ip`
+  `catalog.ioc_hashes` AND `behaviors[].ioc_type` is one of `hash_sha256` or `hash_md5`
+  (CrowdStrike), or alert records where `iocs[].value` (dual-alias: `value` or `ioc_value`)
+  matches a hash-type IOC in `catalog.ioc_hashes` (Cyberint), are withheld from the response.
+- `ioc_ips=false`: Cyberint alert records where `iocs[].value` (dual-alias), or `alert_data.ip`
   matches a value in `catalog.ioc_ips` are withheld. CrowdStrike detections: not applicable
-  (CrowdStrike `behaviors[]` does not carry ipv4/ipv6 IOC types).
-- `ioc_domains=false`: Cyberint alert records where `ioc.value`, `iocs[].value`, or
+  (CrowdStrike `behaviors[]` does not carry `ipv4`/`ipv6` IOC types on detection records).
+- `ioc_domains=false`: Cyberint alert records where `iocs[].value` (dual-alias), or
   `alert_data.domain` matches a value in `catalog.ioc_domains` are withheld. CrowdStrike
   detections: `behaviors[].ioc_value` with `ioc_type = "domain"` matching `catalog.ioc_domains`
   are withheld.
@@ -562,6 +563,7 @@ VP-019-A through VP-019-I (above) — verified by integration/unit tests in S-DE
 
 | Version | Change |
 |---------|--------|
+| v1.8 | PO fidelity correction 2026-06-19 — True-DTU ioc_type enum correction (ADR-031) for CrowdStrike and Cyberint rows in Per-Sensor IOC-Surface Matrix. **CrowdStrike:** `behaviors[].ioc_type` value set corrected from `{hash, domain, filename, registry, cmdline}` to `{hash_sha256, hash_md5, domain, filename, registry_key}`. Bare `hash` → split into algorithm-qualified `hash_sha256` + `hash_md5`. Bare `registry` → `registry_key`. `cmdline` removed from the ioc_type value set — it is a SEPARATE sibling behavior field (`behaviors[].cmdline`), never an `ioc_type` value. `domain`/`filename` unchanged. ipv4/ipv6 exclusion retained (confirmed correct). Added tolerant-unknown-type policy: CrowdStrike publishes no normative exhaustive enum; parser must treat unknown `ioc_type` tokens as non-fatal. **Cyberint:** Inner IOC key names for `iocs[]` elements marked INCONCLUSIVE-pending-live-validation. DTU implementation MUST use serde dual-alias (`type`/`value` AND `ioc_type`/`ioc_value`) rather than a single hard-coded guess. Singleton top-level `ioc` field flagged for likely removal (no public-documentation basis found). `iocs[]` array and `alert_data.url` confirmed; `alert_data.ip`/`domain` remain plausible-unconfirmed. IOC filtering semantics updated to use dual-alias reference for Cyberint `iocs[].value`. Source: uncertainty-pivot003-s504-2026-06-19.md §Item 1 (HIGH confidence) + §Item 2 (INCONCLUSIVE). |
 | v1.7 | PO micro-fix 2026-06-12 (BPRL-P7-01) — Inventory verification note prose corrected. Replaced fabricated claim that `prism-dtu-claroty/src/routes/alerts.rs` "appears in both grep sets due to `scenario_stage_ctx` or similar context references" with the accurate statement: the file does NOT appear in either grep set; its PERMANENT EXEMPT table row stands solely on real-API grounds (no structured IOC fields in the real Claroty xDome API per 2026-06-12 research; no `device_id` emitted on alert records). No table change, no semantic change. |
 | v1.6 | PO fix-burst 2026-06-12 (BPRL-P6-01) — Route Coverage Table corrected: (1) ADDED missing Claroty devices row: `primary_device, lateral_devices / prism-dtu-claroty / routes/devices.rs / POST /api/v1/devices (clone.rs:246) / mask.primary_device && stage_idx > 0 for primary; mask.lateral_devices for lateral / ACTIVE (added this PR)`. Guard verified at devices.rs ~lines 291/293 (`list_devices` handler); route confirmed at clone.rs:246. (2) ADDED exhaustive inventory verification note under table: all 7 StageMask-consulting route files in the `prism-dtu-*` workspace enumerated with handler↔route↔row mapping, providing mechanical re-verification baseline for future passes. No further omissions found beyond the Claroty devices row. |
 | v1.5 | PO fix-burst 2026-06-12 (BPRL-P5-01) — Route Coverage Table corrected to match commit-verified router ground truth. (1) DELETED phantom row `prism-dtu-crowdstrike / routes/alerts_search.rs / GET /alerts/queries/alerts/v2 (in:alerts branch)` — no such file or route exists in prism-dtu-crowdstrike (routes/: mod.rs, oauth.rs, writes.rs, hosts.rs, detections.rs); "in:alerts" is Armis AQL terminology mis-attributed to CrowdStrike. (2) CORRECTED crowdstrike detections summary row: route corrected from `GET /detects/entities/summaries/v1` (wrong method + path) to `POST /detects/entities/summaries/GET/v1` (confirmed routes/mod.rs). (3) ADDED missing Armis search row: `routes/search.rs / GET /api/v1/search / stage_idx > 0 + mask.lateral_devices guard` — StageMask-relevant route guarded in commit bc0f36c5 but never enumerated (exact POL-33 omission class). (4) TIGHTENED lateral wording: all rows now state `mask.lateral_devices` (the actual guard mechanism) instead of `stage_idx >= 2` (behaviorally equivalent but imprecise). (5) Corrected CrowdStrike device rows to accurate route paths: `GET /devices/queries/devices/v1` and `GET /devices/entities/devices/v2` (confirmed routes/mod.rs + hosts.rs). (6) Corrected Claroty alerts path from `GET /xdome/api/v1/alerts` to `POST /api/v1/alerts` (confirmed clone.rs). (7) PC-4 prose updated: 4-arg `new_with_scenario(seed, archetype, org_id, Arc<IncidentTimeline>)` → 5-arg form `(seed, archetype, org_id, Arc<IncidentTimeline>, time_anchor: DateTime<Utc>)` per ADR-036 v2.3; per-clone return type split noted (CrowdStrike `-> Self`; Armis/Cyberint/NVD `-> anyhow::Result<Self>`) per code-verified signatures in clone.rs. |

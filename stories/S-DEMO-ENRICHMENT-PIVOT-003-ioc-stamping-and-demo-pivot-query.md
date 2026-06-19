@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: draft
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-12"
-modified: "2026-06-13T12:00:00Z"
+modified: "2026-06-19T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -26,7 +26,7 @@ behavioral_contracts: [BC-2.06.019, BC-2.06.020]
 # BC array propagation:
 # BC-2.06.019 governs per-sensor IOC-surface masking (PC-4), the Per-Sensor IOC-Surface
 # Matrix, and the Route Coverage Table. This story implements the IOC-stamping scope
-# deferred to it by BC-2.06.019 v1.7 §Interim State and §Per-Sensor IOC-Surface Matrix.
+# deferred to it by BC-2.06.019 v1.8 §Interim State and §Per-Sensor IOC-Surface Matrix.
 # BC-2.06.020 governs ThreatIntel/NVD enrichment correlation; the ScenarioEntityCatalog
 # IOC values stamped here are the exact values that BC-2.06.020 pre-populates into
 # ThreatIntel fixture_registry. The cross-DTU entity coherence path depends on both BCs.
@@ -64,37 +64,41 @@ estimated_days: 3
 risk: HIGH
 # Risk justification: Removing the _ioc_value synthetic filter atomically with adding
 # the real-schema filter is the root cause closure of BPRL-P4-01. The two MUST NOT
-# coexist in the same route handler (BC-2.06.019 v1.7 §Interim State). SAP-2 must be
+# coexist in the same route handler (BC-2.06.019 v1.8 §Interim State). SAP-2 must be
 # run on both TOML sensor specs against DTU types.rs before writing any column declaration.
 # The Cyberint Alert struct addition must not break existing route handlers or serializers.
 # CrowdStrike behaviors[] array is on the Detection object (not on host/device) — do NOT
 # confuse the two.
-red_gate_tests: 9
+red_gate_tests: 10
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
-  - "_ioc_value removal (BC-2.06.019 v1.7 §Interim State): the synthetic _ioc_value /
+  - "_ioc_value removal (BC-2.06.019 v1.8 §Interim State): the synthetic _ioc_value /
      _ioc_type filter in crates/prism-dtu-cyberint/src/routes/alerts.rs MUST be removed
      in the SAME commit that adds the real-schema filter. They cannot coexist.
-     BC-2.06.019 v1.7 §Interim State clause is explicit: 'The synthetic filter and the
+     BC-2.06.019 v1.8 §Interim State clause is explicit: 'The synthetic filter and the
      real-schema filter MUST NOT coexist.' Any implementer attempt to ship the synthetic
-     filter as interim is a BC-2.06.019 v1.7 violation and a BPRL-P4-01 recurrence."
-  - "CrowdStrike IOC scope (BC-2.06.019 v1.7 Per-Sensor IOC-Surface Matrix): behaviors[]
-     carries ioc_type ∈ {hash, domain, filename, registry, cmdline} — NOT ipv4/ipv6.
-     IPs only appear on streaming NetworkAccesses shape, not detection records. Do NOT
-     stamp ipv4/ipv6 IOC types on detection records."
-  - "Armis and Claroty: NO IOC stamping (permanent exclusion per BC-2.06.019 v1.7 matrix).
+     filter as interim is a BC-2.06.019 v1.8 violation and a BPRL-P4-01 recurrence."
+  - "CrowdStrike IOC scope (BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix): behaviors[]
+     carries ioc_type ∈ {hash_sha256, hash_md5, domain, filename, registry_key} — NOT bare
+     'hash' (algorithm-qualified only), NOT bare 'registry' (must be 'registry_key'), NOT
+     'cmdline' (cmdline is a SEPARATE sibling field behaviors[].cmdline, never an ioc_type
+     value), NOT ipv4/ipv6 (IPs only appear on separate custom-IOC / device-query surfaces,
+     not on detection behaviors[]). Tolerant-unknown-type policy: treat unknown tokens as
+     non-fatal (log + preserve raw string) rather than rejecting, as CrowdStrike publishes
+     no normative exhaustive enum. Do NOT stamp ipv4/ipv6 IOC types on detection records."
+  - "Armis and Claroty: NO IOC stamping (permanent exclusion per BC-2.06.019 v1.8 matrix).
      Armis alert payloads are reference-only; Claroty has IP addresses only as free text.
      Fabricating IOC fields on these sensors violates ADR-031 DTU=True-DTU fidelity.
      Any implementer attempt to add IOC fields to Armis or Claroty records is a BC violation."
   - "TOML spec alignment (SAP-2): before declaring any new TOML column, run SAP-2 check
      against the DTU types.rs for cyberint and crowdstrike. Every new column MUST have a
      matching field in the DTU Alert or Detection struct after this story's changes."
-  - "Route Coverage Table update (BC-2.06.019 v1.7 §Route Coverage Table standing rule):
+  - "Route Coverage Table update (BC-2.06.019 v1.8 §Route Coverage Table standing rule):
      after implementing real-schema Cyberint filter, update the Route Coverage Table in
      BC-2.06.019 to change the Cyberint alerts row from INTERIM to ACTIVE. This is a
-     MANDATORY same-commit change per the standing rule in BC-2.06.019 v1.7."
+     MANDATORY same-commit change per the standing rule in BC-2.06.019 v1.8."
   - "Pivot query stage gate: queries must return non-empty results at stage >= 3 (Exfil)
      when ioc_ips, ioc_domains, ioc_hashes are visible in StageMask. Verify demo server
      is at stage >= 3 before running integration tests by setting scenario_start_secs to
@@ -109,11 +113,12 @@ Root-cause closure of BPRL-P4-01: add real-schema IOC fields to the Cyberint `Al
 struct and CrowdStrike `behaviors[]` array, remove the synthetic `_ioc_value` filter
 atomically, and validate the canonical analyst pivot queries against the demo server.
 
-**BC-2.06.019 v1.7 scope ownership:** This story implements the deferred IOC-stamping
-work that BC-2.06.019 v1.7 assigned to `S-DEMO-ENRICHMENT-PIVOT-003` via the
-Per-Sensor IOC-Surface Matrix and the §Interim State clause. The story also owns the
-Route Coverage Table update in BC-2.06.019 (changing Cyberint alerts row from INTERIM
-to ACTIVE).
+**BC-2.06.019 v1.8 scope ownership:** This story implements the deferred IOC-stamping
+work that BC-2.06.019 assigned to `S-DEMO-ENRICHMENT-PIVOT-003` via the Per-Sensor
+IOC-Surface Matrix and the §Interim State clause. The story also owns the Route Coverage
+Table update in BC-2.06.019 (changing Cyberint alerts row from INTERIM to ACTIVE).
+BC-2.06.019 v1.8 applies corrected CrowdStrike ioc_type enum and Cyberint dual-alias
+requirement relative to v1.7.
 
 **Sequencing context (D-1109, WO-D1109):** Slots AFTER S-DEMO-ENRICHMENT-PIVOT-002
 (infusion specs + plugins operational) and BEFORE T11 and T13 capstone demo segment.
@@ -134,7 +139,7 @@ faithfully demonstrates the production enrichment pivot workflow.
 
 | BC | Title | Key Clauses |
 |----|-------|-------------|
-| BC-2.06.019 v1.7 | Demo-Server Scenario Progression — Per-Sensor IOC-Surface Masking | PC-4 Per-Sensor IOC-Surface Matrix: Cyberint alerts and CrowdStrike detections carry real-schema IOC fields; Armis/Claroty permanently excluded; `_ioc_value` synthetic filter removed atomically; Route Coverage Table updated |
+| BC-2.06.019 v1.8 | Demo-Server Scenario Progression — Per-Sensor IOC-Surface Masking | PC-4 Per-Sensor IOC-Surface Matrix: Cyberint alerts and CrowdStrike detections carry real-schema IOC fields; Armis/Claroty permanently excluded; `_ioc_value` synthetic filter removed atomically; Route Coverage Table updated. **CrowdStrike ioc_type corrected (v1.8):** `{hash_sha256, hash_md5, domain, filename, registry_key}` — tolerant-unknown-type policy applies. **Cyberint inner-key INCONCLUSIVE (v1.8):** serde dual-alias required (`type`/`ioc_type` and `value`/`ioc_value`); singleton `ioc` field flagged for removal. |
 | BC-2.06.020 v1.6 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD; Cyberint Alert CVEs Use Catalog IDs (Collision-Safe in All Modes) | INV-THREATINTEL-IOC-CORRELATION-001: scenario IOCs in ScenarioEntityCatalog resolve as Malicious in ThreatIntel; INV-CROSS-DTU-ENTITY-COHERENCE-001: entity IDs coherent across DTU clones; INV-CYBERINT-ALERT-CVE-CORRELATION-001: Cyberint CVE records use catalog IDs in scenario mode, CVE-9999- namespace in all modes |
 
 **VP Citation (U24):** VP-019-A (pure function reproducibility), VP-019-B (stage monotonicity),
@@ -148,45 +153,68 @@ generator are modified.
 
 ## Acceptance Criteria
 
-### AC-001 — Cyberint Alert struct adds real-schema IOC fields
-(traces to BC-2.06.019 v1.7 postcondition 4 — Per-Sensor IOC-Surface Matrix, Cyberint row)
+### AC-001 — Cyberint Alert struct adds real-schema IOC fields with serde dual-alias
+(traces to BC-2.06.019 v1.8 postcondition 4 — Per-Sensor IOC-Surface Matrix, Cyberint row; inner-key dual-alias requirement)
 
 Given `crates/prism-dtu-cyberint/src/types.rs`,
 when the `Alert` struct is inspected after this story,
 then it includes:
-- `ioc: Option<Ioc>` where `Ioc { ioc_type: String, value: String }` (single inline IOC)
-- `iocs: Vec<Ioc>` (list of IOCs, same `Ioc` struct as used by `ThreatItem`)
+- `iocs: Vec<Ioc>` (CONFIRMED — list of IOCs, plural-form, per Check Point sk182975)
 - `alert_data: Option<AlertData>` where `AlertData { ip: Option<String>, domain: Option<String>, url: Option<String> }`
+  (`url` CONFIRMED; `ip`/`domain` plausible-unconfirmed per BC-2.06.019 v1.8)
+- `ioc: Option<Ioc>` — RETAINED for now but flagged for removal: no public-documentation
+  basis found for a singleton top-level `ioc` field in the real Cyberint API
+  (BC-2.06.019 v1.8 Cyberint row — "UNCONFIRMED, flagged for likely removal"). Confirm via
+  live-tenant validation before removing. If a live tenant never returns this field, remove it.
 
-These fields match the real Cyberint API schema per the Per-Sensor IOC-Surface Matrix
-(research-agent 2026-06-12 findings recorded in BC-2.06.019 v1.7).
+The `Ioc` struct MUST use serde dual-alias to tolerate both documented Cyberint naming conventions
+(inner-key forms are INCONCLUSIVE-pending-live-tenant-validation per BC-2.06.019 v1.8):
+```rust
+pub struct Ioc {
+    #[serde(rename = "type", alias = "ioc_type")]
+    pub ioc_type: String,   // tolerates "type" (short form) and "ioc_type" (feed convention)
+    #[serde(alias = "ioc_value")]
+    pub value: String,      // tolerates "value" (short form) and "ioc_value" (feed convention)
+}
+```
+
+This dual-alias approach ensures the DTU parser is robust against whichever key convention the
+live Cyberint API uses for `iocs[]` elements, avoiding hard-coded bet on unverified inner keys
+(BC-2.06.019 v1.8 research: uncertainty-pivot003-s504-2026-06-19.md §Item 2).
 
 Red Gate: `test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields`
+Red Gate: `test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms`
 
 ### AC-002 — Cyberint fixture generator stamps scenario IOCs onto alert records
-(traces to BC-2.06.019 v1.7 postcondition 4 — IOC-surface fields populated from catalog)
+(traces to BC-2.06.019 v1.8 postcondition 4 — IOC-surface fields populated from catalog)
 
 Given a Cyberint clone constructed with `new_with_scenario` and `ScenarioEntityCatalog`
 containing `ioc_ips`, `ioc_domains`, `ioc_hashes` entries,
 when the fixture generator runs,
-then scenario-enabled alert records in the `FixtureSet` have their `ioc.value` / `iocs[0].value`
+then scenario-enabled alert records in the `FixtureSet` have their `iocs[0].value`
 field set to a value from the catalog's IOC lists, per the real Cyberint API schema.
+
+NOTE: The `Ioc.value` field is used for fixture generation output (serialized as `"value"` in
+JSON via the default serde field name); the dual-alias in AC-001 applies to deserialization
+(reading from live Cyberint API responses), not to fixture generation output.
 
 Red Gate: `test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs`
 
 ### AC-003 — Cyberint alerts route: _ioc_value synthetic filter REMOVED; real-schema filter ADDED (atomic)
-(traces to BC-2.06.019 v1.7 postcondition 4 §Interim State — synthetic filter must be replaced atomically)
+(traces to BC-2.06.019 v1.8 postcondition 4 §Interim State — synthetic filter must be replaced atomically)
 
 Given `crates/prism-dtu-cyberint/src/routes/alerts.rs` after this story:
 - The `_ioc_value` / `_ioc_type` synthetic field filter is ABSENT (grep for `_ioc_value` returns
   no matches in the file)
-- A new filter reads real-schema fields: `rec.ioc.value`, `rec.iocs[].value`,
-  `rec.alert_data.ip`, `rec.alert_data.domain`
+- A new filter reads real-schema fields via the `Ioc.value` accessor (which is
+  the deserialized form regardless of whether the wire key was `"value"` or `"ioc_value"` —
+  the dual-alias from AC-001 handles both at deserialization time):
+  `rec.ioc.as_ref().map(|i| &i.value)`, `rec.iocs[].value`, `rec.alert_data.ip`, `rec.alert_data.domain`
 - When `ioc_hashes=false`: alert records where any IOC field matches a value in
   `catalog.ioc_hashes` are withheld from the response
-- When `ioc_ips=false`: alert records where `ioc.value`, `iocs[].value`, or
+- When `ioc_ips=false`: alert records where `ioc.value` (if present), `iocs[].value`, or
   `alert_data.ip` matches `catalog.ioc_ips` values are withheld
-- When `ioc_domains=false`: alert records where `ioc.value`, `iocs[].value`, or
+- When `ioc_domains=false`: alert records where `ioc.value` (if present), `iocs[].value`, or
   `alert_data.domain` matches `catalog.ioc_domains` values are withheld
 
 INVARIANT: The synthetic filter and the real-schema filter MUST NOT coexist in the same
@@ -196,7 +224,7 @@ MUST return 0 matches after this story merges.
 Red Gate: `test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic`
 
 ### AC-004 — CrowdStrike detection generator stamps behaviors[].ioc_type/ioc_value in JSON records
-(traces to BC-2.06.019 v1.7 postcondition 4 — CrowdStrike detections row in Per-Sensor IOC-Surface Matrix)
+(traces to BC-2.06.019 v1.8 postcondition 4 — CrowdStrike detections row in Per-Sensor IOC-Surface Matrix; corrected ioc_type enum)
 
 NOTE (U19): CrowdStrike has NO typed `Detection` or `Behavior` structs in types.rs. All
 detection records are untyped `serde_json::Value` built by `generator.rs` from
@@ -209,24 +237,42 @@ when the fixture generator (`make_detection()` in `src/generator.rs`) populates 
 detection records,
 then the generated `serde_json::Value` detection records include a `"behaviors"` JSON array
 key with at least one entry containing:
-- `"ioc_type": "hash"` — JSON record stamping in the generator (NOT a Rust struct field edit)
+- `"ioc_type": "hash_sha256"` — algorithm-qualified token per real CrowdStrike API
+  (BC-2.06.019 v1.8 correction — bare `"hash"` is WRONG; real API uses algorithm-qualified
+  tokens `hash_sha256` and `hash_md5` per ThreatQ CrowdStrike Insight EDR CDF + XSOAR Falcon
+  integration docs; source: uncertainty-pivot003-s504-2026-06-19.md §Item 1)
 - `"ioc_value": "<catalog.ioc_hashes[0]>"`
 - `"ioc_source": "catalog"`
 - `"ioc_description": "scenario IOC"`
+
+**CrowdStrike ioc_type enum (CORRECTED in v1.8):**
+The stamped `ioc_type` values MUST use the algorithm-qualified / `_key`-suffixed tokens from
+the real Falcon API. Valid values: `hash_sha256`, `hash_md5`, `domain`, `filename`,
+`registry_key`. FORBIDDEN values: bare `hash` (not emitted by real API), bare `registry`
+(must be `registry_key`), `cmdline` (NOT an ioc_type value — it is a SEPARATE sibling behavior
+field `behaviors[].cmdline`), `ipv4`, `ipv6` (not present on detection behaviors[]).
+
+**Tolerant-unknown-type policy:** The DTU clone parser MUST treat unknown `ioc_type` tokens
+as non-fatal: log the unexpected token (debug level) and preserve the raw string rather than
+returning a parse error. CrowdStrike publishes no normative exhaustive enum for
+`behaviors[].ioc_type`; there may be undocumented or licence-gated types. A hard parse failure
+on unknown tokens would break the clone if new types appear.
+
+**Red Gate test expectation update (v1.8 correction):** The Red Gate test
+`test_BC_2_06_019_crowdstrike_detection_behaviors_ioc_hash_stamped` MUST assert:
+- `behaviors[0]["ioc_type"] == "hash_sha256"` (NOT `"hash"`)
+- Any fixture in `fixtures/detections-detail.json` that previously used `"ioc_type": "hash"`
+  must be updated to `"ioc_type": "hash_sha256"` in the same commit.
 
 GENERATOR SHAPE PARITY: Per the `make_detection()` doc comment and `review_2026_06_10_cs_parity.rs`
 test, the flat scalar key set of generated detection records MUST equal the key set of static
 fixtures (`fixtures/detections-detail.json`). Adding `behaviors[]` to generated records requires
 the same addition to the static fixture JSON in the same commit.
 
-CrowdStrike IOC type constraint: `ioc_type` is restricted to
-`{hash, domain, filename, registry, cmdline}` — NOT `ipv4` or `ipv6` per the real
-FalconPy SDK / CrowdStrike Detect API (BC-2.06.019 v1.7 matrix, CrowdStrike row).
-
 Red Gate: `test_BC_2_06_019_crowdstrike_detection_behaviors_ioc_hash_stamped`
 
 ### AC-005 — CrowdStrike detections TOML spec declares behaviors[] IOC columns matching generator JSON shape
-(traces to BC-2.06.019 v1.7 postcondition 4 — TOML spec alignment with real-schema fields)
+(traces to BC-2.06.019 v1.8 postcondition 4 — TOML spec alignment with real-schema fields)
 
 NOTE (U19): CrowdStrike detection records are untyped serde_json::Value. The SAP-2 check reads
 `src/generator.rs` `make_detection()` (and `fixtures/detections-detail.json`) — NOT types.rs
@@ -245,16 +291,27 @@ SAP-2 compliance: adversary reads `src/generator.rs` `make_detection()` return v
 Red Gate: `test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns` (or SAP-2 parity assertion)
 
 ### AC-006 — Cyberint sensor TOML spec declares ioc, iocs[], alert_data.* columns
-(traces to BC-2.06.019 v1.7 postcondition 4 — TOML spec alignment with real-schema fields)
+(traces to BC-2.06.019 v1.8 postcondition 4 — TOML spec alignment with real-schema fields)
 
 Given the Cyberint sensor TOML spec,
 when the spec is inspected after this story,
-then it declares columns using the wire names from the Cyberint API (U22 — serde rename applies):
+then it declares columns using the primary wire names that the Cyberint API is most likely
+to emit (INCONCLUSIVE-pending-live-validation per BC-2.06.019 v1.8 — dual-alias toleration
+handles both forms at runtime):
+
 `ioc.type`, `ioc.value`, `iocs[].type`, `iocs[].value`,
 `alert_data.ip`, `alert_data.domain`, `alert_data.url`.
-NOTE: `iocs[].type` is the WIRE name (NOT `iocs[].ioc_type`). The serde rename maps the Rust
-field `ioc_type` on the `Ioc` struct to `type` in JSON (serde rename). Verify the exact serde
-annotation in types.rs before declaring the column name.
+
+NOTE: `iocs[].type` is the SHORT-FORM wire key, declared as the primary column name because
+the `Ioc` struct uses `#[serde(rename = "type", alias = "ioc_type")]`. The dual-alias
+means the DTU can deserialize either `"type"` or `"ioc_type"` at runtime; the TOML column
+name tracks the primary wire key (`type`). The TOML spec does NOT need a separate
+`iocs[].ioc_type` column — the serde alias handles that transparently.
+
+TOML column MUST NOT declare `iocs[].ioc_type` as a separate column (alias is resolved at
+the Rust struct level, not at the TOML schema level). If live-tenant validation later
+confirms the wire key is `ioc_type`, the TOML column is renamed from `iocs[].type` to
+`iocs[].ioc_type` in a follow-on spec update.
 
 Each declared column has a matching field in the Cyberint DTU types.rs Alert struct
 after this story's additions (SAP-2 compliance).
@@ -262,7 +319,7 @@ after this story's additions (SAP-2 compliance).
 Red Gate: `test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns` (or SAP-2 parity assertion)
 
 ### AC-007 — Canonical ThreatIntel pivot query returns Malicious results at stage >= 3
-(traces to BC-2.06.019 v1.7 postcondition 4 + BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001)
+(traces to BC-2.06.019 v1.8 postcondition 4 + BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001)
 
 Given demo server at stage >= 3 (Exfil; `ioc_ips`, `ioc_domains`, `ioc_hashes` visible),
 when the following canonical query executes:
@@ -280,7 +337,7 @@ then the result set is non-empty and all returned records have
 Red Gate: `test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage_3`
 
 ### AC-008 — Canonical NVD pivot query returns HIGH CVSS results at stage >= 3
-(traces to BC-2.06.019 v1.7 postcondition 4 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001)
+(traces to BC-2.06.019 v1.8 postcondition 4 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001)
 
 Given demo server at stage >= 3 (Exfil; `device_cves` may be false at stage 3 per
 BC-2.06.019 PC-2 table — verify at stage 4 Containment if device_cves requires it),
@@ -303,16 +360,17 @@ and document the correct scenario_start_secs in the test harness.
 Red Gate: `test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_stage`
 
 ### AC-009 — BC-2.06.019 Route Coverage Table updated: Cyberint alerts row INTERIM -> ACTIVE
-(traces to BC-2.06.019 v1.7 §Route Coverage Table standing rule)
+(traces to BC-2.06.019 v1.8 §Route Coverage Table standing rule)
 
 Given `BC-2.06.019-demo-server-scenario-progression.md` after this story,
 when the Route Coverage Table is inspected,
 then the Cyberint alerts row shows:
 - Guard Mechanism: `Real-schema filter on ioc.value / iocs[].value / alert_data.ip/domain`
+  (dual-alias: Ioc.value deserialized from either "value" or "ioc_value" wire key)
 - Status: `ACTIVE` (NOT `INTERIM`)
 
 This update is required in the SAME commit as AC-003 per the Route Coverage Table
-standing rule (BC-2.06.019 v1.7: "any future story adding or modifying a StageMask-relevant
+standing rule (BC-2.06.019 v1.8: "any future story adding or modifying a StageMask-relevant
 route MUST extend or update this table in the same commit").
 
 NOTE: BC-2.06.019 is a `.factory/` artifact — it is edited via Write/Edit tools by
@@ -327,19 +385,23 @@ Red Gate: N/A (process check — adversary verifies BC Route Coverage Table stat
 
 | # | Test Name | Crate | BC Clause | Type |
 |---|-----------|-------|-----------|------|
-| 1 | `test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields` | prism-dtu-cyberint | BC-2.06.019 PC-4 matrix | unit |
-| 2 | `test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs` | prism-dtu-cyberint | BC-2.06.019 PC-4 / BC-2.06.020 PC-1 | unit |
-| 3 | `test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic` | prism-dtu-cyberint | BC-2.06.019 PC-4 §Interim State | unit |
-| 4 | `test_BC_2_06_019_crowdstrike_detection_behaviors_ioc_hash_stamped` | prism-dtu-crowdstrike | BC-2.06.019 PC-4 matrix | unit |
-| 5 | `test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns` | prism-dtu-crowdstrike or sensor spec tests | BC-2.06.019 PC-4 + SAP-2 | unit/parity |
-| 6 | `test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns` | prism-dtu-cyberint or sensor spec tests | BC-2.06.019 PC-4 + SAP-2 | unit/parity |
-| 7 | `test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage_3` | prism-query or prism-bin integration | BC-2.06.019 PC-4 + BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 | integration (demo server) |
-| 8 | `test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_stage` | prism-query or prism-bin integration | BC-2.06.019 PC-4 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 | integration (demo server) |
-| 9 | `test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matching_hash` | prism-dtu-cyberint | BC-2.06.019 PC-4 ioc_hashes=false filtering | unit |
+| 1 | `test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields` | prism-dtu-cyberint | BC-2.06.019 v1.8 PC-4 matrix | unit |
+| 2 | `test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms` | prism-dtu-cyberint | BC-2.06.019 v1.8 PC-4 Cyberint row — INCONCLUSIVE inner-key dual-alias | unit |
+| 3 | `test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs` | prism-dtu-cyberint | BC-2.06.019 v1.8 PC-4 / BC-2.06.020 PC-1 | unit |
+| 4 | `test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic` | prism-dtu-cyberint | BC-2.06.019 v1.8 PC-4 §Interim State | unit |
+| 5 | `test_BC_2_06_019_crowdstrike_detection_behaviors_ioc_hash_stamped` | prism-dtu-crowdstrike | BC-2.06.019 v1.8 PC-4 matrix — asserts `ioc_type == "hash_sha256"` (corrected) | unit |
+| 6 | `test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns` | prism-dtu-crowdstrike or sensor spec tests | BC-2.06.019 v1.8 PC-4 + SAP-2 | unit/parity |
+| 7 | `test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns` | prism-dtu-cyberint or sensor spec tests | BC-2.06.019 v1.8 PC-4 + SAP-2 | unit/parity |
+| 8 | `test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage_3` | prism-query or prism-bin integration | BC-2.06.019 v1.8 PC-4 + BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 | integration (demo server) |
+| 9 | `test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_stage` | prism-query or prism-bin integration | BC-2.06.019 v1.8 PC-4 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 | integration (demo server) |
+| 10 | `test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matching_hash` | prism-dtu-cyberint | BC-2.06.019 v1.8 PC-4 ioc_hashes=false filtering | unit |
+
+NOTE: Red Gate count bumped from 9 to 10 (added test #2 for dual-alias deserialization).
+Update `red_gate_tests: 9` frontmatter to `10` on this story's next frontmatter edit.
 
 ---
 
-## Route Coverage Table (for StageMask IOC fields — per BC-2.06.019 v1.7 §Question 4)
+## Route Coverage Table (for StageMask IOC fields — per BC-2.06.019 v1.8 §Question 4)
 
 This table must be kept in sync with BC-2.06.019 §Route Coverage Table. After this story
 ships, the Cyberint row transitions from INTERIM to ACTIVE.
@@ -367,7 +429,7 @@ REMOVED ROWS (U20 — routes do not exist in actual router):
 | Item | Estimated Tokens |
 |------|-----------------|
 | Story spec (this file) | ~5,000 |
-| BC-2.06.019 v1.7 (full — authoritative for IOC matrix, Interim State, Route Coverage Table) | ~7,500 |
+| BC-2.06.019 v1.8 (full — authoritative for IOC matrix, Interim State, Route Coverage Table, corrected CrowdStrike ioc_type + Cyberint dual-alias) | ~7,500 |
 | `prism-dtu-crowdstrike/src/generator.rs` make_detection() function + fixtures/detections-detail.json (U19) | ~800 |
 | `prism-dtu-armis/src/generator.rs` (device_cves_first projection, U17/Ruling 1b) | ~600 |
 | BC-2.06.020 v1.6 (enrichment correlation context) | ~3,600 |
@@ -390,11 +452,14 @@ At ~200k context window, this is ~12.6% — within the 20-30% ceiling.
 
 **Pre-flight: read substrate before writing anything**
 
-- [ ] MATERIALIZATION-TIME RE-VERIFY (U23): PR #185 was IN-FLIGHT as of 2026-06-12.
-  Before implementing, grep for `_ioc_value`, cyberint Alert field names, StageMask ioc_* fields,
-  and ScenarioEntityCatalog field names in the merged develop branch:
-  `grep -rn "_ioc_value\|ioc_ips\|ioc_domains\|ioc_hashes" crates/prism-dtu-cyberint/ crates/prism-dtu-common/`
-  If PR #185 has since merged, the exact field names may differ from this spec; resolve before proceeding.
+- [x] MATERIALIZATION-TIME RE-VERIFY (U23 — RESOLVED 2026-06-19): PR #185
+  (S-DEMO-DTU-LIVE-SCENARIO-001-B) MERGED 2026-06-13 (develop@7fd35b77). Field names
+  CONFIRMED on develop:
+  - `ioc_ips` / `ioc_domains` / `ioc_hashes` — `ScenarioEntityCatalog` fields
+    (crates/prism-dtu-common/src/scenario/mod.rs)
+  - `_ioc_value` / `_ioc_type` — synthetic-mask fields injected by injection tests only
+    (crates/prism-dtu-cyberint/src/routes/alerts.rs — confirmed present, to be removed by AC-003)
+  No field name discrepancies found. Implementation may proceed using the names above.
 - [ ] Read `crates/prism-dtu-cyberint/src/types.rs` fully — confirm current `Alert` struct
   has NO `ioc`, `iocs`, or `alert_data` fields; also read `ThreatItem` to confirm `iocs`
   field shape already exists there (for Ioc struct reuse)
@@ -408,15 +473,29 @@ At ~200k context window, this is ~12.6% — within the 20-30% ceiling.
 - [ ] Read `crates/prism-dtu-armis/src/generator.rs` (or equivalent) — find where device records
   are built; identify the CVE-related fields for `device_cves_first` projection (U17/Ruling 1b)
 - [ ] Run SAP-2 pre-check on both DTU crates (cyberint + crowdstrike)
-- [ ] Read BC-2.06.019 v1.7 §Per-Sensor IOC-Surface Matrix and §Route Coverage Table — both
-  are authoritative for this story's scope
+- [ ] Read BC-2.06.019 v1.8 §Per-Sensor IOC-Surface Matrix and §Route Coverage Table — both
+  are authoritative for this story's scope (v1.8 has corrected CrowdStrike ioc_type enum
+  and Cyberint dual-alias requirement)
 
 **Phase 1: Cyberint Alert struct + fixture generator**
 
 - [ ] Write failing test 1 (FAIL first): `test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields`
-- [ ] Add `Ioc { ioc_type: String, value: String }` struct to `types.rs` (or reuse from ThreatItem)
+- [ ] Write failing test (FAIL first): `test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms`
+  (test must deserialize `{"type": "domain", "value": "evil.example.com"}` AND
+  `{"ioc_type": "domain", "ioc_value": "evil.example.com"}` — both MUST yield the same `Ioc` value)
+- [ ] Add `Ioc` struct to `types.rs` (or reuse from ThreatItem if already has dual-alias) with
+  MANDATORY dual-alias serde annotations (BC-2.06.019 v1.8 INCONCLUSIVE inner-key requirement):
+  ```rust
+  pub struct Ioc {
+      #[serde(rename = "type", alias = "ioc_type")]
+      pub ioc_type: String,
+      #[serde(alias = "ioc_value")]
+      pub value: String,
+  }
+  ```
 - [ ] Add `AlertData { ip: Option<String>, domain: Option<String>, url: Option<String> }` struct
-- [ ] Add to `Alert` struct: `ioc: Option<Ioc>`, `iocs: Vec<Ioc>`, `alert_data: Option<AlertData>`
+- [ ] Add to `Alert` struct: `ioc: Option<Ioc>` (flagged for removal — retain pending live-tenant
+  validation), `iocs: Vec<Ioc>`, `alert_data: Option<AlertData>`
   (all with `#[serde(skip_serializing_if = ...)]` for None/empty)
 - [ ] Check `#[non_exhaustive]` discipline: Alert is a public type in prism-dtu-cyberint.
   If Alert already carries `#[non_exhaustive]`, adding fields is fine. If not, add it per
@@ -448,8 +527,10 @@ At ~200k context window, this is ~12.6% — within the 20-30% ceiling.
 - [ ] Read `crates/prism-dtu-crowdstrike/src/routes/detections.rs` — confirm `stage_idx > 0`
   guard is present (bc0f36c5); IOC-field stamping in generator is the new work
 - [ ] Modify `make_detection()` in `src/generator.rs` (U19: serde_json::Value JSON record, NOT a struct):
-  for scenario-enabled detection records, add `"behaviors"` key to the JSON object with at least one entry:
-  `json!([{ "ioc_type": "hash", "ioc_value": catalog.ioc_hashes[0], "ioc_source": "catalog", "ioc_description": "scenario IOC" }])`
+  for scenario-enabled detection records, add `"behaviors"` key to the JSON object with at least one entry
+  using the CORRECTED algorithm-qualified ioc_type token (BC-2.06.019 v1.8 correction):
+  `json!([{ "ioc_type": "hash_sha256", "ioc_value": catalog.ioc_hashes[0], "ioc_source": "catalog", "ioc_description": "scenario IOC" }])`
+  DO NOT use `"ioc_type": "hash"` (bare, incorrect per real CrowdStrike API)
 - [ ] SHAPE PARITY: update `fixtures/detections-detail.json` in the SAME commit to add the
   `behaviors` key (review_2026_06_10_cs_parity.rs shape parity test will fail otherwise)
 - [ ] Verify test 4 passes
@@ -468,8 +549,10 @@ At ~200k context window, this is ~12.6% — within the 20-30% ceiling.
 **Phase 4: TOML sensor spec alignment**
 
 - [ ] Write failing tests 5, 6 (FAIL first): TOML spec parity tests
-- [ ] Update Cyberint sensor TOML spec: add `ioc.type`, `ioc.value`, `iocs[].ioc_type`,
+- [ ] Update Cyberint sensor TOML spec: add `ioc.type`, `ioc.value`, `iocs[].type`,
   `iocs[].value`, `alert_data.ip`, `alert_data.domain`, `alert_data.url` columns
+  (NOTE: use `iocs[].type` as the primary TOML column name — matches the `#[serde(rename = "type")]`
+  primary key; dual-alias `ioc_type` is resolved at the serde level, not in TOML column declarations)
 - [ ] Update CrowdStrike detections TOML spec: add `behaviors[].ioc_type`,
   `behaviors[].ioc_value`, `behaviors[].ioc_source`, `behaviors[].ioc_description` columns
 - [ ] SAP-2 post-edit verification: for each new TOML column, confirm matching DTU struct field
@@ -505,16 +588,18 @@ At ~200k context window, this is ~12.6% — within the 20-30% ceiling.
 - `| enrich threat_intel(ioc_value)` pipe stage is operational (using interim field name from 002)
 - This story changes the Cyberint field reference from interim `ioc_value` to `ioc.value` (real-schema)
 
-**S-DEMO-DTU-LIVE-SCENARIO-001-B (substrate — PR #185 IN-FLIGHT as of 2026-06-12, not merged):**
-MATERIALIZATION-TIME RE-VERIFY REQUIRED: before implementing, grep for `_ioc_value`,
-cyberint Alert field names, Cyberint catalog fields, and StageMask ioc_* fields in the merged
-result of PR #185 — the exact field names may shift on merge. See materialization task in §Tasks.
+**S-DEMO-DTU-LIVE-SCENARIO-001-B (substrate — PR #185 MERGED 2026-06-13, develop@7fd35b77):**
+Field names confirmed on develop (U23 resolved 2026-06-19):
 
-- `ScenarioEntityCatalog.ioc_ips`, `ioc_domains`, `ioc_hashes` are populated at construction
+- `ScenarioEntityCatalog.ioc_ips`, `ioc_domains`, `ioc_hashes` — confirmed in
+  `crates/prism-dtu-common/src/scenario/mod.rs`
 - `ThreatIntelClone::new_with_scenario` pre-populates `fixture_registry` with all catalog IOCs
   as `FixtureKey::Malicious`
-- Cyberint `_ioc_value` synthetic filter is present (to be replaced by this story)
-- CrowdStrike detections route has `stage_idx > 0` guard from bc0f36c5 but no IOC stamping
+- Cyberint `_ioc_value` / `_ioc_type` synthetic filter — confirmed present in
+  `crates/prism-dtu-cyberint/src/routes/alerts.rs`; matched only by injection tests,
+  not by real-schema alert records (no `_ioc_value` field in real Cyberint API)
+- CrowdStrike detections route has `stage_idx > 0` guard from commit bc0f36c5 but no IOC-field
+  stamping on `behaviors[]` yet — that is this story's scope
 
 **From PLUGIN-MIGRATION-001-D/E lessons:**
 - SAP-2: adversary reads DTU types.rs and routes/ — do not rely on story description alone
@@ -526,20 +611,28 @@ result of PR #185 — the exact field names may shift on merge. See materializat
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| `_ioc_value` and real-schema filter MUST NOT coexist in the same route handler | BC-2.06.019 v1.7 §Interim State | AC-003 + grep verification |
-| CrowdStrike `behaviors[].ioc_type` restricted to `{hash, domain, filename, registry, cmdline}` — NOT `ipv4`/`ipv6` | BC-2.06.019 v1.7 Per-Sensor IOC-Surface Matrix (CrowdStrike row) | AC-004 + adversary probe |
-| Armis and Claroty: NO IOC fields added (permanent exclusion) | ADR-031 DTU=True-DTU fidelity + BC-2.06.019 v1.7 matrix (Armis/Claroty: NO permanent) | Adversary: grep for ioc in prism-dtu-armis/prism-dtu-claroty types.rs |
-| Route Coverage Table in BC-2.06.019 MUST be updated in same commit as route change | BC-2.06.019 v1.7 §Route Coverage Table standing rule | Noted in PR description; state-manager burst |
+| `_ioc_value` and real-schema filter MUST NOT coexist in the same route handler | BC-2.06.019 v1.8 §Interim State | AC-003 + grep verification |
+| CrowdStrike `behaviors[].ioc_type` restricted to algorithm-qualified tokens `{hash_sha256, hash_md5, domain, filename, registry_key}` — bare `hash` WRONG, bare `registry` WRONG, `cmdline` is a SEPARATE sibling field (NOT an ioc_type), NOT `ipv4`/`ipv6` | BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix (CrowdStrike row; corrected 2026-06-19 per ThreatQ + XSOAR research) | AC-004 + adversary probe; Red Gate asserts `ioc_type == "hash_sha256"` |
+| CrowdStrike ioc_type parser MUST be tolerant of unknown tokens — log + preserve raw string, non-fatal | BC-2.06.019 v1.8 CrowdStrike row — tolerant-unknown-type policy | Adversary: verify no hard-reject branch on unrecognized ioc_type in generator.rs or route handler |
+| Cyberint `Ioc` struct MUST use serde dual-alias: `#[serde(rename = "type", alias = "ioc_type")]` on `ioc_type` field; `#[serde(alias = "ioc_value")]` on `value` field | BC-2.06.019 v1.8 Cyberint row — INCONCLUSIVE inner-key, dual-alias required | AC-001 + adversary reads types.rs after implementation |
+| Cyberint singleton `ioc: Option<Ioc>` on `Alert` struct — retain but flag: confirm via live-tenant validation whether this field ever appears; remove if absent | BC-2.06.019 v1.8 Cyberint row — no public-documentation basis for singleton field | Adversary: note as PENDING-LIVE-VALIDATION; do not add code that hard-depends on it |
+| Armis and Claroty: NO IOC fields added (permanent exclusion) | ADR-031 DTU=True-DTU fidelity + BC-2.06.019 v1.8 matrix (Armis/Claroty: NO permanent) | Adversary: grep for ioc in prism-dtu-armis/prism-dtu-claroty types.rs |
+| Route Coverage Table in BC-2.06.019 MUST be updated in same commit as route change | BC-2.06.019 v1.8 §Route Coverage Table standing rule | Noted in PR description; state-manager burst |
 | Every new TOML column MUST have a matching DTU struct field (SAP-2) | CLAUDE.md §SAP-2 | Adversary SAP-2 probe post-implementation |
 | All `event_type =` tracing emissions require BC-2.16.002 catalog rows | SAP-1 / CLAUDE.md §SAP-1 | Adversary SAP-1 probe |
-| Pivot queries MUST return non-empty results at stage >= 3 (ThreatIntel) / stage 4 (NVD with device_cves) | BC-2.06.019 PC-2 StageMask table + BC-2.06.020 correlation invariants | Tests 7, 8 |
+| Pivot queries MUST return non-empty results at stage >= 3 (ThreatIntel) / stage 4 (NVD with device_cves) | BC-2.06.019 v1.8 PC-2 StageMask table + BC-2.06.020 correlation invariants | Tests 8, 9 |
 | `#[non_exhaustive]` on new public types in prism-dtu-cyberint (Ioc, AlertData if public) | CLAUDE.md §Conventions | ci.yml EXPECTED= bump |
 | CrowdStrike generator JSON stamping: `behaviors[]` key added to `make_detection()` + static `fixtures/detections-detail.json` in SAME commit (generator-parity test) | review_2026_06_10_cs_parity.rs + U19 | test_f8_cs06_detection_shape_parity must pass |
 | CrowdStrike: NO `#[non_exhaustive]` change needed (no typed Detection/Behavior struct exists; IOC fields are JSON keys in serde_json::Value records — U19) | U19 code grounding 2026-06-12 | Adversary verifies no struct added without justification |
 
 **Forbidden patterns:**
 - `_ioc_value` field references in any production route handler after this story
+- `ioc_type = "hash"` (bare, not algorithm-qualified) in CrowdStrike behaviors[] stamping — use `"hash_sha256"` or `"hash_md5"` (BC-2.06.019 v1.8 correction)
+- `ioc_type = "registry"` (bare) in CrowdStrike behaviors[] stamping — use `"registry_key"` (BC-2.06.019 v1.8 correction)
+- `ioc_type = "cmdline"` in CrowdStrike behaviors[] stamping — `cmdline` is a SEPARATE sibling field, NOT an ioc_type value (BC-2.06.019 v1.8 correction)
 - `ioc_type = "ipv4"` or `ioc_type = "ipv6"` in CrowdStrike behaviors[] stamping
+- Hard-reject / parse-error on unknown CrowdStrike `ioc_type` tokens (must log + preserve, non-fatal)
+- `Ioc` struct without dual-alias serde annotation in prism-dtu-cyberint (single hard-coded key bet on INCONCLUSIVE field)
 - IOC fields on Armis or Claroty records (ADR-031 violation)
 
 ---
@@ -579,12 +672,12 @@ result of PR #185 — the exact field names may shift on merge. See materializat
 
 | ID | Source | Description | Expected Behavior |
 |----|--------|-------------|-------------------|
-| EC-001 | BC-2.06.019 v1.7 §Interim State | `_ioc_value` filter present alongside real-schema filter | FORBIDDEN — not a valid edge case; this is a MUST NOT state per BC-2.06.019 v1.7 |
-| EC-002 | BC-2.06.019 v1.7 Per-Sensor IOC-Surface Matrix | IOC stamping attempted on Armis or Claroty records | FORBIDDEN — permanent exclusion; must not occur |
+| EC-001 | BC-2.06.019 v1.8 §Interim State | `_ioc_value` filter present alongside real-schema filter | FORBIDDEN — not a valid edge case; this is a MUST NOT state per BC-2.06.019 v1.8 |
+| EC-002 | BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix | IOC stamping attempted on Armis or Claroty records | FORBIDDEN — permanent exclusion; must not occur |
 | EC-003 | BC-2.06.019 PC-4 ioc_hashes=false | Cyberint alert has `ioc.value` matching a hash in `catalog.ioc_hashes` | Alert withheld from response |
 | EC-004 | BC-2.06.019 PC-4 ioc_ips=false | Cyberint alert has `alert_data.ip` matching `catalog.ioc_ips[0]` | Alert withheld from response |
 | EC-005 | BC-2.06.019 PC-4 | Cyberint alert with no IOC fields (None/empty) at any stage | Alert NOT withheld (no matching IOC values to filter on) |
-| EC-006 | BC-2.06.019 v1.7 Per-Sensor IOC-Surface Matrix | CrowdStrike host/device record (not detection) — no IOC fields | Device records have NO IOC stamping; IOCs live on detection records only |
+| EC-006 | BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix | CrowdStrike host/device record (not detection) — no IOC fields | Device records have NO IOC stamping; IOCs live on detection records only |
 | EC-007 | BC-2.06.019 PC-2 table | Pivot query at stage < 3 (device_cves=false, ioc_*=false at stage 0-1) | Result set may be empty; no error |
 | EC-008 | BC-2.06.019 PC-2 table | NVD pivot query at stage 3 (device_cves=false) | `device_cves` not visible → `has device_cves` filter returns no rows → empty result (correct behavior; test must use stage 4) |
 
@@ -595,19 +688,24 @@ result of PR #185 — the exact field names may shift on merge. See materializat
 Per CLAUDE.md §SAP-2, the adversary for this story MUST:
 1. Read `crates/prism-dtu-cyberint/src/types.rs` post-implementation — verify `Alert.ioc`,
    `Alert.iocs`, `Alert.alert_data` fields exist with matching types to TOML spec columns;
-   verify TOML wire names match: `ioc.type`/`ioc.value` (NOT `ioc.ioc_type`); `iocs[].type`/`iocs[].value`
-   (NOT `iocs[].ioc_type` — serde rename `type` per U22)
+   verify `Ioc` struct has dual-alias serde annotations: `#[serde(rename = "type", alias = "ioc_type")]`
+   on `ioc_type` field, `#[serde(alias = "ioc_value")]` on `value` field (BC-2.06.019 v1.8
+   INCONCLUSIVE inner-key requirement); verify TOML wire names match primary key form:
+   `ioc.type`/`ioc.value`; `iocs[].type`/`iocs[].value`
 2. Read `crates/prism-dtu-crowdstrike/src/generator.rs` `make_detection()` — verify `"behaviors"`
    JSON key is present in the returned serde_json::Value with `ioc_type`/`ioc_value`/`ioc_source`/
-   `ioc_description` keys; also read `fixtures/detections-detail.json` — verify same keys present
-   (shape parity test compliance). NOTE: NO types.rs Detection/Behavior struct exists in CrowdStrike
-   (U19 code grounding 2026-06-12) — adversary MUST NOT look for Behavior struct; it does not exist.
+   `ioc_description` keys; **VERIFY `ioc_type` value is `"hash_sha256"` (NOT bare `"hash"`) for
+   catalog hash IOCs** (BC-2.06.019 v1.8 correction; bare `"hash"` = P1 CRITICAL); also read
+   `fixtures/detections-detail.json` — verify same keys present AND `ioc_type` uses
+   algorithm-qualified token (shape parity test compliance). NOTE: NO types.rs Detection/Behavior
+   struct exists in CrowdStrike (U19 code grounding 2026-06-12) — adversary MUST NOT look for
+   Behavior struct; it does not exist.
 3. Read `crates/prism-dtu-armis/src/generator.rs` — verify `device_cves_first` scalar key is
    present on scenario device records (U17/Ruling 1b)
 4. Grep for `_ioc_value` in `crates/prism-dtu-cyberint/src/routes/alerts.rs` — MUST return 0 matches
 5. Verify Claroty and Armis types.rs have NO new IOC fields (permanent exclusion per ADR-031)
 
-Column in TOML with no DTU equivalent = **P1 CRITICAL**. `_ioc_value` in route handler post-merge = **P1 CRITICAL** (BPRL-P4-01 recurrence). `Behavior.ioc_type` typed struct added for CrowdStrike = **P1 CRITICAL** (wrong approach — must be JSON key in generator, not a typed struct — U19).
+Column in TOML with no DTU equivalent = **P1 CRITICAL**. `_ioc_value` in route handler post-merge = **P1 CRITICAL** (BPRL-P4-01 recurrence). `Behavior.ioc_type` typed struct added for CrowdStrike = **P1 CRITICAL** (wrong approach — must be JSON key in generator, not a typed struct — U19). `ioc_type = "hash"` (bare) in CrowdStrike behaviors[] = **P1 CRITICAL** (BC-2.06.019 v1.8 correction; must be `"hash_sha256"` or `"hash_md5"`). `Ioc` struct in prism-dtu-cyberint without dual-alias serde annotation = **HIGH** (INCONCLUSIVE inner-key; hard-coded single-form bet will fail 50% of the time depending on live API convention).
 
 ---
 
@@ -615,6 +713,7 @@ Column in TOML with no DTU equivalent = **P1 CRITICAL**. `_ioc_value` in route h
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.9 | 2026-06-19 | Uncertainty-pivot003 corrections propagated from BC-2.06.019 v1.8 + research doc uncertainty-pivot003-s504-2026-06-19.md. **(1) PR #185 caveat RESOLVED:** U23 materialization-time re-verify task updated to DONE; field names confirmed on develop@7fd35b77 (`ioc_ips`/`ioc_domains`/`ioc_hashes` in prism-dtu-common/src/scenario/mod.rs; `_ioc_value`/`_ioc_type` in prism-dtu-cyberint/src/routes/alerts.rs). Previous Story Intelligence section updated to reflect merge. **(2) CrowdStrike ioc_type enum CORRECTED (HIGH confidence):** `behaviors[].ioc_type` value set changed from old `{hash, domain, filename, registry, cmdline}` to corrected `{hash_sha256, hash_md5, domain, filename, registry_key}`. Bare `hash` → algorithm-qualified `hash_sha256`/`hash_md5`. Bare `registry` → `registry_key`. `cmdline` removed (it is a SEPARATE sibling field, not an ioc_type value). Tolerant-unknown-type policy added (log + preserve raw string, non-fatal). Changed: AC-004 body + Red Gate test assertion, Architecture Compliance Rules, Forbidden patterns, SAP-2 note, Phase 3 task, frontmatter risk_mitigations. **(3) Cyberint inner-key INCONCLUSIVE → dual-alias (BC-2.06.019 v1.8):** AC-001 rewritten to require `#[serde(rename = "type", alias = "ioc_type")]` + `#[serde(alias = "ioc_value")]` on `Ioc` struct. New Red Gate test `test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms` added. Singleton `ioc: Option<Ioc>` field flagged for likely removal pending live-tenant validation. TOML column AC-006 corrected: `iocs[].type` is primary column name (not `iocs[].ioc_type`). AC-003 filter note updated to use `Ioc.value` accessor (dual-alias resolves at deserialization). red_gate_tests frontmatter bumped 9→10. **(4) All BC-2.06.019 v1.7 body citations updated to v1.8.** Source: uncertainty-pivot003-s504-2026-06-19.md §Item 1 (HIGH) + §Item 2 (INCONCLUSIVE) + BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix. |
 | v1.8 | 2026-06-13 | BPRL-P24-01: BC-2.06.020 v1.5→v1.6 pin-sync (DTU-perimeter enforcement prose corrected: structural Cargo/E0432, not the prism-query perimeter-violation gate). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Historical changelog rows left untouched. version 1.7→1.8. |
 | v1.7 | 2026-06-13 | BC-2.06.020 v1.4→v1.5 pin-sync (BPRL-P22-01: VP Anchors prose A-H→A-L / 8→12 VPs; no behavior change). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Historical changelog rows left untouched. version 1.6→1.7. |
 | v1.6 | 2026-06-13 | Pin-sync — BC-2.06.020 v1.3→v1.4 (BPRL-P14-01 RNG range literal correction; POL-23). Two live pin sites updated: §Behavioral Contracts BC table row and §Token Budget BC-2.06.020 context row. Historical changelog rows left untouched. version 1.5→1.6. |

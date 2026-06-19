@@ -1,18 +1,105 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.878"
+version: "7.879"
 status: current
-timestamp: 2026-06-19T10:00:00Z
+timestamp: 2026-06-19T14:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1249 (2026-06-19): PrismQL decomposition registered. S-DEMO-PRISMQL-ONBOARDING-001 DECOMPOSED into 001-A (7 pts, prism-mcp) + 001-B (6 pts, prism-query/core). STORY-INDEX v2.434→v2.435; total_stories 204→206. PIVOT-003 confirmed authored (v1.8). 4 DEMO-BLOCKING pickable lanes: PIVOT-003 + S-5.04 + 001-A + 001-B. §RESUME SNAPSHOT D-1249 authored (supersedes D-1242/D-1244). develop_head UNCHANGED 9114e028. STATE v7.877→v7.878.**
+> **D-1250 (2026-06-19): Pre-TDD remove-uncertainty CLEARED on PIVOT-003 ‖ S-5.04 front-runner lanes (SPEC-ONLY burst). BC-2.06.019 v1.7→v1.8 (CrowdStrike ioc_type enum corrected; Cyberint dual-alias serde). PIVOT-003 v1.8→v1.9 (red_gate_tests 9→10; TDD-READY). S-5.04 v1.7→v1.8 (probe path corrected; TDD-READY). STORY-INDEX v2.435→v2.436. BC-INDEX v6.82→v6.83. D-1110 pre-TDD obligation SATISFIED for both front-runner lanes. §RESUME SNAPSHOT D-1250 authored (supersedes D-1249). develop_head UNCHANGED 9114e028. STATE v7.878→v7.879.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1249** (authoritative zero-context restart protocol; supersedes D-1242/D-1244). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1244 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1249 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1249 state/docs-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.878.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1250** (authoritative zero-context restart protocol; supersedes D-1249). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1249 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1250 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1250 spec-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.879.
+
+---
+
+## §RESUME SNAPSHOT — D-1250 (2026-06-19 — PRE-TDD REMOVE-UNCERTAINTY CLEARED: PIVOT-003 ‖ S-5.04; develop_head 9114e028 UNCHANGED; STATE v7.879)
+
+> **D-1250 burst (2026-06-19).** SPEC-ONLY burst — develop_head UNCHANGED at 9114e028. Pre-TDD remove-uncertainty pass COMPLETE for front-runner lanes PIVOT-003 + S-5.04 (D-1110 obligation SATISFIED). uncertainty-scanner found 8 items (1 HIGH, 4 MED, 3 LOW). Resolutions: (a) S-5.04 CrowdStrike probe path corrected /sensors/queries/devices/v1→/devices/queries/devices/v1 (HIGH; verified routes/mod.rs:216); raw-HTTP→adapter reconciled to FIX-001/v1.6; Retry-After parse approach confirmed. (b) PIVOT-003 CrowdStrike ioc_type enum corrected to {hash_sha256,hash_md5,domain,filename,registry_key} + tolerant-unknown-type; Cyberint dual-alias serde (type/ioc_type + value/ioc_value) + singleton `ioc` removal flag (INCONCLUSIVE-pending-live-validation) → BC-2.06.019 v1.7→v1.8. (c) PR #185 substrate CONFIRMED MERGED. 3 LOW items confirmed-matching (no change). Research: `.factory/research/uncertainty-pivot003-s504-2026-06-19.md`. PIVOT-003 v1.8→v1.9 (red_gate_tests 9→10; BC-2.06.019 v1.8). S-5.04 v1.7→v1.8. BC-INDEX v6.82→v6.83. STORY-INDEX v2.435→v2.436. **PIVOT-003 + S-5.04 are now TDD-READY.** 001-A + 001-B still pending their own remove-uncertainty pass. STATE v7.879.
+
+---
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1250 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1250 snapshot first. It is authoritative. Do NOT act on any other prior context.
+
+**Step 1.** Run `vsdd-factory:factory-worktree-health` (devops-engineer). **BLOCKING** — do not proceed until it passes.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19; D-1250 spec-only burst — develop UNCHANGED). If newer, use live HEAD as authoritative.
+
+**Step 3.** Confirm open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Check worktree state:
+```bash
+git worktree list
+```
+Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded). `.worktrees/S-5.03` PRUNED (D-1246). Leave S-3.09 and W3-FIX-S307-001 alone.
+
+**Step 5.** Read PINNED STATE table below and verify against live git.
+
+**Step 6.** Apply lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) and z25 (implementer must NOT commit .factory directly) are critical.
+
+---
+
+### PINNED STATE (D-1250 — verified 2026-06-19)
+
+| Artifact | Value | Notes |
+|----------|-------|-------|
+| develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19 (D-1240). UNCHANGED through D-1250 (spec-only). |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
+| Open PRs | **NONE** | S-5.03 PR #194 MERGED develop@85ac7b06. PIVOT-002 PR #195 MERGED develop@9114e028. No new PRs. |
+| Parked worktrees | S-3.09 FROZEN + W3-FIX-S307-001 BLOCKED | Leave alone. S-5.03 worktree PRUNED (D-1246). |
+| ci.yml EXPECTED | `79` | Unchanged from D-1250 (spec-only burst). Authority: `ci.yml`. |
+| CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@9114e028. |
+| scripts/check-non-exhaustive.sh | `EXPECTED=79` | Confirmed. |
+| STATE.md | v7.879 | D-1250 burst. |
+| BC-INDEX | **v6.83** | active 235 / draft 8 / retired 6 / total 256. BC-2.06.019 v1.7→v1.8 (D-1250 remove-uncertainty). |
+| STORY-INDEX | **v2.436** | 206 stories. PIVOT-003 v1.8→v1.9 (TDD-READY). S-5.04 v1.7→v1.8 (TDD-READY). |
+| ARCH-INDEX | v2.138 | ADR-041 v1.1 PROPOSED (4-layer LLM onboarding; D-1241). |
+| error-taxonomy | v1.91 | E-QUERY-038 column-not-found plan-time gate (D-1241). |
+| VP-INDEX | v1.79 | 157 registered. |
+| prd | v1.12 | Unchanged. |
+| policies | v1.33 | Unchanged. |
+| active_contracts | 235 | Unchanged through D-1250. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012, BC-2.10.013, BC-2.10.014, BC-2.11.016, BC-2.11.017, BC-2.11.018. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1250)
+
+| Burst | What Was Done |
+|-------|---------------|
+| D-1250 (2026-06-19) | Pre-TDD remove-uncertainty CLEARED on PIVOT-003 (v1.8→v1.9) + S-5.04 (v1.7→v1.8). BC-2.06.019 v1.7→v1.8. BC-INDEX v6.82→v6.83. STORY-INDEX v2.435→v2.436. Research doc `.factory/research/uncertainty-pivot003-s504-2026-06-19.md` committed. D-1110 obligation SATISFIED for both front-runner lanes. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (durable task list; D-1250)
+
+| Order | Story / Task | Status | Pts | depends_on | Notes |
+|-------|-------------|--------|-----|------------|-------|
+| **NEXT-A (TDD-READY NOW)** | **S-DEMO-ENRICHMENT-PIVOT-003** | draft v1.9 (authored; **remove-uncertainty CLEARED**) | 8 | PIVOT-002 MERGED (SATISFIED) | Real IOC fields (ioc_value, ioc_type, ioc_severity) in Cyberint/CrowdStrike DTU fixtures + canonical end-to-end pivot proof. BC-2.06.019 v1.8. Closes TD-PLUGIN-P0-002 P0. **TDD-READY: stubs → failing tests → TDD green → LOCAL 3-CLEAN → demo → PR 9-step → merge.** |
+| **NEXT-B (TDD-READY NOW)** | **S-5.04** | not-started v1.8 (**remove-uncertainty CLEARED**) | 5 | S-5.03 MERGED (SATISFIED) | Sensor Health Subsystem. Probe path /devices/queries/devices/v1 confirmed. **TDD-READY: stubs → failing tests → TDD green → LOCAL 3-CLEAN → demo → PR 9-step → merge.** DEMO-CRITICAL-PATH. |
+| **NEXT-C (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.0 (authored) | 7 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. Pipelines behind S-5.04 for prism-mcp conflict avoidance. |
+| **NEXT-D (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.0 (authored) | 6 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. Pipelines behind PIVOT-003 for prism-query/core conflict avoidance. |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone (not yet named) | not-authored | TBD | **PIVOT-003 + S-5.04 + 001-A + 001-B — all 4 must MERGE** | PO + story-writer. The demo's capstone deliverable. All 4 DEMO-BLOCKING stories are HARD gates. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
+
+**Remove-uncertainty rule (D-1110):** Run `dclaude:remove-uncertainty` on every implementation story BOTH immediately after story-writer materializes/writes it AND again before TDD delivery. PIVOT-003 + S-5.04 SATISFIED. 001-A + 001-B still pending their pre-TDD remove-uncertainty pass.
+
+**Cyberint INCONCLUSIVE items (carry-forward):** Dual-alias serde (type/ioc_type + value/ioc_value) and singleton top-level `ioc` removal are INCONCLUSIVE-pending-live-tenant-validation. Tolerant implementation is MANDATORY regardless — implementer must handle both key forms. Not a TDD blocker.
 
 ---
 
@@ -101,7 +188,7 @@ Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.workt
 
 **Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
 
-**Remove-uncertainty rule (D-1110):** Run `dclaude:remove-uncertainty` on every implementation story BOTH immediately after story-writer materializes/writes it AND again before TDD delivery. PIVOT-003, S-5.04, 001-A, 001-B all still need their pre-TDD remove-uncertainty pass.
+**Remove-uncertainty rule (D-1110):** Run `dclaude:remove-uncertainty` on every implementation story BOTH immediately after story-writer materializes/writes it AND again before TDD delivery. PIVOT-003 + S-5.04 pre-TDD remove-uncertainty CLEARED (D-1250). 001-A + 001-B still need their pre-TDD remove-uncertainty pass. **See §RESUME SNAPSHOT D-1250 for current authoritative WHAT'S NEXT.**
 
 ---
 
