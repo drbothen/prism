@@ -221,6 +221,14 @@ name = "bc_2_06_019_canonical_pivot_queries"
 path = "tests/bc_2_06_019_canonical_pivot_queries.rs"
 required-features = ["fixture-gen"]
 
+# F-PIVOT003-R3-001: genuine E2E enrich pipeline tests (Tests 10 + 11)
+# These drive InfusionAsyncUdf → InfusionSource → ThreatIntelState/NvdState
+# to close the finding that Tests 8+9 only hand-correlate the data layer.
+[[test]]
+name = "bc_2_06_019_enrich_pipeline_e2e"
+path = "tests/bc_2_06_019_enrich_pipeline_e2e.rs"
+required-features = ["fixture-gen"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"
@@ -230,6 +238,13 @@ rustls = { version = "0.23", features = ["aws-lc-rs"] }
 serial_test = "3"
 tempfile = "3"
 chrono = { version = "0.4", features = ["serde"] }
+# F-PIVOT003-R3-001: genuine E2E enrich pipeline tests (Tests 10 + 11)
+# These bring in the DataFusion UDF registration infrastructure so the tests can
+# drive InfusionAsyncUdf::invoke_async_with_args → InfusionSource::enrich_single
+# against scenario-seeded ThreatIntelState / NvdState instances.
+prism-query = { path = "../../crates/prism-query" }
+prism-spec-engine = { path = "../prism-spec-engine" }
+datafusion = "53.1"
 
 [lints]
 workspace = true
