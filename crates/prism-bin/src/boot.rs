@@ -2779,6 +2779,12 @@ pub async fn step9_start_mcp_server(
     // WriteExecutor also receives Arc::clone(&confirmation_store) below.
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
 
+    // S-5.04 F-S504-P1-005: Clone storage Arc before QueryEngine::new_full moves it,
+    // so PrismServer::with_context_storage() can wire the same RocksDB backend into the
+    // PrismContext for durable health timestamp persistence (BC-2.08.004 postcondition 2).
+    let storage_for_context: Arc<dyn prism_storage::backend::RocksStorageBackend> =
+        Arc::clone(&storage) as Arc<dyn prism_storage::backend::RocksStorageBackend>;
+
     let query_engine = Arc::new(
         QueryEngine::new_full(
             adapter_registry.clone(),
@@ -2891,7 +2897,11 @@ pub async fn step9_start_mcp_server(
         alias_store,
         // IMP-8: wire org_registry for alias CRUD allowlist validation.
         org_registry_for_server,
-    );
+    )
+    // S-5.04 F-S504-P1-005: wire RocksDB backend into PrismContext so health timestamps
+    // survive server restarts (BC-2.08.004 postcondition 2). `storage_for_context` was
+    // cloned from `storage` before it was moved into QueryEngine::new_full above.
+    .with_context_storage(storage_for_context);
 
     // Spawn serve_stdio as a background task — returns immediately.
     // The background task runs until stdin closes or SIGTERM/SIGINT is received.

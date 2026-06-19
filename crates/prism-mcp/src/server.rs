@@ -289,6 +289,45 @@ impl PrismServer {
         }
     }
 
+    /// Wire a RocksDB storage backend into the server's `PrismContext` for durable
+    /// timestamp persistence (BC-2.08.004 postcondition 2 — F-S504-P1-005).
+    ///
+    /// Called from `boot.rs` after `with_deps()` to give the context the same storage
+    /// Arc that the rest of the boot pipeline uses. Without this call, timestamps are
+    /// in-memory only (do not survive server restarts).
+    ///
+    /// Uses `Arc::make_mut` / reconstructs the inner context if the Arc is uniquely owned;
+    /// otherwise replaces the Arc with a new `PrismContext::new_with_storage()`.
+    pub fn with_context_storage(
+        mut self,
+        storage: Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    ) -> Self {
+        // Reconstruct context with storage — context was just created in with_deps(),
+        // so Arc::try_unwrap will succeed (no other holders yet at construction time).
+        // Fallback: create a fresh context with storage (preserving the storage wiring).
+        let holder = crate::context::StorageHolder(storage);
+        let new_context = match Arc::try_unwrap(self.context) {
+            Ok(ctx) => {
+                // Transfer in-memory state + add storage
+                crate::context::PrismContext {
+                    health_cache: ctx.health_cache,
+                    last_query_timestamps: ctx.last_query_timestamps,
+                    rate_limit_states: ctx.rate_limit_states,
+                    storage: Some(holder),
+                }
+            }
+            Err(_ctx_arc) => {
+                // Arc already shared — create new context with storage.
+                // In-memory timestamps from before this call are NOT copied; this
+                // path is only hit if with_context_storage() is called after the
+                // server is already shared, which should not happen in normal boot.
+                crate::context::PrismContext::new_with_storage(holder.0)
+            }
+        };
+        self.context = Arc::new(new_context);
+        self
+    }
+
     /// Return valid client IDs from the wired OrgRegistry.
     ///
     /// IMP-8: alias CRUD handlers pass this allowlist to alias_tools so that

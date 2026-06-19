@@ -49,6 +49,7 @@
 //! | F-S504-P1-002 core — probe_connectivity RateLimited arm → ConnectivityStatus::Up | test_BC_2_08_001_live_probe_429_status_is_up_not_down |
 //! | F-S504-P2-008 — sanitize_error truncates long body; strips control chars | test_BC_2_08_001_live_probe_error_body_is_sanitized |
 //! | F-S504-P1-004 — with_token_store wired: token_count reflects live store | test_BC_2_08_005_query_engine_token_count_reflects_wired_store |
+//! | F-S504-P1-005 — timestamp RocksDB read/write survives context reconstruction | test_BC_2_08_004_timestamp_survives_context_reconstruction_with_storage |
 //!
 //! # AC-7 (BC-2.08.005 live-probe path) tests
 //! Tests requiring `PrismServer.health_checker` (a private field set only from
@@ -1304,5 +1305,63 @@ async fn test_BC_2_08_005_query_engine_token_count_reflects_wired_store() {
          before this fix with_token_store() was never called in boot.rs and \
          token_count() always returned 0. Got: {}",
         engine_wired.token_count()
+    );
+}
+
+// ─── F-S504-P1-005 — RocksDB timestamp persistence (restart simulation) ──────
+
+/// F-S504-P1-005 (load-bearing): timestamps written via `write_timestamp` MUST be
+/// readable by a NEW `PrismContext` backed by the SAME `InMemoryBackend` — simulating
+/// a server restart where the in-memory map is empty but RocksDB still holds the value.
+///
+/// This is the definitive closing test for AC-5 (BC-2.08.004 postcondition 2):
+/// the old implementation only wrote to the in-memory map (a rationalized deferral).
+/// This test catches any regression to in-memory-only behavior by using a SEPARATE
+/// `PrismContext` that shares the storage backend but NOT the in-memory map.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_08_004_timestamp_survives_context_reconstruction_with_storage() {
+    use prism_mcp::context::PrismContext;
+    use prism_storage::memory_backend::InMemoryBackend;
+
+    let storage: Arc<dyn prism_storage::backend::RocksStorageBackend> =
+        Arc::new(InMemoryBackend::new());
+
+    // ── Process 1 (pre-restart) ───────────────────────────────────────────────
+    let context_1 = PrismContext::new_with_storage(Arc::clone(&storage));
+    let ts_written = chrono::Utc.with_ymd_and_hms(2026, 6, 19, 12, 0, 0).unwrap();
+    write_timestamp("acme", "crowdstrike", ts_written, &context_1);
+
+    // Confirm in-memory map is populated (fast path passes).
+    let in_memory_result = read_timestamp("acme", "crowdstrike", &context_1);
+    assert_eq!(
+        in_memory_result,
+        Some(ts_written),
+        "F-S504-P1-005 precondition: in-memory write+read must work in same context"
+    );
+
+    // ── Process 2 (post-restart) — fresh context, same storage ───────────────
+    // New PrismContext starts with an EMPTY in-memory map — simulates restart.
+    // If write_timestamp only updated the HashMap (old behavior), this would return None.
+    let context_2 = PrismContext::new_with_storage(Arc::clone(&storage));
+    let after_restart = read_timestamp("acme", "crowdstrike", &context_2);
+
+    assert_eq!(
+        after_restart,
+        Some(ts_written),
+        "F-S504-P1-005 (BC-2.08.004 postcondition 2 — AC-5 'survives restart'): \
+         read_timestamp MUST recover the value from RocksDB when the in-memory map is empty \
+         (new context = restart). Old implementation returned None here because it only wrote \
+         to HashMap. Got: {:?}",
+        after_restart
+    );
+
+    // Verify the cold-path cache repopulation: reading again hits the in-memory map.
+    let second_read = read_timestamp("acme", "crowdstrike", &context_2);
+    assert_eq!(
+        second_read,
+        Some(ts_written),
+        "F-S504-P1-005: second read after cold-path must still return the timestamp \
+         (repopulated into in-memory map on first read)"
     );
 }

@@ -43,6 +43,11 @@ arrow-json = "58"
 # (F-S504-P1-003 fix; nil OrgId triggers get_all_for_sensor fallback in probe_connectivity).
 # Transitive via prism-core; explicit pin for production code in server.rs.
 uuid = { version = "1", features = ["v7"] }
+# prism-storage: needed for RocksStorageBackend used in PrismContext for timestamp persistence
+# (F-S504-P1-005: AC-5 "survives restart" — write_timestamp persists to RocksDB Default CF,
+# read_timestamp falls back to storage on cache miss). Transitive via prism-query already;
+# explicit dep to access RocksStorageBackend trait in production code paths.
+prism-storage = { path = "../prism-storage" }
 
 [dev-dependencies]
 proptest = "1"
