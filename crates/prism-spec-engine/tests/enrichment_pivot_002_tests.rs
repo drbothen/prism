@@ -2827,3 +2827,172 @@ output_type = "string"
         err_str
     );
 }
+
+// ---------------------------------------------------------------------------
+// PIVOT002-LOCAL-OBS-1 — symlink-escape rejection via canonicalize+starts_with guard
+// ---------------------------------------------------------------------------
+
+/// PIVOT002-LOCAL-OBS-1 (SEC-003 CWE-22 / AC-011 / AC-012):
+/// `validate_plugin_path` Steps 3-4 canonicalize+`starts_with` guard rejects a symlink-based
+/// traversal that passes Step 0.
+///
+/// # Gap being closed
+///
+/// Step 0 of `validate_plugin_path` is a structural pre-check that rejects any path component
+/// that is `Component::ParentDir` (`..`) or absolute (`RootDir`/`Prefix`) BEFORE any filesystem
+/// I/O.  The existing test (`test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_ref`)
+/// uses `../../etc/passwd.prx` — this path contains a `ParentDir` component and is therefore
+/// caught by Step 0, meaning Steps 3-4 (canonicalize + `starts_with`) are never exercised by
+/// that test.
+///
+/// This test covers the complementary threat: a `plugin_ref` that consists ONLY of
+/// `Normal` path components (passes Step 0) but whose resolved canonical path escapes
+/// `plugin_dir` via a **symlink**.  That escape is detectable ONLY by Step 3
+/// (`std::fs::canonicalize`) followed by Step 4 (`canonical.starts_with(plugin_dir_canonical)`).
+///
+/// # Why this test is load-bearing (TD-VSDD-059)
+///
+/// If the `starts_with` guard (Step 4, loader.rs line ~893) were removed or inverted,
+/// this test would FAIL because the only remaining defense for the symlink-escape case
+/// would be gone.  The existing `..` test would still PASS (Step 0 catches dotdot before
+/// reaching Step 4), so the regression would be silently invisible.
+///
+/// # Platform gating
+///
+/// Unix symlinks (`std::os::unix::fs::symlink`) are the mechanism used here.  This project's
+/// cross-compile targets are aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu,
+/// x86_64-unknown-linux-musl (all Unix).  The test is `#[cfg(unix)]`-gated so Windows builds
+/// (x86_64-pc-windows-msvc) skip it without error.
+///
+/// # Step-by-step reasoning
+///
+/// 1. `plugin_dir` = a fresh TempDir (canonical form known via `canonicalize`).
+/// 2. `outside_dir` = a SEPARATE fresh TempDir; `outside_file` = a real file placed inside it.
+/// 3. A symlink named `evil_plugin.prx` is created INSIDE `plugin_dir` pointing to `outside_file`.
+///    — The symlink's path components are all `Normal` (`evil_plugin.prx`), so Step 0 passes.
+///    — `plugin_dir.join("evil_plugin.prx")` is a path inside `plugin_dir`, so Step 2 passes.
+///    — `canonicalize` follows the symlink and resolves to `outside_file`'s canonical path.
+///    — That canonical path does NOT start_with `plugin_dir_canonical` → Step 4 rejects it.
+///
+/// # Assertions
+///
+/// - Result is `Err` (the symlink escape is rejected).
+/// - The error variant is `InfusionError::InvalidFieldSpec { .. }` (E-INFUSE-013 sub-condition 6).
+/// - The Display contains `"E-INFUSE-013"`.
+/// - The Display does NOT contain the resolved absolute target path (AC-012 / CWE-209 path
+///   disclosure prevention): the production code's comment at Step 4 explicitly says
+///   "do NOT include the traversal target path in the error message surfaced to callers."
+#[cfg(unix)]
+#[test]
+fn test_enrichment_pivot_002_sec003_symlink_escape_rejected_by_canonicalize_guard() {
+    use std::os::unix::fs::symlink;
+    use tempfile::TempDir;
+
+    // Set up two separate temp directories:
+    //   plugin_dir   — the designated plugin directory (only .prx files here are allowed)
+    //   outside_dir  — a completely separate directory that simulate a path-traversal target
+    let plugin_dir = TempDir::new().expect("plugin_dir tempdir");
+    let outside_dir = TempDir::new().expect("outside_dir tempdir");
+
+    // Create a real file outside plugin_dir so that canonicalize succeeds on the symlink
+    // target.  Without a real file, canonicalize returns Err (file-not-found), which would
+    // hit the MissingRequiredField branch (Step 3 failure) rather than the InvalidFieldSpec
+    // branch (Step 4 starts_with failure) we are testing here.
+    let outside_file = outside_dir.path().join("secret.prx");
+    std::fs::write(&outside_file, b"fake prx content").expect("create outside_file");
+
+    // Create a symlink INSIDE plugin_dir that points to the file OUTSIDE plugin_dir.
+    // Symlink name "evil_plugin.prx" has ONLY Normal path components — Step 0 passes.
+    let symlink_path = plugin_dir.path().join("evil_plugin.prx");
+    symlink(&outside_file, &symlink_path).expect("create symlink");
+
+    // Verify the symlink exists and its link target really is outside plugin_dir
+    // (sanity-check the test setup itself before asserting production behavior).
+    assert!(
+        symlink_path.exists(),
+        "test setup: symlink must exist at {:?}",
+        symlink_path
+    );
+    let resolved = std::fs::canonicalize(&symlink_path)
+        .expect("test setup: canonicalize of symlink must succeed (target file exists)");
+    let plugin_dir_canonical =
+        std::fs::canonicalize(plugin_dir.path()).expect("canonicalize plugin_dir");
+    assert!(
+        !resolved.starts_with(&plugin_dir_canonical),
+        "test setup: symlink target must resolve OUTSIDE plugin_dir (got {:?} inside {:?})",
+        resolved,
+        plugin_dir_canonical
+    );
+
+    // Call the production function.  The plugin_ref is "evil_plugin.prx":
+    //   - Only Normal path components → Step 0 passes (no ParentDir, no RootDir/Prefix).
+    //   - plugin_dir.join("evil_plugin.prx") == symlink_path → Step 2 passes.
+    //   - canonicalize follows symlink → resolves OUTSIDE plugin_dir.
+    //   - starts_with check fails → Step 4 returns Err(InvalidFieldSpec).
+    let spec_path = "test.infusion.toml";
+    let result =
+        InfusionLoader::validate_plugin_path("evil_plugin.prx", plugin_dir.path(), spec_path);
+
+    // ASSERTION 1: the call must be rejected.
+    assert!(
+        result.is_err(),
+        "PIVOT002-LOCAL-OBS-1 SEC-003 CWE-22: symlink-based traversal 'evil_plugin.prx' \
+         (Normal component only, no '..') must be rejected by the canonicalize+starts_with \
+         guard (Steps 3-4).  Step 0 should have PASSED this path — if this assertion fails \
+         with Ok(_), Steps 3-4 are not guarding correctly."
+    );
+
+    let err = result.unwrap_err();
+
+    // ASSERTION 2: the error variant must be InvalidFieldSpec (E-INFUSE-013 sub-condition 6),
+    // not MissingRequiredField.  MissingRequiredField is returned by the canonicalize-failure
+    // branch (Step 3), not the starts_with-failure branch (Step 4).  If we get
+    // MissingRequiredField here, the test setup is wrong (target file doesn't exist and
+    // canonicalize failed before reaching starts_with) rather than exercising the correct branch.
+    assert!(
+        matches!(err, InfusionError::InvalidFieldSpec { .. }),
+        "PIVOT002-LOCAL-OBS-1 E-INFUSE-013 sub-condition 6: symlink-escape rejection MUST \
+         return InfusionError::InvalidFieldSpec (not MissingRequiredField). \
+         MissingRequiredField here means canonicalize failed (Step 3, target absent) rather \
+         than starts_with rejected (Step 4, correct branch). \
+         Got: {:?}",
+        err
+    );
+
+    // ASSERTION 3: the Display must contain "E-INFUSE-013" (error code traceability).
+    let err_str = format!("{}", err);
+    assert!(
+        err_str.contains("E-INFUSE-013"),
+        "PIVOT002-LOCAL-OBS-1: symlink-escape rejection Display must contain 'E-INFUSE-013'. \
+         Got: '{}'",
+        err_str
+    );
+
+    // ASSERTION 4 (AC-012 / CWE-209 path-disclosure prevention):
+    // The error Display must NOT contain the resolved absolute path of the symlink target.
+    // The production code comment at Step 4 explicitly says: "do NOT include the attempted path
+    // in the error message surfaced to callers."  If the resolved path leaks into the error,
+    // an attacker can probe for the existence of files outside the plugin sandbox.
+    let resolved_str = resolved.to_string_lossy();
+    assert!(
+        !err_str.contains(resolved_str.as_ref()),
+        "PIVOT002-LOCAL-OBS-1 AC-012 CWE-209: error Display must NOT disclose the resolved \
+         symlink target path '{}'. Got error: '{}'",
+        resolved_str,
+        err_str
+    );
+
+    // ASSERTION 5 (Step 0 did NOT catch this — defense-in-depth traceability):
+    // Verify that the plugin_ref "evil_plugin.prx" contains ONLY Normal components so we can
+    // confirm the test is actually driving Steps 3-4, not Step 0.
+    use std::path::{Component, Path};
+    let has_non_normal = Path::new("evil_plugin.prx")
+        .components()
+        .any(|c| !matches!(c, Component::Normal(_)));
+    assert!(
+        !has_non_normal,
+        "PIVOT002-LOCAL-OBS-1 test invariant: 'evil_plugin.prx' must have ONLY Normal \
+         components (so Step 0 passes and Steps 3-4 are exercised). \
+         Found a non-Normal component — test setup is incorrect."
+    );
+}
