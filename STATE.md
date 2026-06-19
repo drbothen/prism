@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.876"
+version: "7.877"
 producer: state-manager
-timestamp: 2026-06-19T09:30:00Z
+timestamp: 2026-06-19T10:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1243 (2026-06-19). S-DEMO-PRISMQL-ONBOARDING-001 RECLASSIFIED DEMO-BLOCKING per user directive (2026-06-19). DEMO-BLOCKING SET NOW: PIVOT-003 + S-5.04 + S-DEMO-PRISMQL-ONBOARDING-001 (all 3 gate T13 capstone). develop_head UNCHANGED 9114e028 (state/docs-only burst). SESSION-HANDOFF §RESUME SNAPSHOT D-1242 remains authoritative zero-context restart source; WHAT'S NEXT table updated in this burst. STATE v7.875→v7.876."
+current_step: "D-1244 (2026-06-19). Parallel Execution Plan persisted for 3 DEMO-BLOCKING stories (PIVOT-003 ‖ S-5.04 ‖ S-DEMO-PRISMQL-ONBOARDING-001). Plan recommends 2-lane PIVOT-003‖S-5.04 as lowest-friction parallel; 3-lane possible with PrismQL decomposed into per-layer sub-stories. §Parallel Execution Plan subsection inserted in SESSION-HANDOFF §RESUME SNAPSHOT D-1242 WHAT'S NEXT. Task ledger v1.37→v1.38. develop_head UNCHANGED 9114e028. STATE v7.876→v7.877."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-19 (D-1243 S-DEMO-PRISMQL-ONBOARDING-001 reclassified DEMO-BLOCKING; STATE v7.876)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-19 (D-1244 Parallel Execution Plan persisted; STATE v7.877)
 
 ## Active Objective (North Star)
 
@@ -113,6 +113,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log._
+| D-1244 | state-manager | 2026-06-19 | **PARALLEL EXECUTION PLAN PERSISTED (TD-VSDD-053 single-commit, state/docs-only).** D-1244: Parallel Execution Plan for 3 DEMO-BLOCKING stories (PIVOT-003, S-5.04, S-DEMO-PRISMQL-ONBOARDING-001) persisted as §Parallel Execution Plan in SESSION-HANDOFF §RESUME SNAPSHOT D-1242 WHAT'S NEXT. Plan: 2-lane PIVOT-003‖S-5.04 = lowest-friction (minimal crate overlap); 3-lane possible if PrismQL-onboarding decomposed into per-layer sub-stories (story-writer decision). NON-EXHAUSTIVE GATE serialization point documented (all 3 touch ci.yml EXPECTED + violation fixtures). Merge-order: whoever finishes first merges; rest rebase + reconcile EXPECTED. Task ledger v1.37→v1.38 (pointer + changelog row). SESSION-HANDOFF v7.875→v7.877. develop_head UNCHANGED 9114e028. STATE v7.876→v7.877. |
 | D-1240 | state-manager | 2026-06-19 | **S-DEMO-ENRICHMENT-PIVOT-002 POST-MERGE BURST + POL-14 (TD-VSDD-053 single-commit).** PR #195 squash-merged develop@9114e028 2026-06-19 (6c367356 PIVOT-002 squash + 9114e028 D-1178 CLAUDE.md 76→79 count bump). **POL-14 BC-2.19.001:** already active (lifecycle_status:active + status:active per BC file; idempotent no-op — no count change). **Story changes:** S-DEMO-ENRICHMENT-PIVOT-002 status: draft→merged v1.4→v1.5. **Indexes:** STORY-INDEX v2.432→v2.433. BC-INDEX UNCHANGED (no BC status changed). **develop_head 85ac7b06→9114e028.** CLAUDE.md non-exhaustive=79; ci.yml EXPECTED=79 on develop@9114e028. active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001) UNCHANGED. BOTH DEMO-BLOCKING LANES DONE (S-5.03 D-1238 + PIVOT-002 D-1240). REMAINING DEMO ROADMAP: PIVOT-003 → S-5.04 → T13 → T14. NOTE: ADR-041 PrismQL-LLM-onboarding research doc + ARCH-INDEX update PENDING separate design burst (NOT included in this commit). STATE v7.872→v7.873. |
 | D-1239 | state-manager | 2026-06-19 | **PIVOT-002 E-INFUSE-013 SPEC-FIX REGISTRATION (TD-VSDD-053 single-commit, bundled with D-1238).** Product-owner edits confirmed: (1) error-taxonomy v1.89→v1.90: E-INFUSE-013 added ("invalid field name/spec" → `InfusionError::InvalidFieldSpec`; AC-007/BC-2.19.001). (2) BC-2.16.002 v1.82→v1.83: `http_lookup_enrich_failed` catalog field-schema expanded. BC-INDEX v1.82 pin updated to v1.83. POL-29 sweep: STATE.md, SESSION-HANDOFF.md, BC-INDEX all updated to error_taxonomy_version 1.90. develop_head 5c747549→85ac7b06 (D-1178 CLAUDE.md count bump @85ac7b06). STATE v7.872. |
 | D-1238 | state-manager | 2026-06-19 | **S-5.03 POST-MERGE BURST + POL-14 PROMOTION (TD-VSDD-053 single-commit).** PR #194 squash-merged develop@85ac7b06 2026-06-19 (D-1178 CLAUDE.md non-exhaustive count 70→76 @85ac7b06, then S-5.03 merge @7fc1afef). **POL-14 BC promotions:** BC-2.08.005: status draft→active (lifecycle_status was already active — legacy-field sync; no count change). BC-2.08.006: status draft→active (same). BC-2.10.008: status draft→active (same). BC-2.10.009: status draft→active (same). BC-2.16.007: idempotent (already active per D-1204). **Story changes:** S-5.03 status: not-started→merged (v1.22 UNCHANGED). **Indexes:** BC-INDEX v6.79→v6.80. STORY-INDEX v2.431→v2.432. **develop_head 5c747549→85ac7b06.** CLAUDE.md non-exhaustive=76; ci.yml EXPECTED=76 on develop@85ac7b06. active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001) UNCHANGED. STATE v7.871→v7.872. |

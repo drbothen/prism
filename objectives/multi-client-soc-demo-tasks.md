@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.37"
+version: "1.38"
 producer: state-manager
 status: active
-timestamp: 2026-06-19T09:00:00Z
+timestamp: 2026-06-19T10:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -69,6 +69,8 @@ Foundations: COMPLETE (reused). Build: 9/15 tasks done; T4 DONE; T4-A DONE; T5 D
 - T13 capstone requires Claude to author PrismQL against per-client schemas — the ADR-041 teaching mechanism is prerequisite.
 
 **After PIVOT-003 MERGED + S-5.04 MERGED + S-DEMO-PRISMQL-ONBOARDING-001 MERGED → T13 capstone (PO+story-writer; not-authored) → T14 demo recording.**
+
+**Parallel Execution Plan (D-1244 2026-06-19):** See `SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242 §Parallel Execution Plan` for orchestrator analysis of crate overlap, NON-EXHAUSTIVE GATE serialization constraint, recommended lane structure (PIVOT-003 ‖ S-5.04 as cleanest 2-lane; PrismQL decomposition option for 3-lane), and merge-order protocol.
 
 **USER AUTHORIZATION (D-1090 2026-06-10): full-autonomous delivery still active. Autonomy envelope: run all gates A→merge autonomously; PAUSE ONLY for §7 spec-to-match-code amendments / genuine product-business decisions / Level-3 escalation / CLAUDE.md edits. D-989 autonomy grant ACTIVE.**
 
@@ -287,6 +289,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.38 | 2026-06-19 | state-manager | D-1244 PARALLEL EXECUTION PLAN PERSISTED (TD-VSDD-053 single-commit, state/docs-only burst). (1) Frontmatter bumped v1.37→v1.38; timestamp 2026-06-19T10:00:00Z. (2) NEXT ACTION: Parallel Execution Plan pointer line added (SESSION-HANDOFF §RESUME SNAPSHOT D-1242 §Parallel Execution Plan). Plan: 2-lane PIVOT-003‖S-5.04 recommended as lowest-friction; 3-lane possible if PrismQL-onboarding decomposed per-layer; NON-EXHAUSTIVE GATE serialization point documented; merge-order: first-finisher merges, rest rebase. develop_head UNCHANGED 9114e028. active_contracts 235 / draft_contracts 8 / total_stories 204 / BC-INDEX v6.82 / STORY-INDEX v2.434 UNCHANGED. STATE v7.876→v7.877. Ledger v1.37→v1.38. |
 | 1.37 | 2026-06-19 | state-manager | D-1243 S-DEMO-PRISMQL-ONBOARDING-001 RECLASSIFIED DEMO-BLOCKING (TD-VSDD-053 single-commit, state/docs-only burst). (1) Frontmatter bumped v1.36→v1.37. (2) CURRENT POINTER updated to reflect 3-story DEMO-BLOCKING set (PIVOT-003 + S-5.04 + S-DEMO-PRISMQL-ONBOARDING-001). (3) NEXT ACTION header updated to D-1243. (4) (c) NEXT-C block updated: DEMO-BLOCKING rationale added. (5) T15e row: DEMO-BLOCKING D-1243 annotation added. (6) T13 depends_on updated: all 3 DEMO-BLOCKING gates listed explicitly. develop_head UNCHANGED 9114e028. Ledger v1.36→v1.37. STATE v7.875→v7.876. |
 | 1.36 | 2026-06-19 | state-manager | D-1242 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT (TD-VSDD-053 single-commit, docs/state-only burst). (1) Frontmatter bumped v1.35→v1.36; timestamp 2026-06-19T09:00:00Z. (2) CURRENT POINTER updated to L-POST ALL LANES DONE; develop@9114e028. (3) NEXT ACTION replaced with D-1242 3-lane protocol (PIVOT-003/S-5.04/S-DEMO-PRISMQL-ONBOARDING-001 all PICKABLE NOW). (4) Task rows updated: T15b done (S-5.03 MERGED PR #194 develop@85ac7b06); T15c not-started/PICKABLE; T16b done (PIVOT-002 MERGED PR #195 develop@9114e028); T16c not-started/PICKABLE; T13 BLOCKED on PIVOT-003+S-5.04+S-DEMO-PRISMQL-ONBOARDING-001; NEW T15e added (S-DEMO-PRISMQL-ONBOARDING-001 PICKABLE; 13 pts; ADR-041 v1.1 design package; depends S-5.03+S-3.13 BOTH SATISFIED). develop_head UNCHANGED 9114e028. active_contracts 235 / draft_contracts 2 / total_stories 204 / BC-INDEX v6.82 / STORY-INDEX v2.434 / error-taxonomy v1.91 UNCHANGED. STATE v7.874→v7.875. Ledger v1.35→v1.36. |
 | 1.35 | 2026-06-19 | state-manager | D-1238..D-1241 SESSION WORK CAPTURED. (1) T15b DONE: S-5.03 MERGED PR #194 squash-merged develop@85ac7b06 2026-06-19; PR-LEVEL 3/3 strict CONVERGED; POL-14 BC-2.08.005/BC-2.08.006/BC-2.10.008/BC-2.10.009 draft→active; non-exhaustive EXPECTED 70→76 (in-branch; S-1.14-REDO gate updated); CLAUDE.md/ci.yml/scripts updated to EXPECTED=79 (covers S-5.03+S-1.14-REDO+PIVOT-001+PIVOT-002+S-3.13 combined). (2) T16b DONE: PIVOT-002 MERGED PR #195 squash-merged develop@9114e028 2026-06-19; PR-LEVEL 3/3 strict CONVERGED; ThreatIntel+NVD WASM plugins shipped; closes TD-PLUGIN-P0-002 (partial — PIVOT-003 closes final IOC field gap). (3) D-1241: ADR-041 v1.1 PrismQL LLM auto-onboarding design package committed to factory-artifacts; OPD-1 ADOPTED (normalized_pql echo field); 4-layer teaching surface spec complete. (4) STORY-INDEX v2.434; BC-INDEX v6.82; error-taxonomy v1.91. develop_head UNCHANGED 9114e028. active_contracts 235 / draft_contracts 2 / total_stories 204 UNCHANGED. Ledger v1.34→v1.35. |

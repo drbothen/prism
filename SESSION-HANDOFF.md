@@ -1,24 +1,24 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.875"
+version: "7.877"
 status: current
-timestamp: 2026-06-19T09:00:00Z
+timestamp: 2026-06-19T10:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1242 (2026-06-19): COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT. Both demo-blocking lanes MERGED (S-5.03 PR #194 + PIVOT-002 PR #195). PrismQL-onboarding DESIGN PACKAGE committed (ADR-041 v1.1 + 7 BCs + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft). develop_head UNCHANGED 9114e028. STATE v7.874→v7.875.**
+> **D-1244 (2026-06-19): Parallel Execution Plan persisted for 3 DEMO-BLOCKING stories (PIVOT-003 ‖ S-5.04 ‖ S-DEMO-PRISMQL-ONBOARDING-001). §Parallel Execution Plan inserted in §RESUME SNAPSHOT D-1242 WHAT'S NEXT. develop_head UNCHANGED 9114e028. STATE v7.876→v7.877.**
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1242** (authoritative zero-context restart protocol; supersedes D-1241). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1241 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1242 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1242 docs-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.875.
+> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1244 state/docs-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.877.
 
 ---
 
 ## §RESUME SNAPSHOT — D-1242 (2026-06-19 — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT; develop_head 9114e028 UNCHANGED; STATE v7.875)
 
-> **D-1242 burst (2026-06-19).** DOCS/STATE-ONLY burst — develop_head UNCHANGED at 9114e028. Both demo-blocking lanes MERGED: S-5.03 PR #194 develop@85ac7b06 (D-1238) + PIVOT-002 PR #195 develop@9114e028 (D-1240). PrismQL-onboarding DESIGN PACKAGE committed (D-1241): ADR-041 v1.1 + 7 BCs (BC-2.10.012/013/014 draft + BC-2.11.016/017/018 draft) + 2 BC amendments + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft (13 pts). Task ledger advanced to v1.36. D-1236..D-1241 SUPERSEDED by D-1242.
+> **D-1242/D-1244 burst (2026-06-19).** DOCS/STATE-ONLY burst — develop_head UNCHANGED at 9114e028. Both demo-blocking lanes MERGED: S-5.03 PR #194 develop@85ac7b06 (D-1238) + PIVOT-002 PR #195 develop@9114e028 (D-1240). PrismQL-onboarding DESIGN PACKAGE committed (D-1241): ADR-041 v1.1 + 7 BCs (BC-2.10.012/013/014 draft + BC-2.11.016/017/018 draft) + 2 BC amendments + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft (13 pts). Task ledger advanced to v1.36. D-1243: S-DEMO-PRISMQL-ONBOARDING-001 reclassified DEMO-BLOCKING. D-1244: Parallel Execution Plan persisted. Task ledger v1.38. STATE v7.877.
 
 ---
 
@@ -63,7 +63,7 @@ Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.workt
 | ci.yml EXPECTED | `79` | After PIVOT-002 merge (+3 types: HttpLookupAuthType, HttpLookupCredentialConfig, HttpLookupConfig). Authority: `ci.yml`. |
 | CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@9114e028. |
 | scripts/check-non-exhaustive.sh | `EXPECTED=79` | Confirmed. |
-| STATE.md | v7.875 | D-1242 burst. |
+| STATE.md | v7.877 | D-1244 burst. |
 | BC-INDEX | v6.82 | active 235 / draft 8 / retired 6 / total 256. +6 new BCs D-1241 (BC-2.10.012/013/014 + BC-2.11.016/017/018). 2 amendments (BC-2.10.009 v1.4, BC-2.11.001 v1.10). |
 | STORY-INDEX | v2.434 | 204 stories. S-DEMO-PRISMQL-ONBOARDING-001 draft added D-1241. |
 | ARCH-INDEX | v2.138 | ADR-041 v1.1 PROPOSED (4-layer LLM onboarding; D-1241). |
@@ -98,6 +98,32 @@ Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.workt
 | **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
 
 **Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
+
+---
+
+### §Parallel Execution Plan — D-1244 (2026-06-19)
+
+> **Persisted per D-1244.** Orchestrator analysis of the 3 DEMO-BLOCKING stories (PIVOT-003, S-5.04, S-DEMO-PRISMQL-ONBOARDING-001). Task ledger pointer: see `.factory/objectives/multi-client-soc-demo-tasks.md §Parallel Execution Plan`.
+
+**Dependency graph:** All 3 are dependency-unblocked (PIVOT-002, S-5.03, S-3.13 all MERGED) — zero inter-story ordering constraints; up to 3 parallel lanes graph-legal. Each runs in its own `.worktrees/<story>` branch (isolated editing; conflicts surface only at rebase/merge).
+
+**Crates touched:**
+- PIVOT-003: prism-query, prism-spec-engine, prism-dtu-* (IOC fixtures + canonical pivot proof)
+- S-5.04: prism-mcp, prism-sensors, prism-core (Sensor Health Subsystem)
+- S-DEMO-PRISMQL-ONBOARDING-001: prism-mcp, prism-query, prism-core (4-layer teaching surface)
+
+**Conflict surface (the real limiter, not dependencies):**
+
+1. **NON-EXHAUSTIVE GATE is a global serialization point.** All 3 add `#[non_exhaustive]` pub types — all touch `ci.yml EXPECTED` + `scripts/check-non-exhaustive.sh` + violation fixtures (`struct_violations.rs`/`enum_violations.rs`) + CLAUDE.md count. Merges are inherently SERIAL (CLAUDE.md count centralized at merge per D-1178); later lanes must rebase onto new develop, renumber violation entries, reconcile EXPECTED (same dance as S-5.03 76→PIVOT-002 73→79 this session).
+
+2. **Pairwise crate overlap:** prism-mcp (S-5.04 ∩ PrismQL), prism-query+prism-core (PIVOT-003 ∩ PrismQL; S-5.04 ∩ PrismQL). PIVOT-003 ↔ S-5.04 barely overlap (only the non-exhaustive gate). The PrismQL-onboarding story is the OVERLAP HUB (touches the crates both others touch).
+
+**RECOMMENDED LANE STRUCTURE:**
+
+- **Cleanest 2-lane parallel: PIVOT-003 ‖ S-5.04** (minimal mutual overlap — low rebase friction).
+- 3 lanes possible but S-DEMO-PRISMQL-ONBOARDING-001 collides with both others in prism-mcp + prism-query — absorbs the most rebase/renumber churn.
+- **Best throughput: DECOMPOSE the 13-pt S-DEMO-PRISMQL-ONBOARDING-001 into per-layer sub-stories** (L1 primer + L2 discovery — prism-mcp side; L4 errors+echo — prism-query/core side) so its mcp-side work pipelines behind S-5.04 and its query-side work behind PIVOT-003, rather than one big branch conflicting with both. Decomposition is story-writer's job if elected; the BCs already exist 1:1 with layers.
+- **Merge order at delivery:** whoever finishes first merges; the rest rebase + reconcile EXPECTED + renumber per the established per-lane protocol.
 
 ---
 
