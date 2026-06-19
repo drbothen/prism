@@ -93,8 +93,8 @@ Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.workt
 |-------|-------------|--------|-----|------------|-------|
 | **NEXT-A (PICKABLE NOW)** | **S-DEMO-ENRICHMENT-PIVOT-003** | not-started | 8 | PIVOT-002 MERGED (SATISFIED) | Real IOC fields (ioc_value, ioc_type, ioc_severity) in Cyberint/CrowdStrike DTU fixtures + canonical end-to-end pivot proof. Closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation. Closes TD-PLUGIN-P0-002 P0. story-writer must author if not yet materialized; remove-uncertainty before TDD. |
 | **NEXT-B (PICKABLE NOW)** | **S-5.04** | not-started | 5 | S-5.03 MERGED (SATISFIED) | Sensor Health Subsystem. remove-uncertainty before TDD per D-1110. DEMO-CRITICAL-PATH. |
-| **NEXT-C (PICKABLE NOW, draft)** | **S-DEMO-PRISMQL-ONBOARDING-001** | draft (story file authored) | 13 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | 4-layer LLM auto-onboarding teaching surface. ADR-041 v1.1 design package ready. Schedule into T13 capstone planning wave. Not a blocker for PIVOT-003 or S-5.04. |
-| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone (not yet named) | not-authored | TBD | PIVOT-003 + S-5.04 + S-DEMO-PRISMQL-ONBOARDING-001 all MERGED | PO + story-writer. The demo's capstone deliverable. Schedule S-DEMO-PRISMQL-ONBOARDING-001 into this wave. |
+| **NEXT-C (PICKABLE NOW, draft) — DEMO-BLOCKING D-1243** | **S-DEMO-PRISMQL-ONBOARDING-001** | draft (story file authored) | 13 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING per user directive 2026-06-19 (D-1243).** 4-layer LLM auto-onboarding teaching surface. T13 capstone requires Claude to author PrismQL against per-client schemas — this teaching mechanism is prerequisite. ADR-041 v1.1 design package ready. remove-uncertainty before TDD per D-1110. |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone (not yet named) | not-authored | TBD | **PIVOT-003 (DEMO-BLOCKING) + S-5.04 (DEMO-BLOCKING) + S-DEMO-PRISMQL-ONBOARDING-001 (DEMO-BLOCKING D-1243) — all 3 must MERGE** | PO + story-writer. The demo's capstone deliverable. All 3 DEMO-BLOCKING stories are HARD gates. |
 | **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
 
 **Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
@@ -224,9 +224,9 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 - Closes TD-PLUGIN-P0-002 P0. Closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation.
 - story-writer must author PIVOT-003 spec if not yet materialized; remove-uncertainty before TDD.
 
-**Step 6.** DESIGN TRACK queued (post-T13 scheduling): S-DEMO-PRISMQL-ONBOARDING-001 implements ADR-041 4-layer LLM teaching surface. Not a blocker for PIVOT-003 or S-5.04. Will be scheduled as part of T13 capstone planning.
+**Step 6.** S-DEMO-PRISMQL-ONBOARDING-001 is now **DEMO-BLOCKING** (D-1243 user directive 2026-06-19). It gates T13 alongside PIVOT-003 and S-5.04. All three are PICKABLE NOW. Not a sequencing blocker for PIVOT-003 or S-5.04 (all three are independent/parallel), but all three must merge before T13 can begin.
 
-**After PIVOT-003:** S-5.04 (Sensor Health Subsystem) → T13 capstone narrative (schedule S-DEMO-PRISMQL-ONBOARDING-001 here) → T14 demo recording.
+**After PIVOT-003 MERGED + S-5.04 MERGED + S-DEMO-PRISMQL-ONBOARDING-001 MERGED (all 3 DEMO-BLOCKING per D-1243):** T13 capstone narrative (PO+story-writer; not-authored) → T14 demo recording.
 
 **DO-NOT-REFLAG (PIVOT-002 closures; all verified pre-rebase and through merge):** CRIT-1 (sync-WASM SEC-001 spawn_blocking), CRIT-2a (path traversal DRIFT-PIVOT-PLUGINPATH-TRAVERSAL-001), CRIT-2b (load disclosure DRIFT-PIVOT-LOADALL-PATH-DISCLOSURE-001), HIGH-1 (UDF-name validation DRIFT-PIVOT-UDFNAME-VALIDATION-001), HIGH-2 (config pub field DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001), HIGH-3 (SandboxViolation URL log DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001), HIGH-4 (PluginId vs InfusionId DRIFT-PIVOT-PLUGINID-INFUSIONID-001).
 

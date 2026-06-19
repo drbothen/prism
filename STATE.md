@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.875"
+version: "7.876"
 producer: state-manager
-timestamp: 2026-06-19T09:00:00Z
+timestamp: 2026-06-19T09:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1242 (2026-06-19). COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT. develop_head UNCHANGED 9114e028 (docs-only burst). BOTH DEMO-BLOCKING LANES MERGED: S-5.03 PR #194 develop@85ac7b06 (D-1238) + PIVOT-002 PR #195 develop@9114e028 (D-1240). PrismQL-onboarding DESIGN PACKAGE committed D-1241 (ADR-041 v1.1 + 7 BCs + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft). REMAINING DEMO ROADMAP (all PICKABLE): PIVOT-003 (NEXT-A; closes TD-PLUGIN-P0-002 P0) + S-5.04 (NEXT-B; sensor health; remove-uncertainty before TDD) + S-DEMO-PRISMQL-ONBOARDING-001 (NEXT-C; draft) → T13 capstone (blocked on prior 3) → T14 recording. NO OPEN PRs. ci.yml/CLAUDE.md/scripts EXPECTED=79. SESSION-HANDOFF §RESUME SNAPSHOT D-1242 is authoritative. STATE v7.874→v7.875."
+current_step: "D-1243 (2026-06-19). S-DEMO-PRISMQL-ONBOARDING-001 RECLASSIFIED DEMO-BLOCKING per user directive (2026-06-19). DEMO-BLOCKING SET NOW: PIVOT-003 + S-5.04 + S-DEMO-PRISMQL-ONBOARDING-001 (all 3 gate T13 capstone). develop_head UNCHANGED 9114e028 (state/docs-only burst). SESSION-HANDOFF §RESUME SNAPSHOT D-1242 remains authoritative zero-context restart source; WHAT'S NEXT table updated in this burst. STATE v7.875→v7.876."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-19 (D-1242 comprehensive zero-context restart snapshot; STATE v7.875)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-19 (D-1243 S-DEMO-PRISMQL-ONBOARDING-001 reclassified DEMO-BLOCKING; STATE v7.876)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (develop@9114e028). ALL DEMO-BLOCKING LANES NOW CLOSED: S-5.03 MERGED PR #194 develop@85ac7b06 (D-1238), PIVOT-002 MERGED PR #195 develop@9114e028 (D-1240). PRIOR LANES CLOSED: S-5.02 (PR #191), S-3.13 (PR #192), PIVOT-001 (PR #189), LAUNCHER (PR #190), S-1.14-REDO (PR #193), T10/T11/T12 DONE. REMAINING DEMO ROADMAP: PIVOT-003 (NEXT-A; pickable) + S-5.04 (NEXT-B; pickable) + S-DEMO-PRISMQL-ONBOARDING-001 (NEXT-C; draft/pickable) → T13 capstone → T14 recording. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242 (authoritative; supersedes D-1241).
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (develop@9114e028). ALL DEMO-BLOCKING LANES NOW CLOSED: S-5.03 MERGED PR #194 develop@85ac7b06 (D-1238), PIVOT-002 MERGED PR #195 develop@9114e028 (D-1240). PRIOR LANES CLOSED: S-5.02 (PR #191), S-3.13 (PR #192), PIVOT-001 (PR #189), LAUNCHER (PR #190), S-1.14-REDO (PR #193), T10/T11/T12 DONE. REMAINING DEMO ROADMAP: PIVOT-003 (NEXT-A; **DEMO-BLOCKING**; pickable) + S-5.04 (NEXT-B; **DEMO-BLOCKING**; pickable) + S-DEMO-PRISMQL-ONBOARDING-001 (NEXT-C; **DEMO-BLOCKING** D-1243; draft/pickable) → T13 capstone (blocked on all 3) → T14 recording. All 3 are HARD gates on T13 per D-1243. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242 (authoritative; updated WHAT'S NEXT in D-1243 burst).
 
 ## Phase Progress
 
@@ -166,6 +166,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1243 | state-manager | 2026-06-19 | **S-DEMO-PRISMQL-ONBOARDING-001 RECLASSIFIED DEMO-BLOCKING (user directive 2026-06-19, TD-VSDD-053 single-commit, state/docs-only burst).** USER DIRECTIVE: "The stories associated with ADR-041 are now demo blocking as well." The ADR-041-associated story is S-DEMO-PRISMQL-ONBOARDING-001 (4-layer PrismQL LLM auto-onboarding teaching surface). Rationale: the T13 multi-client SOC-analyst demo capstone requires Claude to author PrismQL against per-client schemas automatically — the teaching mechanism (ADR-041) is prerequisite for this to work reliably. Only S-DEMO-PRISMQL-ONBOARDING-001 traces to ADR-041 (confirmed via STORY-INDEX + story `related_adrs` check). **DEMO-BLOCKING SET (all gate T13):** PIVOT-003 (D-1205) + S-5.04 (D-1162) + S-DEMO-PRISMQL-ONBOARDING-001 (D-1243). All three are PICKABLE NOW (deps satisfied). T13 blocked on all three MERGED. **Artifacts updated:** STATE.md v7.875→v7.876, SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242 WHAT'S NEXT updated, task ledger v1.36→v1.37, story file S-DEMO-PRISMQL-ONBOARDING-001 tracking fields updated. **No frontmatter demo_blocking field convention exists** in story files (PIVOT-003 and S-5.04 do not carry such a field; demo-blocking classification tracked in STATE/SESSION-HANDOFF/ledger only). **develop_head UNCHANGED 9114e028.** STATE v7.875→v7.876. | wave-5-e-demo-fidelity | 2026-06-19 |
 | D-1242 | state-manager | 2026-06-19 | **COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT (TD-VSDD-053 single-commit, docs/state-only burst).** develop_head UNCHANGED 9114e028. Captures: both demo-blocking lanes MERGED (S-5.03 PR #194 develop@85ac7b06 D-1238 + PIVOT-002 PR #195 develop@9114e028 D-1240), PrismQL-onboarding design package committed (D-1241: ADR-041 v1.1 + 7 BCs + E-QUERY-038 + S-DEMO-PRISMQL-ONBOARDING-001 draft). SESSION-HANDOFF §RESUME SNAPSHOT D-1242 authored with full zero-context restart protocol (6 steps), PINNED STATE table, WHAT'S DONE summary, WHAT'S NEXT task list (PIVOT-003/S-5.04/S-DEMO-PRISMQL-ONBOARDING-001/T13/T14), and DO-NOT-REFLAG carry-forward. Task ledger advanced v1.35→v1.36 (CURRENT POINTER + NEXT ACTION updated to post-D-1241 state). State-health check: 323 lines, WARNINGS (above 200-line ideal; compact-state recommended next session). All index versions verified live: BC-INDEX v6.82 / STORY-INDEX v2.434 / ARCH-INDEX v2.138 / error-taxonomy v1.91 / VP-INDEX v1.79 / prd v1.12 / policies v1.33 — all match frontmatter; no drift. ci.yml/CLAUDE.md/scripts EXPECTED=79 all consistent. NO open PRs. STATE v7.874→v7.875. | wave-5-e-demo-fidelity | 2026-06-19 |
 | D-1241 | state-manager | 2026-06-19 | **PrismQL LLM-ONBOARDING DESIGN PACKAGE (TD-VSDD-053 single-commit, spec-only burst).** ADR-041 v1.1 authored (4-layer LLM auto-onboarding teaching surface for PrismQL). **OPD-1 HUMAN PRODUCT DECISION (2026-06-19):** echo-planned-PQL ADOPTED in v1 (`normalized_pql` field name chosen over `planned_query`/`echoed_query`). **Remove-uncertainty pass applied:** subscribe/notify for `prismql://schema/{client_id}` is NET-NEW machinery (not existing S-5.03 precedent); version pins confirmed (rmcp 1.7, strsim 0.11 direct dep in prism-query, chumsky 0.12.0). **New BCs (draft):** BC-2.10.012 (`prism_describe` schema discovery tool; SS-10/CAP-034), BC-2.10.013 (`prismql://schema/{client_id}` resource template; SS-10/CAP-034), BC-2.10.014 (`prismql://reference` static grammar resource; SS-10/CAP-034), BC-2.11.016 (E-QUERY-038 column-not-found plan-time gate; SS-11/CAP-015), BC-2.11.017 (E-QUERY-001/002/003/037 pedagogical enrichments; SS-11/CAP-015), BC-2.11.018 (`normalized_pql` echo field / OPD-1; SS-11/CAP-015). **BC amendments:** BC-2.10.009 v1.3→v1.4 (L1 PQL primer + `query_tutorial` MCP Prompt), BC-2.11.001 v1.9→v1.10 (cross-refs 016/017/018). **E-QUERY-038** registered in error-taxonomy v1.91 (PO-authored in burst). **Story:** S-DEMO-PRISMQL-ONBOARDING-001 draft v1.0 — PrismQL 4-layer LLM auto-onboarding; 13 pts; P0; wave TBD; 16 ACs; 7 BCs; depends S-5.03+S-3.13; D-1162-aligned (capability-discovery surface). **Indexes:** BC-INDEX v6.81→v6.82 (total 250→256, draft 2→8). STORY-INDEX v2.433→v2.434 (total_stories 203→204). ARCH-INDEX v2.137→v2.138 (ADR-041 v1.0→v1.1 PROPOSED). error_taxonomy_version 1.91 (already authored by PO). **develop_head UNCHANGED 9114e028** (spec-only burst — no code merge). active_contracts 235 UNCHANGED. STATE v7.873→v7.874. | wave-5-e-demo-fidelity | 2026-06-19 |
 | D-1240 | state-manager | 2026-06-19 | **S-DEMO-ENRICHMENT-PIVOT-002 POST-MERGE BURST + POL-14 (TD-VSDD-053 single-commit).** PR #195 squash-merged develop@9114e028 2026-06-19 (squash commit 6c367356 PIVOT-002 ThreatIntel/NVD dual-path infusion specs + plugins; D-1178 CLAUDE.md count bump 76→79 @9114e028). **POL-14 BC-2.19.001:** `status: active` + `lifecycle_status: active` already set — idempotent no-op (was promoted draft→active by PIVOT-001 D-1192; no count change). **CLAUDE.md/ci.yml reconciliation:** develop@9114e028 non-exhaustive=79; ci.yml EXPECTED=79 (76 baseline + PIVOT-002 3 new types). BC-2.16.002 v1.84 FIND-1 correction already committed (fe155a2a factory-artifacts HEAD prior to this burst). **Story changes:** S-DEMO-ENRICHMENT-PIVOT-002 status: draft→merged v1.4→v1.5. **Indexes:** STORY-INDEX v2.432→v2.433. BC-INDEX v6.80 UNCHANGED (no BC status changed). **develop_head 85ac7b06→9114e028.** active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001) UNCHANGED. **BOTH DEMO-BLOCKING LANES NOW DONE:** S-5.03 MERGED (PR #194 D-1238) + PIVOT-002 MERGED (PR #195 D-1240). **REMAINING DEMO ROADMAP:** PIVOT-003 (real IOC fields + canonical pivot proof; closes TD-PLUGIN-P0-002 P0) → S-5.04 (Sensor Health Subsystem) → T13 narrative capstone → T14 demo recording. **DESIGN TRACK (pending separate burst):** ADR-041 PrismQL-LLM-onboarding + research doc PENDING — NOT committed in this burst. STATE v7.872→v7.873. | wave-5-e-demo-fidelity | 2026-06-19 |
@@ -307,18 +308,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1242 — 2026-06-19; STATE v7.875)
+## Session Resume Checkpoint (D-1243 — 2026-06-19; STATE v7.876)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242** (authoritative; supersedes D-1241).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242** (authoritative zero-context restart source; WHAT'S NEXT table updated by D-1243 burst).
 
-**STATE v7.875. CURRENT POSITION: L-POST — ALL DEMO-BLOCKING LANES DONE + PrismQL-onboarding DESIGN PACKAGE COMMITTED. develop@9114e028 UNCHANGED (docs-only burst). total_stories 204. ci.yml EXPECTED=79. bc_index_version 6.82. story_index_version v2.434. arch_index_version 2.138. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=79. draft_contracts 8 (BC-2.06.011, BC-2.21.001, BC-2.10.012, BC-2.10.013, BC-2.10.014, BC-2.11.016, BC-2.11.017, BC-2.11.018).**
+**STATE v7.876. CURRENT POSITION: L-POST — ALL DEMO-BLOCKING LANES DONE + PrismQL-onboarding DESIGN PACKAGE COMMITTED. develop@9114e028 UNCHANGED (docs-only burst). total_stories 204. ci.yml EXPECTED=79. bc_index_version 6.82. story_index_version v2.434. arch_index_version 2.138. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=79. draft_contracts 8 (BC-2.06.011, BC-2.21.001, BC-2.10.012, BC-2.10.013, BC-2.10.014, BC-2.11.016, BC-2.11.017, BC-2.11.018).**
 
-**NEXT PICKABLE TASKS:** PIVOT-003 (real IOC fields; closes TD-PLUGIN-P0-002 P0; UNBLOCKED), S-5.04 (Sensor Health; UNBLOCKED; remove-uncertainty before TDD), S-DEMO-PRISMQL-ONBOARDING-001 (draft/pickable; 13 pts). T13 capstone blocked on prior 3.
+**D-1243: DEMO-BLOCKING SET IS NOW 3 STORIES:** PIVOT-003 + S-5.04 + S-DEMO-PRISMQL-ONBOARDING-001. All three gate T13 capstone. All three PICKABLE NOW (deps satisfied).
+
+**NEXT PICKABLE TASKS:** PIVOT-003 (**DEMO-BLOCKING**; real IOC fields; closes TD-PLUGIN-P0-002 P0; UNBLOCKED), S-5.04 (**DEMO-BLOCKING**; Sensor Health; UNBLOCKED; remove-uncertainty before TDD), S-DEMO-PRISMQL-ONBOARDING-001 (**DEMO-BLOCKING D-1243**; draft/pickable; 13 pts). T13 capstone blocked on all 3.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242 (authoritative; supersedes all prior snapshots).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242 (authoritative; D-1243 updated WHAT'S NEXT table therein).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `9114e028`.
 3. `gh pr list --state open --base develop` → expect NO open PRs.
 4. Apply lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-5. Drive PIVOT-003 or S-5.04 lane per SESSION-HANDOFF §RESUME SNAPSHOT D-1242. Autonomy D-989+D-1090 active.
+5. Drive PIVOT-003, S-5.04, or S-DEMO-PRISMQL-ONBOARDING-001 lane (all pickable; all DEMO-BLOCKING). Autonomy D-989+D-1090 active.
