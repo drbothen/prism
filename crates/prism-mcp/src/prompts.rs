@@ -55,20 +55,27 @@ fn validate_client_id(client_id: &str) -> Result<(), ErrorData> {
 
 /// Validate `hostname` (or any free-text prompt argument used in SQL-like templates).
 ///
-/// Accepts printable ASCII (0x20–0x7E) only. Rejects:
+/// Accepts hostname-legal characters only: `[a-zA-Z0-9._:-]` (letters, digits, dot,
+/// underscore, colon for port suffix, hyphen). Rejects:
+/// - Shell/SQL metacharacters: `;`, `'`, `"`, `` ` ``, `$`, `&`, `|`, `>`, `<`, `(`, `)`, `{`, `}`, `\`
 /// - Control characters (NUL, CR, LF, TAB, ESC, etc.)
 /// - Non-ASCII bytes (Unicode, high-byte injections)
 /// - Empty strings
 /// - Strings longer than 253 characters (FQDN/IP practical maximum)
 ///
+/// DI-006: tightened allowlist prevents shell/SQL metacharacters from being interpolated
+/// into PrismQL templates and forwarded to AI agent contexts.
+///
 /// Returns a generic `ErrorData::invalid_params` that does NOT echo the raw payload.
 fn validate_hostname(hostname: &str) -> Result<(), ErrorData> {
     let is_valid = !hostname.is_empty()
         && hostname.len() <= 253
-        && hostname.bytes().all(|b| (0x20..=0x7e).contains(&b));
+        && hostname
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '-'));
     if !is_valid {
         return Err(ErrorData::invalid_params(
-            "prompt argument 'hostname' is invalid: must be printable ASCII, 1-253 characters",
+            "prompt argument 'hostname' is invalid: must contain only [a-zA-Z0-9._:-], 1-253 characters",
             None,
         ));
     }

@@ -250,6 +250,42 @@ fn internal_error(msg: impl Into<String>) -> ErrorData {
     )
 }
 
+/// Sanitize a display_name string for safe inclusion in AI agent contexts (SEC-003 / DI-006).
+///
+/// Applies two transformations:
+/// 1. **128-char cap**: truncates to at most 128 characters (prevents context-stuffing).
+/// 2. **Printable-ASCII filter**: replaces any control character or non-printable byte
+///    with a space (prevents control-char injection / ANSI escape attacks).
+///
+/// Called at the read site in `render_client_list_resource` before `display_name` is
+/// included in the resource response forwarded to AI agent contexts.
+fn sanitize_display_name(name: &str) -> String {
+    // Step 1: cap at 128 chars (character boundary, not byte boundary).
+    // Use char_indices enumerated by position so no manual counter is needed.
+    let capped: &str = {
+        let byte_end = name
+            .char_indices()
+            .nth(128)
+            .map(|(idx, _)| idx)
+            .unwrap_or(name.len());
+        &name[..byte_end]
+    };
+
+    // Step 2: replace control characters and non-printable bytes with a space.
+    // Printable ASCII is 0x20–0x7E. Non-ASCII (multi-byte) chars are kept as-is
+    // (they are not control characters and do not pose injection risk via ANSI escapes).
+    capped
+        .chars()
+        .map(|c| {
+            if c.is_ascii() && !c.is_ascii_graphic() && c != ' ' {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
 // ─── list_resources implementation ──────────────────────────────────────────────
 
 /// Build the static list of concrete (non-templated) resources.
@@ -389,10 +425,13 @@ pub async fn dispatch_read_resource(
         }
     }
 
-    Err(not_found_error(format!(
-        "Resource not found: {uri}. Known resources: {URI_CONFIG_CLIENTS}, {URI_SENSORS_HEALTH}, \
-         {URI_TEMPLATE_CLIENT_SENSORS}, {URI_TEMPLATE_SCHEMA}"
-    )))
+    // DI-006: do NOT echo the raw `uri` in the error message — the URI is attacker-controlled
+    // input that feeds into AI agent contexts. Echoing it is an injection/echo surface.
+    // Use a generic, non-echoing message consistent with the pattern applied throughout
+    // this file for invalid client_id, sensor_id, and table_name parameters.
+    Err(not_found_error(
+        "Unknown or unsupported resource URI".to_string(),
+    ))
 }
 
 /// Extract a URI template parameter between a prefix and a suffix.
@@ -501,10 +540,13 @@ pub async fn render_client_list_resource(
                     let sensor_count = sensors_for_org.len();
                     // BC-2.10.008 v1.11: look up display_name from org_display_names.
                     // None when the org has no name configured in prism.toml.
+                    // SEC-003 / DI-006: sanitize before emitting to AI agent context —
+                    // apply 128-char cap and control-char replacement at the read site.
                     let display_name = org_display_names
                         .get(slug_str.as_str())
                         .cloned()
-                        .unwrap_or(None);
+                        .unwrap_or(None)
+                        .map(|n| sanitize_display_name(&n));
                     ClientInventoryEntry {
                         client_id: slug_str,
                         display_name,
