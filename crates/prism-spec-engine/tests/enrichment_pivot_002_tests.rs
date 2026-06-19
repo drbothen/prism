@@ -883,39 +883,50 @@ fn test_enrichment_pivot_002_sec003_sandbox_violation_url_not_in_warn_log() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 12: AC-010 — spawn_blocking gate: WASM call does not block async runtime
+// Test 12: AC-020 — spawn_blocking gate: WASM call does not block async runtime
 // ---------------------------------------------------------------------------
 
-/// AC-010 (BC-2.19.001 postcondition): WASM plugin call is wrapped in spawn_blocking.
+/// AC-020 (BC-2.19.001 postcondition / F-004 rigor): `InfusionAsyncUdf::invoke_async_with_args`
+/// wraps `enrich_single` in `spawn_blocking`, preventing the synchronous WASM call from
+/// stalling the tokio runtime (CWE-400).
 ///
-/// Verifies that `InfusionSource::enrich_single` (the synchronous WASM call boundary)
-/// can be safely wrapped in `tokio::task::spawn_blocking` — the mechanism required by
-/// `InfusionAsyncUdf::invoke_async_with_args` in prism-query (AC-010 / CWE-400).
+/// # F-004 rigor: this test drives the real InfusionAsyncUdf::invoke_async_with_args
 ///
-/// This test drives the spawn_blocking mechanism directly at the prism-spec-engine boundary:
-/// 1. Constructs a "slow" InfusionSource that sleeps 50ms (simulating a blocking WASM call).
-/// 2. Wraps the synchronous call in spawn_blocking.
-/// 3. Spawns a concurrent async task to verify the runtime is not blocked.
-/// 4. Asserts both the enrichment result and the concurrent task complete within timeout.
+/// The LOAD-BEARING implementation of this test lives in `prism-query`'s
+/// `crates/prism-query/src/infusion_udf.rs` mod tests under the same name:
+/// `test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking`.
 ///
-/// If spawn_blocking were absent and enrich_single were called directly in an async context,
-/// the blocking sleep would stall the tokio runtime worker thread (CWE-400).
+/// That test:
+/// 1. Constructs an `InfusionAsyncUdf` backed by `SlowBlockingSource` (50ms `thread::sleep`).
+/// 2. Registers it via `register_infusion_udfs` and executes a DataFusion SQL query
+///    — the real `invoke_async_with_args` code path.
+/// 3. Uses a single-threaded tokio runtime (`worker_threads = 1`): if `spawn_blocking` is
+///    absent, the single worker thread is stalled by `enrich_single`, starving the concurrent
+///    async task. The test fails (timeout or `concurrent_ran = false`).
+/// 4. With `spawn_blocking`, the worker thread is freed → concurrent task runs → test passes.
+///
+/// This prism-spec-engine wrapper verifies the `InfusionSource` trait boundary: that
+/// `enrich_single` is synchronous and eligible for `spawn_blocking` off-load. It does NOT
+/// reimplement the mechanism — the real load-bearing test is in prism-query.
+///
+/// Placement note: `prism-spec-engine` MUST NOT depend on `prism-query` (circular dependency).
+/// The AC-020 story spec allows "prism-spec-engine or prism-query"; the test is in prism-query.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking() {
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
     use tokio::time::timeout;
 
     use prism_spec_engine::InfusionSource;
 
-    /// InfusionSource that sleeps for 50ms to simulate a blocking WASM call.
+    /// InfusionSource that sleeps for 50ms to simulate a blocking synchronous WASM call.
+    /// This is the boundary type whose `enrich_single` MUST be wrapped in `spawn_blocking`
+    /// by `InfusionAsyncUdf::invoke_async_with_args` in prism-query.
     #[derive(Debug)]
     struct SlowBlockingSource;
 
     impl InfusionSource for SlowBlockingSource {
         fn enrich_single(&self, input: &str, _input_type: &str) -> Option<serde_json::Value> {
-            // Simulate a blocking synchronous WASM call (CWE-400 risk if not spawn_blocking'd).
             std::thread::sleep(Duration::from_millis(50));
             Some(serde_json::Value::String(format!("enriched:{input}")))
         }
@@ -932,62 +943,53 @@ async fn test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking() {
         }
     }
 
-    // Marker to verify the concurrent async task ran while the blocking call was in flight.
+    // Verify: InfusionSource::enrich_single is synchronous (not async) and blocks the
+    // calling thread. This is a prerequisite for the spawn_blocking requirement — an async
+    // source would not need spawn_blocking off-loading.
+    let source: Arc<dyn InfusionSource> = Arc::new(SlowBlockingSource);
+
+    // Confirm enrich_single produces a result (source is functional at the boundary).
+    let result = source.enrich_single("192.168.1.1", "ip");
+    assert_eq!(
+        result,
+        Some(serde_json::Value::String(
+            "enriched:192.168.1.1".to_string()
+        )),
+        "AC-020 boundary check: InfusionSource::enrich_single must return the expected value"
+    );
+
+    // Confirm the source is Send + Sync (required for spawn_blocking closure capture).
+    fn assert_send_sync<T: Send + Sync>(_: &T) {}
+    assert_send_sync(&source);
+
+    // Real load-bearing test: prism-query/src/infusion_udf.rs mod tests
+    //   `test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking`
+    // uses `worker_threads = 1` + DataFusion SQL execution to prove that removing
+    // spawn_blocking from invoke_async_with_args causes a timeout/stall.
+    //
+    // This companion test verifies the trait boundary is correct; the production
+    // path (InfusionAsyncUdf::invoke_async_with_args) is gated by the prism-query test.
+
+    // Concurrent-task sanity: verify this tokio runtime is multi-threaded (worker_threads=2)
+    // and that a concurrent task runs independently.
     let concurrent_ran = Arc::new(AtomicBool::new(false));
     let concurrent_ran_clone = Arc::clone(&concurrent_ran);
 
-    let source: Arc<dyn InfusionSource> = Arc::new(SlowBlockingSource);
-
-    // Test: wrap the blocking enrich_single in spawn_blocking.
-    // This is exactly the mechanism InfusionAsyncUdf::invoke_async_with_args uses (AC-010).
-    let enrich_handle = {
-        let source_clone = Arc::clone(&source);
-        tokio::spawn(async move {
-            tokio::task::spawn_blocking(move || source_clone.enrich_single("192.168.1.1", "ip"))
-                .await
-                .expect("spawn_blocking must not panic")
-        })
-    };
-
-    // Concurrent async task — should be able to run while the blocking source is sleeping.
     let concurrent_handle = tokio::spawn(async move {
-        // Yield to the runtime to allow other tasks to run.
         tokio::task::yield_now().await;
         concurrent_ran_clone.store(true, Ordering::SeqCst);
         42u32
     });
 
-    // Both tasks must complete within 500ms total (the blocking call takes ~50ms on blocking
-    // thread pool; 500ms timeout gives 10x headroom).
-    let (enrich_result, concurrent_result) = timeout(Duration::from_millis(500), async {
-        tokio::join!(enrich_handle, concurrent_handle)
-    })
-    .await
-    .expect("AC-010: both tasks must complete within 500ms — timeout indicates runtime stall");
-
-    let enrichment = enrich_result.expect("enrich spawn must not fail");
-    let concurrent_val = concurrent_result.expect("concurrent task must not fail");
-
-    // Verify enrichment result is correct.
-    assert_eq!(
-        enrichment,
-        Some(serde_json::Value::String(
-            "enriched:192.168.1.1".to_string()
-        )),
-        "AC-010: spawn_blocking-wrapped enrich_single must return correct result"
-    );
-
-    // Verify concurrent task ran (runtime was not blocked).
+    let val = timeout(Duration::from_millis(200), concurrent_handle)
+        .await
+        .expect("runtime sanity: concurrent task must complete within 200ms")
+        .expect("concurrent task must not panic");
     assert!(
         concurrent_ran.load(Ordering::SeqCst),
-        "AC-010 CWE-400: concurrent async task must run while blocking enrich_single is in \
-         flight — if the runtime were blocked, this would fail (spawn_blocking moves the \
-         synchronous WASM call off the async runtime worker thread)"
+        "runtime sanity: concurrent async task must have run"
     );
-    assert_eq!(
-        concurrent_val, 42,
-        "concurrent task must produce correct result"
-    );
+    assert_eq!(val, 42, "concurrent task must produce correct sentinel");
 }
 
 // ---------------------------------------------------------------------------

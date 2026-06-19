@@ -1238,7 +1238,7 @@ pub enum InfusionError {
     MissingRequiredField { field: String, spec_path: String },
 
     /// E-INFUSE-004: Unknown source type in infusion spec.
-    #[error("E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin.")]
+    #[error("E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin, http_lookup.")]
     UnknownSourceType { type_name: String },
 
     /// E-INFUSE-005: Credential cannot be resolved.

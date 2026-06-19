@@ -6,7 +6,7 @@
 //! # Validation rules (BC-2.19.001)
 //! - `infusion_id` must be present and non-empty.
 //! - At least one `[[infusion.fields]]` entry required.
-//! - `source.type` must be one of: `maxmind_mmdb`, `csv`, `json_lookup`, `plugin`.
+//! - `source.type` must be one of: `maxmind_mmdb`, `csv`, `json_lookup`, `plugin`, `http_lookup`.
 //!   Unknown types return `InfusionError::UnknownSourceType`.
 //! - Credential references must use reference-based model (no inline values, AD-017).
 //! - `pipe_stage.adds_columns` must match the `[[infusion.fields]]` names.
@@ -184,7 +184,7 @@ impl InfusionLoader {
 
     /// Parse a single TOML string into an `InfusionSpec`.
     ///
-    /// Supports `source.type` values: `"plugin"`, `"maxmind_mmdb"`, `"csv"`, `"json_lookup"`.
+    /// Supports `source.type` values: `"plugin"`, `"maxmind_mmdb"`, `"csv"`, `"json_lookup"`, `"http_lookup"`.
     /// Unknown source types return `InfusionError::UnknownSourceType`.
     ///
     /// Returns `Ok(InfusionSpec)` or `Err(InfusionError)` — never panics.
@@ -542,7 +542,7 @@ impl InfusionLoader {
     /// Returns (specs, errors): valid specs continue loading even if others fail.
     /// Invalid specs produce `InfusionError` values but do not block valid specs.
     ///
-    /// Supports `plugin`, `maxmind_mmdb`, `csv`, and `json_lookup` source types.
+    /// Supports `plugin`, `maxmind_mmdb`, `csv`, `json_lookup`, and `http_lookup` source types.
     /// Unknown source types produce `InfusionError::UnknownSourceType` in the errors vec.
     pub fn load_all(&self) -> (Vec<InfusionSpec>, Vec<InfusionError>) {
         let infusions_dir = Path::new(&self.config_dir).join("infusions");
