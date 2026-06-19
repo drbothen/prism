@@ -5,8 +5,8 @@ title: "ThreatIntel/NVD Infusion — Dual-Path: ThreatIntel WASM Plugin + NVD Ht
 wave: 5
 epic_id: E-DEMO
 priority: P2
-status: draft
-version: "1.4"
+status: merged
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
