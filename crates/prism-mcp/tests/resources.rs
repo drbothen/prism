@@ -892,6 +892,43 @@ async fn test_BC_2_10_008_config_clients_resource_reflects_registered_tables() {
              Got enabled_sensors: {enabled:?}"
         );
 
+        // Positive load-bearing assertions: BC-2.10.008 v1.12 postcondition 1 requires
+        // `enabled_sensors` to carry sensor IDs (e.g. "crowdstrike"), NOT table names
+        // (e.g. "crowdstrike_table"). These assertions would FAIL under the pre-fix
+        // table-name semantics and PASS only under the corrected sensor-ID semantics.
+        let client_id_for_pos = entry
+            .get("client_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if client_id_for_pos == "crowdstrike" {
+            assert!(
+                enabled.contains(&"crowdstrike"),
+                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors for client_id='crowdstrike' \
+                 must contain the sensor ID 'crowdstrike', not a table name. \
+                 Got enabled_sensors: {enabled:?}"
+            );
+            assert!(
+                !enabled.contains(&"crowdstrike_table"),
+                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors must NOT contain the \
+                 table-name shape 'crowdstrike_table' — sensor IDs required, not table names. \
+                 Got enabled_sensors: {enabled:?}"
+            );
+        }
+        if client_id_for_pos == "claroty" {
+            assert!(
+                enabled.contains(&"claroty"),
+                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors for client_id='claroty' \
+                 must contain the sensor ID 'claroty', not a table name. \
+                 Got enabled_sensors: {enabled:?}"
+            );
+            assert!(
+                !enabled.contains(&"claroty_table"),
+                "BC-2.10.008 v1.12 postcondition 1: enabled_sensors must NOT contain the \
+                 table-name shape 'claroty_table' — sensor IDs required, not table names. \
+                 Got enabled_sensors: {enabled:?}"
+            );
+        }
+
         // Regression guard: the synthetic "(all)" sentinel entry was removed in S-5.03.
         // The response must list real sensor IDs (e.g., "crowdstrike", "claroty") as client_id.
         let client_id = entry
