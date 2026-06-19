@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.80"
+version: "6.81"
 status: draft
 producer: state-manager
 timestamp: 2026-06-19T00:00:00Z
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 — D-1229 2026-06-18: client_name source annotation corrected [clients.{id}]→[[orgs]].name) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.83 (D-1239 2026-06-19: http_lookup_enrich_failed catalog field-schema expanded per PIVOT-002 fix-burst; was v1.82: D-1216 2026-06-17: ADR-040 §D8.7 correction — 3 dotted-name rows → 2 ADR-mandated names) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.84 (2026-06-19: PR #195 FIND-1 — two §Postconditions catalog rows corrected: SpecEngineError::EnrichCallFailed → PluginError::EnrichCallFailed; was v1.83: D-1239 2026-06-19: http_lookup_enrich_failed catalog field-schema expanded per PIVOT-002 fix-burst) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.81 (2026-06-19, PR #195 FIND-1 SpecEngineError→PluginError catalog correction):** state-manager | BC-2.16.002 inline row: v1.83→v1.84 — PR #195 PR-LEVEL FIND-1: two §Postconditions Canonical Structured Event Catalog rows corrected `SpecEngineError::EnrichCallFailed` → `PluginError::EnrichCallFailed`; product-owner edit confirmed in working tree. No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.80→v6.81.
 
 **v6.80 (2026-06-19, D-1238/D-1239 S-5.03 post-merge burst + PIVOT-002 E-INFUSE-013 spec-fix):** state-manager | (1) D-1238 POL-14 legacy-status-field sync: BC-2.08.005 inline row: draft→active (lifecycle_status was already active; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19). BC-2.08.006 inline row: draft→active (same pattern). BC-2.10.008 inline row: draft→active (same pattern). BC-2.10.009 inline row: draft→active (same pattern). BC-2.16.007: idempotent (already active per D-1204). BC-2.08.005/BC-2.08.006/BC-2.10.008/BC-2.10.009 `status:` frontmatter fields: draft→active. No `lifecycle_status` flip (all were already active). No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — these 4 BCs had lifecycle_status:active before this burst and were never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. (2) D-1239 PIVOT-002 spec-fix: BC-2.16.002 inline row: v1.82→v1.83 — http_lookup_enrich_failed catalog field-schema expanded; product-owner edit confirmed in working tree. error-taxonomy v1.89→v1.90: E-INFUSE-013 added (invalid field name/spec → InfusionError::InvalidFieldSpec; AC-007/BC-2.19.001). BC-INDEX v6.79→v6.80.
 
