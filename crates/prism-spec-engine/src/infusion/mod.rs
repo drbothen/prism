@@ -55,6 +55,9 @@ pub enum InfusionType {
     /// WASM plugin delegation (may make external HTTP calls).
     /// PROHIBITED in detection rule filters (E-RULE-012).
     Plugin,
+    /// HTTP lookup (single GET → JSONPath extraction). PROHIBITED in detection rule filters
+    /// (E-RULE-012) — API-backed.
+    HttpLookup,
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +305,99 @@ impl PluginConfig {
 }
 
 // ---------------------------------------------------------------------------
+// HttpLookup configuration (ADR-040 v2.0 D8.2)
+// ---------------------------------------------------------------------------
+
+/// Authentication type for HTTP lookup credentials.
+///
+/// `#[non_exhaustive]`: forward-compat for new auth mechanisms.
+/// External match arms must include a wildcard arm.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HttpLookupAuthType {
+    /// Append `?{param_name}={credential_value}` to the URL.
+    QueryParam { param_name: String },
+    /// Add `Authorization: Bearer {credential_value}` header.
+    BearerHeader,
+    /// Add `{header_name}: {credential_value}` header.
+    ApiKeyHeader { header_name: String },
+}
+
+/// Credential configuration for an http_lookup-type infusion (AD-017).
+///
+/// The credential value is resolved at call time from `env_var`; it is NEVER stored
+/// in this struct. Only `ref_name` (logical name, safe to log) and `env_var` (name only,
+/// not value) are stored.
+///
+/// `#[non_exhaustive]`: forward-compat for new credential resolution mechanisms.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpLookupCredentialConfig {
+    /// Logical credential reference name (for diagnostics — safe to log).
+    pub ref_name: String,
+    /// Environment variable name from which the credential value is resolved at call time.
+    pub env_var: String,
+    /// How the resolved credential value is applied to the HTTP request.
+    pub auth: HttpLookupAuthType,
+}
+
+impl HttpLookupCredentialConfig {
+    /// Construct an `HttpLookupCredentialConfig`.
+    pub fn new(
+        ref_name: impl Into<String>,
+        env_var: impl Into<String>,
+        auth: HttpLookupAuthType,
+    ) -> Self {
+        Self {
+            ref_name: ref_name.into(),
+            env_var: env_var.into(),
+            auth,
+        }
+    }
+}
+
+/// Configuration for an `InfusionType::HttpLookup` infusion source.
+///
+/// Contains the HTTP endpoint specification and optional credential reference.
+/// Credential VALUES are never stored here — only references (AD-017).
+///
+/// `#[non_exhaustive]`: forward-compat for new HTTP configuration options.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpLookupConfig {
+    /// Base URL of the HTTP service (e.g., `"https://services.nvd.nist.gov"`).
+    pub base_url: String,
+    /// URL path template with `${input}` placeholder (e.g., `"/rest/json/cves/2.0?cveId=${input}"`).
+    pub url_template: String,
+    /// HTTP method: `"GET"` or `"POST"`.
+    pub method: String,
+    /// JSONPath to the subtree containing enrichment fields (e.g., `"$.vulnerabilities[0].cve.metrics.cvssMetricV31[0].cvssData"`).
+    pub response_path: String,
+    /// Optional credential reference. `None` = unauthenticated.
+    pub credential: Option<HttpLookupCredentialConfig>,
+}
+
+impl HttpLookupConfig {
+    /// Construct an `HttpLookupConfig`.
+    pub fn new(
+        base_url: impl Into<String>,
+        url_template: impl Into<String>,
+        method: impl Into<String>,
+        response_path: impl Into<String>,
+        credential: Option<HttpLookupCredentialConfig>,
+    ) -> Self {
+        Self {
+            base_url: base_url.into(),
+            url_template: url_template.into(),
+            method: method.into(),
+            response_path: response_path.into(),
+            credential,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // InfusionSpec
 // ---------------------------------------------------------------------------
 
@@ -331,6 +427,8 @@ pub struct InfusionSpec {
     pub pipe_stage: Option<PipeStageConfig>,
     /// Plugin configuration (for Plugin infusions).
     pub plugin_config: Option<PluginConfig>,
+    /// HTTP lookup configuration (for HttpLookup infusions).
+    pub http_lookup_config: Option<HttpLookupConfig>,
     /// Credential references (AI-opaque — values resolved at runtime).
     pub credentials: Vec<CredentialRef>,
     /// Path of the source file this spec was loaded from.
@@ -349,6 +447,7 @@ impl Default for InfusionSpec {
             fields: vec![],
             pipe_stage: None,
             plugin_config: None,
+            http_lookup_config: None,
             credentials: vec![],
             source_path: String::new(),
             cache_ttl_secs: None,
@@ -376,6 +475,7 @@ impl InfusionSpec {
             fields,
             pipe_stage: None,
             plugin_config: None,
+            http_lookup_config: None,
             credentials: vec![],
             source_path: source_path.into(),
             cache_ttl_secs: None,
@@ -407,6 +507,20 @@ pub trait InfusionSource: Send + Sync + std::fmt::Debug {
     /// `PluginInfusionSource` — not a `NullSource` — for plugin-type infusion specs
     /// (Task 13 / F-SV-1 load-bearing assertion).
     fn is_plugin_backed(&self) -> bool {
+        false
+    }
+
+    /// Returns `true` if this source is a built-in `HttpLookupSource`.
+    ///
+    /// Default implementation returns `false` (for `NullSource`, `MmdbSource`, `CsvSource`,
+    /// `JsonLookupSource`, `PluginInfusionSource`). `HttpLookupSource` overrides to return `true`.
+    ///
+    /// Used by tests (AC-002 load-bearing assertion) to verify that `load_spec` wired a real
+    /// `HttpLookupSource` — not a `NullSource` — for `InfusionType::HttpLookup` specs.
+    /// Without this assertion, the hollow-feature defect (FIX-1) would not be caught
+    /// by tests: a NullSource passes descriptor-count checks but silently returns None
+    /// for every enrichment call (TD-VSDD-059 paper-fix guard).
+    fn is_http_lookup_backed(&self) -> bool {
         false
     }
 }
@@ -614,9 +728,35 @@ impl InfusionRegistry {
         // Validate against the (purged) state — pure, does not mutate shared state.
         let descriptors = self.validate_spec_against(&spec, &validation_inner)?;
 
-        // For LocalLookup specs with a source config, wire the real file-backed source.
-        // Plugin specs use NullSource here; callers must use load_spec_with_runtime for plugin.
-        let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::LocalLookup {
+        // Wire the real source based on infusion type:
+        // - LocalLookup with source config: real file-backed source via load_source.
+        // - HttpLookup: real HttpLookupSource (AC-002 / FIX-1 hollow-feature fix). MUST NOT
+        //   fall through to NullSource — a NullSource silently returns None for every
+        //   enrichment call, making the entire NVD enrichment path dead at runtime.
+        //   Propagate construction errors as Err (same pattern as SourceFileTooLarge).
+        // - Plugin: NullSource here; callers must use load_spec_with_runtime for plugin.
+        // - Other / no source config: NullSource.
+        let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::HttpLookup {
+            // AC-002 / ADR-040 v2.0 D8: wire HttpLookupSource for HttpLookup specs.
+            // Construction validates SSRF rules (CWE-918) and sets the 30s HTTP timeout
+            // (CLAUDE.md §Conventions). SsrfRejected and other construction errors propagate
+            // as Err — do NOT degrade to NullSource (hollow-feature prohibition, FIX-1).
+            let http_config = spec.http_lookup_config.clone().ok_or_else(|| {
+                InfusionError::MissingRequiredField {
+                    field: "http_lookup_config".to_string(),
+                    spec_path: spec.infusion_id.clone(),
+                }
+            })?;
+            let client = crate::pipeline::build_http_client_with_timeout();
+            match sources::http_lookup::HttpLookupSource::new(
+                client,
+                http_config,
+                spec.infusion_id.clone(),
+            ) {
+                Ok(s) => Arc::new(s),
+                Err(err) => return Err(err),
+            }
+        } else if spec.infusion_type == InfusionType::LocalLookup {
             if let Some(ref source_config) = spec.source {
                 match sources::load_source(source_config) {
                     Ok(s) => s,
@@ -741,14 +881,44 @@ impl InfusionRegistry {
 
         // Build the real source:
         // - Plugin specs: PluginInfusionSource wired to the runtime.
+        // - HttpLookup specs: HttpLookupSource (AC-002 / FIX-1 hollow-feature fix).
+        //   MUST NOT fall through to NullSource — same rationale as in load_spec.
         // - LocalLookup specs with a source_config: real file-backed source via load_source.
         // - LocalLookup specs without source_config (test stubs): NullSource.
         let source: Arc<dyn InfusionSource> = if spec.infusion_type == InfusionType::Plugin {
+            // Resolve credentials at spec load time per AD-017 pattern.
+            // Each CredentialRef carries the env_var name; the value is read from the environment
+            // and inserted into the PluginConfigMap keyed by field_name.
+            // PluginConfigMap values are SecretString — credential bytes never stored as plain String.
+            // Credential values MUST NOT be logged or stored beyond the PluginConfigMap (INV-INFUSE-005).
+            let mut config_map = PluginConfigMap::new();
+            for cred in &spec.credentials {
+                let value = std::env::var(&cred.env_var).unwrap_or_default();
+                config_map.insert(cred.field_name.clone(), secrecy::SecretString::new(value));
+            }
             Arc::new(plugin_bridge::PluginInfusionSource::new(
                 spec.infusion_id.clone(),
-                Arc::new(PluginConfigMap::new()),
+                Arc::new(config_map),
                 runtime,
             ))
+        } else if spec.infusion_type == InfusionType::HttpLookup {
+            // AC-002 / ADR-040 v2.0 D8: wire HttpLookupSource for HttpLookup specs.
+            // Propagate construction errors as Err — do NOT degrade to NullSource.
+            let http_config = spec.http_lookup_config.clone().ok_or_else(|| {
+                InfusionError::MissingRequiredField {
+                    field: "http_lookup_config".to_string(),
+                    spec_path: spec.infusion_id.clone(),
+                }
+            })?;
+            let client = crate::pipeline::build_http_client_with_timeout();
+            match sources::http_lookup::HttpLookupSource::new(
+                client,
+                http_config,
+                spec.infusion_id.clone(),
+            ) {
+                Ok(s) => Arc::new(s),
+                Err(err) => return Err(err),
+            }
         } else if let Some(ref source_config) = spec.source {
             match sources::load_source(source_config) {
                 Ok(s) => s,
@@ -891,7 +1061,10 @@ impl InfusionRegistry {
         if let Some(infusion_id) = current.udf_to_infusion.get(udf_name)
             && let Some((spec, _)) = current.entries.get(infusion_id)
         {
-            return spec.infusion_type == InfusionType::Plugin;
+            return matches!(
+                spec.infusion_type,
+                InfusionType::Plugin | InfusionType::HttpLookup
+            );
         }
         false
     }
@@ -929,9 +1102,27 @@ impl InfusionRegistry {
         let descriptors = self.validate_spec_against(&updated_spec, &temp_inner)?;
 
         // Validation passed — build new inner and swap atomically.
-        // Wire the real source for LocalLookup specs (same policy as load_spec).
+        // Wire the real source based on infusion type (same policy as load_spec + FIX-1).
         let source: Arc<dyn InfusionSource> =
-            if updated_spec.infusion_type == InfusionType::LocalLookup {
+            if updated_spec.infusion_type == InfusionType::HttpLookup {
+                // AC-002 / FIX-1: wire HttpLookupSource for HttpLookup specs at hot-reload time.
+                // Propagate construction errors as Err — preserve PRIOR registration unchanged.
+                let http_config = updated_spec.http_lookup_config.clone().ok_or_else(|| {
+                    InfusionError::MissingRequiredField {
+                        field: "http_lookup_config".to_string(),
+                        spec_path: updated_spec.infusion_id.clone(),
+                    }
+                })?;
+                let client = crate::pipeline::build_http_client_with_timeout();
+                match sources::http_lookup::HttpLookupSource::new(
+                    client,
+                    http_config,
+                    updated_spec.infusion_id.clone(),
+                ) {
+                    Ok(s) => Arc::new(s),
+                    Err(err) => return Err(err),
+                }
+            } else if updated_spec.infusion_type == InfusionType::LocalLookup {
                 if let Some(ref source_config) = updated_spec.source {
                     match sources::load_source(source_config) {
                         Ok(s) => s,

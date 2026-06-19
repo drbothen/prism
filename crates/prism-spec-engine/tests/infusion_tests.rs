@@ -674,7 +674,16 @@ fn test_BC_2_19_001_rejects_unknown_source_type() {
     );
     assert!(
         msg.contains("maxmind_mmdb"),
-        "BC-2.19.001: E-INFUSE-004 must list valid types"
+        "BC-2.19.001: E-INFUSE-004 must list valid types including maxmind_mmdb"
+    );
+    // BC-2.19.001 v1.8 (PIVOT-002-bc-amendment-http-lookup): http_lookup is a valid source type
+    // per ADR-040 v2.0 §D8.3 — the E-INFUSE-004 message MUST list it so operators know the type
+    // is accepted. If this assertion fails, error.rs InfusionError::UnknownSourceType Display is
+    // stale (omits http_lookup from the valid-types list).
+    assert!(
+        msg.contains("http_lookup"),
+        "BC-2.19.001 v1.8: E-INFUSE-004 valid-types list must include 'http_lookup' \
+         (ADR-040 v2.0 §D8.3 added InfusionType::HttpLookup); got: {msg}"
     );
 }
 

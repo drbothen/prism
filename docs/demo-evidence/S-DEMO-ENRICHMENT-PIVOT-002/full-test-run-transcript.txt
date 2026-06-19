@@ -1,0 +1,70 @@
+Full PIVOT-002 test run transcript
+Command: cargo nextest run -p prism-spec-engine -E 'test(enrichment_pivot_002)' --no-fail-fast
+Date: 2026-06-19
+Branch: feature/S-DEMO-ENRICHMENT-PIVOT-002 @ b436104d
+
+────────────
+ Nextest run ID 8d580203-a188-45aa-8583-2ab3ab80b5d7 with nextest profile: default
+    Starting 41 tests across 40 binaries (704 tests skipped)
+        PASS [   0.019s] ( 1/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_http_lookup_parse_rejects_invalid_method
+        PASS [   0.016s] ( 2/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_nvd_http_lookup_resolves_scenario_cve_high_cvss
+        PASS [   0.037s] ( 3/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_bc2_19_001_zero_fields_spec_rejected
+        PASS [   0.037s] ( 4/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_http_lookup_parse_rejects_missing_input_placeholder
+        PASS [   0.037s] ( 5/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_http_lookup_failed_error_format_excludes_credentials
+        PASS [   0.044s] ( 6/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_e_infuse_013_sc3_base_url_empty_returns_invalid_field_spec
+        PASS [   0.044s] ( 7/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_e_infuse_013_sc5_response_path_empty_returns_invalid_field_spec
+        PASS [   0.044s] ( 8/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_ac003_plugin_infusion_source_real_path
+        PASS [   0.045s] ( 9/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_enrich_nvd_pipe_stage_returns_high_cvss_for_scenario_cves
+        PASS [   0.020s] (10/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_nvd_plugin_crate_removed
+        PASS [   0.056s] (11/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_http_lookup_infusion_type_parses_nvd_spec
+        PASS [   0.056s] (12/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_enrich_threatintel_pipe_stage_returns_malicious_for_scenario_iocs
+        PASS [   0.056s] (13/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_credential_resolution_failed_excludes_env_var_name
+        PASS [   0.015s] (14/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec001_udf_name_accepts_valid_identifiers
+        PASS [   0.018s] (15/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec001_udf_name_rejects_leading_digit
+        PASS [   0.017s] (16/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec001_udf_name_rejects_sql_injection_chars
+        PASS [   0.025s] (17/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_plugin_enrich_call_failed_maps_to_infusion_error
+        PASS [   0.063s] (18/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_bc2_19_001_duplicate_udf_name_rejected
+        PASS [   0.028s] (19/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sap2_nvd_toml_columns_match_dtu_fields
+        PASS [   0.024s] (20/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sap2_threatintel_toml_columns_match_dtu_fields
+        PASS [   0.035s] (21/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_nvd_toml_loads_as_http_lookup_and_registers_3_udfs
+        PASS [   0.017s] (22/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec003_load_all_rejects_traversal_plugin_ref_production_path
+        PASS [   0.015s] (23/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec003_path_traversal_rejected_for_dotdot_plugin_ref
+        PASS [   0.013s] (24/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_ssrf_accepts_private_base_url_with_dtu_mode
+        PASS [   0.012s] (25/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_ssrf_rejected_error_excludes_resolved_ip
+        PASS [   0.078s] (26/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_high1_crit2b_threat_intel_canned_fixture_end_to_end
+        PASS [   0.078s] (27/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_high1_crit2b_plugin_infusion_source_canonical_identity_resolves
+        PASS [   0.021s] (28/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec002_plugin_infusion_source_config_not_pub
+        PASS [   0.016s] (29/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec003_path_within_plugin_dir_accepted
+        PASS [   0.016s] (30/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec003_sandbox_violation_url_not_in_warn_log
+        PASS [   0.022s] (31/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec002_load_all_error_does_not_leak_absolute_path
+        PASS [   0.018s] (32/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec003_symlink_escape_rejected_by_canonicalize_guard
+        PASS [   0.011s] (33/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_threatintel_plugin_resolves_scenario_ioc_as_malicious
+        PASS [   0.017s] (34/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_ssrf_rejects_private_base_url_without_dtu_mode
+        PASS [   0.013s] (35/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_threatintel_toml_loads_and_registers_3_udfs
+        PASS [   0.018s] (36/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_val_lift_fix_option_some_returns_json_value
+        PASS [   0.020s] (37/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_val_lift_fix_option_none_returns_ok_none
+        PASS [   0.018s] (38/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_val_lift_fix_unexpected_val_returns_enrich_call_failed
+        PASS [   0.077s] (39/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking
+        PASS [  18.519s] (40/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_http_lookup_source_returns_none_on_path_not_found
+        PASS [  20.177s] (41/41) prism-spec-engine::enrichment_pivot_002_tests test_enrichment_pivot_002_http_lookup_source_returns_err_on_non_2xx
+────────────
+     Summary [  20.178s] 41 tests run: 41 passed, 704 skipped
+
+Ignored tests (DTU-EXT gated):
+  - test_enrichment_pivot_002_http_lookup_source_enrich_single_calls_url_template
+    [ignored: DTU-EXT-NVD-001: requires live NVD API; unit coverage in http_lookup.rs::tests::test_enrich_single_extracts_response_path_via_wiremock]
+  - test_enrichment_pivot_002_http_lookup_source_extracts_response_path_fields
+    [ignored: DTU-EXT-NVD-001: requires live NVD API; unit coverage in http_lookup.rs::tests::test_enrich_single_extracts_response_path_via_wiremock]
+
+Wiremock unit tests covering the ignored integration tests:
+Command: cargo nextest run -p prism-spec-engine -E 'test(test_enrich_single)' --no-fail-fast
+    Starting 2 tests across 40 binaries (743 tests skipped)
+        PASS [   0.039s] (1/2) prism-spec-engine infusion::sources::http_lookup::tests::test_enrich_single_returns_none_on_path_not_found_via_wiremock
+        PASS [   0.039s] (2/2) prism-spec-engine infusion::sources::http_lookup::tests::test_enrich_single_extracts_response_path_via_wiremock
+    Summary [  0.040s] 2 tests run: 2 passed, 743 skipped
+
+prism-query spawn_blocking test:
+Command: cargo nextest run -p prism-query -E 'test(enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking)'
+    Starting 1 test across 13 binaries (1015 tests skipped)
+        PASS [   0.363s] (1/1) prism-query infusion_udf::tests::test_enrichment_pivot_002_sec001_wasm_enrich_wraps_spawn_blocking
+    Summary [  0.364s] 1 test run: 1 passed, 1015 skipped

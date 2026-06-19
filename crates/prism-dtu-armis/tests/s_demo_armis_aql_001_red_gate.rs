@@ -562,9 +562,14 @@ fn test_armis_aql_search_dtu_toml_column_parity() {
     // Canonical DeviceRecord fields from types.rs (grounded against the struct definition).
     // Matches: device_id, name, type (device_type with rename), manufacturer, os_name,
     // os_version, risk_score, risk_factors, last_seen, first_seen, ip_address,
-    // mac_address, network_id, site, tags.
+    // mac_address, network_id, site, tags, device_cves.
     // Note: "type" is the TOML column name — DeviceRecord uses #[serde(rename = "type")]
     // on device_type, so the JSON/TOML key is "type".
+    //
+    // "device_cves_first" is a Prism-computed scalar column derived from DeviceRecord.device_cves
+    // (first element of the CVE array). Added by S-DEMO-ENRICHMENT-PIVOT-002 (AC-006).
+    // Generator projection (extracting device_cves[0] as scalar) is in S-DEMO-ENRICHMENT-PIVOT-003.
+    // "device_cves" is the backing DTU field (Vec<String>) added to DeviceRecord in PIVOT-002.
     let device_record_fields: std::collections::HashSet<&str> = [
         "device_id",
         "name",
@@ -581,6 +586,8 @@ fn test_armis_aql_search_dtu_toml_column_parity() {
         "network_id",
         "site",
         "tags",
+        "device_cves", // Vec<String> — added to DeviceRecord in S-DEMO-ENRICHMENT-PIVOT-002
+        "device_cves_first", // Prism-computed scalar from device_cves[0] (S-DEMO-ENRICHMENT-PIVOT-003)
     ]
     .iter()
     .copied()

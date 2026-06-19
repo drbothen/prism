@@ -49,7 +49,11 @@ pub struct PluginInfusionSource {
     /// Constructed as an empty `PluginConfigMap` in `InfusionRegistry::load_spec_with_runtime`;
     /// credential values are resolved at call time from env vars per AD-017, not pre-populated
     /// here. Passed as `config` to `PluginRuntime::enrich_single`.
-    pub config: Arc<PluginConfigMap>,
+    ///
+    /// MUST be `pub(crate)` — not `pub` — before PIVOT-002 wires real credentials.
+    /// External crates MUST NOT read resolved credential values through struct field access
+    /// (DRIFT-PIVOT-PLUGINCONFIG-PUB-FIELD-001 / AC-008 / SEC-002 CWE-200).
+    pub(crate) config: Arc<PluginConfigMap>,
 
     /// Reference to the shared `PluginRuntime` for WASM dispatch.
     ///
@@ -135,6 +139,33 @@ impl InfusionSource for PluginInfusionSource {
                 );
                 None
             }
+            Err(prism_core::PluginError::SandboxViolation {
+                plugin_id: ref sandbox_pid,
+                ref url,
+            }) => {
+                // DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (AC-009 / SEC-003 CWE-209):
+                // Emit the URL at DEBUG level for operator diagnostics.
+                // Do NOT emit at WARN — the WARN log must not expose the DTU endpoint address.
+                tracing::debug!(
+                    plugin_id = %sandbox_pid,
+                    sandbox_url = %url,
+                    "plugin sandbox violation URL (debug-only; URL excluded from WARN per AC-009)"
+                );
+                let infusion_err = map_plugin_error_to_infusion_error(
+                    &self.plugin_id,
+                    prism_core::PluginError::SandboxViolation {
+                        plugin_id: sandbox_pid.clone(),
+                        url: url.clone(),
+                    },
+                );
+                tracing::warn!(
+                    plugin_id = %self.plugin_id,
+                    input_type = %input_type,
+                    error = %infusion_err,
+                    "plugin sandbox violation — returning None for input"
+                );
+                None
+            }
             Err(plugin_err) => {
                 let infusion_err = map_plugin_error_to_infusion_error(&self.plugin_id, plugin_err);
                 tracing::warn!(
@@ -180,19 +211,97 @@ impl InfusionSource for PluginInfusionSource {
 /// (AD-017: credential/path values must never transit AI context or external logging surfaces).
 ///
 /// Variants that do NOT embed paths or credentials (e.g., `Trapped`, `Timeout`, `MemoryExceeded`,
-/// `NotLoaded`, `SandboxViolation`) are passed through verbatim.
+/// `NotLoaded`) are passed through verbatim. `SandboxViolation` is handled by a dedicated match
+/// arm (DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 / AC-009 / SEC-003 CWE-209) that explicitly
+/// excludes the `url` field — the URL is emitted at DEBUG level in `enrich_single` only.
 pub(crate) fn map_plugin_error_to_infusion_error(
     plugin_id: &str,
     err: prism_core::PluginError,
 ) -> InfusionError {
-    let raw_reason = err.to_string();
-    let reason = redact_if_sensitive(&raw_reason);
-    InfusionError::PluginCallFailed {
-        plugin_id: plugin_id.to_string(),
-        // In current wiring, infusion_id == plugin_id (set at PluginInfusionSource construction
-        // from spec.infusion_id). Kept as a separate field for future cases where they diverge.
-        infusion_id: plugin_id.to_string(),
-        reason,
+    // DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 (AC-009 / SEC-003 CWE-209):
+    // `SandboxViolation.url` MUST NOT appear in the InfusionError message surfaced at WARN level
+    // or MCP error responses. This arm is LOAD-BEARING: it encodes the CWE-209 exclusion
+    // explicitly rather than relying on the incidental side-effect of `redact_if_sensitive`
+    // detecting the `/` path separator in URLs (Source-of-Truth Precedence — PIVOT-002's
+    // explicit security requirement supersedes the incidental redaction in S-1.14-REDO).
+    // Per CLAUDE.md §Source-of-Truth Precedence rule 1: later, more-specific story-level
+    // security requirement wins over the earlier general mechanism.
+    // The URL is emitted at DEBUG level in `enrich_single` before calling this function.
+    match err {
+        prism_core::PluginError::EnrichCallFailed {
+            plugin_id: ref epid,
+            ref reason,
+        } => InfusionError::PluginCallFailed {
+            plugin_id: epid.clone(),
+            infusion_id: plugin_id.to_string(),
+            reason: reason.clone(),
+        },
+        prism_core::PluginError::SandboxViolation {
+            plugin_id: ref sandbox_pid,
+            ..
+        } => {
+            // AC-009: URL is intentionally excluded from the message to prevent CWE-209 leakage.
+            // The url field is available in the original error but MUST NOT appear here.
+            InfusionError::MissingRequiredField {
+                field: format!(
+                    "plugin_call_failed({}): sandbox policy violation \
+                     (DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001 / AC-009 / SEC-003 CWE-209)",
+                    sandbox_pid
+                ),
+                spec_path: plugin_id.to_string(),
+            }
+        }
+        other => {
+            // For non-SandboxViolation errors: use `redact_if_sensitive` to scrub filesystem
+            // paths and credential-like patterns from the reason string (E-INFUSE-008 / AD-017).
+            let raw_reason = other.to_string();
+            let reason = redact_if_sensitive(&raw_reason);
+            InfusionError::PluginCallFailed {
+                plugin_id: plugin_id.to_string(),
+                // In current wiring, infusion_id == plugin_id (set at PluginInfusionSource
+                // construction from spec.infusion_id). Kept as a separate field for future
+                // cases where they diverge.
+                infusion_id: plugin_id.to_string(),
+                reason,
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// E-INFUSE-008: EnrichCallFailed reason propagates verbatim when it contains no
+    /// path or credential-like content. "bad json" contains none of the redaction triggers.
+    #[test]
+    fn test_map_plugin_error_enrich_call_failed_maps_to_plugin_call_failed() {
+        let err = prism_core::PluginError::EnrichCallFailed {
+            plugin_id: "ti".to_string(),
+            reason: "bad json".to_string(),
+        };
+        let result = map_plugin_error_to_infusion_error("ti", err);
+        match result {
+            InfusionError::PluginCallFailed {
+                ref plugin_id,
+                ref infusion_id,
+                ref reason,
+            } => {
+                assert_eq!(plugin_id, "ti", "plugin_id must match");
+                assert_eq!(
+                    infusion_id, "ti",
+                    "infusion_id must match plugin_id argument"
+                );
+                assert_eq!(
+                    reason, "bad json",
+                    "reason must propagate from EnrichCallFailed (no path/credential content)"
+                );
+            }
+            other => panic!(
+                "EnrichCallFailed must map to PluginCallFailed, got: {:?}",
+                other
+            ),
+        }
     }
 }
 
@@ -339,6 +448,41 @@ mod redaction_tests {
             redact_if_sensitive(safe),
             safe,
             "Safe string must pass through verbatim"
+        );
+    }
+
+    /// CWE-209 load-bearing regression guard (AC-009 / DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001).
+    ///
+    /// Calls `map_plugin_error_to_infusion_error` with a `SandboxViolation` that has a
+    /// URL containing a recognizable host and path. The resulting `InfusionError` Display
+    /// output MUST NOT contain either "dtu:8080" (host) or "/secret/path" (path).
+    ///
+    /// SID-1: this is a unit test at the production code boundary — no external dependencies.
+    /// Without this test, a future refactor that accidentally exposes the URL would pass
+    /// the existing tests but violate CWE-209.
+    ///
+    /// Tests the `map_plugin_error_to_infusion_error` function directly (not via enrich_single)
+    /// so the test runs in all CI environments without a running PluginRuntime.
+    #[test]
+    fn test_sandbox_violation_url_excluded_from_infusion_error_display() {
+        use prism_core::PluginError;
+        let err = PluginError::SandboxViolation {
+            plugin_id: "pid".to_string(),
+            url: "http://dtu:8080/secret/path".to_string(),
+        };
+        let infusion_err = map_plugin_error_to_infusion_error("pid", err);
+        let display_str = infusion_err.to_string();
+        assert!(
+            !display_str.contains("dtu:8080"),
+            "CWE-209: SandboxViolation URL host 'dtu:8080' must NOT appear in InfusionError \
+             Display output (AC-009 / DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001). Got: {:?}",
+            display_str
+        );
+        assert!(
+            !display_str.contains("/secret/path"),
+            "CWE-209: SandboxViolation URL path '/secret/path' must NOT appear in InfusionError \
+             Display output (AC-009 / DRIFT-PIVOT-SANDBOXVIOLATION-URL-LOG-001). Got: {:?}",
+            display_str
         );
     }
 }

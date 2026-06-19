@@ -82,6 +82,8 @@ wiremock = "0.6"
 flate2 = "1"
 # tracing-subscriber: structured log capture for audit-log regression tests.
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# tracing-test: span/log capture for AC-009 WARN log assertion (S-DEMO-ENRICHMENT-PIVOT-002).
+tracing-test = "0.2"
 # PLUGIN-MIGRATION-001-D: DTU clones as dev-dependencies for parity tests (Task 10).
 # Production dep FORBIDDEN — these are test-infrastructure crates only (§Forbidden Dependencies).
 # Architecture compliance: prism-spec-engine MUST NOT have production deps on DTU crates.

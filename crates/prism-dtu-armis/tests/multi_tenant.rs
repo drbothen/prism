@@ -271,6 +271,7 @@ fn test_BC_3_2_001_fixture_registries_bare_string_keyed() {
         network_id: None,
         site: None,
         tags: vec![],
+        device_cves: vec![],
     };
 
     let state = ArmisState::new(vec![device], vec![], vec![]);

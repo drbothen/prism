@@ -86,13 +86,16 @@ pub use error::SpecEngineError;
 pub use infusion::cache::{InfusionLruCache, InfusionTier3Cache, QueryScopedInfusionCache};
 pub use infusion::sources::MAX_SOURCE_FILE_BYTES;
 pub use infusion::{
-    BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionRegistryInner,
+    BuiltInSourceType, CredentialRef, HttpLookupAuthType, HttpLookupConfig,
+    HttpLookupCredentialConfig, InfusionField, InfusionRegistry, InfusionRegistryInner,
     InfusionSource, InfusionSourceConfig, InfusionSpec, InfusionType, PipeStageConfig,
     PluginConfig, enrich_descriptor::EnrichStageDescriptor, udf::InfusionUdfDescriptor,
 };
 // S-DEMO-ENRICHMENT-PIVOT-001: infusion plugin-bridge + loader (BC-2.19.001)
 pub use infusion::loader::InfusionLoader;
 pub use infusion::plugin_bridge::PluginInfusionSource;
+// S-DEMO-ENRICHMENT-PIVOT-002 v1.3: HttpLookupSource (ADR-040 v2.0 D8)
+pub use infusion::sources::HttpLookupSource;
 // PluginConfigMap re-export for infusion plugin-bridge tests
 pub use interpolation::{InterpolationContext, InterpolationError};
 pub use plugin::PluginConfigMap;

@@ -34,6 +34,9 @@ fuzz/Cargo.lock
 # The crate itself (Cargo.toml + src/) is tracked; only the generated lock is excluded.
 tests/external/perimeter-violation/Cargo.lock
 
+# Plugin sub-crates (standalone, not in workspace) — generated lock files excluded.
+crates/plugins/prism-threatintel-infusion/Cargo.lock
+
 # prism-dtu-demo-server runtime sidecars (written to cwd by `start` / `start-multi`).
 # These are ephemeral process state, not source — never committed.
 .prism-dtu-demo-server.pid

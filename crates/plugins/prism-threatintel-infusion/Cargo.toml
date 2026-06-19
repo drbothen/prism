@@ -1,0 +1,32 @@
+# S-DEMO-ENRICHMENT-PIVOT-002: ThreatIntel infusion WASM plugin — standalone crate.
+# NOT in workspace members (U18/Ruling 3 — same pattern as crates/plugins/ocsf-complex-transforms).
+# The empty [workspace] table tells Cargo this package is its own workspace root, preventing
+# Cargo from walking up to the prism workspace (which excludes wasm32-wasip1 cdylib targets).
+[workspace]
+
+[package]
+name = "prism-threatintel-infusion"
+version = "0.1.0"
+edition = "2024"
+description = "ThreatIntel enrichment WASM plugin — dispatches IOC type to DTU lookup route via host WIT import (S-DEMO-ENRICHMENT-PIVOT-002)"
+license = "MIT"
+publish = false
+
+# WASM guest cdylib — compiled to wasm32-wasip1 for the .prx plugin format.
+# MUST NOT depend on prism-spec-engine, prism-sensors, or prism-query (INV-PERIMETER-COMPLIANCE-001).
+# MUST NOT depend on reqwest or tokio — HTTP via host WIT import host.http-request (U9).
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+# wit-bindgen 0.51 for WIT guest bindings (U14, confirmed 2026-06-12).
+# Provides host.http-request WIT import bindings.
+wit-bindgen = { version = "0.51", default-features = false, features = ["macros"] }
+serde = { version = "1", features = ["derive"], default-features = false }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+
+# EXPLICITLY FORBIDDEN in WASM guests (U9: no sockets in WASM sandbox):
+# reqwest = "..."  — DO NOT ADD
+# tokio = "..."   — DO NOT ADD
+
