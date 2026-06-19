@@ -626,8 +626,6 @@ fn make_detection(
 ///
 /// When `scenario_ioc_hash` is `None`, the `"behaviors"` array contains the existing
 /// MITRE-only behavior entry (matching the static fixture shape — shape parity).
-///
-/// Stub: the scenario IOC-stamping branch uses `todo!()` — implementer supplies logic.
 pub(crate) fn make_detection_with_ioc(
     detection_id: &str,
     device_id: &str,
@@ -800,10 +798,6 @@ mod tests {
     /// - `behaviors[0]["ioc_source"]` == `"catalog"`
     /// - `behaviors[0]["ioc_description"]` == `"scenario IOC"`
     ///
-    /// FAIL mode: `make_detection_with_ioc()` with `Some(ioc_hash)` contains `todo!()` →
-    ///   panics with "not yet implemented: AC-004 S-DEMO-ENRICHMENT-PIVOT-003: stamp
-    ///   behaviors[0] with ioc_type='hash_sha256'…"
-    ///
     /// Canonical test vector (BC-2.06.019 v1.8):
     ///   Input: scenario_ioc_hash = Some("aabbccdd" * 8)
     ///   Expected: behaviors[0]["ioc_type"] = "hash_sha256" (NOT "hash")
@@ -821,8 +815,10 @@ mod tests {
             0x0F, 0x10,
         ]);
         let seed: u64 = 42;
-        let mut opts = GenOpts::default();
-        opts.seed = seed;
+        let opts = GenOpts {
+            seed,
+            ..Default::default()
+        };
 
         // Canonical test vector (BC-2.06.019 v1.8): 64-char SHA256-like hex string.
         let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
@@ -831,7 +827,6 @@ mod tests {
         let detection_id = format!("det-{slug}-{seed}-0");
         let device_id = format!("dev-{slug}-{seed}-0");
 
-        // FAIL: this call hits the todo!() in make_detection_with_ioc's Some() branch.
         let record = make_detection_with_ioc(
             &detection_id,
             &device_id,
@@ -920,14 +915,16 @@ mod tests {
             0x0F, 0x10,
         ]);
         let seed: u64 = 42;
-        let mut opts = GenOpts::default();
-        opts.seed = seed;
+        let opts = GenOpts {
+            seed,
+            ..Default::default()
+        };
 
         let slug = org_slug(&org);
         let detection_id = format!("det-{slug}-{seed}-0");
         let device_id = format!("dev-{slug}-{seed}-0");
 
-        // None path: no IOC stamping — should return without hitting todo!().
+        // None path: no IOC stamping — behaviors[] contains only the base MITRE entry.
         let record = make_detection_with_ioc(&detection_id, &device_id, 2, 0, &opts, None);
 
         let behaviors = record
