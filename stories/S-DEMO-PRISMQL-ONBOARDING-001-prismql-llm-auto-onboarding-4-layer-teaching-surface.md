@@ -1,15 +1,18 @@
 ---
 story_id: S-DEMO-PRISMQL-ONBOARDING-001
 title: "PrismQL LLM Auto-Onboarding — 4-Layer Teaching Surface (ADR-041 v1.1)"
+# DECOMPOSED — superseded by sub-stories S-DEMO-PRISMQL-ONBOARDING-001-A and
+# S-DEMO-PRISMQL-ONBOARDING-001-B per D-1244 §Parallel Execution Plan (2026-06-19).
+# This parent story is RETAINED FOR TRACEABILITY ONLY. Do NOT dispatch to implementer.
+# Sub-stories are the delivery vehicles:
+#   001-A: MCP teaching surface L1+L2+L3 (prism-mcp; 7 pts; BCs: BC-2.10.009/012/013/014)
+#   001-B: Query engine L4 errors + normalized_pql (prism-query/core; 6 pts; BCs: BC-2.11.016/017/018)
+status: superseded
+# superseded: decomposed into 001-A + 001-B per D-1244. Not a delivery target.
 wave: null
-# Wave assignment deferred — scheduled after S-5.04 and D-1162 capability-discovery block completion.
-# Likely Wave 5 or 6 (after S-5.03 MERGED + S-3.13 MERGED prerequisites are verified in develop).
 target_module: prism-mcp
 subsystems: [SS-10, SS-11]
 priority: P0
-# P0: D-1162 capability-discovery block REQUIRED per DEMO-SCOPE.md §Capability-Discovery Block.
-# Without prism_describe, Claude cannot author PQL queries against live per-client schemas
-# in the multi-client SOC demo capstone.
 depends_on: [S-5.03, S-3.13]
 # S-5.03 (MERGED — provides MCP resources/prompts surface; prism_describe registers alongside
 #   existing resources; prismql:// resources follow the same ServerHandler override pattern).
@@ -28,11 +31,10 @@ points: 13
 # L3 static reference resource, L4 error enrichments + E-QUERY-038 gate + normalized_pql).
 # 8 surface areas touched across 2 crates. Full TDD cycle required for each surface.
 level: "L4"
-status: draft
-# BC status: behavioral_contracts are non-empty (7 BCs authored, all draft-status from PO burst).
-# Status remains draft until PO/orchestrator schedules into a wave.
+# status: superseded (set at top of frontmatter per D-1244 decomposition; original was draft)
 document_type: story
-version: "1.0"
+version: "1.1"
+# v1.1: decomposed into 001-A + 001-B per D-1244 (2026-06-19). Status: superseded.
 producer: story-writer
 timestamp: "2026-06-19T00:00:00Z"
 input-hash: "TBD"
@@ -79,6 +81,24 @@ inputs:
 ---
 
 # S-DEMO-PRISMQL-ONBOARDING-001 — PrismQL LLM Auto-Onboarding: 4-Layer Teaching Surface
+
+> **DECOMPOSED (D-1244, 2026-06-19):** This parent story has been split into two delivery-ready
+> sub-stories to eliminate the prism-mcp ↔ prism-query crate conflict identified in the D-1244
+> §Parallel Execution Plan. The 13 pts and 7 BCs are distributed 1:1 across the sub-stories.
+> **DO NOT dispatch this story to test-writer or implementer.** Use the sub-stories instead:
+>
+> | Sub-story | Scope | Pts | BCs | Pipelines-behind |
+> |-----------|-------|-----|-----|-----------------|
+> | **S-DEMO-PRISMQL-ONBOARDING-001-A** | MCP teaching surface: L1 primer + L2 discovery tool/resource + L3 reference resource | 7 | BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014 | S-5.04 (prism-mcp conflict avoidance) |
+> | **S-DEMO-PRISMQL-ONBOARDING-001-B** | Query engine L4: E-QUERY-038 gate + E-QUERY-001/002/003/037 enrichments + normalized_pql | 6 | BC-2.11.016, BC-2.11.017, BC-2.11.018 | PIVOT-003 (prism-query conflict avoidance) |
+>
+> **Points sum:** 7 + 6 = 13 ✓  
+> **BC distribution:** 4 (MCP surface) + 3 (query engine) = 7 ✓  
+> **Traceability:** This parent story is retained to preserve STORY-INDEX history and BC↔story
+> bidirectional tracing. The BC backlinks in BC-2.10.009/012/013/014/BC-2.11.016/017/018 should
+> reference the sub-story IDs (001-A and 001-B respectively) as the delivery vehicles.
+
+---
 
 ## Story ID Justification
 
@@ -788,3 +808,4 @@ BC-2.11.001 would be a stale contract that doesn't enumerate all error cases of 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | story-writer | Initial story creation — 7 BC traces, 16 ACs, 16 Red Gate tests, full 6-section context engineering, coherence note for BC-2.11.001 PO micro-edit. |
+| 1.1 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | DECOMPOSED into S-DEMO-PRISMQL-ONBOARDING-001-A (L1+L2+L3 MCP surface; 7 pts; BC-2.10.009/012/013/014) and S-DEMO-PRISMQL-ONBOARDING-001-B (L4 query engine; 6 pts; BC-2.11.016/017/018) per D-1244 §Parallel Execution Plan. Status changed to superseded. Parent story retained for traceability. |

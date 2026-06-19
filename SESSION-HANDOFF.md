@@ -1,18 +1,107 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.877"
+version: "7.878"
 status: current
 timestamp: 2026-06-19T10:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1244 (2026-06-19): Parallel Execution Plan persisted for 3 DEMO-BLOCKING stories (PIVOT-003 ‖ S-5.04 ‖ S-DEMO-PRISMQL-ONBOARDING-001). §Parallel Execution Plan inserted in §RESUME SNAPSHOT D-1242 WHAT'S NEXT. develop_head UNCHANGED 9114e028. STATE v7.876→v7.877.**
+> **D-1249 (2026-06-19): PrismQL decomposition registered. S-DEMO-PRISMQL-ONBOARDING-001 DECOMPOSED into 001-A (7 pts, prism-mcp) + 001-B (6 pts, prism-query/core). STORY-INDEX v2.434→v2.435; total_stories 204→206. PIVOT-003 confirmed authored (v1.8). 4 DEMO-BLOCKING pickable lanes: PIVOT-003 + S-5.04 + 001-A + 001-B. §RESUME SNAPSHOT D-1249 authored (supersedes D-1242/D-1244). develop_head UNCHANGED 9114e028. STATE v7.877→v7.878.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1242** (authoritative zero-context restart protocol; supersedes D-1241). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1241 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1242 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1244 state/docs-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.877.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1249** (authoritative zero-context restart protocol; supersedes D-1242/D-1244). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1244 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1249 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1249 state/docs-only burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.878.
+
+---
+
+## §RESUME SNAPSHOT — D-1249 (2026-06-19 — PRISMQL DECOMPOSITION REGISTERED; develop_head 9114e028 UNCHANGED; STATE v7.878)
+
+> **D-1249 burst (2026-06-19).** DOCS/STATE-ONLY burst — develop_head UNCHANGED at 9114e028. PrismQL decomposition registered: S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) DECOMPOSED into 001-A (7 pts, prism-mcp, BC-2.10.009/012/013/014) + 001-B (6 pts, prism-query/core/mcp, BC-2.11.016/017/018) per user directive 2026-06-19 (D-1248). PIVOT-003 roadmap correction: confirmed authored at v1.8 draft — stale "not-authored" text removed (D-1247). S-5.03 stale worktree pruned (D-1246). BC-2.11.001 coherence note CLOSED — product-owner confirmed v1.10 already satisfies E-QUERY-038/pedagogical-fields/normalized_pql cross-refs from D-1241 burst (D-1245). STORY-INDEX v2.434→v2.435; total_stories 204→206. STATE v7.878.
+
+---
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1249 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1249 snapshot first. It is authoritative. Do NOT act on any other prior context.
+
+**Step 1.** Run `vsdd-factory:factory-worktree-health` (devops-engineer). **BLOCKING** — do not proceed until it passes.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19; D-1249 state/docs-only burst — develop UNCHANGED). If newer, use live HEAD as authoritative.
+
+**Step 3.** Confirm open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Check worktree state:
+```bash
+git worktree list
+```
+Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded). `.worktrees/S-5.03` PRUNED (D-1246). Leave S-3.09 and W3-FIX-S307-001 alone.
+
+**Step 5.** Read PINNED STATE table below and verify against live git.
+
+**Step 6.** Apply lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lesson z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) and z25 (implementer must NOT commit .factory directly) are critical.
+
+---
+
+### PINNED STATE (D-1249 — verified 2026-06-19)
+
+| Artifact | Value | Notes |
+|----------|-------|-------|
+| develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19 (D-1240). UNCHANGED through D-1249 (docs-only). |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
+| Open PRs | **NONE** | S-5.03 PR #194 MERGED develop@85ac7b06. PIVOT-002 PR #195 MERGED develop@9114e028. No new PRs. |
+| Parked worktrees | S-3.09 FROZEN + W3-FIX-S307-001 BLOCKED | Leave alone. S-5.03 worktree PRUNED (D-1246). |
+| ci.yml EXPECTED | `79` | Unchanged from D-1249 (docs-only burst). Authority: `ci.yml`. |
+| CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@9114e028. |
+| scripts/check-non-exhaustive.sh | `EXPECTED=79` | Confirmed. |
+| STATE.md | v7.878 | D-1249 burst. |
+| BC-INDEX | v6.82 | active 235 / draft 8 / retired 6 / total 256. Unchanged from D-1249 (docs-only). |
+| STORY-INDEX | v2.435 | **206 stories.** S-DEMO-PRISMQL-ONBOARDING-001 superseded (D-1248). 001-A (7 pts) + 001-B (6 pts) added (D-1249). |
+| ARCH-INDEX | v2.138 | ADR-041 v1.1 PROPOSED (4-layer LLM onboarding; D-1241). |
+| error-taxonomy | v1.91 | E-QUERY-038 column-not-found plan-time gate (D-1241). |
+| VP-INDEX | v1.79 | 157 registered. |
+| prd | v1.12 | Unchanged. |
+| policies | v1.33 | Unchanged. |
+| active_contracts | 235 | Unchanged through D-1249. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012, BC-2.10.013, BC-2.10.014, BC-2.11.016, BC-2.11.017, BC-2.11.018. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1245..D-1249)
+
+| Burst | What Was Done |
+|-------|---------------|
+| D-1245 (2026-06-19) | Resume session verified: develop@9114e028, NO open PRs, all prior demo-blocking lanes MERGED. |
+| D-1246 (2026-06-19) | S-5.03 stale worktree `.worktrees/S-5.03` + local branch `feature/S-5.03` PRUNED by devops-engineer. |
+| D-1247 (2026-06-19) | PIVOT-003 roadmap correction: confirmed authored at v1.8 draft (8 pts, DEMO-BLOCKING). Stale "not-authored" text removed from all current-position references. |
+| D-1248 (2026-06-19) | PrismQL decomposition: S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) → 001-A (7 pts, prism-mcp) + 001-B (6 pts, prism-query/core) per user directive. Story-writer already authored both sub-story files. |
+| D-1249 (2026-06-19) | Indexes updated: STORY-INDEX v2.434→v2.435 (206 stories). STATE v7.877→v7.878. SESSION-HANDOFF §RESUME SNAPSHOT D-1249 authored. BC-2.11.001 coherence note CLOSED. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (durable task list; D-1249)
+
+| Order | Story / Task | Status | Pts | depends_on | Notes |
+|-------|-------------|--------|-----|------------|-------|
+| **NEXT-A (PICKABLE NOW)** | **S-DEMO-ENRICHMENT-PIVOT-003** | draft v1.8 (authored) | 8 | PIVOT-002 MERGED (SATISFIED) | Real IOC fields (ioc_value, ioc_type, ioc_severity) in Cyberint/CrowdStrike DTU fixtures + canonical end-to-end pivot proof. Closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation. Closes TD-PLUGIN-P0-002 P0. **AUTHORED — ready for remove-uncertainty + TDD per D-1110.** |
+| **NEXT-B (PICKABLE NOW)** | **S-5.04** | not-started | 5 | S-5.03 MERGED (SATISFIED) | Sensor Health Subsystem. remove-uncertainty before TDD per D-1110. DEMO-CRITICAL-PATH. |
+| **NEXT-C (PICKABLE NOW, draft) — DEMO-BLOCKING** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.0 (authored) | 7 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** MCP teaching surface: L1 query_tutorial prompt + tool description, L2 prism_describe tool + prismql://schema/{client_id} resource, L3 prismql://reference resource. Pipelines behind S-5.04 (prism-mcp conflict avoidance). remove-uncertainty before TDD per D-1110. |
+| **NEXT-D (PICKABLE NOW, draft) — DEMO-BLOCKING** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.0 (authored) | 6 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Query engine: L4 E-QUERY-038 column-not-found gate + E-QUERY-001/002/003/037 pedagogical enrichments + normalized_pql echo. Pipelines behind PIVOT-003 (prism-query/core conflict avoidance). remove-uncertainty before TDD per D-1110. |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone (not yet named) | not-authored | TBD | **PIVOT-003 + S-5.04 + 001-A + 001-B — all 4 must MERGE** | PO + story-writer. The demo's capstone deliverable. All 4 DEMO-BLOCKING stories are HARD gates. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
+
+**Remove-uncertainty rule (D-1110):** Run `dclaude:remove-uncertainty` on every implementation story BOTH immediately after story-writer materializes/writes it AND again before TDD delivery. PIVOT-003, S-5.04, 001-A, 001-B all still need their pre-TDD remove-uncertainty pass.
 
 ---
 
@@ -63,9 +152,9 @@ Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.workt
 | ci.yml EXPECTED | `79` | After PIVOT-002 merge (+3 types: HttpLookupAuthType, HttpLookupCredentialConfig, HttpLookupConfig). Authority: `ci.yml`. |
 | CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@9114e028. |
 | scripts/check-non-exhaustive.sh | `EXPECTED=79` | Confirmed. |
-| STATE.md | v7.877 | D-1244 burst. |
+| STATE.md | v7.878 | D-1249 burst. **See §RESUME SNAPSHOT D-1249 for current authoritative values.** |
 | BC-INDEX | v6.82 | active 235 / draft 8 / retired 6 / total 256. +6 new BCs D-1241 (BC-2.10.012/013/014 + BC-2.11.016/017/018). 2 amendments (BC-2.10.009 v1.4, BC-2.11.001 v1.10). |
-| STORY-INDEX | v2.434 | 204 stories. S-DEMO-PRISMQL-ONBOARDING-001 draft added D-1241. |
+| STORY-INDEX | v2.435 | 206 stories. S-DEMO-PRISMQL-ONBOARDING-001 superseded (D-1248); 001-A (7 pts) + 001-B (6 pts) added (D-1249). **See §RESUME SNAPSHOT D-1249 for current authoritative values.** |
 | ARCH-INDEX | v2.138 | ADR-041 v1.1 PROPOSED (4-layer LLM onboarding; D-1241). |
 | error-taxonomy | v1.91 | E-QUERY-038 column-not-found plan-time gate (D-1241). |
 | VP-INDEX | v1.79 | 157 registered. |
@@ -91,10 +180,11 @@ Expected mounted worktrees: main repo + `.factory` (factory-artifacts) + `.workt
 
 | Order | Story / Task | Status | Pts | depends_on | Notes |
 |-------|-------------|--------|-----|------------|-------|
-| **NEXT-A (PICKABLE NOW)** | **S-DEMO-ENRICHMENT-PIVOT-003** | not-started | 8 | PIVOT-002 MERGED (SATISFIED) | Real IOC fields (ioc_value, ioc_type, ioc_severity) in Cyberint/CrowdStrike DTU fixtures + canonical end-to-end pivot proof. Closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation. Closes TD-PLUGIN-P0-002 P0. story-writer must author if not yet materialized; remove-uncertainty before TDD. |
+| **NEXT-A (PICKABLE NOW)** | **S-DEMO-ENRICHMENT-PIVOT-003** | **draft v1.8 (authored — D-1247 correction)** | 8 | PIVOT-002 MERGED (SATISFIED) | Real IOC fields (ioc_value, ioc_type, ioc_severity) in Cyberint/CrowdStrike DTU fixtures + canonical end-to-end pivot proof. Closes BC-2.06.019 v1.7 §Interim State `_ioc_value` violation. Closes TD-PLUGIN-P0-002 P0. remove-uncertainty before TDD per D-1110. |
 | **NEXT-B (PICKABLE NOW)** | **S-5.04** | not-started | 5 | S-5.03 MERGED (SATISFIED) | Sensor Health Subsystem. remove-uncertainty before TDD per D-1110. DEMO-CRITICAL-PATH. |
-| **NEXT-C (PICKABLE NOW, draft) — DEMO-BLOCKING D-1243** | **S-DEMO-PRISMQL-ONBOARDING-001** | draft (story file authored) | 13 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING per user directive 2026-06-19 (D-1243).** 4-layer LLM auto-onboarding teaching surface. T13 capstone requires Claude to author PrismQL against per-client schemas — this teaching mechanism is prerequisite. ADR-041 v1.1 design package ready. remove-uncertainty before TDD per D-1110. |
-| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone (not yet named) | not-authored | TBD | **PIVOT-003 (DEMO-BLOCKING) + S-5.04 (DEMO-BLOCKING) + S-DEMO-PRISMQL-ONBOARDING-001 (DEMO-BLOCKING D-1243) — all 3 must MERGE** | PO + story-writer. The demo's capstone deliverable. All 3 DEMO-BLOCKING stories are HARD gates. |
+| **NEXT-C (PICKABLE NOW, draft) — DEMO-BLOCKING D-1243** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.0 (authored — D-1248 decomposition) | 7 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** MCP teaching surface (L1+L2+L3). Pipelines behind S-5.04 (prism-mcp conflict avoidance). remove-uncertainty before TDD per D-1110. |
+| **NEXT-D (PICKABLE NOW, draft) — DEMO-BLOCKING D-1243** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.0 (authored — D-1248 decomposition) | 6 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Query engine (L4 errors + normalized_pql). Pipelines behind PIVOT-003 (prism-query/core conflict avoidance). remove-uncertainty before TDD per D-1110. |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone (not yet named) | not-authored | TBD | **PIVOT-003 + S-5.04 + 001-A + 001-B (all 4 DEMO-BLOCKING, all must MERGE)** | PO + story-writer. The demo's capstone deliverable. All 4 DEMO-BLOCKING stories are HARD gates. |
 | **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
 
 **Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
