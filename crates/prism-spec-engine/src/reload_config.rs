@@ -117,6 +117,20 @@ pub fn reload_config(
         });
     }
 
+    // Carry forward org_display_names from the old snapshot before applying.
+    //
+    // org_display_names is populated once at boot (step 4b.5 in boot.rs) from
+    // prism.toml [[orgs]] entries. parse_spec_directory only scans *.sensor.toml
+    // files and cannot reconstruct org_display_names (it has no access to prism.toml).
+    // Without this carry-forward, every reload replaces org_display_names with an
+    // empty HashMap, making render_client_list_resource return null display_name
+    // for all orgs after the first reload.
+    //
+    // Mirrors the add_sensor_spec carry-forward pattern in add_sensor_spec.rs
+    // (TD-VSDD-060 sibling-sweep: add_sensor_spec already clones the prior snapshot,
+    // preserving org_display_names; reload_config was the only path that dropped it).
+    candidate.org_display_names = old_snapshot.org_display_names.clone();
+
     // Apply the new snapshot (partial or full success)
     manager.store(candidate);
 
@@ -241,10 +255,12 @@ fn diff_snapshots(
 }
 
 /// Validate a candidate ConfigSnapshot before applying it.
-/// Returns Ok(()) if validation passes, or Err with all validation errors.
+/// Returns `Ok(())` if the candidate has no failed_specs (all parsed files were valid).
+/// Returns `Err(errors)` with the list of `ValidationError`s if any file failed to parse.
 ///
-/// For S-1.12, we accept any non-empty snapshot as valid. Empty snapshots
-/// (no specs, no failures) are considered invalid to prevent accidental clear.
+/// A snapshot with no sensor_specs and no failed_specs (completely empty) is considered
+/// valid by this function. The caller (`reload_config`) applies additional guards (e.g.,
+/// hash-based no-op detection, EC-001 full-failure retention) before acting on the result.
 pub fn validate_snapshot(candidate: &ConfigSnapshot) -> Result<(), Vec<ValidationError>> {
     // Collect any pre-existing validation errors from failed_specs
     let errors: Vec<ValidationError> = candidate.failed_specs.values().cloned().collect();

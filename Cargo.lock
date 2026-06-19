@@ -5175,15 +5175,20 @@ dependencies = [
  "prism-security",
  "prism-sensors",
  "prism-spec-engine",
+ "prism-storage",
+ "proptest",
  "rmcp",
  "schemars",
+ "secrecy",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
  "ulid",
+ "uuid",
 ]
 
 [[package]]

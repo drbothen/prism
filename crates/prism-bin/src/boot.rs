@@ -1188,6 +1188,33 @@ pub async fn step4_load_sensor_specs_with_overlays(
         snapshot.sensor_specs.clone()
     };
 
+    // Step 4b.5: Populate org_display_names in the ConfigSnapshot from prism.toml [[orgs]].
+    //
+    // BC-2.10.008 v1.11: `display_name` on `ClientInventoryEntry` is sourced from
+    // `OrgEntry.name` in prism.toml. The snapshot produced by `parse_spec_directory`
+    // (step 4a) has `org_display_names = HashMap::new()` — it scans sensor TOML files,
+    // not prism.toml. We store an updated snapshot here with the org names populated.
+    // This keeps the render path clean: `render_client_list_resource` reads from the
+    // config_manager snapshot only, with NO new Arc plumbing (BC-2.10.008 v1.11 decision).
+    {
+        // config_manager: Arc<ArcSwap<ConfigManager>>
+        // .load() gives arc_swap::Guard<Arc<ConfigManager>> → deref to &ConfigManager
+        let cm_guard = config_manager.load();
+        let cm: &prism_spec_engine::config_manager::ConfigManager = &cm_guard;
+        // cm.load() gives arc_swap::Guard<Arc<ConfigSnapshot>> → deref to &ConfigSnapshot
+        let snapshot_guard = cm.load();
+        let current_snapshot: &prism_spec_engine::types::ConfigSnapshot = &snapshot_guard;
+        let org_display_names: std::collections::HashMap<String, Option<String>> = config
+            .orgs
+            .iter()
+            .map(|org| (org.org_slug.clone(), org.name.clone()))
+            .collect();
+        let mut updated = current_snapshot.clone();
+        updated.org_display_names = org_display_names;
+        // cm.store() swaps the ConfigSnapshot; the ArcSwap<ConfigManager> is unchanged.
+        cm.store(updated);
+    }
+
     // Step 4c: Walk customers/ for per-org overlay files and validate against OrgRegistry.
     // BC-2.06.012: absent customers/ → zero resolved entries, boot continues.
     // BC-2.06.015: every customers/<slug>/ is cross-validated against OrgRegistry.
@@ -3094,6 +3121,7 @@ mod tests {
             orgs: vec![OrgEntry {
                 org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
                 org_slug: "acme".to_string(),
+                name: None,
             }],
             credential_backend: CredentialBackendConfig::Keyring,
         };
@@ -3116,6 +3144,7 @@ mod tests {
         let entry = OrgEntry {
             org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
             org_slug: "acme-corp".to_string(),
+            name: None,
         };
         // Kebab-case: lowercase alphanumeric + hyphens.
         let slug = &entry.org_slug;
@@ -3145,6 +3174,7 @@ mod tests {
         let entry = OrgEntry {
             org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
             org_slug: "ACME".to_string(), // uppercase — invalid
+            name: None,
         };
         let slug = &entry.org_slug;
         // The slug FAILS kebab-case validation (step3 must reject this).
@@ -3363,6 +3393,13 @@ pub struct OrgEntry {
     pub org_id: String,
     /// Kebab-case org slug.
     pub org_slug: String,
+    /// Human-readable org display name. Optional. Maps to `display_name` in
+    /// `prism://config/clients` MCP resource.
+    ///
+    /// When present, surfaces as `display_name` in `ClientInventoryEntry`
+    /// (BC-2.10.008 v1.11). When absent, `display_name` serialises as JSON `null`.
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 impl OrgEntry {
@@ -3374,6 +3411,7 @@ impl OrgEntry {
         Self {
             org_id: org_id.into(),
             org_slug: org_slug.into(),
+            name: None,
         }
     }
 }

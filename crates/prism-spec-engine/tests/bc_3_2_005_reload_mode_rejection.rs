@@ -97,6 +97,7 @@ fn snapshot_single_with_mode(sensor_id: &str, mode: DtuMode) -> ConfigSnapshot {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: format!("snap_{sensor_id}_{mode:?}"),
+        org_display_names: HashMap::new(),
     }
 }
 
@@ -115,6 +116,7 @@ fn snapshot_multi_with_mode(sensor_ids: &[&str], mode: DtuMode) -> ConfigSnapsho
         sensor_specs: specs,
         failed_specs: HashMap::new(),
         snapshot_hash: format!("snap_multi_{}", sensor_ids.join("_")),
+        org_display_names: HashMap::new(),
     }
 }
 
@@ -267,6 +269,7 @@ fn test_BC_3_2_005_multi_dtu_only_changed_ones_appear() {
         sensor_specs: old_specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "snap_old_multi".to_string(),
+        org_display_names: HashMap::new(),
     };
 
     // Candidate: armis=Shared (unchanged), crowdstrike=Shared (unchanged), claroty=Shared (changed!)
@@ -287,6 +290,7 @@ fn test_BC_3_2_005_multi_dtu_only_changed_ones_appear() {
         sensor_specs: cand_specs,
         failed_specs: HashMap::new(),
         snapshot_hash: "snap_cand_multi".to_string(),
+        org_display_names: HashMap::new(),
     };
 
     let warnings = detect_mode_changes(&old, &candidate);
