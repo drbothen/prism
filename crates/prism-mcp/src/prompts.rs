@@ -14,11 +14,14 @@
 //!
 //! `client_id` is validated via `OrgSlug::new` (rejects path-traversal chars,
 //! control characters, and injection payloads — same guard as tool calls and
-//! resource handlers). `hostname` and `time_range` are validated to contain only
-//! printable ASCII (no control characters, no shell/SQL metacharacters likely to
-//! be confused as prompt instructions). On invalid input the render functions
-//! return `Err(ErrorData::invalid_params(...))` with a GENERIC message that does
-//! NOT echo the raw payload (avoids log-injection and AI-prompt-injection vectors).
+//! resource handlers). `hostname` is validated against a tightened allowlist
+//! (`[a-zA-Z0-9._:-]`, 1–253 chars) that excludes shell/SQL metacharacters.
+//! `time_range` is validated to contain only printable ASCII (0x20..=0x7e,
+//! 1–32 chars), which allows date separators and units while still blocking
+//! control characters and high-byte injections. On invalid input the render
+//! functions return `Err(ErrorData::invalid_params(...))` with a GENERIC message
+//! that does NOT echo the raw payload (avoids log-injection and
+//! AI-prompt-injection vectors).
 //!
 //! # Wiring
 //!
@@ -82,13 +85,15 @@ fn validate_hostname(hostname: &str) -> Result<(), ErrorData> {
     Ok(())
 }
 
-/// Validate an optional free-text `time_range` argument.
+/// Validate a `time_range` argument that is already known to be present.
 ///
 /// Accepts any printable ASCII character (0x20..=0x7e); max 32 characters.
 /// This deliberately allows characters such as `/`, space, and digits that
 /// are valid in time-range expressions (e.g. "24h", "7d", "2026-01-01/2026-01-07")
 /// but would be rejected by the stricter hostname allowlist.
-/// Returns `Ok(())` for `None` (the argument is optional).
+///
+/// The caller is responsible for handling the optional case; this function only
+/// validates a `&str` that has already been unwrapped from the `Option`.
 fn validate_time_range(time_range: &str) -> Result<(), ErrorData> {
     let is_valid = !time_range.is_empty()
         && time_range.len() <= 32
@@ -262,8 +267,9 @@ pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorDat
 
 /// Render the `investigate_host` prompt for the given `client_id` and `hostname`.
 ///
-/// Validates `client_id` via `OrgSlug::new` and `hostname` via printable-ASCII check
-/// before interpolation (DI-006 / OBS-1). Returns `Err(ErrorData::invalid_params(...))`
+/// Validates `client_id` via `OrgSlug::new` and `hostname` via tightened allowlist
+/// (`[a-zA-Z0-9._:-]`, 1-253 chars) before interpolation (DI-006 / OBS-1).
+/// Returns `Err(ErrorData::invalid_params(...))`
 /// with a generic message that does NOT echo the raw payload on validation failure.
 ///
 /// Guides cross-sensor correlation by hostname or IP address.
