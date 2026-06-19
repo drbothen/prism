@@ -142,7 +142,7 @@ fn validate_ssrf_safe(base_url: &str, spec_path: &str) -> Result<(), InfusionErr
     Ok(())
 }
 
-/// Returns `true` if the IP address is private, loopback, or link-local.
+/// Returns `true` if the IP address is private, loopback, link-local, or unspecified.
 ///
 /// Checked ranges (RFC-1918 + loopback + link-local + extended CWE-918 blocks):
 /// - 10.0.0.0/8  — RFC-1918
@@ -153,6 +153,9 @@ fn validate_ssrf_safe(base_url: &str, spec_path: &str) -> Result<(), InfusionErr
 /// - 100.64.0.0/10 — CGNAT shared address space (RFC-6598)
 /// - 169.254.0.0/16 — IPv4 link-local
 /// - ::1 — IPv6 loopback
+/// - :: (all-zeros) — IPv6 unspecified (SSRF-IPV6-UNSPECIFIED-001 / CWE-918)
+///   On dual-stack hosts, a socket bound to `::` accepts connections on ALL interfaces
+///   including loopback. An attacker supplying `http://[::]/` can reach any such service.
 /// - ::ffff:0:0/96 — IPv4-mapped IPv6 (canonicalized to IPv4 for check)
 /// - fe80::/10 — IPv6 link-local
 /// - fd00::/8 — IPv6 unique local (starts with 0xfd)
@@ -160,6 +163,12 @@ fn is_private_or_loopback(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => is_private_or_loopback_v4(v4),
         IpAddr::V6(v6) => {
+            // :: (all-zeros) — IPv6 unspecified address (CWE-918 / SSRF-IPV6-UNSPECIFIED-001).
+            // On dual-stack hosts, `::` binds to all interfaces including loopback.
+            // `http://[::]/` must be blocked the same as `http://127.0.0.1/`.
+            if v6.is_unspecified() {
+                return true;
+            }
             // ::1 — IPv6 loopback
             if v6.is_loopback() {
                 return true;
@@ -654,6 +663,71 @@ mod tests {
         assert!(
             !is_private_or_loopback(ip),
             "FIX-5 regression guard: 1.1.1.1 (public) must NOT be blocked by is_private_or_loopback"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // SSRF-IPV6-UNSPECIFIED-001 tests (CWE-918)
+    // -----------------------------------------------------------------------
+
+    /// IPv6 unspecified address `::` (all-zeros) must be rejected by is_private_or_loopback.
+    ///
+    /// On dual-stack hosts, a socket bound to `::` listens on ALL interfaces, including
+    /// loopback. An attacker supplying `http://[::]/` can reach internal services.
+    /// This is a structural fix, not a doc-comment: is_private_or_loopback must return
+    /// true for `::` so that validate_ssrf_safe rejects it as a blocked address.
+    ///
+    /// SSRF-IPV6-UNSPECIFIED-001 / CWE-918.
+    #[test]
+    fn test_is_private_or_loopback_ipv6_unspecified_blocked() {
+        let ip: IpAddr = "::".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "SSRF-IPV6-UNSPECIFIED-001: `::` (IPv6 unspecified) must be blocked by \
+             is_private_or_loopback — on dual-stack hosts it binds to all interfaces \
+             including loopback, equivalent to SSRF risk of 127.0.0.1"
+        );
+    }
+
+    /// validate_ssrf_safe must reject a bracketed IPv6 unspecified literal URL `http://[::]/`.
+    ///
+    /// This drives the production SSRF gate code path (validate_ssrf_safe, not just the
+    /// helper), confirming that the `url` crate parses `[::]` as the `::` IP and that the
+    /// gate correctly blocks it (SSRF-IPV6-UNSPECIFIED-001 / CWE-918).
+    #[test]
+    fn test_validate_ssrf_safe_rejects_bracketed_ipv6_unspecified_url() {
+        let result = validate_ssrf_safe("http://[::]/api/v1", "test.infusion.toml");
+        assert!(
+            matches!(result, Err(InfusionError::SsrfRejected { .. })),
+            "SSRF-IPV6-UNSPECIFIED-001: validate_ssrf_safe must return SsrfRejected for \
+             `http://[::]/` (bracketed IPv6 unspecified literal); got: {:?}",
+            result
+        );
+    }
+
+    /// validate_ssrf_safe must still allow a public IPv6 address (2606:4700:4700::1111 — Cloudflare).
+    ///
+    /// Regression guard: the `::` unspecified fix must NOT block valid public IPv6 addresses.
+    #[test]
+    fn test_validate_ssrf_safe_allows_public_ipv6_address() {
+        // 2606:4700:4700::1111 is Cloudflare's public DNS resolver — unambiguously public.
+        let result = validate_ssrf_safe("http://[2606:4700:4700::1111]/", "test.infusion.toml");
+        assert!(
+            result.is_ok(),
+            "SSRF-IPV6-UNSPECIFIED-001 regression guard: public IPv6 address must NOT be blocked; \
+             got: {:?}",
+            result
+        );
+    }
+
+    /// ::1 (IPv6 loopback) must remain blocked (regression guard — pre-existing behaviour).
+    #[test]
+    fn test_is_private_or_loopback_ipv6_loopback_still_blocked() {
+        let ip: IpAddr = "::1".parse().unwrap();
+        assert!(
+            is_private_or_loopback(ip),
+            "SSRF-IPV6-UNSPECIFIED-001 regression guard: ::1 (IPv6 loopback) must still \
+             be blocked by is_private_or_loopback after adding the `::` unspecified check"
         );
     }
 }
