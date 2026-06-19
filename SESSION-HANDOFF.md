@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.870"
+version: "7.871"
 status: current
 timestamp: 2026-06-19T06:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1236 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT (2026-06-19). develop@5c747549 (feat(S-1.14-REDO) MERGED PR #193 2026-06-19). ci.yml EXPECTED=70. CLAUDE.md non-exhaustive=70. Lane A DONE: S-1.14-REDO MERGED. Lane B (S-5.03): worktree @14189f22; PR #194 OPEN HEAD 3c4252d5; needs rebase onto develop@5c747549 + EXPECTED 72→76 + r5 PR-LEVEL 3-CLEAN(strict). Lane C (PIVOT-002): worktree @0f958261 UNBLOCKED; devops-engineer rebase onto develop@5c747549 NEXT; EXPECTED →82. Merge B/C independent. PROCESS-GAP LESSONS 1–3 appended to lessons.md. D-1236 = authoritative snapshot (supersedes D-1234+D-1235). STATE v7.869→v7.870.**
+> **D-1237 SHA CORRECTION (2026-06-19): feature/S-5.03 @ 14189f22 PUSHED; PR #194 remote==local==14189f22; CI running on 14189f22 (stale-base, EXPECTED=72 self-consistent) — MOOT pending develop rebase. D-1236 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT (2026-06-19). develop@5c747549 (feat(S-1.14-REDO) MERGED PR #193 2026-06-19). ci.yml EXPECTED=70. CLAUDE.md non-exhaustive=70. Lane A DONE: S-1.14-REDO MERGED. Lane B (S-5.03): worktree @14189f22; PR #194 OPEN HEAD 14189f22 PUSHED; needs rebase onto develop@5c747549 + EXPECTED 72→76 + r5 PR-LEVEL 3-CLEAN(strict). Lane C (PIVOT-002): worktree @0f958261 UNBLOCKED; devops-engineer rebase onto develop@5c747549 NEXT; EXPECTED →82. Merge B/C independent. D-1237 = SHA correction (3c4252d5→14189f22). STATE v7.870→v7.871.**
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1236** (authoritative zero-context restart protocol; supersedes D-1234+D-1235). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1235 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1236 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `5c747549` (feat(S-1.14-REDO): Full Infusion Engine — Loader, Registry, Runtime, Cache Integration; PR #193 squash-merged 2026-06-19). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.870.
+> develop HEAD `5c747549` (feat(S-1.14-REDO): Full Infusion Engine — Loader, Registry, Runtime, Cache Integration; PR #193 squash-merged 2026-06-19). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.871.
 
 ---
 
@@ -88,7 +88,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 ## §RESUME SNAPSHOT — D-1236 (2026-06-19 — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT; develop_head 5c747549; PR #194 OPEN; 2 DEMO-BLOCKING LANES; STATE v7.870)
 
-> **D-1236: COMPREHENSIVE ZERO-CONTEXT DURABILITY SNAPSHOT. develop_head 5c747549 (feat(S-1.14-REDO): Full Infusion Engine — Loader, Registry, Runtime, Cache Integration; PR #193 squash-merged 2026-06-19). ci.yml EXPECTED=70 on develop@5c747549 (CONFIRMED; S-1.14-REDO added 4 types). CLAUDE.md non-exhaustive count=70 (CONFIRMED). 2 DEMO-BLOCKING LANES: (1) S-5.03 @14189f22 (worktree) / PR #194 OPEN HEAD 3c4252d5 — branch feature/S-5.03; story v1.22; needs rebase onto develop@5c747549 (EXPECTED 72→76 reconciliation); r5 PR-LEVEL 3-CLEAN(strict) on rebased+pushed frozen HEAD NEXT; INDEPENDENT (no sequencing dep on PIVOT-002). (2) PIVOT-002 @0f958261 branch feature/S-DEMO-ENRICHMENT-PIVOT-002 — clean (pre-rebase); story v1.4; UNBLOCKED (F-SV-1 dep satisfied by S-1.14-REDO merge); devops-engineer rebase onto develop@5c747549 NEXT; verify production ThreatIntel uses real InfusionSource post-rebase; EXPECTED →82. Merge B/C independent. D-1234+D-1235 SUPERSEDED by this D-1236 snapshot.**
+> **D-1237 SHA CORRECTION applied: feature/S-5.03 @ 14189f22 PUSHED; PR #194 remote==local==14189f22; CI running on 14189f22 (stale-base, EXPECTED=72 self-consistent) — MOOT pending develop rebase. D-1236: COMPREHENSIVE ZERO-CONTEXT DURABILITY SNAPSHOT. develop_head 5c747549 (feat(S-1.14-REDO): Full Infusion Engine — Loader, Registry, Runtime, Cache Integration; PR #193 squash-merged 2026-06-19). ci.yml EXPECTED=70 on develop@5c747549 (CONFIRMED; S-1.14-REDO added 4 types). CLAUDE.md non-exhaustive count=70 (CONFIRMED). 2 DEMO-BLOCKING LANES: (1) S-5.03 @14189f22 (worktree) / PR #194 OPEN HEAD 14189f22 PUSHED — branch feature/S-5.03; story v1.22; needs rebase onto develop@5c747549 (EXPECTED 72→76 reconciliation); r5 PR-LEVEL 3-CLEAN(strict) on rebased+pushed frozen HEAD NEXT; INDEPENDENT (no sequencing dep on PIVOT-002). (2) PIVOT-002 @0f958261 branch feature/S-DEMO-ENRICHMENT-PIVOT-002 — clean (pre-rebase); story v1.4; UNBLOCKED (F-SV-1 dep satisfied by S-1.14-REDO merge); devops-engineer rebase onto develop@5c747549 NEXT; verify production ThreatIntel uses real InfusionSource post-rebase; EXPECTED →82. Merge B/C independent. D-1234+D-1235 SUPERSEDED by D-1236. D-1236 snapshot corrected by D-1237 (SHA update only).**
 
 ---
 
@@ -110,7 +110,7 @@ Expected: `5c747549` (feat(S-1.14-REDO): Full Infusion Engine; PR #193 squash-me
 ```bash
 gh pr list --state open --base develop
 ```
-Expected: PR #194 OPEN (feature/S-5.03; HEAD 3c4252d5 or newer if additional commits pushed).
+Expected: PR #194 OPEN (feature/S-5.03; HEAD 14189f22 or newer if additional commits pushed).
 
 **Step 4.** Check worktree state:
 ```bash
@@ -137,9 +137,9 @@ Expected: S-5.03 HEAD `14189f22` (docs: comprehensive PR-diff doc-accuracy sweep
 |----------|-------|-------|
 | develop HEAD | `5c747549` | feat(S-1.14-REDO): Full Infusion Engine; PR #193 squash-merged 2026-06-19 (D-1235). |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` | Do not hard-code; git owns this |
-| Open PRs | **PR #194 OPEN** | feature/S-5.03; HEAD 3c4252d5 (comprehensive doc-accuracy sweep pushed); awaiting rebase onto develop@5c747549 + r5 PR-LEVEL 3-CLEAN(strict). |
+| Open PRs | **PR #194 OPEN** | feature/S-5.03; HEAD 14189f22 PUSHED (remote==local==14189f22; CI running on 14189f22 stale-base MOOT pending rebase); awaiting rebase onto develop@5c747549 + EXPECTED 72→76 + r5 PR-LEVEL 3-CLEAN(strict). |
 | S-1.14-REDO worktree | STALE (MERGED) | branch feature/S-1.14-REDO MERGED; worktree `.worktrees/S-1.14-REDO` STALE — devops-engineer may prune |
-| S-5.03 worktree | ACTIVE | `.worktrees/S-5.03` — branch feature/S-5.03 — HEAD 14189f22 (comprehensive doc-accuracy sweep) — clean; PR #194 OPEN HEAD 3c4252d5 |
+| S-5.03 worktree | ACTIVE | `.worktrees/S-5.03` — branch feature/S-5.03 — HEAD 14189f22 (comprehensive doc-accuracy sweep) — clean; PR #194 OPEN HEAD 14189f22 PUSHED (remote==local==14189f22; D-1237 corrected from 3c4252d5) |
 | PIVOT-002 worktree | ACTIVE (UNBLOCKED) | `.worktrees/S-DEMO-ENRICHMENT-PIVOT-002` — branch feature/S-DEMO-ENRICHMENT-PIVOT-002 — HEAD 0f958261 (pre-rebase); devops-engineer rebase onto develop@5c747549 NEXT |
 | S-3.09 worktree | FROZEN | `.worktrees/S-3.09` — leave alone |
 | W3-FIX-S307-001 worktree | BLOCKED/superseded | `.worktrees/W3-FIX-S307-001` — leave alone |
@@ -168,7 +168,7 @@ Expected: S-5.03 HEAD `14189f22` (docs: comprehensive PR-diff doc-accuracy sweep
 | Lane | Story | Worktree | Branch | HEAD | Phase / Streak | EXACT NEXT ACTION |
 |------|-------|----------|--------|------|----------------|-------------------|
 | **L-POST-A — DONE** | S-1.14-REDO (Full Infusion Engine) | `.worktrees/S-1.14-REDO` (STALE) | `feature/S-1.14-REDO` (MERGED) | **5c747549** (squash commit on develop) | **MERGED PR #193** — POL-14 complete; S-1.14 graduated ADR-020 | **DONE.** devops-engineer may prune `.worktrees/S-1.14-REDO`. |
-| **L-POST-B (INDEPENDENT)** | S-5.03 (MCP Resources & Prompts) | `.worktrees/S-5.03` | `feature/S-5.03` | **14189f22** (local worktree; PR #194 HEAD **3c4252d5**) | PR-LEVEL — r5 needed on rebased HEAD | **STEP B1:** devops-engineer merges/rebases feature/S-5.03 onto develop@5c747549. **STEP B2:** Reconcile non-exhaustive EXPECTED: develop=70; S-5.03 adds +6 types → EXPECTED must become 76 in ci.yml AND scripts/check-non-exhaustive.sh AND CLAUDE.md ("70 types"→"76 types"). Resolve any merge conflicts. **STEP B3:** Push rebased HEAD. CI green. **STEP B4:** Frozen-HEAD rule (DRIFT-ORCH-PRLEVEL-PUSH-001): rebase push RESETS PR-LEVEL streak to 0/3. Run r5 as fresh-start 3-CLEAN(strict) on the rebased frozen HEAD. DO-NOT-REFLAG any D-1236 DO-NOT-REFLAG items. **STEP B5:** On 3-CLEAN(strict) + CI green → pr-manager squash-merge. **STEP B6 (POST-MERGE BURST):** POL-14 promote BC-2.08.005 v1.7 / BC-2.08.006 v1.6 / BC-2.10.008 v1.12 / BC-2.16.007 v1.7 / BC-2.15.010 (verify exact set from story behavioral_contracts) draft→active; update develop_head; CLAUDE.md+ci.yml EXPECTED=76 on develop. OBS-S503-1 (reload_config.rs DOT-vs-underscore) — DEFERRED to S-5.11 maintenance. OBS-3 DEC-004 → product-owner S-5.04 (DO-NOT-REFLAG as S-5.03 blocker). |
+| **L-POST-B (INDEPENDENT)** | S-5.03 (MCP Resources & Prompts) | `.worktrees/S-5.03` | `feature/S-5.03` | **14189f22** (local==remote; PR #194 HEAD **14189f22** PUSHED; D-1237 corrected from 3c4252d5) | PR-LEVEL — r5 needed on rebased HEAD | **STEP B1:** devops-engineer merges/rebases feature/S-5.03 onto develop@5c747549. **STEP B2:** Reconcile non-exhaustive EXPECTED: develop=70; S-5.03 adds +6 types → EXPECTED must become 76 in ci.yml AND scripts/check-non-exhaustive.sh AND CLAUDE.md ("70 types"→"76 types"). Resolve any merge conflicts. **STEP B3:** Push rebased HEAD. CI green. **STEP B4:** Frozen-HEAD rule (DRIFT-ORCH-PRLEVEL-PUSH-001): rebase push RESETS PR-LEVEL streak to 0/3. Run r5 as fresh-start 3-CLEAN(strict) on the rebased frozen HEAD. DO-NOT-REFLAG any D-1236 DO-NOT-REFLAG items. **STEP B5:** On 3-CLEAN(strict) + CI green → pr-manager squash-merge. **STEP B6 (POST-MERGE BURST):** POL-14 promote BC-2.08.005 v1.7 / BC-2.08.006 v1.6 / BC-2.10.008 v1.12 / BC-2.16.007 v1.7 / BC-2.15.010 (verify exact set from story behavioral_contracts) draft→active; update develop_head; CLAUDE.md+ci.yml EXPECTED=76 on develop. OBS-S503-1 (reload_config.rs DOT-vs-underscore) — DEFERRED to S-5.11 maintenance. OBS-3 DEC-004 → product-owner S-5.04 (DO-NOT-REFLAG as S-5.03 blocker). |
 | **L-POST-C (UNBLOCKED — rebase ready)** | PIVOT-002 (ThreatIntel/NVD dual-path) | `.worktrees/S-DEMO-ENRICHMENT-PIVOT-002` | `feature/S-DEMO-ENRICHMENT-PIVOT-002` | **0f958261** (pre-rebase; clean) | UNBLOCKED — awaiting rebase onto develop@5c747549 | **STEP C1:** devops-engineer rebases PIVOT-002 onto updated develop@5c747549 (includes F-SV-1 plugin boot-wiring from S-1.14-REDO). **STEP C2:** Verify production ThreatIntel enrichment uses real InfusionSource (not NullSource) after rebase. **STEP C3:** Verify E-INFUSE-004 http_lookup valid-types message in story v1.4 is consistent post-rebase. **STEP C4:** Reconcile non-exhaustive EXPECTED (develop@merge-time EXPECTED + PIVOT-002's types). **STEP C5:** LOCAL 3-CLEAN(strict) adversary passes on rebased frozen HEAD. DO-NOT-REFLAG CRIT-1/2a/2b/HIGH-1/2/3/4 — ALL CLOSED pre-rebase. **STEP C6:** Push → PR-LEVEL 3-CLEAN → merge. EXPECTED →82 after merge (assuming B merges first; if C merges first, EXPECTED calculation differs). |
 
 ---
@@ -224,7 +224,7 @@ Expected: S-5.03 HEAD `14189f22` (docs: comprehensive PR-diff doc-accuracy sweep
 - output_columns must be a subset of adds_columns — ratified scope boundary
 - infusion_name == infusion_id — ratified invariant
 
-**S-5.03 closures (LOCAL + PR-LEVEL r1–r4; all verified at 14189f22 / PR #194 HEAD 3c4252d5):**
+**S-5.03 closures (LOCAL + PR-LEVEL r1–r4; all verified at 14189f22 / PR #194 HEAD 14189f22 PUSHED; D-1237 corrected from 3c4252d5):**
 
 | Finding | Status | Closure Note |
 |---------|--------|-------------|
@@ -346,7 +346,7 @@ These items are CLOSED or DEFERRED-BY-HUMAN. A fresh session must NOT reopen the
 |----|--------|------|-------|
 | **L-A through L-T12** | **CLOSED** | S-5.02 / S-3.13 / T10 / T11 / T12 — all merged. | DONE. |
 | **L-POST-A** | **DONE — MERGED PR #193** | S-1.14-REDO MERGED develop@5c747549 2026-06-19 (D-1235). POL-14 BC-2.19.002/004/005 draft→active. S-1.14 graduated ADR-020. ci.yml EXPECTED=70. | DONE |
-| **L-POST-B** | **IN PROGRESS — PR #194 OPEN; r5 PR-LEVEL 3-CLEAN pending** | S-5.03 @14189f22 (worktree) / PR #194 HEAD 3c4252d5: rebase onto develop@5c747549 → EXPECTED 72→76 reconciliation → r5 PR-LEVEL 3-CLEAN(strict) on rebased frozen HEAD → merge. OBS-S503-1 → S-5.11 deferral. DO-NOT-REFLAG r1–r4 items. | INDEPENDENT |
+| **L-POST-B** | **IN PROGRESS — PR #194 OPEN; r5 PR-LEVEL 3-CLEAN pending** | S-5.03 @14189f22 (worktree) / PR #194 HEAD 14189f22 PUSHED (remote==local; D-1237 corrected from 3c4252d5): rebase onto develop@5c747549 → EXPECTED 72→76 reconciliation → r5 PR-LEVEL 3-CLEAN(strict) on rebased frozen HEAD → merge. OBS-S503-1 → S-5.11 deferral. DO-NOT-REFLAG r1–r4 items. | INDEPENDENT |
 | **L-POST-C** | **UNBLOCKED — awaiting rebase** | PIVOT-002 @0f958261: devops-engineer rebase onto develop@5c747549 → verify production ThreatIntel uses real InfusionSource → LOCAL 3-CLEAN → push → PR-LEVEL 3-CLEAN → merge. EXPECTED →82. | UNBLOCKED |
 | **L-POST-D** | not-started | S-5.04: remove-uncertainty → 12-gate TDD; depends S-5.03 MERGED. | After L-POST-B |
 | **L-POST-E** | not-started | PIVOT-003: 12-gate TDD; depends PIVOT-002 MERGED. | After L-POST-C |
@@ -373,7 +373,7 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.870 | D-1236 zero-context snapshot; develop_head 5c747549 (S-1.14-REDO MERGED); PR #194 OPEN @3c4252d5; S-5.03@14189f22 worktree; PIVOT-002@0f958261 |
+| STATE.md | v7.871 | D-1237 SHA correction; D-1236 zero-context snapshot; develop_head 5c747549 (S-1.14-REDO MERGED); PR #194 OPEN HEAD 14189f22 PUSHED (remote==local; corrected from 3c4252d5); S-5.03@14189f22 worktree; PIVOT-002@0f958261 |
 | BC-INDEX | v6.79 | active 235 / draft 2 / retired 6; total 250; BC-2.19.001 v2.1 (E-INFUSE-012); BC-2.16.007 v1.7 active; BC-2.08.005 v1.7; BC-2.19.002/004/005 active per D-1235 |
 | STORY-INDEX | v2.431 | 203 stories; S-1.14-REDO v1.6 merged; S-1.14 v1.12 graduated; S-5.03 v1.22; PIVOT-002 v1.4 |
 | error-taxonomy | v1.89 | E-INFUSE-012 (SourceFileTooLarge, CWE-400 guard); E-INFUSE-009/010/011 (HttpLookup lifecycle) |
@@ -382,7 +382,7 @@ Three stories in the current parallel batch (PIVOT-001, S-3.13, S-5.02) each shi
 | prd | v1.12 | — |
 | policies | v1.33 | POL-33 route_coverage_table_required_for_stagemask_changes |
 | develop HEAD | `5c747549` | feat(S-1.14-REDO): Full Infusion Engine; PR #193 squash-merged 2026-06-19 (D-1235) |
-| Open PRs | PR #194 OPEN | feature/S-5.03 HEAD 3c4252d5; awaiting rebase onto develop@5c747549 + EXPECTED 72→76 + r5 PR-LEVEL 3-CLEAN(strict) |
+| Open PRs | PR #194 OPEN | feature/S-5.03 HEAD 14189f22 PUSHED (remote==local; D-1237 corrected from 3c4252d5); awaiting rebase onto develop@5c747549 + EXPECTED 72→76 + r5 PR-LEVEL 3-CLEAN(strict) |
 
 
 ### 2 ACTIVE LANES — Current SHAs + Phase + Next Action (D-1196 baseline)
