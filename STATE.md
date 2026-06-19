@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.868"
+version: "7.869"
 producer: state-manager
-timestamp: 2026-06-18T23:00:00Z
+timestamp: 2026-06-19T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,10 +16,10 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "60249ccc"
-bc_index_version: "6.78"
+develop_head: "5c747549"
+bc_index_version: "6.79"
 vp_index_version: "1.79"
-story_index_version: "v2.430"
+story_index_version: "v2.431"
 arch_index_version: "2.137"
 error_taxonomy_version: "1.89"
 total_stories: 203
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1234 COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT. Lane A: S-1.14-REDO PR #193 OPEN. HEAD 4133d186 (fix: cross-platform infusion spec discovery, Windows path separator). Story v1.5; BC-2.19.001 v2.1; error-taxonomy v1.89; non-exhaustive gate in-branch=70. This-session all-CLOSED fixes: SEC-001/E-INFUSE-012 (source-file 100 MiB guard, 4 load-bearing tests); F-HOTRELOAD-OVERSIZE-1 (load_spec/load_spec_with_runtime/hot_reload propagate SourceFileTooLarge as Err — reject+preserve; EC-19-004 missing-file degrade preserved); OBS-1 InfusionError #[non_exhaustive] (gate 69→70, v70 enum_violation); Windows spec-discovery (test-fixture TOML backslash-path → '/' + 2 regression tests; production loader.rs unchanged); demo evidence (31 artifacts, all 10 ACs). PR-LEVEL 3-CLEAN previously converged 3/3(strict) on frozen f819a70d; RESET by CI-fix push to 4133d186 (frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001). NEXT: (1) CI green on 4133d186 (Windows+musl re-run; musl prior failure was transient disk-full, not code); (2) PR-LEVEL 3-CLEAN(strict) on frozen 4133d186; (3) pr-manager squash-merge FIRST (D-1221); (4) POST-MERGE BURST: POL-14 promote BC-2.19.001..005 draft→active; S-1.14 graduate per ADR-020; CLAUDE.md '66 types'+ci.yml EXPECTED arrive at 70 via merge diff; update develop_head; PIVOT-002 unblocked for rebase. Lane B: S-5.03 HEAD 8ac556dc; story v1.22; BC-2.10.008 v1.12/BC-2.08.005 v1.7/BC-2.08.006 v1.6/BC-2.16.007 v1.7/BC-2.15.010 v1.4; round-6 LOCAL 3-CLEAN(strict) pending. PIVOT-002: BLOCKED on rebase (D-1221; F-SV-1 ThreatIntel dep; HEAD 0f958261; story v1.4; E-INFUSE-004 http_lookup message sync obligation recorded). MERGE SEQUENCING D-1221 LOCKED: S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. develop_head UNCHANGED 60249ccc. STATE v7.867→v7.868."
+current_step: "D-1235 S-1.14-REDO POST-MERGE BURST (2026-06-19). Lane A DONE: PR #193 squash-merged develop@5c747549. PR-LEVEL 3-CLEAN(strict) converged @889817d4 r3. CI 43/43 (musl flake cleared). Demo evidence 31 artifacts/10 ACs. POL-14 promoted: BC-2.19.002/BC-2.19.004/BC-2.19.005 status draft→active (lifecycle_status was already active; no count change; BC-2.19.001+BC-2.19.003 idempotent — already active per D-1192). S-1.14-REDO v1.5→v1.6 merged. S-1.14 v1.11→v1.12 graduated per ADR-020. BC-INDEX v6.78→v6.79. STORY-INDEX v2.430→v2.431. develop_head 60249ccc→5c747549. PIVOT-002 now UNBLOCKED for rebase (F-SV-1 dep satisfied by S-1.14-REDO merge). Lane B: S-5.03 HEAD 8ac556dc; story v1.22; round-6 LOCAL 3-CLEAN(strict) pending (INDEPENDENT). Lane C (PIVOT-002): HEAD 0f958261; UNBLOCKED — awaiting devops-engineer rebase onto updated develop (includes S-1.14-REDO infusion_load_step+PluginRuntime wiring). NEXT: (1) devops-engineer rebase PIVOT-002 onto develop@5c747549; (2) verify prod ThreatIntel enrichment uses real InfusionSource post-rebase; (3) Lane B S-5.03 parallel: fix 3 strict-only OBS → freeze HEAD → 3-CLEAN → PR-LEVEL → merge. STATE v7.868→v7.869."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-18 (D-1233 SEC-001 CWE-400 fix-in-scope spec burst: BC-2.19.001 v2.1 + error-taxonomy v1.89 + story S-1.14-REDO v1.5; Lane A code HEAD 61517526; STATE v7.867)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-19 (D-1235 S-1.14-REDO post-merge burst: PR #193 squash-merged develop@5c747549; POL-14 BC-2.19.002/004/005 draft→active; S-1.14 graduated ADR-020; develop_head 60249ccc→5c747549; STATE v7.869)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (3 active lanes in LOCAL convergence; develop@60249ccc). ALL PRIOR LANES CLOSED: Lane A (S-5.02 MERGED PR #191), Lane B (S-3.13 MERGED PR #192), C (PIVOT-001 MERGED PR #189), D (CLOSED), E (LAUNCHER MERGED PR #190), T10/T11/T12 DONE. DEMO-BLOCKING LANES IN PROGRESS: S-1.14-REDO @2020dbf0 (CLEAN; MERGES FIRST D-1221) + S-5.03 @5a444a5f (independent) + PIVOT-002 @0f958261 (BLOCKED on rebase). MERGE SEQUENCING (D-1221): S-1.14-REDO FIRST → PIVOT-002 rebase → S-5.03 independent. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1226 (authoritative; supersedes D-1206 + D-1207..D-1225; D-1227 HEAD correction).
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (develop@5c747549). Lane A DONE: S-1.14-REDO MERGED PR #193 develop@5c747549 2026-06-19. ALL PRIOR LANES CLOSED: Lane A (S-5.02 MERGED PR #191), Lane B (S-3.13 MERGED PR #192), C (PIVOT-001 MERGED PR #189), D (CLOSED), E (LAUNCHER MERGED PR #190), T10/T11/T12 DONE, S-1.14-REDO MERGED PR #193. REMAINING DEMO-BLOCKING LANES: S-5.03 @8ac556dc (INDEPENDENT; round-6 LOCAL 3-CLEAN pending) + PIVOT-002 @0f958261 (UNBLOCKED — awaiting rebase onto develop@5c747549). SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1234 + D-1235 overlay (authoritative).
 
 ## Phase Progress
 
@@ -104,15 +104,16 @@ pre_compact_snapshot_at: "2026-06-15"
 | **5: S-DEMO-ENRICHMENT-PIVOT-001 (T12 / PR #189)** | **MERGED** | 2026-06-15 | 2026-06-16 | PR #189 develop@1b2e9a31 | PR-LEVEL 3/3 strict CONVERGED (passes 1/2/3 on frozen 5553cc91; BC-5.39.001 D-779); POL-14 BC-2.19.001+BC-2.19.003 status: draft→active (legacy sync; lifecycle_status already active); non-exhaustive gate UNCHANGED (EXPECTED=60; PIVOT added no gate-scoped types) |
 | **5: S-5.02 (D-1107 SCOPE-IN)** | **MERGED** | 2026-06-12 | 2026-06-17 | PR #191 develop@bec894a2 | Lane A PR-LEVEL 3/3 strict CONVERGED on frozen 86842768; pr-reviewer APPROVE; CI 43/43 green; POL-14 BC-2.10.011 status:draft→active (lifecycle_status already active — legacy sync); BC-2.10.004+BC-2.10.007 idempotent; non-exhaustive EXPECTED 60→64 (+4 pub types); DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 open |
 | **5: S-3.13 (D-1107 SCOPE-IN)** | **MERGED** | 2026-06-12 | 2026-06-16 | PR #192 develop@60249ccc | Lane B PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65; pr-reviewer APPROVE; CI green; POL-14 BC-2.16.007 status:draft→active (lifecycle_status already active — legacy sync); BC-2.16.001+BC-2.11.001 idempotent; non-exhaustive EXPECTED 64→66 (+2 pub types: TableNotAvailableDetails + TableRegistry); DRIFT-S313-EVIDENCE-STALE-SHA tracked; BOTH open lanes CLOSED |
-| **5: S-1.14-REDO (D-1205 DEMO-BLOCKING)** | **PR-LEVEL 3-CLEAN IN PROGRESS (streak reset by SEC-001 fix push)** | 2026-06-17 | — | feature/S-1.14-REDO code HEAD 61517526 (SEC-001 fix) | SEC-001 CWE-400 fixed in-scope (D-1233): BC-2.19.001 v2.1 + error-taxonomy v1.89 + story v1.5 (AC-11/EC-008); pushed → PR #193 updated → PR-LEVEL 3-CLEAN restart; EXPECTED 66→69 (+3 prism-query types) at merge FIRST per D-1221 |
+| **5: S-1.14-REDO (D-1205 DEMO-BLOCKING)** | **MERGED** | 2026-06-17 | 2026-06-19 | PR #193 develop@5c747549 | PR-LEVEL 3-CLEAN(strict) converged @889817d4 r3; CI 43/43; demo evidence 31 artifacts/10 ACs; squash-merged; POL-14 BC-2.19.001..005 draft→active; S-1.14 graduated per ADR-020; non-exhaustive gate 66→70; EXPECTED=70 |
 | **5: S-5.03 (D-1107 SCOPE-IN)** | **IN PROGRESS — 3-CLEAN NEEDED** | 2026-06-17 | — | feature/S-5.03@23aac4ca | PR-merge-clean; needs strict-clean 3-CLEAN; F-001..F-007 fix-burst closed (tautological scoping, DI-008 per-org, VP-050 vacuous, reachable false-positive, AC-9 unwired, mutex, non-exhaustive EXPECTED→72); OBS-3 BC-2.08.005 DEC-004 zero-sensor message → product-owner S-5.04/targeted story (out of S-5.03 scope); streak 0/3 |
-| **5: PIVOT-002 (D-1205 DEMO-BLOCKING)** | **BLOCKED — REBASE PENDING** | 2026-06-17 | — | feature/S-DEMO-ENRICHMENT-PIVOT-002@0f958261 | Dual-path (NVD HttpLookup real + ThreatIntel WASM guest real + .prx fixture E2E test); CRIT-1/2a/2b/HIGH-1+all HIGH/MED closed; CLAUDE.md EXPECTED=69 synced; BLOCKED on rebase onto S-1.14-REDO post-merge (PIVOT-002 branched from develop@60249ccc, pre-F-SV-1 boot-wiring); needs rebase → verify production ThreatIntel enrichment → 3-CLEAN; streak 0/3 |
+| **5: PIVOT-002 (D-1205 DEMO-BLOCKING)** | **UNBLOCKED — REBASE READY** | 2026-06-17 | — | feature/S-DEMO-ENRICHMENT-PIVOT-002@0f958261 (pre-rebase) | S-1.14-REDO MERGED — F-SV-1 dep satisfied; devops-engineer rebase onto develop@5c747549 NEXT; verify production ThreatIntel enrichment wiring post-rebase; 3-CLEAN; EXPECTED →76 after merge |
 
 ## Current Phase Steps
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log._
+| D-1235 | state-manager | 2026-06-19 | **S-1.14-REDO POST-MERGE BURST (TD-VSDD-053 single-commit).** PR #193 squash-merged develop@5c747549 2026-06-19. PR-LEVEL 3-CLEAN(strict) converged @889817d4 r3; CI 43/43 (musl crates.io network-flake cleared via re-run); demo evidence 31 artifacts/10 ACs. **POL-14 BC promotions:** BC-2.19.001: idempotent (already active per D-1192). BC-2.19.002: status draft→active (lifecycle_status was already active — legacy-field sync; no count change). BC-2.19.003: idempotent (already active per D-1192). BC-2.19.004: status draft→active (legacy-field sync; no count change). BC-2.19.005: status draft→active (legacy-field sync; no count change). Actual flips: BC-2.19.002, BC-2.19.004, BC-2.19.005. active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001) UNCHANGED. **Story changes:** S-1.14-REDO status: not-started→merged v1.5→v1.6. S-1.14 status: partial-merge→merged v1.11→v1.12 (ADR-020 graduation by S-1.14-REDO). **Indexes:** BC-INDEX v6.78→v6.79. STORY-INDEX v2.430→v2.431. **develop_head 60249ccc→5c747549.** PIVOT-002 now UNBLOCKED for rebase. Non-exhaustive gate develop@5c747549 EXPECTED=70 (S-1.14-REDO added 4 types vs 66 baseline; S-1.14-REDO D-1234 notes EXPECTED 66→70). STATE v7.868→v7.869. |
 | D-1233 | state-manager | 2026-06-18 | **SEC-001 (CWE-400) FIX-IN-SCOPE SPEC BURST (TD-VSDD-053 single-commit).** PR #193 PR-LEVEL round-1: 2/3 adversary passes CLEAN(strict); pass-3 only ratified-deferred E-INFUSE-004→PIVOT-002; pr-reviewer APPROVE (3 cosmetic NITs); security-reviewer 1 LOW = SEC-001 CWE-400 (unbounded CSV/JSON/MMDB source-file load). Fix cascade human-approved 2026-06-18 (user directive: fix all issues before build). PO: E-INFUSE-012 added to BC-2.19.001 v2.0→v2.1 (MAX_SOURCE_FILE_BYTES=100 MiB; InfusionError::SourceFileTooLarge{path,size,limit}; precondition table row; §Postconditions) + error-taxonomy v1.88→v1.89 (E-INFUSE-012 row: InfusionError::SourceFileTooLarge/SEC-001/CWE-400). Implementer: InfusionError::SourceFileTooLarge variant + fs::metadata size guards in CsvSource/JsonLookupSource/MmdbSource + 4 load-bearing tests + 3 cosmetic NITs (engine.rs TTL comment, HashSet, evidence-report typo). Story S-1.14-REDO v1.4→v1.5 (EC-008 InfusionError::SourceFileTooLarge, AC-11 size-guard tests; story spec propagation). Lane A code HEAD 61517526 (just check green; non-exhaustive gate 69 UNCHANGED). BC-INDEX v6.77→v6.78. STORY-INDEX v2.429→v2.430. error_taxonomy_version 1.88→v1.89. develop_head UNCHANGED 60249ccc. STATE v7.866→v7.867. |
 | D-1232 | state-manager | 2026-06-18 | **ROUND-5 LOCAL 3-CLEAN CASCADES COMPLETE (BOTH LANES).** Lane A (S-1.14-REDO): LOCAL 3-CLEAN ACHIEVED on frozen code HEAD 95a1d811 — all 3 independent round-5 fresh-context passes returned CLEAN(strict)=yes (only out-of-perimeter note: E-INFUSE-004 http_lookup → PIVOT-002, not counted). Demo evidence (31 artifacts, all 10 ACs) committed atop as HEAD 0cfd2f2c (docs-only; does NOT reset LOCAL code convergence). ENTERING MERGE PATH (merges FIRST per D-1221): push → PR-LEVEL 3-CLEAN → squash-merge. Expected post-merge non-exhaustive gate 66→69. Lane B (S-5.03): round-5 found 1 MED (story EC-004/EC-005 prescribed retired `status` enum — code correct; story fixed v1.21→v1.22 → two-phase-probe terms, HEAD 8ac556dc) + 2 LOW. LOW-1 (ci.yml running-tally + violation doc-numbering 66→72 reconcile) FIXED → HEAD 8ac556dc; just check 4475 green; gate 72. LOW-2 (OBS-S503-1) DEFERRED — taxonomy-sweep deferral anchor: "taxonomy-sweep (BC-2.16.007 v1.5 changelog)". NEXT: re-freeze Lane B at 8ac556dc → round-6 LOCAL 3-CLEAN. DEFERRAL OBS-S503-1: reload_config.rs::diff_snapshots DOT vs underscore separator in reload-result arrays — pre-existing from S-3.13, out-of-S-5.03-perimeter-deliverable, acknowledged by BC-2.16.007 v1.5 changelog; does NOT affect S-5.03 AC-9 notification gate; DO-NOT-REFLAG against S-5.03. INFRA: +89G disk reclaimed (S-1.14-REDO target cargo-cleaned; now ~179Gi free). PIVOT-002: UNCHANGED — BLOCKED on rebase onto S-1.14-REDO post-merge (D-1221). STORY-INDEX v2.428→v2.429. develop_head UNCHANGED 60249ccc. STATE v7.865→v7.866. |
 | D-1221 | state-manager | 2026-06-17 | **MERGE SEQUENCING DECISION (TD-VSDD-053 single-commit cascade ledger burst).** (1) S-1.14-REDO merges FIRST — infusion engine + plugin boot-wiring foundation (F-SV-1: infusion_load_step→PluginRuntime); EXPECTED 66→67 (+Tier3CacheEntry). (2) PIVOT-002 rebases onto post-merge develop, verifies production ThreatIntel enrichment via S-1.14-REDO wiring, then 3-CLEAN → merge; EXPECTED →76 (+3 final, per prior D-1213 note). (3) S-5.03 is independent (MCP resources; depends only on already-merged S-3.13) — can merge any time after its own 3-CLEAN; EXPECTED 66→72 (+6 prism-mcp types). (4) Non-exhaustive EXPECTED reconciliation: S-1.14-REDO merge→67; S-5.03 merge→72 (order-independent of PIVOT-002); PIVOT-002 merge→76 (rebases onto whichever is newer); CLAUDE.md + ci.yml updated by orchestrator at each merge. develop_head UNCHANGED 60249ccc. STATE v7.854→v7.855. |
@@ -294,22 +295,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1234 — 2026-06-18; STATE v7.868)
+## Session Resume Checkpoint (D-1235 — 2026-06-19; STATE v7.869)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1234** (authoritative; supersedes D-1226 + all D-1227..D-1233 overlays).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1234** (base) + **D-1235 overlay** (header callout; authoritative).
 
-**STATE v7.868. CURRENT POSITION: L-POST — Lane A (S-1.14-REDO) PR #193 OPEN at HEAD 4133d186; PR-LEVEL 3-CLEAN NEEDED on frozen 4133d186 (streak reset by Windows-fix push). develop@60249ccc. total_stories 203. ci.yml EXPECTED=66; in-branch gate=70. bc_index_version 6.78. story_index_version v2.430. arch_index_version 2.137. error_taxonomy_version 1.89. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
+**STATE v7.869. CURRENT POSITION: L-POST — Lane A DONE (S-1.14-REDO MERGED PR #193 develop@5c747549 2026-06-19). develop@5c747549. total_stories 203. ci.yml EXPECTED=70. bc_index_version 6.79. story_index_version v2.431. arch_index_version 2.137. error_taxonomy_version 1.89. vp_index_version 1.79. prd_version 1.12. policies_version 1.33.**
 
-**3 ACTIVE LANES:**
-- **S-1.14-REDO @4133d186 — PR #193 OPEN** — all fixes committed (SEC-001/E-INFUSE-012 + F-HOTRELOAD-OVERSIZE-1 + OBS-1 InfusionError #[non_exhaustive] gate 70 + Windows path); story v1.5; BC-2.19.001 v2.1; error-taxonomy v1.89. NEXT: CI green on 4133d186 → PR-LEVEL 3-CLEAN(strict) on frozen HEAD → squash-merge **FIRST (D-1221)** → POST-MERGE BURST.
-- **S-5.03 @8ac556dc** — story v1.22; round-6 LOCAL 3-CLEAN(strict) pending (INDEPENDENT; no sequencing dep).
-- **PIVOT-002 @0f958261** — BLOCKED on rebase onto S-1.14-REDO (D-1221; F-SV-1 dep).
+**2 REMAINING DEMO-BLOCKING LANES:**
+- **S-5.03 @8ac556dc** — story v1.22; round-6 LOCAL 3-CLEAN(strict) pending (INDEPENDENT; rebase onto develop@5c747549 before PR for EXPECTED reconciliation 72→76).
+- **PIVOT-002 @0f958261** — UNBLOCKED; devops-engineer rebase onto develop@5c747549 NEXT (F-SV-1 dep satisfied by S-1.14-REDO merge).
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1234 (authoritative; all prior snapshots superseded).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1234 + D-1235 overlay (authoritative; all prior snapshots superseded).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `60249ccc`.
-3. `gh pr list --state open --base develop` → expect PR #193 OPEN.
-4. `git -C .worktrees/S-1.14-REDO log --oneline -1` → expect `4133d186`.
-5. Apply lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-6. Drive lanes per §RESUME SNAPSHOT D-1234 EXACT NEXT ACTION. Autonomy D-989+D-1090 active.
+2. `git log --oneline -1 origin/develop` → expect `5c747549`.
+3. `gh pr list --state open --base develop` → expect NO open feature PRs.
+4. Apply lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+5. Drive lanes per §RESUME SNAPSHOT D-1234 ACTIVE LANES (D-1235 updated). Autonomy D-989+D-1090 active.

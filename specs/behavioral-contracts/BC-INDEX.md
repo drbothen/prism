@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.78"
+version: "6.79"
 status: draft
 producer: state-manager
-timestamp: 2026-06-18T17:00:00Z
+timestamp: 2026-06-19T00:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 235
@@ -246,10 +246,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v2.1 (D-1233 2026-06-18: E-INFUSE-012 MAX_SOURCE_FILE_BYTES=100 MiB source-file size guard; InfusionError::SourceFileTooLarge{path,size,limit}; SEC-001/CWE-400; precondition + postcondition row added; was v2.0 — D-1229 2026-06-18: output_columns Option-b subset; infusion_name registry-key; dup-infusion_id last-writer-wins+purge) |
-| BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1235 per POL-14; lifecycle_status was already active; anchor story S-1.14-REDO merged PR #193 develop@5c747549 2026-06-19) |
 | BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1192 per POL-14; lifecycle_status was already active; anchor story S-DEMO-ENRICHMENT-PIVOT-001 merged PR #189 develop@1b2e9a31 2026-06-16) — v1.3 |
-| BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
-| BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | active (status: legacy field synced draft→active D-1235 per POL-14; lifecycle_status was already active; anchor story S-1.14-REDO merged PR #193 develop@5c747549 2026-06-19) |
+| BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-031 | P0 | active (status: legacy field synced draft→active D-1235 per POL-14; lifecycle_status was already active; anchor story S-1.14-REDO merged PR #193 develop@5c747549 2026-06-19) |
 | BC-2.20.001 | Log Forwarder Recursive Prevention — Plugin host.log() Writes to Local Sink Only | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.002 | Log Forwarder Min-Level Filter — Per-Destination min_level Applied Before Enqueue | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.003 | Log Forwarder Queue Cap — Drop-Oldest on Overflow with Metric Emission | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.79 (2026-06-19, D-1235 S-1.14-REDO post-merge burst):** state-manager | POL-14 legacy-status-field sync: BC-2.19.002 inline row: status draft→active (lifecycle_status was already active; anchor story S-1.14-REDO merged PR #193 develop@5c747549 2026-06-19). BC-2.19.004 inline row: status draft→active (same pattern). BC-2.19.005 inline row: status draft→active (same pattern). BC-2.19.002/BC-2.19.004/BC-2.19.005 `status:` frontmatter fields: draft→active. No `lifecycle_status` flip (all were already active). No count changes: active_contracts 235 / draft_contracts 2 (BC-2.06.011 + BC-2.21.001 — BC-2.19.002/004/005 had lifecycle_status:active before this burst and were never counted in draft_contracts) / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.78→v6.79.
 
 **v6.78 (2026-06-18, D-1233 SEC-001 CWE-400 fix-in-scope spec burst):** state-manager | BC-2.19.001 inline row: v2.0→v2.1 — E-INFUSE-012 added: MAX_SOURCE_FILE_BYTES=100 MiB source-file size guard; InfusionError::SourceFileTooLarge{path,size,limit} error variant; SEC-001/CWE-400; precondition table row (file size ≤ 100 MiB) + postcondition entry added; applies to CsvSource/JsonLookupSource/MmdbSource. Human-approved fix-in-scope 2026-06-18 (user directive). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 2 / total_contracts 250 ALL UNCHANGED. BC-INDEX v6.77→v6.78.
 
