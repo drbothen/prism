@@ -191,12 +191,20 @@ pub async fn probe_connectivity(
         }
     };
 
-    // Minimal probe query — LIMIT 0 (adapter owns the endpoint path from the sensor TOML spec;
-    // source_table is used for SensorSpec construction only — adapter routes to the correct
-    // endpoint regardless of this field for LIMIT-0 probes per FIX-001/v1.6).
+    // Minimal probe query — LIMIT 0.
+    //
+    // source_table is derived from the sensor's own ID to be sensor-generic:
+    //   `{sensor_id}_devices` → e.g. "crowdstrike_devices", "armis_devices".
+    // SpecDrivenSensorAdapter strips the sensor prefix when routing table selection;
+    // if no matching table exists (e.g. before S-1.11 adds read-side tables), the
+    // for-loop over spec.tables is empty and adapter returns Ok([]) without making
+    // HTTP requests. Once tables are added, the probe routes to the "devices" table
+    // (the canonical first table for all current sensors) — BC-2.08.001 / FIX-001 v1.6.
+    // F-S504-P2-009: generalized from CrowdStrike-specific "devices" to sensor-id-prefixed form.
+    let probe_source_table = format!("{}_devices", adapter.sensor_type());
     #[allow(deprecated)]
     let spec = SensorSpec {
-        source_table: "devices".to_string(),
+        source_table: probe_source_table,
         org_id: actual_org_id,
         client_id: String::new(),
         sensor_config: serde_json::Value::Null,
