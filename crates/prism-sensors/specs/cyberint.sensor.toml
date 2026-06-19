@@ -103,6 +103,59 @@ ocsf_class = "detection_finding"
   column_type = "string"
   ocsf_field = "metadata.product.vendor_name"
 
+  # ---------------------------------------------------------------------------
+  # AC-006 (S-DEMO-ENRICHMENT-PIVOT-003): IOC columns — real-schema fields added
+  # to support the canonical ThreatIntel pivot query (AC-007).
+  # BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix: Cyberint alerts carry IOC fields.
+  # SAP-2 compliance: all columns have matching fields in prism-dtu-cyberint/src/types.rs
+  # Alert struct (ioc: Option<Ioc>, iocs: Vec<Ioc>, alert_data: Option<AlertData>).
+  #
+  # NOTE on column names vs serde aliases:
+  # `iocs[].type` is the PRIMARY wire key per `#[serde(rename = "type")]` on Ioc.ioc_type.
+  # The serde alias `ioc_type` is NOT a separate TOML column — it is resolved at the Rust
+  # struct level transparently. TOML spec uses the primary wire names only.
+  # (BC-2.06.019 v1.8 INCONCLUSIVE inner-key pending live-tenant validation)
+  # ---------------------------------------------------------------------------
+
+  # Singleton top-level IOC — PENDING-LIVE-VALIDATION (may be removed if absent in live API).
+  # DTU: Alert.ioc.ioc_type (primary wire key: "type" via serde rename).
+  [[tables.columns]]
+  name = "ioc.type"
+  column_type = "string"
+
+  # DTU: Alert.ioc.value (primary wire key: "value").
+  [[tables.columns]]
+  name = "ioc.value"
+  column_type = "string"
+
+  # List-form IOC array — CONFIRMED via Check Point sk182975 + FortiSOAR connector.
+  # DTU: Alert.iocs[].ioc_type (primary wire key: "type" via serde rename).
+  [[tables.columns]]
+  name = "iocs[].type"
+  column_type = "string"
+
+  # DTU: Alert.iocs[].value (primary wire key: "value").
+  # This is the field used in the canonical ThreatIntel pivot query:
+  #   FROM cyberint_alerts | where severity = "high" | enrich threat_intel(ioc.value)
+  [[tables.columns]]
+  name = "iocs[].value"
+  column_type = "string"
+
+  # Network IOC surface — alert_data.ip, alert_data.domain, alert_data.url.
+  # `url` CONFIRMED via FortiSOAR connector; `ip`/`domain` UNCONFIRMED-plausible.
+  # DTU: Alert.alert_data.ip / .domain / .url (Option<String> each).
+  [[tables.columns]]
+  name = "alert_data.ip"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "alert_data.domain"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "alert_data.url"
+  column_type = "string"
+
   # Cursor-based pagination
   # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
   # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes::alerts::list_alerts

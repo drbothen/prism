@@ -162,6 +162,67 @@ pub fn generate(org_id: OrgId, org_slug: &str, archetype: Archetype, opts: &GenO
     }
 }
 
+/// Generate Armis fixture records with scenario CVE catalog projected onto device records.
+///
+/// AC-008 / U17 / Ruling 1b (S-DEMO-ENRICHMENT-PIVOT-003): projects `device_cves_first`
+/// as a scalar field onto scenario-enabled Armis device records. The scalar value is
+/// `catalog_device_cves[0]` (first CVE ID from the catalog list as a String).
+///
+/// This enables the NVD pivot query:
+/// ```text
+/// | where has device_cves
+/// | enrich nvd(device_cves_first)
+/// ```
+/// without requiring bracket-index syntax (FieldPath notation not supported in
+/// the PrismQL field path at enrich() time — scalar projection is the workaround).
+///
+/// Stage visibility: `device_cves` is only visible at stage >= 4 (Containment) per
+/// BC-2.06.019 PC-2 StageMask table. The NVD pivot test MUST use stage 4.
+///
+/// Stub: implementer stamps `"device_cves_first": catalog_device_cves[0]` onto
+/// scenario-enabled CompromisedEndpoint device records; non-scenario records omit the key.
+pub fn generate_with_scenario_cves(
+    org_id: OrgId,
+    org_slug: &str,
+    archetype: Archetype,
+    opts: &GenOpts,
+    catalog_device_cves: &[String],
+) -> FixtureSet {
+    // Generate baseline fixture records first.
+    let mut fixture_set = generate(org_id, org_slug, archetype, opts);
+
+    // AC-008 / U17 / Ruling 1b: project `device_cves_first` = catalog_device_cves[0] onto
+    // CompromisedEndpoint device records only. At stage >= 4 (Containment), `device_cves` is
+    // visible per BC-2.06.019 PC-2 StageMask. Non-scenario records MUST NOT include the key
+    // to preserve shape parity with the static fixture path.
+    //
+    // Design: the scalar `device_cves_first` is a projection of catalog_device_cves[0] onto
+    // each DEVICE record (assets, not alerts) because the NVD pivot query:
+    //   | enrich nvd(device_cves_first)
+    // operates at the device record level (U17 / Ruling 1b). If catalog_device_cves is empty,
+    // no stamping occurs — the key is absent, which is correct (has device_cves filter fails → 0
+    // results; that is the expected behavior for an empty CVE catalog).
+    if archetype == Archetype::CompromisedEndpoint && !catalog_device_cves.is_empty() {
+        let cve_first = catalog_device_cves[0].as_str();
+        for record in fixture_set.records.iter_mut() {
+            // Skip alert records — only stamp device/asset records.
+            // Assets do not have a `_surface` discriminator; they have an `asset_id` field.
+            // Alerts have `alert_id` and no `asset_id`. We use presence of `asset_id` as the
+            // discriminator (SAP-2 compliant: matches ArmisState::fixture_gen path).
+            // `_surface` is not emitted by the Armis generator (unlike Cyberint) — use schema
+            // presence instead.
+            if record.get("asset_id").is_none() {
+                continue;
+            }
+            if let Some(obj) = record.as_object_mut() {
+                obj.insert("device_cves_first".to_string(), json!(cve_first));
+            }
+        }
+    }
+
+    fixture_set
+}
+
 // ---------------------------------------------------------------------------
 // Archetype dispatch — one private function per archetype (BC-3.4.003)
 // ---------------------------------------------------------------------------

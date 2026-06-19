@@ -42,6 +42,8 @@ pub use clone::CyberintClone;
 pub use generator::generate;
 #[cfg(feature = "fixture-gen")]
 pub use generator::generate_with_catalog;
+#[cfg(feature = "fixture-gen")]
+pub use generator::generate_with_scenario_iocs;
 #[cfg(any(test, feature = "dtu"))]
 pub use state::CyberintState;
 #[cfg(any(test, feature = "dtu"))]

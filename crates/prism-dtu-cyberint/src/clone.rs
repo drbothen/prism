@@ -256,18 +256,28 @@ impl CyberintClone {
         time_anchor: chrono::DateTime<chrono::Utc>,
         catalog: &prism_dtu_common::ScenarioEntityCatalog,
     ) -> anyhow::Result<Self> {
-        use crate::generator::generate_with_catalog;
+        use crate::generator::generate_with_scenario_iocs;
         use prism_dtu_common::GenOpts;
 
-        // Generate fixture data with catalog CVEs (PC-8 correlation path).
-        // The RNG draw count in generate_with_catalog is IDENTICAL to generate()
-        // (BC-3.4.001 determinism — the gen_range draw always happens in generate_cves).
+        // Generate fixture data with catalog IOC hashes stamped onto alert records (AC-002)
+        // AND catalog CVEs on CVE-surface records (PC-8 / BC-2.06.020).
+        // generate_with_scenario_iocs also stamps iocs[0].value with catalog_ioc_hashes[0]
+        // onto CompromisedEndpoint alert-surface records, enabling the real-schema IOC filter
+        // in routes/alerts.rs to apply StageMask projection (BC-2.06.019 v1.8 PC-4).
         let opts = GenOpts {
             seed,
             time_anchor,
             ..GenOpts::default()
         };
-        let fixture = generate_with_catalog(&org_id, archetype, &opts, &catalog.device_cves);
+        let fixture = generate_with_scenario_iocs(
+            &org_id,
+            archetype,
+            &opts,
+            &catalog.ioc_ips,
+            &catalog.ioc_domains,
+            &catalog.ioc_hashes,
+            &catalog.device_cves,
+        );
 
         // Load static fixtures (required for alert_fixture / alert_store initialization).
         let crate_dir = env!("CARGO_MANIFEST_DIR");

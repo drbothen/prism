@@ -98,6 +98,42 @@ ocsf_class = "detection_finding"
   column_type = "string"
   ocsf_field = "attack.technique.name"
 
+  # ---------------------------------------------------------------------------
+  # AC-005 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors[] IOC columns.
+  # BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix: CrowdStrike detections carry
+  # real IOC fields in behaviors[] array (corrected ioc_type enum: hash_sha256,
+  # hash_md5, domain, filename, registry_key — NOT bare 'hash'/'registry').
+  #
+  # SAP-2 compliance (U19): column names match JSON keys in make_detection() in
+  # crates/prism-dtu-crowdstrike/src/generator.rs (untyped serde_json::Value path).
+  # Adversary MUST verify against generator.rs and fixtures/detections-detail.json,
+  # NOT types.rs (no typed Detection/Behavior struct exists — U19 ruling).
+  #
+  # Tolerant-unknown-type policy: unknown ioc_type tokens (not in corrected enum)
+  # are preserved as raw strings (non-fatal, log only) per BC-2.06.019 v1.8.
+  # ---------------------------------------------------------------------------
+
+  # DTU: behaviors[0].ioc_type — algorithm-qualified token (hash_sha256, hash_md5,
+  # domain, filename, registry_key). 'cmdline' is a SEPARATE sibling field, NOT an ioc_type.
+  [[tables.columns]]
+  name = "behaviors[].ioc_type"
+  column_type = "string"
+
+  # DTU: behaviors[0].ioc_value — the IOC value (hash hex string, domain name, etc.).
+  [[tables.columns]]
+  name = "behaviors[].ioc_value"
+  column_type = "string"
+
+  # DTU: behaviors[0].ioc_source — provenance label (e.g., "catalog", "crowdstrike").
+  [[tables.columns]]
+  name = "behaviors[].ioc_source"
+  column_type = "string"
+
+  # DTU: behaviors[0].ioc_description — human-readable description (e.g., "scenario IOC").
+  [[tables.columns]]
+  name = "behaviors[].ioc_description"
+  column_type = "string"
+
   # Step 1: QueryV2 — GET detection IDs
   # DTU route: GET /detects/queries/detects/v1 (mod.rs line ~189)
   # FQL time-window injection: ${query.filter._fql} carries the CrowdStrike FQL filter string

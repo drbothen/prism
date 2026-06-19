@@ -62,6 +62,65 @@ pub fn generate_with_catalog(
     generate_inner(org_id, archetype, opts, Some(catalog_cves))
 }
 
+/// Generate a `FixtureSet` with scenario IOCs stamped on CompromisedEndpoint alert records
+/// AND scenario CVE IDs on CVE-surface records.
+///
+/// AC-002 (S-DEMO-ENRICHMENT-PIVOT-003): for scenario-enabled Cyberint clones,
+/// alert records produced by `CompromisedEndpoint` generator must carry `iocs[0].value`
+/// set from the catalog's IOC lists so the real-schema IOC filter in `routes/alerts.rs`
+/// can project them correctly against the StageMask.
+///
+/// `catalog_ioc_ips`, `catalog_ioc_domains`, `catalog_ioc_hashes`: IOC values from
+/// `ScenarioEntityCatalog` to stamp on the generated alert records.
+/// `catalog_cves`: CVE IDs to stamp on CVE-surface records (same as `generate_with_catalog`).
+///
+/// Stub: non-trivial IOC-stamping logic deferred to implementer (BC-5.38.001).
+pub fn generate_with_scenario_iocs(
+    org_id: &OrgId,
+    archetype: Archetype,
+    opts: &GenOpts,
+    catalog_ioc_ips: &[String],
+    catalog_ioc_domains: &[String],
+    catalog_ioc_hashes: &[String],
+    catalog_cves: &[String],
+) -> FixtureSet {
+    // Suppress unused-param warnings for non-CompromisedEndpoint archetypes where these
+    // are not consumed; the params are kept in the signature for future extensibility.
+    let _ = (catalog_ioc_ips, catalog_ioc_domains);
+
+    // Step 1: generate the base FixtureSet with catalog CVEs applied.
+    let mut fixture_set = generate_inner(org_id, archetype, opts, Some(catalog_cves));
+
+    // Step 2: for CompromisedEndpoint only, stamp IOC fields onto alert-surface records.
+    // BC-2.06.019 v1.8 PC-4: iocs[0].value carries the catalog IOC hash value so the
+    // real-schema filter in routes/alerts.rs can project it against the StageMask.
+    if archetype == Archetype::CompromisedEndpoint && !catalog_ioc_hashes.is_empty() {
+        let ioc_hash = catalog_ioc_hashes[0].as_str();
+        for record in fixture_set.records.iter_mut() {
+            // Only stamp alert-surface records.
+            if record
+                .get("_surface")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                != "alert"
+            {
+                continue;
+            }
+            // Stamp iocs array with one entry carrying the catalog IOC hash.
+            // Primary wire key "type" per Ioc serde rename (BC-2.06.019 v1.8 INCONCLUSIVE
+            // inner-key — DTU always writes the primary key "type" regardless of live API form).
+            if let Some(obj) = record.as_object_mut() {
+                obj.insert(
+                    "iocs".to_string(),
+                    json!([{"type": "hash_sha256", "value": ioc_hash}]),
+                );
+            }
+        }
+    }
+
+    fixture_set
+}
+
 fn generate_inner(
     org_id: &OrgId,
     archetype: Archetype,

@@ -1,7 +1,7 @@
 //! Red Gate test: BC-2.06.019 PC-4 — Cyberint alerts route StageMask projection
 //!
 //! Traces to: BC-2.06.019 postcondition 4
-//! Story: S-DEMO-DTU-LIVE-SCENARIO-001-B
+//! Story: S-DEMO-DTU-LIVE-SCENARIO-001-B (updated AC-003 / S-DEMO-ENRICHMENT-PIVOT-003)
 //! Finding: BPRL-P2-01
 //!
 //! FAIL mode (Red Gate): routes/alerts.rs fixture-gen path serves all records
@@ -15,8 +15,13 @@
 //!   Stage 3 (Exfil):    scenario_start = now - 400s → elapsed ≈ 400s ≥ 360s → ioc_ips=true
 //!
 //! BC-2.06.019 PC-4 alert-surface semantics (Cyberint):
-//!   ioc_ips=false   → alert records whose `_ioc_value` field matches a catalog IOC IP are excluded
+//!   ioc_ips=false   → alert records whose `alert_data.ip` matches a catalog IOC IP are excluded
 //!   ioc_ips=true    → those records appear in the response
+//!
+//! AC-003 (S-DEMO-ENRICHMENT-PIVOT-003): replaced `_ioc_value`/`_ioc_type` synthetic filter
+//! with real-schema IOC field access (`ioc.value`, `iocs[].value`, `alert_data.ip/domain`).
+//! Synthetic test records use `alert_data.ip` to carry the IOC IP reference — matching
+//! the real Cyberint API schema and the `crate::types::AlertData` struct.
 //!
 //! Load-bearing assertion pattern (TD-VSDD-059): HTTP-level check via a real
 //! CyberintClone server. The test injects a synthetic alert into generated_records
@@ -50,8 +55,12 @@ fn access_token_cookie(token: &str) -> String {
 ///
 /// BC-2.06.019 PC-4: Cyberint alerts route must apply StageMask filtering when
 /// a scenario timeline is present. Alert records carrying an IOC reference
-/// (`_ioc_value` field) that matches a catalog IOC must be excluded when the
-/// corresponding IOC mask field is false.
+/// (real-schema `alert_data.ip` field per AC-003) that matches a catalog IOC
+/// must be excluded when the corresponding IOC mask field is false.
+///
+/// AC-003 (S-DEMO-ENRICHMENT-PIVOT-003): synthetic records use `alert_data.ip`
+/// (real Cyberint schema field) to reference the catalog IOC IP — not the retired
+/// `_ioc_value` synthetic field.
 ///
 /// Asserts:
 ///   Stage 0 (ioc_ips=false): IOC-referencing alert ABSENT from /api/v1/alerts response.
@@ -107,15 +116,10 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
     // This is the load-bearing record: the route handler must EXCLUDE it when
     // ioc_ips=false and INCLUDE it when ioc_ips=true.
     //
-    // Post-construction state mutation is safe: Arc::try_unwrap(clone_stage0.state)
-    // would require breaking the Arc wrapper; instead we manipulate via the public
-    // generated_records field using unsafe Arc mutation — but since this is a test
-    // we use a simpler approach: inject via a separate method.
-    //
-    // The actual injection happens by directly mutating the Arc<CyberintState>
-    // — since generated_records is pub and the Arc has only one owner at this point
-    // (the test holds it; server is not started yet), we use Arc::get_mut which is
-    // safe here.
+    // AC-003 (S-DEMO-ENRICHMENT-PIVOT-003): uses real-schema `alert_data.ip` field
+    // to carry the IOC IP reference. The route handler deserializes each alert as
+    // `crate::types::Alert` and checks `alert_data.ip` against catalog IOC IPs.
+    // The retired `_ioc_value`/`_ioc_type` synthetic fields are not used.
     //
     // Arc::get_mut requires refcount == 1. The clone was just constructed, state
     // is Arc<CyberintState> with refcount=1 at this point (before start()).
@@ -144,10 +148,11 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
             "recommendation": "Investigate.",
             "update_date": "2026-01-01T00:01:00Z",
             "_surface": "alert",
-            // IOC reference field: the route handler checks this field against
-            // the catalog IOC IPs when ioc_ips=false to exclude this record.
-            "_ioc_value": catalog_ioc_ip.clone(),
-            "_ioc_type": "ip",
+            // AC-003: real-schema alert_data.ip carries the IOC IP reference.
+            // Route handler checks alert_data.ip against catalog IOC IPs when ioc_ips=false.
+            "alert_data": {
+                "ip": catalog_ioc_ip.clone()
+            }
         }));
     }
 
@@ -237,6 +242,7 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
     .expect("new_with_scenario for stage-3 must succeed");
 
     // Register access token and inject the synthetic IOC-referencing alert.
+    // AC-003: use real-schema alert_data.ip (same as stage-0 clone above).
     clone_stage3.state.register_access_token(demo_token.clone());
 
     {
@@ -264,8 +270,10 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
             "recommendation": "Investigate.",
             "update_date": "2026-01-01T00:01:00Z",
             "_surface": "alert",
-            "_ioc_value": catalog_ioc_ip.clone(),
-            "_ioc_type": "ip",
+            // AC-003: real-schema alert_data.ip carries the IOC IP reference.
+            "alert_data": {
+                "ip": catalog_ioc_ip.clone()
+            }
         }));
     }
 
@@ -321,9 +329,13 @@ async fn test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter() {
 
 /// Supplementary test: non-IOC-referencing alerts are NOT filtered by IOC masks.
 ///
-/// At stage 0 (ioc_ips=false), alerts without `_ioc_value` must still appear.
+/// At stage 0 (ioc_ips=false), alerts without `alert_data.ip` (AC-003 real-schema
+/// IOC field) referencing a catalog IP must still appear.
 /// This validates that the filter is selective (only IOC-referencing records are
 /// excluded) and does not suppress the entire alerts surface.
+///
+/// AC-003 (S-DEMO-ENRICHMENT-PIVOT-003): IOC-referencing alert uses `alert_data.ip`
+/// (real-schema). Non-IOC alert has no `alert_data.ip` entry (or has an empty ip).
 ///
 /// BC-2.06.019 PC-4: "ioc_hashes/ioc_ips/ioc_domains=false → alert and detection
 /// records REFERENCING those catalog IOCs are excluded" — non-referencing alerts pass.
@@ -368,6 +380,7 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
             Arc::get_mut(&mut clone.state).expect("Arc refcount must be 1 before server start");
 
         // Alert WITH IOC reference — must be excluded at stage 0.
+        // AC-003: uses real-schema alert_data.ip (not retired _ioc_value/_ioc_type).
         state_mut.generated_records.push(serde_json::json!({
             "alert_id": "ioc-referencing-alert",
             "id": "ioc-referencing-alert",
@@ -390,11 +403,14 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
             "recommendation": "Investigate.",
             "update_date": "2026-01-01T00:01:00Z",
             "_surface": "alert",
-            "_ioc_value": catalog_ioc_ip.clone(),
-            "_ioc_type": "ip",
+            // AC-003: real-schema alert_data.ip carries the IOC IP reference.
+            "alert_data": {
+                "ip": catalog_ioc_ip.clone()
+            }
         }));
 
         // Alert WITHOUT IOC reference — must pass through at stage 0.
+        // AC-003: no alert_data.ip field (or alert_data entirely absent) → passes filter.
         state_mut.generated_records.push(serde_json::json!({
             "alert_id": "non-ioc-alert",
             "id": "non-ioc-alert",
@@ -417,7 +433,7 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
             "recommendation": "Investigate.",
             "update_date": "2026-01-01T00:01:00Z",
             "_surface": "alert",
-            // No _ioc_value field — must NOT be filtered.
+            // No alert_data.ip field — must NOT be filtered (not an IOC-referencing alert).
         }));
     }
 
@@ -466,36 +482,42 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
     clone.stop().await.expect("server stop must succeed");
 }
 
-/// Test: fail-closed behavior when `_ioc_value` is present but `_ioc_type` is absent.
+/// Test: iocs[].value IOC hash filtering by StageMask.
 ///
-/// BC-2.06.019 PC-4 projection integrity: a record with `_ioc_value` but no `_ioc_type`
-/// is malformed scenario data. It must be WITHHELD (fail-closed) rather than silently
-/// assuming "ip" — an incorrect type assumption could leak restricted IOC data through
-/// the projection at the wrong stage (BPRL-P3-OBS-1).
+/// AC-003 (S-DEMO-ENRICHMENT-PIVOT-003): the real-schema filter uses `iocs[].value`
+/// (typed `Alert.iocs` array) to extract hash IOC values. At stage 0 (ioc_hashes=false),
+/// alert records with `iocs[].value` matching a catalog hash must be WITHHELD.
+/// At stage 2 (ioc_hashes=true), those records must be PRESENT.
 ///
-/// This test is RED before the fix (old code: `unwrap_or("ip")` — record appears at
-/// stage 3 with the wrong type assumption). After the fix (fail-closed None branch),
-/// the record is withheld at ALL stages.
+/// This test replaces the retired `_ioc_value`/`_ioc_type` fail-closed test (BPRL-P3-OBS-1)
+/// which tested the old synthetic field mechanism. The real-schema approach uses typed
+/// `Alert.iocs` deserialization — records carrying catalog hash IOCs in `iocs[].value`
+/// are withheld when `ioc_hashes=false` (AC-003 real-schema filter in routes/alerts.rs).
+///
+/// BC-2.06.019 PC-4: ioc_hashes=false → alerts referencing catalog IOC hashes are excluded.
 #[tokio::test]
 async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
     let org = deadbeef_org();
     let seed: u64 = 42;
-    let demo_token = "test-demo-token-absent-ioc-type".to_owned();
-
-    // Stage 3 (ioc_ips=true): even when masks allow IOC records, a record with
-    // _ioc_value but no _ioc_type must be withheld (fail-closed).
-    let now = chrono::Utc::now().timestamp();
-    let start_stage3: i64 = now - 400;
+    let demo_token = "test-demo-token-iocs-hash-filter".to_owned();
 
     let catalog = build_scenario_entity_catalog(seed, &org);
-    let catalog_ioc_ip = catalog.ioc_ips[0].clone();
+    assert!(
+        !catalog.ioc_hashes.is_empty(),
+        "catalog.ioc_hashes must be non-empty for this test"
+    );
+    let catalog_hash = catalog.ioc_hashes[0].clone();
+
+    // Stage 0 (Baseline): ioc_hashes=false → alert with iocs[].value = catalog hash must be ABSENT.
+    let now = chrono::Utc::now().timestamp();
+    let start_stage0: i64 = now - 10;
 
     let timeline = Arc::new(build_default_incident_timeline(
         catalog.clone(),
-        start_stage3,
+        start_stage0,
         &[],
     ));
-    let time_anchor = chrono::DateTime::from_timestamp(start_stage3, 0)
+    let time_anchor = chrono::DateTime::from_timestamp(start_stage0, 0)
         .expect("valid timestamp")
         .with_timezone(&chrono::Utc);
 
@@ -515,12 +537,12 @@ async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
         let state_mut =
             Arc::get_mut(&mut clone.state).expect("Arc refcount must be 1 before server start");
 
-        // Malformed record: _ioc_value present, _ioc_type ABSENT.
-        // Fail-closed: must be withheld at all stages.
+        // Alert with iocs[].value = catalog hash — must be withheld at stage 0 (ioc_hashes=false).
+        // AC-003: real-schema `iocs` array is checked by the route handler.
         state_mut.generated_records.push(serde_json::json!({
-            "alert_id": "malformed-absent-ioc-type",
-            "id": "malformed-absent-ioc-type",
-            "ref_id": "REF-absent-type",
+            "alert_id": "iocs-hash-alert",
+            "id": "iocs-hash-alert",
+            "ref_id": "REF-iocs-hash",
             "environment": "production",
             "confidence": 85u64,
             "status": "open",
@@ -533,17 +555,15 @@ async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
             "source_category": "external",
             "source": "cyberint",
             "affected_assets": ["asset.example.com"],
-            "title": "Malformed absent _ioc_type alert",
+            "title": "Alert with iocs[] hash IOC reference",
             "modification_date": "2026-01-01T00:01:00Z",
-            "description": "BPRL-P3-OBS-1 fail-closed test.",
+            "description": "AC-003 real-schema iocs[].value filter test.",
             "recommendation": "Investigate.",
             "update_date": "2026-01-01T00:01:00Z",
             "_surface": "alert",
-            // _ioc_value present but _ioc_type absent — malformed scenario data.
-            // Old code: unwrap_or("ip") → leaks as "ip"-typed record.
-            // New code: fail-closed → withheld.
-            "_ioc_value": catalog_ioc_ip.clone(),
-            // NOTE: _ioc_type field is intentionally absent here.
+            // AC-003: real-schema `iocs` array carries the hash IOC value.
+            // route handler checks iocs[].value against catalog IOC hashes.
+            "iocs": [{"type": "hash_sha256", "value": catalog_hash.clone()}]
         }));
     }
 
@@ -573,14 +593,14 @@ async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
         })
         .collect();
 
-    // Malformed record must be WITHHELD (fail-closed) even at stage 3 where ioc_ips=true.
-    // Without the fix, old unwrap_or("ip") would cause the record to appear here because
-    // at stage 3 ioc_ips=true, so the "ip"-typed path would pass through.
+    // At stage 0 (ioc_hashes=false), the iocs-hash alert must be WITHHELD.
+    // AC-003 real-schema filter: `iocs[].value` = catalog hash → withheld when ioc_hashes=false.
     assert!(
-        !alert_ids.contains(&"malformed-absent-ioc-type".to_owned()),
-        "BPRL-P3-OBS-1 / BC-2.06.019 PC-4: record with _ioc_value but absent _ioc_type \
-         must be WITHHELD (fail-closed) at all stages; found 'malformed-absent-ioc-type' \
-         in {:?}. Route handler must not default _ioc_type='ip' when _ioc_type is absent.",
+        !alert_ids.contains(&"iocs-hash-alert".to_owned()),
+        "BC-2.06.019 PC-4 / AC-003: at stage 0 (ioc_hashes=false), alert 'iocs-hash-alert' \
+         with iocs[].value = catalog hash '{}' must be WITHHELD; found in {:?}. \
+         Route handler must check iocs[].value against catalog IOC hashes.",
+        catalog_hash,
         alert_ids
     );
 

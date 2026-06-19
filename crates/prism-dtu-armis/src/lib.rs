@@ -37,5 +37,7 @@ pub mod types;
 pub use clone::ArmisClone;
 #[cfg(feature = "fixture-gen")]
 pub use generator::generate;
+#[cfg(feature = "fixture-gen")]
+pub use generator::generate_with_scenario_cves;
 #[cfg(any(test, feature = "dtu"))]
 pub use state::ArmisState;
