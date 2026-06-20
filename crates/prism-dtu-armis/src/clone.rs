@@ -270,7 +270,7 @@ impl ArmisClone {
     /// Internally calls `generate_with_scenario_cves` so that CompromisedEndpoint
     /// device records carry `device_cves_first = catalog.device_cves[0]` — the
     /// anchor that makes the NVD pivot `enrich nvd(device_cves_first)` resolve
-    /// at stage ≥ 4 (AC-008 / BC-2.06.019 v1.11).
+    /// at stage ≥ 4 (AC-008 / BC-2.06.019 v1.12).
     ///
     /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
     /// compute the current stage index and apply StageMask filtering.

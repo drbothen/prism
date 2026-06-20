@@ -55,7 +55,7 @@ body_template = '{"alert_ids": ${record_ids}, "reason": "${params.reason|default
 #
 # AC-006 (S-DEMO-ENRICHMENT-PIVOT-003): IOC columns — real-schema fields added
 # to support the canonical ThreatIntel pivot query (AC-007).
-# BC-2.06.019 v1.11 Per-Sensor IOC-Surface Matrix: Cyberint alerts carry IOC fields.
+# BC-2.06.019 v1.12 Per-Sensor IOC-Surface Matrix: Cyberint alerts carry IOC fields.
 # SAP-2 compliance: all columns have matching fields in prism-dtu-cyberint/src/types.rs
 # Alert struct (ioc: Option<Ioc>, iocs: Vec<Ioc>, alert_data: Option<AlertData>).
 #
