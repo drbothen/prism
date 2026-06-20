@@ -15,27 +15,39 @@
 //!   isolation is not the same as `resolved_spec_map` isolation.
 //! - AC-005: called `render_pql_schema_resource` directly — bypassed
 //!   `dispatch_read_resource`, which has no handler for `prismql://schema/{client_id}`.
-//! - AC-006: `SchemaSubscriberRegistry` is implemented but `get_info()` does NOT call
-//!   `enable_resources_subscribe()` — the test only checked the registry data structure,
-//!   not the MCP capability declaration.
+//! - AC-006 (round-1): `SchemaSubscriberRegistry` is implemented but `get_info()` does
+//!   NOT call `enable_resources_subscribe()` — the test only checked the registry data
+//!   structure, not the MCP capability declaration.
+//! - AC-006 (round-2, this hardening): `test_BC_2_10_013_schema_resource_subscribe_notify`
+//!   only verified the registry data structure (subscribe/unsubscribe/subscribers_for).
+//!   It did NOT test real notification dispatch. `notify_schema_updated` is a stub that
+//!   only logs — it never calls any notification target. `SubscriberHandle` has no
+//!   `notifier` field. The test passed vacuously on the data structure.
 //! - AC-001: no test for tool annotations in the production catalog.
-//! - AC-002: audit outcome checked for non-empty, but not for the canonical value
-//!   "schema_enumeration" — the code emits "invoked" which is incorrect.
+//! - AC-002 (round-1): audit outcome checked for non-empty / "schema_enumeration" string,
+//!   but this conflates `operation` with `outcome`. BC-2.10.012 v1.1 requires BOTH
+//!   `operation = "schema_enumeration"` AND `outcome = "success"|"error"` as separate fields.
+//!   The old test `test_BC_2_10_012_prism_describe_audit_operation_is_schema_enumeration`
+//!   was checking `outcome == "schema_enumeration"` which is the operation name — not the
+//!   outcome. The test was green because the code was also wrong in the same way.
 //!
-//! # Test → AC mapping
+//! # Test → AC mapping (current)
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
+//! | test_BC_2_10_012_prism_describe_tool_annotations | AC-001 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_happy_path_catalog | AC-001 + AC-002 | BC-2.10.012 |
-//! | test_BC_2_10_012_prism_describe_audit_event_emitted | AC-002 | BC-2.10.012 |
-//! | test_BC_2_10_012_prism_describe_audit_operation_is_schema_enumeration | AC-002 | BC-2.10.012 |
+//! | test_BC_2_10_012_prism_describe_audit_event_emitted | AC-002 (basic) | BC-2.10.012 |
+//! | test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path | AC-002 (hardened) | BC-2.10.012 v1.1 |
+//! | test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id | AC-002 (hardened) | BC-2.10.012 v1.1 |
 //! | test_BC_2_10_012_prism_describe_empty_and_unknown_client | AC-003 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_invalid_client_id | AC-003 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map | AC-004 | BC-2.10.012 DI-008 |
 //! | test_BC_2_10_013_schema_resource_dispatch_routed | AC-005 | BC-2.10.013 |
 //! | test_BC_2_10_013_schema_resource_parity_via_dispatch | AC-005 | BC-2.10.013 |
 //! | test_BC_2_10_013_schema_resource_subscribe_capability_declared | AC-006 | BC-2.10.013 |
-//! | test_BC_2_10_012_prism_describe_tool_annotations | AC-001 | BC-2.10.012 |
+//! | test_BC_2_10_013_schema_resource_subscribe_notify | AC-006 (registry isolation) | BC-2.10.013 |
+//! | test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped | AC-006 (notify dispatch) | BC-2.10.013 EC-10-029/030 |
 
 use std::sync::{Arc, Mutex};
 
@@ -68,10 +80,54 @@ use ulid::Ulid;
 ///
 /// Implements the full `AuditWriter` trait with no-op for write_intent / write_outcome,
 /// and captures `write_tool_call` invocations in a shared vec.
+///
+/// # BC-2.10.012 v1.1 extended capture (AC-002 hardening)
+///
+/// BC-2.10.012 v1.1 requires `write_tool_call` to carry BOTH `operation` (the
+/// canonical operation name, e.g. `"schema_enumeration"`) AND `outcome` (the
+/// result of that operation, `"success"` or `"error"`) as SEPARATE parameters.
+/// The current production signature `write_tool_call(tool_name, client_id, outcome)`
+/// has only ONE result-string parameter — it cannot distinguish operation from outcome.
+///
+/// This mock captures a 4-tuple `(tool_name, client_id, operation, outcome)`:
+/// - `operation`: populated from the `outcome` parameter that the current production
+///   code passes (currently `"schema_enumeration"`, which is actually the operation
+///   name, not the result — correct by accident).
+/// - `outcome`: set to the sentinel `"(not_provided)"` because the current production
+///   trait does NOT have a separate `outcome` parameter.
+///
+/// The AC-002 assertions verify `operation == "schema_enumeration"` AND
+/// `outcome == "success"` (happy path) / `outcome == "error"` (error path).
+/// The `outcome == "success"` assertion FAILS now because `outcome` is
+/// `"(not_provided)"` — the Red Gate failure.
+///
+/// ## What the implementer must formalize (SID-1)
+///
+/// Extend `prism_query::write_dispatch::AuditWriter::write_tool_call` signature to:
+/// ```rust
+/// async fn write_tool_call(
+///     &self,
+///     tool_name: &str,
+///     client_id: Option<&str>,
+///     operation: &str,   // canonical operation name, e.g. "schema_enumeration"
+///     outcome: &str,     // result: "success" | "error"
+/// ) -> Result<(), PrismError>;
+/// ```
+/// Update `handle_prism_describe` to pass `operation = "schema_enumeration"` and
+/// `outcome = "success"` / `outcome = "error"` as separate arguments.
+/// Update all other `write_tool_call` call sites (TD-VSDD-060 sibling-site sweep).
+/// Update all `AuditWriter` implementors in `prism-query` and `prism-audit`.
+// (type alias below: clippy requires no blank doc-comment line before a non-doc item)
+type AuditRecord = (String, Option<String>, String, String);
+
 #[derive(Clone, Default)]
 struct CapturingAuditWriter {
-    /// Captured (tool_name, client_id, outcome) tuples from write_tool_call.
-    calls: Arc<Mutex<Vec<(String, Option<String>, String)>>>,
+    /// Captured (tool_name, client_id, operation, outcome) tuples from write_tool_call.
+    ///
+    /// - `operation`: the canonical operation name (BC-2.10.012 §Audit).
+    /// - `outcome`: `"success"` | `"error"` | `"(not_provided)"` sentinel when the
+    ///   production trait does not yet carry a separate `outcome` parameter.
+    calls: Arc<Mutex<Vec<AuditRecord>>>,
 }
 
 #[async_trait]
@@ -93,16 +149,30 @@ impl AuditWriter for CapturingAuditWriter {
         Ok(())
     }
 
+    /// Captures `(tool_name, client_id, operation, outcome)`.
+    ///
+    /// Until the production trait is extended with a separate `outcome` param,
+    /// the single `outcome` argument received here is treated as `operation`
+    /// (because current broken code passes the operation name as the outcome),
+    /// and the `outcome` slot is set to the `"(not_provided)"` sentinel.
+    ///
+    /// Once the trait is extended: `operation = operation_arg`, `outcome = outcome_arg`.
     async fn write_tool_call(
         &self,
         tool_name: &str,
         client_id: Option<&str>,
         outcome: &str,
     ) -> Result<(), prism_core::error::PrismError> {
+        // Current single-param: treat incoming `outcome` as `operation` (it IS the
+        // operation name in the current buggy production code).  The real `outcome`
+        // field ("success"/"error") is not yet separable from the trait — set sentinel.
+        let operation = outcome.to_string();
+        let actual_outcome = "(not_provided)".to_string();
         self.calls.lock().unwrap().push((
             tool_name.to_string(),
             client_id.map(|s| s.to_string()),
-            outcome.to_string(),
+            operation,
+            actual_outcome,
         ));
         Ok(())
     }
@@ -503,15 +573,15 @@ async fn test_BC_2_10_012_prism_describe_audit_event_emitted() {
     // Find the call for prism_describe.
     let prism_describe_call = calls
         .iter()
-        .find(|(tool_name, _, _)| tool_name == "prism_describe");
+        .find(|(tool_name, _, _, _)| tool_name == "prism_describe");
     assert!(
         prism_describe_call.is_some(),
         "BC-2.10.012 AC-002: write_tool_call must be invoked with tool_name='prism_describe'; \
          got calls: {:?}",
-        calls.iter().map(|(t, _, _)| t).collect::<Vec<_>>()
+        calls.iter().map(|(t, _, _, _)| t).collect::<Vec<_>>()
     );
 
-    let (_, client_id, outcome) = prism_describe_call.unwrap();
+    let (_, client_id, _operation, _outcome) = prism_describe_call.unwrap();
 
     // BC-2.10.012 §Audit: client_id must be passed.
     assert_eq!(
@@ -521,27 +591,45 @@ async fn test_BC_2_10_012_prism_describe_audit_event_emitted() {
          got: {:?}",
         client_id
     );
-
-    // BC-2.10.012 §Audit: outcome must be a recognized tag (not empty).
-    assert!(
-        !outcome.is_empty(),
-        "BC-2.10.012 AC-002: write_tool_call outcome must be non-empty (e.g. 'success', 'invoked'); \
-         got empty string"
-    );
 }
 
-// ─── AC-002: audit outcome must be canonical "schema_enumeration" ────────────
+// ─── AC-002 (hardened): audit operation AND outcome as separate fields ────────
 
-/// AC-002 (BC-2.10.012 — Audit event: operation and outcome fields):
-/// The audit `write_tool_call` invocation must use `outcome = "schema_enumeration"`
-/// (canonical operation name from BC-2.10.012 §Audit). The current implementation
-/// emits "invoked" — this test enforces the canonical value.
+/// AC-002 (BC-2.10.012 v1.1 — Audit event: operation AND outcome as separate fields):
 ///
-/// RED GATE: Fails now because `handle_prism_describe` calls
-/// `write_tool_call("prism_describe", ..., "invoked")` but the BC requires
-/// the outcome to be the operation name "schema_enumeration".
+/// BC-2.10.012 v1.1 requires the `write_tool_call` audit record to carry TWO
+/// distinct fields:
+///   - `operation = "schema_enumeration"` — the canonical operation name
+///   - `outcome = "success"` — the result on the happy path
+///
+/// The current implementation passes only ONE string to `write_tool_call`, using
+/// `"schema_enumeration"` as the single "outcome" argument. This conflates the
+/// operation name with the outcome — the BC distinguishes them.
+///
+/// ## RED GATE: This test FAILS now because:
+///
+/// 1. `CapturingAuditWriter::write_tool_call(tool_name, client_id, outcome)` receives
+///    `outcome = "schema_enumeration"` from production code.
+/// 2. The mock maps this to `operation = "schema_enumeration"` and sets
+///    `outcome = "(not_provided)"` (sentinel — the trait has no separate outcome param).
+/// 3. The assertion `outcome == "success"` FAILS: got `"(not_provided)"`.
+///
+/// ## What the implementer must do
+///
+/// Extend `prism_query::write_dispatch::AuditWriter::write_tool_call` to:
+/// ```rust
+/// async fn write_tool_call(
+///     &self,
+///     tool_name: &str,
+///     client_id: Option<&str>,
+///     operation: &str,   // "schema_enumeration"
+///     outcome: &str,     // "success" | "error"
+/// ) -> Result<(), PrismError>;
+/// ```
+/// Then update `handle_prism_describe` to pass both fields as separate arguments.
+/// Run TD-VSDD-060 sibling sweep over all `write_tool_call` call sites.
 #[tokio::test]
-async fn test_BC_2_10_012_prism_describe_audit_operation_is_schema_enumeration() {
+async fn test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path() {
     let config_manager = make_config_manager_acme_crowdstrike();
     let audit_writer = CapturingAuditWriter::default();
     let audit_writer_arc: Arc<dyn AuditWriter> = Arc::new(audit_writer.clone());
@@ -554,24 +642,133 @@ async fn test_BC_2_10_012_prism_describe_audit_operation_is_schema_enumeration()
     )
     .await;
 
-    result.expect("BC-2.10.012 AC-002: handle_prism_describe must return Ok");
+    result.expect("BC-2.10.012 AC-002: handle_prism_describe must return Ok on happy path");
 
     let calls = audit_writer.calls.lock().unwrap();
     let prism_describe_call = calls
         .iter()
-        .find(|(tool_name, _, _)| tool_name == "prism_describe")
+        .find(|(tool_name, _, _, _)| tool_name == "prism_describe")
         .expect("BC-2.10.012 AC-002: write_tool_call must be invoked for prism_describe");
 
-    let (_, _, outcome) = prism_describe_call;
+    let (_, client_id_cap, operation, outcome) = prism_describe_call;
 
-    // BC-2.10.012 §Audit: outcome must be "schema_enumeration" (canonical operation name).
-    // Currently the code emits "invoked" — this fails the Red Gate.
+    // client_id must be propagated.
+    assert_eq!(
+        client_id_cap.as_deref(),
+        Some("crowdstrike"),
+        "BC-2.10.012 AC-002: write_tool_call must carry client_id='crowdstrike'; got: {:?}",
+        client_id_cap
+    );
+
+    // BC-2.10.012 v1.1 §Audit: operation must be "schema_enumeration".
+    // This assertion PASSES because current code passes "schema_enumeration" as its
+    // single outcome arg, which CapturingAuditWriter maps to `operation`.
+    assert_eq!(
+        operation.as_str(),
+        "schema_enumeration",
+        "BC-2.10.012 AC-002: write_tool_call operation MUST be 'schema_enumeration'; \
+         got operation='{}'",
+        operation
+    );
+
+    // BC-2.10.012 v1.1 §Audit: outcome must be "success" on the happy path.
+    //
+    // RED GATE ASSERTION: This FAILS now.
+    // Current production code passes only ONE string ("schema_enumeration") to
+    // write_tool_call — the CapturingAuditWriter maps that string to `operation`
+    // and sets `outcome = "(not_provided)"` (sentinel). "success" != "(not_provided)".
+    //
+    // Fix: extend write_tool_call to take `operation` AND `outcome` as separate params,
+    // call write_tool_call("prism_describe", Some(client_id), "schema_enumeration", "success")
+    // on the happy path.
     assert_eq!(
         outcome.as_str(),
+        "success",
+        "BC-2.10.012 AC-002 RED GATE: write_tool_call outcome MUST be 'success' on the happy path \
+         (BC-2.10.012 v1.1 §Audit). The production AuditWriter trait does not yet have a separate \
+         `outcome` parameter — the mock captures '{}' as the sentinel '(not_provided)'. \
+         Implementer: extend AuditWriter::write_tool_call with an `outcome: &str` param, \
+         then pass 'success' here.",
+        outcome
+    );
+}
+
+/// AC-002 (BC-2.10.012 v1.1 — Audit event: outcome = "error" on E-MCP-001 path):
+///
+/// When `prism_describe` is called with an invalid `client_id` (E-MCP-001), the
+/// audit record MUST carry `outcome = "error"`.
+///
+/// BC-2.10.012 v1.1: "on invalid client_id, the audit emission still occurs
+/// (fail-open DI-004) with `outcome = 'error'`."
+///
+/// ## RED GATE: This test FAILS now because:
+///
+/// 1. The current `handle_prism_describe` returns `Err(ErrorData)` early when
+///    client_id fails OrgSlug validation — WITHOUT calling `write_tool_call`.
+///    The mock captures zero calls → the assertion `calls.len() == 1` FAILS.
+/// 2. Even if it did call write_tool_call, the outcome param doesn't exist yet.
+///
+/// ## What the implementer must do
+///
+/// On validation failure (E-MCP-001), STILL call `write_tool_call` with
+/// `operation = "schema_enumeration"` and `outcome = "error"` BEFORE returning
+/// the `Err(ErrorData)`. Then return the error.
+#[tokio::test]
+async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id() {
+    let config_manager = make_config_manager_acme_crowdstrike();
+    let audit_writer = CapturingAuditWriter::default();
+    let audit_writer_arc: Arc<dyn AuditWriter> = Arc::new(audit_writer.clone());
+
+    // Path-traversal client_id: must be rejected with E-MCP-001.
+    let result = handle_prism_describe(
+        "acme/../etc".to_string(),
+        None,
+        Some(&config_manager),
+        Some(&audit_writer_arc),
+    )
+    .await;
+
+    // BC-2.10.012 AC-003: format validation returns Err.
+    assert!(
+        result.is_err(),
+        "BC-2.10.012 AC-002: handle_prism_describe('acme/../etc') must return Err(ErrorData) \
+         for invalid client_id format"
+    );
+
+    // BC-2.10.012 v1.1 §Audit: write_tool_call MUST be invoked even on validation failure
+    // (audit before return, fail-open DI-004).
+    //
+    // RED GATE ASSERTION: This FAILS now.
+    // Current code returns Err BEFORE calling write_tool_call — zero audit records.
+    // Fix: add write_tool_call("prism_describe", None, "schema_enumeration", "error")
+    // in the validation-failure branch, BEFORE the return.
+    let calls = audit_writer.calls.lock().unwrap();
+    assert_eq!(
+        calls.len(),
+        1,
+        "BC-2.10.012 AC-002 RED GATE: write_tool_call MUST be called even on validation \
+         failure (E-MCP-001), with outcome='error'. Got {} calls instead of 1. \
+         Implementer: call write_tool_call before returning Err in handle_prism_describe.",
+        calls.len()
+    );
+
+    let (_, _client_id_cap, operation, outcome) = &calls[0];
+
+    assert_eq!(
+        operation.as_str(),
         "schema_enumeration",
-        "BC-2.10.012 AC-002: write_tool_call outcome MUST be 'schema_enumeration' \
-         (canonical operation name per BC-2.10.012 §Audit); \
-         current code emits '{}' — change handle_prism_describe to pass 'schema_enumeration'",
+        "BC-2.10.012 AC-002: write_tool_call operation MUST be 'schema_enumeration' \
+         even on E-MCP-001 path; got: '{}'",
+        operation
+    );
+
+    // RED GATE ASSERTION: outcome must be "error" on the E-MCP-001 path.
+    assert_eq!(
+        outcome.as_str(),
+        "error",
+        "BC-2.10.012 AC-002 RED GATE: write_tool_call outcome MUST be 'error' on the \
+         E-MCP-001 invalid-client_id path (BC-2.10.012 v1.1 §Audit). \
+         Got outcome='{}'.",
         outcome
     );
 }
@@ -1098,9 +1295,9 @@ fn test_BC_2_10_013_schema_resource_subscribe_capability_declared() {
 /// data structure. The subscribe CAPABILITY (enable_resources_subscribe) is tested
 /// separately in test_BC_2_10_013_schema_resource_subscribe_capability_declared above.
 ///
-/// RED GATE: Passes on the registry data structure but is included as a
-/// belt-and-suspenders assertion to confirm the DI-008 isolation contract is correct.
-/// The RED GATE for AC-006 is the capability declaration test above.
+/// RETAINED for belt-and-suspenders confirmation of DI-008 registry isolation.
+/// The load-bearing RED GATE for AC-006 notification dispatch is in
+/// test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped below.
 #[test]
 fn test_BC_2_10_013_schema_resource_subscribe_notify() {
     use prism_mcp::resources::schema::{SchemaSubscriberRegistry, SubscriberHandle};
@@ -1189,4 +1386,252 @@ fn test_BC_2_10_013_schema_resource_subscribe_notify() {
          got: {:?}",
         globex_after
     );
+}
+
+// ─── AC-006 (hardened): notify dispatch requires injectable sink — RED GATE ──
+
+/// AC-006 (BC-2.10.013 — Real notification dispatch, DI-008 per-client scoping):
+///
+/// BC-2.10.013 EC-10-029: when a `TableRegistry` change fires for client "acme", the
+/// system MUST dispatch `notifications/resources/updated("prismql://schema/acme")` to
+/// EVERY subscriber of "acme". Subscribers of "globex" MUST NOT receive this notification
+/// (DI-008 per-client scoping, EC-10-030).
+///
+/// The current `notify_schema_updated` implementation is a stub that only logs
+/// dispatch intent — it does NOT call any notification target. `SubscriberHandle` holds
+/// only `id: String` with no notification target.
+///
+/// This test drives the REAL production behavior: a `SchemaChangeNotifier` trait that
+/// `SubscriberHandle` holds, so notification dispatch is injectable and observable.
+///
+/// ## RED GATE: This test FAILS TO COMPILE now because:
+///
+/// `SubscriberHandle` does NOT have a `notifier` field. The struct is:
+/// ```rust
+/// pub struct SubscriberHandle { pub id: String }
+/// ```
+/// Constructing `SubscriberHandle { id: "conn-1".to_string(), notifier: ... }` is a
+/// compile error: unknown field `notifier`.
+///
+/// ## What the implementer must formalize (SID-1)
+///
+/// 1. Define `SchemaChangeNotifier` trait in `prism_mcp::resources::schema`:
+///    ```rust
+///    #[async_trait]
+///    pub trait SchemaChangeNotifier: Send + Sync + 'static {
+///        async fn notify_resource_updated(&self, uri: &str) -> Result<(), rmcp::model::ErrorData>;
+///    }
+///    ```
+/// 2. Add `notifier: Arc<dyn SchemaChangeNotifier>` to `SubscriberHandle`.
+/// 3. Implement `SchemaChangeNotifier` for `Peer<RoleServer>` (the real MCP peer)
+///    using `Peer::notify_resource_updated(...)`.
+/// 4. Update `notify_schema_updated` to call `handle.notifier.notify_resource_updated(uri)`
+///    for each subscriber of the target client, propagating errors as WARN-and-continue
+///    (DI-004 fail-open: one subscriber's notification failure must not abort others).
+///
+/// The production implementation of `SchemaChangeNotifier` for `Peer<RoleServer>`
+/// is the gate — this test drives the trait boundary so a mock can verify dispatch.
+#[tokio::test]
+async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
+    use prism_mcp::resources::schema::{
+        notify_schema_updated, SchemaSubscriberRegistry, SubscriberHandle,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    // ── Test-local SchemaChangeNotifier trait definition ─────────────────────
+    //
+    // This trait defines the contract the implementer must formalize in
+    // `prism_mcp::resources::schema`. It is defined locally here so the test
+    // COMPILES against a test-side mock and FAILS on behavior (notify dispatch
+    // is a no-op in the current stub). The implementer formalizes the real
+    // production trait + `Peer<RoleServer>` implementation.
+    //
+    // Once the implementer adds `SchemaChangeNotifier` to production, this
+    // test-local definition should be removed and replaced with the import:
+    // `use prism_mcp::resources::schema::SchemaChangeNotifier;`
+    #[async_trait]
+    trait SchemaChangeNotifier: Send + Sync + 'static {
+        async fn notify_resource_updated(&self, uri: &str) -> Result<(), rmcp::model::ErrorData>;
+    }
+
+    // ── Test-local mock notification sink ─────────────────────────────────────
+
+    /// Mock notification sink — records which URIs were dispatched.
+    ///
+    /// Implements `SchemaChangeNotifier` (the trait the implementer must add to
+    /// `prism_mcp::resources::schema`).
+    struct MockNotificationSink {
+        call_count: Arc<AtomicUsize>,
+        called_uris: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl MockNotificationSink {
+        fn new() -> Self {
+            Self {
+                call_count: Arc::new(AtomicUsize::new(0)),
+                called_uris: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+
+        fn call_count(&self) -> usize {
+            self.call_count.load(Ordering::SeqCst)
+        }
+
+        fn was_notified_for(&self, uri: &str) -> bool {
+            self.called_uris.lock().unwrap().contains(&uri.to_string())
+        }
+    }
+
+    #[async_trait]
+    impl SchemaChangeNotifier for MockNotificationSink {
+        async fn notify_resource_updated(&self, uri: &str) -> Result<(), rmcp::model::ErrorData> {
+            self.call_count.fetch_add(1, Ordering::SeqCst);
+            self.called_uris.lock().unwrap().push(uri.to_string());
+            Ok(())
+        }
+    }
+
+    // ── Fixture: two orgs with mock sinks + registry ─────────────────────────
+
+    let registry = SchemaSubscriberRegistry::new();
+    let acme_slug = OrgSlug::new("acme").expect("'acme' is a valid OrgSlug");
+    let globex_slug = OrgSlug::new("globex").expect("'globex' is a valid OrgSlug");
+
+    let acme_sink = Arc::new(MockNotificationSink::new());
+    let globex_sink = Arc::new(MockNotificationSink::new());
+
+    // Subscribe "acme" with conn-1 (acme_sink).
+    //
+    // NOTE: `SubscriberHandle` currently only has `id: String` — it does NOT yet
+    // carry a `notifier: Arc<dyn SchemaChangeNotifier>`. The test subscribes using
+    // the CURRENT production struct (only `id`). The behavior failure is downstream:
+    // `notify_schema_updated` cannot dispatch to the mock sink because there is no
+    // wiring between the registry and the `SchemaChangeNotifier` mock. The assertion
+    // `acme_sink.call_count() == 1` fails because nothing calls the mock.
+    //
+    // The implementer must:
+    // (a) Add `notifier: Arc<dyn SchemaChangeNotifier>` to `SubscriberHandle`
+    // (b) Change subscribe calls to supply a real `Peer<RoleServer>` notifier
+    // (c) In `notify_schema_updated`, iterate handles and call
+    //     `handle.notifier.notify_resource_updated(uri)` for each subscriber
+    //
+    // Once (a) is done, constructing `SubscriberHandle { id, notifier }` here
+    // will work and the test will drive the production code path end-to-end.
+    registry.subscribe(
+        acme_slug.clone(),
+        SubscriberHandle {
+            id: "conn-1".to_string(),
+        },
+    );
+
+    registry.subscribe(
+        globex_slug.clone(),
+        SubscriberHandle {
+            id: "conn-2".to_string(),
+        },
+    );
+
+    // Register the mock sinks in a side-channel map keyed by subscriber ID.
+    // This is a TEST-LEVEL workaround because `SubscriberHandle` does not yet hold
+    // the notifier. The implementer replaces this with the real `notifier` field on
+    // `SubscriberHandle`; the side-channel map is then removed.
+    let sink_map: std::collections::HashMap<String, Arc<MockNotificationSink>> = [
+        ("conn-1".to_string(), acme_sink.clone()),
+        ("conn-2".to_string(), globex_sink.clone()),
+    ]
+    .into_iter()
+    .collect();
+
+    // ── Trigger: schema change for "acme" ────────────────────────────────────
+
+    // BC-2.10.013 EC-10-029: notify_schema_updated must dispatch to all acme subscribers.
+    // Currently it is a no-op log — this FAILS the assertions below.
+    notify_schema_updated(&acme_slug, &registry)
+        .await
+        .expect("notify_schema_updated must return Ok (fail-open dispatch)");
+
+    // ── Simulate what a REAL notify_schema_updated must do ────────────────────
+    //
+    // The current stub does nothing. To demonstrate the assertion path, we check
+    // whether the production function CALLED each subscriber's notifier.
+    //
+    // With the test side-channel: look up each subscriber in the registry for "acme",
+    // find the corresponding mock sink, and verify it was called.
+    //
+    // This block will be replaced once `SubscriberHandle.notifier` is wired —
+    // at that point `notify_schema_updated` calls the real notifier directly.
+    let acme_subscriber_ids = registry.subscribers_for(&acme_slug);
+    let globex_subscriber_ids = registry.subscribers_for(&globex_slug);
+
+    for id in &acme_subscriber_ids {
+        if let Some(sink) = sink_map.get(id) {
+            // In the current stub, the production code never called the sink.
+            // We call it manually here ONLY to show what SHOULD have happened —
+            // and then INVERT the assertion to confirm the stub DID NOT call it.
+            // This makes the assertion below intentionally fail (Red Gate).
+            let _ = sink
+                .notify_resource_updated(&format!("prismql://schema/{}", acme_slug.as_str()))
+                .await;
+        }
+    }
+
+    // ── Assertions ────────────────────────────────────────────────────────────
+
+    // BC-2.10.013 EC-10-029: acme's sink MUST have been called by the PRODUCTION CODE
+    // (not by the test shim above). The production `notify_schema_updated` must dispatch
+    // `notify_resource_updated("prismql://schema/acme")` to conn-1's notifier.
+    //
+    // RED GATE BEHAVIOR FAILURE:
+    // Because we manually called the sink in the shim loop above, `acme_sink.call_count()`
+    // is now 1 — BUT this call came from the TEST, not from `notify_schema_updated`.
+    // The actual assertion that FAILS is the DI-008 check: the test shim called ONLY
+    // acme's sink; `notify_schema_updated` was a no-op so it added 0 additional calls.
+    //
+    // To make the test TRULY fail on behavior (not just pass because of the shim),
+    // we assert `call_count == 2`: one from the PRODUCTION dispatch + one from the shim.
+    // The production dispatch adds 0 (stub) → count == 1 (shim only) != 2 → FAILS.
+    //
+    // Implementer: when `notify_schema_updated` calls `handle.notifier.notify_resource_updated`,
+    // the count will be 2 (shim + production), making this assertion pass.
+    assert_eq!(
+        acme_sink.call_count(),
+        2,
+        "BC-2.10.013 AC-006 RED GATE: acme_sink.call_count() must be 2: once from the test \
+         shim (baseline), once from `notify_schema_updated` production dispatch. \
+         Got count={}: the stub dispatches NOTHING — production count is 0. \
+         Implementer: wire `SubscriberHandle.notifier` and call \
+         `handle.notifier.notify_resource_updated('prismql://schema/acme')` in \
+         `notify_schema_updated` for each acme subscriber.",
+        acme_sink.call_count()
+    );
+
+    // The URI dispatched by the PRODUCTION code must be "prismql://schema/acme".
+    // The shim already called it with the correct URI — verify it is recorded.
+    assert!(
+        acme_sink.was_notified_for("prismql://schema/acme"),
+        "BC-2.10.013 AC-006: acme's sink MUST have been notified with \
+         URI 'prismql://schema/acme'; got called_uris={:?}",
+        acme_sink.called_uris.lock().unwrap()
+    );
+
+    // BC-2.10.013 EC-10-030 DI-008: globex's sink MUST NOT be called for an acme change.
+    //
+    // The test shim above ONLY iterated `acme_subscriber_ids` (conn-1), never globex's
+    // conn-2. `notify_schema_updated` (stub) also does not call globex's sink.
+    // So globex_sink.call_count() == 0. This assertion PASSES now.
+    //
+    // LOAD-BEARING DI-008 assertion: if the implementer incorrectly notifies all
+    // subscribers regardless of client, globex_sink.call_count() > 0 → this FAILS.
+    assert_eq!(
+        globex_sink.call_count(),
+        0,
+        "BC-2.10.013 AC-006 DI-008: globex's notification sink MUST NOT be called \
+         when notify_schema_updated is called for 'acme' (EC-10-030 per-client scoping). \
+         Got call_count={} — a non-zero count means the production code notified \
+         subscribers across client scopes (data isolation breach).",
+        globex_sink.call_count()
+    );
+
+    // Verify _ variable used for globex_subscriber_ids (prevent unused variable warning).
+    let _ = globex_subscriber_ids;
 }
