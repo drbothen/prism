@@ -418,10 +418,7 @@ pub fn render_cross_client_status(time_range: Option<&str>) -> Result<GetPromptR
 /// Arguments: `client_id` (required), `goal` (optional).
 /// Includes SECURITY_REMINDER (DI-006).
 ///
-/// Self-check (BC-5.38.005 invariant 1):
-/// "If I include this real implementation, will the test for this function pass
-/// trivially without any implementer work?" — Yes for AC-009 step checks.
-/// Body = todo!(). (BC-5.38.001)
+/// Implements 5-step tutorial per BC-2.10.009 AC-009.
 pub fn render_query_tutorial(
     client_id: &str,
     goal: Option<&str>,

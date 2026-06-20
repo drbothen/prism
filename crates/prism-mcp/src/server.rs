@@ -1303,6 +1303,7 @@ const LIVE_TOOLS: &[&str] = &[
     "list_sensor_specs",
     "validate_config",
     "list_capabilities",
+    "prism_describe",
 ];
 
 /// Tools registered in the catalog whose handlers return `-32003 not
@@ -5351,16 +5352,22 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn prism_describe(
         &self,
-        Parameters(_params): Parameters<crate::tools::prism_describe::PrismDescribeParams>,
+        Parameters(params): Parameters<crate::tools::prism_describe::PrismDescribeParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        todo!(
-            "BC-2.10.012 AC-001..AC-005: delegate to \
-               crate::tools::prism_describe::handle_prism_describe — \
-               injection scan first (BC-2.09.001 NON-NEGOTIABLE), \
-               then validate client_id, emit audit event, \
-               read column schema from resolved_spec_map or config_manager, \
-               build PrismDescribeResponse, return structured CallToolResult"
+        // BC-2.09.001 NON-NEGOTIABLE: injection scan BEFORE domain logic.
+        self.scan_inputs_audited(
+            "prism_describe",
+            &[("client_id", params.client_id.as_str())],
         )
+        .await?;
+
+        crate::tools::prism_describe::handle_prism_describe(
+            params.client_id,
+            self.query_engine.as_ref(),
+            self.config_manager.as_ref(),
+            self.audit_writer.as_ref(),
+        )
+        .await
     }
 }
 

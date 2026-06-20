@@ -304,10 +304,8 @@ fn sanitize_display_name(name: &str) -> String {
 /// Includes `prismql://reference` (BC-2.10.014) as a static resource added by
 /// S-DEMO-PRISMQL-ONBOARDING-001-A.
 ///
-/// WIRING-EXEMPT: registering URIs in a list is wiring metadata — the behavior
-/// (content delivery) lives in `dispatch_read_resource` → `render_pql_reference_resource`
-/// (which is `todo!()`). AC-007 tests both the list presence AND the content, so the
-/// Red Gate holds.
+/// Content delivery is handled by `dispatch_read_resource` →
+/// `render_pql_reference_resource` in `resources/schema.rs`.
 pub fn build_resource_list() -> ListResourcesResult {
     let resources = vec![
         RawResource::new(URI_CONFIG_CLIENTS, "Prism Client Inventory")
@@ -345,9 +343,8 @@ pub fn build_resource_list() -> ListResourcesResult {
 /// Includes `prismql://schema/{client_id}` (BC-2.10.013) as a URI template added by
 /// S-DEMO-PRISMQL-ONBOARDING-001-A.
 ///
-/// WIRING-EXEMPT: registering URI templates in a list is wiring metadata — the behavior
-/// (content delivery, subscribe/notify) lives in handler stubs that are `todo!()`.
-/// AC-005/AC-006 tests both list presence AND behavior, so the Red Gate holds.
+/// Content delivery is handled by `render_pql_schema_resource` in
+/// `resources/schema.rs`. Subscribe/notify is dispatched via `notify_schema_updated`.
 pub fn build_resource_template_list() -> ListResourceTemplatesResult {
     let resource_templates = vec![
         RawResourceTemplate::new(URI_TEMPLATE_CLIENT_SENSORS, "Prism Client Sensor Config")
