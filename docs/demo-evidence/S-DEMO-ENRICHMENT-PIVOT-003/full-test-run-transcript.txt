@@ -1,0 +1,95 @@
+S-DEMO-ENRICHMENT-PIVOT-003: Full Test Run Transcript
+======================================================
+Branch: feature/S-DEMO-ENRICHMENT-PIVOT-003
+HEAD: 62d4fcdb
+Date: 2026-06-20
+Command: cargo nextest run -p prism-dtu-cyberint -p prism-dtu-crowdstrike -p prism-dtu-demo-server --features "dtu,fixture-gen" -E 'test(BC_2_06_019)' --no-fail-fast
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.92s
+────────────
+ Nextest run ID f25ebda3-d7e6-4724-abde-3fd9ce3fc057 with nextest profile: default
+    Starting 32 tests across 79 binaries (442 tests skipped)
+        PASS [   0.014s] ( 1/32) prism-dtu-crowdstrike::bc_2_06_019_ioc_stamping test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns
+        PASS [   0.017s] ( 2/32) prism-dtu-crowdstrike generator::tests::test_BC_2_06_019_crowdstrike_detection_behaviors_ioc_hash_stamped
+        PASS [   0.020s] ( 3/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns
+        PASS [   0.023s] ( 4/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields
+        PASS [   0.023s] ( 5/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms
+        PASS [   0.023s] ( 6/32) prism-dtu-crowdstrike::f_pivot003_r10c_generator_parity_guard test_BC_2_06_019_crowdstrike_generator_scenario_parity_modulo_ioc_stamp
+        PASS [   0.025s] ( 7/32) prism-dtu-crowdstrike generator::tests::test_BC_2_06_019_crowdstrike_detection_behaviors_no_ioc_when_none
+        PASS [   0.025s] ( 8/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs
+        PASS [   0.029s] ( 9/32) prism-dtu-crowdstrike::bc_2_06_019_scenario_progression test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_catalog
+        PASS [   0.023s] (10/32) prism-dtu-demo-server::bc_2_06_019_canonical_pivot_queries test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_stage
+        PASS [   0.022s] (11/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction
+        PASS [   0.023s] (12/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_e_demo_002_seed_mismatch_across_scenario_clones
+        PASS [   0.018s] (13/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_e_demo_003_unrecognized_archetype
+        PASS [   0.017s] (14/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones
+        PASS [   0.018s] (15/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_guard_order_e_demo_002_before_e_demo_004
+        PASS [   0.019s] (16/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_guard_order_e_demo_003_before_e_demo_004
+        PASS [   0.035s] (17/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_e_demo_006_case_variant_org_ids_succeed
+        PASS [   0.020s] (18/32) prism-dtu-demo-server::bc_2_06_019_scenario_progression test_BC_2_06_019_scenario_disabled_byte_identical_to_seeded_path
+        PASS [   0.187s] (19/32) prism-dtu-demo-server::bc_2_06_019_enrich_pipeline_e2e test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns_high_cvss
+        PASS [   0.189s] (20/32) prism-dtu-demo-server::bc_2_06_019_enrich_pipeline_e2e test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and_returns_malicious
+        PASS [  10.498s] (21/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_fail_closed_malformed_alert_is_withheld
+        PASS [  10.527s] (22/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic
+        PASS [  10.538s] (23/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matching_hash
+        PASS [  10.551s] (24/32) prism-dtu-cyberint::bc_2_06_019_ioc_stamping test_BC_2_06_019_ip_domain_ioc_stage_gating_served_route
+        PASS [  15.508s] (25/32) prism-dtu-demo-server::bc_2_06_019_canonical_pivot_queries test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage_3
+        PASS [  15.515s] (26/32) prism-dtu-cyberint::bc_2_06_019_scenario_stagemask test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered
+        PASS [  15.516s] (27/32) prism-dtu-cyberint::bc_2_06_019_scenario_stagemask test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld
+        PASS [  15.629s] (28/32) prism-dtu-demo-server::bc_2_06_019_served_route_enrich_composed test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain
+        PASS [  15.633s] (29/32) prism-dtu-demo-server::bc_2_06_019_served_route_enrich_armis_nvd_composed test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_full_chain
+        PASS [  20.473s] (30/32) prism-dtu-crowdstrike::bc_2_06_019_scenario_progression test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only
+        PASS [  20.501s] (31/32) prism-dtu-crowdstrike::bc_2_06_019_scenario_progression test_BC_2_06_019_crowdstrike_ioc_bearing_detection_stagemask_served_route
+        PASS [  20.551s] (32/32) prism-dtu-cyberint::bc_2_06_019_scenario_stagemask test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter
+────────────
+     Summary [  20.552s] 32 tests run: 32 passed, 442 skipped
+
+======================================================
+AC COVERAGE INDEX
+======================================================
+AC-001 (Cyberint Alert struct + Ioc dual-alias):
+  Lines  4: test_BC_2_06_019_cyberint_alert_struct_has_real_ioc_fields           PASS
+  Lines  5: test_BC_2_06_019_cyberint_ioc_struct_dual_alias_deserializes_both_key_forms  PASS
+
+AC-002 (Cyberint fixture generator stamps IOCs):
+  Line   8: test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs      PASS
+
+AC-003 (Real-schema filter atomic swap / _ioc_value removed):
+  Line  22: test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic   PASS
+  Line  23: test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matching_hash PASS
+  Additional (fail-closed):
+  Line  21: test_BC_2_06_019_fail_closed_malformed_alert_is_withheld              PASS
+  Line  24: test_BC_2_06_019_ip_domain_ioc_stage_gating_served_route             PASS
+
+AC-004 (CrowdStrike behaviors[] IOC stamped — ioc_type="hash_sha256"):
+  Line   2: test_BC_2_06_019_crowdstrike_detection_behaviors_ioc_hash_stamped     PASS
+  Line   7: test_BC_2_06_019_crowdstrike_detection_behaviors_no_ioc_when_none     PASS
+  Line   9: test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_catalog PASS
+  Line   6: test_BC_2_06_019_crowdstrike_generator_scenario_parity_modulo_ioc_stamp PASS
+
+AC-005 (CrowdStrike TOML spec declares behaviors[] IOC columns):
+  Line   1: test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns      PASS
+
+AC-006 (Cyberint TOML spec declares ioc/iocs[]/alert_data.* columns):
+  Line   3: test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns             PASS
+
+AC-007 (Canonical ThreatIntel pivot — Malicious at stage>=3):
+  Line  25: test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage_3 PASS
+  Line  20: test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and_returns_malicious PASS
+
+AC-008 (Canonical NVD pivot — HIGH CVSS at stage 4, has device_cves_first):
+  Line  10: test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_stage PASS
+  Line  19: test_BC_2_06_019_enrich_pipeline_e2e_nvd_pivot_executes_udf_and_returns_high_cvss PASS
+
+AC-009 (Route Coverage Table served-route guards ACTIVE — Rows 6, 8-11):
+  Line  28: test_BC_2_06_019_served_route_to_enrich_pipeline_composed_full_chain  PASS
+  Line  29: test_BC_2_06_019_armis_served_route_to_nvd_enrich_pipeline_composed_full_chain PASS
+  Line  31: test_BC_2_06_019_crowdstrike_ioc_bearing_detection_stagemask_served_route PASS
+  Line  32: test_BC_2_06_019_cyberint_alerts_stagemask_ioc_filter                PASS
+  Additional (stagemask):
+  Line  26: test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered                PASS
+  Line  27: test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld        PASS
+  Lines 30: test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only      PASS
+  Lines 11-18: scenario_progression guard-order tests                             7x PASS
+
+Total: 32 tests run, 32 PASS, 0 FAIL
