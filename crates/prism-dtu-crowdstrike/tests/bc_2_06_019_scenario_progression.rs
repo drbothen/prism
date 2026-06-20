@@ -646,3 +646,281 @@ async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_cata
         ioc_type
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-PIVOT003-R7A-002 SERVED-ROUTE test — ioc_hashes StageMask enforcement
+// ---------------------------------------------------------------------------
+
+/// SERVED-ROUTE TEST — F-PIVOT003-R7A-002: IOC-bearing detections absent at stage 1
+/// (mask.ioc_hashes=false), present at stage 2+ (mask.ioc_hashes=true).
+///
+/// BC-2.06.019 v1.10 PC-4: "ioc_hashes=false: detection records where
+/// behaviors[].ioc_value matches catalog.ioc_hashes are withheld."
+///
+/// Detection 0 is the IOC-bearing detection (behaviors[0].ioc_value = ioc_hashes[0]).
+/// It is linked to the primary device (device_ids[0 % dev_count]).
+///
+/// This test drives the ACTUAL HTTP route (GET /detects/queries/detects/v1 +
+/// POST /detects/entities/summaries/GET/v1) at two stage-clock positions to
+/// verify that routes/detections.rs enforces mask.ioc_hashes — NOT just the
+/// data-layer generator test.
+///
+/// Stage clock control:
+///   stage 1 (Recon):        scenario_start = now - 90s  → mask.ioc_hashes=false
+///   stage 2 (LateralMovement): scenario_start = now - 200s → mask.ioc_hashes=true
+///
+/// Asserts:
+///   stage 1: the IOC-bearing detection (detection 0) is ABSENT from the served
+///     response (mask.ioc_hashes=false).
+///   stage 2: the IOC-bearing detection (detection 0) IS present in the served
+///     response (mask.ioc_hashes=true).
+///
+/// FAIL mode (without this fix): routes/detections.rs serves all generated detections
+/// without ioc_hashes filtering → IOC-bearing detection IS present at stage 1 → assertion FAILS.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_06_019_crowdstrike_ioc_bearing_detection_stagemask_served_route() {
+    let org = deadbeef_org();
+    let seed: u64 = 100;
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+
+    // Confirm catalog has IOC hashes so the test is non-vacuous.
+    assert!(
+        !catalog.ioc_hashes.is_empty(),
+        "F-PIVOT003-R7A-002 vacuous guard: catalog.ioc_hashes must be non-empty; \
+         got empty — secondary RNG seeding failure."
+    );
+    let expected_ioc = catalog.ioc_hashes[0].clone();
+
+    let client = prism_dtu_common::build_test_client();
+
+    // -------------------------------------------------------------------------
+    // Stage 1 server (scenario_start = now - 90s → elapsed ≈ 90s → stage 1 Recon)
+    // At stage 1: mask.ioc_hashes=false → IOC-bearing detection MUST be absent.
+    // Stage 1 mask: primary_device=true (stage_idx=1 > 0), ioc_hashes=false.
+    // -------------------------------------------------------------------------
+    let now = chrono::Utc::now().timestamp();
+    let start_stage1: i64 = now - 90; // elapsed ≈ 90s → stage 1
+
+    let timeline_stage1 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage1,
+        &[],
+    ));
+    let time_anchor_stage1 = chrono::DateTime::from_timestamp(start_stage1, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let mut clone_stage1 = CrowdstrikeClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org.clone(),
+        Arc::clone(&timeline_stage1),
+        time_anchor_stage1,
+        &catalog,
+    );
+
+    clone_stage1
+        .start()
+        .await
+        .expect("stage-1 CrowdstrikeClone start must succeed");
+
+    let base_url_stage1 = clone_stage1.base_url();
+    let token_stage1 = clone_stage1.admin_token().to_owned();
+
+    // Step 1: GET /detects/queries/detects/v1 — fetch all detection IDs at stage 1.
+    let resp1_ids = client
+        .get(format!("{base_url_stage1}/detects/queries/detects/v1"))
+        .header("Authorization", format!("Bearer {token_stage1}"))
+        .send()
+        .await
+        .expect("GET /detects/queries/detects/v1 (stage 1) must reach the server");
+
+    assert_eq!(resp1_ids.status().as_u16(), 200);
+
+    let body1_ids: serde_json::Value = resp1_ids
+        .json()
+        .await
+        .expect("stage-1 detection IDs response must be JSON");
+    let det_ids_stage1: Vec<String> = body1_ids["resources"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+        .collect();
+
+    // Step 2: POST /detects/entities/summaries/GET/v1 — fetch detection details.
+    // If det_ids_stage1 is empty, the IOC-bearing detection is already withheld — pass.
+    if !det_ids_stage1.is_empty() {
+        let resp1_detail = client
+            .post(format!(
+                "{base_url_stage1}/detects/entities/summaries/GET/v1"
+            ))
+            .header("Authorization", format!("Bearer {token_stage1}"))
+            .json(&serde_json::json!({"ids": det_ids_stage1}))
+            .send()
+            .await
+            .expect("POST summaries (stage 1) must reach the server");
+
+        assert_eq!(resp1_detail.status().as_u16(), 200);
+
+        let body1_detail: serde_json::Value = resp1_detail
+            .json()
+            .await
+            .expect("stage-1 detection details must be JSON");
+        let resources1 = body1_detail["resources"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+
+        // Assert: NO detection has behaviors[].ioc_value in catalog.ioc_hashes.
+        // BC-2.06.019 v1.10 PC-4 / F-PIVOT003-R7A-002.
+        let ioc_bearing = resources1.iter().find(|rec| {
+            rec.get("behaviors")
+                .and_then(|v| v.as_array())
+                .map(|behaviors| {
+                    behaviors.iter().any(|b| {
+                        b.get("ioc_value")
+                            .and_then(|v| v.as_str())
+                            .map(|val| val == expected_ioc.as_str())
+                            .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false)
+        });
+
+        assert!(
+            ioc_bearing.is_none(),
+            "F-PIVOT003-R7A-002 BC-2.06.019 v1.10 PC-4: at stage 1 (Recon, \
+             mask.ioc_hashes=false), the IOC-bearing detection with \
+             behaviors[].ioc_value='{}' MUST be absent from the served response; \
+             found record: {:?}. \
+             routes/detections.rs must withhold detections whose behaviors[].ioc_value \
+             is in catalog.ioc_hashes when mask.ioc_hashes=false. \
+             [SERVED-ROUTE enforcement — not just data-layer]",
+            expected_ioc,
+            ioc_bearing
+        );
+    }
+
+    clone_stage1
+        .stop()
+        .await
+        .expect("stage-1 server stop must succeed");
+
+    // -------------------------------------------------------------------------
+    // Stage 2 server (scenario_start = now - 200s → elapsed ≈ 200s → stage 2 LateralMovement)
+    // At stage 2: mask.ioc_hashes=true → IOC-bearing detection MUST be present.
+    // -------------------------------------------------------------------------
+    let now = chrono::Utc::now().timestamp();
+    let start_stage2: i64 = now - 200; // elapsed ≈ 200s → stage 2
+
+    let timeline_stage2 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage2,
+        &[],
+    ));
+    let time_anchor_stage2 = chrono::DateTime::from_timestamp(start_stage2, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let mut clone_stage2 = CrowdstrikeClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org,
+        Arc::clone(&timeline_stage2),
+        time_anchor_stage2,
+        &catalog,
+    );
+
+    clone_stage2
+        .start()
+        .await
+        .expect("stage-2 CrowdstrikeClone start must succeed");
+
+    let base_url_stage2 = clone_stage2.base_url();
+    let token_stage2 = clone_stage2.admin_token().to_owned();
+
+    // Step 1: GET /detects/queries/detects/v1 — fetch detection IDs at stage 2.
+    let resp2_ids = client
+        .get(format!("{base_url_stage2}/detects/queries/detects/v1"))
+        .header("Authorization", format!("Bearer {token_stage2}"))
+        .send()
+        .await
+        .expect("GET /detects/queries/detects/v1 (stage 2) must reach the server");
+
+    assert_eq!(resp2_ids.status().as_u16(), 200);
+
+    let body2_ids: serde_json::Value = resp2_ids
+        .json()
+        .await
+        .expect("stage-2 detection IDs response must be JSON");
+    let det_ids_stage2: Vec<String> = body2_ids["resources"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+        .collect();
+
+    assert!(
+        !det_ids_stage2.is_empty(),
+        "F-PIVOT003-R7A-002 prereq: detection ID list must be non-empty at stage 2 \
+         (primary device visible, mask.ioc_hashes=true). Got empty.",
+    );
+
+    // Step 2: POST summaries — fetch detection details at stage 2.
+    let resp2_detail = client
+        .post(format!(
+            "{base_url_stage2}/detects/entities/summaries/GET/v1"
+        ))
+        .header("Authorization", format!("Bearer {token_stage2}"))
+        .json(&serde_json::json!({"ids": det_ids_stage2}))
+        .send()
+        .await
+        .expect("POST summaries (stage 2) must reach the server");
+
+    assert_eq!(resp2_detail.status().as_u16(), 200);
+
+    let body2_detail: serde_json::Value = resp2_detail
+        .json()
+        .await
+        .expect("stage-2 detection details must be JSON");
+    let resources2 = body2_detail["resources"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    // Assert: the IOC-bearing detection IS present (mask.ioc_hashes=true at stage 2).
+    let ioc_bearing_stage2 = resources2.iter().find(|rec| {
+        rec.get("behaviors")
+            .and_then(|v| v.as_array())
+            .map(|behaviors| {
+                behaviors.iter().any(|b| {
+                    b.get("ioc_value")
+                        .and_then(|v| v.as_str())
+                        .map(|val| val == expected_ioc.as_str())
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false)
+    });
+
+    assert!(
+        ioc_bearing_stage2.is_some(),
+        "F-PIVOT003-R7A-002 BC-2.06.019 v1.10 PC-4: at stage 2 (LateralMovement, \
+         mask.ioc_hashes=true), the IOC-bearing detection with \
+         behaviors[].ioc_value='{}' MUST be present in the served response; \
+         got {} detection records but none with this IOC value. \
+         [SERVED-ROUTE enforcement]",
+        expected_ioc,
+        resources2.len()
+    );
+
+    clone_stage2
+        .stop()
+        .await
+        .expect("stage-2 server stop must succeed");
+}
