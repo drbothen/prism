@@ -52,16 +52,19 @@ mod multi_tenant {
 
     /// Build a minimal `CyberintState` with a single fixture alert for `org_id`.
     fn state_with_one_alert(org_id: OrgId, alert_id: &str) -> CyberintState {
-        let fixture = vec![Alert {
-            alert_id: alert_id.to_owned(),
-            title: "Test alert".to_owned(),
-            severity: "high".to_owned(),
-            status: "open".to_owned(),
-            created_at: serde_json::json!("2024-01-01T00:00:00Z"),
-            source: "test".to_owned(),
-            alert_type: "test".to_owned(),
-            affected_assets: vec![],
-        }];
+        // Alert is #[non_exhaustive] — must construct via deserialization, not struct literal.
+        // "type" maps to alert_type via #[serde(rename = "type")] on Alert.alert_type.
+        let fixture: Vec<Alert> = vec![serde_json::from_value(serde_json::json!({
+            "alert_id": alert_id,
+            "title": "Test alert",
+            "severity": "high",
+            "status": "open",
+            "created_at": "2024-01-01T00:00:00Z",
+            "source": "test",
+            "type": "test",
+            "affected_assets": []
+        }))
+        .expect("Alert test fixture must deserialize")];
         CyberintState::with_org_id_and_admin_token(
             org_id,
             fixture,
@@ -269,17 +272,21 @@ mod multi_tenant {
         let (org_a, org_b) = org_pair();
 
         let alert_ids = ["CYB-AC005-001", "CYB-AC005-002", "CYB-AC005-003"];
+        // Alert is #[non_exhaustive] — must construct via deserialization, not struct literal.
         let fixtures: Vec<Alert> = alert_ids
             .iter()
-            .map(|id| Alert {
-                alert_id: id.to_string(),
-                title: format!("Alert {id}"),
-                severity: "medium".to_owned(),
-                status: "open".to_owned(),
-                created_at: serde_json::json!("2024-01-01T00:00:00Z"),
-                source: "test".to_owned(),
-                alert_type: "test".to_owned(),
-                affected_assets: vec![],
+            .map(|id| {
+                serde_json::from_value(serde_json::json!({
+                    "alert_id": id,
+                    "title": format!("Alert {id}"),
+                    "severity": "medium",
+                    "status": "open",
+                    "created_at": "2024-01-01T00:00:00Z",
+                    "source": "test",
+                    "type": "test",
+                    "affected_assets": []
+                }))
+                .expect("Alert test fixture must deserialize")
             })
             .collect();
 
@@ -446,16 +453,19 @@ mod multi_tenant {
             (org_a, org_b) in arb_distinct_org_pair(),
             alert_id in "[a-z0-9-]{1,32}",
         ) {
-            let fixture = vec![Alert {
-                alert_id: alert_id.clone(),
-                title: "prop alert".to_owned(),
-                severity: "low".to_owned(),
-                status: "open".to_owned(),
-                created_at: serde_json::json!("2024-01-01T00:00:00Z"),
-                source: "prop".to_owned(),
-                alert_type: "prop".to_owned(),
-                affected_assets: vec![],
-            }];
+            let fixture: Vec<Alert> = vec![
+                serde_json::from_value(serde_json::json!({
+                    "alert_id": alert_id.clone(),
+                    "title": "prop alert",
+                    "severity": "low",
+                    "status": "open",
+                    "created_at": "2024-01-01T00:00:00Z",
+                    "source": "prop",
+                    "type": "prop",
+                    "affected_assets": []
+                }))
+                .expect("Alert test fixture must deserialize"),
+            ];
             let state = CyberintState::with_org_id_and_admin_token(
                 org_a, fixture, vec![], vec![], "admin".into(),
             );
@@ -479,16 +489,19 @@ mod multi_tenant {
             (org_a, org_b) in arb_distinct_org_pair(),
             alert_id in "[a-z0-9-]{1,32}",
         ) {
-            let fixture = vec![Alert {
-                alert_id: alert_id.clone(),
-                title: "mutation test".to_owned(),
-                severity: "critical".to_owned(),
-                status: "open".to_owned(),
-                created_at: serde_json::json!("2024-06-01T00:00:00Z"),
-                source: "prop".to_owned(),
-                alert_type: "prop".to_owned(),
-                affected_assets: vec![],
-            }];
+            let fixture: Vec<Alert> = vec![
+                serde_json::from_value(serde_json::json!({
+                    "alert_id": alert_id.clone(),
+                    "title": "mutation test",
+                    "severity": "critical",
+                    "status": "open",
+                    "created_at": "2024-06-01T00:00:00Z",
+                    "source": "prop",
+                    "type": "prop",
+                    "affected_assets": []
+                }))
+                .expect("Alert test fixture must deserialize"),
+            ];
             let state = CyberintState::with_org_id_and_admin_token(
                 org_a, fixture, vec![], vec![], "admin".into(),
             );
@@ -522,16 +535,19 @@ mod multi_tenant {
             alert_id in "[a-z0-9-]{1,32}",
             token in arb_token(),
         ) {
-            let fixture = vec![Alert {
-                alert_id: alert_id.clone(),
-                title: "reset selectivity".to_owned(),
-                severity: "medium".to_owned(),
-                status: "open".to_owned(),
-                created_at: serde_json::json!("2024-01-01T00:00:00Z"),
-                source: "prop".to_owned(),
-                alert_type: "prop".to_owned(),
-                affected_assets: vec![],
-            }];
+            let fixture: Vec<Alert> = vec![
+                serde_json::from_value(serde_json::json!({
+                    "alert_id": alert_id.clone(),
+                    "title": "reset selectivity",
+                    "severity": "medium",
+                    "status": "open",
+                    "created_at": "2024-01-01T00:00:00Z",
+                    "source": "prop",
+                    "type": "prop",
+                    "affected_assets": []
+                }))
+                .expect("Alert test fixture must deserialize"),
+            ];
             let state = CyberintState::with_org_id_and_admin_token(
                 org_a, fixture, vec![], vec![], "admin".into(),
             );

@@ -46,6 +46,87 @@ use serde_json::{json, Value};
 // Public API
 // ---------------------------------------------------------------------------
 
+/// Generate a `FixtureSet` for the CrowdStrike sensor with scenario IOC hashes stamped.
+///
+/// AC-004 / F-PIVOT003-R2-001: parallel to Armis `generate_with_scenario_cves`.
+/// For `CompromisedEndpoint`, detection 0 (the detection linked to the primary contained
+/// device) receives `behaviors[0].ioc_value = ioc_hashes[0]` so the ThreatIntel pivot
+/// `enrich threat_intel(iocs[].value)` resolves against the catalog at stage ≥ 3.
+///
+/// For all other archetypes, delegates to `generate()` unchanged.
+///
+/// If `ioc_hashes` is empty, no IOC stamping occurs (has_ioc_value filter → 0 results;
+/// that is the expected behavior for an empty catalog).
+pub fn generate_with_scenario_iocs(
+    org_id: OrgId,
+    archetype: Archetype,
+    opts: GenOpts,
+    ioc_hashes: &[String],
+) -> FixtureSet {
+    if archetype != Archetype::CompromisedEndpoint || ioc_hashes.is_empty() {
+        return generate(org_id, archetype, opts);
+    }
+
+    let slug = org_slug(&org_id);
+    let dev_count = scaled(50, opts.scale, 1);
+    let det_count = scaled(20, opts.scale, 1);
+
+    let device_ids: Vec<String> = (0..dev_count)
+        .map(|n| format!("dev-{slug}-{}-{n}", opts.seed))
+        .collect();
+
+    // Ensure at least 1 contained device (mirrors gen_compromised_endpoint).
+    let mut records: Vec<Value> = device_ids
+        .iter()
+        .enumerate()
+        .map(|(n, id)| {
+            let mut dev = make_device(id, &opts);
+            if n == 0 {
+                dev["containment_status"] = json!("contained");
+                dev["status"] = json!("contained");
+            } else {
+                dev["containment_status"] = json!("normal");
+            }
+            dev
+        })
+        .collect();
+
+    // Stamp ioc_hashes[0] on detection 0 — the detection linked to the primary device
+    // (device_ids[0 % dev_count] = device_ids[0]).
+    // Detection 0 is the anchor for the ThreatIntel pivot: it carries the IOC that
+    // identifies the compromised endpoint in the scenario.
+    let ioc_hash = ioc_hashes[0].as_str();
+    let det_records: Vec<Value> = (0..det_count)
+        .map(|n| {
+            let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
+            let severity_id = if n < 5 { 4_u8 } else { 2_u8 };
+            let scenario_hash = if n == 0 { Some(ioc_hash) } else { None };
+            make_detection_with_ioc(
+                &det_id,
+                &device_ids[n % device_ids.len()],
+                severity_id,
+                n,
+                &opts,
+                scenario_hash,
+            )
+        })
+        .collect();
+
+    records.extend(det_records);
+
+    FixtureSet {
+        records,
+        cursors: Vec::new(),
+        provenance: prism_dtu_common::generator::Provenance {
+            org_id,
+            sensor_id: SensorId::from("crowdstrike"),
+            archetype,
+            seed: opts.seed,
+            schema_valid: true,
+        },
+    }
+}
+
 /// Generate a `FixtureSet` for the CrowdStrike sensor.
 ///
 /// Implements BC-3.4.001 (determinism), BC-3.4.002 (schema validity),
@@ -597,12 +678,42 @@ pub fn tactic_pair_for_technique(technique_id: &str) -> Option<(&'static str, &'
 /// record (`det_index % MITRE_TECHNIQUES.len()`) — deterministic and RNG-free
 /// — instead of pinning `MITRE_TECHNIQUES[0]` on every detection. Pairing
 /// validity for every cycle slot is guaranteed by the P2-06 table.
+///
+/// AC-004 (S-DEMO-ENRICHMENT-PIVOT-003): `scenario_ioc_hash` is the IOC hash
+/// value to stamp on `behaviors[0].ioc_value` when present. The stamped
+/// `behaviors[0].ioc_type` MUST be `"hash_sha256"` — algorithm-qualified per
+/// BC-2.06.019 v1.13 (bare `"hash"` is incorrect; `"cmdline"` is a SEPARATE
+/// sibling field, never an ioc_type value).
+///
+/// NOTE (U19): no typed `Detection` or `Behavior` struct exists in this crate.
+/// IOC fields are added as JSON keys in the `serde_json::Value` detection record.
+/// Shape parity: `behaviors[]` added here MUST also appear in
+/// `fixtures/detections-detail.json` in the same commit (review_2026_06_10_cs_parity.rs).
 fn make_detection(
     detection_id: &str,
     device_id: &str,
     severity_id: u8,
     det_index: usize,
     opts: &GenOpts,
+) -> Value {
+    make_detection_with_ioc(detection_id, device_id, severity_id, det_index, opts, None)
+}
+
+/// Build a `FalconDetection` JSON record with optional scenario IOC hash stamping.
+///
+/// AC-004 (S-DEMO-ENRICHMENT-PIVOT-003): when `scenario_ioc_hash` is `Some(hash)`,
+/// the returned detection record includes a `"behaviors"` array with at least one
+/// entry carrying `"ioc_type": "hash_sha256"` and `"ioc_value": hash`.
+///
+/// When `scenario_ioc_hash` is `None`, the `"behaviors"` array contains the existing
+/// MITRE-only behavior entry (matching the static fixture shape — shape parity).
+pub(crate) fn make_detection_with_ioc(
+    detection_id: &str,
+    device_id: &str,
+    severity_id: u8,
+    det_index: usize,
+    opts: &GenOpts,
+    scenario_ioc_hash: Option<&str>,
 ) -> Value {
     // created_timestamp: 0..10080 minutes (7 days) before the anchor, stable
     // per (detection_id, seed) — deterministic per BC-3.4.001.
@@ -620,6 +731,34 @@ fn make_detection(
     // slot, so the (tactic, technique) pairing is always table-valid.
     let (technique_id, technique, tactic_id, tactic) =
         MITRE_TECHNIQUES[det_index % MITRE_TECHNIQUES.len()];
+
+    // AC-004 (S-DEMO-ENRICHMENT-PIVOT-003): build behaviors array.
+    // Shape parity rule: this array MUST match the `behaviors` key in
+    // `fixtures/detections-detail.json` (review_2026_06_10_cs_parity.rs).
+    //
+    // Base MITRE behavior entry (present in both scenario and non-scenario records
+    // to maintain static fixture shape parity).
+    let base_behavior = json!({
+        "tactic": tactic,
+        "technique": technique,
+        "technique_id": technique_id
+    });
+
+    let behaviors = if let Some(ioc_hash) = scenario_ioc_hash {
+        // AC-004: ioc_type MUST be "hash_sha256" (algorithm-qualified per BC-2.06.019 v1.13).
+        // Tolerant-unknown-type policy applies to READING; we always WRITE "hash_sha256".
+        let mut ioc_behavior = base_behavior.clone();
+        if let Some(obj) = ioc_behavior.as_object_mut() {
+            obj.insert("ioc_type".to_string(), json!("hash_sha256"));
+            obj.insert("ioc_value".to_string(), json!(ioc_hash));
+            obj.insert("ioc_source".to_string(), json!("catalog"));
+            obj.insert("ioc_description".to_string(), json!("scenario IOC"));
+        }
+        json!([ioc_behavior])
+    } else {
+        json!([base_behavior])
+    };
+
     json!({
         "_record_type": "detection",
         "detection_id": detection_id,
@@ -642,7 +781,10 @@ fn make_detection(
         "tactic_id": tactic_id,
         "technique": technique,
         "technique_id": technique_id,
-        "objective": "Falcon Detection Method"
+        "objective": "Falcon Detection Method",
+        // AC-004 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors array with MITRE entry
+        // (+ IOC keys in scenario mode). Shape parity: must match detections-detail.json.
+        "behaviors": behaviors
     })
 }
 
@@ -715,4 +857,180 @@ fn org_slug(org_id: &OrgId) -> String {
 fn scaled(baseline: usize, scale: f64, min_count: usize) -> usize {
     let count = (baseline as f64 * scale).floor() as usize;
     count.max(min_count)
+}
+
+// ---------------------------------------------------------------------------
+// In-crate unit tests (fixture-gen gated)
+// ---------------------------------------------------------------------------
+//
+// Test 5 is placed here because `make_detection_with_ioc` is `pub(crate)` and
+// cannot be called from an external integration test file.
+
+#[cfg(all(test, feature = "fixture-gen"))]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    /// Test 5 — BC-2.06.019 v1.13 PC-4 CrowdStrike IOC stamp correction:
+    /// `make_detection_with_ioc()` must stamp `behaviors[0]["ioc_type"] == "hash_sha256"`
+    /// (algorithm-qualified token), NOT bare `"hash"` (BC-2.06.019 v1.13 correction).
+    ///
+    /// Also asserts:
+    /// - `behaviors[0]["ioc_value"]` == the scenario_ioc_hash passed in
+    /// - `behaviors[0]["ioc_source"]` == `"catalog"`
+    /// - `behaviors[0]["ioc_description"]` == `"scenario IOC"`
+    ///
+    /// Canonical test vector (BC-2.06.019 v1.13):
+    ///   Input: scenario_ioc_hash = Some("aabbccdd" * 8)
+    ///   Expected: behaviors[0]["ioc_type"] = "hash_sha256" (NOT "hash")
+    ///             behaviors[0]["ioc_value"] = "aabbccdd" * 8
+    ///             behaviors[0]["ioc_source"] = "catalog"
+    ///             behaviors[0]["ioc_description"] = "scenario IOC"
+    ///
+    /// BC-2.06.019 v1.13 PC-4 (CrowdStrike detections IOC stamp).
+    /// Red Gate test plan #5 (S-DEMO-ENRICHMENT-PIVOT-003).
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_06_019_crowdstrike_detection_behaviors_ioc_hash_stamped() {
+        let org = OrgId([
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+            0x0F, 0x10,
+        ]);
+        let seed: u64 = 42;
+        let opts = GenOpts {
+            seed,
+            ..Default::default()
+        };
+
+        // Canonical test vector (BC-2.06.019 v1.13): 64-char SHA256-like hex string.
+        let ioc_hash = "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+        let slug = org_slug(&org);
+        let detection_id = format!("det-{slug}-{seed}-0");
+        let device_id = format!("dev-{slug}-{seed}-0");
+
+        let record = make_detection_with_ioc(
+            &detection_id,
+            &device_id,
+            2, // severity_id: Medium
+            0, // det_index: 0
+            &opts,
+            Some(ioc_hash),
+        );
+
+        // Verify behaviors[] array is present and non-empty.
+        let behaviors = record
+            .get("behaviors")
+            .and_then(|v| v.as_array())
+            .expect("detection record must have a 'behaviors' array after IOC stamping");
+
+        assert!(
+            !behaviors.is_empty(),
+            "BC-2.06.019 v1.13 PC-4: behaviors[] array must be non-empty after IOC stamping"
+        );
+
+        let b0 = &behaviors[0];
+
+        // CRITICAL assertion: ioc_type MUST be "hash_sha256" (NOT bare "hash").
+        // BC-2.06.019 v1.13 correction: algorithm-qualified tokens only.
+        let ioc_type = b0
+            .get("ioc_type")
+            .and_then(|v| v.as_str())
+            .expect("behaviors[0] must have 'ioc_type' key");
+
+        assert_eq!(
+            ioc_type, "hash_sha256",
+            "BC-2.06.019 v1.13 correction: behaviors[0]['ioc_type'] must be 'hash_sha256' \
+             (algorithm-qualified), NOT bare 'hash'. Got: '{ioc_type}'. \
+             CrowdStrike enum: {{hash_sha256, hash_md5, domain, filename, registry_key}}."
+        );
+
+        // Assert ioc_value matches the input hash exactly.
+        let ioc_value = b0
+            .get("ioc_value")
+            .and_then(|v| v.as_str())
+            .expect("behaviors[0] must have 'ioc_value' key");
+
+        assert_eq!(
+            ioc_value, ioc_hash,
+            "behaviors[0]['ioc_value'] must equal the scenario_ioc_hash passed in; \
+             expected '{}', got '{}'",
+            ioc_hash, ioc_value
+        );
+
+        // Assert ioc_source is "catalog".
+        let ioc_source = b0
+            .get("ioc_source")
+            .and_then(|v| v.as_str())
+            .expect("behaviors[0] must have 'ioc_source' key");
+
+        assert_eq!(
+            ioc_source, "catalog",
+            "behaviors[0]['ioc_source'] must be 'catalog'; got '{ioc_source}'"
+        );
+
+        // Assert ioc_description is "scenario IOC".
+        let ioc_description = b0
+            .get("ioc_description")
+            .and_then(|v| v.as_str())
+            .expect("behaviors[0] must have 'ioc_description' key");
+
+        assert_eq!(
+            ioc_description, "scenario IOC",
+            "behaviors[0]['ioc_description'] must be 'scenario IOC'; got '{ioc_description}'"
+        );
+    }
+
+    /// Complementary test: `make_detection_with_ioc(None)` must NOT include IOC fields —
+    /// only the base MITRE behavior entry should be present.
+    ///
+    /// This test must be GREEN even before implementation (the None branch is already
+    /// implemented). It serves as a regression guard for shape parity.
+    ///
+    /// BC-2.06.019 v1.13: tolerant-unknown-type policy applies to READING; writing "hash_sha256"
+    /// only applies when scenario_ioc_hash is Some. None path = MITRE-only.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_06_019_crowdstrike_detection_behaviors_no_ioc_when_none() {
+        let org = OrgId([
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+            0x0F, 0x10,
+        ]);
+        let seed: u64 = 42;
+        let opts = GenOpts {
+            seed,
+            ..Default::default()
+        };
+
+        let slug = org_slug(&org);
+        let detection_id = format!("det-{slug}-{seed}-0");
+        let device_id = format!("dev-{slug}-{seed}-0");
+
+        // None path: no IOC stamping — behaviors[] contains only the base MITRE entry.
+        let record = make_detection_with_ioc(&detection_id, &device_id, 2, 0, &opts, None);
+
+        let behaviors = record
+            .get("behaviors")
+            .and_then(|v| v.as_array())
+            .expect("detection record must have a 'behaviors' array even without IOC stamping");
+
+        assert_eq!(
+            behaviors.len(),
+            1,
+            "Without IOC stamping (None), behaviors[] must have exactly 1 MITRE-only entry; \
+             got {}",
+            behaviors.len()
+        );
+
+        // The MITRE-only entry must NOT have ioc_type or ioc_value keys.
+        let b0 = &behaviors[0];
+        assert!(
+            b0.get("ioc_type").is_none(),
+            "MITRE-only behavior entry must NOT have 'ioc_type' key; got: {b0}"
+        );
+        assert!(
+            b0.get("ioc_value").is_none(),
+            "MITRE-only behavior entry must NOT have 'ioc_value' key; got: {b0}"
+        );
+    }
 }

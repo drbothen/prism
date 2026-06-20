@@ -83,3 +83,88 @@ record_id_field = "detection_id"
 method = "PATCH"
 url = "/detects/entities/detect/v2"
 body_template = '{"ids": ${record_ids}, "assigned_to_uid": "${params.user_id}"}'
+
+# ---------------------------------------------------------------------------
+# Table: detections (read — behaviors[] IOC columns added by S-DEMO-ENRICHMENT-PIVOT-003)
+#
+# AC-005 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors[] IOC columns — real-schema fields added
+# to support the canonical ThreatIntel pivot query (BC-2.06.019 v1.13 PC-4).
+# SAP-2 compliance (U19): column names match JSON keys in make_detection_with_ioc()
+# in crates/prism-dtu-crowdstrike/src/generator.rs (untyped serde_json::Value path).
+# Adversary MUST verify against generator.rs and fixtures/detections-detail.json,
+# NOT types.rs (no typed Detection struct — U19 ruling).
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "detections"
+ocsf_class = "detection_finding"
+
+  [[tables.columns]]
+  name = "detection_id"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "created_timestamp"
+  column_type = "datetime"
+  ocsf_field = "time"
+  options = ["INDEX"]
+
+  [[tables.columns]]
+  name = "status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  [[tables.columns]]
+  name = "severity"
+  column_type = "string"
+  ocsf_field = "severity"
+
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+  ocsf_field = "device.uid"
+
+  [[tables.columns]]
+  name = "tactic"
+  column_type = "string"
+  ocsf_field = "attack.tactic.name"
+
+  [[tables.columns]]
+  name = "technique"
+  column_type = "string"
+  ocsf_field = "attack.technique.name"
+
+  # behaviors[] IOC columns (AC-005 / BC-2.06.019 v1.13 PC-4).
+  # Column names match JSON keys stamped by make_detection_with_ioc() in generator.rs.
+  [[tables.columns]]
+  name = "behaviors[].ioc_type"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "behaviors[].ioc_value"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "behaviors[].ioc_source"
+  column_type = "string"
+
+  [[tables.columns]]
+  name = "behaviors[].ioc_description"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "query_detection_ids"
+  method = "GET"
+  path_template = "/detects/queries/detects/v1?filter=${query.filter._fql}&limit=${query.limit}"
+  response_path = "$.resources"
+  variables_produced = ["detection_ids"]
+
+  [[tables.steps]]
+  name = "fetch_detections"
+  method = "POST"
+  path_template = "/detects/entities/summaries/GET/v1"
+  body_template = '{"ids": ${query_detection_ids.resources}}'
+  response_path = "$.resources"
+  variables_produced = []
+  fan_out_batch_size = 100

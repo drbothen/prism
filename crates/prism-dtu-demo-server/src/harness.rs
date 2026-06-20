@@ -691,17 +691,22 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             let cfg = &config.clones.crowdstrike;
             let scenario_active = cfg.scenario.as_ref().map(|s| s.enabled).unwrap_or(false);
             if scenario_active {
-                if let (Some((archetype, Some(org_id))), Some((timeline_arc, _, time_anchor))) = (
+                if let (
+                    Some((archetype, Some(org_id))),
+                    Some((timeline_arc, catalog, time_anchor)),
+                ) = (
                     validated_gen.get("crowdstrike").cloned(),
                     scenario_ctx.as_ref(),
                 ) {
                     // Story B: scenario path — call new_with_scenario (BC-2.06.019 §2.3).
+                    // F-PIVOT003-R2-001: thread catalog so detection 0 carries ioc_value.
                     Box::new(CrowdstrikeClone::new_with_scenario(
                         cfg.seed,
                         archetype,
                         org_id,
                         std::sync::Arc::clone(timeline_arc),
                         *time_anchor,
+                        catalog,
                     ))
                 } else {
                     Box::new(CrowdstrikeClone::new())
@@ -823,8 +828,10 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             let cfg = &config.clones.armis;
             let scenario_active = cfg.scenario.as_ref().map(|s| s.enabled).unwrap_or(false);
             if scenario_active {
-                if let (Some((archetype, Some(org_id))), Some((timeline_arc, _, time_anchor))) =
-                    (validated_gen.get("armis").cloned(), scenario_ctx.as_ref())
+                if let (
+                    Some((archetype, Some(org_id))),
+                    Some((timeline_arc, catalog, time_anchor)),
+                ) = (validated_gen.get("armis").cloned(), scenario_ctx.as_ref())
                 {
                     Box::new(
                         ArmisClone::new_with_scenario(
@@ -833,6 +840,7 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                             org_id,
                             std::sync::Arc::clone(timeline_arc),
                             *time_anchor,
+                            catalog,
                         )
                         .context("failed to construct ArmisClone::new_with_scenario")?,
                     )

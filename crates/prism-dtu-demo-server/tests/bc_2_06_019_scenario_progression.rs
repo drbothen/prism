@@ -340,7 +340,7 @@ fn test_BC_2_06_019_scenario_disabled_byte_identical_to_seeded_path() {
 
     let catalog = build_scenario_entity_catalog(42, &org_id);
     let start_secs: i64 = 2_000_000;
-    let timeline = build_default_incident_timeline(catalog, start_secs, &[]);
+    let timeline = build_default_incident_timeline(catalog.clone(), start_secs, &[]);
     let timeline_arc = Arc::new(timeline);
 
     let scenario_clone = CrowdstrikeClone::new_with_scenario(
@@ -351,6 +351,7 @@ fn test_BC_2_06_019_scenario_disabled_byte_identical_to_seeded_path() {
         // Use demo_time_anchor (2026-01-01T00:00:00Z) — deterministic anchor.
         // The timeline's scenario_start_epoch_secs is independent from time_anchor.
         prism_dtu_common::demo_time_anchor(),
+        &catalog,
     );
 
     // FAIL: new_with_scenario stub leaves timeline = None.
@@ -475,6 +476,7 @@ async fn test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones() {
         org_id.clone(),
         Arc::clone(&timeline),
         time_anchor,
+        &catalog,
     );
 
     let mut armis_clone = ArmisClone::new_with_scenario(
@@ -483,6 +485,7 @@ async fn test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones() {
         org_id.clone(),
         Arc::clone(&timeline),
         time_anchor,
+        &catalog,
     )
     .expect("ArmisClone::new_with_scenario must succeed");
 

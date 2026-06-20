@@ -1,4 +1,4 @@
-# Armis sensor spec — S-1.13 write endpoint extension
+# Armis sensor spec — S-1.13 write endpoint extension + read column additions
 # Implements AD-022 risk classification for Armis write operations.
 # Write endpoints: label (reversible), remove_label (reversible)
 #
@@ -8,6 +8,10 @@
 # owned by exactly one sensor across the workspace. "label" is semantically
 # correct — the Armis API refers to device categorization as "labels" in its
 # device management endpoints.
+#
+# Read column additions (F-PIVOT003-OBS-002): keep this file in sync with the
+# authoritative spec at crates/prism-sensors/specs/armis.sensor.toml for columns
+# introduced by S-DEMO-ENRICHMENT-PIVOT-003.
 
 sensor_id = "armis"
 name = "Armis"
@@ -56,3 +60,22 @@ record_id_field = "device_id"
 method = "DELETE"
 url = "/api/v1/devices/labels"
 body_template = '{"device_ids": ${record_ids}, "label": "${params.label}"}'
+
+# ---------------------------------------------------------------------------
+# Read table: devices (S-DEMO-ENRICHMENT-PIVOT-003 column additions)
+# Full spec is in crates/prism-sensors/specs/armis.sensor.toml.
+# This section declares only columns introduced by stories in the PIVOT wave
+# so that demo/e2e paths loading sensors/ have these columns declared.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "devices"
+
+  # S-DEMO-ENRICHMENT-PIVOT-003: device_cves_first column declaration (U17/Ruling 1b).
+  # The generator projection (stamping the first element of catalog.device_cves as a scalar)
+  # was wired in S-DEMO-ENRICHMENT-PIVOT-003 (F-PIVOT003-R2-002), not STORY-002.
+  # column_type = "string": CVE IDs are strings (e.g. "CVE-2024-12345").
+  # Used as the input field for `| enrich nvd(device_cves_first)` enrichment pipe stage.
+  [[tables.columns]]
+  name = "device_cves_first"
+  column_type = "string"
+  ocsf_field = "vulnerabilities.first_cve_id"
