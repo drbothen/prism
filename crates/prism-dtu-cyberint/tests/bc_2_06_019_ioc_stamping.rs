@@ -63,9 +63,10 @@ fn access_token_cookie(token: &str) -> String {
 }
 
 fn default_opts(seed: u64) -> GenOpts {
-    let mut opts = GenOpts::default();
-    opts.seed = seed;
-    opts
+    GenOpts {
+        seed,
+        ..Default::default()
+    }
 }
 
 // ---------------------------------------------------------------------------
