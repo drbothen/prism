@@ -867,6 +867,7 @@ fn scaled(baseline: usize, scale: f64, min_count: usize) -> usize {
 // cannot be called from an external integration test file.
 
 #[cfg(all(test, feature = "fixture-gen"))]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
