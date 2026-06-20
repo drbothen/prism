@@ -1,18 +1,106 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.889"
+version: "7.890"
 status: current
-timestamp: 2026-06-20T07:00:00Z
+timestamp: 2026-06-20T08:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1261 (2026-06-20): ARCHITECT DESIGN + STORY CORRECTIONS BURST. probe_table field design DONE (architect): Option<String> #[serde(default)] on SensorSpec, EXPECTED stays 79, per-sensor values: crowdstrike→detections, cyberint→alerts, claroty→devices, armis→devices. 001-A v1.1→v1.2 (10 rewrites, closes R1/R2, TDD-READY). 001-B v1.1→v1.2 (8 rewrites, closes FLAG-001, TDD-READY). Serial delivery: 001-A → 001-B → S-5.04. OPEN ORCHESTRATOR DECISION: fold probe_table into S-5.04 vs separate story. STORY-INDEX v2.442→v2.443. develop_head UNCHANGED f6739764. STATE v7.888→v7.889. §RESUME SNAPSHOT D-1261 authored (supersedes D-1260).**
+> **D-1262 (2026-06-20): SAP-1 CATALOG SYNC + TWO DECISIONS. (1) BC-2.16.002 v1.85: 3 new Canonical Structured Event Catalog rows (schema_enumeration.started/rejected/success — prism_describe, BC-2.10.012); catalog 77→80; label v1.50→v1.51; BC-INDEX v6.88. (2) probe_table FOLDED INTO S-5.04 (human decision — supersedes architect separate-story suggestion); S-5.04 scope expanded; T-PROBE→folded T15c. (3) 001-A TDD GREEN @8655a4c6: 11 RGTs pass, 4651 workspace tests GREEN; non-exhaustive 79→82 on feature branch. CLAUDE.md 79→82 reconciliation PENDING merge. NEXT: LOCAL strict-3-CLEAN cascade on frozen @8655a4c6. STATE v7.889→v7.890. §RESUME SNAPSHOT D-1262 authored (supersedes D-1261).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1261** (authoritative zero-context restart protocol; supersedes D-1260). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1260 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1261 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.889.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1262** (authoritative zero-context restart protocol; supersedes D-1261). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1261 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1262 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.890.
+
+---
+
+## §RESUME SNAPSHOT — D-1262 (2026-06-20 — SAP-1 CATALOG SYNC + TWO DECISIONS: BC-2.16.002 v1.85 + BC-INDEX v6.88; probe_table FOLDED INTO S-5.04; 001-A TDD GREEN @8655a4c6; develop_head f6739764 UNCHANGED; STATE v7.890)
+
+> **D-1262 burst (2026-06-20).** Three items committed to factory-artifacts (single atomic commit, TD-VSDD-053). **Item 1 — SAP-1 catalog sync (BC-2.16.002 v1.84→v1.85):** Per PG-LP11-001, S-DEMO-PRISMQL-ONBOARDING-001-A implementer added 3 new `tracing::*!(event_type=…)` emission sites in `crates/prism-mcp/src/tools/prism_describe.rs`. Added 3 new rows to the Canonical Structured Event Catalog: `schema_enumeration.started` INFO (fields: `client_id`; audit role: discovery initiation; recurrence: once per valid `prism_describe` call); `schema_enumeration.rejected` WARN (fields: `event_type`; audit role: input rejection per DI-006 invalid client_id; recurrence: once per invalid-input call); `schema_enumeration.success` INFO (fields: `client_id`; audit role: successful schema catalog emission; recurrence: once per successful call). All three trace to BC-2.10.012 (`prism_describe`). Scope statement extended to include prism-mcp schema-enumeration tool emissions. Catalog count 77→80; catalog bullet label `(v1.50)` → `(v1.51)` per POL-30 Fork B. BC-INDEX v6.87→v6.88 (inline row BC-2.16.002 v1.84→v1.85; new v6.88 changelog entry). No lifecycle/status/count changes: active_contracts 235 / draft_contracts 8 / total_contracts 256 UNCHANGED. **Item 2 — HUMAN DECISION: probe_table FOLDED INTO S-5.04.** Human directed probe_table FOLDED into S-5.04 (supersedes architect's separate-story suggestion in `probe-table-field-design.md`). S-5.04 scope now includes: `probe_table: Option<String>` TOML field + prism-spec-engine parse + new E-SPEC-026 error code + BC-2.08.001 amendment (SensorSpec schema) + BC-2.16.009 amendment (spec validation) + `connectivity.rs` consumption so that the Cyberint health probe correctly uses `alerts` instead of `devices`. S-5.04 ships with a correct (non-hollow) Cyberint probe. T-PROBE task→folded T15c in task ledger. Rationale: S-5.04 already owns `connectivity.rs` health probe logic; folding prevents a partially-broken state between S-5.04 ship and a follow-up; atomic delivery is production-grade default per CLAUDE.md Canonical Principle Rule 2. **Item 3 — 001-A TDD GREEN milestone.** Feature branch `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` at HEAD `8655a4c6`. 11 Red Gate tests pass; 258 prism-mcp tests total (+11 vs pre-001-A baseline); `just check` GREEN across all 4651 workspace tests. Data-path correct — column schema reads from `resolved_spec_map` (NOT `Arc<dyn TableRegistry>`, consistent with ADR-022 §C wiring-not-redesign, D-1261 TableRegistry correction). Non-exhaustive gate bumped 79→82: 3 new `#[non_exhaustive]` pub types (PrismDescribeResponse, TableDescriptor, ColumnDescriptor) in `ci.yml`, `check-non-exhaustive.sh`, and violation crate. CLAUDE.md non-exhaustive count sentence 79→82 reconciliation PENDING at 001-A merge-time. bc_index_version 6.87→6.88. develop_head UNCHANGED f6739764.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1262 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1262 snapshot first. It is authoritative.
+
+**Step 1.** `vsdd-factory:factory-worktree-health` — BLOCKING gate. Do not proceed if this fails.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1261/D-1262).
+
+**Step 3.** Verify no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Apply carry-forward lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+
+**Step 5.** Apply DO-NOT-REFLAG items from §DO-NOT-REFLAG section below.
+
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1262 below: 001-A LOCAL strict-3-CLEAN cascade (frozen @8655a4c6; NO pushes during cascade) → demo evidence → PR → 001-B TDD → S-5.04 (with probe_table folded) → T13. Autonomy D-989+D-1090 active.
+
+---
+
+### PINNED STATE (D-1262 — verified 2026-06-20)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| develop HEAD | `f6739764` | UNCHANGED from D-1258/D-1259/D-1260/D-1261/D-1262. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
+| factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
+| Open PRs | **NONE** | No open PRs. |
+| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `8655a4c6` | **TDD GREEN (D-1262).** 11 RGTs pass. 4651 workspace tests GREEN. **FROZEN for LOCAL cascade.** Do NOT push during cascade. |
+| 001-A story | **draft v1.2** | D-1261 TableRegistry correction applied. TDD GREEN @8655a4c6. DEMO-BLOCKING. Serial first. |
+| 001-B story | **draft v1.2** | D-1261 TableRegistry correction applied. **TDD-READY.** DEMO-BLOCKING. Serial after 001-A. |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | **UNPARKED per D-1260.** probe_table **FOLDED IN (D-1262).** PO to author BC-2.08.001 + BC-2.16.009 + E-SPEC-026 before TDD resumes. Serial: after 001-A + 001-B. |
+| S-3.09 worktree | FROZEN | Leave alone. |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
+| ci.yml EXPECTED | `82` (on feature/001-A branch) | 79 on develop. 79→82 reconciliation at 001-A merge-time. |
+| CLAUDE.md non-exhaustive count | `79` (on develop) | 79→82 reconciliation PENDING at 001-A merge-time. |
+| BC-INDEX | **v6.88** | active 235 / draft 8 / retired 6 / total 256. BC-2.16.002 v1.84→v1.85 (D-1262 SAP-1). |
+| STORY-INDEX | **v2.443** | 206 stories. Unchanged from D-1261. |
+| STATE.md | v7.890 | D-1262 burst. |
+| error_taxonomy | v1.91 | Unchanged. |
+| arch_index | v2.138 | Unchanged. |
+| vp_index | v1.79 | Unchanged. |
+| active_contracts | 235 | Unchanged. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
+| BC-2.16.002 | **v1.85** | D-1262 SAP-1: 3 new catalog rows (schema_enumeration.*); catalog 77→80; label v1.50→v1.51. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1262)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1262 (2026-06-20) | SAP-1 catalog sync + two decisions burst. (1) BC-2.16.002 v1.85: 3 new catalog rows (schema_enumeration.started/rejected/success); BC-INDEX v6.88. (2) probe_table FOLDED INTO S-5.04 (human decision; supersedes architect separate-story suggestion; T-PROBE→T15c). (3) 001-A TDD GREEN @8655a4c6 (11 RGTs; 4651 tests GREEN; non-exhaustive 79→82 on feature branch; CLAUDE.md 79→82 pending merge). bc_index_version 6.87→6.88. develop_head UNCHANGED f6739764. STATE v7.889→v7.890. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1262)
+
+| Priority | Story | Status | Pts | Hard Prerequisites | Notes |
+|----------|-------|--------|-----|--------------------|-------|
+| **NEXT (LOCAL cascade)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **TDD GREEN @8655a4c6** | 7 | Feature branch FROZEN (no pushes during cascade) | LOCAL strict-3-CLEAN cascade on frozen HEAD `8655a4c6`. DEMO-BLOCKING. Serial first. |
+| **NEXT-B (after 001-A merge)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | 001-A MERGED | **DEMO-BLOCKING (D-1243).** Serial after 001-A. |
+| **NEXT-C (after 001-A + 001-B merge)** | **S-5.04** | not-started v1.9 (**UNPARKED; probe_table FOLDED IN — D-1262**) | 5+ | 001-A/001-B MERGED + PO authors BC-2.08.001/BC-2.16.009/E-SPEC-026 | F-S504-R2-002 MED + LOW/OBS remain + probe_table scope added. **DEMO-BLOCKING.** |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**North Star roadmap: 001-A LOCAL cascade (frozen @8655a4c6) → demo → PR → 001-B TDD → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
+
+**Merge-time obligation: CLAUDE.md non-exhaustive count 79→82 reconciliation at 001-A merge-time.**
+
+**Convergence reminders (carry forward):**
+- BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. Feature branch `8655a4c6` is FROZEN during LOCAL cascade.
+- DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore). OBS-3 DEC-004 from S-5.03. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14).
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
 
 ---
 

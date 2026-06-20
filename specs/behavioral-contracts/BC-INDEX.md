@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.87"
+version: "6.88"
 status: draft
 producer: state-manager
 timestamp: 2026-06-20T04:00:00Z
@@ -223,7 +223,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 — D-1229 2026-06-18: client_name source annotation corrected [clients.{id}]→[[orgs]].name) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.84 (2026-06-19: PR #195 FIND-1 — two §Postconditions catalog rows corrected: SpecEngineError::EnrichCallFailed → PluginError::EnrichCallFailed; was v1.83: D-1239 2026-06-19: http_lookup_enrich_failed catalog field-schema expanded per PIVOT-002 fix-burst) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.85 (2026-06-20: D-1262 SAP-1 — 3 new catalog rows for schema_enumeration.started/rejected/success (`prism_describe`, BC-2.10.012); catalog count 77→80; catalog bullet label v1.50→v1.51; was v1.84: 2026-06-19: PR #195 FIND-1 — two §Postconditions catalog rows corrected: SpecEngineError::EnrichCallFailed → PluginError::EnrichCallFailed) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.88 (2026-06-20, D-1262 SAP-1 catalog sync — schema_enumeration rows for 001-A):** state-manager | BC-2.16.002 inline row: v1.84→v1.85 — SAP-1 compliance (PG-LP11-001): 3 new Canonical Structured Event Catalog rows registered for `prism_describe` tool emissions (S-DEMO-PRISMQL-ONBOARDING-001-A). `schema_enumeration.started` INFO (client_id field; discovery initiation; once per valid call). `schema_enumeration.rejected` WARN (event_type field; DI-006 input rejection; once per invalid client_id). `schema_enumeration.success` INFO (client_id field; successful schema catalog emission; once per successful call). All three trace to BC-2.10.012. Scope statement extended to include prism-mcp schema-enumeration tool emissions. Catalog count 77→80; catalog bullet label `(v1.50)` → `(v1.51)` per POL-30 Fork B (new rows = catalog-content structural change). **No BC lifecycle/status/count changes:** active_contracts 235 / draft_contracts 8 / total_contracts 256 ALL UNCHANGED. BC-INDEX v6.87→v6.88.
 
 **v6.87 (2026-06-20, D-1258 PIVOT-003 PR #196 SQUASH-MERGED — post-merge burst):** state-manager | **POST-MERGE CHANGELOG-ROW-ONLY burst.** PR #196 squash-merged develop@f6739764 (feat(S-DEMO-ENRICHMENT-PIVOT-003)). POL-14 BC auto-promotion check: BC-2.06.019 lifecycle_status=active v1.13 (promoted D-1139 2026-06-13) + BC-2.06.020 lifecycle_status=active v1.6 (promoted D-1139 2026-06-13) — BOTH ALREADY ACTIVE; idempotent no-op. **No BC content change, no count change:** active_contracts 235 / draft_contracts 8 / total_contracts 256 ALL UNCHANGED. Row 119 (BC-2.06.019): anchor story annotation PIVOT-003 v2.4 → **merged PR #196 develop@f6739764 D-1258 2026-06-20**. Row 120 (BC-2.06.020): anchor story annotation unchanged (BC-2.06.020 anchor is S-DEMO-DTU-LIVE-SCENARIO-001-B; not PIVOT-003). TD-PLUGIN-P0-002 P0 CLOSED. BC-2.06.019 §Interim State CLOSED. STORY-INDEX v2.439→v2.440. BC-INDEX v6.86→v6.87.
 
