@@ -131,7 +131,7 @@ pub struct PrismDescribeParams {
 /// BC-2.10.012: BC-DEMO-PRISMQL-ONBOARDING-001-A AC-001 through AC-005.
 pub async fn handle_prism_describe(
     client_id: String,
-    _query_engine: Option<&std::sync::Arc<prism_query::engine::QueryEngine>>,
+    query_engine: Option<&std::sync::Arc<prism_query::engine::QueryEngine>>,
     config_manager: Option<
         &std::sync::Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     >,
@@ -139,12 +139,7 @@ pub async fn handle_prism_describe(
 ) -> Result<CallToolResult, rmcp::model::ErrorData> {
     // BC-2.10.012: validate client_id format via OrgSlug::new() (rejects path traversal
     // and injection payloads). DI-006: do NOT echo the raw payload in the error message.
-    tracing::info!(
-        client_id = %client_id,
-        event_type = "schema_enumeration.started",
-        "prism_describe: schema enumeration started"
-    );
-
+    // SAP-1: emit schema_enumeration.started AFTER validation succeeds, not before.
     let org_slug = prism_core::OrgSlug::new(&client_id);
     if org_slug.is_err() {
         // DI-006: do NOT echo the raw client_id in the error message.
@@ -158,15 +153,28 @@ pub async fn handle_prism_describe(
         ));
     }
 
+    // BC-2.10.012 §Audit (SAP-1): emit started AFTER validation, so rejected calls
+    // emit only schema_enumeration.rejected, not .started (BC-2.16.002 v1.85 catalog).
+    tracing::info!(
+        client_id = %org_slug,
+        event_type = "schema_enumeration.started",
+        "prism_describe: schema enumeration started"
+    );
+
     // Emit audit event (fail-open per DI-004).
+    // BC-2.10.012 §Audit: outcome must be "schema_enumeration" (canonical operation name).
     let mut audit_warning = false;
     if let Some(aw) = audit_writer {
         if let Err(e) = aw
-            .write_tool_call("prism_describe", Some(org_slug.as_str()), "invoked")
+            .write_tool_call(
+                "prism_describe",
+                Some(org_slug.as_str()),
+                "schema_enumeration",
+            )
             .await
         {
             tracing::warn!(
-                event_type = "schema_enumeration.started",
+                client_id = %org_slug,
                 error = %e,
                 "prism_describe: audit emission failed (fail-open, DI-004)"
             );
@@ -174,10 +182,10 @@ pub async fn handle_prism_describe(
         }
     }
 
-    // Build table descriptors from config_manager (single-tenant fallback path).
-    // In multi-tenant mode, resolved_spec_map would be used instead (same pattern
-    // as render_schema_resource / render_client_sensors_resource in resources.rs).
-    let tables = build_tables_for_client(org_slug.as_str(), config_manager);
+    // Build table descriptors: multi-tenant path (resolved_spec_map via query_engine)
+    // takes precedence when query_engine is wired; falls back to config_manager for
+    // single-tenant / test scenarios (same pattern as render_client_sensors_resource).
+    let tables = build_tables_for_client(org_slug.as_str(), query_engine, config_manager);
 
     let pql_hints = build_pql_hints(org_slug.as_str(), &tables);
 
@@ -218,17 +226,62 @@ pub async fn handle_prism_describe(
     Ok(CallToolResult::success(vec![Content::text(json)]))
 }
 
-/// Build table descriptors for a client from config_manager (single-tenant fallback).
+/// Build table descriptors for a client.
 ///
-/// In single-tenant mode, `client_id` is used as the sensor_id key into
-/// `config_manager.load().sensor_specs`. The returned tables are filtered strictly
-/// to the named sensor (DI-008 client isolation — no cross-sensor leakage).
+/// Multi-tenant path: when `query_engine` is wired and its `resolved_spec_map` is
+/// `Some`, filter the map by `OrgSlug == client_id` and walk `ResolvedSensorSpec.spec`
+/// tables. DI-008: an org sees ONLY its own resolved overlays — no cross-tenant leakage.
+///
+/// Single-tenant fallback: when `query_engine` is None or its `resolved_spec_map` is
+/// None, fall back to `config_manager.sensor_specs` filtered by sensor_id == client_id.
+/// (Same pattern as `render_client_sensors_resource` in resources.rs.)
 fn build_tables_for_client(
     client_id: &str,
+    query_engine: Option<&std::sync::Arc<prism_query::engine::QueryEngine>>,
     config_manager: Option<
         &std::sync::Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     >,
 ) -> Vec<TableDescriptor> {
+    // ── Multi-tenant path: resolved_spec_map filtered by OrgSlug ─────────────────
+    if let Some(qe) = query_engine {
+        if let Some(spec_map) = qe.resolved_spec_map() {
+            // DI-008: filter by OrgSlug string to isolate per-client entries.
+            let mut tables: Vec<TableDescriptor> = spec_map
+                .iter()
+                .filter(|((org, _sensor), _spec)| org.as_str() == client_id)
+                .flat_map(|((_org, sensor_id), resolved)| {
+                    let spec = &resolved.spec;
+                    spec.tables.iter().map(move |table| {
+                        let columns: Vec<ColumnDescriptor> = table
+                            .columns
+                            .iter()
+                            .map(|col| ColumnDescriptor {
+                                name: col.name.clone(),
+                                col_type: col.column_type.clone(),
+                                description: col.ocsf_field.clone(),
+                                nullable: true,
+                            })
+                            .collect();
+                        let example_query = build_example_query(&table.table_name, &columns);
+                        // BC-2.10.012 sensor_type fix: derive from the sensor identity
+                        // (sensor_id from the resolved spec), NOT from client_id.
+                        TableDescriptor {
+                            name: table.table_name.clone(),
+                            sensor_type: sensor_id.as_ref().to_string(),
+                            description: table.ocsf_class.clone(),
+                            columns,
+                            example_query,
+                        }
+                    })
+                })
+                .collect();
+            // Sort by name for deterministic output.
+            tables.sort_by(|a, b| a.name.cmp(&b.name));
+            return tables;
+        }
+    }
+
+    // ── Single-tenant fallback: config_manager filtered by sensor_id == client_id ──
     let Some(cm) = config_manager else {
         return Vec::new();
     };
@@ -262,7 +315,10 @@ fn build_tables_for_client(
 
             TableDescriptor {
                 name: table.table_name.clone(),
-                sensor_type: client_id.to_string(),
+                // BC-2.10.012 sensor_type fix: derive from the sensor spec's sensor_id,
+                // NOT from client_id (in single-tenant mode they happen to be the same,
+                // but the canonical source is the spec's sensor_id).
+                sensor_type: sensor_spec.sensor_id.clone(),
                 description: table.ocsf_class.clone(),
                 columns,
                 example_query,

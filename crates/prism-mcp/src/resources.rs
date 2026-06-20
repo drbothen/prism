@@ -467,6 +467,20 @@ pub async fn dispatch_read_resource(
         }
     }
 
+    // Exact match: prismql://reference (BC-2.10.014 — static PQL grammar reference)
+    if uri == schema::URI_PQL_REFERENCE {
+        return schema::render_pql_reference_resource();
+    }
+
+    // Template match: prismql://schema/{client_id} (BC-2.10.013 — per-client schema catalog)
+    if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
+        // Reject path-traversal and empty client_id.
+        if !client_id.is_empty() && !client_id.contains('/') && !client_id.contains("..") {
+            return schema::render_pql_schema_resource(client_id, query_engine, config_manager)
+                .await;
+        }
+    }
+
     // DI-006: do NOT echo the raw `uri` in the error message — the URI is attacker-controlled
     // input that feeds into AI agent contexts. Echoing it is an injection/echo surface.
     // Use a generic, non-echoing message consistent with the pattern applied throughout

@@ -99,11 +99,11 @@ SELECT * FROM <sensor_table> WHERE time > NOW() - INTERVAL '24h' LIMIT 25
 
 | Error Code | Trigger | Recovery |
 |------------|---------|----------|
-| E-QUERY-001 | Unknown table name in FROM clause | Use `prism_describe` to list valid table names for the client; check spelling |
-| E-QUERY-002 | Unknown column name in SELECT or WHERE | Use `prism_describe` to list valid columns; check `available_columns` in error |
-| E-QUERY-003 | Invalid operator for column type (e.g., LIKE on Integer) | Check `valid_operators_for_type` in error; use a compatible operator |
-| E-QUERY-037 | Query syntax error — unexpected token | Read `near_text` and `how_to_fix` in error; consult Clause Grammar section above |
-| E-QUERY-038 | Normalized PQL validation failure after parse | Read `did_you_mean` and `how_to_fix`; verify column types match operator expectations |
+| E-QUERY-001 | Query parse/syntax error — unexpected token or malformed clause | Read `near_text` and `how_to_fix` in error; consult Clause Grammar section above |
+| E-QUERY-002 | Query planning failed — type error or denylist violation (e.g., non-SELECT statement rejected) | Check `valid_operators_for_type` and `how_to_fix`; ensure only SELECT queries are submitted |
+| E-QUERY-003 | Security limit exceeded (query depth, fan-out, or row-count limit) | Reduce query complexity; add LIMIT clause; narrow the time range |
+| E-QUERY-037 | Table not available — sensor not configured or table not provisioned for this client | Use `prism_describe` to list valid table names for the client; verify sensor is configured |
+| E-QUERY-038 | Column not found — normalized PQL validation failure after parse | Read `did_you_mean` and `available_columns` in error; use `prism_describe` to confirm column names |
 
 All error responses include: `near_text`, `available_columns`, `did_you_mean`,
 `valid_operators_for_type`, `how_to_fix`. Use these fields to self-correct.

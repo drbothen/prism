@@ -5395,6 +5395,9 @@ impl ServerHandler for PrismServer {
                 .enable_tools()
                 .enable_prompts()
                 .enable_resources()
+                // BC-2.10.013 AC-006: declare subscribe capability so MCP clients know they
+                // can subscribe to prismql://schema/{client_id} for change notifications.
+                .enable_resources_subscribe()
                 .build(),
         )
         .with_server_info(Implementation::new("prism", "0.1.0"))
