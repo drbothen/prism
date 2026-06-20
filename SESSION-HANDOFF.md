@@ -1,18 +1,105 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.885"
+version: "7.886"
 status: current
-timestamp: 2026-06-20T02:00:00Z
+timestamp: 2026-06-20T04:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1257 (2026-06-20): PIVOT-003 PR #196 PR-LEVEL round 1 OBS findings adjudicated as DO-NOT-REFLAG non-defects. 3 passes on frozen pushed HEAD 192428db: Pass 1 strict=no [OBS-1 evidence-HEAD docs-only + OBS-2 NVD test cross-story covered], Pass 2 strict=yes, Pass 3 strict=no [OBS-PASS3-001 same NVD premise]. Streak 0/3. Both OBS rulings SETTLED per orchestrator evidence-based adjudication. DO-NOT-REFLAG entries added to §DO-NOT-REFLAG. §RESUME SNAPSHOT D-1257 authored (supersedes D-1256). develop_head UNCHANGED 9114e028. STATE v7.884→v7.885.**
+> **D-1258 (2026-06-20): PIVOT-003 PR #196 SQUASH-MERGED into develop@f6739764. PR-LEVEL strict-3-CLEAN round 2: 3 independent fresh-context passes on frozen 192428db — all 3 CLEAN(strict)=yes (D-1257 OBS adjudications applied). Squash-merge complete; remote feature branch deleted. POL-14 idempotent (BC-2.06.019/020 already active since D-1139). TD-PLUGIN-P0-002 P0 CLOSED. BC-2.06.019 §Interim State CLOSED. EXPECTED=79 UNCHANGED. §RESUME SNAPSHOT D-1258 authored (supersedes D-1257). develop_head 9114e028→f6739764. STATE v7.885→v7.886.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1257** (authoritative zero-context restart protocol; supersedes D-1256). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1256 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1257 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `9114e028` (PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79 @9114e028; 2026-06-19; D-1257 state burst — develop UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.885.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1258** (authoritative zero-context restart protocol; supersedes D-1257). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1257 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1258 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.886.
+
+---
+
+## §RESUME SNAPSHOT — D-1258 (2026-06-20 — PIVOT-003 PR #196 SQUASH-MERGED develop@f6739764; NO OPEN PRs; STATE v7.886)
+
+> **D-1258 burst (2026-06-20).** POST-MERGE STATE BURST — develop_head ADVANCED to f6739764. PIVOT-003 PR #196 squash-merged into develop@f6739764 (commit feat(S-DEMO-ENRICHMENT-PIVOT-003): IOC stamping (Cyberint + CrowdStrike) + canonical pivot query validation). Delivery summary: LOCAL strict-3-CLEAN 12-round 3/3 @62d4fcdb (D-1256) → demo-recorder per-AC evidence → push 192428db → PR #196 opened → CI green (all checks) → PR-LEVEL strict-3-CLEAN round 2: 3 independent fresh-context adversary passes on frozen 192428db; ALL 3 CLEAN(strict)=yes, CLEAN(PR-merge)=yes (D-1257 DO-NOT-REFLAG: PIVOT-003-PRLEVEL-OBS-1 + PIVOT-003-PRLEVEL-OBS-2 applied; no new findings); streak 3/3 COMPLETE → squash-merge; remote feature branch deleted. POL-14 BC auto-promotion: BC-2.06.019 + BC-2.06.020 ALREADY ACTIVE since D-1139 — idempotent. TD-PLUGIN-P0-002 P0 CLOSED. BC-2.06.019 §Interim State CLOSED. EXPECTED=79 UNCHANGED. Cycle-close S-7.02: round 2 ZERO findings; round-1 OBS adjudicated non-defects (D-1257); no process-gap codification required.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1258 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1258 snapshot first. It is authoritative.
+
+**Step 1.** `vsdd-factory:factory-worktree-health` — BLOCKING gate. Do not proceed if this fails.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003): IOC stamping; 2026-06-20; D-1258).
+
+**Step 3.** Verify no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Apply carry-forward lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`. Lessons z24 (DRIFT-HOLLOW-FEATURE-INTEGRATION-001) and z25 (implementer must NOT commit .factory directly) are critical.
+
+**Step 5.** Apply DO-NOT-REFLAG items from §DO-NOT-REFLAG section below. PIVOT-003-PRLEVEL-OBS-1 and PIVOT-003-PRLEVEL-OBS-2 remain active (D-1257 settled non-defects; they may recur across context boundaries).
+
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1258 below: S-1.11 read-side-tables scoping (architect/PO) → S-5.04 lane resumption → 001-A + 001-B remove-uncertainty → TDD delivery → T13. Autonomy D-989+D-1090 active.
+
+---
+
+### PINNED STATE (D-1258 — verified 2026-06-20)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| develop HEAD | `f6739764` | PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003): IOC stamping (Cyberint + CrowdStrike) + canonical pivot query validation; 2026-06-20 (D-1258). |
+| factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
+| Open PRs | **NONE** | PR #196 MERGED develop@f6739764 (PIVOT-003). No open PRs. |
+| PIVOT-003 worktree | MERGED/DELETED | PR #196 squash-merged. Remote branch deleted. Worktree may be cleaned up. |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | PARKED — code done+green, BLOCKED on S-1.11 read-side tables (D-1252 user decision). |
+| S-3.09 worktree | FROZEN | Leave alone. |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
+| ci.yml EXPECTED | `79` | No new pub types from PIVOT-003 (Ioc/AlertData/Alert in prism-dtu-cyberint, outside gate crates). Authority: `ci.yml`. |
+| CLAUDE.md non-exhaustive count | `79` | Confirmed on develop@f6739764 (no new pub types in PIVOT-003). |
+| BC-INDEX | **v6.87** | active 235 / draft 8 / retired 6 / total 256. BC-2.06.019 v1.13 (active since D-1139). BC-2.06.020 v1.6 (active since D-1139). No count change from PIVOT-003 merge. |
+| STORY-INDEX | **v2.440** | 206 stories. PIVOT-003 draft v2.4 → merged (D-1258). |
+| STATE.md | v7.886 | D-1258 burst. |
+| error_taxonomy | v1.91 | Unchanged. |
+| arch_index | v2.138 | Unchanged. |
+| vp_index | v1.79 | Unchanged. |
+| active_contracts | 235 | Unchanged through D-1258 (POL-14 idempotent). |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1258)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1258 (2026-06-20) | PIVOT-003 post-merge burst. PR #196 squash-merged develop@f6739764. PR-LEVEL strict-3-CLEAN round 2: 3/3 CLEAN(strict) on frozen 192428db. POL-14 idempotent (BC-2.06.019/020 already active). TD-PLUGIN-P0-002 P0 CLOSED. BC-2.06.019 §Interim State CLOSED. STORY-INDEX v2.439→v2.440. BC-INDEX v6.86→v6.87 (changelog only). Task ledger v1.39→v1.40. develop_head 9114e028→f6739764. STATE v7.885→v7.886. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1258)
+
+| Priority | Story | Status | Pts | Hard Prerequisites | Notes |
+|----------|-------|--------|-----|--------------------|-------|
+| **NEW LANE NEEDED** | **S-1.11 read-side-tables** | partial-merge — read-side gap | TBD | — | HARD PREREQUISITE for S-5.04 (D-1252 user decision). Needs architect/PO scoping. Unblocks S-5.04. |
+| **NEXT-A (PARKED)** | **S-5.04** | not-started v1.9 (**PARKED — blocked on S-1.11**) | 5 | S-5.03 MERGED + **S-1.11 read-side-tables** | F-S504-R2-002 MED (rate-limited-aggregates-healthy) + LOW/OBS remain. Resume after S-1.11. **DEMO-BLOCKING.** |
+| **NEXT-B (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.0 | 7 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. Pipelines behind S-5.04 for prism-mcp conflict avoidance. |
+| **NEXT-C (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.0 | 6 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. Pipelines behind PIVOT-003 for prism-query/core conflict avoidance (PIVOT-003 now MERGED — conflict avoidance satisfied). |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | **S-5.04 + 001-A + 001-B — all 3 must MERGE** (PIVOT-003 SATISFIED) | PO + story-writer. Hard gates 3 remaining. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**North Star roadmap: S-1.11 (architect/PO scope → implement → merge) → S-5.04 (resume → fix F-S504-R2-002 MED + LOW/OBS → PR-LEVEL → merge) → 001-A + 001-B (remove-uncertainty → TDD → merge) → T13 capstone (PO+story-writer) → T14 recording.**
+
+**Remove-uncertainty rule (D-1110):** PIVOT-003 + S-5.04 SATISFIED. 001-A + 001-B still pending their pre-TDD remove-uncertainty pass.
+
+**Convergence reminders (carry forward):**
+- BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3.
+- Adversary dispatch: z24 (different-model cognitive diversity), TD-VSDD-005, inject policies.yaml rubric, SAP-1/SAP-2 probes, DRIFT-ORCH-ADVERSARY-TUPLE-001 tuple.
+- DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore — pre-existing from S-3.13, out-of-S-5.03-perimeter, ratified deferred). OBS-3 DEC-004 from S-5.03 (zero-sensor message) routed to product-owner for S-5.04 targeted story. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14).
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
 
 ---
 
