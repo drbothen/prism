@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.40"
+version: "1.41"
 producer: state-manager
 status: active
-timestamp: 2026-06-20T04:00:00Z
+timestamp: 2026-06-20T06:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -42,13 +42,13 @@ Foundations: COMPLETE (reused). Build: 9/15 tasks done; T4 DONE; T4-A DONE; T5 D
 
 ## CURRENT POINTER
 
-**L-POST: D-1258 (2026-06-20): PIVOT-003 PR #196 SQUASH-MERGED develop@f6739764. DEMO-BLOCKING SET: S-5.04 + 001-A + 001-B (3 remaining gate T13). develop@f6739764. NO OPEN PRs. MERGED: PIVOT-003 (**DEMO-BLOCKING** DONE; PR #196 merged; TD-PLUGIN-P0-002 CLOSED). PARKED: S-5.04 (**DEMO-BLOCKING** NEXT-A; BLOCKED on S-1.11 read-side tables D-1252; code done+green HEAD 4282c997). PICKABLE: 001-A + 001-B (**DEMO-BLOCKING D-1243**; remove-uncertainty PENDING before TDD). NEW LANE NEEDED: S-1.11 read-side-tables (HARD PREREQ for S-5.04; architect/PO scoping). T13 BLOCKED on S-5.04 + 001-A + 001-B all merged. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1258.**
+**L-POST: D-1260 (2026-06-20): HUMAN DECISIONS — S-1.11 MERGED (D-1260); probe_table Option B chosen; S-5.04 UNPARKED. develop@f6739764. NO OPEN PRs. DEMO-BLOCKING SET: S-5.04 + 001-A + 001-B (3 remaining gate T13). MERGED: PIVOT-003 (PR #196 develop@f6739764; DONE). **S-1.11 DONE (merged v1.7; D-1260 2026-06-20).** UNPARKED: S-5.04 (**DEMO-BLOCKING** NEXT-A; D-1252 block resolved by D-1260; soft-depends on probe_table story; code done+green HEAD 4282c997). NEW LANE: probe_table story (~1pt; PO to assign ID; TOML schema field + prism-spec-engine parsing + per-sensor TOML; architect design FIRST). PICKABLE AFTER CORRECTIONS: 001-A + 001-B (**DEMO-BLOCKING D-1243**; TableRegistry architectural correction PENDING architect→story-writer before TDD). T13 BLOCKED on S-5.04 + 001-A + 001-B all merged. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1260.**
 
 ## NEXT ACTION (verbatim, for cold resume — D-1255 2026-06-20)
 
 **L-POST — PIVOT-003 MERGED develop@f6739764. NO OPEN PRs. D-989+D-1090 autonomy ACTIVE.**
 
-**IMMEDIATE NEXT: S-1.11 read-side-tables scoping (architect/PO)** — dispatch 3 independent fresh-context `vsdd-factory:adversary` passes on frozen HEAD 62d4fcdb. Inject policies.yaml rubric; SAP-1/SAP-2; production-grade lens; DRIFT-ORCH-ADVERSARY-TUPLE-001 tuple per z24+TD-VSDD-005. All 3 must return CLEAN(strict)=yes (zero findings). If any finding: fix-burst → re-freeze → restart streak at 0/3. After LOCAL 3-CLEAN → push → PR-LEVEL 3-CLEAN (same protocol on PR HEAD) → squash-merge → post-merge burst (POL-14 no-op; EXPECTED stays 79; closes TD-PLUGIN-P0-002 P0 + BC-2.06.019 §Interim State).
+**IMMEDIATE NEXT: architect design — (a) probe_table TOML schema field + prism-spec-engine parsing design; (b) TableRegistry data-path correction for 001-A/001-B.** Both are parallel architect work items. Then PO+story-writer author probe_table story; TDD 001-A + 001-B after corrections; S-5.04 resumes. S-1.11 DONE (merged v1.7 D-1260). Inject policies.yaml rubric; SAP-1/SAP-2; production-grade lens; DRIFT-ORCH-ADVERSARY-TUPLE-001 tuple per z24+TD-VSDD-005. All 3 must return CLEAN(strict)=yes (zero findings). If any finding: fix-burst → re-freeze → restart streak at 0/3. After LOCAL 3-CLEAN → push → PR-LEVEL 3-CLEAN (same protocol on PR HEAD) → squash-merge → post-merge burst (POL-14 no-op; EXPECTED stays 79; closes TD-PLUGIN-P0-002 P0 + BC-2.06.019 §Interim State).
 
 **(a) PIVOT-003 (T16c) — PICKABLE NOW:**
 - story-writer must author S-DEMO-ENRICHMENT-PIVOT-003 spec if not yet materialized (real IOC fields: ioc_value, ioc_type, ioc_severity in Cyberint/CrowdStrike DTU fixtures + canonical `| enrich threat_intel(ioc_value)` pivot-query validation at scenario stage >= 3).
@@ -255,7 +255,8 @@ Status vocab: `not-started` | `in-progress` | `blocked` | `done`
 | T14 | blocked | demo-recorder + technical-writer | T13 MERGED | (narrative story) | SOC investigation walkthrough recorded as demo evidence; DEMO-RUNBOOK.md updated for multi-client; per-persona evidence captured. |
 | T15a | **done** | per-story delivery | S-5.01-FOLLOWUP-MCP-BOOT (SATISFIED D-1163) | S-5.02 | **DONE D-1202 2026-06-17 — PR #191 squash-merged develop@bec894a2. PR-LEVEL 3/3 strict CONVERGED on frozen 86842768. POL-14 BC-2.10.011 status:draft→active. non-exhaustive EXPECTED 60→64 (+4 pub types). DRIFT-S502-OBS1-QUERYLIMIT-FLATERROR-001 OPEN (wave-gate follow-up).** |
 | T15b | **done** (REQUIRED — D-1162) | per-story delivery | T15a (SATISFIED — S-5.02 MERGED) | S-5.03 | **DONE D-1238 2026-06-19 — PR #194 squash-merged develop@85ac7b06. PR-LEVEL 3/3 strict CONVERGED. POL-14 BC-2.08.005/BC-2.08.006/BC-2.10.008/BC-2.10.009 draft→active. non-exhaustive EXPECTED 70→76 (+6 pub types). OBS-3 DEC-004 → product-owner S-5.04 (do not reflag as S-5.03 blocker). OBS-S503-1 → S-5.11.** |
-| T15c | **not-started** (REQUIRED — D-1162; **PICKABLE NOW**) | story-writer + per-story delivery | T15b (SATISFIED — S-5.03 MERGED) | S-5.04 | S-5.04 delivered: Sensor health subsystem (per-client sensor status); remove-uncertainty before TDD. **DEMO-CRITICAL-PATH.** |
+| T-PROBE | **not-started** (D-1260 2026-06-20 — NEW LANE) | architect + product-owner + story-writer | architect design complete | probe_table story (PO-assigned ID ≈ S-1.11-PROBE-TABLE-001) | ~1pt. TOML schema field `probe_table` + prism-spec-engine parsing + per-sensor TOML population. S-5.04 soft-depends. Architect design FIRST (concurrent with 001-A/001-B TableRegistry correction). PO authors; story-writer materializes spec. Done-when: probe_table story merged into develop. |
+| T15c | **not-started** (REQUIRED — D-1162; **UNPARKED D-1260**; soft-depends on T-PROBE) | story-writer + per-story delivery | T15b (SATISFIED — S-5.03 MERGED); T-PROBE (soft-depends) | S-5.04 | S-5.04 UNPARKED per D-1260 (D-1252 S-1.11 block RESOLVED). Sensor health subsystem (per-client sensor status); remove-uncertainty before TDD. probe_table story (T-PROBE) is soft-dep — S-5.04 TDD can begin once T-PROBE story spec exists. **DEMO-CRITICAL-PATH.** |
 | **T15e (NEW D-1241; DEMO-BLOCKING D-1243)** | **not-started (PICKABLE NOW) — DEMO-BLOCKING** | story-writer + per-story delivery | S-5.03 MERGED + S-3.13 MERGED (BOTH SATISFIED) | S-DEMO-PRISMQL-ONBOARDING-001 | **DEMO-BLOCKING per user directive 2026-06-19 (D-1243).** PrismQL 4-layer LLM auto-onboarding teaching surface. ADR-041 v1.1 design package committed (D-1241). Draft story file v1.0 authored. 13 pts. 7 BCs. Depends S-5.03+S-3.13 (both SATISFIED). remove-uncertainty before TDD per D-1110. Must merge before T13 can begin. |
 | T15d | **done** | per-story delivery | S-1.12 via ConfigManager (SATISFIED D-1163) | S-3.13 | **DONE D-1204 2026-06-16 — PR #192 squash-merged develop@60249ccc. PR-LEVEL 3/3 strict CONVERGED on frozen 47a6ad65. POL-14 BC-2.16.007 status:draft→active. non-exhaustive EXPECTED 64→66 (+2 pub types). DRIFT-S313-EVIDENCE-STALE-SHA tracked (cosmetic).** |
 | **T16-ARCH-PLAN** | **not-started** (REQUIRED before enrichment delivery) | architect | T10, T15a-d (or parallel) | architect planning (no story file) | Architect determines exact build order for Full Option-A enrichment: adjudicate whether PIVOT-001 scope folds into S-1.14-REDO (avoid double-implementing plugin-type loader). Ruling MUST precede T16a dispatch. |
