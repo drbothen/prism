@@ -283,47 +283,57 @@ impl ArmisClone {
         time_anchor: chrono::DateTime<chrono::Utc>,
         catalog: &prism_dtu_common::ScenarioEntityCatalog,
     ) -> anyhow::Result<Self> {
-        // Call new_with_seed_anchored (NOT the 3-arg new_with_seed) to use the
-        // caller-supplied time_anchor for era-coherent generated timestamps.
-        // ADR-036 v2.3 §2.3 mandates this; the 3-arg path is FORBIDDEN here.
-        let mut clone = Self::new_with_seed_anchored(seed, archetype, org_id.clone(), time_anchor)?;
+        use crate::generator::generate_with_scenario_cves;
+        use prism_dtu_common::GenOpts;
 
-        // F-PIVOT003-R2-002: replace generated_records with the CVE-stamped version so that
-        // CompromisedEndpoint device records carry device_cves_first from the catalog.
-        // This must happen BEFORE attaching the timeline so the mutation is atomic.
-        {
-            use crate::generator::generate_with_scenario_cves;
-            use prism_dtu_common::GenOpts;
+        // F-PIVOT003-R11C-002: generate ONCE with CVEs stamped in a single pass —
+        // mirroring the CrowdStrike sibling pattern (see CrowdstrikeClone::new_with_scenario).
+        // The previous approach called new_with_seed_anchored (generate #1) then
+        // generate_with_scenario_cves (generate #2), discarding the first set of records.
+        // Building state directly avoids the redundant generate() call.
+        let org_slug = prism_dtu_common::org_slug_from_org_id(&org_id);
+        let opts = GenOpts {
+            seed,
+            time_anchor,
+            ..GenOpts::default()
+        };
+        let fixture_with_cves = generate_with_scenario_cves(
+            org_id.clone(),
+            &org_slug,
+            archetype,
+            &opts,
+            &catalog.device_cves,
+        );
 
-            let org_slug = prism_dtu_common::org_slug_from_org_id(&org_id);
-            let opts = GenOpts {
-                seed,
-                time_anchor,
-                ..GenOpts::default()
-            };
-            let fixture_with_cves = generate_with_scenario_cves(
-                org_id,
-                &org_slug,
-                archetype,
-                &opts,
-                &catalog.device_cves,
-            );
+        // Load static fixtures (required by ArmisState; still used for activity and alerts).
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let devices: Vec<crate::types::DeviceRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
+        let activity: Vec<crate::types::ActivityRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
+        let alerts: Vec<crate::types::AlertRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
 
-            // Reclaim state to replace generated_records.
-            let mut state = Arc::try_unwrap(clone.state).unwrap_or_else(|_| {
-                panic!(
-                    "ArmisClone::new_with_scenario: Arc refcount must be 1 immediately after \
-                     new_with_seed_anchored; a second Arc clone would indicate a refactor \
-                     invariant violation (B-P5-OBS-1)"
-                )
-            });
-            state.generated_records = fixture_with_cves.records;
-            // Attach the timeline in the same unwrap.
-            state.timeline = Some(Arc::clone(&timeline));
-            clone.state = Arc::new(state);
-        }
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state =
+            ArmisState::with_admin_token(devices, activity, alerts, admin_token.clone());
+        state.generated_records = fixture_with_cves.records;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). F-P6-HIGH-001 / ADR-036 v2.2.
+        state.fixture_gen_seeded = true;
+        // Attach the timeline so route handlers can apply StageMask filtering.
+        // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
+        state.timeline = Some(Arc::clone(&timeline));
 
-        Ok(clone)
+        Ok(Self {
+            state: Arc::new(state),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        })
     }
 
     /// Return the base URL for the bound server (e.g. `"http://127.0.0.1:12345"`).
