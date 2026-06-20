@@ -4,22 +4,100 @@
 //! MCP Prompt (BC-2.10.009), and the L1 primer upgrade to the `query` tool
 //! description (BC-2.10.009 §L1 primer).
 //!
-//! ALL tests in this file must FAIL against the todo!() stubs (Red Gate per BC-5.38.001).
+//! ALL tests in this file must FAIL against the current (defective) implementation
+//! (Red Gate per BC-5.38.001). Tests were rewritten from the initial false-green
+//! versions that called leaf renderers directly.
+//!
+//! # What was wrong with the original tests
+//!
+//! - AC-007 reference: called `render_pql_reference_resource` directly rather than
+//!   `dispatch_read_resource("prismql://reference")` — bypassed the dispatch table,
+//!   which does NOT route `prismql://reference`.
+//! - AC-007 error codes: the pql_reference.md Error Code Quick-Reference table has
+//!   WRONG canonical meanings (E-QUERY-001 and E-QUERY-037 are swapped/wrong).
+//!   The previous tests only checked for the presence of the code strings — not the
+//!   correct canonical meanings per error-taxonomy.md.
+//! - AC-008 static invariant: same dispatch bypass issue.
 //!
 //! # Test → AC mapping
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
+//! | test_BC_2_10_014_reference_resource_dispatch_routed | AC-007 | BC-2.10.014 |
 //! | test_BC_2_10_014_reference_resource_sections | AC-007 | BC-2.10.014 |
+//! | test_BC_2_10_014_reference_resource_canonical_error_code_meanings | AC-007 | BC-2.10.014 |
 //! | test_BC_2_10_014_reference_resource_static_invariant | AC-008 | BC-2.10.014 |
 //! | test_BC_2_10_009_query_tutorial_prompt | AC-009 | BC-2.10.009 |
 //! | test_BC_2_10_009_l1_primer_query_tool_description | AC-010 | BC-2.10.009 |
 
+use std::sync::Arc;
+
 use prism_mcp::{
+    context::PrismContext,
     prompts::{build_prompt_router, render_query_tutorial, PROMPT_QUERY_TUTORIAL},
-    resources::{build_resource_list, schema::render_pql_reference_resource},
+    resources::{
+        build_resource_list, dispatch_read_resource, schema::render_pql_reference_resource,
+    },
     server::PrismServer,
 };
+
+// ─── AC-007: prismql://reference dispatch routing ────────────────────────────
+
+/// AC-007 (BC-2.10.014 — Dispatch routing):
+/// `dispatch_read_resource("prismql://reference", ...)` must NOT return the
+/// generic 404 "Unknown or unsupported resource URI". It must route to
+/// `render_pql_reference_resource` and return the content.
+///
+/// RED GATE: Fails because `dispatch_read_resource` in `resources.rs` has no
+/// handler for the `prismql://reference` URI — it falls through to the 404 return.
+///
+/// Note: `build_resource_list()` already lists `prismql://reference` (WIRING-EXEMPT
+/// registration is already done). The dispatch routing is the missing piece.
+#[tokio::test]
+async fn test_BC_2_10_014_reference_resource_dispatch_routed() {
+    let context = Arc::new(PrismContext::new());
+
+    // Drive dispatch_read_resource for the prismql://reference URI.
+    let result = dispatch_read_resource(
+        "prismql://reference",
+        &context,
+        None, // no query_engine needed
+        None, // no config_manager needed (static resource)
+    )
+    .await;
+
+    // The dispatch must NOT return Err with the 404-equivalent message.
+    // Currently falls through to: Err("Unknown or unsupported resource URI")
+    assert!(
+        result.is_ok(),
+        "BC-2.10.014 AC-007: dispatch_read_resource('prismql://reference') must \
+         return Ok — not a 404 error. The dispatch table does NOT yet have a handler \
+         for 'prismql://reference'. \
+         Got Err: {:?}",
+        result.err()
+    );
+
+    let read_result = result.unwrap();
+
+    // Must return non-empty text content.
+    let content_text: String = read_result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    assert!(
+        !content_text.is_empty(),
+        "BC-2.10.014 AC-007: dispatch result for prismql://reference must be non-empty"
+    );
+}
 
 // ─── AC-007: prismql://reference registration and required sections ───────────
 
@@ -29,14 +107,11 @@ use prism_mcp::{
 /// section headers AND error quick-reference rows for E-QUERY-001, E-QUERY-002,
 /// E-QUERY-003, E-QUERY-037, E-QUERY-038.
 ///
-/// Note: the resource LIST registration itself is already implemented (WIRING-EXEMPT
-/// per stub comments), so the list-presence assertion passes without implementation.
-/// The RED GATE is maintained by `render_pql_reference_resource()` which is `todo!()`.
-///
-/// RED GATE: Fails with todo!() panic from `render_pql_reference_resource()` in
-/// `crates/prism-mcp/src/resources/schema.rs`.
-#[test]
-fn test_BC_2_10_014_reference_resource_sections() {
+/// Note: The resource list registration is already done (build_resource_list passes).
+/// The RED GATE is driven by `dispatch_read_resource` — not by `render_pql_reference_resource`
+/// directly. This ensures the implementer wires the dispatch, not just the leaf function.
+#[tokio::test]
+async fn test_BC_2_10_014_reference_resource_sections() {
     // Verify prismql://reference is registered in the resource list.
     let resource_list = build_resource_list();
     let has_reference = resource_list
@@ -62,12 +137,17 @@ fn test_BC_2_10_014_reference_resource_sections() {
         mime
     );
 
-    // RED GATE: render_pql_reference_resource will todo!() panic here.
-    let result = render_pql_reference_resource()
-        .expect("BC-2.10.014 AC-007: render_pql_reference_resource must return Ok");
+    // RED GATE: drive via dispatch_read_resource to ensure routing is wired.
+    // (NOT by calling render_pql_reference_resource directly — that bypasses dispatch.)
+    let context = Arc::new(PrismContext::new());
+    let dispatch_result = dispatch_read_resource("prismql://reference", &context, None, None)
+        .await
+        .expect(
+            "BC-2.10.014 AC-007: dispatch_read_resource('prismql://reference') must succeed; \
+             currently returns 404 (dispatch not wired for prismql:// URIs)",
+        );
 
-    // Extract content text.
-    let content_text: String = result
+    let content_text: String = dispatch_result
         .contents
         .iter()
         .filter_map(|c| {
@@ -82,7 +162,7 @@ fn test_BC_2_10_014_reference_resource_sections() {
 
     assert!(
         !content_text.is_empty(),
-        "BC-2.10.014 AC-007: render_pql_reference_resource must return non-empty content"
+        "BC-2.10.014 AC-007: dispatch result must return non-empty content"
     );
 
     // BC-2.10.014: all 7 required section headers must be present.
@@ -124,6 +204,124 @@ fn test_BC_2_10_014_reference_resource_sections() {
     }
 }
 
+// ─── AC-007: canonical error code meanings per error-taxonomy.md ─────────────
+
+/// AC-007 (BC-2.10.014 — Error code canonical meanings):
+/// The `## Error Code Quick-Reference` table in `prismql://reference` must map
+/// each E-QUERY-NNN code to the CANONICAL meaning per `.factory/specs/prd-supplements/
+/// error-taxonomy.md` and BC-2.10.014.
+///
+/// Canonical meanings (from error-taxonomy.md and prism_core::error):
+/// - E-QUERY-001: query PARSE/SYNTAX error (query parse error at offset N: detail)
+/// - E-QUERY-002: query PLANNING failed / denylist violation (SELECT-only enforcement)
+/// - E-QUERY-037: TABLE NOT AVAILABLE — sensor not configured (table X not available)
+/// - E-QUERY-038: COLUMN NOT FOUND / normalized PQL validation failure
+///
+/// RED GATE: Fails because pql_reference.md has SWAPPED/WRONG meanings:
+/// - E-QUERY-001 row says "Unknown table name in FROM clause" (should be parse/syntax)
+/// - E-QUERY-037 row says "Query syntax error" (should be table not available/sensor)
+/// These are inverted and will cause AI agents to self-correct incorrectly.
+///
+/// This test drives via dispatch_read_resource (real path) to ensure both dispatch
+/// routing AND content correctness are verified in one test.
+#[tokio::test]
+async fn test_BC_2_10_014_reference_resource_canonical_error_code_meanings() {
+    let context = Arc::new(PrismContext::new());
+
+    let result = dispatch_read_resource("prismql://reference", &context, None, None)
+        .await
+        .expect(
+            "BC-2.10.014 AC-007: dispatch_read_resource('prismql://reference') must succeed; \
+             dispatch routing must be wired",
+        );
+
+    let content_text: String = result
+        .contents
+        .iter()
+        .filter_map(|c| {
+            if let rmcp::model::ResourceContents::TextResourceContents { text, .. } = c {
+                Some(text.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("");
+
+    // BC-2.10.014: E-QUERY-001 must map to parse/syntax errors.
+    // Canonical meaning from error-taxonomy.md: "E-QUERY-001: query parse error at offset N"
+    // The table row for E-QUERY-001 MUST contain "parse" or "syntax" — NOT "table name" or
+    // "FROM clause" (which is E-QUERY-037's territory).
+    let eq001_line = extract_table_row_for_code(&content_text, "E-QUERY-001");
+    assert!(
+        eq001_line.to_lowercase().contains("parse") || eq001_line.to_lowercase().contains("syntax"),
+        "BC-2.10.014 AC-007: E-QUERY-001 row in Error Code Quick-Reference MUST describe \
+         parse/syntax errors (canonical: 'query parse error'). \
+         Current row says: {:?}. \
+         The current pql_reference.md has swapped E-QUERY-001 and E-QUERY-037 meanings.",
+        eq001_line
+    );
+
+    // E-QUERY-001 must NOT claim it is a "table" or "FROM" clause error.
+    assert!(
+        !eq001_line.to_lowercase().contains("table name")
+            && !eq001_line.to_lowercase().contains("from clause"),
+        "BC-2.10.014 AC-007: E-QUERY-001 row MUST NOT describe 'table name' or 'FROM clause' \
+         errors — that is E-QUERY-037. Current row (wrong): {:?}",
+        eq001_line
+    );
+
+    // BC-2.10.014: E-QUERY-037 must map to table-not-available / sensor-not-configured.
+    // Canonical meaning from error-taxonomy.md: "E-QUERY-037: table X is not available —
+    // sensor Y is not configured"
+    let eq037_line = extract_table_row_for_code(&content_text, "E-QUERY-037");
+    assert!(
+        eq037_line.to_lowercase().contains("table")
+            || eq037_line.to_lowercase().contains("sensor")
+            || eq037_line.to_lowercase().contains("not available")
+            || eq037_line.to_lowercase().contains("not configured"),
+        "BC-2.10.014 AC-007: E-QUERY-037 row MUST describe table-not-available / \
+         sensor-not-configured errors (canonical: 'table X not available, sensor not configured'). \
+         Current row says: {:?}. \
+         The current pql_reference.md has swapped E-QUERY-037 and E-QUERY-001 meanings.",
+        eq037_line
+    );
+
+    // E-QUERY-037 must NOT claim it is a "syntax" or "parse" error.
+    assert!(
+        !eq037_line.to_lowercase().contains("syntax error")
+            && !eq037_line.to_lowercase().contains("unexpected token"),
+        "BC-2.10.014 AC-007: E-QUERY-037 row MUST NOT describe 'syntax error' or \
+         'unexpected token' — those are E-QUERY-001. Current row (wrong): {:?}",
+        eq037_line
+    );
+
+    // BC-2.10.014: E-QUERY-002 must map to type errors / planning failures / denylist.
+    // Canonical meaning: "E-QUERY-002: query planning failed" (denylist violation,
+    // e.g., non-SELECT statements rejected)
+    let eq002_line = extract_table_row_for_code(&content_text, "E-QUERY-002");
+    assert!(
+        eq002_line.to_lowercase().contains("type")
+            || eq002_line.to_lowercase().contains("plan")
+            || eq002_line.to_lowercase().contains("operator")
+            || eq002_line.to_lowercase().contains("column")
+            || eq002_line.to_lowercase().contains("select"),
+        "BC-2.10.014 AC-007: E-QUERY-002 row MUST describe type/planning/operator errors \
+         (canonical: 'query planning failed'). Current row says: {:?}",
+        eq002_line
+    );
+}
+
+/// Helper: extract the table row for a given error code from the content text.
+/// Returns the line containing the code, or an empty string if not found.
+fn extract_table_row_for_code(content: &str, code: &str) -> String {
+    content
+        .lines()
+        .find(|line| line.contains(code))
+        .unwrap_or("")
+        .to_string()
+}
+
 // ─── AC-008: content authorship invariant ────────────────────────────────────
 
 /// AC-008 (BC-2.10.014 — Content authorship invariant; EC-10-035, EC-10-036):
@@ -131,14 +329,24 @@ fn test_BC_2_10_014_reference_resource_sections() {
 /// (b) Content length ≤ 3,000 tokens (~12KB).
 /// (c) Content is identical on two successive reads (static invariant).
 ///
-/// RED GATE: Fails with todo!() panic from `render_pql_reference_resource()`.
-#[test]
-fn test_BC_2_10_014_reference_resource_static_invariant() {
-    // RED GATE: both calls will todo!() panic here.
-    let result_1 = render_pql_reference_resource()
-        .expect("BC-2.10.014 AC-008: first render_pql_reference_resource call must succeed");
-    let result_2 = render_pql_reference_resource()
-        .expect("BC-2.10.014 AC-008: second render_pql_reference_resource call must succeed");
+/// RED GATE: Driven via dispatch_read_resource to ensure dispatch routing is wired.
+/// The previous version called render_pql_reference_resource directly — that bypassed
+/// the dispatch table and could pass even when dispatch was broken.
+#[tokio::test]
+async fn test_BC_2_10_014_reference_resource_static_invariant() {
+    let context = Arc::new(PrismContext::new());
+
+    // RED GATE: both calls drive via dispatch to ensure routing is wired.
+    let result_1 = dispatch_read_resource("prismql://reference", &context, None, None)
+        .await
+        .expect(
+            "BC-2.10.014 AC-008: first dispatch_read_resource('prismql://reference') must succeed",
+        );
+    let result_2 = dispatch_read_resource("prismql://reference", &context, None, None)
+        .await
+        .expect(
+            "BC-2.10.014 AC-008: second dispatch_read_resource('prismql://reference') must succeed",
+        );
 
     let extract_text = |r: &rmcp::model::ReadResourceResult| -> String {
         r.contents
