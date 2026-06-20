@@ -6,6 +6,10 @@
 //! - `prism://schema/{sensor_id}/{table_name}` — OCSF schema for a sensor+table
 //! - `prism://sensors/health` — cached sensor health data (BC-2.08.006)
 //!
+//! S-DEMO-PRISMQL-ONBOARDING-001-A adds (BC-2.10.013, BC-2.10.014):
+//! - `prismql://schema/{client_id}` — per-client PQL table/column/type schema catalog
+//! - `prismql://reference` — static PQL grammar reference (build-time embedded)
+//!
 //! Resources are served by overriding `list_resources`, `list_resource_templates`,
 //! and `read_resource` on `impl ServerHandler for PrismServer` in `server.rs`.
 //! There is NO `#[resource_handler]` macro in rmcp 1.7 — confirmed against rmcp source.
@@ -14,6 +18,11 @@
 //!
 //! All resource response serialization MUST redact API keys and full URL paths.
 //! Only host+port components are emitted for URL fields (VP-050, BC-2.10.008 postcondition).
+
+/// `prismql://schema/{client_id}` resource template and `prismql://reference` static resource.
+///
+/// Stub module for S-DEMO-PRISMQL-ONBOARDING-001-A (BC-2.10.013, BC-2.10.014).
+pub mod schema;
 
 use std::{collections::BTreeSet, sync::Arc};
 
@@ -291,6 +300,14 @@ fn sanitize_display_name(name: &str) -> String {
 /// Build the static list of concrete (non-templated) resources.
 ///
 /// Called from `ServerHandler::list_resources` override on `PrismServer`.
+///
+/// Includes `prismql://reference` (BC-2.10.014) as a static resource added by
+/// S-DEMO-PRISMQL-ONBOARDING-001-A.
+///
+/// WIRING-EXEMPT: registering URIs in a list is wiring metadata — the behavior
+/// (content delivery) lives in `dispatch_read_resource` → `render_pql_reference_resource`
+/// (which is `todo!()`). AC-007 tests both the list presence AND the content, so the
+/// Red Gate holds.
 pub fn build_resource_list() -> ListResourcesResult {
     let resources = vec![
         RawResource::new(URI_CONFIG_CLIENTS, "Prism Client Inventory")
@@ -303,6 +320,16 @@ pub fn build_resource_list() -> ListResourcesResult {
             )
             .with_mime_type("application/json")
             .no_annotation(),
+        // L3: PQL grammar reference static resource (BC-2.10.014 — S-DEMO-PRISMQL-ONBOARDING-001-A).
+        // Content embedded via include_str! in resources/schema.rs::PQL_REFERENCE_CONTENT.
+        // No subscribe/listChanged (static content — BC-2.10.014).
+        RawResource::new(schema::URI_PQL_REFERENCE, "PrismQL Grammar Reference")
+            .with_description(
+                "Full PrismQL grammar reference — SELECT/FROM/WHERE/GROUP BY/ORDER BY/LIMIT, \
+                 operators, datetime arithmetic, error quick-reference, and self-correction workflow.",
+            )
+            .with_mime_type("text/markdown")
+            .no_annotation(),
     ];
     ListResourcesResult {
         resources,
@@ -314,6 +341,13 @@ pub fn build_resource_list() -> ListResourcesResult {
 /// Build the list of URI-template resources.
 ///
 /// Called from `ServerHandler::list_resource_templates` override on `PrismServer`.
+///
+/// Includes `prismql://schema/{client_id}` (BC-2.10.013) as a URI template added by
+/// S-DEMO-PRISMQL-ONBOARDING-001-A.
+///
+/// WIRING-EXEMPT: registering URI templates in a list is wiring metadata — the behavior
+/// (content delivery, subscribe/notify) lives in handler stubs that are `todo!()`.
+/// AC-005/AC-006 tests both list presence AND behavior, so the Red Gate holds.
 pub fn build_resource_template_list() -> ListResourceTemplatesResult {
     let resource_templates = vec![
         RawResourceTemplate::new(URI_TEMPLATE_CLIENT_SENSORS, "Prism Client Sensor Config")
@@ -327,6 +361,17 @@ pub fn build_resource_template_list() -> ListResourceTemplatesResult {
             .with_description(
                 "OCSF schema definition for a specific sensor and table. Substitute \
                  {sensor_id} and {table_name} with the target values.",
+            )
+            .with_mime_type("application/json")
+            .no_annotation(),
+        // L2: Per-client PQL schema resource template (BC-2.10.013 — S-DEMO-PRISMQL-ONBOARDING-001-A).
+        // Content is structurally identical to prism_describe(client_id) (single-source-of-truth).
+        // Supports server-side subscribe/notify (NET-NEW machinery — see resources/schema.rs).
+        RawResourceTemplate::new(schema::URI_TEMPLATE_PQL_SCHEMA, "PrismQL Client Schema")
+            .with_description(
+                "Per-client PQL table/column/type schema catalog. Substitute {client_id} with \
+                 the target client identifier. Subscribe to receive notifications when the \
+                 client's sensor schema changes.",
             )
             .with_mime_type("application/json")
             .no_annotation(),

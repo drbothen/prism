@@ -5315,6 +5315,45 @@ is NOT an error — returns matrix with client_registered: false",
         emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked").await?;
         Err(not_yet_available_msg("help system"))
     }
+
+    // ─── L2 schema discovery (BC-2.10.012) ───────────────────────────────────
+
+    /// Discover the table and column schema available for a specific client.
+    ///
+    /// DATA TRUST LEVEL: Internal — schema data is Prism-generated from sensor specs.
+    /// SECURITY NOTE: client_id scanned for prompt injection and validated via OrgSlug.
+    /// DATA SOURCE: sensor spec layer via query_engine.resolved_spec_map() or config_manager.
+    /// ALWAYS-REGISTERED: this tool is never feature-gated (BC-2.10.012 precondition 1).
+    /// Call this tool before writing a PrismQL query to discover which tables and columns
+    /// are available.
+    #[tool(
+        description = "Discover the table and column schema available for a specific client.\n\
+        DATA TRUST LEVEL: Internal — schema data is Prism-generated from sensor specs.\n\
+        SECURITY NOTE: client_id is validated via OrgSlug (rejects path traversal and injections).\n\
+        DATA SOURCE: sensor spec layer (query_engine.resolved_spec_map or config_manager fallback).\n\
+        WHEN TO USE: Call this tool before writing a PrismQL query to discover which tables and columns are available.\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool for sensor data\n\
+        PARAMETERS: client_id (required — the client scope to describe)\n\
+        PAGINATION: not applicable — full schema catalog returned in one response\n\
+        RESPONSE: client_id, tables array (name, sensor_type, columns, example_query), pql_hints\n\
+        ERRORS: E-MCP-001 invalid client_id format; empty tables array for unknown/empty clients (not error)\n\
+        ANNOTATIONS: readOnlyHint:true, destructiveHint:false, idempotentHint:true, openWorldHint:false",
+        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false),
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn prism_describe(
+        &self,
+        Parameters(_params): Parameters<crate::tools::prism_describe::PrismDescribeParams>,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        todo!(
+            "BC-2.10.012 AC-001..AC-005: delegate to \
+               crate::tools::prism_describe::handle_prism_describe — \
+               injection scan first (BC-2.09.001 NON-NEGOTIABLE), \
+               then validate client_id, emit audit event, \
+               read column schema from resolved_spec_map or config_manager, \
+               build PrismDescribeResponse, return structured CallToolResult"
+        )
+    }
 }
 
 // ─── ServerHandler impl — override get_info, resources, and prompt routing ────

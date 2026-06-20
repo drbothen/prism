@@ -18,9 +18,11 @@ pub mod tools;
 pub use context::PrismContext;
 pub use prompts::{
     build_prompt_router, render_client_overview, render_cross_client_status,
-    render_investigate_host, render_triage_alerts, PROMPT_CLIENT_OVERVIEW,
-    PROMPT_CROSS_CLIENT_STATUS, PROMPT_INVESTIGATE_HOST, PROMPT_TRIAGE_ALERTS, SECURITY_REMINDER,
+    render_investigate_host, render_query_tutorial, render_triage_alerts, PROMPT_CLIENT_OVERVIEW,
+    PROMPT_CROSS_CLIENT_STATUS, PROMPT_INVESTIGATE_HOST, PROMPT_QUERY_TUTORIAL,
+    PROMPT_TRIAGE_ALERTS, SECURITY_REMINDER,
 };
+pub use resources::schema::{SchemaSubscriberRegistry, URI_PQL_REFERENCE, URI_TEMPLATE_PQL_SCHEMA};
 pub use resources::{
     dispatch_hot_reload_notifications, render_client_list_resource, render_client_sensors_resource,
     render_sensor_inventory_resource, render_sensors_health_resource, ClientInventoryEntry,
@@ -33,3 +35,4 @@ pub use server::{
     PrismServer, ResolutionStep,
 };
 pub use tool_registry::{ToolDescriptionRegistrar, ToolRegistration};
+pub use tools::prism_describe::{ColumnDescriptor, PrismDescribeResponse, TableDescriptor};

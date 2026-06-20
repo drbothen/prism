@@ -19,6 +19,10 @@
 
 pub mod config;
 pub mod operations;
+/// `prism_describe` L2 schema discovery tool (BC-2.10.012).
+///
+/// Stub module for S-DEMO-PRISMQL-ONBOARDING-001-A.
+pub mod prism_describe;
 pub mod query;
 pub mod sensor_health;
 pub mod write;
