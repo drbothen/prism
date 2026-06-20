@@ -102,34 +102,40 @@ impl SchemaSubscriberRegistry {
     /// "If I include this real implementation, will the test for this function pass
     /// trivially without any implementer work?" — Yes for AC-006 subscribe tests.
     /// Body = todo!(). (BC-5.38.001)
-    pub fn subscribe(&self, _client: OrgSlug, _handle: SubscriberHandle) {
-        todo!("BC-2.10.013 AC-006: insert handle into inner[client] subscriber list")
+    pub fn subscribe(&self, client: OrgSlug, handle: SubscriberHandle) {
+        let mut map = self
+            .inner
+            .lock()
+            .expect("SchemaSubscriberRegistry lock poisoned");
+        map.entry(client).or_default().push(handle);
     }
 
     /// Remove a subscriber for the given client slug by ID.
-    ///
-    /// Self-check (BC-5.38.005 invariant 1):
-    /// "If I include this real implementation, will the test for this function pass
-    /// trivially without any implementer work?" — Yes for AC-006 unsubscribe path.
-    /// Body = todo!(). (BC-5.38.001)
-    pub fn unsubscribe(&self, _client: &OrgSlug, _id: &str) {
-        todo!(
-            "BC-2.10.013 AC-006: remove handle matching id from inner[client]; \
-               remove entry if vec is empty"
-        )
+    pub fn unsubscribe(&self, client: &OrgSlug, id: &str) {
+        let mut map = self
+            .inner
+            .lock()
+            .expect("SchemaSubscriberRegistry lock poisoned");
+        if let Some(handles) = map.get_mut(client) {
+            handles.retain(|h| h.id != id);
+            if handles.is_empty() {
+                map.remove(client);
+            }
+        }
     }
 
-    /// Return subscriber handles for the given client (cloned for notification dispatch).
+    /// Return subscriber IDs for the given client (cloned for notification dispatch).
     ///
-    /// Self-check (BC-5.38.005 invariant 1):
-    /// "If I include this real implementation, will the test for this function pass
-    /// trivially without any implementer work?" — Yes for AC-006 notification tests.
-    /// Body = todo!(). (BC-5.38.001)
-    pub fn subscribers_for(&self, _client: &OrgSlug) -> Vec<String> {
-        todo!(
-            "BC-2.10.013 AC-006: return subscriber IDs for client; \
-               used by notify_schema_updated to dispatch notifications"
-        )
+    /// Per-client scoping (DI-008): only returns handles for `client`; never leaks
+    /// handles belonging to other clients.
+    pub fn subscribers_for(&self, client: &OrgSlug) -> Vec<String> {
+        let map = self
+            .inner
+            .lock()
+            .expect("SchemaSubscriberRegistry lock poisoned");
+        map.get(client)
+            .map(|handles| handles.iter().map(|h| h.id.clone()).collect())
+            .unwrap_or_default()
     }
 }
 

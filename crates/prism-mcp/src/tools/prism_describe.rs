@@ -32,7 +32,7 @@
 //! — must never be feature-gated). It is wired into the `#[tool_router]` block in
 //! `server.rs`. No `Arc<dyn TableRegistry>` injection — see architecture compliance.
 
-use rmcp::model::CallToolResult;
+use rmcp::model::{CallToolResult, Content};
 use serde::{Deserialize, Serialize};
 
 // ─── Response types (BC-2.10.012) ────────────────────────────────────────────
@@ -129,26 +129,164 @@ pub struct PrismDescribeParams {
 /// Validation failure for `client_id` format returns `E-MCP-001`.
 ///
 /// BC-2.10.012: BC-DEMO-PRISMQL-ONBOARDING-001-A AC-001 through AC-005.
-///
-/// Self-check (BC-5.38.005 invariant 1):
-/// "If I include this real implementation, will the test for this function pass
-/// trivially without any implementer work?" — Yes: real implementation would
-/// immediately satisfy AC-001 through AC-005 tests. Body = todo!(). (BC-5.38.001)
 pub async fn handle_prism_describe(
-    _client_id: String,
+    client_id: String,
     _query_engine: Option<&std::sync::Arc<prism_query::engine::QueryEngine>>,
-    _config_manager: Option<
+    config_manager: Option<
         &std::sync::Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     >,
-    _audit_writer: Option<&std::sync::Arc<dyn prism_query::write_dispatch::AuditWriter>>,
+    audit_writer: Option<&std::sync::Arc<dyn prism_query::write_dispatch::AuditWriter>>,
 ) -> Result<CallToolResult, rmcp::model::ErrorData> {
-    todo!("BC-2.10.012 AC-001..AC-005: implement prism_describe handler — \
-           validate client_id via OrgSlug::new(); emit audit event (event_type=schema_enumeration.started); \
-           read column schema from resolved_spec_map (multi-tenant) or config_manager (fallback); \
-           build PrismDescribeResponse with TableDescriptor/ColumnDescriptor; \
-           emit schema_enumeration.success or schema_enumeration.rejected; \
-           return E-MCP-001 on format failure; success with empty tables for unknown/empty client; \
-           DI-008: filter strictly by OrgSlug (never leak other clients tables)")
+    // BC-2.10.012: validate client_id format via OrgSlug::new() (rejects path traversal
+    // and injection payloads). DI-006: do NOT echo the raw payload in the error message.
+    tracing::info!(
+        client_id = %client_id,
+        event_type = "schema_enumeration.started",
+        "prism_describe: schema enumeration started"
+    );
+
+    let org_slug = prism_core::OrgSlug::new(&client_id);
+    if org_slug.is_err() {
+        // DI-006: do NOT echo the raw client_id in the error message.
+        tracing::warn!(
+            event_type = "schema_enumeration.rejected",
+            "prism_describe: invalid client_id format (E-MCP-001)"
+        );
+        return Err(rmcp::model::ErrorData::invalid_params(
+            "E-MCP-001: invalid client_id format — must match [a-zA-Z0-9_-]{1,64}",
+            None,
+        ));
+    }
+
+    // Emit audit event (fail-open per DI-004).
+    let mut audit_warning = false;
+    if let Some(aw) = audit_writer {
+        if let Err(e) = aw
+            .write_tool_call("prism_describe", Some(org_slug.as_str()), "invoked")
+            .await
+        {
+            tracing::warn!(
+                event_type = "schema_enumeration.started",
+                error = %e,
+                "prism_describe: audit emission failed (fail-open, DI-004)"
+            );
+            audit_warning = true;
+        }
+    }
+
+    // Build table descriptors from config_manager (single-tenant fallback path).
+    // In multi-tenant mode, resolved_spec_map would be used instead (same pattern
+    // as render_schema_resource / render_client_sensors_resource in resources.rs).
+    let tables = build_tables_for_client(org_slug.as_str(), config_manager);
+
+    let pql_hints = build_pql_hints(org_slug.as_str(), &tables);
+
+    let response = PrismDescribeResponse {
+        client_id: org_slug.as_str().to_string(),
+        tables,
+        pql_hints,
+    };
+
+    tracing::info!(
+        client_id = %org_slug,
+        event_type = "schema_enumeration.success",
+        "prism_describe: schema enumeration succeeded"
+    );
+
+    let mut json = serde_json::to_string(&response).map_err(|e| {
+        rmcp::model::ErrorData::internal_error(
+            format!("E-MCP-500: failed to serialize prism_describe response: {e}"),
+            None,
+        )
+    })?;
+
+    // Append audit_warning to JSON if needed (DI-004 fail-open).
+    if audit_warning {
+        // Inject _meta.audit_warning by deserializing to Value, inserting, re-serializing.
+        if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&json) {
+            if let Some(obj) = val.as_object_mut() {
+                let mut meta = serde_json::Map::new();
+                meta.insert("audit_warning".to_string(), serde_json::Value::Bool(true));
+                obj.insert("_meta".to_string(), serde_json::Value::Object(meta));
+            }
+            if let Ok(augmented) = serde_json::to_string(&val) {
+                json = augmented;
+            }
+        }
+    }
+
+    Ok(CallToolResult::success(vec![Content::text(json)]))
+}
+
+/// Build table descriptors for a client from config_manager (single-tenant fallback).
+///
+/// In single-tenant mode, `client_id` is used as the sensor_id key into
+/// `config_manager.load().sensor_specs`. The returned tables are filtered strictly
+/// to the named sensor (DI-008 client isolation — no cross-sensor leakage).
+fn build_tables_for_client(
+    client_id: &str,
+    config_manager: Option<
+        &std::sync::Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    >,
+) -> Vec<TableDescriptor> {
+    let Some(cm) = config_manager else {
+        return Vec::new();
+    };
+
+    // Pattern: config_manager.load().load() follows the same two-level deref as resources.rs.
+    let cm_guard = cm.load();
+    let snapshot = cm_guard.load();
+
+    // DI-008: filter strictly to the sensor matching the client_id as sensor_id.
+    // This prevents cross-client data leakage (acme must never see globex tables).
+    let Some(sensor_spec) = snapshot.sensor_specs.get(client_id) else {
+        return Vec::new();
+    };
+
+    sensor_spec
+        .tables
+        .iter()
+        .map(|table| {
+            let columns: Vec<ColumnDescriptor> = table
+                .columns
+                .iter()
+                .map(|col| ColumnDescriptor {
+                    name: col.name.clone(),
+                    col_type: col.column_type.clone(),
+                    description: col.ocsf_field.clone(),
+                    nullable: true,
+                })
+                .collect();
+
+            let example_query = build_example_query(&table.table_name, &columns);
+
+            TableDescriptor {
+                name: table.table_name.clone(),
+                sensor_type: client_id.to_string(),
+                description: table.ocsf_class.clone(),
+                columns,
+                example_query,
+            }
+        })
+        .collect()
+}
+
+/// Build pql_hints for the response based on the discovered tables.
+fn build_pql_hints(client_id: &str, tables: &[TableDescriptor]) -> Vec<String> {
+    if tables.is_empty() {
+        vec![format!(
+            "No sensor tables are available for client '{client_id}'. \
+             Ensure sensors are configured and the client_id is correct."
+        )]
+    } else {
+        vec![
+            format!(
+                "Use 'SELECT * FROM <table> LIMIT 25' to query any of the {} table(s) above.",
+                tables.len()
+            ),
+            "Consult prismql://reference for full PQL grammar and operator reference.".to_string(),
+        ]
+    }
 }
 
 /// Build an auto-generated example PQL query for a table.
@@ -156,15 +294,28 @@ pub async fn handle_prism_describe(
 /// Always includes a count-recent fallback. Adds severity-filter variant when a
 /// `severity` column is present. Adds aggregate variant when an aggregatable column
 /// (Integer/Float) is present.
-///
-/// Self-check (BC-5.38.005 invariant 1):
-/// "If I include this real implementation, will the test for this function pass
-/// trivially without any implementer work?" — Yes for AC-002 example_query checks.
-/// Body = todo!(). (BC-5.38.001)
-pub fn build_example_query(_table_name: &str, _columns: &[ColumnDescriptor]) -> String {
-    todo!(
-        "BC-2.10.012 AC-002: build example query for table_name using columns — \
-           count-recent fallback always; severity-filter if 'severity' column present; \
-           aggregate if Integer/Float column present"
-    )
+pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> String {
+    use prism_core::column::ColumnType;
+
+    // Count-recent fallback (always present, EC-002 zero-column case).
+    let mut query = format!("SELECT * FROM {table_name} LIMIT 25");
+
+    // Severity filter variant when a severity column is present.
+    let has_severity = columns.iter().any(|c| c.name == "severity");
+    if has_severity {
+        query = format!("SELECT * FROM {table_name} WHERE severity = 'HIGH' LIMIT 25");
+    }
+
+    // Aggregate variant when an aggregatable column is present.
+    let agg_col = columns
+        .iter()
+        .find(|c| matches!(c.col_type, ColumnType::Integer | ColumnType::Float));
+    if let Some(col) = agg_col {
+        query = format!(
+            "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} LIMIT 25",
+            col_name = col.name
+        );
+    }
+
+    query
 }
