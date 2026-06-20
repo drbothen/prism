@@ -564,7 +564,7 @@ async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_cata
     assert!(
         !catalog.ioc_hashes.is_empty(),
         "build_scenario_entity_catalog must produce a non-empty ioc_hashes slice; \
-         got empty. BC-2.06.019 v1.9 F-PIVOT003-R2-001."
+         got empty. BC-2.06.019 v1.10 F-PIVOT003-R2-001."
     );
     let expected_ioc_hash = catalog.ioc_hashes[0].clone();
 
@@ -641,7 +641,7 @@ async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_cata
     assert_eq!(
         ioc_type,
         Some("hash_sha256"),
-        "AC-004 / BC-2.06.019 v1.8: behaviors[0].ioc_type MUST be 'hash_sha256' \
+        "AC-004 / BC-2.06.019 v1.10: behaviors[0].ioc_type MUST be 'hash_sha256' \
          (algorithm-qualified); got {:?}.",
         ioc_type
     );

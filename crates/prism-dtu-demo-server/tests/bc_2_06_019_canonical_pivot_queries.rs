@@ -106,7 +106,7 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
         !catalog.ioc_hashes.is_empty(),
         "ScenarioEntityCatalog.ioc_hashes must be non-empty for ThreatIntel pivot test; \
          got empty — secondary RNG derivation issue. \
-         BC-2.06.019 v1.8 PC-4 / INV-THREATINTEL-IOC-CORRELATION-001"
+         BC-2.06.019 v1.10 PC-4 / INV-THREATINTEL-IOC-CORRELATION-001"
     );
 
     // Step 2 — Construct CyberintClone with scenario (generates alert records with IOC stamps).
@@ -171,7 +171,7 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
         "No IOC values found in CompromisedEndpoint CyberintClone alert records (seed={seed}). \
          AC-002 must stamp catalog IOC hashes onto alert records via iocs[].value. \
          alert_count={}, catalog.ioc_hashes={:?}. \
-         BC-2.06.019 v1.8 PC-4 / AC-002 [RED GATE: iocs[] not stamped]",
+         BC-2.06.019 v1.10 PC-4 / AC-002 [RED GATE: iocs[] not stamped]",
         alert_records.len(),
         catalog.ioc_hashes,
     );
@@ -197,7 +197,7 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
         "No catalog IOC hash values found in alert iocs[].value. \
          ioc_values_found={:?}, catalog.ioc_hashes={:?}. \
          AC-002 must stamp catalog_ioc_hashes[0] as iocs[0].value on alert records. \
-         BC-2.06.019 v1.8 PC-4 / INV-THREATINTEL-IOC-CORRELATION-001 [RED GATE]",
+         BC-2.06.019 v1.10 PC-4 / INV-THREATINTEL-IOC-CORRELATION-001 [RED GATE]",
         ioc_values_found,
         catalog.ioc_hashes,
     );
@@ -274,7 +274,7 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
         !catalog.device_cves.is_empty(),
         "ScenarioEntityCatalog.device_cves must be non-empty for NVD pivot test; \
          got empty — secondary RNG derivation issue. \
-         BC-2.06.019 v1.9 PC-2 / U17/Ruling 1b / INV-NVD-CVE-CORRELATION-001"
+         BC-2.06.019 v1.10 PC-2 / U17/Ruling 1b / INV-NVD-CVE-CORRELATION-001"
     );
 
     // Step 2 — Construct ArmisClone via the PRODUCTION CONSTRUCTOR (F-PIVOT003-R2-003).
@@ -317,7 +317,7 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
          F-PIVOT003-R2-003: ArmisClone::new_with_scenario MUST call generate_with_scenario_cves \
          (production path). AC-008 / U17/Ruling 1b requires device_cves_first on asset records. \
          catalog.device_cves={:?}. \
-         BC-2.06.019 v1.9 PC-2 + PC-4 [RED GATE: production path does not stamp device_cves_first]",
+         BC-2.06.019 v1.10 PC-2 + PC-4 [RED GATE: production path does not stamp device_cves_first]",
         catalog.device_cves,
     );
 
@@ -382,7 +382,7 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
              returned None. \
              U17/Ruling 1b: device_cves_first must be catalog.device_cves[0] so NvdClone contains it. \
              catalog.device_cves={:?}. \
-             BC-2.06.019 v1.8 PC-2 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 [RED GATE]",
+             BC-2.06.019 v1.10 PC-2 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 [RED GATE]",
             catalog.device_cves,
         );
 
@@ -412,7 +412,7 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
             "device record[{i}] '{cve_id}' NvdState entry base_score={base_score} < 7.0; \
              BC-2.06.020 PC-4 requires base_score >= 7.0 for HIGH severity. \
              Synthetic records must carry base_score=8.1. \
-             BC-2.06.019 v1.8 PC-2 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 [RED GATE]"
+             BC-2.06.019 v1.10 PC-2 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 [RED GATE]"
         );
 
         let base_severity = &metrics_v31[0].cvss_data.base_severity;
@@ -420,7 +420,7 @@ fn test_BC_2_06_019_canonical_nvd_pivot_query_returns_high_cvss_at_containment_s
             base_severity, "HIGH",
             "device record[{i}] '{cve_id}' NvdState entry base_severity='{base_severity}' != 'HIGH'; \
              BC-2.06.020 PC-4 requires base_severity='HIGH' for scenario CVEs. \
-             BC-2.06.019 v1.8 PC-2 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 [RED GATE]"
+             BC-2.06.019 v1.10 PC-2 + BC-2.06.020 INV-NVD-CVE-CORRELATION-001 [RED GATE]"
         );
     }
 

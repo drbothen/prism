@@ -499,7 +499,7 @@ async fn test_BC_2_06_019_scenario_clone_device_records_carry_device_cves_first(
     assert!(
         !catalog.device_cves.is_empty(),
         "build_scenario_entity_catalog must produce a non-empty device_cves slice; \
-         got empty. BC-2.06.019 v1.9 F-PIVOT003-R2-002."
+         got empty. BC-2.06.019 v1.10 F-PIVOT003-R2-002."
     );
     let expected_cve = catalog.device_cves[0].clone();
 

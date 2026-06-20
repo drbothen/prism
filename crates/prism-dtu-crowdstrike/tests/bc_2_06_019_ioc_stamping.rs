@@ -87,7 +87,7 @@ fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
         for col in &required_columns {
             assert!(
                 content.contains(col),
-                "BC-2.06.019 v1.8 PC-4 / AC-005 / SAP-2: crowdstrike.sensor.toml at {:?} \
+                "BC-2.06.019 v1.10 PC-4 / AC-005 / SAP-2: crowdstrike.sensor.toml at {:?} \
                  must declare column '{}' (behaviors[] IOC field stamped by \
                  make_detection_with_ioc() in src/generator.rs). \
                  This column is absent — TOML spec update is required as part of \

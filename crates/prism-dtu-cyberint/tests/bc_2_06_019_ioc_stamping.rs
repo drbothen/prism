@@ -350,7 +350,7 @@ fn test_BC_2_06_019_cyberint_fixture_generator_stamps_scenario_iocs() {
 
     assert!(
         has_stamped_ioc,
-        "BC-2.06.019 v1.8 PC-4 / AC-002: at least one alert record must carry an IOC value \
+        "BC-2.06.019 v1.10 PC-4 / AC-002: at least one alert record must carry an IOC value \
          from the scenario catalog (ioc_hashes / ioc_ips / ioc_domains). \
          Catalog ioc_hashes={:?}, ioc_ips={:?}, ioc_domains={:?}. \
          Alert records found: {}",
@@ -516,7 +516,7 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
     // At stage 0 (ioc_hashes=false): the IOC-referencing alert MUST be ABSENT.
     assert!(
         !ids.contains(&"real-schema-ioc-alert-003".to_owned()),
-        "BC-2.06.019 v1.8 PC-4 / AC-003: at stage 0 (ioc_hashes=false), alert \
+        "BC-2.06.019 v1.10 PC-4 / AC-003: at stage 0 (ioc_hashes=false), alert \
          'real-schema-ioc-alert-003' with iocs[0].value='{}' must be ABSENT; \
          found in response ids: {:?}. \
          The real-schema filter (not _ioc_value) must apply.",
@@ -527,7 +527,7 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
     // The non-IOC alert MUST be PRESENT (no IOC fields → always passes through).
     assert!(
         ids.contains(&"non-ioc-alert-003".to_owned()),
-        "BC-2.06.019 v1.8 PC-4: non-IOC alert 'non-ioc-alert-003' must always be \
+        "BC-2.06.019 v1.10 PC-4: non-IOC alert 'non-ioc-alert-003' must always be \
          PRESENT regardless of StageMask state; not found in: {:?}",
         ids
     );
@@ -600,7 +600,7 @@ fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
         for col in &required_columns {
             assert!(
                 content.contains(col),
-                "BC-2.06.019 v1.8 PC-4 / AC-006: cyberint.sensor.toml at {:?} must \
+                "BC-2.06.019 v1.10 PC-4 / AC-006: cyberint.sensor.toml at {:?} must \
                  declare column '{}' (IOC real-schema field). \
                  This column is absent — TOML spec update is required as part of \
                  S-DEMO-ENRICHMENT-PIVOT-003.",
@@ -737,7 +737,7 @@ async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matchin
 
     assert!(
         !ids0.contains(&"hash-ioc-alert-test10".to_owned()),
-        "BC-2.06.019 v1.8 PC-4 / test #10: at stage 0 (ioc_hashes=false), alert \
+        "BC-2.06.019 v1.10 PC-4 / test #10: at stage 0 (ioc_hashes=false), alert \
          'hash-ioc-alert-test10' with iocs[0].value='{}' (catalog hash) must be ABSENT; \
          found in response ids: {:?}.",
         catalog_hash,
@@ -826,7 +826,7 @@ async fn test_BC_2_06_019_ioc_hashes_false_withholds_cyberint_alert_with_matchin
 
     assert!(
         ids3.contains(&"hash-ioc-alert-test10".to_owned()),
-        "BC-2.06.019 v1.8 PC-4 / test #10: at stage 3 (ioc_hashes=true), alert \
+        "BC-2.06.019 v1.10 PC-4 / test #10: at stage 3 (ioc_hashes=true), alert \
          'hash-ioc-alert-test10' with iocs[0].value='{}' (catalog hash) must be PRESENT; \
          not found in: {:?}.",
         catalog_hash,
@@ -951,7 +951,7 @@ async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
 
     assert!(
         noise_records.is_empty(),
-        "BC-2.06.019 v1.9 PC-4 §6 / F-PIVOT003-R2-005: fail-closed — malformed record \
+        "BC-2.06.019 v1.10 PC-4 §6 / F-PIVOT003-R2-005: fail-closed — malformed record \
          with 'not_an_alert_field' key MUST be withheld from the response; \
          found {} such record(s) in response. The fail-open path was changed to fail-closed.",
         noise_records.len()
@@ -969,7 +969,7 @@ async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
 
     assert!(
         valid_ids.contains(&"valid-alert-fail-closed-test11".to_owned()),
-        "BC-2.06.019 v1.9 PC-4 §6: valid alert 'valid-alert-fail-closed-test11' must be PRESENT; \
+        "BC-2.06.019 v1.10 PC-4 §6: valid alert 'valid-alert-fail-closed-test11' must be PRESENT; \
          not found in: {:?}",
         valid_ids
     );
