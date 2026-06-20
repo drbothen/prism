@@ -10,7 +10,7 @@
 //!
 //! Story: S-DEMO-ENRICHMENT-PIVOT-003
 //! Traces to:
-//!   BC-2.06.019 v1.12 PC-4 — CrowdStrike detections IOC stamp in behaviors[] array
+//!   BC-2.06.019 v1.13 PC-4 — CrowdStrike detections IOC stamp in behaviors[] array
 //!   SAP-2 — CrowdStrike detection TOML columns must match generator.rs key set
 //!   AC-005 — CrowdStrike detections TOML spec declares behaviors[] IOC columns
 //!
@@ -29,7 +29,7 @@
 // Test 6 — CrowdStrike detection TOML spec has behaviors[] IOC columns
 // ---------------------------------------------------------------------------
 
-/// Test 6 — BC-2.06.019 v1.12 PC-4 + SAP-2: the CrowdStrike sensor TOML spec must
+/// Test 6 — BC-2.06.019 v1.13 PC-4 + SAP-2: the CrowdStrike sensor TOML spec must
 /// declare columns for the `behaviors[]` IOC fields stamped by `make_detection()`.
 ///
 /// Expected columns (per AC-005):
@@ -50,7 +50,7 @@
 ///   `crates/prism-sensors/specs/crowdstrike.sensor.toml` currently contains these
 ///   behaviors[] IOC columns → at least one assertion fails.
 ///
-/// BC-2.06.019 v1.12 PC-4, AC-005, SAP-2.
+/// BC-2.06.019 v1.13 PC-4, AC-005, SAP-2.
 /// Red Gate test plan #6 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[test]
 fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
@@ -87,7 +87,7 @@ fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
         for col in &required_columns {
             assert!(
                 content.contains(col),
-                "BC-2.06.019 v1.12 PC-4 / AC-005 / SAP-2: crowdstrike.sensor.toml at {:?} \
+                "BC-2.06.019 v1.13 PC-4 / AC-005 / SAP-2: crowdstrike.sensor.toml at {:?} \
                  must declare column '{}' (behaviors[] IOC field stamped by \
                  make_detection_with_ioc() in src/generator.rs). \
                  This column is absent — TOML spec update is required as part of \

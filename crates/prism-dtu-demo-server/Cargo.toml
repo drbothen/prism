@@ -214,7 +214,7 @@ path = "tests/multi_org.rs"
 required-features = ["dtu", "fixture-gen"]
 
 # S-DEMO-ENRICHMENT-PIVOT-003: Red Gate tests 8 and 9
-# BC-2.06.019 v1.12 PC-4 + BC-2.06.020 INV-THREATINTEL/NVD-CORRELATION-001
+# BC-2.06.019 v1.13 PC-4 + BC-2.06.020 INV-THREATINTEL/NVD-CORRELATION-001
 # Canonical ThreatIntel pivot (stage >= 3) and NVD pivot (stage >= 4) queries
 [[test]]
 name = "bc_2_06_019_canonical_pivot_queries"
