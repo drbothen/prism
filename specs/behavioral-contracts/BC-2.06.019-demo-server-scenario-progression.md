@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
-version: "1.10"
+version: "1.13"
 status: active
 lifecycle_status: active
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-19T12:00:00Z"
+modified: "2026-06-19T19:00:00Z"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -223,6 +223,13 @@ via the scenario path gains:
   and MUST be treated as a P1 finding in adversarial review.
   This query returns non-empty results only at stage 4 (Containment), when `device_cves=true`
   in the StageMask causes `device_cves_first` to be present on device records.
+  **Authoritative guarded route for `armis.devices`:** the sensor-spec `path_template` for the
+  `armis.devices` table targets `GET /api/v1/search?aql=...` (`src/routes/search.rs`, device
+  branch). The `device_cves` masking guard applies on whichever route a table's `path_template`
+  targets — for `armis.devices` that is `/api/v1/search`. The `paginate_devices` path
+  (`GET /api/v1/devices`, `src/routes/devices.rs`) is a secondary route that also carries the
+  guard (both are guarded); it is NOT the authoritative route for the `armis.devices` table.
+  See Route Coverage Table Rows 8 (devices.rs) and 11 (search.rs).
 - `primary_device=true` at `Containment` stage: `containment_status` field for the primary device
   is `"contained"` (the pre-built `FixtureSet` record already carries this value per the
   `CompromisedEndpoint` generator; the Containment stage makes it visible).
@@ -260,22 +267,34 @@ S-DEMO-ENRICHMENT-PIVOT-003.
 StageMask fields are ignored for these sensors at all stages; they have no IOC-bearing records
 to filter.
 
-#### Interim State (Until S-DEMO-ENRICHMENT-PIVOT-003)
+#### Post-S-DEMO-ENRICHMENT-PIVOT-003 State (ACTIVE as of v1.11)
 
-Until S-DEMO-ENRICHMENT-PIVOT-003 ships:
+S-DEMO-ENRICHMENT-PIVOT-003 has shipped. All route guards in the Route Coverage Table are now ACTIVE:
 
-- The Cyberint alerts route (`crates/prism-dtu-cyberint/src/routes/alerts.rs`) contains a
-  synthetic `_ioc_value` / `_ioc_type` filter that matches a non-real field injected only by
-  injection tests. This filter is a forward-provision stub: it is exercised only by those
-  injection tests and has no effect on real-schema alert records (which carry no `_ioc_value`
-  field). It does NOT represent the real Cyberint IOC schema.
-- CrowdStrike detections route (added in commit `bc0f36c5`) carries the `stage_idx > 0` guard
-  (see Route Coverage Table below) but does NOT yet stamp `behaviors[].ioc_*` fields on
-  fixture records. The IOC-field stamping is deferred to S-DEMO-ENRICHMENT-PIVOT-003.
-- S-DEMO-ENRICHMENT-PIVOT-003 removes the `_ioc_value` synthetic filter atomically when it
-  adds the real-schema `ioc` / `iocs[]` / `alert_data.*` fields to the Cyberint `Alert` struct.
-  The synthetic filter and the real-schema filter MUST NOT coexist — the story removes the
-  synthetic one in the same commit that adds the real one.
+- **Cyberint alerts:** The synthetic `_ioc_value` / `_ioc_type` forward-provision stub has been
+  removed. The real-schema filter — checking `iocs[].value` (dual-alias: `value` or `ioc_value`),
+  `alert_data.ip` / `alert_data.domain`, AND defensively the singleton `ioc.value` — is now
+  active. The singleton `ioc.value` check is inert (the scenario generator never stamps the
+  singleton `ioc` field; only `iocs[]` is populated); the defensive inclusion is harmless per
+  story AC-003 and CLAUDE.md §Source-of-Truth Precedence. The singleton `Alert.ioc` field itself
+  remains flagged for removal (no public-documentation basis; see F-PIVOT003-R2-004).
+- **CrowdStrike detections (list + summaries):** The `stage_idx > 0` guard (from commit `bc0f36c5`)
+  has been supplemented by the real-schema `ioc_hashes` filter: detection records are withheld
+  (filter_map returns None) when any `behaviors[].ioc_value` ∈ `catalog.ioc_hashes` and
+  `!mask.ioc_hashes`. Both the list-IDs route and the get-summaries route enforce this guard.
+  See Rows 9–10 in the Route Coverage Table.
+- **Armis devices:** The `device_cves_first` per-record field is now omitted
+  (`obj.remove("device_cves_first")`) when `!mask.device_cves`. **Two guarded routes:** (1) the
+  `paginate_devices` scenario path in `src/routes/devices.rs` (`GET /api/v1/devices`) — Row 8 in
+  the Route Coverage Table; (2) the scenario path in `src/routes/search.rs` (device branch;
+  `GET /api/v1/search?aql=...`) — Row 11, added v1.12 (F-PIVOT003-R8C-001). The `search.rs` route
+  is the path that the `armis.devices` sensor-spec `path_template` targets, and is therefore the
+  canonical query path for `from armis.devices` PrismQL statements. Both routes carry the guard;
+  `search.rs` is the authoritative route for the `armis.devices` table. There is no `device_cves`
+  array field (Ruling 1b — see §PC-4 General Filtering Semantics).
+
+The §Interim State prose above (pre-v1.11 versions of this BC) is superseded by this section. The
+`_ioc_value` synthetic filter is absent from the codebase; the real-schema filter is load-bearing.
 
 #### Route Coverage Table
 
@@ -292,26 +311,30 @@ the production-inert filter to be undetected for one full review cycle).
 | `primary_device`, `lateral_devices` | prism-dtu-armis | `routes/search.rs` | `GET /api/v1/search` | `stage_idx > 0` for primary; `mask.lateral_devices` for lateral (added commit bc0f36c5) | ACTIVE |
 | `primary_device`, `lateral_devices` | prism-dtu-armis | `routes/alerts.rs` | `GET /api/v1/alerts` | `stage_idx > 0` for primary; `mask.lateral_devices` for lateral (added commit bc0f36c5) | ACTIVE |
 | `primary_device`, `lateral_devices` | prism-dtu-crowdstrike | `routes/hosts.rs` | `GET /devices/queries/devices/v1` and `GET /devices/entities/devices/v2` | `stage_idx > 0` for primary; `mask.lateral_devices` for lateral | ACTIVE (pre-bc0f36c5, B-P1-01) |
-| `ioc_hashes`, `ioc_ips`, `ioc_domains` | prism-dtu-cyberint | `routes/alerts.rs` | `GET /api/v1/alerts` (also registered for POST via same handler — confirmed routes/alerts.rs) | Synthetic `_ioc_value` filter (interim) → replaced by real-schema filter in S-DEMO-ENRICHMENT-PIVOT-003: filter checks `iocs[].value` (dual-alias: `value` or `ioc_value`) and `alert_data.ip`/`alert_data.domain` — does NOT check singleton `ioc.value` (flagged for removal; not stamped by generator; see F-PIVOT003-R2-004) | INTERIM — see §Interim State |
-| `ioc_hashes` | prism-dtu-crowdstrike | `routes/detections.rs` | `GET /detects/queries/detects/v1` (list IDs) and `POST /detects/entities/summaries/GET/v1` (batch summaries — confirmed routes/mod.rs) | `stage_idx > 0` guard on both list and summary routes (added commit bc0f36c5); IOC-field stamping deferred to S-DEMO-ENRICHMENT-PIVOT-003 | STAGE-GUARD ACTIVE, IOC-STAMP DEFERRED |
+| `ioc_hashes`, `ioc_ips`, `ioc_domains` | prism-dtu-cyberint | `routes/alerts.rs` | `GET /api/v1/alerts` (also registered for POST via same handler — confirmed routes/alerts.rs) | Real-schema filter (S-DEMO-ENRICHMENT-PIVOT-003): checks `iocs[].value` (dual-alias: `value` or `ioc_value`), `alert_data.ip`/`alert_data.domain`, AND defensively the singleton `ioc.value` (per `ioc_values_for` in `routes/alerts.rs`, consistent with story AC-003); synthetic `_ioc_value` filter removed atomically in same commit; singleton `ioc.value` check is inert — generator never stamps the singleton field, so the defensive inclusion never matches in practice but is harmless (F-PIVOT003-R10A-002 coherence fix v1.13) | ACTIVE (real-schema filter, S-DEMO-ENRICHMENT-PIVOT-003) |
+| `ioc_hashes` | prism-dtu-crowdstrike | `routes/detections.rs` | `GET /detects/queries/detects/v1` (list IDs) and `POST /detects/entities/summaries/GET/v1` (batch summaries — confirmed routes/mod.rs) | `stage_idx > 0` guard on both list and summary routes (added commit bc0f36c5); real-schema `ioc_hashes` filter (filter_map withhold when `behaviors[].ioc_value` ∈ `catalog.ioc_hashes` and `!mask.ioc_hashes`) added S-DEMO-ENRICHMENT-PIVOT-003 — see Rows 9–10 | ACTIVE (stage-guard + real-schema ioc_hashes filter) |
 | `primary_device`, `lateral_devices` | prism-dtu-claroty | `routes/devices.rs` | `POST /api/v1/devices` (confirmed clone.rs:246) | `mask.primary_device && stage_idx > 0` for primary (devices.rs ~line 291); `mask.lateral_devices` for lateral (devices.rs ~line 293); single handler `list_devices` covers full device list (no separate detail handler in this file) | ACTIVE (added this PR) |
 | (no IOC surface) | prism-dtu-claroty | `routes/alerts.rs` | `POST /api/v1/alerts` (confirmed clone.rs) | EXEMPT — no structured IOC fields in real Claroty API; device_id not emitted on alert records; relation via separate endpoint | PERMANENT EXEMPT |
+| `device_cves` | prism-dtu-armis | `src/routes/devices.rs` | `GET /api/v1/devices` | Per-record `device_cves_first` field omitted (`obj.remove("device_cves_first")`) when `!mask.device_cves`; applied in the `paginate_devices` scenario path | ACTIVE (added S-DEMO-ENRICHMENT-PIVOT-003) |
+| `device_cves`, `primary_device`, `lateral_devices` | prism-dtu-armis | `src/routes/search.rs` | `GET /api/v1/search?aql=...` (device branch, scenario path; this is the route `armis.devices` sensor-spec `path_template` targets — the canonical path for `from armis.devices` PrismQL queries) | Per-record `device_cves_first` omitted (`obj.remove("device_cves_first")`) when `!mask.device_cves` (device branch); entity-visibility guards: `primary_device` and `lateral_devices` applied on device-branch records per-stage | ACTIVE (added S-DEMO-ENRICHMENT-PIVOT-003, F-PIVOT003-R8C-001) |
+| `ioc_hashes` | prism-dtu-crowdstrike | `src/routes/detections.rs` | `GET /detects/queries/detects/v1` | Detection withheld (filter_map returns None) when any `behaviors[].ioc_value` ∈ `catalog.ioc_hashes` AND `!mask.ioc_hashes`; list-ID scenario path | ACTIVE (added S-DEMO-ENRICHMENT-PIVOT-003) |
+| `ioc_hashes` | prism-dtu-crowdstrike | `src/routes/detections.rs` | `POST /detects/entities/summaries/GET/v1` | Detection withheld (filter_map returns None) when any `behaviors[].ioc_value` ∈ `catalog.ioc_hashes` AND `!mask.ioc_hashes`; get-summaries scenario path | ACTIVE (added S-DEMO-ENRICHMENT-PIVOT-003) |
 
-**Inventory verification (v1.6) — exhaustive StageMask handler scan:**
+**Inventory verification (v1.12) — exhaustive StageMask handler scan:**
 
 Union of files returned by `rg -l 'mask\.primary_device|mask\.lateral_devices|mask\.ioc_|mask\.device_cves|stage_idx' crates/prism-dtu-*/src/routes/` and `rg -l 'scenario_stage_ctx|with_stage_mask_projection|StageMask' crates/prism-dtu-*/src/routes/`:
 
 | File | Handler(s) | Registered Route | Table Row Status |
 |------|-----------|-----------------|-----------------|
-| `prism-dtu-armis/src/routes/devices.rs` | `list_devices` | `GET /api/v1/devices` | Row 1 (pre-bc0f36c5) |
-| `prism-dtu-armis/src/routes/search.rs` | search handler | `GET /api/v1/search` | Row 2 (v1.5 added) |
+| `prism-dtu-armis/src/routes/devices.rs` | `list_devices` | `GET /api/v1/devices` | Row 1 (pre-bc0f36c5); `device_cves` guard added S-DEMO-ENRICHMENT-PIVOT-003 (Row 8) |
+| `prism-dtu-armis/src/routes/search.rs` | search handler (device branch) | `GET /api/v1/search?aql=...` | Row 2 (v1.5 added — primary/lateral guards); `device_cves` guard added S-DEMO-ENRICHMENT-PIVOT-003 Row 11 (v1.12, F-PIVOT003-R8C-001). This is the canonical `armis.devices` query path per sensor-spec `path_template`. |
 | `prism-dtu-armis/src/routes/alerts.rs` | `list_alerts` | `GET /api/v1/alerts` | Row 3 (v1.5 added) |
 | `prism-dtu-crowdstrike/src/routes/hosts.rs` | hosts list + entities | `GET /devices/queries/devices/v1` and `GET /devices/entities/devices/v2` | Row 4 (pre-bc0f36c5) |
-| `prism-dtu-crowdstrike/src/routes/detections.rs` | list IDs + batch summaries | `GET /detects/queries/detects/v1` and `POST /detects/entities/summaries/GET/v1` | Row 5 (v1.4 added) |
+| `prism-dtu-crowdstrike/src/routes/detections.rs` | list IDs + batch summaries | `GET /detects/queries/detects/v1` and `POST /detects/entities/summaries/GET/v1` | Row 5 (v1.4 added); `ioc_hashes` real-schema guards added S-DEMO-ENRICHMENT-PIVOT-003 (Rows 9–10) |
 | `prism-dtu-cyberint/src/routes/alerts.rs` | `list_alerts` | `GET /api/v1/alerts` (also POST) | Row 6 (v1.4 added) |
 | `prism-dtu-claroty/src/routes/devices.rs` | `list_devices` | `POST /api/v1/devices` | **Row 7 — added v1.6 (BPRL-P6-01)** |
 
-All 7 files in the union are now enumerated. No other StageMask-consulting route files exist in the codebase at the time of this scan. The `prism-dtu-claroty/src/routes/alerts.rs` file does NOT appear in either grep set; it is PERMANENT EXEMPT solely on real-API grounds: the real Claroty xDome API emits no structured IOC fields on alert records and no `device_id` field, so no StageMask projection is applicable there. The Claroty alerts EXEMPT row remains correct and complete.
+All 7 files in the union are now enumerated. Rows 8–10 (added v1.11) cover additional StageMask fields (`device_cves`, `ioc_hashes`) on files already present in the inventory. Row 11 (added v1.12, F-PIVOT003-R8C-001) covers the `device_cves` guard on `search.rs` — also a file already present in the inventory (no new files enter the StageMask handler set). The `prism-dtu-claroty/src/routes/alerts.rs` file does NOT appear in either grep set; it is PERMANENT EXEMPT solely on real-API grounds: the real Claroty xDome API emits no structured IOC fields on alert records and no `device_id` field, so no StageMask projection is applicable there. The Claroty alerts EXEMPT row remains correct and complete.
 
 ### Postcondition 5 — Operator `scenario_start_secs` synchronizes cross-DTU timelines
 
@@ -589,6 +612,9 @@ VP-019-A through VP-019-I (above) — verified by integration/unit tests in S-DE
 
 | Version | Change |
 |---------|--------|
+| v1.13 | PO prose-vs-code coherence fix 2026-06-19 (F-PIVOT003-R10A-002 OBS). **Root cause:** Route Coverage Table Row 6 (Cyberint alerts) and §Post-S-DEMO-ENRICHMENT-PIVOT-003 State prose both stated the real-schema IOC filter "does NOT check singleton `ioc.value`." The implemented `ioc_values_for` function in `crates/prism-dtu-cyberint/src/routes/alerts.rs` defensively includes `alert.ioc.value` (the singleton) alongside `iocs[].value` and `alert_data.ip`/`alert_data.domain`, consistent with story AC-003. Per CLAUDE.md §Source-of-Truth Precedence, the story AC governs implementation scope; the BC prose was the stale artifact. The singleton check is functionally inert — the scenario generator never stamps the singleton `ioc` field (`iocs[]` only), so the check never matches in practice. **Changes:** (1) Row 6 Guard Mechanism updated to accurately describe the implemented filter as checking `iocs[].value` (dual-alias), `alert_data.ip`/`alert_data.domain`, AND defensively `ioc.value`; inert-but-harmless rationale added inline. (2) §Post-S-DEMO-ENRICHMENT-PIVOT-003 State Cyberint bullet updated to match: "does NOT check singleton" claim replaced with accurate description of defensive singleton inclusion, with inert-harmless qualification. The singleton `Alert.ioc` field-removal flag (F-PIVOT003-R2-004) is preserved — field removal remains the right long-term action; this fix only corrects the filter description. **Story-writer note:** no structural change to acceptance criteria; the stale "does NOT check singleton" language may appear in S-DEMO-ENRICHMENT-PIVOT-003 AC prose — story-writer should propagate the corrected description there. |
+| v1.12 | POL-33 route coverage correction 2026-06-19 (F-PIVOT003-R8C-001 HIGH). **Root cause:** v1.11 Route Coverage Table Row 8 claimed `paginate_devices` (`GET /api/v1/devices`, `src/routes/devices.rs`) was the `device_cves` guard for Armis devices, and §Post-S-DEMO-ENRICHMENT-PIVOT-003 State prose stated "this is the only `device_cves` guard." This was incorrect: the `armis.devices` sensor-spec `path_template` targets `GET /api/v1/search?aql=...` (`src/routes/search.rs`, device branch), not `GET /api/v1/devices`. The `device_cves_first` leakage at stages 0–3 was occurring on the canonical analyst query path (`from armis.devices` → search.rs) because the `search.rs` guard was missing. The implementer added the `device_cves_first` masking guard (and the previously-missing `primary_device`/`lateral_devices` entity-visibility guards) to `crates/prism-dtu-armis/src/routes/search.rs` (device branch, scenario path) as part of S-DEMO-ENRICHMENT-PIVOT-003. **Changes:** (1) ADDED Row 11 to Route Coverage Table: `device_cves, primary_device, lateral_devices` × prism-dtu-armis × `src/routes/search.rs` × `GET /api/v1/search?aql=...` (device branch, scenario path; canonical `armis.devices` query path) × per-record `device_cves_first` omitted when `!mask.device_cves`; entity-visibility guards for primary/lateral devices × ACTIVE (F-PIVOT003-R8C-001). (2) RETRACTED "only `device_cves` guard" claim in §Post-S-DEMO-ENRICHMENT-PIVOT-003 State — replaced with accurate two-route description: `devices.rs` (Row 8) and `search.rs` (Row 11) both carry the guard; `search.rs` is the authoritative route for `armis.devices`. (3) ADDED authoritative-route note in §PC-4 `device_cves` bullet clarifying that the canonical `armis.devices` query path is `/api/v1/search`, `/api/v1/devices` is secondary, and masking applies on whichever route a table's `path_template` targets. (4) UPDATED Inventory verification note to v1.12 with `search.rs` table entry updated to cite Row 11. **Story-writer must mirror:** story-writer must propagate the new Route Coverage Row 11 into S-DEMO-ENRICHMENT-PIVOT-003 AC-009 Route Coverage Table, and update any AC prose that references `/api/v1/devices` as the sole `device_cves` guard. |
+| v1.11 | POL-33 route coverage update 2026-06-19 (F-PIVOT003-R7A-001/R7A-002 HIGH). S-DEMO-ENRICHMENT-PIVOT-003 shipped 3 new StageMask-relevant route guards that were not reflected in the Route Coverage Table. **Three rows added:** (1) `device_cves` × prism-dtu-armis × `src/routes/devices.rs` × `GET /api/v1/devices` — per-record `device_cves_first` omitted (`obj.remove("device_cves_first")`) when `!mask.device_cves` in the paginate_devices scenario path (Row 8). (2) `ioc_hashes` × prism-dtu-crowdstrike × `src/routes/detections.rs` × `GET /detects/queries/detects/v1` — detection withheld (filter_map None) when `behaviors[].ioc_value` ∈ catalog.ioc_hashes and `!mask.ioc_hashes` (Row 9). (3) Same guard on `POST /detects/entities/summaries/GET/v1` (Row 10). **PC-4 §Interim State reconciled:** the "Until S-DEMO-ENRICHMENT-PIVOT-003" block replaced with "Post-S-DEMO-ENRICHMENT-PIVOT-003 State (ACTIVE)" prose confirming all three previously-deferred guards are now live. The CrowdStrike detections Row 5 status updated from "STAGE-GUARD ACTIVE, IOC-STAMP DEFERRED" to "ACTIVE (stage-guard + real-schema ioc_hashes filter)". The Cyberint alerts Row 6 status updated from "INTERIM" to "ACTIVE (real-schema filter, S-DEMO-ENRICHMENT-PIVOT-003)". Inventory verification note updated to v1.11 with explanatory note that Rows 8–10 cover additional StageMask fields on files already in the 7-file inventory set. **Story-writer must mirror:** AC-009 Route Coverage Table in S-DEMO-ENRICHMENT-PIVOT-003 story spec needs these 3 rows propagated. |
 | v1.10 | PO spec-coherence reconciliation 2026-06-19 (F-PIVOT003-R5B-001 MED + F-PIVOT003-R5B-002 OBS). **Root cause:** AC-008 of S-DEMO-ENRICHMENT-PIVOT-003 referenced `where has device_cves` as the NVD pivot query existence filter, but the `device_cves` array field is NEVER stamped on generated records and is NOT declared as a TOML column (Ruling 1b). The filter would match zero records, making the canonical NVD pivot query return 0 rows against the demo server. The scalar projection `device_cves_first` IS surfaced on device records and IS the correct pivot field. **Changes:** (1) Extended `device_cves=false` bullet in §PC-4 General Filtering Semantics to explicitly state that `device_cves` array is never stamped on generated records (Ruling 1b), that only the scalar `device_cves_first` is surfaced, and to define the canonical NVD pivot query with the corrected filter `where has device_cves_first` and the canonical CVSS filter form `where cvss_base_score >= 7.0`. (2) Added adversary-probe note: any reference to `has device_cves` (array form) as a PrismQL filter, or `nvd_cvss_score` as a CVSS column name, is stale and must be treated as a P1 finding. **Story-writer propagates:** the corrected canonical NVD pivot query to S-DEMO-ENRICHMENT-PIVOT-003 AC-008 query text, EC-008 explanation, and all related prose referencing `has device_cves` or `nvd_cvss_score`. |
 | v1.9 | PO coherence fix 2026-06-19 (F-PIVOT003-R2-004 HIGH) — Canonical ThreatIntel pivot query field reconciliation. **Root cause:** the canonical pivot query (AC-007 of S-DEMO-ENRICHMENT-PIVOT-003) targeted `ioc.value` (singleton), but `generate_with_scenario_iocs` stamps only the plural `iocs[]` array, never the singleton `Alert.ioc`. The singleton has no public-documentation basis and was already flagged for likely removal in v1.8. Resolving with `iocs[].value` as the canonical pivot target. **Changes:** (1) Per-Sensor IOC-Surface Matrix Cyberint row updated: `iocs[].value` explicitly marked as "canonical pivot target"; singleton `ioc.value` explicitly marked "NOT stamped by scenario generator, NOT targeted by canonical pivot query — case for removal strengthens now that no pivot query depends on it." (2) Route Coverage Table INTERIM row: future-state guard mechanism description now explicitly states the replacement filter checks `iocs[].value` (dual-alias) and `alert_data.ip`/`domain`, and does NOT check singleton `ioc.value`. (3) IOC filtering semantics (PC-4) already correctly used `iocs[].value` — no change required there. **PC-4 fail-closed ruling (for implementer):** PC-4's projection-integrity postcondition requires fail-closed behavior; alert-surface records that do not deserialize as `Alert` MUST be withheld (not passed through). See explicit §PC-4 note below. Story-writer propagates the `ioc.value` → `iocs[].value` change to story AC-007 canonical query text. |
 | v1.8 | PO fidelity correction 2026-06-19 — True-DTU ioc_type enum correction (ADR-031) for CrowdStrike and Cyberint rows in Per-Sensor IOC-Surface Matrix. **CrowdStrike:** `behaviors[].ioc_type` value set corrected from `{hash, domain, filename, registry, cmdline}` to `{hash_sha256, hash_md5, domain, filename, registry_key}`. Bare `hash` → split into algorithm-qualified `hash_sha256` + `hash_md5`. Bare `registry` → `registry_key`. `cmdline` removed from the ioc_type value set — it is a SEPARATE sibling behavior field (`behaviors[].cmdline`), never an `ioc_type` value. `domain`/`filename` unchanged. ipv4/ipv6 exclusion retained (confirmed correct). Added tolerant-unknown-type policy: CrowdStrike publishes no normative exhaustive enum; parser must treat unknown `ioc_type` tokens as non-fatal. **Cyberint:** Inner IOC key names for `iocs[]` elements marked INCONCLUSIVE-pending-live-validation. DTU implementation MUST use serde dual-alias (`type`/`value` AND `ioc_type`/`ioc_value`) rather than a single hard-coded guess. Singleton top-level `ioc` field flagged for likely removal (no public-documentation basis found). `iocs[]` array and `alert_data.url` confirmed; `alert_data.ip`/`domain` remain plausible-unconfirmed. IOC filtering semantics updated to use dual-alias reference for Cyberint `iocs[].value`. Source: uncertainty-pivot003-s504-2026-06-19.md §Item 1 (HIGH confidence) + §Item 2 (INCONCLUSIVE). |

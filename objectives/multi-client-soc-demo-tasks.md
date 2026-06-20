@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.38"
+version: "1.39"
 producer: state-manager
 status: active
-timestamp: 2026-06-19T10:00:00Z
+timestamp: 2026-06-20T00:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -42,11 +42,13 @@ Foundations: COMPLETE (reused). Build: 9/15 tasks done; T4 DONE; T4-A DONE; T5 D
 
 ## CURRENT POINTER
 
-**L-POST: ALL DEMO-BLOCKING LANES DONE (D-1242 2026-06-19). D-1243 (2026-06-19): S-DEMO-PRISMQL-ONBOARDING-001 RECLASSIFIED DEMO-BLOCKING per user directive. DEMO-BLOCKING SET: PIVOT-003 + S-5.04 + S-DEMO-PRISMQL-ONBOARDING-001 (all 3 gate T13). develop@9114e028. NO OPEN PRs. PICKABLE NOW: PIVOT-003 (**DEMO-BLOCKING** NEXT-A; real IOC fields; closes TD-PLUGIN-P0-002 P0; depends PIVOT-002 MERGED — SATISFIED), S-5.04 (**DEMO-BLOCKING** NEXT-B; Sensor Health; depends S-5.03 MERGED — SATISFIED; remove-uncertainty before TDD), S-DEMO-PRISMQL-ONBOARDING-001 (**DEMO-BLOCKING D-1243** NEXT-C; draft/pickable; ADR-041 v1.1 design package ready; depends S-5.03+S-3.13 MERGED — SATISFIED). T13 BLOCKED on all three. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1242 (WHAT'S NEXT updated by D-1243).**
+**L-POST: D-1255 (2026-06-20): PIVOT-003 LOCAL cascade rounds 6-11 COMPLETE. D-1254: user directive strict 3-CLEAN grinding. DEMO-BLOCKING SET: PIVOT-003 + S-5.04 + 001-A + 001-B (all 4 gate T13). develop@9114e028. NO OPEN PRs. ACTIVE: PIVOT-003 (**DEMO-BLOCKING** NEXT-A; LOCAL strict-3-CLEAN round 12 next on frozen HEAD 62d4fcdb; BC-2.06.019 v1.13; story v2.4; EXPECTED=79 unchanged). PARKED: S-5.04 (**DEMO-BLOCKING** NEXT-B; BLOCKED on S-1.11 read-side tables D-1252; code done+green HEAD 4282c997). PICKABLE: 001-A + 001-B (**DEMO-BLOCKING D-1243**; remove-uncertainty PENDING before TDD). NEW LANE NEEDED: S-1.11 read-side-tables (HARD PREREQ for S-5.04). T13 BLOCKED on all 4 DEMO-BLOCKING stories. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1255.**
 
-## NEXT ACTION (verbatim, for cold resume — D-1243 2026-06-19)
+## NEXT ACTION (verbatim, for cold resume — D-1255 2026-06-20)
 
-**L-POST — 3 DEMO-BLOCKING LANES PICKABLE NOW. develop@9114e028. NO OPEN PRs. 3 PICKABLE LANES — ALL DEMO-BLOCKING (independent; no sequencing constraint between PIVOT-003, S-5.04, and S-DEMO-PRISMQL-ONBOARDING-001). D-1243: S-DEMO-PRISMQL-ONBOARDING-001 reclassified DEMO-BLOCKING per user directive 2026-06-19.**
+**L-POST — PIVOT-003 IN-FLIGHT (LOCAL strict-3-CLEAN round 12). develop@9114e028. NO OPEN PRs. D-1254 user directive: strict 3-CLEAN (zero findings ANY severity) — do NOT accept PR-merge-clean as sufficient.**
+
+**IMMEDIATE NEXT: PIVOT-003 LOCAL strict-3-CLEAN round 12** — dispatch 3 independent fresh-context `vsdd-factory:adversary` passes on frozen HEAD 62d4fcdb. Inject policies.yaml rubric; SAP-1/SAP-2; production-grade lens; DRIFT-ORCH-ADVERSARY-TUPLE-001 tuple per z24+TD-VSDD-005. All 3 must return CLEAN(strict)=yes (zero findings). If any finding: fix-burst → re-freeze → restart streak at 0/3. After LOCAL 3-CLEAN → push → PR-LEVEL 3-CLEAN (same protocol on PR HEAD) → squash-merge → post-merge burst (POL-14 no-op; EXPECTED stays 79; closes TD-PLUGIN-P0-002 P0 + BC-2.06.019 §Interim State).
 
 **(a) PIVOT-003 (T16c) — PICKABLE NOW:**
 - story-writer must author S-DEMO-ENRICHMENT-PIVOT-003 spec if not yet materialized (real IOC fields: ioc_value, ioc_type, ioc_severity in Cyberint/CrowdStrike DTU fixtures + canonical `| enrich threat_intel(ioc_value)` pivot-query validation at scenario stage >= 3).
