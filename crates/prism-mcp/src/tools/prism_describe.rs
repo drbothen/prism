@@ -147,6 +147,24 @@ pub async fn handle_prism_describe(
             event_type = "schema_enumeration.rejected",
             "prism_describe: invalid client_id format (E-MCP-001)"
         );
+        // BC-2.10.012 v1.1 §Audit: emit audit BEFORE returning error (fail-open DI-004).
+        // Even on validation failure, the audit trail must record the attempt with outcome="error".
+        if let Some(aw) = audit_writer {
+            if let Err(e) = aw
+                .write_tool_call(
+                    "prism_describe",
+                    None, // client_id unavailable — validation failed
+                    "schema_enumeration",
+                    "error",
+                )
+                .await
+            {
+                tracing::warn!(
+                    error = %e,
+                    "prism_describe: audit emission failed on validation error path (fail-open, DI-004)"
+                );
+            }
+        }
         return Err(rmcp::model::ErrorData::invalid_params(
             "E-MCP-001: invalid client_id format — must match [a-zA-Z0-9_-]{1,64}",
             None,
@@ -170,6 +188,7 @@ pub async fn handle_prism_describe(
                 "prism_describe",
                 Some(org_slug.as_str()),
                 "schema_enumeration",
+                "success",
             )
             .await
         {

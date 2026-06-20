@@ -315,7 +315,7 @@ impl PrismServer {
         // Durable rejection record via the MCP-02 mechanism (not fail-closed).
         if let Some(writer) = self.audit_writer.as_ref() {
             if let Err(e) = writer
-                .write_tool_call(tool_name, None, "rejected_injection")
+                .write_tool_call(tool_name, None, "rejected_injection", "error")
                 .await
             {
                 tracing::warn!(
@@ -1676,7 +1676,10 @@ async fn emit_tool_audit(
     );
     match audit_writer {
         Some(writer) => {
-            if let Err(e) = writer.write_tool_call(tool, client_id, outcome).await {
+            if let Err(e) = writer
+                .write_tool_call(tool, client_id, outcome, "success")
+                .await
+            {
                 return match tool_class {
                     ToolClass::WriteTool => {
                         // Fail-closed: write-classified tool audit failure aborts
@@ -5916,6 +5919,7 @@ mod tests {
             &self,
             _tool_name: &str,
             _client_id: Option<&str>,
+            _operation: &str,
             _outcome: &str,
         ) -> Result<(), prism_core::error::PrismError> {
             Ok(())
@@ -8100,9 +8104,11 @@ mod tests {
     // ─── MCP-02 / MCP-03 (2026-06-10 review) — durable tool-call + rejection audit ───
 
     /// Recording AuditWriter stub: captures every `write_tool_call` invocation.
+    ///
+    /// BC-2.10.012 v1.1: stores 4-tuple (tool_name, client_id, operation, outcome).
     #[derive(Default)]
     struct RecordingAudit {
-        tool_calls: std::sync::Mutex<Vec<(String, Option<String>, String)>>,
+        tool_calls: std::sync::Mutex<Vec<(String, Option<String>, String, String)>>,
     }
 
     #[async_trait::async_trait]
@@ -8126,11 +8132,13 @@ mod tests {
             &self,
             tool_name: &str,
             client_id: Option<&str>,
+            operation: &str,
             outcome: &str,
         ) -> Result<(), prism_core::error::PrismError> {
             self.tool_calls.lock().expect("test mutex").push((
                 tool_name.to_owned(),
                 client_id.map(str::to_owned),
+                operation.to_owned(),
                 outcome.to_owned(),
             ));
             Ok(())
@@ -8143,6 +8151,9 @@ mod tests {
     /// Mental-deletion proof: if the `writer.write_tool_call(...)` call in
     /// `emit_tool_audit` is removed (the pre-fix tracing-only behavior), this
     /// test fails with zero recorded calls.
+    ///
+    /// BC-2.10.012 v1.1: `emit_tool_audit` passes `operation = outcome_label`
+    /// and `outcome = "success"` to `write_tool_call`.
     #[tokio::test]
     async fn test_MCP_02_emit_tool_audit_invokes_durable_writer() {
         let recording = Arc::new(RecordingAudit::default());
@@ -8163,10 +8174,11 @@ mod tests {
             vec![(
                 "query".to_owned(),
                 Some("acme".to_owned()),
-                "invoked".to_owned()
+                "invoked".to_owned(),
+                "success".to_owned()
             )],
-            "MCP-02: emit_tool_audit must write one durable tool-call record \
-             with the tool name, client_id, and outcome"
+            "MCP-02 (BC-2.10.012 v1.1): emit_tool_audit must write one durable tool-call record \
+             with the tool name, client_id, operation, and outcome"
         );
     }
 
@@ -8195,6 +8207,7 @@ mod tests {
             &self,
             _tool_name: &str,
             _client_id: Option<&str>,
+            _operation: &str,
             _outcome: &str,
         ) -> Result<(), prism_core::error::PrismError> {
             Err(prism_core::error::PrismError::AuditPersistenceFailed)
@@ -8715,10 +8728,15 @@ mod tests {
         let calls = recording.tool_calls.lock().expect("test mutex").clone();
         assert_eq!(
             calls,
-            vec![("query".to_owned(), None, "rejected_injection".to_owned())],
+            vec![(
+                "query".to_owned(),
+                None,
+                "rejected_injection".to_owned(),
+                "error".to_owned()
+            )],
             "MCP-03: rejected injection must write exactly one durable audit \
-             record with outcome rejected_injection (and must NOT also record \
-             an \"invoked\" outcome — the scan runs before emit_tool_audit)"
+             record with operation=rejected_injection, outcome=error (and must NOT also record \
+             an \"invoked\" record — the scan runs before emit_tool_audit)"
         );
     }
 
@@ -8738,12 +8756,13 @@ mod tests {
 
         let calls = recording.tool_calls.lock().expect("test mutex").clone();
         assert_eq!(calls.len(), 1, "exactly one rejection record expected");
-        let (tool, client, outcome) = &calls[0];
+        let (tool, client, operation, outcome) = &calls[0];
         assert_eq!(tool, "query");
         assert!(client.is_none());
-        assert_eq!(outcome, "rejected_injection");
+        assert_eq!(operation, "rejected_injection");
+        assert_eq!(outcome, "error");
         assert!(
-            !outcome.contains("ignore previous"),
+            !operation.contains("ignore previous"),
             "raw injected content must never reach the audit record"
         );
     }

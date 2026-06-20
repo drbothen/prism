@@ -151,28 +151,21 @@ impl AuditWriter for CapturingAuditWriter {
 
     /// Captures `(tool_name, client_id, operation, outcome)`.
     ///
-    /// Until the production trait is extended with a separate `outcome` param,
-    /// the single `outcome` argument received here is treated as `operation`
-    /// (because current broken code passes the operation name as the outcome),
-    /// and the `outcome` slot is set to the `"(not_provided)"` sentinel.
-    ///
-    /// Once the trait is extended: `operation = operation_arg`, `outcome = outcome_arg`.
+    /// BC-2.10.012 v1.1: the production trait now carries BOTH `operation`
+    /// (canonical operation name, e.g. `"schema_enumeration"`) AND `outcome`
+    /// (result: `"success"` or `"error"`) as separate parameters.
     async fn write_tool_call(
         &self,
         tool_name: &str,
         client_id: Option<&str>,
+        operation: &str,
         outcome: &str,
     ) -> Result<(), prism_core::error::PrismError> {
-        // Current single-param: treat incoming `outcome` as `operation` (it IS the
-        // operation name in the current buggy production code).  The real `outcome`
-        // field ("success"/"error") is not yet separable from the trait — set sentinel.
-        let operation = outcome.to_string();
-        let actual_outcome = "(not_provided)".to_string();
         self.calls.lock().unwrap().push((
             tool_name.to_string(),
             client_id.map(|s| s.to_string()),
-            operation,
-            actual_outcome,
+            operation.to_string(),
+            outcome.to_string(),
         ));
         Ok(())
     }

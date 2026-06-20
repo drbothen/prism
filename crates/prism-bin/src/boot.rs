@@ -2342,6 +2342,7 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
         &self,
         tool_name: &str,
         client_id: Option<&str>,
+        operation: &str,
         outcome: &str,
     ) -> Result<(), prism_core::error::PrismError> {
         let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
@@ -2354,6 +2355,9 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
             "client_id".to_owned(),
             client_id.unwrap_or("MISSING").to_owned(),
         );
+        // BC-2.10.012 v1.1: operation (canonical operation name) and outcome
+        // (success/error) are stored as separate fields in the audit payload.
+        payload.insert("operation".to_owned(), operation.to_owned());
         payload.insert("outcome".to_owned(), outcome.to_owned());
         prism_storage::audit_buffer::append_audit_entry(
             self.storage.as_ref(),
