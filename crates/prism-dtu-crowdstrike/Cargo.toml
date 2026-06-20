@@ -176,7 +176,7 @@ path = "tests/f_p10_high_001_dormant_detection_routes.rs"
 required-features = ["dtu", "fixture-gen"]
 
 # S-DEMO-ENRICHMENT-PIVOT-003: Red Gate test 6
-# BC-2.06.019 v1.8 PC-4 + SAP-2 — CrowdStrike TOML spec behaviors[] IOC column parity
+# BC-2.06.019 v1.10 PC-4 + SAP-2 — CrowdStrike TOML spec behaviors[] IOC column parity
 [[test]]
 name = "bc_2_06_019_ioc_stamping"
 path = "tests/bc_2_06_019_ioc_stamping.rs"

@@ -1,4 +1,4 @@
-//! BC-2.06.019 v1.9 + BC-2.06.020 — genuine end-to-end enrich pipeline tests.
+//! BC-2.06.019 v1.10 + BC-2.06.020 — genuine end-to-end enrich pipeline tests.
 //!
 //! **F-PIVOT003-R3-001 closure** — these tests execute the ACTUAL PrismQL enrich pipeline
 //! (DataFusion `SessionContext` + `InfusionAsyncUdf` + `register_infusion_udfs`) against
@@ -36,8 +36,8 @@
 //!
 //! ## BC traceability
 //!
-//! AC-007: BC-2.06.019 v1.9 / BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001
-//! AC-008: BC-2.06.019 v1.9 PC-2 / BC-2.06.020 INV-NVD-CVE-CORRELATION-001
+//! AC-007: BC-2.06.019 v1.10 / BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001
+//! AC-008: BC-2.06.019 v1.10 PC-2 / BC-2.06.020 INV-NVD-CVE-CORRELATION-001
 //!
 //! ## TD-VSDD-059 (paper-fix guard)
 //!
@@ -216,7 +216,7 @@ impl InfusionSource for NvdInfusionSource {
 /// (d) The Cyberint clone produced no alert records with IOC values (AC-002 failure).
 ///
 /// Traces to:
-///   BC-2.06.019 v1.9 (AC-007: iocs[].value canonical pivot field)
+///   BC-2.06.019 v1.10 (AC-007: iocs[].value canonical pivot field)
 ///   BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 (scenario IOCs resolve as Malicious)
 ///   F-PIVOT003-R3-001 (closing finding: genuine pipeline execution required)
 #[tokio::test]
@@ -258,7 +258,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
     .expect("CyberintClone::new_with_scenario must succeed");
 
     // Step 4 — Extract all IOC values from alert records' `iocs[].value` arrays.
-    // This mirrors the iocs[].value array field-path extraction from BC-2.06.019 v1.9 AC-007.
+    // This mirrors the iocs[].value array field-path extraction from BC-2.06.019 v1.10 AC-007.
     // We flatten each ioc entry from the iocs[] array into individual rows for the MemTable.
     let mut ioc_values: Vec<String> = Vec::new();
     for rec in &cyberint_clone.state.generated_records {
@@ -266,7 +266,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         if !is_alert {
             continue;
         }
-        // iocs[] array form (BC-2.06.019 v1.9 AC-007 canonical field).
+        // iocs[] array form (BC-2.06.019 v1.10 AC-007 canonical field).
         if let Some(iocs_arr) = rec.get("iocs").and_then(|v| v.as_array()) {
             for ioc_entry in iocs_arr {
                 if let Some(val) = ioc_entry.get("value").and_then(|v| v.as_str()) {
@@ -333,7 +333,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
         .expect("Test 10: register_table must succeed");
 
     // Step 7 — Execute the enrich SQL query through DataFusion.
-    // This is the canonical ThreatIntel pivot query equivalent (BC-2.06.019 v1.9 AC-007):
+    // This is the canonical ThreatIntel pivot query equivalent (BC-2.06.019 v1.10 AC-007):
     //   FROM cyberint_alerts | enrich threat_intel(iocs[].value) | where threat_is_known_malicious = true
     // Translated to SQL using the registered async UDF:
     let df = ctx
@@ -450,7 +450,7 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
 /// (d) The Armis clone produced no device records with device_cves_first (AC-008 failure).
 ///
 /// Traces to:
-///   BC-2.06.019 v1.9 PC-2 (device_cves visible at Containment stage)
+///   BC-2.06.019 v1.10 PC-2 (device_cves visible at Containment stage)
 ///   BC-2.06.020 INV-NVD-CVE-CORRELATION-001 (scenario CVEs appear with HIGH CVSS)
 ///   U17/Ruling 1b (device_cves_first = catalog.device_cves[0] scalar projection)
 ///   F-PIVOT003-R3-001 (closing finding: genuine pipeline execution required)

@@ -170,7 +170,7 @@ pub fn generate(org_id: OrgId, org_slug: &str, archetype: Archetype, opts: &GenO
 ///
 /// This enables the NVD pivot query:
 /// ```text
-/// | where has device_cves
+/// | where has device_cves_first
 /// | enrich nvd(device_cves_first)
 /// ```
 /// without requiring bracket-index syntax (FieldPath notation not supported in
@@ -182,7 +182,7 @@ pub fn generate(org_id: OrgId, org_slug: &str, archetype: Archetype, opts: &GenO
 /// For `CompromisedEndpoint` archetype, stamps `"device_cves_first": catalog_device_cves[0]`
 /// onto every asset record (identified by presence of `asset_id`). Alert records (which lack
 /// `asset_id`) are skipped. If `catalog_device_cves` is empty no stamping occurs and the key
-/// is absent, which is the correct shape for the `has device_cves` filter to yield 0 results.
+/// is absent, which is the correct shape for the `has device_cves_first` filter to yield 0 results.
 /// Non-CompromisedEndpoint archetypes pass through unmodified.
 pub fn generate_with_scenario_cves(
     org_id: OrgId,
@@ -203,7 +203,7 @@ pub fn generate_with_scenario_cves(
     // each DEVICE record (assets, not alerts) because the NVD pivot query:
     //   | enrich nvd(device_cves_first)
     // operates at the device record level (U17 / Ruling 1b). If catalog_device_cves is empty,
-    // no stamping occurs — the key is absent, which is correct (has device_cves filter fails → 0
+    // no stamping occurs — the key is absent, which is correct (has device_cves_first filter fails → 0
     // results; that is the expected behavior for an empty CVE catalog).
     if archetype == Archetype::CompromisedEndpoint && !catalog_device_cves.is_empty() {
         let cve_first = catalog_device_cves[0].as_str();

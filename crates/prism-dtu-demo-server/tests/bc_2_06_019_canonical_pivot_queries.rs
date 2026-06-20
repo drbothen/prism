@@ -1,4 +1,4 @@
-//! BC-2.06.019 v1.8 + BC-2.06.020 canonical end-to-end pivot query tests.
+//! BC-2.06.019 v1.10 + BC-2.06.020 canonical end-to-end pivot query tests.
 //!
 //! Tests 8 and 9 from the S-DEMO-ENRICHMENT-PIVOT-003 Red Gate Test Plan.
 //!
@@ -8,7 +8,7 @@
 //!
 //! Story: S-DEMO-ENRICHMENT-PIVOT-003
 //! Traces to:
-//!   BC-2.06.019 v1.8 PC-4 — Cyberint alerts carry real IOC fields; CrowdStrike detections IOC stamp
+//!   BC-2.06.019 v1.10 PC-4 — Cyberint alerts carry real IOC fields; CrowdStrike detections IOC stamp
 //!   BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 — scenario IOCs resolve as Malicious
 //!   BC-2.06.020 INV-NVD-CVE-CORRELATION-001 — scenario CVEs have HIGH CVSS (>= 7.0)
 //!
@@ -23,10 +23,10 @@
 //!
 //!   NVD pivot (stage >= 4, Containment — device_cves visible only at Containment per BC-2.06.019 PC-2):
 //!     FROM armis_devices
-//!     | where has device_cves
+//!     | where has device_cves_first
 //!     | enrich nvd(device_cves_first)
-//!     | where nvd_cvss_score > 7.0
-//!     | sort nvd_cvss_score desc
+//!     | where cvss_base_score >= 7.0
+//!     | sort cvss_base_score desc
 //!     | head 10
 //!
 //! Implementation approach: direct DTU state API tests — not PrismQL execution.
@@ -59,7 +59,7 @@ fn deadbeef_org() -> OrgId {
 }
 
 // ---------------------------------------------------------------------------
-// Test 8 — Canonical ThreatIntel pivot query (AC-007 / BC-2.06.019 v1.8 PC-4)
+// Test 8 — Canonical ThreatIntel pivot query (AC-007 / BC-2.06.019 v1.10 PC-4)
 // ---------------------------------------------------------------------------
 
 /// Test 8 — Canonical ThreatIntel pivot query at stage >= 3 (Exfil).
@@ -75,9 +75,9 @@ fn deadbeef_org() -> OrgId {
 /// ```
 /// would operate on.
 ///
-/// NOTE: BC-2.06.019 v1.9 correction — canonical pivot targets `iocs[].value` (array form),
+/// NOTE: BC-2.06.019 v1.10 correction — canonical pivot targets `iocs[].value` (array form),
 /// NOT the singleton `ioc.value` field. The singular `Alert.ioc` field is retained for
-/// live-tenant backward-compatibility per v1.9 but is NOT populated by the scenario generator.
+/// live-tenant backward-compatibility per v1.10 but is NOT populated by the scenario generator.
 ///
 /// Specifically asserts:
 /// 1. `CyberintClone::new_with_scenario` generates at least 1 alert record with `iocs[].value`
@@ -87,7 +87,7 @@ fn deadbeef_org() -> OrgId {
 /// 3. For every alert record with a stamped IOC hash, `ThreatIntelState::lookup_fixture(hash)`
 ///    returns `Some(FixtureKey::Malicious)` — the IOC correlation is complete.
 ///
-/// BC-2.06.019 v1.8 PC-4: Cyberint alerts carry real IOC fields (iocs[].value / ioc.value).
+/// BC-2.06.019 v1.10 PC-4: Cyberint alerts carry real IOC fields (iocs[].value / ioc.value).
 /// BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001: scenario IOCs ∈ catalog resolve as Malicious.
 ///
 /// LOAD-BEARING: this test FAILS if:
@@ -182,7 +182,7 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
 
     // Step 5 — For each IOC value found in alert records that is also in catalog.ioc_hashes,
     // assert ThreatIntelState::lookup_fixture returns Malicious.
-    // This mirrors the enrich threat_intel(ioc.value) pivot chain.
+    // This mirrors the enrich threat_intel(iocs[].value) pivot chain.
     let catalog_hash_set: std::collections::HashSet<&str> =
         catalog.ioc_hashes.iter().map(|s| s.as_str()).collect();
 
@@ -218,7 +218,7 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
 }
 
 // ---------------------------------------------------------------------------
-// Test 9 — Canonical NVD pivot query (AC-008 / BC-2.06.019 v1.8 PC-4 + PC-2)
+// Test 9 — Canonical NVD pivot query (AC-008 / BC-2.06.019 v1.10 PC-4 + PC-2)
 // ---------------------------------------------------------------------------
 
 /// Test 9 — Canonical NVD pivot query at stage >= 4 (Containment).
@@ -226,10 +226,10 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
 /// Validates the data layer that the canonical PrismQL query:
 /// ```prismql
 /// FROM armis_devices
-/// | where has device_cves
+/// | where has device_cves_first
 /// | enrich nvd(device_cves_first)
-/// | where nvd_cvss_score > 7.0
-/// | sort nvd_cvss_score desc
+/// | where cvss_base_score >= 7.0
+/// | sort cvss_base_score desc
 /// | head 10
 /// ```
 /// would operate on.
@@ -247,7 +247,7 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
 /// 3. For every device record with `device_cves_first`, `NvdState::lookup_and_count(cve_id)`
 ///    returns `Some(record)` with `base_score >= 7.0`.
 ///
-/// BC-2.06.019 v1.9 PC-2 StageMask: `device_cves` visible at stage >= 4 (Containment).
+/// BC-2.06.019 v1.10 PC-2 StageMask: `device_cves` visible at stage >= 4 (Containment).
 /// BC-2.06.020 INV-NVD-CVE-CORRELATION-001: scenario CVEs appear in NvdClone with HIGH score.
 /// U17/Ruling 1b: `device_cves_first` = `catalog.device_cves[0]` (scalar projection).
 ///

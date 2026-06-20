@@ -549,7 +549,7 @@ async fn test_BPRL_P4_02_detections_stage_guard_primary_device() {
 ///
 /// This exercises the PRODUCTION CONSTRUCTOR path (`new_with_scenario`), NOT the generator
 /// helper directly. It proves that the demo server, which calls `new_with_scenario`, will
-/// serve IOC-stamped detections (AC-004 / BC-2.06.019 v1.9, F-PIVOT003-R2-001).
+/// serve IOC-stamped detections (AC-004 / BC-2.06.019 v1.10, F-PIVOT003-R2-001).
 ///
 /// TD-VSDD-059: load-bearing — verifies production path, not the helper function.
 #[tokio::test]
@@ -635,7 +635,7 @@ async fn test_BC_2_06_019_scenario_clone_detection_0_carries_ioc_value_from_cata
         ioc_value
     );
 
-    // Also verify ioc_type is "hash_sha256" (BC-2.06.019 v1.8 algorithm-qualified token).
+    // Also verify ioc_type is "hash_sha256" (BC-2.06.019 v1.10 algorithm-qualified token).
     let ioc_type = behaviors[0].get("ioc_type").and_then(|v| v.as_str());
 
     assert_eq!(

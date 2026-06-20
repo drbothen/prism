@@ -100,7 +100,7 @@ ocsf_class = "detection_finding"
 
   # ---------------------------------------------------------------------------
   # AC-005 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors[] IOC columns.
-  # BC-2.06.019 v1.8 Per-Sensor IOC-Surface Matrix: CrowdStrike detections carry
+  # BC-2.06.019 v1.10 Per-Sensor IOC-Surface Matrix: CrowdStrike detections carry
   # real IOC fields in behaviors[] array (corrected ioc_type enum: hash_sha256,
   # hash_md5, domain, filename, registry_key — NOT bare 'hash'/'registry').
   #
@@ -110,7 +110,7 @@ ocsf_class = "detection_finding"
   # NOT types.rs (no typed Detection/Behavior struct exists — U19 ruling).
   #
   # Tolerant-unknown-type policy: unknown ioc_type tokens (not in corrected enum)
-  # are preserved as raw strings (non-fatal, log only) per BC-2.06.019 v1.8.
+  # are preserved as raw strings (non-fatal, log only) per BC-2.06.019 v1.10.
   # ---------------------------------------------------------------------------
 
   # DTU: behaviors[0].ioc_type — algorithm-qualified token (hash_sha256, hash_md5,

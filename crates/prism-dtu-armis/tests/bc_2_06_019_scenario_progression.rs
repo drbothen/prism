@@ -483,7 +483,7 @@ async fn test_BPRL_P4_02_armis_alerts_stage_guard_primary_device() {
 ///
 /// This exercises the PRODUCTION CONSTRUCTOR path (`new_with_scenario`), NOT the generator
 /// helper directly. It proves that the demo server, which calls `new_with_scenario`, will
-/// serve CVE-stamped device records enabling the NVD pivot (AC-008 / BC-2.06.019 v1.9,
+/// serve CVE-stamped device records enabling the NVD pivot (AC-008 / BC-2.06.019 v1.10,
 /// F-PIVOT003-R2-002).
 ///
 /// TD-VSDD-059: load-bearing — verifies production path, not the helper function.
