@@ -975,3 +975,224 @@ async fn test_BC_2_06_019_fail_closed_malformed_alert_is_withheld() {
         valid_ids
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test 12 — F-PIVOT003-R11A-001: IP/domain IOC stage-gating served-route test
+// ---------------------------------------------------------------------------
+
+/// Test 12 — F-PIVOT003-R11A-001 / BC-2.06.019 PC-2:
+/// `generate_with_scenario_iocs` must stamp `alert_data.ip` (from catalog.ioc_ips[0])
+/// and `alert_data.domain` (from catalog.ioc_domains[0]) onto CompromisedEndpoint alert
+/// records so the route's ioc_ips/ioc_domains StageMask filter branches are live.
+///
+/// Asserts (SERVED-ROUTE — drives GET /api/v1/alerts):
+/// - At pre-Exfil stage (ioc_ips=false / ioc_domains=false): alerts stamped with
+///   catalog IP/domain values are ABSENT from the response.
+/// - At Exfil+ stage (ioc_ips=true / ioc_domains=true, stage >= 3): the same alerts
+///   ARE PRESENT in the response.
+///
+/// Load-bearing: uses CyberintClone::new_with_scenario (production constructor), starts
+/// an HTTP server, and asserts via GET /api/v1/alerts. This directly exercises the
+/// routes/alerts.rs StageMask filter branches for ioc_ips / ioc_domains.
+///
+/// BC-2.06.019 v1.13 PC-2 (ioc_ips/ioc_domains become true at Exfil, stage 3+)
+/// F-PIVOT003-R11A-001.
+#[tokio::test]
+async fn test_BC_2_06_019_ip_domain_ioc_stage_gating_served_route() {
+    let org = deadbeef_org();
+    let seed: u64 = 55;
+    let demo_token = "test-demo-token-ip-domain-stage-gate".to_owned();
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+    assert!(
+        !catalog.ioc_ips.is_empty(),
+        "Scenario catalog must have non-empty ioc_ips for this test to be meaningful"
+    );
+    assert!(
+        !catalog.ioc_domains.is_empty(),
+        "Scenario catalog must have non-empty ioc_domains for this test to be meaningful"
+    );
+    let catalog_ip = catalog.ioc_ips[0].clone();
+    let catalog_domain = catalog.ioc_domains[0].clone();
+
+    // -------------------------------------------------------------------------
+    // Pre-Exfil server: stage 0 (elapsed ≈ 10s < 60s → ioc_ips=false, ioc_domains=false)
+    // -------------------------------------------------------------------------
+    let now = chrono::Utc::now().timestamp();
+    let start_pre_exfil: i64 = now - 10;
+    let time_anchor_pre_exfil = chrono::DateTime::from_timestamp(start_pre_exfil, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+    let timeline_pre_exfil = std::sync::Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_pre_exfil,
+        &[],
+    ));
+
+    let mut clone_pre_exfil = CyberintClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org.clone(),
+        std::sync::Arc::clone(&timeline_pre_exfil),
+        time_anchor_pre_exfil,
+        &catalog,
+    )
+    .expect("pre-Exfil CyberintClone must construct");
+
+    clone_pre_exfil
+        .state
+        .register_access_token(demo_token.clone());
+
+    clone_pre_exfil
+        .start()
+        .await
+        .expect("pre-Exfil server must start");
+    let base_url_pre = clone_pre_exfil.base_url();
+    let client = prism_dtu_common::build_test_client();
+
+    let resp_pre = client
+        .get(format!("{base_url_pre}/api/v1/alerts"))
+        .header("Cookie", access_token_cookie(&demo_token))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts (pre-Exfil) must reach the server");
+
+    assert_eq!(resp_pre.status().as_u16(), 200, "pre-Exfil must return 200");
+
+    let body_pre: serde_json::Value = resp_pre
+        .json()
+        .await
+        .expect("pre-Exfil response must be JSON");
+    let data_pre = body_pre["data"].as_array().cloned().unwrap_or_default();
+
+    // At pre-Exfil (ioc_ips=false, ioc_domains=false):
+    // Any alert record carrying alert_data.ip == catalog_ip or
+    // alert_data.domain == catalog_domain MUST be absent.
+    let pre_exfil_ip_match_count = data_pre
+        .iter()
+        .filter(|rec| {
+            rec.get("alert_data")
+                .and_then(|ad| ad.get("ip"))
+                .and_then(|v| v.as_str())
+                == Some(catalog_ip.as_str())
+        })
+        .count();
+
+    let pre_exfil_domain_match_count = data_pre
+        .iter()
+        .filter(|rec| {
+            rec.get("alert_data")
+                .and_then(|ad| ad.get("domain"))
+                .and_then(|v| v.as_str())
+                == Some(catalog_domain.as_str())
+        })
+        .count();
+
+    assert_eq!(
+        pre_exfil_ip_match_count,
+        0,
+        "BC-2.06.019 PC-2 / F-PIVOT003-R11A-001: at pre-Exfil stage (ioc_ips=false), \
+         alerts with alert_data.ip='{}' (catalog IP) must be ABSENT from response; \
+         found {} such record(s). Response alert_count={}.",
+        catalog_ip,
+        pre_exfil_ip_match_count,
+        data_pre.len()
+    );
+
+    assert_eq!(
+        pre_exfil_domain_match_count,
+        0,
+        "BC-2.06.019 PC-2 / F-PIVOT003-R11A-001: at pre-Exfil stage (ioc_domains=false), \
+         alerts with alert_data.domain='{}' (catalog domain) must be ABSENT from response; \
+         found {} such record(s). Response alert_count={}.",
+        catalog_domain,
+        pre_exfil_domain_match_count,
+        data_pre.len()
+    );
+
+    // -------------------------------------------------------------------------
+    // Exfil+ server: stage 3+ (elapsed ≈ 1000s >> 360s → ioc_ips=true, ioc_domains=true)
+    // -------------------------------------------------------------------------
+    let start_exfil: i64 = now - 1_000;
+    let time_anchor_exfil = chrono::DateTime::from_timestamp(start_exfil, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+    let timeline_exfil = std::sync::Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_exfil,
+        &[],
+    ));
+
+    let mut clone_exfil = CyberintClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org.clone(),
+        std::sync::Arc::clone(&timeline_exfil),
+        time_anchor_exfil,
+        &catalog,
+    )
+    .expect("Exfil+ CyberintClone must construct");
+
+    clone_exfil.state.register_access_token(demo_token.clone());
+
+    clone_exfil.start().await.expect("Exfil+ server must start");
+    let base_url_exfil = clone_exfil.base_url();
+
+    let resp_exfil = client
+        .get(format!("{base_url_exfil}/api/v1/alerts"))
+        .header("Cookie", access_token_cookie(&demo_token))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts (Exfil+) must reach the server");
+
+    assert_eq!(resp_exfil.status().as_u16(), 200, "Exfil+ must return 200");
+
+    let body_exfil: serde_json::Value = resp_exfil
+        .json()
+        .await
+        .expect("Exfil+ response must be JSON");
+    let data_exfil = body_exfil["data"].as_array().cloned().unwrap_or_default();
+
+    // At Exfil+ (ioc_ips=true, ioc_domains=true):
+    // At least one alert must carry alert_data.ip == catalog_ip AND
+    // at least one must carry alert_data.domain == catalog_domain.
+    let exfil_ip_match_count = data_exfil
+        .iter()
+        .filter(|rec| {
+            rec.get("alert_data")
+                .and_then(|ad| ad.get("ip"))
+                .and_then(|v| v.as_str())
+                == Some(catalog_ip.as_str())
+        })
+        .count();
+
+    let exfil_domain_match_count = data_exfil
+        .iter()
+        .filter(|rec| {
+            rec.get("alert_data")
+                .and_then(|ad| ad.get("domain"))
+                .and_then(|v| v.as_str())
+                == Some(catalog_domain.as_str())
+        })
+        .count();
+
+    assert!(
+        exfil_ip_match_count > 0,
+        "BC-2.06.019 PC-2 / F-PIVOT003-R11A-001: at Exfil+ stage (ioc_ips=true), \
+         at least one alert with alert_data.ip='{}' (catalog IP) must be PRESENT; \
+         found 0. Response alert_count={}. \
+         generate_with_scenario_iocs must stamp alert_data.ip from catalog.ioc_ips[0].",
+        catalog_ip,
+        data_exfil.len()
+    );
+
+    assert!(
+        exfil_domain_match_count > 0,
+        "BC-2.06.019 PC-2 / F-PIVOT003-R11A-001: at Exfil+ stage (ioc_domains=true), \
+         at least one alert with alert_data.domain='{}' (catalog domain) must be PRESENT; \
+         found 0. Response alert_count={}. \
+         generate_with_scenario_iocs must stamp alert_data.domain from catalog.ioc_domains[0].",
+        catalog_domain,
+        data_exfil.len()
+    );
+}

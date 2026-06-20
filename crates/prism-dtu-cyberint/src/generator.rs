@@ -88,18 +88,23 @@ pub fn generate_with_scenario_iocs(
     catalog_ioc_hashes: &[String],
     catalog_cves: &[String],
 ) -> FixtureSet {
-    // Suppress unused-param warnings for non-CompromisedEndpoint archetypes where these
-    // are not consumed; the params are kept in the signature for future extensibility.
-    let _ = (catalog_ioc_ips, catalog_ioc_domains);
-
     // Step 1: generate the base FixtureSet with catalog CVEs applied.
     let mut fixture_set = generate_inner(org_id, archetype, opts, Some(catalog_cves));
 
     // Step 2: for CompromisedEndpoint only, stamp IOC fields onto alert-surface records.
-    // BC-2.06.019 v1.13 PC-4: iocs[0].value carries the catalog IOC hash value so the
-    // real-schema filter in routes/alerts.rs can project it against the StageMask.
-    if archetype == Archetype::CompromisedEndpoint && !catalog_ioc_hashes.is_empty() {
-        let ioc_hash = catalog_ioc_hashes[0].as_str();
+    // BC-2.06.019 v1.13 PC-4 PC-2 (ioc_ips/ioc_domains become visible at Exfil, stage 3+):
+    // - iocs[0].value: catalog hash IOC (hash StageMask bit)
+    // - alert_data.ip: catalog IP IOC (ioc_ips StageMask bit)
+    // - alert_data.domain: catalog domain IOC (ioc_domains StageMask bit)
+    // The route's real-schema filter reads alert_data.ip / alert_data.domain fields
+    // (routes/alerts.rs lines ~285-320) and checks them against catalog_ioc_ips /
+    // catalog_ioc_domains. Without stamping these fields, the ioc_ips/ioc_domains
+    // StageMask bits are dormant — the route's filter branches can never fire.
+    if archetype == Archetype::CompromisedEndpoint {
+        let ioc_hash = catalog_ioc_hashes.first().map(|s| s.as_str());
+        let ioc_ip = catalog_ioc_ips.first().map(|s| s.as_str());
+        let ioc_domain = catalog_ioc_domains.first().map(|s| s.as_str());
+
         for record in fixture_set.records.iter_mut() {
             // Only stamp alert-surface records.
             if record
@@ -110,14 +115,33 @@ pub fn generate_with_scenario_iocs(
             {
                 continue;
             }
-            // Stamp iocs array with one entry carrying the catalog IOC hash.
-            // Primary wire key "type" per Ioc serde rename (BC-2.06.019 v1.13 INCONCLUSIVE
-            // inner-key — DTU always writes the primary key "type" regardless of live API form).
             if let Some(obj) = record.as_object_mut() {
-                obj.insert(
-                    "iocs".to_string(),
-                    json!([{"type": "hash_sha256", "value": ioc_hash}]),
-                );
+                // Stamp iocs array with catalog IOC hash (ioc_hashes StageMask bit).
+                // Primary wire key "type" per Ioc serde rename (BC-2.06.019 v1.13 INCONCLUSIVE
+                // inner-key — DTU always writes the primary key "type" regardless of live API form).
+                if let Some(hash) = ioc_hash {
+                    obj.insert(
+                        "iocs".to_string(),
+                        json!([{"type": "hash_sha256", "value": hash}]),
+                    );
+                }
+                // Stamp alert_data.ip and alert_data.domain so the route's ioc_ips /
+                // ioc_domains StageMask filter branches can fire (BC-2.06.019 PC-2).
+                // Both fields are Option<String> in AlertData and skipped in serialization
+                // when None — present here makes the StageMask gating real.
+                let mut alert_data = serde_json::Map::new();
+                if let Some(ip) = ioc_ip {
+                    alert_data.insert("ip".to_string(), json!(ip));
+                }
+                if let Some(domain) = ioc_domain {
+                    alert_data.insert("domain".to_string(), json!(domain));
+                }
+                if !alert_data.is_empty() {
+                    obj.insert(
+                        "alert_data".to_string(),
+                        serde_json::Value::Object(alert_data),
+                    );
+                }
             }
         }
     }
