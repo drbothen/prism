@@ -20,14 +20,16 @@ depends_on:
   # S-5.03 (MERGED — provides the ServerHandler override pattern for resources/prompts; prism_describe
   # and prismql:// resources register using the established patterns).
   - S-3.13
-  # S-3.13 (MERGED — provides Arc<dyn TableRegistry>; prism_describe + prismql://schema/{client_id}
-  # both read from the same TableRegistry instance injected at boot).
+  # S-3.13 (MERGED — wires `TableRegistry` into `QueryEngine`; S-3.13's per-org org-scope filter
+  # helpers are the model for the per-org column-scope filter that `prism_describe` applies to
+  # `resolved_spec_map`).
 # Dependency anchors:
 #   S-DEMO-PRISMQL-ONBOARDING-001-A depends on S-5.03 because the ServerHandler resource/prompt
 #     patterns (list_resource_templates, list_resources, read_resource, PromptRouter) are
 #     established by S-5.03 and this sub-story uses them directly.
-#   S-DEMO-PRISMQL-ONBOARDING-001-A depends on S-3.13 because TableRegistry (the backing data
-#     source for prism_describe + prismql://schema/{client_id}) is wired at boot by S-3.13.
+#   S-DEMO-PRISMQL-ONBOARDING-001-A depends on S-3.13 because TableRegistry is wired into
+#     QueryEngine by S-3.13, and S-3.13's org-scope filter helpers are the model for the per-org
+#     column-scope filter that `prism_describe` applies to `resolved_spec_map`.
 #   NOTE: no hard dependency on S-5.04 (Sensor Health — also prism-mcp). For smooth merge
 #     sequencing (D-1244 crate-conflict avoidance), this sub-story SHOULD pipeline after S-5.04.
 #     The orchestrator should merge S-5.04 first where possible to reduce rebase friction on
@@ -41,8 +43,8 @@ points: 7
 # Points justification (ADR-041 L1+L2+L3 scope):
 #   L1 — query tool description primer upgrade (≤500 tokens; server.rs edit): 0.5 pts
 #   L1 — query_tutorial MCP Prompt (5 structural elements; prompts.rs): 1 pt
-#   L2 — prism_describe tool (new file, TableRegistry reads, audit event, response types,
-#         3 #[non_exhaustive] types, inject Arc<dyn TableRegistry>): 2.5 pts
+#   L2 — prism_describe tool (new file, resolved_spec_map column reads, audit event, response types,
+#         3 #[non_exhaustive] types, wired via query_engine.resolved_spec_map()): 2.5 pts
 #   L2 — prismql://schema/{client_id} resource template (subscribe/notify — NET-NEW
 #         ServerHandler overrides + subscriber registry): 2 pts
 #   L3 — prismql://reference static resource (include_str! embed + pql_reference.md content
@@ -53,9 +55,9 @@ status: draft
 # BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.1"
+version: "1.2"
 producer: story-writer
-timestamp: "2026-06-19T00:00:00Z"
+timestamp: "2026-06-20T00:00:00Z"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -86,9 +88,11 @@ risk_mitigations:
      ColumnDescriptor. ci.yml EXPECTED must be incremented by 3 (baseline: 79 on develop@9114e028;
      target after this story: 82). scripts/check-non-exhaustive.sh EXPECTED=82. CLAUDE.md count
      updated at merge per D-1178 mechanism."
-  - "prism_describe and prismql://schema/{client_id} MUST read from the same Arc<dyn TableRegistry>
-     instance. DI-008 client isolation enforced by OrgId filter. Under no circumstances may a call
-     for client 'acme' return 'globex' table names."
+  - "prism_describe and prismql://schema/{client_id} MUST read column schema from the same data
+     source: `query_engine.resolved_spec_map()` in multi-tenant mode, `config_manager` in
+     single-tenant/test fallback. DI-008 client isolation enforced by OrgSlug filter applied to
+     `resolved_spec_map` keys. Under no circumstances may a call for client 'acme' return 'globex'
+     table or column names."
   - "prismql://reference content MUST be embedded via include_str! (build-time static). NOT loaded
      from filesystem at runtime. Content must be ≤3,000 tokens (~12KB)."
 crates_touched: [prism-mcp]
@@ -168,7 +172,11 @@ At ~200k context window: ~13.2% — within the 20-30% ceiling.
   point for `query_tutorial` as 5th prompt
 - [ ] Read `crates/prism-mcp/src/resources.rs` (or `resources/mod.rs`) — confirm ServerHandler
   override pattern from S-5.03; identify `list_resource_templates` and `list_resources` overrides
-- [ ] Confirm `Arc<dyn TableRegistry>` injection point in `PrismServer` struct (wired by S-3.13)
+- [ ] Confirm `query_engine.resolved_spec_map()` return type (`Option<Arc<HashMap<ResolvedSpecKey,
+  ResolvedSensorSpec>>>`) in `engine.rs` — this is the primary column-schema source for
+  `prism_describe`. Confirm `config_manager` field on `PrismServer` (`server.rs`) — this is the
+  single-tenant fallback. Confirm `ResolvedSensorSpec.spec.tables: Vec<TableSpec>` and
+  `TableSpec.columns: Vec<ColumnSpec>` in `prism-spec-engine/src/spec_parser.rs`.
 - [ ] Read rmcp 1.7 docs (Context7) to confirm `subscribe`/`unsubscribe` ServerHandler
   override signatures and `notify_resource_updated` call pattern before implementing
 
@@ -197,7 +205,11 @@ At ~200k context window: ~13.2% — within the 20-30% ceiling.
   `test_BC_2_10_012_prism_describe_empty_and_unknown_client`
   `test_BC_2_10_012_prism_describe_invalid_client_id`
 - [ ] Create `crates/prism-mcp/src/tools/prism_describe.rs`:
-  - `prism_describe(client_id: String)` handler receiving `Arc<dyn TableRegistry>`
+  - `prism_describe(client_id: String)` handler reading column schema from
+    `self.query_engine.resolved_spec_map()` (multi-tenant: filter by OrgSlug, walk
+    `ResolvedSensorSpec.spec.tables`, collect `TableSpec.columns`) or
+    `self.config_manager` (single-tenant fallback: `sensor_specs.get(sensor_id).tables`,
+    same pattern as `render_schema_resource` in `resources.rs`)
   - Response types: `PrismDescribeResponse { client_id, tables: Vec<TableDescriptor>, pql_hints: Vec<String> }`
     `TableDescriptor { name, sensor_type, description, columns: Vec<ColumnDescriptor>, example_query }`
     `ColumnDescriptor { name, type: prism_core::column::ColumnType, description: Option<String>, nullable: bool }`
@@ -434,7 +446,7 @@ Red Gate: `test_BC_2_10_009_l1_primer_query_tool_description`
 |-----------|--------|-------|----------------|
 | L1 `query` tool description upgrade | SS-10 (MCP Interface) | prism-mcp (`server.rs`) | Effectful (MCP tool registration) |
 | L1 `query_tutorial` MCP Prompt | SS-10 | prism-mcp (`prompts.rs`) | Effectful (MCP prompt registration) |
-| L2 `prism_describe` tool handler | SS-10 | prism-mcp (`tools/prism_describe.rs`) | Effectful (tool call, audit event, Arc<dyn TableRegistry>) |
+| L2 `prism_describe` tool handler | SS-10 | prism-mcp (`tools/prism_describe.rs`) | Effectful (tool call, audit event, reads column schema via `query_engine.resolved_spec_map()` or `config_manager`) |
 | L2 `prismql://schema/{client_id}` resource template | SS-10 | prism-mcp (`resources/schema.rs`) | Effectful (MCP resource, subscribe/notify) |
 | L3 `prismql://reference` static resource | SS-10 | prism-mcp (`resources/schema.rs` or `reference.rs`) | Pure (build-time static content; registration effectful) |
 
@@ -457,9 +469,13 @@ is NET-NEW — NOT an existing precedent. S-5.03 shipped only the list-changed p
 override, no `notify_resource_updated` call site, and no `enable_resources_subscribe()` in
 prism-mcp as of develop@9114e028. Implementer MUST build this from scratch.
 
-**S-3.13 (MERGED — Dynamic Table Availability / TableRegistry):** `Arc<dyn TableRegistry>` is
-wired into `PrismServer` at boot. `TableRegistry::registered_tables()` returns `Vec<String>`.
-`prism_describe` uses the same `Arc<>` injection pattern.
+**S-3.13 (MERGED — Dynamic Table Availability / TableRegistry):** `TableRegistry` is a concrete
+`#[non_exhaustive] struct` wired into `QueryEngine` (NOT directly into `PrismServer`). Accessed
+from MCP handlers via `self.query_engine.as_ref()?.table_registry()`. It stores table-name strings
+only — NO column schema. `prism_describe` column data comes from
+`self.query_engine.resolved_spec_map()` (multi-tenant) or
+`self.config_manager.load().load().sensor_specs` (single-tenant fallback), following the same
+pattern used by `render_schema_resource` and `render_client_sensors_resource` in `resources.rs`.
 
 **S-5.02 (MERGED — Tool Routing):** `ClientIdGuard` middleware validates `client_id` parameters.
 `prism_describe`'s `client_id` validation uses `TenantId::new()` consistently with other tools.
@@ -477,8 +493,8 @@ MCP response envelope update (task 13 in the parent story's Tasks §Sub-burst B)
 |------|--------|-------------|
 | `prism_describe` is always-registered — do NOT gate behind feature flag | BC-2.10.012 precondition 1 | Adversary: grep for feature-gate wrapping `prism_describe` registration |
 | `prism_describe` annotations: all four MUST be present | BC-2.10.012 postcondition | AC-001 unit test |
-| `Arc<dyn TableRegistry>` injected at boot; do NOT construct new instance in handler | ADR-022 wiring | Adversary: grep for `TableRegistry::new()` in prism_describe.rs |
-| `prism_describe` and `prismql://schema/{client_id}` MUST read from same `Arc<dyn TableRegistry>` | BC-2.10.012 + BC-2.10.013 invariant | Adversary: verify single injection point |
+| `prism_describe` reads column schema from `query_engine.resolved_spec_map()` or `config_manager`; do NOT attempt `TableRegistry::new()` or `Arc<dyn TableRegistry>` in prism_describe.rs | ADR-022 wiring | Adversary: grep for `TableRegistry::new()` in prism_describe.rs; grep for `Arc<dyn TableRegistry>` in prism_describe.rs and FAIL if found — correct wiring is through `query_engine.resolved_spec_map()` |
+| `prism_describe` and `prismql://schema/{client_id}` MUST read from the same data source (`query_engine.resolved_spec_map()` or `config_manager` fallback) so that `resources/read("prismql://schema/acme")` produces identical JSON to `prism_describe("acme")` (AC-005 parity test) | BC-2.10.012 + BC-2.10.013 invariant | Adversary: verify single code path for column enumeration |
 | `prismql://reference` content embedded via `include_str!` — NOT `fs::read_to_string` | BC-2.10.014 postcondition | Adversary: grep for `read_to_string` in reference handler |
 | Subscribe/notify capability: `enable_resources_subscribe()` MUST be declared in `get_info()` | rmcp 1.7 + BC-2.10.013 | AC-006 subscribe test |
 | Per-client subscription scoping: "acme" change MUST NOT notify "globex" subscribers | DI-008 + BC-2.10.013 EC-10-030 | AC-006 isolation test |
@@ -495,7 +511,8 @@ MCP response envelope update (task 13 in the parent story's Tasks §Sub-burst B)
 |---------|---------|-------|
 | rmcp | 1.7 (workspace) | `ServerHandler` overrides; `subscribe`/`unsubscribe`; `Peer<RoleServer>::notify_resource_updated`; `enable_resources_subscribe()`; `#[tool(... annotations(...))]`; `PromptRouter` + `#[prompt_handler]` |
 | serde / serde_json | 1.x (workspace) | Serialize PrismDescribeResponse, TableDescriptor, ColumnDescriptor |
-| prism-core | workspace | TableRegistry trait, OrgId/OrgSlug/TenantId, ColumnType |
+| prism-core | workspace | OrgSlug (replaces deprecated TenantId), ColumnType (`prism_core::column::ColumnType`; variants String/Integer/Float/Boolean/Datetime/Json) |
+| prism-spec-engine | workspace (existing dep via prism-mcp → prism-query chain) | `ResolvedSensorSpec`, `ResolvedSpecKey`, `TableSpec`, `ColumnSpec` — column schema source for `prism_describe` and `prismql://schema/{client_id}` |
 | tracing | workspace | Structured event emission; new event_type values must be in BC-2.16.002 |
 
 **Version pinning note:** rmcp = "1.7" confirmed on develop@9114e028 (`root Cargo.toml`,
@@ -507,7 +524,7 @@ resolves 1.7.0 in `Cargo.lock`). Do NOT invent version numbers — use workspace
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `crates/prism-mcp/src/server.rs` | Modify | (1) Upgrade `query` tool description (L1 primer); (2) register `prism_describe` tool in always-registered tier; (3) register `prismql://schema/{client_id}` resource template; (4) register `prismql://reference` static resource; (5) `enable_resources_subscribe()` in `get_info()`; (6) wire subscribe/notify via `Arc<dyn TableRegistry>` change signal |
+| `crates/prism-mcp/src/server.rs` | Modify | (1) Upgrade `query` tool description (L1 primer); (2) register `prism_describe` tool in always-registered tier; (3) register `prismql://schema/{client_id}` resource template; (4) register `prismql://reference` static resource; (5) `enable_resources_subscribe()` in `get_info()`; (6) wire subscribe/notify via `TableRegistry` change event (table-name additions/removals trigger `notify_resource_updated`; column data for content is still read from `resolved_spec_map`) |
 | `crates/prism-mcp/src/tools/prism_describe.rs` | Create | `prism_describe` tool handler; PrismDescribeResponse + TableDescriptor + ColumnDescriptor types; TableRegistry reads; audit event; example query generation |
 | `crates/prism-mcp/src/resources/schema.rs` | Create (or extend existing) | `prismql://schema/{client_id}` resource template handler + per-client subscriber registry + subscribe/unsubscribe overrides; `prismql://reference` static resource handler |
 | `crates/prism-mcp/src/pql_reference.md` | Create | Build-time static PQL grammar reference (7 sections, ≤3000 tokens); embedded via `include_str!` |
@@ -525,7 +542,7 @@ resolves 1.7.0 in `Cargo.lock`). Do NOT invent version numbers — use workspace
 |----|--------|-------------|-------------------|
 | EC-001 | BC-2.10.012 EC-10-028 | `prism_describe("acme")` — audit emission fails | Call proceeds; `_meta.audit_warning: true` in response; DI-004 fail-open for reads |
 | EC-002 | BC-2.10.012 EC-10-025 | `prism_describe("acme")` — one table has zero columns | Table returned with `columns: []`; `example_query` uses count-recent fallback |
-| EC-003 | BC-2.10.012 EC-10-026 | `prism_describe("acme")` — `TableRegistry` undergoing hot-reload at call time | Returns snapshot visible at `Arc<dyn TableRegistry>` read time; ArcSwap ensures no partial-reload risk |
+| EC-003 | BC-2.10.012 EC-10-026 | `prism_describe("acme")` — `TableRegistry` undergoing hot-reload at call time | Returns snapshot visible at `Arc<TableRegistry>` read time via `query_engine.table_registry()`; ArcSwap ensures no partial-reload risk for the table-name set; column data read from `resolved_spec_map` which uses the same ArcSwap snapshot semantics |
 | EC-004 | BC-2.10.013 EC-10-032 | `resources/read("prismql://schema/acme")` — MCP client does not support `resources/subscribe` | Server registers template unconditionally; no subscribe calls arrive; no error |
 | EC-005 | BC-2.10.013 EC-10-034 | `resources/read("prismql://reference")` during config hot-reload | Returns build-time static content unchanged |
 | EC-006 | BC-2.10.014 EC-10-036 | `pql_reference.md` token count exceeds 3,000 at authoring time | Trim content before commit; do not exceed ceiling |
@@ -579,3 +596,4 @@ cannot edit BC bodies.
 |---------|-------|------|--------|--------|
 | 1.0 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | Initial sub-story decomposition — split from S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) per D-1244 §Parallel Execution Plan. Covers L1+L2+L3 MCP surfaces (prism-mcp only). 4 BCs: BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014. 10 ACs + 10 Red Gate tests. 7 pts. Pipelines behind S-5.04 for crate-conflict avoidance. |
 | 1.1 | REMOVE-UNCERTAINTY-2026-06-20 | 2026-06-20 | research-agent | D-1110 REMOVE-UNCERTAINTY pass. Applied 2 low-risk codebase-validated corrections in Tasks Phase 2: (E1) `TenantId::new()` → `OrgSlug::new()` (TenantId is a deprecated alias removed in Wave 4; all sibling validators use OrgSlug); (E2) `ColumnDescriptor.type: ColumnType` → `prism_core::column::ColumnType` (disambiguated from the internal `types::ColumnType`/`InternalColumnType` per CLAUDE.md §Conventions). Report: `.factory/research/remove-uncertainty/S-DEMO-PRISMQL-ONBOARDING-001-A.md`. THREE items FLAGGED for specialist routing (NOT auto-edited): R1 (CRITICAL — `Arc<dyn TableRegistry>` injection model is fictional; TableRegistry is a concrete `#[non_exhaustive]` struct accessed via `query_engine.table_registry()`, PrismServer has no TableRegistry field → architect + story-writer + product-owner); R2 (HIGH — column schema data source is the spec layer `ConfigManager`/`resolved_spec_map`, not TableRegistry which holds only table-name strings; read path is NOT NET-NEW → architect + story-writer); R3 (INFO — pre-existing BC-2.11.001 micro-edit + 001-A/001-B merge sequencing → product-owner + orchestrator). rmcp 1.7 subscribe/notify API surface VALIDATED feasible (Context7): subscribe/unsubscribe ServerHandler overrides, notify_resource_updated, ResourceUpdatedNotificationParam, enable_resources_subscribe all confirmed real. |
+| 1.2 | TABLEREGISTRY-DATAPATH-CORRECTION-2026-06-20 | 2026-06-20 | story-writer | Architect adjudication applied (onboarding-001-tableregistry-datapath-correction.md, D-1259). Wiring-not-redesign corrections for R1 (CRITICAL) and R2 (HIGH) from remove-uncertainty pass. Edits: (1) `depends_on` S-3.13 comment — removed `Arc<dyn TableRegistry>` language; (2) `risk_mitigations` bullet 3 — replaced TableRegistry injection with `resolved_spec_map`/`config_manager` data-source statement; (3) dependency anchor comment for S-3.13 corrected; (4) points justification comment corrected; (5) Tasks Phase 2 pre-flight — replaced "Confirm Arc<dyn TableRegistry> injection" with `resolved_spec_map`/`config_manager` confirmation task; (6) Tasks Phase 2 handler description — replaced "receiving Arc<dyn TableRegistry>" with column-schema read-path description via `resolved_spec_map`/`config_manager`; (7) Previous Story Intelligence S-3.13 paragraph — corrected: concrete struct in QueryEngine, no column schema in TableRegistry, column data from `resolved_spec_map`/`config_manager`; (8) Architecture Mapping row updated; (9) Architecture Compliance Rules — fixed two TableRegistry-injection rules and flipped adversary grep probe from "verify injection EXISTS" to "FAIL if found"; (10) Library & Framework Requirements — replaced `TableRegistry trait` row with correct `OrgSlug`/`ColumnType` row and added `prism-spec-engine` row. No AC-semantic changes. No BC array changes. Both BCs remain: BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014. |

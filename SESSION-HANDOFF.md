@@ -1,18 +1,104 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.888"
+version: "7.889"
 status: current
-timestamp: 2026-06-20T06:00:00Z
+timestamp: 2026-06-20T07:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1260 (2026-06-20): HUMAN DECISIONS RECORDED. (1) S-1.11 MERGED — all 5 BCs confirmed delivered on develop@f6739764; D-1252 "S-5.04 blocked on S-1.11" RESOLVED; S-1.11 v1.7 merged. (2) Probe semantic = EXPLICIT `probe_table` field in sensor TOML (Option B); new ~1pt story needed (PO to assign ID); S-5.04 UNPARKED (soft-depends on probe_table lane). STORY-INDEX v2.441→v2.442. develop_head UNCHANGED f6739764. STATE v7.887→v7.888. §RESUME SNAPSHOT D-1260 authored (supersedes D-1259).**
+> **D-1261 (2026-06-20): ARCHITECT DESIGN + STORY CORRECTIONS BURST. probe_table field design DONE (architect): Option<String> #[serde(default)] on SensorSpec, EXPECTED stays 79, per-sensor values: crowdstrike→detections, cyberint→alerts, claroty→devices, armis→devices. 001-A v1.1→v1.2 (10 rewrites, closes R1/R2, TDD-READY). 001-B v1.1→v1.2 (8 rewrites, closes FLAG-001, TDD-READY). Serial delivery: 001-A → 001-B → S-5.04. OPEN ORCHESTRATOR DECISION: fold probe_table into S-5.04 vs separate story. STORY-INDEX v2.442→v2.443. develop_head UNCHANGED f6739764. STATE v7.888→v7.889. §RESUME SNAPSHOT D-1261 authored (supersedes D-1260).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1260** (authoritative zero-context restart protocol; supersedes D-1259). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1259 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1260 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.888.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1261** (authoritative zero-context restart protocol; supersedes D-1260). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1260 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1261 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.889.
+
+---
+
+## §RESUME SNAPSHOT — D-1261 (2026-06-20 — ARCHITECT DESIGN + STORY CORRECTIONS: probe_table designed; 001-A/001-B v1.2 TDD-READY; serial delivery sequenced; develop_head f6739764 UNCHANGED; STATE v7.889)
+
+> **D-1261 burst (2026-06-20).** Three work products committed to factory-artifacts (single atomic commit, TD-VSDD-053). **Item 1 — probe_table field design (architect):** Architect produced `.factory/specs/architecture/scoping/probe-table-field-design.md`. Design: `probe_table: Option<String>` with `#[serde(default)]` on `SensorSpec` in prism-spec-engine. No non-exhaustive gate bump — the field is `Option<String>`, not a new pub enum variant in the gate crates (EXPECTED stays 79). Per-sensor probe_table values: crowdstrike→`detections`, cyberint→`alerts`, claroty→`devices`, armis→`devices`. Requires BC-2.08.001 + BC-2.16.009 amendments + new E-SPEC-026 (PO to author after probe_table fold decision resolves). **OPEN ORCHESTRATOR DECISION:** fold probe_table into S-5.04 (orchestrator recommends — S-5.04 already owns connectivity.rs health probe logic; folding keeps the probe semantics change and prism-spec-engine parsing in one atomic delivery; avoids a partially-broken state between S-5.04 ship and a follow-up story) vs a separate follow-up story (architect suggestion). Awaiting orchestrator+human disposition before PO authors BC amendments. **Item 2 — 001-A/001-B TableRegistry data-path correction (story-writer v1.2):** Architect produced `.factory/specs/architecture/scoping/onboarding-001-tableregistry-datapath-correction.md`. Root cause confirmed: story specs assumed `Arc<dyn TableRegistry>` DI path provides column schema; `TableRegistry` is a concrete struct storing only table names; column schema lives in the spec layer (`resolved_spec_map` / `ConfigManager`). Correction: both stories now read from `resolved_spec_map`. 001-A v1.1→v1.2: 10 reword edits — closes R1 CRITICAL + R2 HIGH; adversary grep-probe direction inverted from "grep for absent columns" to "grep for data-path reads"; no AC-semantic or BC changes. 001-B v1.1→v1.2: 8 reword edits — closes FLAG-001; `available_columns` data-path corrected; no AC-semantic or BC changes. Both stories are TDD-READY. **Item 3 — Serial delivery sequencing:** Confirmed 001-A → 001-B → S-5.04 (all three share prism-mcp crate; serial avoids merge-conflict churn). STORY-INDEX v2.442→v2.443.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1261 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1261 snapshot first. It is authoritative.
+
+**Step 1.** `vsdd-factory:factory-worktree-health` — BLOCKING gate. Do not proceed if this fails.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1259/D-1260/D-1261).
+
+**Step 3.** Verify no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Apply carry-forward lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+
+**Step 5.** Apply DO-NOT-REFLAG items from §DO-NOT-REFLAG section below.
+
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1261 below: resolve probe_table fold decision (orchestrator decision pending) → 001-A TDD delivery (v1.2, TDD-ready, DEMO-BLOCKING) → 001-B TDD delivery (v1.2, TDD-ready, DEMO-BLOCKING) → S-5.04 TDD → T13. Autonomy D-989+D-1090 active.
+
+---
+
+### PINNED STATE (D-1261 — verified 2026-06-20)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| develop HEAD | `f6739764` | UNCHANGED from D-1258/D-1259/D-1260. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
+| factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
+| Open PRs | **NONE** | No open PRs. |
+| S-1.11 status | **merged v1.7** | D-1260 human decision. All 5 BCs delivered on develop@f6739764. |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | **UNPARKED per D-1260.** Code done+green. Soft-depends on probe_table fold decision. Awaiting orchestrator decision + probe_table BC amendments (PO) before TDD resumes. Serial: after 001-A + 001-B. |
+| 001-A story | **draft v1.2** | D-1261 TableRegistry correction applied. **TDD-READY.** DEMO-BLOCKING. Serial: deliver first (prism-mcp conflict avoidance with S-5.04). |
+| 001-B story | **draft v1.2** | D-1261 TableRegistry correction applied. **TDD-READY.** DEMO-BLOCKING. Serial: after 001-A. |
+| S-3.09 worktree | FROZEN | Leave alone. |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
+| ci.yml EXPECTED | `79` | Unchanged. |
+| CLAUDE.md non-exhaustive count | `79` | Unchanged. |
+| BC-INDEX | **v6.87** | active 235 / draft 8 / retired 6 / total 256. Unchanged. |
+| STORY-INDEX | **v2.443** | 206 stories. 001-A v1.1→v1.2 (D-1261). 001-B v1.1→v1.2 (D-1261). |
+| STATE.md | v7.889 | D-1261 burst. |
+| error_taxonomy | v1.91 | Unchanged. |
+| arch_index | v2.138 | Unchanged. |
+| vp_index | v1.79 | Unchanged. |
+| active_contracts | 235 | Unchanged. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1261)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1261 (2026-06-20) | Architect design + story corrections burst. probe_table field design produced (`probe_table: Option<String>` #[serde(default)] on SensorSpec; EXPECTED stays 79; per-sensor values recorded; design doc authored). 001-A v1.1→v1.2 (10 rewrites; R1/R2 closed; TDD-ready). 001-B v1.1→v1.2 (8 rewrites; FLAG-001 closed; TDD-ready). Serial delivery 001-A → 001-B → S-5.04 confirmed. OPEN ORCHESTRATOR DECISION: fold probe_table into S-5.04 vs separate story. STORY-INDEX v2.442→v2.443. develop_head UNCHANGED f6739764. STATE v7.888→v7.889. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1261)
+
+| Priority | Story | Status | Pts | Hard Prerequisites | Notes |
+|----------|-------|--------|-----|--------------------|-------|
+| **OPEN DECISION** | **probe_table fold decision** | — | — | — | Orchestrator recommends fold into S-5.04; architect suggests separate story. Decision unlocks PO authoring BC-2.08.001 + BC-2.16.009 amendments + E-SPEC-026. |
+| **NEXT-A (TDD-READY)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.2 (**TDD-READY — D-1261**) | 7 | TableRegistry correction DONE | **DEMO-BLOCKING (D-1243).** Serial first (prism-mcp conflict avoidance). |
+| **NEXT-B (TDD-READY, after 001-A)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | TableRegistry correction DONE | **DEMO-BLOCKING (D-1243).** Serial after 001-A. |
+| **NEXT-C (after probe_table fold decision)** | **S-5.04** | not-started v1.9 (**UNPARKED — D-1260**) | 5 | probe_table fold decision + 001-A/001-B serial delivery | F-S504-R2-002 MED + LOW/OBS remain. **DEMO-BLOCKING.** |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**North Star roadmap: resolve probe_table fold decision → 001-A TDD (serial first) → 001-B TDD (serial after 001-A) → S-5.04 TDD (after probe_table fold resolved) → T13 capstone → T14 recording.**
+
+**Convergence reminders (carry forward):**
+- BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3.
+- DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore). OBS-3 DEC-004 from S-5.03. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14).
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
 
 ---
 

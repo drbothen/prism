@@ -20,17 +20,22 @@ priority: P0
 # multi-client SOC demo capstone.
 depends_on:
   - S-5.03
-  # S-5.03 (MERGED — provides TableRegistry injection into PrismServer; the same TableRegistry
-  # instance that this sub-story's E-QUERY-038 column gate reads from at plan time).
+  # S-5.03 (MERGED — provides ServerHandler override patterns for MCP tools/resources/prompts;
+  # the prism-mcp wire edits in this sub-story (error_mapping.rs arm, normalized_pql field)
+  # follow the patterns S-5.03 established).
   - S-3.13
-  # S-3.13 (MERGED — provides Arc<dyn TableRegistry> wired into PrismServer; E-QUERY-038 reads
-  # the registry's per-org column schema for the table being queried).
+  # S-3.13 (MERGED — wires `TableRegistry` into `QueryEngine`; establishes the
+  # `check_availability_gate(query_str, org_scope, resolved_spec_map)` pattern and org-scope filter
+  # helpers that E-QUERY-038 extends for column-level checking. The `resolved_spec_map` parameter
+  # already flows through `check_table_availability` and into `check_availability_gate` —
+  # E-QUERY-038 reads column data from this same parameter, not from `TableRegistry` itself).
 # Dependency anchors:
-#   S-DEMO-PRISMQL-ONBOARDING-001-B depends on S-5.03 because S-5.03 completed the TableRegistry
-#     injection pattern into PrismServer that this sub-story's column gate reads from.
+#   S-DEMO-PRISMQL-ONBOARDING-001-B depends on S-5.03 because S-5.03 completed the MCP server
+#     handler patterns (ServerHandler overrides) that inform this sub-story's prism-mcp wire edits.
 #   S-DEMO-PRISMQL-ONBOARDING-001-B depends on S-3.13 because the E-QUERY-038 plan-time column
-#     gate uses the same TableRegistry org-scoped filter pattern as E-QUERY-037, which was
-#     established by S-3.13.
+#     gate extends the `check_availability_gate` function and org-scope filter pattern established
+#     by S-3.13; column data flows from `resolved_spec_map` (already a parameter in that gate),
+#     not from `TableRegistry` itself.
 #   NOTE: no hard functional dependency on PIVOT-003. For smooth merge sequencing (D-1244 crate-
 #     conflict avoidance in prism-query), this sub-story SHOULD pipeline after PIVOT-003.
 #     PIVOT-003 adds IOC columns to Cyberint/CrowdStrike TOML specs which expand the column set
@@ -62,9 +67,9 @@ status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.1"
+version: "1.2"
 producer: story-writer
-timestamp: "2026-06-19T00:00:00Z"
+timestamp: "2026-06-20T00:00:00Z"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -107,10 +112,14 @@ risk_mitigations:
   - "PrismError::ColumnNotFound arm in error_mapping.rs MUST be explicit (-32602 INVALID_PARAMS).
      Must NOT fall through to the #[non_exhaustive] catch-all -32000 arm. AC-001 integration
      test verifies the MCP error code is -32602, not -32000."
-  - "available_columns in E-QUERY-038 sourced ENTIRELY from TableRegistry (operator TOML →
-     registry). MUST NOT contain API keys, bearer tokens, URL paths, or credentials. The
-     proptest-style VP candidate (E-QUERY-038 available_columns contains no credential-pattern
-     strings) should be implemented as part of AC-002."
+  - "available_columns in E-QUERY-038 sourced from operator TOML specs via `resolved_spec_map →
+     ResolvedSensorSpec.spec.tables → TableSpec.columns → ColumnSpec.name` (the same TOML specs
+     that populate TableRegistry's table-name strings). `ColumnSpec.name` is an operator-defined
+     schema field name from the TOML spec (e.g., `\"severity\"`, `\"host_name\"`). MUST NOT
+     contain API keys, bearer tokens, URL paths, or credentials — which it cannot, because column
+     names are operator-specified strings in TOML, not API response data. The proptest-style VP
+     candidate (E-QUERY-038 available_columns contains no credential-pattern strings) should be
+     implemented as part of AC-002."
 crates_touched: [prism-core, prism-query, prism-mcp]
 # prism-core: new PrismError::ColumnNotFound variant + Display
 # prism-query: E-QUERY-038 plan-time gate + E-QUERY-001/002/003/037 pedagogical enrichments +
@@ -248,9 +257,19 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
   E-QUERY-037 gate:
   - Gate fires AFTER E-QUERY-037 passes (table exists → check columns)
   - Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038 (column not found)
-  - Column availability checked against `TableRegistry` for `(table, OrgId)` pair (same lookup
-    pattern as E-QUERY-037 per D-1163)
-  - `available_columns` is ALWAYS present (empty `[]` if table has zero columns); org-scoped per DI-008
+  - Column availability checked via `resolved_spec_map` for `(table, OrgId)` pair.
+    Specifically: filter `resolved_spec_map` to entries where `org_slug` is in `org_scope`
+    (same org-scope rules as E-QUERY-037); among matching entries, find the `ResolvedSensorSpec`
+    whose `spec.sensor_id + spec.tables[i].table_name` equals the requested table; read
+    `spec.tables[i].columns.iter().map(|c| c.name.clone())` as `available_columns`. When
+    `resolved_spec_map` is `None` (single-tenant / test mode), read from
+    `ConfigSnapshot.sensor_specs.get(sensor_id)?.tables` via a helper that calls
+    `config_manager` or `table_registry`'s registered name set as a fallback.
+    `TableRegistry` itself does not hold column schema.
+  - `available_columns` is ALWAYS present (empty `[]` if table has zero columns or if
+    `resolved_spec_map` is None and ConfigSnapshot cannot be reached); org-scoped per DI-008
+    using the same org-scope pattern as `filter_to_org_visible_sensors()` and
+    `filter_to_org_visible_tables()` already in `table_registry.rs`.
   - `did_you_mean`: `strsim::levenshtein` against all available columns; present when distance ≤ 3
     (same crate as E-QUERY-037's did_you_mean per D-1163); absent (field omitted) when no match ≤ 3
   - Injection-safety: `available_columns` from `TableRegistry` only; MUST NOT contain credential
@@ -447,7 +466,7 @@ Red Gate: combined in `test_BC_2_11_018_normalized_pql_present_on_success_absent
 | Component | Module | Crate | Pure/Effectful |
 |-----------|--------|-------|----------------|
 | `PrismError::ColumnNotFound` variant | SS-11 | prism-core (`error.rs`) | Pure (type definition) |
-| E-QUERY-038 plan-time column gate | SS-11 | prism-query (`engine.rs`) | Pure (plan-time validation against TableRegistry snapshot) |
+| E-QUERY-038 plan-time column gate | SS-11 | prism-query (`engine.rs`) | Pure (plan-time validation against `resolved_spec_map → TableSpec.columns`) |
 | E-QUERY-038 MCP error mapping | SS-10 | prism-mcp (`error_mapping.rs`) | Pure (error translation) |
 | E-QUERY-001/002/003/037 pedagogical enrichments | SS-11 | prism-query (error builder / error-map time) | Pure (additive field computation) |
 | Chumsky AST re-serializer (`normalized_pql` source) | SS-11 | prism-query (AST Display or PqlNormalizer) | Pure (string production from parsed AST) |
@@ -477,18 +496,15 @@ parameter. `strsim = "0.11"` is a **direct** dependency of `crates/prism-query/C
 resolves to **0.11.1** per Cargo.lock; `strsim::levenshtein(a, b) -> usize` confirmed via docs.rs
 2026-06-20) — NO new dependency needed for E-QUERY-038's `did_you_mean`.
 
-**CRITICAL ARCHITECTURE FLAG (remove-uncertainty 2026-06-20 — routed to architect/story-writer, NOT
-edited into ACs):** the current `TableRegistry` struct stores ONLY table names (`registered:
-HashSet<String>`) and a `sensor_by_table` reverse map — it has **NO column-level schema**. E-QUERY-038
-requires per-`(table, OrgId)` `available_columns`. Column data lives in `prism_spec_engine`
-`TableSpec.columns: Vec<ColumnSpec>` (field `ColumnSpec.name`), reachable at the gate via the
-`resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec>` parameter already threaded into
-`check_availability_gate` — NOT via `TableRegistry` itself. The taxonomy E-QUERY-038 row says
-"sourced from operator TOML specs → TableRegistry"; the story narrative says "sourced ENTIRELY from
-TableRegistry". Both are imprecise about the actual data path. This is a SCOPE/DESIGN clarification
-(does the implementer add a column API to `TableRegistry`, or read columns from `resolved_spec_map`
-in the gate?) that affects how AC-001/AC-002 are satisfied — flagged for architect adjudication
-before TDD. See remove-uncertainty report.
+**ARCHITECTURE FLAG RESOLVED (architect, 2026-06-20, onboarding-001-tableregistry-datapath-correction.md):**
+E-QUERY-038 `available_columns` reads from `resolved_spec_map → ResolvedSensorSpec.spec.tables →
+TableSpec.columns` (NOT from `TableRegistry`). The gate implementation extends
+`check_availability_gate` in `table_registry.rs` or adds a colocated helper in `engine.rs`: after
+table presence is confirmed by E-QUERY-037, look up the matching `TableSpec` in `resolved_spec_map`
+using the validated `(org_slug, sensor_id)` key, then extract column names. When `resolved_spec_map`
+is `None`, return `available_columns: []` (fail-open for single-tenant mode — the gate fires only
+when resolved_spec_map is wired). AC-001 and AC-002 are satisfied entirely by this
+`resolved_spec_map` read path.
 
 **PIVOT-003 (sibling story — prism-query):** PIVOT-003 adds IOC columns to Cyberint/CrowdStrike
 TOML specs and updates the sensor column schemas. After PIVOT-003 merges, `TableRegistry` for
@@ -524,7 +540,7 @@ budget appropriately.
 | E-QUERY-038 gate fires AFTER E-QUERY-037 (table must exist before checking columns) | BC-2.11.016 precondition | AC-001 "table-not-found → E-QUERY-037 not E-QUERY-038" test |
 | Gate ordering explicit: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 | ADR-041 §L4 + BC-2.11.016 | Adversary: read engine.rs validation step ordering |
 | `PrismError::ColumnNotFound` arm MUST be explicit -32602 (not -32000 catch-all fallthrough) | BC-2.11.016 + BC-2.10.007 | Red Gate test 6 (MCP error code assertion) |
-| `available_columns` sourced ENTIRELY from TableRegistry; MUST NOT contain credentials | BC-2.11.016 invariant + DI-008 | AC-002 multi-tenant test |
+| `available_columns` sourced from `resolved_spec_map → TableSpec.columns → ColumnSpec.name`; MUST NOT contain credentials (operator TOML column names are safe schema identifiers) | BC-2.11.016 invariant + DI-008 | AC-002 multi-tenant test |
 | `normalized_pql` MUST NOT contain DataFusion plan node type strings | BC-2.11.018 postcondition | AC-005 assertion in test 5 |
 | `normalized_pql` MUST be absent (not null) on error responses | BC-2.11.018 invariant | AC-006: use `value.get("normalized_pql").is_none()` — not null check |
 | `near_text` truncated to ≤50 chars (DI-006: prevents raw PQL relay as error context) | BC-2.11.017 postcondition | AC-003 near_text length assertion |
@@ -608,3 +624,4 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 |---------|-------|------|--------|--------|
 | 1.0 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | Initial sub-story decomposition — split from S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) per D-1244 §Parallel Execution Plan. Covers L4 query-engine surfaces (prism-core + prism-query + prism-mcp wire). 3 BCs: BC-2.11.016, BC-2.11.017, BC-2.11.018. 6 ACs + 6 Red Gate tests. 6 pts. Pipelines behind PIVOT-003 for crate-conflict avoidance. |
 | 1.1 | remove-uncertainty-2026-06-20 | 2026-06-20 | research-agent | REMOVE-UNCERTAINTY pass (D-1110) pre-TDD. Verified all tech assertions against develop@f6739764 codebase + Cargo.lock + error-taxonomy.md v1.91 + docs.rs/Perplexity. LOW-RISK corrections applied: (1) confirmed version pins strsim 0.11.1 / chumsky 0.12.0 / datafusion 53.1.0 / ariadne 0.4.1 with citations; (2) RETRACTED false+volatile "ast.rs:681/1099 display affordances" citations (TD-VSDD-091 — those are doc-comments, not Display impls; ZERO AST Display impls exist; chumsky 0.12.0 has no built-in re-serializer); (3) corrected "Arc<dyn TableRegistry>" → concrete `TableRegistry` struct passed as `Option<&TableRegistry>`; gate = `check_table_availability` → `check_availability_gate`; (4) corrected non-existent `filter_to_org_visible()` → `filter_to_org_visible_sensors/_tables`; (5) noted E-QUERY-001 variant is `QueryParseFailed { offset, detail }`. FLAGGED for architect (not edited into ACs): `TableRegistry` has NO column-level schema — E-QUERY-038 `available_columns` must come from `resolved_spec_map` (ResolvedSensorSpec→TableSpec.columns), not TableRegistry; design path affects AC-001/AC-002 satisfaction. ColumnType variants (String/Integer/Float/Boolean/Datetime/Json) confirmed match AC-003 operator table. PrismError enum `#[non_exhaustive]` and error_mapping.rs `-32602` arm precedent (TableNotAvailable) confirmed. No AC/BC/scope text changed by this pass. |
+| 1.2 | TABLEREGISTRY-DATAPATH-CORRECTION-2026-06-20 | 2026-06-20 | story-writer | Architect adjudication applied (onboarding-001-tableregistry-datapath-correction.md, D-1259 FLAG-001). Wiring-not-redesign corrections for FLAG-001 from remove-uncertainty pass. Edits: (1) `depends_on` S-5.03 comment — corrected from fictional "TableRegistry injection into PrismServer" to actual ServerHandler override patterns; (2) `depends_on` S-3.13 comment — replaced "reads registry's per-org column schema" with `resolved_spec_map` parameter flow description; (3) dependency anchor comments corrected; (4) Tasks Phase 3 column gate — replaced "Column availability checked against TableRegistry" with `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns` lookup with None fallback; updated `available_columns` presence note to reference `filter_to_org_visible_sensors/_tables` pattern; (5) `risk_mitigations` — replaced "sourced ENTIRELY from TableRegistry" with `resolved_spec_map → ColumnSpec.name` data path with TOML-source safety rationale; (6) Previous Story Intelligence CRITICAL FLAG paragraph — replaced with "ARCHITECTURE FLAG RESOLVED" citing architect adjudication doc, canonical `resolved_spec_map` read path, and AC-001/AC-002 satisfaction statement; (7) Architecture Compliance Rules `available_columns` sourcing rule corrected; (8) Architecture Mapping E-QUERY-038 row corrected. No AC-semantic changes. No BC array changes. BCs remain: BC-2.11.016, BC-2.11.017, BC-2.11.018. |
