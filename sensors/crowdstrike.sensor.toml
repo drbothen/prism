@@ -88,7 +88,7 @@ body_template = '{"ids": ${record_ids}, "assigned_to_uid": "${params.user_id}"}'
 # Table: detections (read — behaviors[] IOC columns added by S-DEMO-ENRICHMENT-PIVOT-003)
 #
 # AC-005 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors[] IOC columns — real-schema fields added
-# to support the canonical ThreatIntel pivot query (BC-2.06.019 v1.10 PC-4).
+# to support the canonical ThreatIntel pivot query (BC-2.06.019 v1.11 PC-4).
 # SAP-2 compliance (U19): column names match JSON keys in make_detection_with_ioc()
 # in crates/prism-dtu-crowdstrike/src/generator.rs (untyped serde_json::Value path).
 # Adversary MUST verify against generator.rs and fixtures/detections-detail.json,
@@ -135,7 +135,7 @@ ocsf_class = "detection_finding"
   column_type = "string"
   ocsf_field = "attack.technique.name"
 
-  # behaviors[] IOC columns (AC-005 / BC-2.06.019 v1.10 PC-4).
+  # behaviors[] IOC columns (AC-005 / BC-2.06.019 v1.11 PC-4).
   # Column names match JSON keys stamped by make_detection_with_ioc() in generator.rs.
   [[tables.columns]]
   name = "behaviors[].ioc_type"

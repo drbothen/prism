@@ -320,6 +320,94 @@ pub async fn get_search(
             // static branch (device_in_time_window) — filters on the flat
             // `last_seen` key with `first_seen` fallback (P2-01 mirrors of
             // `lastSeen` / `firstSeen`), matching the §8.3 fallback chain.
+
+            // Scenario path: apply StageMask projection (BC-2.06.019 v1.11 PC-4 /
+            // F-PIVOT003-R8C-001). Mirrors devices.rs::paginate_devices scenario logic
+            // exactly. This is the CANONICAL path for `from armis.devices` queries:
+            // the `devices` table path_template is `/api/v1/search?aql=${query.filter.aql}`
+            // (armis.sensor.toml), so GET /api/v1/search?aql=in:devices is the actual HTTP
+            // route that PipelineExecutor calls — NOT GET /api/v1/devices.
+            // R7 guard (device_cves_first strip) was previously applied only to devices.rs;
+            // it MUST also be applied here on the canonical query path (F-PIVOT003-R8C-001).
+            if let Some(ref timeline) = state.timeline {
+                use prism_dtu_common::current_stage_index;
+                let now = chrono::Utc::now().timestamp();
+                let stage_idx = current_stage_index(timeline, now);
+                let mask = &timeline.stages[stage_idx].visible_entity_mask;
+                let primary_id = &timeline.entities.primary_device_id_armis;
+                let lateral_ids: std::collections::HashSet<&str> = timeline
+                    .entities
+                    .lateral_device_ids_armis
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect();
+
+                // Stage-filter + time-window filter (same order as devices.rs).
+                // stage_idx > 0 guard mirrors devices.rs::paginate_devices exactly:
+                // primary device is enrolled in the scenario but not surfaced at Baseline.
+                let stage_filtered: Vec<&serde_json::Value> = state
+                    .generated_records
+                    .iter()
+                    .filter(|rec| rec.get("asset_id").is_some() && rec.get("alert_id").is_none())
+                    .filter(|rec| {
+                        let asset_id = rec.get("asset_id").and_then(|a| a.as_str()).unwrap_or("");
+                        if asset_id == primary_id {
+                            mask.primary_device && stage_idx > 0
+                        } else if lateral_ids.contains(asset_id) {
+                            mask.lateral_devices
+                        } else {
+                            true
+                        }
+                    })
+                    .filter(|rec| {
+                        generated_in_time_window(
+                            rec,
+                            "last_seen",
+                            Some("first_seen"),
+                            aql_after_bound,
+                            aql_before_bound,
+                        )
+                    })
+                    .collect();
+
+                let total = stage_filtered.len() as u32;
+                let page_devices: Vec<serde_json::Value> = if start_offset >= stage_filtered.len() {
+                    vec![]
+                } else {
+                    stage_filtered
+                        .iter()
+                        .skip(start_offset)
+                        .take(size)
+                        .map(|v| {
+                            // BC-2.06.019 v1.11 PC-4 / F-PIVOT003-R8C-001:
+                            // device_cves=false → strip device_cves_first.
+                            // Applied on the CANONICAL search path (in:devices AQL →
+                            // /api/v1/search) — the path PipelineExecutor actually uses.
+                            // Mirrors devices.rs paginate_devices scenario path exactly.
+                            if !mask.device_cves {
+                                let mut owned = (*v).clone();
+                                if let Some(obj) = owned.as_object_mut() {
+                                    obj.remove("device_cves_first");
+                                }
+                                owned
+                            } else {
+                                (*v).clone()
+                            }
+                        })
+                        .collect()
+                };
+
+                let body = SearchResponse {
+                    data: SearchData {
+                        results: page_devices,
+                        total,
+                    },
+                };
+                return (StatusCode::OK, Json(body)).into_response();
+            }
+
+            // Seeded path (no scenario): serve all generated device records (Story-A behavior).
+            // Same DormantTenant guard: branching on fixture_gen_seeded, not is_empty().
             let generated_devices: Vec<&serde_json::Value> = state
                 .generated_records
                 .iter()
