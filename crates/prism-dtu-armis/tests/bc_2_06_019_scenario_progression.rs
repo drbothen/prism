@@ -562,3 +562,215 @@ async fn test_BC_2_06_019_scenario_clone_device_records_carry_device_cves_first(
         expected_cve
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-PIVOT003-R7A-001 SERVED-ROUTE test — device_cves StageMask enforcement
+// ---------------------------------------------------------------------------
+
+/// SERVED-ROUTE TEST — F-PIVOT003-R7A-001: device_cves_first absent at stages 0-3,
+/// present at stage 4.
+///
+/// BC-2.06.019 v1.10 PC-4: "device_cves=false: CVE-related enrichment fields on device
+/// records are omitted."  The `device_cves_first` field is the scalar CVE projection
+/// (U17/Ruling 1b) stamped by `generate_with_scenario_cves`.
+///
+/// This test drives the ACTUAL HTTP route (`GET /api/v1/devices`) at two stage-clock
+/// positions to verify that `routes/devices.rs` enforces `mask.device_cves` before
+/// serving records — NOT just the data-layer generator test that checks
+/// `state.generated_records`.
+///
+/// Stage clock control (ADR-036 §2.1):
+///   stage 1 (Recon):      scenario_start = now - 90s   → mask.device_cves=false
+///   stage 4 (Containment): scenario_start = now - 700s  → mask.device_cves=true
+///
+/// Asserts:
+///   - stage 1: primary device record returned by GET /api/v1/devices does NOT have
+///     the `device_cves_first` key.
+///   - stage 4: primary device record returned by GET /api/v1/devices DOES have the
+///     `device_cves_first` key (the NVD pivot field is now visible).
+///
+/// FAIL mode (without this fix): routes/devices.rs serves all generated records
+/// unfiltered by mask.device_cves → device_cves_first IS present at stage 1 → assertion FAILS.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_06_019_armis_device_cves_first_stagemask_served_route() {
+    let org = deadbeef_org();
+    let seed: u64 = 100;
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+    let primary_id = catalog.primary_device_id_armis.clone();
+
+    // Confirm catalog has CVEs so the test is non-vacuous.
+    assert!(
+        !catalog.device_cves.is_empty(),
+        "F-PIVOT003-R7A-001 vacuous guard: catalog.device_cves must be non-empty; \
+         got empty — secondary RNG seeding failure."
+    );
+
+    let client = prism_dtu_common::build_test_client();
+
+    // -------------------------------------------------------------------------
+    // Stage 1 server (scenario_start = now - 90s → elapsed ≈ 90s → stage 1 Recon)
+    // At stage 1: mask.device_cves=false → device_cves_first MUST be absent.
+    // -------------------------------------------------------------------------
+    let now = chrono::Utc::now().timestamp();
+    let start_stage1: i64 = now - 90; // elapsed ≈ 90s → stage 1
+
+    let timeline_stage1 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage1,
+        &[],
+    ));
+    let time_anchor_stage1 = chrono::DateTime::from_timestamp(start_stage1, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let mut clone_stage1 = ArmisClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org.clone(),
+        Arc::clone(&timeline_stage1),
+        time_anchor_stage1,
+        &catalog,
+    )
+    .expect("new_with_scenario must succeed for stage-1 server");
+
+    clone_stage1
+        .start()
+        .await
+        .expect("stage-1 server start must succeed");
+
+    let base_url_stage1 = clone_stage1.base_url();
+    let token_stage1 = clone_stage1.admin_token().to_owned();
+
+    let resp1 = client
+        .get(format!("{base_url_stage1}/api/v1/devices"))
+        .header("Authorization", format!("Bearer {token_stage1}"))
+        .send()
+        .await
+        .expect("GET /api/v1/devices (stage 1) must reach the server");
+
+    assert_eq!(resp1.status().as_u16(), 200);
+
+    let body1: serde_json::Value = resp1.json().await.expect("stage-1 response must be JSON");
+    let devices1: Vec<serde_json::Value> = body1["data"]["devices"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    // At stage 1, primary device IS present (mask.primary_device=true, stage_idx > 0).
+    // Find the primary device record and assert device_cves_first is ABSENT.
+    let primary_record_stage1 = devices1.iter().find(|r| {
+        r.get("asset_id")
+            .and_then(|v| v.as_str())
+            .map(|id| id == primary_id.as_str())
+            .unwrap_or(false)
+    });
+
+    assert!(
+        primary_record_stage1.is_some(),
+        "F-PIVOT003-R7A-001 prereq: primary device '{}' must be present at stage 1 \
+         (mask.primary_device=true, stage_idx=1 > 0); not found in {:?}",
+        primary_id,
+        devices1
+            .iter()
+            .filter_map(|r| r.get("asset_id").and_then(|v| v.as_str()))
+            .collect::<Vec<_>>()
+    );
+
+    let primary1 = primary_record_stage1.unwrap();
+    assert!(
+        primary1.get("device_cves_first").is_none(),
+        "F-PIVOT003-R7A-001 BC-2.06.019 v1.10 PC-4: at stage 1 (Recon, mask.device_cves=false), \
+         device_cves_first MUST be absent from GET /api/v1/devices response; \
+         found it with value {:?}. \
+         routes/devices.rs must strip device_cves_first when !mask.device_cves. \
+         [SERVED-ROUTE enforcement — not just data-layer]",
+        primary1.get("device_cves_first")
+    );
+
+    clone_stage1
+        .stop()
+        .await
+        .expect("stage-1 server stop must succeed");
+
+    // -------------------------------------------------------------------------
+    // Stage 4 server (scenario_start = now - 700s → elapsed ≈ 700s → stage 4 Containment)
+    // At stage 4: mask.device_cves=true → device_cves_first MUST be present.
+    // Default thresholds: [60, 180, 360, 600] → stage 4 activates at 600s.
+    // -------------------------------------------------------------------------
+    let now = chrono::Utc::now().timestamp();
+    let start_stage4: i64 = now - 700; // elapsed ≈ 700s > 600s threshold → stage 4
+
+    let timeline_stage4 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage4,
+        &[],
+    ));
+    let time_anchor_stage4 = chrono::DateTime::from_timestamp(start_stage4, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let mut clone_stage4 = ArmisClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org,
+        Arc::clone(&timeline_stage4),
+        time_anchor_stage4,
+        &catalog,
+    )
+    .expect("new_with_scenario must succeed for stage-4 server");
+
+    clone_stage4
+        .start()
+        .await
+        .expect("stage-4 server start must succeed");
+
+    let base_url_stage4 = clone_stage4.base_url();
+    let token_stage4 = clone_stage4.admin_token().to_owned();
+
+    let resp4 = client
+        .get(format!("{base_url_stage4}/api/v1/devices"))
+        .header("Authorization", format!("Bearer {token_stage4}"))
+        .send()
+        .await
+        .expect("GET /api/v1/devices (stage 4) must reach the server");
+
+    assert_eq!(resp4.status().as_u16(), 200);
+
+    let body4: serde_json::Value = resp4.json().await.expect("stage-4 response must be JSON");
+    let devices4: Vec<serde_json::Value> = body4["data"]["devices"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    // At stage 4, primary device IS present (mask.primary_device=true, stage_idx > 0).
+    let primary_record_stage4 = devices4.iter().find(|r| {
+        r.get("asset_id")
+            .and_then(|v| v.as_str())
+            .map(|id| id == primary_id.as_str())
+            .unwrap_or(false)
+    });
+
+    assert!(
+        primary_record_stage4.is_some(),
+        "F-PIVOT003-R7A-001 prereq: primary device '{}' must be present at stage 4 \
+         (mask.primary_device=true, stage_idx=4 > 0); not found in response",
+        primary_id
+    );
+
+    let primary4 = primary_record_stage4.unwrap();
+    assert!(
+        primary4.get("device_cves_first").is_some(),
+        "F-PIVOT003-R7A-001 BC-2.06.019 v1.10 PC-4: at stage 4 (Containment, \
+         mask.device_cves=true), device_cves_first MUST be present in GET /api/v1/devices \
+         response; found record {:?}. \
+         routes/devices.rs must serve device_cves_first when mask.device_cves=true.",
+        primary4
+    );
+
+    clone_stage4
+        .stop()
+        .await
+        .expect("stage-4 server stop must succeed");
+}
