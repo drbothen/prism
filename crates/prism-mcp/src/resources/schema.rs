@@ -209,9 +209,13 @@ pub async fn notify_schema_updated(
 /// real pql_reference.md content for AC-007 and AC-008 to pass.
 /// Body = todo!(). (BC-5.38.001)
 pub fn render_pql_reference_resource() -> Result<ReadResourceResult, ErrorData> {
-    todo!(
-        "BC-2.10.014 AC-007 AC-008: return ReadResourceResult with PQL_REFERENCE_CONTENT \
-           (include_str embedded at build time); mimeType text/markdown; \
-           no runtime fs::read_to_string — static only"
-    )
+    use rmcp::model::ResourceContents;
+    Ok(ReadResourceResult::new(vec![
+        ResourceContents::TextResourceContents {
+            uri: URI_PQL_REFERENCE.into(),
+            mime_type: Some("text/markdown".to_string()),
+            text: PQL_REFERENCE_CONTENT.to_string(),
+            meta: None,
+        },
+    ]))
 }

@@ -1733,6 +1733,14 @@ impl PrismServer {
     /// DATA SOURCE: Configured sensor adapters (CrowdStrike, Armis, Claroty, Cyberint, etc.)
     #[tool(
         description = "Execute a PrismQL query against configured sensor data sources.\n\
+        PrismQL (PQL) is a custom DSL for querying Prism security sensor data.\n\
+        CLAUSE VOCABULARY: SELECT <cols> FROM <table> WHERE <filter> GROUP BY <col> ORDER BY <col> LIMIT <n>\n\
+        PIPE MODE: chain clauses with | for multi-step transformations, e.g.: SELECT * FROM <table> | WHERE severity = 'HIGH' | LIMIT 10\n\
+        SCHEMA-AGNOSTIC SKELETONS (replace <table> with real table names from prism_describe):\n\
+          1. SELECT * FROM <table> LIMIT 25\n\
+          2. SELECT * FROM <table> WHERE severity = 'HIGH' LIMIT 25\n\
+          3. SELECT col1, COUNT(*) FROM <table> GROUP BY col1 LIMIT 25\n\
+        DISCOVERY: Call `prism_describe` with the client_id before writing queries to discover which tables and columns are available. Read prismql://reference for full grammar reference.\n\
         DATA TRUST LEVEL: External/untrusted — results are sensor-originated.\n\
         SECURITY NOTE: All parameters are scanned for prompt injection before execution.\n\
         DATA SOURCE: Configured sensor adapters (CrowdStrike, Armis, Claroty, Cyberint, etc.)\n\
