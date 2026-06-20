@@ -144,10 +144,14 @@ pub(crate) fn check_auth(
 /// 1. **Scenario path** (`fixture_gen_seeded == true` AND `state.timeline.is_some()`):
 ///    Computes `current_stage_index(&timeline, Utc::now().timestamp())`, retrieves the
 ///    `StageMask`, then filters `generated_records` to `_surface == "alert"` records,
-///    excluding any that carry a `_ioc_value` field referencing a catalog IOC whose
-///    corresponding mask field (`ioc_ips`, `ioc_domains`, or `ioc_hashes`) is `false`.
-///    BC-2.06.019 PC-4 alert-surface semantics: `ioc_ips/ioc_domains/ioc_hashes=false`
+///    excluding any records where the real-schema IOC fields (`ioc.value`, `iocs[].value`,
+///    `alert_data.ip`, `alert_data.domain`) reference a catalog IOC whose corresponding
+///    mask field (`ioc_ips`, `ioc_domains`, or `ioc_hashes`) is `false`.
+///    BC-2.06.019 v1.13 PC-4 alert-surface semantics: `ioc_ips/ioc_domains/ioc_hashes=false`
 ///    → alert records referencing those catalog IOCs are excluded from the response.
+///    NOTE: the synthetic-ioc filter has been REMOVED (BC-2.06.019 v1.13 §Interim State);
+///    IOC field access uses `Ioc.value` deserialized from `#[serde(rename = "type", alias = "ioc_type")]`
+///    on `Ioc.ioc_type` and the primary `value` field (AC-003 / S-DEMO-ENRICHMENT-PIVOT-003).
 ///
 /// 2. **Seeded path** (`fixture_gen_seeded == true`, no timeline):
 ///    Serves alert-surface records (`_surface == "alert"`) from `generated_records`
@@ -228,44 +232,92 @@ pub async fn get_alerts(
                 .map(|s| s.as_str())
                 .collect();
 
-            let data: Vec<serde_json::Value> = state
+            // AC-003 / BC-2.06.019 v1.13 PC-4: real-schema IOC filter.
+            //
+            // Filter logic (per BC-2.06.019 v1.13 PC-4):
+            // - `ioc_hashes=false`: withhold alert if ioc.value or any iocs[].value
+            //   (deserialized via Ioc.ioc_type/value dual-alias) matches catalog_ioc_hashes.
+            // - `ioc_ips=false`: withhold if ioc.value, iocs[].value, or alert_data.ip
+            //   matches catalog_ioc_ips.
+            // - `ioc_domains=false`: withhold if ioc.value, iocs[].value, or alert_data.domain
+            //   matches catalog_ioc_domains.
+            // Records that do NOT deserialize as Alert or carry no IOC fields always pass through.
+            //
+            // Deserialization is via `crate::types::Alert` which has dual-alias serde on Ioc
+            // so both "type"/"ioc_type" and "value"/"ioc_value" wire forms are tolerated.
+
+            // Filter to alert-surface records first.
+            let alert_records: Vec<&serde_json::Value> = state
                 .generated_records
                 .iter()
-                .filter(|rec| {
-                    // Surface discriminator: only alert records.
-                    if rec.get("_surface").and_then(|v| v.as_str()) != Some("alert") {
-                        return false;
-                    }
+                .filter(|rec| rec.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
+                .collect();
 
-                    // BC-2.06.019 PC-4 alert-surface semantics:
-                    // Alert records that carry a `_ioc_value` field referencing a catalog IOC
-                    // are excluded when the corresponding mask field is false.
-                    //
-                    // `_ioc_type`: "ip" | "domain" | "hash" selects which catalog set and
-                    // which mask field to consult. Records without `_ioc_value` are not IOC-
-                    // referencing and always pass through (non-referencing alerts unaffected).
-                    //
-                    // Fail-closed: if `_ioc_value` is present but `_ioc_type` is absent or
-                    // unrecognised, WITHHOLD the record rather than guessing a type. Malformed
-                    // scenario data must not leak through projection (BC-2.06.019 PC-4).
-                    if let Some(ioc_value) = rec.get("_ioc_value").and_then(|v| v.as_str()) {
-                        let ioc_type = match rec.get("_ioc_type").and_then(|v| v.as_str()) {
-                            Some(t) => t,
-                            // _ioc_value present but _ioc_type absent → malformed record;
-                            // withhold (fail-closed) per BC-2.06.019 PC-4 projection integrity.
-                            None => return false,
-                        };
-                        let passes = match ioc_type {
-                            "ip" => mask.ioc_ips || !catalog_ioc_ips.contains(ioc_value),
-                            "domain" => {
-                                mask.ioc_domains || !catalog_ioc_domains.contains(ioc_value)
+            // Collect all IOC values (ioc.value + iocs[].value) for a typed Alert record.
+            fn ioc_values_for(alert: &crate::types::Alert) -> Vec<String> {
+                let mut vals = Vec::new();
+                if let Some(ref ioc) = alert.ioc {
+                    vals.push(ioc.value.clone());
+                }
+                for ioc in &alert.iocs {
+                    vals.push(ioc.value.clone());
+                }
+                vals
+            }
+
+            let data: Vec<serde_json::Value> = alert_records
+                .into_iter()
+                .filter(|rec| {
+                    // Try to deserialize as typed Alert for IOC access.
+                    // BC-2.06.019 v1.13 PC-4 step 6: fail-closed.
+                    // Records that cannot be deserialized as Alert MUST be withheld:
+                    // the StageMask IOC filter cannot be correctly applied to untyped data,
+                    // so surfacing an undeserializable record would violate the IOC masking
+                    // guarantee. (F-PIVOT003-R2-005: changed from pass-through to withhold.)
+                    let typed: crate::types::Alert = match serde_json::from_value((*rec).clone()) {
+                        Ok(a) => a,
+                        Err(_) => return false, // fail-closed: withhold undeserializable records
+                    };
+
+                    let ioc_vals = ioc_values_for(&typed);
+                    let alert_ip = typed
+                        .alert_data
+                        .as_ref()
+                        .and_then(|ad| ad.ip.as_deref())
+                        .unwrap_or("");
+                    let alert_domain = typed
+                        .alert_data
+                        .as_ref()
+                        .and_then(|ad| ad.domain.as_deref())
+                        .unwrap_or("");
+
+                    // ioc_hashes=false → withhold if any ioc value is in catalog_ioc_hashes.
+                    if !mask.ioc_hashes {
+                        for v in &ioc_vals {
+                            if catalog_ioc_hashes.contains(v.as_str()) {
+                                return false;
                             }
-                            "hash" => mask.ioc_hashes || !catalog_ioc_hashes.contains(ioc_value),
-                            // Unrecognised IOC type — withhold (fail-closed); not a known
-                            // catalog IOC type so we cannot safely determine visibility.
-                            _ => return false,
-                        };
-                        if !passes {
+                        }
+                    }
+                    // ioc_ips=false → withhold if any ioc value or alert_data.ip is in catalog_ioc_ips.
+                    if !mask.ioc_ips {
+                        for v in &ioc_vals {
+                            if catalog_ioc_ips.contains(v.as_str()) {
+                                return false;
+                            }
+                        }
+                        if !alert_ip.is_empty() && catalog_ioc_ips.contains(alert_ip) {
+                            return false;
+                        }
+                    }
+                    // ioc_domains=false → withhold if any ioc value or alert_data.domain is in catalog_ioc_domains.
+                    if !mask.ioc_domains {
+                        for v in &ioc_vals {
+                            if catalog_ioc_domains.contains(v.as_str()) {
+                                return false;
+                            }
+                        }
+                        if !alert_domain.is_empty() && catalog_ioc_domains.contains(alert_domain) {
                             return false;
                         }
                     }
@@ -277,10 +329,7 @@ pub async fn get_alerts(
 
             return (
                 StatusCode::OK,
-                Json(serde_json::json!({
-                    "data": data,
-                    "next_cursor": serde_json::Value::Null,
-                })),
+                Json(serde_json::json!({"data": data, "next_cursor": serde_json::Value::Null})),
             )
                 .into_response();
         }

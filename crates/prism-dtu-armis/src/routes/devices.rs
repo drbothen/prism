@@ -242,7 +242,21 @@ fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response:
                     .iter()
                     .skip(offset)
                     .take(size as usize)
-                    .map(|v| (*v).clone())
+                    .map(|v| {
+                        // BC-2.06.019 v1.13 PC-4: device_cves=false → strip device_cves_first.
+                        // Stage 0-3: mask.device_cves=false; CVE-related enrichment fields
+                        // are omitted from device records until Containment (stage 4).
+                        // F-PIVOT003-R7A-001: SERVED-ROUTE enforcement (not just data-layer).
+                        if !mask.device_cves {
+                            let mut owned = (*v).clone();
+                            if let Some(obj) = owned.as_object_mut() {
+                                obj.remove("device_cves_first");
+                            }
+                            owned
+                        } else {
+                            (*v).clone()
+                        }
+                    })
                     .collect()
             };
 

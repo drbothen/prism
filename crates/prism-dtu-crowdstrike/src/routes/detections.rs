@@ -208,6 +208,16 @@ pub async fn list_detection_ids(
                 })
                 .collect();
 
+            // Pre-compute catalog IOC hash set for O(1) ioc_hashes gate.
+            // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes=false → withhold
+            // detection records whose behaviors[].ioc_value matches a catalog IOC hash.
+            let catalog_ioc_hashes: std::collections::HashSet<&str> = timeline
+                .entities
+                .ioc_hashes
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
             state
                 .generated_detections
                 .iter()
@@ -223,11 +233,27 @@ pub async fn list_detection_ids(
                     } else {
                         true
                     };
-                    if visible {
-                        Some(det_id.to_owned())
-                    } else {
-                        None
+                    if !visible {
+                        return None;
                     }
+                    // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes gate.
+                    // When mask.ioc_hashes=false, withhold detections whose
+                    // behaviors[].ioc_value is in the catalog IOC hash set.
+                    // Mirrors Cyberint's ioc_hashes=false filter on alerts.rs.
+                    if !mask.ioc_hashes {
+                        if let Some(behaviors) = rec.get("behaviors").and_then(|v| v.as_array()) {
+                            for behavior in behaviors {
+                                if let Some(ioc_val) =
+                                    behavior.get("ioc_value").and_then(|v| v.as_str())
+                                {
+                                    if catalog_ioc_hashes.contains(ioc_val) {
+                                        return None; // withhold IOC-bearing detection
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Some(det_id.to_owned())
                 })
                 .collect()
         } else {
@@ -452,6 +478,16 @@ pub async fn get_detection_summaries(
                 .map(|s| s.as_str())
                 .collect();
 
+            // Pre-compute catalog IOC hash set for O(1) ioc_hashes gate.
+            // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes=false → withhold
+            // detection records whose behaviors[].ioc_value matches a catalog IOC hash.
+            let catalog_ioc_hashes_summaries: std::collections::HashSet<&str> = timeline
+                .entities
+                .ioc_hashes
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
             state
                 .generated_detections
                 .iter()
@@ -467,11 +503,27 @@ pub async fn get_detection_summaries(
                     } else {
                         true
                     };
-                    if visible {
-                        Some((det_id.to_owned(), rec.clone()))
-                    } else {
-                        None
+                    if !visible {
+                        return None;
                     }
+                    // BC-2.06.019 v1.13 PC-4 / F-PIVOT003-R7A-002: ioc_hashes gate.
+                    // When mask.ioc_hashes=false, withhold detections whose
+                    // behaviors[].ioc_value is in the catalog IOC hash set.
+                    // Mirrors list_detection_ids scenario path and Cyberint alerts.rs.
+                    if !mask.ioc_hashes {
+                        if let Some(behaviors) = rec.get("behaviors").and_then(|v| v.as_array()) {
+                            for behavior in behaviors {
+                                if let Some(ioc_val) =
+                                    behavior.get("ioc_value").and_then(|v| v.as_str())
+                                {
+                                    if catalog_ioc_hashes_summaries.contains(ioc_val) {
+                                        return None; // withhold IOC-bearing detection
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Some((det_id.to_owned(), rec.clone()))
                 })
                 .collect()
         } else {

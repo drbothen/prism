@@ -159,7 +159,11 @@ async fn test_dormant_tenant_seeded_empty_records_not_static_fallback() {
     let now = chrono::Utc::now().timestamp();
     let start_stage0: i64 = now - 10; // elapsed ≈ 10s < 60s → stage 0 (Baseline)
 
-    let timeline = Arc::new(build_default_incident_timeline(catalog, start_stage0, &[]));
+    let timeline = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage0,
+        &[],
+    ));
     let time_anchor = chrono::DateTime::from_timestamp(start_stage0, 0)
         .expect("valid timestamp")
         .with_timezone(&chrono::Utc);
@@ -170,6 +174,7 @@ async fn test_dormant_tenant_seeded_empty_records_not_static_fallback() {
         org,
         Arc::clone(&timeline),
         time_anchor,
+        &catalog,
     )
     .expect("new_with_scenario must succeed for stage-0 regression server");
 
