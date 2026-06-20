@@ -53,7 +53,7 @@ status: draft
 # BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.0"
+version: "1.1"
 producer: story-writer
 timestamp: "2026-06-19T00:00:00Z"
 input-hash: "TBD"
@@ -200,12 +200,18 @@ At ~200k context window: ~13.2% — within the 20-30% ceiling.
   - `prism_describe(client_id: String)` handler receiving `Arc<dyn TableRegistry>`
   - Response types: `PrismDescribeResponse { client_id, tables: Vec<TableDescriptor>, pql_hints: Vec<String> }`
     `TableDescriptor { name, sensor_type, description, columns: Vec<ColumnDescriptor>, example_query }`
-    `ColumnDescriptor { name, type: ColumnType, description: Option<String>, nullable: bool }`
+    `ColumnDescriptor { name, type: prism_core::column::ColumnType, description: Option<String>, nullable: bool }`
+    (canonical sensor-schema enum = `prism_core::ColumnType`, variants String/Integer/Float/Boolean/Datetime/Json;
+    NOT `prism_core::types::ColumnType`/`InternalColumnType` — CLAUDE.md §Conventions ColumnType canonical naming;
+    this is the type carried by `prism_spec_engine::spec_parser::ColumnSpec.column_type`. REMOVE-UNCERTAINTY E2, 2026-06-20)
   - All 3 response types carry `#[non_exhaustive]`
   - Auto-generated example queries per table: count-recent fallback always; severity-filter if
     `severity` column present; aggregate if aggregatable column present
   - Non-existent/empty org: success with `tables: []` + informative hint (not error)
-  - Format validation (`client_id`): `TenantId::new()` / `[a-zA-Z0-9_-]{1,64}`; `E-MCP-001` on failure
+  - Format validation (`client_id`): `OrgSlug::new()` / `[a-zA-Z0-9_-]{1,64}`; `E-MCP-001` on failure
+    (canonical; `TenantId` is a deprecated alias removed in Wave 4 — see prism-core `tenant.rs:219`
+    `pub type TenantId = OrgSlug;` + `lib.rs:9`; all sibling tool/resource/prompt validators use
+    `OrgSlug::new()` — `prompts.rs:49`, `resources.rs:651`. REMOVE-UNCERTAINTY E1, 2026-06-20)
   - Audit event per call: `tool_name: "prism_describe"`, `client_id`, `operation: "schema_enumeration"`,
     `outcome: "success"|"error"`; if audit emission fails → call proceeds + `_meta.audit_warning: true`
   - MCP tool annotations: `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`,
@@ -572,3 +578,4 @@ cannot edit BC bodies.
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | Initial sub-story decomposition — split from S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) per D-1244 §Parallel Execution Plan. Covers L1+L2+L3 MCP surfaces (prism-mcp only). 4 BCs: BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014. 10 ACs + 10 Red Gate tests. 7 pts. Pipelines behind S-5.04 for crate-conflict avoidance. |
+| 1.1 | REMOVE-UNCERTAINTY-2026-06-20 | 2026-06-20 | research-agent | D-1110 REMOVE-UNCERTAINTY pass. Applied 2 low-risk codebase-validated corrections in Tasks Phase 2: (E1) `TenantId::new()` → `OrgSlug::new()` (TenantId is a deprecated alias removed in Wave 4; all sibling validators use OrgSlug); (E2) `ColumnDescriptor.type: ColumnType` → `prism_core::column::ColumnType` (disambiguated from the internal `types::ColumnType`/`InternalColumnType` per CLAUDE.md §Conventions). Report: `.factory/research/remove-uncertainty/S-DEMO-PRISMQL-ONBOARDING-001-A.md`. THREE items FLAGGED for specialist routing (NOT auto-edited): R1 (CRITICAL — `Arc<dyn TableRegistry>` injection model is fictional; TableRegistry is a concrete `#[non_exhaustive]` struct accessed via `query_engine.table_registry()`, PrismServer has no TableRegistry field → architect + story-writer + product-owner); R2 (HIGH — column schema data source is the spec layer `ConfigManager`/`resolved_spec_map`, not TableRegistry which holds only table-name strings; read path is NOT NET-NEW → architect + story-writer); R3 (INFO — pre-existing BC-2.11.001 micro-edit + 001-A/001-B merge sequencing → product-owner + orchestrator). rmcp 1.7 subscribe/notify API surface VALIDATED feasible (Context7): subscribe/unsubscribe ServerHandler overrides, notify_resource_updated, ResourceUpdatedNotificationParam, enable_resources_subscribe all confirmed real. |

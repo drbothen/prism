@@ -62,7 +62,7 @@ status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.0"
+version: "1.1"
 producer: story-writer
 timestamp: "2026-06-19T00:00:00Z"
 input-hash: "TBD"
@@ -86,12 +86,17 @@ verification_properties: []
 assumption_validations: []
 risk_mitigations:
   - "normalized_pql Chumsky re-serializer is net-new (no existing AST→PQL Display/normalize
-     impl in prism-query/src/ast.rs as of develop@9114e028). This is the largest single
-     technical task in this sub-story. The implementer MUST read filter_parser.rs, pipe_parser.rs,
-     sql_parser.rs, and ast.rs before beginning Task 13. Partial display affordances exist
-     (ast.rs:681, ast.rs:1099 raw display strings) — leverage but do not assume they produce
-     canonicalized form. A full canonicalizing re-serializer (whitespace + keyword casing +
-     alias expansion) is required per BC-2.11.018."
+     impl in prism-query/src/ast.rs as of develop@f6739764 — VERIFIED 2026-06-20: a workspace
+     grep for `impl Display`/`to_pql`/`normalize`/`to_canonical` on ast.rs AST node types returns
+     ZERO matches; chumsky 0.12.0 provides NO built-in AST pretty-printer/re-serializer, confirmed
+     via docs.rs + Perplexity research 2026-06-20). This is the largest single technical task in
+     this sub-story. The implementer MUST read filter_parser.rs, pipe_parser.rs, sql_parser.rs,
+     and ast.rs before beginning the normalizer task. NOTE: prior spec text cited 'partial display
+     affordances at ast.rs:681, ast.rs:1099' — that citation is RETRACTED (remove-uncertainty pass
+     2026-06-20): those lines are doc-comments on `SourceRef` and `TimestampLiteral`, not Display
+     affordances; there are no AST-node Display impls to leverage. A full canonicalizing
+     re-serializer (whitespace + keyword casing + alias expansion) is required net-new per
+     BC-2.11.018."
   - "E-QUERY-038 gate ordering: must fire AFTER E-QUERY-037 (table exists → then check columns).
      Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038 (column
      not found). If E-QUERY-038 fires when the table is also absent, DataFusion internals may
@@ -162,7 +167,7 @@ and build grounded query templates for the current session.
 | ADR-041 v1.1 §L4 (pedagogical errors + normalized_pql sections) | ~3,000 |
 | `crates/prism-core/src/error.rs` (PrismError; ColumnNotFound variant) | ~500 |
 | `crates/prism-query/src/engine.rs` (E-QUERY-037 gate area; E-QUERY-038 gate addition) | ~3,000 |
-| `crates/prism-query/src/ast.rs` (AST types; display affordances at lines 681, 1099) | ~2,000 |
+| `crates/prism-query/src/ast.rs` (AST types; NO existing Display impls — net-new normalizer) | ~2,000 |
 | `crates/prism-query/src/filter_parser.rs` + `pipe_parser.rs` + `sql_parser.rs` (Chumsky parsers) | ~4,000 |
 | `crates/prism-mcp/src/error_mapping.rs` (existing MCP error arms) | ~800 |
 | `crates/prism-mcp/src/server.rs` query response type area (normalized_pql field) | ~1,000 |
@@ -186,11 +191,19 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
 - [ ] Read `crates/prism-query/src/ast.rs` fully — note display affordances at lines 681 and 1099;
   identify which AST nodes have Display impls and which need net-new canonicalizing re-serialization
 - [ ] Read `crates/prism-query/src/filter_parser.rs`, `pipe_parser.rs`, `sql_parser.rs` — understand
-  Chumsky 0.12.0 parse output shape; confirm the parsed AST is the same type for all three modes
+  the chumsky 0.12.0 parse output shape; confirm the parsed AST is the same type for all three modes.
+  NOTE (remove-uncertainty 2026-06-20): the E-QUERY-001 parse-error variant is
+  `PrismError::QueryParseFailed { offset: usize, detail: String }` (NOT `{ pos, message }` — the
+  taxonomy Message-Format prose says "at position {pos}: {message}" but the live Display is
+  `"E-QUERY-001: query parse error at offset {offset}: {detail}"`). The E-QUERY-001 `near_text`
+  enrichment is ADDITIVE (does not change the Display); source the offending token slice from the
+  chumsky error span (Simple/Rich `span()` → start/end indices over the input — confirmed docs.rs
+  2026-06-20).
 - [ ] Read `crates/prism-mcp/src/error_mapping.rs` — confirm the catch-all `-32000` arm uses
   `#[non_exhaustive]` match; identify insertion point for the explicit `-32602 ColumnNotFound` arm
 - [ ] Read `crates/prism-query/Cargo.toml` — confirm `strsim = "0.11"` is a direct dep
-  (D-1163 precedent); confirm `chumsky` version is 0.12.0
+  (D-1163 precedent; verified present 2026-06-20, resolves 0.11.1 per Cargo.lock); confirm
+  `chumsky = "0.12"` (resolves 0.12.0 per Cargo.lock — verified 2026-06-20)
 
 ### Phase 1 — PrismError::ColumnNotFound variant
 
@@ -281,10 +294,11 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
 - [ ] Write failing test 5 (FAIL first): `test_BC_2_11_018_normalized_pql_present_on_success_absent_on_error`
   (combined: present on success including zero-row; absent on E-QUERY-037/038/001 error)
 - [ ] Investigate AST re-serialization options:
-  - Read ast.rs lines ~681 and ~1099 for existing display affordances
-  - Determine if a `Display` impl on the top-level AST node can produce canonical PQL
-  - If partial Display impls exist, extend them; if none, build a full canonicalizing
-    `PqlNormalizer` that walks the AST producing whitespace-normalized, uppercase-keyword form
+  - VERIFIED 2026-06-20: ast.rs has NO existing Display/to_pql/normalize impls (zero grep matches);
+    the prior "lines ~681/~1099 display affordances" note was retracted as factually incorrect
+  - Build a full canonicalizing `PqlNormalizer` (visitor) or `impl std::fmt::Display` on the top-level
+    AST node that walks the AST producing whitespace-normalized, uppercase-keyword form — net-new,
+    no leverage points exist
 - [ ] Implement `normalized_pql` string production in `prism-query`:
   - Source: validated + canonicalized PQL string from Chumsky parse output
   - Keyword casing: SELECT, FROM, WHERE, GROUP BY, ORDER BY, LIMIT, AND, OR, IN, etc. — uppercase
@@ -449,12 +463,32 @@ primary scope and the prism-mcp changes are thin wires driven by the query-engin
 
 ## Previous Story Intelligence
 
-**S-3.13 (MERGED — Dynamic Table Availability / TableRegistry):** `Arc<dyn TableRegistry>` is
-wired into `PrismServer`. `TableRegistry::registered_tables()` returns `Vec<String>`.
-`E-QUERY-037` (table-not-found gate) uses `TableRegistry::filter_to_org_visible()` — E-QUERY-038
-column gate uses the same lookup pattern. `strsim = "0.11"` is a **direct** dependency of
-`crates/prism-query/Cargo.toml` (line 84, D-1163; resolves 0.11.1) — NO new dependency needed
-for E-QUERY-038's `did_you_mean`.
+**S-3.13 (MERGED — Dynamic Table Availability / TableRegistry):** VERIFIED 2026-06-20
+(remove-uncertainty pass): `TableRegistry` is a **concrete struct** (`prism_query::table_registry::
+TableRegistry`, `#[non_exhaustive]`), NOT a `dyn` trait — the prior "`Arc<dyn TableRegistry>` is
+wired into PrismServer" phrasing is corrected: the engine receives `Option<&TableRegistry>` and the
+plan-time gate `check_table_availability` (engine.rs) delegates to `TableRegistry::
+check_availability_gate(query_str, org_scope, resolved_spec_map)`. `TableRegistry::registered_tables()`
+returns `Vec<String>` (confirmed, table_registry.rs). Org-scoping uses the crate-private helpers
+`filter_to_org_visible_sensors()` / `filter_to_org_visible_tables()` (table_registry.rs ~lines 565,
+609) — the prior single-method name "`filter_to_org_visible()`" does not exist; E-QUERY-038's column
+gate should follow the same org-scope pattern via `check_availability_gate`'s `resolved_spec_map`
+parameter. `strsim = "0.11"` is a **direct** dependency of `crates/prism-query/Cargo.toml` (D-1163;
+resolves to **0.11.1** per Cargo.lock; `strsim::levenshtein(a, b) -> usize` confirmed via docs.rs
+2026-06-20) — NO new dependency needed for E-QUERY-038's `did_you_mean`.
+
+**CRITICAL ARCHITECTURE FLAG (remove-uncertainty 2026-06-20 — routed to architect/story-writer, NOT
+edited into ACs):** the current `TableRegistry` struct stores ONLY table names (`registered:
+HashSet<String>`) and a `sensor_by_table` reverse map — it has **NO column-level schema**. E-QUERY-038
+requires per-`(table, OrgId)` `available_columns`. Column data lives in `prism_spec_engine`
+`TableSpec.columns: Vec<ColumnSpec>` (field `ColumnSpec.name`), reachable at the gate via the
+`resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec>` parameter already threaded into
+`check_availability_gate` — NOT via `TableRegistry` itself. The taxonomy E-QUERY-038 row says
+"sourced from operator TOML specs → TableRegistry"; the story narrative says "sourced ENTIRELY from
+TableRegistry". Both are imprecise about the actual data path. This is a SCOPE/DESIGN clarification
+(does the implementer add a column API to `TableRegistry`, or read columns from `resolved_spec_map`
+in the gate?) that affects how AC-001/AC-002 are satisfied — flagged for architect adjudication
+before TDD. See remove-uncertainty report.
 
 **PIVOT-003 (sibling story — prism-query):** PIVOT-003 adds IOC columns to Cyberint/CrowdStrike
 TOML specs and updates the sensor column schemas. After PIVOT-003 merges, `TableRegistry` for
@@ -469,11 +503,17 @@ error field names (`near_text`, etc.) are cross-sub-story references. The server
 flexible — error text referencing a not-yet-registered tool is acceptable at demo time as long
 as both sub-stories merge before T13 capstone.
 
-**ast.rs Chumsky-normalized PQL (critical pre-flight):** CONFIRMED 2026-06-19: `prism-query/src/ast.rs`
-has NO existing `Display`/`to_pql`/`normalize` impl at the top-level AST node. Lines 681 and 1099
-carry raw display strings for some sub-nodes. The implementer MUST build the canonicalizing
-re-serializer (likely a new `impl Display for SelectStatement` or a `PqlNormalizer` visitor
-pattern). This is the largest single task in this sub-story — budget appropriately.
+**ast.rs Chumsky-normalized PQL (critical pre-flight):** CONFIRMED 2026-06-20 (remove-uncertainty
+pass, develop@f6739764): `prism-query/src/ast.rs` has NO existing `Display`/`to_pql`/`normalize`/
+`to_canonical` impl on ANY AST node type — a workspace grep returns ZERO matches. **RETRACTION:** the
+prior text "Lines 681 and 1099 carry raw display strings for some sub-nodes" is FACTUALLY INCORRECT
+and is removed per TD-VSDD-091 (anti-volatile-pin) — those line numbers point to doc-comments on the
+`SourceRef` struct (line ~681) and `TimestampLiteral` struct (line ~1099), not Display impls or raw
+display strings. There are no display affordances to leverage. The implementer MUST build the
+canonicalizing re-serializer entirely net-new (likely a new `impl std::fmt::Display` on the top-level
+AST node or a `PqlNormalizer` visitor pattern). chumsky 0.12.0 supplies no re-serialization helper
+(confirmed via docs.rs + Perplexity 2026-06-20). This is the largest single task in this sub-story —
+budget appropriately.
 
 ---
 
@@ -506,15 +546,20 @@ pattern). This is the largest single task in this sub-story — budget appropria
 | Library | Version | Usage |
 |---------|---------|-------|
 | prism-core | workspace | PrismError (new ColumnNotFound variant), ColumnType (valid_operators_for_type helper) |
-| strsim | 0.11 (direct dep in prism-query/Cargo.toml line 84; resolves 0.11.1) | `strsim::levenshtein` for did_you_mean in E-QUERY-038 — NO new dep needed |
-| chumsky | 0.12.0 (workspace) | Parsed AST source for normalized_pql re-serialization |
-| serde / serde_json | 1.x (workspace) | `normalized_pql: Option<String>` with `skip_serializing_if = "Option::is_none"` |
+| strsim | `0.11` (direct dep in prism-query/Cargo.toml, D-1163; resolves **0.11.1** per Cargo.lock) | `strsim::levenshtein(a, b) -> usize` for did_you_mean in E-QUERY-038 — NO new dep needed (signature confirmed docs.rs 2026-06-20) |
+| chumsky | `0.12` caret in Cargo.toml; resolves **0.12.0** per Cargo.lock (the only published 0.12.x release) | Parser-combinator only — NO built-in AST pretty-printer/re-serializer (confirmed docs.rs + Perplexity 2026-06-20). normalized_pql re-serializer is net-new. |
+| ariadne | `0.4` caret; resolves **0.4.1** per Cargo.lock | Human-readable parse-error formatting (already a prism-query dep); span source for E-QUERY-001 near_text |
+| datafusion | `53.1` caret; resolves **53.1.0** per Cargo.lock | Backing execution engine — do NOT import DataFusion internals for normalized_pql |
+| serde / serde_json | `1` (workspace) | `normalized_pql: Option<String>` with `skip_serializing_if = "Option::is_none"` |
 | tracing | workspace | Structured event emission; `column_not_found.rejected` event_type must be in BC-2.16.002 |
 
-**Version pinning note:** `strsim = "0.11"` CONFIRMED as direct dep at `crates/prism-query/Cargo.toml`
-line 84 (resolves 0.11.1) — NO new dependency. `chumsky 0.12.0` is the resolved version for all three
-parser files. `datafusion 53.1.0` is the backing execution engine — do NOT add DataFusion internal
-import to get normalized query strings.
+**Version pinning note (verified 2026-06-20, remove-uncertainty pass, Cargo.lock @ develop@f6739764):**
+`strsim` resolves to **0.11.1**, `chumsky` to **0.12.0** (only published 0.12.x), `datafusion` to
+**53.1.0**, `ariadne` to **0.4.1**. All are existing prism-query deps — NO new dependency is added by
+this story. `chumsky 0.12.0` is purely a parser-combinator library with NO AST pretty-printing or
+re-serialization facility (confirmed via docs.rs/crates.io + Perplexity research 2026-06-20), so the
+normalized_pql re-serializer is genuinely net-new. Do NOT add a DataFusion internal import to obtain
+normalized query strings.
 
 ---
 
@@ -524,7 +569,7 @@ import to get normalized query strings.
 |------|--------|---------|
 | `crates/prism-core/src/error.rs` | Modify | Add `PrismError::ColumnNotFound { column, table, client_id, available_columns, did_you_mean }` variant; implement Display |
 | `crates/prism-query/src/engine.rs` | Modify | (1) E-QUERY-038 column-not-found plan-time gate (colocated with E-QUERY-037 gate); (2) E-QUERY-001 near_text + reference_pointer enrichment; (3) E-QUERY-002 valid_operators_for_type enrichment; (4) E-QUERY-003 how_to_fix enrichment; (5) E-QUERY-037 suggestion text update; (6) normalized_pql string production via Chumsky normalizer |
-| `crates/prism-query/src/ast.rs` | Modify | Add `Display` impl or `PqlNormalizer` visitor on top-level AST node for canonicalized PQL re-serialization (net-new; leverage existing display affordances at lines 681, 1099) |
+| `crates/prism-query/src/ast.rs` | Modify | Add `Display` impl or `PqlNormalizer` visitor on top-level AST node for canonicalized PQL re-serialization (fully net-new; VERIFIED 2026-06-20 no existing Display/to_pql/normalize impls — no leverage points) |
 | `crates/prism-mcp/src/error_mapping.rs` | Modify | Add explicit `-32602 INVALID_PARAMS` arm for `PrismError::ColumnNotFound` before the `#[non_exhaustive]` catch-all |
 | `crates/prism-mcp/src/server.rs` | Modify | Add `normalized_pql: Option<String>` to query response type; add `#[non_exhaustive]` to response type if not already present |
 | `ci.yml` | Modify | Increment `EXPECTED` if query response type is newly `#[non_exhaustive]` (coordinate with 001-A which already increments to 82 for +3 types; this sub-story adds +0 or +1 depending on response type state) |
@@ -562,3 +607,4 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | Initial sub-story decomposition — split from S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) per D-1244 §Parallel Execution Plan. Covers L4 query-engine surfaces (prism-core + prism-query + prism-mcp wire). 3 BCs: BC-2.11.016, BC-2.11.017, BC-2.11.018. 6 ACs + 6 Red Gate tests. 6 pts. Pipelines behind PIVOT-003 for crate-conflict avoidance. |
+| 1.1 | remove-uncertainty-2026-06-20 | 2026-06-20 | research-agent | REMOVE-UNCERTAINTY pass (D-1110) pre-TDD. Verified all tech assertions against develop@f6739764 codebase + Cargo.lock + error-taxonomy.md v1.91 + docs.rs/Perplexity. LOW-RISK corrections applied: (1) confirmed version pins strsim 0.11.1 / chumsky 0.12.0 / datafusion 53.1.0 / ariadne 0.4.1 with citations; (2) RETRACTED false+volatile "ast.rs:681/1099 display affordances" citations (TD-VSDD-091 — those are doc-comments, not Display impls; ZERO AST Display impls exist; chumsky 0.12.0 has no built-in re-serializer); (3) corrected "Arc<dyn TableRegistry>" → concrete `TableRegistry` struct passed as `Option<&TableRegistry>`; gate = `check_table_availability` → `check_availability_gate`; (4) corrected non-existent `filter_to_org_visible()` → `filter_to_org_visible_sensors/_tables`; (5) noted E-QUERY-001 variant is `QueryParseFailed { offset, detail }`. FLAGGED for architect (not edited into ACs): `TableRegistry` has NO column-level schema — E-QUERY-038 `available_columns` must come from `resolved_spec_map` (ResolvedSensorSpec→TableSpec.columns), not TableRegistry; design path affects AC-001/AC-002 satisfaction. ColumnType variants (String/Integer/Float/Boolean/Datetime/Json) confirmed match AC-003 operator table. PrismError enum `#[non_exhaustive]` and error_mapping.rs `-32602` arm precedent (TableNotAvailable) confirmed. No AC/BC/scope text changed by this pass. |

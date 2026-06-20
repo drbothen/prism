@@ -1,18 +1,104 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.886"
+version: "7.887"
 status: current
-timestamp: 2026-06-20T04:00:00Z
+timestamp: 2026-06-20T05:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1258 (2026-06-20): PIVOT-003 PR #196 SQUASH-MERGED into develop@f6739764. PR-LEVEL strict-3-CLEAN round 2: 3 independent fresh-context passes on frozen 192428db — all 3 CLEAN(strict)=yes (D-1257 OBS adjudications applied). Squash-merge complete; remote feature branch deleted. POL-14 idempotent (BC-2.06.019/020 already active since D-1139). TD-PLUGIN-P0-002 P0 CLOSED. BC-2.06.019 §Interim State CLOSED. EXPECTED=79 UNCHANGED. §RESUME SNAPSHOT D-1258 authored (supersedes D-1257). develop_head 9114e028→f6739764. STATE v7.885→v7.886.**
+> **D-1259 (2026-06-20): POST-PIVOT-003 PREP-LANE ARTIFACTS COMMITTED. 3 parallel lanes: (1) S-1.11 scoping doc authored — all 5 BCs already on develop; real blocker is narrow Cyberint devices-probe in connectivity.rs; PENDING HUMAN on S-1.11 reinterpretation + probe semantic. (2) 001-A remove-uncertainty DONE → v1.1; R1 CRIT+R2 HIGH TableRegistry data-path root cause PENDING architect→story-writer. (3) 001-B remove-uncertainty DONE → v1.1; FLAG-001 same root cause. STORY-INDEX v2.440→v2.441. develop_head UNCHANGED f6739764. STATE v7.886→v7.887. §RESUME SNAPSHOT D-1259 authored (supersedes D-1258).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1258** (authoritative zero-context restart protocol; supersedes D-1257). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1257 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1258 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.886.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1259** (authoritative zero-context restart protocol; supersedes D-1258). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1258 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1259 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.887.
+
+---
+
+## §RESUME SNAPSHOT — D-1259 (2026-06-20 — POST-PIVOT-003 PREP-LANE ARTIFACTS; develop_head f6739764 UNCHANGED; PENDING HUMAN: S-1.11 reinterpretation + TableRegistry correction; STATE v7.887)
+
+> **D-1259 burst (2026-06-20).** 3 parallel prep lanes committed to factory-artifacts (single atomic commit, TD-VSDD-053). LANE-1 (S-1.11 scoping): Architect produced `.factory/specs/architecture/scoping/S-1.11-read-side-completion-scope.md`. Finding: all 5 read-side BCs already delivered on develop — `partial-merge` label is STALE. Actual S-5.04 blocker = narrow: `prism-mcp/src/health/connectivity.rs` hard-probes `devices` table; Cyberint has no `devices` table → healthy Cyberint sensors appear failed. TWO OPEN QUESTIONS PENDING HUMAN: (A) Interpret "pull S-1.11 into scope" as narrow probe-fix in S-5.04 (architect recommends) or broader read-side completion requirement? (B) Should connectivity probe use `alerts` (Cyberint's served table) or `devices` with a conditional per-sensor-type branch? S-1.11 STATUS UNCHANGED (partial-merge) until human decides. LANE-2 (001-A remove-uncertainty): 11 uncertainties cleared → v1.0→v1.1 (2 low-risk edits: `TenantId::new`→`OrgSlug::new`; `ColumnType`→`prism_core::column::ColumnType`). R1 CRITICAL + R2 HIGH share root cause: story assumes `Arc<dyn TableRegistry>` DI providing column schema; `TableRegistry` stores table names only; column schema lives in `resolved_spec_map`/`ConfigManager`. Needs architect→story-writer micro-cycle before TDD. LANE-3 (001-B remove-uncertainty): 11 uncertainties cleared → v1.0→v1.1. FLAG-001 = same TableRegistry root cause for E-QUERY-038 `available_columns` data-path (AC-001/AC-002). FOLLOW-ONS: (a) S-1.11/S-5.04 reframing PENDING HUMAN; (b) 001-A/001-B TableRegistry architectural correction PENDING architect→story-writer (in-scope spec evolution). STORY-INDEX v2.440→v2.441.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1259 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1259 snapshot first. It is authoritative.
+
+**Step 1.** `vsdd-factory:factory-worktree-health` — BLOCKING gate. Do not proceed if this fails.
+
+**Step 2.** Verify develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003): IOC stamping; 2026-06-20; D-1258 — UNCHANGED from D-1258).
+
+**Step 3.** Verify no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Apply carry-forward lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+
+**Step 5.** Apply DO-NOT-REFLAG items from §DO-NOT-REFLAG section below.
+
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1259 below: PENDING HUMAN decisions (S-1.11 reinterpretation + TableRegistry correction routing) → architect→story-writer micro-cycle for 001-A/001-B → TDD delivery → S-5.04 resumption → T13. Autonomy D-989+D-1090 active.
+
+---
+
+### PINNED STATE (D-1259 — verified 2026-06-20)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| develop HEAD | `f6739764` | UNCHANGED from D-1258. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
+| factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
+| Open PRs | **NONE** | No open PRs. |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | PARKED — BLOCKED on S-1.11 resolution (PENDING HUMAN D-1259 question A). |
+| S-3.09 worktree | FROZEN | Leave alone. |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
+| ci.yml EXPECTED | `79` | Unchanged. |
+| CLAUDE.md non-exhaustive count | `79` | Unchanged. |
+| BC-INDEX | **v6.87** | active 235 / draft 8 / retired 6 / total 256. Unchanged from D-1258. |
+| STORY-INDEX | **v2.441** | 206 stories. 001-A v1.0→v1.1 (D-1259). 001-B v1.0→v1.1 (D-1259). |
+| STATE.md | v7.887 | D-1259 burst. |
+| error_taxonomy | v1.91 | Unchanged. |
+| arch_index | v2.138 | Unchanged. |
+| vp_index | v1.79 | Unchanged. |
+| active_contracts | 235 | Unchanged. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
+
+---
+
+### WHAT'S DONE THIS BURST (D-1259)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1259 (2026-06-20) | POST-PIVOT-003 prep-lane artifacts burst. S-1.11 scoping doc committed (architect; all 5 BCs already on develop; PENDING HUMAN on reinterpretation + probe-table-selection). 001-A remove-uncertainty DONE → v1.1 (2 low-risk edits; R1 CRIT+R2 HIGH TableRegistry data-path PENDING architect correction). 001-B remove-uncertainty DONE → v1.1 (FLAG-001 same root cause). STORY-INDEX v2.440→v2.441. develop_head UNCHANGED f6739764. STATE v7.886→v7.887. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1259)
+
+| Priority | Story | Status | Pts | Hard Prerequisites | Notes |
+|----------|-------|--------|-----|--------------------|-------|
+| **PENDING HUMAN — QUESTION A** | S-1.11 reinterpretation | partial-merge (all 5 BCs on develop) | TBD | — | Is the real fix a narrow probe-fix in S-5.04 (architect recommends) or does S-1.11 need broader work? PENDING HUMAN. |
+| **PENDING HUMAN — QUESTION B** | S-5.04 connectivity.rs probe semantic | blocked | — | S-1.11 resolution | Should probe use `alerts` (Cyberint) or `devices` with per-sensor-type branch? PENDING HUMAN. |
+| **NEXT (BLOCKED pending architect+story-writer)** | **001-A TableRegistry data-path correction** | v1.1 spec correction needed | — | Human decision + architect dispatch | R1 CRIT+R2 HIGH: `Arc<dyn TableRegistry>` DI path doesn't provide column schema. Architect→story-writer correction before TDD. |
+| **NEXT (BLOCKED pending architect+story-writer)** | **001-B TableRegistry data-path correction** | v1.1 spec correction needed | — | Same root cause as 001-A | FLAG-001 same root cause. Architect→story-writer correction before TDD. |
+| **NEXT-A (PARKED after corrections)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.1 | 7 | TableRegistry correction + S-5.04 conflict avoidance | **DEMO-BLOCKING (D-1243).** TDD after TableRegistry correction. Pipelines behind S-5.04 for prism-mcp conflict avoidance. |
+| **NEXT-B (PARKED after corrections)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.1 | 6 | TableRegistry correction | **DEMO-BLOCKING (D-1243).** TDD after TableRegistry correction. PIVOT-003 conflict avoidance SATISFIED. |
+| **NEXT-C (PARKED on S-1.11)** | **S-5.04** | not-started v1.9 (**PARKED — blocked on S-1.11 resolution**) | 5 | S-1.11 resolution (PENDING HUMAN) | F-S504-R2-002 MED + LOW/OBS remain. **DEMO-BLOCKING.** |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**North Star roadmap: human decisions (S-1.11 + probe semantic) → architect→story-writer TableRegistry correction for 001-A/001-B → TDD 001-A + 001-B → S-5.04 resumption → T13 capstone → T14 recording.**
+
+**Convergence reminders (carry forward):**
+- BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3.
+- DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore). OBS-3 DEC-004 from S-5.03. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14).
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
 
 ---
 
