@@ -423,6 +423,77 @@ async fn test_BC_2_06_019_enrich_pipeline_e2e_threatintel_pivot_executes_udf_and
          BC-2.06.019 v1.10 AC-007 / INV-THREATINTEL-IOC-CORRELATION-001 / F-PIVOT003-R3-001 [RED GATE]",
         ioc_values
     );
+
+    // Step 10 — F-PIVOT003-R7B-001: AC-007 conjunction — assert threat_score >= 75.
+    // Register a second UDF using the same ThreatIntelInfusionSource, source_column = "threat_score".
+    // ThreatIntelInfusionSource returns threat_score: 85 for Malicious keys (>= 75 per AC-007).
+    // Sibling pattern: enrichment_pivot_002_tests.rs:341 / bc_2_06_020_enrichment_correlation.rs:388.
+    let score_call_count = Arc::new(AtomicUsize::new(0));
+    let ti_score_source: Arc<dyn InfusionSource> = Arc::new(ThreatIntelInfusionSource {
+        state: Arc::clone(&threatintel_clone.state),
+        call_count: Arc::clone(&score_call_count),
+    });
+
+    let score_descriptor = InfusionUdfDescriptor::new(
+        "threat_score_udf",
+        "ip",
+        "string",
+        "threatintel_scenario_score",
+        Arc::clone(&ti_score_source),
+        Some("threat_score".to_string()),
+        3600,
+    );
+
+    register_infusion_udfs(&ctx, vec![score_descriptor])
+        .expect("Test 10: register_infusion_udfs for threat_score_udf must succeed");
+
+    let score_df = ctx
+        .sql(
+            "SELECT ioc_value, threat_score_udf(ioc_value) AS score_result \
+             FROM cyberint_alerts_flat \
+             WHERE ioc_value IS NOT NULL",
+        )
+        .await
+        .expect(
+            "Test 10 F-PIVOT003-R7B-001: SQL with threat_score_udf must parse and plan. \
+             FAIL = UDF not registered or signature mismatch.",
+        );
+
+    let score_batches = score_df
+        .collect()
+        .await
+        .expect("Test 10 F-PIVOT003-R7B-001: threat_score_udf execution must succeed.");
+
+    // At least one row must have threat_score >= 75 (Malicious = 85).
+    let mut score_above_threshold = 0usize;
+    for batch in &score_batches {
+        let score_col = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .expect("Test 10: score_result column must be StringArray");
+        for i in 0..batch.num_rows() {
+            if score_col.is_null(i) {
+                continue;
+            }
+            let score_str = score_col.value(i);
+            // source_column = "threat_score" projects the u64 field; serialized as a numeric string.
+            if let Ok(score) = score_str.parse::<u64>() {
+                if score >= 75 {
+                    score_above_threshold += 1;
+                }
+            }
+        }
+    }
+
+    assert!(
+        score_above_threshold > 0,
+        "Test 10 F-PIVOT003-R7B-001: at least 1 threat_score >= 75 result required. \
+         Got score_above_threshold=0. ThreatIntelInfusionSource returns threat_score=85 for \
+         Malicious keys (>= 75 per AC-007). \
+         BC-2.06.019 v1.10 AC-007 conjunction: threat_is_known_malicious=true AND threat_score >= 75. \
+         BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 / F-PIVOT003-R7B-001 [RED GATE]"
+    );
 }
 
 // ---------------------------------------------------------------------------

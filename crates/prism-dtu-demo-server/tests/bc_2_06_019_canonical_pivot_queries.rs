@@ -47,7 +47,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use prism_dtu_common::{
-    build_default_incident_timeline, build_scenario_entity_catalog, Archetype, OrgId,
+    build_default_incident_timeline, build_scenario_entity_catalog, Archetype, BehavioralClone,
+    OrgId,
 };
 
 /// Org ID with well-known first 4 bytes → org_slug = "deadbeef".
@@ -93,9 +94,12 @@ fn deadbeef_org() -> OrgId {
 /// LOAD-BEARING: this test FAILS if:
 /// (a) AC-002 is incomplete: alerts do not carry `iocs[].value` with catalog hashes, OR
 /// (b) AC-003 catalog_ioc_hashes is empty (vacuous pass guard fires), OR
-/// (c) ThreatIntelClone::new_with_scenario does not inject catalog hashes as Malicious.
-#[test]
-fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage_3() {
+/// (c) ThreatIntelClone::new_with_scenario does not inject catalog hashes as Malicious, OR
+/// (d) DTU /v3/hash/:hash returns threat_score < 75 for a Malicious scenario IOC hash.
+///     (F-PIVOT003-R7B-001: AC-007 conjunction requires BOTH threat_is_known_malicious=true
+///      AND threat_score >= 75)
+#[tokio::test]
+async fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage_3() {
     let org = deadbeef_org();
     let seed: u64 = 100;
 
@@ -215,6 +219,57 @@ fn test_BC_2_06_019_canonical_threatintel_pivot_query_returns_malicious_at_stage
             fixture_result,
         );
     }
+
+    // Step 6 — SERVED-ROUTE assertion: HTTP hash lookup returns threat_score >= 75.
+    // F-PIVOT003-R7B-001: AC-007 conjunction requires BOTH threat_is_known_malicious=true
+    // AND threat_score >= 75. The data-layer assertions above prove the Malicious mapping;
+    // this step proves the HTTP route returns the correct score field.
+    // Uses the same pattern as bc_2_06_020_enrichment_correlation.rs:388 (AC-013/PC-2).
+    let probe_hash = &catalog_iocs_in_alerts[0];
+    let mut ti_server = threatintel_clone;
+    ti_server
+        .start()
+        .await
+        .expect("Test 8: ThreatIntelClone::start() must succeed for score assertion");
+    let base_url = ti_server.base_url();
+    let client = prism_dtu_common::build_test_client();
+
+    let resp = client
+        .get(format!("{base_url}/v3/hash/{probe_hash}"))
+        .query(&[("key", "test-key-valid")])
+        .send()
+        .await
+        .expect("Test 8: HTTP hash lookup must reach ThreatIntelClone server");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "Test 8: ThreatIntelClone /v3/hash/:hash must return HTTP 200 for scenario catalog hash \
+         '{probe_hash}'. F-PIVOT003-R7B-001 / AC-007"
+    );
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("Test 8: /v3/hash/:hash response must be valid JSON");
+
+    let threat_score = body
+        .get("threat_score")
+        .and_then(|v| v.as_u64())
+        .expect("Test 8: response must contain 'threat_score' field. F-PIVOT003-R7B-001 / AC-007");
+
+    assert!(
+        threat_score >= 75,
+        "Test 8 F-PIVOT003-R7B-001: threat_score must be >= 75 for scenario IOC hash '{probe_hash}'; \
+         got {threat_score}. DTU /v3/hash/:hash returns 95 for Malicious keys (lookup.rs:234). \
+         AC-007 conjunction: threat_is_known_malicious=true AND threat_score >= 75. \
+         BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 [RED GATE]"
+    );
+
+    ti_server
+        .stop()
+        .await
+        .expect("Test 8: ThreatIntelClone::stop() must succeed");
 }
 
 // ---------------------------------------------------------------------------
