@@ -11,8 +11,8 @@ subsystems: [SS-11]
 #   SS-11 (Query Execution Engine) owns this sub-story's scope per ARCH-INDEX Subsystem Registry.
 #   E-QUERY-038 plan-time gate, E-QUERY-001/002/003/037 pedagogical error enrichments, and the
 #   normalized_pql Chumsky normalizer all live in prism-query/prism-core per ADR-041 v1.1
-#   Architectural Surface table. The prism-mcp response envelope for normalized_pql (field
-#   declaration + #[non_exhaustive] mark) is a thin wire between SS-11 output and SS-10 surface;
+#   Architectural Surface table. The prism-mcp response envelope for normalized_pql (conditional
+#   Value key insertion into PrismServer::query inline payload) is a thin wire between SS-11 output and SS-10 surface;
 #   it is included in this sub-story because the prism-query normalizer is the hard work.
 priority: P0
 # P0: DEMO-BLOCKING per D-1243 (S-DEMO-PRISMQL-ONBOARDING-001 set). The pedagogical E-QUERY-038
@@ -60,16 +60,16 @@ points: 6
 #   L4 — E-QUERY-003 how_to_fix pedagogical enrichment: 0.5 pts
 #   L4 — E-QUERY-037 suggestion field update with prism_describe reference: 0.5 pts
 #   L4 — normalized_pql: Chumsky AST re-serializer (net-new; largest single task) + prism-mcp
-#         response envelope field + #[non_exhaustive] mark: 1.5 pts
+#         conditional Value key insertion into PrismServer::query inline payload: 1.5 pts
 #   Total: 6 pts
 level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.2"
+version: "1.3"
 producer: story-writer
-timestamp: "2026-06-20T00:00:00Z"
+timestamp: "2026-06-21T00:00:00Z"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -106,9 +106,15 @@ risk_mitigations:
      Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038 (column
      not found). If E-QUERY-038 fires when the table is also absent, DataFusion internals may
      leak. Colocate both gates and enforce the ordering explicitly."
-  - "normalized_pql MUST be absent (not null, not present) on ALL error responses. Implement via
-     #[serde(skip_serializing_if = 'Option::is_none')] — NOT Option::None serializing to null.
-     AC-006 test uses serde_json::Value deserialization and checks value.get('normalized_pql').is_none()."
+  - "normalized_pql MUST be absent (not null, not present) on ALL error responses.
+     Mechanism: conditional key insertion into the inline `serde_json::Value` payload
+     in `PrismServer::query` — when `normalized_pql_str` is `None`, no key is inserted
+     and the field is absent from the JSON output. `#[serde(skip_serializing_if)]` is
+     a serde STRUCT attribute and does NOT apply to `serde_json::Value` construction.
+     The absent-on-error guarantee is structurally enforced: the error path returns via
+     `prism_error_to_structured_call_result` before the payload `Value` is built.
+     AC-006 test: deserialize the response as `serde_json::Value` and assert
+     `value.get(\"normalized_pql\").is_none()` — semantics and test wording UNCHANGED."
   - "PrismError::ColumnNotFound arm in error_mapping.rs MUST be explicit (-32602 INVALID_PARAMS).
      Must NOT fall through to the #[non_exhaustive] catch-all -32000 arm. AC-001 integration
      test verifies the MCP error code is -32602, not -32000."
@@ -124,8 +130,8 @@ crates_touched: [prism-core, prism-query, prism-mcp]
 # prism-core: new PrismError::ColumnNotFound variant + Display
 # prism-query: E-QUERY-038 plan-time gate + E-QUERY-001/002/003/037 pedagogical enrichments +
 #              Chumsky normalized_pql string production (net-new re-serializer)
-# prism-mcp: error_mapping.rs arm for ColumnNotFound (-32602) + normalized_pql Option<String>
-#             field in query response type + #[non_exhaustive] mark on response type
+# prism-mcp: error_mapping.rs arm for ColumnNotFound (-32602) + normalized_pql conditional
+#             Value key insertion into existing inline json! payload in PrismServer::query
 anchor_bcs: [BC-2.11.016, BC-2.11.017, BC-2.11.018]
 anchor_subsystem: ["SS-11"]
 parent_story: S-DEMO-PRISMQL-ONBOARDING-001
@@ -197,8 +203,10 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
   precedent for boxing large variants)
 - [ ] Read `crates/prism-query/src/engine.rs` — find where E-QUERY-037 plan-time gate fires;
   identify the colocated injection point for E-QUERY-038; understand the `TableRegistry` call pattern
-- [ ] Read `crates/prism-query/src/ast.rs` fully — note display affordances at lines 681 and 1099;
-  identify which AST nodes have Display impls and which need net-new canonicalizing re-serialization
+- [ ] Read `crates/prism-query/src/ast.rs` fully — VERIFIED 2026-06-20: NO Display/to_pql/normalize
+  impls exist on any AST node type (zero grep matches); a full net-new canonicalizing re-serializer
+  is required (prior "lines 681/1099 display affordances" text was RETRACTED in v1.1 — those are
+  doc-comments on SourceRef/TimestampLiteral, not Display impls)
 - [ ] Read `crates/prism-query/src/filter_parser.rs`, `pipe_parser.rs`, `sql_parser.rs` — understand
   the chumsky 0.12.0 parse output shape; confirm the parsed AST is the same type for all three modes.
   NOTE (remove-uncertainty 2026-06-20): the E-QUERY-001 parse-error variant is
@@ -327,14 +335,25 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
     cost estimates, join-order, partition/pushdown details
   - If normalization produces empty string (should not happen for valid parse): return `None`
     (field omitted per BC-2.11.018 Error Cases)
-- [ ] Add `normalized_pql: Option<String>` field to query response type in `crates/prism-mcp/src/server.rs`:
-  - Response type MUST be `#[non_exhaustive]`; add `#[non_exhaustive]` if not already present
-  - If adding `#[non_exhaustive]` to query response type: increment `ci.yml EXPECTED` by 1 more
-    (beyond the +3 from 001-A; coordinate with 001-A on final EXPECTED count)
-  - Field serialized with `#[serde(skip_serializing_if = "Option::is_none")]` — absent on error,
-    not null
-  - Field presence rules: PRESENT (non-empty) on every successful execution (incl. zero-row,
-    partial sensor failure with query-level success); ABSENT on ALL error responses
+- [ ] Insert `normalized_pql` into the existing inline `json!` payload in
+  `PrismServer::query` (`crates/prism-mcp/src/server.rs`), after the rows
+  serialization block and before `SafetyEnvelopeBuilder::wrap` is called:
+  - Pattern: construct `payload` as `serde_json::json!({...existing keys...})`
+    then conditionally insert: `if let Some(ref s) = normalized_pql_str {`
+    `payload["normalized_pql"] = serde_json::Value::String(s.clone()); }`
+  - NO typed query-response struct is needed or permitted — the query handler
+    uses an inline `serde_json::Value` payload per the BC-2.10.007 SafetyEnvelope
+    pattern (shared by all tool handlers; ADR-022 wiring-not-redesign).
+  - `#[serde(skip_serializing_if)]` is a struct attribute and does NOT apply to
+    `serde_json::Value`. The correct equivalent is conditional key insertion (above)
+    — when the key is absent from the `Value`, it is absent from the JSON output.
+  - Field presence rules (UNCHANGED from BC-2.11.018): PRESENT (non-empty) on every
+    successful execution (incl. zero-row, partial sensor failure with query-level
+    success); ABSENT on ALL error responses. The absent-on-error guarantee is
+    enforced structurally — on the error path, `PrismServer::query` returns early
+    via `prism_error_to_structured_call_result` before `payload` is constructed.
+  - NO `#[non_exhaustive]` annotation is needed (no new pub struct); ci.yml
+    EXPECTED stays 82 (set by 001-A which has already merged).
 - [ ] Verify test 5 passes
 
 ### Phase 6 — final gates
@@ -345,8 +364,10 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
 - [ ] Verify normalized_pql value does NOT contain DataFusion plan node substrings
   (`HashJoin`, `TableScan`, `SortExec`, `Aggregate`): add assertion in test 5
 - [ ] Run `just check` — all 6 Red Gate tests pass; zero clippy warnings; fmt clean
-- [ ] If query response type newly marked `#[non_exhaustive]`: update ci.yml EXPECTED and
-  scripts/check-non-exhaustive.sh; coordinate with 001-A on final combined EXPECTED value
+- [ ] Confirm ci.yml EXPECTED remains 82 — no new `#[non_exhaustive]` pub types
+  are added by this story (no new typed response struct; `normalized_pql` is a
+  conditionally-inserted `Value` key, not a struct field). The non-exhaustive gate
+  is already wired at EXPECTED=82 by the merged 001-A. No coordination needed.
 
 ---
 
@@ -470,7 +491,7 @@ Red Gate: combined in `test_BC_2_11_018_normalized_pql_present_on_success_absent
 | E-QUERY-038 MCP error mapping | SS-10 | prism-mcp (`error_mapping.rs`) | Pure (error translation) |
 | E-QUERY-001/002/003/037 pedagogical enrichments | SS-11 | prism-query (error builder / error-map time) | Pure (additive field computation) |
 | Chumsky AST re-serializer (`normalized_pql` source) | SS-11 | prism-query (AST Display or PqlNormalizer) | Pure (string production from parsed AST) |
-| `normalized_pql` response envelope field | SS-10 | prism-mcp (`server.rs` query response type) | Effectful (MCP response construction) |
+| `normalized_pql` response envelope field | SS-10 | prism-mcp (`server.rs` `PrismServer::query` inline payload — conditional `Value` key insertion before `SafetyEnvelopeBuilder::wrap`; no typed response struct) | Effectful (MCP response construction) |
 
 Subsystem anchor justification: SS-11 (Query Execution Engine) owns the query-engine L4 work
 (E-QUERY-038 gate, error enrichments, Chumsky normalizer) per ARCH-INDEX Subsystem Registry.
@@ -549,7 +570,8 @@ budget appropriately.
 | `PrismError` enum is already `#[non_exhaustive]` — do NOT add it again at enum level | CLAUDE.md §Conventions | Adversary: confirm `#[non_exhaustive]` at enum (not at variant) |
 
 **Forbidden patterns:**
-- `normalized_pql: null` in JSON (must be absent, not null — use `skip_serializing_if = "Option::is_none"`)
+- `normalized_pql: null` in JSON (must be absent, not null — use conditional key insertion into `serde_json::Value`; do NOT introduce a typed struct with `skip_serializing_if`, which is a struct attribute inapplicable to `serde_json::Value` construction)
+- A new typed query-response struct to hold the `normalized_pql` field (ADR-022 wiring-not-redesign; the inline `json!` payload is the established BC-2.10.007 pattern)
 - E-QUERY-038 returning before E-QUERY-037 check (wrong gate ordering)
 - `available_columns` containing API key, bearer token, or URL patterns
 - `near_text` > 50 characters
@@ -566,7 +588,7 @@ budget appropriately.
 | chumsky | `0.12` caret in Cargo.toml; resolves **0.12.0** per Cargo.lock (the only published 0.12.x release) | Parser-combinator only — NO built-in AST pretty-printer/re-serializer (confirmed docs.rs + Perplexity 2026-06-20). normalized_pql re-serializer is net-new. |
 | ariadne | `0.4` caret; resolves **0.4.1** per Cargo.lock | Human-readable parse-error formatting (already a prism-query dep); span source for E-QUERY-001 near_text |
 | datafusion | `53.1` caret; resolves **53.1.0** per Cargo.lock | Backing execution engine — do NOT import DataFusion internals for normalized_pql |
-| serde / serde_json | `1` (workspace) | `normalized_pql: Option<String>` with `skip_serializing_if = "Option::is_none"` |
+| serde / serde_json | `1` (workspace) | `normalized_pql` conditional `Value` key insertion into existing inline `serde_json::json!` payload in `PrismServer::query`; `serde_json::Value::String(s.clone())` insertion pattern |
 | tracing | workspace | Structured event emission; `column_not_found.rejected` event_type must be in BC-2.16.002 |
 
 **Version pinning note (verified 2026-06-20, remove-uncertainty pass, Cargo.lock @ develop@f6739764):**
@@ -587,8 +609,8 @@ normalized query strings.
 | `crates/prism-query/src/engine.rs` | Modify | (1) E-QUERY-038 column-not-found plan-time gate (colocated with E-QUERY-037 gate); (2) E-QUERY-001 near_text + reference_pointer enrichment; (3) E-QUERY-002 valid_operators_for_type enrichment; (4) E-QUERY-003 how_to_fix enrichment; (5) E-QUERY-037 suggestion text update; (6) normalized_pql string production via Chumsky normalizer |
 | `crates/prism-query/src/ast.rs` | Modify | Add `Display` impl or `PqlNormalizer` visitor on top-level AST node for canonicalized PQL re-serialization (fully net-new; VERIFIED 2026-06-20 no existing Display/to_pql/normalize impls — no leverage points) |
 | `crates/prism-mcp/src/error_mapping.rs` | Modify | Add explicit `-32602 INVALID_PARAMS` arm for `PrismError::ColumnNotFound` before the `#[non_exhaustive]` catch-all |
-| `crates/prism-mcp/src/server.rs` | Modify | Add `normalized_pql: Option<String>` to query response type; add `#[non_exhaustive]` to response type if not already present |
-| `ci.yml` | Modify | Increment `EXPECTED` if query response type is newly `#[non_exhaustive]` (coordinate with 001-A which already increments to 82 for +3 types; this sub-story adds +0 or +1 depending on response type state) |
+| `crates/prism-mcp/src/server.rs` | Modify | In `PrismServer::query`, insert `normalized_pql` conditionally into the existing inline `serde_json::json!` payload after rows serialization; conditional key insertion (not a struct field — no typed response struct exists; ADR-022 wiring-not-redesign) |
+| `ci.yml` | No change | EXPECTED remains 82 (set by merged 001-A). No new `#[non_exhaustive]` types added by 001-B (no typed response struct). |
 | `crates/prism-query/tests/e_query_pedagogical.rs` | Create | Tests for AC-001 through AC-004 (E-QUERY-038 gate, E-QUERY-001/002/003/037 enrichments) |
 | `crates/prism-mcp/tests/normalized_pql.rs` | Create | Tests for AC-005, AC-006 (normalized_pql field presence/absence) |
 
@@ -625,3 +647,4 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 | 1.0 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | Initial sub-story decomposition — split from S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) per D-1244 §Parallel Execution Plan. Covers L4 query-engine surfaces (prism-core + prism-query + prism-mcp wire). 3 BCs: BC-2.11.016, BC-2.11.017, BC-2.11.018. 6 ACs + 6 Red Gate tests. 6 pts. Pipelines behind PIVOT-003 for crate-conflict avoidance. |
 | 1.1 | remove-uncertainty-2026-06-20 | 2026-06-20 | research-agent | REMOVE-UNCERTAINTY pass (D-1110) pre-TDD. Verified all tech assertions against develop@f6739764 codebase + Cargo.lock + error-taxonomy.md v1.91 + docs.rs/Perplexity. LOW-RISK corrections applied: (1) confirmed version pins strsim 0.11.1 / chumsky 0.12.0 / datafusion 53.1.0 / ariadne 0.4.1 with citations; (2) RETRACTED false+volatile "ast.rs:681/1099 display affordances" citations (TD-VSDD-091 — those are doc-comments, not Display impls; ZERO AST Display impls exist; chumsky 0.12.0 has no built-in re-serializer); (3) corrected "Arc<dyn TableRegistry>" → concrete `TableRegistry` struct passed as `Option<&TableRegistry>`; gate = `check_table_availability` → `check_availability_gate`; (4) corrected non-existent `filter_to_org_visible()` → `filter_to_org_visible_sensors/_tables`; (5) noted E-QUERY-001 variant is `QueryParseFailed { offset, detail }`. FLAGGED for architect (not edited into ACs): `TableRegistry` has NO column-level schema — E-QUERY-038 `available_columns` must come from `resolved_spec_map` (ResolvedSensorSpec→TableSpec.columns), not TableRegistry; design path affects AC-001/AC-002 satisfaction. ColumnType variants (String/Integer/Float/Boolean/Datetime/Json) confirmed match AC-003 operator table. PrismError enum `#[non_exhaustive]` and error_mapping.rs `-32602` arm precedent (TableNotAvailable) confirmed. No AC/BC/scope text changed by this pass. |
 | 1.2 | TABLEREGISTRY-DATAPATH-CORRECTION-2026-06-20 | 2026-06-20 | story-writer | Architect adjudication applied (onboarding-001-tableregistry-datapath-correction.md, D-1259 FLAG-001). Wiring-not-redesign corrections for FLAG-001 from remove-uncertainty pass. Edits: (1) `depends_on` S-5.03 comment — corrected from fictional "TableRegistry injection into PrismServer" to actual ServerHandler override patterns; (2) `depends_on` S-3.13 comment — replaced "reads registry's per-org column schema" with `resolved_spec_map` parameter flow description; (3) dependency anchor comments corrected; (4) Tasks Phase 3 column gate — replaced "Column availability checked against TableRegistry" with `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns` lookup with None fallback; updated `available_columns` presence note to reference `filter_to_org_visible_sensors/_tables` pattern; (5) `risk_mitigations` — replaced "sourced ENTIRELY from TableRegistry" with `resolved_spec_map → ColumnSpec.name` data path with TOML-source safety rationale; (6) Previous Story Intelligence CRITICAL FLAG paragraph — replaced with "ARCHITECTURE FLAG RESOLVED" citing architect adjudication doc, canonical `resolved_spec_map` read path, and AC-001/AC-002 satisfaction statement; (7) Architecture Compliance Rules `available_columns` sourcing rule corrected; (8) Architecture Mapping E-QUERY-038 row corrected. No AC-semantic changes. No BC array changes. BCs remain: BC-2.11.016, BC-2.11.017, BC-2.11.018. |
+| 1.3 | NORMALIZED-PQL-ENVELOPE-CORRECTION-2026-06-21 | 2026-06-21 | story-writer | CORRECTION-1 adjudication applied (onboarding-001-B-normalized-pql-envelope-correction.md). Phase 5 task rewritten: "Add normalized_pql field to query response type" replaced with conditional `serde_json::Value` key insertion into the existing inline `json!` payload in `PrismServer::query` before `SafetyEnvelopeBuilder::wrap` — no typed query-response struct exists or is permitted (BC-2.10.007 SafetyEnvelope pattern; ADR-022 wiring-not-redesign). File Structure `server.rs` row updated to describe conditional key insertion. File Structure `ci.yml` row changed from "Modify / Increment EXPECTED" to "No change / EXPECTED remains 82" (001-A merged, +0 from 001-B). `risk_mitigations` skip_serializing_if bullet corrected: `#[serde(skip_serializing_if)]` is a struct attribute inapplicable to `serde_json::Value`; conditional key insertion is the correct equivalent. Architecture Mapping `normalized_pql` row updated to name `PrismServer::query` inline payload and omit "no typed response struct". Forbidden patterns block extended with typed-struct anti-pattern. Library & Framework serde row updated. Frontmatter `crates_touched` and points-justification comments corrected. AC-005/AC-006 behavioral semantics UNCHANGED. BCs UNCHANGED: BC-2.11.016, BC-2.11.017, BC-2.11.018. |

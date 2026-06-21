@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.42"
+version: "1.43"
 producer: state-manager
 status: active
-timestamp: 2026-06-21T08:00:00Z
+timestamp: 2026-06-21T10:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -42,7 +42,7 @@ Foundations: COMPLETE (reused). Build: 9/15 tasks done; T4 DONE; T4-A DONE; T5 D
 
 ## CURRENT POINTER
 
-**D-1273 (2026-06-21): 001-A LOCAL 3-CLEAN round 8 (frozen 5a385d4f, streak 0/3) — NEXT IMMEDIATE ACTION.** Round-7 fix-burst DONE (3 findings fixed: SafetyEnvelope trust_level HIGH, EC-10-033 MED, ARCH-INDEX ADR-042 MED). Feature HEAD → 5a385d4f. just check GREEN 4668. Dispatch 3 independent fresh-context adversary passes on 5a385d4f. Primary question for round 8: does hand-rolled envelope satisfy BC-2.10.012 "uses SafetyEnvelopeBuilder" semantically? Serial roadmap after LOCAL 3-CLEAN: demo evidence → PR → PR-LEVEL 3-CLEAN → squash-merge → 001-B TDD (no worktree yet; start fresh) → S-5.04 TDD (probe_table folded; PARKED @4282c997) → T13 capstone → T14 recording. develop@f6739764. NO OPEN PRs. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1273.
+**D-1279 (2026-06-21): 001-B v1.3 TDD-READY vs develop@fc954300 — NEXT IMMEDIATE ACTION: worktree create + stubs + Red Gate + TDD.** Pre-TDD remove-uncertainty re-run DONE (D-1110 obligation met). CORRECTION-1 adjudicated (onboarding-001-B-normalized-pql-envelope-correction.md): normalized_pql via conditional Value key insertion into existing inline json! payload (ADR-022; no typed struct; EXPECTED stays 82). Story 001-B updated v1.2→v1.3. 5/6 ACs substrate CLEAR vs develop@fc954300. 001-A MERGED PR #197 develop@fc954300. NO OPEN PRs. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1278 (authoritative; D-1279 factory-only burst). Serial roadmap: worktree create → stubs → Red Gate → TDD → LOCAL 3-CLEAN → demo evidence → PR → PR-LEVEL 3-CLEAN → squash-merge → S-5.04 TDD → T13 capstone → T14 recording.
 
 ## NEXT ACTION (verbatim, for cold resume — D-1255 2026-06-20)
 
