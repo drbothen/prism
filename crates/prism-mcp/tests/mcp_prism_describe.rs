@@ -48,6 +48,7 @@
 //! | test_BC_2_10_013_schema_resource_subscribe_capability_declared | AC-006 | BC-2.10.013 |
 //! | test_BC_2_10_013_schema_resource_subscribe_notify | AC-006 (registry isolation) | BC-2.10.013 |
 //! | test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped | AC-006 (notify dispatch) | BC-2.10.013 EC-10-029/030 |
+//! | test_BC_2_10_013_schema_resource_production_path_reload_triggers_notify | AC-006 (production path) | BC-2.10.013 EC-10-029/030 |
 
 use std::sync::{Arc, Mutex};
 
@@ -1560,3 +1561,19 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
         globex_sink.call_count()
     );
 }
+
+// ─── AC-006 (production path): reload_config → notify_schema_updated ─────────
+//
+// NOTE: The production-path test that drives PrismServer::reload_config →
+// notify_schema_updated lives in server.rs #[cfg(test)] mod tests as
+// `test_BC_2_10_013_schema_resource_production_path_reload_triggers_notify`.
+//
+// Rationale: the test requires private field access (`server.config_manager`,
+// `server.spec_dir`, `server.schema_subscriber_registry`) that is only
+// accessible from within the crate — matching the existing pattern used by
+// `test_BC_2_16_007_reload_config_wires_dispatch_hot_reload_notifications` in
+// that same file. The test is co-located with the code it exercises.
+//
+// See tests/mcp_prism_describe.rs test-table row:
+// | test_BC_2_10_013_schema_resource_production_path_reload_triggers_notify |
+// | AC-006 (production path) | BC-2.10.013 EC-10-029/030 |

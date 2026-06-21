@@ -9645,4 +9645,292 @@ mod tests {
              Fixture: crowdstrike.sensor.toml (initial) + claroty.sensor.toml (added before reload)."
         );
     }
+
+    // ─── AC-006 (production path): reload_config → notify_schema_updated ──────────
+
+    /// AC-006 (BC-2.10.013 EC-10-029/030) — PRODUCTION PATH:
+    ///
+    /// Drives the FULL production chain:
+    ///
+    ///   `PrismServer::schema_subscriber_registry` holds a subscriber for "acme"
+    ///   → operator calls `reload_config` (the real MCP tool via duplex transport)
+    ///   → `reload_config` calls `notify_schema_updated(&acme_slug, &registry)` for
+    ///      each client whose table-set changed
+    ///   → subscriber's `SchemaChangeNotifier::notify_resource_updated("prismql://schema/acme")`
+    ///      is called
+    ///   → "globex" subscriber is NOT called (DI-008 per-client scoping)
+    ///
+    /// This test FAILS with the current frozen HEAD for TWO reasons:
+    ///
+    /// **REASON 1 — compile error:**
+    /// `server.schema_subscriber_registry = registry;` is a field assignment to a field
+    /// that does NOT exist on `PrismServer`.  The struct has no
+    /// `schema_subscriber_registry` field.  This produces:
+    /// ```
+    /// error[E0609]: no field `schema_subscriber_registry` found in value of type
+    /// `prism_mcp::server::PrismServer`
+    /// ```
+    ///
+    /// **REASON 2 — behavioral failure (would fail even if field existed):**
+    /// `reload_config` calls `dispatch_hot_reload_notifications` (for `list_changed`)
+    /// but NEVER calls `notify_schema_updated`.  Even if the registry field were added,
+    /// `acme_sink.call_count()` would be 0 after reload and the assertion
+    /// `assert_eq!(acme_sink.call_count(), 1, ...)` would FAIL.
+    ///
+    /// ## Required production API — IMPLEMENTER MUST ADD ALL FOUR:
+    ///
+    /// 1. **`schema_subscriber_registry: Arc<SchemaSubscriberRegistry>` field on `PrismServer`.**
+    ///    Initialised in `PrismServer::new()` as `Arc::new(SchemaSubscriberRegistry::new())`.
+    ///    Also wired in `with_deps()`.  The `Arc` lets callers hold a second handle for
+    ///    assertions after the server moves into `serve_server`.
+    ///
+    /// 2. **`ServerHandler::subscribe` override on `impl ServerHandler for PrismServer`.**
+    ///    Called by rmcp when a client sends `resources/subscribe` for
+    ///    `prismql://schema/{client_id}`.  Must extract `client_id`, construct
+    ///    `SubscriberHandle { id: peer_id, notifier: Arc::new(PeerNotifier(context.peer.clone())) }`,
+    ///    and call `self.schema_subscriber_registry.subscribe(slug, handle)`.
+    ///    `PeerNotifier` wraps `Peer<RoleServer>` and implements `SchemaChangeNotifier` by
+    ///    delegating to `peer.notify_resource_updated(uri)`.
+    ///
+    /// 3. **`reload_config` must call `notify_schema_updated` for changed clients.**
+    ///    After the config swap, for each org slug whose table-set changed, call:
+    ///    ```ignore
+    ///    resources::schema::notify_schema_updated(
+    ///        &slug, &self.schema_subscriber_registry
+    ///    ).await
+    ///    ```
+    ///    The reload must identify which client slugs were affected.  In the minimum
+    ///    viable wiring: notify all registered clients (any slug present in the registry)
+    ///    when the global table-set changed.  Production-grade: notify only clients whose
+    ///    per-client resolved spec changed (requires resolved_spec_map diff).
+    ///
+    /// 4. **`schema_subscriber_registry` field in `PrismServer` is `Arc<SchemaSubscriberRegistry>`**
+    ///    so it is `Clone`-able (required because `PrismServer: Clone`).
+    #[tokio::test]
+    async fn test_BC_2_10_013_schema_resource_production_path_reload_triggers_notify() {
+        use std::path::PathBuf;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+        use crate::resources::schema::{
+            SchemaChangeNotifier, SchemaSubscriberRegistry, SubscriberHandle,
+        };
+
+        // ── Mock notification sink ────────────────────────────────────────────
+
+        struct MockNotificationSink {
+            call_count: Arc<AtomicUsize>,
+            called_uris: Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl MockNotificationSink {
+            fn new() -> Self {
+                Self {
+                    call_count: Arc::new(AtomicUsize::new(0)),
+                    called_uris: Arc::new(std::sync::Mutex::new(Vec::new())),
+                }
+            }
+
+            fn call_count(&self) -> usize {
+                self.call_count.load(Ordering::SeqCst)
+            }
+
+            fn was_notified_for(&self, uri: &str) -> bool {
+                self.called_uris.lock().unwrap().contains(&uri.to_string())
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl SchemaChangeNotifier for MockNotificationSink {
+            async fn notify_resource_updated(
+                &self,
+                uri: &str,
+            ) -> Result<(), rmcp::model::ErrorData> {
+                self.call_count.fetch_add(1, Ordering::SeqCst);
+                self.called_uris.lock().unwrap().push(uri.to_string());
+                Ok(())
+            }
+        }
+
+        // ── Step 1: temp spec directory (same fixture as AC-9 test) ──────────
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir must succeed");
+        let spec_dir: PathBuf = tmp_dir.path().to_path_buf();
+
+        // Initial: crowdstrike with no tables → old_tables == [].
+        let cs_toml = "sensor_id = \"crowdstrike\"\n\
+             name = \"CrowdStrike\"\n\
+             auth_type = \"api_key\"\n\
+             base_url = \"https://api.crowdstrike.com\"\n\
+             version = \"1.0.0\"\n";
+        std::fs::write(spec_dir.join("crowdstrike.sensor.toml"), cs_toml)
+            .expect("write crowdstrike.sensor.toml must succeed");
+
+        let initial_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+            .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+        let cm = prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot);
+        let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
+
+        // Add claroty spec BEFORE reload so the table-set changes on reload.
+        let claroty_toml = "sensor_id = \"claroty\"\n\
+             name = \"Claroty\"\n\
+             auth_type = \"api_key\"\n\
+             base_url = \"https://api.claroty.com\"\n\
+             version = \"1.0.0\"\n\
+             \n\
+             [[tables]]\n\
+             table_name = \"assets\"\n\
+             ocsf_class = \"device_inventory_info\"\n\
+             columns = []\n\
+             steps = []\n";
+        std::fs::write(spec_dir.join("claroty.sensor.toml"), claroty_toml)
+            .expect("write claroty.sensor.toml must succeed");
+
+        // ── Step 2: build registry and pre-wire mock sinks ────────────────────
+        //
+        // This simulates what ServerHandler::subscribe would do when a client
+        // calls resources/subscribe for prismql://schema/acme.  We wire it before
+        // moving the server into serve_server so we can hold an Arc reference.
+
+        let acme_sink = Arc::new(MockNotificationSink::new());
+        let globex_sink = Arc::new(MockNotificationSink::new());
+        let acme_sink_assert = Arc::clone(&acme_sink);
+        let globex_sink_assert = Arc::clone(&globex_sink);
+
+        let registry = Arc::new(SchemaSubscriberRegistry::new());
+        let registry_for_assert = Arc::clone(&registry);
+
+        let acme_slug = prism_core::OrgSlug::new("acme").expect("'acme' is a valid OrgSlug");
+        let globex_slug = prism_core::OrgSlug::new("globex").expect("'globex' is a valid OrgSlug");
+
+        registry.subscribe(
+            acme_slug,
+            SubscriberHandle {
+                id: "conn-acme-1".to_string(),
+                notifier: acme_sink,
+            },
+        );
+        registry.subscribe(
+            globex_slug,
+            SubscriberHandle {
+                id: "conn-globex-1".to_string(),
+                notifier: globex_sink,
+            },
+        );
+
+        // ── Step 3: build PrismServer with registry + config wired ───────────
+        //
+        // Private field access is available in #[cfg(test)] mod tests.
+        //
+        // COMPILE ERROR TODAY: `schema_subscriber_registry` field does not exist.
+        // The implementer must add this field to PrismServer before this test compiles.
+        let mut server = PrismServer::new();
+        server.config_manager = Some(cm_arc);
+        server.spec_dir = Some(spec_dir);
+        // COMPILE ERROR: field `schema_subscriber_registry` not found on PrismServer.
+        server.schema_subscriber_registry = registry;
+
+        // ── Step 4: full duplex MCP session (same pattern as AC-9 test) ──────
+
+        let (server_stream, client_stream) = tokio::io::duplex(65536);
+        let server_task = tokio::spawn(async move {
+            rmcp::serve_server(server, server_stream)
+                .await
+                .expect("serve_server must complete handshake")
+        });
+
+        let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+        let mut client_read_buf = BufReader::new(client_read_half);
+
+        let init_req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"prism-ac006-prod-test","version":"0.0.1"}}}"#;
+        client_write_half
+            .write_all(format!("{init_req}\n").as_bytes())
+            .await
+            .unwrap();
+        let mut _line = String::new();
+        client_read_buf.read_line(&mut _line).await.unwrap(); // init response
+
+        let init_notif = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        client_write_half
+            .write_all(format!("{init_notif}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        let _running = server_task.await.expect("server task must not panic");
+
+        // ── Step 5: call reload_config — the REAL production trigger ─────────
+        //
+        // BC-2.10.013 EC-10-029: reload_config MUST call notify_schema_updated for
+        // clients whose schema changed. The current code calls
+        // dispatch_hot_reload_notifications (list_changed) but NEVER calls
+        // notify_schema_updated — this is the missing wiring the implementer must add.
+        let reload_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"reload_config","arguments":{}}}"#;
+        client_write_half
+            .write_all(format!("{reload_req}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        // Drain messages to let the server process the reload.
+        let read_timeout = std::time::Duration::from_secs(3);
+        for _ in 0..5 {
+            let mut msg = String::new();
+            match tokio::time::timeout(read_timeout, client_read_buf.read_line(&mut msg)).await {
+                Ok(Ok(0)) | Err(_) => break,
+                Ok(Ok(_)) => {
+                    if msg.trim().is_empty() {
+                        break;
+                    }
+                }
+                Ok(Err(_)) => break,
+            }
+        }
+
+        // ── Step 6: assert production wiring ─────────────────────────────────
+
+        // Registry must not be cleared by reload (regression guard).
+        let acme_subs = registry_for_assert
+            .subscribers_for(&prism_core::OrgSlug::new("acme").expect("valid OrgSlug"));
+        assert!(
+            !acme_subs.is_empty(),
+            "BC-2.10.013 AC-006: registry must still contain acme's subscriber after \
+             reload; subscribers_for('acme') returned []. The registry MUST NOT be \
+             cleared by reload_config."
+        );
+
+        // BC-2.10.013 EC-10-029: reload_config MUST have dispatched to acme's notifier.
+        //
+        // FAILS NOW (REASON 2): reload_config does not call notify_schema_updated so
+        // call_count == 0. The implementer must add the trigger after the config swap.
+        assert_eq!(
+            acme_sink_assert.call_count(),
+            1,
+            "BC-2.10.013 AC-006 EC-10-029: acme_sink MUST have received exactly one \
+             notify_resource_updated call from the production path (reload_config → \
+             notify_schema_updated → notifier.notify_resource_updated). \
+             Got call_count={} — zero means reload_config is NOT wired to call \
+             notify_schema_updated. Add: \
+             `resources::schema::notify_schema_updated(&slug, &self.schema_subscriber_registry).await` \
+             inside PrismServer::reload_config after the config swap.",
+            acme_sink_assert.call_count()
+        );
+
+        assert!(
+            acme_sink_assert.was_notified_for("prismql://schema/acme"),
+            "BC-2.10.013 AC-006: acme_sink must have been notified with URI \
+             'prismql://schema/acme'; got called_uris={:?}",
+            acme_sink_assert.called_uris.lock().unwrap()
+        );
+
+        // BC-2.10.013 EC-10-030 DI-008: globex MUST NOT be notified for an acme change.
+        assert_eq!(
+            globex_sink_assert.call_count(),
+            0,
+            "BC-2.10.013 AC-006 EC-10-030 DI-008: globex_sink MUST NOT be called when \
+             reload_config fires for 'acme'. Got call_count={} — non-zero means \
+             cross-client notification leak.",
+            globex_sink_assert.call_count()
+        );
+    }
 }
