@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.899"
+version: "7.900"
 producer: state-manager
 timestamp: 2026-06-21T00:00:00Z
 inputs: []
@@ -19,7 +19,7 @@ safe_to_compact: true
 develop_head: "f6739764"
 bc_index_version: "6.93"
 vp_index_version: "1.79"
-story_index_version: "v2.447"
+story_index_version: "v2.448"
 arch_index_version: "2.139"
 error_taxonomy_version: "1.91"
 total_stories: 206
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1271 (2026-06-21). 001-A round-5 cascade (3 passes on 263e28ab) — all ADR-042 functional behavior verified correct; remaining findings fixed: spawn_blocking wrap of reload_config + rebuild_resolved_spec_map (feature 8b14f3ab; CLAUDE.md async-discipline + ADR-042 mandate); story footprint/version/AC drift from ADR-042 fold-in corrected (crates_touched +prism-query, BC labels BC-2.10.009 v1.5 / BC-2.10.013 v1.2, AC-011 + 4 Red Gate rows with corrected ground-truth test names, EC-005 re-anchor) story v1.5→v1.7; ADR-042 anchor repointed to 001-A (v1.1); BC-2.10.012 example precedence clarified (v1.2). Feature HEAD 8b14f3ab, just check GREEN 4666, gate 82. BC-INDEX v6.92→v6.93. STORY-INDEX v2.446→v2.447. STATE v7.898→v7.899. develop_head UNCHANGED f6739764. CLAUDE.md 79→82 reconciliation STILL PENDING at merge. NEXT = re-gate LOCAL strict-3-CLEAN round 6 on frozen 8b14f3ab (streak 0/3)."
+current_step: "D-1272 (2026-06-21). 001-A round-6 cascade (3 passes on 8b14f3ab) — CODE FULLY CONVERGED (zero code findings; ADR-042/spawn_blocking/SAP-1/in-flight-isolation all verified). Only story-citation hygiene remained: 2 phantom Red Gate test names (rows 5/6, v1.7 fix was partial-table only) + BC-2.10.012 v1.1→v1.2 label drift — fixed via COMPLETE citation sweep (story v1.8, all 14 rows grep-verified). [process-gap] noted for cycle-close: POL-21 phantom-anchor remediation MUST re-grep the full Red Gate table, not the delta (recurred across v1.7→v1.8). Feature HEAD UNCHANGED 8b14f3ab (story-doc-only round). STORY-INDEX v2.447→v2.448. STATE v7.899→v7.900. develop_head UNCHANGED f6739764. CLAUDE.md 79→82 reconciliation PENDING at merge. NEXT = re-gate LOCAL strict-3-CLEAN round 7 on frozen 8b14f3ab (streak 0/3)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──

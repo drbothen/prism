@@ -54,7 +54,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
-version: "1.7"
+version: "1.8"
 producer: story-writer
 timestamp: "2026-06-20T00:00:00Z"
 input-hash: "TBD"
@@ -134,7 +134,7 @@ PrismQL queries without human hand-holding.
 | BC ID | Title | Key Clauses |
 |-------|-------|-------------|
 | BC-2.10.009 v1.5 | MCP Prompts for Common Workflows (Including PQL Query Tutorial) | query_tutorial prompt: 5 structural elements; DI-006 security reminder; L1 primer in query tool description |
-| BC-2.10.012 v1.1 | `prism_describe` Schema Discovery Tool (L2) | Always-registered; readOnlyHint: true; per-client table/column catalog; audit event on every call; DI-008 client isolation; non-existent/empty client success posture |
+| BC-2.10.012 v1.2 | `prism_describe` Schema Discovery Tool (L2) | Always-registered; readOnlyHint: true; per-client table/column catalog; audit event on every call; DI-008 client isolation; non-existent/empty client success posture |
 | BC-2.10.013 v1.2 | `prismql://schema/{client_id}` Resource Template (L2) | RFC 6570 URI template; mimeType: "application/json"; server-side subscribe/listChanged; single-source-of-truth with prism_describe; per-client subscription scoping; multi-tenant hot-reload notify (EC-10-034 dual-mode: notify all per-org subscribers on resolved_spec_map rebuild; per-client scoping EC-10-029) |
 | BC-2.10.014 v1.0 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 7 required section headers; ≤3,000 tokens; build-time static via include_str!; no vendor table names in examples; text/markdown MIME |
 
@@ -146,7 +146,7 @@ PrismQL queries without human hand-holding.
 |----------|-----------------|
 | This story spec | ~3,500 |
 | BC-2.10.009 v1.5 | ~800 |
-| BC-2.10.012 v1.1 | ~1,200 |
+| BC-2.10.012 v1.2 | ~1,200 |
 | BC-2.10.013 v1.2 | ~1,000 |
 | BC-2.10.014 v1.0 | ~800 |
 | ADR-041 v1.1 (teaching surface architecture) | ~5,000 |
@@ -235,14 +235,14 @@ At ~200k context window: ~14.4% — within the 20-30% ceiling.
     `openWorldHint: false`
   - `SafetyEnvelopeBuilder` with `trust_level: "internal"`
 - [ ] Register `prism_describe` in always-registered tool tier in `server.rs`
-- [ ] Write failing test 5 (FAIL first): `test_BC_2_10_012_prism_describe_client_isolation`
+- [ ] Write failing test 5 (FAIL first): `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map`
 - [ ] Write failing test 2 (FAIL first): `test_BC_2_10_012_prism_describe_audit_event_emitted`
 - [ ] Verify tests 1–5 pass
 
 ### Phase 3 — L2: prismql://schema/{client_id} resource template
 
 - [ ] Write failing tests 6, 7 (FAIL first):
-  `test_BC_2_10_013_schema_resource_template_parity`
+  `test_BC_2_10_013_schema_resource_parity_via_dispatch`
   `test_BC_2_10_013_schema_resource_subscribe_notify`
 - [ ] Create `crates/prism-mcp/src/resources/schema.rs` (or extend existing resources.rs):
   - Register `prismql://schema/{client_id}` in `list_resource_templates`:
@@ -340,7 +340,7 @@ when `prism_describe("acme")` is called,
 then the response contains ONLY crowdstrike table names — no claroty table names appear in ANY
 field of the response (tables, pql_hints, example_query strings, column names).
 
-Red Gate: `test_BC_2_10_012_prism_describe_client_isolation`
+Red Gate: `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map`
 
 ### AC-005 — prismql://schema/{client_id} resource template registration and parity
 (traces to BC-2.10.013 postconditions — Resource template registration, Resource content, Single source of truth invariant)
@@ -353,7 +353,7 @@ when `resources/read("prismql://schema/acme")` is called for client "acme" with 
 then the response JSON is structurally identical to `prism_describe("acme")` — same client_id,
 same tables array, same pql_hints.
 
-Red Gate: `test_BC_2_10_013_schema_resource_template_parity`
+Red Gate: `test_BC_2_10_013_schema_resource_parity_via_dispatch`
 
 ### AC-006 — prismql://schema/{client_id} subscribe/notify per-client scoping
 (traces to BC-2.10.013 v1.2 postconditions — Server-side subscribe/listChanged support; EC-10-029 per-client scoping, EC-10-030, EC-10-034 dual-mode multi-tenant hot-reload notify)
@@ -457,8 +457,8 @@ Red Gate:
 | 2 | `test_BC_2_10_012_prism_describe_audit_event_emitted` | AC-002 | prism-mcp | AuditEntry with schema_enumeration operation emitted on every call |
 | 3 | `test_BC_2_10_012_prism_describe_empty_and_unknown_client` | AC-003 | prism-mcp | Zero-table and unknown client return success + empty tables + hint (not error) |
 | 4 | `test_BC_2_10_012_prism_describe_invalid_client_id` | AC-003 | prism-mcp | Path-traversal client_id returns E-MCP-001 |
-| 5 | `test_BC_2_10_012_prism_describe_client_isolation` | AC-004 | prism-mcp | Multi-tenant: acme response never contains globex table/column names |
-| 6 | `test_BC_2_10_013_schema_resource_template_parity` | AC-005 | prism-mcp | resources/read("prismql://schema/acme") content is structurally identical to prism_describe("acme") |
+| 5 | `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map` | AC-004 | prism-mcp | Multi-tenant: acme response never contains globex table/column names |
+| 6 | `test_BC_2_10_013_schema_resource_parity_via_dispatch` | AC-005 | prism-mcp | resources/read("prismql://schema/acme") content is structurally identical to prism_describe("acme") |
 | 7 | `test_BC_2_10_013_schema_resource_subscribe_notify` | AC-006 | prism-mcp | Subscribe + hot-reload → notifications/resources/updated for subscribed client; no notification for different client |
 | 8a | `test_BC_2_10_014_reference_resource_sections` | AC-007 | prism-mcp | resources/read("prismql://reference") contains all 7 required section headers + 5 error codes in quick-reference |
 | 8b | `test_BC_2_10_014_reference_resource_static_invariant` | AC-008 | prism-mcp | No vendor table names in examples section; content unchanged between reads; ≤3000 tokens |
@@ -633,6 +633,7 @@ cannot edit BC bodies.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | COMPLETE-RED-GATE-CITATION-SWEEP-2026-06-21 | 2026-06-21 | story-writer | COMPLETE Red Gate citation sweep (all rows grep-verified) + BC-2.10.012 v1.2 label; closes round-6 POL-21 rows 5/6 + version-label drift. (HIGH — POL-21) Red Gate Tests table row 5: `test_BC_2_10_012_prism_describe_client_isolation` → `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map` (phantom name from v1.7 partial fix). (HIGH — POL-21) Red Gate Tests table row 6: `test_BC_2_10_013_schema_resource_template_parity` → `test_BC_2_10_013_schema_resource_parity_via_dispatch` (phantom name surviving v1.7 partial sweep). (HIGH — POL-21) AC-004 inline Red Gate citation corrected to match row 5. (HIGH — POL-21) AC-005 inline Red Gate citation corrected to match row 6. (HIGH — POL-21) Tasks Phase 2 failing-test citation corrected to match row 5. (HIGH — POL-21) Tasks Phase 3 failing-test citation corrected to match row 6. (MED) BC-2.10.012 version label updated v1.1→v1.2 in §Behavioral Contracts table and §Token Budget Estimate (canonical is v1.2 per D-1263). All 14 Red Gate rows now exact-match grep-verified real tests at feature HEAD 8b14f3ab. red_gate_tests count remains 14. |
 | 1.7 | PHANTOM-ANCHOR-CORRECTION-2026-06-21 | 2026-06-21 | story-writer | POL-21 phantom-anchor defect corrected. (HIGH) Red Gate Tests table rows 11-14: replaced 4 invented ADR-042 test names (`test_BC_ADR_042_rebuild_resolved_spec_map_updates_arcswap`, `test_BC_ADR_042_arcswap_atomic_on_concurrent_read`, `test_BC_ADR_042_mcp_notify_on_spec_map_rebuild`, `test_BC_ADR_042_notify_scoped_to_subscribing_client`) with 4 ACTUAL names verified by grep at feature HEAD: `test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero` + `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild` (engine.rs mod adr_042_tests) and `test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex` + `test_BC_ADR_042_prism_describe_reflects_post_reload_schema` (server.rs mod adr_042_tests). (HIGH) AC-011 inline Red Gate listing updated to match. (HIGH) §File Structure Requirements: removed phantom `crates/prism-query/tests/adr_042_tests.rs` (Create) and `crates/prism-mcp/tests/adr_042_mcp_tests.rs` (Create) rows — these files do not exist; ADR-042 tests live in existing `crates/prism-query/src/engine.rs` and `crates/prism-mcp/src/server.rs` as `#[cfg(test)] mod adr_042_tests`; both rows updated to "Modify (adds mod adr_042_tests)". red_gate_tests count remains 14 (4 real ADR-042 tests replace 4 invented ones — same count). |
 | 1.6 | ROUND5-CASCADE-FIXES-2026-06-20 | 2026-06-20 | story-writer | Five cross-document drift fixes from round-5 cascade. (HIGH) crates_touched updated: added prism-query (ADR-042 touched crates/prism-query/src/engine.rs + Cargo.toml per D-1267); removed "does NOT touch prism-query" comment. (HIGH) §File Structure Requirements: added prism-query engine.rs (ArcSwap field + rebuild_resolved_spec_map), Cargo.toml (arc-swap dep), and two ADR-042 test files. (HIGH) BC version labels: BC-2.10.009 v1.4→v1.5 and BC-2.10.013 v1.1→v1.2 in §Behavioral Contracts table, §Token Budget Estimate, and AC trace labels; BC-2.10.013 key-clause cell expanded with multi-tenant notify scope (EC-10-034 dual-mode + EC-10-029). (HIGH) AC-011 added: reload-aware multi-tenant schema-change notification per ADR-042/BC-2.10.013 v1.2 EC-10-034; 4 ADR-042 Red Gate tests added (test_BC_ADR_042_* Test1–Test4 in prism-query and prism-mcp); ADR-042 added to Architecture Mapping, Architecture Compliance Rules, and §File Structure. (MED) EC-005 re-anchored from BC-2.10.013 EC-10-034 to BC-2.10.014 (static-content-during-reload is a BC-2.10.014 concern, not BC-2.10.013). acceptance_criteria_count: 10→11; red_gate_tests: 10→14. |
 | 1.5 | STORY-HYGIENE-2026-06-20 | 2026-06-20 | story-writer | POL-32 changelog re-ordered to strict monotonic-descending (the v1.4 reorder was applied in the wrong direction); F-P1-MED-001/F-P3-PASS3-MED-001. Corrected v1.4 row description which incorrectly claimed ascending order was the target. No AC changes. No BC array changes. |
