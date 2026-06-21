@@ -481,6 +481,15 @@ pub async fn dispatch_read_resource(
         if !client_id.is_empty() && !client_id.contains('/') && !client_id.contains("..") {
             return schema::render_pql_schema_resource(client_id, query_engine, config_manager)
                 .await;
+        } else {
+            // BC-2.10.013 EC-10-033: URI matched the prismql://schema/ prefix but the
+            // client_id is invalid (empty, contains path-traversal '..' or '/').
+            // Return the BC-canonical error rather than falling through to the generic
+            // "Unknown or unsupported resource URI" message.
+            // DI-006: do NOT echo the raw client_id in the error message.
+            return Err(not_found_error(
+                "Invalid client_id in resource URI".to_string(),
+            ));
         }
     }
 

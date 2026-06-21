@@ -42,6 +42,9 @@ pub fn trust_level_for_tool(tool_name: &str) -> TrustLevel {
         "delete_credential",
         "list_sensors",
         "get_capabilities",
+        // BC-2.10.012: prism_describe emits Prism-generated schema catalog data
+        // (not sensor-sourced external content) — trust_level must be "internal".
+        "prism_describe",
     ];
     for pat in &internal_patterns {
         if tool_name.starts_with(pat) || tool_name == *pat {

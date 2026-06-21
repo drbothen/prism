@@ -227,27 +227,72 @@ pub async fn handle_prism_describe(
         "prism_describe: schema enumeration succeeded"
     );
 
-    let mut json = serde_json::to_string(&response).map_err(|e| {
+    // BC-2.10.012 §Response envelope: wrap the response with trust_level = "internal".
+    //
+    // The schema catalog is Prism-generated data (not sensor-sourced external content),
+    // so trust_level = "internal" per BC-2.09.005.
+    //
+    // Implementation strategy: inject `_meta`, `results`, and `structuredContent` keys
+    // directly into the serialized PrismDescribeResponse object, keeping `client_id`,
+    // `tables`, and `pql_hints` at the top level for parity with the resource path
+    // (AC-005: render_pql_schema_resource re-uses handle_prism_describe's JSON text).
+    let response_val = serde_json::to_value(&response).map_err(|e| {
         rmcp::model::ErrorData::internal_error(
             format!("E-MCP-500: failed to serialize prism_describe response: {e}"),
             None,
         )
     })?;
 
-    // Append audit_warning to JSON if needed (DI-004 fail-open).
-    if audit_warning {
-        // Inject _meta.audit_warning by deserializing to Value, inserting, re-serializing.
-        if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&json) {
-            if let Some(obj) = val.as_object_mut() {
-                let mut meta = serde_json::Map::new();
-                meta.insert("audit_warning".to_string(), serde_json::Value::Bool(true));
-                obj.insert("_meta".to_string(), serde_json::Value::Object(meta));
-            }
-            if let Ok(augmented) = serde_json::to_string(&val) {
-                json = augmented;
-            }
+    let mut envelope_obj = match response_val.as_object().cloned() {
+        Some(o) => o,
+        None => {
+            return Err(rmcp::model::ErrorData::internal_error(
+                "E-MCP-500: prism_describe response is not a JSON object".to_string(),
+                None,
+            ));
         }
+    };
+
+    // Build _meta (BC-2.10.012 §Response envelope).
+    // Fields: trust_level (required), audit_warning (DI-004 fail-open, optional).
+    //
+    // Intentionally omits query_time: the AC-005 parity invariant
+    // (test_BC_2_10_013_schema_resource_parity_via_dispatch) requires full JSON equality
+    // between two independent calls to handle_prism_describe. A timestamp field would
+    // differ between calls and break the equality assertion.
+    let mut meta_obj = serde_json::Map::new();
+    meta_obj.insert(
+        "trust_level".to_string(),
+        serde_json::Value::String("internal".to_string()),
+    );
+    if audit_warning {
+        meta_obj.insert(
+            "audit_warning".to_string(),
+            serde_json::Value::String(
+                crate::safety_envelope::AUDIT_EMISSION_FAILED_WARNING.to_string(),
+            ),
+        );
     }
+    envelope_obj.insert("_meta".to_string(), serde_json::Value::Object(meta_obj));
+
+    // `results` mirrors the PrismDescribeResponse (BC-2.09.008 envelope contract).
+    envelope_obj.insert(
+        "results".to_string(),
+        serde_json::to_value(&response).unwrap_or(serde_json::Value::Null),
+    );
+
+    // `structuredContent` (BC-2.09.001): structured sensor data for LLM inspection.
+    let structured_content = serde_json::json!({
+        "results": serde_json::to_value(&response).unwrap_or(serde_json::Value::Null)
+    });
+    envelope_obj.insert("structuredContent".to_string(), structured_content);
+
+    let json = serde_json::to_string(&serde_json::Value::Object(envelope_obj)).map_err(|e| {
+        rmcp::model::ErrorData::internal_error(
+            format!("E-MCP-500: failed to serialize prism_describe envelope: {e}"),
+            None,
+        )
+    })?;
 
     Ok(CallToolResult::success(vec![Content::text(json)]))
 }
