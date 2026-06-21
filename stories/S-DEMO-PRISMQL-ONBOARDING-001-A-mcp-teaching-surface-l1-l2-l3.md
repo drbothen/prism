@@ -54,9 +54,9 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
-version: "1.9"
+version: "1.10"
 producer: story-writer
-timestamp: "2026-06-21T00:00:00Z"
+timestamp: "2026-06-21"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -64,7 +64,7 @@ epic_id: "E-5"
 # Epic E-5 (MCP Interface). Sub-story of S-DEMO-PRISMQL-ONBOARDING-001 per D-1244 decomposition.
 phase: 2
 acceptance_criteria_count: 11
-red_gate_tests: 14
+red_gate_tests: 15
 tdd_mode: strict
 behavioral_contracts:
   [BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014]
@@ -304,7 +304,7 @@ then `prism_describe` appears in the tool list with `readOnlyHint: true`, `idemp
 `openWorldHint: false`, and its description contains "Call this tool before writing a PrismQL
 query to discover which tables and columns are available."
 
-Red Gate: `test_BC_2_10_012_prism_describe_happy_path_catalog` (combined with AC-002 shape checks)
+Red Gate: `test_BC_2_10_012_prism_describe_tool_annotations` (annotations: readOnlyHint/idempotentHint/openWorldHint); `test_BC_2_10_012_prism_describe_happy_path_catalog` (response shape/tables/catalog — combined with AC-002)
 
 ### AC-002 — prism_describe happy-path response shape and audit event
 (traces to BC-2.10.012 postconditions — Response shape, Auto-generated example queries, pql_hints content, Audit event emission)
@@ -453,21 +453,22 @@ Red Gate:
 
 | # | Test Name | AC | Crate | Behavior Asserted |
 |---|-----------|----|----|-------------------|
-| 1 | `test_BC_2_10_012_prism_describe_happy_path_catalog` | AC-001 + AC-002 | prism-mcp | tool annotation + per-client table/column catalog with real names in example_query |
-| 2 | `test_BC_2_10_012_prism_describe_audit_event_emitted` | AC-002 | prism-mcp | AuditEntry with schema_enumeration operation emitted on every call |
-| 3 | `test_BC_2_10_012_prism_describe_empty_and_unknown_client` | AC-003 | prism-mcp | Zero-table and unknown client return success + empty tables + hint (not error) |
-| 4 | `test_BC_2_10_012_prism_describe_invalid_client_id` | AC-003 | prism-mcp | Path-traversal client_id returns E-MCP-001 |
-| 5 | `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map` | AC-004 | prism-mcp | Multi-tenant: acme response never contains globex table/column names |
-| 6 | `test_BC_2_10_013_schema_resource_parity_via_dispatch` | AC-005 | prism-mcp | resources/read("prismql://schema/acme") content is structurally identical to prism_describe("acme") |
-| 7 | `test_BC_2_10_013_schema_resource_subscribe_notify` | AC-006 | prism-mcp | Subscribe + hot-reload → notifications/resources/updated for subscribed client; no notification for different client |
-| 8a | `test_BC_2_10_014_reference_resource_sections` | AC-007 | prism-mcp | resources/read("prismql://reference") contains all 7 required section headers + 5 error codes in quick-reference |
-| 8b | `test_BC_2_10_014_reference_resource_static_invariant` | AC-008 | prism-mcp | No vendor table names in examples section; content unchanged between reads; ≤3000 tokens |
-| 9 | `test_BC_2_10_009_query_tutorial_prompt` | AC-009 | prism-mcp | query_tutorial: all 4 required elements without goal; Step 5 absent then present with goal |
-| 10 | `test_BC_2_10_009_l1_primer_query_tool_description` | AC-010 | prism-mcp | query tool description contains DSL declaration, clause vocab, 3 skeletons with <table>, discovery pointer; no vendor names |
-| 11 | `test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero` | AC-011 | prism-query (engine.rs mod adr_042_tests) | Single-tenant rebuild is a no-op returning Ok(0); ArcSwap atom unchanged |
-| 12 | `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild` | AC-011 | prism-query (engine.rs mod adr_042_tests) | Concurrent readers hold a stable Arc snapshot during rebuild; no torn read |
-| 13 | `test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex` | AC-011 | prism-mcp (server.rs mod adr_042_tests) | Hot-reload for "globex" does NOT notify "acme" subscriber (per-client scoping); hot-reload for "acme" DOES notify "acme" subscriber |
-| 14 | `test_BC_ADR_042_prism_describe_reflects_post_reload_schema` | AC-011 | prism-mcp (server.rs mod adr_042_tests) | prism_describe response reflects newly-added column after rebuild_resolved_spec_map() completes |
+| 1 | `test_BC_2_10_012_prism_describe_tool_annotations` | AC-001 | prism-mcp | readOnlyHint=true, idempotentHint=true, openWorldHint=false on the production tool catalog entry; description non-empty and mentions schema |
+| 2 | `test_BC_2_10_012_prism_describe_happy_path_catalog` | AC-001 + AC-002 | prism-mcp | per-client table/column catalog: response shape, client_id, tables array with name/sensor_type/columns/example_query using real table name, pql_hints non-empty; is_error=false |
+| 3 | `test_BC_2_10_012_prism_describe_audit_event_emitted` | AC-002 | prism-mcp | AuditEntry with schema_enumeration operation emitted on every call |
+| 4 | `test_BC_2_10_012_prism_describe_empty_and_unknown_client` | AC-003 | prism-mcp | Zero-table and unknown client return success + empty tables + hint (not error) |
+| 5 | `test_BC_2_10_012_prism_describe_invalid_client_id` | AC-003 | prism-mcp | Path-traversal client_id returns E-MCP-001 |
+| 6 | `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map` | AC-004 | prism-mcp | Multi-tenant: acme response never contains globex table/column names |
+| 7 | `test_BC_2_10_013_schema_resource_parity_via_dispatch` | AC-005 | prism-mcp | resources/read("prismql://schema/acme") content is structurally identical to prism_describe("acme") |
+| 8 | `test_BC_2_10_013_schema_resource_subscribe_notify` | AC-006 | prism-mcp | Subscribe + hot-reload → notifications/resources/updated for subscribed client; no notification for different client |
+| 9a | `test_BC_2_10_014_reference_resource_sections` | AC-007 | prism-mcp | resources/read("prismql://reference") contains all 7 required section headers + 5 error codes in quick-reference |
+| 9b | `test_BC_2_10_014_reference_resource_static_invariant` | AC-008 | prism-mcp | No vendor table names in examples section; content unchanged between reads; ≤3000 tokens |
+| 10 | `test_BC_2_10_009_query_tutorial_prompt` | AC-009 | prism-mcp | query_tutorial: all 4 required elements without goal; Step 5 absent then present with goal |
+| 11 | `test_BC_2_10_009_l1_primer_query_tool_description` | AC-010 | prism-mcp | query tool description contains DSL declaration, clause vocab, 3 skeletons with <table>, discovery pointer; no vendor names |
+| 12 | `test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero` | AC-011 | prism-query (engine.rs mod adr_042_tests) | Single-tenant rebuild is a no-op returning Ok(0); ArcSwap atom unchanged |
+| 13 | `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild` | AC-011 | prism-query (engine.rs mod adr_042_tests) | Concurrent readers hold a stable Arc snapshot during rebuild; no torn read |
+| 14 | `test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex` | AC-011 | prism-mcp (server.rs mod adr_042_tests) | Hot-reload for "globex" does NOT notify "acme" subscriber (per-client scoping); hot-reload for "acme" DOES notify "acme" subscriber |
+| 15 | `test_BC_ADR_042_prism_describe_reflects_post_reload_schema` | AC-011 | prism-mcp (server.rs mod adr_042_tests) | prism_describe response reflects newly-added column after rebuild_resolved_spec_map() completes |
 
 ---
 
@@ -633,6 +634,7 @@ cannot edit BC bodies.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | F-PR197-RG-P3-MED-001-FIX-2026-06-21 | 2026-06-21 | story-writer | Red Gate table corrected for F-PR197-RG-P3-MED-001. (MED) Row 1: `test_BC_2_10_012_prism_describe_happy_path_catalog` behavior description corrected from "tool annotation + ..." to "per-client table/column catalog: response shape, client_id, tables array, pql_hints" — this test does NOT assert tool annotations (readOnlyHint/idempotentHint/openWorldHint). (MED) New row 1 added: `test_BC_2_10_012_prism_describe_tool_annotations` mapped to AC-001 — this is the test that actually asserts readOnlyHint=true, idempotentHint=true, openWorldHint=false on the production tool catalog. Former rows 1-14 renumbered 2-15; row labels 8a/8b preserved as 9a/9b. AC-001 inline Red Gate citation updated to cite both tests. `red_gate_tests` frontmatter: 14→15. Full re-grep: all 15 row test names verified to resolve to real function definitions in the feature worktree. |
 | 1.9 | ROUND8-FIX-BURST-HEAD-REFRESH-2026-06-21 | 2026-06-21 | state-manager | Round-8 LOCAL cascade (3 passes on frozen `5a385d4f`) NOT clean; fix-burst commits d282fe7f/2d2a65e6/fae58bdb/15e43516 closed all findings (F-R8PA-HIGH-001/F-R8PC-HIGH-001 hand-rolled envelope → SafetyEnvelopeBuilder, F-R8PC-HIGH-002 paper-pass test → safety_flags assertion, F-R8PB-MED-001 overlay-only notify gate decoupled, F-R8PB-MED-002 unsubscribe correct-by-construction adjudicated by architect, F-R8PC-MED-001 POL-27 BC dates normalized, F-R8PB-LOW-001 EC-10-033 invalid-char message, OBS-R8PC-1 adjudication doc superseded note). Feature HEAD advanced `5a385d4f → 15e43516`. `just check` GREEN; non-exhaustive gate EXPECTED=82. Frozen HEAD for round-9 re-gate: `15e43516`; streak resets 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001). STATE.md D-1274. Changelog-only (HEAD refresh + round-8 summary); no story body/AC content altered. |
 | 1.8 | COMPLETE-RED-GATE-CITATION-SWEEP-2026-06-21 | 2026-06-21 | story-writer | COMPLETE Red Gate citation sweep (all rows grep-verified) + BC-2.10.012 v1.2 label; closes round-6 POL-21 rows 5/6 + version-label drift. (HIGH — POL-21) Red Gate Tests table row 5: `test_BC_2_10_012_prism_describe_client_isolation` → `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map` (phantom name from v1.7 partial fix). (HIGH — POL-21) Red Gate Tests table row 6: `test_BC_2_10_013_schema_resource_template_parity` → `test_BC_2_10_013_schema_resource_parity_via_dispatch` (phantom name surviving v1.7 partial sweep). (HIGH — POL-21) AC-004 inline Red Gate citation corrected to match row 5. (HIGH — POL-21) AC-005 inline Red Gate citation corrected to match row 6. (HIGH — POL-21) Tasks Phase 2 failing-test citation corrected to match row 5. (HIGH — POL-21) Tasks Phase 3 failing-test citation corrected to match row 6. (MED) BC-2.10.012 version label updated v1.1→v1.2 in §Behavioral Contracts table and §Token Budget Estimate (canonical is v1.2 per D-1263). All 14 Red Gate rows now exact-match grep-verified real tests at feature HEAD 8b14f3ab. red_gate_tests count remains 14. |
 | 1.7 | PHANTOM-ANCHOR-CORRECTION-2026-06-21 | 2026-06-21 | story-writer | POL-21 phantom-anchor defect corrected. (HIGH) Red Gate Tests table rows 11-14: replaced 4 invented ADR-042 test names (`test_BC_ADR_042_rebuild_resolved_spec_map_updates_arcswap`, `test_BC_ADR_042_arcswap_atomic_on_concurrent_read`, `test_BC_ADR_042_mcp_notify_on_spec_map_rebuild`, `test_BC_ADR_042_notify_scoped_to_subscribing_client`) with 4 ACTUAL names verified by grep at feature HEAD: `test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero` + `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild` (engine.rs mod adr_042_tests) and `test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex` + `test_BC_ADR_042_prism_describe_reflects_post_reload_schema` (server.rs mod adr_042_tests). (HIGH) AC-011 inline Red Gate listing updated to match. (HIGH) §File Structure Requirements: removed phantom `crates/prism-query/tests/adr_042_tests.rs` (Create) and `crates/prism-mcp/tests/adr_042_mcp_tests.rs` (Create) rows — these files do not exist; ADR-042 tests live in existing `crates/prism-query/src/engine.rs` and `crates/prism-mcp/src/server.rs` as `#[cfg(test)] mod adr_042_tests`; both rows updated to "Modify (adds mod adr_042_tests)". red_gate_tests count remains 14 (4 real ADR-042 tests replace 4 invented ones — same count). |
