@@ -5685,12 +5685,16 @@ impl ServerHandler for PrismServer {
     /// URIs must not error — they may be for other resource types).
     ///
     /// # Subscription identity key
-    /// The subscription is keyed by `context.id.to_string()` (the request ID of THIS
-    /// subscribe call, a per-request monotonic identifier). On `unsubscribe`, the URI
-    /// client_id is used to remove ALL handles for that client slug — since rmcp 1.7.0
-    /// exposes no stable per-connection id on `RequestContext` and unsubscribe carries
-    /// only the URI (not the original request id), removing ALL subscriptions for the
-    /// given OrgSlug on unsubscribe is the correct production-grade behavior.
+    /// Subscription identity: keyed by context.id.to_string() (a per-request monotonic id).
+    /// On unsubscribe, ALL handles for the slug are removed because:
+    /// (1) stdio transport guarantees exactly one client connection per process lifetime —
+    ///     there is no second analyst that could have registered a handle for the same slug;
+    /// (2) rmcp 1.7.0 exposes no stable per-connection id on `RequestContext` or `Peer<R>`
+    ///     (all `Peer` fields are private; id is per-request, not per-connection);
+    /// (3) the subscribing client saying "unsubscribe from prismql://schema/acme" means
+    ///     "this session no longer wants notifications" — removing all handles is correct.
+    /// If a future HTTP/SSE transport (ADR-022 §F deferred) adds multi-connection support,
+    /// this will need a client-supplied subscription token in the subscribe params.
     async fn subscribe(
         &self,
         request: SubscribeRequestParams,
@@ -5724,8 +5728,11 @@ impl ServerHandler for PrismServer {
     /// Remove a client subscription for `prismql://schema/{client_id}` (BC-2.10.013 AC-006).
     ///
     /// Called by rmcp when a connected MCP client issues `resources/unsubscribe`.
-    /// Removes ALL subscriptions for the given OrgSlug (rmcp 1.7.0 exposes no stable
-    /// per-connection id on `RequestContext`, and unsubscribe carries only the URI).
+    /// Removes ALL subscriptions for the given OrgSlug. This is correct because
+    /// (1) stdio transport guarantees exactly one client connection per process lifetime —
+    ///     no second analyst can hold a handle for the same slug — so removing all handles
+    ///     is equivalent to removing the one handle that exists; rmcp 1.7.0 exposes no
+    ///     stable per-connection id on `RequestContext`, and unsubscribe carries only the URI.
     async fn unsubscribe(
         &self,
         request: UnsubscribeRequestParams,
@@ -5738,9 +5745,8 @@ impl ServerHandler for PrismServer {
         let slug = prism_core::OrgSlug::new(client_id);
         if slug.is_ok() {
             // Remove ALL subscriptions for this client slug.
-            // Rationale: rmcp 1.7.0 provides no stable connection id on RequestContext;
-            // unsubscribe carries only the URI. Removing all handles for the slug is the
-            // correct behavior — the client is saying "stop sending me updates for this resource".
+            // Correct because stdio = one client connection per process lifetime (point 1 above);
+            // rmcp 1.7.0 provides no stable per-connection id — unsubscribe carries only the URI.
             let subscriber_ids = self.schema_subscriber_registry.subscribers_for(&slug);
             for id in subscriber_ids {
                 self.schema_subscriber_registry.unsubscribe(&slug, &id);
