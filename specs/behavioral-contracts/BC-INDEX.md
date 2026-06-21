@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.95"
+version: "6.96"
 status: draft
 producer: state-manager
 timestamp: 2026-06-21T00:00:00Z
@@ -223,7 +223,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft (v1.4 — D-1229 2026-06-18: client_name source annotation corrected [clients.{id}]→[[orgs]].name) |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.8 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.86 (2026-06-20: D-1270 SAP-1 — 2 new catalog rows for reload.overlay_rebuild_failed/reload.overlay_rebuilt (`rebuild_resolved_spec_map`, ADR-042); catalog count 80→82; catalog bullet label v1.51→v1.52; was v1.85: D-1262 SAP-1 — 3 new catalog rows for schema_enumeration.started/rejected/success) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.87 (2026-06-21: S-DEMO-PRISMQL-ONBOARDING-001-B SAP-1 — 1 new catalog row for column_not_found.rejected (`check_column_availability`, BC-2.11.016 E-QUERY-038); catalog count 82→83; catalog bullet label v1.52→v1.53; was v1.86: D-1270 SAP-1 — 2 new catalog rows for reload.overlay_rebuild_failed/reload.overlay_rebuilt) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.96 (2026-06-21, S-DEMO-PRISMQL-ONBOARDING-001-B SAP-1 column-not-found catalog row — BC-2.16.002 v1.87):** implementer | BC-2.16.002 inline row: v1.86→v1.87 — SAP-1 compliance (PG-LP11-001): 1 new Canonical Structured Event Catalog row registered for `check_column_availability` E-QUERY-038 plan-time column gate rejection (S-DEMO-PRISMQL-ONBOARDING-001-B, BC-2.11.016). `column_not_found.rejected` WARN (fields: `column: %display`, `table: %display`, `client_id: %display`, `available_count: usize`; audit role: query rejection / access-control trace; security: column field is column identifier only — no query value context, no credentials; once per E-QUERY-038 rejection; traces to BC-2.11.016, S-DEMO-PRISMQL-ONBOARDING-001-B AC-002). Scope statement extended to include prism-query plan-time column gate rejection. Catalog count 82→83; catalog bullet label `(v1.52)` → `(v1.53)` per POL-30 Fork B (new row = catalog-content structural change). **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED (counts from v6.95 — no lifecycle change from this burst). BC-INDEX v6.95→v6.96.
 
 **v6.95 (2026-06-21, D-1277 S-DEMO-PRISMQL-ONBOARDING-001-A post-merge burst — POL-14 BC promotions + BC-2.10.012/013 v1.3):** state-manager | **POL-14 BC auto-promotions (draft→active):** BC-2.10.012 `status: draft` → `active` (anchor story S-DEMO-PRISMQL-ONBOARDING-001-A merged PR #197 develop@ffe9315a); BC-2.10.013 `status: draft` → `active` (same); BC-2.10.014 `status: draft` → `active` (same). BC-2.10.009 already active (idempotent). **BC version bumps (product-owner committed product-quality POL-20/POL-7 hygiene):** BC-2.10.012 v1.2→v1.3 (POL-20 normalization + POL-7 H1 backtick hygiene; OBS-PR197-RG3-P3-001/002 closed). BC-2.10.013 v1.2→v1.3 (same POL-20/POL-7 hygiene sweep). **Inline row updates:** BC-2.10.012/013/014 status inline rows updated to active; BC-2.10.012/013 version inline rows updated to v1.3. **Count changes: draft_contracts 8→5** (BC-2.10.012+BC-2.10.013+BC-2.10.014 promoted; remaining drafts: BC-2.06.011+BC-2.21.001+BC-2.11.016+BC-2.11.017+BC-2.11.018); **active_contracts 235→238**. total_contracts 256 UNCHANGED. BC-INDEX v6.94→v6.95.
 
