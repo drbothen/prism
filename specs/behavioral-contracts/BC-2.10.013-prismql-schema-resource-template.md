@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -14,8 +14,8 @@ origin: greenfield
 subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
-introduced: ADR-041-teaching-burst-2026-06-19
-modified: 2026-06-20
+introduced: 2026-06-19
+modified: 2026-06-21
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -170,6 +170,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | OBS-PR197-RG3-P3-hygiene-2026-06-21 | 2026-06-21 | product-owner | Spec hygiene (OBS-PR197-RG3-P3-001): `introduced:` normalized from opaque burst-ID to bare ISO date `2026-06-19` (POL-20). No body semantics changed. |
 | 1.2 | ADR-042-bc-update-2026-06-20 | 2026-06-20 | product-owner | D-1267 / ADR-042: multi-tenant schema-change notify now IN SCOPE for 001-A. Removed single-tenant-only limitation from EC-10-029 (now applies to both modes). Added EC-10-034 (org "acme" maps to sensor "crowdstrike"; hot-reload of TYPE spec notifies "acme" only, not "globex"). Updated §Subscribe/listChanged item 2 to reference resolved_spec_map rebuild trigger (ADR-042 §D5) in addition to TableRegistry change. Added ADR-042 to §Architecture Anchors. No existing postcondition weakened. |
 | 1.1 | 001-A-local-cascade-bc-correction-2026-06-20 | 2026-06-20 | product-owner | D-1259 propagation (onboarding-001-tableregistry-datapath-correction.md). Replaced fictional `Arc<dyn TableRegistry>` injection model with correct data-source model in §Description, Preconditions 3–4, §Resource content, §Caching policy, and §Architecture Anchors. Behavioral postconditions, DI-008 isolation requirement, subscribe/notify behavior, edge cases, and test vectors unchanged (finding F-PASS2-HIGH-004 / F-P3-HIGH-002). |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L2 `prismql://schema/{client_id}` resource template contract |

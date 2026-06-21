@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -14,8 +14,8 @@ origin: greenfield
 subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
-introduced: ADR-041-teaching-burst-2026-06-19
-modified: 2026-06-20
+introduced: 2026-06-19
+modified: 2026-06-21
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -24,7 +24,7 @@ removed: null
 removal_reason: null
 ---
 
-# BC-2.10.012: prism_describe Schema Discovery Tool (L2)
+# BC-2.10.012: `prism_describe` Schema Discovery Tool (L2)
 
 ## Description
 
@@ -208,6 +208,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | OBS-PR197-RG3-P3-hygiene-2026-06-21 | 2026-06-21 | product-owner | Spec hygiene (OBS-PR197-RG3-P3-001 + OBS-PR197-RG3-P3-002): `introduced:` normalized from opaque burst-ID to bare ISO date `2026-06-19` (POL-20); H1 title updated to `` `prism_describe` Schema Discovery Tool (L2) `` — backticks added to match BC-INDEX and story body BC-table verbatim (POL-7). No body semantics changed. |
 | 1.2 | round-5-cascade-precedence-clarification-2026-06-20 | 2026-06-20 | product-owner | Clarified §Auto-generated example queries: replaced ambiguous "first applicable template is used" with explicit MOST-SPECIFIC-WINS ordered precedence (aggregate Integer/Float column → severity column → count-recent fallback). Reordered the three template bullets to match the implementation's `build_example_query` evaluation order. Wording now unambiguously matches the implemented behavior (round-5 cascade LOW finding: example_query precedence ambiguity). |
 | 1.1 | 001-A-local-cascade-bc-correction-2026-06-20 | 2026-06-20 | product-owner | D-1259 propagation (onboarding-001-tableregistry-datapath-correction.md). Replaced fictional `Arc<dyn TableRegistry>` injection model with correct data-source model in §Description, Precondition 4, §Auto-generated example queries, §Response envelope, §Single source of truth, DI-008 invariant, EC-10-026, and §Architecture Anchors. Clarified §Audit implementer obligation: `AuditWriter` must be extended to carry `operation` + real `outcome` (not `"invoked"`); requirement not weakened (finding F-PASS2-HIGH-004 / F-P3-HIGH-002). |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L2 `prism_describe` tool contract |
