@@ -135,20 +135,26 @@ impl SchemaSubscriberRegistry {
     ///
     /// Thread-safe: acquires the inner `Mutex` lock. Per-client scoping (DI-008):
     /// only the named client's subscriber vec is mutated.
+    ///
+    /// F-006: poison-tolerant lock — recovers via `into_inner()` on `PoisonError`.
+    /// The guarded data is a plain `HashMap` with no broken invariant on poison.
+    /// (CLAUDE.md §Conventions: `expect()` on `Result` forbidden in production paths.)
     pub fn subscribe(&self, client: OrgSlug, handle: SubscriberHandle) {
-        let mut map = self
-            .inner
-            .lock()
-            .expect("SchemaSubscriberRegistry lock poisoned");
+        let mut map = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         map.entry(client).or_default().push(handle);
     }
 
     /// Remove a subscriber for the given client slug by ID.
+    ///
+    /// F-006: poison-tolerant lock.
     pub fn unsubscribe(&self, client: &OrgSlug, id: &str) {
-        let mut map = self
-            .inner
-            .lock()
-            .expect("SchemaSubscriberRegistry lock poisoned");
+        let mut map = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         if let Some(handles) = map.get_mut(client) {
             handles.retain(|h| h.id != id);
             if handles.is_empty() {
@@ -161,11 +167,13 @@ impl SchemaSubscriberRegistry {
     ///
     /// Per-client scoping (DI-008): only returns handles for `client`; never leaks
     /// handles belonging to other clients.
+    ///
+    /// F-006: poison-tolerant lock.
     pub fn subscribers_for(&self, client: &OrgSlug) -> Vec<String> {
-        let map = self
-            .inner
-            .lock()
-            .expect("SchemaSubscriberRegistry lock poisoned");
+        let map = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         map.get(client)
             .map(|handles| handles.iter().map(|h| h.id.clone()).collect())
             .unwrap_or_default()
@@ -176,14 +184,16 @@ impl SchemaSubscriberRegistry {
     /// The `Arc<dyn SchemaChangeNotifier>` is cloned (cheap reference-count bump),
     /// so this method releases the `Mutex` lock before any async notification calls.
     /// Per-client scoping (DI-008): only handles for `client` are returned.
+    ///
+    /// F-006: poison-tolerant lock.
     pub fn subscriber_notifiers_for(
         &self,
         client: &OrgSlug,
     ) -> Vec<(String, Arc<dyn SchemaChangeNotifier>)> {
-        let map = self
-            .inner
-            .lock()
-            .expect("SchemaSubscriberRegistry lock poisoned");
+        let map = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         map.get(client)
             .map(|handles| {
                 handles
@@ -199,11 +209,13 @@ impl SchemaSubscriberRegistry {
     /// Used by `reload_config` to fan-out `notifications/resources/updated` to
     /// every subscribed client when the global table-set changes (AC-006).
     /// Lock is held only for the snapshot clone, released before any async work.
+    ///
+    /// F-006: poison-tolerant lock.
     pub fn all_subscribed_clients(&self) -> Vec<OrgSlug> {
-        let map = self
-            .inner
-            .lock()
-            .expect("SchemaSubscriberRegistry lock poisoned");
+        let map = match self.inner.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         map.keys().cloned().collect()
     }
 }
