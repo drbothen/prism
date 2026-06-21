@@ -2195,3 +2195,266 @@ fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
         &description[..description.len().min(400)]
     );
 }
+
+// ─── Round-7: SafetyEnvelope on prism_describe (HIGH, BC-2.10.012 §Response envelope) ──
+
+/// Round-7 HIGH (BC-2.10.012 §Response envelope):
+/// `handle_prism_describe` MUST wrap its response in a `SafetyEnvelopeBuilder`
+/// with `_meta.trust_level == "internal"`, consistent with all other Prism MCP
+/// tools (query, check_sensor_health, etc.).
+///
+/// The tool MUST also declare `output_schema = schema_for_type::<ResponseEnvelopeSchema>()`
+/// so MCP clients know the response carries `_meta` / `results` / `content` /
+/// `structuredContent` fields. (The outputSchema declaration is tested separately via the
+/// production tool catalog; this test focuses on the runtime response shape.)
+///
+/// ## RED GATE: This test FAILS against the current (frozen) code.
+///
+/// Current `handle_prism_describe` returns:
+/// ```
+/// Ok(CallToolResult::success(vec![Content::text(json)]))
+/// ```
+/// where `json` is a bare serialization of `PrismDescribeResponse` — a flat object with
+/// `{client_id, tables, pql_hints}` keys. There is NO `_meta` key, NO `trust_level`, and
+/// NO `structuredContent`.
+///
+/// The assertion `parsed["_meta"]["trust_level"].as_str() == Some("internal")` FAILS
+/// because `parsed["_meta"]` is `serde_json::Value::Null` (key absent from the bare response).
+///
+/// ## What the implementer must do
+///
+/// Wrap the `PrismDescribeResponse` value in `SafetyEnvelopeBuilder::wrap`:
+/// ```rust
+/// use crate::safety_envelope::{DataSource, SafetyEnvelopeBuilder};
+///
+/// let results_value = serde_json::to_value(&response)?;
+/// let envelope = SafetyEnvelopeBuilder::wrap(
+///     "prism_describe",
+///     DataSource::Single(org_slug.as_str().to_owned()),
+///     results_value,
+///     1,
+///     false,
+///     None,
+///     audit_warning_opt, // None or Some(AUDIT_EMISSION_FAILED_WARNING)
+/// );
+/// let json = serde_json::to_string(&envelope)?;
+/// Ok(CallToolResult::success(vec![Content::text(json)]))
+/// ```
+/// Also declare `output_schema = schema_for_type::<ResponseEnvelopeSchema>()` in the
+/// `#[tool]` attribute on the `prism_describe` method in `server.rs` (consistent with
+/// BC-2.09.007 requiring every tool to declare an outputSchema).
+///
+/// Note: `trust_level_for_tool("prism_describe")` must return `TrustLevel::Internal`
+/// in `prism_security::trust_level` (the tool emits Prism-generated schema data, not
+/// sensor-sourced external data — it is `"internal"` per BC-2.10.012 §Response envelope).
+#[tokio::test]
+async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trust_level_internal() {
+    let config_manager = make_config_manager_acme_crowdstrike();
+
+    // Call handle_prism_describe for a valid client — single-tenant config_manager path.
+    let result = handle_prism_describe(
+        "crowdstrike".to_string(),
+        None,
+        Some(&config_manager),
+        None, // no audit_writer
+    )
+    .await
+    .expect(
+        "BC-2.10.012 SafetyEnvelope: handle_prism_describe must return Ok for valid client; \
+         pre-condition: this test drives the envelope shape, not an error path",
+    );
+
+    // Extract the JSON body from the response content.
+    let content_json: String = result
+        .content
+        .iter()
+        .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+        .collect::<Vec<_>>()
+        .join("");
+
+    let parsed: serde_json::Value = serde_json::from_str(&content_json)
+        .expect("BC-2.10.012 SafetyEnvelope: handle_prism_describe response must be valid JSON");
+
+    // BC-2.10.012 §Response envelope — load-bearing RED GATE assertion:
+    // The response MUST carry `_meta.trust_level == "internal"`.
+    //
+    // Current production code returns a BARE PrismDescribeResponse with no `_meta` key.
+    // `parsed["_meta"]` is `null` → `as_object()` returns `None` → the first assertion
+    // fires with "response must contain '_meta' object".
+    //
+    // After the fix (SafetyEnvelopeBuilder::wrap), `_meta.trust_level` = "internal"
+    // (because `trust_level_for_tool("prism_describe")` returns TrustLevel::Internal,
+    // consistent with schema-catalog tools that emit Prism-internal data, not sensor-
+    // sourced external content).
+    let meta = parsed
+        .get("_meta")
+        .and_then(|v| v.as_object())
+        .unwrap_or_else(|| {
+            panic!(
+                "BC-2.10.012 §Response envelope RED GATE: prism_describe response MUST contain a \
+             '_meta' object (SafetyEnvelope shape). Current production code returns a BARE \
+             PrismDescribeResponse with no '_meta' key — wrap the response with \
+             SafetyEnvelopeBuilder::wrap('prism_describe', ...) to produce the envelope. \
+             Got parsed keys: {:?}",
+                parsed.as_object().map(|o| o.keys().collect::<Vec<_>>())
+            )
+        });
+
+    assert_eq!(
+        meta.get("trust_level").and_then(|v| v.as_str()),
+        Some("internal"),
+        "BC-2.10.012 §Response envelope RED GATE: _meta.trust_level MUST be 'internal' \
+         (schema-catalog data is Prism-generated, not sensor-sourced external content). \
+         Implementer: ensure trust_level_for_tool('prism_describe') returns TrustLevel::Internal \
+         in prism_security::trust_level. Got _meta: {:?}",
+        meta
+    );
+
+    // Structural completeness: the envelope must also carry `results` and `structuredContent`
+    // fields (BC-2.09.007 / BC-2.09.008 outputSchema contract).
+    assert!(
+        parsed.get("results").is_some(),
+        "BC-2.10.012 §Response envelope: SafetyEnvelope must include 'results' field; \
+         absent from current bare response. Got keys: {:?}",
+        parsed.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
+
+    assert!(
+        parsed.get("structuredContent").is_some() || parsed.get("structured_content").is_some(),
+        "BC-2.10.012 §Response envelope: SafetyEnvelope must include 'structuredContent' field; \
+         absent from current bare response. Got keys: {:?}",
+        parsed.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
+}
+
+// ─── Round-7: dispatch invalid-client_id error message (MED, BC-2.10.013 EC-10-033) ──
+
+/// Round-7 MED (BC-2.10.013 EC-10-033 — Invalid client_id in resource URI):
+/// `dispatch_read_resource` called with URI `prismql://schema/acme/../etc` (path
+/// traversal) or `prismql://schema/` (empty client_id) MUST return an MCP error
+/// whose message contains "Invalid client_id in resource URI" — NOT the generic
+/// "Unknown or unsupported resource URI" fallback.
+///
+/// BC-2.10.013 EC-10-033: "path-traversal client_id → resource error:
+/// 'Invalid client_id in resource URI'"
+///
+/// ## RED GATE: Both assertions FAIL against the current (frozen) code.
+///
+/// Current `dispatch_read_resource` in `resources.rs` (line ~479):
+/// ```rust
+/// if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
+///     if !client_id.is_empty() && !client_id.contains('/') && !client_id.contains("..") {
+///         return schema::render_pql_schema_resource(client_id, ...).await;
+///     }
+///     // Falls through silently — no else branch for invalid client_id
+/// }
+/// Err(not_found_error("Unknown or unsupported resource URI".to_string()))
+/// ```
+///
+/// When the guard condition is `false` (e.g., `client_id = "acme/../etc"` contains `..`),
+/// the code falls THROUGH to the generic `not_found_error("Unknown or unsupported resource URI")`.
+/// The error message does NOT contain "Invalid client_id in resource URI".
+///
+/// The assertion `err_msg.contains("Invalid client_id in resource URI")` FAILS:
+/// got "Unknown or unsupported resource URI" instead.
+///
+/// ## What the implementer must do
+///
+/// Add an explicit `else` branch for the invalid-client_id case inside the
+/// `prismql://schema/{client_id}` block:
+/// ```rust
+/// if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
+///     if !client_id.is_empty() && !client_id.contains('/') && !client_id.contains("..") {
+///         return schema::render_pql_schema_resource(client_id, query_engine, config_manager).await;
+///     } else {
+///         // BC-2.10.013 EC-10-033: explicit invalid-client_id error (not the generic fallthrough).
+///         // DI-006: do NOT echo the raw client_id in the error message.
+///         return Err(not_found_error(
+///             "Invalid client_id in resource URI".to_string(),
+///         ));
+///     }
+/// }
+/// ```
+#[tokio::test]
+async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_message() {
+    use prism_mcp::context::PrismContext;
+
+    let config_manager = make_config_manager_acme_crowdstrike();
+    let context = Arc::new(PrismContext::new());
+
+    // ── Case 1: path-traversal client_id ("acme/../etc") ─────────────────────────
+    //
+    // BC-2.10.013 EC-10-033: `prismql://schema/acme/../etc` must return the BC-mandated
+    // error "Invalid client_id in resource URI", NOT the generic "Unknown" fallthrough.
+    //
+    // Current dispatch: `"acme/../etc".contains("..")` is true → guard is false
+    // → falls through → `not_found_error("Unknown or unsupported resource URI")`.
+    let traversal_result = dispatch_read_resource(
+        "prismql://schema/acme/../etc",
+        &context,
+        None,
+        Some(&config_manager),
+    )
+    .await;
+
+    assert!(
+        traversal_result.is_err(),
+        "BC-2.10.013 EC-10-033: dispatch_read_resource('prismql://schema/acme/../etc') must \
+         return Err (path-traversal client_id is invalid); got Ok"
+    );
+
+    let traversal_err = traversal_result.unwrap_err();
+    let traversal_msg = traversal_err.message.to_string();
+
+    // BC-2.10.013 EC-10-033 — load-bearing RED GATE assertion:
+    // The error message MUST contain "Invalid client_id in resource URI".
+    // Current production code emits "Unknown or unsupported resource URI" — FAILS.
+    assert!(
+        traversal_msg.contains("Invalid client_id in resource URI"),
+        "BC-2.10.013 EC-10-033 RED GATE: dispatch_read_resource with path-traversal URI \
+         'prismql://schema/acme/../etc' MUST return error message containing \
+         'Invalid client_id in resource URI' (BC-canonical EC-10-033 error string). \
+         Current code falls through to the generic 'Unknown or unsupported resource URI' \
+         fallback — add an explicit else-branch returning the BC-canonical error inside \
+         the 'prismql://schema/{{client_id}}' block in dispatch_read_resource. \
+         Got error message: {:?}",
+        traversal_msg
+    );
+
+    // DI-006: the raw path-traversal payload "acme/../etc" must NOT appear in the error.
+    assert!(
+        !traversal_msg.contains("acme/../etc"),
+        "BC-2.10.013 EC-10-033 DI-006: error message MUST NOT echo the raw path-traversal \
+         client_id 'acme/../etc' (prompt-injection defense, consistent with all other error \
+         paths in dispatch_read_resource). Got error: {:?}",
+        traversal_msg
+    );
+
+    // ── Case 2: empty client_id ("prismql://schema/") ────────────────────────────
+    //
+    // BC-2.10.013 EC-10-033: empty client_id (URI ends at schema/) is also invalid.
+    // Current dispatch: `client_id = ""` → `!client_id.is_empty()` is false → guard false
+    // → falls through → "Unknown or unsupported resource URI".
+    let empty_result =
+        dispatch_read_resource("prismql://schema/", &context, None, Some(&config_manager)).await;
+
+    assert!(
+        empty_result.is_err(),
+        "BC-2.10.013 EC-10-033: dispatch_read_resource('prismql://schema/') with empty \
+         client_id must return Err; got Ok"
+    );
+
+    let empty_err = empty_result.unwrap_err();
+    let empty_msg = empty_err.message.to_string();
+
+    // BC-2.10.013 EC-10-033 — load-bearing RED GATE assertion:
+    assert!(
+        empty_msg.contains("Invalid client_id in resource URI"),
+        "BC-2.10.013 EC-10-033 RED GATE: dispatch_read_resource with empty client_id \
+         'prismql://schema/' MUST return error message containing \
+         'Invalid client_id in resource URI'. \
+         Current code falls through to the generic 'Unknown or unsupported resource URI'. \
+         Got error message: {:?}",
+        empty_msg
+    );
+}
