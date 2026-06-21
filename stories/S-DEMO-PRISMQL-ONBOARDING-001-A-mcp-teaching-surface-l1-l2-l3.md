@@ -54,7 +54,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
-version: "1.5"
+version: "1.7"
 producer: story-writer
 timestamp: "2026-06-20T00:00:00Z"
 input-hash: "TBD"
@@ -63,15 +63,15 @@ cycle: "v1.0.0-greenfield"
 epic_id: "E-5"
 # Epic E-5 (MCP Interface). Sub-story of S-DEMO-PRISMQL-ONBOARDING-001 per D-1244 decomposition.
 phase: 2
-acceptance_criteria_count: 10
-red_gate_tests: 10
+acceptance_criteria_count: 11
+red_gate_tests: 14
 tdd_mode: strict
 behavioral_contracts:
   [BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014]
 # BC array propagation (bc_array_changes_propagate_to_body_and_acs):
 # BC-2.10.009 — query_tutorial MCP Prompt + L1 tool description upgrade (cited in AC-009, AC-010)
 # BC-2.10.012 — prism_describe schema discovery tool (cited in AC-001, AC-002, AC-003, AC-004)
-# BC-2.10.013 — prismql://schema/{client_id} resource template (cited in AC-005, AC-006)
+# BC-2.10.013 — prismql://schema/{client_id} resource template (cited in AC-005, AC-006, AC-011)
 # BC-2.10.014 — prismql://reference static resource (cited in AC-007, AC-008)
 # All 4 BCs cited in at least one AC body trace (bidirectional trace satisfied).
 verification_properties: []
@@ -94,9 +94,11 @@ risk_mitigations:
      table or column names."
   - "prismql://reference content MUST be embedded via include_str! (build-time static). NOT loaded
      from filesystem at runtime. Content must be ≤3,000 tokens (~12KB)."
-crates_touched: [prism-mcp]
+crates_touched: [prism-mcp, prism-query]
 # prism-mcp: tool/resource/prompt registration (L1/L2/L3 surfaces); response envelope update
-#             for normalized_pql is owned by 001-B; this sub-story does NOT touch prism-query.
+#             for normalized_pql is owned by 001-B.
+# prism-query: ADR-042 added ArcSwap field + rebuild_resolved_spec_map() to engine.rs and
+#              arc-swap dep to Cargo.toml (D-1267 folded ADR-042 scope into this sub-story).
 anchor_bcs: [BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014]
 anchor_subsystem: ["SS-10"]
 parent_story: S-DEMO-PRISMQL-ONBOARDING-001
@@ -131,9 +133,9 @@ PrismQL queries without human hand-holding.
 
 | BC ID | Title | Key Clauses |
 |-------|-------|-------------|
-| BC-2.10.009 v1.4 | MCP Prompts for Common Workflows (Including PQL Query Tutorial) | query_tutorial prompt: 5 structural elements; DI-006 security reminder; L1 primer in query tool description |
+| BC-2.10.009 v1.5 | MCP Prompts for Common Workflows (Including PQL Query Tutorial) | query_tutorial prompt: 5 structural elements; DI-006 security reminder; L1 primer in query tool description |
 | BC-2.10.012 v1.1 | `prism_describe` Schema Discovery Tool (L2) | Always-registered; readOnlyHint: true; per-client table/column catalog; audit event on every call; DI-008 client isolation; non-existent/empty client success posture |
-| BC-2.10.013 v1.1 | `prismql://schema/{client_id}` Resource Template (L2) | RFC 6570 URI template; mimeType: "application/json"; server-side subscribe/listChanged; single-source-of-truth with prism_describe; per-client subscription scoping |
+| BC-2.10.013 v1.2 | `prismql://schema/{client_id}` Resource Template (L2) | RFC 6570 URI template; mimeType: "application/json"; server-side subscribe/listChanged; single-source-of-truth with prism_describe; per-client subscription scoping; multi-tenant hot-reload notify (EC-10-034 dual-mode: notify all per-org subscribers on resolved_spec_map rebuild; per-client scoping EC-10-029) |
 | BC-2.10.014 v1.0 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 7 required section headers; ≤3,000 tokens; build-time static via include_str!; no vendor table names in examples; text/markdown MIME |
 
 ---
@@ -143,21 +145,23 @@ PrismQL queries without human hand-holding.
 | Artifact | Estimated Tokens |
 |----------|-----------------|
 | This story spec | ~3,500 |
-| BC-2.10.009 v1.4 | ~800 |
+| BC-2.10.009 v1.5 | ~800 |
 | BC-2.10.012 v1.1 | ~1,200 |
-| BC-2.10.013 v1.1 | ~1,000 |
+| BC-2.10.013 v1.2 | ~1,000 |
 | BC-2.10.014 v1.0 | ~800 |
 | ADR-041 v1.1 (teaching surface architecture) | ~5,000 |
+| ADR-042 (reload-aware resolved_spec_map) | ~600 |
 | `crates/prism-mcp/src/server.rs` (query tool description, resource/prompt registration) | ~3,500 |
 | `crates/prism-mcp/src/tools/prism_describe.rs` (new) | ~2,500 |
 | `crates/prism-mcp/src/resources/schema.rs` (new) | ~2,000 |
 | `crates/prism-mcp/src/prompts.rs` (query_tutorial addition) | ~500 |
 | `crates/prism-mcp/src/pql_reference.md` (new — 7 sections, ≤3000 tokens) | ~3,000 |
-| Test files (10 stubs × ~50 lines each) | ~1,500 |
+| `crates/prism-query/src/engine.rs` (ADR-042: ArcSwap field + rebuild_resolved_spec_map) | ~800 |
+| Test files (14 stubs × ~50 lines each) | ~2,100 |
 | Tool outputs (nextest, clippy) | ~1,000 |
-| **Total estimate** | **~26,300** |
+| **Total estimate** | **~28,800** |
 
-At ~200k context window: ~13.2% — within the 20-30% ceiling.
+At ~200k context window: ~14.4% — within the 20-30% ceiling.
 
 ---
 
@@ -352,7 +356,7 @@ same tables array, same pql_hints.
 Red Gate: `test_BC_2_10_013_schema_resource_template_parity`
 
 ### AC-006 — prismql://schema/{client_id} subscribe/notify per-client scoping
-(traces to BC-2.10.013 postconditions — Server-side subscribe/listChanged support; EC-10-029, EC-10-030)
+(traces to BC-2.10.013 v1.2 postconditions — Server-side subscribe/listChanged support; EC-10-029 per-client scoping, EC-10-030, EC-10-034 dual-mode multi-tenant hot-reload notify)
 
 Given a client subscribes via `resources/subscribe("prismql://schema/acme")` and then a
 hot-reload adds a new CrowdStrike sensor spec for "acme",
@@ -393,7 +397,7 @@ or generic placeholders); (b) content length does not exceed 3,000 tokens (~12KB
 Red Gate: `test_BC_2_10_014_reference_resource_static_invariant`
 
 ### AC-009 — query_tutorial MCP Prompt structural elements
-(traces to BC-2.10.009 v1.4 postconditions — query_tutorial prompt spec, all structural elements)
+(traces to BC-2.10.009 v1.5 postconditions — query_tutorial prompt spec, all structural elements)
 
 Given `prompts/list` is queried,
 when the response is inspected,
@@ -409,7 +413,7 @@ then the prompt message additionally contains Step 5: "Your query goal: find cri
 Red Gate: `test_BC_2_10_009_query_tutorial_prompt`
 
 ### AC-010 — query tool description L1 primer
-(traces to BC-2.10.009 v1.4 §L1 primer spec — query tool description upgrade)
+(traces to BC-2.10.009 v1.5 §L1 primer spec — query tool description upgrade)
 
 Given `tools/list` response for the `query` tool is inspected,
 when the description is read,
@@ -420,6 +424,28 @@ the description MUST NOT contain any hardcoded vendor table name (no substring m
 `crowdstrike_`, `claroty_`, `armis_`, `cyberint_` within the skeleton section).
 
 Red Gate: `test_BC_2_10_009_l1_primer_query_tool_description`
+
+### AC-011 — Reload-aware multi-tenant schema-change notification (ADR-042 / BC-2.10.013 EC-10-034)
+(traces to BC-2.10.013 v1.2 postconditions — multi-tenant hot-reload notify EC-10-034 dual-mode; ADR-042 rebuild_resolved_spec_map)
+
+Given the QueryEngine holds a resolved_spec_map via ArcSwap (ADR-042),
+when `rebuild_resolved_spec_map()` is called after a config hot-reload adds or removes a sensor
+spec for client "acme",
+then the ArcSwap atom is updated atomically with the new resolved spec map and the prism-mcp
+subscribe/notify path receives the TableRegistry change signal and delivers
+`notifications/resources/updated` with `uri: "prismql://schema/acme"` to all subscribed clients
+within 1 second;
+when a hot-reload occurs for "globex" only,
+then subscribers to `prismql://schema/acme` receive no notification (per-client scoping EC-10-029);
+when single-tenant mode is active (resolved_spec_map ArcSwap is None),
+then the config_manager fallback path is used and subscribe/notify is not invoked (single-tenant
+mode has no hot-reload subscriber path — EC-10-034 dual-mode gate).
+
+Red Gate:
+- `test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero` (prism-query, engine.rs mod adr_042_tests)
+- `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild` (prism-query, engine.rs mod adr_042_tests)
+- `test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex` (prism-mcp, server.rs mod adr_042_tests)
+- `test_BC_ADR_042_prism_describe_reflects_post_reload_schema` (prism-mcp, server.rs mod adr_042_tests)
 
 ---
 
@@ -438,6 +464,10 @@ Red Gate: `test_BC_2_10_009_l1_primer_query_tool_description`
 | 8b | `test_BC_2_10_014_reference_resource_static_invariant` | AC-008 | prism-mcp | No vendor table names in examples section; content unchanged between reads; ≤3000 tokens |
 | 9 | `test_BC_2_10_009_query_tutorial_prompt` | AC-009 | prism-mcp | query_tutorial: all 4 required elements without goal; Step 5 absent then present with goal |
 | 10 | `test_BC_2_10_009_l1_primer_query_tool_description` | AC-010 | prism-mcp | query tool description contains DSL declaration, clause vocab, 3 skeletons with <table>, discovery pointer; no vendor names |
+| 11 | `test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero` | AC-011 | prism-query (engine.rs mod adr_042_tests) | Single-tenant rebuild is a no-op returning Ok(0); ArcSwap atom unchanged |
+| 12 | `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild` | AC-011 | prism-query (engine.rs mod adr_042_tests) | Concurrent readers hold a stable Arc snapshot during rebuild; no torn read |
+| 13 | `test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex` | AC-011 | prism-mcp (server.rs mod adr_042_tests) | Hot-reload for "globex" does NOT notify "acme" subscriber (per-client scoping); hot-reload for "acme" DOES notify "acme" subscriber |
+| 14 | `test_BC_ADR_042_prism_describe_reflects_post_reload_schema` | AC-011 | prism-mcp (server.rs mod adr_042_tests) | prism_describe response reflects newly-added column after rebuild_resolved_spec_map() completes |
 
 ---
 
@@ -450,11 +480,15 @@ Red Gate: `test_BC_2_10_009_l1_primer_query_tool_description`
 | L2 `prism_describe` tool handler | SS-10 | prism-mcp (`tools/prism_describe.rs`) | Effectful (tool call, audit event, reads column schema via `query_engine.resolved_spec_map()` or `config_manager`) |
 | L2 `prismql://schema/{client_id}` resource template | SS-10 | prism-mcp (`resources/schema.rs`) | Effectful (MCP resource, subscribe/notify) |
 | L3 `prismql://reference` static resource | SS-10 | prism-mcp (`resources/schema.rs` or `reference.rs`) | Pure (build-time static content; registration effectful) |
+| ADR-042 `rebuild_resolved_spec_map()` + ArcSwap field | SS-11 (Query Engine) | prism-query (`engine.rs`, `Cargo.toml`) | Pure (ArcSwap atomic update); effectful at call boundary |
 
-Subsystem anchor justification: SS-10 (prism-mcp, MCP Interface) owns ALL surfaces in this
-sub-story per ARCH-INDEX Subsystem Registry. No SS-11 work in this sub-story — the query-engine
-L4 work (E-QUERY-038 gate, error enrichments, normalized_pql Chumsky source) is in
-S-DEMO-PRISMQL-ONBOARDING-001-B.
+Architecture references: ADR-041 v1.1 (teaching surface), ADR-042 (reload-aware resolved_spec_map).
+
+Subsystem anchor justification: SS-10 (prism-mcp, MCP Interface) owns the L1/L2/L3 teaching
+surfaces. SS-11 (Query Engine) owns the prism-query changes mandated by ADR-042 (resolved_spec_map
+ArcSwap + rebuild method), which were folded into this sub-story per D-1267. No SS-11 query-engine
+L4 work (E-QUERY-038 gate, error enrichments, normalized_pql Chumsky source) — that remains
+in S-DEMO-PRISMQL-ONBOARDING-001-B.
 
 ---
 
@@ -503,6 +537,8 @@ MCP response envelope update (task 13 in the parent story's Tasks §Sub-burst B)
 | `near_text` truncated to ≤50 chars (DI-006) | BC-2.11.017 (sibling BC owned by 001-B) | Note: this rule applies in 001-B; referenced here for cross-sub-story awareness |
 | Forbidden: `prism-mcp` MUST NOT depend on `prism-sensors` directly | BC-2.10.012 §Forbidden dependencies | Adversary: Cargo.toml check for prism-sensors in prism-mcp deps |
 | All new `event_type=` tracing emissions require BC-2.16.002 catalog rows (SAP-1) | CLAUDE.md §SAP-1 | Adversary SAP-1 probe |
+| `rebuild_resolved_spec_map()` MUST use ArcSwap atomic store — MUST NOT use Mutex or replace the entire QueryEngine instance | ADR-042 | Adversary: grep for `Mutex` in engine.rs resolved_spec_map update path; grep for `ArcSwap` to verify field present |
+| Concurrent readers (prism_describe, schema resource) MUST hold a cloned `Arc` snapshot from ArcSwap load() for the duration of their read — MUST NOT re-load mid-read | ADR-042 §Invariant | AC-011 concurrency test |
 
 ---
 
@@ -525,7 +561,7 @@ resolves 1.7.0 in `Cargo.lock`). Do NOT invent version numbers — use workspace
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `crates/prism-mcp/src/server.rs` | Modify | (1) Upgrade `query` tool description (L1 primer); (2) register `prism_describe` tool in always-registered tier; (3) register `prismql://schema/{client_id}` resource template; (4) register `prismql://reference` static resource; (5) `enable_resources_subscribe()` in `get_info()`; (6) wire subscribe/notify via `TableRegistry` change event (table-name additions/removals trigger `notify_resource_updated`; column data for content is still read from `resolved_spec_map`) |
+| `crates/prism-mcp/src/server.rs` | Modify (adds `#[cfg(test)] mod adr_042_tests`) | (1) Upgrade `query` tool description (L1 primer); (2) register `prism_describe` tool in always-registered tier; (3) register `prismql://schema/{client_id}` resource template; (4) register `prismql://reference` static resource; (5) `enable_resources_subscribe()` in `get_info()`; (6) wire subscribe/notify via `TableRegistry` change event (table-name additions/removals trigger `notify_resource_updated`; column data for content is still read from `resolved_spec_map`); (7) AC-011 Red Gate tests live here in `mod adr_042_tests` (`test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex`, `test_BC_ADR_042_prism_describe_reflects_post_reload_schema`) |
 | `crates/prism-mcp/src/tools/prism_describe.rs` | Create | `prism_describe` tool handler; PrismDescribeResponse + TableDescriptor + ColumnDescriptor types; TableRegistry reads; audit event; example query generation |
 | `crates/prism-mcp/src/resources/schema.rs` | Create (or extend existing) | `prismql://schema/{client_id}` resource template handler + per-client subscriber registry + subscribe/unsubscribe overrides; `prismql://reference` static resource handler |
 | `crates/prism-mcp/src/pql_reference.md` | Create | Build-time static PQL grammar reference (7 sections, ≤3000 tokens); embedded via `include_str!` |
@@ -534,6 +570,8 @@ resolves 1.7.0 in `Cargo.lock`). Do NOT invent version numbers — use workspace
 | `scripts/check-non-exhaustive.sh` | Modify | `EXPECTED=82` |
 | `crates/prism-mcp/tests/mcp_prism_describe.rs` | Create | Integration tests for AC-001 through AC-006 (prism_describe + resource surface) |
 | `crates/prism-mcp/tests/mcp_reference_prompts.rs` | Create | Integration tests for AC-007 through AC-010 (reference resource + prompts + L1 primer) |
+| `crates/prism-query/src/engine.rs` | Modify (adds `#[cfg(test)] mod adr_042_tests`) | ADR-042: add ArcSwap field for resolved_spec_map; add `rebuild_resolved_spec_map()` method that atomically updates the ArcSwap atom; update `resolved_spec_map()` accessor to load from ArcSwap; AC-011 Red Gate tests live here in `mod adr_042_tests` (`test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero`, `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild`) |
+| `crates/prism-query/Cargo.toml` | Modify | ADR-042: add `arc-swap` workspace dependency |
 
 ---
 
@@ -545,7 +583,7 @@ resolves 1.7.0 in `Cargo.lock`). Do NOT invent version numbers — use workspace
 | EC-002 | BC-2.10.012 EC-10-025 | `prism_describe("acme")` — one table has zero columns | Table returned with `columns: []`; `example_query` uses count-recent fallback |
 | EC-003 | BC-2.10.012 EC-10-026 | `prism_describe("acme")` — `TableRegistry` undergoing hot-reload at call time | Returns snapshot visible at `Arc<TableRegistry>` read time via `query_engine.table_registry()`; ArcSwap ensures no partial-reload risk for the table-name set; column data read from `resolved_spec_map` which uses the same ArcSwap snapshot semantics |
 | EC-004 | BC-2.10.013 EC-10-032 | `resources/read("prismql://schema/acme")` — MCP client does not support `resources/subscribe` | Server registers template unconditionally; no subscribe calls arrive; no error |
-| EC-005 | BC-2.10.013 EC-10-034 | `resources/read("prismql://reference")` during config hot-reload | Returns build-time static content unchanged |
+| EC-005 | BC-2.10.014 | `resources/read("prismql://reference")` during config hot-reload | Returns build-time static content unchanged (prismql://reference is build-time static via include_str! — unaffected by hot-reload; BC-2.10.014 postcondition) |
 | EC-006 | BC-2.10.014 EC-10-036 | `pql_reference.md` token count exceeds 3,000 at authoring time | Trim content before commit; do not exceed ceiling |
 | EC-007 | BC-2.10.013 EC-10-033 | `resources/read("prismql://schema/acme/../etc")` (invalid URI client_id) | MCP resource error: "Invalid client_id in resource URI" |
 
@@ -595,6 +633,8 @@ cannot edit BC bodies.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | PHANTOM-ANCHOR-CORRECTION-2026-06-21 | 2026-06-21 | story-writer | POL-21 phantom-anchor defect corrected. (HIGH) Red Gate Tests table rows 11-14: replaced 4 invented ADR-042 test names (`test_BC_ADR_042_rebuild_resolved_spec_map_updates_arcswap`, `test_BC_ADR_042_arcswap_atomic_on_concurrent_read`, `test_BC_ADR_042_mcp_notify_on_spec_map_rebuild`, `test_BC_ADR_042_notify_scoped_to_subscribing_client`) with 4 ACTUAL names verified by grep at feature HEAD: `test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero` + `test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild` (engine.rs mod adr_042_tests) and `test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex` + `test_BC_ADR_042_prism_describe_reflects_post_reload_schema` (server.rs mod adr_042_tests). (HIGH) AC-011 inline Red Gate listing updated to match. (HIGH) §File Structure Requirements: removed phantom `crates/prism-query/tests/adr_042_tests.rs` (Create) and `crates/prism-mcp/tests/adr_042_mcp_tests.rs` (Create) rows — these files do not exist; ADR-042 tests live in existing `crates/prism-query/src/engine.rs` and `crates/prism-mcp/src/server.rs` as `#[cfg(test)] mod adr_042_tests`; both rows updated to "Modify (adds mod adr_042_tests)". red_gate_tests count remains 14 (4 real ADR-042 tests replace 4 invented ones — same count). |
+| 1.6 | ROUND5-CASCADE-FIXES-2026-06-20 | 2026-06-20 | story-writer | Five cross-document drift fixes from round-5 cascade. (HIGH) crates_touched updated: added prism-query (ADR-042 touched crates/prism-query/src/engine.rs + Cargo.toml per D-1267); removed "does NOT touch prism-query" comment. (HIGH) §File Structure Requirements: added prism-query engine.rs (ArcSwap field + rebuild_resolved_spec_map), Cargo.toml (arc-swap dep), and two ADR-042 test files. (HIGH) BC version labels: BC-2.10.009 v1.4→v1.5 and BC-2.10.013 v1.1→v1.2 in §Behavioral Contracts table, §Token Budget Estimate, and AC trace labels; BC-2.10.013 key-clause cell expanded with multi-tenant notify scope (EC-10-034 dual-mode + EC-10-029). (HIGH) AC-011 added: reload-aware multi-tenant schema-change notification per ADR-042/BC-2.10.013 v1.2 EC-10-034; 4 ADR-042 Red Gate tests added (test_BC_ADR_042_* Test1–Test4 in prism-query and prism-mcp); ADR-042 added to Architecture Mapping, Architecture Compliance Rules, and §File Structure. (MED) EC-005 re-anchored from BC-2.10.013 EC-10-034 to BC-2.10.014 (static-content-during-reload is a BC-2.10.014 concern, not BC-2.10.013). acceptance_criteria_count: 10→11; red_gate_tests: 10→14. |
 | 1.5 | STORY-HYGIENE-2026-06-20 | 2026-06-20 | story-writer | POL-32 changelog re-ordered to strict monotonic-descending (the v1.4 reorder was applied in the wrong direction); F-P1-MED-001/F-P3-PASS3-MED-001. Corrected v1.4 row description which incorrectly claimed ascending order was the target. No AC changes. No BC array changes. |
 | 1.4 | STORY-HYGIENE-2026-06-20 | 2026-06-20 | story-writer | Cascade hygiene fixes (F-P3-MED-001 + F-P3-LOW-001). (MED — POL-32) Changelog reordered to monotonic-descending. (LOW — TD-VSDD-091) Three volatile line-number pins converted to symbol/behavioral anchors: (1) Tasks pre-flight "server.rs lines 1735–1744" → `#[tool]` description annotation on the `query` handler; (2) Tasks Phase 1 "server.rs (~lines 1735–1744)" → same symbol anchor; (3) frontmatter REMOVE-UNCERTAINTY comment `tenant.rs:219` + `lib.rs:9` + `prompts.rs:49` + `resources.rs:651` → symbol-based anchors (`pub type TenantId = OrgSlug;` in tenant.rs, re-export in lib.rs, `client_id` validation paths in prompts.rs and resources.rs). No AC changes. No BC array changes. |
 | 1.3 | LOCAL-CASCADE-FINDINGS-2026-06-20 | 2026-06-20 | story-writer | Two LOCAL cascade findings resolved: (HIGH) story body BC version labels for BC-2.10.012 and BC-2.10.013 updated from v1.0 → v1.1 in both the §Behavioral Contracts table and §Token Budget Estimate table, reflecting the D-1263 BC v1.1 bump; (OBS) duplicate `document_type: story` frontmatter key removed (second occurrence at former line 57, keeping the canonical first occurrence). No AC changes. No BC array changes. |

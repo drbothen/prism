@@ -5,13 +5,13 @@ title: "Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-R
 status: proposed
 date: "2026-06-20"
 modified: "2026-06-20"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-10, SS-11, SS-09]
 supersedes: null
 superseded_by: null
 amends: null
-anchor_stories: [S-DEMO-PRISMQL-ONBOARDING-001-A-followup]
+anchor_stories: [S-DEMO-PRISMQL-ONBOARDING-001-A]
 related_adrs: [ADR-007, ADR-022, ADR-030, ADR-039]
 related_bcs: [BC-2.10.013, BC-2.10.012, BC-2.06.012]
 locked_decisions: [D1, D2, D3, D4]
@@ -22,10 +22,11 @@ wiring_deferred_to: null
 
 ## Status
 
-PROPOSED v1.0 (2026-06-20). Design-ready; pending implementation story creation.
+PROPOSED v1.1 (2026-06-20). Design-ready; implementation owned by S-DEMO-PRISMQL-ONBOARDING-001-A (D-1267: folded into 001-A, not a separate follow-up story). Will become ACCEPTED on merge of that story's PR.
 
 Authorized by D-1267 (human override of the deferral recommendation in
-`001-A-reload-notify-diff-adjudication.md`).
+`001-A-reload-notify-diff-adjudication.md`; also directs folding this work into
+S-DEMO-PRISMQL-ONBOARDING-001-A rather than a phantom follow-up story).
 
 ---
 
@@ -320,3 +321,4 @@ before the story PR merges.
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-20 | architect | Initial PROPOSED. D-1267 human override of deferral. ArcSwap field design, rebuild method, reload wiring, notify-diff update, BC-2.10.013 guidance. |
+| 1.1 | 2026-06-20 | architect | D-1267 anchor correction: `anchor_stories` repointed from phantom `S-DEMO-PRISMQL-ONBOARDING-001-A-followup` to real story `S-DEMO-PRISMQL-ONBOARDING-001-A`. Work was folded into 001-A per D-1267; no separate follow-up story will be created. Status text updated to reflect 001-A ownership. No technical content changed. |

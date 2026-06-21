@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -79,12 +79,13 @@ All public response types (`PrismDescribeResponse`, `TableDescriptor`, `ColumnDe
 
 ### Auto-generated example queries
 
-The `example_query` field for each table is generated from the per-client schema catalog (sourced via `resolved_spec_map` or `config_manager` as described in §Preconditions) using canonical PQL query templates instantiated with the real table name and real column names:
-- Count-recent template: `SELECT COUNT(*) FROM <table_name> WHERE timestamp > NOW() - INTERVAL '1h'`
-- If the table has a `severity` column (or equivalent): `SELECT * FROM <table_name> WHERE severity IN ('high', 'critical') LIMIT 50`
-- If the table has an aggregatable field: `SELECT <field>, COUNT(*) FROM <table_name> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10`
+The `example_query` field for each table is generated from the per-client schema catalog (sourced via `resolved_spec_map` or `config_manager` as described in §Preconditions) using canonical PQL query templates instantiated with the real table name and real column names. Template selection uses **MOST-SPECIFIC-WINS** precedence (evaluated in order; first match wins):
 
-Template selection is deterministic: the first applicable template is used. If no template applies (column set is empty or has only `Json` columns), the count-recent template is always the fallback. These examples are schema-grounded but not human-curated — they may be mechanical but they reference real column names for this client's actual tables.
+1. **Aggregate template** (highest priority) — used when the table has at least one aggregatable column (`Integer` or `Float` `ColumnType`): `SELECT <field>, COUNT(*) FROM <table_name> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10`
+2. **Severity template** — used when the table has no aggregatable column but does have a `severity` column (exact name match, any `ColumnType`): `SELECT * FROM <table_name> WHERE severity IN ('high', 'critical') LIMIT 50`
+3. **Count-recent template** (fallback) — used when neither of the above conditions is met (column set is empty, has only `Json` columns, or has no `Integer`/`Float`/`severity` columns): `SELECT COUNT(*) FROM <table_name> WHERE timestamp > NOW() - INTERVAL '1h'`
+
+Template selection is deterministic: the same table schema always produces the same `example_query`. These examples are schema-grounded but not human-curated — they may be mechanical but they reference real column names for this client's actual tables.
 
 ### `pql_hints` content
 
@@ -207,5 +208,6 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | round-5-cascade-precedence-clarification-2026-06-20 | 2026-06-20 | product-owner | Clarified §Auto-generated example queries: replaced ambiguous "first applicable template is used" with explicit MOST-SPECIFIC-WINS ordered precedence (aggregate Integer/Float column → severity column → count-recent fallback). Reordered the three template bullets to match the implementation's `build_example_query` evaluation order. Wording now unambiguously matches the implemented behavior (round-5 cascade LOW finding: example_query precedence ambiguity). |
 | 1.1 | 001-A-local-cascade-bc-correction-2026-06-20 | 2026-06-20 | product-owner | D-1259 propagation (onboarding-001-tableregistry-datapath-correction.md). Replaced fictional `Arc<dyn TableRegistry>` injection model with correct data-source model in §Description, Precondition 4, §Auto-generated example queries, §Response envelope, §Single source of truth, DI-008 invariant, EC-10-026, and §Architecture Anchors. Clarified §Audit implementer obligation: `AuditWriter` must be extended to carry `operation` + real `outcome` (not `"invoked"`); requirement not weakened (finding F-PASS2-HIGH-004 / F-P3-HIGH-002). |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L2 `prism_describe` tool contract |

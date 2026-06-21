@@ -4,7 +4,7 @@ version: "1.0"
 status: final
 producer: architect
 timestamp: 2026-06-20T00:00:00Z
-story: S-DEMO-PRISMQL-ONBOARDING-001-A (authorized deferral; this design targets the follow-up story)
+story: S-DEMO-PRISMQL-ONBOARDING-001-A
 adr: ADR-042
 decision_log: D-1267
 traces_to: [BC-2.10.013, BC-2.10.012, EC-10-029, EC-10-030]
@@ -21,9 +21,9 @@ a rebuild-and-swap method callable from the hot-reload path (prism-mcp `reload_c
 prism-bin filesystem watcher). The notify-diff in `reload_config` is updated to derive its
 per-org diff from the newly rebuilt map rather than from `config_manager.sensor_specs`.
 
-This is the implementation design produced for the follow-up story authorized in
-`001-A-reload-notify-diff-adjudication.md`. The human overrode the deferral recommendation
-on 2026-06-20 (D-1267) and directed building this immediately.
+This is the implementation design produced for S-DEMO-PRISMQL-ONBOARDING-001-A. The human
+overrode the deferral recommendation on 2026-06-20 (D-1267) and directed folding this work
+into 001-A immediately rather than creating a separate follow-up story.
 
 ---
 

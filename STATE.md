@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.898"
+version: "7.899"
 producer: state-manager
-timestamp: 2026-06-20T17:00:00Z
+timestamp: 2026-06-21T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,9 +17,9 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "f6739764"
-bc_index_version: "6.92"
+bc_index_version: "6.93"
 vp_index_version: "1.79"
-story_index_version: "v2.446"
+story_index_version: "v2.447"
 arch_index_version: "2.139"
 error_taxonomy_version: "1.91"
 total_stories: 206
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1270 (2026-06-20). 001-A ADR-042 build complete on feature HEAD 263e28ab: prism-query resolved_spec_map → ArcSwap + rebuild_resolved_spec_map; prism-mcp reload_config_core rebuild (spawn_blocking, DI-031 non-fatal) + multi-tenant notify-diff reads resolved_spec_map by OrgSlug; example_query + L1 primer templates aligned; doc-comment fixes. All 6 red tests green. just check GREEN. Gate EXPECTED=82 confirmed. SAP-1: 2 new event_types catalogued in BC-2.16.002 v1.85→v1.86 (reload.overlay_rebuild_failed WARN + reload.overlay_rebuilt INFO). BC-INDEX v6.91→v6.92. STATE v7.897→v7.898. develop_head UNCHANGED f6739764. CLAUDE.md 79→82 reconciliation PENDING at merge. NEXT = re-gate LOCAL strict-3-CLEAN round 5 on frozen 263e28ab (streak 0/3)."
+current_step: "D-1271 (2026-06-21). 001-A round-5 cascade (3 passes on 263e28ab) — all ADR-042 functional behavior verified correct; remaining findings fixed: spawn_blocking wrap of reload_config + rebuild_resolved_spec_map (feature 8b14f3ab; CLAUDE.md async-discipline + ADR-042 mandate); story footprint/version/AC drift from ADR-042 fold-in corrected (crates_touched +prism-query, BC labels BC-2.10.009 v1.5 / BC-2.10.013 v1.2, AC-011 + 4 Red Gate rows with corrected ground-truth test names, EC-005 re-anchor) story v1.5→v1.7; ADR-042 anchor repointed to 001-A (v1.1); BC-2.10.012 example precedence clarified (v1.2). Feature HEAD 8b14f3ab, just check GREEN 4666, gate 82. BC-INDEX v6.92→v6.93. STORY-INDEX v2.446→v2.447. STATE v7.898→v7.899. develop_head UNCHANGED f6739764. CLAUDE.md 79→82 reconciliation STILL PENDING at merge. NEXT = re-gate LOCAL strict-3-CLEAN round 6 on frozen 8b14f3ab (streak 0/3)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-20 (D-1270 SAP-1 BC-2.16.002 v1.86 reload-overlay catalog sync + D-1269 BC-2.10.013 v1.2 ADR-042; BC-INDEX v6.92; STATE v7.898)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-21 (D-1271 001-A round-5 fix-burst spec artifacts; BC-INDEX v6.93; STORY-INDEX v2.447; STATE v7.899)
 
 ## Active Objective (North Star)
 
@@ -113,6 +113,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log._
+| D-1271 | state-manager | 2026-06-21 | **001-A ROUND-5 FIX-BURST SPEC ARTIFACTS (TD-VSDD-053 single-commit). 3 passes on 263e28ab — all ADR-042 functional behavior correct; remaining findings fixed: spawn_blocking wrap of reload_config + rebuild_resolved_spec_map (feature 8b14f3ab; CLAUDE.md async-discipline + ADR-042 mandate); story footprint/version/AC drift corrected (crates_touched +prism-query; BC labels BC-2.10.009 v1.5 / BC-2.10.013 v1.2; BC-2.10.013 key-clause multi-tenant; AC-011 added; 4 ADR-042 Red Gate rows with corrected ground-truth test names/locations; EC-005 re-anchored to BC-2.10.014; phantom test names corrected); story v1.5→v1.7. ADR-042 v1.0→v1.1 (anchor_stories → 001-A; D-1267 note folded-in). resolved-spec-map-reload-aware-design.md story ref corrected. BC-2.10.012 v1.1→v1.2 (example_query precedence → MOST-SPECIFIC-WINS). Feature HEAD 8b14f3ab, just check GREEN 4666 tests, gate 82. BC-INDEX v6.92→v6.93. STORY-INDEX v2.446→v2.447. STATE v7.898→v7.899. develop_head UNCHANGED f6739764. CLAUDE.md 79→82 reconciliation STILL PENDING at merge. NEXT = re-gate LOCAL strict-3-CLEAN round 6 on frozen 8b14f3ab (streak 0/3).** | wave-5-e-demo-fidelity | 2026-06-21 |
 | D-1270 | state-manager | 2026-06-20 | **SAP-1 CATALOG SYNC — BC-2.16.002 v1.86 (TD-VSDD-053 single-commit). 2 new catalog rows for `rebuild_resolved_spec_map` ADR-042 hot-reload overlay emissions: `reload.overlay_rebuild_failed` WARN (error_count; DI-031 non-fatal; ADR-042 + BC-2.10.013) + `reload.overlay_rebuilt` INFO (overlay_count; ArcSwap confirmed; ADR-042 + BC-2.10.013). Scope extended to prism-query hot-reload. Catalog count 80→82; label v1.51→v1.52. BC-INDEX v6.91→v6.92. STATE v7.897→v7.898. develop_head UNCHANGED f6739764. NEXT = re-gate LOCAL strict-3-CLEAN on frozen 263e28ab (streak 0/3).** | wave-5-e-demo-fidelity | 2026-06-20 |
 | D-1269 | state-manager | 2026-06-20 | **BC-2.10.013 v1.2 — ADR-042 MULTI-TENANT UPDATE (TD-VSDD-053 single-commit). BC-2.10.013 v1.1→v1.2: product-owner updated BC to cover multi-tenant hot-reload per ADR-042. EC-10-029 expanded from single-tenant to multi-tenant (reload-triggered `resolved_spec_map` rebuild via ArcSwap); EC-10-034 added; subscribe item 2 broadened to hot-reload-triggered resolved_spec_map rebuild; ADR-042 anchor added; changelog row added. Feature HEAD 750fef94 (test-writer wrote 4 ADR-042 red tests: rebuild_resolved_spec_map + ArcSwap field + multi-tenant notify + prism_describe freshness — all fail, missing API). BC-INDEX v6.90→v6.91. develop_head UNCHANGED f6739764. STATE v7.896→v7.897.** | wave-5-e-demo-fidelity | 2026-06-20 |
 | D-1267 | state-manager | 2026-06-20 | **001-A ROUND-4 PHASE-1 ARTIFACTS + D-1267 BUILD-NOW DECISION (TD-VSDD-053 single-commit). Round-4 cascade (3 passes on 7b90cc94): all CRITICALs confirmed solid. Phase-1 artifacts: story v1.4→v1.5 (§Changelog reordered strictly monotonic-descending 1.5→1.0 per POL-32 [F-P1-MED-001]); BC-2.10.009 v1.4→v1.5 (EC-10-019 goal-quoting reconciled labeled-unquoted per AC-009/impl [F-P4P2-LOW-001]); adjudication doc committed (analysis record; defer recommendation OVERRIDDEN by human). HUMAN DECISION D-1267: multi-tenant schema-change notify-diff gap (org-slug != sensor-id + hot-reload) BUILT NOW in 001-A — NOT deferred — overriding architect's defer-to-follow-up recommendation. This requires making `resolved_spec_map` RELOAD-AWARE (rebuild on hot-reload) across prism-query/prism-spec-engine/prism-bin/prism-mcp, changing the documented boot-frozen invariant. Warrants an ADR. Adjudication doc: `.factory/specs/architecture/scoping/001-A-reload-notify-diff-adjudication.md`. STORY-INDEX v2.445→v2.446 (001-A v1.4→v1.5). BC-INDEX v6.89→v6.90 (BC-2.10.009 v1.4→v1.5). develop_head UNCHANGED f6739764. STATE v7.894→v7.895.** | wave-5-e-demo-fidelity | 2026-06-20 |
@@ -348,16 +349,16 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1270 — 2026-06-20; STATE v7.898)
+## Session Resume Checkpoint (D-1271 — 2026-06-21; STATE v7.899)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1270** (authoritative zero-context restart source; supersedes D-1269).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1271** (authoritative zero-context restart source; supersedes D-1270).
 
-**STATE v7.898. CURRENT POSITION: D-1270 SAP-1 BC-2.16.002 v1.86 (reload-overlay catalog sync committed). BC-INDEX v6.92. ARCH-INDEX v2.139. Feature HEAD 263e28ab (ADR-042 build COMPLETE — all 6 red tests green; just check GREEN; gate EXPECTED=82 confirmed). develop_head UNCHANGED f6739764. NO OPEN PRs. total_stories 206. ci.yml EXPECTED=82 (001-A feature branch; develop still 79 until merge). bc_index_version 6.92. story_index_version v2.446. arch_index_version 2.139. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=79 (PENDING 79→82 reconciliation at 001-A merge-time). draft_contracts 8. active_contracts 235 UNCHANGED.**
+**STATE v7.899. CURRENT POSITION: D-1271 round-5 fix-burst spec artifacts committed. BC-INDEX v6.93. ARCH-INDEX v2.139. Feature HEAD 8b14f3ab (round-5 fix-burst COMPLETE — spawn_blocking + story v1.7 + ADR-042 v1.1 + BC-2.10.012 v1.2; just check GREEN 4666 tests; gate EXPECTED=82 confirmed). develop_head UNCHANGED f6739764. NO OPEN PRs. total_stories 206. ci.yml EXPECTED=82 (001-A feature branch; develop still 79 until merge). bc_index_version 6.93. story_index_version v2.447. arch_index_version 2.139. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=79 (PENDING 79→82 reconciliation at 001-A merge-time). draft_contracts 8. active_contracts 235 UNCHANGED.**
 
-**DEMO-BLOCKING STATUS:** PIVOT-003 (**MERGED PR #196 develop@f6739764** — DONE) + **001-A (ADR-042 build DONE @263e28ab; FROZEN for LOCAL strict-3-CLEAN re-gate streak 0/3)** + **001-B (v1.2, TDD-READY; serial after 001-A)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-A + 001-B)**. T13 gated on S-5.04 + 001-A + 001-B all MERGED (3 remaining).
+**DEMO-BLOCKING STATUS:** PIVOT-003 (**MERGED PR #196 develop@f6739764** — DONE) + **001-A (round-5 DONE @8b14f3ab; FROZEN for LOCAL strict-3-CLEAN re-gate round 6 streak 0/3)** + **001-B (v1.2, TDD-READY; serial after 001-A)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-A + 001-B)**. T13 gated on S-5.04 + 001-A + 001-B all MERGED (3 remaining).
 
 **NEXT PICKABLE TASKS:**
-- adversary: LOCAL strict-3-CLEAN re-gate on frozen feature/S-DEMO-PRISMQL-ONBOARDING-001-A HEAD 263e28ab (streak 0/3)
+- adversary: LOCAL strict-3-CLEAN re-gate round 6 on frozen feature/S-DEMO-PRISMQL-ONBOARDING-001-A HEAD 8b14f3ab (streak 0/3)
 - CLAUDE.md count 79→82 reconciliation at 001-A merge-time
 
 **RESUME PROTOCOL (zero prior context):**
