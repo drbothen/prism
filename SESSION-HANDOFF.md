@@ -1,28 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.895"
+version: "7.896"
 status: current
-timestamp: 2026-06-20T14:00:00Z
+timestamp: 2026-06-20T15:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1267 (2026-06-20): 001-A round-4 phase-1 artifacts committed. story v1.4→v1.5 (§Changelog POL-32 reorder [F-P1-MED-001]). BC-2.10.009 v1.4→v1.5 (goal-quoting reconciled [F-P4P2-LOW-001]). Adjudication doc committed (001-A-reload-notify-diff-adjudication.md). HUMAN DECISION D-1267: multi-tenant notify-diff BUILT NOW in 001-A — resolved_spec_map RELOAD-AWARE 4-crate build OVERRIDES architect defer recommendation. STORY-INDEX v2.446. BC-INDEX v6.90. STATE v7.894→v7.895. §RESUME SNAPSHOT D-1267 authored (supersedes D-1266).**
+> **D-1268 (2026-06-20): ADR-042 PROPOSED (resolved_spec_map reload-aware via ArcSwap). ARCH-INDEX v2.138→v2.139 (ADR-042 row). Per-crate design doc committed (scoping/resolved-spec-map-reload-aware-design.md). STATE v7.895→v7.896. §RESUME SNAPSHOT D-1268 authored (supersedes D-1267).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1267** (authoritative zero-context restart protocol; supersedes D-1266). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1266 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1267 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.895.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1268** (authoritative zero-context restart protocol; supersedes D-1267). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1267 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1268 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.896.
 
 ---
 
-## §RESUME SNAPSHOT — D-1267 (2026-06-20 — 001-A round-4 phase-1 artifacts; story v1.5; BC-2.10.009 v1.5; adjudication doc committed; D-1267 BUILD-NOW decision; STORY-INDEX v2.446; BC-INDEX v6.90; develop_head f6739764 UNCHANGED; STATE v7.895)
+## §RESUME SNAPSHOT — D-1268 (2026-06-20 — ADR-042 PROPOSED; ARCH-INDEX v2.139; per-crate design committed; STATE v7.896; develop_head f6739764 UNCHANGED)
 
-> **D-1267 burst (2026-06-20).** Round-4 cascade (3 passes on 7b90cc94): all CRITICALs (AC-006 production wiring, lock-poison Mutex, AC-003 hints) confirmed solid. Phase-1 artifacts committed: (1) story v1.4→v1.5 — §Changelog reordered correctly to strict monotonic-descending 1.5→1.0 per POL-32 [F-P1-MED-001]; (2) BC-2.10.009 v1.4→v1.5 — EC-10-019 goal-quoting reconciled to labeled-unquoted per AC-009/impl [F-P4P2-LOW-001]; (3) architect adjudication doc committed (analysis record — defer recommendation OVERRIDDEN by human). HUMAN DECISION D-1267: multi-tenant schema-change notify-diff gap (org-slug != sensor-id + hot-reload) will be BUILT NOW in 001-A — NOT deferred — overriding architect's defer-to-follow-up recommendation. This requires making `resolved_spec_map` RELOAD-AWARE (rebuild on hot-reload) across prism-query/prism-spec-engine/prism-bin/prism-mcp, changing the documented boot-frozen invariant. Warrants an ADR. Feature branch `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` STILL FROZEN @7b90cc94. NEXT = architect ADR → PO updates BC-2.10.013 → test-writer multi-tenant notify test → implementer 4-crate build + example_query/doc fixes → re-gate LOCAL strict-3-CLEAN. develop_head UNCHANGED f6739764.
+> **D-1268 burst (2026-06-20).** ADR-042 PROPOSED: `resolved_spec_map` made reload-aware via ArcSwap (AD-007 pattern). Field type changes `Option<Arc<HashMap>>` → `Option<Arc<ArcSwap<HashMap>>>` in prism-query; new `rebuild_resolved_spec_map` pub method; `reload_config_core` in prism-mcp calls rebuild+swap after ConfigSnapshot swap; notify-diff switches to org-slug-keyed lookup from rebuilt map; `arc-swap = "1"` dep added to prism-query/Cargo.toml; prism-spec-engine + prism-bin unchanged. Artifacts committed: ADR-042 (decisions/ADR-042-resolved-spec-map-reload-aware-arcswap.md) + per-crate design doc (scoping/resolved-spec-map-reload-aware-design.md). ARCH-INDEX v2.138→v2.139 (ADR-042 row). Feature branch `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` STILL FROZEN @7b90cc94. NEXT = PO updates BC-2.10.013 (remove single-tenant limitation, add EC-10-034, ref ADR-042) → test-writer writes 4 multi-tenant tests → implementer 4-crate change + example_query/doc fixes → re-gate LOCAL strict-3-CLEAN on new HEAD. develop_head UNCHANGED f6739764.
 
-### ZERO-CONTEXT RESTART PROTOCOL D-1267 (run in this order; no prior context needed)
+### ZERO-CONTEXT RESTART PROTOCOL D-1268 (run in this order; no prior context needed)
 
-**Step 0.** Read this D-1267 snapshot first. It is authoritative.
+**Step 0.** Read this D-1268 snapshot first. It is authoritative.
 
 **Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING.
 
@@ -32,7 +32,7 @@ timestamp: 2026-06-20T14:00:00Z
 git log --oneline -1 origin/develop
 ```
 
-Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1265/D-1266/D-1267).
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1265/D-1266/D-1267/D-1268).
 
 **Step 3.** Confirm no open PRs:
 
@@ -52,7 +52,7 @@ Expected: `7b90cc94`. Branch is FROZEN — no pushes until multi-tenant notify b
 
 **Step 5.** Apply carry-forward: lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md` + DO-NOT-REFLAG entries from §DO-NOT-REFLAG below.
 
-**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1267 below: architect ADR (resolved_spec_map-reload-aware) → PO updates BC-2.10.013 multi-tenant notify coverage → test-writer multi-tenant notify test (org != sensor) → implementer 4-crate build + example_query/doc fixes → re-gate LOCAL strict-3-CLEAN on new HEAD (streak resets on push). Autonomy D-989+D-1090 active.
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1268 below: PO updates BC-2.10.013 (multi-tenant notify coverage, add EC-10-034, ref ADR-042) → test-writer writes 4 multi-tenant tests → implementer 4-crate change + example_query/doc fixes → re-gate LOCAL strict-3-CLEAN on new HEAD (streak resets on push). Autonomy D-989+D-1090 active.
 
 ---
 
@@ -75,29 +75,30 @@ Expected: `7b90cc94`. Branch is FROZEN — no pushes until multi-tenant notify b
 | CLAUDE.md non-exhaustive count | `79` (on develop) | 79→82 reconciliation PENDING at 001-A merge-time. |
 | BC-INDEX | **v6.90** | active 235 / draft 8 / retired 6 / total 256. BC-2.10.009 v1.4→v1.5 (D-1267). |
 | STORY-INDEX | **v2.446** | 206 stories. 001-A row updated v1.4→v1.5 (D-1267). |
-| STATE.md | v7.895 | D-1267 burst. |
+| STATE.md | v7.896 | D-1268 burst. |
 | error_taxonomy | v1.91 | Unchanged. |
-| arch_index | v2.138 | Unchanged. |
+| arch_index | v2.139 | D-1268 ADR-042 row inserted. |
 | vp_index | v1.79 | Unchanged. |
 | active_contracts | 235 | Unchanged. |
 | draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
 
 ---
 
-### WHAT'S DONE THIS BURST (D-1267)
+### WHAT'S DONE THIS BURST (D-1268)
 
 | Decision | Date | Summary |
 |----------|------|---------|
+| D-1268 (2026-06-20) | ADR-042 PROPOSED: resolved_spec_map reload-aware via ArcSwap (AD-007). Field type → Option<Arc<ArcSwap<HashMap>>>; rebuild_resolved_spec_map pub method; reload_config_core rebuild+swap wiring; notify-diff org-slug-keyed; arc-swap dep in prism-query. ARCH-INDEX v2.138→v2.139 (ADR-042 row). STATE v7.895→v7.896. develop_head UNCHANGED f6739764. |
 | D-1267 (2026-06-20) | 001-A round-4 phase-1 artifacts + BUILD-NOW decision. Round-4 cascade (3 passes on 7b90cc94): all CRITICALs confirmed solid. Phase-1 fixes: story v1.4→v1.5 (§Changelog POL-32 monotonic-descending reorder [F-P1-MED-001]); BC-2.10.009 v1.4→v1.5 (goal-quoting reconciled labeled-unquoted [F-P4P2-LOW-001]); adjudication doc committed (analysis record). HUMAN DECISION: multi-tenant notify-diff BUILT NOW in 001-A (resolved_spec_map RELOAD-AWARE 4-crate build) — overrides architect defer recommendation. Adjudication doc: specs/architecture/scoping/001-A-reload-notify-diff-adjudication.md. STORY-INDEX v2.445→v2.446. BC-INDEX v6.89→v6.90. develop_head UNCHANGED f6739764. STATE v7.894→v7.895. |
 | D-1266 (2026-06-20) | 001-A round-3 fix-burst hygiene. Round-3 LOCAL cascade (3 passes on 43b92216) VERIFIED AC-006 wiring end-to-end (3x-recurring CRITICAL CLOSED). Fixes: AC-003 unknown-client hint (org_registry.slug_exists consult) @5d1a2bfb; 5 SchemaSubscriberRegistry Mutex poison-tolerance conversions @7b90cc94; story v1.3→v1.4 (§Changelog monotonic reorder + TD-VSDD-091 pin removal). Feature HEAD 7b90cc94. just check GREEN 4660 tests, gate 82. STORY-INDEX v2.444→v2.445. develop_head UNCHANGED f6739764. STATE v7.893→v7.894. |
 
 ---
 
-### WHAT'S NEXT — Demo Roadmap (D-1267)
+### WHAT'S NEXT — Demo Roadmap (D-1268)
 
 | Priority | Story | Status | Pts | Hard Prerequisites | Notes |
 |----------|-------|--------|-----|--------------------|-------|
-| **NEXT (D-1267 build sequence)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **round-4 phase-1 artifacts COMMITTED — multi-tenant notify build NEXT** | 7 | architect ADR → PO BC-2.10.013 update → test-writer → implementer 4-crate | Sequence: (1) architect: ADR for resolved_spec_map-reload-aware design across 4 crates; (2) PO: update BC-2.10.013 to cover multi-tenant notify (org != sensor); (3) test-writer: multi-tenant notify test; (4) implementer: 4-crate fix (prism-query/prism-spec-engine/prism-bin/prism-mcp) + example_query/doc fixes; (5) re-gate LOCAL strict-3-CLEAN on new HEAD. DEMO-BLOCKING. Serial first. |
+| **NEXT (D-1268 build sequence)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **ADR-042 COMMITTED — BC+test+impl NEXT** | 7 | PO BC-2.10.013 update → test-writer 4 tests → implementer 4-crate | Sequence: (1) PO: update BC-2.10.013 (remove single-tenant limitation, add EC-10-034, ref ADR-042); (2) test-writer: 4 multi-tenant tests (Test 1 notify org!=sensor, Test 2 prism_describe freshness, Test 3 single-tenant no-op, Test 4 snapshot isolation); (3) implementer: 4-crate change (prism-query field+method, prism-query arc-swap dep, prism-mcp reload_config_core rebuild+notify-diff) + example_query/doc fixes; (4) re-gate LOCAL strict-3-CLEAN on new HEAD. DEMO-BLOCKING. Serial first. |
 | **NEXT-B (after 001-A merge)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | 001-A MERGED | **DEMO-BLOCKING (D-1243).** Serial after 001-A. |
 | **NEXT-C (after 001-A + 001-B merge)** | **S-5.04** | not-started v1.9 (**UNPARKED; probe_table FOLDED IN — D-1262**) | 5+ | 001-A/001-B MERGED + PO authors BC-2.08.001/BC-2.16.009/E-SPEC-026 | F-S504-R2-002 MED + LOW/OBS remain + probe_table scope added. **DEMO-BLOCKING.** |
 | **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |

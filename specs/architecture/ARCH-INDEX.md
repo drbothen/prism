@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.138"
+version: "2.139"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -108,6 +108,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-039 | Org-Scoped TableRegistry Error Filtering — Filter E-QUERY-037 available_sensors/available_tables to Requesting Org's Registered Tables (SEC-001/CWE-200 fix) | ACCEPTED v1.1 | 2026-06-16 | decisions/ADR-039-org-scoped-table-registry-error-filtering.md |
 | ADR-040 | Dual-Path Infusion Architecture — HttpLookup (Declarative TOML) vs WASM Plugin; NVD via HttpLookup, ThreatIntel via WASM; Host-Decode Val Lift for .prx Plugins | ACCEPTED v2.0 | 2026-06-17 | decisions/ADR-040-wasm-infusion-plugin-host-decode-path.md |
 | ADR-041 | PrismQL LLM Auto-Onboarding — 4-Layer Teaching Surface for Automatic Agent Query Authoring | PROPOSED v1.1 | 2026-06-19 | decisions/ADR-041-prismql-llm-auto-onboarding-4-layer-teaching-surface-for-automatic-agent-query-authoring.md |
+| ADR-042 | Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild | PROPOSED v1.0 | 2026-06-20 | decisions/ADR-042-resolved-spec-map-reload-aware-arcswap.md |
 
 ## Architecture Decisions
 
@@ -167,6 +168,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.139 | ADR-042-reload-aware-design-D1267 | 2026-06-20 | architect | D-1267 human override of 001-A deferral — build multi-tenant schema-change notification now. **ADR-042 PROPOSED v1.0** registered: Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild. Decisions: D1 field type changed to `Option<Arc<ArcSwap<HashMap>>>`, D2 public accessor return type unchanged, D3 new `rebuild_resolved_spec_map` method, D4 rebuild wired in `reload_config_core`, D5 per-org notify-diff updated. Crates affected: prism-query (new arc-swap dep + field change + method), prism-mcp (reload wiring + notify-diff). Implementer design spec at `scoping/resolved-spec-map-reload-aware-design.md`. BC-2.10.013 update guidance + test vectors included. ARCH-INDEX v2.138→v2.139. |
 | 2.138 | ADR-041-design-burst-D1241 | 2026-06-19 | state-manager | D-1241 PrismQL LLM-onboarding design package. **ADR-041 v1.0→v1.1:** PROPOSED; echo-planned-PQL (OPD-1) ADOPTED in v1 (`normalized_pql` field); subscribe/notify net-new machinery (not existing precedent); version pins confirmed (rmcp 1.7, strsim 0.11, chumsky 0.12.0); 4 subsystem anchors SS-10/SS-11. ADR Registry row updated PROPOSED v1.0→v1.1. ARCH-INDEX v2.137→v2.138. |
 | 2.137 | wave-5-e-demo-fidelity-D1211-state-burst | 2026-06-17 | state-manager | D-1211 resume-session cascade round-2 + dual-path infusion architecture. **ADR-040 v1.0→v2.0 ratified (D-1211 user 2026-06-17):** Dual-path infusion architecture — InfusionType::HttpLookup (declarative TOML, reuses pipeline.rs) for simple HTTP enrichment + InfusionType::Plugin (WASM .prx) for complex polymorphic sources. NVD → HttpLookup; ThreatIntel → WASM (polymorphic ip/domain/hash). NVD plugin crate to be removed. ADR-040 registry row updated to v2.0 / ACCEPTED. **infusions.md v1.1→v1.2:** HttpLookup tier added to tier table; NVD TOML example per dual-path ratification; Document Map row updated v1.2. **error-taxonomy v1.87→v1.88:** E-INFUSE-009/010/011 registered (HttpLookup failure cascade); E-PLUGIN-023 updated; http_lookup variant added to E-INFUSE-004 valid-types. **BC spec work:** BC-2.08.005 v1.4→v1.5 (two-phase probe: S-5.03 spec-only null / S-5.04 live); BC-2.10.008 v1.7→v1.8 (DI-008 client-scoping + api_base_url required); BC-2.08.009 v1.3→v1.4 (AC-10 unregistered_table_queries relocation to S-5.08). ARCH-INDEX v2.136→v2.137. |
 | 2.136 | S-DEMO-ENRICHMENT-PIVOT-002-ADR-040 | 2026-06-17 | architect | **ADR-040 ACCEPTED v1.0** — WASM Infusion Plugin Host-Decode Path. Closes F-001 CRIT (enrich_single Component Model path passes Val::S32(0) and discards results, returning Ok(None) unconditionally). Decisions: D1 WIT contract unchanged (prism-infusion-plugin.wit is correct), D2 Val lift strategy (Val::String params + Val::Option result lift + interface-instance export resolution), D3 wit_bindgen::generate! guest strategy for prism-threatintel-infusion and prism-nvd-infusion, D4 Justfile build pipeline, D5 PluginError::EnrichCallFailed E-PLUGIN-023 + InfusionError::PluginCallFailed E-INFUSE-008 error variants, D6 validate_plugin_ref_path wiring point (CWE-22/AC-011). Scope boundary confirmed: all 5 items buildable in-scope for PIVOT-002 under production-grade default. ADR-040 row registered in ADR Registry. ARCH-INDEX v2.135→v2.136. |
