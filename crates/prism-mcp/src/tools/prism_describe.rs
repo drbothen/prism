@@ -206,7 +206,13 @@ pub async fn handle_prism_describe(
     // single-tenant / test scenarios (same pattern as render_client_sensors_resource).
     let tables = build_tables_for_client(org_slug.as_str(), query_engine, config_manager);
 
-    let pql_hints = build_pql_hints(org_slug.as_str(), &tables);
+    // BC-2.10.012 §Non-existent client_id handling: when tables are empty,
+    // consult org_registry (from query_engine) to distinguish two cases:
+    //   - registered-but-empty: org is in OrgRegistry, no sensor overlays
+    //   - not-registered: org is absent from OrgRegistry entirely
+    let org_registry: Option<std::sync::Arc<prism_core::OrgRegistry>> =
+        query_engine.and_then(|qe| qe.org_registry());
+    let pql_hints = build_pql_hints(org_slug.as_str(), &tables, org_registry.as_deref());
 
     let response = PrismDescribeResponse {
         client_id: org_slug.as_str().to_string(),
@@ -347,11 +353,51 @@ fn build_tables_for_client(
 }
 
 /// Build pql_hints for the response based on the discovered tables.
-fn build_pql_hints(client_id: &str, tables: &[TableDescriptor]) -> Vec<String> {
+///
+/// When `tables` is empty and `org_registry` is provided, consults the registry to
+/// distinguish two cases (BC-2.10.012 §Non-existent client_id handling):
+///
+/// - Registered-but-empty (org_registry KNOWS the slug, zero sensor overlays):
+///   `"No sensor tables are available for client '<client_id>'. The client may not have any sensor overlays configured."`
+///
+/// - Not-registered (slug absent from org_registry entirely):
+///   `"Client '<client_id>' is not registered. Check prism.toml [[orgs]] configuration."`
+///
+/// When `org_registry` is None (single-tenant / config_manager-only path), uses the
+/// registered-but-empty hint by default (no registry available to distinguish).
+fn build_pql_hints(
+    client_id: &str,
+    tables: &[TableDescriptor],
+    org_registry: Option<&prism_core::OrgRegistry>,
+) -> Vec<String> {
     if tables.is_empty() {
+        // Consult org_registry when available (multi-tenant path) to distinguish
+        // registered-but-empty from not-registered (BC-2.10.012).
+        if let Some(registry) = org_registry {
+            // client_id was validated by OrgSlug::new earlier in handle_prism_describe,
+            // so new() here will always produce a valid slug. We use new() directly
+            // (returns OrgSlug with is_ok()/is_err() semantics, not Result).
+            let slug = prism_core::OrgSlug::new(client_id);
+            if slug.is_ok() {
+                if registry.slug_exists(&slug) {
+                    // Registered in OrgRegistry but no sensor overlays.
+                    return vec![format!(
+                        "No sensor tables are available for client '{client_id}'. \
+                         The client may not have any sensor overlays configured."
+                    )];
+                } else {
+                    // Not registered in OrgRegistry at all.
+                    return vec![format!(
+                        "Client '{client_id}' is not registered. \
+                         Check prism.toml [[orgs]] configuration."
+                    )];
+                }
+            }
+        }
+        // Single-tenant fallback (no registry): use the registered-but-empty hint.
         vec![format!(
             "No sensor tables are available for client '{client_id}'. \
-             Ensure sensors are configured and the client_id is correct."
+             The client may not have any sensor overlays configured."
         )]
     } else {
         vec![
