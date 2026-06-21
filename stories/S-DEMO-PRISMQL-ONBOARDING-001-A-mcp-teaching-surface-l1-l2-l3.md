@@ -54,8 +54,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
-document_type: story
-version: "1.2"
+version: "1.3"
 producer: story-writer
 timestamp: "2026-06-20T00:00:00Z"
 input-hash: "TBD"
@@ -133,8 +132,8 @@ PrismQL queries without human hand-holding.
 | BC ID | Title | Key Clauses |
 |-------|-------|-------------|
 | BC-2.10.009 v1.4 | MCP Prompts for Common Workflows (Including PQL Query Tutorial) | query_tutorial prompt: 5 structural elements; DI-006 security reminder; L1 primer in query tool description |
-| BC-2.10.012 v1.0 | `prism_describe` Schema Discovery Tool (L2) | Always-registered; readOnlyHint: true; per-client table/column catalog; audit event on every call; DI-008 client isolation; non-existent/empty client success posture |
-| BC-2.10.013 v1.0 | `prismql://schema/{client_id}` Resource Template (L2) | RFC 6570 URI template; mimeType: "application/json"; server-side subscribe/listChanged; single-source-of-truth with prism_describe; per-client subscription scoping |
+| BC-2.10.012 v1.1 | `prism_describe` Schema Discovery Tool (L2) | Always-registered; readOnlyHint: true; per-client table/column catalog; audit event on every call; DI-008 client isolation; non-existent/empty client success posture |
+| BC-2.10.013 v1.1 | `prismql://schema/{client_id}` Resource Template (L2) | RFC 6570 URI template; mimeType: "application/json"; server-side subscribe/listChanged; single-source-of-truth with prism_describe; per-client subscription scoping |
 | BC-2.10.014 v1.0 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 7 required section headers; ≤3,000 tokens; build-time static via include_str!; no vendor table names in examples; text/markdown MIME |
 
 ---
@@ -145,8 +144,8 @@ PrismQL queries without human hand-holding.
 |----------|-----------------|
 | This story spec | ~3,500 |
 | BC-2.10.009 v1.4 | ~800 |
-| BC-2.10.012 v1.0 | ~1,200 |
-| BC-2.10.013 v1.0 | ~1,000 |
+| BC-2.10.012 v1.1 | ~1,200 |
+| BC-2.10.013 v1.1 | ~1,000 |
 | BC-2.10.014 v1.0 | ~800 |
 | ADR-041 v1.1 (teaching surface architecture) | ~5,000 |
 | `crates/prism-mcp/src/server.rs` (query tool description, resource/prompt registration) | ~3,500 |
@@ -596,4 +595,5 @@ cannot edit BC bodies.
 |---------|-------|------|--------|--------|
 | 1.0 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | Initial sub-story decomposition — split from S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) per D-1244 §Parallel Execution Plan. Covers L1+L2+L3 MCP surfaces (prism-mcp only). 4 BCs: BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014. 10 ACs + 10 Red Gate tests. 7 pts. Pipelines behind S-5.04 for crate-conflict avoidance. |
 | 1.1 | REMOVE-UNCERTAINTY-2026-06-20 | 2026-06-20 | research-agent | D-1110 REMOVE-UNCERTAINTY pass. Applied 2 low-risk codebase-validated corrections in Tasks Phase 2: (E1) `TenantId::new()` → `OrgSlug::new()` (TenantId is a deprecated alias removed in Wave 4; all sibling validators use OrgSlug); (E2) `ColumnDescriptor.type: ColumnType` → `prism_core::column::ColumnType` (disambiguated from the internal `types::ColumnType`/`InternalColumnType` per CLAUDE.md §Conventions). Report: `.factory/research/remove-uncertainty/S-DEMO-PRISMQL-ONBOARDING-001-A.md`. THREE items FLAGGED for specialist routing (NOT auto-edited): R1 (CRITICAL — `Arc<dyn TableRegistry>` injection model is fictional; TableRegistry is a concrete `#[non_exhaustive]` struct accessed via `query_engine.table_registry()`, PrismServer has no TableRegistry field → architect + story-writer + product-owner); R2 (HIGH — column schema data source is the spec layer `ConfigManager`/`resolved_spec_map`, not TableRegistry which holds only table-name strings; read path is NOT NET-NEW → architect + story-writer); R3 (INFO — pre-existing BC-2.11.001 micro-edit + 001-A/001-B merge sequencing → product-owner + orchestrator). rmcp 1.7 subscribe/notify API surface VALIDATED feasible (Context7): subscribe/unsubscribe ServerHandler overrides, notify_resource_updated, ResourceUpdatedNotificationParam, enable_resources_subscribe all confirmed real. |
+| 1.3 | LOCAL-CASCADE-FINDINGS-2026-06-20 | 2026-06-20 | story-writer | Two LOCAL cascade findings resolved: (HIGH) story body BC version labels for BC-2.10.012 and BC-2.10.013 updated from v1.0 → v1.1 in both the §Behavioral Contracts table and §Token Budget Estimate table, reflecting the D-1263 BC v1.1 bump; (OBS) duplicate `document_type: story` frontmatter key removed (second occurrence at former line 57, keeping the canonical first occurrence). No AC changes. No BC array changes. |
 | 1.2 | TABLEREGISTRY-DATAPATH-CORRECTION-2026-06-20 | 2026-06-20 | story-writer | Architect adjudication applied (onboarding-001-tableregistry-datapath-correction.md, D-1259). Wiring-not-redesign corrections for R1 (CRITICAL) and R2 (HIGH) from remove-uncertainty pass. Edits: (1) `depends_on` S-3.13 comment — removed `Arc<dyn TableRegistry>` language; (2) `risk_mitigations` bullet 3 — replaced TableRegistry injection with `resolved_spec_map`/`config_manager` data-source statement; (3) dependency anchor comment for S-3.13 corrected; (4) points justification comment corrected; (5) Tasks Phase 2 pre-flight — replaced "Confirm Arc<dyn TableRegistry> injection" with `resolved_spec_map`/`config_manager` confirmation task; (6) Tasks Phase 2 handler description — replaced "receiving Arc<dyn TableRegistry>" with column-schema read-path description via `resolved_spec_map`/`config_manager`; (7) Previous Story Intelligence S-3.13 paragraph — corrected: concrete struct in QueryEngine, no column schema in TableRegistry, column data from `resolved_spec_map`/`config_manager`; (8) Architecture Mapping row updated; (9) Architecture Compliance Rules — fixed two TableRegistry-injection rules and flipped adversary grep probe from "verify injection EXISTS" to "FAIL if found"; (10) Library & Framework Requirements — replaced `TableRegistry trait` row with correct `OrgSlug`/`ColumnType` row and added `prism-spec-engine` row. No AC-semantic changes. No BC array changes. Both BCs remain: BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014. |
