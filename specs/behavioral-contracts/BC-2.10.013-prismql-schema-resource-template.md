@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: ADR-041-teaching-burst-2026-06-19
-modified: "2026-06-20T00:00:00Z"
+modified: "2026-06-20T12:00:00Z"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -72,7 +72,7 @@ Mirrors BC-2.10.012: unknown-but-well-formed `client_id` → success with `table
 The server MUST implement the subscribe/notify side of the MCP 2025-06-18 resource subscription spec:
 
 1. A client that calls `resources/subscribe` with URI `prismql://schema/acme` is registered as a subscriber for schema changes affecting "acme".
-2. When `TableRegistry` changes for "acme" (a sensor is added, removed, or its schema is updated — e.g., via a spec hot-reload per CAP-030), the server MUST send `notifications/resources/updated` with `uri: "prismql://schema/acme"` to all subscribers for that client.
+2. When the resolved schema changes for "acme" — either via `TableRegistry` change (a sensor is added or removed) or via a hot-reload of the underlying sensor spec that causes `resolved_spec_map` to be rebuilt and swapped per ADR-042 (e.g., a new table is added to the CrowdStrike TYPE spec) — the server MUST send `notifications/resources/updated` with `uri: "prismql://schema/acme"` to all subscribers for that client. This applies in both single-tenant mode and multi-tenant overlay mode (org-slug != sensor-id), because the notify-diff reads from the rebuilt `resolved_spec_map` in multi-tenant mode (ADR-042 §D5).
 3. The server-side subscriber registry persists for the lifetime of the MCP session (stdio connection).
 4. `resources/unsubscribe` removes the subscriber.
 5. Whether Claude Code's current MCP client acts on `subscribe`/`listChanged` is an implementation-time verification task (ADR-041 §Architectural Surface — "not confirmed from public docs" at design time). The server implementation is required regardless; it will be exercised when clients that support it are encountered.
@@ -111,11 +111,12 @@ At any moment, `resources/read("prismql://schema/acme")` and `prism_describe("ac
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-10-029 | `resources/subscribe` for `prismql://schema/acme` followed by a hot-reload that adds a CrowdStrike table for "acme" | Server sends `notifications/resources/updated` with `uri: "prismql://schema/acme"` within 1 second of the `TableRegistry` change event |
+| EC-10-029 | `resources/subscribe` for `prismql://schema/acme` followed by a hot-reload that adds a CrowdStrike table for "acme" — applies in BOTH single-tenant mode and multi-tenant overlay mode (including the case where org-slug "acme" != sensor-id "crowdstrike") | Server sends `notifications/resources/updated` with `uri: "prismql://schema/acme"` within 1 second of the resolved schema change event (rebuilt `resolved_spec_map` swap per ADR-042 in multi-tenant mode, or `TableRegistry` change in single-tenant mode) |
 | EC-10-030 | `resources/subscribe` for `prismql://schema/acme`; TableRegistry changes for "globex" (different client) | No notification sent for "acme" — per-client subscription scoping |
 | EC-10-031 | `resources/read("prismql://schema/acme")` and `prism_describe("acme")` called within 5 seconds of a hot-reload | Both return the same schema (cache TTL window); if cache is stale, next read after TTL returns fresh schema |
 | EC-10-032 | MCP client does not support `resources/subscribe` | Server registers the template in `resources/list` unconditionally; no subscribe calls arrive; no error |
 | EC-10-033 | URI with invalid `client_id` format (`"prismql://schema/acme/../etc"`) | MCP resource error: "Invalid client_id in resource URI" |
+| EC-10-034 | Org "acme" maps to sensor "crowdstrike" (org-slug != sensor-id); a hot-reload that modifies the underlying crowdstrike TYPE spec to add a table; a second org "globex" whose resolved schema did NOT change also has subscribers | Server sends `notifications/resources/updated` with `uri: "prismql://schema/acme"` within 1 second (ADR-042 D5 per-org notify-diff reads from rebuilt `resolved_spec_map`, keyed by org-slug). "globex" subscribers receive NO notification — per-client scoping enforced by DI-008. |
 
 ## Canonical Test Vectors
 
@@ -155,6 +156,7 @@ At any moment, `resources/read("prismql://schema/acme")` and `prism_describe("ac
 - `architecture/decisions/ADR-041` §L2 — "Why a tool AND a resource": audit motivates the tool path; host injection and subscribe/listChanged motivate the resource path
 - `architecture/decisions/ADR-022` — Arc-DI wiring: the resource handler reads column schema via `PrismServer.query_engine.resolved_spec_map()` and `PrismServer.config_manager` — existing wired fields, no new `Arc<dyn TableRegistry>` injection (correction per architect D-1259)
 - `architecture/decisions/ADR-039` — `TableRegistry` is the authority for which table NAMES are registered per org (and the change-notification signal source); column schema for those tables comes from `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns → ColumnSpec` (per onboarding-001-tableregistry-datapath-correction.md D-1259)
+- `architecture/decisions/ADR-042` — Reload-aware `resolved_spec_map`: changes field type to `Option<Arc<ArcSwap<HashMap>>>`, adds `rebuild_resolved_spec_map` called after each hot-reload, and updates the per-org notify-diff to read from the rebuilt map (D5). This makes EC-10-029 and EC-10-034 satisfiable in multi-tenant overlay mode (org-slug != sensor-id).
 
 ## Story Anchor
 
@@ -168,5 +170,6 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | ADR-042-bc-update-2026-06-20 | 2026-06-20 | product-owner | D-1267 / ADR-042: multi-tenant schema-change notify now IN SCOPE for 001-A. Removed single-tenant-only limitation from EC-10-029 (now applies to both modes). Added EC-10-034 (org "acme" maps to sensor "crowdstrike"; hot-reload of TYPE spec notifies "acme" only, not "globex"). Updated §Subscribe/listChanged item 2 to reference resolved_spec_map rebuild trigger (ADR-042 §D5) in addition to TableRegistry change. Added ADR-042 to §Architecture Anchors. No existing postcondition weakened. |
 | 1.1 | 001-A-local-cascade-bc-correction-2026-06-20 | 2026-06-20 | product-owner | D-1259 propagation (onboarding-001-tableregistry-datapath-correction.md). Replaced fictional `Arc<dyn TableRegistry>` injection model with correct data-source model in §Description, Preconditions 3–4, §Resource content, §Caching policy, and §Architecture Anchors. Behavioral postconditions, DI-008 isolation requirement, subscribe/notify behavior, edge cases, and test vectors unchanged (finding F-PASS2-HIGH-004 / F-P3-HIGH-002). |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L2 `prismql://schema/{client_id}` resource template contract |

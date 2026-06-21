@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.90"
+version: "6.91"
 status: draft
 producer: state-manager
-timestamp: 2026-06-20T14:00:00Z
+timestamp: 2026-06-20T16:00:00Z
 phase: 3.A
 total_contracts: 256
 active_contracts: 235
@@ -151,7 +151,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | active (promoted draft→active D-1238 per POL-14; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19; lifecycle_status was already active) — v1.12 (D-1230 2026-06-18: postcondition 2 sensor-inventory shape reconciled to shipped SensorConfigEntry {sensor_type,status,credential_ref,sources,api_base_url}; status="active" definitional in overlay model; EC-10-015 retired) |
 | BC-2.10.009 | MCP Prompts for Common Workflows (Including PQL Query Tutorial) | 10 - MCP Interface | CAP-034 | P1 | active (promoted draft→active D-1238 per POL-14; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19; lifecycle_status was already active) — v1.5 (D-1267 2026-06-20: EC-10-019 goal-quoting reconciled to labeled-unquoted per AC-009/impl [F-P4P2-LOW-001]; changelog row added; was v1.4 D-1241 2026-06-19: ADR-041 L1 query_tutorial prompt added as 5th prompt; query tool description upgraded with PQL primer ≤500 tokens; BC file amended) |
 | BC-2.10.012 | `prism_describe` Schema Discovery Tool (L2) | 10 - MCP Interface | CAP-034 | P0 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-10; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.1 (2026-06-20: D-1263 LOCAL-cascade fix-burst — Arc<dyn TableRegistry> fiction removed; data-source corrected to resolved_spec_map/config_manager; §Audit extended to require operation+outcome+; was v1.0: 2026-06-19: ADR-041-teaching-burst) |
-| BC-2.10.013 | `prismql://schema/{client_id}` Resource Template (L2) | 10 - MCP Interface | CAP-034 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-10; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.1 (2026-06-20: D-1263 LOCAL-cascade fix-burst — Arc<dyn TableRegistry> fiction removed; data-source corrected to resolved_spec_map/config_manager; changelog row added; was v1.0: 2026-06-19: ADR-041-teaching-burst) |
+| BC-2.10.013 | `prismql://schema/{client_id}` Resource Template (L2) | 10 - MCP Interface | CAP-034 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-10; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.2 (2026-06-20: D-1269 ADR-042 multi-tenant update — EC-10-029 expanded to multi-tenant hot-reload-triggered resolved_spec_map rebuild; EC-10-034 added (subscribe item 2 broadened); ADR-042 anchor; changelog row; was v1.1: D-1263) |
 | BC-2.10.014 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 10 - MCP Interface | CAP-034 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-10; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | active (status:draft→active D-1202 per POL-14; anchor story S-5.02 merged PR #191 develop@bec894a2 2026-06-17; lifecycle_status was already active) |
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.91 (2026-06-20, D-1269 BC-2.10.013 v1.2 — ADR-042 multi-tenant update):** state-manager | BC-2.10.013 inline row: v1.1→v1.2 — product-owner expanded BC to cover multi-tenant hot-reload: EC-10-029 broadened from single-tenant to multi-tenant (reload-triggered `resolved_spec_map` rebuild via ArcSwap / ADR-042); EC-10-034 added (subscribe item 2 broadened to hot-reload-triggered resolved_spec_map rebuild); ADR-042 anchor added; changelog row added. **No BC lifecycle/status/count changes:** active_contracts 235 / draft_contracts 8 / total_contracts 256 ALL UNCHANGED (BC-2.10.013 remains draft). BC-INDEX v6.90→v6.91.
 
 **v6.90 (2026-06-20, D-1267 001-A round-4 phase-1 artifacts — BC-2.10.009 v1.5):** state-manager | BC-2.10.009 inline row: v1.4→v1.5 — 001-A LOCAL cascade round-4 pass found F-P4P2-LOW-001 (EC-10-019 goal-quoting: BC text said quoted with angle-brackets, AC-009 impl uses labeled-unquoted). Product-owner reconciled goal-quoting format to labeled-unquoted per AC-009/impl; changelog row added to BC file. **No BC lifecycle/status/count changes:** active_contracts 235 / draft_contracts 8 / total_contracts 256 ALL UNCHANGED. BC-INDEX v6.89→v6.90.
 
