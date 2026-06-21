@@ -32,6 +32,10 @@ rmcp = { workspace = true }
 schemars = { workspace = true }
 # arc-swap: lock-free ArcSwap<ConfigManager> — same version used by prism-spec-engine.
 arc-swap = "1"
+# async-trait: `#[async_trait]` macro for dyn-compatible async trait methods.
+# Required by `SchemaChangeNotifier` (BC-2.10.013 subscribe/notify) — production code
+# in schema.rs uses `Arc<dyn SchemaChangeNotifier>` which requires object safety.
+async-trait = "0.1"
 # arrow-json: RecordBatch → JSON rows serialization for the query tool (CRIT-1).
 # Transitive via arrow←datafusion; explicit dep pins the same version.
 arrow-json = "58"

@@ -599,8 +599,10 @@ fn test_BC_2_10_009_prompts_list_includes_four_mandated_prompts() {
     );
     assert_eq!(
         prompts.len(),
-        4,
-        "Expected exactly 4 prompts; got {}: {names:?}",
+        5,
+        "Expected exactly 5 prompts (triage_alerts, investigate_host, client_overview, \
+         cross_client_status, query_tutorial); got {}: {names:?}. \
+         (Bumped 4→5 by S-DEMO-PRISMQL-ONBOARDING-001-A: query_tutorial added.)",
         prompts.len()
     );
 }

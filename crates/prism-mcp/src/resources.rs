@@ -6,6 +6,10 @@
 //! - `prism://schema/{sensor_id}/{table_name}` — OCSF schema for a sensor+table
 //! - `prism://sensors/health` — cached sensor health data (BC-2.08.006)
 //!
+//! S-DEMO-PRISMQL-ONBOARDING-001-A adds (BC-2.10.013, BC-2.10.014):
+//! - `prismql://schema/{client_id}` — per-client PQL table/column/type schema catalog
+//! - `prismql://reference` — static PQL grammar reference (build-time embedded)
+//!
 //! Resources are served by overriding `list_resources`, `list_resource_templates`,
 //! and `read_resource` on `impl ServerHandler for PrismServer` in `server.rs`.
 //! There is NO `#[resource_handler]` macro in rmcp 1.7 — confirmed against rmcp source.
@@ -15,12 +19,19 @@
 //! All resource response serialization MUST redact API keys and full URL paths.
 //! Only host+port components are emitted for URL fields (VP-050, BC-2.10.008 postcondition).
 
+/// `prismql://schema/{client_id}` resource template and `prismql://reference` static resource.
+///
+/// `prismql://schema/{client_id}` (BC-2.10.013) returns the full PQL table/column/type
+/// catalog for a given client as structured JSON. `prismql://reference` (BC-2.10.014)
+/// serves the static PQL grammar reference embedded at build time.
+pub mod schema;
+
 use std::{collections::BTreeSet, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use rmcp::model::{
     AnnotateAble, ErrorCode, ErrorData, ListResourceTemplatesResult, ListResourcesResult,
-    RawResource, RawResourceTemplate, ReadResourceResult, ResourceContents,
+    RawResource, RawResourceTemplate, ReadResourceResult, ResourceContents, Role,
 };
 use serde::{Deserialize, Serialize};
 
@@ -291,6 +302,12 @@ fn sanitize_display_name(name: &str) -> String {
 /// Build the static list of concrete (non-templated) resources.
 ///
 /// Called from `ServerHandler::list_resources` override on `PrismServer`.
+///
+/// Includes `prismql://reference` (BC-2.10.014) as a static resource added by
+/// S-DEMO-PRISMQL-ONBOARDING-001-A.
+///
+/// Content delivery is handled by `dispatch_read_resource` →
+/// `render_pql_reference_resource` in `resources/schema.rs`.
 pub fn build_resource_list() -> ListResourcesResult {
     let resources = vec![
         RawResource::new(URI_CONFIG_CLIENTS, "Prism Client Inventory")
@@ -303,6 +320,19 @@ pub fn build_resource_list() -> ListResourcesResult {
             )
             .with_mime_type("application/json")
             .no_annotation(),
+        // L3: PQL grammar reference static resource (BC-2.10.014 — S-DEMO-PRISMQL-ONBOARDING-001-A).
+        // Content embedded via include_str! in resources/schema.rs::PQL_REFERENCE_CONTENT.
+        // No subscribe/listChanged (static content — BC-2.10.014).
+        // BC-2.10.014 AC-007: annotations.priority=0.8 + audience=["assistant"] required
+        // (high-value reference material targeted at LLM agents, not human users).
+        RawResource::new(schema::URI_PQL_REFERENCE, "PrismQL Grammar Reference")
+            .with_description(
+                "Full PrismQL grammar reference — SELECT/FROM/WHERE/GROUP BY/ORDER BY/LIMIT, \
+                 operators, datetime arithmetic, error quick-reference, and self-correction workflow.",
+            )
+            .with_mime_type("text/markdown")
+            .with_priority(0.8)
+            .with_audience(vec![Role::Assistant]),
     ];
     ListResourcesResult {
         resources,
@@ -314,6 +344,12 @@ pub fn build_resource_list() -> ListResourcesResult {
 /// Build the list of URI-template resources.
 ///
 /// Called from `ServerHandler::list_resource_templates` override on `PrismServer`.
+///
+/// Includes `prismql://schema/{client_id}` (BC-2.10.013) as a URI template added by
+/// S-DEMO-PRISMQL-ONBOARDING-001-A.
+///
+/// Content delivery is handled by `render_pql_schema_resource` in
+/// `resources/schema.rs`. Subscribe/notify is dispatched via `notify_schema_updated`.
 pub fn build_resource_template_list() -> ListResourceTemplatesResult {
     let resource_templates = vec![
         RawResourceTemplate::new(URI_TEMPLATE_CLIENT_SENSORS, "Prism Client Sensor Config")
@@ -327,6 +363,17 @@ pub fn build_resource_template_list() -> ListResourceTemplatesResult {
             .with_description(
                 "OCSF schema definition for a specific sensor and table. Substitute \
                  {sensor_id} and {table_name} with the target values.",
+            )
+            .with_mime_type("application/json")
+            .no_annotation(),
+        // L2: Per-client PQL schema resource template (BC-2.10.013 — S-DEMO-PRISMQL-ONBOARDING-001-A).
+        // Content is structurally identical to prism_describe(client_id) (single-source-of-truth).
+        // Supports server-side subscribe/notify (NET-NEW machinery — see resources/schema.rs).
+        RawResourceTemplate::new(schema::URI_TEMPLATE_PQL_SCHEMA, "PrismQL Client Schema")
+            .with_description(
+                "Per-client PQL table/column/type schema catalog. Substitute {client_id} with \
+                 the target client identifier. Subscribe to receive notifications when the \
+                 client's sensor schema changes.",
             )
             .with_mime_type("application/json")
             .no_annotation(),
@@ -422,6 +469,29 @@ pub async fn dispatch_read_resource(
                     ))
                 }
             }
+        }
+    }
+
+    // Exact match: prismql://reference (BC-2.10.014 — static PQL grammar reference)
+    if uri == schema::URI_PQL_REFERENCE {
+        return schema::render_pql_reference_resource();
+    }
+
+    // Template match: prismql://schema/{client_id} (BC-2.10.013 — per-client schema catalog)
+    if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
+        // BC-2.10.013 EC-10-033: validate client_id via OrgSlug::new — rejects all invalid
+        // formats: empty, path-traversal ('..' or '/'), and invalid chars (e.g., 'acme!').
+        // Using OrgSlug::new as the SINGLE gate ensures all rejection paths return the
+        // canonical EC-10-033 error at dispatch time, not a deeper different-string rejection
+        // from inside render_pql_schema_resource.
+        // DI-006: do NOT echo the raw client_id in the error message.
+        if prism_core::OrgSlug::new(client_id).is_ok() {
+            return schema::render_pql_schema_resource(client_id, query_engine, config_manager)
+                .await;
+        } else {
+            return Err(not_found_error(
+                "Invalid client_id in resource URI".to_string(),
+            ));
         }
     }
 

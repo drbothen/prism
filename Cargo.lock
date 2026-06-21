@@ -5219,6 +5219,7 @@ dependencies = [
 name = "prism-query"
 version = "0.1.0"
 dependencies = [
+ "arc-swap",
  "ariadne",
  "arrow",
  "async-trait",

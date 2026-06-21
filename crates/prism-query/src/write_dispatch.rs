@@ -126,10 +126,20 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// This method is REQUIRED (no default impl) so that a production
     /// `AuditWriter` cannot silently inherit a no-op and lose the durable
     /// tool-call audit trail.
+    ///
+    /// # BC-2.10.012 v1.1 extended signature (S-DEMO-PRISMQL-ONBOARDING-001-A)
+    ///
+    /// The signature carries BOTH `operation` (the canonical operation name that
+    /// identifies WHAT was attempted, e.g. `"query"`, `"prism_describe"`,
+    /// `"schema_enumeration"`, `"reload_config"`) AND `outcome` (the result marker
+    /// e.g. `"invoked"`, `"error"`, `"rejected_injection"`, `"success"`) as
+    /// separate parameters. This enables structured audit trail reconstruction
+    /// without conflating the operation kind with its result.
     async fn write_tool_call(
         &self,
         tool_name: &str,
         client_id: Option<&str>,
+        operation: &str,
         outcome: &str,
     ) -> Result<(), PrismError>;
 }
@@ -171,6 +181,7 @@ impl AuditWriter for NullAuditWriter {
         &self,
         _tool_name: &str,
         _client_id: Option<&str>,
+        _operation: &str,
         _outcome: &str,
     ) -> Result<(), PrismError> {
         Ok(())
@@ -502,6 +513,7 @@ mod fan_out_empty_batch_tests {
             &self,
             _tool_name: &str,
             _client_id: Option<&str>,
+            _operation: &str,
             _outcome: &str,
         ) -> Result<(), PrismError> {
             Ok(())

@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72 (54 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-82 (57 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -1210,4 +1210,78 @@ pub fn v78_http_lookup_config() {
         credential: None,
     };
     let _ = _cfg;
+}
+
+// ─── S-DEMO-PRISMQL-ONBOARDING-001-A: prism_describe response types ──────────
+//
+// These 3 structs are the public response API for the `prism_describe` L2 schema
+// discovery tool (BC-2.10.012). `#[non_exhaustive]` ensures new fields (e.g., table
+// metadata, column constraints, deprecation info) can be added without breaking
+// downstream callers. ci.yml EXPECTED bumped from 79 to 82 (+3).
+//   80. prism_mcp::PrismDescribeResponse — top-level prism_describe response
+//   81. prism_mcp::TableDescriptor       — per-table descriptor
+//   82. prism_mcp::ColumnDescriptor      — per-column descriptor
+
+/// Violation 80: prism_mcp::PrismDescribeResponse struct literal (E0639).
+///
+/// `PrismDescribeResponse` is the top-level response from `prism_describe` (BC-2.10.012).
+/// `#[non_exhaustive]` ensures external crates cannot use struct-literal construction —
+/// future fields (e.g., schema_version, last_updated_at) can be added without breaking
+/// external callers.
+///
+/// Added: S-DEMO-PRISMQL-ONBOARDING-001-A (BC-2.10.012). ci.yml EXPECTED bumped 79→82.
+#[allow(dead_code)]
+pub fn v80_prism_describe_response() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _resp = prism_mcp::PrismDescribeResponse {
+        client_id: "acme".to_string(),
+        tables: vec![],
+        pql_hints: vec![],
+    };
+    let _ = _resp;
+}
+
+/// Violation 81: prism_mcp::TableDescriptor struct literal (E0639).
+///
+/// `TableDescriptor` describes a single sensor table within a `PrismDescribeResponse`
+/// (BC-2.10.012). `#[non_exhaustive]` ensures external crates cannot use struct-literal
+/// construction — future fields (e.g., row_count_estimate, freshness_ttl) can be added
+/// without breaking external callers.
+///
+/// Added: S-DEMO-PRISMQL-ONBOARDING-001-A (BC-2.10.012). ci.yml EXPECTED bumped 79→82.
+#[allow(dead_code)]
+pub fn v81_table_descriptor() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _td = prism_mcp::TableDescriptor {
+        name: "crowdstrike.alerts".to_string(),
+        sensor_type: "crowdstrike".to_string(),
+        description: String::new(),
+        columns: vec![],
+        example_query: String::new(),
+    };
+    let _ = _td;
+}
+
+/// Violation 82: prism_mcp::ColumnDescriptor struct literal (E0639).
+///
+/// `ColumnDescriptor` describes a single column within a `TableDescriptor`
+/// (BC-2.10.012). `#[non_exhaustive]` ensures external crates cannot use struct-literal
+/// construction — future fields (e.g., is_indexed, ocsf_field_path) can be added
+/// without breaking external callers.
+///
+/// Uses `prism_core::column::ColumnType` (ADR-024 canonical sensor-schema enum;
+/// variants: String/Integer/Float/Boolean/Datetime/Json). Do NOT use
+/// `prism_core::types::ColumnType` (internal table schemas).
+///
+/// Added: S-DEMO-PRISMQL-ONBOARDING-001-A (BC-2.10.012). ci.yml EXPECTED bumped 79→82.
+#[allow(dead_code)]
+pub fn v82_column_descriptor() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _cd = prism_mcp::ColumnDescriptor {
+        name: "severity".to_string(),
+        col_type: prism_core::column::ColumnType::String,
+        description: None,
+        nullable: true,
+    };
+    let _ = _cd;
 }

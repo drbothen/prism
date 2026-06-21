@@ -23,6 +23,9 @@ name = "prism_query"
 prism-core = { path = "../prism-core" }
 prism-storage = { path = "../prism-storage" }
 prism-spec-engine = { path = "../prism-spec-engine" }
+# ADR-042 — ArcSwap-backed resolved_spec_map for reload-aware multi-tenant overlay map.
+# Matches version used by prism-mcp, prism-bin, and prism-spec-engine.
+arc-swap = "1"
 prism-sensors = { path = "../prism-sensors" }
 prism-ocsf = { path = "../prism-ocsf" }
 prism-credentials = { path = "../prism-credentials" }
