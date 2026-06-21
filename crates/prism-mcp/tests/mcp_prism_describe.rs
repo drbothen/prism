@@ -10,6 +10,16 @@
 //!
 //! # What was wrong with the original tests
 //!
+//! - AC-003 (round-1, original): called `handle_prism_describe` with only `config_manager`,
+//!   never wiring `query_engine`. The test was lenient — it asserted pql_hints non-empty
+//!   and vaguely mentioned "acme" or "no sensor", but did NOT assert the BC-mandated
+//!   not-registered hint for "nonexistent". BC-2.10.012 requires TWO DISTINCT strings:
+//!   (a) registered-but-empty → "No sensor tables…sensor overlays configured."
+//!   (b) not-registered → "'client' is not registered. Check prism.toml [[orgs]]."
+//!   The old test let the implementation emit one generic hint for both cases.
+//!   The hardened test wires `query_engine` with `org_registry` containing only "acme",
+//!   asserts the BC-canonical strings for both cases, and FAILS on the not-registered
+//!   assertion because `build_pql_hints` does not consult `org_registry`.
 //! - AC-004: called `handle_prism_describe` with `config_manager` only — the
 //!   `resolved_spec_map` multi-tenant path was never exercised. HashMap::get
 //!   isolation is not the same as `resolved_spec_map` isolation.
@@ -40,7 +50,7 @@
 //! | test_BC_2_10_012_prism_describe_audit_event_emitted | AC-002 (basic) | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_audit_operation_and_outcome_happy_path | AC-002 (hardened) | BC-2.10.012 v1.1 |
 //! | test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_id | AC-002 (hardened) | BC-2.10.012 v1.1 |
-//! | test_BC_2_10_012_prism_describe_empty_and_unknown_client | AC-003 | BC-2.10.012 |
+//! | test_BC_2_10_012_prism_describe_empty_and_unknown_client | AC-003 (hardened) | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_invalid_client_id | AC-003 | BC-2.10.012 |
 //! | test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map | AC-004 | BC-2.10.012 DI-008 |
 //! | test_BC_2_10_013_schema_resource_dispatch_routed | AC-005 | BC-2.10.013 |
@@ -232,13 +242,6 @@ fn make_config_manager_acme_crowdstrike() -> Arc<arc_swap::ArcSwap<ConfigManager
     Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::new(
         snapshot,
     )))
-}
-
-/// Build a minimal empty `ConfigManager` (no sensors).
-///
-/// Used by AC-003 empty/unknown-client fixture.
-fn make_config_manager_empty() -> Arc<arc_swap::ArcSwap<ConfigManager>> {
-    Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::empty()))
 }
 
 /// Build a `resolved_spec_map` with two-org isolation fixture:
@@ -769,28 +772,138 @@ async fn test_BC_2_10_012_prism_describe_audit_outcome_error_on_invalid_client_i
 
 // ─── AC-003: empty and unknown client_id handling ────────────────────────────
 
-/// AC-003 (BC-2.10.012 — Non-existent/empty client handling):
-/// When `prism_describe` is called for a client with zero sensor overlays (well-formed,
-/// no tables configured), the response is `{tables: [], pql_hints: [...]}` with NO error.
-/// When called for a valid-format but unregistered client, same success posture.
+/// AC-003 (BC-2.10.012 §Non-existent client_id handling — TWO DISTINCT pql_hints):
 ///
-/// RED GATE: Fails with todo!() panic from `handle_prism_describe`.
+/// BC-2.10.012 mandates two semantically DIFFERENT pql_hint strings depending on
+/// whether the client is registered in OrgRegistry but has no sensor overlays, or
+/// is not registered at all.
+///
+/// ## Case 1 — Registered-but-empty (OrgRegistry KNOWS "acme", zero resolved tables):
+///
+/// pql_hints MUST contain:
+///   `"No sensor tables are available for client 'acme'. The client may not have \
+///    any sensor overlays configured."`
+///
+/// ## Case 2 — Not registered (valid format, "notregistered" absent from OrgRegistry):
+///
+/// pql_hints MUST contain:
+///   `"Client 'notregistered' is not registered. Check prism.toml [[orgs]] configuration."`
+///
+/// ## Fixture design
+///
+/// Both cases require a `query_engine` wired with an `OrgRegistry` that contains
+/// exactly "acme" (no entries for "notregistered"). The `resolved_spec_map` is empty —
+/// "acme" is registered but has no sensor overlays, so tables = [].
+/// "notregistered" is absent from the registry entirely.
+///
+/// This is the CORRECT fixture for AC-003 — it exercises the org_registry consultation
+/// path in `build_pql_hints` / `handle_prism_describe` to distinguish the two cases.
+/// The previous fixture (empty config_manager, no query_engine) could not distinguish
+/// registered-but-empty from not-registered because both paths returned the same generic
+/// hint string. That leniency let the implementation emit one generic hint for all empty
+/// cases — masking the missing behavior mandated by BC-2.10.012.
+///
+/// ## RED GATE: The not-registered assertion FAILS now.
+///
+/// The current `build_pql_hints` implementation uses a single generic message for BOTH
+/// cases:
+/// ```
+/// "No sensor tables are available for client '...'. Ensure sensors are configured ..."
+/// ```
+/// The assertion `hint_text.contains("is not registered")` will FAIL with the current
+/// code because it never produces a registration-specific hint.
+///
+/// ## What the implementer must wire (SID-1)
+///
+/// 1. Thread `org_registry: Option<Arc<OrgRegistry>>` into `build_pql_hints` (or pass
+///    it as a separate flag resolved by `handle_prism_describe` before calling it).
+/// 2. In `handle_prism_describe`, after `build_tables_for_client` returns empty, consult
+///    `query_engine.org_registry()` (or the passed-in registry) to check whether the
+///    OrgSlug is registered.
+/// 3. If registered-but-empty: emit "No sensor tables are available for client '...' \
+///    The client may not have any sensor overlays configured."
+/// 4. If not-registered: emit "Client '...' is not registered. Check prism.toml \
+///    [[orgs]] configuration."
+/// 5. The org_registry check ONLY applies when `query_engine` is wired (multi-tenant
+///    path). Single-tenant (config_manager-only) path uses the registered-but-empty
+///    hint by default (no registry available to distinguish).
 #[tokio::test]
 async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
-    let empty_config = make_config_manager_empty();
+    use prism_core::{OrgId, OrgRegistry, OrgSlug};
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_sensors::{
+        registry::AdapterRegistry, CredentialResolver as SensorsCredentialResolver, SensorError,
+    };
+    use prism_storage::memory_backend::memory_backend_inner::InMemoryBackend;
 
-    // Case 1: well-formed client_id "acme", zero tables (empty config).
+    // ── Fixture: QueryEngine with OrgRegistry containing ONLY "acme" ────────────
+    //
+    // "acme"  → registered in OrgRegistry, zero entries in resolved_spec_map → Case 1
+    // "notregistered" → absent from OrgRegistry entirely → Case 2
+    //
+    // resolved_spec_map is empty (no sensor overlays for any org), so both clients
+    // return tables=[]. The distinguishing factor is the OrgRegistry lookup.
+
+    struct StubCredResolverAC003;
+    impl SensorsCredentialResolver for StubCredResolverAC003 {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            sensor_id: prism_core::SensorId,
+        ) -> Result<Box<dyn prism_sensors::SensorAuth>, SensorError> {
+            Err(SensorError::Internal {
+                detail: format!("StubCredResolverAC003: no credential for {sensor_id:?}"),
+            })
+        }
+    }
+
+    let org_reg = {
+        let reg = OrgRegistry::new();
+        // Register "acme" with a fresh OrgId. "notregistered" is NOT registered.
+        reg.register(OrgSlug::new("acme").expect("'acme' is valid"), OrgId::new())
+            .expect("register acme");
+        Arc::new(reg)
+    };
+
+    // Empty resolved_spec_map — acme is registered but has no sensor overlays.
+    let empty_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    > = Arc::new(std::collections::HashMap::new());
+
+    let alias_store = Arc::new(Mutex::new(prism_query::alias_store::AliasStore::empty(
+        std::path::Path::new("/tmp/test-prism-ac003"),
+    )));
+
+    let query_engine = Arc::new(prism_query::engine::QueryEngine::new_full(
+        Arc::new(AdapterRegistry::new()),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        prism_query::engine::QueryEngineConfig::default(),
+        Arc::new(StubCredResolverAC003),
+        org_reg,
+        Arc::new(InMemoryBackend::new()),
+        empty_spec_map,
+        alias_store,
+    ));
+
+    // ── Case 1: "acme" is registered in OrgRegistry but has zero sensor overlays ─
+
     let result_empty =
-        handle_prism_describe("acme".to_string(), None, Some(&empty_config), None).await;
+        handle_prism_describe("acme".to_string(), Some(&query_engine), None, None).await;
 
     let empty_call = result_empty.expect(
-        "BC-2.10.012 AC-003: prism_describe('acme') with empty config must return Ok (not error); \
-         zero tables is a success case — not an error",
+        "BC-2.10.012 AC-003: prism_describe('acme') for registered-but-empty client must \
+         return Ok (not error); zero tables is a success case — not an error",
     );
 
     assert!(
         !empty_call.is_error.unwrap_or(false),
-        "BC-2.10.012 AC-003: prism_describe for zero-table client must not return is_error=true"
+        "BC-2.10.012 AC-003: prism_describe for registered-but-empty client must not return \
+         is_error=true"
     );
 
     let empty_text: String = empty_call
@@ -800,50 +913,73 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
         .collect::<Vec<_>>()
         .join("");
     let empty_parsed: serde_json::Value = serde_json::from_str(&empty_text)
-        .expect("BC-2.10.012 AC-003: zero-table response must be valid JSON");
+        .expect("BC-2.10.012 AC-003: registered-but-empty response must be valid JSON");
 
     let empty_tables = empty_parsed
         .get("tables")
         .and_then(|v| v.as_array())
-        .expect("BC-2.10.012 AC-003: zero-table response must contain 'tables' array");
+        .expect("BC-2.10.012 AC-003: registered-but-empty response must contain 'tables' array");
     assert!(
         empty_tables.is_empty(),
-        "BC-2.10.012 AC-003: zero-table response must have empty tables array; \
+        "BC-2.10.012 AC-003: registered-but-empty client must return empty tables array; \
          got {} tables",
         empty_tables.len()
     );
 
-    // pql_hints must be non-empty with a helpful message for zero-table clients.
+    // BC-2.10.012 §Non-existent client_id handling: registered-but-empty hint.
+    //
+    // The hint MUST match the BC canonical string for the registered-but-empty case.
     let empty_hints = empty_parsed
         .get("pql_hints")
         .and_then(|v| v.as_array())
-        .expect("BC-2.10.012 AC-003: zero-table response must contain 'pql_hints' array");
+        .expect("BC-2.10.012 AC-003: registered-but-empty response must contain 'pql_hints' array");
     assert!(
         !empty_hints.is_empty(),
-        "BC-2.10.012 AC-003: zero-table response must include at least one pql_hint \
-         (e.g., 'No sensor tables are available for client ...')"
+        "BC-2.10.012 AC-003: registered-but-empty response must include at least one pql_hint"
     );
 
-    // The hint text must mention the client name or indicate no sensor tables.
-    let hint_text = empty_hints
+    let empty_hint_text = empty_hints
         .iter()
         .filter_map(|h| h.as_str())
         .collect::<Vec<_>>()
         .join(" ");
+
+    // BC-2.10.012 canonical registered-but-empty hint: must mention both the client name
+    // "acme" AND indicate no sensor tables. The hint must be oriented toward sensor
+    // configuration (not registration) — the client IS registered, it just has no overlays.
+    //
+    // Accepts the BC canonical form ("...may not have any sensor overlays configured.")
+    // OR the current implementation's form ("Ensure sensors are configured...") — either
+    // is acceptable for Case 1. The CRITICAL distinction is Case 2 below: the not-registered
+    // path MUST produce a DIFFERENT, registration-specific hint, which the current code
+    // does NOT do (it emits the same generic string for both cases).
     assert!(
-        hint_text.contains("acme") || hint_text.to_lowercase().contains("no sensor"),
-        "BC-2.10.012 AC-003: hint for zero-table client must mention the client name or \
-         indicate no sensor tables; got: {:?}",
-        hint_text
+        empty_hint_text.contains("No sensor tables are available for client 'acme'"),
+        "BC-2.10.012 AC-003: registered-but-empty hint MUST contain \
+         \"No sensor tables are available for client 'acme'\"; \
+         got: {:?}",
+        empty_hint_text
+    );
+    // The hint must be sensor-configuration oriented (not registration-oriented), since
+    // "acme" IS registered. Accept both the BC canonical form and current generic form.
+    assert!(
+        empty_hint_text.contains("sensor")
+            || empty_hint_text.contains("configured")
+            || empty_hint_text.contains("overlays"),
+        "BC-2.10.012 AC-003: registered-but-empty hint must be sensor-configuration \
+         oriented (mention 'sensor', 'configured', or 'overlays'); \
+         got: {:?}",
+        empty_hint_text
     );
 
-    // Case 2: valid-format client_id "nonexistent" — not in registry.
+    // ── Case 2: "notregistered" is absent from OrgRegistry entirely ──────────────
+
     let result_unknown =
-        handle_prism_describe("nonexistent".to_string(), None, Some(&empty_config), None).await;
+        handle_prism_describe("notregistered".to_string(), Some(&query_engine), None, None).await;
 
     let unknown_call = result_unknown.expect(
-        "BC-2.10.012 AC-003: prism_describe('nonexistent') for unregistered client must \
-         return Ok (not error); unknown clients return empty tables, not an error",
+        "BC-2.10.012 AC-003: prism_describe('notregistered') for unregistered client must \
+         return Ok (not error); unknown clients return empty tables + registration hint, not error",
     );
 
     assert!(
@@ -858,17 +994,72 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
         .collect::<Vec<_>>()
         .join("");
     let unknown_parsed: serde_json::Value = serde_json::from_str(&unknown_text)
-        .expect("BC-2.10.012 AC-003: unknown-client response must be valid JSON");
+        .expect("BC-2.10.012 AC-003: not-registered response must be valid JSON");
 
     let unknown_tables = unknown_parsed
         .get("tables")
         .and_then(|v| v.as_array())
-        .expect("BC-2.10.012 AC-003: unknown-client response must contain 'tables' array");
+        .expect("BC-2.10.012 AC-003: not-registered response must contain 'tables' array");
     assert!(
         unknown_tables.is_empty(),
-        "BC-2.10.012 AC-003: unknown client must return empty tables; \
+        "BC-2.10.012 AC-003: not-registered client must return empty tables; \
          got {} tables",
         unknown_tables.len()
+    );
+
+    // BC-2.10.012 §Non-existent client_id handling: not-registered hint.
+    //
+    // RED GATE ASSERTION: This FAILS now.
+    //
+    // Current `build_pql_hints` uses the SAME generic string for both cases:
+    //   "No sensor tables are available for client '...'. Ensure sensors are configured ..."
+    // It does NOT consult org_registry to detect "not registered" vs "registered-but-empty".
+    // The assertion `hint_text.contains("is not registered")` → FAILS on current code.
+    //
+    // Implementer must:
+    // 1. Thread org_registry (from query_engine.org_registry()) into build_pql_hints or
+    //    pre-compute the registration flag in handle_prism_describe before calling it.
+    // 2. When tables.is_empty() AND org_registry.is_some():
+    //    - If org_registry.slug_exists(&org_slug): registered-but-empty hint
+    //    - If !org_registry.slug_exists(&org_slug): not-registered hint
+    // 3. Canonical not-registered hint (BC-2.10.012):
+    //    "Client '<client_id>' is not registered. Check prism.toml [[orgs]] configuration."
+    let unknown_hints = unknown_parsed
+        .get("pql_hints")
+        .and_then(|v| v.as_array())
+        .expect("BC-2.10.012 AC-003: not-registered response must contain 'pql_hints' array");
+    assert!(
+        !unknown_hints.is_empty(),
+        "BC-2.10.012 AC-003: not-registered response must include at least one pql_hint"
+    );
+
+    let unknown_hint_text = unknown_hints
+        .iter()
+        .filter_map(|h| h.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    // BC-2.10.012 canonical not-registered hint: must contain "is not registered"
+    // AND "prism.toml" guidance (so the operator knows where to look).
+    //
+    // RED GATE: This assertion FAILS against current implementation.
+    assert!(
+        unknown_hint_text.contains("is not registered"),
+        "BC-2.10.012 AC-003 RED GATE: not-registered hint MUST contain \
+         \"'notregistered' is not registered\" (BC canonical registration hint). \
+         Current build_pql_hints emits the generic empty-client string for BOTH \
+         registered-but-empty AND not-registered cases — it does not consult org_registry. \
+         Implementer: consult org_registry.slug_exists() in the empty-tables branch of \
+         handle_prism_describe / build_pql_hints to distinguish the two cases. \
+         Got hint: {:?}",
+        unknown_hint_text
+    );
+    assert!(
+        unknown_hint_text.contains("prism.toml"),
+        "BC-2.10.012 AC-003 RED GATE: not-registered hint MUST contain 'prism.toml' \
+         (BC canonical string: 'Check prism.toml [[orgs]] configuration.'). \
+         Got hint: {:?}",
+        unknown_hint_text
     );
 }
 
