@@ -24,8 +24,10 @@
 #   SensorConfigEntry, SensorHealthResult, RateLimitInfo, ResourcePressure, SensorHealthStructuredContent).
 # S-DEMO-ENRICHMENT-PIVOT-002 v1.3: bumped 76→79 for 3 http_lookup infusion types
 #   (HttpLookupCredentialConfig E0639 v77, HttpLookupConfig E0639 v78, HttpLookupAuthType E0004 v79).
+# S-DEMO-PRISMQL-ONBOARDING-001-A: bumped 79→82 for 3 prism_describe response types
+#   (PrismDescribeResponse E0639 v80, TableDescriptor E0639 v81, ColumnDescriptor E0639 v82).
 
-EXPECTED=79
+EXPECTED=82
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

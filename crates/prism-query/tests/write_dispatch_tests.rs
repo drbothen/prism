@@ -147,6 +147,7 @@ mod helpers {
             &self,
             _tool_name: &str,
             _client_id: Option<&str>,
+            _operation: &str,
             _outcome: &str,
         ) -> Result<(), PrismError> {
             Ok(())

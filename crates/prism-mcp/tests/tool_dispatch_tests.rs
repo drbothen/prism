@@ -489,9 +489,10 @@ fn test_BC_2_09_006_all_inline_sensor_tool_descriptions_have_9_sections() {
 
     assert_eq!(
         sensor_descriptions.len(),
-        53,
-        "Expected 53 sensor tool descriptions in server.rs; found {}. \
-         A tool may have been added or removed without updating this test.",
+        54,
+        "Expected 54 sensor tool descriptions in server.rs; found {}. \
+         A tool may have been added or removed without updating this test. \
+         (Bumped 53→54 by S-DEMO-PRISMQL-ONBOARDING-001-A: prism_describe added.)",
         sensor_descriptions.len()
     );
 

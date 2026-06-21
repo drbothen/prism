@@ -115,6 +115,7 @@ mod helpers {
             &self,
             _tool_name: &str,
             _client_id: Option<&str>,
+            _operation: &str,
             _outcome: &str,
         ) -> Result<(), PrismError> {
             Ok(())
@@ -581,6 +582,7 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
             &self,
             _tool_name: &str,
             _client_id: Option<&str>,
+            _operation: &str,
             _outcome: &str,
         ) -> Result<(), PrismError> {
             Ok(())

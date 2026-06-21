@@ -19,6 +19,13 @@
 
 pub mod config;
 pub mod operations;
+/// `prism_describe` L2 schema discovery tool (BC-2.10.012).
+///
+/// Implements the `prism_describe` MCP tool: returns the PQL-queryable table
+/// and column schema for a given client (org), optionally filtered to a
+/// specific sensor. Response type is `PrismDescribeOutput` (JSON) carrying
+/// `DescribeTable` entries with column names, types, and descriptions.
+pub mod prism_describe;
 pub mod query;
 pub mod sensor_health;
 pub mod write;
