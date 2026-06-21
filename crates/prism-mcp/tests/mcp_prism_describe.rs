@@ -2571,3 +2571,95 @@ async fn test_BC_2_10_013_dispatch_invalid_client_id_returns_specific_error_mess
         empty_msg
     );
 }
+
+// ─── Round-8: invalid-char client_id (LOW, BC-2.10.013 EC-10-033) ──────────────────
+
+/// Round-8 LOW (BC-2.10.013 EC-10-033 — invalid-char client_id gets canonical error):
+/// `dispatch_read_resource("prismql://schema/acme!")` MUST return the canonical
+/// EC-10-033 error "Invalid client_id in resource URI", NOT a deeper different-string
+/// rejection from inside `render_pql_schema_resource`.
+///
+/// ## Why this fails today
+///
+/// The current validation in `dispatch_read_resource` only rejects:
+///   - empty client_id (`is_empty()`)
+///   - path-traversal (`contains('/')` or `contains("..")`)
+///
+/// `"acme!"` passes all three checks → falls through to `render_pql_schema_resource`
+/// → internally calls `OrgSlug::new("acme!")` → returns a DIFFERENT error string
+/// (e.g., "Resource not found: invalid client_id (path traversal or invalid characters
+/// rejected)") from inside the render path.
+///
+/// ## What the implementer must do
+///
+/// Replace the manual guards with an `OrgSlug::new(client_id)` check in
+/// `dispatch_read_resource`. If `OrgSlug::new` fails, return the canonical EC-10-033
+/// error immediately, before calling `render_pql_schema_resource`.
+///
+/// ```rust
+/// if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
+///     if OrgSlug::new(client_id).is_ok() {
+///         return schema::render_pql_schema_resource(client_id, query_engine, config_manager).await;
+///     } else {
+///         // BC-2.10.013 EC-10-033: canonical error for all invalid client_id formats.
+///         // DI-006: do NOT echo the raw client_id.
+///         return Err(not_found_error(
+///             "Invalid client_id in resource URI".to_string(),
+///         ));
+///     }
+/// }
+/// ```
+///
+/// BC trace: BC-2.10.013 EC-10-033, DI-006.
+#[tokio::test]
+async fn test_BC_2_10_013_dispatch_invalid_char_client_id_returns_canonical_ec10033_error() {
+    use prism_mcp::context::PrismContext;
+
+    let config_manager = make_config_manager_acme_crowdstrike();
+    let context = Arc::new(PrismContext::new());
+
+    // ── Case: invalid-char client_id ("acme!") ──────────────────────────────
+    //
+    // "acme!" passes the current guards (non-empty, no '/', no '..') and falls
+    // through to render_pql_schema_resource, which calls OrgSlug::new("acme!")
+    // and returns a DIFFERENT deeper error — not the canonical EC-10-033 string.
+    //
+    // RED GATE: this assertion fails because the canonical message is not returned.
+    let result = dispatch_read_resource(
+        "prismql://schema/acme!",
+        &context,
+        None,
+        Some(&config_manager),
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "BC-2.10.013 EC-10-033: dispatch_read_resource('prismql://schema/acme!') must \
+         return Err (invalid-char client_id is not a valid OrgSlug); got Ok"
+    );
+
+    let err = result.unwrap_err();
+    let err_msg = err.message.to_string();
+
+    // BC-2.10.013 EC-10-033 RED GATE: the error must be the CANONICAL EC-10-033 string.
+    // Current code produces a deeper different-string rejection from render_pql_schema_resource.
+    assert!(
+        err_msg.contains("Invalid client_id in resource URI"),
+        "BC-2.10.013 EC-10-033 RED GATE: dispatch_read_resource('prismql://schema/acme!') \
+         MUST return error message containing 'Invalid client_id in resource URI' \
+         (canonical EC-10-033 string). \
+         Fix: replace manual guards (is_empty / contains('/') / contains('..')) with \
+         OrgSlug::new(client_id).is_ok() check in dispatch_read_resource. \
+         Got error message: {:?}",
+        err_msg
+    );
+
+    // DI-006: do NOT echo the raw client_id — even 'acme!' is attacker-controlled input.
+    assert!(
+        !err_msg.contains("acme!"),
+        "BC-2.10.013 EC-10-033 DI-006: error message MUST NOT echo the raw client_id 'acme!' \
+         (prompt-injection defense). Got error: {:?}",
+        err_msg
+    );
+}

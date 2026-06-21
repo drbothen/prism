@@ -477,16 +477,16 @@ pub async fn dispatch_read_resource(
 
     // Template match: prismql://schema/{client_id} (BC-2.10.013 — per-client schema catalog)
     if let Some(client_id) = uri.strip_prefix("prismql://schema/") {
-        // Reject path-traversal and empty client_id.
-        if !client_id.is_empty() && !client_id.contains('/') && !client_id.contains("..") {
+        // BC-2.10.013 EC-10-033: validate client_id via OrgSlug::new — rejects all invalid
+        // formats: empty, path-traversal ('..' or '/'), and invalid chars (e.g., 'acme!').
+        // Using OrgSlug::new as the SINGLE gate ensures all rejection paths return the
+        // canonical EC-10-033 error at dispatch time, not a deeper different-string rejection
+        // from inside render_pql_schema_resource.
+        // DI-006: do NOT echo the raw client_id in the error message.
+        if prism_core::OrgSlug::new(client_id).is_ok() {
             return schema::render_pql_schema_resource(client_id, query_engine, config_manager)
                 .await;
         } else {
-            // BC-2.10.013 EC-10-033: URI matched the prismql://schema/ prefix but the
-            // client_id is invalid (empty, contains path-traversal '..' or '/').
-            // Return the BC-canonical error rather than falling through to the generic
-            // "Unknown or unsupported resource URI" message.
-            // DI-006: do NOT echo the raw client_id in the error message.
             return Err(not_found_error(
                 "Invalid client_id in resource URI".to_string(),
             ));
