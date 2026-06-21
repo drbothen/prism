@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.904"
+version: "7.905"
 producer: state-manager
-timestamp: 2026-06-21T01:15:00Z
+timestamp: 2026-06-21T02:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,15 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "f6739764"
-bc_index_version: "6.94"
+develop_head: "ffe9315a"
+bc_index_version: "6.95"
 vp_index_version: "1.79"
-story_index_version: "v2.450"
-arch_index_version: "2.140"
+story_index_version: "v2.451"
+arch_index_version: "2.141"
 error_taxonomy_version: "1.91"
 total_stories: 206
-active_contracts: 235
-draft_contracts: 8
+active_contracts: 238
+draft_contracts: 5
 retired_contracts: 6
 prd_version: "1.12"
 policies_version: "1.33"
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1276 (2026-06-21). PR #197 PR-LEVEL cascade — pass-1 round (c1d83b34) CLEAN(PR-merge) but 2 LOW found → fixed @ceadf7b9; re-gate round (ceadf7b9) found F-PR197-RG-P2-MED-001 (goal SEC-001 unbounded free-text — validate_goal 256-byte cap), F-PR197-RG-P3-MED-001 (Red Gate row-1 annotation misattribution → story v1.10, 15 rows), F-PR197-RG-P3-MED-002 (frozen-HEAD pin stale), F-PR197-RG-P3-LOW-001 (doc-comment volatile version pin), F-PR197-RG-P3-OBS-002 (annotations test under-assert) — ALL FIXED. Feature HEAD 15e43516→c1d83b34→ceadf7b9→59028e3e. just check GREEN 4671, gate 82. develop_head UNCHANGED f6739764. NEXT = PR-LEVEL strict-3-CLEAN re-gate on frozen 59028e3e (streak 0/3). STATE v7.903→v7.904."
+current_step: "D-1277 (2026-06-21). PR #197 MERGED → develop@ffe9315a. S-DEMO-PRISMQL-ONBOARDING-001-A DELIVERED: LOCAL strict-3-CLEAN (round-9 @15e43516 BC-5.39.001 3/3) + PR-LEVEL strict-3-CLEAN (final re-gate @a8284145 BC-5.39.001 3/3) CONVERGED; pr-reviewer APPROVE; security CLEAR; CI 43/43 green. POL-14: BC-2.10.012/013/014 draft→active. ADR-042 PROPOSED→ACCEPTED. CLAUDE.md 79→82. develop_head f6739764→ffe9315a. active_contracts 235→238, draft_contracts 8→5. BC-INDEX v6.94→v6.95. STORY-INDEX v2.450→v2.451. ARCH-INDEX v2.140→v2.141. NEXT = 001-B (draft v1.2, TDD-READY, DEMO-BLOCKING, serial; NO worktree yet). STATE v7.904→v7.905."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,11 +74,11 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-21 (D-1276 PR #197 PR-LEVEL re-gate fix-burst; STATE v7.904)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-21 (D-1277 PR #197 post-merge burst; STATE v7.905)
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (develop@f6739764). ALL DEMO-BLOCKING LANES NOW CLOSED (PIVOT-003): S-5.03 MERGED PR #194 develop@85ac7b06 (D-1238), PIVOT-002 MERGED PR #195 develop@9114e028 (D-1240), **PIVOT-003 MERGED PR #196 develop@f6739764 (D-1258)**. PRIOR LANES CLOSED: S-5.02 (PR #191), S-3.13 (PR #192), PIVOT-001 (PR #189), LAUNCHER (PR #190), S-1.14-REDO (PR #193), T10/T11/T12 DONE. REMAINING DEMO ROADMAP: **001-A** (**DEMO-BLOCKING D-1243**; **PR #197 OPEN; feature HEAD 59028e3e FROZEN; D-1276 re-gate fix-burst DONE; NEXT = PR-LEVEL strict-3-CLEAN re-gate (streak 0/3)**; serial delivery: 001-A first) + **001-B** (**DEMO-BLOCKING D-1243**; v1.2 TDD-READY; serial after 001-A) + **S-5.04** (**DEMO-BLOCKING**; probe_table **FOLDED IN (D-1262)** — S-5.04 now includes probe_table TOML field + prism-spec-engine parse + E-SPEC-026 + BC-2.08.001/BC-2.16.009 amendments; serial after 001-A + 001-B) → T13 capstone (blocked on S-5.04 + 001-A + 001-B all MERGED) → T14 recording. T13 is HARD-gated on 3 remaining DEMO-BLOCKING stories per D-1243. **CLAUDE.md non-exhaustive count 79→82 reconciliation PENDING at 001-A merge-time.** SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1276 (authoritative).
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (develop@ffe9315a). **001-A MERGED PR #197 develop@ffe9315a (D-1277).** ALL PRIOR LANES CLOSED: S-5.03 PR #194, PIVOT-002 PR #195, PIVOT-003 PR #196, S-5.02 PR #191, S-3.13 PR #192, PIVOT-001 PR #189, LAUNCHER PR #190, S-1.14-REDO PR #193, T10/T11/T12. REMAINING DEMO ROADMAP: **001-B** (**DEMO-BLOCKING D-1243**; v1.2 TDD-READY; serial — NO worktree yet, start fresh) + **S-5.04** (**DEMO-BLOCKING**; probe_table FOLDED IN (D-1262); serial after 001-B) → T13 capstone (blocked on S-5.04 + 001-B MERGED) → T14 recording. T13 gated on 2 remaining DEMO-BLOCKING stories. **CLAUDE.md non-exhaustive count UPDATED 79→82 on develop (D-1277).** SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1277 (authoritative).
 
 ## Phase Progress
 
@@ -107,12 +107,14 @@ pre_compact_snapshot_at: "2026-06-15"
 | **5: S-1.14-REDO (D-1205 DEMO-BLOCKING)** | **MERGED** | 2026-06-17 | 2026-06-19 | PR #193 develop@5c747549 | PR-LEVEL 3-CLEAN(strict) converged @889817d4 r3; CI 43/43; demo evidence 31 artifacts/10 ACs; squash-merged; POL-14 BC-2.19.001..005 draft→active; S-1.14 graduated per ADR-020; non-exhaustive gate 66→70; EXPECTED=70 |
 | **5: S-5.03 (D-1107 SCOPE-IN)** | **IN PROGRESS — 3-CLEAN NEEDED** | 2026-06-17 | — | feature/S-5.03@23aac4ca | PR-merge-clean; needs strict-clean 3-CLEAN; F-001..F-007 fix-burst closed (tautological scoping, DI-008 per-org, VP-050 vacuous, reachable false-positive, AC-9 unwired, mutex, non-exhaustive EXPECTED→72); OBS-3 BC-2.08.005 DEC-004 zero-sensor message → product-owner S-5.04/targeted story (out of S-5.03 scope); streak 0/3 |
 | **5: PIVOT-002 (D-1205 DEMO-BLOCKING)** | **MERGED** | 2026-06-17 | 2026-06-19 | PR #195 develop@9114e028 | PR-LEVEL 3-CLEAN(strict) converged; CI green EXPECTED=79; POL-14 BC-2.19.001 idempotent (already active); D-1240 |
+| **5: S-DEMO-PRISMQL-ONBOARDING-001-A (D-1243 DEMO-BLOCKING)** | **MERGED** | 2026-06-20 | 2026-06-21 | PR #197 develop@ffe9315a | LOCAL strict-3-CLEAN (round-9 @15e43516 3/3) + PR-LEVEL strict-3-CLEAN (final @a8284145 3/3) CONVERGED; CI 43/43; pr-reviewer APPROVE; security CLEAR; POL-14 BC-2.10.012+BC-2.10.013+BC-2.10.014 draft→active; ADR-042 PROPOSED→ACCEPTED; EXPECTED=82; CLAUDE.md 79→82; D-1277 |
 
 ## Current Phase Steps
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log._
+| D-1277 | state-manager | 2026-06-21 | **PR #197 MERGED → develop@ffe9315a. S-DEMO-PRISMQL-ONBOARDING-001-A DELIVERED: LOCAL strict-3-CLEAN (round-9 @15e43516 BC-5.39.001 3/3) + PR-LEVEL strict-3-CLEAN (final re-gate @a8284145 BC-5.39.001 3/3) CONVERGED; pr-reviewer APPROVE; security CLEAR; CI 43/43 green. Round-8/9 + PR-LEVEL fix history: SafetyEnvelopeBuilder envelope, load-bearing safety_flags test, overlay-only notify decouple, EC-10-033 canonical msg, validate_goal SEC-001 256-byte bound, Red Gate 15-row correction, stub-comment removal, BC-2.10.012/013 POL-20/POL-7 hygiene. F-R8PB-MED-002 unsubscribe correct-by-construction (per-analyst stdio MCP single-connection invariant). POL-14: BC-2.10.012/013/014 draft→active (BC-2.10.009 idempotent). ADR-042 PROPOSED→ACCEPTED. STORY-INDEX v2.450→v2.451 (001-A draft→merged; merged SHA ffe9315a). BC-INDEX v6.94→v6.95 (active_contracts 235→238, draft_contracts 8→5). ARCH-INDEX v2.140→v2.141 (ADR-042 row PROPOSED→ACCEPTED). CLAUDE.md 79→82 on develop. develop_head f6739764→ffe9315a. [process-gap] S-7.02 cycle-close: POL-21 phantom-anchor / Red Gate full-table re-grep gap RECURRED (F-PR197-RG3-P3-MED-001 survived v1.8 sweep). Codified in cycles/wave-5-e-demo-fidelity/lessons.md + Drift Items deferral entry. STATE v7.904→v7.905. NEXT = 001-B TDD (draft v1.2, TDD-READY, DEMO-BLOCKING, serial).** | wave-5-e-demo-fidelity | 2026-06-21 |
 | D-1276 | state-manager | 2026-06-21 | **PR #197 PR-LEVEL cascade fix-burst + frozen-HEAD refresh (TD-VSDD-053 single-commit). Pass-1 round @c1d83b34 CLEAN(PR-merge) but 2 LOW found → fixed @ceadf7b9 (EC-10-033 internal-guard canonical message + render_query_tutorial doc-comment). Re-gate round @ceadf7b9 found: F-PR197-RG-P2-MED-001 validate_goal 256-byte cap (SEC-001); F-PR197-RG-P3-MED-001 Red Gate row-1 annotation misattribution (story-writer @07201f7c → v1.10, 15 rows); F-PR197-RG-P3-MED-002 frozen-HEAD pin stale (15e43516→59028e3e); F-PR197-RG-P3-LOW-001 doc-comment volatile version pin; F-PR197-RG-P3-OBS-002 annotations test under-assert. ALL FIXED. Feature HEAD 15e43516→c1d83b34→ceadf7b9→59028e3e. just check GREEN 4671, gate 82. develop_head UNCHANGED f6739764. STORY-INDEX v2.449→v2.450 (001-A v1.9→v1.10, red_gate_tests 14→15). STATE v7.903→v7.904. NEXT = PR-LEVEL strict-3-CLEAN re-gate on frozen 59028e3e (streak 0/3).** | wave-5-e-demo-fidelity | 2026-06-21 |
 | D-1275 | state-manager | 2026-06-21 | **001-A LOCAL strict-3-CLEAN CONVERGED — round-9 passes A/B/C all CLEAN(strict) on frozen 15e43516 (BC-5.39.001 frozen-HEAD streak 3/3). All round-8 fixes verified correct, zero regressions: SafetyEnvelopeBuilder envelope, load-bearing safety_flags test assertion, overlay-notify decoupling (no over-notification, DI-008 isolation confirmed), EC-10-033 canonical message, POL-27 BC dates. DO-NOT-REFLAG honored (F-R8PB-MED-002 not re-raised). develop_head UNCHANGED f6739764. CLAUDE.md 79→82 reconciliation PENDING at merge. NEXT = per-story delivery: demo evidence (demo-recorder per-AC) → PR (pr-manager) → PR-LEVEL 3-CLEAN cascade → squash-merge. STATE v7.902→v7.903.** | wave-5-e-demo-fidelity | 2026-06-21 |
 | D-1274 | state-manager | 2026-06-21 | **001-A ROUND-8 FIX-BURST CLOSURE BURST (TD-VSDD-053 single-commit). Round-8 LOCAL cascade (3 passes on frozen 5a385d4f) NOT clean. All findings closed: (HIGH) F-R8PA-HIGH-001/F-R8PC-HIGH-001 SafetyEnvelopeBuilder refactor; (HIGH) F-R8PC-HIGH-002 safety_flags assertion; (MED) F-R8PB-MED-001 overlay-only notify gate decoupled; (MED) F-R8PB-MED-002 unsubscribe correct-by-construction adjudicated by architect (per-analyst stdio MCP = one connection; BC-2.10.013 §76; doc-comment @15e43516; DO-NOT-REFLAG round 9+); (MED) F-R8PC-MED-001 POL-27 BC modified: dates normalized (BC-2.10.009/012/013); (LOW) F-R8PB-LOW-001 EC-10-033 invalid-char message; (OBS) adjudication doc 001-A-reload-notify-diff-adjudication.md v1.0→v1.1 (status superseded-in-part). Fix-burst commits d282fe7f/2d2a65e6/fae58bdb/15e43516. Feature HEAD 5a385d4f → 15e43516. just check GREEN. gate 82. develop_head UNCHANGED f6739764. BC-INDEX v6.93→v6.94. STORY-INDEX v2.448→v2.449. ARCH-INDEX v2.139→v2.140. STATE v7.901→v7.902. NEXT = LOCAL strict-3-CLEAN round 9 (3 fresh passes on frozen 15e43516; streak 0/3; DO-NOT-REFLAG F-R8PB-MED-002).** | wave-5-e-demo-fidelity | 2026-06-21 |
@@ -284,6 +286,7 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. OQ-001 (
 
 | ID | Summary | Required Action | Due |
 |----|---------|-----------------|-----|
+| DRIFT-001A-PROCESS-GAP-REDGATE-FULLGREP-001 | [process-gap, RECURRING] POL-21 phantom-anchor / Red Gate full-table re-grep gap: citation sweeps must check ALL rows (name + behavior description), not just delta rows — recurred v1.7→v1.8→v1.10 in 001-A (F-PR197-RG3-P3-MED-001 survived v1.8 "complete sweep") | Rule codified in cycles/wave-5-e-demo-fidelity/lessons.md (D-1277 S-7.02 cycle-close); apply to all future story story-writer Red Gate citation work; no separate follow-up story required | ongoing (per-story rule) |
 | DRIFT-OBS-LP87-003 | POL-29 growth-complexity asymptote concern | session-reviewer cycle-close assessment | v1.0.0-greenfield |
 | DRIFT-OBS-LP73-001 | BC-2.01.005/006/007/008 stale DI-012 labels | PREREQ-F PO+architect sweep | PREREQ-F cycle |
 | DRIFT-OBS-LP73-002 | POL-2 DI amendment missing sibling-CLASS sweep | POL-2 amendment step 5 | v1.0.0-greenfield |
@@ -352,23 +355,26 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1276 — 2026-06-21; STATE v7.904)
+## Session Resume Checkpoint (D-1277 — 2026-06-21; STATE v7.905)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1276** (authoritative zero-context restart source; supersedes D-1275).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1277** (authoritative zero-context restart source; supersedes D-1276).
 
-**STATE v7.904. CURRENT POSITION: D-1276 PR #197 PR-LEVEL re-gate fix-burst DONE. BC-INDEX v6.94. ARCH-INDEX v2.140. Feature HEAD 59028e3e FROZEN (streak 0/3; NEXT = PR-LEVEL strict-3-CLEAN re-gate). develop_head UNCHANGED f6739764. PR #197 OPEN. total_stories 206. ci.yml EXPECTED=82 (001-A feature branch; develop still 79 until merge). bc_index_version 6.94. story_index_version v2.450. arch_index_version 2.140. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=79 (PENDING 79→82 reconciliation at 001-A merge-time). draft_contracts 8. active_contracts 235 UNCHANGED.**
+**STATE v7.905. CURRENT POSITION: D-1277 PR #197 POST-MERGE BURST DONE. BC-INDEX v6.95. ARCH-INDEX v2.141. STORY-INDEX v2.451. develop_head ffe9315a. NO OPEN PRs. total_stories 206. ci.yml EXPECTED=82. bc_index_version 6.95. story_index_version v2.451. arch_index_version 2.141. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=82 (UPDATED develop 2026-06-21). draft_contracts 5. active_contracts 238.**
 
-**DEMO-BLOCKING STATUS:** PIVOT-003 (**MERGED PR #196 develop@f6739764** — DONE) + **001-A (PR #197 OPEN; feature HEAD 59028e3e FROZEN; NEXT = PR-LEVEL strict-3-CLEAN re-gate streak 0/3)** + **001-B (v1.2, TDD-READY; serial after 001-A)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-A + 001-B)**. T13 gated on S-5.04 + 001-A + 001-B all MERGED (3 remaining).
+**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B (v1.2, TDD-READY, DEMO-BLOCKING; serial — NO worktree yet, start fresh)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-B)**. T13 gated on S-5.04 + 001-B MERGED (2 remaining).
 
 **NEXT PICKABLE TASKS:**
-- adversary: PR-LEVEL strict-3-CLEAN re-gate on frozen 59028e3e (streak 0/3)
-- CLAUDE.md count 79→82 reconciliation at 001-A merge-time (merge obligation)
+- 001-B TDD delivery (draft v1.2, TDD-READY, DEMO-BLOCKING, serial; NO worktree yet, start fresh)
+- S-5.04 TDD (serial after 001-B)
+- T13 capstone (serial after S-5.04 + 001-B MERGED)
+
+**DO-NOT-REFLAG carry-forward:** F-R8PB-MED-002 (unsubscribe correct-by-construction — per-analyst stdio MCP single-connection invariant; BC-2.10.013 §76; D-1274 architect adjudication). All prior DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG remain in force.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1276 (authoritative).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1277 (authoritative).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `f6739764`.
-3. `gh pr list --state open --base develop` → expect PR #197 OPEN.
-4. Apply lessons (a)–(z25) + process-gap 1–3 from `cycles/wave-5-e-demo-fidelity/lessons.md`.
-5. Apply DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG (including F-R8PB-MED-002).
-6. Drive next roadmap per D-1276: PR-LEVEL strict-3-CLEAN re-gate on frozen 59028e3e (streak 0/3) → squash-merge → 001-B TDD → S-5.04 TDD → T13. Autonomy D-989+D-1090 active.
+2. `git log --oneline -1 origin/develop` → expect `ffe9315a`.
+3. `gh pr list --state open --base develop` → expect NO open PRs.
+4. Apply lessons from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+5. Apply DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG.
+6. Drive next roadmap per D-1277: 001-B TDD → S-5.04 TDD → T13 capstone → T14 recording. Autonomy D-989+D-1090 active.

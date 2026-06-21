@@ -1691,3 +1691,33 @@ At the first fix-burst following a doc-accuracy finding:
 **Antidote:** Add to implementer pre-declaration checklist: "Did I do a comprehensive doc-accuracy sweep of the entire PR diff? (Not just the reported finding's file.)"
 
 **Source:** S-5.03 PR-LEVEL r1–r4 recurring doc-accuracy findings; resolved comprehensively at 14189f22; D-1236 cycle-closing record.
+
+---
+
+### [process-gap, RECURRING] S-DEMO-PRISMQL-ONBOARDING-001-A: POL-21 phantom-anchor / Red Gate full-table re-grep gap — citation sweeps MUST grep the ENTIRE Red Gate table, not just delta rows
+
+**D-1277 anchor:** D-1277 S-7.02 cycle-closing check (post-merge burst 2026-06-21).
+
+**Tags:** [process-gap] [pol-21] [red-gate] [citation-sweep] [adversary] [story-writer] [RECURRING]
+
+**Classification:** PROCESS-GAP RECURRING — The same root cause recurred across 001-A rounds v1.7→v1.8 (D-1272 partial Red Gate citation sweep caught only 2 of 4 phantom names) and round v1.8→v1.10 (D-1276 F-PR197-RG3-P3-MED-001: Red Gate row-1 annotation misattribution survived the v1.8 "complete citation sweep"; row-1 test name `test_BC_2_10_012_prism_describe_happy_path_catalog` was correctly named in the ground-truth test file but the BC-sourced behavior description in the "Behavior Verified" column was misattributed — the sweep checked test names but not behavior descriptions against AC ground truth).
+
+**What happened:**
+
+- D-1272: story-writer performed "COMPLETE Red Gate citation sweep" — fixed rows 5/6 phantom test names. BUT rows 1–4 were not re-grepped against ground truth; row-1 behavior description ("tool is registered and annotations match AC-001") was ambiguous.
+- D-1276 F-PR197-RG3-P3-MED-001: adversary found that row-1 annotation test (`test_BC_2_10_012_prism_describe_happy_path_catalog`) was described with the wrong behavior (catalog behavior instead of annotations behavior). `test_BC_2_10_012_prism_describe_tool_annotations` was the actual annotations test and was missing from the Red Gate table entirely. 14→15 rows after fix.
+
+**Root cause:** "Citation sweep" was scoped to finding-delta (the 2 rows flagged by the adversary), not to the full Red Gate table. Other rows that were never specifically flagged were assumed correct.
+
+**Rule (codified):**
+
+When performing ANY Red Gate citation sweep under POL-21:
+1. Enumerate ALL rows in the Red Gate table (not just flagged rows).
+2. For each row: `rg 'TEST_NAME' crates/ --type rust` to confirm the test exists at the cited location.
+3. For each row: read the actual test body and verify the "Behavior Verified" column accurately describes what the test asserts — name-match alone is insufficient.
+4. Only declare the sweep complete after ALL rows pass both checks.
+5. If step 3 reveals any row whose description does not match the test body, fix it in the same commit — do not declare done with known description drift.
+
+**Deferral entry (S-7.02 — no follow-up story warranted; rule codified here):** This gap is addressed by the rule above. No separate follow-up story is created; the fix is a sweep discipline rule applied to every future story's Red Gate table. Orchestrator to verify this rule is cited in story-writer dispatch prompts for Red Gate citation work.
+
+**Source:** 001-A rounds D-1272 (partial sweep) + D-1276 F-PR197-RG3-P3-MED-001 (recurrence); D-1277 S-7.02 cycle-closing codification.

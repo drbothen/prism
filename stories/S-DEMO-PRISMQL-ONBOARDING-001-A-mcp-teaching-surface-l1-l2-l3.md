@@ -51,9 +51,10 @@ points: 7
 #         with 7 required sections ≤3000 tokens): 1 pt
 #   Total: 7 pts
 level: "L4"
-status: draft
-# BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
-# orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
+status: merged
+# BC status: behavioral_contracts is non-empty (4 BCs). POL-14: all 4 BCs promoted draft→active
+# on merge of PR #197 (develop@ffe9315a; D-1277 post-merge burst 2026-06-21).
+# merged_sha: ffe9315a (PR #197 squash-merge to develop; 2026-06-21)
 version: "1.10"
 producer: story-writer
 timestamp: "2026-06-21"

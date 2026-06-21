@@ -2,7 +2,7 @@
 document_type: adr
 adr_id: "ADR-042"
 title: "Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild"
-status: proposed
+status: accepted
 date: "2026-06-20"
 modified: "2026-06-20"
 version: "1.1"
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-PROPOSED v1.1 (2026-06-20). Design-ready; implementation owned by S-DEMO-PRISMQL-ONBOARDING-001-A (D-1267: folded into 001-A, not a separate follow-up story). Will become ACCEPTED on merge of that story's PR.
+ACCEPTED v1.1 (2026-06-21). Implementation delivered and merged via PR #197 (S-DEMO-PRISMQL-ONBOARDING-001-A squash-merged to develop@ffe9315a; D-1277 post-merge burst). LOCAL strict-3-CLEAN (round-9 @15e43516) + PR-LEVEL strict-3-CLEAN (final @a8284145) CONVERGED; CI 43/43 green; pr-reviewer APPROVE; security CLEAR.
 
 Authorized by D-1267 (human override of the deferral recommendation in
 `001-A-reload-notify-diff-adjudication.md`; also directs folding this work into
