@@ -3172,42 +3172,93 @@ impl PrismServer {
                 detail: "spec_dir not wired at PrismServer (boot step 9 incomplete)".to_owned(),
             }));
         };
-        let cm_guard = cm_arc.load();
-        let result = prism_spec_engine::reload_config::reload_config(
-            &cm_guard,
-            spec_dir,
-            prism_spec_engine::types::ReloadConfigArgs { dry_run: false },
-        )
-        .map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("reload_config failed: {e}"),
-            })
-        })?;
+        // ADR-042 async discipline: both `reload_config` (parse_spec_directory) and
+        // `rebuild_resolved_spec_map` (OverlayLoader::load_overlays) perform synchronous
+        // filesystem I/O. Per ADR-042 and CLAUDE.md §Channels/async, blocking sync I/O
+        // MUST NOT run directly on the Tokio executor — wrap in spawn_blocking.
+        //
+        // Ordering preserved: ConfigSnapshot swap (inside reload_config) happens before
+        // resolved_spec_map rebuild (both in the same blocking closure), which happens
+        // BEFORE the per-client notify-diff downstream.
+        let cm_arc_owned = Arc::clone(cm_arc);
+        let spec_dir_owned: std::path::PathBuf = spec_dir.clone();
+        let qe_opt: Option<Arc<QueryEngine>> = self.query_engine.as_ref().map(Arc::clone);
 
-        // ADR-042: rebuild resolved_spec_map atomically from the new ConfigSnapshot.
-        // Must happen AFTER the ConfigSnapshot swap (which reload_config() performs above).
-        // Non-fatal on error per DI-031: log WARN and retain the prior map.
-        if let (Some(qe), Some(spec_dir_path)) =
-            (self.query_engine.as_ref(), self.spec_dir.as_ref())
-        {
-            let customers_dir = spec_dir_path.join("customers");
-            // Extract post-reload type_specs from the new ConfigSnapshot.
-            let type_specs = {
-                let cm_guard_post = cm_arc.load();
-                cm_guard_post.load().sensor_specs.clone()
-            };
-            if let Some(org_registry) = qe.org_registry() {
-                if let Err(e) =
-                    qe.rebuild_resolved_spec_map(&customers_dir, &type_specs, &org_registry)
-                {
-                    // Non-fatal: retain prior map (DI-031 fail-closed on reload).
-                    tracing::warn!(
-                        error = %e,
-                        "resolved_spec_map rebuild failed during reload_config; \
-                         multi-tenant schema reads will serve prior map (ADR-042 / DI-031)"
-                    );
-                }
+        // Blocking closure returns (ReloadResult, Option<rebuild_error_string>).
+        // Phase 1 (reload_config) is fatal on error; Phase 2 (rebuild) is non-fatal per DI-031.
+        type BlockingOk = (
+            prism_spec_engine::types::ReloadResult,
+            Option<String>, // rebuild error message, if any
+        );
+        type BlockingErr = prism_spec_engine::error::SpecEngineError;
+
+        let join_result =
+            tokio::task::spawn_blocking(move || -> Result<BlockingOk, BlockingErr> {
+                // Phase 1: parse + validate + atomic ConfigSnapshot swap (blocking FS I/O)
+                let cm_guard = cm_arc_owned.load();
+                let reload_result = prism_spec_engine::reload_config::reload_config(
+                    &cm_guard,
+                    &spec_dir_owned,
+                    prism_spec_engine::types::ReloadConfigArgs { dry_run: false },
+                )?;
+
+                // Phase 2: rebuild resolved_spec_map from new ConfigSnapshot (ADR-042).
+                // Must happen AFTER the ConfigSnapshot swap above.
+                // Non-fatal per DI-031: return error string to caller for WARN logging.
+                let rebuild_err_msg: Option<String> = if let Some(ref qe) = qe_opt {
+                    let customers_dir = spec_dir_owned.join("customers");
+                    // Read type_specs from the freshly-swapped ConfigSnapshot.
+                    let type_specs = {
+                        let post_guard = cm_arc_owned.load();
+                        post_guard.load().sensor_specs.clone()
+                    };
+                    match qe.org_registry() {
+                        Some(org_registry) => qe
+                            .rebuild_resolved_spec_map(&customers_dir, &type_specs, &org_registry)
+                            .err()
+                            .map(|e| e.to_string()),
+                        None => None,
+                    }
+                } else {
+                    None
+                };
+
+                Ok((reload_result, rebuild_err_msg))
+            })
+            .await;
+
+        // Handle JoinError (blocking thread panic / cancellation) — non-fatal per DI-031:
+        // log WARN and retain prior resolved_spec_map; the reload itself is treated as failed
+        // since we cannot know whether the ConfigSnapshot swap completed.
+        let (result, rebuild_err_msg) = match join_result {
+            Ok(Ok(pair)) => pair,
+            Ok(Err(reload_err)) => {
+                return Err(to_error_data(PrismError::Internal {
+                    detail: format!("reload_config failed: {reload_err}"),
+                }));
             }
+            Err(join_err) => {
+                tracing::warn!(
+                    error = %join_err,
+                    "reload_config blocking task panicked or was cancelled; \
+                     ConfigSnapshot swap state unknown, retaining prior resolved_spec_map \
+                     (ADR-042 / DI-031 non-fatal path)"
+                );
+                return Err(to_error_data(PrismError::Internal {
+                    detail: format!(
+                        "reload_config blocking task failed (task panicked/cancelled): {join_err}"
+                    ),
+                }));
+            }
+        };
+
+        // Log any non-fatal rebuild error (DI-031 retain-prior-map semantics).
+        if let Some(ref e_msg) = rebuild_err_msg {
+            tracing::warn!(
+                error = %e_msg,
+                "resolved_spec_map rebuild failed during reload_config; \
+                 multi-tenant schema reads will serve prior map (ADR-042 / DI-031)"
+            );
         }
 
         let result_json = serde_json::json!({
