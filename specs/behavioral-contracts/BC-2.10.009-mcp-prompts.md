@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["ADR-041-teaching-burst-2026-06-19"]
+modified: ["ADR-041-teaching-burst-2026-06-19", "001-A-cascade-reconciliation-2026-06-20"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -105,7 +105,7 @@ The skeletons MUST use `<table>` or equivalent placeholder, NOT hardcoded vendor
 | EC-10-016 | Prompt references a sensor not configured for the specified client | The prompt generates tool calls; the tool handles the "sensor not configured" case normally |
 | EC-10-017 | Prompt argument `client_id` is null | Prompt operates in cross-client mode where applicable; `query_tutorial` without `client_id` returns guidance to provide `client_id` before calling `prism_describe` |
 | EC-10-018 | `query_tutorial` invoked without `goal` argument | Prompt returns the full discover→write→correct workflow without goal contextualization (Step 5 omitted or replaced with generic guidance) |
-| EC-10-019 | `query_tutorial` invoked with `goal` argument | Prompt includes Step 5 with the goal text interpolated. **Note:** `goal` is analyst-supplied free text; it is included in the prompt as a quoted, labeled parameter value — NOT interpolated into PQL query strings or sensor tool calls. The goal text is context for the model's reasoning, not executable content. |
+| EC-10-019 | `query_tutorial` invoked with `goal` argument | Prompt includes Step 5 with the goal text interpolated as a labeled (unquoted) parameter value: `Your query goal: <goal>.` **Note:** `goal` is analyst-supplied first-party trusted input (not sensor data — DI-006 governs untrusted sensor field values, not analyst-authored prompt arguments); it is included as a labeled contextual hint for the model's reasoning, NOT interpolated into PQL query strings or sensor tool calls. Quoting is not required. (Precedence rule 1: AC-009 / implementation / test all use the unquoted-labeled form; BC amended to match per 001-A cascade F-P4P2-LOW-001.) |
 
 ## Canonical Test Vectors
 
@@ -146,6 +146,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | 001-A-cascade-reconciliation-2026-06-20 | 2026-06-20 | product-owner | **EC-10-019 reconciliation (F-P4P2-LOW-001):** Amended EC-10-019 to remove the "quoted" requirement. Implemented behavior (prompts.rs `render_query_tutorial`), AC-009, and test all use the unquoted-labeled form `Your query goal: <goal>.` Per CLAUDE.md source-of-truth precedence rule 1 (story AC supersedes BC for implementation scope) and the first-party trust model for analyst-authored `goal` (DI-006 governs sensor data, not analyst input). BC now matches AC-009/impl/test. |
 | 1.4 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | **ADR-041 L1 amendment:** added `query_tutorial` as the 5th required prompt. Postconditions extended with `query_tutorial` spec: arguments (`client_id` required, `goal` optional), required structural elements (Steps 1-5 including DI-006 security reminder), content restrictions (workflow guide only, no grammar inline). Added L1 primer spec for `query` tool description upgrade (≤500 tokens, schema-agnostic skeletons, discovery pointer). Updated Description H1 title. Added EC-10-018/019 edge cases. Updated Canonical Test Vectors. Added Related BCs. Updated Traceability Capability Anchor Justification. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

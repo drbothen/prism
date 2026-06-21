@@ -1,28 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.894"
+version: "7.895"
 status: current
-timestamp: 2026-06-20T13:00:00Z
+timestamp: 2026-06-20T14:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1266 (2026-06-20): 001-A round-3 fix-burst hygiene complete. story v1.3→v1.4 (§Changelog monotonic reorder + TD-VSDD-091 pin removal). Round-3 code fixes: AC-003 unknown-client hint + SchemaSubscriberRegistry Mutex poison tolerance. Feature HEAD 7b90cc94. `just check` GREEN 4660 tests, gate 82. STORY-INDEX v2.445. STATE v7.893→v7.894. §RESUME SNAPSHOT D-1266 authored (supersedes D-1265).**
+> **D-1267 (2026-06-20): 001-A round-4 phase-1 artifacts committed. story v1.4→v1.5 (§Changelog POL-32 reorder [F-P1-MED-001]). BC-2.10.009 v1.4→v1.5 (goal-quoting reconciled [F-P4P2-LOW-001]). Adjudication doc committed (001-A-reload-notify-diff-adjudication.md). HUMAN DECISION D-1267: multi-tenant notify-diff BUILT NOW in 001-A — resolved_spec_map RELOAD-AWARE 4-crate build OVERRIDES architect defer recommendation. STORY-INDEX v2.446. BC-INDEX v6.90. STATE v7.894→v7.895. §RESUME SNAPSHOT D-1267 authored (supersedes D-1266).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1266** (authoritative zero-context restart protocol; supersedes D-1265). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1265 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1266 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.894.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1267** (authoritative zero-context restart protocol; supersedes D-1266). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1266 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1267 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.895.
 
 ---
 
-## §RESUME SNAPSHOT — D-1266 (2026-06-20 — 001-A round-3 fix-burst hygiene: story v1.4; feature HEAD 7b90cc94; just check GREEN 4660 tests, gate 82; STORY-INDEX v2.445; develop_head f6739764 UNCHANGED; STATE v7.894)
+## §RESUME SNAPSHOT — D-1267 (2026-06-20 — 001-A round-4 phase-1 artifacts; story v1.5; BC-2.10.009 v1.5; adjudication doc committed; D-1267 BUILD-NOW decision; STORY-INDEX v2.446; BC-INDEX v6.90; develop_head f6739764 UNCHANGED; STATE v7.895)
 
-> **D-1266 burst (2026-06-20).** Round-3 LOCAL cascade (3 passes on 43b92216) VERIFIED AC-006 production wiring is genuinely end-to-end — the 3x-recurring CRITICAL is CLOSED. Round-3 fix-burst closed: (HIGH) AC-003 unknown-client hint now consults `org_registry.slug_exists` → emits distinct `'is not registered'` vs `'no sensor tables'` BC-2.10.012 hints (feature `5d1a2bfb`); (HIGH/MED) 5 `SchemaSubscriberRegistry` `.expect()` Mutex sites converted to F-006 poison-tolerant `into_inner()` pattern (feature `7b90cc94`); (MED) story §Changelog reordered to monotonic-descending per POL-32 [F-P3-MED-001]; (LOW) TD-VSDD-091 volatile line-number pins converted to symbol anchors [F-P3-LOW-001]; changelog row added (story v1.3→v1.4). Feature branch `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` at HEAD `7b90cc94`. `just check` GREEN 4660 workspace tests, non-exhaustive gate 82. Feature branch is NOW RE-FROZEN for LOCAL strict-3-CLEAN re-gate round 4. develop_head UNCHANGED f6739764.
+> **D-1267 burst (2026-06-20).** Round-4 cascade (3 passes on 7b90cc94): all CRITICALs (AC-006 production wiring, lock-poison Mutex, AC-003 hints) confirmed solid. Phase-1 artifacts committed: (1) story v1.4→v1.5 — §Changelog reordered correctly to strict monotonic-descending 1.5→1.0 per POL-32 [F-P1-MED-001]; (2) BC-2.10.009 v1.4→v1.5 — EC-10-019 goal-quoting reconciled to labeled-unquoted per AC-009/impl [F-P4P2-LOW-001]; (3) architect adjudication doc committed (analysis record — defer recommendation OVERRIDDEN by human). HUMAN DECISION D-1267: multi-tenant schema-change notify-diff gap (org-slug != sensor-id + hot-reload) will be BUILT NOW in 001-A — NOT deferred — overriding architect's defer-to-follow-up recommendation. This requires making `resolved_spec_map` RELOAD-AWARE (rebuild on hot-reload) across prism-query/prism-spec-engine/prism-bin/prism-mcp, changing the documented boot-frozen invariant. Warrants an ADR. Feature branch `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` STILL FROZEN @7b90cc94. NEXT = architect ADR → PO updates BC-2.10.013 → test-writer multi-tenant notify test → implementer 4-crate build + example_query/doc fixes → re-gate LOCAL strict-3-CLEAN. develop_head UNCHANGED f6739764.
 
-### ZERO-CONTEXT RESTART PROTOCOL D-1266 (run in this order; no prior context needed)
+### ZERO-CONTEXT RESTART PROTOCOL D-1267 (run in this order; no prior context needed)
 
-**Step 0.** Read this D-1266 snapshot first. It is authoritative.
+**Step 0.** Read this D-1267 snapshot first. It is authoritative.
 
 **Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING.
 
@@ -32,7 +32,7 @@ timestamp: 2026-06-20T13:00:00Z
 git log --oneline -1 origin/develop
 ```
 
-Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1265/D-1266).
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1265/D-1266/D-1267).
 
 **Step 3.** Confirm no open PRs:
 
@@ -48,32 +48,34 @@ Expected: NO open PRs.
 git log --oneline -1 origin/feature/S-DEMO-PRISMQL-ONBOARDING-001-A
 ```
 
-Expected: `7b90cc94`. Branch is FROZEN — no pushes during LOCAL cascade.
+Expected: `7b90cc94`. Branch is FROZEN — no pushes until multi-tenant notify build + example_query/doc fixes are complete.
 
 **Step 5.** Apply carry-forward: lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md` + DO-NOT-REFLAG entries from §DO-NOT-REFLAG below.
 
-**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1266 below: LOCAL strict-3-CLEAN re-gate round 4 on frozen `7b90cc94` (streak 0/3) → demo evidence → PR → 001-B TDD → S-5.04 TDD (probe_table folded). Autonomy D-989+D-1090 active.
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1267 below: architect ADR (resolved_spec_map-reload-aware) → PO updates BC-2.10.013 multi-tenant notify coverage → test-writer multi-tenant notify test (org != sensor) → implementer 4-crate build + example_query/doc fixes → re-gate LOCAL strict-3-CLEAN on new HEAD (streak resets on push). Autonomy D-989+D-1090 active.
 
 ---
 
-### PINNED STATE (D-1266 — verified 2026-06-20)
+### PINNED STATE (D-1267 — verified 2026-06-20)
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| develop HEAD | `f6739764` | UNCHANGED from D-1258 through D-1266. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
+| develop HEAD | `f6739764` | UNCHANGED from D-1258 through D-1267. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
 | factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
 | Open PRs | **NONE** | No open PRs. |
-| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `7b90cc94` | **RE-FROZEN for LOCAL strict-3-CLEAN re-gate round 4.** Round-3 fix-burst complete. Streak 0/3. |
-| 001-A story | **draft v1.4** | D-1266 §Changelog monotonic reorder + TD-VSDD-091 pin removal. Round-3 code fixes @7b90cc94. DEMO-BLOCKING. Serial first. |
+| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `7b90cc94` | **FROZEN pending multi-tenant notify build + example_query/doc fixes.** Round-4 phase-1 artifacts committed. Streak NOT running — next cascade on new HEAD after push. |
+| 001-A story | **draft v1.5** | D-1267 §Changelog reordered monotonic-descending POL-32 [F-P1-MED-001]. DEMO-BLOCKING. Serial first. |
+| BC-2.10.009 | **v1.5** | D-1267 goal-quoting reconciled labeled-unquoted [F-P4P2-LOW-001]. |
+| adjudication doc | committed | `.factory/specs/architecture/scoping/001-A-reload-notify-diff-adjudication.md` — analysis record; defer recommendation OVERRIDDEN by D-1267. |
 | 001-B story | **draft v1.2** | D-1261 TableRegistry correction applied. **TDD-READY.** DEMO-BLOCKING. Serial after 001-A. |
 | S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | **UNPARKED per D-1260.** probe_table **FOLDED IN (D-1262).** PO to author BC-2.08.001 + BC-2.16.009 + E-SPEC-026 before TDD resumes. Serial: after 001-A + 001-B. |
 | S-3.09 worktree | FROZEN | Leave alone. |
 | W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
 | ci.yml EXPECTED | `82` (on feature/001-A branch) | 79 on develop. 79→82 reconciliation at 001-A merge-time. |
 | CLAUDE.md non-exhaustive count | `79` (on develop) | 79→82 reconciliation PENDING at 001-A merge-time. |
-| BC-INDEX | **v6.89** | active 235 / draft 8 / retired 6 / total 256. BC-2.10.012 v1.1 + BC-2.10.013 v1.1 (D-1263). |
-| STORY-INDEX | **v2.445** | 206 stories. 001-A row updated v1.3→v1.4 (D-1266). |
-| STATE.md | v7.894 | D-1266 burst. |
+| BC-INDEX | **v6.90** | active 235 / draft 8 / retired 6 / total 256. BC-2.10.009 v1.4→v1.5 (D-1267). |
+| STORY-INDEX | **v2.446** | 206 stories. 001-A row updated v1.4→v1.5 (D-1267). |
+| STATE.md | v7.895 | D-1267 burst. |
 | error_taxonomy | v1.91 | Unchanged. |
 | arch_index | v2.138 | Unchanged. |
 | vp_index | v1.79 | Unchanged. |
@@ -82,31 +84,32 @@ Expected: `7b90cc94`. Branch is FROZEN — no pushes during LOCAL cascade.
 
 ---
 
-### WHAT'S DONE THIS BURST (D-1266)
+### WHAT'S DONE THIS BURST (D-1267)
 
 | Decision | Date | Summary |
 |----------|------|---------|
+| D-1267 (2026-06-20) | 001-A round-4 phase-1 artifacts + BUILD-NOW decision. Round-4 cascade (3 passes on 7b90cc94): all CRITICALs confirmed solid. Phase-1 fixes: story v1.4→v1.5 (§Changelog POL-32 monotonic-descending reorder [F-P1-MED-001]); BC-2.10.009 v1.4→v1.5 (goal-quoting reconciled labeled-unquoted [F-P4P2-LOW-001]); adjudication doc committed (analysis record). HUMAN DECISION: multi-tenant notify-diff BUILT NOW in 001-A (resolved_spec_map RELOAD-AWARE 4-crate build) — overrides architect defer recommendation. Adjudication doc: specs/architecture/scoping/001-A-reload-notify-diff-adjudication.md. STORY-INDEX v2.445→v2.446. BC-INDEX v6.89→v6.90. develop_head UNCHANGED f6739764. STATE v7.894→v7.895. |
 | D-1266 (2026-06-20) | 001-A round-3 fix-burst hygiene. Round-3 LOCAL cascade (3 passes on 43b92216) VERIFIED AC-006 wiring end-to-end (3x-recurring CRITICAL CLOSED). Fixes: AC-003 unknown-client hint (org_registry.slug_exists consult) @5d1a2bfb; 5 SchemaSubscriberRegistry Mutex poison-tolerance conversions @7b90cc94; story v1.3→v1.4 (§Changelog monotonic reorder + TD-VSDD-091 pin removal). Feature HEAD 7b90cc94. just check GREEN 4660 tests, gate 82. STORY-INDEX v2.444→v2.445. develop_head UNCHANGED f6739764. STATE v7.893→v7.894. |
 
 ---
 
-### WHAT'S NEXT — Demo Roadmap (D-1266)
+### WHAT'S NEXT — Demo Roadmap (D-1267)
 
 | Priority | Story | Status | Pts | Hard Prerequisites | Notes |
 |----------|-------|--------|-----|--------------------|-------|
-| **NEXT (LOCAL cascade)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **round-3 fix-burst COMPLETE @7b90cc94 — LOCAL strict-3-CLEAN re-gate round 4 NEXT** | 7 | Feature branch FROZEN @7b90cc94; NO pushes during cascade; streak 0/3 | After 3-CLEAN: demo evidence → PR → PR-LEVEL cascade → merge. DEMO-BLOCKING. Serial first. |
+| **NEXT (D-1267 build sequence)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **round-4 phase-1 artifacts COMMITTED — multi-tenant notify build NEXT** | 7 | architect ADR → PO BC-2.10.013 update → test-writer → implementer 4-crate | Sequence: (1) architect: ADR for resolved_spec_map-reload-aware design across 4 crates; (2) PO: update BC-2.10.013 to cover multi-tenant notify (org != sensor); (3) test-writer: multi-tenant notify test; (4) implementer: 4-crate fix (prism-query/prism-spec-engine/prism-bin/prism-mcp) + example_query/doc fixes; (5) re-gate LOCAL strict-3-CLEAN on new HEAD. DEMO-BLOCKING. Serial first. |
 | **NEXT-B (after 001-A merge)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | 001-A MERGED | **DEMO-BLOCKING (D-1243).** Serial after 001-A. |
 | **NEXT-C (after 001-A + 001-B merge)** | **S-5.04** | not-started v1.9 (**UNPARKED; probe_table FOLDED IN — D-1262**) | 5+ | 001-A/001-B MERGED + PO authors BC-2.08.001/BC-2.16.009/E-SPEC-026 | F-S504-R2-002 MED + LOW/OBS remain + probe_table scope added. **DEMO-BLOCKING.** |
 | **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |
 | **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
 
-**North Star roadmap: 001-A LOCAL strict-3-CLEAN re-gate round 4 (frozen 7b90cc94, streak 0/3) → demo → PR → PR-LEVEL cascade → merge → 001-B TDD → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
+**North Star roadmap: 001-A multi-tenant notify build (architect ADR → PO → test-writer → implementer) + example_query/doc fixes → re-gate LOCAL strict-3-CLEAN on new HEAD (streak resets) → demo → PR → PR-LEVEL cascade → merge → 001-B TDD → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
 
 **Merge-time obligation: CLAUDE.md non-exhaustive count 79→82 reconciliation at 001-A merge-time.**
 
 **Convergence reminders (carry forward):**
 - BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
-- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. Feature branch is RE-FROZEN @7b90cc94; streak counts from here.
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. When implementer pushes multi-tenant notify fix, streak resets to 0/3; next cascade gates on new HEAD.
 - DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore). OBS-3 DEC-004 from S-5.03. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14).
 
 **Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
