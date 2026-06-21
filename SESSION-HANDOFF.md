@@ -1,18 +1,133 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.903"
+version: "7.904"
 status: current
-timestamp: 2026-06-21T01:00:00Z
+timestamp: 2026-06-21T01:15:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1275 (2026-06-21): 001-A LOCAL strict-3-CLEAN CONVERGED. Round-9 passes A/B/C all CLEAN(strict) on frozen 15e43516 (BC-5.39.001 frozen-HEAD streak 3/3). All round-8 fixes verified correct, zero regressions. DO-NOT-REFLAG honored (F-R8PB-MED-002 not re-raised). STATE v7.902→v7.903. §RESUME SNAPSHOT D-1275 authored (supersedes D-1274).**
+> **D-1276 (2026-06-21): PR #197 PR-LEVEL re-gate fix-burst DONE. Feature HEAD 15e43516→c1d83b34→ceadf7b9→59028e3e (all fixes merged). F-PR197-RG-P2-MED-001 validate_goal 256-byte cap + F-PR197-RG-P3-MED-001 Red Gate row-1 (story v1.10, 15 rows) + F-PR197-RG-P3-MED-002 stale HEAD pin + F-PR197-RG-P3-LOW-001 doc-comment volatile pin + F-PR197-RG-P3-OBS-002 annotations test under-assert — ALL FIXED. just check GREEN 4671 gate 82. NEXT = PR-LEVEL strict-3-CLEAN re-gate on frozen 59028e3e (streak 0/3). STATE v7.903→v7.904. §RESUME SNAPSHOT D-1276 authored (supersedes D-1275).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1275** (authoritative zero-context restart protocol; supersedes D-1274). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1274 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1275 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.903.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1276** (authoritative zero-context restart protocol; supersedes D-1275). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1275 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1276 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.904.
+
+---
+
+## §RESUME SNAPSHOT — D-1276 (2026-06-21 — PR #197 PR-LEVEL re-gate fix-burst DONE; feature HEAD 59028e3e FROZEN; BC-INDEX v6.94; STORY-INDEX v2.450; ARCH-INDEX v2.140; STATE v7.904; develop_head f6739764 UNCHANGED)
+
+> **D-1276 burst (2026-06-21).** PR #197 (S-DEMO-PRISMQL-ONBOARDING-001-A) PR-LEVEL cascade re-gate fix-burst committed to factory-artifacts (single atomic commit, TD-VSDD-053). Pass-1 round on c1d83b34 (demo evidence commit) returned CLEAN(PR-merge)=yes but CLEAN(strict)=no with 2 LOW findings — fixed at ceadf7b9 (EC-10-033 internal-guard canonical message corrected + render_query_tutorial doc-comment fixed). Re-gate round on ceadf7b9 found 5 findings: F-PR197-RG-P2-MED-001 (goal SEC-001 unbounded free-text — validate_goal 256-byte cap added), F-PR197-RG-P3-MED-001 (Red Gate row-1 annotation misattribution — test_BC_2_10_012_prism_describe_happy_path_catalog behavior desc corrected; test_BC_2_10_012_prism_describe_tool_annotations added as row 1 — story v1.10, 15 Red Gate rows; story-writer committed @07201f7c on factory-artifacts), F-PR197-RG-P3-MED-002 (frozen-HEAD pin stale at 15e43516 — updated to 59028e3e), F-PR197-RG-P3-LOW-001 (doc-comment volatile version pin removed), F-PR197-RG-P3-OBS-002 (annotations test asserted annotations-exist but not literal AC-001 phrase — test now asserts literal phrase). ALL 5 FIXED. Feature HEAD advanced 15e43516→c1d83b34→ceadf7b9→59028e3e. `just check` GREEN 4671; gate EXPECTED=82. develop_head UNCHANGED f6739764. STORY-INDEX v2.449→v2.450 (001-A v1.9→v1.10, red_gate_tests 14→15). STATE v7.903→v7.904.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1276 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1276 snapshot first. It is authoritative.
+
+**Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING.
+
+**Step 2.** Confirm develop HEAD:
+
+```bash
+git log --oneline -1 origin/develop
+```
+
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; UNCHANGED from D-1258 through D-1276).
+
+**Step 3.** Confirm PR #197 open:
+
+```bash
+gh pr list --state open --base develop
+```
+
+Expected: PR #197 open for feature/S-DEMO-PRISMQL-ONBOARDING-001-A.
+
+**Step 4.** Confirm 001-A feature branch HEAD:
+
+```bash
+git log --oneline -1 origin/feature/S-DEMO-PRISMQL-ONBOARDING-001-A
+```
+
+Expected: `59028e3e`. PR-LEVEL re-gate fix-burst complete. FROZEN for PR-LEVEL strict-3-CLEAN (streak 0/3).
+
+**Step 5.** Apply carry-forward: lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md` + DO-NOT-REFLAG entries from §DO-NOT-REFLAG below (including F-R8PB-MED-002).
+
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1276 below: dispatch **PR-LEVEL strict-3-CLEAN re-gate** — 3 independent fresh-context `vsdd-factory:adversary` passes on FROZEN `59028e3e`. Inject `.factory/policies.yaml` rubric + SAP-1/SAP-2 + production-grade lens + DRIFT-ORCH-ADVERSARY-TUPLE-001. Apply DO-NOT-REFLAG entries. Strict 3-CLEAN = zero findings any severity. Autonomy D-989+D-1090 active.
+
+---
+
+### PINNED STATE (D-1276 — verified 2026-06-21)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| develop HEAD | `f6739764` | UNCHANGED from D-1258 through D-1276. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
+| factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
+| Open PRs | **PR #197** | PR #197 open for 001-A (feature/S-DEMO-PRISMQL-ONBOARDING-001-A). |
+| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `59028e3e` | **FROZEN for PR-LEVEL strict-3-CLEAN re-gate (streak 0/3). Re-gate fix-burst complete.** |
+| 001-A story | **draft v1.10** | D-1276 Red Gate table corrected + frozen-HEAD pin refreshed. DEMO-BLOCKING. Serial first. |
+| ADR-042 | **v1.1** | Unchanged from D-1274. |
+| adjudication doc | **v1.1** | `scoping/001-A-reload-notify-diff-adjudication.md` — status superseded-in-part; D-1267 override + F-R8PB-MED-002 single-connection invariant recorded. |
+| BC-2.10.012 | **v1.2** | Unchanged from D-1271. |
+| BC-2.16.002 | **v1.86** | Unchanged from D-1270. |
+| BC-2.10.013 | **v1.2** | Unchanged from D-1269. |
+| BC-2.10.009 | **v1.5** | Unchanged from D-1267. |
+| 001-B story | **draft v1.2** | D-1261 TableRegistry correction applied. **TDD-READY.** DEMO-BLOCKING. Serial after 001-A. NO worktree yet — start fresh. |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | **PARKED.** probe_table FOLDED IN (D-1262). PO to author BC-2.08.001 + BC-2.16.009 + E-SPEC-026 before TDD resumes. Serial: after 001-A + 001-B. |
+| S-3.09 worktree | FROZEN | Leave alone. |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
+| ci.yml EXPECTED | `82` (on feature/001-A branch) | 79 on develop. 79→82 reconciliation at 001-A merge-time. |
+| CLAUDE.md non-exhaustive count | `79` (on develop) | 79→82 reconciliation PENDING at 001-A merge-time (3 new types: PrismDescribeResponse/TableDescriptor/ColumnDescriptor). |
+| BC-INDEX | **v6.94** | active 235 / draft 8 / retired 6 / total 256. Unchanged from D-1274. |
+| STORY-INDEX | **v2.450** | 206 stories. 001-A v1.10 (D-1276, 15 Red Gate rows). |
+| ARCH-INDEX | **v2.140** | Unchanged from D-1274. |
+| STATE.md | v7.904 | D-1276 burst. |
+| error_taxonomy | v1.91 | Unchanged. |
+| vp_index | v1.79 | Unchanged. |
+| active_contracts | 235 | Unchanged. |
+| draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
+
+---
+
+### MERGE-TIME OBLIGATIONS (001-A — record for cold resume)
+
+When 001-A PR squash-merges to develop:
+
+1. **CLAUDE.md non-exhaustive count 79→82** — 3 new types: `PrismDescribeResponse`, `TableDescriptor`, `ColumnDescriptor`; ci.yml + check script already 82 on feature branch; reconcile CLAUDE.md on develop.
+2. **ADR-042 PROPOSED→ACCEPTED** — promote status in ADR-042 frontmatter.
+3. **BCs draft→active (POL-14)** — BC-2.10.009/012/013/014 all in `behavioral_contracts` frontmatter of 001-A story; auto-promote draft→active at merge.
+
+---
+
+### WHAT'S DONE THIS BURST (D-1276)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1276 (2026-06-21) | PR #197 PR-LEVEL cascade re-gate fix-burst DONE. Feature HEAD 15e43516→c1d83b34 (demo evidence) →ceadf7b9 (PR-LEVEL pass-1 LOW fixes) →59028e3e (re-gate fixes: validate_goal 256-byte cap + annotations test literal-phrase + doc-comment volatile-pin removal). Story v1.9→v1.10 (15 Red Gate rows; story-writer @07201f7c). STORY-INDEX v2.449→v2.450. just check GREEN 4671, gate 82. develop_head UNCHANGED f6739764. STATE v7.903→v7.904. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1276)
+
+| Priority | Story | Status | Pts | Hard Prerequisites | Notes |
+|----------|-------|--------|-----|--------------------|-------|
+| **NEXT (PR-LEVEL re-gate)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **PR #197 OPEN; feature HEAD 59028e3e FROZEN — PR-LEVEL strict-3-CLEAN re-gate (streak 0/3)** | 7 | Feature branch FROZEN @59028e3e; NO pushes during cascade | DEMO-BLOCKING. Serial first. Merge-time: CLAUDE.md 79→82, ADR-042 PROPOSED→ACCEPTED, BCs draft→active (POL-14). |
+| **NEXT-B (after 001-A merge)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | 001-A MERGED | **DEMO-BLOCKING (D-1243).** Serial after 001-A. NO worktree yet — start fresh. |
+| **NEXT-C (after 001-A + 001-B merge)** | **S-5.04** | not-started v1.9 (**PARKED; probe_table FOLDED IN — D-1262**) | 5+ | 001-A/001-B MERGED + PO authors BC-2.08.001/BC-2.16.009/E-SPEC-026 | F-S504-R2-002 MED + LOW/OBS remain + probe_table scope added. **DEMO-BLOCKING.** |
+| **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |
+| **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
+
+**North Star roadmap: 001-A PR-LEVEL strict-3-CLEAN re-gate @59028e3e (streak 0/3) → squash-merge → 001-B TDD (no worktree yet) → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
+
+**Merge-time obligations (durable): CLAUDE.md non-exhaustive count 79→82 (3 types); ADR-042 PROPOSED→ACCEPTED; BCs draft→active (POL-14).**
+
+**Convergence reminders (carry forward):**
+- BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. Feature branch @59028e3e FROZEN; no pushes during PR-LEVEL cascade.
+- DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore). OBS-3 DEC-004 from S-5.03. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14). **F-R8PB-MED-002** (unsubscribe removes ALL subscribers for org slug — adjudicated CORRECT-BY-CONSTRUCTION by architect: prism is per-analyst stdio MCP = exactly one client connection per process lifetime; rmcp 1.7.0 exposes no stable per-connection identity; BC-2.10.013 §76 documents the single-connection invariant; doc-comment added @15e43516. Do NOT re-flag in PR-LEVEL cascade).
+- demo-evidence-stale-HEAD-pin non-blocking class: OBS findings about demo evidence citing an older code HEAD are NON-BLOCKING if `git diff <evidence-HEAD>..<pr-HEAD>` is docs-only (pattern established D-1257 PIVOT-003-PRLEVEL-OBS-1). Do NOT re-flag without first running the diff.
+- [process-gap S-7.02]: POL-21 phantom-anchor remediation MUST re-grep the FULL Red Gate table, not just the delta (recurred 001-A rounds v1.7→v1.8). Open a follow-up or record deferral at cycle-close.
+
+**Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
 
 ---
 
