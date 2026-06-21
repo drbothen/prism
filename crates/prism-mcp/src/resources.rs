@@ -21,7 +21,9 @@
 
 /// `prismql://schema/{client_id}` resource template and `prismql://reference` static resource.
 ///
-/// Stub module for S-DEMO-PRISMQL-ONBOARDING-001-A (BC-2.10.013, BC-2.10.014).
+/// `prismql://schema/{client_id}` (BC-2.10.013) returns the full PQL table/column/type
+/// catalog for a given client as structured JSON. `prismql://reference` (BC-2.10.014)
+/// serves the static PQL grammar reference embedded at build time.
 pub mod schema;
 
 use std::{collections::BTreeSet, sync::Arc};
