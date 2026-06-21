@@ -293,7 +293,7 @@ pub async fn render_pql_schema_resource(
     let slug = OrgSlug::new(client_id);
     if slug.is_err() {
         return Err(ErrorData::invalid_params(
-            "E-MCP-001: invalid client_id in resource URI — must match [a-zA-Z0-9_-]{1,64}",
+            "Invalid client_id in resource URI",
             None,
         ));
     }

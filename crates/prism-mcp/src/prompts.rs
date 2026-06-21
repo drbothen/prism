@@ -417,7 +417,8 @@ pub fn render_cross_client_status(time_range: Option<&str>) -> Result<GetPromptR
 ///   - Step 5: Goal contextualization when `goal` arg is present; absent otherwise.
 ///
 /// Arguments: `client_id` (required), `goal` (optional).
-/// Includes SECURITY_REMINDER (DI-006).
+/// Step 4 embeds an inline DI-006 reminder (untrusted sensor data) rather than
+/// appending the `SECURITY_REMINDER` constant.
 ///
 /// Implements 5-step tutorial per BC-2.10.009 AC-009.
 pub fn render_query_tutorial(
