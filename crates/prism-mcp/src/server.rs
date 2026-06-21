@@ -10125,3 +10125,505 @@ mod tests {
         );
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADR-042 Red Gate tests — multi-tenant notify (org != sensor) + read freshness
+//
+// Tests 1 and 2 of the ADR-042 test guidance.
+//
+// ALL tests in this module MUST FAIL until the implementer:
+//   1. Changes `resolved_spec_map` field in `QueryEngine` to
+//      `Option<Arc<arc_swap::ArcSwap<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>>>`.
+//   2. Adds `QueryEngine::rebuild_resolved_spec_map(...)`.
+//   3. Calls `rebuild_resolved_spec_map` from `reload_config_core` AFTER the
+//      ConfigSnapshot swap and BEFORE the per-client notify-diff.
+//   4. Updates the per-client notify-diff to read from `qe.resolved_spec_map()`
+//      (keyed by OrgSlug) instead of `config_manager.sensor_specs` (keyed by sensor_id).
+//   5. Adds `arc-swap = "1"` to `prism-query/Cargo.toml`.
+//
+// BC traces: BC-2.10.013 (EC-10-034 multi-tenant variant), BC-2.10.012 (read freshness),
+//            ADR-042 D3 (rebuild) / D2 (accessor).
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+#[allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
+mod adr_042_tests {
+    use std::{
+        collections::HashMap,
+        path::PathBuf,
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+    };
+
+    use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use crate::{
+        resources::schema::{SchemaChangeNotifier, SchemaSubscriberRegistry, SubscriberHandle},
+        server::PrismServer,
+    };
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Mock notification sink — same pattern as BC-2.10.013 AC-006 test above.
+    // ────────────────────────────────────────────────────────────────────────────
+
+    struct MockNotificationSink {
+        call_count: Arc<AtomicUsize>,
+        called_uris: Arc<std::sync::Mutex<Vec<String>>>,
+    }
+
+    impl MockNotificationSink {
+        fn new() -> Self {
+            Self {
+                call_count: Arc::new(AtomicUsize::new(0)),
+                called_uris: Arc::new(std::sync::Mutex::new(Vec::new())),
+            }
+        }
+
+        fn call_count(&self) -> usize {
+            self.call_count.load(Ordering::SeqCst)
+        }
+
+        fn was_notified_for(&self, uri: &str) -> bool {
+            self.called_uris.lock().unwrap().contains(&uri.to_string())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl SchemaChangeNotifier for MockNotificationSink {
+        async fn notify_resource_updated(&self, uri: &str) -> Result<(), rmcp::model::ErrorData> {
+            self.call_count.fetch_add(1, Ordering::SeqCst);
+            self.called_uris.lock().unwrap().push(uri.to_string());
+            Ok(())
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Shared fixture builders
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// Write the crowdstrike TYPE spec to `spec_dir` with the given tables.
+    fn write_crowdstrike_type_spec(spec_dir: &std::path::Path, tables: &[(&str, &str)]) {
+        let mut table_blocks = String::new();
+        for (table_name, ocsf_class) in tables {
+            table_blocks.push_str(&format!(
+                "\n[[tables]]\ntable_name = \"{table_name}\"\nocsf_class = \"{ocsf_class}\"\ncolumns = []\nsteps = []\n"
+            ));
+        }
+        let toml = format!(
+            "sensor_id = \"crowdstrike\"\n\
+             name = \"CrowdStrike\"\n\
+             auth_type = \"api_key\"\n\
+             base_url = \"https://api.crowdstrike.com\"\n\
+             version = \"1.0.0\"\n\
+             {table_blocks}"
+        );
+        std::fs::write(spec_dir.join("crowdstrike.sensor.toml"), toml)
+            .expect("write crowdstrike.sensor.toml must succeed");
+    }
+
+    /// Write `customers/acme/crowdstrike.sensor.toml` overlay — maps acme → crowdstrike.
+    fn write_acme_crowdstrike_overlay(customers_dir: &std::path::Path) {
+        std::fs::create_dir_all(customers_dir.join("acme"))
+            .expect("create customers/acme/ must succeed");
+        let overlay_toml = "extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@acme\"\n";
+        std::fs::write(
+            customers_dir.join("acme").join("crowdstrike.sensor.toml"),
+            overlay_toml,
+        )
+        .expect("write customers/acme/crowdstrike.sensor.toml must succeed");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Test 1 — BC-ADR-042 multi-tenant notify: org "acme" mapped to sensor
+    // "crowdstrike" (org != sensor). Hot-reload adding a new crowdstrike table
+    // MUST fire notify for acme and MUST NOT fire for globex.
+    //
+    // BC: BC-2.10.013 EC-10-034 (multi-tenant variant), EC-10-030 (non-affected org).
+    //
+    // RED GATE: fails NOW for two reasons:
+    //   REASON 1 — compile: `server.schema_subscriber_registry` does not exist
+    //     (same as the existing AC-006 test; this is a pre-existing compile failure
+    //     that the implementer resolves as part of that story's AC-006 + ADR-042 work).
+    //   REASON 2 — behavioral: even if the field existed, the notify-diff in
+    //     reload_config reads from `config_manager.sensor_specs` keyed by sensor_id
+    //     ("crowdstrike"), NOT by org_slug ("acme"). An "acme" subscriber would
+    //     receive zero notifications because no spec named "acme" changed.
+    //
+    // NEW APIs REQUIRED ON QueryEngine (implementer adds):
+    //   - `rebuild_resolved_spec_map(&self, customers_dir, type_specs, org_registry)`
+    //     called from reload_config_core AFTER ConfigSnapshot swap.
+    //   - `resolved_spec_map()` reads from ArcSwap (returns post-rebuild snapshot).
+    //
+    // NEW WIRING REQUIRED IN reload_config (server.rs):
+    //   - After config swap, call `qe.rebuild_resolved_spec_map(...)`.
+    //   - Per-client notify-diff reads from `qe.resolved_spec_map()` filtered by OrgSlug,
+    //     NOT from `config_manager.sensor_specs` filtered by sensor_id.
+    // ────────────────────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn test_BC_ADR_042_multitenant_notify_org_not_equal_sensor_triggers_acme_not_globex() {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir must succeed");
+        let spec_dir: PathBuf = tmp_dir.path().to_path_buf();
+        let customers_dir = spec_dir.join("customers");
+
+        // ── Initial state: crowdstrike with no tables ─────────────────────────
+        write_crowdstrike_type_spec(&spec_dir, &[]);
+        write_acme_crowdstrike_overlay(&customers_dir);
+
+        let initial_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+            .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+        let cm = prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot);
+        let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
+
+        // ── Build org_registry: register "acme" and "globex" ─────────────────
+        let org_registry = Arc::new({
+            let reg = OrgRegistry::new();
+            reg.register(OrgSlug::new("acme"), OrgId::new())
+                .expect("register acme must succeed");
+            reg.register(OrgSlug::new("globex"), OrgId::new())
+                .expect("register globex must succeed");
+            reg
+        });
+
+        // ── Build initial resolved_spec_map: acme → crowdstrike (no tables) ──
+        //
+        // This simulates what boot step 4 produces when customers_dir exists.
+        let initial_type_specs: HashMap<String, SensorSpec> = {
+            let cs = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+                .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+            cs.sensor_specs.clone()
+        };
+        let initial_overlay_result =
+            OverlayLoader::load_overlays(&customers_dir, &initial_type_specs, &org_registry);
+        let initial_resolved_map = Arc::new(initial_overlay_result.resolved);
+
+        // ── Build QueryEngine wired with resolved_spec_map and org_registry ───
+        //
+        // RED GATE (compile): `QueryEngine` field `resolved_spec_map` is currently
+        // `Option<Arc<HashMap<...>>>`. After ADR-042 it becomes
+        // `Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>`.
+        //
+        // This direct `Arc::new(arc_swap::ArcSwap::new(...))` assignment will fail
+        // to compile against the current type until the implementer changes the field.
+        let mut qe = prism_query::engine::QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()),
+            Arc::new(prism_credentials::InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+            prism_query::engine::QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        );
+        // Inject ArcSwap-backed resolved_spec_map.
+        // RED GATE: compile fails until field type changed to ArcSwap.
+        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved_map)));
+        qe.org_registry = Some(Arc::clone(&org_registry));
+        let qe_arc = Arc::new(qe);
+
+        // ── Mock subscriber registry: acme + globex subscribed ───────────────
+        let acme_sink = Arc::new(MockNotificationSink::new());
+        let globex_sink = Arc::new(MockNotificationSink::new());
+        let acme_sink_assert = Arc::clone(&acme_sink);
+        let globex_sink_assert = Arc::clone(&globex_sink);
+
+        let registry = Arc::new(SchemaSubscriberRegistry::new());
+        registry.subscribe(
+            OrgSlug::new("acme"),
+            SubscriberHandle {
+                id: "conn-acme-adr042".to_string(),
+                notifier: acme_sink,
+            },
+        );
+        registry.subscribe(
+            OrgSlug::new("globex"),
+            SubscriberHandle {
+                id: "conn-globex-adr042".to_string(),
+                notifier: globex_sink,
+            },
+        );
+
+        // ── Reload step: update crowdstrike TYPE spec to add crowdstrike_hosts ─
+        write_crowdstrike_type_spec(
+            &spec_dir,
+            &[
+                ("crowdstrike_alerts", "security_finding"),
+                ("crowdstrike_hosts", "device_inventory_info"),
+            ],
+        );
+
+        // ── Build PrismServer with all wiring ─────────────────────────────────
+        //
+        // RED GATE (compile): `server.schema_subscriber_registry` does not exist.
+        // RED GATE (compile): `server.query_engine` field shape may differ until ADR-042.
+        let mut server = PrismServer::new();
+        server.config_manager = Some(cm_arc);
+        server.spec_dir = Some(spec_dir.clone());
+        server.query_engine = Some(qe_arc);
+        // COMPILE ERROR: schema_subscriber_registry field does not exist on PrismServer yet.
+        server.schema_subscriber_registry = Arc::clone(&registry);
+
+        // ── Full duplex MCP session ───────────────────────────────────────────
+        let (server_stream, client_stream) = tokio::io::duplex(65536);
+        let server_task = tokio::spawn(async move {
+            rmcp::serve_server(server, server_stream)
+                .await
+                .expect("serve_server must complete")
+        });
+
+        let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+        let mut client_read_buf = BufReader::new(client_read_half);
+
+        // Initialize
+        let init_req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"prism-adr042-test","version":"0.0.1"}}}"#;
+        client_write_half
+            .write_all(format!("{init_req}\n").as_bytes())
+            .await
+            .unwrap();
+        let mut _line = String::new();
+        client_read_buf.read_line(&mut _line).await.unwrap();
+
+        let init_notif = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        client_write_half
+            .write_all(format!("{init_notif}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        let _running = server_task.await.expect("server task must not panic");
+
+        // ── Reload via reload_config tool ─────────────────────────────────────
+        let reload_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"reload_config","arguments":{}}}"#;
+        client_write_half
+            .write_all(format!("{reload_req}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        // Drain messages
+        let read_timeout = std::time::Duration::from_secs(3);
+        for _ in 0..5 {
+            let mut msg = String::new();
+            match tokio::time::timeout(read_timeout, client_read_buf.read_line(&mut msg)).await {
+                Ok(Ok(0)) | Err(_) => break,
+                Ok(Ok(_)) if msg.trim().is_empty() => break,
+                _ => {}
+            }
+        }
+
+        // ── Assertions ────────────────────────────────────────────────────────
+
+        // EC-10-034: acme MUST receive exactly one notification.
+        // FAILS NOW (REASON 2): reload_config notify-diff uses sensor_id key ("crowdstrike"),
+        // not org_slug key ("acme"). The acme subscriber is never found.
+        assert_eq!(
+            acme_sink_assert.call_count(),
+            1,
+            "ADR-042 Test1 EC-10-034: acme_sink MUST receive exactly ONE \
+             notify_resource_updated call after hot-reload adds crowdstrike_hosts. \
+             Got call_count={} — means notify-diff is NOT reading from rebuilt \
+             resolved_spec_map keyed by OrgSlug. The implementer must: \
+             (a) call rebuild_resolved_spec_map from reload_config_core, \
+             (b) change notify-diff to filter resolved_spec_map by OrgSlug instead \
+             of config_manager.sensor_specs by sensor_id.",
+            acme_sink_assert.call_count()
+        );
+
+        assert!(
+            acme_sink_assert.was_notified_for("prismql://schema/acme"),
+            "ADR-042 Test1 EC-10-034: acme_sink must have been called with URI \
+             'prismql://schema/acme'; got called_uris={:?}",
+            acme_sink_assert.called_uris.lock().unwrap()
+        );
+
+        // EC-10-030 / EC-10-030 extended: globex MUST NOT be notified.
+        // (globex is not mapped to the crowdstrike sensor; it has no overlay.)
+        assert_eq!(
+            globex_sink_assert.call_count(),
+            0,
+            "ADR-042 Test1 EC-10-030: globex_sink MUST NOT be notified when \
+             crowdstrike TYPE spec changes — globex has no acme→crowdstrike overlay. \
+             Got call_count={} — non-zero means cross-client leak in notify-diff.",
+            globex_sink_assert.call_count()
+        );
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Test 2 — BC-ADR-042 prism_describe freshness after hot-reload
+    //
+    // BC: BC-2.10.012 §post-reload freshness in multi-tenant mode.
+    //
+    // Verifies that `prism_describe("acme")` before reload returns only
+    // "crowdstrike_alerts", and after reload returns BOTH "crowdstrike_alerts"
+    // AND "crowdstrike_hosts".
+    //
+    // RED GATE: fails NOW because:
+    //   - `build_tables_for_client` reads `qe.resolved_spec_map()` which calls
+    //     `Arc::clone` on the boot-frozen `Option<Arc<HashMap>>`.
+    //   - Even after reload updates the TYPE spec on disk and
+    //     `reload_config_core` runs, the existing `resolved_spec_map` field
+    //     is never updated — the `Arc<HashMap>` is immutable and unreplaced.
+    //   - After ADR-042 implementation, `resolved_spec_map()` calls
+    //     `swap.load_full()` which returns the newly-rebuilt map, making the
+    //     second `prism_describe` call see the added table.
+    //
+    // NOTE: This test exercises the `build_tables_for_client` code path in
+    // `prism_describe.rs` (lines 272–306) — the multi-tenant path that calls
+    // `qe.resolved_spec_map()`. The single-tenant fallback (sensor_specs lookup)
+    // is NOT under test here.
+    // ────────────────────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn test_BC_ADR_042_prism_describe_reflects_post_reload_schema() {
+        use crate::tools::prism_describe::handle_prism_describe;
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir must succeed");
+        let spec_dir: PathBuf = tmp_dir.path().to_path_buf();
+        let customers_dir = spec_dir.join("customers");
+
+        // ── Initial: crowdstrike with one table ───────────────────────────────
+        write_crowdstrike_type_spec(&spec_dir, &[("crowdstrike_alerts", "security_finding")]);
+        write_acme_crowdstrike_overlay(&customers_dir);
+
+        let org_registry = Arc::new({
+            let reg = OrgRegistry::new();
+            reg.register(OrgSlug::new("acme"), OrgId::new())
+                .expect("register acme must succeed");
+            reg
+        });
+
+        let initial_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+            .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+        let cm = prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot.clone());
+        let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
+
+        // Build initial resolved_spec_map via OverlayLoader.
+        let initial_overlay = OverlayLoader::load_overlays(
+            &customers_dir,
+            &initial_snapshot.sensor_specs,
+            &org_registry,
+        );
+        let initial_resolved = Arc::new(initial_overlay.resolved);
+
+        // Build QueryEngine with ArcSwap-backed resolved_spec_map.
+        // RED GATE (compile): field type must be changed to ArcSwap before this compiles.
+        let mut qe = prism_query::engine::QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()),
+            Arc::new(prism_credentials::InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+            prism_query::engine::QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        );
+        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved)));
+        qe.org_registry = Some(Arc::clone(&org_registry));
+        let qe_arc = Arc::new(qe);
+
+        // ── Step 1: prism_describe BEFORE reload ──────────────────────────────
+        let result_before = handle_prism_describe(
+            "acme".to_string(),
+            Some(&qe_arc),
+            Some(&cm_arc),
+            None, // no audit_writer in test
+        )
+        .await;
+
+        // Expect the result to be a successful describe response.
+        assert!(
+            result_before.is_ok(),
+            "ADR-042 Test2: prism_describe('acme') before reload must succeed; \
+             got error: {:?}",
+            result_before
+        );
+
+        let content_before = result_before.unwrap();
+        let text_before = extract_text_content(&content_before);
+
+        assert!(
+            text_before.contains("crowdstrike_alerts"),
+            "ADR-042 Test2: prism_describe('acme') before reload must contain \
+             'crowdstrike_alerts'. Got: {text_before:.200}"
+        );
+        assert!(
+            !text_before.contains("crowdstrike_hosts"),
+            "ADR-042 Test2: prism_describe('acme') before reload must NOT contain \
+             'crowdstrike_hosts' (not yet added). Got: {text_before:.200}"
+        );
+
+        // ── Step 2: simulate hot-reload — add crowdstrike_hosts to TYPE spec ──
+        write_crowdstrike_type_spec(
+            &spec_dir,
+            &[
+                ("crowdstrike_alerts", "security_finding"),
+                ("crowdstrike_hosts", "device_inventory_info"),
+            ],
+        );
+
+        // Re-parse spec directory (simulates what reload_config_core does internally).
+        let new_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+            .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+
+        // Rebuild the resolved_spec_map directly via rebuild_resolved_spec_map.
+        // RED GATE: this method does not exist until the implementer adds it.
+        let rebuild_count = qe_arc
+            .rebuild_resolved_spec_map(&customers_dir, &new_snapshot.sensor_specs, &org_registry)
+            .expect("ADR-042 Test2: rebuild_resolved_spec_map must succeed");
+
+        assert_eq!(
+            rebuild_count, 1,
+            "ADR-042 Test2: rebuild must return 1 (one overlay: acme→crowdstrike); \
+             got {rebuild_count}"
+        );
+
+        // ── Step 3: prism_describe AFTER reload ───────────────────────────────
+        //
+        // FAILS NOW: `build_tables_for_client` calls `qe.resolved_spec_map()` which
+        // returns the boot-frozen `Arc<HashMap>`. After ADR-042 implementation,
+        // `resolved_spec_map()` calls `swap.load_full()` returning the rebuilt map.
+        let result_after = handle_prism_describe(
+            "acme".to_string(),
+            Some(&qe_arc),
+            Some(&cm_arc),
+            None, // no audit_writer in test
+        )
+        .await;
+
+        assert!(
+            result_after.is_ok(),
+            "ADR-042 Test2: prism_describe('acme') after reload must succeed; \
+             got error: {:?}",
+            result_after
+        );
+
+        let content_after = result_after.unwrap();
+        let text_after = extract_text_content(&content_after);
+
+        // Both tables must be present post-reload.
+        assert!(
+            text_after.contains("crowdstrike_alerts"),
+            "ADR-042 Test2 FRESHNESS: prism_describe('acme') after reload must still \
+             contain 'crowdstrike_alerts'. Got: {text_after:.200}"
+        );
+        assert!(
+            text_after.contains("crowdstrike_hosts"),
+            "ADR-042 Test2 FRESHNESS: prism_describe('acme') after reload MUST contain \
+             'crowdstrike_hosts' — the newly added table. Got: {text_after:.200} \
+             This means resolved_spec_map() is still returning the boot-frozen Arc \
+             (ArcSwap::store was not called, or accessor is not using load_full())."
+        );
+    }
+
+    // ── Helper: extract raw text from MCP CallToolResult content ─────────────
+    fn extract_text_content(result: &rmcp::model::CallToolResult) -> String {
+        result
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.as_str().to_owned()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}

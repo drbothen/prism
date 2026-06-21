@@ -2095,6 +2095,358 @@ mod sec003_engine_path_tests {
 }
 
 // ---------------------------------------------------------------------------
+// ADR-042 Red Gate tests — rebuild_resolved_spec_map (ArcSwap-backed)
+// ---------------------------------------------------------------------------
+//
+// BC traces: BC-2.10.013 (EC-10-034), ADR-042 in-flight-query consistency guarantee.
+//
+// ALL FOUR tests MUST fail until the implementer:
+//   1. Adds `arc-swap = "1"` to prism-query/Cargo.toml.
+//   2. Changes the `resolved_spec_map` field to `Option<Arc<ArcSwap<HashMap<...>>>>`.
+//   3. Updates `new_full` to wrap with `ArcSwap::new(resolved_spec_map)`.
+//   4. Updates the `resolved_spec_map()` accessor to call `swap.load_full()`.
+//   5. Adds `rebuild_resolved_spec_map(&self, ...) -> Result<usize, SpecEngineError>`.
+//   6. Updates the test-helper in sec003_engine_path_tests to use
+//      `Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map)))`.
+//
+// NOTE on clippy::expect_used/unwrap_used:
+//   Tests may use `expect` / `unwrap` — #[allow] gates below.
+
+#[cfg(test)]
+#[allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
+mod adr_042_tests {
+    use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
+    use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::*;
+    use crate::{cache::CacheConfig, scoping::ClientRegistry};
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Shared test infrastructure
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// Minimal no-op credential store reused across tests.
+    struct NoopCredStore;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCredStore {
+        async fn get(
+            &self,
+            _t: &OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a minimal `QueryEngine` via `new_with_cache_config`.
+    ///
+    /// The `resolved_spec_map` field is left as `None` (single-tenant mode).
+    /// Tests that need a populated map inject it directly via `pub(crate)`.
+    fn make_minimal_engine() -> QueryEngine {
+        QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCredStore),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            CacheConfig::default(),
+        )
+    }
+
+    /// Build a `ResolvedSensorSpec` with a single table via the real `OverlayLoader` merge path.
+    fn make_resolved(
+        sensor_id: &str,
+        table_name: &str,
+        org: &str,
+    ) -> (ResolvedSpecKey, ResolvedSensorSpec) {
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_name,
+                "security_finding",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let overlay_toml =
+            format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("ADR-042 fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let key: ResolvedSpecKey = (org_slug, SensorId::new(sensor_id));
+        (key, resolved)
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Test 3 — BC-ADR-042 single-tenant no-op
+    //
+    // Traces to: ADR-042 §D3 (single-tenant/None mode returns Ok(0) with no side effects).
+    //
+    // RED GATE: fails NOW because `rebuild_resolved_spec_map` does not exist.
+    // The method must be added to `QueryEngine` as a `pub fn`.
+    //
+    // NEW API REQUIRED:
+    //   `pub fn rebuild_resolved_spec_map(
+    //        &self,
+    //        customers_dir: &std::path::Path,
+    //        type_specs: &std::collections::HashMap<String, prism_spec_engine::spec_parser::SensorSpec>,
+    //        org_registry: &prism_core::OrgRegistry,
+    //    ) -> Result<usize, prism_spec_engine::error::SpecEngineError>`
+    //
+    // When `self.resolved_spec_map` is `None` (single-tenant mode), the method MUST:
+    //   - Return `Ok(0)` immediately (no-op).
+    //   - Leave `resolved_spec_map()` returning `None`.
+    //   - Perform no I/O on `customers_dir`.
+    // ────────────────────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn test_BC_ADR_042_single_tenant_rebuild_is_noop_returns_ok_zero() {
+        let engine = make_minimal_engine();
+
+        // Sanity: single-tenant engine has no resolved_spec_map.
+        assert!(
+            engine.resolved_spec_map().is_none(),
+            "ADR-042 precondition: engine.resolved_spec_map() must be None in single-tenant mode"
+        );
+
+        let dummy_path = PathBuf::from("/nonexistent/customers");
+        let type_specs: HashMap<String, prism_spec_engine::spec_parser::SensorSpec> =
+            HashMap::new();
+        let org_registry = OrgRegistry::new();
+
+        // RED GATE: this line fails to compile until the implementer adds
+        // `rebuild_resolved_spec_map` to `QueryEngine`.
+        let result = engine.rebuild_resolved_spec_map(&dummy_path, &type_specs, &org_registry);
+
+        assert_eq!(
+            result.unwrap(),
+            0,
+            "ADR-042 Test3: rebuild_resolved_spec_map on single-tenant engine (None map) \
+             MUST return Ok(0) — no-op; got something else"
+        );
+
+        // No side effect: the map must remain None after the call.
+        assert!(
+            engine.resolved_spec_map().is_none(),
+            "ADR-042 Test3: resolved_spec_map() MUST remain None after rebuild_resolved_spec_map \
+             in single-tenant mode — no side effects permitted"
+        );
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Test 4 — BC-ADR-042 in-flight query snapshot isolation
+    //
+    // Traces to: ADR-042 §In-Flight Query Consistency Guarantee.
+    //
+    // RED GATE: fails NOW because:
+    //   (a) `rebuild_resolved_spec_map` does not exist.
+    //   (b) Even if it did, the `resolved_spec_map` field is a plain `Arc<HashMap>`,
+    //       not an `ArcSwap`, so `rebuild_resolved_spec_map` would have nowhere to
+    //       store the new map without modifying the original `Arc`.
+    //
+    // NEW API REQUIRED (same as Test 3):
+    //   `pub fn rebuild_resolved_spec_map(...)` (see Test 3 doc for full signature).
+    //
+    // FIELD CHANGE REQUIRED:
+    //   `resolved_spec_map` must be `Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>`.
+    //   `resolved_spec_map()` accessor must call `swap.load_full()` to return a fresh Arc.
+    //
+    // ASSERTION LOGIC:
+    //   - old_arc snapshot (held before rebuild) must still contain spec_A (acme→alerts).
+    //   - fresh load after rebuild must contain spec_B (acme→alerts + acme→hosts).
+    //   - These are different Arc pointers — !Arc::ptr_eq.
+    // ────────────────────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn test_BC_ADR_042_inflight_snapshot_isolation_during_rebuild() {
+        use tempfile::TempDir;
+
+        // ── Build initial map: acme → crowdstrike (crowdstrike_alerts only) ──
+        let (key_a, val_a) = make_resolved("crowdstrike", "crowdstrike_alerts", "acme");
+        let mut initial_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+        initial_map.insert(key_a, val_a);
+
+        // Inject into engine via pub(crate) field.
+        // RED GATE (compile failure): resolved_spec_map type is currently
+        //   Option<Arc<HashMap<...>>>
+        // After implementation it becomes:
+        //   Option<Arc<arc_swap::ArcSwap<HashMap<...>>>>
+        // The assignment below must use the new ArcSwap shape:
+        //   engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(initial_map))));
+        let mut engine = make_minimal_engine();
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(initial_map))));
+
+        // ── Step 1: snapshot (simulate in-flight query holding the old Arc) ──
+        let old_arc = engine
+            .resolved_spec_map()
+            .expect("ADR-042 Test4: resolved_spec_map() must be Some after initial injection");
+
+        assert!(
+            old_arc
+                .keys()
+                .any(|(_, sensor)| sensor.as_ref() == "crowdstrike"),
+            "ADR-042 Test4: old_arc must contain the crowdstrike key before rebuild"
+        );
+        let old_table_count = old_arc.values().flat_map(|r| r.spec.tables.iter()).count();
+        assert_eq!(
+            old_table_count, 1,
+            "ADR-042 Test4: initial map must have exactly 1 table (crowdstrike_alerts)"
+        );
+
+        // ── Step 2: prepare an updated overlay on disk with a second table ───
+        //
+        // The updated spec adds "crowdstrike_hosts" to the crowdstrike sensor.
+        let tmp = TempDir::new().expect("TempDir::new must succeed");
+        let customers_dir = tmp.path().join("customers");
+        std::fs::create_dir_all(customers_dir.join("acme"))
+            .expect("create customers/acme/ must succeed");
+
+        // Write the overlay: acme → crowdstrike
+        let overlay_toml = "extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@acme\"\n";
+        std::fs::write(
+            customers_dir.join("acme").join("crowdstrike.sensor.toml"),
+            overlay_toml,
+        )
+        .expect("write overlay TOML must succeed");
+
+        // Register acme in OrgRegistry (required by OverlayLoader::load_overlays).
+        let org_registry = {
+            let reg = OrgRegistry::new();
+            reg.register(OrgSlug::new("acme"), OrgId::new())
+                .expect("register acme must succeed");
+            reg
+        };
+
+        // Build the updated TYPE spec (crowdstrike with two tables).
+        let updated_type_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![
+                TableSpec::new_point_in_time(
+                    "crowdstrike_alerts",
+                    "security_finding",
+                    vec![],
+                    vec![],
+                ),
+                TableSpec::new_point_in_time(
+                    "crowdstrike_hosts",
+                    "device_inventory_info",
+                    vec![],
+                    vec![],
+                ),
+            ],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let mut type_specs: HashMap<String, prism_spec_engine::spec_parser::SensorSpec> =
+            HashMap::new();
+        type_specs.insert("crowdstrike".to_string(), updated_type_spec);
+
+        // ── Step 3: rebuild (simulates hot-reload) ────────────────────────────
+        //
+        // RED GATE: `rebuild_resolved_spec_map` does not exist yet.
+        let rebuild_result =
+            engine.rebuild_resolved_spec_map(&customers_dir, &type_specs, &org_registry);
+
+        assert!(
+            rebuild_result.is_ok(),
+            "ADR-042 Test4: rebuild_resolved_spec_map must return Ok; got {:?}",
+            rebuild_result
+        );
+        let overlay_count = rebuild_result.unwrap();
+        assert_eq!(
+            overlay_count, 1,
+            "ADR-042 Test4: rebuild must report 1 overlay (acme→crowdstrike); got {overlay_count}"
+        );
+
+        // ── Step 4: in-flight snapshot isolation ─────────────────────────────
+        //
+        // The `old_arc` held BEFORE the rebuild must still contain only the initial
+        // data — it is an immutable snapshot, not a live reference to the ArcSwap.
+        let old_table_count_after = old_arc.values().flat_map(|r| r.spec.tables.iter()).count();
+        assert_eq!(
+            old_table_count_after, 1,
+            "ADR-042 Test4 ISOLATION: old_arc (held before rebuild) must still contain \
+             exactly 1 table even after rebuild — the in-flight snapshot is immutable. \
+             Got {old_table_count_after} tables, meaning the ArcSwap store is incorrectly \
+             mutating the old pointer (not creating a new Arc)."
+        );
+
+        // ── Step 5: fresh load sees the new map ───────────────────────────────
+        //
+        // A NEW call to resolved_spec_map() must return the post-rebuild Arc.
+        let new_arc = engine
+            .resolved_spec_map()
+            .expect("ADR-042 Test4: resolved_spec_map() must be Some after rebuild");
+
+        let new_table_count = new_arc.values().flat_map(|r| r.spec.tables.iter()).count();
+        assert_eq!(
+            new_table_count, 2,
+            "ADR-042 Test4 FRESHNESS: new_arc (loaded after rebuild) must contain \
+             2 tables (crowdstrike_alerts + crowdstrike_hosts). \
+             Got {new_table_count} — means ArcSwap::store did not update the pointer."
+        );
+
+        // ── Step 6: different Arc pointers confirm atomic swap ─────────────────
+        assert!(
+            !Arc::ptr_eq(&old_arc, &new_arc),
+            "ADR-042 Test4 POINTER: old_arc and new_arc must be DIFFERENT Arc pointers \
+             — the ArcSwap must allocate a fresh Arc on store(), not mutate in place."
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Helper: truncate batches to a row limit
 // ---------------------------------------------------------------------------
 
