@@ -54,7 +54,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (4 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
-version: "1.3"
+version: "1.4"
 producer: story-writer
 timestamp: "2026-06-20T00:00:00Z"
 input-hash: "TBD"
@@ -165,8 +165,9 @@ At ~200k context window: ~13.2% — within the 20-30% ceiling.
 
 ### Pre-flight: read substrate before writing anything
 
-- [ ] Read `crates/prism-mcp/src/server.rs` lines 1735–1744 — confirm current `query` tool
-  description; identify injection point for L1 primer
+- [ ] Read `crates/prism-mcp/src/server.rs` — locate the `query` `#[tool]` description block
+  (the `#[tool(description = "...")]` annotation on the `query` handler); confirm current
+  description text; identify injection point for L1 primer
 - [ ] Read `crates/prism-mcp/src/prompts.rs` — confirm 4 existing prompts; identify injection
   point for `query_tutorial` as 5th prompt
 - [ ] Read `crates/prism-mcp/src/resources.rs` (or `resources/mod.rs`) — confirm ServerHandler
@@ -182,7 +183,7 @@ At ~200k context window: ~13.2% — within the 20-30% ceiling.
 ### Phase 1 — L1: query tool description + query_tutorial prompt
 
 - [ ] Write failing test 10 (FAIL first): `test_BC_2_10_009_l1_primer_query_tool_description`
-- [ ] Upgrade `query` tool description in `server.rs` (~lines 1735–1744):
+- [ ] Upgrade `query` tool description in `server.rs` (the `#[tool]` description annotation on the `query` handler):
   - Add PQL primer: DSL declaration, clause vocabulary, pipe-mode hint, 3 schema-agnostic
     skeletons (`<table>` NOT vendor names), discovery pointer to `prism_describe` +
     `prismql://reference`
@@ -220,9 +221,10 @@ At ~200k context window: ~13.2% — within the 20-30% ceiling.
     `severity` column present; aggregate if aggregatable column present
   - Non-existent/empty org: success with `tables: []` + informative hint (not error)
   - Format validation (`client_id`): `OrgSlug::new()` / `[a-zA-Z0-9_-]{1,64}`; `E-MCP-001` on failure
-    (canonical; `TenantId` is a deprecated alias removed in Wave 4 — see prism-core `tenant.rs:219`
-    `pub type TenantId = OrgSlug;` + `lib.rs:9`; all sibling tool/resource/prompt validators use
-    `OrgSlug::new()` — `prompts.rs:49`, `resources.rs:651`. REMOVE-UNCERTAINTY E1, 2026-06-20)
+    (canonical; `TenantId` is a deprecated alias removed in Wave 4 — see `pub type TenantId = OrgSlug;`
+    in prism-core `tenant.rs` and the re-export in `lib.rs`; all sibling tool/resource/prompt validators
+    use `OrgSlug::new()` — confirmed in `prompts.rs` and `resources.rs` `client_id` validation paths.
+    REMOVE-UNCERTAINTY E1, 2026-06-20)
   - Audit event per call: `tool_name: "prism_describe"`, `client_id`, `operation: "schema_enumeration"`,
     `outcome: "success"|"error"`; if audit emission fails → call proceeds + `_meta.audit_warning: true`
   - MCP tool annotations: `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`,
@@ -593,7 +595,8 @@ cannot edit BC bodies.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | STORY-HYGIENE-2026-06-20 | 2026-06-20 | story-writer | Cascade hygiene fixes (F-P3-MED-001 + F-P3-LOW-001). (MED — POL-32) Changelog reordered to strict monotonic-descending (was 1.0, 1.1, 1.3, 1.2; now 1.0, 1.1, 1.2, 1.3). (LOW — TD-VSDD-091) Three volatile line-number pins converted to symbol/behavioral anchors: (1) Tasks pre-flight "server.rs lines 1735–1744" → `#[tool]` description annotation on the `query` handler; (2) Tasks Phase 1 "server.rs (~lines 1735–1744)" → same symbol anchor; (3) frontmatter REMOVE-UNCERTAINTY comment `tenant.rs:219` + `lib.rs:9` + `prompts.rs:49` + `resources.rs:651` → symbol-based anchors (`pub type TenantId = OrgSlug;` in tenant.rs, re-export in lib.rs, `client_id` validation paths in prompts.rs and resources.rs). No AC changes. No BC array changes. |
 | 1.0 | D-1244-decomposition-2026-06-19 | 2026-06-19 | story-writer | Initial sub-story decomposition — split from S-DEMO-PRISMQL-ONBOARDING-001 (13 pts) per D-1244 §Parallel Execution Plan. Covers L1+L2+L3 MCP surfaces (prism-mcp only). 4 BCs: BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014. 10 ACs + 10 Red Gate tests. 7 pts. Pipelines behind S-5.04 for crate-conflict avoidance. |
 | 1.1 | REMOVE-UNCERTAINTY-2026-06-20 | 2026-06-20 | research-agent | D-1110 REMOVE-UNCERTAINTY pass. Applied 2 low-risk codebase-validated corrections in Tasks Phase 2: (E1) `TenantId::new()` → `OrgSlug::new()` (TenantId is a deprecated alias removed in Wave 4; all sibling validators use OrgSlug); (E2) `ColumnDescriptor.type: ColumnType` → `prism_core::column::ColumnType` (disambiguated from the internal `types::ColumnType`/`InternalColumnType` per CLAUDE.md §Conventions). Report: `.factory/research/remove-uncertainty/S-DEMO-PRISMQL-ONBOARDING-001-A.md`. THREE items FLAGGED for specialist routing (NOT auto-edited): R1 (CRITICAL — `Arc<dyn TableRegistry>` injection model is fictional; TableRegistry is a concrete `#[non_exhaustive]` struct accessed via `query_engine.table_registry()`, PrismServer has no TableRegistry field → architect + story-writer + product-owner); R2 (HIGH — column schema data source is the spec layer `ConfigManager`/`resolved_spec_map`, not TableRegistry which holds only table-name strings; read path is NOT NET-NEW → architect + story-writer); R3 (INFO — pre-existing BC-2.11.001 micro-edit + 001-A/001-B merge sequencing → product-owner + orchestrator). rmcp 1.7 subscribe/notify API surface VALIDATED feasible (Context7): subscribe/unsubscribe ServerHandler overrides, notify_resource_updated, ResourceUpdatedNotificationParam, enable_resources_subscribe all confirmed real. |
-| 1.3 | LOCAL-CASCADE-FINDINGS-2026-06-20 | 2026-06-20 | story-writer | Two LOCAL cascade findings resolved: (HIGH) story body BC version labels for BC-2.10.012 and BC-2.10.013 updated from v1.0 → v1.1 in both the §Behavioral Contracts table and §Token Budget Estimate table, reflecting the D-1263 BC v1.1 bump; (OBS) duplicate `document_type: story` frontmatter key removed (second occurrence at former line 57, keeping the canonical first occurrence). No AC changes. No BC array changes. |
 | 1.2 | TABLEREGISTRY-DATAPATH-CORRECTION-2026-06-20 | 2026-06-20 | story-writer | Architect adjudication applied (onboarding-001-tableregistry-datapath-correction.md, D-1259). Wiring-not-redesign corrections for R1 (CRITICAL) and R2 (HIGH) from remove-uncertainty pass. Edits: (1) `depends_on` S-3.13 comment — removed `Arc<dyn TableRegistry>` language; (2) `risk_mitigations` bullet 3 — replaced TableRegistry injection with `resolved_spec_map`/`config_manager` data-source statement; (3) dependency anchor comment for S-3.13 corrected; (4) points justification comment corrected; (5) Tasks Phase 2 pre-flight — replaced "Confirm Arc<dyn TableRegistry> injection" with `resolved_spec_map`/`config_manager` confirmation task; (6) Tasks Phase 2 handler description — replaced "receiving Arc<dyn TableRegistry>" with column-schema read-path description via `resolved_spec_map`/`config_manager`; (7) Previous Story Intelligence S-3.13 paragraph — corrected: concrete struct in QueryEngine, no column schema in TableRegistry, column data from `resolved_spec_map`/`config_manager`; (8) Architecture Mapping row updated; (9) Architecture Compliance Rules — fixed two TableRegistry-injection rules and flipped adversary grep probe from "verify injection EXISTS" to "FAIL if found"; (10) Library & Framework Requirements — replaced `TableRegistry trait` row with correct `OrgSlug`/`ColumnType` row and added `prism-spec-engine` row. No AC-semantic changes. No BC array changes. Both BCs remain: BC-2.10.009, BC-2.10.012, BC-2.10.013, BC-2.10.014. |
+| 1.3 | LOCAL-CASCADE-FINDINGS-2026-06-20 | 2026-06-20 | story-writer | Two LOCAL cascade findings resolved: (HIGH) story body BC version labels for BC-2.10.012 and BC-2.10.013 updated from v1.0 → v1.1 in both the §Behavioral Contracts table and §Token Budget Estimate table, reflecting the D-1263 BC v1.1 bump; (OBS) duplicate `document_type: story` frontmatter key removed (second occurrence at former line 57, keeping the canonical first occurrence). No AC changes. No BC array changes. |
