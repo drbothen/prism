@@ -1,28 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.897"
+version: "7.898"
 status: current
-timestamp: 2026-06-20T16:00:00Z
+timestamp: 2026-06-20T17:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1269 (2026-06-20): BC-2.10.013 v1.2 (ADR-042 multi-tenant update: EC-10-029 expanded; EC-10-034 added; subscribe item 2 broadened; ADR-042 anchor). BC-INDEX v6.90→v6.91. STATE v7.896→v7.897. §RESUME SNAPSHOT D-1269 authored (supersedes D-1268).**
+> **D-1270 (2026-06-20): 001-A ADR-042 build complete on feature HEAD 263e28ab. SAP-1: BC-2.16.002 v1.85→v1.86 (2 new catalog rows: reload.overlay_rebuild_failed + reload.overlay_rebuilt). BC-INDEX v6.91→v6.92. STATE v7.897→v7.898. §RESUME SNAPSHOT D-1270 authored (supersedes D-1269).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1269** (authoritative zero-context restart protocol; supersedes D-1268). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1268 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1269 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.897.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1270** (authoritative zero-context restart protocol; supersedes D-1269). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1269 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1270 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.898.
 
 ---
 
-## §RESUME SNAPSHOT — D-1269 (2026-06-20 — BC-2.10.013 v1.2; BC-INDEX v6.91; feature HEAD 750fef94; STATE v7.897; develop_head f6739764 UNCHANGED)
+## §RESUME SNAPSHOT — D-1270 (2026-06-20 — 001-A ADR-042 build complete; BC-2.16.002 v1.86; BC-INDEX v6.92; feature HEAD 263e28ab; STATE v7.898; develop_head f6739764 UNCHANGED)
 
-> **D-1269 burst (2026-06-20).** BC-2.10.013 v1.1→v1.2 (product-owner ADR-042 multi-tenant update): EC-10-029 expanded to multi-tenant hot-reload-triggered `resolved_spec_map` rebuild via ArcSwap; EC-10-034 added; subscribe item 2 broadened to include hot-reload-triggered resolved_spec_map rebuild; ADR-042 anchor added; changelog row added. BC-INDEX v6.90→v6.91. Test-writer wrote 4 ADR-042 red tests on feature/S-DEMO-PRISMQL-ONBOARDING-001-A @750fef94: (1) rebuild_resolved_spec_map method exists and returns non-empty, (2) ArcSwap field present on relevant struct, (3) multi-tenant notify-diff uses rebuilt map, (4) prism_describe returns fresh schema after hot-reload — all fail (missing API). NEXT = implementer builds 4-crate ADR-042 change (prism-query: field type + rebuild_resolved_spec_map method + arc-swap dep; prism-mcp: reload_config_core rebuild+swap + notify-diff org-slug-keyed) + example_query/doc fixes → push → re-gate LOCAL strict-3-CLEAN on new HEAD (streak resets to 0/3 on push). develop_head UNCHANGED f6739764.
+> **D-1270 burst (2026-06-20).** 001-A ADR-042 build complete on feature/S-DEMO-PRISMQL-ONBOARDING-001-A HEAD `263e28ab`: prism-query `resolved_spec_map` → `Option<Arc<ArcSwap<HashMap>>>` + `rebuild_resolved_spec_map` pub method; prism-mcp `reload_config_core` rebuild (spawn_blocking, DI-031 non-fatal) + multi-tenant `notify-diff` reads `resolved_spec_map` by OrgSlug; `example_query` + L1 primer templates aligned to BC-2.10.012/009 canonical; doc-comment fixes (operation/outcome, five prompts). All 6 red tests green (4 ADR-042 + 2 example_query/L1). `just check` GREEN. Gate EXPECTED=82 confirmed (ci.yml + check-non-exhaustive.sh; 3 types #[non_exhaustive] — implementer's earlier "79" report was a misstatement, code is 82). SAP-1 (PG-LP11-001): BC-2.16.002 v1.85→v1.86 — 2 new catalog rows: `reload.overlay_rebuild_failed` WARN (error_count; DI-031 non-fatal; ADR-042) + `reload.overlay_rebuilt` INFO (overlay_count; ArcSwap confirmed; ADR-042). BC-INDEX v6.91→v6.92. STATE v7.897→v7.898. CLAUDE.md 79→82 reconciliation PENDING at merge. develop_head UNCHANGED f6739764.
 
-### ZERO-CONTEXT RESTART PROTOCOL D-1269 (run in this order; no prior context needed)
+### ZERO-CONTEXT RESTART PROTOCOL D-1270 (run in this order; no prior context needed)
 
-**Step 0.** Read this D-1269 snapshot first. It is authoritative.
+**Step 0.** Read this D-1270 snapshot first. It is authoritative.
 
 **Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING.
 
@@ -32,7 +32,7 @@ timestamp: 2026-06-20T16:00:00Z
 git log --oneline -1 origin/develop
 ```
 
-Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1265..D-1269).
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1265..D-1270).
 
 **Step 3.** Confirm no open PRs:
 
@@ -48,23 +48,24 @@ Expected: NO open PRs.
 git log --oneline -1 origin/feature/S-DEMO-PRISMQL-ONBOARDING-001-A
 ```
 
-Expected: `750fef94`. Branch carries 4 red ADR-042 tests (all fail — missing API). FROZEN until implementer builds 4-crate change.
+Expected: `263e28ab`. ADR-042 build complete. All 6 red tests green. FROZEN for LOCAL strict-3-CLEAN re-gate (streak 0/3).
 
 **Step 5.** Apply carry-forward: lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md` + DO-NOT-REFLAG entries from §DO-NOT-REFLAG below.
 
-**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1269 below: implementer 4-crate ADR-042 build + example_query/doc fixes → push (streak resets to 0/3) → re-gate LOCAL strict-3-CLEAN on new HEAD. Autonomy D-989+D-1090 active.
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1270 below: re-gate LOCAL strict-3-CLEAN on frozen `263e28ab` (streak 0/3). Autonomy D-989+D-1090 active.
 
 ---
 
-### PINNED STATE (D-1269 — verified 2026-06-20)
+### PINNED STATE (D-1270 — verified 2026-06-20)
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| develop HEAD | `f6739764` | UNCHANGED from D-1258 through D-1269. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
+| develop HEAD | `f6739764` | UNCHANGED from D-1258 through D-1270. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
 | factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
 | Open PRs | **NONE** | No open PRs. |
-| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `750fef94` | **FROZEN — carries 4 ADR-042 red tests (all fail, missing API). Implementer builds 4-crate change next.** |
+| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `263e28ab` | **FROZEN for LOCAL strict-3-CLEAN re-gate (streak 0/3).** ADR-042 build complete. All 6 red tests green. `just check` GREEN. Gate EXPECTED=82 confirmed. |
 | 001-A story | **draft v1.5** | D-1267 §Changelog reordered monotonic-descending POL-32. DEMO-BLOCKING. Serial first. |
+| BC-2.16.002 | **v1.86** | D-1270 SAP-1 — 2 new catalog rows (reload.overlay_rebuild_failed + reload.overlay_rebuilt; ADR-042). Catalog count 80→82; label v1.51→v1.52. |
 | BC-2.10.013 | **v1.2** | D-1269 ADR-042 multi-tenant update. |
 | BC-2.10.009 | **v1.5** | D-1267 goal-quoting reconciled labeled-unquoted. |
 | adjudication doc | committed | `.factory/specs/architecture/scoping/001-A-reload-notify-diff-adjudication.md` — analysis record. |
@@ -74,9 +75,9 @@ Expected: `750fef94`. Branch carries 4 red ADR-042 tests (all fail — missing A
 | W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
 | ci.yml EXPECTED | `82` (on feature/001-A branch) | 79 on develop. 79→82 reconciliation at 001-A merge-time. |
 | CLAUDE.md non-exhaustive count | `79` (on develop) | 79→82 reconciliation PENDING at 001-A merge-time. |
-| BC-INDEX | **v6.91** | active 235 / draft 8 / retired 6 / total 256. BC-2.10.013 v1.1→v1.2 (D-1269). |
+| BC-INDEX | **v6.92** | active 235 / draft 8 / retired 6 / total 256. BC-2.16.002 v1.85→v1.86 (D-1270). |
 | STORY-INDEX | **v2.446** | 206 stories. |
-| STATE.md | v7.897 | D-1269 burst. |
+| STATE.md | v7.898 | D-1270 burst. |
 | error_taxonomy | v1.91 | Unchanged. |
 | arch_index | v2.139 | D-1268 ADR-042 row inserted. |
 | vp_index | v1.79 | Unchanged. |
@@ -85,31 +86,31 @@ Expected: `750fef94`. Branch carries 4 red ADR-042 tests (all fail — missing A
 
 ---
 
-### WHAT'S DONE THIS BURST (D-1269)
+### WHAT'S DONE THIS BURST (D-1270)
 
 | Decision | Date | Summary |
 |----------|------|---------|
-| D-1269 (2026-06-20) | BC-2.10.013 v1.1→v1.2 (product-owner ADR-042 multi-tenant update): EC-10-029 expanded to multi-tenant hot-reload; EC-10-034 added; subscribe item 2 broadened to hot-reload-triggered resolved_spec_map rebuild; ADR-042 anchor added; changelog row. BC-INDEX v6.90→v6.91. Test-writer wrote 4 ADR-042 red tests on feature/001-A @750fef94 (all fail, missing API). develop_head UNCHANGED f6739764. STATE v7.896→v7.897. |
+| D-1270 (2026-06-20) | 001-A ADR-042 build complete on feature/S-DEMO-PRISMQL-ONBOARDING-001-A @263e28ab. SAP-1: BC-2.16.002 v1.85→v1.86 (2 new catalog rows for reload.overlay_rebuild_failed WARN + reload.overlay_rebuilt INFO; catalog count 80→82; label v1.51→v1.52). BC-INDEX v6.91→v6.92. STATE v7.897→v7.898. develop_head UNCHANGED f6739764. |
 
 ---
 
-### WHAT'S NEXT — Demo Roadmap (D-1269)
+### WHAT'S NEXT — Demo Roadmap (D-1270)
 
 | Priority | Story | Status | Pts | Hard Prerequisites | Notes |
 |----------|-------|--------|-----|--------------------|-------|
-| **NEXT (D-1269 build sequence)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **BC-2.10.013 v1.2 + 4 red tests @750fef94 — IMPLEMENTER NEXT** | 7 | implementer 4-crate ADR-042 build | Sequence: (1) implementer: prism-query field type `Option<Arc<ArcSwap<HashMap>>>` + `rebuild_resolved_spec_map` pub method + arc-swap dep; prism-mcp: `reload_config_core` rebuild+swap + notify-diff org-slug-keyed; + example_query/doc fixes; (2) push → streak resets to 0/3; (3) re-gate LOCAL strict-3-CLEAN on new HEAD. DEMO-BLOCKING. Serial first. |
+| **NEXT (LOCAL cascade)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **ADR-042 build complete @263e28ab — LOCAL strict-3-CLEAN re-gate NEXT (streak 0/3)** | 7 | Feature branch FROZEN @263e28ab; NO pushes during cascade | After 3-CLEAN: demo evidence → PR → PR-LEVEL cascade → merge. DEMO-BLOCKING. Serial first. |
 | **NEXT-B (after 001-A merge)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | 001-A MERGED | **DEMO-BLOCKING (D-1243).** Serial after 001-A. |
 | **NEXT-C (after 001-A + 001-B merge)** | **S-5.04** | not-started v1.9 (**UNPARKED; probe_table FOLDED IN — D-1262**) | 5+ | 001-A/001-B MERGED + PO authors BC-2.08.001/BC-2.16.009/E-SPEC-026 | F-S504-R2-002 MED + LOW/OBS remain + probe_table scope added. **DEMO-BLOCKING.** |
 | **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |
 | **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
 
-**North Star roadmap: 001-A implementer 4-crate ADR-042 build + example_query/doc fixes → push → re-gate LOCAL strict-3-CLEAN on new HEAD (streak resets) → demo → PR → PR-LEVEL cascade → merge → 001-B TDD → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
+**North Star roadmap: 001-A LOCAL strict-3-CLEAN re-gate (frozen 263e28ab, streak 0/3) → demo evidence → PR → PR-LEVEL cascade → merge → 001-B TDD → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
 
 **Merge-time obligation: CLAUDE.md non-exhaustive count 79→82 reconciliation at 001-A merge-time.**
 
 **Convergence reminders (carry forward):**
 - BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
-- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. When implementer pushes multi-tenant notify fix, streak resets to 0/3; next cascade gates on new HEAD.
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. Feature branch FROZEN @263e28ab; streak counts from here.
 - DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore). OBS-3 DEC-004 from S-5.03. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14).
 
 **Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
