@@ -29,7 +29,7 @@ use std::{collections::BTreeSet, sync::Arc};
 use chrono::{DateTime, Utc};
 use rmcp::model::{
     AnnotateAble, ErrorCode, ErrorData, ListResourceTemplatesResult, ListResourcesResult,
-    RawResource, RawResourceTemplate, ReadResourceResult, ResourceContents,
+    RawResource, RawResourceTemplate, ReadResourceResult, ResourceContents, Role,
 };
 use serde::{Deserialize, Serialize};
 
@@ -321,13 +321,16 @@ pub fn build_resource_list() -> ListResourcesResult {
         // L3: PQL grammar reference static resource (BC-2.10.014 — S-DEMO-PRISMQL-ONBOARDING-001-A).
         // Content embedded via include_str! in resources/schema.rs::PQL_REFERENCE_CONTENT.
         // No subscribe/listChanged (static content — BC-2.10.014).
+        // BC-2.10.014 AC-007: annotations.priority=0.8 + audience=["assistant"] required
+        // (high-value reference material targeted at LLM agents, not human users).
         RawResource::new(schema::URI_PQL_REFERENCE, "PrismQL Grammar Reference")
             .with_description(
                 "Full PrismQL grammar reference — SELECT/FROM/WHERE/GROUP BY/ORDER BY/LIMIT, \
                  operators, datetime arithmetic, error quick-reference, and self-correction workflow.",
             )
             .with_mime_type("text/markdown")
-            .no_annotation(),
+            .with_priority(0.8)
+            .with_audience(vec![Role::Assistant]),
     ];
     ListResourcesResult {
         resources,

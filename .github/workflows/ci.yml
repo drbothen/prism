@@ -737,6 +737,9 @@ jobs:
           # S-DEMO-ENRICHMENT-PIVOT-002 v1.3 added 3 (HttpLookupAuthType E0004 v79,
           #   HttpLookupCredentialConfig E0639 v77, HttpLookupConfig E0639 v78):
           #   Total: 76 + 3 = 79.
+          # S-DEMO-PRISMQL-ONBOARDING-001-A added 3 E0639 (prism-mcp tools/prism_describe.rs):
+          #   PrismDescribeResponse, TableDescriptor, ColumnDescriptor (struct literals).
+          #   Total: 79 + 3 = 82.
           E0639_COUNT=$(grep -c 'error\[E0639\]' /tmp/non-exhaustive-check.log || true)
           E0004_COUNT=$(grep -c 'error\[E0004\]' /tmp/non-exhaustive-check.log || true)
           TOTAL_COUNT=$((E0639_COUNT + E0004_COUNT))

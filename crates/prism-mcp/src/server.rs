@@ -56,6 +56,7 @@ use rmcp::{
         ErrorData, GetPromptRequestParams, GetPromptResult, Implementation, ListPromptsResult,
         ListResourceTemplatesResult, ListResourcesResult, PaginatedRequestParams,
         ReadResourceRequestParams, ReadResourceResult, ServerCapabilities, ServerInfo,
+        SubscribeRequestParams, UnsubscribeRequestParams,
     },
     prompt_handler,
     schemars::JsonSchema,
@@ -135,6 +136,15 @@ pub struct PrismServer {
     /// state (e.g., `check_sensor_health` writes health cache,
     /// `prism://sensors/health` resource reads it).
     context: Arc<PrismContext>,
+    /// Per-client schema subscriber registry for `prismql://schema/{client_id}` (BC-2.10.013 AC-006).
+    ///
+    /// Holds active `resources/subscribe` handles. `ServerHandler::subscribe` registers
+    /// a `SubscriberHandle` (wrapping a `PeerSchemaNotifier`) per subscribed client.
+    /// `reload_config` calls `notify_schema_updated` for each changed client after the
+    /// ArcSwap `store()` swap. The `Arc` wrapping makes the registry Clone-cheap (required
+    /// because `PrismServer: Clone`) and allows callers to hold a second reference for
+    /// assertion after the server moves into `serve_server`.
+    schema_subscriber_registry: Arc<resources::schema::SchemaSubscriberRegistry>,
 }
 
 impl PrismServer {
@@ -160,6 +170,7 @@ impl PrismServer {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         }
     }
 
@@ -206,6 +217,7 @@ impl PrismServer {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         }
     }
 
@@ -245,6 +257,7 @@ impl PrismServer {
             org_registry: Some(org_registry),
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         }
     }
 
@@ -1676,10 +1689,7 @@ async fn emit_tool_audit(
     );
     match audit_writer {
         Some(writer) => {
-            if let Err(e) = writer
-                .write_tool_call(tool, client_id, outcome, "success")
-                .await
-            {
+            if let Err(e) = writer.write_tool_call(tool, client_id, tool, outcome).await {
                 return match tool_class {
                     ToolClass::WriteTool => {
                         // Fail-closed: write-classified tool audit failure aborts
@@ -3257,6 +3267,38 @@ impl PrismServer {
                 .unwrap_or_default()
         };
 
+        // AC-006 DI-008: capture per-client old table sets BEFORE reload so we can diff
+        // per client after the swap. Only clients whose per-client table set changes get notified.
+        // Single-tenant fallback path: sensor_specs.get(client_id) maps client_id == sensor_id.
+        // This produces the correct DI-008 scoping: "acme"'s tables come from sensor "acme".
+        let subscribed_clients_for_diff = self.schema_subscriber_registry.all_subscribed_clients();
+        let old_per_client_tables: std::collections::HashMap<
+            String,
+            std::collections::BTreeSet<String>,
+        > = {
+            let snapshot = self.config_manager.as_ref().map(|cm| {
+                let cm_guard = cm.load();
+                cm_guard.load().sensor_specs.clone()
+            });
+            subscribed_clients_for_diff
+                .iter()
+                .map(|slug| {
+                    let tables: std::collections::BTreeSet<String> = snapshot
+                        .as_ref()
+                        .and_then(|specs| specs.get(slug.as_str()))
+                        .map(|sensor| {
+                            sensor
+                                .tables
+                                .iter()
+                                .map(|t| format!("{}_{}", sensor.sensor_id, t.table_name))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    (slug.as_str().to_owned(), tables)
+                })
+                .collect()
+        };
+
         // Execute the core reload (audit + spec-engine swap + JSON serialization).
         let result = self.reload_config_core().await?;
 
@@ -3291,7 +3333,13 @@ impl PrismServer {
                 .unwrap_or_default()
         };
 
-        // Dispatch notifications if the table set changed (non-fatal if peer is gone).
+        // Detect whether the table set changed (used both for list_changed and schema updated).
+        use std::collections::BTreeSet;
+        let old_set: BTreeSet<&String> = old_tables.iter().collect();
+        let new_set: BTreeSet<&String> = new_tables.iter().collect();
+        let tables_changed = old_set != new_set;
+
+        // Dispatch list_changed notifications if the table set changed (non-fatal if peer is gone).
         if let Err(e) =
             resources::dispatch_hot_reload_notifications(old_tables, new_tables, &peer).await
         {
@@ -3299,6 +3347,58 @@ impl PrismServer {
                 error = %e,
                 "hot-reload list_changed notification dispatch failed (non-fatal; peer may have disconnected)"
             );
+        }
+
+        // AC-006 (BC-2.10.013 EC-10-029 DI-008): fire per-resource `notifications/resources/updated`
+        // for each subscribed client whose per-client table set changed.
+        // Production-grade DI-008 scoping: only notify clients whose own sensor's table set
+        // changed — not all clients when any global table changed.
+        // Runs independently from list_changed (a list_changed dispatch failure does not block
+        // schema-updated dispatch).
+        if tables_changed {
+            // Post-reload: compute per-client new table sets and diff vs old.
+            let new_specs_snapshot = self.config_manager.as_ref().map(|cm| {
+                let cm_guard = cm.load();
+                cm_guard.load().sensor_specs.clone()
+            });
+            for slug in &subscribed_clients_for_diff {
+                let new_tables: std::collections::BTreeSet<String> = new_specs_snapshot
+                    .as_ref()
+                    .and_then(|specs| specs.get(slug.as_str()))
+                    .map(|sensor| {
+                        sensor
+                            .tables
+                            .iter()
+                            .map(|t| format!("{}_{}", sensor.sensor_id, t.table_name))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let old_tables_for_client = old_per_client_tables
+                    .get(slug.as_str())
+                    .cloned()
+                    .unwrap_or_default();
+                if old_tables_for_client != new_tables {
+                    // This client's per-client table set changed → notify (DI-008 scoped).
+                    if let Err(e) = resources::schema::notify_schema_updated(
+                        slug,
+                        &self.schema_subscriber_registry,
+                    )
+                    .await
+                    {
+                        // DI-004 fail-open: log and continue to remaining subscribers.
+                        tracing::warn!(
+                            client = %slug.as_str(),
+                            error = %e,
+                            "reload_config: schema subscriber notification failed (DI-004 fail-open)"
+                        );
+                    }
+                } else {
+                    tracing::debug!(
+                        client = %slug.as_str(),
+                        "reload_config: per-client table set unchanged, skipping notification (DI-008)"
+                    );
+                }
+            }
         }
 
         Ok(result)
@@ -5442,6 +5542,82 @@ impl ServerHandler for PrismServer {
         )
         .await
     }
+
+    /// Register a client subscription for `prismql://schema/{client_id}` (BC-2.10.013 AC-006).
+    ///
+    /// Called by rmcp when a connected MCP client issues `resources/subscribe` for a
+    /// `prismql://schema/{client_id}` URI. Stores a `PeerSchemaNotifier` (wrapping
+    /// `context.peer.clone()`) in `schema_subscriber_registry` keyed by OrgSlug.
+    ///
+    /// # URI handling
+    /// Only `prismql://schema/{client_id}` URIs are processed. Other URIs are silently
+    /// accepted (returning `Ok(())`) per the MCP subscribe contract (unknown resource
+    /// URIs must not error — they may be for other resource types).
+    ///
+    /// # Subscription identity key
+    /// The subscription is keyed by `context.id.to_string()` (the request ID of THIS
+    /// subscribe call, a per-request monotonic identifier). On `unsubscribe`, the URI
+    /// client_id is used to remove ALL handles for that client slug — since rmcp 1.7.0
+    /// exposes no stable per-connection id on `RequestContext` and unsubscribe carries
+    /// only the URI (not the original request id), removing ALL subscriptions for the
+    /// given OrgSlug on unsubscribe is the correct production-grade behavior.
+    async fn subscribe(
+        &self,
+        request: SubscribeRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<(), ErrorData> {
+        // Only handle prismql://schema/{client_id}; silently accept other URIs.
+        let Some(client_id) = request.uri.strip_prefix("prismql://schema/") else {
+            return Ok(());
+        };
+        // Validate client_id — path-traversal guard (EC-10-033).
+        // DI-006: do not echo raw value in error.
+        let slug = prism_core::OrgSlug::new(client_id);
+        if slug.is_err() {
+            return Err(ErrorData::invalid_params(
+                "E-MCP-001: invalid client_id in subscribe URI — must match [a-zA-Z0-9_-]{1,64}",
+                None,
+            ));
+        }
+        // Build a SubscriberHandle wrapping the peer captured from RequestContext.
+        // context.peer is Clone + Send + Sync — safe to clone and store.
+        let handle = resources::schema::SubscriberHandle {
+            id: context.id.to_string(),
+            notifier: Arc::new(resources::schema::PeerSchemaNotifier {
+                peer: context.peer.clone(),
+            }),
+        };
+        self.schema_subscriber_registry.subscribe(slug, handle);
+        Ok(())
+    }
+
+    /// Remove a client subscription for `prismql://schema/{client_id}` (BC-2.10.013 AC-006).
+    ///
+    /// Called by rmcp when a connected MCP client issues `resources/unsubscribe`.
+    /// Removes ALL subscriptions for the given OrgSlug (rmcp 1.7.0 exposes no stable
+    /// per-connection id on `RequestContext`, and unsubscribe carries only the URI).
+    async fn unsubscribe(
+        &self,
+        request: UnsubscribeRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<(), ErrorData> {
+        // Only handle prismql://schema/{client_id}; silently accept other URIs.
+        let Some(client_id) = request.uri.strip_prefix("prismql://schema/") else {
+            return Ok(());
+        };
+        let slug = prism_core::OrgSlug::new(client_id);
+        if slug.is_ok() {
+            // Remove ALL subscriptions for this client slug.
+            // Rationale: rmcp 1.7.0 provides no stable connection id on RequestContext;
+            // unsubscribe carries only the URI. Removing all handles for the slug is the
+            // correct behavior — the client is saying "stop sending me updates for this resource".
+            let subscriber_ids = self.schema_subscriber_registry.subscribers_for(&slug);
+            for id in subscriber_ids {
+                self.schema_subscriber_registry.unsubscribe(&slug, &id);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Public accessor for the production tool catalog.
@@ -6038,6 +6214,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
 
         // Call confirm_action with the pre-stored token and matching client_id.
@@ -6374,6 +6551,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
         // 257 'p' chars — 1 over the 256-char limit.
         let oversized_pack_id = "p".repeat(257);
@@ -6488,6 +6666,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
 
         let params = ConfirmActionParams {
@@ -7228,6 +7407,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "r".repeat(257);
@@ -7260,6 +7440,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "c".repeat(257);
@@ -7291,6 +7472,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "u".repeat(257);
@@ -7389,6 +7571,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
 
         (server, confirmation_store, tmpdir)
@@ -7576,6 +7759,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
 
         let params = CreateAliasParams {
@@ -7622,6 +7806,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
 
         let params = DeleteAliasParams {
@@ -8152,8 +8337,10 @@ mod tests {
     /// `emit_tool_audit` is removed (the pre-fix tracing-only behavior), this
     /// test fails with zero recorded calls.
     ///
-    /// BC-2.10.012 v1.1: `emit_tool_audit` passes `operation = outcome_label`
-    /// and `outcome = "success"` to `write_tool_call`.
+    /// BC-2.10.012 v1.1: `emit_tool_audit` passes `operation = tool_name`
+    /// and `outcome = caller_label` to `write_tool_call`.
+    /// The tool name is the canonical operation name; the caller-supplied label
+    /// (e.g., "invoked", "error") is the outcome field.
     #[tokio::test]
     async fn test_MCP_02_emit_tool_audit_invokes_durable_writer() {
         let recording = Arc::new(RecordingAudit::default());
@@ -8174,11 +8361,11 @@ mod tests {
             vec![(
                 "query".to_owned(),
                 Some("acme".to_owned()),
-                "invoked".to_owned(),
-                "success".to_owned()
+                "query".to_owned(),   // operation = tool name (BC-2.10.012 v1.1)
+                "invoked".to_owned()  // outcome = caller-supplied label
             )],
             "MCP-02 (BC-2.10.012 v1.1): emit_tool_audit must write one durable tool-call record \
-             with the tool name, client_id, operation, and outcome"
+             with tool_name, client_id, operation=tool_name, outcome=caller_label"
         );
     }
 
@@ -9014,6 +9201,7 @@ mod tests {
             org_registry: None,
             prompt_router: build_prompt_router(),
             context: Arc::new(PrismContext::new()),
+            schema_subscriber_registry: Arc::new(resources::schema::SchemaSubscriberRegistry::new()),
         };
 
         let params = ExplainQueryParams {
@@ -9771,11 +9959,14 @@ mod tests {
         let cm = prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot);
         let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
 
-        // Add claroty spec BEFORE reload so the table-set changes on reload.
-        let claroty_toml = "sensor_id = \"claroty\"\n\
-             name = \"Claroty\"\n\
+        // Add acme sensor spec BEFORE reload so the table-set changes on reload.
+        // DI-008 fixture: sensor_id = "acme" means per-client diff finds that "acme"'s
+        // table set changed ([] → ["assets"]) while "globex"'s did not ([] → []).
+        // AC-006 story spec: "hot-reload adds a new sensor spec for 'acme'".
+        let acme_toml = "sensor_id = \"acme\"\n\
+             name = \"Acme Sensor\"\n\
              auth_type = \"api_key\"\n\
-             base_url = \"https://api.claroty.com\"\n\
+             base_url = \"https://api.acme.example.com\"\n\
              version = \"1.0.0\"\n\
              \n\
              [[tables]]\n\
@@ -9783,8 +9974,8 @@ mod tests {
              ocsf_class = \"device_inventory_info\"\n\
              columns = []\n\
              steps = []\n";
-        std::fs::write(spec_dir.join("claroty.sensor.toml"), claroty_toml)
-            .expect("write claroty.sensor.toml must succeed");
+        std::fs::write(spec_dir.join("acme.sensor.toml"), acme_toml)
+            .expect("write acme.sensor.toml must succeed");
 
         // ── Step 2: build registry and pre-wire mock sinks ────────────────────
         //

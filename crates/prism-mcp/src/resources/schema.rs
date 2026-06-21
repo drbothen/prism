@@ -34,7 +34,11 @@ use std::{
 };
 
 use async_trait::async_trait;
-use rmcp::model::{ErrorData, ReadResourceResult};
+use rmcp::{
+    model::{ErrorData, ReadResourceResult, ResourceUpdatedNotificationParam},
+    service::Peer,
+    RoleServer,
+};
 
 use prism_core::OrgSlug;
 
@@ -189,12 +193,65 @@ impl SchemaSubscriberRegistry {
             })
             .unwrap_or_default()
     }
+
+    /// Return all client slugs that currently have active subscriptions.
+    ///
+    /// Used by `reload_config` to fan-out `notifications/resources/updated` to
+    /// every subscribed client when the global table-set changes (AC-006).
+    /// Lock is held only for the snapshot clone, released before any async work.
+    pub fn all_subscribed_clients(&self) -> Vec<OrgSlug> {
+        let map = self
+            .inner
+            .lock()
+            .expect("SchemaSubscriberRegistry lock poisoned");
+        map.keys().cloned().collect()
+    }
 }
 
 impl Default for SchemaSubscriberRegistry {
     /// WIRING-EXEMPT: `Default` delegation to `Self::new()` — single call, no logic.
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ─── Production SchemaChangeNotifier — wraps a live Peer<RoleServer> ─────────
+
+/// Production `SchemaChangeNotifier` wrapping a stored `Peer<RoleServer>`.
+///
+/// Constructed in `ServerHandler::subscribe` from `context.peer.clone()` and
+/// stored in `SubscriberHandle::notifier`. Outlives the subscribe request —
+/// the `Peer<RoleServer>` is `Clone + Send + Sync` and can be held across
+/// async boundaries until a config change fires.
+///
+/// # Production path
+/// `ServerHandler::subscribe` → constructs `PeerSchemaNotifier { peer }` →
+/// wraps in `SubscriberHandle` → stored in `SchemaSubscriberRegistry`.
+/// `reload_config` → `notify_schema_updated` → `notify_resource_updated` →
+/// `peer.notify_resource_updated(ResourceUpdatedNotificationParam::new(uri))`.
+///
+/// # Error mapping
+/// `Peer::notify_resource_updated` returns `Result<(), ServiceError>`.
+/// `ServiceError` is mapped to `ErrorData` at this boundary
+/// (mirrors the existing `dispatch_hot_reload_notifications` pattern).
+pub struct PeerSchemaNotifier {
+    /// Stored connection peer — captured from `RequestContext::peer` at subscribe time.
+    pub peer: Peer<RoleServer>,
+}
+
+#[async_trait]
+impl SchemaChangeNotifier for PeerSchemaNotifier {
+    async fn notify_resource_updated(&self, uri: &str) -> Result<(), ErrorData> {
+        self.peer
+            .notify_resource_updated(ResourceUpdatedNotificationParam::new(uri.to_string()))
+            .await
+            .map_err(|e| {
+                ErrorData::new(
+                    rmcp::model::ErrorCode(-32000),
+                    format!("notify_resource_updated failed: {e}"),
+                    None,
+                )
+            })
     }
 }
 
