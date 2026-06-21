@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: ADR-041-teaching-burst-2026-06-19
-modified: null
+modified: "2026-06-20T00:00:00Z"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -28,14 +28,17 @@ removal_reason: null
 
 ## Description
 
-The `prism_describe` MCP tool is always registered and returns the per-client table/column/type schema catalog directly from the live `TableRegistry`. It emits an audit event on every call (schema enumeration is auditable in a multi-tenant MSSP security product), is annotated read-only and idempotent, and its response includes auto-generated per-table example queries grounded in the client's actual registered table names plus `pql_hints` about the client's specific sensor set. This is the primary schema-discovery surface for the 4-layer LLM onboarding mechanism (ADR-041 L2).
+The `prism_describe` MCP tool is always registered and returns the per-client table/column/type schema catalog sourced from the spec layer: column schema is read from `query_engine.resolved_spec_map()` (multi-tenant: filter by `OrgSlug`, walk `ResolvedSensorSpec.spec.tables`, collect `TableSpec.columns`) or from `config_manager` (single-tenant/test fallback, same pattern as `render_schema_resource`). It emits an audit event on every call (schema enumeration is auditable in a multi-tenant MSSP security product), is annotated read-only and idempotent, and its response includes auto-generated per-table example queries grounded in the client's actual registered table names plus `pql_hints` about the client's specific sensor set. This is the primary schema-discovery surface for the 4-layer LLM onboarding mechanism (ADR-041 L2).
 
 ## Preconditions
 
 1. The `prism_describe` tool is always registered — it is NOT gated by any feature flag or capability check. It is in the same always-registered tier as `list_capabilities` (BC-2.10.011).
 2. The `TableRegistry` has been initialized at boot (may be empty — zero tables is a valid state).
 3. The calling model has provided a valid `client_id` parameter (required; validated per BC-2.10.004).
-4. The `Arc<dyn TableRegistry>` is injected into `PrismServer` at boot via ADR-022 wiring.
+4. Column schema is reachable via two existing `PrismServer` fields — no new injection required:
+   - `self.query_engine.resolved_spec_map()` → `Arc<HashMap<(OrgSlug, SensorId), ResolvedSensorSpec>>` (multi-tenant, preferred path; `ResolvedSensorSpec.spec.tables: Vec<TableSpec>`, `TableSpec.columns: Vec<ColumnSpec>`)
+   - `self.config_manager` → `Arc<ArcSwap<ConfigManager>>` (single-tenant/test fallback, same pattern as `render_schema_resource` in `resources.rs`)
+   Note: `TableRegistry` is a concrete `#[non_exhaustive] struct` storing table-name strings only — it holds NO per-column schema. Column data lives exclusively in the spec layer above.
 
 ## Postconditions
 
@@ -56,7 +59,7 @@ The successful response is a JSON object (carried in `structuredContent`) with t
     {
       "name": "<table_name>",
       "sensor_type": "<sensor prefix, e.g. 'crowdstrike'>",
-      "description": "<human-readable table description from TableRegistry>",
+      "description": "<human-readable table description from TableSpec in resolved_spec_map>",
       "columns": [
         {
           "name": "<column_name>",
@@ -76,7 +79,7 @@ All public response types (`PrismDescribeResponse`, `TableDescriptor`, `ColumnDe
 
 ### Auto-generated example queries
 
-The `example_query` field for each table is generated from the live `TableRegistry` using canonical PQL query templates instantiated with the real table name and real column names:
+The `example_query` field for each table is generated from the per-client schema catalog (sourced via `resolved_spec_map` or `config_manager` as described in §Preconditions) using canonical PQL query templates instantiated with the real table name and real column names:
 - Count-recent template: `SELECT COUNT(*) FROM <table_name> WHERE timestamp > NOW() - INTERVAL '1h'`
 - If the table has a `severity` column (or equivalent): `SELECT * FROM <table_name> WHERE severity IN ('high', 'critical') LIMIT 50`
 - If the table has an aggregatable field: `SELECT <field>, COUNT(*) FROM <table_name> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10`
@@ -98,6 +101,8 @@ Every call to `prism_describe` emits an `AuditEntry` (DI-004) with:
 - `operation: "schema_enumeration"`
 - `outcome: "success"` (or `"error"` on parameter validation failure)
 
+**Implementer obligation:** The current `AuditWriter::write_tool_call` surface accepts `(tool_name, client_id, outcome)` — it has no `operation` slot. The implementer MUST extend `AuditWriter` (or add an overloaded variant) to accept the `operation` field so that `"schema_enumeration"` is written into the audit record. The `outcome` value MUST be a real success/error discriminant — NOT the literal string `"invoked"`. This requirement is non-negotiable: spec wins (VSDD standing rule), and the implementer brings the audit surface into conformance with this BC.
+
 This satisfies ADR-041's security requirement: schema enumeration in a multi-tenant MSSP environment is an auditable action. Unlike host-side injection (which silently prepends schema to every prompt), model-initiated `prism_describe` calls produce an audit trace. This mirrors ADR-005's pattern for security-critical observability events.
 
 ### Non-existent client_id handling
@@ -110,18 +115,18 @@ If the `client_id` passes format validation but is not registered in `OrgRegistr
 
 ### Response envelope
 
-The response uses `SafetyEnvelopeBuilder` (consistent with all Prism MCP tools) with `trust_level: "internal"` in `_meta`. The schema catalog is server-authored (sourced from operator TOML specs and `TableRegistry`), not sensor data — `trust_level: "internal"` is correct.
+The response uses `SafetyEnvelopeBuilder` (consistent with all Prism MCP tools) with `trust_level: "internal"` in `_meta`. The schema catalog is server-authored (sourced from operator TOML specs via `resolved_spec_map` or `config_manager`), not sensor data — `trust_level: "internal"` is correct.
 
 ### Single source of truth with `prismql://schema/{client_id}`
 
-Both `prism_describe` and the `prismql://schema/{client_id}` resource template (BC-2.10.013) are computed from the same `TableRegistry` projection used by the E-QUERY-037 plan-time gate (ADR-039). There is exactly one authoritative per-client schema source. Neither caches independently — both read live from `TableRegistry` at call time (short-TTL caching is acceptable for the resource path per BC-2.10.013).
+Both `prism_describe` and the `prismql://schema/{client_id}` resource template (BC-2.10.013) are computed from the same spec-layer column data: `query_engine.resolved_spec_map()` (multi-tenant) or `config_manager` (single-tenant fallback). There is exactly one authoritative per-client schema source — the operator TOML specs surfaced through these two existing `PrismServer` access paths. Neither caches independently from the other; short-TTL caching is acceptable for the resource path per BC-2.10.013, using the same `TableRegistry` change-notification signal as the invalidation trigger (the `TableRegistry` change event is the hot-reload signal, even though column data itself comes from `resolved_spec_map`).
 
 ## Invariants
 
 - DI-004: Audit completeness — every `prism_describe` call emits an `AuditEntry`. Audit fail-closed does NOT apply here (this is a read tool, not a write tool): if audit emission fails, the call proceeds with `_meta.audit_warning` in the response (consistent with BC-2.11.001 and DI-004 split behavior).
-- DI-002: Credential isolation — `prism_describe` response MUST NOT include any credential values, auth token snippets, or API key strings. Column names sourced from `TableRegistry` are operator-defined schema names — they do not contain credentials. `api_base_url` values are not part of the response.
-- DI-006: The response is server-authored (operator TOML → `TableRegistry` → response). It does not contain sensor API response bodies or user-controlled input. No prompt injection scan is required for the discovery response itself, but the `pql_hints` strings are server-authored constants, not interpolated sensor data.
-- DI-008: The `client_id` scoping is enforced — the `TableRegistry` query is filtered to the requesting client's `OrgId`. A call for `client_id = "acme"` MUST NOT return tables belonging to "globex".
+- DI-002: Credential isolation — `prism_describe` response MUST NOT include any credential values, auth token snippets, or API key strings. Column names sourced from `resolved_spec_map → TableSpec.columns → ColumnSpec.name` are operator-defined schema identifiers — they do not contain credentials. `api_base_url` values are not part of the response.
+- DI-006: The response is server-authored (operator TOML specs → `resolved_spec_map` / `config_manager` → response). It does not contain sensor API response bodies or user-controlled input. No prompt injection scan is required for the discovery response itself, but the `pql_hints` strings are server-authored constants, not interpolated sensor data.
+- DI-008: The `client_id` scoping is enforced — the `resolved_spec_map` lookup is filtered to entries whose `OrgSlug` matches the requesting client's `client_id`. A call for `client_id = "acme"` MUST NOT return tables or columns belonging to "globex".
 
 ## Error Cases
 
@@ -141,7 +146,7 @@ Both `prism_describe` and the `prismql://schema/{client_id}` resource template (
 | EC-10-023 | `client_id` is valid format but not in `OrgRegistry` | Returns `{tables: [], pql_hints: ["Client '...' is not registered..."]}` — NOT an error |
 | EC-10-024 | `client_id` is registered but has zero sensor overlays (zero tables) | Returns `{tables: [], pql_hints: ["No sensor tables are available for client '...'."]}` — NOT an error |
 | EC-10-025 | `client_id` has one table with zero columns (empty `[[tables.columns]]`) | Returns that table with `columns: []`; `example_query` uses count-recent fallback template |
-| EC-10-026 | `TableRegistry` is in the middle of a hot reload at call time | Returns the snapshot visible at the time of the `Arc<dyn TableRegistry>` read; no partial-reload consistency risk (atomic `ArcSwap` pattern per ADR-022) |
+| EC-10-026 | A hot reload is in progress at call time | Returns the spec snapshot visible at the time of the `resolved_spec_map` read; no partial-reload consistency risk (`resolved_spec_map` is published atomically via `ArcSwap` per ADR-022, and `config_manager` is also `ArcSwap`-backed) |
 | EC-10-027 | `client_id` format validation fails (e.g., `"acme/../../etc"`) | `E-MCP-001` structured error; `original_params_valid: false` |
 | EC-10-028 | Audit emission fails | Call proceeds; `_meta.audit_warning: true` set in response envelope. This is a read tool — DI-004 fail-open for reads. |
 
@@ -177,7 +182,7 @@ Both `prism_describe` and the `prismql://schema/{client_id}` resource template (
 
 ## Related BCs
 
-- BC-2.10.013 — composes with: `prismql://schema/{client_id}` resource template exposes the same data; single `TableRegistry` source
+- BC-2.10.013 — composes with: `prismql://schema/{client_id}` resource template exposes the same data; single spec-layer source (`resolved_spec_map` / `config_manager`)
 - BC-2.10.011 — depends on: `list_capabilities` is the capability matrix surface; `prism_describe` is the schema-discovery surface — complementary, not substitutable
 - BC-2.10.008 — depends on: `prism://config/clients/{client_id}/sensors` shows which sensors are provisioned; `prism_describe` shows which tables/columns are queryable — different abstraction levels
 - BC-2.11.001 — depends on: E-QUERY-037 plan-time gate uses the same `TableRegistry` read; schema enumerated by `prism_describe` must be consistent with what the query planner accepts
@@ -186,9 +191,9 @@ Both `prism_describe` and the `prismql://schema/{client_id}` resource template (
 ## Architecture Anchors
 
 - `architecture/decisions/ADR-041` §L2 — authoritative architectural decision for this tool
-- `architecture/decisions/ADR-022` — Arc-DI wiring: `Arc<dyn TableRegistry>` injected at boot, consistent with all other Arc-wired dependencies
-- `architecture/decisions/ADR-005` — audit-event pattern: schema enumeration is an auditable operation
-- `architecture/decisions/ADR-039` — `TableRegistry` as the single source of truth for per-org table availability; `prism_describe` reads from the same registry
+- `architecture/decisions/ADR-022` — Arc-DI wiring: `prism_describe` reads column schema via `PrismServer.query_engine.resolved_spec_map()` and `PrismServer.config_manager` — both already-wired `PrismServer` fields; NO new `Arc<dyn TableRegistry>` injection into `PrismServer` (correction per architect D-1259; `TableRegistry` is a concrete `#[non_exhaustive] struct` holding table-name strings only)
+- `architecture/decisions/ADR-005` — audit-event pattern: schema enumeration is an auditable operation; `operation: "schema_enumeration"` + `outcome: "success"|"error"` are required fields in the `AuditEntry` (implementer must extend `AuditWriter` surface accordingly)
+- `architecture/decisions/ADR-039` — `TableRegistry` is the authority for which table NAMES are registered per org; column schema for those tables comes from `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns → ColumnSpec` (per onboarding-001-tableregistry-datapath-correction.md D-1259)
 
 ## Story Anchor
 
@@ -202,4 +207,5 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | 001-A-local-cascade-bc-correction-2026-06-20 | 2026-06-20 | product-owner | D-1259 propagation (onboarding-001-tableregistry-datapath-correction.md). Replaced fictional `Arc<dyn TableRegistry>` injection model with correct data-source model in §Description, Precondition 4, §Auto-generated example queries, §Response envelope, §Single source of truth, DI-008 invariant, EC-10-026, and §Architecture Anchors. Clarified §Audit implementer obligation: `AuditWriter` must be extended to carry `operation` + real `outcome` (not `"invoked"`); requirement not weakened (finding F-PASS2-HIGH-004 / F-P3-HIGH-002). |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L2 `prism_describe` tool contract |

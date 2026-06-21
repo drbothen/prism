@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: ADR-041-teaching-burst-2026-06-19
-modified: null
+modified: "2026-06-20T00:00:00Z"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -28,13 +28,16 @@ removal_reason: null
 
 ## Description
 
-The `prismql://schema/{client_id}` MCP resource template exposes the per-client table/column/type schema catalog as an MCP resource, providing an alternative access pattern to the `prism_describe` tool (BC-2.10.012). Both surfaces are computed from the same live `TableRegistry` (single source of truth). The resource template supports server-side `subscribe`/`listChanged` notification (MCP 2025-06-18 spec), enabling MCP clients that support subscription to receive proactive schema-freshness signals when the `TableRegistry` changes. The resource is always registered and uses `application/json` MIME type.
+The `prismql://schema/{client_id}` MCP resource template exposes the per-client table/column/type schema catalog as an MCP resource, providing an alternative access pattern to the `prism_describe` tool (BC-2.10.012). Both surfaces are computed from the same spec-layer column data — `query_engine.resolved_spec_map()` (multi-tenant) or `config_manager` (single-tenant fallback) — which is the single source of truth. The resource template supports server-side `subscribe`/`listChanged` notification (MCP 2025-06-18 spec), enabling MCP clients that support subscription to receive proactive schema-freshness signals when the `TableRegistry` changes (the `TableRegistry` change event is the hot-reload signal, even though column data itself comes from `resolved_spec_map`). The resource is always registered and uses `application/json` MIME type.
 
 ## Preconditions
 
 1. The MCP server has registered the `prismql://schema/{client_id}` URI template in `resources/list` using RFC 6570 template syntax.
 2. The `TableRegistry` has been initialized (may be empty).
-3. The `Arc<dyn TableRegistry>` is injected into the resource handler at boot per ADR-022.
+3. The resource handler accesses column schema via the same two `PrismServer` fields used by `prism_describe` (BC-2.10.012) — no additional injection required:
+   - `self.query_engine.resolved_spec_map()` → `Arc<HashMap<(OrgSlug, SensorId), ResolvedSensorSpec>>` (multi-tenant preferred path)
+   - `self.config_manager` → `Arc<ArcSwap<ConfigManager>>` (single-tenant/test fallback)
+   Note: `TableRegistry` is a concrete `#[non_exhaustive] struct` storing table-name strings only; it holds NO per-column schema. Column data comes from the spec layer above.
 4. Server-side subscribe/notify infrastructure is wired (consistent with `notifications/resources/updated` already used by BC-2.10.008 for config resources).
 
 ## Postconditions
@@ -58,7 +61,7 @@ The resource read result for `prismql://schema/{client_id}` returns exactly the 
 }
 ```
 
-The content is computed from the same `TableRegistry` projection. There is no separate schema snapshot for the resource — it reads from the same in-process `Arc<dyn TableRegistry>`.
+The content is computed from the same spec-layer data source as `prism_describe`: `query_engine.resolved_spec_map()` (multi-tenant) or `config_manager` (single-tenant fallback). There is no separate schema snapshot for the resource — both paths share the same underlying `ArcSwap`-backed data.
 
 ### Non-existent / empty client_id behavior
 
@@ -76,7 +79,7 @@ The server MUST implement the subscribe/notify side of the MCP 2025-06-18 resour
 
 ### Caching policy
 
-The resource handler MAY cache the `TableRegistry` projection for a client with a short TTL (e.g., 5 seconds) to serve repeated reads efficiently. The cache MUST be invalidated on `TableRegistry::changed()` signal (the same signal used to trigger `notifications/resources/updated`). Cache invalidation and subscribe notification are triggered by the same event — they share a single `TableRegistry` change listener.
+The resource handler MAY cache the per-client schema response (derived from `resolved_spec_map` or `config_manager`) with a short TTL (e.g., 5 seconds) to serve repeated reads efficiently. The cache MUST be invalidated on `TableRegistry::changed()` signal (the same signal used to trigger `notifications/resources/updated`). Cache invalidation and subscribe notification are triggered by the same event — they share a single `TableRegistry` change listener. Note: the `TableRegistry` change event is the hot-reload signal (authority for which table names are registered); the cached value being invalidated is the derived spec-layer schema, not a `TableRegistry` struct.
 
 ### Audit — NO separate audit event
 
@@ -92,7 +95,7 @@ At any moment, `resources/read("prismql://schema/acme")` and `prism_describe("ac
 
 - DI-002: Credential isolation — same as BC-2.10.012; no credential values in resource content.
 - DI-008: Client data separation — the `{client_id}` URI segment is the scoping boundary. A resource read for `prismql://schema/acme` MUST NOT return tables belonging to "globex".
-- DI-006: Resource content is server-authored (operator TOML → `TableRegistry`); not sensor data; no prompt injection scan required.
+- DI-006: Resource content is server-authored (operator TOML specs → `resolved_spec_map` / `config_manager`); not sensor data; no prompt injection scan required.
 
 ## Error Cases
 
@@ -150,8 +153,8 @@ At any moment, `resources/read("prismql://schema/acme")` and `prism_describe("ac
 ## Architecture Anchors
 
 - `architecture/decisions/ADR-041` §L2 — "Why a tool AND a resource": audit motivates the tool path; host injection and subscribe/listChanged motivate the resource path
-- `architecture/decisions/ADR-022` — `Arc<dyn TableRegistry>` wiring pattern
-- `architecture/decisions/ADR-039` — `TableRegistry` as single source of truth for per-org table availability
+- `architecture/decisions/ADR-022` — Arc-DI wiring: the resource handler reads column schema via `PrismServer.query_engine.resolved_spec_map()` and `PrismServer.config_manager` — existing wired fields, no new `Arc<dyn TableRegistry>` injection (correction per architect D-1259)
+- `architecture/decisions/ADR-039` — `TableRegistry` is the authority for which table NAMES are registered per org (and the change-notification signal source); column schema for those tables comes from `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns → ColumnSpec` (per onboarding-001-tableregistry-datapath-correction.md D-1259)
 
 ## Story Anchor
 
@@ -165,4 +168,5 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | 001-A-local-cascade-bc-correction-2026-06-20 | 2026-06-20 | product-owner | D-1259 propagation (onboarding-001-tableregistry-datapath-correction.md). Replaced fictional `Arc<dyn TableRegistry>` injection model with correct data-source model in §Description, Preconditions 3–4, §Resource content, §Caching policy, and §Architecture Anchors. Behavioral postconditions, DI-008 isolation requirement, subscribe/notify behavior, edge cases, and test vectors unchanged (finding F-PASS2-HIGH-004 / F-P3-HIGH-002). |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L2 `prismql://schema/{client_id}` resource template contract |
