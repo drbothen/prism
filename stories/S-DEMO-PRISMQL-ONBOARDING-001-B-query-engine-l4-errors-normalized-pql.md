@@ -67,9 +67,9 @@ status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.3"
+version: "1.4"
 producer: story-writer
-timestamp: "2026-06-21T00:00:00Z"
+timestamp: "2026-06-21T12:00:00Z"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -227,27 +227,60 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
 - [ ] Write failing test (FAIL first): implicit via test_BC_2_11_016_e_query_038_did_you_mean —
   the test expects E-QUERY-038 JSON; the variant must compile to run the test
 - [ ] Add to `crates/prism-core/src/error.rs`:
+
+  **Step 1 — new `pub struct ColumnNotFoundDetails`** (add before the `TableNotAvailableDetails`
+  struct, matching its position pattern in error.rs):
   ```rust
-  ColumnNotFound {
-      column: String,
-      table: String,
-      client_id: String,
-      available_columns: Vec<String>,
-      did_you_mean: Option<String>,
+  /// Details for E-QUERY-038: column not found in the queried table for this client.
+  ///
+  /// Boxed inside `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` to keep
+  /// `PrismError` within the `clippy::result_large_err` 128-byte threshold.
+  /// 3× `String` + `Vec<String>` + `Option<String>` inline would equal or exceed
+  /// the 128-byte limit — boxing reduces the variant to 8 bytes (pointer width).
+  /// Follows `TableNotAvailableDetails` precedent from S-3.13 LOW-1.
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  #[non_exhaustive]
+  pub struct ColumnNotFoundDetails {
+      pub column: String,
+      pub table: String,
+      pub client_id: String,
+      pub available_columns: Vec<String>,
+      pub did_you_mean: Option<String>,
   }
   ```
-  NOTE: `PrismError` enum is already `#[non_exhaustive]` — NO new annotation needed at enum level.
-  Verify `result_large_err` clippy lint: if this variant triggers it, box the Vec fields following
-  `TableNotAvailableDetails` precedent.
-- [ ] Implement `Display` for the new variant:
+  Implement `Display` for `ColumnNotFoundDetails` delegating:
   `"E-QUERY-038: column '{}' not found in table '{}' for client '{}'"`
-- [ ] Verify crate compiles; check for result_large_err lint
+  Implement `ColumnNotFoundDetails::new(column, table, client_id, available_columns, did_you_mean)`
+  constructor.
+
+  **Step 2 — enum variant** (boxed, NOT inline fields):
+  ```rust
+  /// E-QUERY-038: Column not found in the queried table for this client.
+  ///
+  /// The inner fields are boxed (`Box<ColumnNotFoundDetails>`) to keep `PrismError`
+  /// within the `clippy::result_large_err` threshold.
+  ///
+  /// Construct via `PrismError::ColumnNotFound(Box::new(ColumnNotFoundDetails::new(...)))`.
+  /// Match via `PrismError::ColumnNotFound(ref d)` or `PrismError::ColumnNotFound(..)`.
+  #[error("{0}")]
+  ColumnNotFound(Box<ColumnNotFoundDetails>),
+  ```
+
+  REASON: `Vec<String>` + `Option<String>` + 3× `String` inline equals or exceeds the
+  `result_large_err` 128-byte threshold (total ~128 bytes plus enum tag); boxing following
+  `TableNotAvailableDetails` precedent (S-3.13 LOW-1) reduces the variant to 8 bytes.
+  `ColumnNotFoundDetails` is a pub prism-core type and requires `#[non_exhaustive]` per
+  CLAUDE.md conventions (adds 1 to EXPECTED — see Phase 5 and Phase 6 below).
+
+  NOTE: `PrismError` enum is already `#[non_exhaustive]` — do NOT add the annotation again
+  at enum level.
+- [ ] Verify crate compiles; run `just iter prism-core` and confirm zero `result_large_err` lint warnings
 
 ### Phase 2 — E-QUERY-038 MCP error mapping
 
 - [ ] In `crates/prism-mcp/src/error_mapping.rs`, add explicit arm BEFORE the `#[non_exhaustive]`
   catch-all:
-  - `PrismError::ColumnNotFound { ... }` → MCP error code `-32602` (INVALID_PARAMS)
+  - `PrismError::ColumnNotFound(ref d)` → MCP error code `-32602` (INVALID_PARAMS); access fields via `d.column`, `d.table`, `d.client_id`, `d.available_columns`, `d.did_you_mean`
   - Structured response per BC-2.10.007 format: `code: "E-QUERY-038"`, `category: "validation"`,
     `severity: "broken"`, `retryable: false`
   - `suggestion`: "Call prism_describe('<client_id>') to see available columns, or use the
@@ -352,8 +385,13 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
     success); ABSENT on ALL error responses. The absent-on-error guarantee is
     enforced structurally — on the error path, `PrismServer::query` returns early
     via `prism_error_to_structured_call_result` before `payload` is constructed.
-  - NO `#[non_exhaustive]` annotation is needed (no new pub struct); ci.yml
-    EXPECTED stays 82 (set by 001-A which has already merged).
+  - `ColumnNotFoundDetails` (added in Phase 1) is a new `#[non_exhaustive]` pub struct —
+    ci.yml EXPECTED must be bumped from **82 to 83** by the implementer during TDD green.
+    Update the ci.yml type-list comment to include `ColumnNotFoundDetails` (adjacent to
+    `TableNotAvailableDetails` in the `prism_core:` group — mirror the S-3.13 LOW-1 entry).
+    CLAUDE.md non-exhaustive count must be updated from 82 to 83 at merge time (merge-time
+    obligation). NOTE: the `normalized_pql` wire itself adds NO new pub struct — only
+    Phase 1 (`ColumnNotFoundDetails`) drives the gate bump. Net story gate impact = +1.
 - [ ] Verify test 5 passes
 
 ### Phase 6 — final gates
@@ -364,10 +402,13 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
 - [ ] Verify normalized_pql value does NOT contain DataFusion plan node substrings
   (`HashJoin`, `TableScan`, `SortExec`, `Aggregate`): add assertion in test 5
 - [ ] Run `just check` — all 6 Red Gate tests pass; zero clippy warnings; fmt clean
-- [ ] Confirm ci.yml EXPECTED remains 82 — no new `#[non_exhaustive]` pub types
-  are added by this story (no new typed response struct; `normalized_pql` is a
-  conditionally-inserted `Value` key, not a struct field). The non-exhaustive gate
-  is already wired at EXPECTED=82 by the merged 001-A. No coordination needed.
+- [ ] Confirm ci.yml EXPECTED is **83** (bumped from 82 during TDD green — `ColumnNotFoundDetails`
+  from Phase 1 is one new `#[non_exhaustive]` pub struct). The non-exhaustive-violation crate's
+  `tests/external/non-exhaustive-violation/src/enum_violations.rs` must include a
+  `ColumnNotFoundDetails` violation function (struct-literal construction attempt, mirroring
+  the `TableNotAvailableDetails` violation added by S-3.13 LOW-1) so the gate continues to
+  compile-fail at the correct count. The `normalized_pql` wire adds NO new pub struct — only
+  `ColumnNotFoundDetails` drives the bump (+1 total; EXPECTED 82→83).
 
 ---
 
@@ -605,12 +646,13 @@ normalized query strings.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `crates/prism-core/src/error.rs` | Modify | Add `PrismError::ColumnNotFound { column, table, client_id, available_columns, did_you_mean }` variant; implement Display |
+| `crates/prism-core/src/error.rs` | Modify | Add `pub struct ColumnNotFoundDetails` (`#[non_exhaustive]`) with fields column/table/client_id/available_columns/did_you_mean + Display + `::new()` constructor; add `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` enum variant with `#[error("{0}")]` (boxed to satisfy `result_large_err`; follows `TableNotAvailableDetails` precedent from S-3.13 LOW-1). |
 | `crates/prism-query/src/engine.rs` | Modify | (1) E-QUERY-038 column-not-found plan-time gate (colocated with E-QUERY-037 gate); (2) E-QUERY-001 near_text + reference_pointer enrichment; (3) E-QUERY-002 valid_operators_for_type enrichment; (4) E-QUERY-003 how_to_fix enrichment; (5) E-QUERY-037 suggestion text update; (6) normalized_pql string production via Chumsky normalizer |
 | `crates/prism-query/src/ast.rs` | Modify | Add `Display` impl or `PqlNormalizer` visitor on top-level AST node for canonicalized PQL re-serialization (fully net-new; VERIFIED 2026-06-20 no existing Display/to_pql/normalize impls — no leverage points) |
 | `crates/prism-mcp/src/error_mapping.rs` | Modify | Add explicit `-32602 INVALID_PARAMS` arm for `PrismError::ColumnNotFound` before the `#[non_exhaustive]` catch-all |
 | `crates/prism-mcp/src/server.rs` | Modify | In `PrismServer::query`, insert `normalized_pql` conditionally into the existing inline `serde_json::json!` payload after rows serialization; conditional key insertion (not a struct field — no typed response struct exists; ADR-022 wiring-not-redesign) |
-| `ci.yml` | No change | EXPECTED remains 82 (set by merged 001-A). No new `#[non_exhaustive]` types added by 001-B (no typed response struct). |
+| `ci.yml` | Modify | Bump EXPECTED from 82 to 83 — `ColumnNotFoundDetails` (from Phase 1) is one new `#[non_exhaustive]` pub struct added by this story. Update the type-list comment to include `ColumnNotFoundDetails` adjacent to `TableNotAvailableDetails` in the `prism_core:` group (mirror the S-3.13 LOW-1 row entry). Also update the error text listing at line ~679 area (see S-3.13 LOW-1 row for `TableNotAvailableDetails` as the model). The `normalized_pql` wire adds +0 to EXPECTED (no new pub struct). |
+| `tests/external/non-exhaustive-violation/src/enum_violations.rs` | Modify | Add a violation function for `ColumnNotFoundDetails` (struct-literal construction attempt), mirroring the `TableNotAvailableDetails` violation function added by S-3.13 LOW-1. This brings the E0639 compile-fail count to 83 (matching the bumped ci.yml EXPECTED). |
 | `crates/prism-query/tests/e_query_pedagogical.rs` | Create | Tests for AC-001 through AC-004 (E-QUERY-038 gate, E-QUERY-001/002/003/037 enrichments) |
 | `crates/prism-mcp/tests/normalized_pql.rs` | Create | Tests for AC-005, AC-006 (normalized_pql field presence/absence) |
 
@@ -648,3 +690,4 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 | 1.1 | remove-uncertainty-2026-06-20 | 2026-06-20 | research-agent | REMOVE-UNCERTAINTY pass (D-1110) pre-TDD. Verified all tech assertions against develop@f6739764 codebase + Cargo.lock + error-taxonomy.md v1.91 + docs.rs/Perplexity. LOW-RISK corrections applied: (1) confirmed version pins strsim 0.11.1 / chumsky 0.12.0 / datafusion 53.1.0 / ariadne 0.4.1 with citations; (2) RETRACTED false+volatile "ast.rs:681/1099 display affordances" citations (TD-VSDD-091 — those are doc-comments, not Display impls; ZERO AST Display impls exist; chumsky 0.12.0 has no built-in re-serializer); (3) corrected "Arc<dyn TableRegistry>" → concrete `TableRegistry` struct passed as `Option<&TableRegistry>`; gate = `check_table_availability` → `check_availability_gate`; (4) corrected non-existent `filter_to_org_visible()` → `filter_to_org_visible_sensors/_tables`; (5) noted E-QUERY-001 variant is `QueryParseFailed { offset, detail }`. FLAGGED for architect (not edited into ACs): `TableRegistry` has NO column-level schema — E-QUERY-038 `available_columns` must come from `resolved_spec_map` (ResolvedSensorSpec→TableSpec.columns), not TableRegistry; design path affects AC-001/AC-002 satisfaction. ColumnType variants (String/Integer/Float/Boolean/Datetime/Json) confirmed match AC-003 operator table. PrismError enum `#[non_exhaustive]` and error_mapping.rs `-32602` arm precedent (TableNotAvailable) confirmed. No AC/BC/scope text changed by this pass. |
 | 1.2 | TABLEREGISTRY-DATAPATH-CORRECTION-2026-06-20 | 2026-06-20 | story-writer | Architect adjudication applied (onboarding-001-tableregistry-datapath-correction.md, D-1259 FLAG-001). Wiring-not-redesign corrections for FLAG-001 from remove-uncertainty pass. Edits: (1) `depends_on` S-5.03 comment — corrected from fictional "TableRegistry injection into PrismServer" to actual ServerHandler override patterns; (2) `depends_on` S-3.13 comment — replaced "reads registry's per-org column schema" with `resolved_spec_map` parameter flow description; (3) dependency anchor comments corrected; (4) Tasks Phase 3 column gate — replaced "Column availability checked against TableRegistry" with `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns` lookup with None fallback; updated `available_columns` presence note to reference `filter_to_org_visible_sensors/_tables` pattern; (5) `risk_mitigations` — replaced "sourced ENTIRELY from TableRegistry" with `resolved_spec_map → ColumnSpec.name` data path with TOML-source safety rationale; (6) Previous Story Intelligence CRITICAL FLAG paragraph — replaced with "ARCHITECTURE FLAG RESOLVED" citing architect adjudication doc, canonical `resolved_spec_map` read path, and AC-001/AC-002 satisfaction statement; (7) Architecture Compliance Rules `available_columns` sourcing rule corrected; (8) Architecture Mapping E-QUERY-038 row corrected. No AC-semantic changes. No BC array changes. BCs remain: BC-2.11.016, BC-2.11.017, BC-2.11.018. |
 | 1.3 | NORMALIZED-PQL-ENVELOPE-CORRECTION-2026-06-21 | 2026-06-21 | story-writer | CORRECTION-1 adjudication applied (onboarding-001-B-normalized-pql-envelope-correction.md). Phase 5 task rewritten: "Add normalized_pql field to query response type" replaced with conditional `serde_json::Value` key insertion into the existing inline `json!` payload in `PrismServer::query` before `SafetyEnvelopeBuilder::wrap` — no typed query-response struct exists or is permitted (BC-2.10.007 SafetyEnvelope pattern; ADR-022 wiring-not-redesign). File Structure `server.rs` row updated to describe conditional key insertion. File Structure `ci.yml` row changed from "Modify / Increment EXPECTED" to "No change / EXPECTED remains 82" (001-A merged, +0 from 001-B). `risk_mitigations` skip_serializing_if bullet corrected: `#[serde(skip_serializing_if)]` is a struct attribute inapplicable to `serde_json::Value`; conditional key insertion is the correct equivalent. Architecture Mapping `normalized_pql` row updated to name `PrismServer::query` inline payload and omit "no typed response struct". Forbidden patterns block extended with typed-struct anti-pattern. Library & Framework serde row updated. Frontmatter `crates_touched` and points-justification comments corrected. AC-005/AC-006 behavioral semantics UNCHANGED. BCs UNCHANGED: BC-2.11.016, BC-2.11.017, BC-2.11.018. |
+| 1.4 | CORRECTION-2-COLUMNNOTFOUND-BOXED-2026-06-21 | 2026-06-21 | story-writer | CORRECTION-2 adjudication applied (onboarding-001-B-columnnotfound-variant-shape-correction.md). `PrismError::ColumnNotFound` corrected from inline-field variant to `ColumnNotFound(Box<ColumnNotFoundDetails>)` — inline 3×String + Vec<String> + Option<String> equals or exceeds the `clippy::result_large_err` 128-byte threshold; boxing following `TableNotAvailableDetails` precedent (S-3.13 LOW-1) reduces variant to 8 bytes. Phase 1 task rewritten: now specifies (a) new `pub struct ColumnNotFoundDetails` with `#[non_exhaustive]` + `#[derive(Debug, Clone, PartialEq, Eq)]` + Display + `::new()` constructor, and (b) `ColumnNotFound(Box<ColumnNotFoundDetails>)` boxed variant with `#[error("{0}")]`. Phase 2 error_mapping.rs arm corrected from `ColumnNotFound { ... }` to `ColumnNotFound(ref d)` with field access via `d.*`. Phase 5 normalized_pql ci.yml note corrected: EXPECTED must be bumped 82→83 (ColumnNotFoundDetails from Phase 1); normalized_pql wire itself adds +0. Phase 6 final gates ci.yml step corrected: EXPECTED is 83 (not 82); enum_violations.rs must include ColumnNotFoundDetails violation function. File Structure ci.yml row corrected: "No change / EXPECTED remains 82" → "Modify / bump EXPECTED to 83". File Structure: new row added for `tests/external/non-exhaustive-violation/src/enum_violations.rs` (add ColumnNotFoundDetails violation function, mirroring TableNotAvailableDetails row from S-3.13 LOW-1). Net non-exhaustive gate impact = +1 (ColumnNotFoundDetails only; EXPECTED 82→83). CLAUDE.md count 82→83 is a merge-time obligation. AC behavioral semantics UNCHANGED. BCs UNCHANGED: BC-2.11.016, BC-2.11.017, BC-2.11.018. |

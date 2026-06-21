@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.43"
+version: "1.44"
 producer: state-manager
 status: active
-timestamp: 2026-06-21T10:00:00Z
+timestamp: 2026-06-21T13:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -42,7 +42,7 @@ Foundations: COMPLETE (reused). Build: 9/15 tasks done; T4 DONE; T4-A DONE; T5 D
 
 ## CURRENT POINTER
 
-**D-1279 (2026-06-21): 001-B v1.3 TDD-READY vs develop@fc954300 — NEXT IMMEDIATE ACTION: worktree create + stubs + Red Gate + TDD.** Pre-TDD remove-uncertainty re-run DONE (D-1110 obligation met). CORRECTION-1 adjudicated (onboarding-001-B-normalized-pql-envelope-correction.md): normalized_pql via conditional Value key insertion into existing inline json! payload (ADR-022; no typed struct; EXPECTED stays 82). Story 001-B updated v1.2→v1.3. 5/6 ACs substrate CLEAR vs develop@fc954300. 001-A MERGED PR #197 develop@fc954300. NO OPEN PRs. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1278 (authoritative; D-1279 factory-only burst). Serial roadmap: worktree create → stubs → Red Gate → TDD → LOCAL 3-CLEAN → demo evidence → PR → PR-LEVEL 3-CLEAN → squash-merge → S-5.04 TDD → T13 capstone → T14 recording.
+**D-1280 (2026-06-21): 001-B v1.4 TDD-READY vs develop@fc954300 — stubs committed 1c23bb03. NEXT IMMEDIATE ACTION: test-writer Red Gate tests then implementer TDD.** CORRECTION-1 adjudicated (D-1279): normalized_pql via conditional Value key insertion (ADR-022; EXPECTED stays 82 from 001-B normalized_pql wire). CORRECTION-2 adjudicated (D-1280): ColumnNotFoundDetails boxed struct required; EXPECTED 82→83 is implementer obligation during TDD green; CLAUDE.md 82→83 + enum_violations.rs ColumnNotFoundDetails violation function are merge-time obligations. Story 001-B updated v1.3→v1.4. 001-A MERGED PR #197 develop@fc954300. NO OPEN PRs. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1278 (authoritative; D-1280 factory-only burst). Serial roadmap: test-writer Red Gate → implementer TDD → LOCAL 3-CLEAN → demo evidence → PR → PR-LEVEL 3-CLEAN → squash-merge → S-5.04 TDD → T13 capstone → T14 recording.
 
 ## NEXT ACTION (verbatim, for cold resume — D-1255 2026-06-20)
 
@@ -292,6 +292,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.44 | 2026-06-21 | state-manager | D-1280 CORRECTION-2 BURST (TD-VSDD-053 single-commit). (1) Frontmatter bumped v1.43→v1.44; timestamp 2026-06-21T13:00:00Z. (2) CURRENT POINTER updated: D-1279 → D-1280 pointer line. 001-B v1.4 TDD-READY; stubs committed 1c23bb03 on feature/S-DEMO-PRISMQL-ONBOARDING-001-B. CORRECTION-2 adjudicated: ColumnNotFoundDetails boxed struct required; EXPECTED 82→83 (implementer obligation); CLAUDE.md 82→83 + enum_violations.rs (merge-time obligations). NEXT = test-writer Red Gate tests then implementer TDD. develop_head UNCHANGED fc954300. total_stories 206 / active_contracts 238 / draft_contracts 5 UNCHANGED. STORY-INDEX v2.452→v2.453. STATE v7.908→v7.909. |
 | 1.40 | 2026-06-20 | state-manager | D-1258 PIVOT-003 PR #196 SQUASH-MERGED develop@f6739764 (TD-VSDD-053 single-commit, post-merge burst). (1) Frontmatter bumped v1.39→v1.40; timestamp 2026-06-20T04:00:00Z. (2) CURRENT POINTER advanced to L-POST D-1258: PIVOT-003 DONE/MERGED; NEXT = S-1.11 scoping → S-5.04 → 001-A/001-B → T13. (3) NEXT ACTION header updated to S-1.11 scoping. (4) §ENRICHMENT-REAL PIVOT-003 row updated: draft v1.8 → MERGED v2.4 (D-1258 2026-06-20: PR #196 develop@f6739764; TD-PLUGIN-P0-002 P0 CLOSED; BC-2.06.019 §Interim State CLOSED). (5) §Complete Story Roadmap PIVOT-003 row updated: draft → MERGED. develop_head 9114e028→f6739764. active_contracts 235 / draft_contracts 8 / total_stories 206 / BC-INDEX v6.86→v6.87 / STORY-INDEX v2.439→v2.440. STATE v7.885→v7.886. |
 | 1.39 | 2026-06-20 | state-manager | D-1255..D-1257 mid-session pointer updates (accumulated during PIVOT-003 local+PR-level cascade grinding; frontmatter bumped 1.38→1.39 during cascade work without a dedicated changelog row — gap corrected here). |
 | 1.38 | 2026-06-19 | state-manager | D-1244 PARALLEL EXECUTION PLAN PERSISTED (TD-VSDD-053 single-commit, state/docs-only burst). (1) Frontmatter bumped v1.37→v1.38; timestamp 2026-06-19T10:00:00Z. (2) NEXT ACTION: Parallel Execution Plan pointer line added (SESSION-HANDOFF §RESUME SNAPSHOT D-1242 §Parallel Execution Plan). Plan: 2-lane PIVOT-003‖S-5.04 recommended as lowest-friction; 3-lane possible if PrismQL-onboarding decomposed per-layer; NON-EXHAUSTIVE GATE serialization point documented; merge-order: first-finisher merges, rest rebase. develop_head UNCHANGED 9114e028. active_contracts 235 / draft_contracts 8 / total_stories 204 / BC-INDEX v6.82 / STORY-INDEX v2.434 UNCHANGED. STATE v7.876→v7.877. Ledger v1.37→v1.38. |
