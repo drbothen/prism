@@ -446,20 +446,27 @@ async fn test_BC_2_10_012_prism_describe_happy_path_catalog() {
          got non-JSON content",
     );
 
+    // SafetyEnvelope: domain payload is under `results`.
+    // (SafetyEnvelopeBuilder::wrap places the PrismDescribeResponse under results.)
+    let results = parsed.get("results").expect(
+        "BC-2.10.012 AC-002: SafetyEnvelope response must have 'results' field; \
+         ensure handle_prism_describe uses SafetyEnvelopeBuilder::wrap",
+    );
+
     // AC-002: client_id field must match the requested client.
     assert_eq!(
-        parsed.get("client_id").and_then(|v| v.as_str()),
+        results.get("client_id").and_then(|v| v.as_str()),
         Some("crowdstrike"),
-        "BC-2.10.012 AC-002: response client_id must be 'crowdstrike'; \
+        "BC-2.10.012 AC-002: response results.client_id must be 'crowdstrike'; \
          got: {:?}",
-        parsed.get("client_id")
+        results.get("client_id")
     );
 
     // AC-002: tables array must have exactly 3 entries (alerts, devices, events).
-    let tables = parsed
+    let tables = results
         .get("tables")
         .and_then(|v| v.as_array())
-        .expect("BC-2.10.012 AC-002: response must contain a 'tables' array");
+        .expect("BC-2.10.012 AC-002: response results must contain a 'tables' array");
     assert_eq!(
         tables.len(),
         3,
@@ -516,10 +523,10 @@ async fn test_BC_2_10_012_prism_describe_happy_path_catalog() {
     }
 
     // AC-002: pql_hints must be a non-empty array.
-    let pql_hints = parsed
+    let pql_hints = results
         .get("pql_hints")
         .and_then(|v| v.as_array())
-        .expect("BC-2.10.012 AC-002: response must contain a 'pql_hints' array");
+        .expect("BC-2.10.012 AC-002: response results must contain a 'pql_hints' array");
     assert!(
         !pql_hints.is_empty(),
         "BC-2.10.012 AC-002: pql_hints must be non-empty for a populated client; \
@@ -915,7 +922,12 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
     let empty_parsed: serde_json::Value = serde_json::from_str(&empty_text)
         .expect("BC-2.10.012 AC-003: registered-but-empty response must be valid JSON");
 
-    let empty_tables = empty_parsed
+    // SafetyEnvelope: domain payload is under `results`.
+    let empty_results = empty_parsed
+        .get("results")
+        .expect("BC-2.10.012 AC-003: registered-but-empty response must have 'results' field (SafetyEnvelope)");
+
+    let empty_tables = empty_results
         .get("tables")
         .and_then(|v| v.as_array())
         .expect("BC-2.10.012 AC-003: registered-but-empty response must contain 'tables' array");
@@ -929,7 +941,7 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
     // BC-2.10.012 §Non-existent client_id handling: registered-but-empty hint.
     //
     // The hint MUST match the BC canonical string for the registered-but-empty case.
-    let empty_hints = empty_parsed
+    let empty_hints = empty_results
         .get("pql_hints")
         .and_then(|v| v.as_array())
         .expect("BC-2.10.012 AC-003: registered-but-empty response must contain 'pql_hints' array");
@@ -996,7 +1008,12 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
     let unknown_parsed: serde_json::Value = serde_json::from_str(&unknown_text)
         .expect("BC-2.10.012 AC-003: not-registered response must be valid JSON");
 
-    let unknown_tables = unknown_parsed
+    // SafetyEnvelope: domain payload is under `results`.
+    let unknown_results = unknown_parsed.get("results").expect(
+        "BC-2.10.012 AC-003: not-registered response must have 'results' field (SafetyEnvelope)",
+    );
+
+    let unknown_tables = unknown_results
         .get("tables")
         .and_then(|v| v.as_array())
         .expect("BC-2.10.012 AC-003: not-registered response must contain 'tables' array");
@@ -1024,7 +1041,7 @@ async fn test_BC_2_10_012_prism_describe_empty_and_unknown_client() {
     //    - If !org_registry.slug_exists(&org_slug): not-registered hint
     // 3. Canonical not-registered hint (BC-2.10.012):
     //    "Client '<client_id>' is not registered. Check prism.toml [[orgs]] configuration."
-    let unknown_hints = unknown_parsed
+    let unknown_hints = unknown_results
         .get("pql_hints")
         .and_then(|v| v.as_array())
         .expect("BC-2.10.012 AC-003: not-registered response must contain 'pql_hints' array");
@@ -1322,8 +1339,13 @@ async fn test_BC_2_10_013_schema_resource_dispatch_routed() {
     let parsed: serde_json::Value = serde_json::from_str(&content_text)
         .expect("BC-2.10.013 AC-005: dispatch result must be valid JSON");
 
+    // SafetyEnvelope: domain payload is under `results`.
+    let results = parsed
+        .get("results")
+        .expect("BC-2.10.013 AC-005: dispatch result must have 'results' field (SafetyEnvelope)");
+
     assert_eq!(
-        parsed.get("client_id").and_then(|v| v.as_str()),
+        results.get("client_id").and_then(|v| v.as_str()),
         Some("crowdstrike"),
         "BC-2.10.013 AC-005: dispatch result must contain client_id='crowdstrike'"
     );
@@ -1385,30 +1407,30 @@ async fn test_BC_2_10_013_schema_resource_parity_via_dispatch() {
         .join("");
 
     // BC-2.10.013 parity invariant: parse both and compare structural fields.
+    // Both paths now use SafetyEnvelopeBuilder::wrap(), so the domain payload
+    // (client_id, tables, pql_hints) lives under the `results` key.
     let resource_parsed: serde_json::Value = serde_json::from_str(&resource_json)
         .expect("BC-2.10.013 AC-005: dispatch resource response must be valid JSON");
     let tool_parsed: serde_json::Value = serde_json::from_str(&tool_json)
         .expect("BC-2.10.013 AC-005: tool response must be valid JSON");
 
-    // client_id must match.
-    assert_eq!(
-        resource_parsed.get("client_id"),
-        tool_parsed.get("client_id"),
-        "BC-2.10.013 AC-005 parity: dispatch and tool responses must have identical \
-         client_id. resource: {:?}, tool: {:?}",
-        resource_parsed.get("client_id"),
-        tool_parsed.get("client_id")
+    // Extract results payload from both (SafetyEnvelope shape).
+    let resource_results_for_count = resource_parsed
+        .get("results")
+        .expect("BC-2.10.013 AC-005 parity: dispatch resource response must have 'results' key (SafetyEnvelope)");
+    let tool_results_for_count = tool_parsed.get("results").expect(
+        "BC-2.10.013 AC-005 parity: tool response must have 'results' key (SafetyEnvelope)",
     );
 
-    // tables array length must match.
-    let resource_tables = resource_parsed
+    // tables array length must match (inside results).
+    let resource_tables = resource_results_for_count
         .get("tables")
         .and_then(|v| v.as_array())
-        .expect("BC-2.10.013 AC-005 parity: dispatch resource response must have 'tables' array");
-    let tool_tables = tool_parsed
+        .expect("BC-2.10.013 AC-005 parity: dispatch resource response results must have 'tables' array");
+    let tool_tables = tool_results_for_count
         .get("tables")
         .and_then(|v| v.as_array())
-        .expect("BC-2.10.013 AC-005 parity: tool response must have 'tables' array");
+        .expect("BC-2.10.013 AC-005 parity: tool response results must have 'tables' array");
 
     assert_eq!(
         resource_tables.len(),
@@ -1419,19 +1441,79 @@ async fn test_BC_2_10_013_schema_resource_parity_via_dispatch() {
         tool_tables.len()
     );
 
-    // Full JSON equality — single-source-of-truth invariant.
+    // BC-2.10.013 AC-005 — Semantic parity invariant (relaxed from byte-equality for wrap()).
+    //
+    // Both paths call SafetyEnvelopeBuilder::wrap() which sets _meta.query_time = Utc::now().
+    // Two independent calls produce DIFFERENT query_time values (non-deterministic timestamp),
+    // so byte-equality of the full JSON is not achievable.
+    //
+    // BC-2.10.013 §Single source of truth specifies "structurally identical — same client_id,
+    // same tables, same pql_hints" / "semantically identical content" — NOT byte-equality.
+    //
+    // We compare: results (the domain payload), client_id, tables, pql_hints — the semantically
+    // load-bearing fields. We explicitly exclude _meta.query_time from the comparison.
+
+    // results field must be present in both.
+    let resource_results = resource_parsed
+        .get("results")
+        .expect("BC-2.10.013 AC-005 parity: dispatch resource response must have 'results' field (SafetyEnvelope)");
+    let tool_results = tool_parsed.get("results").expect(
+        "BC-2.10.013 AC-005 parity: tool response must have 'results' field (SafetyEnvelope)",
+    );
+
+    // Domain payload parity: client_id, tables, pql_hints inside results.
     assert_eq!(
-        resource_parsed, tool_parsed,
-        "BC-2.10.013 AC-005 parity: dispatch_read_resource and handle_prism_describe MUST \
-         return structurally identical JSON (single-source-of-truth parity invariant). \
-         resource JSON: {:?}, tool JSON: {:?}",
-        resource_json, tool_json
+        resource_results.get("client_id"),
+        tool_results.get("client_id"),
+        "BC-2.10.013 AC-005 parity: results.client_id must match between dispatch and tool paths. \
+         resource: {:?}, tool: {:?}",
+        resource_results.get("client_id"),
+        tool_results.get("client_id")
+    );
+
+    assert_eq!(
+        resource_results.get("tables"),
+        tool_results.get("tables"),
+        "BC-2.10.013 AC-005 parity: results.tables must be identical between dispatch and tool paths. \
+         resource: {:?}, tool: {:?}",
+        resource_results.get("tables"),
+        tool_results.get("tables")
+    );
+
+    assert_eq!(
+        resource_results.get("pql_hints"),
+        tool_results.get("pql_hints"),
+        "BC-2.10.013 AC-005 parity: results.pql_hints must be identical between dispatch and tool paths. \
+         resource: {:?}, tool: {:?}",
+        resource_results.get("pql_hints"),
+        tool_results.get("pql_hints")
+    );
+
+    // content field must be present (SafetyEnvelope shape).
+    assert!(
+        resource_parsed.get("content").is_some(),
+        "BC-2.10.013 AC-005 parity: dispatch resource response must have 'content' field (SafetyEnvelope)"
+    );
+
+    // _meta fields (excluding query_time): trust_level, safety_flags must be present.
+    let resource_meta = resource_parsed
+        .get("_meta")
+        .and_then(|v| v.as_object())
+        .expect("BC-2.10.013 AC-005 parity: dispatch resource response must have '_meta' object");
+    assert_eq!(
+        resource_meta.get("trust_level").and_then(|v| v.as_str()),
+        Some("internal"),
+        "BC-2.10.013 AC-005 parity: dispatch resource response _meta.trust_level must be 'internal'"
+    );
+    assert!(
+        resource_meta.get("safety_flags").and_then(|v| v.as_array()).is_some(),
+        "BC-2.10.013 AC-005 parity: dispatch resource response _meta.safety_flags must be present as array"
     );
 
     // pql_hints must be present in resource response.
     assert!(
-        resource_parsed.get("pql_hints").is_some(),
-        "BC-2.10.013 AC-005 parity: dispatch resource response must include 'pql_hints'"
+        resource_parsed.get("pql_hints").is_some() || resource_results.get("pql_hints").is_some(),
+        "BC-2.10.013 AC-005 parity: dispatch resource response must include 'pql_hints' (in results or top-level)"
     );
 }
 
@@ -1896,7 +1978,8 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     let parsed_zero: serde_json::Value = serde_json::from_str(&json_zero)
         .expect("BC-2.10.012 AC-002 [count-recent]: response must be valid JSON");
 
-    let zero_table = &parsed_zero["tables"][0];
+    // SafetyEnvelope: tables are under results.
+    let zero_table = &parsed_zero["results"]["tables"][0];
     let zero_eq = zero_table["example_query"]
         .as_str()
         .expect("BC-2.10.012 AC-002: zct table must have example_query string");
@@ -1953,7 +2036,8 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     let parsed_sev: serde_json::Value = serde_json::from_str(&json_sev)
         .expect("BC-2.10.012 AC-002 [severity]: response must be valid JSON");
 
-    let sev_table = &parsed_sev["tables"][0];
+    // SafetyEnvelope: tables are under results.
+    let sev_table = &parsed_sev["results"]["tables"][0];
     let sev_eq = sev_table["example_query"]
         .as_str()
         .expect("BC-2.10.012 AC-002: svt table must have example_query string");
@@ -2006,7 +2090,8 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     let parsed_agg: serde_json::Value = serde_json::from_str(&json_agg)
         .expect("BC-2.10.012 AC-002 [aggregate]: response must be valid JSON");
 
-    let agg_table = &parsed_agg["tables"][0];
+    // SafetyEnvelope: tables are under results.
+    let agg_table = &parsed_agg["results"]["tables"][0];
     let agg_eq = agg_table["example_query"]
         .as_str()
         .expect("BC-2.10.012 AC-002: agt table must have example_query string");
@@ -2324,6 +2409,34 @@ async fn test_BC_2_10_012_prism_describe_response_uses_safety_envelope_with_trus
         "BC-2.10.012 §Response envelope: SafetyEnvelope must include 'structuredContent' field; \
          absent from current bare response. Got keys: {:?}",
         parsed.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
+
+    // BC-2.09.008 — load-bearing RED GATE assertion (Finding 2 / TD-VSDD-059):
+    // _meta.safety_flags MUST be present and be an Array.
+    //
+    // A hand-rolled `_meta` object that manually inserts `trust_level` will NOT include
+    // `safety_flags` — only `SafetyEnvelopeBuilder::wrap` guarantees it.
+    // `safety_flags` is always a Vec on `ResponseMeta` (never Option), so the field
+    // MUST be present as a JSON array, even when empty (BC-2.09.008: "always present").
+    //
+    // This assertion fails against the current (round-7) hand-rolled envelope because:
+    //   The hand-rolled `meta_obj` inserts only `trust_level` (and optionally
+    //   `audit_warning`). It never inserts `safety_flags`. Therefore
+    //   `meta.get("safety_flags")` returns `None`, and the assertion fires.
+    assert!(
+        meta.get("safety_flags").is_some(),
+        "BC-2.09.008 RED GATE: _meta.safety_flags MUST be present (even as an empty array). \
+         Hand-rolled envelope omits it — use SafetyEnvelopeBuilder::wrap which always sets it. \
+         Got _meta keys: {:?}",
+        meta.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        meta.get("safety_flags")
+            .and_then(|v| v.as_array())
+            .is_some(),
+        "BC-2.09.008 RED GATE: _meta.safety_flags MUST be a JSON array. \
+         Got: {:?}",
+        meta.get("safety_flags")
     );
 }
 
