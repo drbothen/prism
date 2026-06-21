@@ -561,6 +561,51 @@ fn test_BC_2_10_009_query_tutorial_prompt() {
     );
 }
 
+// ─── SEC-001: goal argument length bounding (F-PR197-RG-P2-MED-001) ─────────
+
+/// SEC-001 / F-PR197-RG-P2-MED-001 — `goal` free-text argument must be bounded.
+///
+/// All free-text prompt arguments must be length-bounded before interpolation to
+/// prevent DoS via unbounded memory allocation (F-PR163-IMP-7 / SEC-001 standing rule).
+/// Sibling free-text args (time_range, name, description) are all bounded; `goal` was
+/// the only one that was not.
+///
+/// Precondition: `render_query_tutorial("acme", Some(<257-byte string>))` must return
+/// `Err(ErrorData::invalid_params(...))`. The error must NOT echo the raw payload
+/// (DI-006 — avoids log-injection / AI-prompt-injection vector).
+///
+/// Valid goal (≤256 bytes) must still succeed (AC-009 regression check).
+#[test]
+fn test_BC_2_10_009_goal_argument_length_bounded_sec001() {
+    // Over-length goal (257 bytes): must be rejected.
+    let over_length_goal = "a".repeat(257);
+    let result = render_query_tutorial("acme", Some(over_length_goal.as_str()));
+    assert!(
+        result.is_err(),
+        "SEC-001 / F-PR197-RG-P2-MED-001: render_query_tutorial with a 257-byte 'goal' argument \
+         must return Err (length-bounded per F-PR163-IMP-7); got Ok. \
+         'goal' is a free-text field — all free-text fields must be length-bounded before use."
+    );
+    let err = result.unwrap_err();
+    // DI-006: error must NOT echo the raw payload.
+    assert!(
+        !err.message.to_string().contains(&over_length_goal),
+        "SEC-001 / DI-006: error message must NOT echo the raw 'goal' payload \
+         (prompt-injection defense). Got message: {:?}",
+        err.message
+    );
+
+    // Regression check: valid goal (≤256 bytes) must still succeed (AC-009 invariant).
+    let valid_goal = "a".repeat(256);
+    let ok_result = render_query_tutorial("acme", Some(valid_goal.as_str()));
+    assert!(
+        ok_result.is_ok(),
+        "SEC-001 regression: render_query_tutorial with a 256-byte 'goal' must still return Ok \
+         (boundary is 256 bytes, not 255); got Err: {:?}",
+        ok_result.err()
+    );
+}
+
 // ─── AC-010: query tool description L1 primer ────────────────────────────────
 
 /// AC-010 (BC-2.10.009 §L1 primer — query tool description upgrade):

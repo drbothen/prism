@@ -382,12 +382,21 @@ fn test_BC_2_10_012_prism_describe_tool_annotations() {
         "BC-2.10.012 AC-001: 'prism_describe' tool must have a non-empty description"
     );
 
-    // AC-001: description must contain the schema-discovery purpose text.
+    // AC-001: description must contain the exact AC-001 purpose phrase.
+    // Canonical literal from BC-2.10.012 AC-001 and the story spec:
+    // "Call this tool before writing a PrismQL query to discover which tables and columns
+    //  are available."
+    // This is a load-bearing assertion — the phrase guides agent behaviour (when to call
+    // prism_describe) and must not degrade to a generic "schema" mention.
     assert!(
-        description.contains("prism_describe") || description.contains("schema"),
-        "BC-2.10.012 AC-001: 'prism_describe' description must mention schema discovery; \
-         got first 200 chars: {:?}",
-        &description[..description.len().min(200)]
+        description.contains(
+            "Call this tool before writing a PrismQL query to discover which tables and columns are available."
+        ),
+        "BC-2.10.012 AC-001: 'prism_describe' description must contain the exact AC-001 phrase \
+         \"Call this tool before writing a PrismQL query to discover which tables and columns \
+         are available.\"; not found. \
+         Got first 400 chars: {:?}",
+        &description[..description.len().min(400)]
     );
 }
 

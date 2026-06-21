@@ -86,6 +86,32 @@ fn validate_hostname(hostname: &str) -> Result<(), ErrorData> {
     Ok(())
 }
 
+/// Validate a `goal` free-text argument (SEC-001 / F-PR163-IMP-7).
+///
+/// Accepts any printable ASCII character (0x20..=0x7e); max 256 bytes. This cap is
+/// consistent with the `name` and `description` sibling free-text validators (256 bytes).
+/// The 256-byte cap prevents DoS via unbounded memory allocation while allowing any
+/// reasonable natural-language goal description ("find critical detections in last 24h",
+/// etc.). A `time_range` is capped at 32 bytes because it is a structured date expression;
+/// `goal` is free-form prose and warrants the larger 256-byte prose cap.
+///
+/// Returns `Err(ErrorData::invalid_params(...))` with a generic message that does NOT
+/// echo the raw payload (DI-006 — avoids log-injection / AI-prompt-injection vector).
+fn validate_goal(goal: &str) -> Result<(), ErrorData> {
+    const MAX_GOAL_BYTES: usize = 256;
+    let is_valid = !goal.is_empty()
+        && goal.len() <= MAX_GOAL_BYTES
+        && goal.bytes().all(|b| (0x20..=0x7e).contains(&b));
+    if !is_valid {
+        return Err(ErrorData::invalid_params(
+            "prompt argument 'goal' is invalid: must be printable ASCII, 1-256 characters \
+             (F-PR163-IMP-7/SEC-001)",
+            None,
+        ));
+    }
+    Ok(())
+}
+
 /// Validate a `time_range` argument that is already known to be present.
 ///
 /// Accepts any printable ASCII character (0x20..=0x7e); max 32 characters.
@@ -125,13 +151,13 @@ pub const PROMPT_TRIAGE_ALERTS: &str = "triage_alerts";
 pub const PROMPT_INVESTIGATE_HOST: &str = "investigate_host";
 pub const PROMPT_CLIENT_OVERVIEW: &str = "client_overview";
 pub const PROMPT_CROSS_CLIENT_STATUS: &str = "cross_client_status";
-/// Name constant for the `query_tutorial` prompt (BC-2.10.009 v1.4).
+/// Name constant for the `query_tutorial` prompt (BC-2.10.009 §query_tutorial).
 pub const PROMPT_QUERY_TUTORIAL: &str = "query_tutorial";
 
 // ─── PromptRouter builder ─────────────────────────────────────────────────────
 
 /// Build the `PromptRouter<PrismServer>` with all five prompts registered
-/// (BC-2.10.009 v1.4 — `query_tutorial` is the 5th prompt added by
+/// (BC-2.10.009 §prompt-registration — `query_tutorial` is the 5th prompt added by
 /// S-DEMO-PRISMQL-ONBOARDING-001-A).
 ///
 /// Called once during `PrismServer` construction. The router is stored as
@@ -187,7 +213,7 @@ pub fn build_prompt_router() -> PromptRouter<PrismServer> {
     )
     .with_title("Cross-Client Security Status");
 
-    // ─── query_tutorial prompt (BC-2.10.009 v1.4 — 5th prompt) ──────────────────
+    // ─── query_tutorial prompt (BC-2.10.009 §query_tutorial — 5th prompt) ──────────
 
     let query_tutorial_attr = Prompt::new(
         PROMPT_QUERY_TUTORIAL,
@@ -407,7 +433,7 @@ pub fn render_cross_client_status(time_range: Option<&str>) -> Result<GetPromptR
 /// Returns `Err(ErrorData::invalid_params(...))` with a generic message that does NOT
 /// echo the raw payload if `client_id` fails validation.
 ///
-/// 5 structural elements (BC-2.10.009 v1.4 §query_tutorial prompt spec):
+/// 5 structural elements (BC-2.10.009 §query_tutorial prompt spec):
 ///   - Step 1: Call `prism_describe` to discover tables/columns.
 ///   - Step 2: Write PQL using `prismql://reference` grammar reference.
 ///   - Step 3: On E-QUERY error, self-correct using fields: `near_text`,
@@ -426,6 +452,14 @@ pub fn render_query_tutorial(
     goal: Option<&str>,
 ) -> Result<GetPromptResult, ErrorData> {
     validate_client_id(client_id)?;
+
+    // SEC-001 / F-PR163-IMP-7: bound `goal` before interpolation.
+    // Consistent with sibling free-text validators: name/description cap at 256 bytes.
+    // goal is free-form prose; 256 bytes accommodates any reasonable natural-language goal
+    // while preventing DoS via unbounded memory allocation.
+    if let Some(g) = goal {
+        validate_goal(g)?;
+    }
 
     // Step 5: goal contextualization (only present when goal is Some).
     let step5 = match goal {
