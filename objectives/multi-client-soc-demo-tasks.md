@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.41"
+version: "1.42"
 producer: state-manager
 status: active
-timestamp: 2026-06-20T06:00:00Z
+timestamp: 2026-06-21T08:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -42,7 +42,7 @@ Foundations: COMPLETE (reused). Build: 9/15 tasks done; T4 DONE; T4-A DONE; T5 D
 
 ## CURRENT POINTER
 
-**L-POST: D-1260 (2026-06-20): HUMAN DECISIONS — S-1.11 MERGED (D-1260); probe_table Option B chosen; S-5.04 UNPARKED. develop@f6739764. NO OPEN PRs. DEMO-BLOCKING SET: S-5.04 + 001-A + 001-B (3 remaining gate T13). MERGED: PIVOT-003 (PR #196 develop@f6739764; DONE). **S-1.11 DONE (merged v1.7; D-1260 2026-06-20).** UNPARKED: S-5.04 (**DEMO-BLOCKING** NEXT-A; D-1252 block resolved by D-1260; soft-depends on probe_table story; code done+green HEAD 4282c997). NEW LANE: probe_table story (~1pt; PO to assign ID; TOML schema field + prism-spec-engine parsing + per-sensor TOML; architect design FIRST). PICKABLE AFTER CORRECTIONS: 001-A + 001-B (**DEMO-BLOCKING D-1243**; TableRegistry architectural correction PENDING architect→story-writer before TDD). T13 BLOCKED on S-5.04 + 001-A + 001-B all merged. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1260.**
+**D-1273 (2026-06-21): 001-A LOCAL 3-CLEAN round 8 (frozen 5a385d4f, streak 0/3) — NEXT IMMEDIATE ACTION.** Round-7 fix-burst DONE (3 findings fixed: SafetyEnvelope trust_level HIGH, EC-10-033 MED, ARCH-INDEX ADR-042 MED). Feature HEAD → 5a385d4f. just check GREEN 4668. Dispatch 3 independent fresh-context adversary passes on 5a385d4f. Primary question for round 8: does hand-rolled envelope satisfy BC-2.10.012 "uses SafetyEnvelopeBuilder" semantically? Serial roadmap after LOCAL 3-CLEAN: demo evidence → PR → PR-LEVEL 3-CLEAN → squash-merge → 001-B TDD (no worktree yet; start fresh) → S-5.04 TDD (probe_table folded; PARKED @4282c997) → T13 capstone → T14 recording. develop@f6739764. NO OPEN PRs. D-989+D-1090 autonomy ACTIVE. SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1273.
 
 ## NEXT ACTION (verbatim, for cold resume — D-1255 2026-06-20)
 

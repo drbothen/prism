@@ -1,28 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.900"
+version: "7.901"
 status: current
-timestamp: 2026-06-21T00:00:00Z
+timestamp: 2026-06-21T08:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1272 (2026-06-21): 001-A round-6 citation sweep committed. Story v1.8 — COMPLETE Red Gate table grep-verified (all 14 rows). Feature HEAD UNCHANGED 8b14f3ab. STORY-INDEX v2.447→v2.448. STATE v7.899→v7.900. §RESUME SNAPSHOT D-1272 authored (supersedes D-1271).**
+> **D-1273 (2026-06-21): 001-A LOCAL cascade round 7 DONE. 3 findings fixed (SafetyEnvelope trust_level, EC-10-033 error message, ARCH-INDEX ADR-042 v1.0→v1.1). Feature HEAD 8b14f3ab → 5a385d4f. STATE v7.900→v7.901. §RESUME SNAPSHOT D-1273 authored (supersedes D-1272).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1272** (authoritative zero-context restart protocol; supersedes D-1271). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1271 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1272 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.900.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1273** (authoritative zero-context restart protocol; supersedes D-1272). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1272 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1273 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003) @f6739764; 2026-06-20; D-1258 post-merge burst — UNCHANGED). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.901.
 
 ---
 
-## §RESUME SNAPSHOT — D-1272 (2026-06-21 — 001-A round-6 citation sweep DONE; feature HEAD 8b14f3ab UNCHANGED; BC-INDEX v6.93; STORY-INDEX v2.448; STATE v7.900; develop_head f6739764 UNCHANGED)
+## §RESUME SNAPSHOT — D-1273 (2026-06-21 — 001-A round-7 fix-burst DONE; feature HEAD 5a385d4f FROZEN; BC-INDEX v6.93; STORY-INDEX v2.448; STATE v7.901; develop_head f6739764 UNCHANGED)
 
-> **D-1272 burst (2026-06-21).** 001-A round-6 cascade (3 passes on 8b14f3ab) CODE FULLY CONVERGED — zero code findings; ADR-042/spawn_blocking/SAP-1/in-flight-isolation all verified. Only story-citation hygiene remained: 2 phantom Red Gate test names (rows 5/6; v1.7 fix was partial-table only) + BC-2.10.012 body label v1.1→v1.2 drift — fixed via COMPLETE citation sweep. Story v1.7→v1.8: all 14 Red Gate rows grep-verified vs ground truth; Tasks-phase citations corrected to `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map` + `test_BC_2_10_013_schema_resource_parity_via_dispatch`. Feature HEAD UNCHANGED 8b14f3ab (story-doc-only round). [process-gap] for cycle-close: POL-21 phantom-anchor remediation MUST re-grep full Red Gate table, not just delta (recurred v1.7→v1.8). STORY-INDEX v2.447→v2.448. STATE v7.899→v7.900. CLAUDE.md 79→82 reconciliation PENDING at merge. develop_head UNCHANGED f6739764.
+> **D-1273 burst (2026-06-21).** 001-A LOCAL cascade round 7 (3 passes on 8b14f3ab) found 3 non-convergent findings, all fixed: (HIGH) prism_describe now carries SafetyEnvelope _meta.trust_level="internal" + matches declared output_schema — implementer HAND-ROLLED the envelope keys (_meta/results/structuredContent injected directly into the response JSON) rather than calling SafetyEnvelopeBuilder::wrap, to preserve AC-005 parity (top-level client_id/tables/pql_hints); trust_level_for_tool gained "prism_describe"→Internal. (MED) dispatch_read_resource now returns "Invalid client_id in resource URI" (BC-2.10.013 EC-10-033) for invalid/traversal client_id instead of generic "Unknown resource". (MED) ARCH-INDEX ADR-042 v1.0→v1.1 synced (this burst). Feature HEAD 8b14f3ab → **5a385d4f** (2 fix commits + the f00ca74c test commit). just check GREEN 4668. gate 82. develop_head UNCHANGED f6739764. CLAUDE.md 79→82 PENDING at merge. STATE v7.900→v7.901.
 
-### ZERO-CONTEXT RESTART PROTOCOL D-1272 (run in this order; no prior context needed)
+### ZERO-CONTEXT RESTART PROTOCOL D-1273 (run in this order; no prior context needed)
 
-**Step 0.** Read this D-1272 snapshot first. It is authoritative.
+**Step 0.** Read this D-1273 snapshot first. It is authoritative.
 
 **Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING.
 
@@ -32,7 +32,7 @@ timestamp: 2026-06-21T00:00:00Z
 git log --oneline -1 origin/develop
 ```
 
-Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1258 through D-1272).
+Expected: `f6739764` (PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20; D-1258 — UNCHANGED from D-1258 through D-1273).
 
 **Step 3.** Confirm no open PRs:
 
@@ -48,72 +48,91 @@ Expected: NO open PRs.
 git log --oneline -1 origin/feature/S-DEMO-PRISMQL-ONBOARDING-001-A
 ```
 
-Expected: `8b14f3ab`. Round-6 citation sweep complete. FROZEN for LOCAL strict-3-CLEAN re-gate round 7 (streak 0/3).
+Expected: `5a385d4f`. Round-7 fix-burst complete. FROZEN for LOCAL strict-3-CLEAN **round 8** (streak 0/3).
 
 **Step 5.** Apply carry-forward: lessons (a)–(z25) from `cycles/wave-5-e-demo-fidelity/lessons.md` + DO-NOT-REFLAG entries from §DO-NOT-REFLAG below.
 
-**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1272 below: re-gate LOCAL strict-3-CLEAN round 7 on frozen `8b14f3ab` (streak 0/3). Autonomy D-989+D-1090 active.
+**Step 6.** Drive next roadmap per §WHAT'S NEXT D-1273 below: dispatch **round 8** — 3 independent fresh-context vsdd-factory:adversary passes on FROZEN `5a385d4f`. Inject `.factory/policies.yaml` rubric + SAP-1/SAP-2 + production-grade lens + DRIFT-ORCH-ADVERSARY-TUPLE-001. Scrutinize: (a) hand-rolled envelope vs BC-2.10.012 "uses SafetyEnvelopeBuilder" — determine if this is a NEW finding or satisfies the BC; (b) EC-10-033 "Invalid client_id in resource URI" message correct; (c) ARCH-INDEX ADR-042 v1.1 synced. Strict 3-CLEAN = zero findings any severity. If all 3 passes CLEAN(strict) → 001-A LOCAL CONVERGED. Autonomy D-989+D-1090 active.
 
 ---
 
-### PINNED STATE (D-1272 — verified 2026-06-21)
+### PINNED STATE (D-1273 — verified 2026-06-21)
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| develop HEAD | `f6739764` | UNCHANGED from D-1258 through D-1272. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
+| develop HEAD | `f6739764` | UNCHANGED from D-1258 through D-1273. PIVOT-003 squash feat(S-DEMO-ENRICHMENT-PIVOT-003); 2026-06-20. |
 | factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
 | Open PRs | **NONE** | No open PRs. |
-| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `8b14f3ab` | **FROZEN for LOCAL strict-3-CLEAN re-gate round 7 (streak 0/3).** Round-6 citation sweep complete. `just check` GREEN 4666 tests. Gate EXPECTED=82 confirmed. |
-| 001-A story | **draft v1.8** | D-1272 COMPLETE Red Gate citation sweep — all 14 rows grep-verified; phantom rows 5/6 fixed; BC-2.10.012 body label v1.1→v1.2. DEMO-BLOCKING. Serial first. |
-| ADR-042 | **v1.1** | D-1271 anchor_stories → S-DEMO-PRISMQL-ONBOARDING-001-A; D-1267 status note folded-in. |
+| 001-A feature branch | `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` HEAD `5a385d4f` | **FROZEN for LOCAL strict-3-CLEAN round 8 (streak 0/3).** Round-7 fix-burst complete. `just check` GREEN 4668 tests. Gate EXPECTED=82 confirmed. |
+| 001-A story | **draft v1.8** | D-1272 COMPLETE Red Gate citation sweep — all 14 rows grep-verified. DEMO-BLOCKING. Serial first. |
+| ADR-042 | **v1.1** | D-1273 ARCH-INDEX row Status cell v1.0→v1.1 synced (F-R7P3-MED-001 CLOSED). |
 | BC-2.10.012 | **v1.2** | D-1271 example_query precedence → MOST-SPECIFIC-WINS. |
-| BC-2.16.002 | **v1.86** | D-1270 SAP-1 — 2 new catalog rows (reload.overlay_rebuild_failed + reload.overlay_rebuilt; ADR-042). Catalog count 80→82; label v1.51→v1.52. |
+| BC-2.16.002 | **v1.86** | D-1270 SAP-1 — 2 new catalog rows (reload.overlay_rebuild_failed + reload.overlay_rebuilt; ADR-042). Catalog count 80→82. |
 | BC-2.10.013 | **v1.2** | D-1269 ADR-042 multi-tenant update. |
 | BC-2.10.009 | **v1.5** | D-1267 goal-quoting reconciled labeled-unquoted. |
 | adjudication doc | committed | `.factory/specs/architecture/scoping/001-A-reload-notify-diff-adjudication.md` — analysis record. |
-| 001-B story | **draft v1.2** | D-1261 TableRegistry correction applied. **TDD-READY.** DEMO-BLOCKING. Serial after 001-A. |
-| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | **UNPARKED per D-1260.** probe_table **FOLDED IN (D-1262).** PO to author BC-2.08.001 + BC-2.16.009 + E-SPEC-026 before TDD resumes. Serial: after 001-A + 001-B. |
+| 001-B story | **draft v1.2** | D-1261 TableRegistry correction applied. **TDD-READY.** DEMO-BLOCKING. Serial after 001-A. NO worktree yet — start fresh. |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | **PARKED.** probe_table FOLDED IN (D-1262). PO to author BC-2.08.001 + BC-2.16.009 + E-SPEC-026 before TDD resumes. Serial: after 001-A + 001-B. |
 | S-3.09 worktree | FROZEN | Leave alone. |
 | W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone. |
 | ci.yml EXPECTED | `82` (on feature/001-A branch) | 79 on develop. 79→82 reconciliation at 001-A merge-time. |
-| CLAUDE.md non-exhaustive count | `79` (on develop) | 79→82 reconciliation PENDING at 001-A merge-time. |
-| BC-INDEX | **v6.93** | active 235 / draft 8 / retired 6 / total 256. BC-2.10.012 v1.1→v1.2 (D-1271). |
-| STORY-INDEX | **v2.448** | 206 stories. 001-A v1.7→v1.8 (D-1272). |
-| STATE.md | v7.900 | D-1272 burst. |
+| CLAUDE.md non-exhaustive count | `79` (on develop) | 79→82 reconciliation PENDING at 001-A merge-time (3 new types: PrismDescribeResponse/TableDescriptor/ColumnDescriptor). |
+| BC-INDEX | **v6.93** | active 235 / draft 8 / retired 6 / total 256. Unchanged from D-1272. |
+| STORY-INDEX | **v2.448** | 206 stories. 001-A v1.8 (D-1272). Unchanged from D-1272. |
+| ARCH-INDEX | **v2.139** | ADR-042 row Status cell v1.0→v1.1 synced (D-1273). |
+| STATE.md | v7.901 | D-1273 burst. |
 | error_taxonomy | v1.91 | Unchanged. |
-| arch_index | v2.139 | D-1268 ADR-042 row inserted. ADR-042 v1.0→v1.1 (D-1271 anchor correction). |
 | vp_index | v1.79 | Unchanged. |
 | active_contracts | 235 | Unchanged. |
 | draft_contracts | 8 | BC-2.06.011, BC-2.21.001, BC-2.10.012/013/014, BC-2.11.016/017/018. |
 
 ---
 
-### WHAT'S DONE THIS BURST (D-1272)
+### MERGE-TIME OBLIGATIONS (001-A — record for cold resume)
 
-| Decision | Date | Summary |
-|----------|------|---------|
-| D-1272 (2026-06-21) | 001-A round-6 citation sweep DONE. Story v1.7→v1.8: COMPLETE Red Gate table grep-verified (all 14 rows); phantom rows 5/6 fixed; Tasks-phase test name citations corrected; BC-2.10.012 body label v1.1→v1.2. Feature HEAD UNCHANGED 8b14f3ab. STORY-INDEX v2.447→v2.448. STATE v7.899→v7.900. develop_head UNCHANGED f6739764. |
+When 001-A PR squash-merges to develop:
+
+1. **CLAUDE.md non-exhaustive count 79→82** — 3 new types: `PrismDescribeResponse`, `TableDescriptor`, `ColumnDescriptor`; ci.yml + check script already 82 on feature branch; reconcile CLAUDE.md on develop.
+2. **ADR-042 PROPOSED→ACCEPTED** — promote status in ADR-042 frontmatter.
+3. **BCs draft→active (POL-14)** — BC-2.10.009/012/013/014 all in `behavioral_contracts` frontmatter of 001-A story; auto-promote draft→active at merge.
 
 ---
 
-### WHAT'S NEXT — Demo Roadmap (D-1272)
+### HAND-ROLLED ENVELOPE NOTE (round 8 adversary focus)
+
+In round-7 the HIGH finding was: prism_describe SafetyEnvelope _meta.trust_level missing. The fix hand-rolled the envelope keys (`_meta`/`results`/`structuredContent` injected directly into the response JSON) rather than calling `SafetyEnvelopeBuilder::wrap`, in order to preserve AC-005 parity (top-level `client_id`/`tables`/`pql_hints` fields). BC-2.10.012 states "uses SafetyEnvelopeBuilder" in its preconditions/mechanisms.
+
+**Round 8 adversary MUST determine:** does the hand-rolled approach satisfy BC-2.10.012 semantically (it delivers the same _meta envelope structure and trust_level field), or is this a NEW finding requiring the implementer to refactor to use `SafetyEnvelopeBuilder::wrap` + expose a wrapper variant that preserves the AC-005 top-level fields? This is the primary open question for round 8.
+
+---
+
+### WHAT'S DONE THIS BURST (D-1273)
+
+| Decision | Date | Summary |
+|----------|------|---------|
+| D-1273 (2026-06-21) | 001-A LOCAL cascade round 7 (3 passes on 8b14f3ab) — 3 findings fixed. (HIGH) SafetyEnvelope _meta.trust_level="internal" + output_schema match; hand-rolled envelope preserves AC-005 top-level parity; trust_level_for_tool gains "prism_describe"→Internal. (MED) dispatch_read_resource returns EC-10-033 "Invalid client_id in resource URI". (MED) ARCH-INDEX ADR-042 v1.0→v1.1 synced. Feature HEAD 8b14f3ab → 5a385d4f (2 fix commits + f00ca74c test). just check GREEN 4668. gate 82. develop_head UNCHANGED f6739764. STATE v7.900→v7.901. |
+
+---
+
+### WHAT'S NEXT — Demo Roadmap (D-1273)
 
 | Priority | Story | Status | Pts | Hard Prerequisites | Notes |
 |----------|-------|--------|-----|--------------------|-------|
-| **NEXT (LOCAL cascade)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **Round-6 citation sweep complete @8b14f3ab — LOCAL strict-3-CLEAN re-gate round 7 NEXT (streak 0/3)** | 7 | Feature branch FROZEN @8b14f3ab; NO pushes during cascade | After 3-CLEAN: demo evidence → PR → PR-LEVEL cascade → merge. DEMO-BLOCKING. Serial first. |
-| **NEXT-B (after 001-A merge)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | 001-A MERGED | **DEMO-BLOCKING (D-1243).** Serial after 001-A. |
-| **NEXT-C (after 001-A + 001-B merge)** | **S-5.04** | not-started v1.9 (**UNPARKED; probe_table FOLDED IN — D-1262**) | 5+ | 001-A/001-B MERGED + PO authors BC-2.08.001/BC-2.16.009/E-SPEC-026 | F-S504-R2-002 MED + LOW/OBS remain + probe_table scope added. **DEMO-BLOCKING.** |
+| **NEXT (LOCAL cascade round 8)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | **Round-7 fix-burst complete @5a385d4f — LOCAL strict-3-CLEAN round 8 NEXT (streak 0/3)** | 7 | Feature branch FROZEN @5a385d4f; NO pushes during cascade | After 3-CLEAN: demo evidence → PR → PR-LEVEL cascade → merge. DEMO-BLOCKING. Serial first. |
+| **NEXT-B (after 001-A merge)** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2 (**TDD-READY — D-1261**) | 6 | 001-A MERGED | **DEMO-BLOCKING (D-1243).** Serial after 001-A. NO worktree yet — start fresh. |
+| **NEXT-C (after 001-A + 001-B merge)** | **S-5.04** | not-started v1.9 (**PARKED; probe_table FOLDED IN — D-1262**) | 5+ | 001-A/001-B MERGED + PO authors BC-2.08.001/BC-2.16.009/E-SPEC-026 | F-S504-R2-002 MED + LOW/OBS remain + probe_table scope added. **DEMO-BLOCKING.** |
 | **T13 (BLOCKED)** | Multi-client SOC-analyst narrative capstone | not-authored | TBD | S-5.04 + 001-A + 001-B — all 3 must MERGE | PO + story-writer. Hard gates 3 remaining. |
 | **T14 (BLOCKED)** | Demo recording | not-started | — | T13 MERGED | demo-recorder. |
 
-**North Star roadmap: 001-A LOCAL strict-3-CLEAN re-gate round 7 (frozen 8b14f3ab, streak 0/3) → demo evidence → PR → PR-LEVEL cascade → merge → 001-B TDD → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
+**North Star roadmap: 001-A LOCAL strict-3-CLEAN round 8 (frozen 5a385d4f, streak 0/3) → demo evidence → PR → PR-LEVEL cascade → merge → 001-B TDD (no worktree yet) → S-5.04 TDD (probe_table folded) → T13 capstone → T14 recording.**
 
-**Merge-time obligation: CLAUDE.md non-exhaustive count 79→82 reconciliation at 001-A merge-time.**
+**Merge-time obligations (durable): CLAUDE.md non-exhaustive count 79→82 (3 types); ADR-042 PROPOSED→ACCEPTED; BCs draft→active (POL-14).**
 
 **Convergence reminders (carry forward):**
 - BC-5.39.001 strict-vs-PR-merge: CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
-- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. Feature branch FROZEN @8b14f3ab; streak counts from here.
+- Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001): any push resets streak to 0/3. Feature branch FROZEN @5a385d4f; streak counts from here.
 - DO-NOT-REFLAG: OBS-S503-1 (reload_config.rs DOT vs underscore). OBS-3 DEC-004 from S-5.03. **PIVOT-003-PRLEVEL-OBS-1** (evidence-HEAD docs-only). **PIVOT-003-PRLEVEL-OBS-2** (NVD test cross-story covered by RGT #14).
+- [process-gap S-7.02]: POL-21 phantom-anchor remediation MUST re-grep the FULL Red Gate table, not just the delta (recurred 001-A rounds v1.7→v1.8). Open a follow-up or record deferral at cycle-close.
 
 **Autonomy D-989+D-1090 active.** Pause only for §7 spec-to-match-code amend / genuine product-business decision / Level-3 escalation / CLAUDE.md edit.
 

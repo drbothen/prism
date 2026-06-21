@@ -108,7 +108,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-039 | Org-Scoped TableRegistry Error Filtering — Filter E-QUERY-037 available_sensors/available_tables to Requesting Org's Registered Tables (SEC-001/CWE-200 fix) | ACCEPTED v1.1 | 2026-06-16 | decisions/ADR-039-org-scoped-table-registry-error-filtering.md |
 | ADR-040 | Dual-Path Infusion Architecture — HttpLookup (Declarative TOML) vs WASM Plugin; NVD via HttpLookup, ThreatIntel via WASM; Host-Decode Val Lift for .prx Plugins | ACCEPTED v2.0 | 2026-06-17 | decisions/ADR-040-wasm-infusion-plugin-host-decode-path.md |
 | ADR-041 | PrismQL LLM Auto-Onboarding — 4-Layer Teaching Surface for Automatic Agent Query Authoring | PROPOSED v1.1 | 2026-06-19 | decisions/ADR-041-prismql-llm-auto-onboarding-4-layer-teaching-surface-for-automatic-agent-query-authoring.md |
-| ADR-042 | Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild | PROPOSED v1.0 | 2026-06-20 | decisions/ADR-042-resolved-spec-map-reload-aware-arcswap.md |
+| ADR-042 | Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild | PROPOSED v1.1 | 2026-06-20 | decisions/ADR-042-resolved-spec-map-reload-aware-arcswap.md |
 
 ## Architecture Decisions
 
