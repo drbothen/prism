@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.905"
+version: "7.906"
 producer: state-manager
-timestamp: 2026-06-21T02:00:00Z
+timestamp: 2026-06-21T03:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "ffe9315a"
+develop_head: "fc954300"
 bc_index_version: "6.95"
 vp_index_version: "1.79"
 story_index_version: "v2.451"
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1277 (2026-06-21). PR #197 MERGED → develop@ffe9315a. S-DEMO-PRISMQL-ONBOARDING-001-A DELIVERED: LOCAL strict-3-CLEAN (round-9 @15e43516 BC-5.39.001 3/3) + PR-LEVEL strict-3-CLEAN (final re-gate @a8284145 BC-5.39.001 3/3) CONVERGED; pr-reviewer APPROVE; security CLEAR; CI 43/43 green. POL-14: BC-2.10.012/013/014 draft→active. ADR-042 PROPOSED→ACCEPTED. CLAUDE.md 79→82. develop_head f6739764→ffe9315a. active_contracts 235→238, draft_contracts 8→5. BC-INDEX v6.94→v6.95. STORY-INDEX v2.450→v2.451. ARCH-INDEX v2.140→v2.141. NEXT = 001-B (draft v1.2, TDD-READY, DEMO-BLOCKING, serial; NO worktree yet). STATE v7.904→v7.905."
+current_step: "D-1277 (2026-06-21). PR #197 MERGED → develop@ffe9315a. S-DEMO-PRISMQL-ONBOARDING-001-A DELIVERED: LOCAL strict-3-CLEAN (round-9 @15e43516 BC-5.39.001 3/3) + PR-LEVEL strict-3-CLEAN (final re-gate @a8284145 BC-5.39.001 3/3) CONVERGED; pr-reviewer APPROVE; security CLEAR; CI 43/43 green. POL-14: BC-2.10.012/013/014 draft→active. ADR-042 PROPOSED→ACCEPTED. CLAUDE.md 79→82. develop_head f6739764→ffe9315a. active_contracts 235→238, draft_contracts 8→5. BC-INDEX v6.94→v6.95. STORY-INDEX v2.450→v2.451. ARCH-INDEX v2.140→v2.141. NEXT = 001-B (draft v1.2, TDD-READY, DEMO-BLOCKING, serial; NO worktree yet). STATE v7.904→v7.905. [D-1277-RECONCILE 2026-06-21] CLAUDE.md 79→82 commit (6df4a4e9) was misparented on f6739764; rebased onto ffe9315a → fc954300 (fast-forward push to origin/develop). develop_head ffe9315a→fc954300. STATE v7.905→v7.906."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -78,7 +78,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Active Objective (North Star)
 
-**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (develop@ffe9315a). **001-A MERGED PR #197 develop@ffe9315a (D-1277).** ALL PRIOR LANES CLOSED: S-5.03 PR #194, PIVOT-002 PR #195, PIVOT-003 PR #196, S-5.02 PR #191, S-3.13 PR #192, PIVOT-001 PR #189, LAUNCHER PR #190, S-1.14-REDO PR #193, T10/T11/T12. REMAINING DEMO ROADMAP: **001-B** (**DEMO-BLOCKING D-1243**; v1.2 TDD-READY; serial — NO worktree yet, start fresh) + **S-5.04** (**DEMO-BLOCKING**; probe_table FOLDED IN (D-1262); serial after 001-B) → T13 capstone (blocked on S-5.04 + 001-B MERGED) → T14 recording. T13 gated on 2 remaining DEMO-BLOCKING stories. **CLAUDE.md non-exhaustive count UPDATED 79→82 on develop (D-1277).** SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1277 (authoritative).
+**NORTH STAR: Multi-client SOC-analyst live demo — multiple DTU clients, per-client data, prism MCP wired into Claude (stdio), deterministic scenario progression, ThreatIntel+NVD enrichment, capability-discovery (D-1162 REQUIRED).** Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE + `.factory/objectives/DEMO-SCOPE.md`. Task ledger: `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER = **L-POST** (develop@fc954300). **001-A MERGED PR #197 develop@ffe9315a (D-1277; CLAUDE.md 79→82 rebased → fc954300).** ALL PRIOR LANES CLOSED: S-5.03 PR #194, PIVOT-002 PR #195, PIVOT-003 PR #196, S-5.02 PR #191, S-3.13 PR #192, PIVOT-001 PR #189, LAUNCHER PR #190, S-1.14-REDO PR #193, T10/T11/T12. REMAINING DEMO ROADMAP: **001-B** (**DEMO-BLOCKING D-1243**; v1.2 TDD-READY; serial — NO worktree yet, start fresh) + **S-5.04** (**DEMO-BLOCKING**; probe_table FOLDED IN (D-1262); serial after 001-B) → T13 capstone (blocked on S-5.04 + 001-B MERGED) → T14 recording. T13 gated on 2 remaining DEMO-BLOCKING stories. **CLAUDE.md non-exhaustive count UPDATED 79→82 on develop (D-1277).** SEE SESSION-HANDOFF.md §RESUME SNAPSHOT D-1277 (authoritative).
 
 ## Phase Progress
 
@@ -355,11 +355,11 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1277 — 2026-06-21; STATE v7.905)
+## Session Resume Checkpoint (D-1277 — 2026-06-21; STATE v7.906)
 
 **POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1277** (authoritative zero-context restart source; supersedes D-1276).
 
-**STATE v7.905. CURRENT POSITION: D-1277 PR #197 POST-MERGE BURST DONE. BC-INDEX v6.95. ARCH-INDEX v2.141. STORY-INDEX v2.451. develop_head ffe9315a. NO OPEN PRs. total_stories 206. ci.yml EXPECTED=82. bc_index_version 6.95. story_index_version v2.451. arch_index_version 2.141. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=82 (UPDATED develop 2026-06-21). draft_contracts 5. active_contracts 238.**
+**STATE v7.906. CURRENT POSITION: D-1277-RECONCILE done. D-1277 PR #197 POST-MERGE BURST DONE. BC-INDEX v6.95. ARCH-INDEX v2.141. STORY-INDEX v2.451. develop_head fc954300. NO OPEN PRs. total_stories 206. ci.yml EXPECTED=82. bc_index_version 6.95. story_index_version v2.451. arch_index_version 2.141. error_taxonomy_version 1.91. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=82 (UPDATED develop 2026-06-21). draft_contracts 5. active_contracts 238.**
 
 **DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B (v1.2, TDD-READY, DEMO-BLOCKING; serial — NO worktree yet, start fresh)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-B)**. T13 gated on S-5.04 + 001-B MERGED (2 remaining).
 
@@ -373,7 +373,7 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 **RESUME PROTOCOL (zero prior context):**
 0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1277 (authoritative).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `ffe9315a`.
+2. `git log --oneline -1 origin/develop` → expect `fc954300` (docs(CLAUDE.md) 79→82; rebased onto ffe9315a D-1277-RECONCILE).
 3. `gh pr list --state open --base develop` → expect NO open PRs.
 4. Apply lessons from `cycles/wave-5-e-demo-fidelity/lessons.md`.
 5. Apply DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG.

@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.905"
+version: "7.906"
 status: current
-timestamp: 2026-06-21T02:00:00Z
+timestamp: 2026-06-21T03:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -12,11 +12,11 @@ timestamp: 2026-06-21T02:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1277** (authoritative zero-context restart protocol; supersedes D-1276). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1276 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1277 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `ffe9315a` (001-A squash feat(S-DEMO-PRISMQL-ONBOARDING-001-A) @ffe9315a; 2026-06-21; D-1277 post-merge burst). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.905.
+> develop HEAD `fc954300` (docs(CLAUDE.md): bump 79→82 @fc954300; rebased onto ffe9315a 2026-06-21; D-1277-RECONCILE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.906.
 
 ---
 
-## §RESUME SNAPSHOT — D-1277 (2026-06-21 — PR #197 POST-MERGE BURST DONE; develop@ffe9315a; BC-INDEX v6.95; STORY-INDEX v2.451; ARCH-INDEX v2.141; STATE v7.905; NO OPEN PRs)
+## §RESUME SNAPSHOT — D-1277 (2026-06-21 — PR #197 POST-MERGE BURST DONE; develop@fc954300; BC-INDEX v6.95; STORY-INDEX v2.451; ARCH-INDEX v2.141; STATE v7.906; NO OPEN PRs)
 
 > **D-1277 burst (2026-06-21).** PR #197 (S-DEMO-PRISMQL-ONBOARDING-001-A) squash-merged to develop@ffe9315a. Delivery path: LOCAL strict-3-CLEAN round-9 (3 passes on frozen 15e43516; BC-5.39.001 3/3; D-1275) → demo evidence → push 59028e3e (feature HEAD final) → PR #197 opened → CI 43/43 green → PR-LEVEL strict-3-CLEAN (final re-gate @a8284145; BC-5.39.001 3/3; DRIFT-ORCH-PRLEVEL-PUSH-001 frozen-HEAD honored) → pr-reviewer APPROVE → security CLEAR → squash-merge. Remote feature branch deleted. **POL-14 BC auto-promotions:** BC-2.10.012 draft→active (lifecycle_status was already active); BC-2.10.013 draft→active; BC-2.10.014 draft→active; BC-2.10.009 idempotent (already active). **active_contracts 235→238, draft_contracts 8→5.** BC-2.10.012/013 bumped v1.2→v1.3 (POL-20/POL-7 H1 backtick hygiene; OBS-PR197-RG3-P3-001/002). **ADR-042 PROPOSED→ACCEPTED** (implementation delivered and verified). **CLAUDE.md non-exhaustive count 79→82** on develop (3 new types: PrismDescribeResponse, TableDescriptor, ColumnDescriptor). **[process-gap] S-7.02 cycle-close:** POL-21 phantom-anchor / Red Gate full-table re-grep gap RECURRED (F-PR197-RG3-P3-MED-001 survived v1.8 "complete citation sweep"). Rule codified in cycles/wave-5-e-demo-fidelity/lessons.md + Drift Items DRIFT-001A-PROCESS-GAP-REDGATE-FULLGREP-001. develop_head f6739764→ffe9315a. BC-INDEX v6.94→v6.95. STORY-INDEX v2.450→v2.451. ARCH-INDEX v2.140→v2.141. STATE v7.904→v7.905.
 
@@ -30,7 +30,7 @@ timestamp: 2026-06-21T02:00:00Z
 ```
 git log --oneline -1 origin/develop
 ```
-Expected: `ffe9315a` (feat(S-DEMO-PRISMQL-ONBOARDING-001-A) — PrismQL LLM auto-onboarding MCP teaching surface; 2026-06-21).
+Expected: `fc954300` (docs(CLAUDE.md): bump non-exhaustive count 79→82 — rebased onto ffe9315a; 2026-06-21 D-1277-RECONCILE). Note: ffe9315a is the 001-A squash merge commit; fc954300 is the CLAUDE.md count bump rebased atop it.
 
 **Step 3.** Confirm no open PRs:
 ```
@@ -53,8 +53,8 @@ git -C .factory log -1 --format='%h %s'
 
 | Variable | Value | Note |
 |----------|-------|------|
-| develop HEAD | `ffe9315a` | 001-A squash feat(S-DEMO-PRISMQL-ONBOARDING-001-A); 2026-06-21; D-1277 post-merge burst |
-| STATE version | 7.905 | D-1277 post-merge burst |
+| develop HEAD | `fc954300` | CLAUDE.md 79→82 rebased onto ffe9315a; 2026-06-21; D-1277-RECONCILE |
+| STATE version | 7.906 | D-1277-RECONCILE develop_head reconciliation |
 | BC-INDEX version | 6.95 | POL-14 promotions + v1.3 versions |
 | STORY-INDEX version | v2.451 | 001-A draft→merged |
 | ARCH-INDEX version | 2.141 | ADR-042 ACCEPTED |
