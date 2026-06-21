@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.93"
+version: "6.94"
 status: draft
 producer: state-manager
 timestamp: 2026-06-21T00:00:00Z
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.94 (2026-06-21, D-1274 round-8 closure burst — POL-27 BC modified: date normalization):** state-manager | BC-2.10.009 `modified:` frontmatter normalized: burst-ID list → bare `2026-06-20` (most-recent §Changelog entry v1.5 date; POL-27 requires bare YYYY-MM-DD). BC-2.10.012 `modified:` normalized: `"2026-06-20T00:00:00Z"` → `2026-06-20` (most-recent §Changelog entry v1.2 date). BC-2.10.013 `modified:` normalized: `"2026-06-20T12:00:00Z"` → `2026-06-20` (most-recent §Changelog entry v1.2 date). Frontmatter-only; no BC body content altered. **No BC lifecycle/status/count changes:** active_contracts 235 / draft_contracts 8 / total_contracts 256 ALL UNCHANGED. BC-INDEX v6.93→v6.94.
 
 **v6.93 (2026-06-21, D-1271 001-A round-5 fix-burst — BC-2.10.012 v1.2):** state-manager | BC-2.10.012 inline row: v1.1→v1.2 — round-5 fix-burst (3 passes on 263e28ab): all ADR-042 functional behavior verified correct; story footprint/version/AC drift from ADR-042 fold-in corrected (crates_touched +prism-query, BC labels updated, AC-011 + 4 Red Gate rows with corrected ground-truth test names, EC-005 re-anchor); BC-2.10.012 example_query precedence clarified to MOST-SPECIFIC-WINS. ADR-042 v1.0→v1.1 anchor_stories repointed to S-DEMO-PRISMQL-ONBOARDING-001-A. resolved-spec-map-reload-aware-design.md story ref corrected to 001-A. Feature HEAD 8b14f3ab. **No BC lifecycle/status/count changes:** active_contracts 235 / draft_contracts 8 / total_contracts 256 ALL UNCHANGED (BC-2.10.012 remains draft). BC-INDEX v6.92→v6.93.
 

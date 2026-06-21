@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: ADR-041-teaching-burst-2026-06-19
-modified: "2026-06-20T00:00:00Z"
+modified: 2026-06-20
 deprecated: null
 deprecated_by: null
 replacement: null

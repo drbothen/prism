@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.139"
+version: "2.140"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -168,6 +168,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.140 | round-8-closure-burst-D1274 | 2026-06-21 | state-manager | D-1274 round-8 LOCAL cascade closure burst. **ADR-042 adjudication doc v1.0→v1.1 (addendum):** `scoping/001-A-reload-notify-diff-adjudication.md` updated by architect — status now superseded-in-part; D-1267 override recorded (build-now decision + BC-2.10.013 §76 single-connection invariant; F-R8PB-MED-002 unsubscribe correct-by-construction). ADR-042 row itself UNCHANGED (already v1.1 from D-1273). ARCH-INDEX v2.139→v2.140. |
 | 2.139 | ADR-042-reload-aware-design-D1267 | 2026-06-20 | architect | D-1267 human override of 001-A deferral — build multi-tenant schema-change notification now. **ADR-042 PROPOSED v1.0** registered: Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild. Decisions: D1 field type changed to `Option<Arc<ArcSwap<HashMap>>>`, D2 public accessor return type unchanged, D3 new `rebuild_resolved_spec_map` method, D4 rebuild wired in `reload_config_core`, D5 per-org notify-diff updated. Crates affected: prism-query (new arc-swap dep + field change + method), prism-mcp (reload wiring + notify-diff). Implementer design spec at `scoping/resolved-spec-map-reload-aware-design.md`. BC-2.10.013 update guidance + test vectors included. ARCH-INDEX v2.138→v2.139. |
 | 2.138 | ADR-041-design-burst-D1241 | 2026-06-19 | state-manager | D-1241 PrismQL LLM-onboarding design package. **ADR-041 v1.0→v1.1:** PROPOSED; echo-planned-PQL (OPD-1) ADOPTED in v1 (`normalized_pql` field); subscribe/notify net-new machinery (not existing precedent); version pins confirmed (rmcp 1.7, strsim 0.11, chumsky 0.12.0); 4 subsystem anchors SS-10/SS-11. ADR Registry row updated PROPOSED v1.0→v1.1. ARCH-INDEX v2.137→v2.138. |
 | 2.137 | wave-5-e-demo-fidelity-D1211-state-burst | 2026-06-17 | state-manager | D-1211 resume-session cascade round-2 + dual-path infusion architecture. **ADR-040 v1.0→v2.0 ratified (D-1211 user 2026-06-17):** Dual-path infusion architecture — InfusionType::HttpLookup (declarative TOML, reuses pipeline.rs) for simple HTTP enrichment + InfusionType::Plugin (WASM .prx) for complex polymorphic sources. NVD → HttpLookup; ThreatIntel → WASM (polymorphic ip/domain/hash). NVD plugin crate to be removed. ADR-040 registry row updated to v2.0 / ACCEPTED. **infusions.md v1.1→v1.2:** HttpLookup tier added to tier table; NVD TOML example per dual-path ratification; Document Map row updated v1.2. **error-taxonomy v1.87→v1.88:** E-INFUSE-009/010/011 registered (HttpLookup failure cascade); E-PLUGIN-023 updated; http_lookup variant added to E-INFUSE-004 valid-types. **BC spec work:** BC-2.08.005 v1.4→v1.5 (two-phase probe: S-5.03 spec-only null / S-5.04 live); BC-2.10.008 v1.7→v1.8 (DI-008 client-scoping + api_base_url required); BC-2.08.009 v1.3→v1.4 (AC-10 unregistered_table_queries relocation to S-5.08). ARCH-INDEX v2.136→v2.137. |

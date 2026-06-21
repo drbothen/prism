@@ -1,18 +1,57 @@
 ---
 document_type: architecture-adjudication
-version: "1.0"
-status: final
+version: "1.1"
+status: superseded-in-part
 producer: architect
 timestamp: 2026-06-20T00:00:00Z
+modified: 2026-06-21T00:00:00Z
 story: S-DEMO-PRISMQL-ONBOARDING-001-A
 finding_source: adversary-pass-1-of-3 (MED finding; 2 other passes deemed non-blocking)
 decision: separate-architectural-concern
 authorized_deferral: true
-follow_up_story: TBD (see §Follow-up Story Specification below)
+deferral_override: D-1267 (human decision 2026-06-20 — BUILD NOW, not deferred)
+follow_up_story: NONE — work folded into S-DEMO-PRISMQL-ONBOARDING-001-A per D-1267
 traces_to: [BC-2.10.013, EC-10-029, EC-10-030]
 ---
 
 # Architecture Adjudication: 001-A reload_config Schema-Change Notify-Diff
+
+---
+
+## STATUS UPDATE — D-1267 Override (2026-06-21)
+
+**The deferral recommendation in this document was OVERRIDDEN by human decision D-1267
+(2026-06-20).**
+
+The original verdict ("SEPARATE ARCHITECTURAL CONCERN — authorized deferral") has been
+superseded. The human directed: build the ADR-042 reload-aware `resolved_spec_map` work
+NOW in 001-A, not deferred to a follow-up story.
+
+### What happened
+
+- D-1267 (2026-06-20): Human decision to build the multi-tenant schema-change notify-diff
+  work immediately in S-DEMO-PRISMQL-ONBOARDING-001-A. The work was NOT deferred.
+- ADR-042 (`decisions/ADR-042-resolved-spec-map-reload-aware-arcswap.md`) was authored
+  v1.0 (2026-06-20) and is PROPOSED; will become ACCEPTED on 001-A merge.
+- BC-2.10.013 updated v1.1→v1.2 (D-1269, 2026-06-20): EC-10-029 expanded to cover
+  multi-tenant overlay mode (org-slug != sensor-id); EC-10-034 added.
+- Implementation is COMPLETE in the feature branch at
+  `feature/S-DEMO-PRISMQL-ONBOARDING-001-A` (verified GREEN at HEAD 5a385d4f per
+  STATE.md D-1273; `just check` GREEN 4668 tests; gate EXPECTED=82).
+- The "Follow-up Story Specification" section below is VOID. No follow-up story will be
+  created for this work — it shipped in 001-A.
+
+### Original analysis remains valid as historical record
+
+The technical analysis below (Evidence Summary, Formal Adjudication, Boot-Frozen
+resolved_spec_map Assessment) accurately described the architectural situation as of
+2026-06-20. It is preserved here as the audit trail for why the deferral was considered
+and why the human chose to override it. Do not delete or modify the original analysis.
+
+The "BC-2.10.013 Scope Note (product-owner action)" section was superseded by the full
+BC-2.10.013 v1.2 update (D-1269) which covers the multi-tenant case completely.
+
+---
 
 ## Summary Verdict
 
@@ -262,4 +301,5 @@ No structural change to this code path is required before 001-A merges.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-06-21 | architect | D-1267 override recorded. Added STATUS UPDATE section at top of doc noting human decision to build ADR-042 reload-aware work in 001-A immediately. Status updated to `superseded-in-part`; frontmatter `deferral_override` and `follow_up_story` fields added. Original analysis and deferral justification preserved as historical record. No original content deleted or modified. |
 | 1.0 | 2026-06-20 | architect | Initial adjudication — separate-concern verdict, boot-frozen assessment, deferral authorization, follow-up story specification |
