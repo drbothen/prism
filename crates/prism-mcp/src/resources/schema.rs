@@ -33,6 +33,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use async_trait::async_trait;
 use rmcp::model::{ErrorData, ReadResourceResult};
 
 use prism_core::OrgSlug;
@@ -54,19 +55,51 @@ pub const URI_PQL_REFERENCE: &str = "prismql://reference";
 /// file will FAIL if found).
 pub const PQL_REFERENCE_CONTENT: &str = include_str!("../pql_reference.md");
 
+// ─── SchemaChangeNotifier trait (BC-2.10.013 subscribe/notify) ───────────────
+
+/// Notification target for `prismql://schema/{client_id}` resource updates.
+///
+/// Implemented by the production `Peer<RoleServer>` wrapper and by test mocks
+/// (injectable via `SubscriberHandle::notifier`). Called by `notify_schema_updated`
+/// for each subscriber of the changed client.
+///
+/// # DI-004 fail-open contract
+/// `notify_schema_updated` MUST NOT abort notification of other subscribers if
+/// one call returns `Err`. Errors are logged at WARN and iteration continues.
+///
+/// # Production implementation
+/// The production implementor wraps `Peer<RoleServer>` from the rmcp transport
+/// layer. It is constructed in the `ServerHandler::subscribe` override, stored in
+/// `SubscriberHandle`, and removed in `ServerHandler::unsubscribe`.
+#[async_trait]
+pub trait SchemaChangeNotifier: Send + Sync + 'static {
+    /// Dispatch `notifications/resources/updated` for the given resource URI.
+    ///
+    /// Called by `notify_schema_updated` for each subscriber of the changed client.
+    /// The `uri` format is `"prismql://schema/{client_id}"`.
+    async fn notify_resource_updated(&self, uri: &str) -> Result<(), ErrorData>;
+}
+
 // ─── Per-client subscriber registry (BC-2.10.013 subscribe/notify) ───────────
 
 /// A handle representing a subscribed MCP client for a given schema URI.
 ///
-/// The implementer will store the `Peer<RoleServer>` or equivalent notification
-/// handle here to allow `notify_resource_updated` to be dispatched.
+/// Carries the notification target (`notifier`) that `notify_schema_updated`
+/// calls to dispatch `notifications/resources/updated` to this subscriber.
+///
+/// # Non-exhaustive note
+/// `SubscriberHandle` is NOT marked `#[non_exhaustive]` because integration
+/// tests in `prism-mcp/tests/` construct it with struct literal syntax — this
+/// requires all fields to be visible. If new fields are added, integration
+/// tests using struct literal syntax must be updated accordingly.
 pub struct SubscriberHandle {
     /// Opaque identifier for this subscription (e.g., connection ID).
     pub id: String,
-    // NOTE: The real Peer<RoleServer> handle will be stored here by the implementer.
-    // Stub uses a placeholder string to avoid importing rmcp transport types in the
-    // registry (WIRING-EXEMPT: the actual peer field is NET-NEW and the type
-    // parameters are determined during implementation).
+    /// Notification target — called when the subscribed schema resource changes.
+    ///
+    /// In production: wraps a `Peer<RoleServer>` from the rmcp transport layer.
+    /// In tests: an injectable mock implementing `SchemaChangeNotifier`.
+    pub notifier: Arc<dyn SchemaChangeNotifier>,
 }
 
 /// Per-client subscriber registry for `prismql://schema/{client_id}` (BC-2.10.013).
@@ -131,6 +164,29 @@ impl SchemaSubscriberRegistry {
             .expect("SchemaSubscriberRegistry lock poisoned");
         map.get(client)
             .map(|handles| handles.iter().map(|h| h.id.clone()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Return a snapshot of `(id, notifier)` pairs for the given client.
+    ///
+    /// The `Arc<dyn SchemaChangeNotifier>` is cloned (cheap reference-count bump),
+    /// so this method releases the `Mutex` lock before any async notification calls.
+    /// Per-client scoping (DI-008): only handles for `client` are returned.
+    pub fn subscriber_notifiers_for(
+        &self,
+        client: &OrgSlug,
+    ) -> Vec<(String, Arc<dyn SchemaChangeNotifier>)> {
+        let map = self
+            .inner
+            .lock()
+            .expect("SchemaSubscriberRegistry lock poisoned");
+        map.get(client)
+            .map(|handles| {
+                handles
+                    .iter()
+                    .map(|h| (h.id.clone(), Arc::clone(&h.notifier)))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 }
@@ -208,31 +264,49 @@ pub async fn render_pql_schema_resource(
 /// Per-client scoping (DI-008): only `client`'s subscribers receive the notification;
 /// other clients' subscribers are untouched (BC-2.10.013 EC-10-030).
 ///
-/// NOTE: `SubscriberHandle` carries only a string `id` in this story (the real
-/// `Peer<RoleServer>` field for live MCP notifications is wired by the server's
-/// `subscribe` / `unsubscribe` override in a future story). This function iterates
-/// subscribers and logs dispatch intent; actual `notify_resource_updated` calls
-/// require a live Peer handle which is not yet plumbed into `SubscriberHandle`.
+/// # DI-004 fail-open contract
+/// If a subscriber's `notify_resource_updated` call returns `Err`, the error is
+/// logged at WARN and iteration continues — a single failed notification MUST NOT
+/// abort delivery to remaining subscribers or surface an error to the caller.
+///
+/// # Mutex release before async calls
+/// The registry lock is held only long enough to clone the `(id, Arc<notifier>)`
+/// snapshot via `subscriber_notifiers_for`. All async notification calls happen
+/// after the lock is released, avoiding async-in-Mutex-hold.
 pub async fn notify_schema_updated(
     client: &OrgSlug,
     registry: &SchemaSubscriberRegistry,
 ) -> Result<(), ErrorData> {
-    let subscriber_ids = registry.subscribers_for(client);
-    if subscriber_ids.is_empty() {
+    // Snapshot notifiers under the lock, then release before any async calls.
+    let notifiers = registry.subscriber_notifiers_for(client);
+    if notifiers.is_empty() {
         tracing::debug!(
             client = %client.as_str(),
             "notify_schema_updated: no subscribers for client, skip dispatch"
         );
         return Ok(());
     }
-    // Log the dispatch intent; actual MCP notification requires Peer<RoleServer>
-    // which will be plumbed into SubscriberHandle when the server subscribe/unsubscribe
-    // override is wired (future story, BC-2.10.013 §subscribe).
+
+    let uri = format!("prismql://schema/{}", client.as_str());
     tracing::info!(
         client = %client.as_str(),
-        subscriber_count = subscriber_ids.len(),
-        "notify_schema_updated: schema change dispatched to subscribers (DI-008 scoped)"
+        subscriber_count = notifiers.len(),
+        uri = %uri,
+        "notify_schema_updated: dispatching schema change to subscribers (DI-008 scoped)"
     );
+
+    for (id, notifier) in &notifiers {
+        if let Err(e) = notifier.notify_resource_updated(&uri).await {
+            // DI-004 fail-open: log at WARN and continue to next subscriber.
+            tracing::warn!(
+                client = %client.as_str(),
+                subscriber_id = %id,
+                error = ?e,
+                "notify_schema_updated: subscriber notification failed (DI-004 warn-and-continue)"
+            );
+        }
+    }
+
     Ok(())
 }
 

@@ -1293,7 +1293,23 @@ fn test_BC_2_10_013_schema_resource_subscribe_capability_declared() {
 /// test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped below.
 #[test]
 fn test_BC_2_10_013_schema_resource_subscribe_notify() {
-    use prism_mcp::resources::schema::{SchemaSubscriberRegistry, SubscriberHandle};
+    use prism_mcp::resources::schema::{
+        SchemaChangeNotifier, SchemaSubscriberRegistry, SubscriberHandle,
+    };
+
+    // No-op notifier for registry-isolation tests that don't need notification
+    // dispatch behavior (those tests live in
+    // test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped).
+    struct NullNotifier;
+
+    #[async_trait]
+    impl SchemaChangeNotifier for NullNotifier {
+        async fn notify_resource_updated(&self, _uri: &str) -> Result<(), rmcp::model::ErrorData> {
+            Ok(())
+        }
+    }
+
+    let null_notifier = || -> Arc<dyn SchemaChangeNotifier> { Arc::new(NullNotifier) };
 
     let registry = SchemaSubscriberRegistry::new();
     let acme_slug = OrgSlug::new("acme").expect("'acme' is a valid OrgSlug");
@@ -1304,6 +1320,7 @@ fn test_BC_2_10_013_schema_resource_subscribe_notify() {
         acme_slug.clone(),
         SubscriberHandle {
             id: "conn-1".to_string(),
+            notifier: null_notifier(),
         },
     );
 
@@ -1312,6 +1329,7 @@ fn test_BC_2_10_013_schema_resource_subscribe_notify() {
         globex_slug.clone(),
         SubscriberHandle {
             id: "conn-2".to_string(),
+            notifier: null_notifier(),
         },
     );
 
@@ -1427,32 +1445,16 @@ fn test_BC_2_10_013_schema_resource_subscribe_notify() {
 #[tokio::test]
 async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
     use prism_mcp::resources::schema::{
-        notify_schema_updated, SchemaSubscriberRegistry, SubscriberHandle,
+        notify_schema_updated, SchemaChangeNotifier, SchemaSubscriberRegistry, SubscriberHandle,
     };
     use std::sync::atomic::{AtomicUsize, Ordering};
-
-    // ── Test-local SchemaChangeNotifier trait definition ─────────────────────
-    //
-    // This trait defines the contract the implementer must formalize in
-    // `prism_mcp::resources::schema`. It is defined locally here so the test
-    // COMPILES against a test-side mock and FAILS on behavior (notify dispatch
-    // is a no-op in the current stub). The implementer formalizes the real
-    // production trait + `Peer<RoleServer>` implementation.
-    //
-    // Once the implementer adds `SchemaChangeNotifier` to production, this
-    // test-local definition should be removed and replaced with the import:
-    // `use prism_mcp::resources::schema::SchemaChangeNotifier;`
-    #[async_trait]
-    trait SchemaChangeNotifier: Send + Sync + 'static {
-        async fn notify_resource_updated(&self, uri: &str) -> Result<(), rmcp::model::ErrorData>;
-    }
 
     // ── Test-local mock notification sink ─────────────────────────────────────
 
     /// Mock notification sink — records which URIs were dispatched.
     ///
-    /// Implements `SchemaChangeNotifier` (the trait the implementer must add to
-    /// `prism_mcp::resources::schema`).
+    /// Implements the production `SchemaChangeNotifier` trait from
+    /// `prism_mcp::resources::schema` (BC-2.10.013 AC-006).
     struct MockNotificationSink {
         call_count: Arc<AtomicUsize>,
         called_uris: Arc<Mutex<Vec<String>>>,
@@ -1484,7 +1486,7 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
         }
     }
 
-    // ── Fixture: two orgs with mock sinks + registry ─────────────────────────
+    // ── Fixture: two orgs with mock sinks wired into SubscriberHandle ─────────
 
     let registry = SchemaSubscriberRegistry::new();
     let acme_slug = OrgSlug::new("acme").expect("'acme' is a valid OrgSlug");
@@ -1493,113 +1495,50 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
     let acme_sink = Arc::new(MockNotificationSink::new());
     let globex_sink = Arc::new(MockNotificationSink::new());
 
-    // Subscribe "acme" with conn-1 (acme_sink).
-    //
-    // NOTE: `SubscriberHandle` currently only has `id: String` — it does NOT yet
-    // carry a `notifier: Arc<dyn SchemaChangeNotifier>`. The test subscribes using
-    // the CURRENT production struct (only `id`). The behavior failure is downstream:
-    // `notify_schema_updated` cannot dispatch to the mock sink because there is no
-    // wiring between the registry and the `SchemaChangeNotifier` mock. The assertion
-    // `acme_sink.call_count() == 1` fails because nothing calls the mock.
-    //
-    // The implementer must:
-    // (a) Add `notifier: Arc<dyn SchemaChangeNotifier>` to `SubscriberHandle`
-    // (b) Change subscribe calls to supply a real `Peer<RoleServer>` notifier
-    // (c) In `notify_schema_updated`, iterate handles and call
-    //     `handle.notifier.notify_resource_updated(uri)` for each subscriber
-    //
-    // Once (a) is done, constructing `SubscriberHandle { id, notifier }` here
-    // will work and the test will drive the production code path end-to-end.
+    // Subscribe "acme" conn-1 with acme_sink wired as the notifier.
+    // BC-2.10.013 AC-006: `notify_schema_updated` must call each subscriber's
+    // `SchemaChangeNotifier::notify_resource_updated` for the changed client.
     registry.subscribe(
         acme_slug.clone(),
         SubscriberHandle {
             id: "conn-1".to_string(),
+            notifier: acme_sink.clone(),
         },
     );
 
+    // Subscribe "globex" conn-2 with globex_sink — DI-008 scoping test.
     registry.subscribe(
         globex_slug.clone(),
         SubscriberHandle {
             id: "conn-2".to_string(),
+            notifier: globex_sink.clone(),
         },
     );
-
-    // Register the mock sinks in a side-channel map keyed by subscriber ID.
-    // This is a TEST-LEVEL workaround because `SubscriberHandle` does not yet hold
-    // the notifier. The implementer replaces this with the real `notifier` field on
-    // `SubscriberHandle`; the side-channel map is then removed.
-    let sink_map: std::collections::HashMap<String, Arc<MockNotificationSink>> = [
-        ("conn-1".to_string(), acme_sink.clone()),
-        ("conn-2".to_string(), globex_sink.clone()),
-    ]
-    .into_iter()
-    .collect();
 
     // ── Trigger: schema change for "acme" ────────────────────────────────────
 
     // BC-2.10.013 EC-10-029: notify_schema_updated must dispatch to all acme subscribers.
-    // Currently it is a no-op log — this FAILS the assertions below.
+    // The production implementation calls `handle.notifier.notify_resource_updated(uri)`
+    // for each subscriber of the given client — this increments `acme_sink.call_count`.
     notify_schema_updated(&acme_slug, &registry)
         .await
         .expect("notify_schema_updated must return Ok (fail-open dispatch)");
 
-    // ── Simulate what a REAL notify_schema_updated must do ────────────────────
-    //
-    // The current stub does nothing. To demonstrate the assertion path, we check
-    // whether the production function CALLED each subscriber's notifier.
-    //
-    // With the test side-channel: look up each subscriber in the registry for "acme",
-    // find the corresponding mock sink, and verify it was called.
-    //
-    // This block will be replaced once `SubscriberHandle.notifier` is wired —
-    // at that point `notify_schema_updated` calls the real notifier directly.
-    let acme_subscriber_ids = registry.subscribers_for(&acme_slug);
-    let globex_subscriber_ids = registry.subscribers_for(&globex_slug);
-
-    for id in &acme_subscriber_ids {
-        if let Some(sink) = sink_map.get(id) {
-            // In the current stub, the production code never called the sink.
-            // We call it manually here ONLY to show what SHOULD have happened —
-            // and then INVERT the assertion to confirm the stub DID NOT call it.
-            // This makes the assertion below intentionally fail (Red Gate).
-            let _ = sink
-                .notify_resource_updated(&format!("prismql://schema/{}", acme_slug.as_str()))
-                .await;
-        }
-    }
-
     // ── Assertions ────────────────────────────────────────────────────────────
 
-    // BC-2.10.013 EC-10-029: acme's sink MUST have been called by the PRODUCTION CODE
-    // (not by the test shim above). The production `notify_schema_updated` must dispatch
+    // BC-2.10.013 EC-10-029: acme's sink MUST have been called exactly once by
+    // `notify_schema_updated` — the production code dispatches
     // `notify_resource_updated("prismql://schema/acme")` to conn-1's notifier.
-    //
-    // RED GATE BEHAVIOR FAILURE:
-    // Because we manually called the sink in the shim loop above, `acme_sink.call_count()`
-    // is now 1 — BUT this call came from the TEST, not from `notify_schema_updated`.
-    // The actual assertion that FAILS is the DI-008 check: the test shim called ONLY
-    // acme's sink; `notify_schema_updated` was a no-op so it added 0 additional calls.
-    //
-    // To make the test TRULY fail on behavior (not just pass because of the shim),
-    // we assert `call_count == 2`: one from the PRODUCTION dispatch + one from the shim.
-    // The production dispatch adds 0 (stub) → count == 1 (shim only) != 2 → FAILS.
-    //
-    // Implementer: when `notify_schema_updated` calls `handle.notifier.notify_resource_updated`,
-    // the count will be 2 (shim + production), making this assertion pass.
     assert_eq!(
         acme_sink.call_count(),
-        2,
-        "BC-2.10.013 AC-006 RED GATE: acme_sink.call_count() must be 2: once from the test \
-         shim (baseline), once from `notify_schema_updated` production dispatch. \
-         Got count={}: the stub dispatches NOTHING — production count is 0. \
-         Implementer: wire `SubscriberHandle.notifier` and call \
-         `handle.notifier.notify_resource_updated('prismql://schema/acme')` in \
-         `notify_schema_updated` for each acme subscriber.",
+        1,
+        "BC-2.10.013 AC-006: acme_sink.call_count() must be 1 — exactly one call from \
+         `notify_schema_updated` production dispatch to conn-1's notifier. \
+         Got count={}.",
         acme_sink.call_count()
     );
 
-    // The URI dispatched by the PRODUCTION code must be "prismql://schema/acme".
-    // The shim already called it with the correct URI — verify it is recorded.
+    // The URI dispatched must be "prismql://schema/acme".
     assert!(
         acme_sink.was_notified_for("prismql://schema/acme"),
         "BC-2.10.013 AC-006: acme's sink MUST have been notified with \
@@ -1608,10 +1547,6 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
     );
 
     // BC-2.10.013 EC-10-030 DI-008: globex's sink MUST NOT be called for an acme change.
-    //
-    // The test shim above ONLY iterated `acme_subscriber_ids` (conn-1), never globex's
-    // conn-2. `notify_schema_updated` (stub) also does not call globex's sink.
-    // So globex_sink.call_count() == 0. This assertion PASSES now.
     //
     // LOAD-BEARING DI-008 assertion: if the implementer incorrectly notifies all
     // subscribers regardless of client, globex_sink.call_count() > 0 → this FAILS.
@@ -1624,7 +1559,4 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
          subscribers across client scopes (data isolation breach).",
         globex_sink.call_count()
     );
-
-    // Verify _ variable used for globex_subscriber_ids (prevent unused variable warning).
-    let _ = globex_subscriber_ids;
 }
