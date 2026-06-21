@@ -3431,13 +3431,9 @@ impl PrismServer {
                 .unwrap_or_default()
         };
 
-        // Detect whether the table set changed (used both for list_changed and schema updated).
-        use std::collections::BTreeSet;
-        let old_set: BTreeSet<&String> = old_tables.iter().collect();
-        let new_set: BTreeSet<&String> = new_tables.iter().collect();
-        let tables_changed = old_set != new_set;
-
         // Dispatch list_changed notifications if the table set changed (non-fatal if peer is gone).
+        // dispatch_hot_reload_notifications internally computes old == new and is a no-op when
+        // the table set is unchanged (spec-attribute-only changes don't fire list_changed).
         if let Err(e) =
             resources::dispatch_hot_reload_notifications(old_tables, new_tables, &peer).await
         {
@@ -3449,11 +3445,20 @@ impl PrismServer {
 
         // AC-006 (BC-2.10.013 EC-10-029 DI-008): fire per-resource `notifications/resources/updated`
         // for each subscribed client whose per-client table set changed.
-        // Production-grade DI-008 scoping: only notify clients whose own sensor's table set
-        // changed — not all clients when any global table changed.
+        //
+        // Production-grade DI-008 scoping: only notify clients whose OWN per-client resolved
+        // set changed — not all clients when the global table set changed.
+        //
+        // CRITICAL: this loop runs UNCONDITIONALLY (not gated on `tables_changed`).
+        // The `tables_changed` gate is for the global list_changed notification only.
+        // An overlay-only reload (e.g., adding customers/acme/crowdstrike.sensor.toml for an
+        // existing TYPE spec) leaves the global table set unchanged (tables_changed = false),
+        // but acme's per-client resolved set grows from {} to {crowdstrike_alerts, ...}.
+        // Gating this loop on `tables_changed` would silently suppress the notify for acme.
+        //
         // Runs independently from list_changed (a list_changed dispatch failure does not block
         // schema-updated dispatch).
-        if tables_changed {
+        {
             // Post-reload: compute per-client new table sets and diff vs old.
             //
             // ADR-042: use rebuilt resolved_spec_map (post-reload) when available —
@@ -10739,6 +10744,277 @@ mod adr_042_tests {
              'crowdstrike_hosts' — the newly added table. Got: {text_after:.200} \
              This means resolved_spec_map() is still returning the boot-frozen Arc \
              (ArcSwap::store was not called, or accessor is not using load_full())."
+        );
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Test 3 — Overlay-only reload regression: global table set UNCHANGED,
+    // per-client resolved set grows.
+    //
+    // BC: BC-2.10.013 EC-10-029 (notify on per-client change), DI-008 (per-client scoping).
+    //
+    // Scenario:
+    //   - CrowdStrike TYPE spec has [crowdstrike_alerts, crowdstrike_hosts] from the start.
+    //   - TableRegistry already has both tables (so old_set == new_set → tables_changed = false).
+    //   - Initial state: NO acme overlay exists → acme's per-client resolved set = {}.
+    //   - Acme is subscribed to schema notifications.
+    //   - Reload: add customers/acme/crowdstrike.sensor.toml overlay → acme → crowdstrike.
+    //   - After reload: acme per-client resolved set grows {} → {crowdstrike_alerts, crowdstrike_hosts}.
+    //
+    // RED GATE: the `if tables_changed` gate in reload_config blocks the per-client loop
+    //   entirely because global TableRegistry is unchanged → acme NOT notified.
+    //   This test MUST FAIL until the `if tables_changed` wrapper is removed from the
+    //   per-client notify-diff loop in reload_config.
+    //
+    // Fix: remove the `if tables_changed {` wrapper around the per-client notify loop so
+    //   it runs unconditionally. The per-client diff already computes old vs new resolved
+    //   sets on both sides independently — the global gate is the wrong level of granularity.
+    //
+    // BC trace: BC-2.10.013 EC-10-029, ADR-042 D3.
+    // ────────────────────────────────────────────────────────────────────────────
+    #[tokio::test]
+    async fn test_BC_2_10_013_overlay_only_reload_notifies_client_when_global_set_unchanged() {
+        use std::collections::HashMap;
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+        use prism_core::{OrgId, OrgRegistry, OrgSlug, SensorId};
+        use prism_query::{
+            engine::{QueryEngine, QueryEngineConfig},
+            scoping::ClientRegistry,
+            table_registry::TableRegistry,
+        };
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::{
+            overlay::OverlayLoader,
+            spec_parser::{AuthType, SensorSpec, TableSpec},
+            ResolvedSensorSpec, ResolvedSpecKey,
+        };
+
+        // ── Temp directory layout ─────────────────────────────────────────────
+        let tmp_dir = tempfile::tempdir().expect("tempdir must succeed");
+        let spec_dir: std::path::PathBuf = tmp_dir.path().to_path_buf();
+        let customers_dir = spec_dir.join("customers");
+        std::fs::create_dir_all(&customers_dir).expect("create customers/ must succeed");
+
+        // TYPE spec: crowdstrike with BOTH tables from the start.
+        // This means the global registered-table set will be unchanged before/after reload.
+        write_crowdstrike_type_spec(
+            &spec_dir,
+            &[
+                ("crowdstrike_alerts", "security_finding"),
+                ("crowdstrike_hosts", "device_inventory_info"),
+            ],
+        );
+        // NO acme overlay initially — customers/acme/ does not exist.
+        // acme's per-client resolved set starts as {}.
+
+        // ── Global TableRegistry with both tables already registered ──────────
+        //
+        // This makes old_set == new_set → tables_changed = false after reload.
+        // (The TYPE spec doesn't change on reload, so the global registry stays the same.)
+        let table_registry = Arc::new(TableRegistry::new());
+        let cs_spec_for_registry = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike",
+            AuthType::ApiKey,
+            "https://api.crowdstrike.com",
+            vec![
+                TableSpec::new_point_in_time(
+                    "crowdstrike_alerts",
+                    "security_finding",
+                    vec![],
+                    vec![],
+                ),
+                TableSpec::new_point_in_time(
+                    "crowdstrike_hosts",
+                    "device_inventory_info",
+                    vec![],
+                    vec![],
+                ),
+            ],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        table_registry
+            .register_sensor(&cs_spec_for_registry)
+            .expect("register crowdstrike in global TableRegistry must succeed");
+
+        // ── ConfigManager wired with the crowdstrike TYPE spec ────────────────
+        let initial_snapshot = prism_spec_engine::config_manager::parse_spec_directory(&spec_dir)
+            .unwrap_or_else(|_| prism_spec_engine::types::ConfigSnapshot::empty());
+        let cm = prism_spec_engine::config_manager::ConfigManager::new(initial_snapshot.clone());
+        let cm_arc = Arc::new(arc_swap::ArcSwap::from_pointee(cm));
+
+        // ── OrgRegistry: register acme and globex ────────────────────────────
+        let org_registry = Arc::new({
+            let reg = OrgRegistry::new();
+            reg.register(OrgSlug::new("acme"), OrgId::new())
+                .expect("register acme must succeed");
+            reg.register(OrgSlug::new("globex"), OrgId::new())
+                .expect("register globex must succeed");
+            reg
+        });
+
+        // ── Initial resolved_spec_map: EMPTY (no overlays yet) ───────────────
+        //
+        // customers/ exists but customers/acme/ does not → OverlayLoader finds nothing.
+        let initial_overlay = OverlayLoader::load_overlays(
+            &customers_dir,
+            &initial_snapshot.sensor_specs,
+            &org_registry,
+        );
+        assert!(
+            initial_overlay.resolved.is_empty(),
+            "Fixture sanity: initial resolved_spec_map must be empty (no overlays yet). \
+             Got: {:?}",
+            initial_overlay.resolved.keys().collect::<Vec<_>>()
+        );
+        let initial_resolved = Arc::new(initial_overlay.resolved);
+
+        // ── Build QueryEngine: with_table_registry + ArcSwap resolved_spec_map ─
+        let mut qe = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(prism_credentials::InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        )
+        .with_table_registry(Arc::clone(&table_registry));
+        qe.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(initial_resolved)));
+        qe.org_registry = Some(Arc::clone(&org_registry));
+        let qe_arc = Arc::new(qe);
+
+        // ── Schema subscriber registry: acme subscribed ──────────────────────
+        let acme_sink = Arc::new(MockNotificationSink::new());
+        let globex_sink = Arc::new(MockNotificationSink::new());
+        let acme_sink_assert = Arc::clone(&acme_sink);
+        let globex_sink_assert = Arc::clone(&globex_sink);
+
+        let registry = Arc::new(crate::resources::schema::SchemaSubscriberRegistry::new());
+        registry.subscribe(
+            OrgSlug::new("acme"),
+            crate::resources::schema::SubscriberHandle {
+                id: "conn-acme-overlay-only".to_string(),
+                notifier: acme_sink,
+            },
+        );
+        registry.subscribe(
+            OrgSlug::new("globex"),
+            crate::resources::schema::SubscriberHandle {
+                id: "conn-globex-overlay-only".to_string(),
+                notifier: globex_sink,
+            },
+        );
+
+        // ── Build PrismServer with full wiring ────────────────────────────────
+        let mut server = PrismServer::new();
+        server.config_manager = Some(cm_arc);
+        server.spec_dir = Some(spec_dir.clone());
+        server.query_engine = Some(Arc::clone(&qe_arc));
+        server.schema_subscriber_registry = Arc::clone(&registry);
+
+        // ── Pre-reload: add customers/acme/crowdstrike.sensor.toml overlay ────
+        //
+        // This simulates the operator adding a new customer overlay file BEFORE calling
+        // reload_config (the typical operator workflow: place the file, then reload).
+        // The TYPE spec is UNCHANGED — the global registered-table set stays
+        // {crowdstrike_alerts, crowdstrike_hosts} → tables_changed = false during reload.
+        //
+        // The ArcSwap-backed resolved_spec_map is NOT manually rebuilt here.
+        // It remains EMPTY (no overlays yet) because `reload_config_core` is the sole
+        // caller of `rebuild_resolved_spec_map`. When reload_config runs:
+        //   - pre_reload: qe.resolved_spec_map() → {} for acme (ArcSwap not yet updated)
+        //   - reload_config_core runs → calls rebuild_resolved_spec_map → ArcSwap updated
+        //   - post_reload: qe.resolved_spec_map() → {crowdstrike_alerts, crowdstrike_hosts} for acme
+        //   - per-client diff: {} → {crowdstrike_alerts, crowdstrike_hosts} → CHANGED → notify acme
+        write_acme_crowdstrike_overlay(&customers_dir);
+
+        // ── Full duplex MCP session ───────────────────────────────────────────
+        let (server_stream, client_stream) = tokio::io::duplex(65536);
+        let server_task = tokio::spawn(async move {
+            rmcp::serve_server(server, server_stream)
+                .await
+                .expect("serve_server must complete")
+        });
+
+        let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+        let mut client_read_buf = BufReader::new(client_read_half);
+
+        let init_req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"prism-overlay-only-test","version":"0.0.1"}}}"#;
+        client_write_half
+            .write_all(format!("{init_req}\n").as_bytes())
+            .await
+            .unwrap();
+        let mut _line = String::new();
+        client_read_buf.read_line(&mut _line).await.unwrap();
+
+        let init_notif = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        client_write_half
+            .write_all(format!("{init_notif}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        let _running = server_task.await.expect("server task must not panic");
+
+        // ── Trigger reload_config ─────────────────────────────────────────────
+        let reload_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"reload_config","arguments":{}}}"#;
+        client_write_half
+            .write_all(format!("{reload_req}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        // Drain messages to let the server process the reload.
+        let read_timeout = std::time::Duration::from_secs(3);
+        for _ in 0..5 {
+            let mut msg = String::new();
+            match tokio::time::timeout(read_timeout, client_read_buf.read_line(&mut msg)).await {
+                Ok(Ok(0)) | Err(_) => break,
+                Ok(Ok(_)) if msg.trim().is_empty() => break,
+                _ => {}
+            }
+        }
+
+        // ── Assertions ────────────────────────────────────────────────────────
+
+        // RED GATE: tables_changed = false (global registry unchanged) → per-client loop
+        // never runs → acme NOT notified. This assertion MUST FAIL until the `if tables_changed`
+        // wrapper is removed from the per-client notify-diff loop.
+        //
+        // After fix: per-client loop runs unconditionally; per-client diff for acme
+        // detects {} → {crowdstrike_alerts, crowdstrike_hosts} → acme notified once.
+        assert_eq!(
+            acme_sink_assert.call_count(),
+            1,
+            "BC-2.10.013 EC-10-029 overlay-only: acme_sink MUST receive exactly ONE \
+             notify_resource_updated call when a new overlay is added for acme during reload, \
+             even though the global table set is unchanged (tables_changed = false). \
+             Got call_count={} — means the per-client notify loop is still gated behind \
+             `if tables_changed`. Fix: remove the `if tables_changed {{` wrapper from the \
+             per-client notify-diff loop in reload_config (server.rs). The per-client diff \
+             independently computes old/new resolved sets and only notifies when THAT \
+             client's set changes.",
+            acme_sink_assert.call_count()
+        );
+
+        assert!(
+            acme_sink_assert.was_notified_for("prismql://schema/acme"),
+            "BC-2.10.013 overlay-only: acme_sink must have been called with URI \
+             'prismql://schema/acme'; got called_uris={:?}",
+            acme_sink_assert.called_uris.lock().unwrap()
+        );
+
+        // DI-008: globex MUST NOT be notified — only acme's overlay changed.
+        assert_eq!(
+            globex_sink_assert.call_count(),
+            0,
+            "BC-2.10.013 DI-008 overlay-only: globex_sink MUST NOT be notified when \
+             only acme's overlay is added. Got call_count={} — non-zero means \
+             cross-client leak.",
+            globex_sink_assert.call_count()
         );
     }
 
