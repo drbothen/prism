@@ -1750,10 +1750,10 @@ impl PrismServer {
         PrismQL (PQL) is a custom DSL for querying Prism security sensor data.\n\
         CLAUSE VOCABULARY: SELECT <cols> FROM <table> WHERE <filter> GROUP BY <col> ORDER BY <col> LIMIT <n>\n\
         PIPE MODE: chain clauses with | for multi-step transformations, e.g.: SELECT * FROM <table> | WHERE severity = 'HIGH' | LIMIT 10\n\
-        SCHEMA-AGNOSTIC SKELETONS (replace <table> with real table names from prism_describe):\n\
-          1. SELECT * FROM <table> LIMIT 25\n\
-          2. SELECT * FROM <table> WHERE severity = 'HIGH' LIMIT 25\n\
-          3. SELECT col1, COUNT(*) FROM <table> GROUP BY col1 LIMIT 25\n\
+        SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field> with real names from prism_describe):\n\
+          1. SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'\n\
+          2. SELECT * FROM <table> WHERE severity IN ('high', 'critical') LIMIT 50\n\
+          3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n\
         DISCOVERY: Call `prism_describe` with the client_id before writing queries to discover which tables and columns are available. Read prismql://reference for full grammar reference.\n\
         DATA TRUST LEVEL: External/untrusted — results are sensor-originated.\n\
         SECURITY NOTE: All parameters are scanned for prompt injection before execution.\n\
@@ -3183,6 +3183,33 @@ impl PrismServer {
                 detail: format!("reload_config failed: {e}"),
             })
         })?;
+
+        // ADR-042: rebuild resolved_spec_map atomically from the new ConfigSnapshot.
+        // Must happen AFTER the ConfigSnapshot swap (which reload_config() performs above).
+        // Non-fatal on error per DI-031: log WARN and retain the prior map.
+        if let (Some(qe), Some(spec_dir_path)) =
+            (self.query_engine.as_ref(), self.spec_dir.as_ref())
+        {
+            let customers_dir = spec_dir_path.join("customers");
+            // Extract post-reload type_specs from the new ConfigSnapshot.
+            let type_specs = {
+                let cm_guard_post = cm_arc.load();
+                cm_guard_post.load().sensor_specs.clone()
+            };
+            if let Some(org_registry) = qe.org_registry() {
+                if let Err(e) =
+                    qe.rebuild_resolved_spec_map(&customers_dir, &type_specs, &org_registry)
+                {
+                    // Non-fatal: retain prior map (DI-031 fail-closed on reload).
+                    tracing::warn!(
+                        error = %e,
+                        "resolved_spec_map rebuild failed during reload_config; \
+                         multi-tenant schema reads will serve prior map (ADR-042 / DI-031)"
+                    );
+                }
+            }
+        }
+
         let result_json = serde_json::json!({
             "status": format!("{:?}", result.status),
             "added": result.added,
@@ -3269,9 +3296,14 @@ impl PrismServer {
 
         // AC-006 DI-008: capture per-client old table sets BEFORE reload so we can diff
         // per client after the swap. Only clients whose per-client table set changes get notified.
-        // Single-tenant fallback path: sensor_specs.get(client_id) maps client_id == sensor_id.
-        // This produces the correct DI-008 scoping: "acme"'s tables come from sensor "acme".
+        //
+        // ADR-042: multi-tenant path — use resolved_spec_map (keyed by OrgSlug) when available;
+        // fall back to sensor_specs.get(slug) for single-tenant mode (client_id == sensor_id).
         let subscribed_clients_for_diff = self.schema_subscriber_registry.all_subscribed_clients();
+        let pre_reload_resolved_map = self
+            .query_engine
+            .as_ref()
+            .and_then(|qe| qe.resolved_spec_map());
         let old_per_client_tables: std::collections::HashMap<
             String,
             std::collections::BTreeSet<String>,
@@ -3283,17 +3315,32 @@ impl PrismServer {
             subscribed_clients_for_diff
                 .iter()
                 .map(|slug| {
-                    let tables: std::collections::BTreeSet<String> = snapshot
-                        .as_ref()
-                        .and_then(|specs| specs.get(slug.as_str()))
-                        .map(|sensor| {
-                            sensor
-                                .tables
-                                .iter()
-                                .map(|t| format!("{}_{}", sensor.sensor_id, t.table_name))
+                    let tables: std::collections::BTreeSet<String> =
+                        if let Some(ref rsm) = pre_reload_resolved_map {
+                            // ADR-042 multi-tenant path: filter resolved_spec_map by OrgSlug == slug.
+                            let org_slug = prism_core::OrgSlug::new(slug.as_str());
+                            rsm.iter()
+                                .filter(|((org, _sensor), _)| org == &org_slug)
+                                .flat_map(|((_, sensor_id), resolved)| {
+                                    resolved.spec.tables.iter().map(move |t| {
+                                        format!("{}_{}", sensor_id.as_ref(), t.table_name)
+                                    })
+                                })
                                 .collect()
-                        })
-                        .unwrap_or_default();
+                        } else {
+                            // Single-tenant fallback: sensor_specs.get(slug) maps client_id == sensor_id.
+                            snapshot
+                                .as_ref()
+                                .and_then(|specs| specs.get(slug.as_str()))
+                                .map(|sensor| {
+                                    sensor
+                                        .tables
+                                        .iter()
+                                        .map(|t| format!("{}_{}", sensor.sensor_id, t.table_name))
+                                        .collect()
+                                })
+                                .unwrap_or_default()
+                        };
                     (slug.as_str().to_owned(), tables)
                 })
                 .collect()
@@ -3357,22 +3404,49 @@ impl PrismServer {
         // schema-updated dispatch).
         if tables_changed {
             // Post-reload: compute per-client new table sets and diff vs old.
-            let new_specs_snapshot = self.config_manager.as_ref().map(|cm| {
-                let cm_guard = cm.load();
-                cm_guard.load().sensor_specs.clone()
-            });
+            //
+            // ADR-042: use rebuilt resolved_spec_map (post-reload) when available —
+            // keyed by OrgSlug so multi-tenant orgs (acme → crowdstrike) are found.
+            // Fall back to sensor_specs when resolved_spec_map is None (single-tenant).
+            let post_reload_resolved_map = self
+                .query_engine
+                .as_ref()
+                .and_then(|qe| qe.resolved_spec_map());
+            let new_specs_snapshot = if post_reload_resolved_map.is_none() {
+                self.config_manager.as_ref().map(|cm| {
+                    let cm_guard = cm.load();
+                    cm_guard.load().sensor_specs.clone()
+                })
+            } else {
+                None
+            };
             for slug in &subscribed_clients_for_diff {
-                let new_tables: std::collections::BTreeSet<String> = new_specs_snapshot
-                    .as_ref()
-                    .and_then(|specs| specs.get(slug.as_str()))
-                    .map(|sensor| {
-                        sensor
-                            .tables
-                            .iter()
-                            .map(|t| format!("{}_{}", sensor.sensor_id, t.table_name))
+                let new_tables: std::collections::BTreeSet<String> =
+                    if let Some(ref rsm) = post_reload_resolved_map {
+                        // ADR-042 multi-tenant path: filter rebuilt map by OrgSlug == slug.
+                        let org_slug = prism_core::OrgSlug::new(slug.as_str());
+                        rsm.iter()
+                            .filter(|((org, _sensor), _)| org == &org_slug)
+                            .flat_map(|((_, sensor_id), resolved)| {
+                                resolved.spec.tables.iter().map(move |t| {
+                                    format!("{}_{}", sensor_id.as_ref(), t.table_name)
+                                })
+                            })
                             .collect()
-                    })
-                    .unwrap_or_default();
+                    } else {
+                        // Single-tenant fallback: sensor_specs.get(slug) maps client_id == sensor_id.
+                        new_specs_snapshot
+                            .as_ref()
+                            .and_then(|specs| specs.get(slug.as_str()))
+                            .map(|sensor| {
+                                sensor
+                                    .tables
+                                    .iter()
+                                    .map(|t| format!("{}_{}", sensor.sensor_id, t.table_name))
+                                    .collect()
+                            })
+                            .unwrap_or_default()
+                    };
                 let old_tables_for_client = old_per_client_tables
                     .get(slug.as_str())
                     .cloned()

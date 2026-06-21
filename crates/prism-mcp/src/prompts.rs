@@ -1,10 +1,11 @@
 //! Static MCP prompt definitions for `PrismServer` (BC-2.10.009).
 //!
-//! Defines the four mandated prompt templates:
+//! Defines the five mandated prompt templates:
 //! - `triage_alerts` — triage open alerts for a client
 //! - `investigate_host` — cross-sensor investigation by hostname or IP
 //! - `client_overview` — security posture overview for a client
 //! - `cross_client_status` — cross-client security status
+//! - `query_tutorial` — PrismQL beginner tutorial with L1–L3 progressions
 //!
 //! Prompts are static (defined at build-time) per BC-2.10.009. They are NOT
 //! dynamically generated. Each prompt message includes a security reminder about

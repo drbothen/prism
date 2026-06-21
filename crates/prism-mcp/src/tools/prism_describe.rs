@@ -180,7 +180,8 @@ pub async fn handle_prism_describe(
     );
 
     // Emit audit event (fail-open per DI-004).
-    // BC-2.10.012 §Audit: outcome must be "schema_enumeration" (canonical operation name).
+    // BC-2.10.012 §Audit: operation must be "schema_enumeration" (canonical operation name);
+    // outcome must be "success" or "error" per emit_tool_audit convention.
     let mut audit_warning = false;
     if let Some(aw) = audit_writer {
         if let Err(e) = aw
@@ -419,21 +420,26 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
     use prism_core::column::ColumnType;
 
     // Count-recent fallback (always present, EC-002 zero-column case).
-    let mut query = format!("SELECT * FROM {table_name} LIMIT 25");
+    // BC-2.10.012 canonical: SELECT COUNT(*) FROM <t> WHERE timestamp > NOW() - INTERVAL '1h'
+    let mut query =
+        format!("SELECT COUNT(*) FROM {table_name} WHERE timestamp > NOW() - INTERVAL '1h'");
 
     // Severity filter variant when a severity column is present.
+    // BC-2.10.012 canonical: SELECT * FROM <t> WHERE severity IN ('high', 'critical') LIMIT 50
     let has_severity = columns.iter().any(|c| c.name == "severity");
     if has_severity {
-        query = format!("SELECT * FROM {table_name} WHERE severity = 'HIGH' LIMIT 25");
+        query =
+            format!("SELECT * FROM {table_name} WHERE severity IN ('high', 'critical') LIMIT 50");
     }
 
-    // Aggregate variant when an aggregatable column is present.
+    // Aggregate variant when an aggregatable column is present (overrides severity if both).
+    // BC-2.10.012 canonical: SELECT <field>, COUNT(*) FROM <t> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10
     let agg_col = columns
         .iter()
         .find(|c| matches!(c.col_type, ColumnType::Integer | ColumnType::Float));
     if let Some(col) = agg_col {
         query = format!(
-            "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} LIMIT 25",
+            "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} ORDER BY COUNT(*) DESC LIMIT 10",
             col_name = col.name
         );
     }

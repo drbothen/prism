@@ -216,7 +216,7 @@ pub struct QueryEngine {
     pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
     /// OrgSlug → OrgId mapping for per-org adapter selection. (F-LP1-CRIT-3)
     /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).
-    pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
+    pub org_registry: Option<Arc<prism_core::OrgRegistry>>,
     /// RocksDB storage backend for internal table registration.
     /// (F-LP1-CRIT-1: `register_internal_tables` invoked from `execute_inner`)
     /// When `None`, internal tables are not registered (e.g. query-only mode).
@@ -226,11 +226,16 @@ pub struct QueryEngine {
     /// `RunningServer` → `QueryEngine` → `MaterializationContext` for O(1) lookup at fan-out.
     /// `None` when no overlay config exists (test/MVP mode).
     /// (F-LP2-CRIT-001 + F-LP2-HIGH-001 wiring — S-CONFIG-MULTI-TENANT-OVERRIDE-001)
-    pub(crate) resolved_spec_map: Option<
+    /// ADR-042: ArcSwap-backed so hot-reload can atomically swap the map.
+    /// `None` = single-tenant mode (no overlay config). In-flight queries that
+    /// call `resolved_spec_map()` hold their Arc snapshot for the query lifetime.
+    pub resolved_spec_map: Option<
         Arc<
-            std::collections::HashMap<
-                prism_spec_engine::ResolvedSpecKey,
-                prism_spec_engine::ResolvedSensorSpec,
+            arc_swap::ArcSwap<
+                std::collections::HashMap<
+                    prism_spec_engine::ResolvedSpecKey,
+                    prism_spec_engine::ResolvedSensorSpec,
+                >,
             >,
         >,
     >,
@@ -420,7 +425,8 @@ impl QueryEngine {
             credential_resolver,
             org_registry: Some(org_registry),
             storage: Some(storage),
-            resolved_spec_map: Some(resolved_spec_map),
+            // ADR-042: wrap in ArcSwap so reload path can atomically swap the map.
+            resolved_spec_map: Some(Arc::new(arc_swap::ArcSwap::new(resolved_spec_map))),
             alias_store: Some(alias_store),
             infusion_registry: None,
             // S-1.14-REDO HIGH-1: Tier 2/3 caches default to None; wired via with_infusion_registry.
@@ -523,7 +529,67 @@ impl QueryEngine {
             >,
         >,
     > {
-        self.resolved_spec_map.as_ref().map(Arc::clone)
+        // ADR-042 / D2: load_full() returns a fresh Arc snapshot — same external type as
+        // before. In-flight queries that hold this Arc see a consistent map for their lifetime
+        // even if a reload fires and calls ArcSwap::store() concurrently.
+        self.resolved_spec_map.as_ref().map(|swap| swap.load_full())
+    }
+
+    /// Atomically rebuild and swap the resolved spec map from a new ConfigSnapshot.
+    ///
+    /// Called by the hot-reload path after `ConfigSnapshot` has been swapped in
+    /// `ConfigManager`. In-flight queries that have already called `resolved_spec_map()`
+    /// hold their prior `Arc<HashMap>` for their lifetime; the swap is invisible to them
+    /// (ADR-042 / AD-007 in-flight-query consistency guarantee).
+    ///
+    /// # Arguments
+    /// - `customers_dir` — path to the `customers/` overlay directory.
+    /// - `type_specs` — TYPE specs from the POST-reload `ConfigSnapshot.sensor_specs`.
+    /// - `org_registry` — the engine's `OrgRegistry`.
+    ///
+    /// # Behavior
+    /// - If `resolved_spec_map` is `None` (single-tenant mode): no-op, returns `Ok(0)`.
+    /// - If `OverlayLoader::load_overlays` returns validation errors: existing map retained,
+    ///   errors logged, returns `Err`. Caller should log and continue (non-fatal; DI-031).
+    /// - On success: swaps in the new map, returns `Ok(overlay_count)`.
+    pub fn rebuild_resolved_spec_map(
+        &self,
+        customers_dir: &std::path::Path,
+        type_specs: &std::collections::HashMap<String, prism_spec_engine::spec_parser::SensorSpec>,
+        org_registry: &prism_core::OrgRegistry,
+    ) -> Result<usize, prism_spec_engine::error::SpecEngineError> {
+        use prism_spec_engine::overlay::OverlayLoader;
+
+        let Some(ref swap) = self.resolved_spec_map else {
+            return Ok(0); // single-tenant mode — no-op per ADR-042 D3
+        };
+
+        let result = OverlayLoader::load_overlays(customers_dir, type_specs, org_registry);
+
+        if !result.errors.is_empty() {
+            // Non-fatal: log and retain existing map (DI-031 fail-closed on reload).
+            tracing::warn!(
+                event_type = "reload.overlay_rebuild_failed",
+                error_count = result.errors.len(),
+                "Hot-reload overlay rebuild failed; retaining prior resolved_spec_map (ADR-042)"
+            );
+            // Return first error as representative using ValidationFailed.
+            let error_strings: Vec<String> = result.errors.iter().map(|e| e.to_string()).collect();
+            return Err(
+                prism_spec_engine::error::SpecEngineError::ValidationFailed {
+                    errors: error_strings,
+                },
+            );
+        }
+
+        let count = result.resolved.len();
+        swap.store(Arc::new(result.resolved));
+        tracing::info!(
+            event_type = "reload.overlay_rebuilt",
+            overlay_count = count,
+            "resolved_spec_map rebuilt and swapped atomically (ADR-042)"
+        );
+        Ok(count)
     }
 
     /// Return the `OrgRegistry` arc, if wired (IMP-8 / BC-2.10.008 per-org enumeration).
@@ -664,11 +730,13 @@ impl QueryEngine {
         // ADR-039 / SEC-001: pass org_scope and resolved_spec_map so the gate can filter
         // available_sensors / available_tables to the requesting org's scope in multi-tenant
         // overlay deployments, preventing cross-tenant vendor enumeration (CWE-200).
+        // ADR-042: load a snapshot from the ArcSwap to get Option<Arc<HashMap>>.
+        let resolved_spec_snapshot = self.resolved_spec_map();
         check_table_availability(
             effective_query,
             self.table_registry.as_deref(),
             options.clients.as_deref(),
-            self.resolved_spec_map.as_ref().map(|m| m.as_ref()),
+            resolved_spec_snapshot.as_deref(),
         )?;
 
         // Step 1: Resolve client scope (BC-2.11.011).
@@ -760,7 +828,8 @@ impl QueryEngine {
             self.config.max_materialized_records,
             Arc::clone(&self.credential_resolver),
             self.org_registry.clone(),
-            self.resolved_spec_map.clone(),
+            // ADR-042: load snapshot from ArcSwap — returns Option<Arc<HashMap>>.
+            self.resolved_spec_map(),
         )
         .with_response_cache(Arc::clone(&self.cache));
 
@@ -864,10 +933,9 @@ impl QueryEngine {
         // SEC-003: inject resolved_spec_map so that available_tables is filtered to
         // the requesting org's visible tables (CWE-200 cross-tenant info disclosure fix).
         // Mirrors the SEC-001 wiring used in execute_inner for sensor fan-out.
+        // ADR-042: use the accessor which calls load_full() for the correct Arc<HashMap> type.
         if options.resolved_spec_map.is_none() {
-            if let Some(ref spec_map) = self.resolved_spec_map {
-                options.resolved_spec_map = Some(Arc::clone(spec_map));
-            }
+            options.resolved_spec_map = self.resolved_spec_map();
         }
         crate::explain::explain(query_str, options)
     }
@@ -938,11 +1006,13 @@ impl QueryEngine {
         // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
         // ADR-039 / SEC-001: pass org_scope and resolved_spec_map for org-scoped filtering.
         // Gate fires BEFORE resolve_clients to avoid moving `clients` before the borrow.
+        // ADR-042: load snapshot from ArcSwap — snapshot lives long enough for the borrow below.
+        let resolved_spec_snapshot_scheduled = self.resolved_spec_map();
         check_table_availability(
             query_str,
             self.table_registry.as_deref(),
             clients.as_deref(),
-            self.resolved_spec_map.as_ref().map(|m| m.as_ref()),
+            resolved_spec_snapshot_scheduled.as_deref(),
         )?;
 
         // Resolve client scope (BC-2.11.011).
@@ -1005,7 +1075,8 @@ impl QueryEngine {
             self.config.max_materialized_records,
             Arc::clone(&self.credential_resolver),
             self.org_registry.clone(),
-            self.resolved_spec_map.clone(),
+            // ADR-042: load snapshot from ArcSwap — returns Option<Arc<HashMap>>.
+            self.resolved_spec_map(),
         )
         .with_response_cache(Arc::clone(&self.cache));
 
@@ -1907,8 +1978,8 @@ mod sec003_engine_path_tests {
             QueryEngineConfig::default(),
             crate::cache::CacheConfig::default(),
         );
-        // Inject resolved_spec_map (pub(crate)) — same pattern as make_engine_with_alias_store.
-        engine.resolved_spec_map = Some(Arc::new(spec_map));
+        // Inject resolved_spec_map — ADR-042: field is now ArcSwap-backed.
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
         // Wire the table_registry so available_tables is populated.
         engine = engine.with_table_registry(registry);
         engine
