@@ -1,18 +1,107 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.906"
+version: "7.907"
 status: current
-timestamp: 2026-06-21T03:00:00Z
+timestamp: 2026-06-21T04:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1277 (2026-06-21): PR #197 MERGED → develop@ffe9315a. S-DEMO-PRISMQL-ONBOARDING-001-A DELIVERED. POL-14: BC-2.10.012/013/014 draft→active. ADR-042 PROPOSED→ACCEPTED. CLAUDE.md 79→82. active_contracts 235→238, draft_contracts 8→5. develop_head f6739764→ffe9315a. STATE v7.904→v7.905. §RESUME SNAPSHOT D-1277 authored (supersedes D-1276). NEXT = 001-B TDD (draft v1.2, TDD-READY, DEMO-BLOCKING, serial; NO worktree yet).**
+> **D-1278 (2026-06-21): COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT. S-DEMO-PRISMQL-ONBOARDING-001-A DELIVERED AND MERGED (PR #197 develop@ffe9315a; CLAUDE.md 79→82 rebased → fc954300). No open PRs. demo roadmap continues at 001-B. Process lessons captured in cycles/wave-5-e-demo-fidelity/lessons.md. D-1208 + D-1257 historical in-progress voice neutralized. STATE v7.906→v7.907. §RESUME SNAPSHOT D-1278 authored (supersedes D-1277).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1277** (authoritative zero-context restart protocol; supersedes D-1276). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1276 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1277 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `fc954300` (docs(CLAUDE.md): bump 79→82 @fc954300; rebased onto ffe9315a 2026-06-21; D-1277-RECONCILE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.906.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1278** (authoritative zero-context restart protocol; supersedes D-1277). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1277 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1278 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `fc954300` (docs(CLAUDE.md): bump 79→82 @fc954300; rebased onto ffe9315a 2026-06-21; D-1277-RECONCILE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.907.
+
+---
+
+## §RESUME SNAPSHOT — D-1278 (2026-06-21 — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT; develop@fc954300; BC-INDEX v6.95; STORY-INDEX v2.451; ARCH-INDEX v2.141; STATE v7.907; NO OPEN PRs)
+
+> **D-1278 burst (2026-06-21).** S-DEMO-PRISMQL-ONBOARDING-001-A was delivered and merged this session. PR #197 squash-merged to develop@ffe9315a; CLAUDE.md 79→82 commit (6df4a4e9) was misparented on f6739764 and rebased onto ffe9315a yielding fc954300 (fast-forward pushed to origin/develop; D-1277-RECONCILE). develop HEAD is fc954300. No open PRs. demo roadmap continues at S-DEMO-PRISMQL-ONBOARDING-001-B (draft v1.2, TDD-READY, DEMO-BLOCKING, NO worktree yet). Two process lessons were captured in cycles/wave-5-e-demo-fidelity/lessons.md: post-merge CLAUDE.md misparent pattern + CI dual-trigger duplicate runs. Historical in-progress voice in D-1208 (STATE.md) and D-1257 (SESSION-HANDOFF.md) was neutralized to past tense. Hook verify-sha-currency.sh reports PASS with no WARNs after this burst. STATE v7.906→v7.907.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1278 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1278 snapshot first. It is the sole authoritative resume point.
+
+**Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING. Do not proceed if this fails.
+
+**Step 2.** Confirm develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `fc954300` (docs(CLAUDE.md): bump non-exhaustive count 79→82 — rebased onto ffe9315a; 2026-06-21 D-1277-RECONCILE). Note: ffe9315a is the 001-A squash merge commit; fc954300 is the CLAUDE.md count bump rebased atop it.
+
+**Step 3.** Confirm no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Confirm factory-artifacts HEAD (do NOT hard-code SHA — run the command):
+```bash
+git -C .factory log -1 --format='%h %s'
+```
+
+**Step 5.** Apply carry-forward: lessons (a)–(z25+) + process-gap 1–3 + the two new D-1278 process lessons from `cycles/wave-5-e-demo-fidelity/lessons.md`. Critical rules: DRIFT-001A-PROCESS-GAP-REDGATE-FULLGREP-001 (full Red Gate table re-grep rule); post-merge CLAUDE.md misparent rule (fetch + reset --hard origin/develop before any post-merge commit); CI dual-trigger awareness.
+
+**Step 6.** Apply DO-NOT-REFLAG entries from §DO-NOT-REFLAG section below (including F-R8PB-MED-002 unsubscribe correct-by-construction).
+
+**Step 7.** Drive next roadmap per §WHAT'S NEXT below. Serial order: 001-B → S-5.04 → T13 → T14. Autonomy D-989+D-1090 active.
+
+### PINNED STATE (D-1278)
+
+| Variable | Value | Note |
+|----------|-------|------|
+| develop HEAD | `fc954300` | CLAUDE.md 79→82 rebased onto ffe9315a; 2026-06-21; D-1277-RECONCILE |
+| STATE version | 7.907 | D-1278 zero-context restart snapshot |
+| BC-INDEX version | 6.95 | POL-14 promotions + v1.3 versions; D-1277 |
+| STORY-INDEX version | v2.451 | 001-A draft→merged; D-1277 |
+| ARCH-INDEX version | 2.141 | ADR-042 ACCEPTED; D-1277 |
+| CLAUDE.md non-exhaustive | 82 | UPDATED on develop; PrismDescribeResponse+TableDescriptor+ColumnDescriptor |
+| ci.yml EXPECTED | 82 | Authority: ci.yml |
+| active_contracts | 238 | BC-2.10.012+013+014 promoted draft→active; D-1277 |
+| draft_contracts | 5 | BC-2.06.011+BC-2.21.001+BC-2.11.016+BC-2.11.017+BC-2.11.018 |
+| total_stories | 206 | UNCHANGED |
+| open PRs | 0 | NO open PRs |
+| NEXT story | 001-B | draft v1.2, TDD-READY, DEMO-BLOCKING, serial — NO worktree yet |
+| S-DEMO-PRISMQL-ONBOARDING-001-A | MERGED | PR #197 develop@ffe9315a; merged_sha ffe9315a |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | PARKED; probe_table FOLDED IN (D-1262); serial after 001-B |
+| S-3.09 worktree | FROZEN | Leave alone |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone |
+
+### WHAT'S DONE (D-1278)
+
+- S-DEMO-PRISMQL-ONBOARDING-001-A: **MERGED** PR #197 develop@ffe9315a. L1 query_tutorial MCP prompt + tool description PQL primer + L2 prism_describe schema discovery tool + prismql://schema/{client_id} resource template + L3 prismql://reference static grammar resource. ADR-042 reload-aware ArcSwap resolved_spec_map. 4671 tests green. EXPECTED=82. POL-14: BC-2.10.012/013/014 draft→active. ADR-042 PROPOSED→ACCEPTED. CLAUDE.md 79→82 on develop.
+- D-1278: Comprehensive zero-context restart snapshot authored. Two process lessons captured. Historical in-progress voice neutralized (D-1208, D-1257). Hook PASS (no WARNs).
+
+### WHAT'S NEXT — Demo Roadmap (D-1278)
+
+| Priority | Story | Status | Notes |
+|----------|-------|--------|-------|
+| **NEXT — P0 DEMO-BLOCKING** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.2, TDD-READY | Serial — NO worktree yet; start fresh. Depends 001-A (MERGED). Full delivery sequence: (1) run dclaude:remove-uncertainty on 001-B story BEFORE TDD per user_directive_remove_uncertainty; (2) vsdd-factory:worktree-manage create feature/S-DEMO-PRISMQL-ONBOARDING-001-B; (3) stub-architect stubs; (4) test-writer failing tests (Red Gate); (5) implementer TDD green; (6) LOCAL adversary strict-3-CLEAN cascade (3 fresh passes on frozen HEAD; any finding resets streak; fix via correct specialist); (7) demo-recorder per-AC evidence (POL-10 story-scoped); (8) pr-manager PR; (9) PR-LEVEL strict-3-CLEAN cascade (orchestrator-driven) + pr-reviewer + security-reviewer + CI green; (10) squash-merge; (11) post-merge state-manager burst (POL-14 BC promotions, ADR status if any, CLAUDE.md count reconciliation on develop, develop_head bump, story→merged); (12) worktree cleanup. |
+| **THEN — P0 DEMO-BLOCKING** | **S-5.04** | draft v1.9, PARKED | Serial after 001-B. probe_table FOLDED IN (D-1262). PO must author BC-2.08.001/BC-2.16.009/E-SPEC-026 before TDD resumes. F-S504-R2-002 MED + LOW/OBS remain. |
+| **THEN — BLOCKED** | **T13 capstone** | not-authored | Multi-client SOC-analyst narrative. Hard-gated on S-5.04 + 001-B MERGED (both). PO + story-writer author. |
+| **THEN — BLOCKED** | **T14 recording** | not-started | After T13. demo-recorder. |
+
+**Merge-time-obligation pattern (durable):** at each story merge — POL-14 BCs draft→active; promote any ADR PROPOSED→ACCEPTED; CLAUDE.md non-exhaustive count reconciliation on develop (fetch + reset --hard origin/develop FIRST to avoid misparent); develop_head bump.
+
+### Convergence Rules (carry forward)
+
+- **BC-5.39.001 strict-vs-PR-merge:** CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- **Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001):** any push to the feature branch resets streak to 0/3. Count only consecutive CLEAN(strict) passes on an UNCHANGED HEAD.
+- **Orchestrator dispatch:** uses STRICT criterion. If CLEAN(strict)=no, dispatch a fix-burst regardless of CLEAN(PR-merge) status.
+
+### DO-NOT-REFLAG (carry forward)
+
+- **F-R8PB-MED-002** — unsubscribe removes ALL subscribers for org slug: CORRECT-BY-CONSTRUCTION. Prism is per-analyst stdio MCP = exactly one client connection per process lifetime; rmcp 1.7.0 exposes no stable per-connection identity; BC-2.10.013 §76 documents the single-connection invariant; doc-comment added @15e43516. **Do NOT re-flag in any future cascade.**
+- **demo-evidence stale-HEAD-pin (docs-only class)** — OBS findings about demo evidence citing an older code HEAD are NON-BLOCKING if `git diff <evidence-HEAD>..<pr-HEAD>` is docs-only. Do NOT re-flag without first running the diff. Pattern established D-1257 PIVOT-003-PRLEVEL-OBS-1.
+- **ColumnDescriptor.nullable hardcoded** — no nullability field in source; hardcoded value is correct-by-construction given upstream data model.
+- **SEC-001 goal printable-ASCII trade-off + SEC-008 notify error-detail (internal-log-only)** — both adjudicated; do not re-raise.
+- **OBS-S503-1** — reload_config.rs DOT vs underscore; adjudicated non-defect.
+- **OBS-3 DEC-004 zero-sensor** — S-5.03 scope; do not re-raise.
+- **PIVOT-003-PRLEVEL-OBS-1** — evidence-HEAD docs-only; non-blocking per diff rule above.
+- **PIVOT-003-PRLEVEL-OBS-2** — NVD test cross-story covered by RGT #14.
 
 ---
 
@@ -1453,7 +1542,7 @@ Expected: NO open PRs.
 
 ---
 
-## §RESUME SNAPSHOT — D-1257 (2026-06-20 — PIVOT-003 PR #196 PR-LEVEL round 1 OBS adjudicated as DO-NOT-REFLAG; round 2 in progress on frozen 192428db; develop_head 9114e028 UNCHANGED; STATE v7.885)
+## §RESUME SNAPSHOT — D-1257 (2026-06-20 — PIVOT-003 PR #196 PR-LEVEL round 1 OBS adjudicated as DO-NOT-REFLAG; round 2 completed and merged; develop_head 9114e028 at time of burst; STATE v7.885) [SUPERSEDED — historical reference only]
 
 > **D-1257 burst (2026-06-20).** STATE BURST — develop_head UNCHANGED at 9114e028. PIVOT-003 PR-LEVEL round 1 (3 fresh-context passes on frozen pushed HEAD 192428db, PR #196) COMPLETE. Results: Pass 1 CLEAN(PR-merge)=yes, CLEAN(strict)=no [OBS-1 + OBS-2]. Pass 2 CLEAN(strict)=yes. Pass 3 CLEAN(strict)=no [OBS-PASS3-001]. All 3 CLEAN(PR-merge)=yes. Streak: 0/3 strict (DRIFT-ORCH-PRLEVEL-PUSH-001 frozen-HEAD streak rule — HEAD 192428db unchanged throughout). Orchestrator adjudicated both OBS finding classes as VERIFIED NON-DEFECTS: (1) OBS-1: evidence-report cites code HEAD 62d4fcdb — `git diff 62d4fcdb..192428db` is docs-only (17 files, ALL under docs/demo-evidence/S-DEMO-ENRICHMENT-PIVOT-003/, 597 insertions, ZERO source/spec delta; 192428db IS the demo-evidence commit; evidence-report cited code HEAD is correct-by-construction). DO-NOT-REFLAG as PIVOT-003-PRLEVEL-OBS-1. (2) OBS-2 + OBS-PASS3-001: NVD pivot tests use hand-built NvdState registry — NvdClone::new_with_scenario IS load-bearing-tested in crates/prism-dtu-nvd/tests/bc_2_06_020_nvd_enrichment.rs RGT #14 (test_BC_2_06_020_nvd_cve_correlation_high_cvss_base_score; new_with_scenario L61 + baseScore>=7.0 L120 + baseSeverity==HIGH L136 + HTTP 200 per device L145-180); BC-2.06.019 pivot tests correctly isolate query path with deterministic registry; INV-NVD-CVE-CORRELATION-001 is BC-2.06.020-owned (MERGED predecessor PIVOT-002). No coverage gap. DO-NOT-REFLAG as PIVOT-003-PRLEVEL-OBS-2. NEXT ACTION: PR-LEVEL round 2 — 3 independent fresh-context adversary passes on frozen 192428db. Apply PIVOT-003-PRLEVEL-OBS-1 + PIVOT-003-PRLEVEL-OBS-2 DO-NOT-REFLAG. Do NOT push new commits (DRIFT-ORCH-PRLEVEL-PUSH-001 — any push resets streak to 0/3).
 
@@ -1489,7 +1578,7 @@ Expected: PR #196 open (feature/S-DEMO-ENRICHMENT-PIVOT-003 → develop). No oth
 |--------|-------|-------|
 | develop HEAD | `9114e028` | PIVOT-002 squash @6c367356 + D-1178 CLAUDE.md count bump 76→79; 2026-06-19 (D-1240). UNCHANGED through D-1257. |
 | factory-artifacts HEAD | `git -C .factory log -1 --format='%h %s'` | Do NOT hard-code. |
-| Open PRs | **PR #196 OPEN** | feature/S-DEMO-ENRICHMENT-PIVOT-003 → develop. PR-LEVEL round 1 COMPLETE; round 2 in progress. |
+| Open PRs | **PR #196 (historical)** | feature/S-DEMO-ENRICHMENT-PIVOT-003 → develop. PR-LEVEL round 1 COMPLETE; round 2 COMPLETED; PR #196 MERGED (superseded — see D-1277). |
 | PIVOT-003 worktree | `.worktrees/S-DEMO-ENRICHMENT-PIVOT-003`, branch feature/S-DEMO-ENRICHMENT-PIVOT-003, HEAD **192428db** | PR PUSHED. PR-LEVEL round 1 done (streak 0/3). Round 2 next. just check GREEN 4638 tests (on 62d4fcdb base; 192428db = docs-only atop). |
 | S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | PARKED — code done+green, BLOCKED on S-1.11 read-side tables (D-1252 user decision). |
 | S-3.09 worktree | FROZEN | Leave alone. |
@@ -1519,7 +1608,7 @@ Expected: PR #196 open (feature/S-DEMO-ENRICHMENT-PIVOT-003 → develop). No oth
 
 | Priority | Story | Status | Pts | Hard Prerequisites | Notes |
 |----------|-------|--------|-----|--------------------|-------|
-| **NEXT-A (PR-LEVEL IN PROGRESS)** | **S-DEMO-ENRICHMENT-PIVOT-003** | draft v2.4 (**PR #196 OPEN — PR-LEVEL round 2 in progress on frozen 192428db**) | 8 | PIVOT-002 MERGED (SATISFIED) | Round 2: 3 independent fresh-context adversary passes on frozen 192428db. Apply PIVOT-003-PRLEVEL-OBS-1 + PIVOT-003-PRLEVEL-OBS-2 DO-NOT-REFLAG. After PR-LEVEL strict-3-CLEAN → pr-manager squash-merge → post-merge burst (BC promotions, develop_head update, EXPECTED stays 79). **DEMO-BLOCKING.** |
+| **DONE (MERGED)** | **S-DEMO-ENRICHMENT-PIVOT-003** | MERGED (historical — D-1257 state was mid-cascade; subsequently converged and merged per D-1277 pipeline) | 8 | PIVOT-002 MERGED (SATISFIED) | PR #196 merged. PIVOT-003-PRLEVEL-OBS-1 + PIVOT-003-PRLEVEL-OBS-2 are carry-forward DO-NOT-REFLAG items. **Superseded — see D-1278 WHAT'S NEXT for current roadmap.** |
 | **NEW LANE NEEDED** | **S-1.11 read-side-tables** | partial-merge — read-side gap | TBD | — | HARD PREREQUISITE for S-5.04 (D-1252 user decision). Needs architect/PO scoping. Unblocks S-5.04. |
 | **NEXT-B (PARKED)** | **S-5.04** | not-started v1.9 (**PARKED — blocked on S-1.11**) | 5 | S-5.03 MERGED + **S-1.11 read-side-tables** | F-S504-R2-002 MED (rate-limited-aggregates-healthy) + LOW/OBS remain. Resume after S-1.11. **DEMO-BLOCKING.** |
 | **NEXT-C (PICKABLE; remove-uncertainty PENDING)** | **S-DEMO-PRISMQL-ONBOARDING-001-A** | draft v1.0 | 7 | S-5.03 MERGED + S-3.13 MERGED (SATISFIED) | **DEMO-BLOCKING (D-1243).** Run `dclaude:remove-uncertainty` BEFORE TDD. Pipelines behind S-5.04 for prism-mcp conflict avoidance. |

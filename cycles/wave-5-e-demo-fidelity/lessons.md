@@ -1721,3 +1721,58 @@ When performing ANY Red Gate citation sweep under POL-21:
 **Deferral entry (S-7.02 — no follow-up story warranted; rule codified here):** This gap is addressed by the rule above. No separate follow-up story is created; the fix is a sweep discipline rule applied to every future story's Red Gate table. Orchestrator to verify this rule is cited in story-writer dispatch prompts for Red Gate citation work.
 
 **Source:** 001-A rounds D-1272 (partial sweep) + D-1276 F-PR197-RG3-P3-MED-001 (recurrence); D-1277 S-7.02 cycle-closing codification.
+
+---
+
+## Process-Gap Lesson 4 — Post-merge CLAUDE.md commit MUST parent the actual merged HEAD, not the pre-merge develop tip (D-1278, 2026-06-21)
+
+**Date recorded:** 2026-06-21
+**D-NNN anchor:** D-1278 (zero-context restart snapshot)
+**Story:** S-DEMO-PRISMQL-ONBOARDING-001-A post-merge burst
+**Tags:** [process-gap, RECURRING] [post-merge] [git-discipline] [CLAUDE.md] [misparent]
+**Classification:** PROCESS-GAP RECURRING — The post-merge CLAUDE.md count-reconciliation commit was made on a stale local develop (parent f6739764), diverging from the squash-merged develop (ffe9315a). This required a `git rebase --onto` recovery to produce fc954300.
+
+**What happened:**
+
+After PR #197 squash-merged to develop@ffe9315a, the state-manager dispatched a CLAUDE.md 79→82 reconciliation commit on develop. The local develop branch had not been fast-forwarded after the merge, so the commit parented the pre-merge tip f6739764 rather than the post-merge squash SHA ffe9315a. The divergence was caught because origin/develop and the local branch disagreed. Recovery used `git rebase --onto ffe9315a f6739764 <branch>` to re-parent, yielding fc954300 via fast-forward push.
+
+**Root cause:**
+
+No mandatory `git fetch origin && git reset --hard origin/develop` (or `git pull --ff-only`) step before the post-merge CLAUDE.md commit. The local branch tracked origin/develop but was not automatically advanced by the remote squash merge.
+
+**Rule (codified):**
+
+Before authoring ANY post-merge CLAUDE.md count-reconciliation commit (or any post-merge develop commit):
+1. `git checkout develop` (switch to develop if not already there).
+2. `git fetch origin` (bring remote state current).
+3. `git reset --hard origin/develop` (advance local to the actual post-merge HEAD — includes the squash merge commit).
+4. Author the CLAUDE.md commit. Its parent will now be the squash SHA.
+5. `git push origin develop` (fast-forward only; if this fails with non-fast-forward, something else pushed concurrently — investigate).
+6. **Record `develop_head` in the state burst as the SHA of the CLAUDE.md commit** (the FINAL develop tip after the CLAUDE.md commit), NOT the squash SHA. The squash SHA is the squash-merge record; the develop_head tracks the latest develop pointer.
+
+**Antidote:** Add to post-merge state-manager checklist: "Before any post-merge develop commit, run: `git checkout develop && git fetch origin && git reset --hard origin/develop`."
+
+**Source:** S-DEMO-PRISMQL-ONBOARDING-001-A post-merge burst; CLAUDE.md commit (6df4a4e9) misparented on f6739764; rebased onto ffe9315a → fc954300 (D-1277-RECONCILE 2026-06-21); D-1278 codification.
+
+---
+
+## Lesson z26 — CI dual-trigger duplicate runs: two concurrent run-sets per HEAD; `gh pr checks --watch` exits prematurely (D-1278, 2026-06-21)
+
+**Date recorded:** 2026-06-21
+**D-NNN anchor:** D-1278 (zero-context restart snapshot)
+**Story:** S-DEMO-PRISMQL-ONBOARDING-001-A PR lifecycle
+**Tags:** [lesson] [ci] [gh-cli] [dual-trigger] [polling-discipline]
+**Classification:** OPERATIONAL LESSON — The CI workflow fires on BOTH push AND pull_request events, generating two concurrent run-sets per HEAD commit (approximately 2× runner load, extended wall-clock time for the multi-platform Test matrix). This is expected behavior given the ci.yml trigger configuration. It is NOT a stall or a failure.
+
+**What happened:**
+
+During 001-A PR lifecycle, CI appeared to stall. The root cause was two concurrent run-sets from the dual-trigger. `gh pr checks --watch` exits prematurely when duplicate check contexts exist (same check name appears twice — the tool treats completion of one copy as completion of all). This caused premature "CI green" reports while the second run-set was still executing.
+
+**Rule (codified):**
+
+1. Budget for ~2× CI wall-clock time for any PR with the dual-trigger configuration. Do NOT interpret slow CI as a stall without first checking `gh pr view --json statusCheckRollup` for actual job states.
+2. Do NOT use `gh pr checks --watch` as the sole CI-green signal when duplicate check contexts exist. Use `sleep <N> && gh pr view --json statusCheckRollup --jq '.statusCheckRollup[] | {name, state, startedAt}'` to verify BOTH run-sets have completed and all are SUCCESS.
+3. Before concluding a stall, compare `startedAt` of the latest runs against wall-clock time. If `startedAt` is recent, the run is active — wait.
+4. A PR is CI-green only when ALL entries in `statusCheckRollup` report SUCCESS (not just the first copy of each check).
+
+**Source:** S-DEMO-PRISMQL-ONBOARDING-001-A PR #197 CI monitoring; D-1278 codification.
