@@ -1768,3 +1768,430 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
 // See tests/mcp_prism_describe.rs test-table row:
 // | test_BC_2_10_013_schema_resource_production_path_reload_triggers_notify |
 // | AC-006 (production path) | BC-2.10.013 EC-10-029/030 |
+
+// ─── AC-002 (hardened): BC-canonical example_query template structure ─────────
+
+/// AC-002 (BC-2.10.012 §Auto-generated example queries — canonical template shape):
+///
+/// BC-2.10.012 defines THREE canonical example-query templates.  The current
+/// `build_example_query` produces simplified forms that do NOT match.
+///
+/// ## BC-canonical templates (source of truth)
+///
+/// | Variant       | Required template |
+/// |---------------|------------------|
+/// | count-recent  | `SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'` |
+/// | severity      | `SELECT * FROM <table> WHERE severity IN ('high', 'critical') LIMIT 50` |
+/// | aggregate     | `SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10` |
+///
+/// ## Fixture design
+///
+/// This test drives the REAL production path through `handle_prism_describe` with three
+/// purpose-built sensor fixtures, one per template branch.  We do NOT construct
+/// `ColumnDescriptor` directly (it is `#[non_exhaustive]`); instead we drive the
+/// production `build_tables_for_client` → `build_example_query` call chain via
+/// `handle_prism_describe`.
+///
+/// - `zero-col sensor` ("sensor_zero_col"): table `zct` with NO columns → count-recent.
+/// - `severity-only sensor` ("sensor_sev_only"): table `svt` with ONLY a `severity`
+///    column (String, no Integer/Float) → severity variant.
+/// - `agg-only sensor` ("sensor_agg_only"): table `agt` with ONLY `hit_count` (Integer,
+///   no severity column) → aggregate variant.
+///
+/// ## RED GATE: All three assertions FAIL now.
+///
+/// Current `build_example_query` emits:
+///
+/// - count-recent (fallback): `SELECT * FROM zct LIMIT 25`
+///   Missing: `COUNT(*)`, `NOW() - INTERVAL`.
+///   Assertion `contains("COUNT(*)")` → FAILS.
+///
+/// - severity variant: `SELECT * FROM svt WHERE severity = 'HIGH' LIMIT 25`
+///   Wrong: `severity = 'HIGH' LIMIT 25` vs. BC-canonical `severity IN ('high', 'critical') LIMIT 50`.
+///   Assertion `contains("IN ('high', 'critical')")` → FAILS.
+///   Assertion `contains("LIMIT 50")` → FAILS.
+///
+/// - aggregate variant: `SELECT hit_count, COUNT(*) FROM agt GROUP BY hit_count LIMIT 25`
+///   Missing: `ORDER BY COUNT(*) DESC`. Wrong limit: 25 vs. 10.
+///   Assertion `contains("ORDER BY COUNT(*) DESC")` → FAILS.
+///   Assertion `contains("LIMIT 10")` → FAILS.
+///
+/// ## What the implementer must change in `build_example_query`
+///
+/// ```rust
+/// // count-recent (always present — fallback for zero-column tables EC-002):
+/// let mut query = format!(
+///     "SELECT COUNT(*) FROM {table_name} WHERE timestamp > NOW() - INTERVAL '1h'"
+/// );
+///
+/// // severity variant (when a "severity" column is present):
+/// if has_severity {
+///     query = format!(
+///         "SELECT * FROM {table_name} WHERE severity IN ('high', 'critical') LIMIT 50"
+///     );
+/// }
+///
+/// // aggregate variant (when an Integer/Float column is present):
+/// if let Some(col) = agg_col {
+///     query = format!(
+///         "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} \
+///          ORDER BY COUNT(*) DESC LIMIT 10",
+///         col_name = col.name
+///     );
+/// }
+/// ```
+#[tokio::test]
+async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
+    use prism_core::column::ColumnType;
+    use prism_spec_engine::{
+        spec_parser::{ColumnSpec, SensorSpec, TableSpec},
+        types::ConfigSnapshot,
+        AuthType, ConfigManager,
+    };
+
+    // ── Fixture builder ───────────────────────────────────────────────────────────
+
+    fn make_sensor_config_manager(
+        sensor_id: &str,
+        table_name: &str,
+        columns: Vec<ColumnSpec>,
+    ) -> Arc<arc_swap::ArcSwap<ConfigManager>> {
+        let table = TableSpec::new_point_in_time(table_name, "security_finding", columns, vec![]);
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} fixture sensor"),
+            AuthType::ApiKey,
+            "https://api.example.com",
+            vec![table],
+            None,
+            "1.0.0",
+            vec![],
+        );
+        let mut sensor_specs = std::collections::HashMap::new();
+        sensor_specs.insert(sensor_id.to_string(), spec);
+        let snapshot = ConfigSnapshot {
+            sensor_specs,
+            ..ConfigSnapshot::empty()
+        };
+        Arc::new(arc_swap::ArcSwap::from_pointee(ConfigManager::new(
+            snapshot,
+        )))
+    }
+
+    // ── Case 1: count-recent — zero-column table (EC-002 fallback) ──────────────
+    //
+    // BC canonical: SELECT COUNT(*) FROM zct WHERE timestamp > NOW() - INTERVAL '1h'
+    let cm_zero = make_sensor_config_manager("sensor_zero_col", "zct", vec![]);
+    let result_zero =
+        handle_prism_describe("sensor_zero_col".to_string(), None, Some(&cm_zero), None)
+            .await
+            .expect("BC-2.10.012 AC-002 [count-recent]: handle_prism_describe must return Ok");
+
+    let json_zero: String = result_zero
+        .content
+        .iter()
+        .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+        .collect::<Vec<_>>()
+        .join("");
+    let parsed_zero: serde_json::Value = serde_json::from_str(&json_zero)
+        .expect("BC-2.10.012 AC-002 [count-recent]: response must be valid JSON");
+
+    let zero_table = &parsed_zero["tables"][0];
+    let zero_eq = zero_table["example_query"]
+        .as_str()
+        .expect("BC-2.10.012 AC-002: zct table must have example_query string");
+
+    // RED GATE: current code emits "SELECT * FROM zct LIMIT 25" — no COUNT(*).
+    assert!(
+        zero_eq.contains("COUNT(*)"),
+        "BC-2.10.012 AC-002 RED GATE [count-recent]: example_query for zero-column table \
+         MUST contain 'COUNT(*)'. BC-canonical: \
+         'SELECT COUNT(*) FROM zct WHERE timestamp > NOW() - INTERVAL \\'1h\\''. \
+         Got: {:?}. \
+         Fix `build_example_query`: change fallback from `SELECT * FROM ... LIMIT 25` \
+         to `SELECT COUNT(*) FROM ... WHERE timestamp > NOW() - INTERVAL '1h'`.",
+        zero_eq
+    );
+
+    assert!(
+        zero_eq.contains("NOW()") && zero_eq.contains("INTERVAL"),
+        "BC-2.10.012 AC-002 RED GATE [count-recent]: example_query MUST contain \
+         time-window clause `NOW() - INTERVAL '1h'`. Got: {:?}.",
+        zero_eq
+    );
+
+    assert!(
+        zero_eq.contains("zct"),
+        "BC-2.10.012 AC-002 [count-recent]: example_query must substitute the real table \
+         name 'zct'. Got: {:?}.",
+        zero_eq
+    );
+
+    // ── Case 2: severity variant — table with ONLY a severity String column ──────
+    //
+    // BC canonical: SELECT * FROM svt WHERE severity IN ('high', 'critical') LIMIT 50
+    //
+    // No Integer/Float column → aggregate branch does NOT override; severity branch wins.
+    let sev_col = ColumnSpec::new(
+        "severity",
+        ColumnType::String,
+        Some("severity".to_string()),
+        vec![],
+    );
+    let cm_sev = make_sensor_config_manager("sensor_sev_only", "svt", vec![sev_col]);
+    let result_sev =
+        handle_prism_describe("sensor_sev_only".to_string(), None, Some(&cm_sev), None)
+            .await
+            .expect("BC-2.10.012 AC-002 [severity]: handle_prism_describe must return Ok");
+
+    let json_sev: String = result_sev
+        .content
+        .iter()
+        .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+        .collect::<Vec<_>>()
+        .join("");
+    let parsed_sev: serde_json::Value = serde_json::from_str(&json_sev)
+        .expect("BC-2.10.012 AC-002 [severity]: response must be valid JSON");
+
+    let sev_table = &parsed_sev["tables"][0];
+    let sev_eq = sev_table["example_query"]
+        .as_str()
+        .expect("BC-2.10.012 AC-002: svt table must have example_query string");
+
+    // RED GATE: current code emits "WHERE severity = 'HIGH' LIMIT 25".
+    assert!(
+        sev_eq.contains("IN ('high', 'critical')"),
+        "BC-2.10.012 AC-002 RED GATE [severity]: example_query MUST contain \
+         `IN ('high', 'critical')`. BC-canonical: \
+         'SELECT * FROM svt WHERE severity IN (\\'high\\', \\'critical\\') LIMIT 50'. \
+         Got: {:?}. \
+         Fix `build_example_query`: change `severity = 'HIGH' LIMIT 25` to \
+         `severity IN ('high', 'critical') LIMIT 50`.",
+        sev_eq
+    );
+
+    assert!(
+        sev_eq.contains("LIMIT 50"),
+        "BC-2.10.012 AC-002 RED GATE [severity]: example_query MUST have LIMIT 50 \
+         (BC-canonical). Current code uses LIMIT 25. Got: {:?}.",
+        sev_eq
+    );
+
+    assert!(
+        sev_eq.contains("svt"),
+        "BC-2.10.012 AC-002 [severity]: example_query must substitute table name 'svt'. \
+         Got: {:?}.",
+        sev_eq
+    );
+
+    // ── Case 3: aggregate variant — table with ONLY an Integer column ────────────
+    //
+    // BC canonical: SELECT hit_count, COUNT(*) FROM agt GROUP BY hit_count
+    //               ORDER BY COUNT(*) DESC LIMIT 10
+    //
+    // No severity column → severity branch does NOT fire; aggregate branch fires.
+    let agg_col = ColumnSpec::new("hit_count", ColumnType::Integer, None, vec![]);
+    let cm_agg = make_sensor_config_manager("sensor_agg_only", "agt", vec![agg_col]);
+    let result_agg =
+        handle_prism_describe("sensor_agg_only".to_string(), None, Some(&cm_agg), None)
+            .await
+            .expect("BC-2.10.012 AC-002 [aggregate]: handle_prism_describe must return Ok");
+
+    let json_agg: String = result_agg
+        .content
+        .iter()
+        .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+        .collect::<Vec<_>>()
+        .join("");
+    let parsed_agg: serde_json::Value = serde_json::from_str(&json_agg)
+        .expect("BC-2.10.012 AC-002 [aggregate]: response must be valid JSON");
+
+    let agg_table = &parsed_agg["tables"][0];
+    let agg_eq = agg_table["example_query"]
+        .as_str()
+        .expect("BC-2.10.012 AC-002: agt table must have example_query string");
+
+    // RED GATE: current code emits "SELECT hit_count, COUNT(*) FROM agt GROUP BY
+    // hit_count LIMIT 25" — missing "ORDER BY COUNT(*) DESC", wrong LIMIT.
+    assert!(
+        agg_eq.contains("ORDER BY COUNT(*) DESC"),
+        "BC-2.10.012 AC-002 RED GATE [aggregate]: example_query MUST contain \
+         'ORDER BY COUNT(*) DESC'. BC-canonical: \
+         'SELECT hit_count, COUNT(*) FROM agt GROUP BY hit_count \
+         ORDER BY COUNT(*) DESC LIMIT 10'. Got: {:?}. \
+         Fix `build_example_query`: append `ORDER BY COUNT(*) DESC LIMIT 10` \
+         (not `LIMIT 25`).",
+        agg_eq
+    );
+
+    assert!(
+        agg_eq.contains("LIMIT 10"),
+        "BC-2.10.012 AC-002 RED GATE [aggregate]: example_query MUST have LIMIT 10 \
+         (BC-canonical), not LIMIT 25. Got: {:?}.",
+        agg_eq
+    );
+
+    assert!(
+        agg_eq.contains("GROUP BY"),
+        "BC-2.10.012 AC-002 [aggregate]: example_query must contain 'GROUP BY'. \
+         Got: {:?}.",
+        agg_eq
+    );
+
+    assert!(
+        agg_eq.contains("hit_count"),
+        "BC-2.10.012 AC-002 [aggregate]: example_query must substitute column name \
+         'hit_count'. Got: {:?}.",
+        agg_eq
+    );
+
+    assert!(
+        agg_eq.contains("agt"),
+        "BC-2.10.012 AC-002 [aggregate]: example_query must substitute table name 'agt'. \
+         Got: {:?}.",
+        agg_eq
+    );
+}
+
+// ─── BC-2.10.009: L1 primer skeletons in query tool description ───────────────
+
+/// BC-2.10.009 (L1 primer — query tool #[tool] description skeletons):
+///
+/// BC-2.10.009 §L1 primer pins the same three skeleton templates in the `query`
+/// tool's `description` attribute so the AI can form queries before calling
+/// `prism_describe`. The description is baked in at compile time via the `#[tool]`
+/// macro — it appears in the production tool catalog as the tool's description.
+///
+/// ## BC-canonical skeletons (source of truth)
+///
+/// | Skeleton | Required text |
+/// |----------|--------------|
+/// | count-recent | `COUNT(*) ... NOW() - INTERVAL` |
+/// | severity     | `severity IN ('high', 'critical') ... LIMIT 50` |
+/// | aggregate    | `GROUP BY ... ORDER BY COUNT(*) DESC ... LIMIT 10` |
+///
+/// ## RED GATE: All three assertions FAIL now.
+///
+/// Current query tool description (server.rs `#[tool(description = ...)]`) has:
+///
+/// ```
+/// 1. SELECT * FROM <table> LIMIT 25
+/// 2. SELECT * FROM <table> WHERE severity = 'HIGH' LIMIT 25
+/// 3. SELECT col1, COUNT(*) FROM <table> GROUP BY col1 LIMIT 25
+/// ```
+///
+/// - Skeleton 1: `SELECT * FROM <table> LIMIT 25` — does NOT contain `COUNT(*)` or
+///   `NOW() - INTERVAL`. Assertion `contains("COUNT(*)")` → FAILS.
+///
+/// - Skeleton 2: uses `severity = 'HIGH' LIMIT 25` — does NOT contain
+///   `IN ('high', 'critical')` or `LIMIT 50`. Assertion → FAILS.
+///
+/// - Skeleton 3: `GROUP BY col1 LIMIT 25` — does NOT contain
+///   `ORDER BY COUNT(*) DESC` or `LIMIT 10`. Assertion → FAILS.
+///
+/// ## What the implementer must change
+///
+/// In `server.rs`, update the `#[tool(description = ...)]` for the `query` tool.
+/// The `SCHEMA-AGNOSTIC SKELETONS` section must read:
+///
+/// ```
+/// SCHEMA-AGNOSTIC SKELETONS (replace <table>/<field> with real names from prism_describe):\n
+///   1. SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'\n
+///   2. SELECT * FROM <table> WHERE severity IN ('high', 'critical') LIMIT 50\n
+///   3. SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10\n
+/// ```
+#[test]
+fn test_BC_2_10_009_query_tool_description_l1_primer_skeleton_shapes() {
+    let catalog = PrismServer::production_tool_catalog();
+
+    let query_tool = catalog.iter().find(|t| t.name.as_ref() == "query").expect(
+        "BC-2.10.009: 'query' tool must be registered in the production tool catalog; \
+             not found. Verify 'query' is in LIVE_TOOLS list.",
+    );
+
+    let description = query_tool
+        .description
+        .as_deref()
+        .expect("BC-2.10.009: 'query' tool must have a non-empty description");
+
+    // ── Skeleton 1: count-recent — must use COUNT(*) + time-window ──────────────
+    //
+    // BC-2.10.009 §L1 primer mandates the first skeleton shows a time-windowed
+    // count query so agents learn the temporal filter idiom immediately.
+    //
+    // RED GATE: current description has "SELECT * FROM <table> LIMIT 25" — no COUNT(*).
+    assert!(
+        description.contains("COUNT(*)"),
+        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 1 — count-recent]: query tool description \
+         MUST contain 'COUNT(*)' in its first skeleton (BC-canonical: \
+         'SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL \\'1h\\''). \
+         Current description has 'SELECT * FROM <table> LIMIT 25' which lacks COUNT(*). \
+         Fix server.rs #[tool(description = ...)] for the 'query' tool. \
+         Got description (first 400 chars): {:?}",
+        &description[..description.len().min(400)]
+    );
+
+    assert!(
+        description.contains("NOW()") && description.contains("INTERVAL"),
+        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 1 — count-recent]: query tool description \
+         MUST contain time-window clause 'NOW() - INTERVAL' in its first skeleton. \
+         Current description lacks this. \
+         Fix server.rs: replace skeleton 1 with \
+         'SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL \\'1h\\''. \
+         Got description (first 400 chars): {:?}",
+        &description[..description.len().min(400)]
+    );
+
+    // ── Skeleton 2: severity filter — must use IN clause + LIMIT 50 ─────────────
+    //
+    // BC-2.10.009 §L1 primer: severity filter uses multi-value IN predicate and LIMIT 50.
+    //
+    // RED GATE: current description has "WHERE severity = 'HIGH' LIMIT 25".
+    assert!(
+        description.contains("IN ('high', 'critical')"),
+        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 2 — severity]: query tool description \
+         MUST contain `IN ('high', 'critical')` in its severity skeleton (BC-canonical: \
+         'SELECT * FROM <table> WHERE severity IN (\\'high\\', \\'critical\\') LIMIT 50'). \
+         Current description has `severity = 'HIGH' LIMIT 25`. \
+         Fix server.rs: replace skeleton 2 with the BC-canonical form. \
+         Got description (first 400 chars): {:?}",
+        &description[..description.len().min(400)]
+    );
+
+    assert!(
+        description.contains("LIMIT 50"),
+        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 2 — severity]: query tool description \
+         MUST contain 'LIMIT 50' (BC-canonical limit for severity filter). \
+         Current description has 'LIMIT 25' for skeleton 2. \
+         Fix server.rs: use LIMIT 50, not LIMIT 25, in the severity skeleton. \
+         Got description (first 400 chars): {:?}",
+        &description[..description.len().min(400)]
+    );
+
+    // ── Skeleton 3: aggregate — must use ORDER BY COUNT(*) DESC + LIMIT 10 ──────
+    //
+    // BC-2.10.009 §L1 primer: aggregate skeleton shows descending-count sort and
+    // a tighter LIMIT 10 so agents learn to use meaningful top-N aggregations.
+    //
+    // RED GATE: current description has "GROUP BY col1 LIMIT 25" — no ORDER BY.
+    assert!(
+        description.contains("ORDER BY COUNT(*) DESC"),
+        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 3 — aggregate]: query tool description \
+         MUST contain 'ORDER BY COUNT(*) DESC' in its aggregate skeleton (BC-canonical: \
+         'SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10'). \
+         Current description has 'GROUP BY col1 LIMIT 25' without ORDER BY. \
+         Fix server.rs: replace skeleton 3 with the BC-canonical form. \
+         Got description (first 400 chars): {:?}",
+        &description[..description.len().min(400)]
+    );
+
+    assert!(
+        description.contains("LIMIT 10"),
+        "BC-2.10.009 AC-002 RED GATE [L1 skeleton 3 — aggregate]: query tool description \
+         MUST contain 'LIMIT 10' (BC-canonical limit for aggregate queries). \
+         Current description has 'LIMIT 25' for skeleton 3. \
+         Fix server.rs: use LIMIT 10, not LIMIT 25, in the aggregate skeleton. \
+         Got description (first 400 chars): {:?}",
+        &description[..description.len().min(400)]
+    );
+}
