@@ -3509,4 +3509,146 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             did_you_mean.as_deref().unwrap_or("<None>")
         );
     }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // OBS-FRESH-1 — available_columns nondeterministic ordering and possible duplicates
+    // (BC-2.11.016 AC — multi-org-scope determinism)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// OBS-FRESH-1: `available_columns` in `check_column_availability` must be sorted
+    /// and deduped before constructing the `ColumnNotFoundDetails` error.
+    ///
+    /// Problem: `available_columns` is built via `flat_map` over `spec_map.values()`,
+    /// which iterates in HashMap order (non-deterministic). In a multi-org-scope query
+    /// where multiple sensors contribute columns for the same table, the `available_columns`
+    /// Vec may appear in any order across calls, and may contain duplicates when multiple
+    /// org-scoped entries define the same column name (e.g. multi-tenant overlays that
+    /// share the same base spec).
+    ///
+    /// Fix: sort + dedup `available_columns` before constructing the error.
+    ///
+    /// RED GATE (available_columns order): construct a spec_map with two sensors (alpha, beta)
+    /// each contributing one column ("col_z" and "col_a" respectively). The error's
+    /// `available_columns` field must be sorted ["col_a", "col_z"] regardless of HashMap
+    /// iteration order. On current HEAD, `available_columns` ordering depends on HashMap
+    /// iteration — could be either ["col_a", "col_z"] or ["col_z", "col_a"].
+    ///
+    /// RED GATE (duplicates): two org-scoped entries for the same sensor/table (simulating
+    /// multi-org-scope with overlapping column names) would produce duplicates.
+    /// We exercise this with two entries that have the same table name but different
+    /// sensor IDs — both match the FQ table prefix for different queries. For dedup,
+    /// we add a second sensor with the same column name to verify the output has no dupes.
+    #[test]
+    fn test_BC_2_11_016_available_columns_sorted_deduped_in_column_not_found_error() {
+        // Two sensors under "acme", contributing columns in reverse-lex order.
+        // Sensor "zebra" → column "col_z" (would appear first if HashMap puts zebra first).
+        // Sensor "alpha" → column "col_a" (lexically earlier).
+        // The error's available_columns must be sorted: ["col_a", "col_z"].
+        //
+        // NOTE: both sensors have different sensor IDs → different FQ table names.
+        // "zebra_findings" and "alpha_findings" — these are DIFFERENT FQ tables.
+        // To get BOTH columns in the same available_columns Vec, both sensors must match
+        // the query's table_name. That requires both FQ names to equal table_name — impossible
+        // unless they share the same FQ name.
+        //
+        // Correct setup: ONE sensor with TWO columns — let's verify sort within single-sensor case.
+        // The HashMap non-determinism is across sensors, not within one sensor's column Vec.
+        // For sorting: two sensors both with FQ = "shared_s1_findings" requires different
+        // sensor IDs — also impossible.
+        //
+        // REAL test for sort: one sensor with multiple columns inserted in reverse-lex order.
+        // available_columns from flat_map preserves Vec order (deterministic within one sensor),
+        // but across multiple spec_map entries (multi-sensor OR multi-org) the HashMap order matters.
+        // For the sort fix, use TWO spec_map entries that both produce columns for the SAME
+        // fully-qualified table name. This is achievable by using two org-slug entries for
+        // the SAME sensor spec (simulating multi-tenant overlays of the same sensor).
+
+        // Two entries: same sensor_id "shared", same table_suffix "data",
+        // but different org_slugs ("acme1" and "acme2"). The org_scope includes BOTH.
+        // Both produce FQ table "shared_data". Both contribute the same column "col_dup"
+        // plus each contributes a unique column: "col_z" (acme1) and "col_a" (acme2).
+        let col_z = ColumnSpec::new("col_z", ColumnType::String, None, vec![]);
+        let col_a = ColumnSpec::new("col_a", ColumnType::String, None, vec![]);
+        let col_dup = ColumnSpec::new("col_dup", ColumnType::String, None, vec![]);
+
+        let col_z2 = ColumnSpec::new("col_z", ColumnType::String, None, vec![]); // duplicate name
+        let col_a2 = ColumnSpec::new("col_a", ColumnType::String, None, vec![]); // duplicate name
+        let col_dup2 = ColumnSpec::new("col_dup", ColumnType::String, None, vec![]); // duplicate
+
+        let (key_acme1, val_acme1) = make_resolved_with_columns(
+            "shared",
+            "data",
+            "acme1",
+            vec![col_z, col_dup], // "col_z" first (reverse lex)
+        );
+        let (key_acme2, val_acme2) = make_resolved_with_columns(
+            "shared",
+            "data",
+            "acme2",
+            vec![col_dup2, col_a], // "col_dup" then "col_a"
+        );
+
+        // Suppress unused:
+        let _ = (col_z2, col_a2);
+
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key_acme1, val_acme1);
+        spec_map.insert(key_acme2, val_acme2);
+
+        // org_scope covers BOTH orgs → both entries contribute columns.
+        let acme1 = OrgSlug::new("acme1");
+        let acme2 = OrgSlug::new("acme2");
+        let org_scope = [acme1, acme2];
+
+        let table_name = "shared_data";
+        let column_typo = "completely_unknown_xyz"; // not in any column list, dist > 3 → no did_you_mean
+
+        let result = check_column_availability(
+            column_typo,
+            table_name,
+            "test-client",
+            Some(&org_scope),
+            Some(&spec_map),
+        );
+
+        let err = result.expect_err(
+            "check_column_availability must return Err for unknown column 'completely_unknown_xyz'",
+        );
+
+        let details = match err {
+            prism_core::error::PrismError::ColumnNotFound(ref d) => d.clone(),
+            other => panic!("expected ColumnNotFound, got: {other:?}"),
+        };
+
+        let cols = &details.available_columns;
+
+        // OBS-FRESH-1 sort assertion: available_columns must be sorted lexicographically.
+        // On current HEAD, order depends on HashMap iteration (non-deterministic):
+        // could be ["col_z", "col_dup", "col_dup", "col_a"] or ["col_dup", "col_a", "col_z", "col_dup"].
+        // After sort+dedup: ["col_a", "col_dup", "col_z"].
+        let mut expected_sorted = cols.clone();
+        expected_sorted.sort();
+        expected_sorted.dedup();
+
+        assert_eq!(
+            cols, &expected_sorted,
+            "OBS-FRESH-1: available_columns must be sorted and deduped. Got: {:?}. \
+             Expected sorted+deduped: {:?}. \
+             Current HEAD builds via flat_map over HashMap values (nondeterministic order) \
+             without sort or dedup.",
+            cols, expected_sorted
+        );
+
+        // OBS-FRESH-1 dedup assertion: no duplicate column names.
+        let unique_count = {
+            let mut seen = std::collections::HashSet::new();
+            cols.iter().filter(|c| seen.insert(c.clone())).count()
+        };
+        assert_eq!(
+            cols.len(),
+            unique_count,
+            "OBS-FRESH-1: available_columns must not contain duplicates. Got: {:?}",
+            cols
+        );
+    }
 }
