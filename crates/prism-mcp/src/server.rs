@@ -1865,26 +1865,20 @@ impl PrismServer {
                 })?
             }
         };
-        // S-DEMO-PRISMQL-ONBOARDING-001-B / BC-2.11.018: produce normalized PQL string.
-        // Parse the original query to obtain the AST, then re-serialize it to
-        // canonical (whitespace-normalized, uppercase-keyword) PQL.
+        // S-DEMO-PRISMQL-ONBOARDING-001-B / BC-2.11.018 / EC-11-052: produce normalized PQL
+        // string. Parse the alias-expanded query the engine validated and executed, then
+        // re-serialize it to canonical (whitespace-normalized, uppercase-keyword) PQL.
+        // `result.context.expanded_query` is populated by execute_inner Step 0 and always
+        // carries the post-alias-resolution form (ADR-022; BC-2.11.018 §Field content).
+        // For queries without aliases, expanded_query == original_query, so this is
+        // correct in both the alias and non-alias paths.
         // When `Some`, the key is inserted below. When `None`, the key is absent
         // (not null) per BC-2.11.018 invariant.
         // ABSENT-ON-ERROR structural guarantee: the error path returns early via
         // `prism_error_to_structured_call_result` before reaching this line, so
         // `normalized_pql_str` is only computed on the success path.
-        //
-        // OBS-1 (S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL adversary pass-2) rationale:
-        // Re-parsing `params.query` is CORRECT-BY-CONSTRUCTION for the demo AC set,
-        // which does not use `@alias` expansion. For non-alias queries, `params.query`
-        // is identical to the effective query the engine validated and executed, so the
-        // Chumsky parse output is semantically the same. The structural gap (aliases not
-        // reflected in normalized_pql) is tracked in S-3.01-ALIAS-SCOPE (BC-2.11.014):
-        // that story will thread the expanded AST from `execute_inner` → `QueryResult`
-        // → `normalized_pql` wire. Until then, `params.query` is correct for the
-        // implemented demo story's test scope. No failing test drives the alias path.
         let normalized_pql_str: Option<String> =
-            prism_query::filter_parser::PrismQlParser::parse(&params.query)
+            prism_query::filter_parser::PrismQlParser::parse(&result.context.expanded_query)
                 .ok()
                 .and_then(|ast| prism_query::engine::normalize_pql(&ast));
 
