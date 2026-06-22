@@ -1378,14 +1378,21 @@ fn check_column_availability(
 
 /// Plan-time column availability gate (E-QUERY-038) — query-level driver.
 ///
-/// Parses `query_str`, extracts the FROM table and all non-wildcard SELECT column
-/// references, then calls `check_column_availability` for each one. Returns the
-/// first `Err(PrismError::ColumnNotFound)` found, or `Ok(())` if all columns pass.
+/// Parses `query_str`, extracts the FROM table and all non-wildcard column
+/// references from ALL positions where column resolution is required, then calls
+/// `check_column_availability` for each one. Returns the first
+/// `Err(PrismError::ColumnNotFound)` found, or `Ok(())` if all columns pass.
+///
+/// # Column positions checked (BC-2.11.016 Precondition 2):
+/// - SELECT clause (non-wildcard field refs)
+/// - WHERE clause (FieldPath refs from all Predicate variants)
+/// - GROUP BY clause (Expr::Field refs)
+/// - ORDER BY clause (Expr::Field refs in each OrderExpr)
 ///
 /// Gate skip conditions (mirroring `check_table_availability`):
 /// - `resolved_spec_map` is `None`: skip (single-tenant / test mode without wiring)
 /// - Query fails to parse: skip (parse errors handled downstream)
-/// - SELECT * or SELECT table.*: skip (wildcard columns always pass)
+/// - SELECT * or SELECT table.*: skip for SELECT position (wildcard columns always pass)
 ///
 /// Only SQL SELECT mode is checked. Filter and Pipe modes have no explicit column
 /// projection and DataFusion handles field resolution in those modes.
@@ -1440,8 +1447,8 @@ fn check_query_column_availability(
         return Ok(());
     }
 
-    // Extract non-wildcard column names from the SELECT clause.
-    let col_refs: Vec<String> = sql_query
+    // ── Position 1: SELECT clause — non-wildcard field refs ───────────────────
+    let select_cols: Vec<String> = sql_query
         .select
         .items
         .iter()
@@ -1464,12 +1471,133 @@ fn check_query_column_availability(
         })
         .collect();
 
-    // For each referenced column, check availability.
-    for col in &col_refs {
+    // ── Position 2: WHERE clause — recursively extract FieldPath refs ─────────
+    //
+    // BC-2.11.016 Precondition 2: "The query references a column name in a position
+    // where column resolution is possible (e.g., `SELECT <column>`, `WHERE <column> = ...`,
+    // `GROUP BY <column>`, `ORDER BY <column>`)."
+    //
+    // `extract_predicate_columns` walks the entire Predicate tree and collects the
+    // first segment of every FieldPath encountered. Virtual fields (_sensor, _client)
+    // and literal operands are ignored — only explicit column name references are checked.
+    let where_cols: Vec<String> = sql_query
+        .where_
+        .as_ref()
+        .map(extract_predicate_columns)
+        .unwrap_or_default();
+
+    // ── Position 3: GROUP BY clause — Expr::Field refs ────────────────────────
+    let group_by_cols: Vec<String> = sql_query
+        .group_by
+        .iter()
+        .filter_map(|expr| match expr {
+            Expr::Field(fp) => fp.segments.first().cloned(),
+            _ => None,
+        })
+        .collect();
+
+    // ── Position 4: ORDER BY clause — Expr::Field refs in each OrderExpr ─────
+    let order_by_cols: Vec<String> = sql_query
+        .order_by
+        .iter()
+        .filter_map(|oe| match &oe.expr {
+            Expr::Field(fp) => fp.segments.first().cloned(),
+            _ => None,
+        })
+        .collect();
+
+    // ── Gate: check all positions in order ────────────────────────────────────
+    for col in select_cols
+        .iter()
+        .chain(where_cols.iter())
+        .chain(group_by_cols.iter())
+        .chain(order_by_cols.iter())
+    {
         check_column_availability(col, &table_name, client_id, org_scope, resolved_spec_map)?;
     }
 
     Ok(())
+}
+
+/// Extract column names (first FieldPath segment) from a `Predicate` tree.
+///
+/// Walks all variants that carry a `FieldPath` directly, and recurses into
+/// `Logical` and `Not` for nested predicates. `VirtualField` segments
+/// (`_sensor`, `_client`) are implicitly excluded because those appear as
+/// `Expr::VirtualField`, not `Expr::Field` — the `Compare { lhs, .. }` arm
+/// matches `lhs` only when it is `Expr::Field`.
+///
+/// # Non-exhaustive safety
+/// Unknown future `Predicate` variants are silently skipped via the `_ => {}`
+/// catch-all, which satisfies `#[non_exhaustive]` discipline and preserves
+/// fail-open semantics for unrecognised predicate forms.
+fn extract_predicate_columns(pred: &crate::ast::Predicate) -> Vec<String> {
+    let mut cols = Vec::new();
+    collect_predicate_columns(pred, &mut cols);
+    cols
+}
+
+fn collect_predicate_columns(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
+    use crate::ast::{Expr, Predicate};
+    match pred {
+        // Compare: lhs may be Expr::Field (the column being compared).
+        Predicate::Compare { lhs, .. } => {
+            if let Expr::Field(fp) = lhs.as_ref() {
+                if let Some(name) = fp.segments.first() {
+                    out.push(name.clone());
+                }
+            }
+        }
+        // StringOp: field is FieldPath directly.
+        Predicate::StringOp { field, .. } => {
+            if let Some(name) = field.segments.first() {
+                out.push(name.clone());
+            }
+        }
+        // Regex: field is FieldPath directly.
+        Predicate::Regex { field, .. } => {
+            if let Some(name) = field.segments.first() {
+                out.push(name.clone());
+            }
+        }
+        // In / InSubquery / Between / Cidr / Wildcard: field is FieldPath directly.
+        Predicate::In { field, .. }
+        | Predicate::InSubquery { field, .. }
+        | Predicate::Between { field, .. }
+        | Predicate::Cidr { field, .. }
+        | Predicate::Wildcard { field, .. } => {
+            if let Some(name) = field.segments.first() {
+                out.push(name.clone());
+            }
+        }
+        // Has / Missing: the argument IS the FieldPath.
+        Predicate::Has(fp) | Predicate::Missing(fp) => {
+            if let Some(name) = fp.segments.first() {
+                out.push(name.clone());
+            }
+        }
+        // IsNull: field is FieldPath.
+        Predicate::IsNull { field, .. } => {
+            if let Some(name) = field.segments.first() {
+                out.push(name.clone());
+            }
+        }
+        // Logical: recurse into each child predicate.
+        Predicate::Logical { predicates, .. } => {
+            for child in predicates {
+                collect_predicate_columns(child, out);
+            }
+        }
+        // Not: recurse into the inner predicate.
+        Predicate::Not(inner) => {
+            collect_predicate_columns(inner, out);
+        }
+        // RecoveryError: no column to extract (error-recovery sentinel).
+        Predicate::RecoveryError => {}
+        // #[non_exhaustive] catch-all: fail-open for future predicate variants.
+        #[allow(unreachable_patterns)]
+        _ => {}
+    }
 }
 
 // ---------------------------------------------------------------------------

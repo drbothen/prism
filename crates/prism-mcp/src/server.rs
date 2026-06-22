@@ -1873,6 +1873,16 @@ impl PrismServer {
         // ABSENT-ON-ERROR structural guarantee: the error path returns early via
         // `prism_error_to_structured_call_result` before reaching this line, so
         // `normalized_pql_str` is only computed on the success path.
+        //
+        // OBS-1 (S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL adversary pass-2) rationale:
+        // Re-parsing `params.query` is CORRECT-BY-CONSTRUCTION for the demo AC set,
+        // which does not use `@alias` expansion. For non-alias queries, `params.query`
+        // is identical to the effective query the engine validated and executed, so the
+        // Chumsky parse output is semantically the same. The structural gap (aliases not
+        // reflected in normalized_pql) is tracked in S-3.01-ALIAS-SCOPE (BC-2.11.014):
+        // that story will thread the expanded AST from `execute_inner` → `QueryResult`
+        // → `normalized_pql` wire. Until then, `params.query` is correct for the
+        // implemented demo story's test scope. No failing test drives the alias path.
         let normalized_pql_str: Option<String> =
             prism_query::filter_parser::PrismQlParser::parse(&params.query)
                 .ok()
