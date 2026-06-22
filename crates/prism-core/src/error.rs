@@ -598,6 +598,19 @@ pub enum PrismError {
         detail: String,
         /// Original query string (pre-expansion). Used for near_text extraction only;
         /// never surfaced verbatim to callers — only a ≤50-char token snippet is exposed.
+        ///
+        /// # Security boundary (SEC-007 / CWE-209)
+        /// This field stores the FULL model query as submitted by the LLM agent. It MUST
+        /// NEVER be included verbatim in any MCP response, log message, or user-facing
+        /// output. The only permitted consumer is `prism-mcp::error_mapping`'s
+        /// `QueryParseFailed` arm, which derives the `near_text` snippet (≤50 chars) via
+        /// `prism_query::engine::extract_near_text` — that truncation is the correct,
+        /// approved exposure surface (BC-2.11.017 AC-003 / DI-006).
+        ///
+        /// Visibility is `pub` (not `pub(crate)`) because `prism-mcp` (a separate crate)
+        /// must access this field to compute `near_text`. If `prism-mcp` ever moves to
+        /// a dedicated error-extraction API (e.g. `PrismError::near_text_snippet()`),
+        /// this field should be narrowed to `pub(crate)` at that time.
         query: String,
     },
 

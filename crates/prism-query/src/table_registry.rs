@@ -542,6 +542,11 @@ impl TableRegistry {
                 // - Multi-tenant: `org_scope.first()` gives the requesting client_id (e.g. "acme").
                 // - Single-tenant (org_scope is None or empty): fall back to `&sensor` as the
                 //   best available identifier (no client context to resolve against).
+                // SEC-002 trust-boundary: `org_scope` elements are `OrgSlug` values validated
+                // to `^[a-zA-Z0-9_-]{1,64}$` by `OrgSlug::new` in `tenant.rs`. That regex
+                // prohibits newlines, quotes, and control characters, so the client_id passed
+                // to `e_query_037_suggestion` cannot carry prompt-injection characters into the
+                // LLM-facing suggestion string in the MCP error envelope.
                 let client_id_for_suggestion = org_scope
                     .and_then(|s| s.first())
                     .map(|o| o.as_str())

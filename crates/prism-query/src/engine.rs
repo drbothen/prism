@@ -1447,6 +1447,10 @@ fn check_column_availability(
         "E-QUERY-038: column not found at plan time"
     );
 
+    // SEC-002 trust-boundary: `client_id` here is an `OrgSlug` string validated to
+    // `^[a-zA-Z0-9_-]{1,64}$` by `OrgSlug::new` in `tenant.rs` before it reaches this
+    // function. That validation guarantees `client_id` cannot carry prompt-injection
+    // characters (newlines, quotes, control chars) into the LLM-facing error message.
     Err(PrismError::ColumnNotFound(Box::new(
         ColumnNotFoundDetails::new(
             column_name,
@@ -2037,6 +2041,12 @@ pub fn how_to_fix_for_security_limit(detail: &str) -> String {
 /// When `did_you_mean` is `None`: includes only the `prism_describe` pointer.
 ///
 /// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-004.
+/// # Trust boundary (SEC-002 / CWE-116)
+/// `client_id` is an `OrgSlug` string validated to `^[a-zA-Z0-9_-]{1,64}$` by
+/// `OrgSlug::new` in `tenant.rs` before reaching any call site of this function.
+/// That regex prohibits newlines, quotes, and control characters, so `client_id`
+/// cannot carry prompt-injection or newline/quote injection into the LLM-facing
+/// suggestion string that appears in the MCP error envelope.
 pub fn e_query_037_suggestion(client_id: &str, did_you_mean: Option<&str>) -> String {
     match did_you_mean {
         Some(table) => format!(

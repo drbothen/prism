@@ -1279,9 +1279,21 @@ pub struct PqlNormalizer;
 impl PqlNormalizer {
     /// Normalize `ast` to a canonical PQL string.
     ///
-    /// Returns `None` when the normalized form would be empty (defensive guard;
-    /// should not occur for a validly-parsed `Ast` per BC-2.11.018 EC-11-055).
+    /// Returns `None` when:
+    /// 1. The normalized form would be empty (defensive guard; should not occur for a
+    ///    validly-parsed `Ast` per BC-2.11.018 EC-11-055).
+    /// 2. **SEC-001 defense-in-depth:** any string-bearing node in the AST contains BOTH
+    ///    `'` and `"`. The grammar cannot faithfully represent such literals (no escape
+    ///    mechanism — `none_of('\'')`/`none_of('"')` only). Emitting an unrepresentable
+    ///    string would produce a `normalized_pql` that does NOT round-trip, which is worse
+    ///    than omitting the field. This case is UNREACHABLE via the parser (the parser
+    ///    cannot produce such a literal from source input), but the guard protects against
+    ///    direct AST construction bypassing the parser (CWE-116 defense-in-depth).
     pub fn normalize(ast: &Ast) -> Option<String> {
+        // SEC-001 pre-check: abort immediately if any string node contains both quote types.
+        if Self::ast_has_both_quote_string(ast) {
+            return None;
+        }
         let s = match ast {
             Ast::Sql(stmt) => Self::normalize_sql_statement(stmt),
             Ast::Filter(filter) => Self::normalize_filter(filter),
@@ -1292,6 +1304,117 @@ impl PqlNormalizer {
             None
         } else {
             Some(s)
+        }
+    }
+
+    /// SEC-001 helper: returns `true` if any string-bearing node in `ast` contains BOTH
+    /// `'` and `"`. Called as a pre-check before normalization; avoids changing the
+    /// return types of every normalizer helper (low blast-radius approach).
+    ///
+    /// This path is **parser-unreachable** in normal operation: the grammar's
+    /// `build_string_parser` uses `none_of('\'')` for single-quoted bodies and
+    /// `none_of('"')` for double-quoted bodies, so a literal with both characters cannot
+    /// originate from user input. The check is defense-in-depth for direct AST construction.
+    fn ast_has_both_quote_string(ast: &Ast) -> bool {
+        match ast {
+            Ast::Filter(f) => Self::predicate_has_both_quote_string(&f.predicate),
+            Ast::Sql(stmt) => Self::sql_statement_has_both_quote_string(stmt),
+            Ast::Pipe(pipe) => pipe
+                .stages
+                .iter()
+                .any(Self::pipe_stage_has_both_quote_string),
+            _ => false,
+        }
+    }
+
+    fn string_has_both_quotes(s: &str) -> bool {
+        s.contains('\'') && s.contains('"')
+    }
+
+    fn literal_has_both_quote_string(lit: &Literal) -> bool {
+        match lit {
+            Literal::String(s) => Self::string_has_both_quotes(s),
+            Literal::Regex(r) => Self::string_has_both_quotes(&r.pattern),
+            _ => false,
+        }
+    }
+
+    fn predicate_has_both_quote_string(pred: &Predicate) -> bool {
+        match pred {
+            Predicate::Compare { lhs, rhs, .. } => {
+                Self::expr_has_both_quote_string(lhs) || Self::expr_has_both_quote_string(rhs)
+            }
+            Predicate::StringOp { pattern, .. } => Self::string_has_both_quotes(pattern),
+            Predicate::Regex { pattern, .. } => Self::string_has_both_quotes(&pattern.pattern),
+            Predicate::In { values, .. } => values.iter().any(Self::literal_has_both_quote_string),
+            Predicate::Between { low, high, .. } => {
+                Self::literal_has_both_quote_string(low)
+                    || Self::literal_has_both_quote_string(high)
+            }
+            Predicate::Wildcard { pattern, .. } => Self::string_has_both_quotes(pattern),
+            Predicate::Logical { predicates, .. } => {
+                predicates.iter().any(Self::predicate_has_both_quote_string)
+            }
+            Predicate::Not(inner) => Self::predicate_has_both_quote_string(inner),
+            Predicate::InSubquery { subquery, .. } => {
+                Self::sql_query_has_both_quote_string(subquery)
+            }
+            _ => false,
+        }
+    }
+
+    fn expr_has_both_quote_string(expr: &Expr) -> bool {
+        match expr {
+            Expr::Literal(lit) => Self::literal_has_both_quote_string(lit),
+            Expr::Compare { lhs, rhs, .. } => {
+                Self::expr_has_both_quote_string(lhs) || Self::expr_has_both_quote_string(rhs)
+            }
+            Expr::Logical { lhs, rhs, .. } => {
+                Self::expr_has_both_quote_string(lhs) || Self::expr_has_both_quote_string(rhs)
+            }
+            Expr::Not(inner) => Self::expr_has_both_quote_string(inner),
+            Expr::In { values, .. } => values.iter().any(Self::literal_has_both_quote_string),
+            Expr::InSubquery { subquery, .. } => Self::sql_query_has_both_quote_string(subquery),
+            _ => false,
+        }
+    }
+
+    fn sql_statement_has_both_quote_string(stmt: &SqlStatement) -> bool {
+        match stmt {
+            SqlStatement::Select(q) => Self::sql_query_has_both_quote_string(q),
+            _ => false,
+        }
+    }
+
+    fn sql_query_has_both_quote_string(q: &SqlQuery) -> bool {
+        let where_hit = q
+            .where_
+            .as_ref()
+            .is_some_and(Self::predicate_has_both_quote_string);
+        let having_hit = q
+            .having
+            .as_ref()
+            .is_some_and(Self::predicate_has_both_quote_string);
+        let select_hit = q.select.items.iter().any(|item| match item {
+            SelectItem::Expr { expr, .. } => Self::expr_has_both_quote_string(expr),
+            _ => false,
+        });
+        let group_hit = q.group_by.iter().any(Self::expr_has_both_quote_string);
+        let order_hit = q
+            .order_by
+            .iter()
+            .any(|oe| Self::expr_has_both_quote_string(&oe.expr));
+        let join_hit = q
+            .joins
+            .iter()
+            .any(|j| Self::expr_has_both_quote_string(&j.on));
+        where_hit || having_hit || select_hit || group_hit || order_hit || join_hit
+    }
+
+    fn pipe_stage_has_both_quote_string(stage: &PipeStage) -> bool {
+        match stage {
+            PipeStage::Where(pred) => Self::predicate_has_both_quote_string(pred),
+            _ => false,
         }
     }
 
@@ -1815,22 +1938,22 @@ impl PqlNormalizer {
 
     /// Emit a quoted string that the PrismQL grammar can re-parse to the SAME literal value.
     ///
+    /// # Pre-condition (SEC-001 defense-in-depth)
+    /// The caller MUST ensure `value` does NOT contain BOTH `'` and `"` — the
+    /// `ast_has_both_quote_string` pre-check in `normalize` guarantees this before
+    /// any string-emit site is reached. If that pre-check passes, the cases below are
+    /// exhaustive and the round-trip postcondition holds.
+    ///
     /// # Quote-selection rules (BC-2.11.018 round-trip invariant)
     ///
     /// The grammar's `build_string_parser` / `build_literal_parser` defines:
     ///   - Single-quoted body: `none_of('\'')` — a `'` inside is IMPOSSIBLE to represent.
     ///   - Double-quoted body: `none_of('"')` — a `'` inside IS accepted; a `"` is not.
     ///
-    /// Selection:
+    /// Selection (both-quotes case is prevented by pre-check — see above):
     ///   - Value has no `'` and no `"` (common case): emit single-quoted `'value'`.
     ///   - Value contains `'` but not `"`: emit double-quoted `"value"` (grammar accepts `'` inside).
     ///   - Value contains `"` but not `'`: emit single-quoted `'value'` (grammar accepts `"` inside).
-    ///   - Value contains BOTH `'` and `"`: grammar gap — neither quote style can represent this
-    ///     value faithfully. This is a known grammar limitation (no escape mechanism exists).
-    ///     In this case we emit double-quoted form (preserves `'` correctly, truncates at embedded
-    ///     `"`). The round-trip postcondition CANNOT be guaranteed for such literals.
-    ///     The calling site is annotated with a `// GRAMMAR-GAP` comment.
-    ///     (F-001B-FRESH-HIGH-001 grammar-gap report)
     ///
     /// This helper is the SINGLE source of quote-selection logic for all string-emitting
     /// sites in `PqlNormalizer`. Adding new string-emitting sites MUST use this helper to
@@ -1838,7 +1961,7 @@ impl PqlNormalizer {
     fn emit_quoted_string(value: &str) -> String {
         if value.contains('\'') {
             // Value has `'` — cannot use single quotes. Use double-quoted form.
-            // If value also contains `"`, this is a grammar gap (see doc above).
+            // Pre-check guarantees value does NOT also contain `"` (both-quotes → None already).
             format!("\"{value}\"")
         } else {
             // Value has no `'` — safe to emit single-quoted form.
@@ -2192,6 +2315,142 @@ mod bc_2_11_018_normalizer_roundtrip_tests {
         );
         // Also verify that the literal `lit` is consistent with the test (suppress unused warning).
         let _ = lit;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // SEC-001 (CWE-116) — defense-in-depth: both-quotes grammar gap → normalize returns None
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// SEC-001 (CWE-116): `normalize_pql` MUST return `None` when any string-bearing AST node
+    /// contains BOTH `'` and `"`.
+    ///
+    /// # Rationale (defense-in-depth)
+    /// The grammar defines:
+    ///   - Single-quoted body: `none_of('\'')` — cannot represent `'` inside
+    ///   - Double-quoted body: `none_of('"')` — cannot represent `"` inside
+    ///
+    /// A string containing BOTH quote characters cannot be faithfully emitted by
+    /// `emit_quoted_string`. The normalizer cannot produce a round-tripping `normalized_pql`
+    /// for such a value. Returning `None` causes the `normalized_pql` key to be ABSENT from
+    /// the MCP response (consistent with EC-11-055 absent-when-empty behavior) — absent is
+    /// safe; wrong would allow a mis-quoted value to reach the LLM agent context (CWE-116).
+    ///
+    /// # Parser-unreachability note
+    /// This path is UNREACHABLE via the parser: `build_string_parser` in `filter_parser.rs`
+    /// produces strings from `none_of('\'')` (single-quoted) or `none_of('"')` (double-quoted),
+    /// so no source-input string can produce a literal containing both `'` and `"`. The test
+    /// constructs the AST directly (bypassing the parser) to exercise the defense-in-depth guard.
+    #[test]
+    fn test_sec_001_both_quotes_grammar_gap_normalize_returns_none() {
+        // PARSER-UNREACHABLE: construct an AST directly — the grammar cannot produce a
+        // string literal containing BOTH `'` and `"` from source input.
+        // Defense-in-depth: direct AST construction should still produce None, not a
+        // mis-quoted output that would reach the LLM agent's normalized_pql field.
+        let filter = FilterExpr {
+            source: SourceRef::from_raw(""),
+            predicate: Predicate::Compare {
+                lhs: Box::new(Expr::Field(FieldPath::new(["hostname"]))),
+                op: CompareOp::Eq,
+                rhs: Box::new(Expr::Literal(Literal::String(
+                    "it's a \"test\"".to_string(), // contains BOTH ' and "
+                ))),
+            },
+        };
+        let ast = Ast::Filter(filter);
+
+        // SEC-001: normalize MUST return None (field omitted from MCP response — absent is safe).
+        let result = PqlNormalizer::normalize(&ast);
+        assert!(
+            result.is_none(),
+            "SEC-001 FAILED: normalize_pql must return None for an AST node containing both \
+             quote characters (grammar-gap, parser-unreachable but defense-in-depth required). \
+             Got: {:?}",
+            result
+        );
+    }
+
+    /// SEC-001 variant: both-quotes in a Predicate::StringOp pattern also returns None.
+    #[test]
+    fn test_sec_001_both_quotes_stringop_pattern_normalize_returns_none() {
+        let filter = FilterExpr {
+            source: SourceRef::from_raw(""),
+            predicate: Predicate::StringOp {
+                field: FieldPath::new(["description"]),
+                op: StringOp::Contains,
+                pattern: "it's a \"test\"".to_string(), // BOTH ' and "
+                case_insensitive: false,
+            },
+        };
+        let ast = Ast::Filter(filter);
+        assert!(
+            PqlNormalizer::normalize(&ast).is_none(),
+            "SEC-001: StringOp pattern with both quotes must yield None"
+        );
+    }
+
+    /// SEC-001 variant: Predicate::Regex pattern with both quotes returns None.
+    #[test]
+    fn test_sec_001_both_quotes_regex_pattern_normalize_returns_none() {
+        let filter = FilterExpr {
+            source: SourceRef::from_raw(""),
+            predicate: Predicate::Regex {
+                field: FieldPath::new(["message"]),
+                pattern: RegexLiteral::new(r#"it's a "pattern""#)
+                    .expect("regex with both quotes must be syntactically valid"),
+            },
+        };
+        let ast = Ast::Filter(filter);
+        assert!(
+            PqlNormalizer::normalize(&ast).is_none(),
+            "SEC-001: Regex pattern with both quotes must yield None"
+        );
+    }
+
+    /// SEC-001 variant: Predicate::Wildcard pattern with both quotes returns None.
+    #[test]
+    fn test_sec_001_both_quotes_wildcard_pattern_normalize_returns_none() {
+        let filter = FilterExpr {
+            source: SourceRef::from_raw(""),
+            predicate: Predicate::Wildcard {
+                field: FieldPath::new(["hostname"]),
+                pattern: "it's \"host*\"".to_string(), // BOTH ' and "
+                negated: false,
+            },
+        };
+        let ast = Ast::Filter(filter);
+        assert!(
+            PqlNormalizer::normalize(&ast).is_none(),
+            "SEC-001: Wildcard pattern with both quotes must yield None"
+        );
+    }
+
+    /// SEC-001 regression: single-quote-only values still normalize correctly (no regression).
+    #[test]
+    fn test_sec_001_single_quote_only_still_normalizes_correctly() {
+        // Regression check: values with only ' (no ") must still produce double-quoted output.
+        let input = r#"host_name = "O'Brien""#;
+        let ast = PrismQlParser::parse(input).expect("O'Brien must parse");
+        let normalized = PqlNormalizer::normalize(&ast)
+            .expect("SEC-001 regression: single-quote-only value must still yield Some");
+        assert!(
+            normalized.contains("\"O'Brien\""),
+            "SEC-001 regression: single-quote-only value must normalize to double-quoted form, \
+             got: {normalized}"
+        );
+    }
+
+    /// SEC-001 regression: no-quote values still normalize correctly.
+    #[test]
+    fn test_sec_001_no_quote_value_still_normalizes_correctly() {
+        let input = "host = 'example.com'";
+        let ast = PrismQlParser::parse(input).expect("no-quote value must parse");
+        let normalized = PqlNormalizer::normalize(&ast)
+            .expect("SEC-001 regression: no-quote value must still yield Some");
+        assert!(
+            normalized.contains("'example.com'"),
+            "SEC-001 regression: no-quote value must normalize to single-quoted form, \
+             got: {normalized}"
+        );
     }
 
     /// F-001B-FRESH-HIGH-001 (Literal::Float whole-number round-trip: score = 5.0 → Integer).
