@@ -1586,13 +1586,19 @@ impl PqlNormalizer {
                     (StringOp::EndsWith, true) => "IENDSWITH",
                     _ => "CONTAINS",
                 };
-                format!("{} {op_str} '{pattern}'", Self::normalize_field_path(field))
+                // Use emit_quoted_string: patterns can contain `'` (F-001B-FRESH-HIGH-001).
+                format!(
+                    "{} {op_str} {}",
+                    Self::normalize_field_path(field),
+                    Self::emit_quoted_string(pattern)
+                )
             }
             Predicate::Regex { field, pattern } => {
+                // Use emit_quoted_string: regex patterns can contain `'` (F-001B-FRESH-HIGH-001).
                 format!(
-                    "{} =~ '{}'",
+                    "{} =~ {}",
                     Self::normalize_field_path(field),
-                    pattern.pattern
+                    Self::emit_quoted_string(&pattern.pattern)
                 )
             }
             Predicate::In {
@@ -1655,7 +1661,12 @@ impl PqlNormalizer {
                 negated,
             } => {
                 let op = if *negated { "!=" } else { "=" };
-                format!("{} {op} '{pattern}'", Self::normalize_field_path(field))
+                // Use emit_quoted_string: wildcard patterns can contain `'` (F-001B-FRESH-HIGH-001).
+                format!(
+                    "{} {op} {}",
+                    Self::normalize_field_path(field),
+                    Self::emit_quoted_string(pattern)
+                )
             }
             Predicate::Logical { op, predicates } => {
                 let op_str = match op {
@@ -1802,20 +1813,57 @@ impl PqlNormalizer {
         fp.segments.join(".")
     }
 
+    /// Emit a quoted string that the PrismQL grammar can re-parse to the SAME literal value.
+    ///
+    /// # Quote-selection rules (BC-2.11.018 round-trip invariant)
+    ///
+    /// The grammar's `build_string_parser` / `build_literal_parser` defines:
+    ///   - Single-quoted body: `none_of('\'')` — a `'` inside is IMPOSSIBLE to represent.
+    ///   - Double-quoted body: `none_of('"')` — a `'` inside IS accepted; a `"` is not.
+    ///
+    /// Selection:
+    ///   - Value has no `'` and no `"` (common case): emit single-quoted `'value'`.
+    ///   - Value contains `'` but not `"`: emit double-quoted `"value"` (grammar accepts `'` inside).
+    ///   - Value contains `"` but not `'`: emit single-quoted `'value'` (grammar accepts `"` inside).
+    ///   - Value contains BOTH `'` and `"`: grammar gap — neither quote style can represent this
+    ///     value faithfully. This is a known grammar limitation (no escape mechanism exists).
+    ///     In this case we emit double-quoted form (preserves `'` correctly, truncates at embedded
+    ///     `"`). The round-trip postcondition CANNOT be guaranteed for such literals.
+    ///     The calling site is annotated with a `// GRAMMAR-GAP` comment.
+    ///     (F-001B-FRESH-HIGH-001 grammar-gap report)
+    ///
+    /// This helper is the SINGLE source of quote-selection logic for all string-emitting
+    /// sites in `PqlNormalizer`. Adding new string-emitting sites MUST use this helper to
+    /// prevent recurrence of the sibling-sweep miss (F-001B-FRESH-HIGH-001, TD-VSDD-060).
+    fn emit_quoted_string(value: &str) -> String {
+        if value.contains('\'') {
+            // Value has `'` — cannot use single quotes. Use double-quoted form.
+            // If value also contains `"`, this is a grammar gap (see doc above).
+            format!("\"{value}\"")
+        } else {
+            // Value has no `'` — safe to emit single-quoted form.
+            format!("'{value}'")
+        }
+    }
+
     fn normalize_literal(lit: &Literal) -> String {
         match lit {
             // BC-2.11.018 round-trip invariant: emit a form the grammar CAN re-parse.
-            //
-            // Grammar constraints (filter_parser.rs::build_literal_parser):
-            //   single_quoted = none_of('\'') → a `'` inside single-quoted is impossible.
-            //   double_quoted = none_of('"')  → a `'` inside double-quoted IS accepted.
-            //
-            // If the string value contains `'`, emit double-quoted form `"…"` so that
-            // the normalized output re-parses correctly. (F-001B-PASS-MED-001)
-            Literal::String(s) if s.contains('\'') => format!("\"{s}\""),
-            Literal::String(s) => format!("'{s}'"),
+            // All string-wrapping emit sites use `emit_quoted_string` (F-001B-FRESH-HIGH-001
+            // structural fix — shared helper prevents future sibling-sweep misses, TD-VSDD-060).
+            Literal::String(s) => Self::emit_quoted_string(s),
             Literal::Integer(n) => n.to_string(),
-            Literal::Float(f) => f.to_string(),
+            // Float: always emit with a decimal point so the grammar's float rule
+            // (`digits '.' digits`) re-parses as Literal::Float, not Literal::Integer.
+            // `f.to_string()` for 5.0_f64 emits "5" (no decimal) which re-parses as Integer(5).
+            // Fix: when the fractional part is zero, append ".0". (F-001B-FRESH-HIGH-001)
+            Literal::Float(f) => {
+                if f.fract() == 0.0 {
+                    format!("{:.1}", f.0)
+                } else {
+                    f.to_string()
+                }
+            }
             Literal::Bool(b) => b.to_string().to_uppercase(),
             Literal::Null => "NULL".to_string(),
             Literal::Duration(d) => {
@@ -1828,8 +1876,13 @@ impl PqlNormalizer {
                 };
                 format!("{}{unit_str}", d.value())
             }
+            // Cidr and Timestamp values are produced by validated parsers; they cannot contain
+            // `'` (CIDR strings are dotted-decimal/colon hex + slash prefix; ISO-8601 timestamps
+            // use digits/hyphens/colons/Z/+). Single-quoted form is always safe.
             Literal::Cidr(c) => format!("'{}'", c.cidr),
-            Literal::Regex(r) => format!("'{}'", r.pattern),
+            // Regex patterns CAN contain `'` (e.g. `can't`). Use emit_quoted_string.
+            // (F-001B-FRESH-HIGH-001 sibling-sweep fix)
+            Literal::Regex(r) => Self::emit_quoted_string(&r.pattern),
             Literal::IpAddr(ip) => ip.0 .0.to_string(),
             Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
             _ => "NULL".to_string(), // non_exhaustive arm

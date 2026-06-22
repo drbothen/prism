@@ -1344,7 +1344,7 @@ fn check_column_availability(
         return Ok(());
     }
 
-    let available_columns: Vec<String> = org_visible_entries
+    let mut available_columns: Vec<String> = org_visible_entries
         .iter()
         .flat_map(|spec| {
             let sensor_id = spec.spec.sensor_id.clone();
@@ -1356,6 +1356,13 @@ fn check_column_availability(
         })
         .collect();
 
+    // OBS-FRESH-1: sort + dedup `available_columns` before use to ensure deterministic
+    // ordering and no duplicates in the ColumnNotFoundDetails error. Without this,
+    // `spec_map.values()` iterates in HashMap order (non-deterministic) and multi-org-scope
+    // queries that contribute the same column via multiple overlays produce duplicates.
+    available_columns.sort();
+    available_columns.dedup();
+
     // If the column is in the available set, the gate passes.
     if available_columns.contains(&column_name.to_string()) {
         return Ok(());
@@ -1365,6 +1372,8 @@ fn check_column_availability(
     // Tie-break: when multiple candidates share the same minimum distance, pick the
     // lexicographically-smallest name for deterministic output. (F-001B-PASS-LOW-001 /
     // BC-2.11.016 AC-001 — multi-client queries iterate HashMap in non-deterministic order.)
+    // After sort+dedup above, `available_columns` is already in stable lex order, so the
+    // tie-break by name in `min_by_key` is now redundant but retained for clarity.
     let did_you_mean = available_columns
         .iter()
         .map(|c| (c.clone(), strsim::levenshtein(column_name, c)))
@@ -3642,7 +3651,7 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
         // OBS-FRESH-1 dedup assertion: no duplicate column names.
         let unique_count = {
             let mut seen = std::collections::HashSet::new();
-            cols.iter().filter(|c| seen.insert(c.clone())).count()
+            cols.iter().filter(|c| seen.insert(*c)).count()
         };
         assert_eq!(
             cols.len(),
