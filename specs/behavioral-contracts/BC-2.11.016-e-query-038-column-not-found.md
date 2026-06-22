@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: ADR-041-teaching-burst-2026-06-19
-modified: null
+modified: "2026-06-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -161,7 +161,7 @@ DataFusion itself would produce a column resolution error if the query reached e
 - BC-2.11.001 — depends on: `query` MCP tool is the entry point; E-QUERY-038 is one of its error conditions; BC-2.11.001 Error Cases table should reference this BC (story-writer propagation required)
 - BC-2.10.012 — composes with: `prism_describe` returns `available_columns` per table; if the model called `prism_describe` first, it would have avoided this error; if it didn't, E-QUERY-038 is the correction backstop
 - BC-2.11.017 — composes with: E-QUERY-038 is the new code in the pedagogical error suite; BC-2.11.017 covers upgrades to existing codes; this BC covers the new code
-- BC-2.11.010 — depends on: `explain_query` tool performs the same plan-time validation; E-QUERY-038 fires on `explain_query` calls as well as `query` calls
+- BC-2.11.010 — deferred parity: `explain_query` should fire E-QUERY-038 (and E-QUERY-037/002/003 enrichments) at plan time for consistency with the `query` path. This parity is NOT currently in BC-2.11.010 §Error Cases (v1.6) and is NOT in scope for S-DEMO-PRISMQL-ONBOARDING-001-B. Follow-up story S-EXPLAIN-PARITY-001 tracks the BC-2.11.010 amendment + `explain.rs` wiring; see adjudication note `.factory/specs/architecture/scoping/onboarding-001-B-obs-adjudication.md` §OBS-2. DO-NOT-REFLAG this gap for the 001-B cascade.
 
 ## Architecture Anchors
 
@@ -181,4 +181,5 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | onboarding-001-B-obs-adjudication | 2026-06-22 | product-owner | OBS-2 adjudication: tightened §Related-BCs note for BC-2.11.010. Replaced ambiguous "explain_query performs the same plan-time validation; E-QUERY-038 fires on explain_query as well as query" with explicit deferral anchor (S-EXPLAIN-PARITY-001, out-of-scope for 001-B, DO-NOT-REFLAG). See `.factory/specs/architecture/scoping/onboarding-001-B-obs-adjudication.md` §OBS-2. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L4 E-QUERY-038 column-not-found plan-time gate |

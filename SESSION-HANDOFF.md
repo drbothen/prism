@@ -16,6 +16,94 @@ timestamp: 2026-06-21T04:00:00Z
 
 ---
 
+## §RESUME SNAPSHOT — D-1281 (2026-06-22 — OBS-2/OBS-3 ADJUDICATION BURST; develop@fc954300; BC-INDEX v6.97; STORY-INDEX v2.454; ARCH-INDEX v2.141; STATE v7.910; NO OPEN PRs)
+
+> **D-1281 burst (2026-06-22).** 001-B LOCAL cascade pass on frozen 9774d33b recorded — 0 CRIT/HIGH/MED, CLEAN(PR-merge)=yes, CLEAN(strict)=no (3 LOW/OBS remain). OBS-1 made load-bearing (code b1fe61b6; `sensor_errors` added to MCP payload, BC-2.11.018 in-scope). OBS-2 (`explain_query` parity) DEFERRED per PO adjudication to S-EXPLAIN-PARITY-001 (P2, NOT demo-blocking, depends_on 001-B merge; Canonical Principle Rule 3). OBS-3 (E-QUERY-002 dual-Display) documented in error-taxonomy v1.92; closed. OBS-2+OBS-3 DO-NOT-REFLAG. BC-2.11.016 v1.0→v1.1. S-EXPLAIN-PARITY-001 stub registered. Next: re-freeze code HEAD b1fe61b6, restart strict-3-CLEAN cascade 0/3. STATE v7.909→v7.910.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1281 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1281 snapshot first. It is the sole authoritative resume point.
+
+**Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING. Do not proceed if this fails.
+
+**Step 2.** Confirm develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `fc954300` (docs(CLAUDE.md): bump non-exhaustive count 79→82 — rebased onto ffe9315a; 2026-06-21 D-1277-RECONCILE). develop_head UNCHANGED.
+
+**Step 3.** Confirm no open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: NO open PRs.
+
+**Step 4.** Confirm factory-artifacts HEAD (do NOT hard-code SHA — run the command):
+```bash
+git -C .factory log -1 --format='%h %s'
+```
+
+**Step 5.** Apply carry-forward: lessons + process-gap rules + DO-NOT-REFLAG entries below. Critical new entries: OBS-2 (`explain_query` parity gap) DO-NOT-REFLAG (deferred to S-EXPLAIN-PARITY-001 per adjudication); OBS-3 (E-QUERY-002 dual-Display) DO-NOT-REFLAG (documented in error-taxonomy v1.92; closed).
+
+**Step 6.** Drive 001-B strict-3-CLEAN cascade from current position: code HEAD b1fe61b6 frozen; streak 0/3; next step is to re-gate LOCAL adversary pass A on frozen b1fe61b6.
+
+### PINNED STATE (D-1281)
+
+| Variable | Value | Note |
+|----------|-------|------|
+| develop HEAD | `fc954300` | CLAUDE.md 79→82 rebased onto ffe9315a; 2026-06-21; D-1277-RECONCILE — UNCHANGED |
+| STATE version | 7.910 | D-1281 OBS-2/OBS-3 adjudication burst |
+| BC-INDEX version | 6.97 | BC-2.11.016 v1.0→v1.1 §Related-BCs tightened; D-1281 |
+| STORY-INDEX version | v2.454 | S-EXPLAIN-PARITY-001 stub registered; total_stories 207; D-1281 |
+| ARCH-INDEX version | 2.141 | ADR-042 ACCEPTED; D-1277 — UNCHANGED |
+| error_taxonomy_version | 1.92 | E-QUERY-002 dual-Display documented; D-1281 |
+| CLAUDE.md non-exhaustive | 82 | On develop; UNCHANGED |
+| ci.yml EXPECTED | 82 | Authority: ci.yml — UNCHANGED (82→83 is 001-B implementer obligation) |
+| active_contracts | 238 | UNCHANGED |
+| draft_contracts | 5 | BC-2.06.011+BC-2.21.001+BC-2.11.016+BC-2.11.017+BC-2.11.018 — UNCHANGED |
+| total_stories | 207 | S-EXPLAIN-PARITY-001 stub added (+1 from 206) |
+| open PRs | 0 | NO open PRs |
+| 001-B status | draft v1.4, IN-PROGRESS TDD | Code HEAD b1fe61b6; strict-3-CLEAN streak 0/3 (re-freeze and restart) |
+| S-EXPLAIN-PARITY-001 | draft v1.0 | P2, NOT demo-blocking; depends_on 001-B merge; Canonical Principle Rule 3 anchor |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | PARKED; probe_table FOLDED IN (D-1262); serial after 001-B |
+| S-3.09 worktree | FROZEN | Leave alone |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone |
+
+### WHAT'S DONE (D-1281)
+
+- 001-B LOCAL cascade pass on frozen 9774d33b: 0 CRIT/HIGH/MED, CLEAN(PR-merge)=yes. OBS-1 load-bearing fix at b1fe61b6. OBS-2 deferred to S-EXPLAIN-PARITY-001. OBS-3 documented in error-taxonomy v1.92.
+- BC-2.11.016 v1.0→v1.1. S-EXPLAIN-PARITY-001 stub registered. error-taxonomy v1.92. Adjudication note committed.
+
+### WHAT'S NEXT — Demo Roadmap (D-1281)
+
+| Priority | Story | Status | Notes |
+|----------|-------|--------|-------|
+| **NEXT — P0 DEMO-BLOCKING** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | draft v1.4, IN-PROGRESS | Re-freeze code HEAD b1fe61b6; restart LOCAL strict-3-CLEAN cascade 0/3 (3 fresh passes on frozen b1fe61b6). When 3/3 CLEAN(strict): demo-recorder per-AC evidence → pr-manager PR → PR-LEVEL 3-CLEAN → squash-merge → post-merge burst. |
+| **THEN — P0 DEMO-BLOCKING** | **S-5.04** | draft v1.9, PARKED | Serial after 001-B. probe_table FOLDED IN (D-1262). PO must author BC-2.08.001/BC-2.16.009/E-SPEC-026 before TDD resumes. |
+| **THEN — BLOCKED** | **T13 capstone** | not-authored | Multi-client SOC-analyst narrative. Hard-gated on S-5.04 + 001-B MERGED. |
+| **THEN — BLOCKED** | **T14 recording** | not-started | After T13. demo-recorder. |
+| **P2 follow-up** | **S-EXPLAIN-PARITY-001** | draft v1.0 | explain_query parity gap. NOT demo-blocking. Depends 001-B merge. Deferred per Canonical Principle Rule 3 (OBS-2 adjudication). |
+
+### Convergence Rules (carry forward)
+
+- **BC-5.39.001 strict-vs-PR-merge:** CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- **Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001):** any push to the feature branch resets streak to 0/3. Count only consecutive CLEAN(strict) passes on an UNCHANGED HEAD.
+- **Orchestrator dispatch:** uses STRICT criterion. If CLEAN(strict)=no, dispatch a fix-burst regardless of CLEAN(PR-merge) status.
+
+### DO-NOT-REFLAG (carry forward)
+
+- **F-R8PB-MED-002** — unsubscribe CORRECT-BY-CONSTRUCTION. Per-analyst stdio MCP = one connection per process lifetime. BC-2.10.013 §76. Do NOT re-flag.
+- **demo-evidence stale-HEAD-pin (docs-only class)** — non-blocking if `git diff <evidence-HEAD>..<pr-HEAD>` is docs-only. Do NOT re-flag without running the diff.
+- **ColumnDescriptor.nullable hardcoded** — correct-by-construction given upstream data model.
+- **SEC-001 goal printable-ASCII trade-off + SEC-008 notify error-detail (internal-log-only)** — both adjudicated.
+- **OBS-S503-1** — reload_config.rs DOT vs underscore; adjudicated non-defect.
+- **OBS-3 DEC-004 zero-sensor** — S-5.03 scope; do not re-raise.
+- **PIVOT-003-PRLEVEL-OBS-1/2** — adjudicated; non-blocking.
+- **001-B OBS-2** — `explain_query` parity gap: DEFERRED to S-EXPLAIN-PARITY-001 (P2). DO NOT REFLAG in 001-B LOCAL or PR-LEVEL cascade.
+- **001-B OBS-3** — E-QUERY-002 dual-Display forms: DOCUMENTED in error-taxonomy v1.92. NOT a bug. DO NOT REFLAG.
+
+---
+
 ## §RESUME SNAPSHOT — D-1278 (2026-06-21 — COMPREHENSIVE ZERO-CONTEXT RESTART SNAPSHOT; develop@fc954300; BC-INDEX v6.95; STORY-INDEX v2.451; ARCH-INDEX v2.141; STATE v7.907; NO OPEN PRs)
 
 > **D-1278 burst (2026-06-21).** S-DEMO-PRISMQL-ONBOARDING-001-A was delivered and merged this session. PR #197 squash-merged to develop@ffe9315a; CLAUDE.md 79→82 commit (6df4a4e9) was misparented on f6739764 and rebased onto ffe9315a yielding fc954300 (fast-forward pushed to origin/develop; D-1277-RECONCILE). develop HEAD is fc954300. No open PRs. demo roadmap continues at S-DEMO-PRISMQL-ONBOARDING-001-B (draft v1.2, TDD-READY, DEMO-BLOCKING, NO worktree yet). Two process lessons were captured in cycles/wave-5-e-demo-fidelity/lessons.md: post-merge CLAUDE.md misparent pattern + CI dual-trigger duplicate runs. Historical in-progress voice in D-1208 (STATE.md) and D-1257 (SESSION-HANDOFF.md) was neutralized to past tense. Hook verify-sha-currency.sh reports PASS with no WARNs after this burst. STATE v7.906→v7.907.
