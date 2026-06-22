@@ -55,9 +55,9 @@ status: merged
 # BC status: behavioral_contracts is non-empty (4 BCs). POL-14: all 4 BCs promoted draft→active
 # on merge of PR #197 (develop@ffe9315a; D-1277 post-merge burst 2026-06-21).
 # merged_sha: ffe9315a (PR #197 squash-merge to develop; 2026-06-21)
-version: "1.10"
+version: "1.11"
 producer: story-writer
-timestamp: "2026-06-21"
+timestamp: "2026-06-22"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -137,7 +137,7 @@ PrismQL queries without human hand-holding.
 | BC-2.10.009 v1.5 | MCP Prompts for Common Workflows (Including PQL Query Tutorial) | query_tutorial prompt: 5 structural elements; DI-006 security reminder; L1 primer in query tool description |
 | BC-2.10.012 v1.2 | `prism_describe` Schema Discovery Tool (L2) | Always-registered; readOnlyHint: true; per-client table/column catalog; audit event on every call; DI-008 client isolation; non-existent/empty client success posture |
 | BC-2.10.013 v1.2 | `prismql://schema/{client_id}` Resource Template (L2) | RFC 6570 URI template; mimeType: "application/json"; server-side subscribe/listChanged; single-source-of-truth with prism_describe; per-client subscription scoping; multi-tenant hot-reload notify (EC-10-034 dual-mode: notify all per-org subscribers on resolved_spec_map rebuild; per-client scoping EC-10-029) |
-| BC-2.10.014 v1.0 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 7 required section headers; ≤3,000 tokens; build-time static via include_str!; no vendor table names in examples; text/markdown MIME |
+| BC-2.10.014 v1.1 | `prismql://reference` Static PQL Grammar Reference Resource (L3) | 7 required section headers; ≤3,000 tokens; build-time static via include_str!; no vendor table names in examples; text/markdown MIME |
 
 ---
 
@@ -149,7 +149,7 @@ PrismQL queries without human hand-holding.
 | BC-2.10.009 v1.5 | ~800 |
 | BC-2.10.012 v1.2 | ~1,200 |
 | BC-2.10.013 v1.2 | ~1,000 |
-| BC-2.10.014 v1.0 | ~800 |
+| BC-2.10.014 v1.1 | ~800 |
 | ADR-041 v1.1 (teaching surface architecture) | ~5,000 |
 | ADR-042 (reload-aware resolved_spec_map) | ~600 |
 | `crates/prism-mcp/src/server.rs` (query tool description, resource/prompt registration) | ~3,500 |
@@ -635,6 +635,7 @@ cannot edit BC bodies.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | POL20-BC-VERSION-PROPAGATION-2026-06-22 | 2026-06-22 | story-writer | POL-20 BC version-pin propagation (bc_array_changes_propagate_to_body_and_acs). §Behavioral Contracts table + §Token Budget table: BC-2.10.014 pin updated v1.0→v1.1 (PO POL-20 introduced-field normalization burst — sibling sweep of 001-A per the same fix-burst that bumped BC-2.11.016/017/018 for 001-B). Pin now matches canonical BC-INDEX and on-disk BC file. No AC/scope/BC-array changes. Story is merged (status: merged); hygiene update for canonical pin alignment. |
 | 1.10 | F-PR197-RG-P3-MED-001-FIX-2026-06-21 | 2026-06-21 | story-writer | Red Gate table corrected for F-PR197-RG-P3-MED-001. (MED) Row 1: `test_BC_2_10_012_prism_describe_happy_path_catalog` behavior description corrected from "tool annotation + ..." to "per-client table/column catalog: response shape, client_id, tables array, pql_hints" — this test does NOT assert tool annotations (readOnlyHint/idempotentHint/openWorldHint). (MED) New row 1 added: `test_BC_2_10_012_prism_describe_tool_annotations` mapped to AC-001 — this is the test that actually asserts readOnlyHint=true, idempotentHint=true, openWorldHint=false on the production tool catalog. Former rows 1-14 renumbered 2-15; row labels 8a/8b preserved as 9a/9b. AC-001 inline Red Gate citation updated to cite both tests. `red_gate_tests` frontmatter: 14→15. Full re-grep: all 15 row test names verified to resolve to real function definitions in the feature worktree. |
 | 1.9 | ROUND8-FIX-BURST-HEAD-REFRESH-2026-06-21 | 2026-06-21 | state-manager | Round-8 LOCAL cascade (3 passes on frozen `5a385d4f`) NOT clean; fix-burst commits d282fe7f/2d2a65e6/fae58bdb/15e43516 closed all findings (F-R8PA-HIGH-001/F-R8PC-HIGH-001 hand-rolled envelope → SafetyEnvelopeBuilder, F-R8PC-HIGH-002 paper-pass test → safety_flags assertion, F-R8PB-MED-001 overlay-only notify gate decoupled, F-R8PB-MED-002 unsubscribe correct-by-construction adjudicated by architect, F-R8PC-MED-001 POL-27 BC dates normalized, F-R8PB-LOW-001 EC-10-033 invalid-char message, OBS-R8PC-1 adjudication doc superseded note). Feature HEAD advanced `5a385d4f → 15e43516`. `just check` GREEN; non-exhaustive gate EXPECTED=82. Frozen HEAD for round-9 re-gate: `15e43516`; streak resets 0/3 (DRIFT-ORCH-PRLEVEL-PUSH-001). STATE.md D-1274. Changelog-only (HEAD refresh + round-8 summary); no story body/AC content altered. |
 | 1.8 | COMPLETE-RED-GATE-CITATION-SWEEP-2026-06-21 | 2026-06-21 | story-writer | COMPLETE Red Gate citation sweep (all rows grep-verified) + BC-2.10.012 v1.2 label; closes round-6 POL-21 rows 5/6 + version-label drift. (HIGH — POL-21) Red Gate Tests table row 5: `test_BC_2_10_012_prism_describe_client_isolation` → `test_BC_2_10_012_prism_describe_client_isolation_via_resolved_spec_map` (phantom name from v1.7 partial fix). (HIGH — POL-21) Red Gate Tests table row 6: `test_BC_2_10_013_schema_resource_template_parity` → `test_BC_2_10_013_schema_resource_parity_via_dispatch` (phantom name surviving v1.7 partial sweep). (HIGH — POL-21) AC-004 inline Red Gate citation corrected to match row 5. (HIGH — POL-21) AC-005 inline Red Gate citation corrected to match row 6. (HIGH — POL-21) Tasks Phase 2 failing-test citation corrected to match row 5. (HIGH — POL-21) Tasks Phase 3 failing-test citation corrected to match row 6. (MED) BC-2.10.012 version label updated v1.1→v1.2 in §Behavioral Contracts table and §Token Budget Estimate (canonical is v1.2 per D-1263). All 14 Red Gate rows now exact-match grep-verified real tests at feature HEAD 8b14f3ab. red_gate_tests count remains 14. |

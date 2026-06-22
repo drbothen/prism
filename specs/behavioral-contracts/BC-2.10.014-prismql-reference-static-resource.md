@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -14,8 +14,8 @@ origin: greenfield
 subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
-introduced: ADR-041-teaching-burst-2026-06-19
-modified: null
+introduced: 2026-06-19
+modified: 2026-06-22
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -173,4 +173,5 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). Also set `modified: 2026-06-22` (first amendment; POL-27). Sibling sweep of BC-2.11.016/017/018 in same burst. No body semantics changed. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L3 `prismql://reference` static grammar resource contract |
