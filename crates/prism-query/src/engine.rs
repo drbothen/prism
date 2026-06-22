@@ -698,13 +698,12 @@ impl QueryEngine {
         // Step 0: Alias expansion — resolve all `@alias_name` tokens before parsing.
         //
         // BC-2.11.008: aliases created via MCP tools must be consulted at query time.
+        // BC-2.11.009: alias resolution pre-parse; per-client alias overrides global for
+        //   the queried client scope. Current implementation expands against AliasScope::Global
+        //   only — no per-client overrides are applied. BC-2.11.009 specifies per-client
+        //   override as a postcondition; that scope thread is not yet wired here.
         // F-PASS9-LOW-1: alias_store is wired into QueryEngine via new_full() so both
         // the CRUD tools and the query executor share the same live AliasStore.
-        //
-        // Scope: "global" — queries expand against the global alias scope at execute time.
-        // Per-client scope override is architecturally deferred to S-3.01-ALIAS-SCOPE (BC-2.11.014)
-        // which will thread the OrgSlug from QueryContext into the AliasResolver.
-        // (SUG-8 fix: replaced stale "for now" comment with proper deferral citation.)
         let (effective_query, expanded_query_for_context) =
             if let Some(ref store_arc) = self.alias_store {
                 // Lock is held only for the duration of alias expansion — not across the
@@ -1873,7 +1872,14 @@ pub fn valid_operators_for_type(
 /// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
 pub fn how_to_fix_for_security_limit(detail: &str) -> String {
     let lower = detail.to_lowercase();
-    if lower.contains("size") || lower.contains("64kb") || lower.contains("64 kb") {
+    // "expanded"/"alias" branch must come BEFORE the generic "size"/"64kb" branch:
+    // alias_resolver.rs emits "expanded query exceeds 64KB limit (N bytes)" which
+    // contains "64kb" — if size fires first it returns the wrong message.
+    // explain.rs emits "expanded query size N bytes exceeds maximum allowed M bytes"
+    // which contains "size" — same ordering issue. (F-PRL-FRESH-002 fix, BC-2.11.017.)
+    if lower.contains("expanded") || lower.contains("alias") {
+        "The alias expansion produced a query over 64KB. Simplify the aliased query or use a narrower alias.".to_string()
+    } else if lower.contains("size") || lower.contains("64kb") || lower.contains("64 kb") {
         "Shorten the query. Remove large IN (...) lists or break into multiple queries.".to_string()
     } else if lower.contains("depth") || lower.contains("nesting") {
         "Flatten nested conditions. Use AND/OR instead of deeply nested parentheses.".to_string()
@@ -1881,8 +1887,6 @@ pub fn how_to_fix_for_security_limit(detail: &str) -> String {
         "Reduce the number of pipe stages. Combine adjacent filter conditions.".to_string()
     } else if lower.contains("regex") {
         "Use a shorter regex pattern. Consider using LIKE instead of regex for simple pattern matching.".to_string()
-    } else if lower.contains("expanded") || lower.contains("alias") {
-        "The alias expansion produced a query over 64KB. Simplify the aliased query or use a narrower alias.".to_string()
     } else {
         "Simplify or shorten the query.".to_string()
     }
