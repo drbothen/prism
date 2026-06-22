@@ -742,6 +742,101 @@ mod tests {
     }
 
     // =========================================================================
+    // AC-004 (hardened) — E-QUERY-037 suggestion names the CLIENT_ID, not the sensor
+    // =========================================================================
+
+    /// BC-2.11.017 / AC-004 (F-001B-FRESH-P1-MED-001) — E-QUERY-037 suggestion uses
+    /// the requesting CLIENT_ID in `prism_describe('<client_id>')`, NOT the sensor name.
+    ///
+    /// LOAD-BEARING (RED → GREEN): when `QueryOptions::clients = Some(["acme"])` the
+    /// `org_scope` passed to `check_availability_gate` is `Some([OrgSlug("acme")])`.
+    /// The suggestion must produce `prism_describe('acme')`, NOT `prism_describe('crowdstrike')`.
+    ///
+    /// BC-2.11.017 §E-QUERY-037 + error-taxonomy literally specify:
+    ///   `prism_describe('<client_id>')`  — validated + resolved via OrgRegistry.
+    /// Passing a sensor name (`crowdstrike`) breaks the LLM self-correction loop because
+    /// `prism_describe('crowdstrike')` fails with EC-10-023 "Client not registered".
+    ///
+    /// Current behaviour (pre-fix): `check_availability_gate` calls
+    ///   `e_query_037_suggestion(&sensor, ...)` → `prism_describe('crowdstrike')`.
+    /// Fixed behaviour: uses `org_scope.and_then(|s| s.first()).map(|o| o.as_str())`
+    ///   → `prism_describe('acme')`.
+    ///
+    /// Deleting the fix in table_registry.rs makes this test fail (load-bearing).
+    #[tokio::test]
+    async fn test_BC_2_11_017_e_query_037_suggestion_uses_client_id_not_sensor() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![ColumnSpec::new(
+            "severity",
+            ColumnType::String,
+            None,
+            vec![],
+        )];
+        // sensor_id="crowdstrike" + suffix="alerts" → registered as "crowdstrike_alerts"
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        // Register "acme" in ClientRegistry so resolve_clients doesn't reject it
+        // if the gate somehow passes (defensive; E-QUERY-037 fires before resolve_clients).
+        let engine =
+            make_engine_with_clients(map, vec![resolved.spec.clone()], vec![OrgSlug::new("acme")]);
+
+        // Query an unregistered table while explicitly scoping to client "acme".
+        // org_scope = Some([OrgSlug("acme")]) → suggestion must name 'acme'.
+        let result = engine
+            .execute(
+                "SELECT severity FROM crowdstrike_alert LIMIT 5",
+                QueryOptions {
+                    clients: Some(vec![OrgSlug::new("acme")]),
+                    ..QueryOptions::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::TableNotAvailable(ref d)) => {
+                let error_text = d.to_string();
+
+                // Must contain the client_id, not the sensor, in the prism_describe call.
+                assert!(
+                    error_text.contains("prism_describe('acme')"),
+                    "BC-2.11.017 AC-004 (F-001B-FRESH-P1-MED-001): E-QUERY-037 suggestion must \
+                     contain `prism_describe('acme')` (the client_id), not `prism_describe('crowdstrike')` \
+                     (the sensor). \
+                     Current output: '{error_text}'. \
+                     FIX: in check_availability_gate, derive client_id from org_scope.first() \
+                     instead of passing &sensor to e_query_037_suggestion."
+                );
+
+                // Must NOT name the sensor in the prism_describe call — that sends the LLM
+                // to `prism_describe('crowdstrike')` which fails with EC-10-023.
+                assert!(
+                    !error_text.contains("prism_describe('crowdstrike')"),
+                    "BC-2.11.017 AC-004 (F-001B-FRESH-P1-MED-001): E-QUERY-037 suggestion must NOT \
+                     contain `prism_describe('crowdstrike')` (sensor name is not a valid client_id). \
+                     Current output: '{error_text}'."
+                );
+
+                // Sanity: the did_you_mean table name must still appear (Levenshtein match).
+                assert!(
+                    error_text.contains("crowdstrike_alerts"),
+                    "BC-2.11.017 AC-004: E-QUERY-037 with did_you_mean must still name the \
+                     corrected table 'crowdstrike_alerts'; got: '{error_text}'"
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.017 AC-004: must return TableNotAvailable for 'crowdstrike_alert' with \
+                 client scope [acme]."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.017 AC-004: expected TableNotAvailable for 'crowdstrike_alert', \
+                 got: {other:?}"
+            ),
+        }
+    }
+
+    // =========================================================================
     // AC-003 — E-QUERY enrichment helpers (load-bearing for helper code)
     // =========================================================================
 
