@@ -1,0 +1,84 @@
+{
+  "_evidence_meta": {
+    "story_id": "S-DEMO-PRISMQL-ONBOARDING-001-B",
+    "ac": "AC-001",
+    "bc": "BC-2.11.016",
+    "description": "E-QUERY-038 gate payload shape: did_you_mean + absent-when-no-match + gate ordering",
+    "capture_method": "cargo run --example evidence_capture (real prism-mcp PrismServer::query + QueryEngine::execute path)",
+    "test_gate": "test_BC_2_11_016_e_query_038_did_you_mean",
+    "captured_at": "2026-06-22"
+  },
+  "case_a_did_you_mean_present": {
+    "description": "Query: SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high' (Levenshtein-1 typo in WHERE)",
+    "assertion": "did_you_mean: 'severity' present; available_columns non-empty; code -32602; E-QUERY-038",
+    "mcp_error_code": -32602,
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "available_columns": [
+          "detection_id",
+          "host_name",
+          "severity"
+        ],
+        "category": "validation",
+        "code": "E-QUERY-038",
+        "did_you_mean": "severity",
+        "message": "E-QUERY-038: column 'sevrity' not found in table 'crowdstrike_alerts' for client ''; available: [detection_id, host_name, severity] Did you mean: 'severity'?",
+        "original_params_valid": false,
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Call prism_describe('<client_id>') to see available columns, or use the available_columns field in this error to correct the column name.",
+        "upstream_message": null
+      }
+    }
+  },
+  "case_b_did_you_mean_absent": {
+    "description": "Query: SELECT completely_bogus_col FROM crowdstrike_alerts LIMIT 5 (no match within Levenshtein distance 3)",
+    "assertion": "did_you_mean field ABSENT (not null, not present); available_columns non-empty",
+    "mcp_error_code": -32602,
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "available_columns": [
+          "host_name",
+          "severity"
+        ],
+        "category": "validation",
+        "code": "E-QUERY-038",
+        "message": "E-QUERY-038: column 'completely_bogus_col' not found in table 'crowdstrike_alerts' for client ''; available: [host_name, severity]",
+        "original_params_valid": false,
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Call prism_describe('<client_id>') to see available columns, or use the available_columns field in this error to correct the column name.",
+        "upstream_message": null
+      }
+    }
+  },
+  "case_c_gate_ordering_e_query_037_fires_not_038": {
+    "description": "Query: SELECT * FROM nonexistent_table WHERE bogus_col = 1 (table does not exist → E-QUERY-037, NOT E-QUERY-038)",
+    "assertion": "E-QUERY-037 fires (not E-QUERY-038); gate ordering enforced: table check before column check",
+    "mcp_error_code": -32602,
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "category": "validation",
+        "code": "E-QUERY-037",
+        "message": "E-QUERY-037: table 'nonexistent_table' is not available — sensor 'nonexistent' is not configured. Available sensors: [crowdstrike]. Available tables: [crowdstrike_alerts]. Call prism_describe('nonexistent') to see available tables and columns for this client.",
+        "original_params_valid": false,
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Call prism_describe('nonexistent') to see available tables and columns for this client.",
+        "upstream_message": null
+      }
+    }
+  }
+}

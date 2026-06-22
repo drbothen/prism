@@ -1,0 +1,59 @@
+{
+  "_evidence_meta": {
+    "story_id": "S-DEMO-PRISMQL-ONBOARDING-001-B",
+    "ac": "AC-004",
+    "bc": "BC-2.11.017 postcondition — E-QUERY-037 suggestion field update",
+    "description": "E-QUERY-037 suggestion contains prism_describe('<client_id>') reference",
+    "capture_method": "cargo run --example evidence_capture (real prism-mcp PrismServer::query)",
+    "test_gate": "test_BC_2_11_017_e_query_037_suggestion_prism_describe",
+    "captured_at": "2026-06-22"
+  },
+  "case_a_did_you_mean_present": {
+    "description": "Query: SELECT severity FROM crowdstrike_alert LIMIT 5 (Levenshtein-1 typo for 'crowdstrike_alerts') with clients=['acme']",
+    "assertions": [
+      "suggestion contains 'prism_describe'",
+      "suggestion contains 'prism_describe('acme')' (client_id, not sensor name)",
+      "suggestion contains retry hint referencing 'crowdstrike_alerts'",
+      "suggestion does NOT contain 'prism_describe('crowdstrike')' (sensor name would break LLM self-correction)"
+    ],
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "category": "validation",
+        "code": "E-QUERY-037",
+        "message": "E-QUERY-037: table 'crowdstrike_alert' is not available — sensor 'crowdstrike' is not configured. Available sensors: [crowdstrike]. Available tables: [crowdstrike_alerts]. Did you mean: 'crowdstrike_alerts'? Call prism_describe('acme') to see available tables and columns. If you meant 'crowdstrike_alerts', retry with that table name.",
+        "original_params_valid": false,
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Call prism_describe('acme') to see available tables and columns. If you meant 'crowdstrike_alerts', retry with that table name.",
+        "upstream_message": null
+      }
+    }
+  },
+  "case_b_no_close_match": {
+    "description": "Query: SELECT severity FROM completely_made_up_table LIMIT 5 (no close match exists)",
+    "assertions": [
+      "suggestion contains 'prism_describe'",
+      "suggestion does NOT contain 'If you meant' (no retry hint since no close match)"
+    ],
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "category": "validation",
+        "code": "E-QUERY-037",
+        "message": "E-QUERY-037: table 'completely_made_up_table' is not available — sensor 'completely' is not configured. Available sensors: [crowdstrike]. Available tables: [crowdstrike_alerts]. Call prism_describe('completely') to see available tables and columns for this client.",
+        "original_params_valid": false,
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Call prism_describe('completely') to see available tables and columns for this client.",
+        "upstream_message": null
+      }
+    }
+  }
+}

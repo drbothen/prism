@@ -1,0 +1,136 @@
+{
+  "_evidence_meta": {
+    "story_id": "S-DEMO-PRISMQL-ONBOARDING-001-B",
+    "ac": "AC-005",
+    "bc": "BC-2.11.018",
+    "description": "normalized_pql present (non-empty) on success including zero-row and partial-failure",
+    "capture_method": "cargo run --example evidence_capture (real prism-mcp PrismServer::query with wired QueryEngine)",
+    "test_gates": [
+      "test_BC_2_11_018_normalized_pql_present_on_success_absent_on_error",
+      "test_BC_2_11_018_normalized_pql_key_present_in_mcp_success_response",
+      "test_BC_2_11_018_normalized_pql_present_on_zero_row_mcp_response",
+      "test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure"
+    ],
+    "captured_at": "2026-06-22"
+  },
+  "case_a_success_with_results": {
+    "description": "Query: SELECT * FROM crowdstrike_alerts WHERE severity = 'high' LIMIT 10 (success)",
+    "assertions": [
+      "normalized_pql present at sc['results']['normalized_pql']",
+      "normalized_pql non-empty",
+      "contains 'crowdstrike_alerts' (table name present)",
+      "contains 'SELECT' (uppercase keywords — canonical form)",
+      "does NOT contain DataFusion plan nodes: HashJoin, TableScan, SortExec, Aggregate"
+    ],
+    "response": {
+      "_meta": {
+        "data_source": ["unknown"],
+        "has_more": false,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-06-22T20:31:15.198266+00:00",
+        "safety_flags": [],
+        "tool": "query",
+        "total_results": 0,
+        "trust_level": "untrusted_external"
+      },
+      "content": [{"text": "0 results found", "type": "text"}],
+      "results": {
+        "is_truncated": false,
+        "normalized_pql": "SELECT * FROM crowdstrike_alerts WHERE severity = 'high' LIMIT 10",
+        "returned_results": 0,
+        "rows": [],
+        "sensor_errors": [],
+        "total_available": 0
+      },
+      "structuredContent": {
+        "results": {
+          "is_truncated": false,
+          "normalized_pql": "SELECT * FROM crowdstrike_alerts WHERE severity = 'high' LIMIT 10",
+          "returned_results": 0,
+          "rows": [],
+          "sensor_errors": [],
+          "total_available": 0
+        }
+      }
+    }
+  },
+  "case_b_zero_row_success": {
+    "description": "Query: SELECT severity FROM crowdstrike_alerts WHERE severity = 'nonexistent' (returns zero rows but succeeds)",
+    "assertions": [
+      "normalized_pql STILL present even when zero rows returned",
+      "normalized_pql non-empty"
+    ],
+    "response": {
+      "_meta": {
+        "data_source": ["unknown"],
+        "has_more": false,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-06-22T20:31:15.200503+00:00",
+        "safety_flags": [],
+        "tool": "query",
+        "total_results": 0,
+        "trust_level": "untrusted_external"
+      },
+      "content": [{"text": "0 results found", "type": "text"}],
+      "results": {
+        "is_truncated": false,
+        "normalized_pql": "SELECT severity FROM crowdstrike_alerts WHERE severity = 'nonexistent'",
+        "returned_results": 0,
+        "rows": [],
+        "sensor_errors": [],
+        "total_available": 0
+      },
+      "structuredContent": {
+        "results": {
+          "is_truncated": false,
+          "normalized_pql": "SELECT severity FROM crowdstrike_alerts WHERE severity = 'nonexistent'",
+          "returned_results": 0,
+          "rows": [],
+          "sensor_errors": [],
+          "total_available": 0
+        }
+      }
+    }
+  },
+  "case_c_lowercase_input_uppercase_normalized": {
+    "description": "Query: select * from crowdstrike_alerts limit 5 (all lowercase input → canonical uppercase output)",
+    "assertions": [
+      "normalized_pql: 'SELECT * FROM crowdstrike_alerts LIMIT 5' (uppercase keywords)",
+      "demonstrates Chumsky AST re-serializer normalizes keyword casing"
+    ],
+    "response": {
+      "_meta": {
+        "data_source": ["unknown"],
+        "has_more": false,
+        "next_cursor": null,
+        "page": 1,
+        "query_time": "2026-06-22T20:31:15.201623+00:00",
+        "safety_flags": [],
+        "tool": "query",
+        "total_results": 0,
+        "trust_level": "untrusted_external"
+      },
+      "content": [{"text": "0 results found", "type": "text"}],
+      "results": {
+        "is_truncated": false,
+        "normalized_pql": "SELECT * FROM crowdstrike_alerts LIMIT 5",
+        "returned_results": 0,
+        "rows": [],
+        "sensor_errors": [],
+        "total_available": 0
+      },
+      "structuredContent": {
+        "results": {
+          "is_truncated": false,
+          "normalized_pql": "SELECT * FROM crowdstrike_alerts LIMIT 5",
+          "returned_results": 0,
+          "rows": [],
+          "sensor_errors": [],
+          "total_available": 0
+        }
+      }
+    }
+  }
+}
