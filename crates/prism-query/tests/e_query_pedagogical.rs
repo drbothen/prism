@@ -921,6 +921,85 @@ mod tests {
         );
     }
 
+    /// BC-2.11.017 / AC-003 — `how_to_fix_for_security_limit` returns the
+    /// alias-expansion-specific message for the REAL detail strings emitted by
+    /// `AliasResolver::expand` (alias_resolver.rs) and by the explain.rs
+    /// expanded-query size check.
+    ///
+    /// LOAD-BEARING (F-PRL-FRESH-002): the function has a branch-ordering bug where
+    /// the alias-expansion detail string (e.g. "expanded query exceeds 64KB limit
+    /// (N bytes)") matches the GENERIC size branch (`contains("size")||contains("64kb")`)
+    /// BEFORE the dedicated `contains("expanded")||contains("alias")` branch — returning
+    /// the wrong message.  These tests MUST FAIL on the buggy code and PASS after the
+    /// branch order is corrected.
+    ///
+    /// Real detail strings under test:
+    ///   • `"expanded query exceeds 64KB limit (N bytes)"` — alias_resolver.rs lines 156, 199
+    ///   • `"expanded query size N bytes exceeds maximum allowed M bytes"` — explain.rs ~L931
+    #[test]
+    fn test_BC_2_11_017_how_to_fix_alias_expansion_real_detail_strings() {
+        use prism_query::engine::how_to_fix_for_security_limit;
+
+        // ── Case 1: exact alias_resolver.rs emission format (both sites emit this) ──
+        // e.g. "expanded query exceeds 64KB limit (65537 bytes)"
+        let alias_resolver_detail = "expanded query exceeds 64KB limit (65537 bytes)";
+        let fix_alias = how_to_fix_for_security_limit(alias_resolver_detail);
+        assert_eq!(
+            fix_alias,
+            "The alias expansion produced a query over 64KB. Simplify the aliased query or use a narrower alias.",
+            "BC-2.11.017 (F-PRL-FRESH-002): real alias_resolver.rs detail string \
+             '{alias_resolver_detail}' must map to the alias-expansion-specific \
+             how_to_fix message, NOT the generic size message. \
+             Branch ordering bug: 'contains(\"64kb\")' fires before 'contains(\"expanded\")'."
+        );
+
+        // ── Case 2: explain.rs expanded-query size check format ───────────────────
+        // e.g. "expanded query size 65537 bytes exceeds maximum allowed 65536 bytes"
+        let explain_detail = "expanded query size 65537 bytes exceeds maximum allowed 65536 bytes";
+        let fix_explain = how_to_fix_for_security_limit(explain_detail);
+        assert_eq!(
+            fix_explain,
+            "The alias expansion produced a query over 64KB. Simplify the aliased query or use a narrower alias.",
+            "BC-2.11.017 (F-PRL-FRESH-002): explain.rs expanded-query size detail \
+             '{explain_detail}' must map to the alias-expansion-specific how_to_fix \
+             message. Contains both 'expanded' and 'size' — expanded branch must win."
+        );
+
+        // ── Regression: synthetic generic size string (no 'expanded' token) ────────
+        // This must STILL return the generic "Shorten" message (not regress).
+        let plain_size_detail = "query size exceeds 64KB limit";
+        let fix_plain = how_to_fix_for_security_limit(plain_size_detail);
+        assert_eq!(
+            fix_plain,
+            "Shorten the query. Remove large IN (...) lists or break into multiple queries.",
+            "BC-2.11.017 regression: plain size detail '{plain_size_detail}' must still \
+             return the generic size message after branch reorder."
+        );
+
+        // ── Regression: depth violation ───────────────────────────────────────────
+        let fix_depth = how_to_fix_for_security_limit("nesting depth limit exceeded");
+        assert!(
+            fix_depth.contains("Flatten") || fix_depth.contains("nested"),
+            "BC-2.11.017 regression: depth detail must still return flatten message; \
+             got: '{fix_depth}'"
+        );
+
+        // ── Regression: regex violation ───────────────────────────────────────────
+        let fix_regex = how_to_fix_for_security_limit("regex complexity limit exceeded");
+        assert!(
+            fix_regex.contains("regex") || fix_regex.contains("LIKE"),
+            "BC-2.11.017 regression: regex detail must still return regex/LIKE message; \
+             got: '{fix_regex}'"
+        );
+
+        // ── Regression: unknown catch-all ─────────────────────────────────────────
+        let fix_other = how_to_fix_for_security_limit("unknown limit violation");
+        assert!(
+            !fix_other.is_empty(),
+            "BC-2.11.017 regression: catch-all must return a non-empty string"
+        );
+    }
+
     // =========================================================================
     // GREEN-BY-DESIGN: type shape assertion
     // =========================================================================
