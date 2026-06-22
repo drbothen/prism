@@ -1375,6 +1375,20 @@ impl PqlNormalizer {
             Expr::Not(inner) => Self::expr_has_both_quote_string(inner),
             Expr::In { values, .. } => values.iter().any(Self::literal_has_both_quote_string),
             Expr::InSubquery { subquery, .. } => Self::sql_query_has_both_quote_string(subquery),
+            // SEC-001 defense-in-depth: traverse FuncCall argument expressions.
+            // Parser-unreachable (grammar cannot produce both-quote string args) but
+            // complete defense-in-depth requires checking ALL string-bearing AST nodes.
+            // Without this arm, FuncCall args containing both ' and " bypass the guard
+            // and produce mis-quoted output in normalize_func_call (CWE-116).
+            Expr::FuncCall(fc) => match fc {
+                FuncCall::Aggregate { args, .. } => {
+                    args.iter().any(Self::expr_has_both_quote_string)
+                }
+                FuncCall::Scalar { args, .. } => args.iter().any(Self::expr_has_both_quote_string),
+                // Window: no args yet (placeholder; S-3.06 will add fields).
+                FuncCall::Window { .. } => false,
+                _ => false,
+            },
             _ => false,
         }
     }
@@ -2421,6 +2435,72 @@ mod bc_2_11_018_normalizer_roundtrip_tests {
         assert!(
             PqlNormalizer::normalize(&ast).is_none(),
             "SEC-001: Wildcard pattern with both quotes must yield None"
+        );
+    }
+
+    /// SEC-001 defense-in-depth: `Expr::FuncCall` args with both-quotes string returns None.
+    ///
+    /// # Parser-unreachability note
+    ///
+    /// This path is UNREACHABLE via the parser: `build_string_parser` cannot produce a string
+    /// literal containing BOTH `'` and `"`. This test constructs the AST directly (bypassing
+    /// the parser) to exercise the defense-in-depth guard in `expr_has_both_quote_string`.
+    ///
+    /// # Why this matters
+    ///
+    /// The `ast_has_both_quote_string` walker is the defense-in-depth guard for SEC-001
+    /// (CWE-116). It traverses ALL string-bearing AST nodes. Before this fix, `Expr::FuncCall`
+    /// fell to the `_ => false` arm — FuncCall args containing both-quote strings would
+    /// bypass the guard and reach `normalize_func_call`, which produces potentially
+    /// mis-quoted output. The fix adds explicit arg traversal.
+    ///
+    /// # RED→GREEN
+    ///
+    /// FAILS on current HEAD: `expr_has_both_quote_string` returns `false` for `FuncCall`
+    /// (falls to `_ => false`), so `normalize` returns `Some(...)` instead of `None`.
+    /// PASSES AFTER FIX: explicit `Expr::FuncCall` arm recurses into args, finds the
+    /// both-quote `Literal::String`, and returns `true` → normalize returns `None`.
+    #[test]
+    fn test_sec_001_both_quotes_func_call_arg_normalize_returns_none() {
+        // PARSER-UNREACHABLE: construct a FuncCall AST directly with a both-quote string arg.
+        // Defense-in-depth: direct AST construction with a both-quote FuncCall arg must
+        // still produce None, not mis-quoted output.
+        //
+        // Construct: SELECT unknown_udf("it's a \"test\"") FROM crowdstrike_alerts
+        // where the FuncCall arg is a Literal::String containing BOTH ' and ".
+        let both_quote_arg = Expr::Literal(Literal::String("it's a \"test\"".to_string()));
+        let func_call_expr = Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown("unknown_udf".to_string()),
+            args: vec![both_quote_arg],
+        });
+
+        // Wrap in a minimal SQL AST so we can call normalize().
+        let sql_query = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: func_call_expr,
+                alias: None,
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_alerts")),
+        );
+        let ast = Ast::Sql(SqlStatement::Select(sql_query));
+
+        // SEC-001 defense-in-depth: normalize MUST return None when a FuncCall arg contains
+        // both quote characters (parser-unreachable but defense-in-depth required).
+        //
+        // FAILS NOW because expr_has_both_quote_string has `Expr::FuncCall(_) => false`
+        // (falls to `_ => false`), so the guard does not detect the both-quote arg.
+        //
+        // PASSES AFTER FIX: add explicit FuncCall arm that recurses into args.
+        let result = PqlNormalizer::normalize(&ast);
+        assert!(
+            result.is_none(),
+            "SEC-001 defense-in-depth: normalize_pql MUST return None when a FuncCall arg \
+             contains both quote characters (parser-unreachable guard). \
+             Current behavior: returns Some (expr_has_both_quote_string falls to `_ => false` \
+             for FuncCall, bypassing the guard). \
+             FIX: add `Expr::FuncCall(fc) => fc.args().any(Self::expr_has_both_quote_string)` \
+             to expr_has_both_quote_string. Got: {:?}",
+            result
         );
     }
 

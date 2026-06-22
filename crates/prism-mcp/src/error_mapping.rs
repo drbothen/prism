@@ -1093,7 +1093,13 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 source_override: None,
                 upstream_message: None,
                 owned_suggestion: None,
-                ec_code_override: None,
+                // F-198-FRESH-MED-001 fix: pin E-QUERY-001 directly.
+                // Without this override, map_prism_error returns
+                // "PrismQL parse error: {detail}" (no "E-" prefix), so the code
+                // derivation falls to `match INVALID_PARAMS => "E-MCP-002"` —
+                // which is semantically wrong (means "tool not available").
+                // BC-2.11.017 §E-QUERY-001 + AC-003 mandate code="E-QUERY-001".
+                ec_code_override: Some("E-QUERY-001"),
                 // BC-2.11.017 EC-11-046: near_text must be PRESENT as "" (empty string)
                 // at end-of-input, NOT absent. `Some(near_text)` preserves the key for
                 // both mid-input tokens ("token") and end-of-input ("").

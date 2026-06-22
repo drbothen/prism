@@ -550,6 +550,95 @@ mod tests {
         );
     }
 
+    /// BC-2.11.017 / AC-003 + F-198-FRESH-MED-001 — E-QUERY-001 parse error structured response
+    /// carries `code: "E-QUERY-001"` (NOT `"E-MCP-002"`).
+    ///
+    /// # LOAD-BEARING Red Gate
+    ///
+    /// FAILS on current HEAD because the `QueryParseFailed` arm in
+    /// `prism_error_to_structured_call_result` has `ec_code_override: None`.
+    ///
+    /// Code derivation (current HEAD):
+    ///   - `map_prism_error(QueryParseFailed)` → message `"PrismQL parse error: {detail}"` (no E- prefix)
+    ///   - `message.starts_with("E-")` → false
+    ///   - Falls to `match code_i32 { INVALID_PARAMS => "E-MCP-002", ... }`
+    ///   - Result: `code: "E-MCP-002"` ← WRONG (semantically "tool not available" / permission error)
+    ///
+    /// BC-2.11.017 §E-QUERY-001 + AC-003 mandate `code: "E-QUERY-001"` for parse errors.
+    /// The LLM self-correction loop classifies failures by `code` — wrong code breaks it.
+    ///
+    /// FIX: set `ec_code_override: Some("E-QUERY-001")` on the `QueryParseFailed` arm
+    /// in `prism_error_to_structured_call_result` (same mechanism as `E-AUTH-010`, `E-SENSOR-020`).
+    ///
+    /// RED→GREEN proof: this test FAILS (code=="E-MCP-002") before the fix,
+    /// and PASSES (code=="E-QUERY-001") after setting ec_code_override.
+    #[tokio::test]
+    async fn test_BC_2_11_017_ac003_parse_error_structured_code_is_e_query_001() {
+        let server = make_server_minimal();
+
+        // "SELCT * FROM crowdstrike_alerts" — parse error → must produce code "E-QUERY-001"
+        let params: QueryToolParams =
+            serde_json::from_str(r#"{"query": "SELCT * FROM crowdstrike_alerts"}"#)
+                .expect("QueryToolParams JSON must deserialize");
+        let call_result = server
+            .query(Parameters(params))
+            .await
+            .expect("domain errors must return Ok(structured_error)");
+
+        assert_eq!(
+            call_result.is_error,
+            Some(true),
+            "F-198-FRESH-MED-001: parse error must return is_error=true"
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("F-198-FRESH-MED-001: structured_content must be present");
+
+        let error_obj = sc
+            .get("error")
+            .expect("F-198-FRESH-MED-001: sc['error'] must be present");
+
+        // LOAD-BEARING: code MUST be "E-QUERY-001", NOT "E-MCP-002".
+        //
+        // FAILS NOW because ec_code_override is None on the QueryParseFailed arm —
+        // the code derivation falls to `match INVALID_PARAMS => "E-MCP-002"`.
+        //
+        // PASSES AFTER FIX: setting ec_code_override: Some("E-QUERY-001") pins the code
+        // directly, bypassing the message-string-based fallback.
+        //
+        // "E-MCP-002" is semantically "tool not available" — completely wrong for a parse error.
+        // The LLM self-correction loop classifies failures by `code`; wrong code breaks it.
+        let code = error_obj
+            .get("code")
+            .expect("F-198-FRESH-MED-001: 'code' field must be present in error object")
+            .as_str()
+            .expect("F-198-FRESH-MED-001: 'code' must be a string");
+
+        assert_eq!(
+            code, "E-QUERY-001",
+            "F-198-FRESH-MED-001 (BC-2.11.017 AC-003): parse error structured response \
+             MUST carry code='E-QUERY-001'. \
+             Got: '{}'. \
+             Current bug: ec_code_override is None on QueryParseFailed arm — falls to \
+             INVALID_PARAMS => 'E-MCP-002' (semantically wrong: 'tool not available'). \
+             FIX: set ec_code_override: Some(\"E-QUERY-001\") on the QueryParseFailed arm \
+             in prism_error_to_structured_call_result.",
+            code
+        );
+
+        // REGRESSION GUARD: near_text and reference_pointer must still be present after the fix.
+        assert!(
+            error_obj.get("near_text").is_some(),
+            "F-198-FRESH-MED-001: near_text must still be present after ec_code_override fix"
+        );
+        assert_eq!(
+            error_obj.get("reference_pointer").and_then(|v| v.as_str()),
+            Some("prismql://reference"),
+            "F-198-FRESH-MED-001: reference_pointer must still be 'prismql://reference' after fix"
+        );
+    }
+
     /// BC-2.11.017 / AC-003 — E-QUERY-002 type-mismatch error for a String column carries
     /// `valid_operators_for_type` equal to the STRING-SPECIFIC operator set.
     ///
