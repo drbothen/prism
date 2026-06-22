@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.97"
+version: "6.98"
 status: draft
 producer: state-manager
 timestamp: 2026-06-22T00:00:00Z
@@ -170,7 +170,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.013 | `list_aliases` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
-| BC-2.11.016 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.1 (2026-06-22: §Related-BCs tightened; explicit deferral to S-EXPLAIN-PARITY-001 for explain_query parity gap OBS-2; onboarding-001-B-obs-adjudication.md) |
+| BC-2.11.016 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.2 (2026-06-22: OBS-001-B-FRESH-001 — §PrismError-variant updated to CORRECTION-2 boxed form `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` #[non_exhaustive]; was v1.1: 2026-06-22: §Related-BCs deferral to S-EXPLAIN-PARITY-001 OBS-2) |
 | BC-2.11.017 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
 | BC-2.11.018 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
 | BC-2.12.001 | `create_schedule` MCP Tool — Create a Scheduled Query | 12 - Scheduler | CAP-017 | P0 | draft |
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.98 (2026-06-22, OBS-001-B-FRESH-001 — BC-2.11.016 v1.2, error-taxonomy.md v1.93):** product-owner | BC-2.11.016 inline row: v1.1→v1.2 — OBS-001-B-FRESH-001 (S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL cascade LOW doc-accuracy finding): §PrismError-variant prose updated from speculative "not boxed … box if necessary" to ratified CORRECTION-2 boxed form `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` (`#[non_exhaustive]` struct; `result_large_err` boxing parity with `TableNotAvailableDetails`). error-taxonomy.md E-QUERY-038 "Emitted by" clause updated in same burst (v1.92→v1.93). Field set, semantics, Display, MCP surface UNCHANGED. **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED. BC-INDEX v6.97→v6.98.
 
 **v6.97 (2026-06-22, D-1281 001-B LOCAL cascade OBS-2/OBS-3 adjudication — BC-2.11.016 v1.1):** state-manager | BC-2.11.016 inline row: v1.0→v1.1 — §Related-BCs tightened; explicit deferral note added for OBS-2 (`explain_query` plan-time parity gap deferred to S-EXPLAIN-PARITY-001 per onboarding-001-B-obs-adjudication.md, Canonical Principle Rule 3). **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED. BC-INDEX v6.96→v6.97.
 

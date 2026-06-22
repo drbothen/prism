@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -87,7 +87,7 @@ The column-not-found gate is colocated with the E-QUERY-037 table-availability g
 
 ### PrismError variant
 
-`PrismError::ColumnNotFound { column: String, table: String, client_id: String, available_columns: Vec<String>, did_you_mean: Option<String> }` is the new variant in `prism-core/src/error.rs`. The variant carries the structured fields directly (not boxed — individual `String` + `Vec<String>` + `Option<String>` are small enough without boxing, unlike `TableNotAvailableDetails` which was boxed due to clippy `result_large_err`). Implementer: verify via clippy `result_large_err` lint at implementation time; box if necessary.
+`PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` is the variant in `prism-core/src/error.rs`, where `ColumnNotFoundDetails` is a `#[non_exhaustive]` struct carrying `{ column: String, table: String, client_id: String, available_columns: Vec<String>, did_you_mean: Option<String> }`. The boxed form was chosen at implementation time (story v1.4 CORRECTION-2, gate=83) because the `Vec<String>` field for `available_columns` pushes the inline variant over the `clippy::result_large_err` threshold — the same justification as `TableNotAvailableDetails` for E-QUERY-037. The `#[non_exhaustive]` attribute on `ColumnNotFoundDetails` is required per CLAUDE.md `#[non_exhaustive]` discipline (the struct is a public type in `prism-core`; external match arms must include a wildcard). The Display output and MCP surface are unchanged from the original design.
 
 `#[non_exhaustive]` is NOT applicable to `PrismError` enum variants themselves (it is the enum-level attribute). The `PrismError` enum already carries `#[non_exhaustive]` on the type (CLAUDE.md conventions). The new variant is added to the existing non-exhaustive enum.
 
@@ -181,5 +181,6 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | OBS-001-B-FRESH-001-emitter-shape | 2026-06-22 | product-owner | OBS-001-B-FRESH-001 closure: §PrismError-variant prose updated to reflect the CORRECTION-2 boxed implementation. Replaced "not boxed — … box if necessary" speculative text with the ratified shape: `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` where `ColumnNotFoundDetails` is `#[non_exhaustive]` with `{ column, table, client_id, available_columns, did_you_mean }`. Boxing was triggered by `clippy::result_large_err` (same as `TableNotAvailableDetails`; story v1.4 CORRECTION-2, gate=83). Field set, semantics, Display, and MCP surface unchanged. |
 | 1.1 | onboarding-001-B-obs-adjudication | 2026-06-22 | product-owner | OBS-2 adjudication: tightened §Related-BCs note for BC-2.11.010. Replaced ambiguous "explain_query performs the same plan-time validation; E-QUERY-038 fires on explain_query as well as query" with explicit deferral anchor (S-EXPLAIN-PARITY-001, out-of-scope for 001-B, DO-NOT-REFLAG). See `.factory/specs/architecture/scoping/onboarding-001-B-obs-adjudication.md` §OBS-2. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L4 E-QUERY-038 column-not-found plan-time gate |
