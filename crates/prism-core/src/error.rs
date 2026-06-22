@@ -70,10 +70,20 @@ impl ColumnNotFoundDetails {
 
 impl std::fmt::Display for ColumnNotFoundDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Taxonomy template (error-taxonomy.md v1.92 E-QUERY-038, POL-24 byte-verbatim):
+        // "E-QUERY-038: column '{column}' not found in table '{table}' for client '{client_id}';
+        //  available: [{available_columns}]{did_you_mean}"
+        // {available_columns}: comma-separated list (may be empty).
+        // {did_you_mean}: " Did you mean: '{best_match}'?" when Some; empty string when None.
+        let available = self.available_columns.join(", ");
+        let did_you_mean_suffix = match &self.did_you_mean {
+            Some(s) => format!(" Did you mean: '{s}'?"),
+            None => String::new(),
+        };
         write!(
             f,
-            "E-QUERY-038: column '{}' not found in table '{}' for client '{}'",
-            self.column, self.table, self.client_id
+            "E-QUERY-038: column '{}' not found in table '{}' for client '{}'; available: [{}]{}",
+            self.column, self.table, self.client_id, available, did_you_mean_suffix
         )
     }
 }
