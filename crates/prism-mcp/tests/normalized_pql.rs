@@ -1404,6 +1404,306 @@ mod tests {
         );
     }
 
+    // =========================================================================
+    // BC-2.11.016 / AC-001 — E-QUERY-038 MCP error envelope carries
+    // available_columns + did_you_mean (F-PRL-CRIT-001 Red Gate)
+    // =========================================================================
+
+    /// BC-2.11.016 / AC-001 — The MCP `query`-tool error envelope for E-QUERY-038
+    /// MUST contain `available_columns` (non-empty array including "severity") and
+    /// `did_you_mean` == "severity" when the typo is within Levenshtein distance ≤ 3.
+    ///
+    /// # What is being proved
+    ///
+    /// The E-QUERY-038 gate correctly COMPUTES `available_columns` and `did_you_mean`
+    /// and stores them in `ColumnNotFoundDetails`. This test proves they are also
+    /// THREADED THROUGH to the MCP error response that the LLM agent actually receives
+    /// — i.e., they appear in `structured_content.error` of the `CallToolResult`.
+    ///
+    /// # LOAD-BEARING (TD-VSDD-059, F-PRL-CRIT-001)
+    ///
+    /// - Asserts on `call_result.structured_content["error"]["available_columns"]` —
+    ///   the actual MCP envelope the LLM agent sees, NOT on `ColumnNotFoundDetails` fields.
+    /// - Deleting `available_columns` from `StructuredErrorFields` or failing to populate
+    ///   it in the `ColumnNotFound` arm of `prism_error_to_structured_call_result` WILL
+    ///   break assertion #2 — the field will be absent from the JSON.
+    /// - Deleting `did_you_mean` from `StructuredErrorFields` or failing to populate it
+    ///   WILL break assertion #3.
+    /// - No skip guard; no `#[ignore]`; drives in-process (plan-time gate, no live sensor).
+    ///
+    /// # Why FAILS on HEAD b1fe61b6
+    ///
+    /// `StructuredErrorFields` has no `available_columns` or `did_you_mean` fields.
+    /// The `ColumnNotFound` arm in `prism_error_to_structured_call_result` uses
+    /// `PrismError::ColumnNotFound(..)` (wildcard — discards the inner `ColumnNotFoundDetails`).
+    /// Neither field is inserted into `build_structured_error_response`'s `error_obj`.
+    /// Therefore `sc["error"]["available_columns"]` is ABSENT → the `.expect(...)` panics
+    /// with "BC-2.11.016 AC-001: E-QUERY-038 MCP error MUST have 'available_columns'…".
+    ///
+    /// # FIX (for the implementer)
+    ///
+    /// 1. Add `available_columns: Option<Vec<String>>` and `did_you_mean: Option<String>`
+    ///    to `StructuredErrorFields` with `#[serde(skip_serializing_if = "Option::is_none")]`.
+    /// 2. Change the `PrismError::ColumnNotFound(..)` wildcard arm in
+    ///    `prism_error_to_structured_call_result` to bind the inner struct:
+    ///    `PrismError::ColumnNotFound(ref d) => VariantMeta { ...,
+    ///       available_columns: Some(d.available_columns.clone()),
+    ///       did_you_mean: d.did_you_mean.clone(), ... }`.
+    /// 3. Add `VariantMeta::available_columns` and `VariantMeta::did_you_mean` fields.
+    /// 4. In `build_structured_error_response`, emit:
+    ///    ```
+    ///    if let Some(cols) = fields.available_columns { error_obj["available_columns"] = ... }
+    ///    if let Some(dym) = fields.did_you_mean { error_obj["did_you_mean"] = ... }
+    ///    ```
+    ///
+    /// # BC reference
+    ///
+    /// BC-2.11.016 v1.1 §"E-QUERY-038 error payload shape": `available_columns` ALWAYS present,
+    /// `did_you_mean` present when Levenshtein distance ≤ 3.
+    /// BC-2.11.016 §"Canonical Test Vectors" EC-11-039:
+    ///   `sevrity` → `did_you_mean: "severity"`, `available_columns` includes "severity".
+    ///
+    /// # SID-1
+    ///
+    /// Drives in-process via the plan-time gate (no live sensor needed).
+    /// The `make_server_with_engine` fixture uses `AdapterRegistry::new()` (empty registry),
+    /// which means fan-out never occurs — the query is rejected at plan time before fan-out.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ac001_column_not_found_mcp_error_carries_available_columns_and_did_you_mean(
+    ) {
+        use prism_core::column::ColumnType;
+
+        // Register `crowdstrike_alerts` with `severity` (and other columns) so the
+        // E-QUERY-037 table-availability gate passes. The column `sevrity` (typo) is NOT
+        // registered — the E-QUERY-038 column-not-found gate fires.
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let server = make_server_with_engine(map, vec![resolved.spec.clone()]);
+
+        // BC-2.11.016 §Canonical Test Vectors EC-11-039:
+        //   "sevrity" is a 1-edit-distance typo of "severity" (Levenshtein distance 1).
+        //   The WHERE clause ensures the column is REFERENCED so the gate fires on it.
+        //   AC-001 query: `SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high'`
+        let params: QueryToolParams = serde_json::from_str(
+            r#"{"query": "SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high'"}"#,
+        )
+        .expect("QueryToolParams JSON must deserialize");
+        let call_result = server
+            .query(Parameters(params))
+            .await
+            .expect("domain errors must return Ok(structured_error), not Err");
+
+        // ASSERTION 1: The MCP tool returned an error (is_error == Some(true)).
+        // MCP code must be -32602 INVALID_PARAMS per BC-2.11.016 §"Structured error response".
+        assert_eq!(
+            call_result.is_error,
+            Some(true),
+            "BC-2.11.016 AC-001: column typo 'sevrity' MUST produce is_error=true. \
+             Got is_error={:?}. \
+             If the query SUCCEEDS (is_error != Some(true)), the E-QUERY-038 gate is not firing. \
+             Check that check_query_column_availability is wired into the plan-time path in engine.rs.",
+            call_result.is_error
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("BC-2.11.016 AC-001: structured_content must be present on E-QUERY-038 error");
+
+        let error_obj = sc
+            .get("error")
+            .expect("BC-2.11.016 AC-001: sc['error'] must be present on E-QUERY-038 error");
+
+        // Verify E-QUERY-038 code for debugging context.
+        let code_val = error_obj
+            .get("code")
+            .and_then(|v| v.as_str())
+            .unwrap_or("<absent>");
+        assert_eq!(
+            code_val, "E-QUERY-038",
+            "BC-2.11.016 AC-001: error code must be 'E-QUERY-038'; got '{code_val}'. \
+             If 'E-INT-001' appears, the ColumnNotFound arm is falling through to the catch-all."
+        );
+
+        // ASSERTION 2 (LOAD-BEARING — available_columns in MCP envelope):
+        // `available_columns` must be present in sc["error"] as a non-empty JSON array
+        // containing "severity". This is the field the LLM agent receives to self-correct.
+        //
+        // FAILS ON HEAD b1fe61b6 because StructuredErrorFields has no available_columns field
+        // and ColumnNotFound arm uses (..) wildcard — the field is ABSENT from the JSON.
+        //
+        // FIX: add available_columns: Option<Vec<String>> to StructuredErrorFields and
+        //      populate it in the ColumnNotFound arm of prism_error_to_structured_call_result.
+        let available_columns_val = error_obj.get("available_columns").expect(
+            "BC-2.11.016 AC-001: E-QUERY-038 MCP error MUST have 'available_columns' field. \
+             ABSENT on current HEAD because StructuredErrorFields has no available_columns field \
+             and the ColumnNotFound arm uses (..) wildcard (discards ColumnNotFoundDetails). \
+             FIX: (1) add `available_columns: Option<Vec<String>>` to StructuredErrorFields; \
+             (2) change PrismError::ColumnNotFound(..) to PrismError::ColumnNotFound(ref d) and \
+             set available_columns: Some(d.available_columns.clone()) in VariantMeta; \
+             (3) emit it in build_structured_error_response as a JSON array.",
+        );
+        let available_columns_arr = available_columns_val.as_array().expect(
+            "BC-2.11.016 AC-001: available_columns must be a JSON array, not a string/null",
+        );
+        assert!(
+            !available_columns_arr.is_empty(),
+            "BC-2.11.016 AC-001: available_columns must be non-empty (severity, detection_id, \
+             host_name were registered); got empty array. \
+             BC-2.11.016 §payload: 'ALWAYS present (never null, never omitted)'. \
+             Check that ColumnNotFoundDetails.available_columns is populated in engine.rs."
+        );
+        let severity_val = serde_json::Value::String("severity".to_string());
+        assert!(
+            available_columns_arr.contains(&severity_val),
+            "BC-2.11.016 AC-001: available_columns MUST contain 'severity' — it is a registered \
+             column in crowdstrike_alerts for org 'acme'. Got: {:?}",
+            available_columns_arr
+        );
+
+        // ASSERTION 3 (LOAD-BEARING — did_you_mean in MCP envelope):
+        // `did_you_mean` must be present and equal "severity".
+        // Levenshtein("sevrity", "severity") = 1 (one transposition) — within threshold ≤ 3.
+        // BC-2.11.016 §payload: "present when Levenshtein distance ≤ 3".
+        // BC-2.11.016 §Canonical Test Vectors EC-11-039: `did_you_mean: "severity"`.
+        //
+        // FAILS ON HEAD b1fe61b6 because StructuredErrorFields has no did_you_mean field.
+        //
+        // FIX: add `did_you_mean: Option<String>` to StructuredErrorFields and populate it
+        //      from d.did_you_mean.clone() in the ColumnNotFound arm.
+        let did_you_mean_val = error_obj.get("did_you_mean").expect(
+            "BC-2.11.016 AC-001: E-QUERY-038 MCP error MUST have 'did_you_mean' field when \
+             Levenshtein distance ≤ 3. ABSENT on current HEAD. \
+             The typo 'sevrity' is distance 1 from 'severity' — well within the ≤3 threshold. \
+             FIX: add `did_you_mean: Option<String>` to StructuredErrorFields; \
+             populate from d.did_you_mean.clone() in ColumnNotFound arm of \
+             prism_error_to_structured_call_result; emit in build_structured_error_response.",
+        );
+        assert_eq!(
+            did_you_mean_val.as_str(),
+            Some("severity"),
+            "BC-2.11.016 AC-001: did_you_mean must be 'severity' (distance-1 match); \
+             got: {:?}. \
+             The ColumnNotFoundDetails.did_you_mean is computed by strsim::levenshtein in \
+             engine.rs — verify the computation runs and the result is threaded through to \
+             StructuredErrorFields.did_you_mean.",
+            did_you_mean_val
+        );
+    }
+
+    /// BC-2.11.016 / AC-001 (negative) — When no column is within Levenshtein distance ≤ 3,
+    /// the MCP error MUST carry `available_columns` (still present, non-empty) but `did_you_mean`
+    /// MUST be ABSENT from the error JSON (not null — the key must not exist at all).
+    ///
+    /// # BC reference
+    ///
+    /// BC-2.11.016 v1.1 §"Payload fields": `did_you_mean` "is omitted (not null, not empty
+    /// string — absent)" when no column is within threshold.
+    /// BC-2.11.016 §Canonical Test Vectors EC-11-040: `completely_bogus_field` →
+    ///   `available_columns` includes real column names, `did_you_mean` absent.
+    ///
+    /// # LOAD-BEARING (TD-VSDD-059)
+    ///
+    /// - Deleting `available_columns` from the MCP response breaks assertion #2.
+    /// - Incorrectly setting `did_you_mean` to a value (or null) when no near-match exists
+    ///   breaks assertion #3 (the key must be ABSENT, not null).
+    /// - No skip guard; drives in-process (plan-time gate, no live sensor).
+    ///
+    /// # Why FAILS on HEAD b1fe61b6
+    ///
+    /// Same root cause as the positive test above — `available_columns` is absent from the
+    /// MCP envelope. The `.expect(...)` on `available_columns` panics before the `did_you_mean`
+    /// assertion is reached.
+    #[tokio::test]
+    async fn test_BC_2_11_016_ac001_column_not_found_no_near_match_has_available_columns_but_no_did_you_mean(
+    ) {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let server = make_server_with_engine(map, vec![resolved.spec.clone()]);
+
+        // BC-2.11.016 §Canonical Test Vectors EC-11-040:
+        //   "zzz_bogus_col" has no near match in {severity, detection_id, host_name}
+        //   — Levenshtein distance is >> 3 for all registered columns.
+        let params: QueryToolParams = serde_json::from_str(
+            r#"{"query": "SELECT * FROM crowdstrike_alerts WHERE zzz_bogus_col = 'x'"}"#,
+        )
+        .expect("QueryToolParams JSON must deserialize");
+        let call_result = server
+            .query(Parameters(params))
+            .await
+            .expect("domain errors must return Ok(structured_error), not Err");
+
+        // ASSERTION 1: is_error must be Some(true).
+        assert_eq!(
+            call_result.is_error,
+            Some(true),
+            "BC-2.11.016 AC-001 (no-near-match): 'zzz_bogus_col' must produce is_error=true. \
+             Got is_error={:?}.",
+            call_result.is_error
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("BC-2.11.016 AC-001 (no-near-match): structured_content must be present");
+
+        let error_obj = sc
+            .get("error")
+            .expect("BC-2.11.016 AC-001 (no-near-match): sc['error'] must be present");
+
+        // ASSERTION 2 (LOAD-BEARING — available_columns ALWAYS present):
+        // Even when did_you_mean is absent, available_columns must still be in the envelope.
+        // BC-2.11.016 §payload: "ALWAYS present (never null, never omitted)".
+        //
+        // FAILS ON HEAD: same root cause — available_columns absent from StructuredErrorFields.
+        let available_columns_val = error_obj.get("available_columns").expect(
+            "BC-2.11.016 AC-001 (no-near-match): 'available_columns' MUST be present in the \
+             MCP error envelope even when no Levenshtein match exists. \
+             BC-2.11.016 §payload: 'ALWAYS present (never null, never omitted)'. \
+             FIX: same as the positive test — add available_columns to StructuredErrorFields \
+             and populate it unconditionally from d.available_columns in the ColumnNotFound arm.",
+        );
+        let available_columns_arr = available_columns_val
+            .as_array()
+            .expect("BC-2.11.016 AC-001 (no-near-match): available_columns must be a JSON array");
+        assert!(
+            !available_columns_arr.is_empty(),
+            "BC-2.11.016 AC-001 (no-near-match): available_columns must be non-empty; \
+             severity, detection_id, host_name were registered. Got empty array."
+        );
+
+        // ASSERTION 3 (LOAD-BEARING — did_you_mean ABSENT when no near match):
+        // BC-2.11.016 §payload: "If absent (no match within threshold), the field is omitted
+        //   (not null, not empty string — absent)."
+        // BC-2.11.016 §Canonical Test Vectors EC-11-040: `did_you_mean` absent.
+        //
+        // The key must NOT exist in the JSON error object — not even as null.
+        // If the implementation sets did_you_mean: null for no-match (instead of omitting
+        // the key), this assertion will FAIL, correctly flagging the deviation.
+        assert!(
+            error_obj.get("did_you_mean").is_none(),
+            "BC-2.11.016 AC-001 (no-near-match): 'did_you_mean' MUST be ABSENT (not null, \
+             not empty string) when no column is within Levenshtein distance ≤ 3. \
+             BC-2.11.016 §payload: 'omitted (not null, not empty string — absent)'. \
+             Got: {:?}. \
+             FIX: use #[serde(skip_serializing_if = \"Option::is_none\")] on the \
+             did_you_mean field in StructuredErrorFields so None → key absent in JSON.",
+            error_obj.get("did_you_mean")
+        );
+    }
+
     /// BC-2.11.016 / AC-001 — E-QUERY-038 message carries E-QUERY-038 code prefix.
     ///
     /// GREEN-BY-DESIGN: map_prism_error already delegates to ColumnNotFoundDetails::Display.
