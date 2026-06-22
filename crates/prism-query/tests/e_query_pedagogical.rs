@@ -1332,6 +1332,347 @@ mod tests {
     }
 
     // =========================================================================
+    // F-FRESH-DC-LOW-001 — ALIAS-qualifier branch coverage
+    // =========================================================================
+    //
+    // Finding: F-FRESH-DC-LOW-001 (LOCAL adversary, LOW, SID-1/TD-VSDD-059).
+    //
+    // The `extract_column_name_from_field_path` helper has an ALIAS-qualifier branch:
+    //
+    //   qualifier == table_name || table_alias.is_some_and(|alias| qualifier == alias)
+    //
+    // Prior tests only exercise the `qualifier == table_name` side (e.g.
+    // `crowdstrike_alerts.severity`).  The `table_alias.is_some_and(…)` side — which
+    // fires when a query uses `FROM crowdstrike_alerts t WHERE t.severity` — has zero
+    // test coverage.
+    //
+    // These three tests exercise ONLY the alias branch:
+    //   • The qualifier is a single-letter alias (`t`), NOT the table name.
+    //   • The FROM clause uses the bare-alias form (`FROM crowdstrike_alerts t`) — the
+    //     parser accepts both bare and AS-prefixed aliases; bare form exercises the same
+    //     `from.alias` field, tested here for conciseness.
+    //
+    // LOAD-BEARING check (TD-VSDD-059):
+    //   If the `table_alias.is_some_and(…)` branch were deleted from
+    //   `extract_column_name_from_field_path`, the qualifier `"t"` would NOT match
+    //   `table_name = "crowdstrike_alerts"` — the function would return `None` (fail-open)
+    //   and the gate would skip that column reference.
+    //   Consequence:
+    //     • Test 1 (alias valid, no error) — would CONTINUE to pass (fail-open = no gate
+    //       = no error), so removing the branch does NOT break test 1.  This is intentional:
+    //       test 1 is an EXISTENCE GATE — it proves the branch does not false-reject.
+    //     • Test 2 (alias typo → E-QUERY-038) — would FAIL: the deleted branch means
+    //       `t.sevrity` is skipped (fail-open), engine returns Ok, test panics.
+    //     • Test 3 (alias type gate → E-QUERY-002) — would FAIL: `t.severity > 5` is
+    //       skipped by both the existence gate AND the type gate (both rely on the same
+    //       helper), engine returns Ok, test panics.
+    //
+    // Therefore tests 2 and 3 are the true LOAD-BEARING tests that pin the alias branch.
+    // Test 1 is the complementary EXISTENCE GATE that verifies the branch does not
+    // false-reject valid alias-qualified references.
+
+    /// F-FRESH-DC-LOW-001 — Test 1 (EXISTENCE GATE): valid alias-qualified column in the
+    /// WHERE clause must NOT produce E-QUERY-038.
+    ///
+    /// Query: `SELECT * FROM crowdstrike_alerts t WHERE t.severity = 'high'`
+    ///
+    /// The qualifier `"t"` matches the FROM-clause alias.
+    /// `extract_column_name_from_field_path` must return `"severity"` via the alias branch
+    /// (`table_alias.is_some_and(|alias| qualifier == alias)`) so that the existence gate
+    /// finds it in `available_columns` and passes without error.
+    ///
+    /// If the alias branch were ABSENT: `"t"` does not match `table_name =
+    /// "crowdstrike_alerts"`, function returns `None`, gate skips the column reference,
+    /// engine returns Ok — test still PASSES (fail-open).  This test is therefore the
+    /// NON-BREAKING half of the alias coverage; tests 2 and 3 are the BREAKING half.
+    #[tokio::test]
+    async fn test_BC_2_11_016_alias_qualified_valid_column_no_error() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        // sensor_id="crowdstrike" + table_suffix="alerts" → registered as "crowdstrike_alerts"
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // ── Sub-case A: bare alias syntax `FROM crowdstrike_alerts t` ──────────────
+        //
+        // Parser populates `from.alias = Some("t")`.
+        // Column reference `t.severity` → FieldPath{segments:["t","severity"]}.
+        // Alias branch: qualifier "t" == alias "t" → returns "severity" → gate passes.
+        let result_bare = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts t WHERE t.severity = 'high'",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result_bare {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                panic!(
+                    "F-FRESH-DC-LOW-001 (alias valid, bare): alias-qualified valid column \
+                     't.severity' MUST NOT produce E-QUERY-038. \
+                     Got column='{}', table='{}', available={:?}. \
+                     Root cause: alias branch in extract_column_name_from_field_path is \
+                     absent or broken.",
+                    d.column, d.table, d.available_columns
+                );
+            }
+            Ok(_) | Err(_) => {
+                // PASS — no false rejection from E-QUERY-038.
+                // (Other errors e.g. no fan-out adapters are acceptable.)
+            }
+        }
+
+        // ── Sub-case B: AS-alias syntax `FROM crowdstrike_alerts AS t` ──────────────
+        //
+        // Both AS-prefixed and bare forms populate `from.alias`; sub-case B confirms the
+        // parser's AS path also reaches the alias branch.
+        let result_as = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts AS t WHERE t.severity = 'high'",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result_as {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                panic!(
+                    "F-FRESH-DC-LOW-001 (alias valid, AS): AS-alias-qualified valid column \
+                     't.severity' MUST NOT produce E-QUERY-038. \
+                     Got column='{}', table='{}'. \
+                     Root cause: alias branch in extract_column_name_from_field_path.",
+                    d.column, d.table
+                );
+            }
+            Ok(_) | Err(_) => {
+                // PASS.
+            }
+        }
+
+        // ── Sub-case C: alias-qualified in SELECT (`SELECT t.severity FROM … t`) ──
+        //
+        // Confirms the alias branch is exercised in the SELECT position as well.
+        let result_select = engine
+            .execute(
+                "SELECT t.severity FROM crowdstrike_alerts t",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result_select {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                panic!(
+                    "F-FRESH-DC-LOW-001 (alias SELECT): alias-qualified 't.severity' in \
+                     SELECT MUST NOT produce E-QUERY-038. \
+                     Got column='{}'. \
+                     Root cause: alias branch missing in SELECT position of \
+                     check_query_column_availability.",
+                    d.column
+                );
+            }
+            Ok(_) | Err(_) => {
+                // PASS.
+            }
+        }
+    }
+
+    /// F-FRESH-DC-LOW-001 — Test 2 (LOAD-BEARING): alias-qualified MISSPELLED column
+    /// must produce E-QUERY-038 with column = the TYPO (last segment), NOT the alias.
+    ///
+    /// Query: `SELECT * FROM crowdstrike_alerts t WHERE t.sevrity = 'high'`
+    ///
+    /// The alias branch resolves `["t", "sevrity"]` → `"sevrity"` (last segment).
+    /// `"sevrity"` is NOT in `available_columns` → E-QUERY-038 fires with:
+    ///   `column = "sevrity"`, `did_you_mean = Some("severity")`.
+    ///
+    /// LOAD-BEARING: if the alias branch (`table_alias.is_some_and(…)`) were removed,
+    /// `extract_column_name_from_field_path` returns `None` (unknown qualifier `"t"`
+    /// does not match table_name `"crowdstrike_alerts"`), the existence gate skips the
+    /// column reference (fail-open), and the engine returns `Ok(…)` — this test FAILS.
+    #[tokio::test]
+    async fn test_BC_2_11_016_alias_qualified_typo_reports_last_segment_as_column() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        // sensor_id="crowdstrike" + table_suffix="alerts" → registered as "crowdstrike_alerts"
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // "t.sevrity" — the typo is in the LAST segment (the column name).
+        // Alias branch: qualifier "t" == alias "t" → column = "sevrity" → not in
+        // available_columns → E-QUERY-038 with did_you_mean = "severity".
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts t WHERE t.sevrity = 'high'",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                // column field MUST be the last segment of the alias-qualified path — the
+                // actual typo ("sevrity"), NOT the alias ("t") or the table ("crowdstrike_alerts").
+                assert_eq!(
+                    d.column, "sevrity",
+                    "F-FRESH-DC-LOW-001 (alias typo): column MUST be the last segment \
+                     'sevrity', not the alias 't' or the table name. \
+                     Without alias branch: extract_column_name_from_field_path returns None \
+                     → gate skips → Ok(...) → this test panics at the Ok arm instead. \
+                     Got column='{}'",
+                    d.column
+                );
+                assert_eq!(
+                    d.did_you_mean,
+                    Some("severity".to_string()),
+                    "F-FRESH-DC-LOW-001 (alias typo): did_you_mean MUST be Some('severity') \
+                     for Lev-1 typo 'sevrity' resolved via alias branch. \
+                     Got: {:?}",
+                    d.did_you_mean
+                );
+                let display = format!("{d}");
+                assert!(
+                    display.starts_with("E-QUERY-038:"),
+                    "F-FRESH-DC-LOW-001 (alias typo): Display must start with 'E-QUERY-038:'; \
+                     got: '{display}'"
+                );
+                assert_eq!(
+                    d.table, "crowdstrike_alerts",
+                    "F-FRESH-DC-LOW-001 (alias typo): table field must be 'crowdstrike_alerts'; \
+                     got: '{}'",
+                    d.table
+                );
+            }
+            Ok(_) => panic!(
+                "F-FRESH-DC-LOW-001 (alias typo) LOAD-BEARING FAIL: alias-qualified misspelled \
+                 column 't.sevrity' MUST produce E-QUERY-038. Got Ok instead. \
+                 Root cause: alias branch `table_alias.is_some_and(|alias| qualifier == alias)` \
+                 is absent or broken in extract_column_name_from_field_path — the qualifier 't' \
+                 falls into the fail-open path, gate skips the column reference, no error emitted."
+            ),
+            Err(other) => panic!(
+                "F-FRESH-DC-LOW-001 (alias typo): expected ColumnNotFound for 't.sevrity', \
+                 got: {other:?}"
+            ),
+        }
+    }
+
+    /// F-FRESH-DC-LOW-001 — Test 3 (LOAD-BEARING): alias-qualified column with a
+    /// type-incompatible operator must produce E-QUERY-002 with correct type metadata.
+    ///
+    /// Query: `SELECT * FROM crowdstrike_alerts t WHERE t.severity > 5`
+    ///
+    /// The alias branch resolves `["t", "severity"]` → `"severity"` in BOTH the
+    /// existence gate (`collect_predicate_columns`) AND the type-compatibility gate
+    /// (`collect_predicate_type_pairs_inner`).  Because `severity` is `ColumnType::String`,
+    /// the operator `>` (Gt) is not in `valid_operators_for_type(String)` → E-QUERY-002.
+    ///
+    /// LOAD-BEARING: if the alias branch were removed from
+    /// `extract_column_name_from_field_path`, `collect_predicate_type_pairs_inner`
+    /// returns `None` for `["t", "severity"]` → the `(col, op)` pair is NOT pushed
+    /// → `check_operator_type_compatibility` is never called → engine returns `Ok(…)`
+    /// instead of E-QUERY-002 — this test FAILS.
+    ///
+    /// This test additionally proves the alias branch wiring reaches
+    /// `collect_predicate_type_pairs_inner`, not only `collect_predicate_columns`.
+    #[tokio::test]
+    async fn test_BC_2_11_017_alias_qualified_type_gate_e_query_002() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            // severity is String — the operator `>` is invalid for String (E-QUERY-002).
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        // sensor_id="crowdstrike" + table_suffix="alerts" → registered as "crowdstrike_alerts"
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // `t.severity > 5`: severity is String, `>` is not in valid_operators_for_type(String).
+        // Alias branch resolves "t.severity" → "severity" → type lookup → Gt not valid → E-QUERY-002.
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts t WHERE t.severity > 5",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            // QueryTypeMismatch is an inline variant (not boxed): match by ref fields.
+            Err(
+                ref e @ PrismError::QueryTypeMismatch {
+                    ref column,
+                    ref table,
+                    ref operator,
+                    ..
+                },
+            ) => {
+                // E-QUERY-002 fired — the alias branch reached the type gate.
+                assert_eq!(
+                    column.as_str(),
+                    "severity",
+                    "F-FRESH-DC-LOW-001/BC-2.11.017 (alias type gate): E-QUERY-002 column \
+                     must be 'severity' (last segment of alias-qualified 't.severity'). \
+                     Got: '{column}'"
+                );
+                assert_eq!(
+                    table.as_str(),
+                    "crowdstrike_alerts",
+                    "F-FRESH-DC-LOW-001/BC-2.11.017 (alias type gate): table must be \
+                     'crowdstrike_alerts'; got: '{table}'"
+                );
+                assert_eq!(
+                    operator.as_str(),
+                    ">",
+                    "F-FRESH-DC-LOW-001/BC-2.11.017 (alias type gate): operator must be '>'; \
+                     got: '{operator}'"
+                );
+                // The Display output carries the E-QUERY-002 prefix — inline variant uses
+                // the #[error(...)] template from prism-core/src/error.rs.
+                let display = format!("{e}");
+                assert!(
+                    display.starts_with("E-QUERY-002:"),
+                    "F-FRESH-DC-LOW-001/BC-2.11.017 (alias type gate): Display must start \
+                     with 'E-QUERY-002:'; got: '{display}'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-FRESH-DC-LOW-001/BC-2.11.017 (alias type gate) LOAD-BEARING FAIL: \
+                 'SELECT * FROM crowdstrike_alerts t WHERE t.severity > 5' MUST produce \
+                 E-QUERY-002 (String column with '>' operator). Got Ok instead. \
+                 Root cause: alias branch in extract_column_name_from_field_path is absent — \
+                 collect_predicate_type_pairs_inner returns None for 't.severity', \
+                 the (col,op) pair is not pushed, check_operator_type_compatibility \
+                 is never called, engine silently accepts the type-incompatible query."
+            ),
+            Err(PrismError::ColumnNotFound(_)) => {
+                // The existence gate fired BEFORE the type gate — this would indicate a
+                // regression where "severity" is no longer in available_columns.
+                panic!(
+                    "F-FRESH-DC-LOW-001/BC-2.11.017 (alias type gate): got ColumnNotFound \
+                     for 'severity' which IS in the spec — this is a fixture bug or an \
+                     alias-branch regression in the existence gate, not the type gate."
+                );
+            }
+            Err(other) => panic!(
+                "F-FRESH-DC-LOW-001/BC-2.11.017 (alias type gate): expected \
+                 QueryTypeMismatch for 't.severity > 5', got: {other:?}"
+            ),
+        }
+    }
+
+    // =========================================================================
     // GREEN-BY-DESIGN: type shape assertion
     // =========================================================================
 
