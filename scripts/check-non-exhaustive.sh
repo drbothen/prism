@@ -26,8 +26,9 @@
 #   (HttpLookupCredentialConfig E0639 v77, HttpLookupConfig E0639 v78, HttpLookupAuthType E0004 v79).
 # S-DEMO-PRISMQL-ONBOARDING-001-A: bumped 79→82 for 3 prism_describe response types
 #   (PrismDescribeResponse E0639 v80, TableDescriptor E0639 v81, ColumnDescriptor E0639 v82).
+# S-DEMO-PRISMQL-ONBOARDING-001-B: bumped 82→83 for ColumnNotFoundDetails (prism-core::error E0639 v83).
 
-EXPECTED=82
+EXPECTED=83
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

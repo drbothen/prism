@@ -520,6 +520,20 @@ impl TableRegistry {
                 let available_tables = org_visible_tables.join(", ");
                 let did_you_mean = self.did_you_mean_for_tables(&table_name, &org_visible_tables);
 
+                // BC-2.11.017 AC-004: compute pedagogical suggestion so users learn to call
+                // prism_describe to discover available tables and columns.
+                // Extract the matched table name from the did_you_mean formatted string
+                // (e.g. " Did you mean: 'crowdstrike_alerts'?" → Some("crowdstrike_alerts")).
+                let did_you_mean_table: Option<&str> = if did_you_mean.is_empty() {
+                    None
+                } else {
+                    did_you_mean.find('\'').and_then(|start| {
+                        let rest = &did_you_mean[start + 1..];
+                        rest.find('\'').map(|end| &rest[..end])
+                    })
+                };
+                let suggestion = crate::engine::e_query_037_suggestion(&sensor, did_you_mean_table);
+
                 return Err(PrismError::TableNotAvailable(Box::new(
                     TableNotAvailableDetails::new(
                         table_name,
@@ -527,6 +541,7 @@ impl TableRegistry {
                         available_sensors,
                         available_tables,
                         did_you_mean,
+                        suggestion,
                     ),
                 )));
             }

@@ -1249,3 +1249,579 @@ pub enum StringOp {
     StartsWith,
     EndsWith,
 }
+
+// ---------------------------------------------------------------------------
+// PqlNormalizer — Chumsky AST re-serializer (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// Canonicalizing PQL re-serializer (BC-2.11.018).
+///
+/// Walks the parsed `Ast` and produces a whitespace-normalized, uppercase-keyword
+/// form of the original query string.  The output MUST round-trip through the
+/// Chumsky parser to the same `Ast` as the original.
+///
+/// VERIFIED 2026-06-20 (remove-uncertainty pass): there are NO existing
+/// `Display` / `to_pql` / `normalize` / `to_canonical` impls on any AST node
+/// type — this struct is **entirely net-new** with zero leverage points.
+/// `chumsky 0.12.0` supplies no AST pretty-printing facility.
+///
+/// EXCLUDED from output: DataFusion plan node strings (`HashJoin`, `TableScan`,
+/// `SortExec`, `Aggregate`), cost estimates, partition/pushdown details.
+///
+/// Reference: BC-2.11.018; S-DEMO-PRISMQL-ONBOARDING-001-B AC-005, AC-006.
+pub struct PqlNormalizer;
+
+// The `_ => fallback` arms below are intentional: the enums are
+// `#[non_exhaustive]` and the arms document the intended forward-compatible
+// behaviour for future variants.  They are unreachable today (same crate)
+// but are retained for documentation and external-crate robustness.
+#[allow(unreachable_patterns)]
+impl PqlNormalizer {
+    /// Normalize `ast` to a canonical PQL string.
+    ///
+    /// Returns `None` when the normalized form would be empty (defensive guard;
+    /// should not occur for a validly-parsed `Ast` per BC-2.11.018 EC-11-055).
+    pub fn normalize(ast: &Ast) -> Option<String> {
+        let s = match ast {
+            Ast::Sql(stmt) => Self::normalize_sql_statement(stmt),
+            Ast::Filter(filter) => Self::normalize_filter(filter),
+            Ast::Pipe(pipe) => Self::normalize_pipe(pipe),
+            _ => return None, // non_exhaustive arm — unknown future variant
+        };
+        if s.is_empty() {
+            None
+        } else {
+            Some(s)
+        }
+    }
+
+    // ---- SQL mode ----
+
+    fn normalize_sql_statement(stmt: &SqlStatement) -> String {
+        match stmt {
+            SqlStatement::Select(q) => Self::normalize_sql_query(q),
+            SqlStatement::Dml(_) => String::new(), // DML normalization out of scope for 001-B
+            _ => String::new(),
+        }
+    }
+
+    fn normalize_sql_query(q: &SqlQuery) -> String {
+        let mut parts: Vec<String> = Vec::new();
+
+        // SELECT [DISTINCT] items
+        let select_items = Self::normalize_select_clause(&q.select);
+        parts.push(format!("SELECT {select_items}"));
+
+        // FROM source [AS alias]
+        let from_str = Self::normalize_from_clause(&q.from);
+        parts.push(format!("FROM {from_str}"));
+
+        // JOINs
+        for join in &q.joins {
+            parts.push(Self::normalize_join(join));
+        }
+
+        // WHERE predicate
+        if let Some(pred) = &q.where_ {
+            parts.push(format!("WHERE {}", Self::normalize_predicate(pred)));
+        }
+
+        // GROUP BY
+        if !q.group_by.is_empty() {
+            let exprs: Vec<String> = q.group_by.iter().map(Self::normalize_expr).collect();
+            parts.push(format!("GROUP BY {}", exprs.join(", ")));
+        }
+
+        // HAVING
+        if let Some(pred) = &q.having {
+            parts.push(format!("HAVING {}", Self::normalize_predicate(pred)));
+        }
+
+        // ORDER BY
+        if !q.order_by.is_empty() {
+            let ord: Vec<String> = q.order_by.iter().map(Self::normalize_order_expr).collect();
+            parts.push(format!("ORDER BY {}", ord.join(", ")));
+        }
+
+        // LIMIT
+        if let Some(limit) = q.limit {
+            parts.push(format!("LIMIT {limit}"));
+        }
+
+        parts.join(" ")
+    }
+
+    fn normalize_select_clause(sel: &SelectClause) -> String {
+        let distinct = if sel.distinct { "DISTINCT " } else { "" };
+        let items: Vec<String> = sel.items.iter().map(Self::normalize_select_item).collect();
+        format!("{}{}", distinct, items.join(", "))
+    }
+
+    fn normalize_select_item(item: &SelectItem) -> String {
+        match item {
+            SelectItem::Star => "*".to_string(),
+            SelectItem::TableStar(tbl) => format!("{tbl}.*"),
+            SelectItem::Expr { expr, alias } => {
+                let e = Self::normalize_expr(expr);
+                match alias {
+                    Some(a) => format!("{e} AS {a}"),
+                    None => e,
+                }
+            }
+            _ => "*".to_string(), // non_exhaustive arm
+        }
+    }
+
+    fn normalize_from_clause(from: &FromClause) -> String {
+        let src = &from.source.raw;
+        match &from.alias {
+            Some(a) => format!("{src} AS {a}"),
+            None => src.clone(),
+        }
+    }
+
+    fn normalize_join(join: &Join) -> String {
+        let kind = match &join.kind {
+            JoinKind::Inner => "INNER JOIN",
+            JoinKind::Left => "LEFT JOIN",
+            JoinKind::Right => "RIGHT JOIN",
+            JoinKind::FullOuter => "FULL OUTER JOIN",
+            JoinKind::Cross => "CROSS JOIN",
+            _ => "JOIN",
+        };
+        let src = &join.source.raw;
+        let alias_part = match &join.alias {
+            Some(a) => format!(" AS {a}"),
+            None => String::new(),
+        };
+        let on = Self::normalize_expr(&join.on);
+        format!("{kind} {src}{alias_part} ON {on}")
+    }
+
+    fn normalize_order_expr(oe: &OrderExpr) -> String {
+        let e = Self::normalize_expr(&oe.expr);
+        let dir = match &oe.direction {
+            SortDirection::Asc => "ASC",
+            SortDirection::Desc => "DESC",
+            _ => "ASC",
+        };
+        format!("{e} {dir}")
+    }
+
+    // ---- Filter mode ----
+
+    fn normalize_filter(filter: &FilterExpr) -> String {
+        let src = &filter.source.raw;
+        let pred = Self::normalize_predicate(&filter.predicate);
+        format!("{src} | {pred}")
+    }
+
+    // ---- Pipe mode ----
+
+    fn normalize_pipe(pipe: &PipeQuery) -> String {
+        let mut parts: Vec<String> = vec![pipe.source.raw.clone()];
+        for stage in &pipe.stages {
+            parts.push(Self::normalize_pipe_stage(stage));
+        }
+        parts.join(" | ")
+    }
+
+    fn normalize_pipe_stage(stage: &PipeStage) -> String {
+        match stage {
+            PipeStage::Where(pred) => format!("WHERE {}", Self::normalize_predicate(pred)),
+            PipeStage::Sort(exprs) => {
+                let parts: Vec<String> = exprs
+                    .iter()
+                    .map(|se| {
+                        let dir = match &se.direction {
+                            SortDirection::Asc => "ASC",
+                            SortDirection::Desc => "DESC",
+                            _ => "ASC",
+                        };
+                        format!("{} {dir}", Self::normalize_field_path(&se.field))
+                    })
+                    .collect();
+                format!("SORT {}", parts.join(", "))
+            }
+            PipeStage::Limit(n) => format!("LIMIT {n}"),
+            PipeStage::Tail(n) => format!("TAIL {n}"),
+            PipeStage::Dedup(fields) => {
+                let fs: Vec<String> = fields.iter().map(Self::normalize_field_path).collect();
+                format!("DEDUP {}", fs.join(", "))
+            }
+            PipeStage::Fields(fstage) => {
+                let sign = if fstage.include { "+" } else { "-" };
+                let fs: Vec<String> = fstage
+                    .fields
+                    .iter()
+                    .map(Self::normalize_field_path)
+                    .collect();
+                format!("FIELDS {sign} {}", fs.join(", "))
+            }
+            PipeStage::Stats(stats) => Self::normalize_stats_stage(stats),
+            PipeStage::Join(js) => Self::normalize_join_stage(js),
+            PipeStage::Enrich(es) => {
+                format!(
+                    "ENRICH {}({})",
+                    es.infusion,
+                    Self::normalize_field_path(&es.field)
+                )
+            }
+            _ => String::new(), // non_exhaustive arm
+        }
+    }
+
+    fn normalize_stats_stage(stats: &StatsStage) -> String {
+        let aggs: Vec<String> = stats
+            .aggregates
+            .iter()
+            .map(Self::normalize_stat_function)
+            .collect();
+        let mut s = format!("STATS {}", aggs.join(", "));
+        if !stats.by_fields.is_empty() {
+            let bys: Vec<String> = stats
+                .by_fields
+                .iter()
+                .map(Self::normalize_field_path)
+                .collect();
+            s.push_str(&format!(" BY {}", bys.join(", ")));
+        }
+        s
+    }
+
+    fn normalize_stat_function(sf: &StatFunction) -> String {
+        let func_str = Self::normalize_agg_func(&sf.func);
+        match &sf.alias {
+            Some(a) => format!("{func_str} AS {a}"),
+            None => func_str,
+        }
+    }
+
+    fn normalize_agg_func(f: &AggFunc) -> String {
+        match f {
+            AggFunc::Count => "COUNT(*)".to_string(),
+            AggFunc::CountField(fp) => format!("COUNT({})", Self::normalize_field_path(fp)),
+            AggFunc::Sum(fp) => format!("SUM({})", Self::normalize_field_path(fp)),
+            AggFunc::Avg(fp) => format!("AVG({})", Self::normalize_field_path(fp)),
+            AggFunc::Min(fp) => format!("MIN({})", Self::normalize_field_path(fp)),
+            AggFunc::Max(fp) => format!("MAX({})", Self::normalize_field_path(fp)),
+            AggFunc::DistinctCount(fp) => {
+                format!("DISTINCT_COUNT({})", Self::normalize_field_path(fp))
+            }
+            AggFunc::Percentile { field, p } => {
+                format!("PERCENTILE({}, {})", Self::normalize_field_path(field), p)
+            }
+            _ => "COUNT(*)".to_string(), // non_exhaustive arm
+        }
+    }
+
+    fn normalize_join_stage(js: &JoinStage) -> String {
+        let kind = match &js.kind {
+            JoinKind::Inner => "INNER JOIN",
+            JoinKind::Left => "LEFT JOIN",
+            JoinKind::Right => "RIGHT JOIN",
+            JoinKind::FullOuter => "FULL OUTER JOIN",
+            JoinKind::Cross => "CROSS JOIN",
+            _ => "JOIN",
+        };
+        let src = &js.source.raw;
+        let on_part = match &js.on {
+            JoinCondition::SameField(fp) => {
+                format!("ON {}", Self::normalize_field_path(fp))
+            }
+            JoinCondition::Pair(left, right) => {
+                format!(
+                    "ON {} == {}",
+                    Self::normalize_field_path(left),
+                    Self::normalize_field_path(right)
+                )
+            }
+            _ => String::new(),
+        };
+        format!("{kind} {src} {on_part}")
+    }
+
+    // ---- Predicate ----
+
+    fn normalize_predicate(pred: &Predicate) -> String {
+        match pred {
+            Predicate::Compare { lhs, op, rhs } => {
+                let op_str = match op {
+                    CompareOp::Eq => "=",
+                    CompareOp::Ne => "!=",
+                    CompareOp::Gt => ">",
+                    CompareOp::Lt => "<",
+                    CompareOp::Ge => ">=",
+                    CompareOp::Le => "<=",
+                    CompareOp::Like => "LIKE",
+                    CompareOp::Cidr => "IN CIDR",
+                    CompareOp::NotCidr => "NOT IN CIDR",
+                    _ => "=",
+                };
+                format!(
+                    "{} {op_str} {}",
+                    Self::normalize_expr(lhs),
+                    Self::normalize_expr(rhs)
+                )
+            }
+            Predicate::StringOp {
+                field,
+                op,
+                pattern,
+                case_insensitive,
+            } => {
+                let op_str = match (op, case_insensitive) {
+                    (StringOp::Contains, false) => "CONTAINS",
+                    (StringOp::Contains, true) => "ICONTAINS",
+                    (StringOp::StartsWith, false) => "STARTSWITH",
+                    (StringOp::StartsWith, true) => "ISTARTSWITH",
+                    (StringOp::EndsWith, false) => "ENDSWITH",
+                    (StringOp::EndsWith, true) => "IENDSWITH",
+                    _ => "CONTAINS",
+                };
+                format!("{} {op_str} '{pattern}'", Self::normalize_field_path(field))
+            }
+            Predicate::Regex { field, pattern } => {
+                format!(
+                    "{} =~ '{}'",
+                    Self::normalize_field_path(field),
+                    pattern.pattern
+                )
+            }
+            Predicate::In {
+                field,
+                values,
+                negated,
+            } => {
+                let vals: Vec<String> = values.iter().map(Self::normalize_literal).collect();
+                let not_kw = if *negated { "NOT IN" } else { "IN" };
+                format!(
+                    "{} {not_kw} ({})",
+                    Self::normalize_field_path(field),
+                    vals.join(", ")
+                )
+            }
+            Predicate::InSubquery {
+                field,
+                subquery,
+                negated,
+            } => {
+                let not_kw = if *negated { "NOT IN" } else { "IN" };
+                let sub = Self::normalize_sql_query(subquery);
+                format!("{} {not_kw} ({sub})", Self::normalize_field_path(field))
+            }
+            Predicate::Between {
+                field,
+                low,
+                high,
+                negated,
+            } => {
+                let not_kw = if *negated { "NOT BETWEEN" } else { "BETWEEN" };
+                format!(
+                    "{} {not_kw} {} AND {}",
+                    Self::normalize_field_path(field),
+                    Self::normalize_literal(low),
+                    Self::normalize_literal(high)
+                )
+            }
+            Predicate::Cidr {
+                field,
+                cidr,
+                negated,
+            } => {
+                let not_kw = if *negated { "NOT IN CIDR" } else { "IN CIDR" };
+                format!(
+                    "{} {not_kw} '{}'",
+                    Self::normalize_field_path(field),
+                    cidr.cidr
+                )
+            }
+            Predicate::Has(fp) => format!("HAS {}", Self::normalize_field_path(fp)),
+            Predicate::Missing(fp) => format!("MISSING {}", Self::normalize_field_path(fp)),
+            Predicate::IsNull { field, negated } => {
+                let not_kw = if *negated { "IS NOT NULL" } else { "IS NULL" };
+                format!("{} {not_kw}", Self::normalize_field_path(field))
+            }
+            Predicate::Wildcard {
+                field,
+                pattern,
+                negated,
+            } => {
+                let op = if *negated { "!=" } else { "=" };
+                format!("{} {op} '{pattern}'", Self::normalize_field_path(field))
+            }
+            Predicate::Logical { op, predicates } => {
+                let op_str = match op {
+                    LogicalOp::And => "AND",
+                    LogicalOp::Or => "OR",
+                    _ => "AND",
+                };
+                let parts: Vec<String> = predicates
+                    .iter()
+                    .map(|p| {
+                        // Wrap OR sub-predicates in parens inside an AND context for clarity
+                        match p {
+                            Predicate::Logical { op: inner_op, .. }
+                                if matches!(inner_op, LogicalOp::Or)
+                                    && matches!(op, LogicalOp::And) =>
+                            {
+                                format!("({})", Self::normalize_predicate(p))
+                            }
+                            _ => Self::normalize_predicate(p),
+                        }
+                    })
+                    .collect();
+                parts.join(&format!(" {op_str} "))
+            }
+            Predicate::Not(inner) => format!("NOT ({})", Self::normalize_predicate(inner)),
+            Predicate::RecoveryError => "<recovery_error>".to_string(),
+            _ => String::new(), // non_exhaustive arm
+        }
+    }
+
+    // ---- Expr ----
+
+    fn normalize_expr(expr: &Expr) -> String {
+        match expr {
+            Expr::Literal(lit) => Self::normalize_literal_as_expr(lit),
+            Expr::Field(fp) => Self::normalize_field_path(fp),
+            Expr::VirtualField(vf) => Self::normalize_virtual_field(vf),
+            Expr::Compare { lhs, op, rhs } => {
+                let op_str = match op {
+                    CompareOp::Eq => "=",
+                    CompareOp::Ne => "!=",
+                    CompareOp::Gt => ">",
+                    CompareOp::Lt => "<",
+                    CompareOp::Ge => ">=",
+                    CompareOp::Le => "<=",
+                    CompareOp::Like => "LIKE",
+                    CompareOp::Cidr => "IN CIDR",
+                    CompareOp::NotCidr => "NOT IN CIDR",
+                    _ => "=",
+                };
+                format!(
+                    "{} {op_str} {}",
+                    Self::normalize_expr(lhs),
+                    Self::normalize_expr(rhs)
+                )
+            }
+            Expr::Logical { lhs, op, rhs } => {
+                let op_str = match op {
+                    LogicalOp::And => "AND",
+                    LogicalOp::Or => "OR",
+                    _ => "AND",
+                };
+                format!(
+                    "{} {op_str} {}",
+                    Self::normalize_expr(lhs),
+                    Self::normalize_expr(rhs)
+                )
+            }
+            Expr::Not(inner) => format!("NOT {}", Self::normalize_expr(inner)),
+            Expr::In { field, values } => {
+                let vals: Vec<String> = values.iter().map(Self::normalize_literal).collect();
+                format!(
+                    "{} IN ({})",
+                    Self::normalize_field_path(field),
+                    vals.join(", ")
+                )
+            }
+            Expr::InSubquery { field, subquery } => {
+                let sub = Self::normalize_sql_query(subquery);
+                format!("{} IN ({sub})", Self::normalize_field_path(field))
+            }
+            Expr::FuncCall(fc) => Self::normalize_func_call(fc),
+            Expr::Star => "*".to_string(),
+            _ => String::new(), // non_exhaustive arm
+        }
+    }
+
+    fn normalize_func_call(fc: &FuncCall) -> String {
+        match fc {
+            FuncCall::Aggregate {
+                func,
+                args,
+                distinct,
+            } => {
+                let func_str = Self::normalize_agg_func(func);
+                // For aggregate functions with explicit args, use arg representation
+                if args.is_empty() || matches!(func, AggFunc::Count) {
+                    func_str
+                } else {
+                    let args_str: Vec<String> = args.iter().map(Self::normalize_expr).collect();
+                    let distinct_kw = if *distinct { "DISTINCT " } else { "" };
+                    let inner_name = match func {
+                        AggFunc::Sum(_) => "SUM",
+                        AggFunc::Avg(_) => "AVG",
+                        AggFunc::Min(_) => "MIN",
+                        AggFunc::Max(_) => "MAX",
+                        AggFunc::DistinctCount(_) => "DISTINCT_COUNT",
+                        _ => "FUNC",
+                    };
+                    format!("{inner_name}({distinct_kw}{})", args_str.join(", "))
+                }
+            }
+            FuncCall::Scalar { func, args } => {
+                let func_name = match func {
+                    ScalarFunc::SubnetContains => "subnet_contains",
+                    ScalarFunc::TimeWindow => "time_window",
+                    ScalarFunc::JsonExtractString => "json_extract_string",
+                    ScalarFunc::IocMatch => "ioc_match",
+                    ScalarFunc::MitreTactic => "mitre_tactic",
+                    ScalarFunc::SeverityLabel => "severity_label",
+                    ScalarFunc::Unknown(name) => name.as_str(),
+                    _ => "func",
+                };
+                let args_str: Vec<String> = args.iter().map(Self::normalize_expr).collect();
+                format!("{func_name}({})", args_str.join(", "))
+            }
+            FuncCall::Window { .. } => "WINDOW()".to_string(),
+            _ => String::new(), // non_exhaustive arm
+        }
+    }
+
+    fn normalize_virtual_field(vf: &VirtualField) -> String {
+        match vf {
+            VirtualField::Sensor => "_sensor".to_string(),
+            VirtualField::Client => "_client".to_string(),
+            VirtualField::SourceTable => "_source_table".to_string(),
+            VirtualField::SourceType => "_source_type".to_string(),
+            VirtualField::SafetyFlags => "_safety_flags".to_string(),
+            _ => "_unknown".to_string(),
+        }
+    }
+
+    fn normalize_field_path(fp: &FieldPath) -> String {
+        fp.segments.join(".")
+    }
+
+    fn normalize_literal(lit: &Literal) -> String {
+        match lit {
+            Literal::String(s) => format!("'{s}'"),
+            Literal::Integer(n) => n.to_string(),
+            Literal::Float(f) => f.to_string(),
+            Literal::Bool(b) => b.to_string().to_uppercase(),
+            Literal::Null => "NULL".to_string(),
+            Literal::Duration(d) => {
+                let unit_str = match d.unit() {
+                    DurationUnit::Seconds => "s",
+                    DurationUnit::Minutes => "m",
+                    DurationUnit::Hours => "h",
+                    DurationUnit::Days => "d",
+                    _ => "s",
+                };
+                format!("{}{unit_str}", d.value())
+            }
+            Literal::Cidr(c) => format!("'{}'", c.cidr),
+            Literal::Regex(r) => format!("'{}'", r.pattern),
+            Literal::IpAddr(ip) => ip.0 .0.to_string(),
+            Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
+            _ => "NULL".to_string(), // non_exhaustive arm
+        }
+    }
+
+    /// Normalize a literal in expression context (same as `normalize_literal`).
+    fn normalize_literal_as_expr(lit: &Literal) -> String {
+        Self::normalize_literal(lit)
+    }
+}

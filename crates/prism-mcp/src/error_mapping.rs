@@ -123,6 +123,20 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // P6-02 adjudication 2026-06-11; error-taxonomy.md v1.73 E-QUERY-036.
         PrismError::UnknownSourceTable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
+        // E-QUERY-038: Column not found → -32602 INVALID_PARAMS (caller-resolvable).
+        //
+        // MUST be explicit: `PrismError` is `#[non_exhaustive]`; without this arm the
+        // variant would fall through to the catch-all `-32000 INTERNAL_ERROR`, losing
+        // the caller-actionable E-QUERY-038 guidance (available_columns, did_you_mean).
+        //
+        // Maps to INVALID_PARAMS (-32602): the caller supplied a query referencing a
+        // column that does not exist in the table — caller-resolvable by correcting the
+        // column name or calling `prism_describe` to enumerate available columns.
+        //
+        // Gate ordering: fires AFTER E-QUERY-037 passes (table must exist first).
+        // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
+        PrismError::ColumnNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-QUERY-037: Table not available → -32602 Invalid params (caller-resolvable).
         //
         // MUST be explicit: `PrismError` is `#[non_exhaustive]`; without this arm the
@@ -472,6 +486,33 @@ pub struct StructuredErrorFields {
     pub original_params_valid: bool,
     /// Raw upstream sensor message; `null` for errors originating in Prism (DI-006).
     pub upstream_message: Option<String>,
+    /// Near-text snippet from the query at the parse-error offset (E-QUERY-001 / BC-2.11.017 AC-003).
+    ///
+    /// Set to `Some(token)` when the error is a `QueryParseFailed` and the original query
+    /// string is available. The snippet is truncated to ≤50 chars (DI-006). `None` for all
+    /// other error types.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub near_text: Option<String>,
+    /// Reference pointer for query syntax documentation (E-QUERY-001 / BC-2.11.017 AC-003).
+    ///
+    /// Set to `Some("prismql://reference")` when the error is a `QueryParseFailed`.
+    /// `None` for all other error types.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference_pointer: Option<String>,
+    /// Valid operators for the column type involved in a type-mismatch error
+    /// (E-QUERY-002 / BC-2.11.017 AC-003 `valid_operators_for_type`).
+    ///
+    /// Populated when the error carries enough column-type context to call
+    /// `prism_query::engine::valid_operators_for_type(column_type)`.
+    /// `None` for all other error types.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_operators_for_type: Option<Vec<String>>,
+    /// How-to-fix guidance for security-limit errors (E-QUERY-003 / BC-2.11.017 AC-003).
+    ///
+    /// Set via `prism_query::engine::how_to_fix_for_security_limit(detail)` for
+    /// `QuerySecurityLimitExceeded` errors. `None` for all other error types.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub how_to_fix: Option<String>,
 }
 
 impl StructuredErrorFields {
@@ -520,6 +561,14 @@ impl StructuredErrorFields {
             source: source.into(),
             original_params_valid,
             upstream_message,
+            // BC-2.11.017 AC-003: near_text and reference_pointer default to None.
+            // Only set for QueryParseFailed via prism_error_to_structured_call_result.
+            near_text: None,
+            reference_pointer: None,
+            // BC-2.11.017 AC-003: valid_operators_for_type and how_to_fix default to None.
+            // Set for specific error variants via prism_error_to_structured_call_result.
+            valid_operators_for_type: None,
+            how_to_fix: None,
         }
     }
 
@@ -611,6 +660,10 @@ impl StructuredErrorFieldsBuilder {
                 .expect("StructuredErrorFieldsBuilder: source is required"),
             original_params_valid: self.original_params_valid,
             upstream_message: self.upstream_message,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
         }
     }
 }
@@ -664,18 +717,35 @@ pub fn build_structured_error_response(
         None => serde_json::Value::Null,
     };
 
+    // BC-2.11.017 AC-003: near_text and reference_pointer are optional enrichment fields.
+    // Only included in the JSON object when Some; omitted (not null) to avoid polluting
+    // every error response with null fields (skip_serializing_if = "Option::is_none").
+    let mut error_obj = serde_json::json!({
+        "code": fields.code,
+        "message": fields.message,
+        "category": fields.category,
+        "retryable": fields.retryable,
+        "retry_after_seconds": retry_after_seconds,
+        "suggestion": fields.suggestion,
+        "source": fields.source,
+        "original_params_valid": fields.original_params_valid,
+        "upstream_message": upstream_message,
+    });
+    if let Some(nt) = fields.near_text {
+        error_obj["near_text"] = serde_json::Value::String(nt);
+    }
+    if let Some(rp) = fields.reference_pointer {
+        error_obj["reference_pointer"] = serde_json::Value::String(rp);
+    }
+    if let Some(ops) = fields.valid_operators_for_type {
+        error_obj["valid_operators_for_type"] =
+            serde_json::Value::Array(ops.into_iter().map(serde_json::Value::String).collect());
+    }
+    if let Some(htf) = fields.how_to_fix {
+        error_obj["how_to_fix"] = serde_json::Value::String(htf);
+    }
     let structured_content = serde_json::json!({
-        "error": {
-            "code": fields.code,
-            "message": fields.message,
-            "category": fields.category,
-            "retryable": fields.retryable,
-            "retry_after_seconds": retry_after_seconds,
-            "suggestion": fields.suggestion,
-            "source": fields.source,
-            "original_params_valid": fields.original_params_valid,
-            "upstream_message": upstream_message,
-        },
+        "error": error_obj,
         "_meta": {
             "trust_level": "internal"
         }
@@ -792,6 +862,19 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         /// Required for variants where `map_prism_error` returns the generic
         /// "Internal error; see audit log" message (no E- prefix to infer from).
         ec_code_override: Option<&'static str>,
+        /// Near-text snippet for QueryParseFailed (BC-2.11.017 AC-003 / E-QUERY-001).
+        /// None for all other variants.
+        near_text: Option<String>,
+        /// Reference pointer for QueryParseFailed (BC-2.11.017 AC-003).
+        /// None for all other variants.
+        reference_pointer: Option<&'static str>,
+        /// Valid operators for the column type in a type-mismatch error (E-QUERY-002).
+        /// None for all other variants.
+        valid_operators_for_type: Option<Vec<String>>,
+        /// How-to-fix guidance for security-limit errors (E-QUERY-003).
+        /// Set via `how_to_fix_for_security_limit(detail)` for QuerySecurityLimitExceeded.
+        /// None for all other variants.
+        how_to_fix: Option<String>,
     }
     let meta = match &err {
         // ── Authentication errors: credential invalid or identity format failure ─
@@ -830,6 +913,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             // E-AUTH-001/002/003 inferred from map_prism_error Display prefix (starts "E-AUTH-").
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // (b) Valid-format credential failures: token expired/invalid → original_params_valid: true
@@ -845,6 +932,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             // variant — no E- prefix. Pin E-AUTH-010 directly.
             owned_suggestion: None,
             ec_code_override: Some("E-AUTH-010"),
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         PrismError::AuthTokenInvalid { .. } => VariantMeta {
@@ -859,6 +950,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             // variant — no E- prefix. Pin E-AUTH-011 directly.
             owned_suggestion: None,
             ec_code_override: Some("E-AUTH-011"),
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── Validation errors: caller-supplied bad parameters ────────────────
@@ -874,12 +969,116 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // SensorNotRegisteredForOrg is EXCLUDED from this group per OBS-1 (BC-2.10.007 v1.8):
         // cross-org sensor isolation is a scoping/permission denial, NOT a param-validation
         // failure. The org slug and sensor name are structurally valid. Moved to "permission".
-        PrismError::QueryParseFailed { .. }
-        | PrismError::McpParameterInvalid { .. }
+        // ── E-QUERY-001 parse error: extract near_text + reference_pointer ───
+        // BC-2.11.017 AC-003: the near_text snippet (≤50 chars token at `offset`)
+        // and reference_pointer ("prismql://reference") must appear in the MCP error
+        // envelope for QueryParseFailed. Uses the `query` field added to the variant
+        // (S-DEMO-PRISMQL-ONBOARDING-001-B) to compute the snippet.
+        PrismError::QueryParseFailed {
+            ref query,
+            offset,
+            ..
+        } => {
+            // BC-2.11.017 AC-003: compute near_text as the first whitespace-delimited
+            // token at or before `offset`. The parser reports the position of the
+            // UNEXPECTED token (e.g. `*` at position 6 for "SELCT * FROM …"), but the
+            // meaningful token for the user is the PRECEDING word ("SELCT") that caused
+            // the parser to be in a state where `*` was unexpected.
+            //
+            // Algorithm: find the start of the word that CONTAINS offset-1 by scanning
+            // backward from `offset` to the last whitespace. If offset=0, use extract_near_text
+            // at 0 (already at start of query). DI-006: truncated to ≤50 chars by extract_near_text.
+            let effective_offset = if *offset == 0 {
+                0
+            } else {
+                // Walk backward from (offset - 1) to find the start of the preceding token.
+                // Two-step algorithm:
+                //   1. Skip any whitespace immediately before offset (e.g. "SELCT " → skip ' ').
+                //   2. Then find the last whitespace before the preceding non-whitespace run.
+                //      That gives the start of the last complete token before offset.
+                let before_offset = query.get(..*offset).unwrap_or(query.as_str());
+                // Find last non-whitespace position (skip trailing spaces before offset).
+                let last_non_ws = before_offset
+                    .rfind(|c: char| !c.is_whitespace())
+                    .unwrap_or(0); // all whitespace or empty → use 0
+                // Find the start of the word ending at last_non_ws.
+                let preceding_word_start = before_offset.get(..=last_non_ws)
+                    .and_then(|s| s.rfind(|c: char| c.is_whitespace()))
+                    .map(|pos| pos + 1)
+                    .unwrap_or(0);
+                preceding_word_start
+            };
+            let near_text = prism_query::engine::extract_near_text(query, effective_offset);
+            VariantMeta {
+                category: "validation",
+                suggestion: "Check the request parameters and retry.",
+                retryable: false,
+                retry_after_seconds: None,
+                original_params_valid: false,
+                source_override: None,
+                upstream_message: None,
+                owned_suggestion: None,
+                ec_code_override: None,
+                near_text: if near_text.is_empty() {
+                    None
+                } else {
+                    Some(near_text)
+                },
+                reference_pointer: Some("prismql://reference"),
+                valid_operators_for_type: None,
+                how_to_fix: None,
+            }
+        }
+
+        // ── E-QUERY-037 table-not-found: use suggestion from TableNotAvailableDetails ─
+        // BC-2.11.017 AC-004: the `suggestion` field of `TableNotAvailableDetails`
+        // already contains the `prism_describe` pointer (set by `check_availability_gate`).
+        // Surface it as the `owned_suggestion` so the MCP envelope carries "prism_describe".
+        PrismError::TableNotAvailable(ref d) => VariantMeta {
+            category: "validation",
+            suggestion: "Check the request parameters and retry.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: if d.suggestion.is_empty() {
+                None
+            } else {
+                Some(d.suggestion.clone())
+            },
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
+        },
+
+        // ── E-QUERY-003 security-limit error: wire how_to_fix_for_security_limit ──
+        // BC-2.11.017 AC-003: the `how_to_fix_for_security_limit(detail)` helper must
+        // appear in the MCP error envelope for QuerySecurityLimitExceeded errors.
+        // The helper returns operator-actionable remediation guidance for the specific
+        // security limit that was exceeded (e.g. depth limit, breadth limit).
+        PrismError::QuerySecurityLimitExceeded { ref detail } => VariantMeta {
+            category: "validation",
+            suggestion: "Check the request parameters and retry.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: Some(prism_query::engine::how_to_fix_for_security_limit(detail)),
+        },
+
+        PrismError::McpParameterInvalid { .. }
         | PrismError::McpToolNotFound { .. }
         | PrismError::InvalidCapabilityPath { .. }
         | PrismError::QueryLimitExceeded { .. }
-        | PrismError::QuerySecurityLimitExceeded { .. }
         | PrismError::UnknownSourceTable { .. }
         | PrismError::AliasNotFound { .. }
         | PrismError::AliasCycleDetected { .. }
@@ -900,6 +1099,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            valid_operators_for_type: None,
+            how_to_fix: None,
         },
 
         // ── Write-policy errors: structurally valid params, policy denied ────
@@ -922,6 +1125,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── Configuration errors: well-formed params but not in config ───────
@@ -946,6 +1153,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── Permission errors: capability denied, auth failures, org-scoping ──
@@ -974,6 +1185,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // (b) CapabilityDenied: thread the variant's own suggestion field verbatim.
@@ -991,6 +1206,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: Some(suggestion.clone()),
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // (c) All other permission variants: generic permission/confirmation guidance.
@@ -1019,6 +1238,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── Transient errors: retryable, no permanent fix needed ─────────────
@@ -1033,6 +1256,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // BC-2.10.007 §115: SensorRateLimited requires explicit arm binding both fields.
@@ -1064,6 +1291,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             // F-1: pin canonical code directly (map_prism_error returns generic message for this).
             owned_suggestion: None,
             ec_code_override: Some("E-SENSOR-020"),
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // BC-2.10.007 §81: source = sensor name; DI-006: body → upstream_message.
@@ -1121,6 +1352,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 // F-1: pin canonical code directly (map_prism_error returns generic message).
                 owned_suggestion: None,
                 ec_code_override: Some("E-SENSOR-001"),
+                near_text: None,
+                reference_pointer: None,
+                valid_operators_for_type: None,
+                how_to_fix: None,
             }
         }
 
@@ -1138,6 +1373,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: Some("E-SENSOR-002"),
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         PrismError::SensorResponseParse { sensor, .. } => VariantMeta {
@@ -1150,6 +1389,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: Some("E-SENSOR-003"),
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // AuditPersistenceFailed is retryable and transient (not permanent "internal").
@@ -1164,6 +1407,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── Prism-side infrastructure failures → category "internal" ────────
@@ -1198,6 +1445,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── MCP serialization error → fallback (not a sensor failure, not listed in
@@ -1213,6 +1464,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── Process-supervision watchdog failures → category "internal" ────────
@@ -1239,6 +1494,38 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
+        },
+
+        // E-QUERY-038: ColumnNotFound → "validation", original_params_valid: false.
+        //
+        // The caller supplied a column name that does not exist in the target table —
+        // a bad parameter (the column string is malformed or mistyped). Structurally
+        // valid request (table exists, client_id valid) but wrong column.
+        //
+        // Explicit arm required: `PrismError` is `#[non_exhaustive]`; without this arm
+        // the variant falls to the catch-all with category "upstream_error" and a
+        // generic suggestion, losing the `prism_describe` guidance required by BC-2.11.016.
+        //
+        // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
+        PrismError::ColumnNotFound(..) => VariantMeta {
+            category: "validation",
+            suggestion: "Call prism_describe('<client_id>') to see available columns, \
+                         or use the available_columns field in this error to correct the column name.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: Some("E-QUERY-038"),
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
 
         // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
@@ -1254,6 +1541,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             upstream_message: None,
             owned_suggestion: None,
             ec_code_override: None,
+        near_text: None,
+        reference_pointer: None,
+        valid_operators_for_type: None,
+        how_to_fix: None,
         },
     };
 
@@ -1297,6 +1588,12 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         source,
         original_params_valid: meta.original_params_valid,
         upstream_message: meta.upstream_message,
+        // BC-2.11.017 AC-003: near_text and reference_pointer come from VariantMeta.
+        near_text: meta.near_text,
+        reference_pointer: meta.reference_pointer.map(str::to_owned),
+        // BC-2.11.017 AC-003: valid_operators_for_type and how_to_fix come from VariantMeta.
+        valid_operators_for_type: meta.valid_operators_for_type,
+        how_to_fix: meta.how_to_fix,
     };
     let content_text = format!(
         "ERROR: [{}] - {}. {}",
@@ -2063,6 +2360,7 @@ mod tests {
                 "armis, claroty",
                 "armis_alerts, claroty_devices",
                 "",
+                "",
             ),
         ));
         let (code, message) = map_prism_error(err);
@@ -2101,6 +2399,7 @@ mod tests {
                 "crowdstrike",
                 "crowdstrike_alerts",
                 " Did you mean: 'crowdstrike_alerts'?",
+                "",
             ),
         ));
         let (code, message) = map_prism_error(err);

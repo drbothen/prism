@@ -739,6 +739,23 @@ impl QueryEngine {
             resolved_spec_snapshot.as_deref(),
         )?;
 
+        // S-DEMO-PRISMQL-ONBOARDING-001-B: plan-time column gate (BC-2.11.016 / E-QUERY-038).
+        // Fires AFTER E-QUERY-037 passes (table exists → then check columns).
+        // Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
+        // (column not found). The client_id is derived from the first explicit client scope.
+        let client_id_for_col_gate = options
+            .clients
+            .as_deref()
+            .and_then(|c| c.first())
+            .map(|o| o.as_str().to_owned())
+            .unwrap_or_default();
+        check_query_column_availability(
+            effective_query,
+            &client_id_for_col_gate,
+            options.clients.as_deref(),
+            resolved_spec_snapshot.as_deref(),
+        )?;
+
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
             crate::scoping::resolve_clients(options.clients.clone(), &self.client_registry)?;
@@ -1015,6 +1032,20 @@ impl QueryEngine {
             resolved_spec_snapshot_scheduled.as_deref(),
         )?;
 
+        // S-DEMO-PRISMQL-ONBOARDING-001-B: plan-time column gate (BC-2.11.016 / E-QUERY-038).
+        // Fires AFTER E-QUERY-037 passes (table exists → then check columns).
+        let client_id_for_col_gate_sched = clients
+            .as_deref()
+            .and_then(|c| c.first())
+            .map(|o| o.as_str().to_owned())
+            .unwrap_or_default();
+        check_query_column_availability(
+            query_str,
+            &client_id_for_col_gate_sched,
+            clients.as_deref(),
+            resolved_spec_snapshot_scheduled.as_deref(),
+        )?;
+
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
 
@@ -1218,6 +1249,349 @@ fn check_table_availability(
     // The gate body lives in table_registry.rs, keeping engine.rs
     // free of stub macros per POL-12 / test_AC_8_no_todo_or_unimplemented_remains.
     registry.check_availability_gate(query_str, org_scope, resolved_spec_map)
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-038 plan-time column gate (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// Plan-time column availability gate — E-QUERY-038 (BC-2.11.016).
+///
+/// Fires AFTER `check_table_availability` passes (table exists → then check columns).
+/// Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
+/// (column not found). If the table check fails, this gate is never reached.
+///
+/// Checks each column reference in the query AST against the column schema in
+/// `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns →
+/// ColumnSpec.name` for the (table, org_scope) pair. When `resolved_spec_map` is
+/// `None`, returns `Ok(())` (fail-open for single-tenant / test mode — the gate fires
+/// only when resolved_spec_map is wired).
+///
+/// `available_columns` is ALWAYS present in the error (empty `[]` when `resolved_spec_map`
+/// is `None` or the table has zero columns). `did_you_mean` uses `strsim::levenshtein`
+/// with the same ≤3 threshold as the E-QUERY-037 gate (D-1163).
+///
+/// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B AC-001, AC-002
+fn check_column_availability(
+    column_name: &str,
+    table_name: &str,
+    client_id: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), PrismError> {
+    use prism_core::error::{ColumnNotFoundDetails, PrismError};
+
+    // Fail-open when resolved_spec_map is not wired (single-tenant / test mode).
+    let Some(spec_map) = resolved_spec_map else {
+        return Ok(());
+    };
+
+    // Collect available columns for this table from entries matching org_scope.
+    // Org-scoping: filter spec_map entries to those whose org_slug is in org_scope.
+    // When org_scope is None, use all entries (no org restriction).
+    //
+    // Table-name matching: the query uses fully-qualified `{sensor_id}_{table_suffix}` form
+    // (e.g. "crowdstrike_alerts"), while `TableSpec.table_name` is the SHORT suffix (e.g.
+    // "alerts"). Reconstruct the fully-qualified form as `{spec.sensor_id}_{tbl.table_name}`
+    // for matching (test-fixture naming contract per BC-2.11.016 §Test Vectors).
+    //
+    // Fail-open guard: if the table_name matches NO entry in the spec_map (regardless of
+    // org_scope), the gate cannot validate columns — skip. This prevents false positives
+    // when the spec_map is populated but doesn't include schema for this particular table
+    // (e.g. legacy tables without overlay specs). Only gate when the table IS in the schema.
+    // This is distinct from EC-039 (zero-column table IS in schema → gate fires with []).
+    let org_visible_entries: Vec<&prism_spec_engine::ResolvedSensorSpec> = spec_map
+        .values()
+        .filter(|spec| {
+            // DI-008: filter to org-visible entries.
+            if let Some(scopes) = org_scope {
+                scopes.iter().any(|s| s.as_str() == spec.org_slug.as_str())
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    let table_in_schema = org_visible_entries.iter().any(|spec| {
+        let sensor_id = &spec.spec.sensor_id;
+        spec.spec
+            .tables
+            .iter()
+            .any(|tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
+    });
+
+    // Fail-open: if this table has no schema entry, we cannot validate columns.
+    if !table_in_schema {
+        return Ok(());
+    }
+
+    let available_columns: Vec<String> = org_visible_entries
+        .iter()
+        .flat_map(|spec| {
+            let sensor_id = spec.spec.sensor_id.clone();
+            spec.spec
+                .tables
+                .iter()
+                .filter(move |tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
+                .flat_map(|tbl| tbl.columns.iter().map(|c| c.name.clone()))
+        })
+        .collect();
+
+    // If the column is in the available set, the gate passes.
+    if available_columns.contains(&column_name.to_string()) {
+        return Ok(());
+    }
+
+    // did_you_mean: find closest column by Levenshtein distance ≤ 3 (D-1163).
+    let did_you_mean = available_columns
+        .iter()
+        .map(|c| (c.clone(), strsim::levenshtein(column_name, c)))
+        .filter(|(_, dist)| *dist <= 3)
+        .min_by_key(|(_, dist)| *dist)
+        .map(|(c, _)| c);
+
+    // Emit audit tracing event per SAP-1 / PG-LP11-001.
+    tracing::warn!(
+        event_type = "column_not_found.rejected",
+        column = %column_name,
+        table = %table_name,
+        client_id = %client_id,
+        available_count = available_columns.len(),
+        "E-QUERY-038: column not found at plan time"
+    );
+
+    Err(PrismError::ColumnNotFound(Box::new(
+        ColumnNotFoundDetails::new(
+            column_name,
+            table_name,
+            client_id,
+            available_columns,
+            did_you_mean,
+        ),
+    )))
+}
+
+/// Plan-time column availability gate (E-QUERY-038) — query-level driver.
+///
+/// Parses `query_str`, extracts the FROM table and all non-wildcard SELECT column
+/// references, then calls `check_column_availability` for each one. Returns the
+/// first `Err(PrismError::ColumnNotFound)` found, or `Ok(())` if all columns pass.
+///
+/// Gate skip conditions (mirroring `check_table_availability`):
+/// - `resolved_spec_map` is `None`: skip (single-tenant / test mode without wiring)
+/// - Query fails to parse: skip (parse errors handled downstream)
+/// - SELECT * or SELECT table.*: skip (wildcard columns always pass)
+///
+/// Only SQL SELECT mode is checked. Filter and Pipe modes have no explicit column
+/// projection and DataFusion handles field resolution in those modes.
+///
+/// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B
+fn check_query_column_availability(
+    query_str: &str,
+    client_id: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), PrismError> {
+    use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
+    use crate::filter_parser::PrismQlParser;
+
+    // Fail-open when resolved_spec_map is not wired.
+    if resolved_spec_map.is_none() {
+        return Ok(());
+    }
+
+    // Parse the query — if parsing fails, skip (parse errors handled downstream).
+    let ast = match PrismQlParser::parse(query_str) {
+        Ok(ast) => ast,
+        Err(_) => return Ok(()),
+    };
+
+    // Only handle SQL SELECT mode — filter/pipe have no explicit column projection.
+    let sql_query = match &ast {
+        Ast::Sql(SqlStatement::Select(q)) => q,
+        _ => return Ok(()),
+    };
+
+    // Derive the fully-qualified table name from the FROM clause.
+    // Custom SourceRef: raw is already the full table name (e.g. "crowdstrike_alerts").
+    // External SourceRef: "sensor.table" dotted → "sensor_table" underscore convention.
+    let table_name = {
+        use crate::ast::SourceRefKind;
+        match &sql_query.from.source.kind {
+            SourceRefKind::Custom => sql_query.from.source.raw.clone(),
+            SourceRefKind::External { sensor, table } => format!("{sensor}_{table}"),
+            // Internal / Composite tables have no column schema in resolved_spec_map.
+            _ => return Ok(()),
+        }
+    };
+
+    // Skip prism_* internal tables (they have a separate capability gate).
+    if table_name.starts_with("prism_") {
+        return Ok(());
+    }
+
+    // Extract non-wildcard column names from the SELECT clause.
+    let col_refs: Vec<String> = sql_query
+        .select
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            SelectItem::Star => None,         // SELECT * — skip
+            SelectItem::TableStar(_) => None, // SELECT table.* — skip
+            SelectItem::Expr { expr, .. } => match expr {
+                Expr::Field(fp) => {
+                    // Use the first segment as the column name (simple unqualified field).
+                    fp.segments.first().cloned()
+                }
+                // VirtualField (_sensor, _client, etc.) — skip (always valid).
+                Expr::VirtualField(_) => None,
+                // Other expr types (FuncCall, literals, etc.) — skip.
+                _ => None,
+            },
+            // #[non_exhaustive] catch-all for future SelectItem variants.
+            #[allow(unreachable_patterns)]
+            _ => None,
+        })
+        .collect();
+
+    // For each referenced column, check availability.
+    for col in &col_refs {
+        check_column_availability(col, &table_name, client_id, org_scope, resolved_spec_map)?;
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Pedagogical enrichment helpers (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// E-QUERY-001 enrichment: extract `near_text` (≤50 chars) from a Chumsky error span.
+///
+/// Returns the offending token slice from the input string using the chumsky error's
+/// span (start/end indices). Truncated to ≤50 chars per DI-006 (BC-2.11.017).
+/// Returns `""` when the parser cannot provide a token (e.g. end-of-input).
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
+pub fn extract_near_text(input: &str, offset: usize) -> String {
+    // End-of-input: offset is at or beyond the input length → empty string (EC-003).
+    if offset >= input.len() {
+        return String::new();
+    }
+    // Extract from `offset` to the end of the first word / whitespace-delimited token.
+    // The "offending token" is the word starting at `offset`. Walk forward until
+    // whitespace or end-of-input, then slice.
+    let remainder = &input[offset..];
+    let token_end = remainder
+        .find(|c: char| c.is_whitespace())
+        .unwrap_or(remainder.len());
+    let token = &remainder[..token_end];
+    // Truncate to ≤50 chars per DI-006 (injection safety).
+    let truncated = if token.len() > 50 {
+        &token[..50]
+    } else {
+        token
+    };
+    truncated.to_string()
+}
+
+/// E-QUERY-002 enrichment: return the valid operators for a `ColumnType`.
+///
+/// Returns a compile-time static slice of operator strings. Callers convert to
+/// `Vec<String>` for the JSON payload:
+///
+/// String → `["=", "!=", "LIKE", "IN", "NOT IN"]`
+/// Integer → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"]`
+/// Float → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
+/// Boolean → `["=", "!="]`
+/// Datetime → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
+/// Json → `["=", "!="]`
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
+pub fn valid_operators_for_type(
+    column_type: prism_core::column::ColumnType,
+) -> &'static [&'static str] {
+    use prism_core::column::ColumnType;
+    match column_type {
+        ColumnType::String => &["=", "!=", "LIKE", "IN", "NOT IN"],
+        ColumnType::Integer => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"],
+        ColumnType::Float => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN"],
+        ColumnType::Boolean => &["=", "!="],
+        ColumnType::Datetime => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN"],
+        ColumnType::Json => &["=", "!="],
+        _ => &["=", "!="], // non_exhaustive fallback
+    }
+}
+
+/// E-QUERY-003 enrichment: produce a `how_to_fix` string from the `detail` message.
+///
+/// Matches the limit violation category from the `detail` string and returns a
+/// human-readable fix instruction. Catch-all: "Simplify or shorten the query."
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
+pub fn how_to_fix_for_security_limit(detail: &str) -> String {
+    let lower = detail.to_lowercase();
+    if lower.contains("size") || lower.contains("64kb") || lower.contains("64 kb") {
+        "Shorten the query. Remove large IN (...) lists or break into multiple queries.".to_string()
+    } else if lower.contains("depth") || lower.contains("nesting") {
+        "Flatten nested conditions. Use AND/OR instead of deeply nested parentheses.".to_string()
+    } else if lower.contains("pipe") {
+        "Reduce the number of pipe stages. Combine adjacent filter conditions.".to_string()
+    } else if lower.contains("regex") {
+        "Use a shorter regex pattern. Consider using LIKE instead of regex for simple pattern matching.".to_string()
+    } else if lower.contains("expanded") || lower.contains("alias") {
+        "The alias expansion produced a query over 64KB. Simplify the aliased query or use a narrower alias.".to_string()
+    } else {
+        "Simplify or shorten the query.".to_string()
+    }
+}
+
+/// E-QUERY-037 suggestion update: produce the `suggestion` field with a
+/// `prism_describe('<client_id>')` reference.
+///
+/// When `did_you_mean` is `Some(table)`: includes a retry hint referencing the table.
+/// When `did_you_mean` is `None`: includes only the `prism_describe` pointer.
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-004.
+pub fn e_query_037_suggestion(client_id: &str, did_you_mean: Option<&str>) -> String {
+    match did_you_mean {
+        Some(table) => format!(
+            "Call prism_describe('{client_id}') to see available tables and columns. \
+             If you meant '{table}', retry with that table name."
+        ),
+        None => format!(
+            "Call prism_describe('{client_id}') to see available tables and columns for this client."
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// normalized_pql Chumsky re-serializer (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// Produce the normalized (canonicalized) PrismQL string from a parsed `Ast`.
+///
+/// Walks the AST and produces a whitespace-normalized, uppercase-keyword form
+/// of the original query. The normalized string MUST round-trip through Chumsky
+/// (parse to the same AST as the original). EXCLUDED: DataFusion plan node strings
+/// (`HashJoin`, `TableScan`, `SortExec`, `Aggregate`).
+///
+/// Returns `None` when the normalized form would be empty (should not occur for
+/// a validly-parsed AST; defensive guard per BC-2.11.018 Error Cases EC-11-055).
+///
+/// Reference: BC-2.11.018; S-DEMO-PRISMQL-ONBOARDING-001-B AC-005, AC-006.
+pub fn normalize_pql(ast: &crate::ast::Ast) -> Option<String> {
+    crate::ast::PqlNormalizer::normalize(ast)
 }
 
 // ---------------------------------------------------------------------------

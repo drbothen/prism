@@ -486,6 +486,7 @@ pub async fn run_materialization_pipeline(
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>()
                 .join("; "),
+            query: query_str.to_string(),
         }
     })?;
 

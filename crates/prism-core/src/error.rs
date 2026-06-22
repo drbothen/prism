@@ -8,6 +8,76 @@
 
 use thiserror::Error;
 
+/// Inner fields for `PrismError::ColumnNotFound` (E-QUERY-038).
+///
+/// Boxed inside the enum variant to keep `PrismError` under the
+/// `clippy::result_large_err` 128-byte threshold — four `String` fields
+/// plus `Vec<String>` plus `Option<String>` inline would exceed the limit.
+///
+/// # Construction
+/// ```
+/// use prism_core::error::{PrismError, ColumnNotFoundDetails};
+/// let err = PrismError::ColumnNotFound(Box::new(ColumnNotFoundDetails::new(
+///     "sevrity",
+///     "crowdstrike_alerts",
+///     "acme",
+///     vec!["severity".to_string(), "host_name".to_string()],
+///     Some("severity".to_string()),
+/// )));
+/// ```
+///
+/// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
+///
+/// # `#[non_exhaustive]` note
+/// Marked `#[non_exhaustive]` per CLAUDE.md convention for public `prism-core` structs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ColumnNotFoundDetails {
+    /// The column name that was queried (e.g. `"sevrity"`).
+    pub column: String,
+    /// The table the column was looked up in (e.g. `"crowdstrike_alerts"`).
+    pub table: String,
+    /// The client ID in whose scope the query was executed.
+    pub client_id: String,
+    /// All column names available in the table for this client (org-scoped per DI-008).
+    /// Empty when `resolved_spec_map` is `None` (single-tenant / test mode).
+    pub available_columns: Vec<String>,
+    /// Levenshtein-based suggestion — `Some("severity")` when distance ≤ 3, `None` otherwise.
+    pub did_you_mean: Option<String>,
+}
+
+impl ColumnNotFoundDetails {
+    /// Construct a `ColumnNotFoundDetails`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct literal construction
+    /// from outside `prism-core`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    pub fn new(
+        column: impl Into<String>,
+        table: impl Into<String>,
+        client_id: impl Into<String>,
+        available_columns: Vec<String>,
+        did_you_mean: Option<String>,
+    ) -> Self {
+        Self {
+            column: column.into(),
+            table: table.into(),
+            client_id: client_id.into(),
+            available_columns,
+            did_you_mean,
+        }
+    }
+}
+
+impl std::fmt::Display for ColumnNotFoundDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "E-QUERY-038: column '{}' not found in table '{}' for client '{}'",
+            self.column, self.table, self.client_id
+        )
+    }
+}
+
 /// Inner fields for `PrismError::TableNotAvailable` (E-QUERY-037).
 ///
 /// Boxed inside the enum variant to keep `PrismError` under the
@@ -28,6 +98,7 @@ use thiserror::Error;
 ///     "armis",
 ///     "armis_alerts",
 ///     "",
+///     "Call prism_describe('acme') to see available tables and columns.",
 /// )));
 /// ```
 ///
@@ -50,6 +121,12 @@ pub struct TableNotAvailableDetails {
     pub available_tables: String,
     /// Either `""` (no match within Levenshtein ≤ 3) or `" Did you mean: 'X'?"`.
     pub did_you_mean: String,
+    /// Pedagogical suggestion produced by `e_query_037_suggestion()`.
+    ///
+    /// Contains a "Call prism_describe(…)" hint so users learn how to discover
+    /// available tables. Set at the call site in `check_availability_gate` via
+    /// `prism_query::engine::e_query_037_suggestion`.
+    pub suggestion: String,
 }
 
 impl TableNotAvailableDetails {
@@ -63,6 +140,7 @@ impl TableNotAvailableDetails {
         available_sensors: impl Into<String>,
         available_tables: impl Into<String>,
         did_you_mean: impl Into<String>,
+        suggestion: impl Into<String>,
     ) -> Self {
         Self {
             table: table.into(),
@@ -70,6 +148,7 @@ impl TableNotAvailableDetails {
             available_sensors: available_sensors.into(),
             available_tables: available_tables.into(),
             did_you_mean: did_you_mean.into(),
+            suggestion: suggestion.into(),
         }
     }
 }
@@ -80,12 +159,13 @@ impl std::fmt::Display for TableNotAvailableDetails {
             f,
             "E-QUERY-037: table '{}' is not available — sensor '{}' is not configured. \
              Available sensors: [{}]. \
-             Available tables: [{}].{}",
+             Available tables: [{}].{} {}",
             self.table,
             self.sensor,
             self.available_sensors,
             self.available_tables,
-            self.did_you_mean
+            self.did_you_mean,
+            self.suggestion
         )
     }
 }
@@ -497,8 +577,19 @@ pub enum PrismError {
     // E-QUERY — Query engine errors
     // -------------------------------------------------------------------------
     /// E-QUERY-001: Query parse error.
+    ///
+    /// The `query` field carries the original query string so that enrichment helpers
+    /// (e.g. `extract_near_text`) can extract a near-text snippet for the MCP error
+    /// envelope (BC-2.11.017 AC-003). DI-006: the snippet is truncated to ≤50 chars
+    /// before surfacing to callers.
     #[error("E-QUERY-001: query parse error at offset {offset}: {detail}")]
-    QueryParseFailed { offset: usize, detail: String },
+    QueryParseFailed {
+        offset: usize,
+        detail: String,
+        /// Original query string (pre-expansion). Used for near_text extraction only;
+        /// never surfaced verbatim to callers — only a ≤50-char token snippet is exposed.
+        query: String,
+    },
 
     /// E-QUERY-002: Query planning failed.
     #[error("E-QUERY-002: query planning failed: {detail}")]
@@ -636,6 +727,22 @@ pub enum PrismError {
          or internal table. Check spelling or register the sensor in prism.toml."
     )]
     UnknownSourceTable { source_name: String },
+
+    /// E-QUERY-038: Column not found in table at plan time (BC-2.11.016).
+    ///
+    /// Returned by the plan-time column gate in `engine.rs` AFTER the E-QUERY-037
+    /// table-existence gate passes.  The gate fires BEFORE fan-out (fail fast).
+    ///
+    /// Maps to MCP code -32602 (INVALID_PARAMS) — caller-resolvable by correcting
+    /// the column name or calling `prism_describe` to enumerate available columns.
+    ///
+    /// The inner fields are boxed (`Box<ColumnNotFoundDetails>`) to keep `PrismError`
+    /// within the `clippy::result_large_err` 128-byte threshold — four `String` fields
+    /// plus `Vec<String>` plus `Option<String>` inline would exceed the limit.
+    ///
+    /// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
+    #[error("{0}")]
+    ColumnNotFound(Box<ColumnNotFoundDetails>),
 
     /// E-QUERY-037: Table is not available — the sensor that owns the table is not configured.
     ///
