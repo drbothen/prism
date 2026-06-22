@@ -137,6 +137,18 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.016; error-taxonomy.md E-QUERY-038.
         PrismError::ColumnNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
+        // E-QUERY-002: Query type mismatch → -32602 Invalid params (caller-resolvable).
+        //
+        // The caller used an operator that is not valid for the column's ColumnType —
+        // e.g., `severity > 5` on a String column. Caller-resolvable by switching to
+        // a valid operator (use `valid_operators_for_type` in the structured response).
+        //
+        // MUST be explicit: without this arm, `QueryTypeMismatch` falls to the catch-all
+        // `-32000 INTERNAL_ERROR` arm, losing the caller-actionable type-mismatch guidance.
+        //
+        // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
+        PrismError::QueryTypeMismatch { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-QUERY-037: Table not available → -32602 Invalid params (caller-resolvable).
         //
         // MUST be explicit: `PrismError` is `#[non_exhaustive]`; without this arm the
@@ -1499,23 +1511,63 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         },
 
-        // E-QUERY-002: QueryPlanFailed with valid_operators_for_type populated.
+        // ── E-QUERY-002 type-mismatch: wire valid_operators_for_type from ColumnType ──
         //
-        // BC-2.11.017 VP: E-QUERY-002 structured response ALWAYS contains
-        // `valid_operators_for_type` as a non-null array. Without this explicit arm,
-        // `QueryPlanFailed` falls into the generic internal-error group and
-        // `valid_operators_for_type` is permanently `None`, violating the VP.
+        // BC-2.11.017 AC-003: The `valid_operators_for_type` field MUST be populated with
+        // the TYPE-SPECIFIC operator set derived from the variant's `actual_type` field.
+        // The error-mapping layer calls `valid_operators_for_type(actual_type)` here —
+        // the same helper used by the detection gate — so the two are guaranteed to agree.
         //
-        // `QueryPlanFailed` does not carry a `ColumnType` (the variant only has `detail`),
-        // so we provide all operators across all types as a documentation hint. This satisfies
-        // the "non-null array" invariant while being maximally informative to the LLM agent.
-        // Future plan-time type-mismatch detection should use a variant that carries ColumnType
-        // so the response can be narrowed (tracked in error-taxonomy.md E-QUERY-002 notes).
+        // This is the genuine fix for F-PRL-CRIT-002: type-specific operators derived from
+        // the ColumnType in the error, NOT a hardcoded superset.
+        //
+        // ec_code_override: map_prism_error returns the variant's Display which starts
+        // with "E-QUERY-002: type mismatch" — the ec_code can be inferred from the prefix.
+        // ec_code_override is NOT set; the inference path (`message.starts_with("E-")`) fires.
+        //
+        // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
+        PrismError::QueryTypeMismatch { ref actual_type, .. } => VariantMeta {
+            category: "validation",
+            suggestion: "Use prism_describe('<client_id>') to inspect column types and \
+                         choose a valid operator from the valid_operators_for_type list.",
+            retryable: false,
+            retry_after_seconds: None,
+            original_params_valid: false,
+            source_override: None,
+            upstream_message: None,
+            owned_suggestion: None,
+            ec_code_override: None,
+            near_text: None,
+            reference_pointer: None,
+            // TYPE-SPECIFIC operator set derived from the ColumnType carried in the error.
+            // This is the load-bearing assertion for F-PRL-CRIT-002: the operators array
+            // MUST match valid_operators_for_type(actual_type), not a hardcoded superset.
+            valid_operators_for_type: Some(
+                prism_query::engine::valid_operators_for_type(actual_type.clone())
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+            ),
+            how_to_fix: None,
+        },
+
+        // E-QUERY-002: QueryPlanFailed — generic plan-time error without ColumnType context.
+        //
+        // `QueryPlanFailed` does not carry ColumnType context (the variant only has `detail`).
+        // It is NOT a type-mismatch error — it is a generic planning failure. The type-specific
+        // `valid_operators_for_type` field is NOT populated here because there is no ColumnType
+        // to derive from. Type-mismatch errors now use `PrismError::QueryTypeMismatch` which
+        // DOES carry ColumnType, and error-mapping handles that case above.
+        //
+        // The prior paper-fix here (hardcoded type-agnostic superset) is REMOVED: it was a
+        // `QueryPlanFailed`-scoped workaround for the absence of a genuine type-mismatch gate.
+        // Now that `QueryTypeMismatch` exists with a real detection path, `QueryPlanFailed`
+        // reverts to `valid_operators_for_type: None` (no ColumnType context = no operator hint).
         //
         // ec_code_override required: map_prism_error returns "Internal error; see audit log"
-        // for this variant (no E- prefix to infer E-QUERY-002 from).
+        // for this variant (no E- prefix to infer from in the message).
         //
-        // Reference: BC-2.11.017 AC-003; S-DEMO-PRISMQL-ONBOARDING-001-B F-PRL-CRIT-002.
+        // Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
         PrismError::QueryPlanFailed { .. } => VariantMeta {
             category: "validation",
             suggestion: "Check the query expression types. Use prism_describe('<client_id>') \
@@ -1529,14 +1581,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             ec_code_override: Some("E-QUERY-002"),
             near_text: None,
             reference_pointer: None,
-            // BC-2.11.017 VP: always non-null array (MUST). All operators listed because
-            // QueryPlanFailed does not carry ColumnType context for narrowing.
-            valid_operators_for_type: Some(
-                ["=", "!=", "<", ">", "<=", ">=", "LIKE", "IN", "NOT IN", "BETWEEN"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
-            ),
+            valid_operators_for_type: None,
             how_to_fix: None,
         },
 

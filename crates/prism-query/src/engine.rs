@@ -1516,6 +1516,35 @@ fn check_query_column_availability(
         check_column_availability(col, &table_name, client_id, org_scope, resolved_spec_map)?;
     }
 
+    // ── E-QUERY-002 type-compatibility gate — AFTER column-existence gate ─────
+    //
+    // BC-2.11.017 AC-003: For each (column, operator) pair in the WHERE clause
+    // where both are resolvable, verify the operator is valid for the column's
+    // ColumnType. Order: E-QUERY-037 table gate → E-QUERY-038 column-existence
+    // gate (above) → E-QUERY-002 type-compat gate (this).
+    //
+    // Only runs when: (a) resolved_spec_map is wired, (b) the WHERE predicate tree
+    // contains Compare predicates with a FieldPath lhs, (c) the column is present in
+    // the table spec (existence gate already passed). Fail-open for unknown columns.
+    //
+    // The gate is driven by `collect_predicate_type_pairs` which returns `(col, op_str)`
+    // pairs from `Predicate::Compare` nodes. Type lookup is done via the same org-scoped
+    // spec map path used by the existence gate. On mismatch, returns
+    // `PrismError::QueryTypeMismatch` carrying the ColumnType for the error-mapping layer
+    // to call `valid_operators_for_type(actual_type)`.
+    if let Some(where_pred) = &sql_query.where_ {
+        let type_pairs = collect_predicate_type_pairs(where_pred);
+        for (col_name, op_str) in &type_pairs {
+            check_operator_type_compatibility(
+                col_name,
+                op_str,
+                &table_name,
+                org_scope,
+                resolved_spec_map,
+            )?;
+        }
+    }
+
     Ok(())
 }
 
@@ -1598,6 +1627,166 @@ fn collect_predicate_columns(pred: &crate::ast::Predicate, out: &mut Vec<String>
         #[allow(unreachable_patterns)]
         _ => {}
     }
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-002 type-compatibility helpers (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// Convert a `CompareOp` to its canonical operator string for E-QUERY-002 type checking.
+///
+/// Returns the operator string as it would appear in a PrismQL query expression:
+/// `Eq` → `"="`, `Ne` → `"!="`, `Gt` → `">"`, `Lt` → `"<"`, `Ge` → `">="`, `Le` → `"<="`,
+/// `Like` → `"LIKE"`. `Cidr`/`NotCidr` are excluded (CIDR membership does not map to a
+/// `valid_operators_for_type` entry — those are handled by `Predicate::Cidr` directly).
+///
+/// Returns `None` for `Cidr`/`NotCidr` and any future variants (non_exhaustive fallback)
+/// so the caller can skip the type check for those operators.
+fn compare_op_to_str(op: &crate::ast::CompareOp) -> Option<&'static str> {
+    use crate::ast::CompareOp;
+    match op {
+        CompareOp::Eq => Some("="),
+        CompareOp::Ne => Some("!="),
+        CompareOp::Gt => Some(">"),
+        CompareOp::Lt => Some("<"),
+        CompareOp::Ge => Some(">="),
+        CompareOp::Le => Some("<="),
+        CompareOp::Like => Some("LIKE"),
+        // CIDR operators are not in the valid_operators_for_type set — skip.
+        CompareOp::Cidr | CompareOp::NotCidr => None,
+        // #[non_exhaustive] catch-all: fail-open for future CompareOp variants.
+        #[allow(unreachable_patterns)]
+        _ => None,
+    }
+}
+
+/// Collect `(column_name, operator_string)` pairs from `Predicate::Compare` nodes
+/// in a predicate tree, for E-QUERY-002 type-compatibility checking.
+///
+/// Only `Predicate::Compare { lhs: Expr::Field(_), op, .. }` forms are extracted
+/// (operator applied directly to a named column). Literal lhs, subquery lhs, and
+/// non-Compare predicates are skipped — they cannot produce a type-mismatch error.
+///
+/// Recurses into `Logical` and `Not` for nested predicates. Virtual fields are
+/// excluded because `lhs` for those is `Expr::VirtualField`, not `Expr::Field`.
+///
+/// Reference: BC-2.11.017 AC-003; S-DEMO-PRISMQL-ONBOARDING-001-B.
+fn collect_predicate_type_pairs(pred: &crate::ast::Predicate) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    collect_predicate_type_pairs_inner(pred, &mut out);
+    out
+}
+
+fn collect_predicate_type_pairs_inner(
+    pred: &crate::ast::Predicate,
+    out: &mut Vec<(String, String)>,
+) {
+    use crate::ast::{Expr, Predicate};
+    match pred {
+        // Compare: extract (column, operator) when lhs is a FieldPath.
+        Predicate::Compare { lhs, op, .. } => {
+            if let Expr::Field(fp) = lhs.as_ref() {
+                if let Some(col_name) = fp.segments.first() {
+                    if let Some(op_str) = compare_op_to_str(op) {
+                        out.push((col_name.clone(), op_str.to_string()));
+                    }
+                }
+            }
+        }
+        // Logical: recurse into each child predicate.
+        Predicate::Logical { predicates, .. } => {
+            for child in predicates {
+                collect_predicate_type_pairs_inner(child, out);
+            }
+        }
+        // Not: recurse into the inner predicate.
+        Predicate::Not(inner) => {
+            collect_predicate_type_pairs_inner(inner, out);
+        }
+        // All other predicate variants (StringOp, Regex, In, Between, Cidr, Has,
+        // Missing, IsNull, Wildcard, RecoveryError, future variants): no Compare
+        // operator to check — skip.
+        #[allow(unreachable_patterns)]
+        _ => {}
+    }
+}
+
+/// E-QUERY-002 plan-time type-compatibility gate for a single (column, operator) pair.
+///
+/// Given a resolved_spec_map and org_scope, looks up the column's `ColumnType` from
+/// the table spec and checks whether the operator is in `valid_operators_for_type(column_type)`.
+/// Returns `Err(PrismError::QueryTypeMismatch)` on mismatch. Returns `Ok(())` when:
+/// - the column is not found in the spec (fail-open: existence gate fires first)
+/// - the operator IS valid for the column type
+///
+/// # Ordering
+/// MUST be called AFTER `check_column_availability` for the same column. If the column
+/// does not exist in the spec, the existence gate will have already returned an error.
+/// This function uses fail-open semantics for unfound columns because the existence gate
+/// owns that error path.
+///
+/// Reference: BC-2.11.017 AC-003; S-DEMO-PRISMQL-ONBOARDING-001-B.
+fn check_operator_type_compatibility(
+    column_name: &str,
+    operator: &str,
+    table_name: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), PrismError> {
+    let Some(spec_map) = resolved_spec_map else {
+        return Ok(());
+    };
+
+    // Find the ColumnType for this column from the org-visible spec entries.
+    let column_type = spec_map
+        .values()
+        .filter(|spec| {
+            if let Some(scopes) = org_scope {
+                scopes.iter().any(|s| s.as_str() == spec.org_slug.as_str())
+            } else {
+                true
+            }
+        })
+        .flat_map(|spec| {
+            let sensor_id = spec.spec.sensor_id.clone();
+            spec.spec
+                .tables
+                .iter()
+                .filter(move |tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
+                .flat_map(|tbl| tbl.columns.iter())
+                .filter_map(|col| {
+                    if col.name == column_name {
+                        Some(col.column_type.clone())
+                    } else {
+                        None
+                    }
+                })
+        })
+        .next();
+
+    // Fail-open: if the column's type is not in the spec, the existence gate handles it.
+    let Some(actual_type) = column_type else {
+        return Ok(());
+    };
+
+    // Check whether the operator is valid for this column's type.
+    let valid_ops = valid_operators_for_type(actual_type.clone());
+    if valid_ops.contains(&operator) {
+        return Ok(());
+    }
+
+    // Operator is NOT in the valid set for this column type → E-QUERY-002 type mismatch.
+    Err(PrismError::QueryTypeMismatch {
+        column: column_name.to_string(),
+        table: table_name.to_string(),
+        actual_type,
+        operator: operator.to_string(),
+    })
 }
 
 // ---------------------------------------------------------------------------

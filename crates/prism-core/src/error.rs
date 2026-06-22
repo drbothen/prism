@@ -595,6 +595,38 @@ pub enum PrismError {
     #[error("E-QUERY-002: query planning failed: {detail}")]
     QueryPlanFailed { detail: String },
 
+    /// E-QUERY-002: Query type mismatch — a column was used with an operator that is
+    /// not valid for its `ColumnType`.
+    ///
+    /// Produced by the plan-time type-compatibility gate in `prism-query` (BC-2.11.017).
+    /// Carries the column name, table name, the column's actual `ColumnType`, and the
+    /// operator string as used in the query (e.g., `">"`), so the MCP error-mapping layer
+    /// can call `valid_operators_for_type(actual_type)` to populate the `valid_operators_for_type`
+    /// field in the structured error response with the TYPE-SPECIFIC set.
+    ///
+    /// Inline (not boxed): `column` + `table` + `operator` (3 × 24 bytes) + `actual_type`
+    /// (enum discriminant, ≤ 8 bytes) + alignment ≈ 80 bytes — under the 128-byte
+    /// `result_large_err` threshold; no helper struct needed.
+    ///
+    /// Maps to JSON-RPC `-32602 INVALID_PARAMS` — the caller's query used an incompatible
+    /// operator on a typed column; caller-resolvable by switching to a valid operator.
+    ///
+    /// Reference: S-DEMO-PRISMQL-ONBOARDING-001-B; BC-2.11.017; error-taxonomy.md E-QUERY-002.
+    #[error(
+        "E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type \
+         '{actual_type:?}' which does not support operator '{operator}'"
+    )]
+    QueryTypeMismatch {
+        /// The column name used with the incompatible operator.
+        column: String,
+        /// The table the column belongs to (fully-qualified, e.g. `"crowdstrike_alerts"`).
+        table: String,
+        /// The column's declared `ColumnType` from the sensor spec.
+        actual_type: crate::column::ColumnType,
+        /// The operator string as it appears in the query (e.g., `">"`).
+        operator: String,
+    },
+
     /// E-QUERY-003: Query security limit exceeded (security-only variant).
     ///
     /// Per error-taxonomy.md v1.72, E-QUERY-003 is reserved for security-limit
