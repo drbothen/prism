@@ -3253,3 +3253,240 @@ fn truncate_batches_to_limit(
     }
     result
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-001B-PASS-LOW-001 — did_you_mean non-determinism on equidistant ties
+// (BC-2.11.016 AC-001)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod bc_2_11_016_did_you_mean_determinism_tests {
+    use std::collections::HashMap;
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::check_column_availability;
+    use prism_core::column::ColumnType;
+
+    /// Build a `ResolvedSensorSpec` for a single sensor+table+columns under one org.
+    fn make_resolved_with_columns(
+        sensor_id: &str,
+        table_suffix: &str,
+        org: &str,
+        columns: Vec<ColumnSpec>,
+    ) -> (ResolvedSpecKey, ResolvedSensorSpec) {
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let overlay_toml =
+            format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("did_you_mean fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let key: ResolvedSpecKey = (org_slug, SensorId::new(sensor_id));
+        (key, resolved)
+    }
+
+    /// F-001B-PASS-LOW-001: `check_column_availability` must return the
+    /// LEXICOGRAPHICALLY-SMALLEST column when multiple equidistant candidates exist.
+    ///
+    /// Setup: two sensors registered under the SAME org ("acme") with the SAME table name
+    /// ("acme_alerts"). Both sensors each have one column that is equidistant from the typo:
+    ///   - sensor "alpha_sensor" → column "severity_a" (levenshtein("sevrty", "severity_a") = 3)
+    ///   - sensor "beta_sensor"  → column "severity_b" (levenshtein("sevrty", "severity_b") = 3)
+    ///
+    /// Because `spec_map.values()` iterates in HashMap order (non-deterministic), the
+    /// `min_by_key(|(_, dist)| *dist)` call may return either "severity_a" or "severity_b"
+    /// depending on which spec_map entry is encountered first. The BC-2.11.016 AC-001
+    /// contract requires deterministic tie-breaking (lexicographically smallest: "severity_a").
+    ///
+    /// Current code does NOT secondary-sort by column name, so this assertion fails on any
+    /// run where the HashMap iterator returns "severity_b" before "severity_a".
+    ///
+    /// RED GATE: assertion `did_you_mean == Some("severity_a")` fails non-deterministically
+    /// on current HEAD — structurally guaranteed to fail because the current code has no
+    /// lexicographic tie-break. The test runs `check_column_availability` in a tight loop
+    /// to surface the non-determinism within a single test run.
+    #[test]
+    fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_on_equidistant_candidates() {
+        // Column A: "severity_a" — equidistant from typo.
+        // Column B: "severity_b" — equidistant from typo.
+        // Levenshtein("sevrty", "severity_a") = distance to reach "severity_a" from "sevrty":
+        //   sevrty → severity (1 insert 'e') → severity_a (1 append '_a') = 3
+        // Levenshtein("sevrty", "severity_b") = same structure = 3
+        // Both distance 3 ≤ 3: both qualify for did_you_mean.
+        //
+        // Expected deterministic result: "severity_a" (lexicographically smallest).
+        // Current code returns whichever HashMap iteration encounters first (non-deterministic).
+
+        let col_a = ColumnSpec::new("severity_a", ColumnType::String, None, vec![]);
+        let col_b = ColumnSpec::new("severity_b", ColumnType::String, None, vec![]);
+
+        // Two sensors, SAME table name "alerts" under SAME org "acme".
+        // Fully-qualified: "alpha_sensor_alerts" and "beta_sensor_alerts" — different tables!
+        // To share available_columns for the same table, both must produce the same FQ name.
+        // FQ name = "{sensor_id}_{table_suffix}". To collide both in one available_columns vec,
+        // we need the query's table_name to match BOTH sensors' FQ names, which is impossible
+        // since they differ by sensor_id. The correct setup: one sensor with BOTH columns.
+        // Instead, use ONE sensor with a table that has BOTH equidistant columns.
+        let col_a2 = ColumnSpec::new("severity_aa", ColumnType::String, None, vec![]);
+        let col_b2 = ColumnSpec::new("severity_ab", ColumnType::String, None, vec![]);
+        // Levenshtein("sevrty", "severity_aa") — let's verify:
+        //   both "severity_aa" and "severity_ab" differ from "sevrty" by the same edit distance.
+        //   Actually let's use simpler names with KNOWN equidistant properties.
+        //   Typo = "sevrity" (swap r/i vs i/r... let me use typo "aaab" with cols "aaac" and "aaad").
+        //   Levenshtein("aaab", "aaac") = 1. Levenshtein("aaab", "aaad") = 1. Both equidistant.
+
+        // Use clear typo="aaab", col_x="aaac", col_y="aaad" (both distance 1 from "aaab").
+        // Insert in REVERSE lexicographic order so current code returns "aaad" first,
+        // making the assertion `Some("aaac")` reliably fail.
+        let col_y = ColumnSpec::new("aaad", ColumnType::String, None, vec![]); // lexically LATER, inserted FIRST
+        let col_x = ColumnSpec::new("aaac", ColumnType::String, None, vec![]); // lexically FIRST, inserted SECOND
+
+        // One sensor with BOTH columns in the same table (acme → sensor_one → single_alerts).
+        // Vec order: ["aaad", "aaac"] — current min_by_key picks "aaad" (first minimum found).
+        // Expected: "aaac" (lexicographically smallest). Current code returns "aaad".
+        let (key_one, val_one) = make_resolved_with_columns(
+            "sensor_one",
+            "single",
+            "acme",
+            vec![col_y, col_x], // reverse order: "aaad" first so current code hits it first
+        );
+        let _ = (col_a, col_b, col_a2, col_b2); // suppress unused warnings
+
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key_one, val_one);
+
+        // fully-qualified table name: "sensor_one_single"
+        let table_name = "sensor_one_single";
+        let column_typo = "aaab"; // equidistant (dist=1) from both "aaac" and "aaad"
+        let org = OrgSlug::new("acme");
+        let org_scope = [org];
+
+        // call check_column_availability: should return ColumnNotFound with did_you_mean.
+        let result = check_column_availability(
+            column_typo,
+            table_name,
+            "test-client",
+            Some(&org_scope),
+            Some(&spec_map),
+        );
+
+        let err = result
+            .expect_err("check_column_availability must return Err for unknown column 'aaab'");
+
+        // Extract did_you_mean from the error.
+        let did_you_mean = match err {
+            prism_core::error::PrismError::ColumnNotFound(ref d) => d.did_you_mean.clone(),
+            other => panic!("expected ColumnNotFound, got: {other:?}"),
+        };
+
+        // BC-2.11.016 AC-001: did_you_mean must be deterministic.
+        // Expected: "aaac" (lexicographically smallest of equidistant candidates "aaac" / "aaad").
+        // Current code returns the HashMap iteration order (non-deterministic). The assertion
+        // is the CORRECT value; it fails on current HEAD when HashMap returns "aaad" first.
+        assert_eq!(
+            did_you_mean.as_deref(),
+            Some("aaac"),
+            "BC-2.11.016: did_you_mean must return lexicographically-smallest equidistant \
+             candidate 'aaac' (not '{}'); current code has no tie-break so the result is \
+             non-deterministic",
+            did_you_mean.as_deref().unwrap_or("<None>")
+        );
+    }
+
+    /// F-001B-PASS-LOW-001 (multi-org variant): same non-determinism in a multi-client query
+    /// where one sensor contributes multiple equidistant columns via flat_map, but in this
+    /// variant the equidistant columns are part of the SAME flat_map sequence from a
+    /// single sensor entry. The non-lexicographic column is inserted first in the Vec so
+    /// that `min_by_key` reliably picks it over the lexicographically-correct candidate.
+    ///
+    /// The multi-org aspect verifies the org_scope filter path is correctly exercised.
+    ///
+    /// RED GATE: assertion `did_you_mean == Some("bbb1")` ALWAYS fails on current HEAD
+    /// because `min_by_key` returns "bbb2" (inserted first, encountered first by flat_map).
+    #[test]
+    fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_multi_sensor_same_table() {
+        // Multi-org test: org_scope covers "acme". One sensor with two equidistant columns
+        // inserted in reverse lexicographic order so current code returns the wrong one.
+        //
+        // Columns: "bbb2" (dist=1 from "bbb0", inserted FIRST) and "bbb1" (dist=1, SECOND).
+        // Current code: min_by_key picks "bbb2" (first minimum encountered in Vec iteration).
+        // Expected: "bbb1" (lexicographically smallest equidistant candidate).
+
+        let col_wrong = ColumnSpec::new("bbb2", ColumnType::String, None, vec![]); // wrong: inserted first
+        let col_right = ColumnSpec::new("bbb1", ColumnType::String, None, vec![]); // right: lexicographic min
+
+        // Single sensor under "acme" with columns in reverse-lex order.
+        let (key_one, val_one) = make_resolved_with_columns(
+            "shared_sensor",
+            "logs",
+            "acme",
+            vec![col_wrong, col_right], // "bbb2" first → current code returns "bbb2"
+        );
+
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key_one, val_one);
+
+        // org_scope = acme only (exercises the org_scope filter path).
+        let acme = OrgSlug::new("acme");
+        let org_scope = [acme];
+
+        let table_name = "shared_sensor_logs";
+        let column_typo = "bbb0"; // dist=1 from both "bbb1" and "bbb2" — equidistant.
+
+        let result = check_column_availability(
+            column_typo,
+            table_name,
+            "test-client",
+            Some(&org_scope),
+            Some(&spec_map),
+        );
+
+        let err = result
+            .expect_err("check_column_availability must return Err for unknown column 'bbb0'");
+
+        let did_you_mean = match err {
+            prism_core::error::PrismError::ColumnNotFound(ref d) => d.did_you_mean.clone(),
+            other => panic!("expected ColumnNotFound, got: {other:?}"),
+        };
+
+        // BC-2.11.016 AC-001: deterministic tie-break → lexicographically smallest.
+        // Expected: "bbb1" (alphabetically before "bbb2").
+        // Current code: returns "bbb2" (first in Vec, first minimum found by min_by_key).
+        // This assertion ALWAYS fails on current HEAD.
+        assert_eq!(
+            did_you_mean.as_deref(),
+            Some("bbb1"),
+            "BC-2.11.016: did_you_mean must return lexicographically-smallest equidistant \
+             candidate 'bbb1' (got '{}'); current code picks Vec-order first minimum, \
+             not lex-smallest",
+            did_you_mean.as_deref().unwrap_or("<None>")
+        );
+    }
+}

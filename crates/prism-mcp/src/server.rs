@@ -8474,6 +8474,7 @@ mod tests {
     /// BC-2.10.012 v1.1: stores 4-tuple (tool_name, client_id, operation, outcome).
     #[derive(Default)]
     struct RecordingAudit {
+        #[allow(clippy::type_complexity)]
         tool_calls: std::sync::Mutex<Vec<(String, Option<String>, String, String)>>,
     }
 

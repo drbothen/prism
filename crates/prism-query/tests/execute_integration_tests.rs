@@ -1908,7 +1908,6 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
     // Helper to build a mat_ctx sharing the same adapter.
     let make_mat_ctx = {
         let call_count = Arc::clone(&call_count);
-        let org_id = org_id;
         move || {
             let adapter = Arc::new(CountingAdapter {
                 call_count: Arc::clone(&call_count),

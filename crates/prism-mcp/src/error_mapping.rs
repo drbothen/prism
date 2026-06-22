@@ -2605,4 +2605,140 @@ mod tests {
             "message must include did_you_mean suggestion; got: {message}"
         );
     }
+
+    // ── F-001B-PASS-CRIT-001 — multibyte-whitespace offset panic in near_text path ──
+
+    /// F-001B-PASS-CRIT-001 (IDEOGRAPHIC SPACE case): `prism_error_to_structured_call_result`
+    /// must NOT panic when the query contains TWO whitespace runs and the FIRST whitespace
+    /// is a multibyte Unicode character (ideographic space U+3000, 3 bytes).
+    ///
+    /// Regression path: the `QueryParseFailed` arm computes `preceding_word_start`:
+    ///   1. Slice `before_offset = query.get(..*offset)`.
+    ///   2. Find `last_non_ws` = rfind(!whitespace) on before_offset.
+    ///   3. Slice `before_offset.get(..=last_non_ws)` (up to the last non-WS char).
+    ///   4. `rfind(whitespace)` on that slice → returns BYTE INDEX of a multibyte WS char.
+    ///   5. `map(|pos| pos + 1)` → `pos + 1` falls MID-CHAR for multibyte WS.
+    ///   6. `extract_near_text(query, preceding_word_start)` does `&input[mid_char..]`
+    ///      → PANIC: "byte index N is not a char boundary".
+    ///
+    /// The panic triggers when:
+    ///   - The query has TWO words separated by a multibyte whitespace (e.g. "alpha\u{3000}beta"),
+    ///   - FOLLOWED by another whitespace + third word,
+    ///   - And `offset` points to the THIRD word.
+    ///
+    /// Minimal reproducer:
+    ///   query = "first\u{3000}word\u{3000}token"
+    ///           bytes: f(0)i(1)r(2)s(3)t(4) U+3000(5,6,7) w(8)o(9)r(10)d(11) U+3000(12,13,14) t(15)…
+    ///   offset = 15 (start of "token")
+    ///   → before_offset = "first\u{3000}word\u{3000}" (bytes 0..15)
+    ///   → last_non_ws = 11 ('d' byte)
+    ///   → get(..=11) = "first\u{3000}word"
+    ///   → rfind(whitespace) = Some(5)  (first byte of \u{3000})
+    ///   → pos + 1 = 6 → NOT a char boundary for the 3-byte U+3000
+    ///   → extract_near_text(query, 6) → &query[6..] → PANIC
+    ///
+    /// BC-2.11.017 AC-003 postcondition: `near_text` MUST be a valid UTF-8 string.
+    /// Production path: `prism_error_to_structured_call_result` (F-001B-PASS-CRIT-001).
+    ///
+    /// RED GATE: panics on current HEAD because `pos + 1` is not char-boundary-safe.
+    #[test]
+    fn test_BC_2_11_017_near_text_no_panic_on_ideographic_space_multibyte_offset() {
+        // query = "first\u{3000}word\u{3000}token"
+        // bytes: f(0)i(1)r(2)s(3)t(4) U+3000(5,6,7) w(8)o(9)r(10)d(11) U+3000(12,13,14) t(15)o(16)k(17)e(18)n(19)
+        let query = "first\u{3000}word\u{3000}token".to_string();
+        // Verify byte layout
+        assert_eq!(query.as_bytes()[5], 0xE3, "first U+3000 byte 0 = 0xE3");
+        assert_eq!(query.as_bytes()[6], 0x80, "first U+3000 byte 1 = 0x80");
+        assert_eq!(query.as_bytes()[7], 0x80, "first U+3000 byte 2 = 0x80");
+        assert_eq!(query.as_bytes()[12], 0xE3, "second U+3000 byte 0 = 0xE3");
+        // offset = 15 (start of "token")
+        assert_eq!(&query[15..], "token", "byte 15 must be start of 'token'");
+        let offset = 15usize;
+
+        let err = PrismError::QueryParseFailed {
+            offset,
+            detail: "unexpected token".to_string(),
+            query: query.clone(),
+        };
+
+        // Must NOT panic — current code panics here due to mid-char byte slice at byte 6.
+        // The algorithm does: rfind(whitespace) on "first\u{3000}word" finds \u{3000} at
+        // byte 5, then pos + 1 = 6, which is mid-char. extract_near_text(&query, 6) panics.
+        let result = prism_error_to_structured_call_result(err);
+
+        // BC-2.11.017 AC-003: near_text must be present and valid UTF-8.
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.11.017)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let near_text = error_obj
+            .get("near_text")
+            .expect("near_text must be present for QueryParseFailed (BC-2.11.017 AC-003)");
+        assert!(
+            near_text.is_string(),
+            "near_text must be a string (valid UTF-8), got: {near_text:?}"
+        );
+        // The near_text must equal "word" (the token preceding "token").
+        let nt_str = near_text.as_str().unwrap();
+        assert_eq!(
+            nt_str, "word",
+            "near_text must be 'word' (the preceding token); got '{nt_str}'"
+        );
+    }
+
+    /// F-001B-PASS-CRIT-001 (NBSP case): same panic trigger with U+00A0 (NO-BREAK SPACE, 2 bytes).
+    ///
+    /// query = "alpha\u{00A0}beta\u{00A0}gamma"
+    /// bytes: a(0)l(1)p(2)h(3)a(4) U+00A0(5,6) b(7)e(8)t(9)a(10) U+00A0(11,12) g(13)…
+    /// offset = 13 (start of "gamma")
+    /// → rfind(whitespace) on "alpha\u{00A0}beta" finds \u{00A0} at byte 5
+    /// → pos + 1 = 6 → NOT a char boundary for the 2-byte U+00A0 → PANIC
+    ///
+    /// RED GATE: panics on current HEAD for the same reason as the U+3000 case.
+    #[test]
+    fn test_BC_2_11_017_near_text_no_panic_on_nbsp_multibyte_offset() {
+        // query = "alpha\u{00A0}beta\u{00A0}gamma"
+        // U+00A0 = 0xC2 0xA0 (2 bytes each)
+        let query = "alpha\u{00A0}beta\u{00A0}gamma".to_string();
+        // Verify byte layout: "alpha" = 5 bytes, first U+00A0 at bytes 5-6, "beta" at 7-10
+        assert_eq!(query.as_bytes()[5], 0xC2, "first U+00A0 byte 0 = 0xC2");
+        assert_eq!(query.as_bytes()[6], 0xA0, "first U+00A0 byte 1 = 0xA0");
+        assert_eq!(query.as_bytes()[11], 0xC2, "second U+00A0 byte 0 = 0xC2");
+        // "gamma" starts at byte 13
+        assert_eq!(&query[13..], "gamma", "byte 13 must be start of 'gamma'");
+        let offset = 13usize;
+
+        let err = PrismError::QueryParseFailed {
+            offset,
+            detail: "unexpected token after NBSP sequence".to_string(),
+            query: query.clone(),
+        };
+
+        // Must NOT panic — panics on current HEAD.
+        // The algorithm does: rfind(whitespace) on "alpha\u{00A0}beta" finds \u{00A0} at
+        // byte 5, then pos + 1 = 6 (mid-char). extract_near_text(&query, 6) → PANIC.
+        let result = prism_error_to_structured_call_result(err);
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.11.017)");
+        let error_obj = sc.get("error").expect("error must be present");
+        let near_text = error_obj
+            .get("near_text")
+            .expect("near_text must be present for QueryParseFailed");
+        assert!(
+            near_text.is_string(),
+            "near_text must be a valid UTF-8 string; got: {near_text:?}"
+        );
+        // The near_text must equal "beta" (the token preceding "gamma").
+        let nt_str = near_text.as_str().unwrap();
+        assert_eq!(
+            nt_str, "beta",
+            "near_text must be 'beta' (the preceding token); got '{nt_str}'"
+        );
+    }
 }

@@ -1825,3 +1825,94 @@ impl PqlNormalizer {
         Self::normalize_literal(lit)
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BC-2.11.018 round-trip tests (F-001B-PASS-MED-001)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod bc_2_11_018_normalizer_roundtrip_tests {
+    use super::*;
+    use crate::filter_parser::PrismQlParser;
+
+    /// F-001B-PASS-MED-001: `PqlNormalizer` round-trip MUST hold for string literals
+    /// containing an embedded single-quote character.
+    ///
+    /// Grammar facts (confirmed by reading `filter_parser.rs::build_literal_parser`):
+    /// - Single-quoted body = `none_of('\'')`: a `'` inside a single-quoted string is
+    ///   IMPOSSIBLE to represent — the parser would stop at the first `'`.
+    /// - Double-quoted body = `none_of('"')`: a `'` INSIDE double quotes IS accepted.
+    ///   Input `host = "O'Brien"` parses to `Literal::String("O'Brien")`.
+    ///
+    /// Bug: `PqlNormalizer::normalize_literal` emits `format!("'{s}'")`  for every
+    /// `Literal::String(s)` with NO quote escaping. Re-emitting `Literal::String("O'Brien")`
+    /// produces `'O'Brien'`. When re-parsed, the single-quoted parser reads `'O'` (stops at
+    /// the embedded `'`) and then fails on the trailing `Brien'`. Re-parse fails.
+    ///
+    /// BC-2.11.018 postcondition: "The normalized form MUST parse to the same AST as the
+    /// original."
+    ///
+    /// RED GATE: re-parse of the normalizer output fails on current HEAD because
+    /// `normalize_literal` emits unescaped `'O'Brien'`.
+    #[test]
+    fn test_BC_2_11_018_normalizer_roundtrip_embedded_single_quote_in_double_quoted_literal() {
+        // Input: double-quoted literal containing an embedded single-quote.
+        // grammar accepts this: none_of('"') allows ' inside "...".
+        let input = r#"host_name = "O'Brien""#;
+
+        // Step 1: Verify the input parses (precondition — grammar must accept it).
+        let ast = PrismQlParser::parse(input)
+            .expect("test precondition: \"O'Brien\" (double-quoted) must parse successfully");
+
+        // Step 2: Normalize the parsed AST back to a PQL string.
+        let normalized =
+            PqlNormalizer::normalize(&ast).expect("normalize must return Some for a filter AST");
+
+        // Step 3: Re-parse the normalized output.
+        // BC-2.11.018 postcondition: the normalized form MUST parse to an equivalent AST.
+        // RED GATE: on current HEAD, normalized = "host_name = 'O'Brien'" which fails to
+        // re-parse because the embedded `'` terminates the single-quoted literal prematurely.
+        let reparse_result = PrismQlParser::parse(&normalized);
+        assert!(
+            reparse_result.is_ok(),
+            "BC-2.11.018 round-trip FAILED: normalized form '{normalized}' must re-parse \
+             successfully. Error: {:?}",
+            reparse_result.err()
+        );
+
+        // Step 4: The re-parsed AST must contain the original literal value "O'Brien".
+        // This verifies correctness, not just "parses without error".
+        let reparsed_ast = reparse_result.unwrap();
+        let reparsed_normalized =
+            PqlNormalizer::normalize(&reparsed_ast).expect("re-parsed AST must also normalize");
+        assert_eq!(
+            normalized, reparsed_normalized,
+            "BC-2.11.018: normalized form must be idempotent (normalizing twice yields same output). \
+             First: '{normalized}', second: '{reparsed_normalized}'"
+        );
+    }
+
+    /// F-001B-PASS-MED-001 (filter mode): same round-trip check on a filter-mode query
+    /// with source prefix, to cover the filter path distinct from bare-predicate path.
+    #[test]
+    fn test_BC_2_11_018_normalizer_roundtrip_embedded_quote_filter_mode_with_source() {
+        // Filter mode with source prefix and embedded-quote literal.
+        let input = r#"crowdstrike.detections | user_name = "O'Brien""#;
+
+        let ast = PrismQlParser::parse(input).expect(
+            "test precondition: filter with source prefix and double-quoted 'O\\'Brien' must parse",
+        );
+
+        let normalized = PqlNormalizer::normalize(&ast)
+            .expect("normalize must return Some for filter+source AST");
+
+        let reparse_result = PrismQlParser::parse(&normalized);
+        assert!(
+            reparse_result.is_ok(),
+            "BC-2.11.018 round-trip FAILED (filter+source): normalized '{normalized}' \
+             must re-parse. Error: {:?}",
+            reparse_result.err()
+        );
+    }
+}
