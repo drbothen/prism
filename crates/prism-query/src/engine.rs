@@ -1266,6 +1266,62 @@ fn check_table_availability(
 }
 
 // ---------------------------------------------------------------------------
+// Shared column-name extractor for E-QUERY-038 gate (F-001B-DC-HIGH-001)
+// ---------------------------------------------------------------------------
+
+/// Extract the bare column name from a `FieldPath`, handling table-qualified references.
+///
+/// This helper is the SINGLE extraction point used at ALL FOUR positions in
+/// `check_query_column_availability` (SELECT, WHERE, GROUP BY, ORDER BY), preventing
+/// the `.first()` false-reject bug from recurring at any one position independently.
+///
+/// # Behaviour
+/// - **1-segment path** (`["severity"]`): returns `Some("severity")` — unqualified column.
+/// - **2+-segment path, matching qualifier** (`["crowdstrike_alerts", "severity"]` when
+///   `table_name = "crowdstrike_alerts"`): returns `Some("severity")` — the last segment.
+/// - **2+-segment path, unknown qualifier** (`["other_table", "severity"]` when
+///   `table_name = "crowdstrike_alerts"` and no matching alias): returns `None` — fail-open.
+///   E-QUERY-038 is NOT emitted for an unrecognised qualifier; that is a separate error class.
+///
+/// # Alias handling
+/// `table_alias` is the SQL `AS alias` identifier from the `FROM` clause (e.g. `t` in
+/// `FROM crowdstrike_alerts t`). When the qualifier matches the alias, the last segment
+/// is returned exactly as it is for a full table-name match. If the parser does not
+/// populate `FromClause.alias` for a given query, pass `None`.
+///
+/// # Anti-drift guarantee
+/// Every extraction site in `check_query_column_availability` calls this helper.
+/// Adding a new extraction site without using this helper will cause TD-VSDD-060
+/// (sibling-site sweep) to flag it in adversarial review.
+///
+/// Reference: BC-2.11.016 §Postconditions; F-001B-DC-HIGH-001.
+fn extract_column_name_from_field_path(
+    fp: &crate::ast::FieldPath,
+    table_name: &str,
+    table_alias: Option<&str>,
+) -> Option<String> {
+    match fp.segments.len() {
+        0 => None,
+        1 => fp.segments.first().cloned(),
+        _ => {
+            // Multi-segment: check whether the leading qualifier is recognised.
+            let qualifier = fp.segments.first()?;
+            let qualifier_matches =
+                qualifier == table_name || table_alias.is_some_and(|alias| qualifier == alias);
+            if qualifier_matches {
+                // Return the last segment as the bare column name.
+                fp.segments.last().cloned()
+            } else {
+                // Unknown qualifier — fail-open: do not gate on it.
+                // This is not an E-QUERY-038 situation; it may be a cross-table
+                // expression or a future syntax extension.
+                None
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // E-QUERY-038 plan-time column gate (S-DEMO-PRISMQL-ONBOARDING-001-B)
 // ---------------------------------------------------------------------------
 
@@ -1473,7 +1529,17 @@ fn check_query_column_availability(
         return Ok(());
     }
 
+    // Table alias from the FROM clause (e.g. `t` in `FROM crowdstrike_alerts t`).
+    // Passed to `extract_column_name_from_field_path` so that queries using an alias
+    // qualifier (`t.severity`) are handled identically to table-name qualifiers
+    // (`crowdstrike_alerts.severity`) — both return "severity", not the qualifier.
+    let from_alias: Option<&str> = sql_query.from.alias.as_deref();
+
     // ── Position 1: SELECT clause — non-wildcard field refs ───────────────────
+    //
+    // F-001B-DC-HIGH-001: use `extract_column_name_from_field_path` instead of
+    // `fp.segments.first()` so that qualified refs (`crowdstrike_alerts.severity`)
+    // correctly extract "severity" rather than the table name.
     let select_cols: Vec<String> = sql_query
         .select
         .items
@@ -1483,8 +1549,8 @@ fn check_query_column_availability(
             SelectItem::TableStar(_) => None, // SELECT table.* — skip
             SelectItem::Expr { expr, .. } => match expr {
                 Expr::Field(fp) => {
-                    // Use the first segment as the column name (simple unqualified field).
-                    fp.segments.first().cloned()
+                    // Use the shared helper to correctly handle qualified refs.
+                    extract_column_name_from_field_path(fp, &table_name, from_alias)
                 }
                 // VirtualField (_sensor, _client, etc.) — skip (always valid).
                 Expr::VirtualField(_) => None,
@@ -1504,30 +1570,37 @@ fn check_query_column_availability(
     // `GROUP BY <column>`, `ORDER BY <column>`)."
     //
     // `extract_predicate_columns` walks the entire Predicate tree and collects the
-    // first segment of every FieldPath encountered. Virtual fields (_sensor, _client)
+    // resolved column name from every FieldPath encountered via
+    // `extract_column_name_from_field_path`. Virtual fields (_sensor, _client)
     // and literal operands are ignored — only explicit column name references are checked.
+    // F-001B-DC-HIGH-001: pass table_name + from_alias to the predicate extractor so
+    // qualified WHERE refs are handled correctly.
     let where_cols: Vec<String> = sql_query
         .where_
         .as_ref()
-        .map(extract_predicate_columns)
+        .map(|pred| extract_predicate_columns(pred, &table_name, from_alias))
         .unwrap_or_default();
 
     // ── Position 3: GROUP BY clause — Expr::Field refs ────────────────────────
+    //
+    // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
     let group_by_cols: Vec<String> = sql_query
         .group_by
         .iter()
         .filter_map(|expr| match expr {
-            Expr::Field(fp) => fp.segments.first().cloned(),
+            Expr::Field(fp) => extract_column_name_from_field_path(fp, &table_name, from_alias),
             _ => None,
         })
         .collect();
 
     // ── Position 4: ORDER BY clause — Expr::Field refs in each OrderExpr ─────
+    //
+    // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
     let order_by_cols: Vec<String> = sql_query
         .order_by
         .iter()
         .filter_map(|oe| match &oe.expr {
-            Expr::Field(fp) => fp.segments.first().cloned(),
+            Expr::Field(fp) => extract_column_name_from_field_path(fp, &table_name, from_alias),
             _ => None,
         })
         .collect();
@@ -1559,7 +1632,9 @@ fn check_query_column_availability(
     // `PrismError::QueryTypeMismatch` carrying the ColumnType for the error-mapping layer
     // to call `valid_operators_for_type(actual_type)`.
     if let Some(where_pred) = &sql_query.where_ {
-        let type_pairs = collect_predicate_type_pairs(where_pred);
+        // F-001B-DC-HIGH-001: pass table_name + from_alias so qualified refs in Compare
+        // predicates extract the bare column name, not the table qualifier.
+        let type_pairs = collect_predicate_type_pairs(where_pred, &table_name, from_alias);
         for (col_name, op_str) in &type_pairs {
             check_operator_type_compatibility(
                 col_name,
@@ -1574,7 +1649,7 @@ fn check_query_column_availability(
     Ok(())
 }
 
-/// Extract column names (first FieldPath segment) from a `Predicate` tree.
+/// Extract column names from a `Predicate` tree, resolving table-qualified references.
 ///
 /// Walks all variants that carry a `FieldPath` directly, and recurses into
 /// `Logical` and `Not` for nested predicates. `VirtualField` segments
@@ -1582,37 +1657,54 @@ fn check_query_column_availability(
 /// `Expr::VirtualField`, not `Expr::Field` — the `Compare { lhs, .. }` arm
 /// matches `lhs` only when it is `Expr::Field`.
 ///
+/// F-001B-DC-HIGH-001: uses `extract_column_name_from_field_path` for each
+/// FieldPath so that qualified refs (`crowdstrike_alerts.severity`) return the
+/// bare column name ("severity"), not the table qualifier ("crowdstrike_alerts").
+///
 /// # Non-exhaustive safety
 /// Unknown future `Predicate` variants are silently skipped via the `_ => {}`
 /// catch-all, which satisfies `#[non_exhaustive]` discipline and preserves
 /// fail-open semantics for unrecognised predicate forms.
-fn extract_predicate_columns(pred: &crate::ast::Predicate) -> Vec<String> {
+fn extract_predicate_columns(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+) -> Vec<String> {
     let mut cols = Vec::new();
-    collect_predicate_columns(pred, &mut cols);
+    collect_predicate_columns(pred, table_name, table_alias, &mut cols);
     cols
 }
 
-fn collect_predicate_columns(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
+fn collect_predicate_columns(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+    out: &mut Vec<String>,
+) {
     use crate::ast::{Expr, Predicate};
     match pred {
         // Compare: lhs may be Expr::Field (the column being compared).
+        // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to handle qualified refs.
         Predicate::Compare { lhs, .. } => {
             if let Expr::Field(fp) = lhs.as_ref() {
-                if let Some(name) = fp.segments.first() {
-                    out.push(name.clone());
+                if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias)
+                {
+                    out.push(name);
                 }
             }
         }
         // StringOp: field is FieldPath directly.
         Predicate::StringOp { field, .. } => {
-            if let Some(name) = field.segments.first() {
-                out.push(name.clone());
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
             }
         }
         // Regex: field is FieldPath directly.
         Predicate::Regex { field, .. } => {
-            if let Some(name) = field.segments.first() {
-                out.push(name.clone());
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
             }
         }
         // In / InSubquery / Between / Cidr / Wildcard: field is FieldPath directly.
@@ -1621,31 +1713,33 @@ fn collect_predicate_columns(pred: &crate::ast::Predicate, out: &mut Vec<String>
         | Predicate::Between { field, .. }
         | Predicate::Cidr { field, .. }
         | Predicate::Wildcard { field, .. } => {
-            if let Some(name) = field.segments.first() {
-                out.push(name.clone());
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
             }
         }
         // Has / Missing: the argument IS the FieldPath.
         Predicate::Has(fp) | Predicate::Missing(fp) => {
-            if let Some(name) = fp.segments.first() {
-                out.push(name.clone());
+            if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias) {
+                out.push(name);
             }
         }
         // IsNull: field is FieldPath.
         Predicate::IsNull { field, .. } => {
-            if let Some(name) = field.segments.first() {
-                out.push(name.clone());
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
             }
         }
         // Logical: recurse into each child predicate.
         Predicate::Logical { predicates, .. } => {
             for child in predicates {
-                collect_predicate_columns(child, out);
+                collect_predicate_columns(child, table_name, table_alias, out);
             }
         }
         // Not: recurse into the inner predicate.
         Predicate::Not(inner) => {
-            collect_predicate_columns(inner, out);
+            collect_predicate_columns(inner, table_name, table_alias, out);
         }
         // RecoveryError: no column to extract (error-recovery sentinel).
         Predicate::RecoveryError => {}
@@ -1696,25 +1790,39 @@ fn compare_op_to_str(op: &crate::ast::CompareOp) -> Option<&'static str> {
 /// Recurses into `Logical` and `Not` for nested predicates. Virtual fields are
 /// excluded because `lhs` for those is `Expr::VirtualField`, not `Expr::Field`.
 ///
+/// F-001B-DC-HIGH-001: `table_name` and `table_alias` are forwarded to
+/// `extract_column_name_from_field_path` so qualified refs (`t.severity = 1`)
+/// are resolved to the bare column name before the type-compatibility check.
+///
 /// Reference: BC-2.11.017 AC-003; S-DEMO-PRISMQL-ONBOARDING-001-B.
-fn collect_predicate_type_pairs(pred: &crate::ast::Predicate) -> Vec<(String, String)> {
+fn collect_predicate_type_pairs(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+) -> Vec<(String, String)> {
     let mut out = Vec::new();
-    collect_predicate_type_pairs_inner(pred, &mut out);
+    collect_predicate_type_pairs_inner(pred, table_name, table_alias, &mut out);
     out
 }
 
 fn collect_predicate_type_pairs_inner(
     pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
     out: &mut Vec<(String, String)>,
 ) {
     use crate::ast::{Expr, Predicate};
     match pred {
         // Compare: extract (column, operator) when lhs is a FieldPath.
+        // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to correctly
+        // resolve qualified refs (`crowdstrike_alerts.severity = ...`) to "severity".
         Predicate::Compare { lhs, op, .. } => {
             if let Expr::Field(fp) = lhs.as_ref() {
-                if let Some(col_name) = fp.segments.first() {
+                if let Some(col_name) =
+                    extract_column_name_from_field_path(fp, table_name, table_alias)
+                {
                     if let Some(op_str) = compare_op_to_str(op) {
-                        out.push((col_name.clone(), op_str.to_string()));
+                        out.push((col_name, op_str.to_string()));
                     }
                 }
             }
@@ -1722,12 +1830,12 @@ fn collect_predicate_type_pairs_inner(
         // Logical: recurse into each child predicate.
         Predicate::Logical { predicates, .. } => {
             for child in predicates {
-                collect_predicate_type_pairs_inner(child, out);
+                collect_predicate_type_pairs_inner(child, table_name, table_alias, out);
             }
         }
         // Not: recurse into the inner predicate.
         Predicate::Not(inner) => {
-            collect_predicate_type_pairs_inner(inner, out);
+            collect_predicate_type_pairs_inner(inner, table_name, table_alias, out);
         }
         // All other predicate variants (StringOp, Regex, In, Between, Cidr, Has,
         // Missing, IsNull, Wildcard, RecoveryError, future variants): no Compare

@@ -1089,6 +1089,249 @@ mod tests {
     }
 
     // =========================================================================
+    // F-001B-DC-HIGH-001 — table-qualified column references must NOT false-reject
+    // =========================================================================
+    //
+    // Defect (LOCAL adversary deep-pass finding F-001B-DC-HIGH-001, HIGH):
+    //   All four extraction positions in `check_query_column_availability` use
+    //   `fp.segments.first()` to extract the column name. For a table-qualified
+    //   reference like `crowdstrike_alerts.severity` the parser produces:
+    //     FieldPath { segments: ["crowdstrike_alerts", "severity"] }
+    //   so `.first()` returns "crowdstrike_alerts" — which is never in
+    //   `available_columns` (those hold bare names like "severity") — and the
+    //   gate SPURIOUSLY emits E-QUERY-038 with column="crowdstrike_alerts".
+    //
+    // Fix: a shared helper `extract_column_name_from_field_path` resolves the
+    // correct column name at ALL FOUR positions (SELECT, WHERE, GROUP BY, ORDER BY).
+    //
+    // These tests are RED on HEAD and GREEN after the fix.
+
+    /// F-001B-DC-HIGH-001 (WHERE position) — a table-qualified valid column in the WHERE
+    /// clause must NOT produce E-QUERY-038.
+    ///
+    /// Canonical query: `SELECT * FROM crowdstrike_alerts WHERE crowdstrike_alerts.severity = 'high'`
+    /// Before fix: gate extracts "crowdstrike_alerts" as the column name → not in
+    /// available_columns → SPURIOUS E-QUERY-038 with column="crowdstrike_alerts".
+    /// After fix: extracts "severity" (last segment) → in available_columns → Ok(()).
+    #[tokio::test]
+    async fn test_BC_2_11_016_qualified_where_valid_column_no_error() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // table-qualified column in WHERE — a VALID column with the table prefix.
+        // Before fix: false-rejects with column="crowdstrike_alerts".
+        // After fix: passes cleanly (severity IS in available_columns).
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts WHERE crowdstrike_alerts.severity = 'high'",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                panic!(
+                    "F-001B-DC-HIGH-001 (WHERE): qualified valid column \
+                     'crowdstrike_alerts.severity' MUST NOT produce E-QUERY-038. \
+                     Got column='{}', table='{}', available={:?}. \
+                     Root cause: fp.segments.first() returns the table qualifier; \
+                     fix: use last segment when qualifier matches FROM table.",
+                    d.column, d.table, d.available_columns
+                );
+            }
+            Err(other) => {
+                // Any non-ColumnNotFound error is acceptable (e.g. empty results from no adapters).
+                // We only care that E-QUERY-038 does NOT fire for a valid qualified ref.
+                let msg = format!("{other:?}");
+                assert!(
+                    !matches!(other, PrismError::ColumnNotFound(_)),
+                    "F-001B-DC-HIGH-001: should not reach here; got: {msg}"
+                );
+            }
+            Ok(_) => {
+                // PASS — no false rejection; the query ran (with no results because no adapters).
+            }
+        }
+    }
+
+    /// F-001B-DC-HIGH-001 (SELECT position) — a table-qualified valid column in the SELECT
+    /// clause must NOT produce E-QUERY-038.
+    ///
+    /// Canonical query: `SELECT crowdstrike_alerts.severity FROM crowdstrike_alerts`
+    /// Before fix: `fp.segments.first()` → "crowdstrike_alerts" → spurious E-QUERY-038.
+    /// After fix: extracts "severity" → passes.
+    #[tokio::test]
+    async fn test_BC_2_11_016_qualified_select_valid_column_no_error() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // table-qualified column in SELECT — valid column.
+        let result = engine
+            .execute(
+                "SELECT crowdstrike_alerts.severity FROM crowdstrike_alerts",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                panic!(
+                    "F-001B-DC-HIGH-001 (SELECT): qualified valid column \
+                     'crowdstrike_alerts.severity' in SELECT MUST NOT produce E-QUERY-038. \
+                     Got column='{}', table='{}'. \
+                     Root cause: fp.segments.first() returns table qualifier not column name.",
+                    d.column, d.table
+                );
+            }
+            Ok(_) | Err(_) => {
+                // PASS — any non-ColumnNotFound outcome is correct here.
+                // (Engine has no adapters so Ok with empty results is expected.)
+            }
+        }
+    }
+
+    /// F-001B-DC-HIGH-001 (qualified typo) — a table-qualified MISSPELLED column must
+    /// still produce E-QUERY-038, but with column = LAST segment (the typo), NOT
+    /// column = the table qualifier.
+    ///
+    /// Canonical query: `WHERE crowdstrike_alerts.sevrity = 'high'` (sevrity is the typo).
+    /// Before fix: column="crowdstrike_alerts", did_you_mean=None (table name → no match).
+    /// After fix: column="sevrity", did_you_mean=Some("severity") (Lev-1).
+    #[tokio::test]
+    async fn test_BC_2_11_016_qualified_where_typo_reports_last_segment_as_column() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // Qualified typo: "crowdstrike_alerts.sevrity" — the typo is in the LAST segment.
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike_alerts WHERE crowdstrike_alerts.sevrity = 'high'",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                assert_eq!(
+                    d.column, "sevrity",
+                    "F-001B-DC-HIGH-001 (qualified typo): column field MUST be the LAST \
+                     segment 'sevrity', not the table qualifier 'crowdstrike_alerts'. \
+                     Before fix: column='{}'. Root cause: fp.segments.first().",
+                    d.column
+                );
+                assert_eq!(
+                    d.did_you_mean,
+                    Some("severity".to_string()),
+                    "F-001B-DC-HIGH-001 (qualified typo): did_you_mean MUST be \
+                     Some('severity') for Lev-1 typo 'sevrity'; got: {:?}. \
+                     Before fix: did_you_mean=None because column='crowdstrike_alerts' \
+                     has no close match in available_columns.",
+                    d.did_you_mean
+                );
+                let display = format!("{d}");
+                assert!(
+                    display.starts_with("E-QUERY-038:"),
+                    "F-001B-DC-HIGH-001: Display must start with 'E-QUERY-038:'; got: '{display}'"
+                );
+            }
+            Ok(_) => panic!(
+                "F-001B-DC-HIGH-001 (qualified typo): qualified misspelled column \
+                 'crowdstrike_alerts.sevrity' MUST produce E-QUERY-038. Got Ok."
+            ),
+            Err(other) => panic!(
+                "F-001B-DC-HIGH-001 (qualified typo): expected ColumnNotFound, got: {other:?}"
+            ),
+        }
+    }
+
+    /// F-001B-DC-HIGH-001 (GROUP BY + ORDER BY) — table-qualified valid columns in GROUP BY
+    /// and ORDER BY positions must NOT produce E-QUERY-038.
+    ///
+    /// Before fix: `fp.segments.first()` → table qualifier → spurious E-QUERY-038.
+    /// After fix: extracts the actual column name (last segment) → passes.
+    #[tokio::test]
+    async fn test_BC_2_11_016_qualified_group_by_order_by_valid_column_no_error() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+        ];
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // GROUP BY with table-qualified column — valid.
+        let group_by_result = engine
+            .execute(
+                "SELECT COUNT(*) FROM crowdstrike_alerts GROUP BY crowdstrike_alerts.severity",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match group_by_result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                panic!(
+                    "F-001B-DC-HIGH-001 (GROUP BY): qualified valid column \
+                     'crowdstrike_alerts.severity' in GROUP BY MUST NOT produce E-QUERY-038. \
+                     Got column='{}'. Root cause: fp.segments.first() extracts table qualifier.",
+                    d.column
+                );
+            }
+            Ok(_) | Err(_) => {
+                // PASS — any non-ColumnNotFound outcome is correct.
+            }
+        }
+
+        // ORDER BY with table-qualified column — valid.
+        let order_by_result = engine
+            .execute(
+                "SELECT severity FROM crowdstrike_alerts ORDER BY crowdstrike_alerts.severity",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match order_by_result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                panic!(
+                    "F-001B-DC-HIGH-001 (ORDER BY): qualified valid column \
+                     'crowdstrike_alerts.severity' in ORDER BY MUST NOT produce E-QUERY-038. \
+                     Got column='{}'. Root cause: fp.segments.first() extracts table qualifier.",
+                    d.column
+                );
+            }
+            Ok(_) | Err(_) => {
+                // PASS — any non-ColumnNotFound outcome is correct.
+            }
+        }
+    }
+
+    // =========================================================================
     // GREEN-BY-DESIGN: type shape assertion
     // =========================================================================
 
