@@ -13,6 +13,9 @@
 //! | `test_BC_2_11_018_normalized_pql_key_absent_on_mcp_error_response` | AC-006 | (should pass — error path returns early before normalized_pql is computed) |
 //! | `test_BC_2_11_017_ac003_parse_error_response_carries_near_text` | AC-003 | `StructuredErrorFields` has no `near_text`/`reference_pointer` fields |
 //! | `test_BC_2_11_017_ac003_table_not_found_suggestion_contains_prism_describe_in_mcp` | AC-003+AC-004 | E-QUERY-037 `suggestion` field is "Check the request parameters and retry." |
+//! | `test_BC_2_11_017_ac003_type_error_response_carries_valid_operators` | AC-003 | F-PRL-CRIT-002: `QueryPlanFailed` hits catch-all arm → `valid_operators_for_type: None` → field ABSENT |
+//! | `test_BC_2_11_017_ec11046_near_text_present_as_empty_string_at_end_of_input` | AC-003 | F-PRL-MED-001: empty `near_text` mapped to `None` → key ABSENT; must be `Some("")` |
+//! | `test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure` | AC-005 | OBS-2: regression gate for partial-failure path (EC-11-054) |
 //!
 //! # BC references
 //! - BC-2.11.016 v1.0 — E-QUERY-038 Column-Not-Found Plan-Time Gate
@@ -409,97 +412,285 @@ mod tests {
         );
     }
 
-    /// BC-2.11.017 / AC-003 — E-QUERY-002 type-mismatch error response carries
-    /// `valid_operators_for_type` in the structured error envelope.
+    /// BC-2.11.017 / AC-003 — E-QUERY-002 `QueryPlanFailed` error response carries
+    /// `valid_operators_for_type` as a present, non-null JSON array.
     ///
-    /// Status: CONDITIONALLY load-bearing. The `StructuredErrorFields.valid_operators_for_type`
-    /// field EXISTS (AC-003 field requirement is met), and the helper is wired in
-    /// `build_structured_error_response`. However, the engine coerces type comparisons
-    /// rather than emitting a typed mismatch error variant, so `is_error` is `Some(false)`
-    /// in practice and the conditional assertion is not exercised.
+    /// BC-2.11.017 VP: "E-QUERY-002 structured response always contains
+    /// `valid_operators_for_type` as a non-null array."
     ///
-    /// The unconditional coverage for `valid_operators_for_type` is:
-    ///   - `test_BC_2_11_017_ac003_enrichment_helper_valid_operators_for_type_returns_correct_operators`
-    ///     (unit test of the helper in this file)
+    /// LOAD-BEARING RED GATE test (F-PRL-CRIT-002, LOCAL adversary pass-2):
+    ///   The prior test had an `if call_result.is_error == Some(true)` guard. Because the
+    ///   engine coerces String column comparisons and never produces a type error, the guard
+    ///   body was NEVER reached. The assertion was conditionally inert — TD-VSDD-059
+    ///   (paper-fix detection).
     ///
-    /// NOTE: The specific PrismQL type-mismatch variant (PrismError::QueryTypeMismatch or similar)
-    /// is what would trigger E-QUERY-002. If the engine produces a typed error for numeric
-    /// comparison on a String column, this test's `if call_result.is_error` branch would exercise
-    /// the field assertion. Currently the engine coerces, so this is a conditional check.
+    /// This test is UNCONDITIONAL. It drives `PrismError::QueryPlanFailed` DIRECTLY through
+    /// `prism_error_to_structured_call_result` — no QueryEngine, no sensor, no DataFusion.
+    /// `QueryPlanFailed` is the canonical E-QUERY-002 error variant (plan-time failure,
+    /// map_prism_error maps it to INTERNAL_ERROR). The BC requires any E-QUERY-002-class
+    /// error to carry `valid_operators_for_type`.
+    ///
+    /// FAILS on current HEAD because:
+    ///   `QueryPlanFailed` hits the catch-all `_ =>` arm in `prism_error_to_structured_call_result`
+    ///   which sets `valid_operators_for_type: None`. The `if let Some(ops)` guard in
+    ///   `build_structured_error_response` therefore omits the key from JSON entirely.
+    ///
+    /// FIX: add a dedicated `PrismError::QueryPlanFailed { .. }` arm to `prism_error_to_structured_call_result`
+    /// that populates `valid_operators_for_type` with the appropriate operator set. Since
+    /// `QueryPlanFailed` does not carry ColumnType context, the arm should use a sentinel
+    /// value (e.g., all operators from all types, or a documentation-only marker).
+    /// Alternatively, introduce a `QueryTypeMismatch` variant that carries ColumnType context.
+    #[test]
+    fn test_BC_2_11_017_ac003_type_error_response_carries_valid_operators() {
+        use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+        // Drive QueryPlanFailed DIRECTLY through the error mapping function.
+        // This is the E-QUERY-002 canonical variant (plan-time failure).
+        // UNCONDITIONAL — no conditional guard. The field MUST be present.
+        let err = prism_core::PrismError::QueryPlanFailed {
+            detail: "plan compilation failed: type mismatch in comparison".to_string(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+
+        assert_eq!(
+            result.is_error,
+            Some(true),
+            "BC-2.11.017 AC-003: QueryPlanFailed must produce is_error=true"
+        );
+
+        let sc = result
+            .structured_content
+            .expect("BC-2.11.017 AC-003: structured_content must be present on QueryPlanFailed");
+
+        let error_obj = sc
+            .get("error")
+            .expect("BC-2.11.017 AC-003: sc['error'] must be present on QueryPlanFailed");
+
+        // BC-2.11.017 VP: E-QUERY-002 structured response ALWAYS contains
+        // valid_operators_for_type as a non-null array.
+        //
+        // LOAD-BEARING: FAILS NOW because QueryPlanFailed hits the catch-all arm which sets
+        // valid_operators_for_type: None, so build_structured_error_response omits the field.
+        //
+        // FIX: add a PrismError::QueryPlanFailed arm to prism_error_to_structured_call_result
+        // that sets valid_operators_for_type to a non-empty Vec<String>.
+        let operators = error_obj.get("valid_operators_for_type").expect(
+            "BC-2.11.017 AC-003 (F-PRL-CRIT-002): E-QUERY-002 (QueryPlanFailed) error \
+             response MUST have 'valid_operators_for_type' as a non-null array. \
+             Field is ABSENT. Current code: QueryPlanFailed hits the catch-all arm which \
+             sets valid_operators_for_type: None. \
+             FIX: add a dedicated PrismError::QueryPlanFailed arm to \
+             prism_error_to_structured_call_result that populates valid_operators_for_type.",
+        );
+
+        let operators_arr = operators
+            .as_array()
+            .expect("BC-2.11.017 AC-003: valid_operators_for_type must be a JSON array, not null");
+
+        assert!(
+            !operators_arr.is_empty(),
+            "BC-2.11.017 AC-003: valid_operators_for_type must be a non-empty array; \
+             got empty array"
+        );
+
+        // Every element must be a string.
+        for (i, op) in operators_arr.iter().enumerate() {
+            assert!(
+                op.is_string(),
+                "BC-2.11.017 AC-003: valid_operators_for_type[{i}] must be a string; \
+                 got: {op:?}"
+            );
+        }
+    }
+
+    /// BC-2.11.017 / EC-11-046 — E-QUERY-001 parse error at END-OF-INPUT must carry
+    /// `near_text: ""` (present, empty string) — NOT absent.
+    ///
+    /// BC-2.11.017 EC-11-046: "E-QUERY-001 parse error at end-of-input →
+    ///   `near_text: ""` (empty string); `reference_pointer` still present"
+    ///
+    /// LOAD-BEARING RED GATE test (F-PRL-MED-001, LOCAL adversary pass-2):
+    ///   FAILS on current HEAD because error_mapping.rs lines 1022-1026:
+    ///     ```rust
+    ///     near_text: if near_text.is_empty() {
+    ///         None  // BUG: should be Some("") per EC-11-046
+    ///     } else {
+    ///         Some(near_text)
+    ///     },
+    ///     ```
+    ///   When `extract_near_text` returns `""` (offset ≥ input.len()), the empty string
+    ///   is converted to `None`. `build_structured_error_response` then omits the key
+    ///   entirely from JSON (guarded by `if let Some(nt)`). So the `near_text` key is
+    ///   ABSENT for end-of-input errors.
+    ///
+    /// BC-2.11.017 EC-11-046 requires `near_text` to be PRESENT with value `""`.
+    /// The key must exist in the JSON error object; its value must be the empty string.
+    ///
+    /// FIX in error_mapping.rs: change the guard from:
+    ///   `near_text: if near_text.is_empty() { None } else { Some(near_text) }`
+    /// to:
+    ///   `near_text: Some(near_text)`
+    /// This preserves `near_text: ""` for end-of-input and `near_text: "token"` for mid-input.
+    #[test]
+    fn test_BC_2_11_017_ec11046_near_text_present_as_empty_string_at_end_of_input() {
+        use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+
+        // End-of-input path: the effective_offset computation in error_mapping.rs has an
+        // `if *offset == 0` branch that directly calls extract_near_text(query, 0).
+        // When query is empty "", extract_near_text("", 0) returns "" because 0 >= 0.
+        // The bug: `if near_text.is_empty() { None }` then sets near_text to None.
+        // EC-11-046 requires near_text: "" (present, empty string) at end-of-input.
+        //
+        // Using offset=0, query="" triggers: effective_offset=0 → extract_near_text("", 0) = ""
+        // → near_text.is_empty() is true → BUG: set to None (should be Some("")).
+        let query = String::new(); // empty query → end-of-input at offset 0
+        let err = prism_core::PrismError::QueryParseFailed {
+            offset: 0, // at start/end of empty query → extract_near_text returns ""
+            detail: "unexpected end of input; expected query".to_string(),
+            query: query.clone(),
+        };
+        let result = prism_error_to_structured_call_result(err);
+
+        assert_eq!(
+            result.is_error,
+            Some(true),
+            "BC-2.11.017 EC-11-046: QueryParseFailed at end-of-input must produce is_error=true"
+        );
+
+        let sc = result
+            .structured_content
+            .expect("BC-2.11.017 EC-11-046: structured_content must be present on parse error");
+
+        let error_obj = sc
+            .get("error")
+            .expect("BC-2.11.017 EC-11-046: sc['error'] must be present on parse error");
+
+        // LOAD-BEARING: near_text must be PRESENT (key exists) with value "" (empty string).
+        // FAILS NOW because error_mapping.rs converts empty string to None → key ABSENT.
+        //
+        // FIX: change `if near_text.is_empty() { None } else { Some(near_text) }`
+        //      to `Some(near_text)` in the QueryParseFailed arm of
+        //      prism_error_to_structured_call_result.
+        let near_text_value = error_obj.get("near_text").expect(
+            "BC-2.11.017 EC-11-046: E-QUERY-001 parse error at end-of-input MUST have \
+             'near_text' key present in the error object. \
+             Current behavior: key is ABSENT when extract_near_text returns empty string. \
+             FIX: change the `near_text: if near_text.is_empty() { None } else { Some(near_text) }` \
+             guard in error_mapping.rs QueryParseFailed arm to `near_text: Some(near_text)`. \
+             EC-11-046 requires the key to be present with value \"\" at end-of-input."
+        );
+
+        // The value must be the empty string (not null, not missing).
+        assert_eq!(
+            near_text_value.as_str(),
+            Some(""),
+            "BC-2.11.017 EC-11-046: near_text at end-of-input must be empty string \"\"; \
+             got: {:?}",
+            near_text_value
+        );
+
+        // reference_pointer must still be present at end-of-input (EC-11-046: "still present").
+        let ref_ptr = error_obj.get("reference_pointer").expect(
+            "BC-2.11.017 EC-11-046: reference_pointer must be present even at end-of-input \
+             ('still present' per EC-11-046)",
+        );
+        assert_eq!(
+            ref_ptr.as_str(),
+            Some("prismql://reference"),
+            "BC-2.11.017 EC-11-046: reference_pointer must be 'prismql://reference'; \
+             got: {:?}",
+            ref_ptr
+        );
+    }
+
+    /// BC-2.11.018 / EC-11-054 — `normalized_pql` is PRESENT on partial-failure response
+    /// (query-level success, some sensors errored, non-empty `sensor_errors` list).
+    ///
+    /// BC-2.11.018 EC-11-054: "Query produces partial results (some sensors errored,
+    ///   some succeeded) → `normalized_pql` is PRESENT"
+    ///
+    /// LOAD-BEARING RED GATE test (OBS-2, LOCAL adversary pass-2):
+    ///   No existing test covers the partial-failure path. This test drives a query through
+    ///   PrismServer where the query engine returns `Ok(QueryResult)` with `sensor_errors`
+    ///   non-empty (some sensors failed). On this path, `normalized_pql` MUST still be
+    ///   populated — the partial-failure path must NOT skip the normalized_pql wire.
+    ///
+    /// This test is a REGRESSION gate. With no live sensor adapters wired, the engine
+    /// returns zero rows and no sensor errors — so the test may be GREEN on current HEAD
+    /// if the success path already wires normalized_pql. The test provides behavioral
+    /// coverage that the partial-failure path (sensor_errors non-empty) doesn't drop the
+    /// field in a future refactor.
+    ///
+    /// The test uses `make_server_with_engine` with no adapters — this exercises the
+    /// zero-sensor fan-out path which currently produces no rows and no sensor errors.
+    /// If the implementation introduces a path that skips normalized_pql when sensor_errors
+    /// is non-empty, this test will catch it.
     #[tokio::test]
-    async fn test_BC_2_11_017_ac003_type_error_response_carries_valid_operators() {
+    async fn test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure() {
         use prism_core::column::ColumnType;
 
-        // Register a table with a String "severity" column, then query with numeric comparison
-        let columns = vec![ColumnSpec::new(
-            "severity",
-            ColumnType::String,
-            None,
-            vec![],
-        )];
+        // Wire a table spec so the query succeeds at parse/plan time.
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
+        ];
         let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
         let mut map = HashMap::new();
         map.insert(key, resolved.clone());
         let server = make_server_with_engine(map, vec![resolved.spec.clone()]);
 
-        // "severity > 5" uses a numeric comparison on a String column → type error
-        let params: QueryToolParams = serde_json::from_str(
-            r#"{"query": "SELECT severity FROM crowdstrike_alerts WHERE severity > 5"}"#,
-        )
-        .expect("QueryToolParams JSON must deserialize");
+        // Valid query against the registered table. With no live adapters the query returns
+        // zero rows (query-level success). normalized_pql MUST be present regardless of
+        // whether sensor_errors are populated.
+        //
+        // BC-2.11.018 EC-11-054: partial failure (sensor_errors non-empty) → normalized_pql PRESENT.
+        // This test covers the success-with-zero-rows case as a proxy for partial failure.
+        // A full partial-failure integration test requires a live sensor adapter that injects
+        // errors — that is outside the scope of this unit test.
+        let params: QueryToolParams =
+            serde_json::from_str(r#"{"query": "SELECT severity FROM crowdstrike_alerts LIMIT 5"}"#)
+                .expect("QueryToolParams JSON must deserialize");
         let call_result = server
             .query(Parameters(params))
             .await
-            .expect("domain errors must return Ok(structured_error)");
+            .expect("query must return Ok for valid query with wired engine");
 
-        // The query may produce a parse error or type error depending on the engine.
-        // The key assertion is: for any E-QUERY-002-class error, the error response
-        // must carry valid_operators_for_type.
-        //
-        // If this results in is_error=false (query succeeds with coercion), this test
-        // must be updated to find a query that triggers the type-mismatch path.
-        //
-        // For now, assert on the error response shape if an error is returned.
-        if call_result.is_error == Some(true) {
-            let sc = call_result
-                .structured_content
-                .expect("AC-003: structured_content must be present on error");
+        // Verify: NOT an error response. The query must succeed at the query-engine level.
+        assert_ne!(
+            call_result.is_error,
+            Some(true),
+            "BC-2.11.018 EC-11-054: valid partial-failure query must not return is_error=true; \
+             structured_content: {:?}",
+            call_result.structured_content
+        );
 
-            let error_obj = sc
-                .get("error")
-                .expect("AC-003: sc['error'] must be present on type error");
+        let sc = call_result.structured_content.expect(
+            "BC-2.11.018 EC-11-054: structured_content must be present on partial-failure success",
+        );
 
-            // E-QUERY-002 enrichment: valid_operators_for_type must be in the error object.
-            // The field exists in StructuredErrorFields and is wired in build_structured_error_response.
-            // This branch is only exercised if the engine produces a type-mismatch error (currently
-            // the engine coerces types and returns is_error=Some(false), so this is not reached).
-            let operators = error_obj.get("valid_operators_for_type").expect(
-                "BC-2.11.017 AC-003: E-QUERY-002 error response must have \
-                 'valid_operators_for_type' field in the JSON error object. \
-                 Field is ABSENT. Check StructuredErrorFields and build_structured_error_response.",
-            );
-            let operators_arr = operators
-                .as_array()
-                .expect("valid_operators_for_type must be a JSON array");
-            // String column operators: must include = and != and LIKE
-            let ops: Vec<&str> = operators_arr.iter().filter_map(|v| v.as_str()).collect();
-            assert!(
-                ops.contains(&"="),
-                "AC-003: valid_operators_for_type for String must include '='; got: {ops:?}"
-            );
-            assert!(
-                ops.contains(&"LIKE"),
-                "AC-003: valid_operators_for_type for String must include 'LIKE'; got: {ops:?}"
-            );
-        } else {
-            // If the query succeeded (engine coerced the type), the test is inconclusive.
-            // This is acceptable — the implementer must ensure the engine produces a type error
-            // for cross-type comparisons, and THEN the enrichment field must be populated.
-            // For now, record this as a skip-condition and note the issue.
-            // The test is still load-bearing: if the engine DOES produce an error, the field
-            // must be there; and if the engine coerces the type, the implementer should
-            // add a dedicated type-mismatch query that reliably produces E-QUERY-002.
-        }
+        let results = sc.get("results").expect(
+            "BC-2.11.018 EC-11-054: sc['results'] must be present on partial-failure success",
+        );
+
+        // LOAD-BEARING: normalized_pql must be present on partial-failure path.
+        // If server.rs conditionally skips normalized_pql when sensor_errors is non-empty,
+        // this assertion catches the regression.
+        let normalized_pql = results.get("normalized_pql").expect(
+            "BC-2.11.018 EC-11-054 (OBS-2): normalized_pql MUST be present on partial-failure \
+             success (query-level OK, some sensors errored). \
+             FIX: ensure the normalized_pql wire in server.rs is NOT gated behind \
+             `sensor_errors.is_empty()` — it must execute on ALL non-error query paths, \
+             including partial-failure (sensor_errors non-empty).",
+        );
+
+        let normalized_str = normalized_pql
+            .as_str()
+            .expect("BC-2.11.018 EC-11-054: normalized_pql must be a string, not null");
+        assert!(
+            !normalized_str.is_empty(),
+            "BC-2.11.018 EC-11-054: normalized_pql must be non-empty on partial-failure path; \
+             got empty string"
+        );
     }
 
     /// BC-2.11.017 / AC-003 + AC-004 — E-QUERY-037 table-not-found error response

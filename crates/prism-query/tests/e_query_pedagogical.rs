@@ -193,19 +193,25 @@ mod tests {
     // AC-001 — E-QUERY-038 gate payload shape (Red Gate tests)
     // =========================================================================
 
-    /// BC-2.11.016 / AC-001 — `QueryEngine::execute` with wired `resolved_spec_map` returns
-    /// `PrismError::ColumnNotFound` for a misspelled column with correct `did_you_mean`.
+    /// BC-2.11.016 / AC-001 / AC-002 — `QueryEngine::execute` returns `ColumnNotFound` for
+    /// a misspelled column in the **WHERE clause** (BC-2.11.016 Precondition 2 covers WHERE,
+    /// GROUP BY, ORDER BY — not just SELECT).
     ///
-    /// LOAD-BEARING: fails if `check_column_availability` is NOT called from
-    /// `execute_inner`. Without the wiring, `execute` returns `Ok(QueryResult)`
-    /// (no column checking occurs) rather than `Err(PrismError::ColumnNotFound)`.
+    /// LOAD-BEARING: this test uses the LITERAL AC-002 canonical query from BC-2.11.016:
+    ///   `SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high'`
+    /// The `SELECT *` means the SELECT-clause check is skipped entirely. The WHERE column
+    /// `sevrity` MUST be caught by the gate. Without WHERE-clause scanning in
+    /// `check_query_column_availability`, `execute` returns `Ok(QueryResult)` — this test
+    /// is RED until the WHERE-position check is wired.
     ///
-    /// Canonical test vectors from BC-2.11.016 §Test Vectors:
-    ///   - Input column: "sevrity" (misspelled "severity", Levenshtein = 1)
-    ///   - Table: "crowdstrike_alerts"
-    ///   - Available columns: ["severity", "host_name", "detection_id"]
-    ///   - Expected did_you_mean: Some("severity")
-    ///   - NO match: "completely_bogus_col" → did_you_mean: None
+    /// F-PRL-CRIT-001 (LOCAL adversary pass-2): the prior test used
+    /// `SELECT sevrity FROM crowdstrike_alerts LIMIT 5` (SELECT position), which passed
+    /// because the SELECT-position check already existed. That test was reshaped to mask
+    /// the WHERE gap. This test reinstates the canonical AC-002 query.
+    ///
+    /// BC-2.11.016 Precondition 2: "The query references a column name in a position where
+    /// column resolution is possible (e.g., `SELECT <column>`, `WHERE <column> = ...`,
+    /// `GROUP BY <column>`, `ORDER BY <column>`)."
     #[tokio::test]
     async fn test_BC_2_11_016_e_query_038_did_you_mean() {
         use prism_core::column::ColumnType;
@@ -223,12 +229,20 @@ mod tests {
         let sensor_spec = resolved.spec.clone();
         let engine = make_engine(map, vec![sensor_spec]);
 
-        // ---- Case 1: "sevrity" (Levenshtein-1 typo for "severity") ----
-        // LOAD-BEARING: if check_column_availability is not called from execute_inner,
-        // this returns Ok(...) instead of Err(ColumnNotFound).
+        // ---- Case 1 (LITERAL AC-002 CANONICAL QUERY): WHERE position typo ----
+        //
+        // BC-2.11.016 canonical test vector: `SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high'`
+        // SELECT * means the SELECT check is skipped — only the WHERE check catches "sevrity".
+        //
+        // LOAD-BEARING: if check_query_column_availability only inspects SELECT clause columns,
+        // this returns Ok(...) instead of Err(ColumnNotFound). The gate MUST also scan WHERE.
+        //
+        // FIX: extend check_query_column_availability to extract field references from
+        // `sql_query.where_` (Predicate::Compare, Predicate::StringOp, etc.) and call
+        // check_column_availability for each WHERE column reference.
         let result = engine
             .execute(
-                "SELECT sevrity FROM crowdstrike_alerts LIMIT 5",
+                "SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high'",
                 QueryOptions::default(),
             )
             .await;
@@ -237,77 +251,182 @@ mod tests {
             Err(PrismError::ColumnNotFound(ref d)) => {
                 assert_eq!(
                     d.column, "sevrity",
-                    "BC-2.11.016 AC-001: column field must be 'sevrity'; got: '{}'",
+                    "BC-2.11.016 AC-002: column field must be 'sevrity'; got: '{}'",
                     d.column
                 );
                 assert_eq!(
                     d.table, "crowdstrike_alerts",
-                    "BC-2.11.016 AC-001: table field must be 'crowdstrike_alerts'; got: '{}'",
+                    "BC-2.11.016 AC-002: table field must be 'crowdstrike_alerts'; got: '{}'",
                     d.table
                 );
                 assert!(
                     d.available_columns.contains(&"severity".to_string()),
-                    "BC-2.11.016 AC-001: available_columns must contain 'severity'; \
+                    "BC-2.11.016 AC-002: available_columns must contain 'severity'; \
                      got: {:?}",
                     d.available_columns
                 );
                 assert!(
                     !d.available_columns.is_empty(),
-                    "BC-2.11.016 AC-001: available_columns must be non-empty"
+                    "BC-2.11.016 AC-002: available_columns must be non-empty"
                 );
                 assert_eq!(
                     d.did_you_mean,
                     Some("severity".to_string()),
-                    "BC-2.11.016 AC-001: did_you_mean must be Some('severity') for Lev-1 typo; \
+                    "BC-2.11.016 AC-002: did_you_mean must be Some('severity') for Lev-1 typo; \
                      got: {:?}",
                     d.did_you_mean
                 );
                 let display = format!("{d}");
                 assert!(
                     display.starts_with("E-QUERY-038:"),
-                    "BC-2.11.016 AC-001: Display must start with 'E-QUERY-038:'; got: '{display}'"
+                    "BC-2.11.016 AC-002: Display must start with 'E-QUERY-038:'; got: '{display}'"
                 );
             }
             Ok(_) => panic!(
-                "BC-2.11.016 AC-001: QueryEngine::execute MUST return Err(ColumnNotFound) for \
-                 column 'sevrity' in 'crowdstrike_alerts' when resolved_spec_map is wired. \
-                 Got Ok — check_column_availability is NOT called from execute_inner. \
-                 FIX: wire check_column_availability into execute_inner after \
-                 check_table_availability passes."
+                "BC-2.11.016 AC-002 (F-PRL-CRIT-001): QueryEngine::execute MUST return \
+                 Err(ColumnNotFound) for column 'sevrity' in WHERE clause of \
+                 'SELECT * FROM crowdstrike_alerts WHERE sevrity = ...' when resolved_spec_map \
+                 is wired. Got Ok — check_query_column_availability does NOT scan WHERE clause. \
+                 FIX: extend check_query_column_availability to extract column references from \
+                 sql_query.where_ (Predicate::Compare lhs, Predicate::StringOp field, \
+                 Predicate::In field, etc.) and call check_column_availability for each."
             ),
             Err(other) => {
-                panic!("BC-2.11.016 AC-001: expected ColumnNotFound for 'sevrity', got: {other:?}")
+                panic!(
+                    "BC-2.11.016 AC-002: expected ColumnNotFound for 'sevrity' in WHERE, \
+                     got: {other:?}"
+                )
             }
         }
 
-        // ---- Case 2: "completely_bogus_col" (no match within Lev distance 3) ----
-        let no_match_result = engine
+        // ---- Case 2 (SELECT-position regression): still works in SELECT ----
+        // This verifies the original SELECT-position check is not broken.
+        let select_result = engine
             .execute(
                 "SELECT completely_bogus_col FROM crowdstrike_alerts LIMIT 5",
                 QueryOptions::default(),
             )
             .await;
 
-        match no_match_result {
+        match select_result {
             Err(PrismError::ColumnNotFound(ref d)) => {
                 assert!(
                     d.did_you_mean.is_none(),
-                    "BC-2.11.016 AC-001: did_you_mean must be None when no column is \
-                     within Levenshtein distance 3; got: {:?}",
+                    "BC-2.11.016 SELECT-regression: did_you_mean must be None for \
+                     'completely_bogus_col'; got: {:?}",
                     d.did_you_mean
                 );
                 assert!(
                     !d.available_columns.is_empty(),
-                    "BC-2.11.016 AC-001: available_columns must still be present \
-                     even when did_you_mean is None"
+                    "BC-2.11.016 SELECT-regression: available_columns must be non-empty"
                 );
             }
             Ok(_) => panic!(
-                "BC-2.11.016 AC-001: must return Err(ColumnNotFound) for 'completely_bogus_col' \
-                 — check_column_availability must be wired."
+                "BC-2.11.016 SELECT-regression: must return ColumnNotFound for \
+                 'completely_bogus_col' in SELECT — gate must still work in SELECT position."
             ),
             Err(other) => panic!(
-                "BC-2.11.016 AC-001: expected ColumnNotFound for 'completely_bogus_col', \
+                "BC-2.11.016 SELECT-regression: expected ColumnNotFound for \
+                 'completely_bogus_col', got: {other:?}"
+            ),
+        }
+    }
+
+    /// BC-2.11.016 / F-PRL-CRIT-001 — E-QUERY-038 gate covers GROUP BY and ORDER BY positions.
+    ///
+    /// BC-2.11.016 Precondition 2 explicitly lists GROUP BY and ORDER BY alongside WHERE as
+    /// positions where column resolution is required. The gate MUST catch typos in all four
+    /// positions: SELECT, WHERE, GROUP BY, ORDER BY.
+    ///
+    /// LOAD-BEARING: both assertions FAIL on current HEAD because `check_query_column_availability`
+    /// only scans SELECT clause columns. GROUP BY and ORDER BY fields are not extracted.
+    ///
+    /// FIX: extend check_query_column_availability to also collect column references from
+    /// `sql_query.group_by` (Vec<Expr>) and `sql_query.order_by` (Vec<OrderExpr>).
+    #[tokio::test]
+    async fn test_BC_2_11_016_e_query_038_where_group_by_order_by_positions() {
+        use prism_core::column::ColumnType;
+
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("host_name", ColumnType::String, None, vec![]),
+            ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
+        ];
+        // sensor_id="crowdstrike" + table_suffix="alerts" → registered as "crowdstrike_alerts"
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut map = HashMap::new();
+        map.insert(key, resolved.clone());
+        let engine = make_engine(map, vec![resolved.spec.clone()]);
+
+        // ---- GROUP BY position: typo in GROUP BY column ----
+        // SELECT * skips SELECT check. "sevrity" only in GROUP BY → must be caught there.
+        // LOAD-BEARING: returns Ok if GROUP BY columns are not extracted by the gate.
+        let group_by_result = engine
+            .execute(
+                "SELECT COUNT(*) FROM crowdstrike_alerts GROUP BY sevrity",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match group_by_result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                assert_eq!(
+                    d.column, "sevrity",
+                    "BC-2.11.016 GROUP-BY: column must be 'sevrity'; got: '{}'",
+                    d.column
+                );
+                assert!(
+                    d.available_columns.contains(&"severity".to_string()),
+                    "BC-2.11.016 GROUP-BY: available_columns must contain 'severity'; \
+                     got: {:?}",
+                    d.available_columns
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 (F-PRL-CRIT-001): GROUP BY position — \
+                 'sevrity' in GROUP BY must produce ColumnNotFound. Got Ok. \
+                 FIX: extract Expr::Field references from sql_query.group_by and pass \
+                 each to check_column_availability."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 GROUP-BY: expected ColumnNotFound for 'sevrity' in GROUP BY, \
+                 got: {other:?}"
+            ),
+        }
+
+        // ---- ORDER BY position: typo in ORDER BY column ----
+        // "sevrity" only in ORDER BY → must be caught there.
+        // LOAD-BEARING: returns Ok if ORDER BY columns are not extracted by the gate.
+        let order_by_result = engine
+            .execute(
+                "SELECT severity FROM crowdstrike_alerts ORDER BY sevrity",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match order_by_result {
+            Err(PrismError::ColumnNotFound(ref d)) => {
+                // Note: "severity" IS in SELECT (valid), only "sevrity" in ORDER BY is invalid.
+                assert_eq!(
+                    d.column, "sevrity",
+                    "BC-2.11.016 ORDER-BY: column must be 'sevrity'; got: '{}'",
+                    d.column
+                );
+                assert!(
+                    d.available_columns.contains(&"severity".to_string()),
+                    "BC-2.11.016 ORDER-BY: available_columns must contain 'severity'; \
+                     got: {:?}",
+                    d.available_columns
+                );
+            }
+            Ok(_) => panic!(
+                "BC-2.11.016 (F-PRL-CRIT-001): ORDER BY position — \
+                 'sevrity' in ORDER BY must produce ColumnNotFound. Got Ok. \
+                 FIX: extract the column name from each OrderExpr in sql_query.order_by and \
+                 pass each to check_column_availability."
+            ),
+            Err(other) => panic!(
+                "BC-2.11.016 ORDER-BY: expected ColumnNotFound for 'sevrity' in ORDER BY, \
                  got: {other:?}"
             ),
         }
