@@ -67,9 +67,9 @@ status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.4"
+version: "1.5"
 producer: story-writer
-timestamp: "2026-06-21T12:00:00Z"
+timestamp: "2026-06-22T00:00:00Z"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -165,8 +165,8 @@ and build grounded query templates for the current session.
 
 | BC ID | Title | Key Clauses |
 |-------|-------|-------------|
-| BC-2.11.016 v1.0 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code |
-| BC-2.11.017 v1.0 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | E-QUERY-001: near_text ≤50 chars + reference_pointer; E-QUERY-002: valid_operators_for_type list; E-QUERY-003: how_to_fix string; E-QUERY-037: suggestion contains prism_describe reference |
+| BC-2.11.016 v1.2 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code |
+| BC-2.11.017 v1.1 | BC-2.11.017: E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | E-QUERY-001: near_text ≤50 chars + reference_pointer; E-QUERY-002: valid_operators_for_type list; E-QUERY-003: how_to_fix string; E-QUERY-037: suggestion contains prism_describe reference |
 | BC-2.11.018 v1.0 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | Present (non-empty) on every successful execution incl. zero-row; absent (not null, not present) on all errors; Chumsky-normalized form; excludes DataFusion plan internals |
 
 ---
@@ -176,8 +176,8 @@ and build grounded query templates for the current session.
 | Artifact | Estimated Tokens |
 |----------|-----------------|
 | This story spec | ~3,500 |
-| BC-2.11.016 v1.0 | ~1,200 |
-| BC-2.11.017 v1.0 | ~1,000 |
+| BC-2.11.016 v1.2 | ~1,200 |
+| BC-2.11.017 v1.1 | ~1,000 |
 | BC-2.11.018 v1.0 | ~800 |
 | ADR-041 v1.1 §L4 (pedagogical errors + normalized_pql sections) | ~3,000 |
 | `crates/prism-core/src/error.rs` (PrismError; ColumnNotFound variant) | ~500 |
@@ -404,7 +404,7 @@ At ~200k context window: ~11.7% — within the 20-30% ceiling.
 - [ ] Run `just check` — all 6 Red Gate tests pass; zero clippy warnings; fmt clean
 - [ ] Confirm ci.yml EXPECTED is **83** (bumped from 82 during TDD green — `ColumnNotFoundDetails`
   from Phase 1 is one new `#[non_exhaustive]` pub struct). The non-exhaustive-violation crate's
-  `tests/external/non-exhaustive-violation/src/enum_violations.rs` must include a
+  `tests/external/non-exhaustive-violation/src/struct_violations.rs` must include a
   `ColumnNotFoundDetails` violation function (struct-literal construction attempt, mirroring
   the `TableNotAvailableDetails` violation added by S-3.13 LOW-1) so the gate continues to
   compile-fail at the correct count. The `normalized_pql` wire adds NO new pub struct — only
@@ -652,7 +652,7 @@ normalized query strings.
 | `crates/prism-mcp/src/error_mapping.rs` | Modify | Add explicit `-32602 INVALID_PARAMS` arm for `PrismError::ColumnNotFound` before the `#[non_exhaustive]` catch-all |
 | `crates/prism-mcp/src/server.rs` | Modify | In `PrismServer::query`, insert `normalized_pql` conditionally into the existing inline `serde_json::json!` payload after rows serialization; conditional key insertion (not a struct field — no typed response struct exists; ADR-022 wiring-not-redesign) |
 | `ci.yml` | Modify | Bump EXPECTED from 82 to 83 — `ColumnNotFoundDetails` (from Phase 1) is one new `#[non_exhaustive]` pub struct added by this story. Update the type-list comment to include `ColumnNotFoundDetails` adjacent to `TableNotAvailableDetails` in the `prism_core:` group (mirror the S-3.13 LOW-1 row entry). Also update the error text listing at line ~679 area (see S-3.13 LOW-1 row for `TableNotAvailableDetails` as the model). The `normalized_pql` wire adds +0 to EXPECTED (no new pub struct). |
-| `tests/external/non-exhaustive-violation/src/enum_violations.rs` | Modify | Add a violation function for `ColumnNotFoundDetails` (struct-literal construction attempt), mirroring the `TableNotAvailableDetails` violation function added by S-3.13 LOW-1. This brings the E0639 compile-fail count to 83 (matching the bumped ci.yml EXPECTED). |
+| `tests/external/non-exhaustive-violation/src/struct_violations.rs` | Modify | Add a violation function for `ColumnNotFoundDetails` (struct-literal construction attempt), mirroring the `TableNotAvailableDetails` violation function added by S-3.13 LOW-1. This brings the E0639 compile-fail count to 83 (matching the bumped ci.yml EXPECTED). |
 | `crates/prism-query/tests/e_query_pedagogical.rs` | Create | Tests for AC-001 through AC-004 (E-QUERY-038 gate, E-QUERY-001/002/003/037 enrichments) |
 | `crates/prism-mcp/tests/normalized_pql.rs` | Create | Tests for AC-005, AC-006 (normalized_pql field presence/absence) |
 
@@ -691,3 +691,4 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 | 1.2 | TABLEREGISTRY-DATAPATH-CORRECTION-2026-06-20 | 2026-06-20 | story-writer | Architect adjudication applied (onboarding-001-tableregistry-datapath-correction.md, D-1259 FLAG-001). Wiring-not-redesign corrections for FLAG-001 from remove-uncertainty pass. Edits: (1) `depends_on` S-5.03 comment — corrected from fictional "TableRegistry injection into PrismServer" to actual ServerHandler override patterns; (2) `depends_on` S-3.13 comment — replaced "reads registry's per-org column schema" with `resolved_spec_map` parameter flow description; (3) dependency anchor comments corrected; (4) Tasks Phase 3 column gate — replaced "Column availability checked against TableRegistry" with `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns` lookup with None fallback; updated `available_columns` presence note to reference `filter_to_org_visible_sensors/_tables` pattern; (5) `risk_mitigations` — replaced "sourced ENTIRELY from TableRegistry" with `resolved_spec_map → ColumnSpec.name` data path with TOML-source safety rationale; (6) Previous Story Intelligence CRITICAL FLAG paragraph — replaced with "ARCHITECTURE FLAG RESOLVED" citing architect adjudication doc, canonical `resolved_spec_map` read path, and AC-001/AC-002 satisfaction statement; (7) Architecture Compliance Rules `available_columns` sourcing rule corrected; (8) Architecture Mapping E-QUERY-038 row corrected. No AC-semantic changes. No BC array changes. BCs remain: BC-2.11.016, BC-2.11.017, BC-2.11.018. |
 | 1.3 | NORMALIZED-PQL-ENVELOPE-CORRECTION-2026-06-21 | 2026-06-21 | story-writer | CORRECTION-1 adjudication applied (onboarding-001-B-normalized-pql-envelope-correction.md). Phase 5 task rewritten: "Add normalized_pql field to query response type" replaced with conditional `serde_json::Value` key insertion into the existing inline `json!` payload in `PrismServer::query` before `SafetyEnvelopeBuilder::wrap` — no typed query-response struct exists or is permitted (BC-2.10.007 SafetyEnvelope pattern; ADR-022 wiring-not-redesign). File Structure `server.rs` row updated to describe conditional key insertion. File Structure `ci.yml` row changed from "Modify / Increment EXPECTED" to "No change / EXPECTED remains 82" (001-A merged, +0 from 001-B). `risk_mitigations` skip_serializing_if bullet corrected: `#[serde(skip_serializing_if)]` is a struct attribute inapplicable to `serde_json::Value`; conditional key insertion is the correct equivalent. Architecture Mapping `normalized_pql` row updated to name `PrismServer::query` inline payload and omit "no typed response struct". Forbidden patterns block extended with typed-struct anti-pattern. Library & Framework serde row updated. Frontmatter `crates_touched` and points-justification comments corrected. AC-005/AC-006 behavioral semantics UNCHANGED. BCs UNCHANGED: BC-2.11.016, BC-2.11.017, BC-2.11.018. |
 | 1.4 | CORRECTION-2-COLUMNNOTFOUND-BOXED-2026-06-21 | 2026-06-21 | story-writer | CORRECTION-2 adjudication applied (onboarding-001-B-columnnotfound-variant-shape-correction.md). `PrismError::ColumnNotFound` corrected from inline-field variant to `ColumnNotFound(Box<ColumnNotFoundDetails>)` — inline 3×String + Vec<String> + Option<String> equals or exceeds the `clippy::result_large_err` 128-byte threshold; boxing following `TableNotAvailableDetails` precedent (S-3.13 LOW-1) reduces variant to 8 bytes. Phase 1 task rewritten: now specifies (a) new `pub struct ColumnNotFoundDetails` with `#[non_exhaustive]` + `#[derive(Debug, Clone, PartialEq, Eq)]` + Display + `::new()` constructor, and (b) `ColumnNotFound(Box<ColumnNotFoundDetails>)` boxed variant with `#[error("{0}")]`. Phase 2 error_mapping.rs arm corrected from `ColumnNotFound { ... }` to `ColumnNotFound(ref d)` with field access via `d.*`. Phase 5 normalized_pql ci.yml note corrected: EXPECTED must be bumped 82→83 (ColumnNotFoundDetails from Phase 1); normalized_pql wire itself adds +0. Phase 6 final gates ci.yml step corrected: EXPECTED is 83 (not 82); enum_violations.rs must include ColumnNotFoundDetails violation function. File Structure ci.yml row corrected: "No change / EXPECTED remains 82" → "Modify / bump EXPECTED to 83". File Structure: new row added for `tests/external/non-exhaustive-violation/src/enum_violations.rs` (add ColumnNotFoundDetails violation function, mirroring TableNotAvailableDetails row from S-3.13 LOW-1). Net non-exhaustive gate impact = +1 (ColumnNotFoundDetails only; EXPECTED 82→83). CLAUDE.md count 82→83 is a merge-time obligation. AC behavioral semantics UNCHANGED. BCs UNCHANGED: BC-2.11.016, BC-2.11.017, BC-2.11.018. |
+| 1.5 | LOCAL-ADVERSARY-FINDINGS-CLOSURE-2026-06-22 | 2026-06-22 | story-writer | LOCAL adversary findings closure (F-001B-FRESH-MED-002 + OBS-001B-FRESH-001). F-001B-FRESH-MED-002 (MED, POL-23 BC version-pin propagation): BC-2.11.016 body table + Token Budget pins updated v1.0→v1.2 (canonical in BC-INDEX; v1.1 OBS-2 deferral prose + v1.2 OBS-001-B boxed-form prose; story already ships the boxed ColumnNotFound form — purely descriptive bump). BC-2.11.017 body table + Token Budget pins updated v1.0→v1.1 (PO amendment: QueryTypeMismatch variant + new Display propagated into BC body). BC-2.11.017 body table title cell updated to match BC H1 verbatim per POL-7: "BC-2.11.017: E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037)". OBS-001B-FRESH-001 (cosmetic): File Structure row + Phase 6 gate step for ColumnNotFoundDetails violation corrected from `enum_violations.rs` → `struct_violations.rs` (ColumnNotFoundDetails is a struct → E0639; mirroring TableNotAvailableDetails which is also in struct_violations.rs per S-3.13 LOW-1). BC array unchanged (BC-2.11.016, BC-2.11.017, BC-2.11.018). No AC/scope changes. |

@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.99"
+version: "7.00"
 status: draft
 producer: state-manager
-timestamp: 2026-06-22T00:00:00Z
+timestamp: 2026-06-22T12:00:00Z
 phase: 3.A
 total_contracts: 256
 active_contracts: 235
@@ -171,7 +171,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.016 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.2 (2026-06-22: OBS-001-B-FRESH-001 — §PrismError-variant updated to CORRECTION-2 boxed form `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` #[non_exhaustive]; was v1.1: 2026-06-22: §Related-BCs deferral to S-EXPLAIN-PARITY-001 OBS-2) |
-| BC-2.11.017 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
+| BC-2.11.017 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.1 (2026-06-22: F-001B-FRESH-MED-001 closure — §E-QUERY-002 "Current state" updated to shipped `PrismError::QueryTypeMismatch` variant + Display; stale "no new variant" prose corrected; cross-ref error-taxonomy.md v1.94 §E-QUERY-002 dual-Display collision row; §PrismError-variant-impact summary updated: QueryTypeMismatch WAS added (CORRECTION-2 adjudication, +0 gate)) |
 | BC-2.11.018 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | 11 - Query Execution | CAP-015 | P1 | draft (ADR-041-teaching-burst-2026-06-19; subsystem SS-11; anchor story S-DEMO-PRISMQL-ONBOARDING-001) — v1.0 |
 | BC-2.12.001 | `create_schedule` MCP Tool — Create a Scheduled Query | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.002 | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | 12 - Scheduler | CAP-017 | P0 | draft |
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v7.00 (2026-06-22, D-1286 001-B LOCAL cascade spec-propagation fixes — BC-2.11.017 v1.0→v1.1):** product-owner | BC-2.11.017 inline row: v1.0→v1.1 — F-001B-FRESH-MED-001 closure (S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL cascade spec-compliance pass). §E-QUERY-002 "Current state" updated to reflect shipped `PrismError::QueryTypeMismatch { column, table, actual_type, operator }` variant and its Display `"E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type '{actual_type:?}' which does not support operator '{operator}'"` (CORRECTION-2 adjudication). Stale pre-v1.92 Display `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` replaced. Cross-ref to error-taxonomy.md v1.94 §E-QUERY-002 dual-Display collision row added. §PrismError-variant-impact summary corrected: `QueryTypeMismatch` WAS added (+0 non_exhaustive gate — `PrismError` already gated). modified: 2026-06-22. **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED. develop_head UNCHANGED fc954300. BC-INDEX v6.99→v7.00.
 
 **v6.99 (2026-06-22, D-1284 S-5.04-spec-prep — BC-2.08.001 v1.4, BC-2.08.007 v1.4, BC-2.16.009 v1.11, error-taxonomy v1.94):** product-owner + state-manager | BC-2.08.001 inline row: v1.3→v1.4 — probe_table precondition + two postconditions (LIMIT 0 routing via probe_table → first-declared-table → no-op fallback chain) + E-SPEC-026 error case + parse-time enforcement invariant. BC-2.08.007 inline row: v1.3→v1.4 — F-S504-R2-002 adjudication: overall_status "rate_limited" added as distinct value (all-sensors-rate-limited aggregate; "wait and retry" remediation distinct from connectivity/auth failure); EC-08-015 + all-rate-limited canonical test vector. BC-2.16.009 inline row: v1.10→v1.11 — Rule 8 (probe_table validation / E-SPEC-026): trigger conditions, error message format, implementation anchor (SpecLoader::parse() post-Rule-7, SpecErrorCode::ESpec026); E-SPEC-026 added to §Error Conditions; EC-009-026..028; 3 canonical test vectors; S-5.04 added to Stories traceability (D-1262 fold). error-taxonomy v1.93→v1.94 (E-SPEC-026 registered). Phantom S-5.04-PROBE-TABLE anchors re-anchored to S-5.04 across all 4 artifacts (4 occurrences found + corrected; 0 live anchors remain). **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED. develop_head UNCHANGED fc954300. BC-INDEX v6.98→v6.99.
 

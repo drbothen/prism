@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.914"
+version: "7.915"
 producer: state-manager
-timestamp: 2026-06-22T12:00:00Z
+timestamp: 2026-06-22T13:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,9 +17,9 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "fc954300"
-bc_index_version: "6.99"
+bc_index_version: "7.00"
 vp_index_version: "1.79"
-story_index_version: "v2.456"
+story_index_version: "v2.457"
 arch_index_version: "2.141"
 error_taxonomy_version: "1.94"
 total_stories: 208
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1285 (2026-06-22). S-5.04 v2.0 story commit + pre-TDD remove-uncertainty verdict recorded (DEMO-BLOCKING, factory-only; develop_head UNCHANGED fc954300). Story v1.9→v2.0: +AC-8/AC-9/AC-10 (probe_table connectivity), +EC-007 (rate_limited), BC-2.16.009 added to behavioral_contracts, crates_touched=[prism-spec-engine,prism-core,prism-sensors,prism-mcp], acceptance_criteria_count 7→10. STORY-INDEX v2.455→v2.456 (S-5.04 row PARKED→TDD-ready; v1.9→v2.0; AC count 7→10; serial after 001-B). Remove-uncertainty verdict: CORRECTIONS-NEEDED but ALL LOW-RISK/INFO — no CRITICAL, no PO/architect flags; AC-10 probe_table↔TOML parity VERIFIED CORRECT. Implementer guidance recorded (sibling-sweep E0063 sites, Rule 8 slot in SpecLoader::parse(), health/connectivity.rs GREENFIELD, #[non_exhaustive] on OverallStatus +1 gate). STATE v7.913→v7.914."
+current_step: "D-1286 (2026-06-22). 001-B LOCAL cascade spec-propagation fixes — BC-2.11.017 v1.0→v1.1 + story v1.4→v1.5 (parallel spec-compliance pass findings; code HEAD 45e46753 UNCHANGED + confirmed clean). BC-INDEX v6.99→v7.00. STORY-INDEX v2.456→v2.457. STATE v7.914→v7.915. NEXT: restart LOCAL strict-3-CLEAN cascade on code HEAD 45e46753 (streak 0/3)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-22 (D-1285 S-5.04 v2.0 story commit + pre-TDD remove-uncertainty verdict; STORY-INDEX v2.456; STATE v7.914)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-22 (D-1286 001-B LOCAL cascade spec-propagation fixes; BC-INDEX v7.00; STORY-INDEX v2.457; STATE v7.915)
 
 ## Active Objective (North Star)
 
@@ -113,7 +113,8 @@ pre_compact_snapshot_at: "2026-06-15"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log. D-1265 through D-1280 archived to burst-log (D-1285 compaction; keep last 5: D-1281..D-1285)._
+_D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log. D-1265 through D-1280 archived to burst-log (D-1285 compaction; keep last 5: D-1281..D-1285). D-1281 archived to burst-log (D-1286 compaction; keep last 5: D-1282..D-1286)._
+| D-1286 | state-manager | 2026-06-22 | **001-B LOCAL CASCADE SPEC-PROPAGATION FIXES (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED fc954300). Parallel spec-compliance pass findings only — code HEAD 45e46753 UNCHANGED; confirmed clean by deep+comprehensive adversary passes. Spec fixes: (1) BC-2.11.017 v1.0→v1.1 — F-001B-FRESH-MED-001 closure: §E-QUERY-002 "Current state" updated to shipped `PrismError::QueryTypeMismatch { column, table, actual_type, operator }` variant + Display `"E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type '{actual_type:?}' which does not support operator '{operator}'"` (CORRECTION-2 adjudication); stale "no new variant"/"UNCHANGED" prose removed; cross-ref error-taxonomy.md v1.94 §E-QUERY-002 dual-Display collision row added; §PrismError-variant-impact summary corrected (QueryTypeMismatch WAS added, +0 non_exhaustive gate — `PrismError` already gated). (2) S-DEMO-PRISMQL-ONBOARDING-001-B v1.4→v1.5 — F-001B-FRESH-MED-002 closure (POL-23 BC version-pin propagation): BC-2.11.016 body table + Token Budget pins updated v1.0→v1.2; BC-2.11.017 body table + Token Budget pins updated v1.0→v1.1; BC-2.11.017 body table title cell updated to match BC H1 verbatim per POL-7. OBS-001B-FRESH-001 closure (cosmetic): File Structure row + Phase 6 gate step corrected enum_violations.rs→struct_violations.rs (ColumnNotFoundDetails is a struct → E0639; mirrors TableNotAvailableDetails in struct_violations.rs per S-3.13 LOW-1). BC array unchanged (BC-2.11.016, BC-2.11.017, BC-2.11.018). No AC/scope changes. bc_index_version 6.99→7.00. story_index_version v2.456→v2.457. develop_head UNCHANGED fc954300. NEXT: restart LOCAL strict-3-CLEAN cascade on code HEAD 45e46753 (unchanged) against corrected specs (streak 0/3). STATE v7.914→v7.915.** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1285 | state-manager | 2026-06-22 | **S-5.04 v2.0 STORY COMMIT + PRE-TDD REMOVE-UNCERTAINTY VERDICT (TD-VSDD-053 single-commit; factory-only; DEMO-BLOCKING; develop_head UNCHANGED fc954300). Story-writer S-5.04 v1.9→v2.0 committed: +AC-8 (probe_table connectivity check PASS via LIMIT 0 {probe_table}; BC-2.08.001 v1.4) + AC-9 (probe_table invalid table → E-SPEC-026 rejected at parse time; BC-2.16.009 v1.11 Rule 8) + AC-10 (probe_table absent → first declared table fallback; BC-2.08.001 v1.4 postcondition 2) + EC-007 (rate_limited OverallStatus; BC-2.08.007 v1.4). behavioral_contracts +=BC-2.16.009; anchor_bcs +=BC-2.16.009. crates_touched=[prism-spec-engine,prism-core,prism-sensors,prism-mcp]. File-structure rows added. acceptance_criteria_count 7→10. STORY-INDEX v2.455→v2.456: S-5.04 row v1.9→v2.0, PARKED→TDD-ready (serial after 001-B; prism-mcp overlap), AC 7→10. Pre-TDD remove-uncertainty verdict vs develop@fc954300: CORRECTIONS-NEEDED (LOW-RISK/INFO only; NO CRITICAL; NO PO/architect flags): (1) sibling-sweep E0063: 3 exhaustive SensorSpec literals will need `probe_table: None` added — prism-spec-engine/src/pipeline.rs `make_single_step_spec()`/`make_execute_spec()` + prism-spec-engine/src/proofs/spec_validator.rs `minimal_valid_spec()`; (2) Rule 8 placement: slot as LAST parse-time gate before `Ok(spec)` in SpecLoader::parse() — NOT in validation.rs; "after Rule 7" prose is geographically loose in the spec; (3) health/ module GREENFIELD on develop — `connectivity.rs` creates probe_table routing from the start (no hardcode-then-replace); (4) OverallStatus enum if public/serialized → #[non_exhaustive] required → +1 gate (82 on develop; 83 after 001-B merges; DO NOT use stale design-doc "79"). AC-10 probe_table↔TOML parity VERIFIED CORRECT: crowdstrike→detections, cyberint→alerts, claroty→devices, armis→devices all match declared [[tables]] in sensor TOML specs; Rule 8 will not fire on our own specs. S-5.04 TDD-READY vs develop@fc954300. NEXT: S-5.04 TDD serial after 001-B merges. STORY-INDEX story_index_version v2.455→v2.456. STATE v7.913→v7.914.** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1284 | state-manager | 2026-06-22 | **S-5.04 SPEC-PREP BURST (DEMO-BLOCKING, TD-VSDD-053 single-commit; factory-only; parallel to 001-B cascade; develop_head UNCHANGED fc954300). 4 PO-edited .factory artifacts committed: (1) BC-2.08.001 v1.3→v1.4 — probe_table precondition + two postconditions (LIMIT 0 probe_table→first-declared-table→no-op fallback chain) + E-SPEC-026 error case + parse-time enforcement invariant. (2) BC-2.16.009 v1.10→v1.11 — Rule 8 / E-SPEC-026 probe_table validation; EC-009-026..028; S-5.04 Stories traceability; EXPECTED literal normalized to ci.yml authority. (3) BC-2.08.007 v1.3→v1.4 — F-S504-R2-002: overall_status "rate_limited" added; EC-08-015; all-rate-limited test vector. (4) error-taxonomy v1.93→v1.94 — E-SPEC-026 registered. Phantom S-5.04-PROBE-TABLE anchors re-anchored to S-5.04 (D-1262 fold): 4 found, 0 live remain. bc_index_version 6.98→6.99. error_taxonomy_version 1.93→1.94. STATE v7.912→v7.913. NEXT for S-5.04: story-writer body update → remove-uncertainty → TDD after 001-B merges.** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1283 | state-manager | 2026-06-22 | **OBS-001-B-FRESH-001 DOC-ACCURACY FIX BURST (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED fc954300). F-001-B-FRESH-001 (MED — extract_near_text byte-slice `&token[..50]` UTF-8 char-boundary panic on multibyte model-controlled near_text) FIXED in code commit 5d5e703a: char-count truncation `chars().take(50)` per BC-2.11.017 DI-006 ≤50-chars wording; multibyte load-bearing test added; `just check` verification in progress. OBS-001-B-FRESH-001 (LOW — error-taxonomy E-QUERY-038 "Emitted by" clause + BC-2.11.016 §PrismError-variant prose described old inline-field variant shape; CORRECTION-2 ratified boxed `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` shape; sibling-sweep residue) FIXED via 3 PO-edited .factory artifacts: (1) error-taxonomy v1.92→v1.93 — E-QUERY-038 "Emitted by" clause updated to boxed form `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` where `ColumnNotFoundDetails` is a `#[non_exhaustive]` struct (`result_large_err` boxing parity with `TableNotAvailableDetails`); field set, semantics, Display, MCP surface UNCHANGED; (2) BC-2.11.016 v1.1→v1.2 — §PrismError variant prose updated from speculative "box if necessary" to ratified CORRECTION-2 boxed shape; changelog row added; (3) BC-INDEX v6.97→v6.98 — BC-2.11.016 inline row v1.1→v1.2; changelog row added; no lifecycle/count changes (active_contracts 238 / draft_contracts 5 / total_contracts 256 UNCHANGED). bc_index_version 6.97→6.98. error_taxonomy_version 1.92→1.93. develop_head UNCHANGED fc954300. STATE v7.911→v7.912. **Next: confirm just check green on code HEAD 5d5e703a, re-freeze, restart strict-3-CLEAN cascade 0/3.** | wave-5-e-demo-fidelity | 2026-06-22 |
@@ -357,28 +358,28 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1285 — 2026-06-22; STATE v7.914)
+## Session Resume Checkpoint (D-1286 — 2026-06-22; STATE v7.915)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1282** (authoritative zero-context restart source; supersedes D-1281). D-1285 is a factory-only story-commit + remove-uncertainty verdict burst — SESSION-HANDOFF.md not separately updated (develop_head UNCHANGED fc954300; no behavioral spec changes beyond S-5.04 story body update).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1282** (authoritative zero-context restart source; supersedes D-1281). D-1286 is a factory-only spec-propagation fixes burst — SESSION-HANDOFF.md not separately updated (develop_head UNCHANGED fc954300; code HEAD 45e46753 UNCHANGED; no behavioral spec changes beyond BC-2.11.017 v1.0→v1.1 + story v1.4→v1.5).
 
-**STATE v7.914. CURRENT POSITION: D-1285 S-5.04 v2.0 story committed + pre-TDD remove-uncertainty verdict recorded (DEMO-BLOCKING; TDD-READY vs fc954300; serial after 001-B merges). 001-B code HEAD 5d5e703a (F-001-B-FRESH-001 fix; just check status: verify before continuing cascade). BC-INDEX v6.99. ARCH-INDEX v2.141. STORY-INDEX v2.456. develop_head fc954300. NO OPEN PRs. total_stories 208. ci.yml EXPECTED=82 (on develop; 82→83 is merge-time obligation for 001-B — ColumnNotFoundDetails; S-5.04 OverallStatus adds +1 more at its own merge = 84 at S-5.04 merge). bc_index_version 6.99. story_index_version v2.456. arch_index_version 2.141. error_taxonomy_version 1.94. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=82 on develop; 82→83 obligation at 001-B merge; 83→84 obligation at S-5.04 merge (OverallStatus). draft_contracts 5. active_contracts 238.**
+**STATE v7.915. CURRENT POSITION: D-1286 001-B LOCAL cascade spec-propagation fixes committed (BC-2.11.017 v1.0→v1.1 closes F-001B-FRESH-MED-001; story v1.4→v1.5 closes F-001B-FRESH-MED-002 + OBS-001B-FRESH-001). Code HEAD 45e46753 UNCHANGED — all three findings were spec-only. BC-INDEX v7.00. ARCH-INDEX v2.141. STORY-INDEX v2.457. develop_head fc954300. NO OPEN PRs. total_stories 208. ci.yml EXPECTED=82 (on develop; 82→83 is merge-time obligation for 001-B — ColumnNotFoundDetails; S-5.04 OverallStatus adds +1 more at its own merge = 84 at S-5.04 merge). bc_index_version 7.00. story_index_version v2.457. arch_index_version 2.141. error_taxonomy_version 1.94. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=82 on develop; 82→83 obligation at 001-B merge; 83→84 obligation at S-5.04 merge (OverallStatus). draft_contracts 5. active_contracts 238.**
 
-**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B (v1.4, IN-PROGRESS TDD; code HEAD 5d5e703a; worktree feature/S-DEMO-PRISMQL-ONBOARDING-001-B; strict-3-CLEAN streak 0/3 — re-freeze on 5d5e703a after just check green)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-B)**. T13 gated on S-5.04 + 001-B MERGED (2 remaining).
+**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B (v1.5 specs corrected; code HEAD 45e46753; worktree feature/S-DEMO-PRISMQL-ONBOARDING-001-B; strict-3-CLEAN streak 0/3 — restart on 45e46753 against corrected specs)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-B)**. T13 gated on S-5.04 + 001-B MERGED (2 remaining).
 
-**MERGE-TIME OBLIGATION (001-B):** EXPECTED 82→83 (ColumnNotFoundDetails added; enum_violations.rs must include violation function; CLAUDE.md 82→83 count + attribution sentence).
+**MERGE-TIME OBLIGATION (001-B):** EXPECTED 82→83 (ColumnNotFoundDetails added; struct_violations.rs must include violation function; CLAUDE.md 82→83 count + attribution sentence).
 
 **NEXT PICKABLE TASKS:**
-- 001-B LOCAL strict-3-CLEAN cascade (confirm just check green on 5d5e703a; re-freeze; restart 0/3; F-PRL-FRESH-001/002 + F-001-B-FRESH-001 + OBS-001-B-FRESH-001 all fixed)
+- 001-B LOCAL strict-3-CLEAN cascade (restart 0/3 on frozen 45e46753 against corrected specs v1.5; F-PRL-FRESH-001/002 + F-001-B-FRESH-001 + OBS-001-B-FRESH-001 + F-001B-FRESH-MED-001 + F-001B-FRESH-MED-002 all fixed)
 - S-5.04 TDD (serial after 001-B)
 - T13 capstone (serial after S-5.04 + 001-B MERGED)
 
 **DO-NOT-REFLAG carry-forward:** F-R8PB-MED-002 (unsubscribe correct-by-construction — per-analyst stdio MCP single-connection invariant; BC-2.10.013 §76; D-1274 architect adjudication). **BC-2.11.009 per-client-alias-scope deviation** — tracked in S-ALIAS-CLIENT-SCOPE-001 (P2, D-1282); DO-NOT-REFLAG for 001-B LOCAL or PR-LEVEL cascade (pre-existing, out-of-scope). All prior DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG remain in force.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1282 (authoritative; D-1283 is factory-only — SESSION-HANDOFF not separately updated).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1282 (authoritative; D-1283/D-1284/D-1285/D-1286 are factory-only — SESSION-HANDOFF not separately updated).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `fc954300` (docs(CLAUDE.md) 79→82; rebased onto ffe9315a D-1277-RECONCILE).
 3. `gh pr list --state open --base develop` → expect NO open PRs.
 4. Apply lessons from `cycles/wave-5-e-demo-fidelity/lessons.md` (including D-1278 post-merge misparent + CI dual-trigger lessons).
 5. Apply DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG (including D-1282 BC-2.11.009 entry).
-6. Drive next roadmap: confirm just check green on 001-B code HEAD 5d5e703a → re-freeze → strict-3-CLEAN 0/3 → S-5.04 TDD → T13 capstone → T14 recording. Autonomy D-989+D-1090 active.
+6. Drive next roadmap: 001-B LOCAL strict-3-CLEAN restart 0/3 on frozen 45e46753 → S-5.04 TDD → T13 capstone → T14 recording. Autonomy D-989+D-1090 active.

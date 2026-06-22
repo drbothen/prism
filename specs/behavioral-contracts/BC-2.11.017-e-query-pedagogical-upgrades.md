@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: ADR-041-teaching-burst-2026-06-19
-modified: null
+modified: 2026-06-22
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -56,11 +56,17 @@ The E-QUERY-001 structured error response (BC-2.10.007 format) MUST include:
 
 ### E-QUERY-002 (type error) — additive field
 
-**Current state:** `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` — field, actual_type, operator.
+**Current state (as shipped, S-DEMO-PRISMQL-ONBOARDING-001-B):** E-QUERY-002 is now emitted by `PrismError::QueryTypeMismatch { column, table, actual_type, operator }` (inline variant, `prism-core/src/error.rs`) with Display:
+
+`"E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type '{actual_type:?}' which does not support operator '{operator}'"`
+
+This variant was introduced by S-DEMO-PRISMQL-ONBOARDING-001-B as part of the ADR-041 L4 pedagogical enrichment (CORRECTION-2 adjudication, architect decision). It is an inline variant on the already-`#[non_exhaustive]` `PrismError` enum — the compile-fail gate count does not change (+0 gate) because `PrismError` is already gated.
+
+**Note on pre-existing Display format:** The pre-v1.92 error-taxonomy row described `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` for E-QUERY-002. That format matched neither the shipped `QueryTypeMismatch` Display nor the pre-existing `PrismError::QueryPlanFailed` Display (`"E-QUERY-002: query planning failed: {detail}"`). The taxonomy row was stale spec-only prose and was superseded by the v1.92 dual-Display collision row in error-taxonomy.md. See error-taxonomy.md v1.94 §E-QUERY-002 collision row for the complete live-emitter audit (both `QueryPlanFailed` and `QueryTypeMismatch` emit E-QUERY-002; blast-radius renumbering to separate them is deferred to a future maintenance story).
 
 **New postcondition addition:**
 
-The E-QUERY-002 structured error response MUST include:
+The E-QUERY-002 structured error response (for the `QueryTypeMismatch` condition) MUST include:
 
 `valid_operators_for_type: [String]` — an array of operator strings that ARE valid for `{actual_type}`. For example: if `actual_type` is `"String"`, then `valid_operators_for_type` includes `["=", "!=", "LIKE", "IN", "NOT IN"]`; if `actual_type` is `"Integer"`, then `["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"]`; etc.
 
@@ -75,7 +81,7 @@ The complete per-type operator table is fixed at compile time (it reflects PQL s
 | `Datetime` | `=`, `!=`, `<`, `>`, `<=`, `>=`, `BETWEEN` |
 | `Json` | `=`, `!=` (top-level), path-access (implementation-defined) |
 
-**Implementation note:** A `fn valid_operators_for_type(t: ColumnType) -> &'static [&'static str]` helper in `prism-query` (or `prism-core`) is sufficient. The display string `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` is UNCHANGED.
+**Implementation note:** A `fn valid_operators_for_type(t: ColumnType) -> &'static [&'static str]` helper in `prism-query` (or `prism-core`) is sufficient. The Display string for `QueryTypeMismatch` is the shipped format above — it is the authoritative contract for the `QueryTypeMismatch` path and must not be changed without a corresponding taxonomy amendment.
 
 ### E-QUERY-003 (security limits) — additive field
 
@@ -122,15 +128,16 @@ This adds the `prism_describe` discovery pointer to the E-QUERY-037 self-correct
 
 **Implementation note:** The `suggestion` field is already part of the BC-2.10.007 structured error envelope. The E-QUERY-037 error handler in `prism-query/src/engine.rs` (or wherever `PrismError::TableNotAvailable` is constructed) already populates this field; it should be updated to include the `prism_describe` pointer text.
 
-### No new PrismError variants required
+### PrismError variant impact summary
 
-All four enrichments are additive to existing error handling:
+Three of the four enrichments are additive to existing error handling without new variants:
 - E-QUERY-001: new fields in structured response builder (not new variant)
-- E-QUERY-002: new `valid_operators_for_type` field in structured response builder
 - E-QUERY-003: new `how_to_fix` field in structured response builder (computed from `detail`)
 - E-QUERY-037: updated `suggestion` string text (existing field, new content)
 
-No new `PrismError` enum variants are needed. No new E-QUERY codes are allocated. The error taxonomy rows for 001, 002, 003, and 037 are updated to document the new fields (see taxonomy update in error-taxonomy.md — handled separately by this burst's taxonomy version bump to v1.91).
+**E-QUERY-002: ONE new `PrismError` variant WAS added** — `PrismError::QueryTypeMismatch { column, table, actual_type, operator }` (inline variant, `prism-core/src/error.rs`). This was introduced by S-DEMO-PRISMQL-ONBOARDING-001-B per the CORRECTION-2 adjudication (architect decision): the initial BC body assumed the `valid_operators_for_type` field could be computed at error-map time from an existing `QueryPlanFailed { detail }` catch-all, but the implementation determined that a dedicated structured variant was required to carry the four typed fields (`column`, `table`, `actual_type`, `operator`) needed to populate both the Display and the `valid_operators_for_type` array correctly. The variant is inline on the already-`#[non_exhaustive]` `PrismError` enum — the compile-fail gate count is unchanged (+0 gate).
+
+No new E-QUERY codes are allocated. The error taxonomy rows for 001, 002, 003, and 037 are updated to document the new fields. The E-QUERY-002 row in particular was updated at v1.92 to document the dual-Display collision between `QueryPlanFailed` and `QueryTypeMismatch` (see error-taxonomy.md v1.94 §E-QUERY-002).
 
 ## Invariants
 
@@ -207,4 +214,5 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | S-DEMO-PRISMQL-ONBOARDING-001-B | 2026-06-22 | product-owner | **F-001B-FRESH-MED-001 closure** — propagate shipped implementation reality to BC body. (1) §E-QUERY-002 "Current state": replaced stale Display `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` (never a live format) with the ratified `PrismError::QueryTypeMismatch` variant and its shipped Display `"E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type '{actual_type:?}' which does not support operator '{operator}'"`. Added cross-reference to error-taxonomy.md v1.94 §E-QUERY-002 dual-Display collision row. (2) §"No new PrismError variants required": corrected — `QueryTypeMismatch { column, table, actual_type, operator }` WAS added (CORRECTION-2 adjudication; +0 non_exhaustive gate). The `valid_operators_for_type` additive field requirement is unchanged. H1 title and all other postconditions/ACs are preserved verbatim. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L4 pedagogical enrichments to E-QUERY-001/002/003/037 |
