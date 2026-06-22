@@ -1704,6 +1704,277 @@ mod tests {
         );
     }
 
+    // =========================================================================
+    // BC-2.11.018 EC-11-052 / F-PRL-MED-001 — normalized_pql must carry the
+    // ALIAS-EXPANDED form, not the raw alias token from params.query
+    // =========================================================================
+
+    /// BC-2.11.018 EC-11-052 — `normalized_pql` on a successful alias query contains
+    /// the ALIAS-EXPANDED canonical form, not the raw `@alias_name` token.
+    ///
+    /// # Background
+    ///
+    /// BC-2.11.018 §Field content states:
+    ///   "alias-expanded to the canonical form the planner used"
+    ///
+    /// EC-11-052 states:
+    ///   "Model submits a query that uses an alias defined via `create_alias` →
+    ///    `normalized_pql` contains the alias-expanded form (the PQL the planner
+    ///    executed, with alias replaced by its definition)"
+    ///
+    /// BC-2.11.009 §Postconditions states alias expansion runs BEFORE Chumsky parse:
+    ///   "The fully expanded query is then ... passed to the parser."
+    ///   "`result.context.expanded_query`" holds the post-expansion form.
+    ///
+    /// # What fails on HEAD 84052e8e (F-PRL-MED-001)
+    ///
+    /// `PrismServer::query` at server.rs lines ~1886-1889 computes `normalized_pql` by
+    /// re-parsing `params.query` (raw input):
+    ///
+    /// ```rust
+    /// let normalized_pql_str: Option<String> =
+    ///     prism_query::filter_parser::PrismQlParser::parse(&params.query)
+    ///         .ok()
+    ///         .and_then(|ast| prism_query::engine::normalize_pql(&ast));
+    /// ```
+    ///
+    /// When `params.query = "SELECT severity FROM crowdstrike_alerts WHERE @high_sev"`:
+    /// - `PrismQlParser::parse` fails (`@` is not valid PQL syntax)
+    /// - `.ok()` → `None`
+    /// - `normalized_pql_str = None`
+    /// - `normalized_pql` key is **absent** from the response
+    ///
+    /// The correct fix: use `result.context.expanded_query` (which the engine already
+    /// populated with the alias-expanded form) as input to the normalizer.
+    ///
+    /// # Load-bearing assertion (TD-VSDD-059)
+    ///
+    /// The test drives through `PrismServer::query` → `QueryEngine::execute` with:
+    ///   - A real `AliasStore` containing `@high_sev → severity = 'high'`
+    ///   - A registered `crowdstrike_alerts` table with a `severity` column
+    ///   - The alias store wired into BOTH the `QueryEngine` (for expansion) AND the
+    ///     `PrismServer` (for alias tool consistency)
+    ///
+    /// Assertions:
+    ///   1. Query succeeds (is_error != Some(true)) — alias expansion produces valid PQL
+    ///   2. `normalized_pql` key is PRESENT — not absent (current HEAD failure mode)
+    ///   3. `normalized_pql` value DOES NOT contain `@high_sev` (raw alias token)
+    ///   4. `normalized_pql` value DOES contain `severity` (the expanded form)
+    ///
+    /// Assertion 2 FAILS on current HEAD with the message:
+    ///   "BC-2.11.018 EC-11-052: normalized_pql must be PRESENT ... currently ABSENT"
+    ///
+    /// After the fix (change `params.query` → `result.context.expanded_query` at
+    /// server.rs lines ~1886-1889), all 4 assertions pass.
+    ///
+    /// # SID-1 compliance
+    ///
+    /// In-process test — no live sensor, no DTU required.
+    /// `AlwaysSucceedsCreds` is NOT needed because the engine has no adapters wired;
+    /// the alias expansion (Step 0) completes before any fan-out attempt.
+    #[tokio::test]
+    async fn test_BC_2_11_018_ec11052_normalized_pql_contains_alias_expanded_form_not_raw_token() {
+        use prism_core::column::ColumnType;
+        use prism_query::alias_store::AliasStore;
+        use prism_query::alias_types::{AliasEntry, AliasScope};
+        use std::sync::{Arc, Mutex};
+
+        // ---- Step 1: build a populated AliasStore via AliasStore::load() ----
+        //
+        // `create_or_update` is pub(crate) and cannot be called from prism-mcp/tests/.
+        // Alternative: write an aliases.toml to a temp dir and call AliasStore::load().
+        //
+        // TOML format (AliasesFile { aliases: Vec<AliasEntry> }):
+        //   [[aliases]]
+        //   name = "high_sev"
+        //   scope = "global"          ← AliasScope::Global serializes to "global"
+        //   query = "severity = 'high'"
+        //
+        // The alias expands @high_sev → severity = 'high' (a simple filter predicate).
+        // We use it in the WHERE clause: "SELECT severity FROM crowdstrike_alerts WHERE @high_sev"
+        // After expansion the engine parses: "SELECT severity FROM crowdstrike_alerts WHERE severity = 'high'"
+        let tmpdir = tempfile::tempdir().expect("create tmpdir for alias store");
+        let alias_toml_path = tmpdir.path().join("aliases.toml");
+        std::fs::write(
+            &alias_toml_path,
+            r#"
+[[aliases]]
+name = "high_sev"
+scope = "global"
+query = "severity = 'high'"
+"#,
+        )
+        .expect("write aliases.toml must succeed");
+
+        let alias_store = AliasStore::load(&alias_toml_path)
+            .expect("AliasStore::load must succeed for valid aliases.toml");
+        let alias_arc = Arc::new(Mutex::new(alias_store));
+
+        // ---- Step 2: build a QueryEngine + TableRegistry with @high_sev expansion ----
+        //
+        // The QueryEngine MUST have the alias_store wired so that execute_inner Step 0
+        // expands @high_sev → severity = 'high' before Chumsky parse. Without the alias
+        // store, execute("... WHERE @high_sev") fails with E-ALIAS-001 (alias not found)
+        // or a parse error on `@`.
+        //
+        // `QueryEngine::with_alias_store` is the test seam added by F-PRL-MED-001
+        // fix-burst (parallel to `with_credential_resolver`; 4-line builder in engine.rs).
+        let columns = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
+        ];
+        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key, resolved.clone());
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&resolved.spec)
+            .expect("register_sensor must not fail");
+
+        let engine = {
+            use prism_credentials::InMemoryCredentialStore;
+            use prism_query::engine::{QueryEngine, QueryEngineConfig};
+            use prism_query::scoping::ClientRegistry;
+            QueryEngine::new_with_cache_config(
+                Arc::new(prism_sensors::AdapterRegistry::new()),
+                Arc::new(InMemoryCredentialStore::new()),
+                Arc::new(prism_ocsf::OcsfNormalizer::new()),
+                Arc::new(ClientRegistry::new(vec![])),
+                QueryEngineConfig::default(),
+                prism_query::cache::CacheConfig::default(),
+            )
+            .with_alias_store(Arc::clone(&alias_arc))
+            .with_table_registry(registry)
+        };
+        // Wire resolved_spec_map for the plan-time table availability gate (E-QUERY-037).
+        // Without this, the query would be rejected before reaching alias expansion.
+        let mut engine = engine;
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(spec_map))));
+
+        // ---- Step 3: build PrismServer wired with both engine + alias_store ----
+        let server = PrismServer::new()
+            .with_query_engine(Arc::new(engine))
+            .with_alias_store_for_test(Arc::clone(&alias_arc));
+
+        // ---- Step 4: submit a query using the @high_sev alias ----
+        //
+        // params.query = "SELECT severity FROM crowdstrike_alerts WHERE @high_sev"
+        // Engine Step 0 expands: @high_sev → severity = 'high'
+        // Engine then parses+executes: "SELECT severity FROM crowdstrike_alerts WHERE severity = 'high'"
+        // result.context.expanded_query = "SELECT severity FROM crowdstrike_alerts WHERE severity = 'high'"
+        //
+        // CURRENT HEAD (84052e8e) failure path:
+        //   server.rs lines ~1886-1889 re-parse params.query = "...WHERE @high_sev"
+        //   PrismQlParser::parse("...WHERE @high_sev") → Err (@ not valid PQL syntax)
+        //   .ok().and_then(…) → None
+        //   normalized_pql key is ABSENT from response
+        //   → ASSERTION 2 fails: "normalized_pql must be PRESENT … currently ABSENT"
+        //
+        // AFTER FIX:
+        //   server.rs uses result.context.expanded_query = "...WHERE severity = 'high'"
+        //   PrismQlParser::parse succeeds → normalize_pql produces canonical form
+        //   normalized_pql = "SELECT severity FROM crowdstrike_alerts WHERE severity = 'high'"
+        //   → All 4 assertions pass
+        let params: QueryToolParams = serde_json::from_str(
+            r#"{"query": "SELECT severity FROM crowdstrike_alerts WHERE @high_sev"}"#,
+        )
+        .expect("QueryToolParams JSON must deserialize");
+
+        let call_result = server
+            .query(Parameters(params))
+            .await
+            .expect("query must return Ok (domain errors → Ok(structured_error))");
+
+        // ASSERTION 1: query must SUCCEED (alias expansion produces valid PQL)
+        // If the engine has no alias_store, execute fails with E-ALIAS-001, not success.
+        // If the alias_store is wired correctly, expansion succeeds and the engine returns Ok.
+        assert_ne!(
+            call_result.is_error,
+            Some(true),
+            "BC-2.11.018 EC-11-052: query with @high_sev alias MUST succeed (is_error != true). \
+             If this fails, the alias_store is not wired into the QueryEngine — \
+             the with_alias_store() builder must be called on the engine. \
+             structured_content: {:?}",
+            call_result.structured_content
+        );
+
+        let sc = call_result
+            .structured_content
+            .expect("BC-2.11.018 EC-11-052: structured_content must be present on success");
+        let results = sc
+            .get("results")
+            .expect("BC-2.11.018 EC-11-052: sc['results'] must be present on success");
+
+        // ASSERTION 2 (LOAD-BEARING — F-PRL-MED-001 RED GATE):
+        // normalized_pql MUST be PRESENT.
+        //
+        // FAILS ON HEAD 84052e8e because server.rs re-parses params.query (which
+        // contains @high_sev — not valid PQL), so parse returns Err, .ok() → None,
+        // and the key is absent from the JSON payload.
+        //
+        // FIX: change server.rs lines ~1886-1889 from:
+        //   PrismQlParser::parse(&params.query)
+        // to:
+        //   PrismQlParser::parse(&result.context.expanded_query)
+        // so the normalizer receives the EXPANDED form (valid PQL) rather than the
+        // raw alias token form (invalid PQL).
+        let normalized_pql = results.get("normalized_pql").expect(
+            "BC-2.11.018 EC-11-052 (F-PRL-MED-001 RED GATE): normalized_pql MUST be PRESENT \
+             in the MCP response for a successful alias query. \
+             CURRENT BEHAVIOR: key is ABSENT because server.rs re-parses params.query \
+             ('...WHERE @high_sev'), which fails Chumsky parse (@ is not valid PQL), \
+             so .ok().and_then(…) returns None and the key is omitted. \
+             FIX: in PrismServer::query at server.rs lines ~1886-1889, change \
+             PrismQlParser::parse(&params.query) to \
+             PrismQlParser::parse(&result.context.expanded_query) so the normalizer \
+             receives the alias-expanded form.",
+        );
+
+        let normalized_str = normalized_pql.as_str().expect(
+            "BC-2.11.018 EC-11-052: normalized_pql must be a JSON string (not null/object)",
+        );
+
+        assert!(
+            !normalized_str.is_empty(),
+            "BC-2.11.018 EC-11-052: normalized_pql must be non-empty; got empty string"
+        );
+
+        // ASSERTION 3 (LOAD-BEARING — alias token must NOT appear):
+        // The raw alias token @high_sev must not appear in normalized_pql.
+        // If the fix accidentally uses params.query (verbatim echo), @high_sev would appear.
+        assert!(
+            !normalized_str.contains("@high_sev"),
+            "BC-2.11.018 EC-11-052: normalized_pql MUST NOT contain raw alias token '@high_sev'. \
+             normalized_pql must reflect the canonical expanded form. \
+             Got: '{normalized_str}'"
+        );
+
+        // ASSERTION 4 (LOAD-BEARING — expanded form must appear):
+        // The expanded predicate 'severity' must appear in normalized_pql.
+        // This proves the normalizer ran on the EXPANDED form, not the raw alias form.
+        assert!(
+            normalized_str.contains("severity"),
+            "BC-2.11.018 EC-11-052: normalized_pql MUST contain 'severity' (the expanded \
+             predicate from @high_sev → severity = 'high'). \
+             Got: '{normalized_str}'"
+        );
+
+        // ASSERTION 5 (canonical form — table name must survive normalization):
+        assert!(
+            normalized_str.contains("crowdstrike_alerts"),
+            "BC-2.11.018 EC-11-052: normalized_pql must contain table name 'crowdstrike_alerts'; \
+             Got: '{normalized_str}'"
+        );
+
+        // ASSERTION 6 (canonical form — uppercase SELECT):
+        assert!(
+            normalized_str.contains("SELECT"),
+            "BC-2.11.018 EC-11-052: normalized_pql must use uppercase SELECT (canonical form); \
+             Got: '{normalized_str}'"
+        );
+    }
+
     /// BC-2.11.016 / AC-001 — E-QUERY-038 message carries E-QUERY-038 code prefix.
     ///
     /// GREEN-BY-DESIGN: map_prism_error already delegates to ColumnNotFoundDetails::Display.

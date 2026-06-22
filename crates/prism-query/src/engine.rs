@@ -504,6 +504,21 @@ impl QueryEngine {
         self
     }
 
+    /// Wire an `AliasStore` into this engine.
+    ///
+    /// Required for alias expansion in `execute_inner` (Step 0: `@alias` token
+    /// resolution before Chumsky parse). Without this, alias tokens in query strings
+    /// are passed through unexpanded and will cause parse errors.
+    ///
+    /// Used in tests and by `PrismServer::with_deps` / `new_full` callers that
+    /// need the engine to expand aliases at query time.
+    ///
+    /// Story: S-DEMO-PRISMQL-ONBOARDING-001-B (F-PRL-MED-001 fix seam).
+    pub fn with_alias_store(mut self, store: Arc<Mutex<AliasStore>>) -> Self {
+        self.alias_store = Some(store);
+        self
+    }
+
     /// Return the `TableRegistry` arc, if wired.
     ///
     /// Exposed for tests that need to inspect or update the registry.
