@@ -67,10 +67,10 @@ status: draft
 # BC status: behavioral_contracts is non-empty (3 BCs). Status remains draft until
 # orchestrator schedules into a wave (Spec-First Gate S-7.01 met — all ACs trace to BCs).
 document_type: story
-version: "1.8"
+version: "1.9"
 updated: "2026-06-22"
 producer: story-writer
-timestamp: "2026-06-22T12:00:00Z"
+timestamp: "2026-06-22T14:00:00Z"
 input-hash: "TBD"
 traces_to: [D-1241, D-1243, D-1244]
 cycle: "v1.0.0-greenfield"
@@ -166,9 +166,9 @@ and build grounded query templates for the current session.
 
 | BC ID | Title | Key Clauses |
 |-------|-------|-------------|
-| BC-2.11.016 v1.3 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code |
-| BC-2.11.017 v1.2 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | E-QUERY-001: near_text ≤50 chars + reference_pointer; E-QUERY-002: valid_operators_for_type list; E-QUERY-003: how_to_fix string; E-QUERY-037: suggestion contains prism_describe reference |
-| BC-2.11.018 v1.1 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | Present (non-empty) on every successful execution incl. zero-row; absent (not null, not present) on all errors; Chumsky-normalized form; excludes DataFusion plan internals |
+| BC-2.11.016 v1.4 | E-QUERY-038 Column-Not-Found Plan-Time Gate (L4) | Gate at plan time after E-QUERY-037; available_columns always present; did_you_mean present when Levenshtein ≤ 3; DI-008 org-scoped available_columns; -32602 MCP error code |
+| BC-2.11.017 v1.3 | E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037) | E-QUERY-001: near_text ≤50 chars + reference_pointer; E-QUERY-002: valid_operators_for_type list; E-QUERY-003: how_to_fix string; E-QUERY-037: suggestion contains prism_describe reference |
+| BC-2.11.018 v1.2 | `normalized_pql` Field on Successful Query Responses (L4 Echo / OPD-1) | Present (non-empty) on every successful execution incl. zero-row; absent (not null, not present) on all errors; Chumsky-normalized form; excludes DataFusion plan internals |
 
 ---
 
@@ -177,9 +177,9 @@ and build grounded query templates for the current session.
 | Artifact | Estimated Tokens |
 |----------|-----------------|
 | This story spec | ~3,500 |
-| BC-2.11.016 v1.3 | ~1,200 |
-| BC-2.11.017 v1.2 | ~1,000 |
-| BC-2.11.018 v1.1 | ~800 |
+| BC-2.11.016 v1.4 | ~1,200 |
+| BC-2.11.017 v1.3 | ~1,000 |
+| BC-2.11.018 v1.2 | ~800 |
 | ADR-041 v1.1 §L4 (pedagogical errors + normalized_pql sections) | ~3,000 |
 | `crates/prism-core/src/error.rs` (PrismError; ColumnNotFound variant) | ~500 |
 | `crates/prism-query/src/engine.rs` (E-QUERY-037 gate area; E-QUERY-038 gate addition) | ~3,000 |
@@ -687,6 +687,7 @@ Implementer: `rg 'event_type\s*=' crates/ --type rust` before declaring done (SA
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | POL23-BC-VERSION-PROPAGATION-2026-06-22 | 2026-06-22 | story-writer | POL-4 Story-Anchor BC-version propagation (POL-23). PO bumped anchor BCs after Story-Anchor fix + exhaustive BC audit: BC-2.11.016 v1.3→v1.4, BC-2.11.017 v1.2→v1.3, BC-2.11.018 v1.1→v1.2. §Behavioral Contracts body table pins and §Token Budget table pins updated to match. Title cells verified prefix-stripped per POL-7 (match BC-INDEX canonical form — no change needed). No AC/BC-array/scope change. |
 | 1.8 | POL20-BC-VERSION-PROPAGATION-2026-06-22 | 2026-06-22 | story-writer | POL-20 BC version-pin propagation (bc_array_changes_propagate_to_body_and_acs). §Behavioral Contracts table + §Token Budget table: BC-2.11.016 pin updated v1.2→v1.3 (PO introduced-field normalization burst); BC-2.11.017 pin updated v1.1→v1.2 (§E-QUERY-002 QueryTypeMismatch variant + Display correction); BC-2.11.018 pin updated v1.0→v1.1 (PO POL-20 normalization). Pins now match canonical BC-INDEX and on-disk BC files. No AC/scope/BC-array changes. |
 | 1.7 | POL32-CHANGELOG-REORDER-2026-06-22 | 2026-06-22 | story-writer | POL-32 changelog ordering correction (F-001B-SC-FRESH-MED-001). Reordered §Changelog table to monotonic descending (v1.6 → … → v1.0) per POL-32 (changelog_monotonic_descending). Prior table was ascending with v1.6/v1.5 locally inverted at end. Frontmatter `version` bumped 1.6→1.7; `updated: 2026-06-22` added (POL-23 story-version-bump requirement). No AC/BC/scope changes. |
 | 1.6 | LOCAL-ADVERSARY-FINDINGS-CLOSURE-2-2026-06-22 | 2026-06-22 | story-writer | LOCAL adversary findings closure (F-001B-P1-MED-001 + OBS-001B-P1-001). F-001B-P1-MED-001 (MED, POL-7 title-cell over-correction revert): BC-2.11.017 body-table title cell `"BC-2.11.017: E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037)"` reverted to prefix-STRIPPED form `"E-QUERY Pedagogical Enrichments (L4 — Codes 001, 002, 003, 037)"` per BC-INDEX.md title column (v1.5 had incorrectly added the `BC-2.11.017:` prefix per a misapplication of POL-7 — the prism project norm strips the prefix; BC-2.11.016 and BC-2.11.018 sibling rows in same table are already prefix-stripped). OBS-001B-P1-001 (Red Gate test-name reconciliation, AC-003): row 3 of Red Gate table replaced phantom `test_BC_2_11_017_pedagogical_enrichments` (never existed in codebase) with the 6 real load-bearing tests confirmed present in worktree: `test_BC_2_11_017_enrichment_helpers_valid_operators_for_type`, `test_BC_2_11_017_enrichment_helper_extract_near_text`, `test_BC_2_11_017_enrichment_helper_how_to_fix_for_security_limit` (prism-query/tests/e_query_pedagogical.rs) + `test_BC_2_11_017_ac003_parse_error_response_carries_near_text`, `test_BC_2_11_017_ac003_type_error_response_carries_valid_operators`, `test_BC_2_11_017_ac003_security_limit_error_carries_how_to_fix` (prism-mcp/tests/normalized_pql.rs). AC-003 body Red Gate line and Phase 4 task line updated to match. BC array UNCHANGED (BC-2.11.016, BC-2.11.017, BC-2.11.018). No AC/BC/scope changes. |

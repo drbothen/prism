@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: "2026-06-22"
+modified: 2026-06-22
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -171,7 +171,7 @@ DataFusion itself would produce a column resolution error if the query reached e
 
 ## Story Anchor
 
-S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)
+S-DEMO-PRISMQL-ONBOARDING-001-B — the BC's behavior (E-QUERY-038 column-not-found plan-time gate, available_columns, did_you_mean) is implemented by this story per its `anchor_bcs: [BC-2.11.016, ...]` frontmatter (POL-4/POL-5).
 
 ## VP Anchors
 
@@ -181,6 +181,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces (frontmatter fields, lifecycle_status, subsystem, capability, H1/BC-INDEX title match, DI citations, changelog schema, Related BCs existence) verified clean. `modified:` quote-normalization (YAML scalar, no quotes needed). |
 | 1.3 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). No body semantics changed. |
 | 1.2 | OBS-001-B-FRESH-001-emitter-shape | 2026-06-22 | product-owner | OBS-001-B-FRESH-001 closure: §PrismError-variant prose updated to reflect the CORRECTION-2 boxed implementation. Replaced "not boxed — … box if necessary" speculative text with the ratified shape: `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` where `ColumnNotFoundDetails` is `#[non_exhaustive]` with `{ column, table, client_id, available_columns, did_you_mean }`. Boxing was triggered by `clippy::result_large_err` (same as `TableNotAvailableDetails`; story v1.4 CORRECTION-2, gate=83). Field set, semantics, Display, and MCP surface unchanged. |
 | 1.1 | onboarding-001-B-obs-adjudication | 2026-06-22 | product-owner | OBS-2 adjudication: tightened §Related-BCs note for BC-2.11.010. Replaced ambiguous "explain_query performs the same plan-time validation; E-QUERY-038 fires on explain_query as well as query" with explicit deferral anchor (S-EXPLAIN-PARITY-001, out-of-scope for 001-B, DO-NOT-REFLAG). See `.factory/specs/architecture/scoping/onboarding-001-B-obs-adjudication.md` §OBS-2. |

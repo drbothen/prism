@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -174,7 +174,7 @@ A model that receives `normalized_pql` in a successful query response has a grou
 
 ## Story Anchor
 
-S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)
+S-DEMO-PRISMQL-ONBOARDING-001-B — the BC's behavior (`normalized_pql` echo field on successful query responses) is implemented by this story per its `anchor_bcs: [BC-2.11.018, ...]` frontmatter (POL-4/POL-5).
 
 ## VP Anchors
 
@@ -184,5 +184,6 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces clean. |
 | 1.1 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). Also set `modified: 2026-06-22` (first amendment; POL-27). No body semantics changed. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L4/echo `normalized_pql` field on successful query responses (OPD-1 adopted) |

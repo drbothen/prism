@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -204,7 +204,7 @@ These postconditions describe enrichments to existing error codes, not new error
 
 ## Story Anchor
 
-S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)
+S-DEMO-PRISMQL-ONBOARDING-001-B — the BC's behavior (pedagogical enrichments to E-QUERY-001/002/003/037) is implemented by this story per its `anchor_bcs: [BC-2.11.017, ...]` frontmatter (POL-4/POL-5).
 
 ## VP Anchors
 
@@ -214,6 +214,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | F-001B-SCFRESH-MED-001-story-anchor-fix | 2026-06-22 | product-owner | F-001B-SCFRESH-MED-001 closure (POL-4 story-anchor mis-anchoring): `## Story Anchor` corrected from placeholder `S-5.04 (or dedicated ADR-041 teaching story — to be assigned by story-writer)` to the actual implementing story `S-DEMO-PRISMQL-ONBOARDING-001-B`. Exhaustive BC metadata audit: all other surfaces clean. |
 | 1.2 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). No body semantics changed. |
 | 1.1 | S-DEMO-PRISMQL-ONBOARDING-001-B | 2026-06-22 | product-owner | **F-001B-FRESH-MED-001 closure** — propagate shipped implementation reality to BC body. (1) §E-QUERY-002 "Current state": replaced stale Display `"Type error: field '{field}' is {actual_type}, cannot use {operator}"` (never a live format) with the ratified `PrismError::QueryTypeMismatch` variant and its shipped Display `"E-QUERY-002: type mismatch — column '{column}' in table '{table}' has type '{actual_type:?}' which does not support operator '{operator}'"`. Added cross-reference to error-taxonomy.md v1.94 §E-QUERY-002 dual-Display collision row. (2) §"No new PrismError variants required": corrected — `QueryTypeMismatch { column, table, actual_type, operator }` WAS added (CORRECTION-2 adjudication; +0 non_exhaustive gate). The `valid_operators_for_type` additive field requirement is unchanged. H1 title and all other postconditions/ACs are preserved verbatim. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L4 pedagogical enrichments to E-QUERY-001/002/003/037 |
