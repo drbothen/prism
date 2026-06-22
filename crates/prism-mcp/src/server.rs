@@ -1893,6 +1893,12 @@ impl PrismServer {
             "returned_results": result.returned_results,
             "total_available": result.total_available,
             "is_truncated": result.is_truncated,
+            // BC-2.11.005 / BC-2.11.011: per-sensor partial-failure errors are surfaced
+            // here so the LLM agent can see which sensors had problems while the query
+            // still returned results. An empty array means all sensors succeeded.
+            // (OBS-1 fix: ensures partial-failure information reaches the MCP response
+            // and is testable at the integration level — see EC-11-054 test.)
+            "sensor_errors": result.sensor_errors,
         });
         // BC-2.11.018: conditionally insert normalized_pql key.
         // When None, no key is inserted and the field is absent from the JSON output.

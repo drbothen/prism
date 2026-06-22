@@ -26,7 +26,9 @@
 mod tests {
     use std::{collections::HashMap, sync::Arc};
 
-    use prism_core::{OrgSlug, PrismError, SensorId};
+    use arrow::record_batch::RecordBatch;
+    use async_trait::async_trait;
+    use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
     use prism_credentials::InMemoryCredentialStore;
     use prism_mcp::{
         error_mapping::{codes, map_prism_error},
@@ -39,12 +41,82 @@ mod tests {
         table_registry::TableRegistry,
         PrismQlParser,
     };
-    use prism_sensors::AdapterRegistry;
+    use prism_sensors::{
+        AdapterRegistry, CredentialResolver, QueryParams as SensorQueryParams, SensorAdapter,
+        SensorAuth, SensorError, SensorSpec as SensorAdapterSpec,
+    };
     use prism_spec_engine::{
         overlay::{OverlayLoader, ResolvedSensorSpec, ResolvedSpecKey, SensorInstanceOverlay},
         spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
     };
     use rmcp::handler::server::wrapper::Parameters;
+
+    // =========================================================================
+    // Stub types for partial-failure injection (EC-11-054 test seam)
+    // =========================================================================
+
+    /// Sensor adapter that always fails with HTTP 503.
+    ///
+    /// Injected into the AdapterRegistry for the partial-failure test so that
+    /// fan_out() can reach a real adapter boundary and return sensor_errors.
+    /// (SID-1: unit test at the dependency boundary; no live DTU required.)
+    struct AlwaysFailsAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for AlwaysFailsAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "always-fails-stub"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorAdapterSpec,
+            _params: &SensorQueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            Err(SensorError::HttpError {
+                sensor: self.sensor_id.to_string(),
+                status: 503,
+                body: "stub: simulated partial failure for EC-11-054 test".into(),
+            })
+        }
+    }
+
+    /// Stub auth token for the partial-failure test.
+    struct StubAuth;
+
+    impl SensorAuth for StubAuth {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
+
+    /// Credential resolver that always succeeds (returns StubAuth).
+    ///
+    /// Required so fan_out() reaches the adapter boundary rather than
+    /// short-circuiting with a CredentialNotFound error. The stub auth
+    /// is ignored by AlwaysFailsAdapter::fetch.
+    struct AlwaysSucceedsCreds;
+
+    impl CredentialResolver for AlwaysSucceedsCreds {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: SensorId,
+        ) -> Result<Box<dyn SensorAuth>, SensorError> {
+            Ok(Box::new(StubAuth))
+        }
+    }
 
     // =========================================================================
     // Fixture helpers
@@ -121,6 +193,72 @@ mod tests {
             QueryEngineConfig::default(),
         );
         PrismServer::new().with_query_engine(Arc::new(engine))
+    }
+
+    /// Build a `PrismServer` wired with a FAILING adapter for the given sensor/table/org.
+    ///
+    /// The `AdapterRegistry` is NON-EMPTY (contains an `AlwaysFailsAdapter` for
+    /// `sensor_id`), so `resolve_source_refs` creates fan-out targets that reach
+    /// the adapter boundary. When `fan_out()` calls `AlwaysFailsAdapter::fetch`,
+    /// it returns HTTP 503, which the materialization pipeline converts to a
+    /// `sensor_errors` entry. The query still returns `Ok(QueryResult)` — this is
+    /// the "all-targets-failed" partial-failure path (materialization.rs Err(e) branch,
+    /// line ~763) that pushes to `sensor_errors` and continues rather than erroring.
+    ///
+    /// `AlwaysSucceedsCreds` is wired so credentials don't short-circuit before the
+    /// adapter boundary (SID-1: unit test without live DTU).
+    ///
+    /// Used ONLY by `test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure`.
+    fn make_server_with_failing_adapter(
+        sensor_id_str: &str,
+        table_name: &str,
+        columns: Vec<ColumnSpec>,
+        org: &str,
+    ) -> (PrismServer, OrgId) {
+        // Fixed deterministic OrgId (UUID v7 prefix bytes, same pattern as bc_2_01_010.rs).
+        let org_id = OrgId::from_uuid(uuid::Uuid::from_bytes([
+            0x01, 0x9f, 0x3a, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0xEC, // 0xEC = "EC" for EC-11-054 sentinel
+        ]));
+
+        // Build the TableRegistry + ResolvedSensorSpec so the plan-time availability
+        // gate (E-QUERY-037) passes and the query reaches the fan-out phase.
+        let (key, resolved) = make_resolved(sensor_id_str, table_name, columns, org);
+        let mut resolved_map = HashMap::new();
+        resolved_map.insert(key, resolved.clone());
+
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&resolved.spec)
+            .expect("register_sensor must not fail in fixture");
+
+        // Non-empty AdapterRegistry: registers the failing adapter.
+        // resolve_source_refs checks `!adapter_registry.is_empty()` before
+        // is_sensor_registered — so a non-empty registry with the sensor registered
+        // produces fan-out targets that reach AlwaysFailsAdapter::fetch.
+        let sensor_id_typed = SensorId::new(sensor_id_str);
+        let failing_adapter: Arc<dyn SensorAdapter> = Arc::new(AlwaysFailsAdapter {
+            sensor_id: sensor_id_typed,
+        });
+        let mut adapter_registry = AdapterRegistry::new();
+        adapter_registry.register(org_id, failing_adapter);
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(adapter_registry),
+            Arc::new(InMemoryCredentialStore::new()),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            prism_query::cache::CacheConfig::default(),
+        );
+        // Wire AlwaysSucceedsCreds so fan_out() reaches the adapter (not blocked by creds).
+        engine = engine.with_credential_resolver(Arc::new(AlwaysSucceedsCreds));
+        // Wire resolved_spec_map and table_registry.
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(Arc::new(resolved_map))));
+        engine = engine.with_table_registry(registry);
+
+        let server = PrismServer::new().with_query_engine(Arc::new(engine));
+        (server, org_id)
     }
 
     // =========================================================================
@@ -740,57 +878,69 @@ mod tests {
     /// BC-2.11.018 EC-11-054: "Query produces partial results (some sensors errored,
     ///   some succeeded) → `normalized_pql` is PRESENT"
     ///
-    /// LOAD-BEARING RED GATE test (OBS-2, LOCAL adversary pass-2):
-    ///   No existing test covers the partial-failure path. This test drives a query through
-    ///   PrismServer where the query engine returns `Ok(QueryResult)` with `sensor_errors`
-    ///   non-empty (some sensors failed). On this path, `normalized_pql` MUST still be
-    ///   populated — the partial-failure path must NOT skip the normalized_pql wire.
+    /// # LOAD-BEARING (TD-VSDD-059)
     ///
-    /// This test is a REGRESSION gate. With no live sensor adapters wired, the engine
-    /// returns zero rows and no sensor errors — so the test may be GREEN on current HEAD
-    /// if the success path already wires normalized_pql. The test provides behavioral
-    /// coverage that the partial-failure path (sensor_errors non-empty) doesn't drop the
-    /// field in a future refactor.
+    /// This test drives a REAL partial-failure path:
+    ///   1. `AlwaysFailsAdapter` is registered for the `crowdstrike` sensor (non-empty
+    ///      `AdapterRegistry`). `resolve_source_refs` creates a fan-out target because
+    ///      the registry is non-empty AND `is_sensor_registered` returns true.
+    ///   2. `AlwaysSucceedsCreds` resolves credentials so fan_out() reaches
+    ///      `AlwaysFailsAdapter::fetch`, which returns HTTP 503.
+    ///   3. `fan_out()` returns `Err(AllTargetsFailed)` (1 target, 1 failure).
+    ///   4. The materialization pipeline's `Err(e)` branch pushes to `sensor_errors`
+    ///      and continues — the overall pipeline returns `Ok(MaterializationOutput)`
+    ///      with `sensor_errors` non-empty.
+    ///   5. `QueryEngine::execute()` returns `Ok(QueryResult)` with
+    ///      `sensor_errors` non-empty and `batches` empty (no successful fetches).
+    ///   6. `PrismServer::query` computes `normalized_pql` UNCONDITIONALLY on the
+    ///      success path — it is NOT gated on `sensor_errors.is_empty()`.
     ///
-    /// The test uses `make_server_with_engine` with no adapters — this exercises the
-    /// zero-sensor fan-out path which currently produces no rows and no sensor errors.
-    /// If the implementation introduces a path that skips normalized_pql when sensor_errors
-    /// is non-empty, this test will catch it.
+    /// DELETION PROOF: removing the `normalized_pql` insert in server.rs WILL break
+    /// this test because the assertion checks `results.get("normalized_pql")` directly.
+    ///
+    /// ZERO-ROW PATH PROOF: the test also asserts `sensor_errors` is non-empty in the
+    /// response, which is IMPOSSIBLE via the empty-registry zero-row path (empty
+    /// AdapterRegistry → no fan-out → sensor_errors = []). The assertion on
+    /// `sensor_errors` length distinguishes the partial-failure path from the
+    /// zero-row proxy.
+    ///
+    /// NOTE: because all targets fail (1 failing adapter), the query returns zero rows —
+    /// but the `sensor_errors` array in the response is non-empty, proving the
+    /// partial-failure branch was exercised rather than the no-adapter zero-row path.
     #[tokio::test]
     async fn test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure() {
         use prism_core::column::ColumnType;
 
-        // Wire a table spec so the query succeeds at parse/plan time.
+        // Wire a table spec and a FAILING adapter so the query reaches fan_out()
+        // and produces a real sensor error. The TableRegistry registration ensures
+        // the plan-time availability gate (E-QUERY-037) passes so the query reaches
+        // the materialization phase.
         let columns = vec![
             ColumnSpec::new("severity", ColumnType::String, None, vec![]),
             ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
         ];
-        let (key, resolved) = make_resolved("crowdstrike", "alerts", columns, "acme");
-        let mut map = HashMap::new();
-        map.insert(key, resolved.clone());
-        let server = make_server_with_engine(map, vec![resolved.spec.clone()]);
+        let (server, _org_id) =
+            make_server_with_failing_adapter("crowdstrike", "alerts", columns, "acme");
 
-        // Valid query against the registered table. With no live adapters the query returns
-        // zero rows (query-level success). normalized_pql MUST be present regardless of
-        // whether sensor_errors are populated.
-        //
-        // BC-2.11.018 EC-11-054: partial failure (sensor_errors non-empty) → normalized_pql PRESENT.
-        // This test covers the success-with-zero-rows case as a proxy for partial failure.
-        // A full partial-failure integration test requires a live sensor adapter that injects
-        // errors — that is outside the scope of this unit test.
+        // Valid query against the registered table. The AdapterRegistry is non-empty
+        // (AlwaysFailsAdapter registered), so resolve_source_refs creates a fan-out target.
+        // AlwaysFailsAdapter::fetch returns HTTP 503 → AllTargetsFailed → sensor_errors
+        // non-empty. The query still returns Ok(QueryResult) with sensor_errors non-empty.
         let params: QueryToolParams =
             serde_json::from_str(r#"{"query": "SELECT severity FROM crowdstrike_alerts LIMIT 5"}"#)
                 .expect("QueryToolParams JSON must deserialize");
         let call_result = server
             .query(Parameters(params))
             .await
-            .expect("query must return Ok for valid query with wired engine");
+            .expect("query must return Ok(QueryResult) even when sensors fail (partial-failure)");
 
-        // Verify: NOT an error response. The query must succeed at the query-engine level.
+        // ASSERTION 1: NOT a query-level error. Sensor failures produce sensor_errors,
+        // not is_error=true. The query succeeds at the query-engine level.
         assert_ne!(
             call_result.is_error,
             Some(true),
-            "BC-2.11.018 EC-11-054: valid partial-failure query must not return is_error=true; \
+            "BC-2.11.018 EC-11-054: partial-failure query MUST NOT return is_error=true. \
+             Sensor errors go to sensor_errors, not query-level error. \
              structured_content: {:?}",
             call_result.structured_content
         );
@@ -803,24 +953,52 @@ mod tests {
             "BC-2.11.018 EC-11-054: sc['results'] must be present on partial-failure success",
         );
 
-        // LOAD-BEARING: normalized_pql must be present on partial-failure path.
-        // If server.rs conditionally skips normalized_pql when sensor_errors is non-empty,
-        // this assertion catches the regression.
+        // ASSERTION 2 (LOAD-BEARING — normalized_pql wire):
+        // normalized_pql MUST be present even when sensor_errors is non-empty.
+        // Removing the normalized_pql insert from server.rs breaks this assertion.
         let normalized_pql = results.get("normalized_pql").expect(
-            "BC-2.11.018 EC-11-054 (OBS-2): normalized_pql MUST be present on partial-failure \
-             success (query-level OK, some sensors errored). \
+            "BC-2.11.018 EC-11-054 (OBS-2 fix): normalized_pql MUST be present on \
+             partial-failure success (query-level OK, AlwaysFailsAdapter returned 503). \
              FIX: ensure the normalized_pql wire in server.rs is NOT gated behind \
              `sensor_errors.is_empty()` — it must execute on ALL non-error query paths, \
              including partial-failure (sensor_errors non-empty).",
         );
-
         let normalized_str = normalized_pql
             .as_str()
-            .expect("BC-2.11.018 EC-11-054: normalized_pql must be a string, not null");
+            .expect("BC-2.11.018 EC-11-054: normalized_pql must be a JSON string, not null");
         assert!(
             !normalized_str.is_empty(),
             "BC-2.11.018 EC-11-054: normalized_pql must be non-empty on partial-failure path; \
              got empty string"
+        );
+
+        // ASSERTION 3 (LOAD-BEARING — partial-failure branch proof):
+        // sensor_errors MUST be non-empty. This assertion is IMPOSSIBLE via the
+        // empty-registry zero-row path (no adapters → no fan-out → sensor_errors=[]).
+        // If this assertion passes, the test is driving the REAL partial-failure branch
+        // (AlwaysFailsAdapter::fetch returned HTTP 503 → AllTargetsFailed → sensor_errors).
+        //
+        // The sensor_errors field in the query response is populated from
+        // QueryResult.sensor_errors in PrismServer::query (OBS-1 fix in server.rs:
+        // `"sensor_errors": result.sensor_errors` added to the payload).
+        let sensor_errors = results
+            .get("sensor_errors")
+            .expect(
+                "BC-2.11.018 EC-11-054: sc['results']['sensor_errors'] must be present in \
+                 the query response. FIX: add `\"sensor_errors\": result.sensor_errors` to \
+                 the payload json! in PrismServer::query in server.rs.",
+            )
+            .as_array()
+            .expect("BC-2.11.018 EC-11-054: sensor_errors must be a JSON array");
+        assert!(
+            !sensor_errors.is_empty(),
+            "BC-2.11.018 EC-11-054 (partial-failure branch proof): sensor_errors MUST be \
+             non-empty. If this fails, the test is NOT exercising the partial-failure branch — \
+             it may have fallen back to the zero-row proxy path (empty registry). \
+             Check that AlwaysFailsAdapter is registered in make_server_with_failing_adapter \
+             and that resolve_source_refs finds a non-empty registry. \
+             Got sensor_errors: {:?}",
+            sensor_errors
         );
     }
 
