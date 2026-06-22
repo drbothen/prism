@@ -2,6 +2,8 @@
 story_id: S-DEMO-PRISMQL-ONBOARDING-001-B
 title: "PrismQL LLM Auto-Onboarding — Query Engine L4 (E-QUERY-038 Gate + Pedagogical Enrichments + normalized_pql)"
 captured_at: "2026-06-22"
+revised_at: "2026-06-22"
+revision_reason: "OBS-198-1: AC-001 case_a re-captured with clients=[acme] org-scope; OBS-198-2: AC-005 case_a label corrected to match zero-row capture reality"
 product_type: "CLI/MCP (Rust — no browser UI)"
 recording_tool: "cargo nextest (Red Gate test output) + cargo run --example (engine-driven JSON captures)"
 coverage: "6/6 ACs covered"
@@ -39,10 +41,12 @@ No evidence is fabricated. Every JSON payload in the AC evidence files was print
 
 Three cases captured from real `PrismServer::query` execution:
 
-**Case a** — Query `SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high'` (Levenshtein-1 typo in WHERE clause):
+**Case a** — Query `SELECT * FROM crowdstrike_alerts WHERE sevrity = 'high'` (Levenshtein-1 typo in WHERE clause), `clients=["acme"]` org-scoped:
 - Response contains `"code": "E-QUERY-038"`, MCP error code -32602 (INVALID_PARAMS)
 - `"available_columns": ["detection_id", "host_name", "severity"]` — non-empty
 - `"did_you_mean": "severity"` — present (Levenshtein distance 1)
+- `message` contains `"client 'acme'"` — client_id correctly reflects the acme org scope
+- Re-captured: OBS-198-1 fix — original had `client_id: ""` (QueryOptions::default(), no clients scope); now shows `client_id: "acme"` per AC spec
 
 **Case b** — Query `SELECT completely_bogus_col FROM crowdstrike_alerts LIMIT 5` (no match within distance 3):
 - `"available_columns": ["host_name", "severity"]` — non-empty
@@ -120,9 +124,11 @@ Multi-tenant fixture: acme has `[severity, acme_only_field]`; globex has `[sever
 - `test_BC_2_11_018_normalized_pql_present_on_zero_row_mcp_response`
 - `test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure`
 
-**Case a** — Query `SELECT * FROM crowdstrike_alerts WHERE severity = 'high' LIMIT 10`:
+**Case a** — Query `SELECT * FROM crowdstrike_alerts WHERE severity = 'high' LIMIT 10` (zero-row success — no sensor adapters wired in capture fixture):
 - `sc["results"]["normalized_pql"]` = `"SELECT * FROM crowdstrike_alerts WHERE severity = 'high' LIMIT 10"`
 - Non-empty; contains table name; uppercase keywords; no DataFusion plan nodes
+- `total_results: 0` — zero rows by design (no adapters wired; fan-out empty); AC-005 postcondition covers zero-row success explicitly
+- Label corrected: OBS-198-2 fix — was "success with results"; relabeled to "success — zero-row result; normalized_pql still present" to match captured reality
 
 **Case b** — Zero-row query:
 - `sc["results"]["normalized_pql"]` = `"SELECT severity FROM crowdstrike_alerts WHERE severity = 'nonexistent'"` — present even when 0 rows returned
