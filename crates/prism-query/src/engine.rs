@@ -1827,13 +1827,14 @@ pub fn extract_near_text(input: &str, offset: usize) -> String {
         .find(|c: char| c.is_whitespace())
         .unwrap_or(remainder.len());
     let token = &remainder[..token_end];
-    // Truncate to ≤50 chars per DI-006 (injection safety).
-    let truncated = if token.len() > 50 {
-        &token[..50]
-    } else {
-        token
-    };
-    truncated.to_string()
+    // Truncate to ≤50 CHARACTERS per DI-006 (injection safety).
+    //
+    // MUST use char-count truncation, NOT byte-slice truncation.
+    // Byte index 50 may fall inside a multibyte UTF-8 character (e.g. '—' = 3 bytes,
+    // 'é' = 2 bytes) causing a panic: "byte index 50 is not a char boundary".
+    // Model-controlled PQL is the source, so crafted inputs can trigger this.
+    // Fix: iterate by char and collect the first ≤50 chars. (F-001-B-FRESH-001 / DI-006)
+    token.chars().take(50).collect::<String>()
 }
 
 /// E-QUERY-002 enrichment: return the valid operators for a `ColumnType`.

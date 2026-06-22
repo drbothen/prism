@@ -482,9 +482,9 @@ mod tests {
                  E-QUERY-037 must fire BEFORE E-QUERY-038. \
                  FIX: check_column_availability must only run AFTER check_table_availability passes."
             ),
-            Ok(_) => panic!(
-                "gate-ordering: must return TableNotAvailable for 'nonexistent_table'."
-            ),
+            Ok(_) => {
+                panic!("gate-ordering: must return TableNotAvailable for 'nonexistent_table'.")
+            }
             Err(other) => panic!(
                 "gate-ordering: expected TableNotAvailable for 'nonexistent_table', got: {other:?}"
             ),
@@ -997,6 +997,94 @@ mod tests {
         assert!(
             !fix_other.is_empty(),
             "BC-2.11.017 regression: catch-all must return a non-empty string"
+        );
+    }
+
+    /// BC-2.11.017 / DI-006 — `extract_near_text` is char-boundary-safe for multibyte UTF-8.
+    ///
+    /// LOAD-BEARING (F-001-B-FRESH-001 fix): verifies that a token ≥50 BYTES containing
+    /// multibyte UTF-8 where byte index 50 falls mid-char does NOT panic and returns a
+    /// valid ≤50-CHARACTER result.
+    ///
+    /// Input construction: "—".repeat(20) (em-dash, U+2014, 3 bytes per char)
+    ///   - 20 chars × 3 bytes = 60 bytes total in the token.
+    ///   - Valid char boundaries are at multiples of 3 (0, 3, 6, … 48, 51 …).
+    ///   - Byte index 50 is NOT a multiple of 3 (50 mod 3 = 2) → NOT a char boundary.
+    ///   - The old `&token[..50]` byte-slice panics with "byte index 50 is not a char
+    ///     boundary" on this input.
+    ///   - The fixed implementation uses `token.chars().take(50).collect::<String>()`,
+    ///     which takes up to 50 chars by character iteration (only 20 exist here, so the
+    ///     full 20-char token is returned unchanged — all ≤50 chars).
+    ///
+    /// Additional sub-case: "é".repeat(60) (2-byte chars, 120 bytes)
+    ///   - Old byte-slice `&token[..50]` returns exactly 25 chars (25 × 2 = 50 bytes),
+    ///     truncating to the wrong count of 25 instead of 50 characters.
+    ///   - Fixed implementation returns exactly 50 chars as the BC requires.
+    ///
+    /// Assertions:
+    ///   (a) No panic for em-dash input (structural: test would not reach asserts if it did).
+    ///   (b) No panic for é-accent input (same structural guarantee).
+    ///   (c) é-accent result is ≤50 characters (char count, not byte count).
+    ///   (d) é-accent result equals `"é".repeat(50)` — the expected char-truncated prefix.
+    #[test]
+    fn test_BC_2_11_017_extract_near_text_multibyte_utf8_no_panic() {
+        use prism_query::engine::extract_near_text;
+
+        // ── Sub-case 1: em-dash (3-byte chars) — old code panics here ────────────
+        //
+        // '—' = U+2014 = 0xE2 0x80 0x94 (3 bytes). 20 × 3 = 60 bytes total.
+        // Valid char boundaries: 0, 3, 6, …, 48, 51. Byte 50 (mod 3 = 2) is NOT a
+        // char boundary → old `&token[..50]` panics: "byte index 50 is not a char boundary".
+        let token_em_dashes = "—".repeat(20);
+        let input_em = format!("{token_em_dashes} rest");
+
+        // (a) No panic: reaching this assert proves the call did not panic.
+        let result_em = extract_near_text(&input_em, 0);
+        assert!(
+            result_em.chars().count() <= 50,
+            "DI-006 (em-dash): extract_near_text must return ≤50 chars; \
+             got {} chars",
+            result_em.chars().count()
+        );
+        // 20 em-dashes < 50 chars, so the whole token is returned untruncated.
+        assert_eq!(
+            result_em, token_em_dashes,
+            "DI-006 (em-dash): token of 20 chars < 50 must be returned whole; \
+             got: '{result_em}'"
+        );
+
+        // ── Sub-case 2: é-accent (2-byte chars) — old code truncates to wrong count ─
+        //
+        // 'é' = U+00E9 = 0xC3 0xA9 (2 bytes). 60 × 2 = 120 bytes total.
+        // Old `&token[..50]` succeeds (byte 50 = 25×2 = char boundary) but returns
+        // 25 chars instead of the 50 chars the spec requires.
+        let token_60_e_accents = "é".repeat(60);
+        let input_e = format!("{token_60_e_accents} rest");
+
+        // (b) No panic for é-accent input.
+        let result_e = extract_near_text(&input_e, 0);
+
+        // (c) ≤50 characters (char count, not byte count).
+        let char_count = result_e.chars().count();
+        assert!(
+            char_count <= 50,
+            "DI-006 (é-accent): extract_near_text must return ≤50 CHARACTERS; \
+             got {char_count} chars (spec says ≤50 chars, not ≤50 bytes)"
+        );
+        assert_eq!(
+            char_count, 50,
+            "DI-006 (é-accent): extract_near_text must truncate a 60-char token to \
+             exactly 50 chars; got {char_count} chars (old byte-slice returns only 25)"
+        );
+
+        // (d) Content equals the char-truncated prefix.
+        let expected_e = "é".repeat(50);
+        assert_eq!(
+            result_e,
+            expected_e,
+            "DI-006 (é-accent): extract_near_text must return first 50 'é' chars; \
+             got (byte len {}): '{result_e}'",
+            result_e.len()
         );
     }
 
