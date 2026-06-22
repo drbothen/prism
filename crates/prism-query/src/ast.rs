@@ -1413,7 +1413,14 @@ impl PqlNormalizer {
     fn normalize_filter(filter: &FilterExpr) -> String {
         let src = &filter.source.raw;
         let pred = Self::normalize_predicate(&filter.predicate);
-        format!("{src} | {pred}")
+        // BC-2.11.018 round-trip: bare predicates (no source prefix) use an empty source raw.
+        // Emitting "` | {pred}`" with a leading space + pipe produces invalid PQL that the
+        // filter parser cannot re-parse. Only emit the source prefix when one is present.
+        if src.is_empty() {
+            pred
+        } else {
+            format!("{src} | {pred}")
+        }
     }
 
     // ---- Pipe mode ----
@@ -1797,6 +1804,15 @@ impl PqlNormalizer {
 
     fn normalize_literal(lit: &Literal) -> String {
         match lit {
+            // BC-2.11.018 round-trip invariant: emit a form the grammar CAN re-parse.
+            //
+            // Grammar constraints (filter_parser.rs::build_literal_parser):
+            //   single_quoted = none_of('\'') → a `'` inside single-quoted is impossible.
+            //   double_quoted = none_of('"')  → a `'` inside double-quoted IS accepted.
+            //
+            // If the string value contains `'`, emit double-quoted form `"…"` so that
+            // the normalized output re-parses correctly. (F-001B-PASS-MED-001)
+            Literal::String(s) if s.contains('\'') => format!("\"{s}\""),
             Literal::String(s) => format!("'{s}'"),
             Literal::Integer(n) => n.to_string(),
             Literal::Float(f) => f.to_string(),

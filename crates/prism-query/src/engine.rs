@@ -1362,11 +1362,14 @@ fn check_column_availability(
     }
 
     // did_you_mean: find closest column by Levenshtein distance ≤ 3 (D-1163).
+    // Tie-break: when multiple candidates share the same minimum distance, pick the
+    // lexicographically-smallest name for deterministic output. (F-001B-PASS-LOW-001 /
+    // BC-2.11.016 AC-001 — multi-client queries iterate HashMap in non-deterministic order.)
     let did_you_mean = available_columns
         .iter()
         .map(|c| (c.clone(), strsim::levenshtein(column_name, c)))
         .filter(|(_, dist)| *dist <= 3)
-        .min_by_key(|(_, dist)| *dist)
+        .min_by_key(|(name, dist)| (*dist, name.clone()))
         .map(|(c, _)| c);
 
     // Emit audit tracing event per SAP-1 / PG-LP11-001.
@@ -1819,10 +1822,27 @@ pub fn extract_near_text(input: &str, offset: usize) -> String {
     if offset >= input.len() {
         return String::new();
     }
-    // Extract from `offset` to the end of the first word / whitespace-delimited token.
-    // The "offending token" is the word starting at `offset`. Walk forward until
+    // SAFETY (belt-and-suspenders, F-001B-PASS-CRIT-001): if `offset` falls mid-char
+    // (e.g. a caller passes a byte offset that bisects a multibyte UTF-8 sequence),
+    // snap forward to the next valid char boundary rather than panicking.
+    // `str::floor_char_boundary` is nightly-only; use a forward search instead.
+    let safe_offset = if input.is_char_boundary(offset) {
+        offset
+    } else {
+        // Advance byte-by-byte until we land on a char boundary (or reach end).
+        let mut o = offset;
+        while o < input.len() && !input.is_char_boundary(o) {
+            o += 1;
+        }
+        o
+    };
+    if safe_offset >= input.len() {
+        return String::new();
+    }
+    // Extract from `safe_offset` to the end of the first word / whitespace-delimited token.
+    // The "offending token" is the word starting at `safe_offset`. Walk forward until
     // whitespace or end-of-input, then slice.
-    let remainder = &input[offset..];
+    let remainder = &input[safe_offset..];
     let token_end = remainder
         .find(|c: char| c.is_whitespace())
         .unwrap_or(remainder.len());

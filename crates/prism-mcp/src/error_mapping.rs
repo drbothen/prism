@@ -1068,9 +1068,18 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                     .rfind(|c: char| !c.is_whitespace())
                     .unwrap_or(0); // all whitespace or empty → use 0
                 // Find the start of the word ending at last_non_ws.
+                // SAFETY: `pos` from `rfind(char::is_whitespace)` is the first byte of the
+                // whitespace character. For multibyte WS (e.g. U+00A0=2 bytes, U+3000=3 bytes),
+                // `pos + 1` is mid-char and `&input[pos+1..]` would panic. Advance by the full
+                // char width instead. (F-001B-PASS-CRIT-001 / BC-2.11.017 AC-003)
                 let preceding_word_start = before_offset.get(..=last_non_ws)
-                    .and_then(|s| s.rfind(|c: char| c.is_whitespace()))
-                    .map(|pos| pos + 1)
+                    .and_then(|s| {
+                        s.rfind(|c: char| c.is_whitespace()).map(|pos| {
+                            // Advance past the full whitespace char (char-boundary safe).
+                            let ws_char = s[pos..].chars().next().map_or(1, |c| c.len_utf8());
+                            pos + ws_char
+                        })
+                    })
                     .unwrap_or(0);
                 preceding_word_start
             };
