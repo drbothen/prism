@@ -13,7 +13,7 @@
 //! | `test_BC_2_11_018_normalized_pql_key_absent_on_mcp_error_response` | AC-006 | (should pass — error path returns early before normalized_pql is computed) |
 //! | `test_BC_2_11_017_ac003_parse_error_response_carries_near_text` | AC-003 | `StructuredErrorFields` has no `near_text`/`reference_pointer` fields |
 //! | `test_BC_2_11_017_ac003_table_not_found_suggestion_contains_prism_describe_in_mcp` | AC-003+AC-004 | E-QUERY-037 `suggestion` field is "Check the request parameters and retry." |
-//! | `test_BC_2_11_017_ac003_type_error_response_carries_valid_operators` | AC-003 | F-PRL-CRIT-002: `QueryPlanFailed` hits catch-all arm → `valid_operators_for_type: None` → field ABSENT |
+//! | `test_BC_2_11_017_ac003_type_error_response_carries_valid_operators` | AC-003 | Engine has no plan-time type-mismatch gate → String+`>` query SUCCEEDS instead of E-QUERY-002; even if it errored, operators would be the type-agnostic superset, not the String-specific set |
 //! | `test_BC_2_11_017_ec11046_near_text_present_as_empty_string_at_end_of_input` | AC-003 | F-PRL-MED-001: empty `near_text` mapped to `None` → key ABSENT; must be `Some("")` |
 //! | `test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure` | AC-005 | OBS-2: regression gate for partial-failure path (EC-11-054) |
 //!
@@ -412,95 +412,226 @@ mod tests {
         );
     }
 
-    /// BC-2.11.017 / AC-003 — E-QUERY-002 `QueryPlanFailed` error response carries
-    /// `valid_operators_for_type` as a present, non-null JSON array.
+    /// BC-2.11.017 / AC-003 — E-QUERY-002 type-mismatch error for a String column carries
+    /// `valid_operators_for_type` equal to the STRING-SPECIFIC operator set.
     ///
-    /// BC-2.11.017 VP: "E-QUERY-002 structured response always contains
-    /// `valid_operators_for_type` as a non-null array."
+    /// BC-2.11.017 canonical test vector:
+    ///   Query: `SELECT * FROM <table> WHERE <string_col> > 5`
+    ///   Expected: E-QUERY-002 with `valid_operators_for_type: ["=","!=","LIKE","IN","NOT IN"]`
+    ///   (STRING-SPECIFIC set — must NOT contain "<", ">", "<=", ">=", "BETWEEN")
     ///
-    /// LOAD-BEARING RED GATE test (F-PRL-CRIT-002, LOCAL adversary pass-2):
-    ///   The prior test had an `if call_result.is_error == Some(true)` guard. Because the
-    ///   engine coerces String column comparisons and never produces a type error, the guard
-    ///   body was NEVER reached. The assertion was conditionally inert — TD-VSDD-059
-    ///   (paper-fix detection).
+    /// LOAD-BEARING RED GATE test (TD-VSDD-059 paper-fix detection):
     ///
-    /// This test is UNCONDITIONAL. It drives `PrismError::QueryPlanFailed` DIRECTLY through
-    /// `prism_error_to_structured_call_result` — no QueryEngine, no sensor, no DataFusion.
-    /// `QueryPlanFailed` is the canonical E-QUERY-002 error variant (plan-time failure,
-    /// map_prism_error maps it to INTERNAL_ERROR). The BC requires any E-QUERY-002-class
-    /// error to carry `valid_operators_for_type`.
+    ///   The prior implementation satisfied the old test by hardcoding the GENERIC operator
+    ///   superset `["=","!=","<",">","<=",">=","LIKE","IN","NOT IN","BETWEEN"]` on the
+    ///   `QueryPlanFailed` arm regardless of actual column type. The old test only asserted
+    ///   "non-empty array of strings" — which the superset satisfies. This is the
+    ///   paper-fix: the assertion didn't depend on production behavior at all.
     ///
-    /// FAILS on current HEAD because:
-    ///   `QueryPlanFailed` hits the catch-all `_ =>` arm in `prism_error_to_structured_call_result`
-    ///   which sets `valid_operators_for_type: None`. The `if let Some(ops)` guard in
-    ///   `build_structured_error_response` therefore omits the key from JSON entirely.
+    ///   This test is ENGINE-DRIVEN and TYPE-SPECIFIC:
+    ///   1. Constructs a `QueryEngine` with a `resolved_spec_map` containing a table whose
+    ///      column is `ColumnType::String` — this is the ACTUAL column type in the schema.
+    ///   2. Drives `SELECT * FROM crowdstrike_alerts WHERE severity > 5` through the REAL
+    ///      plan-time path (`PrismServer::query`) — NOT a synthetic QueryPlanFailed.
+    ///   3. Asserts `is_error == Some(true)` — the engine MUST reject this query.
+    ///   4. Asserts `valid_operators_for_type` is EXACTLY the String-specific set
+    ///      `["=","!=","LIKE","IN","NOT IN"]` as returned by
+    ///      `prism_query::engine::valid_operators_for_type(ColumnType::String)`.
+    ///      The assertion FAILS if the array contains ">" or "<" or "BETWEEN" — i.e., the
+    ///      generic superset. Only the type-specific subset is acceptable.
+    ///   5. A second case (Boolean column + `>`) asserts the Boolean-specific set `["=","!="]`
+    ///      to prove operators are DERIVED FROM THE COLUMN TYPE, not hardcoded.
     ///
-    /// FIX: add a dedicated `PrismError::QueryPlanFailed { .. }` arm to `prism_error_to_structured_call_result`
-    /// that populates `valid_operators_for_type` with the appropriate operator set. Since
-    /// `QueryPlanFailed` does not carry ColumnType context, the arm should use a sentinel
-    /// value (e.g., all operators from all types, or a documentation-only marker).
-    /// Alternatively, introduce a `QueryTypeMismatch` variant that carries ColumnType context.
-    #[test]
-    fn test_BC_2_11_017_ac003_type_error_response_carries_valid_operators() {
-        use prism_mcp::error_mapping::prism_error_to_structured_call_result;
+    /// FAILS ON CURRENT HEAD because:
+    ///   (a) The engine has no plan-time type-mismatch detection — `severity > 5` on a String
+    ///       column either succeeds (DataFusion coerces) or produces a generic execution error,
+    ///       NOT E-QUERY-002. The `is_error == Some(true)` assertion will fail (query succeeds).
+    ///   (b) Even if an error fires, the `QueryPlanFailed` arm in error_mapping.rs hardcodes
+    ///       the type-agnostic superset, not the String-specific set — the EXACT-SET assertion
+    ///       would fail because ">" is in the array.
+    ///
+    /// The implementer must:
+    ///   1. Add plan-time type-mismatch detection in `check_query_column_availability` or a new
+    ///      `check_operator_type_compatibility` gate: after verifying a column EXISTS, check that
+    ///      the operator used against it is valid for its `ColumnType`. Return a new error
+    ///      variant (e.g., `PrismError::QueryTypeMismatch { column, actual_type, operator }`)
+    ///      that carries the `ColumnType` so the error-mapping arm can call
+    ///      `valid_operators_for_type(actual_type)` to get the TYPE-SPECIFIC operator set.
+    ///   2. Add the error-mapping arm in `prism_error_to_structured_call_result` that calls
+    ///      `valid_operators_for_type(actual_type)` from the variant, not from a hardcoded list.
+    ///
+    /// This test also replaces the prior test
+    /// `test_BC_2_11_017_ac003_type_error_response_carries_valid_operators` which was
+    /// a paper-fix (synthetic error, no engine path, no type-specific assertion).
+    #[tokio::test]
+    async fn test_BC_2_11_017_ac003_type_error_response_carries_valid_operators() {
+        use prism_core::column::ColumnType;
+        use prism_query::engine::valid_operators_for_type;
 
-        // Drive QueryPlanFailed DIRECTLY through the error mapping function.
-        // This is the E-QUERY-002 canonical variant (plan-time failure).
-        // UNCONDITIONAL — no conditional guard. The field MUST be present.
-        let err = prism_core::PrismError::QueryPlanFailed {
-            detail: "plan compilation failed: type mismatch in comparison".to_string(),
-        };
-        let result = prism_error_to_structured_call_result(err);
+        // ---- Case 1: String column + ordering operator ----
+        //
+        // BC-2.11.017 canonical test vector:
+        //   severity is a STRING column; the query uses `>` (an ordering operator valid only
+        //   for Integer/Float/Datetime). The engine MUST reject this at plan time with E-QUERY-002
+        //   and populate `valid_operators_for_type` with the STRING-specific set.
+        //
+        // LOAD-BEARING: this drives the real plan-time path, NOT a synthetic QueryPlanFailed.
+        let columns_string = vec![
+            ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
+        ];
+        let (key_s, resolved_s) = make_resolved("crowdstrike", "alerts", columns_string, "acme");
+        let mut map_s = HashMap::new();
+        map_s.insert(key_s, resolved_s.clone());
+        let server_string = make_server_with_engine(map_s, vec![resolved_s.spec.clone()]);
+
+        // String column `severity` with ordering operator `>` — BC-2.11.017 canonical vector.
+        // On current HEAD: the engine has no type-mismatch gate so DataFusion coerces or the
+        // query succeeds → is_error will be None/false → this assertion FAILS (RED gate).
+        let params_string: QueryToolParams = serde_json::from_str(
+            r#"{"query": "SELECT * FROM crowdstrike_alerts WHERE severity > 5"}"#,
+        )
+        .expect("QueryToolParams JSON must deserialize");
+        let result_string = server_string
+            .query(Parameters(params_string))
+            .await
+            .expect("domain errors must return Ok(structured_error), not Err");
 
         assert_eq!(
-            result.is_error,
+            result_string.is_error,
             Some(true),
-            "BC-2.11.017 AC-003: QueryPlanFailed must produce is_error=true"
+            "BC-2.11.017 AC-003 (String+>): ordering operator '>' on String column 'severity' \
+             MUST produce is_error=true (E-QUERY-002 type-mismatch). \
+             CURRENT BEHAVIOR: query succeeds (engine has no plan-time type-mismatch gate). \
+             FIX: add check_operator_type_compatibility gate — after the column-availability check \
+             passes (column exists), verify the operator is valid for the column's ColumnType. \
+             Return PrismError::QueryTypeMismatch {{ column, actual_type, operator }} when \
+             the operator is not in valid_operators_for_type(actual_type)."
         );
 
-        let sc = result
-            .structured_content
-            .expect("BC-2.11.017 AC-003: structured_content must be present on QueryPlanFailed");
+        let sc_string = result_string.structured_content.expect(
+            "BC-2.11.017 AC-003 (String+>): structured_content must be present on E-QUERY-002",
+        );
 
-        let error_obj = sc
+        let error_obj_string = sc_string
             .get("error")
-            .expect("BC-2.11.017 AC-003: sc['error'] must be present on QueryPlanFailed");
+            .expect("BC-2.11.017 AC-003 (String+>): sc['error'] must be present");
 
-        // BC-2.11.017 VP: E-QUERY-002 structured response ALWAYS contains
-        // valid_operators_for_type as a non-null array.
-        //
-        // LOAD-BEARING: FAILS NOW because QueryPlanFailed hits the catch-all arm which sets
-        // valid_operators_for_type: None, so build_structured_error_response omits the field.
-        //
-        // FIX: add a PrismError::QueryPlanFailed arm to prism_error_to_structured_call_result
-        // that sets valid_operators_for_type to a non-empty Vec<String>.
-        let operators = error_obj.get("valid_operators_for_type").expect(
-            "BC-2.11.017 AC-003 (F-PRL-CRIT-002): E-QUERY-002 (QueryPlanFailed) error \
-             response MUST have 'valid_operators_for_type' as a non-null array. \
-             Field is ABSENT. Current code: QueryPlanFailed hits the catch-all arm which \
-             sets valid_operators_for_type: None. \
-             FIX: add a dedicated PrismError::QueryPlanFailed arm to \
-             prism_error_to_structured_call_result that populates valid_operators_for_type.",
+        // LOAD-BEARING ASSERTION: the operators array must be EXACTLY the String-specific set.
+        // valid_operators_for_type(ColumnType::String) returns ["=", "!=", "LIKE", "IN", "NOT IN"].
+        // This assertion FAILS if:
+        //   - the field is absent (no type-mismatch detection)
+        //   - the field is the generic superset (">", "<", "BETWEEN" present)
+        let operators_val = error_obj_string.get("valid_operators_for_type").expect(
+            "BC-2.11.017 AC-003 (String+>): E-QUERY-002 error response MUST have \
+             'valid_operators_for_type' field. ABSENT on current HEAD. \
+             FIX: add a PrismError::QueryTypeMismatch arm to prism_error_to_structured_call_result \
+             that calls valid_operators_for_type(actual_type) to populate this field.",
         );
-
-        let operators_arr = operators
+        let operators_arr = operators_val
             .as_array()
-            .expect("BC-2.11.017 AC-003: valid_operators_for_type must be a JSON array, not null");
+            .expect("BC-2.11.017 AC-003 (String+>): valid_operators_for_type must be a JSON array");
 
-        assert!(
-            !operators_arr.is_empty(),
-            "BC-2.11.017 AC-003: valid_operators_for_type must be a non-empty array; \
-             got empty array"
+        // Get the canonical String operator set from the production helper.
+        // The test derives the expected value from valid_operators_for_type — not from literals —
+        // so the assertion tracks the helper automatically if it changes.
+        let expected_string_ops: Vec<serde_json::Value> =
+            valid_operators_for_type(ColumnType::String)
+                .iter()
+                .map(|s| serde_json::Value::String(s.to_string()))
+                .collect();
+
+        // EXACT SET ASSERTION: the operators array must equal the String-specific set,
+        // not the generic superset. This fails if ">" is present.
+        assert_eq!(
+            operators_arr, &expected_string_ops,
+            "BC-2.11.017 AC-003 (String+>): valid_operators_for_type MUST equal the \
+             String-specific set {:?}. \
+             Current value: {:?}. \
+             If '>' or '<' or 'BETWEEN' appear in the array, the implementation is \
+             returning the type-agnostic superset instead of the ColumnType::String set. \
+             FIX: the error-mapping arm must call \
+             valid_operators_for_type(actual_type) from the error variant's ColumnType context, \
+             NOT hardcode a superset.",
+            expected_string_ops, operators_arr
         );
 
-        // Every element must be a string.
-        for (i, op) in operators_arr.iter().enumerate() {
+        // NEGATIVE ASSERTION: ordering operators must NOT appear for String columns.
+        let ordering_ops = [">", "<", "<=", ">=", "BETWEEN"];
+        for op in &ordering_ops {
+            let op_value = serde_json::Value::String(op.to_string());
             assert!(
-                op.is_string(),
-                "BC-2.11.017 AC-003: valid_operators_for_type[{i}] must be a string; \
-                 got: {op:?}"
+                !operators_arr.contains(&op_value),
+                "BC-2.11.017 AC-003 (String+>): ordering operator '{}' MUST NOT appear \
+                 in valid_operators_for_type for ColumnType::String (it's a numeric/datetime \
+                 operator). Got: {:?}",
+                op,
+                operators_arr
             );
         }
+
+        // ---- Case 2: Boolean column + ordering operator ----
+        //
+        // Proves operators are DERIVED FROM THE COLUMN TYPE, not hardcoded.
+        // Boolean columns only support ["=", "!="] — no ordering operators at all.
+        let columns_bool = vec![
+            ColumnSpec::new("is_active", ColumnType::Boolean, None, vec![]),
+            ColumnSpec::new("sensor_name", ColumnType::String, None, vec![]),
+        ];
+        let (key_b, resolved_b) = make_resolved("armis", "devices", columns_bool, "acme");
+        let mut map_b = HashMap::new();
+        map_b.insert(key_b, resolved_b.clone());
+        let server_bool = make_server_with_engine(map_b, vec![resolved_b.spec.clone()]);
+
+        let params_bool: QueryToolParams =
+            serde_json::from_str(r#"{"query": "SELECT * FROM armis_devices WHERE is_active > 1"}"#)
+                .expect("QueryToolParams JSON must deserialize");
+        let result_bool = server_bool
+            .query(Parameters(params_bool))
+            .await
+            .expect("domain errors must return Ok(structured_error), not Err");
+
+        assert_eq!(
+            result_bool.is_error,
+            Some(true),
+            "BC-2.11.017 AC-003 (Boolean+>): ordering operator '>' on Boolean column 'is_active' \
+             MUST produce is_error=true (E-QUERY-002 type-mismatch). \
+             CURRENT BEHAVIOR: query succeeds (no plan-time type-mismatch gate). \
+             FIX: same gate as Case 1 — check operator against valid_operators_for_type(actual_type)."
+        );
+
+        let sc_bool = result_bool.structured_content.expect(
+            "BC-2.11.017 AC-003 (Boolean+>): structured_content must be present on E-QUERY-002",
+        );
+
+        let error_obj_bool = sc_bool
+            .get("error")
+            .expect("BC-2.11.017 AC-003 (Boolean+>): sc['error'] must be present");
+
+        let bool_ops_val = error_obj_bool.get("valid_operators_for_type").expect(
+            "BC-2.11.017 AC-003 (Boolean+>): valid_operators_for_type must be present for Boolean E-QUERY-002",
+        );
+        let bool_ops_arr = bool_ops_val.as_array().expect(
+            "BC-2.11.017 AC-003 (Boolean+>): valid_operators_for_type must be a JSON array",
+        );
+
+        // Canonical Boolean set: only ["=", "!="].
+        let expected_bool_ops: Vec<serde_json::Value> =
+            valid_operators_for_type(ColumnType::Boolean)
+                .iter()
+                .map(|s| serde_json::Value::String(s.to_string()))
+                .collect();
+
+        assert_eq!(
+            bool_ops_arr, &expected_bool_ops,
+            "BC-2.11.017 AC-003 (Boolean+>): valid_operators_for_type MUST equal the \
+             Boolean-specific set {:?}. Got: {:?}. \
+             This case proves operators are DERIVED FROM ColumnType::Boolean (not hardcoded): \
+             Boolean only allows '=' and '!='. If String-set or full-superset appears, the \
+             implementation is not calling valid_operators_for_type(actual_type) from \
+             the variant's ColumnType context.",
+            expected_bool_ops, bool_ops_arr
+        );
     }
 
     /// BC-2.11.017 / EC-11-046 — E-QUERY-001 parse error at END-OF-INPUT must carry
