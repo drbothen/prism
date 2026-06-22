@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.98"
+version: "6.99"
 status: draft
 producer: state-manager
 timestamp: 2026-06-22T00:00:00Z
@@ -124,13 +124,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
 | BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
 | BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
-| BC-2.08.001 | On-Demand Connectivity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
+| BC-2.08.001 | On-Demand Connectivity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft — v1.4 (D-1284 2026-06-22: probe_table precondition + postconditions + E-SPEC-026 error case + parse-time enforcement invariant) |
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.003 | Rate Limit State Detection Per Sensor | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.004 | Last Successful Query Timestamp Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.005 | Health Check MCP Tool | 08 - Sensor Health | CAP-008 | P1 | active (promoted draft→active D-1238 per POL-14; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19; lifecycle_status was already active) — v1.7 (D-1230 2026-06-18: cross-client client_id:null mode removed → deferred to S-5.04; with_partial_failures dead path removed) |
 | BC-2.08.006 | Health Status MCP Resource | 08 - Sensor Health | CAP-008 | P1 | active (promoted draft→active D-1238 per POL-14; anchor story S-5.03 merged PR #194 develop@85ac7b06 2026-06-19; lifecycle_status was already active) — v1.6 (D-1231 2026-06-18: EC-08-013 retired/subsumed into EC-08-011 per architect Ruling 4; append-only strikethrough; un-retire on S-5.04 cache-write) |
-| BC-2.08.007 | Partial Health Status (Mixed Sensor Availability) | 08 - Sensor Health | CAP-008 | P1 | draft |
+| BC-2.08.007 | Partial Health Status (Mixed Sensor Availability) | 08 - Sensor Health | CAP-008 | P1 | draft — v1.4 (D-1284 2026-06-22: F-S504-R2-002 adjudication — overall_status "rate_limited" added; EC-08-015 + all-rate-limited test vector added) |
 | BC-2.08.008 | `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.009 | Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources | 08 - Sensor Health | CAP-008 | P1 | draft (v1.4 — D-1212 2026-06-17: AC-10 unregistered_table_queries relocated from S-5.03 to S-5.08) |
 | BC-2.09.001 | Structural Separation of Untrusted Data | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
@@ -230,7 +230,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | active (promoted draft→active D-1204 per POL-14; anchor story S-3.13 merged PR #192 develop@60249ccc 2026-06-16) — v1.7 (D-1231 2026-06-18: notification gate reconciled to table-set-delta; column-delta deferred to S-5.11) |
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
-| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.10 |
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.11 (D-1284 2026-06-22: Rule 8 / E-SPEC-026 probe_table validation; EC-009-026..028; S-5.04 Stories traceability) |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.33 |
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.99 (2026-06-22, D-1284 S-5.04-spec-prep — BC-2.08.001 v1.4, BC-2.08.007 v1.4, BC-2.16.009 v1.11, error-taxonomy v1.94):** product-owner + state-manager | BC-2.08.001 inline row: v1.3→v1.4 — probe_table precondition + two postconditions (LIMIT 0 routing via probe_table → first-declared-table → no-op fallback chain) + E-SPEC-026 error case + parse-time enforcement invariant. BC-2.08.007 inline row: v1.3→v1.4 — F-S504-R2-002 adjudication: overall_status "rate_limited" added as distinct value (all-sensors-rate-limited aggregate; "wait and retry" remediation distinct from connectivity/auth failure); EC-08-015 + all-rate-limited canonical test vector. BC-2.16.009 inline row: v1.10→v1.11 — Rule 8 (probe_table validation / E-SPEC-026): trigger conditions, error message format, implementation anchor (SpecLoader::parse() post-Rule-7, SpecErrorCode::ESpec026); E-SPEC-026 added to §Error Conditions; EC-009-026..028; 3 canonical test vectors; S-5.04 added to Stories traceability (D-1262 fold). error-taxonomy v1.93→v1.94 (E-SPEC-026 registered). Phantom S-5.04-PROBE-TABLE anchors re-anchored to S-5.04 across all 4 artifacts (4 occurrences found + corrected; 0 live anchors remain). **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED. develop_head UNCHANGED fc954300. BC-INDEX v6.98→v6.99.
 
 **v6.98 (2026-06-22, OBS-001-B-FRESH-001 — BC-2.11.016 v1.2, error-taxonomy.md v1.93):** product-owner | BC-2.11.016 inline row: v1.1→v1.2 — OBS-001-B-FRESH-001 (S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL cascade LOW doc-accuracy finding): §PrismError-variant prose updated from speculative "not boxed … box if necessary" to ratified CORRECTION-2 boxed form `PrismError::ColumnNotFound(Box<ColumnNotFoundDetails>)` (`#[non_exhaustive]` struct; `result_large_err` boxing parity with `TableNotAvailableDetails`). error-taxonomy.md E-QUERY-038 "Emitted by" clause updated in same burst (v1.92→v1.93). Field set, semantics, Display, MCP surface UNCHANGED. **No BC lifecycle/status/count changes:** active_contracts 238 / draft_contracts 5 / total_contracts 256 ALL UNCHANGED. BC-INDEX v6.97→v6.98.
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.11"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -210,6 +210,31 @@ only need the error values (not the path indices) unwrap with `.map(|(_, _, e)| 
    (exact single-token `"${env.SENSOR_METHOD}"` with unset var → Rule 6 fires E-SPEC-024;
    Rule 7 skips — confirming the skip path is not inadvertently broken).
 
+### 8. Probe Table Reference Validation (AC-2 of S-5.04)
+
+This validation rule runs AFTER Rule 7 (HTTP method whitelist), immediately before `Ok(spec)` is returned. It validates the `probe_table` field (introduced per probe-table-field-design.md §1 / D-1260).
+
+**Trigger conditions:**
+- If `spec.probe_table` is `None` (absent or not set): no validation is performed; Rule 8 passes silently (back-compat default).
+- If `spec.probe_table` is `Some(name)` AND `spec.tables` is non-empty: `name` MUST case-sensitively match the `table_name` of exactly one `[[tables]]` block. Any mismatch → `E-SPEC-026`.
+- If `spec.probe_table` is `Some(name)` AND `spec.tables` is empty: unconditionally `E-SPEC-026` — a probe_table reference with no tables to match against is invalid.
+
+**Error code:** `E-SPEC-026` (broken, validation). See §Error Conditions and error-taxonomy.md §E-SPEC-026.
+
+**Error message format (E-SPEC-026):**
+```
+"sensor '{sensor_id}' declares probe_table = '{name}' but no [[tables]] block
+ has table_name = '{name}'. Declared tables: [{table_list}]. Remove probe_table
+ or add a matching [[tables]] block."
+```
+`{table_list}` is the sorted, comma-separated list of `table_name` values from `spec.tables` (empty string `""` when `spec.tables` is empty). `{sensor_id}` and `{name}` are config values, not credentials — safe to echo per AD-017.
+
+**Implementation anchor:** `SpecLoader::parse()` in `crates/prism-spec-engine/src/spec_parser.rs`, Rule 8 block added after the Rule 7 `validate_step_methods` call. `SpecErrorCode::ESpec026` variant added to `prism_core::SpecErrorCode` (`#[non_exhaustive]` enum — additive, no semver break, no new compile-fail gate entry; EXPECTED is ci.yml EXPECTED authority — S-5.04 probe_table adds +0 because ESpec026 is a new variant on a #[non_exhaustive] enum, not a new pub struct).
+
+**TOML path:** `sensor.probe_table`.
+
+**Ordering:** Rule 8 MUST execute after Rule 7. Rule 8 is independent of Rules 1–7 and does not interact with env-var resolution or HTTP method validation.
+
 ## Postconditions
 - If any errors are found: the spec is rejected and the error list is returned
 - If only warnings are found: the spec loads successfully and warnings are logged at startup and included in reload results
@@ -237,6 +262,7 @@ only need the error values (not the path indices) unwrap with `.map(|(_, _, e)| 
 | `E-SPEC-004` | Duplicate table_name within a sensor | Spec file rejected entirely |
 | `E-SPEC-024` | `${env.VAR_NAME}` token in a string field (e.g., `base_url`) references an env var that is absent or empty at spec-load time | Spec rejected; error message includes var NAME and TOML path; var VALUE never included (AD-017); multiple tokens → multiple errors in same multi-error pass |
 | `E-SPEC-025` | `step.method` value (after env-var resolution) is not in the allowed HTTP method set (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`) | Spec rejected; error message includes step_name, sensor_id, table_name, and the invalid method value (method value is config text, not a credential per AD-017); multiple invalid steps → multiple E-SPEC-025 errors in same multi-error pass; absent `step.method` is NOT an error (defaults to GET at pipeline level) |
+| `E-SPEC-026` | `probe_table` is set (`Some(name)`) but `name` does not case-sensitively match any `table_name` in `[[tables]]`, OR `probe_table` is set but `spec.tables` is empty | Spec rejected; error message includes `sensor_id`, `probe_table` value, and sorted list of declared table names (empty list `""` when no tables); `{sensor_id}` and `{name}` are config values, not credentials (AD-017); emitted by `SpecLoader::parse()` Rule 8; `probe_table = None` (absent) is NOT an error — Rule 8 passes silently |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -270,6 +296,9 @@ only need the error values (not the path indices) unwrap with `.map(|(_, _, e)| 
 | EC-009-023 | `step.method = "${env.X}GET"` — well-formed env token concatenated with a literal suffix (partial embedding, F-PR1-OBS-001) | Same reasoning as EC-009-022: full-string anchor fails; Rule 6 does not resolve; Rule 7 produces `E-SPEC-025` on the raw string `"${env.X}GET"`. Spec rejected. Tested by `test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped`. |
 | EC-009-024 | `step.method = "${env.A}${env.B}"` — two concatenated well-formed env tokens (F-PR1-OBS-001) | The combined string is not a single full-string `ENV_TOKEN_REGEX` match. Rule 6 does not resolve the concatenated form. Rule 7 produces `E-SPEC-025` on `"${env.A}${env.B}"`. Spec rejected. Tested by `test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped`. |
 | EC-009-025 | `step.method = "${env.SENSOR_METHOD}"` (exact single well-formed token) with `SENSOR_METHOD` unset — non-regression for skip path (F-PR1-OBS-001) | Full-string match succeeds; the value IS exactly one well-formed token. Rule 6 fires `E-SPEC-024` (var unset). Rule 7 SKIPS this step (double-reporting avoidance). Only one error emitted: `E-SPEC-024`. Spec rejected. Tested by `test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped`. |
+| EC-009-026 | `probe_table = "alerts"` and spec declares `[[tables]]` with `table_name = "alerts"` (valid match, Rule 8 happy path) | Rule 8 passes; no E-SPEC-026 emitted; spec loads. |
+| EC-009-027 | `probe_table = "devices"` and spec declares `[[tables]]` with `table_name = "alerts"` only (name-not-found) | Rule 8 fires `E-SPEC-026`; error message includes `sensor_id`, `probe_table = "devices"`, and `Declared tables: [alerts]`; spec rejected. |
+| EC-009-028 | `probe_table = "devices"` and spec has no `[[tables]]` blocks (empty table list) | Rule 8 fires `E-SPEC-026`; error message includes `sensor_id`, `probe_table = "devices"`, and `Declared tables: []`; spec rejected. |
 
 ## Canonical Test Vectors
 
@@ -297,6 +326,9 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | HTTP method — partial embedding, literal suffix (F-PR1-OBS-001, EC-009-023) | `step.method = "${env.X}GET"` | Full-match skip-guard does NOT apply; Rule 7 receives raw string `"${env.X}GET"`; `E-SPEC-025` emitted; spec rejected |
 | HTTP method — two concatenated tokens (F-PR1-OBS-001, EC-009-024) | `step.method = "${env.A}${env.B}"` | Full-match skip-guard does NOT apply; Rule 7 receives raw string `"${env.A}${env.B}"`; `E-SPEC-025` emitted; spec rejected |
 | HTTP method — exact single token, var unset, skip path non-regression (F-PR1-OBS-001, EC-009-025) | `step.method = "${env.SENSOR_METHOD}"`, `SENSOR_METHOD` unset | Full-match skip-guard applies (exclusive single token); Rule 6 fires `E-SPEC-024`; Rule 7 SKIPS; only `E-SPEC-024` emitted; spec rejected |
+| probe_table — valid match (EC-009-026) | `probe_table = "alerts"`, spec has `table_name = "alerts"` | Rule 8 passes; no E-SPEC-026; spec loads |
+| probe_table — name not found (EC-009-027) | `probe_table = "devices"`, spec has `table_name = "alerts"` only | `E-SPEC-026` with `sensor_id`, `probe_table = "devices"`, `Declared tables: [alerts]`; spec rejected |
+| probe_table — empty table list (EC-009-028) | `probe_table = "devices"`, spec has no `[[tables]]` | `E-SPEC-026` with `sensor_id`, `probe_table = "devices"`, `Declared tables: []`; spec rejected |
 
 ## Verification Properties
 
@@ -307,7 +339,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 ## Traceability
 | Field | Value |
 |-------|-------|
-| Stories | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001, S-DEMO-CROWDSTRIKE-MULTIREGION-001, S-SPEC-HTTP-METHOD-VALIDATION-001 |
+| Stories | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001, S-DEMO-CROWDSTRIKE-MULTIREGION-001, S-SPEC-HTTP-METHOD-VALIDATION-001, S-5.04 |
 | L2 Capability | CAP-029 |
 | Capability Anchor Justification | CAP-029 ("Config-Driven Sensor Adapters") per capabilities.md §CAP-029. This BC specifies spec-file validation — exactly what CAP-029 mandates: "Every spec file is validated at load time and reload time (DI-030). Variable references in step templates are resolved against the step dependency graph — forward references and undefined variables are validation errors (DEC-038)." Env-var token resolution (AC-6) is a prerequisite of that load-time validation: a spec whose `base_url` contains an unresolved `${env.VAR}` token cannot pass URL-format validation, so resolution must occur in the same spec-load pass. |
 | L2 Invariants | DI-030 |
@@ -318,6 +350,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | S-5.04-spec-prep | 2026-06-22 | product-owner | Rule 8 (E-SPEC-026 probe_table-must-reference-declared-table): added §Validation Rules 8 with full trigger conditions, error message format (EXACT template from probe-table-field-design.md §1), implementation anchor (`SpecLoader::parse()` post-Rule-7, `SpecErrorCode::ESpec026`); added E-SPEC-026 to §Error Conditions; added EC-009-026..028 (valid match / name-not-found / empty-table-list); added 3 canonical test vectors for Rule 8; added S-5.04 to Stories traceability (D-1262 fold — probe_table is part of S-5.04, no separate S-5.04-PROBE-TABLE story exists). |
 | 1.10 | FB-PR4 | 2026-06-04 | state-manager | v1.9→v1.10 2026-06-04 — §VR7 §Ordering Point 3 full-match skip-guard clause added (F-PR1-OBS-001 / F-PR6-HIGH-001): Rule 7 env-token skip fires only on exact full-string single-token match; partial embeddings fall through to whitelist → E-SPEC-025; added EC-009-022..025 + canonical test vectors. Test rename: `test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte` → `..._template_byte_for_byte` (OBS-PR6-001 / TD-VSDD-091). |
 | 1.9 | FB-PR2 | 2026-06-04 | product-owner | §VR7 implementation-function signature corrected to `Vec<(usize, usize, SpecEngineError)>` (F-PR1-MED-002 closure); 32-codepoint `method_value` truncation invariant documented (F-PR4-MED-002 / SEC-001 / CWE-400), with load-bearing test `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`; §Description category count five→seven correcting stale description; malformed-pseudo-token behavior (e.g., `${env.lower}`) documented in §VR7 §Ordering with E-SPEC-025 fallback + F-LOCAL-P3-MED-002 test cite; EC-009-021 (overlong method echo cap) added to §Edge Cases; overlong-method canonical test vector added to §Canonical Test Vectors; §Validation Rules 6 env-var content restored (was reordered in v1.8 edit — corrected to Rules 6 then 7 ascending order). §VR6 full text re-added to maintain ascending rule order (6 before 7). OBS-PR4-001/002/003 folded. |
 | 1.8 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | S-SPEC-HTTP-METHOD-VALIDATION-001 (DRIFT-D926-001 anchor): Added §Validation Rules 7 — HTTP Method Whitelist Validation (AC-7). Whitelist: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` (7 values; compile-time `ALLOWED_HTTP_METHODS: &[&str]` constant). Validation runs POST Rule 6 env-var resolution; absent `step.method` (None) is NOT an error; wrong-case methods (e.g., `"get"`) are invalid; unsupported methods (`CONNECT`, `TRACE`) are invalid; empty string is invalid. Multi-error collection per INV-ERR-003. Rule 7 skips step.method fields that already failed Rule 6 (E-SPEC-024) to prevent double-reporting. Added E-SPEC-025 to §Error Conditions with full message template. Added edge cases EC-009-010..EC-009-020 and 6 canonical test vectors. Added S-SPEC-HTTP-METHOD-VALIDATION-001 to Stories traceability. No semantic change to existing rules. BC v1.7 → v1.8. |

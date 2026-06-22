@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -30,10 +30,12 @@ removal_reason: null
 
 When a client has multiple sensors and some are unavailable, the `check_sensor_health` tool returns a successful response containing per-sensor health entries for all sensors — healthy and unhealthy alike. The prose summary includes "N of M sensors healthy"; the `structuredContent` includes a `summary` object with counts. Unhealthy sensor entries include a `suggestion` field. Even when all sensors are unhealthy, the tool response is a success (not an error).
 
+When ALL sensors are rate-limited (`is_rate_limited: true`, none down/auth-invalid), the aggregate `overall_status` is `"rate_limited"` — a distinct value from `"partial"` (some down) and `"healthy"` (all reachable). This distinction is required because rate-limiting needs different analyst remediation than connectivity failure: "wait and retry" vs "check credentials or network" (F-S504-R2-002 adjudication, 2026-06-22).
+
 ## Preconditions
 - A client has multiple sensors configured (e.g., CrowdStrike + Claroty + Armis)
 - A health check is requested for all sensors (`sensor_id: null`)
-- Some sensors are healthy and some are not
+- Some sensors are healthy and some are not, OR all sensors are rate-limited
 
 ## Postconditions
 - The tool returns a successful response (not an error) containing per-sensor health entries
@@ -42,6 +44,11 @@ When a client has multiple sensors and some are unavailable, the `check_sensor_h
 - The prose summary in `content[].text` includes a count: "2 of 3 sensors healthy"
 - The `structuredContent` includes a `summary` object with `healthy_count`, `unhealthy_count`, `total_count`
 - Each unhealthy sensor entry includes a `suggestion` field guiding resolution
+- The `structuredContent.overall_status` field uses the following aggregate classification:
+  - `"healthy"` — all sensors reachable, auth valid, not rate-limited
+  - `"partial"` — at least one sensor is unreachable or auth-invalid (regardless of rate-limit state on others)
+  - `"rate_limited"` — ALL sensors are rate-limited (`is_rate_limited: true`), none are unreachable or auth-invalid; requires "wait and retry" remediation distinct from connectivity failure
+  - `"unhealthy"` — all sensors are unreachable or auth-invalid (no rate-limited sensor present)
 
 ## Invariants
 - DI-004: Audit completeness -- one AuditEntry for the entire health check invocation, not per-sensor
@@ -57,14 +64,16 @@ When a client has multiple sensors and some are unavailable, the `check_sensor_h
 | EC-08-013 | One sensor's health check hangs (timeout) while others complete quickly | The timed-out sensor reports `reachable: false`, `reason: "timeout"` while healthy sensors report normally. Total tool response time bounded by the longest sensor timeout. |
 | EC-08-014 | Client has only one sensor, and it is unhealthy | Returns single-entry health array; `summary.healthy_count: 0, unhealthy_count: 1` |
 | DEC-004 | Client configured with zero sensors | Returns empty health array with message "no sensors configured"; `summary.total_count: 0` |
+| EC-08-015 | ALL sensors are rate-limited (`is_rate_limited: true`), none unreachable or auth-invalid (F-S504-R2-002) | `overall_status: "rate_limited"`; prose summary: "0 of N sensors healthy — all rate-limited"; each sensor entry shows `is_rate_limited: true`; `suggestion` field: "Rate limit in effect — wait before retrying."; NOT `"partial"` (which implies connectivity/auth failure requiring different remediation). |
 
 ## Canonical Test Vectors
 
 | Input | Expected Output | Category |
 |-------|----------------|----------|
-| Client with 3 sensors, 2 healthy 1 unreachable | Success response; prose "2 of 3 sensors healthy"; `summary.healthy_count: 2, unhealthy_count: 1` | happy-path |
-| All sensors unhealthy | Success response (not error); all entries show failure reasons and suggestions | edge-case |
+| Client with 3 sensors, 2 healthy 1 unreachable | Success response; prose "2 of 3 sensors healthy"; `summary.healthy_count: 2, unhealthy_count: 1`; `overall_status: "partial"` | happy-path |
+| All sensors unhealthy (unreachable/auth-invalid) | Success response (not error); all entries show failure reasons and suggestions; `overall_status: "unhealthy"` | edge-case |
 | One sensor times out, others complete | Timed-out sensor `reachable: false, reason: "timeout"`; others normal | edge-case |
+| ALL sensors rate-limited, none unreachable/auth-invalid (EC-08-015, F-S504-R2-002) | Success response; `overall_status: "rate_limited"`; all sensor entries `is_rate_limited: true`; suggestion "Rate limit in effect — wait before retrying."; `summary.healthy_count: 0`; NOT `overall_status: "partial"` | edge-case |
 
 See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
 
@@ -86,6 +95,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-5.04-spec-prep | 2026-06-22 | product-owner | F-S504-R2-002 adjudication: all-rate-limited aggregate maps to `overall_status: "rate_limited"` (not `"partial"` or `"healthy"`); requires "wait and retry" remediation distinct from connectivity/auth failure. Added `overall_status` classification table to Postconditions; added EC-08-015 edge case; added all-rate-limited canonical test vector; updated Precondition to include all-rate-limited scenario; added Description paragraph for the `rate_limited` status. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
