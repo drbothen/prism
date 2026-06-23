@@ -1,18 +1,168 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.911"
+version: "7.921"
 status: current
-timestamp: 2026-06-22T01:00:00Z
+timestamp: 2026-06-22T23:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1282 (2026-06-22): S-ALIAS-CLIENT-SCOPE-001 REGISTERED — F-PRL-FRESH-001/002 FIX ANCHORS RECORDED. 001-B LOCAL cascade pass on frozen 58fe2a55: 2 MED fixed (fabricated S-3.01-ALIAS-SCOPE anchor removed, BC-2.11.009 comment corrected; branch-ordering bug fixed + load-bearing test added). BC-2.11.009 pre-existing per-client-alias-scope deviation registered as follow-up S-ALIAS-CLIENT-SCOPE-001 (P2, NOT demo-blocking). DO-NOT-REFLAG BC-2.11.009 for 001-B cascade. STORY-INDEX v2.454→v2.455. total_stories 207→208. STATE v7.910→v7.911. §RESUME SNAPSHOT D-1282 authored (supersedes D-1281).**
+> **D-1292 (2026-06-22): ZERO-CONTEXT RESUME SNAPSHOT + S-MAINT-RUSTSEC-QUINN-PROTO-001 REGISTRATION. 001-B FULLY CONVERGED (LOCAL 3/3 CLEAN(strict) + PR-LEVEL 3/3 CLEAN(strict)); final HEAD f141801b; PR #198 open READY TO MERGE (cargo-audit non-required failure only). PR #199 rustfmt READY TO MERGE. S-MAINT-RUSTSEC-QUINN-PROTO-001 draft v1.0 registered (RUSTSEC-2026-0185 quinn-proto pin; after-demo priority). total_stories 208→209. STORY-INDEX v2.461→v2.462. STATE v7.920→v7.921. §RESUME SNAPSHOT D-1292 authored (supersedes D-1282).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1282** (authoritative zero-context restart protocol; supersedes D-1281). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1281 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1282 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `fc954300` (docs(CLAUDE.md): bump 79→82 @fc954300; rebased onto ffe9315a 2026-06-21; D-1277-RECONCILE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.911.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1292** (authoritative zero-context restart protocol; supersedes D-1282). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1291 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1292 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `fc954300` (docs(CLAUDE.md): bump 79→82 @fc954300; rebased onto ffe9315a 2026-06-21; D-1277-RECONCILE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.921.
+
+---
+
+## §RESUME SNAPSHOT — D-1292 (2026-06-22 — ZERO-CONTEXT RESUME SNAPSHOT + RUSTSEC MAINT REGISTRATION; develop@fc954300; BC-INDEX v7.02; STORY-INDEX v2.462; ARCH-INDEX v2.141; STATE v7.921; OPEN PRs #198 #199)
+
+> **D-1292 burst (2026-06-22).** Comprehensive zero-context resume snapshot. 001-B FULLY CONVERGED (LOCAL strict-3-CLEAN D-1291 + PR-LEVEL strict-3-CLEAN on final HEAD f141801b: 4 consecutive CLEAN(strict) passes on unchanged HEAD; security CLEAR; pr-reviewer APPROVE; just check exit 0 4730 tests gate=83). PR #198 open, READY TO MERGE (only non-required cargo-audit RUSTSEC-2026-0185 red). PR #199 (maintenance/rustfmt-stable-no-nightly-opts @caea6ff7) READY TO MERGE — removes nightly-only rustfmt.toml options (imports_granularity, group_imports) that caused 740-line warning flood → agent commit stalls. S-MAINT-RUSTSEC-QUINN-PROTO-001 draft v1.0 registered (RUSTSEC-2026-0185 quinn-proto transitive dep; `cargo update -p quinn-proto --precise 0.11.15`; P1; after-demo; total_stories 208→209). Lefthook stall root-causes codified. SESSION-HANDOFF §DO-NOT-REFLAG updated with 001-B PR-LEVEL carry-forward. STORY-INDEX v2.461→v2.462. STATE v7.920→v7.921.
+
+### ZERO-CONTEXT RESTART PROTOCOL D-1292 (run in this order; no prior context needed)
+
+**Step 0.** Read this D-1292 snapshot first. It is the sole authoritative resume point.
+
+**Step 1.** Run `vsdd-factory:factory-worktree-health` — BLOCKING. Do not proceed if this fails.
+
+**Step 2.** Confirm develop HEAD:
+```bash
+git log --oneline -1 origin/develop
+```
+Expected: `fc954300` (docs(CLAUDE.md): bump non-exhaustive count 79→82 — rebased onto ffe9315a; 2026-06-21; D-1277-RECONCILE). develop_head UNCHANGED.
+
+**Step 3.** Confirm open PRs:
+```bash
+gh pr list --state open --base develop
+```
+Expected: PR #198 (S-DEMO-PRISMQL-ONBOARDING-001-B) + PR #199 (maintenance/rustfmt-stable-no-nightly-opts).
+
+**Step 4.** Confirm factory-artifacts HEAD (do NOT hard-code SHA — run the command):
+```bash
+git -C .factory log -1 --format='%h %s'
+```
+
+**Step 5.** Verify 001-B feature branch HEAD:
+```bash
+git ls-remote origin feature/S-DEMO-PRISMQL-ONBOARDING-001-B
+```
+Expected: `f141801b`. If different (push was still in-flight at context-clear), re-push: `git -C .worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B push origin feature/S-DEMO-PRISMQL-ONBOARDING-001-B` (pre-push hook runs `just check` ~16min; NEVER --no-verify).
+
+**Step 6.** Apply carry-forward: DO-NOT-REFLAG entries below. Critical new entries: full 001-B PR-LEVEL DO-NOT-REFLAG list (see below). Prior: BC-2.11.009 per-client-alias-scope deviation DO-NOT-REFLAG. OBS-2 (explain_query parity) DO-NOT-REFLAG. OBS-3 (E-QUERY-002 dual-Display) DO-NOT-REFLAG.
+
+**Step 7.** Execute next actions in order (see NEXT ACTIONS section below).
+
+### PINNED STATE (D-1292)
+
+| Variable | Value | Note |
+|----------|-------|------|
+| develop HEAD | `fc954300` | CLAUDE.md 79→82 rebased onto ffe9315a; 2026-06-21; D-1277-RECONCILE — UNCHANGED |
+| STATE version | 7.921 | D-1292 zero-context resume snapshot + RUSTSEC registration |
+| BC-INDEX version | 7.02 | BC-2.11.016 v1.4/017 v1.3/018 v1.2 story-anchor fix; D-1290 — UNCHANGED |
+| STORY-INDEX version | v2.462 | S-MAINT-RUSTSEC-QUINN-PROTO-001 registered; total_stories 209; D-1292 |
+| ARCH-INDEX version | 2.141 | ADR-042 ACCEPTED; D-1277 — UNCHANGED |
+| error_taxonomy_version | 1.94 | E-QUERY-002 dual-Display + E-SPEC-026 probe_table; D-1285 — UNCHANGED |
+| CLAUDE.md non-exhaustive | 82 | On develop; UNCHANGED (83 in PR #198; reconcile at merge) |
+| ci.yml EXPECTED | 82 on develop; 83 IN PR | 001-B ships 83; ci.yml+CLAUDE.md 82→83 reconcile at 001-B merge |
+| active_contracts | 238 | UNCHANGED |
+| draft_contracts | 5 | BC-2.06.011+BC-2.21.001+BC-2.11.016+BC-2.11.017+BC-2.11.018 — UNCHANGED |
+| total_stories | 209 | S-MAINT-RUSTSEC-QUINN-PROTO-001 stub added (+1 from 208) |
+| open PRs | #198, #199 | #198 = 001-B READY TO MERGE; #199 = rustfmt READY TO MERGE |
+| 001-B status | draft v1.9 FULLY CONVERGED | Feature HEAD f141801b; LOCAL 3/3 + PR-LEVEL 3/3 CLEAN(strict); READY TO MERGE |
+| 001-B feature HEAD | `f141801b` | On feature/S-DEMO-PRISMQL-ONBOARDING-001-B; worktree .worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B |
+| S-EXPLAIN-PARITY-001 | draft v1.0 | P2, NOT demo-blocking; depends_on 001-B merge |
+| S-ALIAS-CLIENT-SCOPE-001 | draft v1.0 | P2, NOT demo-blocking; depends_on 001-B merge; DO-NOT-REFLAG for 001-B cascade |
+| S-MAINT-RUSTSEC-QUINN-PROTO-001 | draft v1.0 | P1, maintenance; after-demo priority; RUSTSEC-2026-0185 quinn-proto pin |
+| S-5.04 worktree | feature/S-5.04 HEAD 4282c997 | PARKED spec-ready (probe_table FOLDED IN D-1262); serial after 001-B |
+| PR #199 | maintenance/rustfmt-stable-no-nightly-opts @caea6ff7 | READY TO MERGE — CI green except same non-required cargo-audit |
+| S-3.09 worktree | FROZEN | Leave alone |
+| W3-FIX-S307-001 worktree | BLOCKED/superseded | Leave alone |
+
+### WHAT'S DONE (D-1292)
+
+- 001-B LOCAL strict-3-CLEAN CONVERGED (D-1291): 3 consecutive CLEAN(strict) passes on frozen d9e7e7c9/specs @ D-1290.
+- 001-B PR-LEVEL strict-3-CLEAN CONVERGED on final HEAD f141801b: 4 passes on unchanged HEAD (security CLEAR SEC-001/002/007 closed; pr-reviewer APPROVE; just check exit 0 4730 tests gate=83).
+- Demo evidence: docs/demo-evidence/S-DEMO-PRISMQL-ONBOARDING-001-B/ (6 AC JSON from real engine + evidence-report.md + red-gate-test-run.txt = 49 tests all pass).
+- ci.yml EXPECTED=83 + CLAUDE.md count=83 ARE IN PR #198 (merge to develop reconciles develop's count 82→83).
+- PR #199 rustfmt-stable-no-nightly-opts authored (caea6ff7); removes imports_granularity + group_imports nightly-only options that flooded 740 warnings per commit → pipe-buffer back-pressure hung agent commits (LEFTHOOK STALL Cause B).
+- S-MAINT-RUSTSEC-QUINN-PROTO-001 draft v1.0 registered. S-EXPLAIN-PARITY-001 + S-ALIAS-CLIENT-SCOPE-001 + DRIFT-BC-INDEX-COUNT-CORPUS-001 confirmed registered.
+
+### WHAT'S NEXT — Demo Roadmap (D-1292)
+
+| Priority | Story/Task | Status | Notes |
+|----------|-----------|--------|-------|
+| **FIRST — housekeeping** | **PR #199 rustfmt merge** | READY TO MERGE | Merge first — speeds up all future commits (removes 740-warning flood) |
+| **P0 DEMO-BLOCKING** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | FULLY CONVERGED — PR #198 READY TO MERGE | (1) Confirm f141801b pushed to origin; (2) confirm CI green-except-audit; (3) squash-merge; (4) post-merge burst |
+| **THEN — P0 DEMO-BLOCKING** | **S-5.04** | draft v2.0, PARKED @4282c997 | Serial after 001-B merges. Implementer guidance banked (D-1285). |
+| **THEN — BLOCKED** | **T13 capstone** | not-authored | Multi-client SOC-analyst narrative. Hard-gated on S-5.04 + 001-B MERGED. |
+| **THEN — BLOCKED** | **T14 recording** | not-started | After T13. demo-recorder. DEMO TARGET: 2026-06-23. |
+| **P1 maintenance (after demo)** | **S-MAINT-RUSTSEC-QUINN-PROTO-001** | draft v1.0 | RUSTSEC-2026-0185 quinn-proto pin; `cargo update -p quinn-proto --precise 0.11.15` |
+| **P2 follow-up** | **S-EXPLAIN-PARITY-001** | draft v1.0 | explain_query parity. NOT demo-blocking. |
+| **P2 follow-up** | **S-ALIAS-CLIENT-SCOPE-001** | draft v1.0 | BC-2.11.009 per-client-alias-scope. NOT demo-blocking. DO-NOT-REFLAG for 001-B. |
+
+### NEXT ACTIONS for 001-B (run in this exact order)
+
+1. Merge PR #199 (rustfmt; housekeeping first — speeds up future pre-push hooks).
+2. `git ls-remote origin feature/S-DEMO-PRISMQL-ONBOARDING-001-B` → verify `f141801b`. If different: `git -C .worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B push origin feature/S-DEMO-PRISMQL-ONBOARDING-001-B` (pre-push hook runs `just check` ~16min; NEVER --no-verify; re-push log was at /tmp/001b-push-f141801b.log in-flight at context-clear).
+3. `gh pr view 198 --json statusCheckRollup` → confirm CI green except cargo-audit (RUSTSEC-2026-0185; non-required; non-blocking).
+4. Squash-merge PR #198: `gh pr merge 198 --squash --subject "feat(S-DEMO-PRISMQL-ONBOARDING-001-B): PrismQL Query Engine L4 — E-QUERY-038 column gate + pedagogical enrichments + normalized_pql"`.
+5. POST-MERGE burst (state-manager):
+   - `git fetch origin develop` FIRST (avoid D-1277 misparent pattern — reset --hard to origin/develop before any factory edits)
+   - POL-14: promote BC-2.11.016/BC-2.11.017/BC-2.11.018 draft→active (STATE.md active_contracts 238→241, draft_contracts 5→2)
+   - Reconcile CLAUDE.md non-exhaustive count on develop: verify 82→83 landed (ci.yml EXPECTED=83 + CLAUDE.md count=83 are IN the PR; confirm post-merge)
+   - Bump develop_head fc954300→merge SHA
+   - Story v1.9→merged annotation in STORY-INDEX
+   - Worktree cleanup: `vsdd-factory:worktree-manage cleanup S-DEMO-PRISMQL-ONBOARDING-001-B`
+   - Single-commit factory burst to factory-artifacts (TD-VSDD-053)
+6. Then proceed to S-5.04 TDD delivery (worktree 4282c997; implementer guidance from D-1285 banked below).
+
+### 001-B KEY FACTS (for fresh-context agents)
+
+- **Feature HEAD:** `f141801b` (branch feature/S-DEMO-PRISMQL-ONBOARDING-001-B)
+- **Worktree:** `.worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B`
+- **Commit chain on top of develop:** 1c23bb03 stubs → 68a4ee92 tests → [TDD green commits] → b92b2d8c SEC → 712194ff F-198 E-QUERY-001 code fix → 090fda05 evidence recapture → f141801b (red-gate 49-test recapture + SEC-001 walker comment)
+- **BCs:** BC-2.11.016 v1.4, BC-2.11.017 v1.3, BC-2.11.018 v1.2 (all status:draft; AUTO-PROMOTE draft→active at merge per POL-14)
+- **Non-exhaustive gate:** 82→83 (ColumnNotFoundDetails); ci.yml EXPECTED=83 + CLAUDE.md count=83 ARE IN the PR
+- **Demo evidence:** docs/demo-evidence/S-DEMO-PRISMQL-ONBOARDING-001-B/ (6 AC JSON + evidence-report.md + red-gate-test-run.txt = 49 tests pass)
+- **CI on PR #198:** ALL GREEN EXCEPT cargo audit (RUSTSEC-2026-0185 quinn-proto — non-required; PR mergeStateStatus UNSTABLE + MERGEABLE; CAN merge)
+- **PR-LEVEL cascade summary:** 4 CLEAN(strict) passes on frozen f141801b (pass-1: spec/code clean; pass-2: deep security CLEAN SEC-001/002/007 closed; pass-3: comprehensive re-gate post-evidence+SEC; pass-4: fresh re-gate on final HEAD); security-reviewer CLEAR; pr-reviewer APPROVE
+
+### S-5.04 IMPLEMENTER GUIDANCE (banked D-1285)
+
+- **Spec:** `.factory/stories/S-5.04-health-probe-table-rate-limited.md` (v2.0; probe_table + rate_limited FOLDED IN; D-1285)
+- **BCs:** BC-2.08.001 v1.4, BC-2.16.009 v1.11, BC-2.08.007 v1.4 (rate_limited), error-taxonomy E-SPEC-026 (v1.94)
+- **TD-VSDD-060 sibling-sweep (probe_table: None):** Add `probe_table: None` to 3 exhaustive SensorSpec literals: `prism-spec-engine/src/pipeline.rs` make_single_step_spec + make_execute_spec; `prism-spec-engine/src/proofs/spec_validator.rs` minimal_valid_spec
+- **Rule 8 (E-SPEC-026):** Add as LAST gate before `Ok(spec)` in `SpecLoader::parse`
+- **health/ module:** GREENFIELD on develop (create with probe_table routing)
+- **OverallStatus enum:** `#[non_exhaustive]` → may bump non-exhaustive gate +1 (83→84 at S-5.04 merge)
+- **Serial after 001-B:** no prism-mcp overlap concern after 001-B merge
+
+### LEFTHOOK STALL ROOT-CAUSES (codify in lessons)
+
+- **Cause A — intra-worktree cargo build-lock contention:** NEVER run a background `just check` (or any cargo) in a worktree while a committing/cargo agent runs in the SAME worktree (single `target/.cargo-lock`; cargo blocks with no timeout). Serialize cargo per worktree. Cross-worktree concurrent cargo is fine (separate target dirs).
+- **Cause B — rustfmt.toml nightly-only options → 740-line warning flood:** `imports_granularity` + `group_imports` in rustfmt.toml are nightly-only options; every `cargo fmt --check` emits 740 warnings → pipe-buffer back-pressure hangs agent commits that capture hook output. **FIX: PR #199 removes these options.** Mitigation until merged: agents redirect commit/hook output to log files (`git commit -F msg > /tmp/commit.log 2>&1`).
+- **lefthook `parallel: true`:** KEPT (human directive — not the cause of stalls).
+
+### Convergence Rules (carry forward)
+
+- **BC-5.39.001 strict-vs-PR-merge:** CLEAN(strict) = zero findings ANY severity. CLEAN(PR-merge) = zero CRIT+HIGH+MED only. Streak advances ONLY on CLEAN(strict).
+- **Frozen-HEAD streak rule (DRIFT-ORCH-PRLEVEL-PUSH-001):** any push to the feature branch resets streak to 0/3. Count only consecutive CLEAN(strict) passes on an UNCHANGED HEAD.
+- **Orchestrator dispatch:** uses STRICT criterion. If CLEAN(strict)=no, dispatch a fix-burst regardless of CLEAN(PR-merge) status.
+
+### DO-NOT-REFLAG (carry forward)
+
+- **F-R8PB-MED-002** — unsubscribe CORRECT-BY-CONSTRUCTION. Per-analyst stdio MCP = one connection per process lifetime. BC-2.10.013 §76. Do NOT re-flag.
+- **demo-evidence stale-HEAD-pin (docs-only class)** — non-blocking if `git diff <evidence-HEAD>..<pr-HEAD>` is docs-only. Do NOT re-flag without running the diff.
+- **ColumnDescriptor.nullable hardcoded** — correct-by-construction given upstream data model.
+- **SEC-001 goal printable-ASCII trade-off + SEC-008 notify error-detail (internal-log-only)** — both adjudicated.
+- **OBS-S503-1** — reload_config.rs DOT vs underscore; adjudicated non-defect.
+- **OBS-3 DEC-004 zero-sensor** — S-5.03 scope; do not re-raise.
+- **PIVOT-003-PRLEVEL-OBS-1/2** — adjudicated; non-blocking.
+- **001-B OBS-2** — `explain_query` parity gap: DEFERRED to S-EXPLAIN-PARITY-001 (P2). DO NOT REFLAG in 001-B LOCAL or PR-LEVEL cascade.
+- **001-B OBS-3** — E-QUERY-002 dual-Display forms: DOCUMENTED in error-taxonomy v1.94. NOT a bug. DO NOT REFLAG.
+- **BC-2.11.009 per-client-alias-scope deviation** — TRACKED in S-ALIAS-CLIENT-SCOPE-001 (P2, D-1282). Pre-existing, predates 001-B, out-of-scope for 001-B (001-B BCs are BC-2.11.016/017/018). DO NOT REFLAG in 001-B LOCAL or PR-LEVEL cascade.
+- **001-B PR-LEVEL carry-forward (DO-NOT-REFLAG for any future 001-B re-gate):** explain_query parity→S-EXPLAIN-PARITY-001; E-QUERY-002 dual-Display→error-taxonomy v1.94; BC-2.11.009 per-client alias-scope→S-ALIAS-CLIENT-SCOPE-001; multi-client client_id=first() (no DI-008 leak); both-quotes literal unreachable (SEC-001-guarded incl FuncCall); func-call-arg-column-typos acceptable; 3-segment JSON-path unreachable; pipe/filter-mode columns not gated (SQL-mode scope); BETWEEN/IN not plan-type-gated; E-QUERY-001 message-format taxonomy drift pre-existing (structured CODE correctly "E-QUERY-001" via F-198 ec_code_override); OBS-198-FRESH-1 AC-004 case_b sensor-fallback accepted; F-198-FRESH-MED-DEMO-001 (demo-dir absent) was FALSE POSITIVE (evidence present at docs/demo-evidence/S-DEMO-PRISMQL-ONBOARDING-001-B/).
 
 ---
 

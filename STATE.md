@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.920"
+version: "7.921"
 producer: state-manager
-timestamp: 2026-06-22T17:00:00Z
+timestamp: 2026-06-22T23:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -19,10 +19,10 @@ safe_to_compact: true
 develop_head: "fc954300"
 bc_index_version: "7.02"
 vp_index_version: "1.79"
-story_index_version: "v2.461"
+story_index_version: "v2.462"
 arch_index_version: "2.141"
 error_taxonomy_version: "1.94"
-total_stories: 208
+total_stories: 209
 active_contracts: 238
 draft_contracts: 5
 retired_contracts: 6
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1291 (2026-06-22). S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL strict-3-CLEAN CONVERGED (BC-5.39.001). Three consecutive CLEAN(strict) passes on frozen code HEAD d9e7e7c9 + specs @ D-1290 (BC-2.11.016 v1.4 / BC-2.11.017 v1.3 / BC-2.11.018 v1.2, story v1.9): pass-1 spec-compliance CLEAN, pass-2 deep-security CLEAN, pass-3 comprehensive CLEAN — zero findings any severity; frozen-HEAD streak satisfied. just check exit 0 (4708+ tests), non-exhaustive gate=83. DEFERRED FINDING registered: DRIFT-BC-INDEX-COUNT-CORPUS-001 (BC-INDEX frontmatter active/draft counts diverge from STATE.md + STORY-INDEX D-1290 prose). develop_head UNCHANGED fc954300. STATE v7.919→v7.920. NEXT: demo evidence (demo-recorder per-AC) → push → PR (pr-manager) → PR-LEVEL strict-3-CLEAN cascade → CI → squash-merge → post-merge burst."
+current_step: "D-1292 (2026-06-22). Zero-context resume snapshot + S-MAINT-RUSTSEC-QUINN-PROTO-001 registration. 001-B FULLY CONVERGED (LOCAL 3/3 + PR-LEVEL 3/3 strict-3-CLEAN; final HEAD f141801b; PR #198 open; CI ALL GREEN except non-required cargo-audit RUSTSEC-2026-0185; pr-reviewer APPROVE; just check exit 0 4730 tests gate 83; security CLEAR). S-MAINT-RUSTSEC-QUINN-PROTO-001 draft v1.0 registered (cargo update quinn-proto --precise 0.11.15; RUSTSEC-2026-0185; after-demo priority). PR #199 rustfmt-stable-no-nightly-opts READY TO MERGE. SESSION-HANDOFF §RESUME SNAPSHOT D-1292 authored (supersedes D-1282). STORY-INDEX v2.461→v2.462. total_stories 208→209. develop_head UNCHANGED fc954300. STATE v7.920→v7.921."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -114,7 +114,8 @@ pre_compact_snapshot_at: "2026-06-15"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log. D-1265 through D-1280 archived to burst-log (D-1285 compaction; keep last 5: D-1281..D-1285). D-1281 archived to burst-log (D-1286 compaction; keep last 5: D-1282..D-1286). D-1282 archived to burst-log (D-1287 compaction; keep last 5: D-1283..D-1287). D-1283 archived to burst-log (D-1288 compaction; keep last 5: D-1284..D-1288). D-1284 archived to burst-log (D-1289 compaction; keep last 5: D-1285..D-1289). D-1285 archived to burst-log (D-1290 compaction; keep last 5: D-1286..D-1290). D-1286 archived to burst-log (D-1291 compaction; keep last 5: D-1287..D-1291)._
+_D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log. D-1265 through D-1280 archived to burst-log (D-1285 compaction; keep last 5: D-1281..D-1285). D-1281 archived to burst-log (D-1286 compaction; keep last 5: D-1282..D-1286). D-1282 archived to burst-log (D-1287 compaction; keep last 5: D-1283..D-1287). D-1283 archived to burst-log (D-1288 compaction; keep last 5: D-1284..D-1288). D-1284 archived to burst-log (D-1289 compaction; keep last 5: D-1285..D-1289). D-1285 archived to burst-log (D-1290 compaction; keep last 5: D-1286..D-1290). D-1286 archived to burst-log (D-1291 compaction; keep last 5: D-1287..D-1291). D-1287 archived to burst-log (D-1292 compaction; keep last 5: D-1288..D-1292)._
+| D-1292 | state-manager | 2026-06-22 | **ZERO-CONTEXT RESUME SNAPSHOT D-1292 + S-MAINT-RUSTSEC-QUINN-PROTO-001 REGISTRATION (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED fc954300). Comprehensive zero-context resume snapshot authored in SESSION-HANDOFF.md §RESUME SNAPSHOT D-1292 (supersedes D-1282). Captures: 001-B FULLY CONVERGED (LOCAL 3/3 CLEAN(strict) + PR-LEVEL 3/3 CLEAN(strict); final HEAD f141801b; PR #198 open; 4730 tests gate=83; ci.yml EXPECTED=83 IN PR; demo evidence 6 ACs present; security CLEAR; pr-reviewer APPROVE; cargo-audit CI FAILURE = non-required RUSTSEC-2026-0185; non-exhaustive gate 82→83; BCs BC-2.11.016 v1.4/017 v1.3/018 v1.2 status:draft auto-promote draft→active at merge per POL-14); S-5.04 PARKED spec-ready at worktree 4282c997; PR #199 rustfmt-stable-no-nightly-opts READY TO MERGE; lefthook stall root-causes (cargo-lock contention + rustfmt.toml nightly-options flood) codified for lessons; S-MAINT-RUSTSEC-QUINN-PROTO-001 draft v1.0 registered (RUSTSEC-2026-0185 quinn-proto pin; P1/maintenance; after-demo priority; total_stories 208→209); confirmed S-EXPLAIN-PARITY-001 + S-ALIAS-CLIENT-SCOPE-001 + DRIFT-BC-INDEX-COUNT-CORPUS-001 already registered/present. STORY-INDEX v2.461→v2.462. STATE v7.920→v7.921.** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1291 | state-manager | 2026-06-22 | **S-DEMO-PRISMQL-ONBOARDING-001-B LOCAL STRICT-3-CLEAN CONVERGED (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED fc954300; code HEAD UNCHANGED d9e7e7c9). BC-5.39.001 satisfied: 3 consecutive CLEAN(strict) passes on frozen code HEAD d9e7e7c9 + specs @ D-1290 (BC-2.11.016 v1.4 / BC-2.11.017 v1.3 / BC-2.11.018 v1.2, story v1.9): pass-1 spec-compliance CLEAN, pass-2 deep-security CLEAN, pass-3 comprehensive CLEAN — zero findings any severity, no pushes between passes (frozen-HEAD streak satisfied). just check exit 0 (4708+ tests), non-exhaustive gate=83. LOCAL cascade history (this session): ~15+ passes; substantive defects found+fixed incl dead-code E-QUERY-038 gate, missing WHERE/GROUP BY/ORDER BY column gating, paper-fixed valid_operators_for_type, 2 distinct UTF-8 multibyte panic sites, normalized_pql quote round-trip + alias-expansion, did_you_mean tie determinism, E-QUERY-037 client_id vs sensor (broken self-correction pointer), qualified-column extraction; plus spec-metadata: title-cell POL-7, Red-Gate names, changelog POL-32, introduced POL-20, Story-Anchor POL-4. DEFERRED FINDING registered: DRIFT-BC-INDEX-COUNT-CORPUS-001 (BC-INDEX frontmatter active_contracts / draft_contracts diverge from STATE.md frontmatter + STORY-INDEX D-1290 narrative + BC-INDEX prose note — three different draft counts cited; out of 001-B perimeter; owner: state-manager; target: next wave-gate / maintenance sweep). develop_head UNCHANGED fc954300. STATE v7.919→v7.920. NEXT per per-story-delivery: demo evidence (demo-recorder per-AC) → push → PR (pr-manager) → PR-LEVEL strict-3-CLEAN cascade → CI → squash-merge → post-merge burst (POL-14 BC-2.11.016/017/018 draft→active; CLAUDE.md count 82→83 reconcile on develop; develop_head bump).** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1290 | state-manager | 2026-06-22 | **001-B LOCAL CASCADE ROUND — POL-4 story-anchor fix (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED fc954300; code HEAD UNCHANGED d9e7e7c9). 001-B LOCAL cascade spec-compliance pass on code HEAD d9e7e7c9: found F-001B-SCFRESH-MED-001 (POL-4 BC ## Story Anchor mis-anchored to S-5.04/superseded-001). FIXED: BC-2.11.016/017/018 Story Anchor → S-DEMO-PRISMQL-ONBOARDING-001-B (+POL-5 justification); BC-INDEX anchor annotations 001→001-B; per-convention version bumps: BC-2.11.016 v1.3→v1.4 / BC-2.11.017 v1.2→v1.3 / BC-2.11.018 v1.1→v1.2; story 001-B pins propagated → v1.9. PO performed EXHAUSTIVE per-surface BC metadata audit (frontmatter/H1/anchors/traceability/changelog/edge-cases/test-vectors): all other surfaces clean — should be the last BC-metadata round. CODE HEAD d9e7e7c9 UNCHANGED + CLEAN (deep+comprehensive + just check exit 0). develop_head UNCHANGED fc954300. BC-INDEX v7.01→v7.02. STORY-INDEX v2.460→v2.461. STATE v7.918→v7.919. NEXT: re-run strict-3-CLEAN spec-compliance pass; if clean, complete 3/3 with deep+comprehensive. User directed: keep grinding strict-3-CLEAN.** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1289 | state-manager | 2026-06-22 | **001-B LOCAL CASCADE ROUND — POL-20 opaque-introduced-field fix (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED fc954300; code HEAD UNCHANGED d9e7e7c9). 001-B LOCAL cascade on code HEAD d9e7e7c9 (3 diverse passes; deep+comprehensive CLEAN, spec-compliance found F-001B-FRESH2-MED-001 POL-20 opaque introduced-field on BC-2.11.016/017/018). FIXED: introduced ADR-041-teaching-burst→2026-06-19 on those 3 BCs + sibling BC-2.10.014 (project-wide opaque-introduced count 4→0); per prism convention (BC-2.10.012/013 precedent D-1277) format-fix bumps versions: BC-2.11.016 v1.3, BC-2.11.017 v1.2, BC-2.11.018 v1.1, BC-2.10.014 v1.1; story pins propagated atomically (001-B v1.8, 001-A v1.11; superseded 001 frozen). PO comprehensive POL audit: all other BC surfaces clean. CODE confirmed CLEAN (deep+comprehensive passes + just check exit 0); only spec-metadata remained. Code HEAD d9e7e7c9 UNCHANGED. develop_head UNCHANGED fc954300. BC-INDEX v7.00→v7.01. STORY-INDEX v2.459→v2.460. STATE v7.917→v7.918. NEXT: re-freeze d9e7e7c9 + corrected specs, restart strict-3-CLEAN (streak 0/3).** | wave-5-e-demo-fidelity | 2026-06-22 |
@@ -368,30 +369,29 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1291 — 2026-06-22; STATE v7.920)
+## Session Resume Checkpoint (D-1292 — 2026-06-22; STATE v7.921)
 
-**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1282** (authoritative zero-context restart source; supersedes D-1281). D-1291 is a factory-only LOCAL CONVERGENCE burst — SESSION-HANDOFF.md not separately updated (develop_head UNCHANGED fc954300; feature HEAD UNCHANGED d9e7e7c9 on feature/S-DEMO-PRISMQL-ONBOARDING-001-B; convergence record + deferred finding registration only).
+**POINTER:** Full resume snapshot is in **SESSION-HANDOFF.md §RESUME SNAPSHOT D-1292** (authoritative zero-context restart source; supersedes D-1282). D-1292 updated SESSION-HANDOFF with comprehensive resume snapshot (001-B PR #198 FULLY CONVERGED; PR #199 rustfmt; RUSTSEC story registered; demo roadmap; DO-NOT-REFLAG; lefthook stall lessons).
 
-**STATE v7.920. CURRENT POSITION: D-1291 001-B LOCAL strict-3-CLEAN CONVERGED (BC-5.39.001; pass-1 spec-compliance CLEAN + pass-2 deep-security CLEAN + pass-3 comprehensive CLEAN on frozen d9e7e7c9 + specs @ D-1290). Feature HEAD d9e7e7c9 on feature/S-DEMO-PRISMQL-ONBOARDING-001-B. BC-2.11.016 v1.4 / BC-2.11.017 v1.3 / BC-2.11.018 v1.2. Story v1.9. ARCH-INDEX v2.141. develop_head fc954300. NO OPEN PRs. total_stories 208. ci.yml EXPECTED=82 (on develop; 82→83 is merge-time obligation for 001-B — ColumnNotFoundDetails; S-5.04 OverallStatus adds +1 more at its own merge = 84 at S-5.04 merge). bc_index_version 7.02. story_index_version v2.461. arch_index_version 2.141. error_taxonomy_version 1.94. vp_index_version 1.79. prd_version 1.12. policies_version 1.33. CLAUDE.md non-exhaustive=82 on develop; 82→83 obligation at 001-B merge; 83→84 obligation at S-5.04 merge (OverallStatus). draft_contracts 5. active_contracts 238.**
+**STATE v7.921. CURRENT POSITION: D-1292 001-B FULLY CONVERGED + PR #198 OPEN (READY TO MERGE). Feature HEAD f141801b on feature/S-DEMO-PRISMQL-ONBOARDING-001-B (worktree .worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B). BC-2.11.016 v1.4 / BC-2.11.017 v1.3 / BC-2.11.018 v1.2 (status:draft; auto-promote at merge). Story v1.9. ARCH-INDEX v2.141. develop_head fc954300. OPEN PRs: #198 (001-B; READY TO MERGE — cargo-audit non-required failure only) + #199 (rustfmt; READY TO MERGE). total_stories 209. ci.yml EXPECTED=83 (IN PR; on develop still 82→83 is merge obligation). bc_index_version 7.02. story_index_version v2.462. arch_index_version 2.141. error_taxonomy_version 1.94. CLAUDE.md non-exhaustive=82 on develop; 83 in PR #198; 82→83 reconcile on develop at merge.**
 
-**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B (v1.9 story; feature HEAD d9e7e7c9; worktree feature/S-DEMO-PRISMQL-ONBOARDING-001-B; LOCAL strict-3-CLEAN CONVERGED D-1291; NEXT: demo evidence → push → PR)** + **S-5.04 (probe_table FOLDED IN — D-1262; serial after 001-B)**. T13 gated on S-5.04 + 001-B MERGED (2 remaining).
+**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B (v1.9 story; feature HEAD f141801b; PR #198 OPEN — FULLY CONVERGED; NEXT: confirm f141801b pushed to origin; squash-merge)** + **S-5.04 (PARKED spec-ready @4282c997; serial after 001-B)**. T13 gated on S-5.04 + 001-B MERGED (2 remaining). Demo TARGET: 2026-06-23.
 
-**MERGE-TIME OBLIGATION (001-B):** EXPECTED 82→83 (ColumnNotFoundDetails added; struct_violations.rs must include violation function; CLAUDE.md 82→83 count + attribution sentence).
+**NEXT PICKABLE TASKS (in order):**
+1. Merge PR #199 (rustfmt-stable-no-nightly-opts — speeds up future commits)
+2. Confirm f141801b pushed to origin feature/S-DEMO-PRISMQL-ONBOARDING-001-B; re-push if needed (pre-push just check ~16min; NEVER --no-verify)
+3. Confirm CI green-except-audit on PR #198; then squash-merge (message: "feat(S-DEMO-PRISMQL-ONBOARDING-001-B): PrismQL Query Engine L4 — E-QUERY-038 column gate + pedagogical enrichments + normalized_pql")
+4. Post-merge burst: POL-14 promote BC-2.11.016/017/018 draft→active; reconcile CLAUDE.md 82→83 on develop; bump develop_head; story v1.9→merged; worktree cleanup
+5. S-5.04 TDD delivery (serial after 001-B merges)
+6. T13 capstone + T14 recording
 
-**NEXT PICKABLE TASKS:**
-- Demo evidence (demo-recorder per-AC for 001-B — AC-001 through AC-006)
-- Push feature/S-DEMO-PRISMQL-ONBOARDING-001-B + PR (pr-manager 9-step PR cycle)
-- PR-LEVEL strict-3-CLEAN cascade on frozen PR HEAD
-- S-5.04 TDD (serial after 001-B merges)
-- T13 capstone (serial after S-5.04 + 001-B MERGED)
-
-**DO-NOT-REFLAG carry-forward:** F-R8PB-MED-002 (unsubscribe correct-by-construction — per-analyst stdio MCP single-connection invariant; BC-2.10.013 §76; D-1274 architect adjudication). **BC-2.11.009 per-client-alias-scope deviation** — tracked in S-ALIAS-CLIENT-SCOPE-001 (P2, D-1282); DO-NOT-REFLAG for 001-B LOCAL or PR-LEVEL cascade (pre-existing, out-of-scope). All prior DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG remain in force.
+**DO-NOT-REFLAG carry-forward:** F-R8PB-MED-002 (unsubscribe correct-by-construction). **BC-2.11.009 per-client-alias-scope deviation** → S-ALIAS-CLIENT-SCOPE-001 (DO-NOT-REFLAG for 001-B). **001-B PR-LEVEL carry-forward (DO-NOT-REFLAG):** explain_query parity→S-EXPLAIN-PARITY-001; E-QUERY-002 dual-Display→error-taxonomy v1.94; BC-2.11.009 per-client alias-scope→S-ALIAS-CLIENT-SCOPE-001; multi-client client_id=first(); both-quotes literal unreachable; func-call-arg-column-typos acceptable; 3-segment JSON-path unreachable; BETWEEN/IN not plan-type-gated; E-QUERY-001 message-format taxonomy drift pre-existing (structured CODE correctly "E-QUERY-001" via F-198 ec_code_override); OBS-198-FRESH-1 AC-004 case_b sensor-fallback accepted; F-198-FRESH-MED-DEMO-001 (demo-dir absent) FALSE POSITIVE (evidence present).
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1282 (authoritative; D-1283/D-1284/D-1285/D-1286/D-1287/D-1288/D-1289/D-1290/D-1291 are factory-only — SESSION-HANDOFF not separately updated).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1292 (authoritative; supersedes D-1282).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `fc954300` (docs(CLAUDE.md) 79→82; rebased onto ffe9315a D-1277-RECONCILE).
-3. `gh pr list --state open --base develop` → expect NO open PRs.
-4. Apply lessons from `cycles/wave-5-e-demo-fidelity/lessons.md` (including D-1278 post-merge misparent + CI dual-trigger lessons).
-5. Apply DO-NOT-REFLAG entries from SESSION-HANDOFF §DO-NOT-REFLAG (including D-1282 BC-2.11.009 entry).
-6. Drive next roadmap: confirm `just check` on d9e7e7c9 → 001-B LOCAL strict-3-CLEAN restart 0/3 on frozen d9e7e7c9 → S-5.04 TDD → T13 capstone → T14 recording. Autonomy D-989+D-1090 active.
+2. `git log --oneline -1 origin/develop` → expect `fc954300`.
+3. `gh pr list --state open --base develop` → expect #198 (001-B) + #199 (rustfmt).
+4. `git ls-remote origin feature/S-DEMO-PRISMQL-ONBOARDING-001-B` → expect f141801b; re-push if different.
+5. Apply lessons + DO-NOT-REFLAG from SESSION-HANDOFF §RESUME SNAPSHOT D-1292.
+6. Execute next pickable tasks above. Autonomy D-989+D-1090 active.
