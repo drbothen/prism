@@ -94,7 +94,7 @@ Expected: `f141801b`. If different (push was still in-flight at context-clear), 
 |----------|-----------|--------|-------|
 | **FIRST — housekeeping** | **PR #199 rustfmt merge** | READY TO MERGE | Merge first — speeds up all future commits (removes 740-warning flood) |
 | **P0 DEMO-BLOCKING** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | FULLY CONVERGED — PR #198 READY TO MERGE | (1) Confirm f141801b pushed to origin; (2) confirm CI green-except-audit; (3) squash-merge; (4) post-merge burst |
-| **THEN — P0 DEMO-BLOCKING** | **S-5.04** | TDD-ready v2.2, code HEAD b7681306, LOCAL streak 0/3 | 001-B merged. Fix-burst complete (96b9e3f6/155c674e/8fb9abed/38b2726b/b7681306). LOCAL re-pass on frozen b7681306 next. |
+| **THEN — P0 DEMO-BLOCKING** | **S-5.04** | TDD-ready v2.3, code HEAD ea14a39c, LOCAL adversary P5 F-S504-P5-001+P5-002 CLOSED; just check exit 0; non-exhaustive gate 83→84 on branch | 001-B merged. Fix-burst P5 complete (ea14a39c: OverallStatus::RateLimited + aggregate + HealthSummary struct + overall_status/summary_counts/per-sensor suggestion + load-bearing tests). NEXT: LOCAL adversary re-pass on frozen ea14a39c (streak reset per fix-burst push). |
 | **THEN — BLOCKED** | **T13 capstone** | not-authored | Multi-client SOC-analyst narrative. Hard-gated on S-5.04 + 001-B MERGED. |
 | **THEN — BLOCKED** | **T14 recording** | not-started | After T13. demo-recorder. DEMO TARGET: 2026-06-23. |
 | **P1 maintenance (after demo)** | **S-MAINT-RUSTSEC-QUINN-PROTO-001** | draft v1.0 | RUSTSEC-2026-0185 quinn-proto pin; `cargo update -p quinn-proto --precise 0.11.15` |
@@ -130,7 +130,7 @@ Expected: `f141801b`. If different (push was still in-flight at context-clear), 
 
 ### S-5.04 IMPLEMENTER GUIDANCE (banked D-1285)
 
-- **Spec:** `.factory/stories/S-5.04-sensor-health.md` (v2.2; probe_table + rate_limited FOLDED IN; D-1285/D-1294/D-1295)
+- **Spec:** `.factory/stories/S-5.04-sensor-health.md` (v2.3; probe_table + rate_limited + AC-11/AC-12 FOLDED IN; D-1285/D-1294/D-1295/D-1297)
 - **BCs:** BC-2.08.001 v1.5, BC-2.16.009 v1.11, BC-2.08.007 v1.4 (rate_limited), error-taxonomy E-SPEC-026 (v1.94)
 - **TD-VSDD-060 sibling-sweep (probe_table: None):** Add `probe_table: None` to 3 exhaustive SensorSpec literals: `prism-spec-engine/src/pipeline.rs` make_single_step_spec + make_execute_spec; `prism-spec-engine/src/proofs/spec_validator.rs` minimal_valid_spec
 - **Rule 8 (E-SPEC-026):** Add as LAST gate before `Ok(spec)` in `SpecLoader::parse`
