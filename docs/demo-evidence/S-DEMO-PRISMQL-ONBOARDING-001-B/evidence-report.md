@@ -3,7 +3,7 @@ story_id: S-DEMO-PRISMQL-ONBOARDING-001-B
 title: "PrismQL LLM Auto-Onboarding — Query Engine L4 (E-QUERY-038 Gate + Pedagogical Enrichments + normalized_pql)"
 captured_at: "2026-06-22"
 revised_at: "2026-06-22"
-revision_reason: "OBS-198-1: AC-001 case_a re-captured with clients=[acme] org-scope; OBS-198-2: AC-005 case_a label corrected to match zero-row capture reality; F-198-FRESH-MED-001: AC-003 and AC-006 parse-error cases re-captured after ec_code_override fix — code now E-QUERY-001 (was E-MCP-002)"
+revision_reason: "OBS-198-1: AC-001 case_a re-captured with clients=[acme] org-scope; OBS-198-2: AC-005 case_a label corrected to match zero-row capture reality; F-198-FRESH-MED-001: AC-003 and AC-006 parse-error cases re-captured after ec_code_override fix — code now E-QUERY-001 (was E-MCP-002); F-198-PRLEVEL-MED-001: red-gate-test-run.txt re-captured after addition of test_BC_2_11_017_ac003_parse_error_structured_code_is_e_query_001 — count is now 49 (was 48); OBS-198-PRLEVEL-1: ast.rs walker comment narrowed to accurately scope string-literal coverage (bare identifiers excluded with rationale)"
 product_type: "CLI/MCP (Rust — no browser UI)"
 recording_tool: "cargo nextest (Red Gate test output) + cargo run --example (engine-driven JSON captures)"
 coverage: "6/6 ACs covered"
@@ -14,7 +14,7 @@ coverage: "6/6 ACs covered"
 ## Summary
 
 All 6 acceptance criteria have real engine-driven evidence. Evidence is captured by:
-1. Running the Red Gate tests via `cargo nextest` (48 tests pass, all BC_2_11_016 / BC_2_11_017 / BC_2_11_018 tests green)
+1. Running the Red Gate tests via `cargo nextest` (49 tests pass, all BC_2_11_016 / BC_2_11_017 / BC_2_11_018 tests green)
 2. Running the production code paths via a temporary `cargo run --example evidence_capture` that calls the real `PrismServer::query` and `QueryEngine::execute` APIs and captures the actual `serde_json::Value` structured content returned to an LLM agent
 
 No evidence is fabricated. Every JSON payload in the AC evidence files was printed by running production Rust code in this worktree.
@@ -29,7 +29,7 @@ No evidence is fabricated. Every JSON payload in the AC evidence files was print
 | `AC-004-e-query-037-prism-describe-suggestion.json` | AC-004 | E-QUERY-037 suggestion contains prism_describe (with/without did_you_mean) |
 | `AC-005-normalized-pql-present-on-success.json` | AC-005 | normalized_pql present on success + zero-row + canonical form |
 | `AC-006-normalized-pql-absent-on-error.json` | AC-006 | normalized_pql absent from all error responses |
-| `red-gate-test-run.txt` | All | nextest output: 48/48 pass for BC_2_11_016 / BC_2_11_017 / BC_2_11_018 suites |
+| `red-gate-test-run.txt` | All | nextest output: 49/49 pass for BC_2_11_016 / BC_2_11_017 / BC_2_11_018 suites |
 
 ## AC Coverage Detail
 
@@ -156,7 +156,7 @@ Cross-references: AC-001-a and AC-004-a payloads also show no `normalized_pql` k
 ## Test Suite Summary
 
 ```
-48 tests run: 48 passed, 0 failed
+49 tests run: 49 passed, 0 failed
 Suites covered:
   prism-query::e_query_pedagogical (BC_2_11_016 + BC_2_11_017)
   prism-query ast::bc_2_11_018_normalizer_roundtrip_tests (BC_2_11_018)

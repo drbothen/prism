@@ -1,58 +1,59 @@
-Red Gate Test Run — S-DEMO-PRISMQL-ONBOARDING-001-B
-Captured: 2026-06-22
-Command: cargo nextest run -p prism-query -p prism-mcp -E 'test(BC_2_11_016) or test(BC_2_11_017) or test(BC_2_11_018)'
-
+   Compiling prism-ocsf v0.1.0 (/Users/jmagady/Dev/prism/.worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B/crates/prism-ocsf)
+   Compiling prism-sensors v0.2.0 (/Users/jmagady/Dev/prism/.worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B/crates/prism-sensors)
+   Compiling prism-query v0.1.0 (/Users/jmagady/Dev/prism/.worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B/crates/prism-query)
+   Compiling prism-mcp v0.1.0 (/Users/jmagady/Dev/prism/.worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B/crates/prism-mcp)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 03s
 ────────────
- Nextest run ID 25f63bf8-db02-4dbc-9892-b36f2b7a7771 with nextest profile: default
-    Starting 48 tests across 25 binaries (1297 tests skipped)
-        PASS [   0.062s] ( 1/48) prism-mcp::normalized_pql tests::test_BC_2_11_017_ec11046_near_text_present_as_empty_string_at_end_of_input
-        PASS [   0.073s] ( 2/48) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_enrichment_helper_valid_operators_for_type_returns_correct_operators
-        PASS [   0.079s] ( 3/48) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_security_limit_error_carries_how_to_fix
-        PASS [   0.082s] ( 4/48) prism-mcp error_mapping::tests::test_BC_2_11_017_near_text_no_panic_on_nbsp_multibyte_offset
-        PASS [   0.081s] ( 5/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec_055_normalized_pql_pipe_mode_success
-        PASS [   0.082s] ( 6/48) prism-mcp error_mapping::tests::test_BC_2_11_017_near_text_no_panic_on_ideographic_space_multibyte_offset
-        PASS [   0.087s] ( 7/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec_008_normalize_never_empty_for_valid_ast
-        PASS [   0.095s] ( 8/48) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_type_error_response_carries_valid_operators
-        PASS [   0.095s] ( 9/48) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_table_not_found_suggestion_contains_prism_describe_in_mcp
-        PASS [   0.097s] (10/48) prism-mcp::normalized_pql tests::test_BC_2_11_016_ac001_column_not_found_mcp_error_carries_available_columns_and_did_you_mean
-        PASS [   0.097s] (11/48) prism-mcp::normalized_pql tests::test_BC_2_11_016_ac001_column_not_found_no_near_match_has_available_columns_but_no_did_you_mean
-        PASS [   0.110s] (12/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure
-        PASS [   0.110s] (13/48) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_parse_error_response_carries_near_text
-        PASS [   0.116s] (14/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_key_absent_on_mcp_error_response
-        PASS [   0.122s] (15/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_key_present_in_mcp_success_response
-        PASS [   0.065s] (16/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_present_on_success_absent_on_error
-        PASS [   0.136s] (17/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec11052_normalized_pql_contains_alias_expanded_form_not_raw_token
-        PASS [   0.059s] (18/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_present_on_zero_row_success
-        PASS [   0.076s] (19/48) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_present_on_zero_row_mcp_response
-        PASS [   0.058s] (20/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_alias_qualified_typo_reports_last_segment_as_column
-        PASS [   0.050s] (21/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_did_you_mean
-        PASS [   0.040s] (22/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_org_scoped_available_columns
-        PASS [   0.049s] (23/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_gate_ordering_table_not_found_returns_037
-        PASS [   0.067s] (24/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_alias_qualified_valid_column_no_error
-        PASS [   0.044s] (25/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_where_group_by_order_by_positions
-        PASS [   0.035s] (26/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_ec_039_empty_table_columns_available_columns_empty
-        PASS [   0.037s] (27/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_group_by_order_by_valid_column_no_error
-        PASS [   0.038s] (28/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_select_valid_column_no_error
-        PASS [   0.039s] (29/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_where_typo_reports_last_segment_as_column
-        PASS [   0.039s] (30/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_where_valid_column_no_error
-        PASS [   0.039s] (31/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_alias_qualified_type_gate_e_query_002
-        PASS [   0.048s] (32/48) prism-query::e_query_pedagogical tests::test_BC_2_11_016_alias_qualified_typo_reports_last_segment_as_column
-        PASS [   0.048s] (33/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_enrichment_helper_extract_near_text
-        PASS [   0.061s] (34/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_e_query_037_suggestion_prism_describe
-        PASS [   0.059s] (35/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_e_query_037_suggestion_uses_client_id_not_sensor
-        PASS [   0.049s] (36/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_enrichment_helper_how_to_fix_for_security_limit
-        PASS [   0.059s] (37/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_enrichment_helpers_valid_operators_for_type
-        PASS [   0.064s] (38/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_extract_near_text_multibyte_utf8_no_panic
-        PASS [   0.211s] (39/48) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_literal_regex_embedded_quote
-        PASS [   0.204s] (40/48) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_regex_predicate_embedded_quote_roundtrip
-        PASS [   0.206s] (41/48) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_wildcard_embedded_quote_roundtrip
-        PASS [   0.207s] (42/48) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_stringop_contains_embedded_quote_roundtrip
-        PASS [   0.038s] (43/48) prism-query::e_query_pedagogical tests::test_BC_2_11_017_how_to_fix_alias_expansion_real_detail_strings
-        PASS [   0.223s] (44/48) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_normalizer_roundtrip_embedded_quote_filter_mode_with_source
-        PASS [   0.222s] (45/48) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_normalizer_roundtrip_embedded_single_quote_in_double_quoted_literal
-        PASS [   0.226s] (46/48) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_float_whole_number_roundtrip
-        PASS [   0.218s] (47/48) prism-query engine::bc_2_11_016_did_you_mean_determinism_tests::test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_multi_sensor_same_table
-        PASS [   0.246s] (48/48) prism-query engine::bc_2_11_016_did_you_mean_determinism_tests::test_BC_2_11_016_available_columns_sorted_deduped_in_column_not_found_error
-        PASS [   0.228s] (48/48) prism-query engine::bc_2_11_016_did_you_mean_determinism_tests::test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_on_equidistant_candidates
+ Nextest run ID d16df5bc-ddb7-4061-8975-66583414d377 with nextest profile: default
+    Starting 49 tests across 25 binaries (1304 tests skipped)
+        PASS [   0.065s] ( 1/49) prism-mcp error_mapping::tests::test_BC_2_11_017_near_text_no_panic_on_ideographic_space_multibyte_offset
+        PASS [   0.090s] ( 2/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec_008_normalize_never_empty_for_valid_ast
+        PASS [   0.100s] ( 3/49) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_enrichment_helper_valid_operators_for_type_returns_correct_operators
+        PASS [   0.101s] ( 4/49) prism-mcp::normalized_pql tests::test_BC_2_11_017_ec11046_near_text_present_as_empty_string_at_end_of_input
+        PASS [   0.102s] ( 5/49) prism-mcp::normalized_pql tests::test_BC_2_11_016_ac001_column_not_found_mcp_error_carries_available_columns_and_did_you_mean
+        PASS [   0.111s] ( 6/49) prism-mcp error_mapping::tests::test_BC_2_11_017_near_text_no_panic_on_nbsp_multibyte_offset
+        PASS [   0.118s] ( 7/49) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_parse_error_structured_code_is_e_query_001
+        PASS [   0.127s] ( 8/49) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_type_error_response_carries_valid_operators
+        PASS [   0.129s] ( 9/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec_055_normalized_pql_pipe_mode_success
+        PASS [   0.128s] (10/49) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_parse_error_response_carries_near_text
+        PASS [   0.135s] (11/49) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_security_limit_error_carries_how_to_fix
+        PASS [   0.138s] (12/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_key_absent_on_mcp_error_response
+        PASS [   0.139s] (13/49) prism-mcp::normalized_pql tests::test_BC_2_11_017_ac003_table_not_found_suggestion_contains_prism_describe_in_mcp
+        PASS [   0.145s] (14/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec11054_normalized_pql_present_on_partial_failure
+        PASS [   0.145s] (15/49) prism-mcp::normalized_pql tests::test_BC_2_11_016_ac001_column_not_found_no_near_match_has_available_columns_but_no_did_you_mean
+        PASS [   0.084s] (16/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_present_on_zero_row_success
+        PASS [   0.185s] (17/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_ec11052_normalized_pql_contains_alias_expanded_form_not_raw_token
+        PASS [   0.081s] (18/49) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_normalizer_roundtrip_embedded_single_quote_in_double_quoted_literal
+        PASS [   0.074s] (19/49) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_float_whole_number_roundtrip
+        PASS [   0.090s] (20/49) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_normalizer_roundtrip_embedded_quote_filter_mode_with_source
+        PASS [   0.057s] (21/49) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_wildcard_embedded_quote_roundtrip
+        PASS [   0.065s] (22/49) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_stringop_contains_embedded_quote_roundtrip
+        PASS [   0.067s] (23/49) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_regex_predicate_embedded_quote_roundtrip
+        PASS [   0.068s] (24/49) prism-query ast::bc_2_11_018_normalizer_roundtrip_tests::test_BC_2_11_018_sibling_literal_regex_embedded_quote
+        PASS [   0.112s] (25/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_present_on_success_absent_on_error
+        PASS [   0.107s] (26/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_present_on_zero_row_mcp_response
+        PASS [   0.072s] (27/49) prism-query engine::bc_2_11_016_did_you_mean_determinism_tests::test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_multi_sensor_same_table
+        PASS [   0.060s] (28/49) prism-query engine::bc_2_11_016_did_you_mean_determinism_tests::test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_on_equidistant_candidates
+        PASS [   0.076s] (29/49) prism-query engine::bc_2_11_016_did_you_mean_determinism_tests::test_BC_2_11_016_available_columns_sorted_deduped_in_column_not_found_error
+        PASS [   0.163s] (30/49) prism-mcp::normalized_pql tests::test_BC_2_11_018_normalized_pql_key_present_in_mcp_success_response
+        PASS [   0.062s] (31/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_alias_qualified_type_gate_e_query_002
+        PASS [   0.055s] (32/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_enrichment_helper_extract_near_text
+        PASS [   0.075s] (33/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_ec_039_empty_table_columns_available_columns_empty
+        PASS [   0.076s] (34/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_where_group_by_order_by_positions
+        PASS [   0.076s] (35/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_org_scoped_available_columns
+        PASS [   0.076s] (36/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_gate_ordering_table_not_found_returns_037
+        PASS [   0.058s] (37/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_e_query_037_suggestion_uses_client_id_not_sensor
+        PASS [   0.084s] (38/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_e_query_038_did_you_mean
+        PASS [   0.059s] (39/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_e_query_037_suggestion_prism_describe
+        PASS [   0.121s] (40/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_alias_qualified_typo_reports_last_segment_as_column
+        PASS [   0.075s] (41/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_where_typo_reports_last_segment_as_column
+        PASS [   0.056s] (42/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_enrichment_helper_how_to_fix_for_security_limit
+        PASS [   0.050s] (43/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_enrichment_helpers_valid_operators_for_type
+        PASS [   0.115s] (44/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_where_valid_column_no_error
+        PASS [   0.124s] (45/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_select_valid_column_no_error
+        PASS [   0.052s] (46/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_extract_near_text_multibyte_utf8_no_panic
+        PASS [   0.053s] (47/49) prism-query::e_query_pedagogical tests::test_BC_2_11_017_how_to_fix_alias_expansion_real_detail_strings
+        PASS [   0.127s] (48/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_qualified_group_by_order_by_valid_column_no_error
+        PASS [   0.136s] (49/49) prism-query::e_query_pedagogical tests::test_BC_2_11_016_alias_qualified_valid_column_no_error
 ────────────
-     Summary [   0.348s] 48 tests run: 48 passed, 1297 skipped
+     Summary [   0.325s] 49 tests run: 49 passed, 1304 skipped

@@ -1307,9 +1307,17 @@ impl PqlNormalizer {
         }
     }
 
-    /// SEC-001 helper: returns `true` if any string-bearing node in `ast` contains BOTH
-    /// `'` and `"`. Called as a pre-check before normalization; avoids changing the
-    /// return types of every normalizer helper (low blast-radius approach).
+    /// SEC-001 helper: returns `true` if any string-**literal**-bearing node in `ast`
+    /// contains BOTH `'` and `"`. Called as a pre-check before normalization; avoids
+    /// changing the return types of every normalizer helper (low blast-radius approach).
+    ///
+    /// **Scope:** covers quoted string literals (`Literal::String`, `Literal::Regex`
+    /// patterns, `Predicate::StringOp`/`Wildcard` patterns) and recursively their
+    /// containing expressions and function-call argument lists. Bare identifiers — function
+    /// names (`ScalarFunc::Unknown(name)`) and column/field path segments — are intentionally
+    /// excluded: they are parser-restricted to `[A-Za-z0-9_]` characters (no quotes
+    /// possible) and emitted unquoted by the normalizer, so they are not a CWE-116
+    /// quoted-literal injection vector.
     ///
     /// This path is **parser-unreachable** in normal operation: the grammar's
     /// `build_string_parser` uses `none_of('\'')` for single-quoted bodies and
@@ -1375,11 +1383,13 @@ impl PqlNormalizer {
             Expr::Not(inner) => Self::expr_has_both_quote_string(inner),
             Expr::In { values, .. } => values.iter().any(Self::literal_has_both_quote_string),
             Expr::InSubquery { subquery, .. } => Self::sql_query_has_both_quote_string(subquery),
-            // SEC-001 defense-in-depth: traverse FuncCall argument expressions.
-            // Parser-unreachable (grammar cannot produce both-quote string args) but
-            // complete defense-in-depth requires checking ALL string-bearing AST nodes.
-            // Without this arm, FuncCall args containing both ' and " bypass the guard
-            // and produce mis-quoted output in normalize_func_call (CWE-116).
+            // SEC-001 defense-in-depth: traverse FuncCall argument expressions for
+            // string literals (quoted values). Parser-unreachable — the grammar cannot
+            // produce a string literal containing both ' and " — but this arm closes the
+            // CWE-116 gap for direct AST construction that bypasses the parser.
+            // Note: ScalarFunc::Unknown(name) (the UDF function name) is a bare identifier
+            // restricted by the parser to [A-Za-z0-9_]; it is emitted unquoted and is NOT
+            // a quoted-literal injection vector, so it is not inspected here.
             Expr::FuncCall(fc) => match fc {
                 FuncCall::Aggregate { args, .. } => {
                     args.iter().any(Self::expr_has_both_quote_string)
