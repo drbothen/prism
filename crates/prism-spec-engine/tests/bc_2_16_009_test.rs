@@ -1557,6 +1557,15 @@ fn test_BC_2_16_009_probe_table_with_empty_tables_returns_ESpec026() {
                  got {:?}",
                 se.code
             );
+            // F-S504-P2-003: empty tables MUST render as "Declared tables: []", NOT
+            // "Declared tables: [(none declared)]".  The brackets come from the format
+            // string in spec_parser.rs Rule 8; the list body must be empty string.
+            assert!(
+                se.message.contains("Declared tables: []"),
+                "F-S504-P2-003: E-SPEC-026 message MUST contain 'Declared tables: []' for empty \
+                 table list, not '(none declared)'. Got: {:?}",
+                se.message
+            );
         }
         other => panic!("expected PrismError::Spec(ESpec026); got: {other:?}"),
     }

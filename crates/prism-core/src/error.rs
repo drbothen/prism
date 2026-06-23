@@ -1362,7 +1362,6 @@ pub enum SpecErrorCode {
     ///
     /// BC-2.08.001 Error Cases E-SPEC-026; BC-2.16.009 Validation Rule 8.
     ///
-    /// # S-5.04 AC-8/9/10: type scaffold only; logic in implementer pass
     ESpec026,
 }
 

@@ -511,7 +511,6 @@ pub struct SensorSpec {
     ///
     /// `#[serde(default)]` ensures existing TOML files without this field parse without error.
     ///
-    /// # S-5.04 AC-8/9/10: type scaffold only; Rule 8 validation logic in implementer pass
     #[serde(default)]
     pub probe_table: Option<String>,
 }
@@ -544,7 +543,6 @@ impl Default for SensorSpec {
             file_hash: String::new(),
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
-            // S-5.04 AC-8/9/10: type scaffold only; probe_table defaults to None for backward compat
             probe_table: None,
         }
     }
@@ -598,7 +596,6 @@ impl SensorSpec {
             file_hash: String::new(),
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
-            // S-5.04 AC-8/9/10: type scaffold only; probe_table not a positional arg per design doc §2
             probe_table: None,
         }
     }
@@ -1029,11 +1026,10 @@ impl SpecLoader {
             declared_names.sort_unstable();
 
             if !declared_names.iter().any(|name| name == pt) {
-                let tables_list = if declared_names.is_empty() {
-                    "(none declared)".to_string()
-                } else {
-                    declared_names.join(", ")
-                };
+                // F-S504-P2-003: empty tables renders as "[]" (the brackets come from the
+                // format string below), not "(none declared)".  Do not inject placeholder text
+                // between the brackets — the spec requires "Declared tables: []" for an empty list.
+                let tables_list = declared_names.join(", ");
                 return Err(PrismError::Spec(SpecError {
                     code: SpecErrorCode::ESpec026,
                     message: format!(
