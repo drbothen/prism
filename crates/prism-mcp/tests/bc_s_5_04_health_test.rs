@@ -61,6 +61,8 @@
 //! | EC-007/F-S504-P5-001 — aggregate: all-rate-limited → RateLimited (not Partial) | test_BC_2_08_007_EC_007_all_rate_limited_aggregate_yields_rate_limited |
 //! | EC-007/F-S504-P5-001 — aggregate: mixed (some RL + some down) → Partial, not RateLimited | test_BC_2_08_007_EC_007_mixed_rate_limited_and_down_is_partial |
 //! | F-S504-P5-002 — SensorHealthStructuredContent: overall_status + summary_counts + suggestion | test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_suggestion |
+//! | F-S504-LP1P3-MED-001 (1/2) — auth-invalid production-path suggestion (AC-12) | test_BC_2_08_007_EC_08_015_auth_invalid_production_path_suggestion |
+//! | F-S504-LP1P3-MED-001 (2/2) — genuine-Down production-path suggestion (AC-12) | test_BC_2_08_007_EC_08_015_genuine_down_production_path_suggestion_distinct_from_5xx |
 //!
 //! # AC-7 (BC-2.08.005 live-probe path) tests
 //! Tests requiring `PrismServer.health_checker` (a private field set only from
@@ -243,6 +245,37 @@ impl SensorAdapter for MockAdapterConnectionRefused {
 
     fn sensor_name(&self) -> &'static str {
         "crowdstrike-mock-connection-refused"
+    }
+}
+
+/// Mock adapter simulating a connection error for the "armis" sensor type.
+///
+/// Used by F-S504-LP1P3-MED-001 genuine-Down production-path test that needs two
+/// distinct sensor types (crowdstrike + armis) both unreachable to prove the
+/// "Sensor unreachable — verify network and endpoint configuration." branch fires
+/// for all sensor types, and is entirely absent from 5xx tests.
+struct MockAdapterConnectionRefusedArmis;
+
+#[async_trait]
+impl SensorAdapter for MockAdapterConnectionRefusedArmis {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("armis")
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        Err(SensorError::Timeout {
+            sensor: "armis".to_string(),
+            elapsed_ms: 30_000,
+        })
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "armis-mock-connection-refused"
     }
 }
 
@@ -3007,5 +3040,289 @@ async fn test_BC_2_08_001_EC_08_001_503_production_path_suggestion_distinct_from
     assert_ne!(
         expected_5xx_suggestion, would_be_down_suggestion,
         "F-S504-LP1P2-MED-001: the 5xx and Down suggestion constants must differ (sanity)"
+    );
+}
+
+// ─── F-S504-LP1P3-MED-001 — AC-12 suggestion ladder: auth-invalid + genuine-Down ──
+
+/// F-S504-LP1P3-MED-001 (1/2): `check_sensor_health` for an all-401 (auth-invalid) fleet
+/// MUST emit the verbatim AC-12 suggestion string through the production handler.
+///
+/// AC-12 (BC-2.08.007 EC-08-015): auth-invalid sensors carry:
+///   `"Check credentials \u{2014} sensor rejected authentication."` (em-dash U+2014)
+///
+/// Production path:
+///   `MockAdapterUnauthorized` → `SensorError::HttpError { status: 401 }`
+///   → `probe_auth` → `AuthStatus::Invalid`
+///   → `check_one` → `auth_valid = Some(false)`, `reachable = Some(true)`
+///   → `server.rs` suggestion ladder → `auth_valid == Some(false)` arm
+///   → `"Check credentials \u{2014} sensor rejected authentication."`
+///
+/// RED GATE (TD-VSDD-059): reverting/paraphrasing the `auth_valid == Some(false)` branch in
+/// server.rs causes this assertion to fail because the JSON will not contain the verbatim string.
+///
+/// A second sensor (`MockAdapterUnauthorizedArmis`, also 401) confirms the branch fires for
+/// both crowdstrike and armis sensor types, proving the arm is sensor-type-agnostic.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_007_EC_08_015_auth_invalid_production_path_suggestion() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{CheckSensorHealthParams, PrismServer};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // Register two 401 sensors (crowdstrike + armis) — both trigger the auth-invalid branch.
+    let org_id = OrgId::new();
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(MockAdapterUnauthorized));
+    adapter_registry.register(org_id, Arc::new(MockAdapterUnauthorizedArmis));
+    let adapter_registry = Arc::new(adapter_registry);
+
+    // TableRegistry — enumerate both sensors in check_sensor_health.
+    let table_registry = TableRegistry::new();
+    let cs_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike (401-mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.crowdstrike.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    let armis_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "armis",
+        "Armis (401-mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.armis.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    table_registry
+        .register_sensor(&cs_spec)
+        .expect("register crowdstrike");
+    table_registry
+        .register_sensor(&armis_spec)
+        .expect("register armis");
+
+    let engine = QueryEngine::new(
+        Arc::clone(&adapter_registry),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(table_registry));
+
+    let checker = SensorHealthChecker::new(Arc::clone(&adapter_registry));
+
+    let server = PrismServer::new()
+        .with_query_engine(Arc::new(engine))
+        .with_health_checker(checker);
+
+    let params = CheckSensorHealthParams::for_client("acme");
+    let call_result = server.check_sensor_health(Parameters(params)).await.expect(
+        "F-S504-LP1P3-MED-001 (1/2): check_sensor_health MUST succeed for all-auth-invalid sensors",
+    );
+
+    let json_str = serde_json::to_string(&call_result)
+        .expect("F-S504-LP1P3-MED-001 (1/2): CallToolResult must serialize to JSON");
+
+    // ── RED GATE (primary): auth-invalid sensors MUST get the verbatim AC-12 suggestion ──
+    // Reverting the `auth_valid == Some(false)` branch in server.rs causes this to fail.
+    let expected_auth_suggestion = "Check credentials \u{2014} sensor rejected authentication.";
+    assert!(
+        json_str.contains(expected_auth_suggestion),
+        "F-S504-LP1P3-MED-001 (1/2) RED GATE — production handler: \
+         a 401-auth-invalid sensor MUST carry suggestion: \"{expected_auth_suggestion}\" \
+         (verbatim AC-12 / BC-2.08.007 EC-08-015, em-dash U+2014) through PrismServer::check_sensor_health. \
+         If the server.rs auth_valid==Some(false) branch is removed or paraphrased, this fails. \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── The "verify network" Down-suggestion MUST NOT appear: 401 sensors ARE reachable ──
+    // A 401 response requires a successful HTTP exchange — the sensor is network-reachable.
+    assert!(
+        !json_str.contains("verify network"),
+        "F-S504-LP1P3-MED-001 (1/2) distinctness: \
+         401-auth-invalid sensors are network-reachable. \
+         'verify network' (Down-suggestion) MUST NOT appear for an all-401 fleet. \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── overall_status: "unhealthy" — both sensors auth-invalid, none healthy ──────────
+    assert!(
+        json_str.contains(r#""overall_status":"unhealthy""#)
+            || json_str.contains(r#""overall_status": "unhealthy""#),
+        "F-S504-LP1P3-MED-001 (1/2): all-auth-invalid fleet MUST produce overall_status=\"unhealthy\". \
+         Got JSON: {:.500}",
+        json_str
+    );
+}
+
+/// F-S504-LP1P3-MED-001 (2/2): `check_sensor_health` for a genuine-Down (connection refused)
+/// fleet MUST emit the verbatim AC-12 "verify network" suggestion through the production handler,
+/// and MUST NOT emit the 5xx-specific suggestion.
+///
+/// AC-12 (BC-2.08.007 EC-08-015): unreachable sensors carry:
+///   `"Sensor unreachable \u{2014} verify network and endpoint configuration."` (em-dash U+2014)
+///
+/// Production path:
+///   `MockAdapterConnectionRefused` → `SensorError::Timeout`
+///   → `probe_connectivity` → `ConnectivityStatus::Down`
+///   → `check_one` → `reachable = Some(false)`, `auth_valid = None`,
+///                    `error` is NOT `"service_unavailable"` (no HTTP exchange)
+///   → `server.rs` suggestion ladder → `reachable == Some(false)` +
+///     `error != "service_unavailable"` → "Sensor unreachable \u{2014} verify network …"
+///
+/// RED GATE (TD-VSDD-059): reverting or collapsing the `else` arm in server.rs (the fallthrough
+/// after the `service_unavailable` check) causes this assertion to fail.
+///
+/// Distinctness guarantee: this test also asserts the 5xx string is absent — confirming the
+/// Down branch and the Degraded (5xx) branch are mutually exclusive, which is the precise
+/// invariant F-S504-LP1P1-MED-001 and F-S504-LP1P2-MED-001 depend on.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_007_EC_08_015_genuine_down_production_path_suggestion_distinct_from_5xx() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{CheckSensorHealthParams, PrismServer};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // Register two genuinely-unreachable sensors (crowdstrike + armis, both timeout/refused).
+    let org_id = OrgId::new();
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(MockAdapterConnectionRefused));
+    adapter_registry.register(org_id, Arc::new(MockAdapterConnectionRefusedArmis));
+    let adapter_registry = Arc::new(adapter_registry);
+
+    // TableRegistry — enumerate both sensors in check_sensor_health.
+    let table_registry = TableRegistry::new();
+    let cs_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike (timeout-mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.crowdstrike.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    let armis_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "armis",
+        "Armis (timeout-mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.armis.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    table_registry
+        .register_sensor(&cs_spec)
+        .expect("register crowdstrike");
+    table_registry
+        .register_sensor(&armis_spec)
+        .expect("register armis");
+
+    let engine = QueryEngine::new(
+        Arc::clone(&adapter_registry),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(table_registry));
+
+    let checker = SensorHealthChecker::new(Arc::clone(&adapter_registry));
+
+    let server = PrismServer::new()
+        .with_query_engine(Arc::new(engine))
+        .with_health_checker(checker);
+
+    let params = CheckSensorHealthParams::for_client("acme");
+    let call_result = server
+        .check_sensor_health(Parameters(params))
+        .await
+        .expect(
+            "F-S504-LP1P3-MED-001 (2/2): check_sensor_health MUST succeed for genuinely-unreachable sensors",
+        );
+
+    let json_str = serde_json::to_string(&call_result)
+        .expect("F-S504-LP1P3-MED-001 (2/2): CallToolResult must serialize to JSON");
+
+    // ── RED GATE (primary): Down sensors MUST get the verbatim AC-12 "verify network" suggestion
+    // Reverting the `else` fallthrough arm in server.rs (after service_unavailable check) causes this.
+    let expected_down_suggestion =
+        "Sensor unreachable \u{2014} verify network and endpoint configuration.";
+    assert!(
+        json_str.contains(expected_down_suggestion),
+        "F-S504-LP1P3-MED-001 (2/2) RED GATE — production handler: \
+         a genuinely-unreachable sensor (connection refused / timeout) MUST carry \
+         suggestion: \"{expected_down_suggestion}\" \
+         (verbatim AC-12 / BC-2.08.007 EC-08-015, em-dash U+2014) through PrismServer::check_sensor_health. \
+         If the server.rs else-fallthrough arm is removed or the Down path is conflated with 5xx, \
+         this fails. Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── The 5xx-specific suggestion MUST NOT appear: timeout sensors had NO HTTP exchange ──
+    // A connection timeout never produces a 5xx HTTP response — it never reached the server.
+    let would_be_5xx_suggestion =
+        "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.";
+    assert!(
+        !json_str.contains(would_be_5xx_suggestion),
+        "F-S504-LP1P3-MED-001 (2/2) distinctness: \
+         genuinely-unreachable sensors (timeout, no HTTP exchange) MUST NOT carry the 5xx suggestion. \
+         The 5xx suggestion is for HTTP 503 (service-reachable but degraded). \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── overall_status: "unhealthy" — both sensors down, none healthy ────────────────────
+    assert!(
+        json_str.contains(r#""overall_status":"unhealthy""#)
+            || json_str.contains(r#""overall_status": "unhealthy""#),
+        "F-S504-LP1P3-MED-001 (2/2): all-down fleet MUST produce overall_status=\"unhealthy\". \
+         Got JSON: {:.500}",
+        json_str
     );
 }

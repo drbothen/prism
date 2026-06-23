@@ -314,7 +314,18 @@ impl SensorHealthChecker {
                 // The previous predicate `!= Down` incorrectly treated Degraded as reachable=true,
                 // producing a FALSE-POSITIVE health signal for 503 sensors.
                 let reachable = probe.connectivity == ConnectivityStatus::Up;
-                let auth_valid = matches!(probe.auth, AuthStatus::Valid);
+                // BC-2.08.002 EC-08-005 / F-S504-LP1P3-MED-001: auth_valid is THREE-VALUED:
+                //   AuthStatus::Valid   → Some(true)   — credentials accepted
+                //   AuthStatus::Invalid → Some(false)  — HTTP 401/403 received
+                //   AuthStatus::Unknown → None         — sensor unreachable, auth was NEVER attempted
+                // A Down sensor (connection refused/timeout) MUST NOT set auth_valid=Some(false);
+                // that would conflate "unreachable" with "auth failure", misdirecting the suggestion
+                // ladder to "Check credentials" instead of "verify network".
+                let auth_valid_opt: Option<bool> = match probe.auth {
+                    AuthStatus::Valid => Some(true),
+                    AuthStatus::Invalid => Some(false),
+                    AuthStatus::Unknown => None,
+                };
 
                 // F-S504-P1-001: when HTTP 429 observed, extract rate-limit state and persist
                 // to context.rate_limit_states (BC-2.08.003 postcondition).
@@ -362,19 +373,23 @@ impl SensorHealthChecker {
                     None
                 };
 
-                // Record successful query timestamp when both reachable and auth valid
-                let last_successful_query_at = if reachable && auth_valid && !probe.is_rate_limited
-                {
-                    let now = chrono::Utc::now();
-                    self.record_successful_query(client_id, sensor_id, now, context);
-                    Some(now)
-                } else {
-                    self.last_successful_query(client_id, sensor_id, context)
-                };
+                // Record successful query timestamp when both reachable and auth valid (Some(true))
+                let last_successful_query_at =
+                    if reachable && auth_valid_opt == Some(true) && !probe.is_rate_limited {
+                        let now = chrono::Utc::now();
+                        self.record_successful_query(client_id, sensor_id, now, context);
+                        Some(now)
+                    } else {
+                        self.last_successful_query(client_id, sensor_id, context)
+                    };
 
                 let mut result = SensorHealthResult::new(sensor_id.as_ref(), client_id)
-                    .with_reachable(reachable)
-                    .with_auth_valid(auth_valid);
+                    .with_reachable(reachable);
+                // Only set auth_valid when we actually know it — Down sensors (auth_valid_opt=None)
+                // leave auth_valid as null (BC-2.08.002 EC-08-005: "sensor_unreachable_cannot_verify").
+                if let Some(av) = auth_valid_opt {
+                    result = result.with_auth_valid(av);
+                }
                 result.probe_level = "live".to_string();
                 result.rate_limit = rate_limit_info;
                 // BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): when the probe returned a 5xx
@@ -391,10 +406,11 @@ impl SensorHealthChecker {
                 result
             }
             Err(_) => {
-                // Engine error — sensor unreachable
-                let mut result = SensorHealthResult::new(sensor_id.as_ref(), client_id)
-                    .with_reachable(false)
-                    .with_auth_valid(false);
+                // Engine error — sensor unreachable; auth was never attempted (BC-2.08.002 EC-08-005).
+                // MUST NOT set auth_valid=Some(false): that conflates "unreachable" with auth failure.
+                // auth_valid remains None (sensor_unreachable_cannot_verify).
+                let mut result =
+                    SensorHealthResult::new(sensor_id.as_ref(), client_id).with_reachable(false);
                 result.probe_level = "live".to_string();
                 result
             }
