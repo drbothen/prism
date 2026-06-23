@@ -116,8 +116,8 @@ pub struct SensorHealthResult {
     ///
     /// Examples (verbatim BC-2.08.007 text):
     /// - Rate-limited: `"Rate limit in effect — wait before retrying."`
-    /// - Auth-invalid: `"Check sensor credentials and re-authenticate."`
-    /// - Unreachable:  `"Verify sensor endpoint and network connectivity."`
+    /// - Auth-invalid: `"Check credentials — sensor rejected authentication."`
+    /// - Unreachable:  `"Sensor unreachable — verify network and endpoint configuration."`
     pub suggestion: Option<String>,
 }
 

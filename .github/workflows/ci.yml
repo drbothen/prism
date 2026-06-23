@@ -742,6 +742,9 @@ jobs:
           #   Total: 79 + 3 = 82.
           # S-DEMO-PRISMQL-ONBOARDING-001-B added 1 E0639 (prism-core error.rs):
           #   ColumnNotFoundDetails (struct literal, E-QUERY-038 column-not-found context).
+          #   Total: 82 + 1 = 83.
+          # S-5.04 F-S504-P5-002 added 1 E0639 (prism-mcp resources.rs):
+          #   HealthSummary (struct literal, BC-2.08.007 v1.4 summary_counts).
           #   Total: 83 + 1 = 84.
           E0639_COUNT=$(grep -c 'error\[E0639\]' /tmp/non-exhaustive-check.log || true)
           E0004_COUNT=$(grep -c 'error\[E0004\]' /tmp/non-exhaustive-check.log || true)
