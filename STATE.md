@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.928"
+version: "7.929"
 producer: state-manager
-timestamp: 2026-06-23T10:00:00Z
+timestamp: 2026-06-23T11:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -19,7 +19,7 @@ safe_to_compact: true
 develop_head: "5504c152"
 bc_index_version: "7.07"
 vp_index_version: "1.79"
-story_index_version: "v2.467"
+story_index_version: "v2.468"
 arch_index_version: "2.142"
 error_taxonomy_version: "1.94"
 total_stories: 209
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1299 (2026-06-23). ENRICHMENT GAP-1+GAP-3 CLOSED + SESSION-HANDOFF SHA REFRESHED. BC-2.06.019 v1.14→v1.15 (GAP-1: canonical NVD pivot `| enrich nvd(...)` → `| enrich cvss_base_score(device_cves_first)`; adversary-probe P1 prohibition for stale nvd form). T13 runbook v1.2→v1.3 (GAP-1: all threat_intel/nvd UDF forms corrected to per-field names threat_score/cvss_base_score; GAP-3: prism_describe JSON key table_name→name). BC-INDEX v7.06→v7.07. SESSION-HANDOFF develop-SHA refreshed fc954300→5504c152 (current-state header only; immutable historical cites untouched). develop_head UNCHANGED 5504c152. STATE v7.927→v7.928. NEXT: S-5.04 LOCAL adversary re-pass on frozen ea496bd2 (streak 0/3)."
+current_step: "D-1300 (2026-06-23). S-5.04 v2.4→v2.5 LP3 ADVERSARY PASS + COMPREHENSIVE STORY-HYGIENE RECONCILE. Adversary pass on frozen 4a5db2bf: all 12 ACs GREEN, all policies pass, BC-pin sweep CLEAN (comment-only); found OBS-S504-LP3-001 (LOW, FSR-table filename staleness health.rs→bc_s_5_04_health_test.rs). Closed via story-hygiene reconcile (story v2.5): FSR table rebuilt to match 22 delivered files; Architecture Mapping/Purity/Token Budget corrected. Code HEAD 4a5db2bf UNCHANGED (story-only edit). ENRICHMENT: fix-burst closed fix/enrichment-complete pass-1 HIGH (F-ENRICH-P1-001 Test 8 strengthened — no code bug) + OBS-1 (fields-exclude) + OBS-2 (doc) on fix/enrichment-complete @63c243d8 (just check exit 0); re-pass adversary in flight. Naive-agent MCP onboarding test in flight. develop_head UNCHANGED 5504c152. story_index_version v2.467→v2.468. STATE v7.928→v7.929. NEXT: S-5.04 LOCAL adversary re-pass on frozen 4a5db2bf (streak 0/3); enrichment re-pass on fix/enrichment-complete @63c243d8."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-23 (D-1299 enrichment GAP-1+GAP-3 spec closure + SHA refresh; BC-INDEX v7.07; STATE v7.928)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-23 (D-1300 S-5.04 v2.4→v2.5 LP3 story-hygiene reconcile; STORY-INDEX v2.468; STATE v7.929)
 
 ## Active Objective (North Star)
 
@@ -201,6 +201,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1300 | state-manager | 2026-06-23 | **S-5.04 v2.4→v2.5 LP3 ADVERSARY PASS + COMPREHENSIVE STORY-HYGIENE RECONCILE (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). FILE COMMITTED: stories/S-5.04-sensor-health.md v2.4→v2.5. Adversary pass on frozen 4a5db2bf: all 12 ACs GREEN (AC-1 through AC-12 behavioral behavior fully converged), all policies pass, BC-pin sweep CLEAN (comment-only); found OBS-S504-LP3-001 (LOW, FSR-table filename staleness — `health.rs` → `bc_s_5_04_health_test.rs`). Closed via comprehensive story-hygiene reconcile: FSR table rebuilt to match 22 delivered files (correct filenames + Modify/New annotations); Architecture Mapping subsystems/crates verified correct; Architecture Purity section corrected; Token Budget section updated. §Changelog row v2.5 added. Code HEAD 4a5db2bf UNCHANGED (story-only edit). ENRICHMENT: fix/enrichment-complete pass-1 HIGH (F-ENRICH-P1-001 Test 8 strengthened — no code bug) + OBS-1 (fields-exclude) + OBS-2 (doc) CLOSED on fix/enrichment-complete @63c243d8 (just check exit 0); re-pass adversary in flight. Naive-agent MCP onboarding test in flight. INDEX RECONCILIATION: STORY-INDEX v2.467→v2.468 (S-5.04 row v2.4→v2.5; D-1300 changelog row added). POL-29 SIBLING SWEEP (S-5.04 v2.4 live cites): SESSION-HANDOFF.md §THEN roadmap row (updated → v2.5/4a5db2bf); SESSION-HANDOFF.md §S-5.04 IMPLEMENTER GUIDANCE Spec line (updated → v2.5). IMMUTABLE historical cites: STATE.md D-1298 row + STORY-INDEX D-1298 changelog row (left as-is). Post-sweep: 0 stale live cites remain. story_index_version v2.467→v2.468. STATE v7.928→v7.929. NEXT: S-5.04 LOCAL adversary re-pass on frozen 4a5db2bf (streak 0/3); enrichment re-pass on fix/enrichment-complete @63c243d8.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1299 | state-manager | 2026-06-23 | **ENRICHMENT GAP-1+GAP-3 SPEC CLOSURE + SESSION-HANDOFF SHA REFRESH (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). GAP-1 closed: enrichment UDF names corrected throughout — registered per-field UDF names are `threat_score`/`cvss_base_score` etc., NOT infusion_ids `threat_intel`/`nvd`; adversary-probe P1 prohibition added in BC-2.06.019 v1.15. GAP-3 closed: prism_describe JSON key `table_name`→`name` in T13 runbook. GAP-2 closed (code, not factory): demo-run.sh PRISM_NVD_API_KEY export on fix/enrichment-complete @37f0fd56. Enrichment centerpiece PROVEN end-to-end (threat_score=95, cvss=8.1). SESSION-HANDOFF develop-SHA refreshed fc954300→5504c152 (current-state cites only). bc_index_version 7.06→7.07. STATE v7.927→v7.928. NEXT: S-5.04 LOCAL adversary re-pass on frozen ea496bd2 (streak 0/3); enrichment integrated diff adversarial review → PR.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1298 | state-manager | 2026-06-23 | **S-5.04 v2.3→v2.4 BC-PIN SWEEP + LP1 ADVERSARY PASS (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). See Current Phase Steps row for full detail. story_index_version v2.466→v2.467. STATE v7.926→v7.927.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1297 | state-manager | 2026-06-23 | **S-5.04 v2.3 AC-11+AC-12 + BC-2.16.002 v1.89 SAP-1 (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). See Current Phase Steps row for full detail. bc_index_version 7.05→7.06. story_index_version v2.465→v2.466. STATE v7.925→v7.926.** | wave-5-e-demo-fidelity | 2026-06-23 |
