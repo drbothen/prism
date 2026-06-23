@@ -104,57 +104,76 @@ ocsf_class = "detection_finding"
   ocsf_field = "metadata.product.vendor_name"
 
   # ---------------------------------------------------------------------------
-  # AC-006 (S-DEMO-ENRICHMENT-PIVOT-003): IOC columns — real-schema fields added
-  # to support the canonical ThreatIntel pivot query (AC-007).
-  # BC-2.06.019 v1.13 Per-Sensor IOC-Surface Matrix: Cyberint alerts carry IOC fields.
+  # ENRICH-1: IOC columns — migrated from bracket-in-name convention (PIVOT-003)
+  # to clean SQL identifiers + source_path (sensor-column-source-path-design.md §DD-3).
+  # BC-2.06.019 Per-Sensor IOC-Surface Matrix: Cyberint alerts carry IOC fields.
   # SAP-2 compliance: all columns have matching fields in prism-dtu-cyberint/src/types.rs
   # Alert struct (ioc: Option<Ioc>, iocs: Vec<Ioc>, alert_data: Option<AlertData>).
   #
-  # NOTE on column names vs serde aliases:
-  # `iocs[].type` is the PRIMARY wire key per `#[serde(rename = "type")]` on Ioc.ioc_type.
-  # The serde alias `ioc_type` is NOT a separate TOML column — it is resolved at the Rust
-  # struct level transparently. TOML spec uses the primary wire names only.
-  # (BC-2.06.019 v1.13 INCONCLUSIVE inner-key pending live-tenant validation)
+  # Wire-key note: the DTU `Ioc` struct serializes with `#[serde(rename = "type")]` on
+  # `ioc_type` and no rename on `value`. The wire JSON from the DTU has keys `"type"` and
+  # `"value"`. source_path uses `$.iocs[*].type` and `$.iocs[*].value` accordingly.
+  # The serde alias `ioc_type` is a deserialization convenience only — it does NOT appear
+  # in serialized JSON.
+  # (BC-2.06.019 INCONCLUSIVE inner-key pending live-tenant validation)
   # ---------------------------------------------------------------------------
 
   # Singleton top-level IOC — PENDING-LIVE-VALIDATION (may be removed if absent in live API).
   # DTU: Alert.ioc.ioc_type (primary wire key: "type" via serde rename).
+  # ENRICH-1: renamed from "ioc.type" → "ioc_type" + source_path.
   [[tables.columns]]
-  name = "ioc.type"
+  name = "ioc_type"
   column_type = "string"
+  source_path = "$.ioc.type"
 
   # DTU: Alert.ioc.value (primary wire key: "value").
+  # ENRICH-1: renamed from "ioc.value" → "ioc_value_singleton" + source_path.
+  # Name "ioc_value_singleton" avoids collision with the iocs array column below.
   [[tables.columns]]
-  name = "ioc.value"
+  name = "ioc_value_singleton"
   column_type = "string"
+  source_path = "$.ioc.value"
 
   # List-form IOC array — CONFIRMED via Check Point sk182975 + FortiSOAR connector.
   # DTU: Alert.iocs[].ioc_type (primary wire key: "type" via serde rename).
+  # ENRICH-1: renamed from "iocs[].type" → "iocs_type" + source_path with wildcard.
+  # Wildcard [*] → JSON-list string e.g. ["hash","domain"] (Design Decision 2).
   [[tables.columns]]
-  name = "iocs[].type"
+  name = "iocs_type"
   column_type = "string"
+  source_path = "$.iocs[*].type"
 
   # DTU: Alert.iocs[].value (primary wire key: "value").
-  # This is the field used in the canonical ThreatIntel pivot query:
-  #   FROM cyberint_alerts | where severity = "high" | enrich threat_intel(iocs[].value)
+  # ENRICH-1: renamed from "iocs[].value" → "iocs_value" + source_path with wildcard.
+  # THIS IS THE PRIMARY DEMO COLUMN used in pivot_enrich:
+  #   SELECT alert_id, severity, iocs_value FROM cyberint_alerts
+  #   WHERE pivot_enrich(iocs_value) IS NOT NULL
+  # Wildcard [*] → JSON-list string e.g. ["hash1","hash2"] (Design Decision 2).
   [[tables.columns]]
-  name = "iocs[].value"
+  name = "iocs_value"
   column_type = "string"
+  source_path = "$.iocs[*].value"
 
   # Network IOC surface — alert_data.ip, alert_data.domain, alert_data.url.
   # `url` CONFIRMED via FortiSOAR connector; `ip`/`domain` UNCONFIRMED-plausible.
   # DTU: Alert.alert_data.ip / .domain / .url (Option<String> each).
+  # ENRICH-1: renamed from "alert_data.ip" → "alert_data_ip" + source_path (nested scalar).
   [[tables.columns]]
-  name = "alert_data.ip"
+  name = "alert_data_ip"
   column_type = "string"
+  source_path = "$.alert_data.ip"
 
+  # ENRICH-1: renamed from "alert_data.domain" → "alert_data_domain" + source_path.
   [[tables.columns]]
-  name = "alert_data.domain"
+  name = "alert_data_domain"
   column_type = "string"
+  source_path = "$.alert_data.domain"
 
+  # ENRICH-1: renamed from "alert_data.url" → "alert_data_url" + source_path.
   [[tables.columns]]
-  name = "alert_data.url"
+  name = "alert_data_url"
   column_type = "string"
+  source_path = "$.alert_data.url"
 
   # Cursor-based pagination
   # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())

@@ -268,6 +268,48 @@ impl DemoConfig {
 /// the change automatically once the `match` arm is added to `build_multi_clone_factory`.
 pub const KNOWN_SENSORS: &[&str] = &["crowdstrike", "armis", "claroty", "cyberint"];
 
+/// Canonical set of global enrichment clone IDs supported by `start-multi`.
+///
+/// These are GLOBAL shared instances (not per-org) because all orgs query the same
+/// threat intelligence / CVE backends. They are SEPARATE from `KNOWN_SENSORS` so that:
+/// 1. Per-org sensor dispatch in `build_multi_clone_factory` is unaffected — it still
+///    uses only `KNOWN_SENSORS` for suffix-matching.
+/// 2. `start_multi_for_config` can spawn enrichment instances with stable global names
+///    (`"threatintel"`, `"nvd"`) without confusing the org-suffix parser.
+/// 3. `write_multi_url_sidecar_to_path` emits them under `"_global"` rather than any
+///    org slug, so demo-run.sh reads them as enrichment env vars rather than overlay TOMLs.
+///
+/// TD-VSDD-060 sibling-awareness: adding a new enrichment clone updates ONLY this constant.
+pub const KNOWN_ENRICHMENT_CLONES: &[&str] = &["threatintel", "nvd"];
+
+/// Global enrichment DTU configuration (the `[enrichment]` section in `MultiOrgDemoConfig`).
+///
+/// When a field is `true`, the corresponding global DTU clone is started by
+/// `start_multi_for_config` as a shared instance under its canonical name
+/// (`"threatintel"`, `"nvd"`). These are NOT per-org — all orgs share them.
+///
+/// # TOML schema
+///
+/// ```toml
+/// [enrichment]
+/// threatintel = true
+/// nvd = true
+/// ```
+///
+/// Default: both disabled (false). This preserves backward compatibility — existing
+/// `scripts/demo.toml` files without `[enrichment]` continue to parse correctly.
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct EnrichmentConfig {
+    /// When `true`, start a global `ThreatIntelClone` instance named `"threatintel"`.
+    #[serde(default)]
+    pub threatintel: bool,
+    /// When `true`, start a global `NvdClone` instance named `"nvd"`.
+    #[serde(default)]
+    pub nvd: bool,
+}
+
 /// Top-level config for `start-multi`. Loaded from `scripts/demo.toml`.
 ///
 /// Separate from `DemoConfig` to avoid `deny_unknown_fields` clash — `DemoConfig`
@@ -284,6 +326,13 @@ pub struct MultiOrgDemoConfig {
     /// Global harness settings (reuses existing `HarnessConfig`).
     #[serde(default)]
     pub harness: HarnessConfig,
+    /// Global enrichment DTU configuration (`[enrichment]` section).
+    ///
+    /// When present and fields are `true`, `start_multi_for_config` starts global
+    /// ThreatIntel/NVD instances shared across all orgs. Defaults to disabled (false)
+    /// so existing configs without `[enrichment]` continue to parse correctly.
+    #[serde(default)]
+    pub enrichment: EnrichmentConfig,
     /// Per-org DTU clone fleet configs, keyed by org slug (e.g. `"org-a"`).
     ///
     /// Corresponds to the `[orgs.<slug>]` TOML section.
@@ -315,6 +364,20 @@ pub struct OrgConfig {
     /// When `None`, the Cyberint clone's allowlist is empty at startup.
     #[serde(default)]
     pub initial_access_token: Option<String>,
+
+    /// Scenario configuration shared across ALL sensors in this org's DTU fleet.
+    ///
+    /// When `Some` and `enabled = true`, `build_multi_clone_factory` calls
+    /// `new_with_scenario` (with a shared `Arc<IncidentTimeline>`) instead of
+    /// `new_with_seed`. All sensors in the org share the same timeline and
+    /// `ScenarioEntityCatalog` (derived from this org's `seed` + `org_id`).
+    ///
+    /// Mirrors the `CloneConfig.scenario` field used by the `start` path's
+    /// `build_clone_pairs` (harness.rs) — same `ScenarioConfig` type.
+    ///
+    /// When `None` or `enabled = false`, falls back to `new_with_seed` (backward compatible).
+    #[serde(default)]
+    pub scenario: Option<ScenarioConfig>,
 }
 
 /// Returns `true` if `slug` is a path-safe org slug.

@@ -273,6 +273,21 @@ pub struct PipeQuery {
     pub write: Option<crate::write_ast::WriteNode>,
 }
 
+impl PipeQuery {
+    /// Construct a read-only `PipeQuery` (no write node).
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// from outside `prism-query`. External callers (integration tests, downstream
+    /// crates) use this constructor.
+    pub fn new(source: SourceRef, stages: Vec<PipeStage>) -> Self {
+        Self {
+            source,
+            stages,
+            write: None,
+        }
+    }
+}
+
 /// A single stage in a pipe query (BC-2.11.004).
 ///
 /// `#[non_exhaustive]` enables S-3.06 to add new stage types without
@@ -306,6 +321,17 @@ pub enum PipeStage {
 pub struct SortExpr {
     pub field: FieldPath,
     pub direction: SortDirection,
+}
+
+impl SortExpr {
+    /// Construct a `SortExpr`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// from outside the crate (E0639). Integration tests and downstream crates use
+    /// this constructor.
+    pub fn new(field: FieldPath, direction: SortDirection) -> Self {
+        Self { field, direction }
+    }
 }
 
 /// Sort direction.
@@ -433,6 +459,19 @@ pub enum JoinCondition {
 pub struct EnrichStage {
     pub infusion: String,
     pub field: FieldPath,
+}
+
+impl EnrichStage {
+    /// Construct an `EnrichStage`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// from outside `prism-query`. Integration tests and downstream crates use this.
+    pub fn new(infusion: impl Into<String>, field: FieldPath) -> Self {
+        Self {
+            infusion: infusion.into(),
+            field,
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

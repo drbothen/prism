@@ -101,6 +101,10 @@ pub mod infusion_udf;
 // No-op CacheBackend placeholder for InfusionTier3Cache before real RocksDB is wired.
 pub(crate) mod null_cache;
 
+// ── ENRICH-4-B modules ────────────────────────────────────────────────────────
+// Pipe-to-SQL emitter — lowers PipeQuery AST to DataFusion executable SQL (BC-2.11.004).
+pub(crate) mod pipe_sql_emitter;
+
 // ── S-3.13 modules ────────────────────────────────────────────────────────────
 /// Dynamic table registry — tracks which sensor tables are currently available.
 /// Populated from `ConfigSnapshot.sensor_specs` at startup; updated on hot-reload.
