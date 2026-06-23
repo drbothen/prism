@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.923"
+version: "7.924"
 producer: state-manager
-timestamp: 2026-06-22T23:59:00Z
+timestamp: 2026-06-23T03:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -19,8 +19,8 @@ safe_to_compact: true
 develop_head: "5504c152"
 bc_index_version: "7.04"
 vp_index_version: "1.79"
-story_index_version: "v2.464"
-arch_index_version: "2.141"
+story_index_version: "v2.465"
+arch_index_version: "2.142"
 error_taxonomy_version: "1.94"
 total_stories: 209
 active_contracts: 241
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1294 (2026-06-22). S-5.04 spec reconciliation + runbook correction (factory-only; TD-VSDD-053 single-commit). S-5.04 v2.0→v2.1: AC-9 dot→underscore reconciliation (F-S504-P1-002 spec side). BC-2.08.001 v1.4→v1.5: postcondition 5 dot→underscore convention. T13 runbook v1.0→v1.1: BLOCKER-4 IOC column names corrected (iocs[].value/iocs[].type/severity; phantom ioc_severity removed). BC-INDEX v7.03→v7.04. STORY-INDEX v2.463→v2.464. develop_head UNCHANGED 5504c152. NEXT: S-5.04 LOCAL adversary re-pass on frozen code HEAD 38b2726b (streak 0/3). STATE v7.922→v7.923."
+current_step: "D-1295 (2026-06-23). S-5.04 v2.2 AC-9 fallback fix + enrichment remediation design docs committed (factory-only; TD-VSDD-053 single-commit). S-5.04 v2.1→v2.2: F-S504-P3-001 AC-9 fallback-clause interpolation-var corrected. ARCH-INDEX v2.141→v2.142 (2 new scoping design docs: source_path convention + pipe-execution-engine). STORY-INDEX v2.464→v2.465. develop_head UNCHANGED 5504c152. NEXT: S-5.04 LOCAL adversary re-pass on b7681306 (streak 0/3); enrichment E-1/E-2+3/E-4-B lanes in flight. STATE v7.923→v7.924."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-22 (D-1294 S-5.04 spec reconciliation + T13 runbook correction; S-5.04 v2.1; BC-2.08.001 v1.5; BC-INDEX v7.04; STORY-INDEX v2.464; STATE v7.923)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-23 (D-1295 S-5.04 v2.2 AC-9 fallback fix + enrichment remediation design docs; ARCH-INDEX v2.142; STORY-INDEX v2.465; STATE v7.924)
 
 ## Active Objective (North Star)
 
@@ -115,7 +115,8 @@ pre_compact_snapshot_at: "2026-06-15"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log. D-1265 through D-1280 archived to burst-log (D-1285 compaction; keep last 5: D-1281..D-1285). D-1281 archived to burst-log (D-1286 compaction; keep last 5: D-1282..D-1286). D-1282 archived to burst-log (D-1287 compaction; keep last 5: D-1283..D-1287). D-1283 archived to burst-log (D-1288 compaction; keep last 5: D-1284..D-1288). D-1284 archived to burst-log (D-1289 compaction; keep last 5: D-1285..D-1289). D-1285 archived to burst-log (D-1290 compaction; keep last 5: D-1286..D-1290). D-1286 archived to burst-log (D-1291 compaction; keep last 5: D-1287..D-1291). D-1287 archived to burst-log (D-1292 compaction; keep last 5: D-1288..D-1292). D-1288 archived to burst-log (D-1293 compaction; keep last 5: D-1289..D-1293). D-1289 archived to burst-log (D-1294 compaction; keep last 5: D-1290..D-1294)._
+_D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 archived to burst-log. D-1257 archived to burst-log. D-1259 archived to burst-log. D-1264 archived to burst-log. D-1265 through D-1280 archived to burst-log (D-1285 compaction; keep last 5: D-1281..D-1285). D-1281 archived to burst-log (D-1286 compaction; keep last 5: D-1282..D-1286). D-1282 archived to burst-log (D-1287 compaction; keep last 5: D-1283..D-1287). D-1283 archived to burst-log (D-1288 compaction; keep last 5: D-1284..D-1288). D-1284 archived to burst-log (D-1289 compaction; keep last 5: D-1285..D-1289). D-1285 archived to burst-log (D-1290 compaction; keep last 5: D-1286..D-1290). D-1286 archived to burst-log (D-1291 compaction; keep last 5: D-1287..D-1291). D-1287 archived to burst-log (D-1292 compaction; keep last 5: D-1288..D-1292). D-1288 archived to burst-log (D-1293 compaction; keep last 5: D-1289..D-1293). D-1289 archived to burst-log (D-1294 compaction; keep last 5: D-1290..D-1294). D-1290 archived to burst-log (D-1295 compaction; keep last 5: D-1291..D-1295)._
+| D-1295 | state-manager | 2026-06-23 | **S-5.04 v2.2 AC-9 FALLBACK FIX + ENRICHMENT REMEDIATION DESIGN DOCS (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). FILES COMMITTED: (1) stories/S-5.04-sensor-health.md v2.1→v2.2: F-S504-P3-001 closure — AC-9 fallback-clause interpolation-var drift corrected; `{sensor_id}_{probe_table}` form in AC-9 should use `spec.tables[0].table_name` not bare `probe_table` variable to match BC-2.08.001 postcondition 5; §Changelog row added. (2) specs/architecture/scoping/sensor-column-source-path-design.md — NEW architect design doc: `source_path` column-schema convention for nested/array JSON extraction (supersedes PIVOT-003 bracket-in-name convention; fixes build_column_array() + ColumnMapper::map_record() flat-key NULL root cause; extract_at_path() wiring design; related ADR-028/ADR-033/BC-2.06.019; basis for E-1 implementer lane). (3) specs/architecture/scoping/pipe-execution-engine-design.md — NEW architect design doc: Pipe→SQL execution lowering for ENRICH-4-B (Ast::Pipe/Filter arm returns raw table_batches verbatim — UDFs never called, all pipe ops silent no-ops including enrich/where/stats/head/sort/fields/dedup; fix: lower to DataFusion SELECT via session_ctx.sql() on same proven path as Ast::Sql; traces BC-2.11.004/BC-2.19.001/BC-2.11.006; basis for E-4-B implementer lane). INDEX RECONCILIATION: STORY-INDEX v2.464→v2.465 (S-5.04 row v2.1→v2.2; changelog row added). ARCH-INDEX v2.141→v2.142 (v2.142 row referencing 2 new scoping docs; no ADR registry changes — design docs are implementer specs, not formal ADRs). POL-29 SIBLING SWEEP (v2.1 cites pre-count): STATE.md D-1294 historical row (IMMUTABLE); STORY-INDEX row v2.1 (updated → v2.2); SESSION-HANDOFF.md §S-5.04 DEMO-BLOCKING STATUS (updated → v2.2; LOCAL streak note updated to re-pass b7681306). Post-count: 1 historical immutable cite remains (D-1294 row). code HEAD UNCHANGED b7681306. story_index_version v2.464→v2.465. arch_index_version 2.141→2.142. STATE v7.923→v7.924. NEXT: S-5.04 LOCAL adversary re-pass on frozen b7681306 (streak 0/3 — F-S504-P3-001 found+fixed; re-pass required); enrichment E-1/E-2+3/E-4-B lanes in flight; demo recording deferred until enrichment converges.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1294 | state-manager | 2026-06-22 | **S-5.04 SPEC RECONCILIATION + T13 RUNBOOK CORRECTION (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). 3 uncommitted PO edits committed: (1) S-5.04-sensor-health.md v2.0→v2.1: AC-9 dot→underscore table-form reconciliation (F-S504-P1-002 spec side); §Changelog row added. (2) BC-2.08.001-on-demand-connectivity-check.md v1.4→v1.5: postcondition 5 dot→underscore convention (canonical underscore aligns with TOML spec field name); §Changelog row added. (3) T13-capstone-demo-runbook.md v1.0→v1.1: BLOCKER-4 IOC query column names corrected to `iocs[].value`/`iocs[].type`/`severity`; phantom `ioc_severity` removed; §Changelog row added. INDEX RECONCILIATION: BC-INDEX v7.03→v7.04 (BC-2.08.001 inline row v1.4→v1.5; changelog row added). STORY-INDEX v2.463→v2.464 (S-5.04 row v2.0→v2.1; changelog row added). POL-29 SIBLING SWEEP (pre): 8 cites of BC-2.08.001 v1.4 in 4 files (STATE.md D-1284/D-1285 historical rows IMMUTABLE; SESSION-HANDOFF.md §S-5.04 IMPLEMENTER GUIDANCE updated v1.4→v1.5; BC-INDEX.md inline row updated; S-5.04-sensor-health.md updated by PO). S-5.04 v2.0 cites: T13 runbook updated v2.0→v2.1; STORY-INDEX row updated; SESSION-HANDOFF.md §roadmap updated; STATE.md D-1285 historical row IMMUTABLE. code HEAD UNCHANGED 38b2726b. bc_index_version 7.03→7.04. story_index_version v2.463→v2.464. STATE v7.922→v7.923. NEXT: S-5.04 LOCAL adversary re-pass on frozen code HEAD 38b2726b (streak 0/3).** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1293 | state-manager | 2026-06-22 | **POST-MERGE BURST — PR #199 + PR #198 (TD-VSDD-053 single-commit; factory-artifacts). PR #199 maintenance(rustfmt): develop@8d8be0fb (squash-merged; no BC changes). PR #198 S-DEMO-PRISMQL-ONBOARDING-001-B: develop@5504c152 admin squash-merged (admin-merge bypassing in-flight test matrix per explicit human directive; LOCAL 3/3 + PR-LEVEL 3/3 strict-3-CLEAN @ frozen f141801b; 4730 tests gate=83; pr-reviewer APPROVE; security CLEAR; demo evidence 6 ACs present). POL-14 auto-promotion: BC-2.11.016+BC-2.11.017+BC-2.11.018 status:draft→active. CLAUDE.md 82→83: already landed in PR #198 squash commit (develop@5504c152) — no separate develop commit needed (verified). STORY-INDEX v2.462→v2.463 (001-B row: draft v1.9→merged PR #198 develop@5504c152; worktree REMOVED; branch DELETED). sprint-state.yaml current_story: S-3.13→S-DEMO-PRISMQL-ONBOARDING-001-B merged. BC-INDEX v7.02→v7.03 (BC-2.11.016/017/018 inline rows draft→active; frontmatter corrected 235/8→241/2; DRIFT-BC-INDEX-COUNT-CORPUS-001 RESOLVED). develop_head fc954300→5504c152. active_contracts 238→241, draft_contracts 5→2. Worktrees .worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B + .worktrees/maintenance-rustfmt-stable REMOVED; local branches DELETED. NEXT DEMO-BLOCKING: S-5.04 (PARKED @4282c997, serial). STATE v7.921→v7.922.** | wave-5-e-demo-fidelity | 2026-06-22 |
 | D-1292 | state-manager | 2026-06-22 | **ZERO-CONTEXT RESUME SNAPSHOT D-1292 + S-MAINT-RUSTSEC-QUINN-PROTO-001 REGISTRATION (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED fc954300). Comprehensive zero-context resume snapshot authored in SESSION-HANDOFF.md §RESUME SNAPSHOT D-1292 (supersedes D-1282). Captures: 001-B FULLY CONVERGED (LOCAL 3/3 CLEAN(strict) + PR-LEVEL 3/3 CLEAN(strict); final HEAD f141801b; PR #198 open; 4730 tests gate=83; ci.yml EXPECTED=83 IN PR; demo evidence 6 ACs present; security CLEAR; pr-reviewer APPROVE; cargo-audit CI FAILURE = non-required RUSTSEC-2026-0185; non-exhaustive gate 82→83; BCs BC-2.11.016 v1.4/017 v1.3/018 v1.2 status:draft auto-promote draft→active at merge per POL-14); S-5.04 PARKED spec-ready at worktree 4282c997; PR #199 rustfmt-stable-no-nightly-opts READY TO MERGE; lefthook stall root-causes (cargo-lock contention + rustfmt.toml nightly-options flood) codified for lessons; S-MAINT-RUSTSEC-QUINN-PROTO-001 draft v1.0 registered (RUSTSEC-2026-0185 quinn-proto pin; P1/maintenance; after-demo priority; total_stories 208→209); confirmed S-EXPLAIN-PARITY-001 + S-ALIAS-CLIENT-SCOPE-001 + DRIFT-BC-INDEX-COUNT-CORPUS-001 already registered/present. STORY-INDEX v2.461→v2.462. STATE v7.920→v7.921.** | wave-5-e-demo-fidelity | 2026-06-22 |
@@ -373,25 +374,26 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1294 — 2026-06-22; STATE v7.923)
+## Session Resume Checkpoint (D-1295 — 2026-06-23; STATE v7.924)
 
-**STATE v7.923. CURRENT POSITION: D-1294 SPEC RECONCILIATION + RUNBOOK CORRECTION COMPLETE. S-5.04 v2.1 (AC-9 dot→underscore). BC-2.08.001 v1.5 (postcondition 5 dot→underscore). T13 runbook v1.1 (BLOCKER-4 IOC column names corrected). develop_head 5504c152 UNCHANGED. OPEN PRs: none (demo-lane). ARCH-INDEX v2.141. total_stories 209. ci.yml EXPECTED=83 on develop. bc_index_version 7.04. story_index_version v2.464. error_taxonomy_version 1.94. CLAUDE.md non-exhaustive=83 on develop. SESSION-HANDOFF.md §RESUME SNAPSHOT D-1292 still stale — update needed.**
+**STATE v7.924. CURRENT POSITION: D-1295 S-5.04 v2.2 AC-9 FALLBACK FIX + ENRICHMENT REMEDIATION DESIGN DOCS COMMITTED. S-5.04 v2.2 (F-S504-P3-001 closed). ARCH-INDEX v2.142 (2 new scoping design docs). develop_head 5504c152 UNCHANGED. OPEN PRs: none (demo-lane). ARCH-INDEX v2.142. total_stories 209. ci.yml EXPECTED=83 on develop. bc_index_version 7.04. story_index_version v2.465. error_taxonomy_version 1.94. CLAUDE.md non-exhaustive=83 on develop. SESSION-HANDOFF.md §RESUME SNAPSHOT D-1292 still stale — update needed.**
 
-**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B MERGED** (PR #198 develop@5504c152 — DONE; D-1293) + **S-5.04 (TDD-ready v2.1; code HEAD 38b2726b; worktree .worktrees/S-5.04 exists; LOCAL adversary PASS-1 done; fix-burst done 38b2726b; LOCAL STREAK 0/3 — re-pass required on frozen 38b2726b)**. T13 gated on S-5.04 MERGED (1 remaining). Demo TARGET: 2026-06-23.
+**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a — DONE) + **001-B MERGED** (PR #198 develop@5504c152 — DONE; D-1293) + **S-5.04 (TDD-ready v2.2; code HEAD b7681306; worktree .worktrees/S-5.04 exists; LOCAL adversary PASS-1 found+fixed F-S504-P3-001 (AC-9 fallback-clause); fix-burst b7681306; LOCAL STREAK 0/3 — re-pass required on frozen b7681306)**. T13 gated on S-5.04 MERGED (1 remaining). Enrichment remediation: E-1/E-2+3/E-4-B lanes in flight (design docs committed; demo recording deferred until converged).
 
 **NEXT PICKABLE TASKS (in order):**
-1. S-5.04 LOCAL adversary re-pass on frozen code HEAD 38b2726b (streak 0/3) — spec now reconciled at v2.1
+1. S-5.04 LOCAL adversary re-pass on frozen code HEAD b7681306 (streak 0/3) — spec now reconciled at v2.2
 2. After 3/3 LOCAL: demo-recorder → push → PR → PR-LEVEL strict-3-CLEAN → merge
-3. T13 capstone + T14 recording
-4. Update SESSION-HANDOFF.md §RESUME SNAPSHOT to D-1294 state
+3. Enrichment remediation E-1/E-2+3/E-4-B implementer lanes → converge → demo recording
+4. T13 capstone + T14 recording
+5. Update SESSION-HANDOFF.md §RESUME SNAPSHOT to D-1295 state
 
 **DO-NOT-REFLAG carry-forward:** F-R8PB-MED-002 (unsubscribe correct-by-construction). **BC-2.11.009 per-client-alias-scope deviation** → S-ALIAS-CLIENT-SCOPE-001 (P2, no cascade needed for S-5.04). **001-B closed findings (DO-NOT-REFLAG for S-5.04 cascade):** explain_query parity→S-EXPLAIN-PARITY-001; E-QUERY-002 dual-Display→error-taxonomy v1.94; multi-client client_id=first(); both-quotes literal unreachable; func-call-arg-column-typos acceptable; 3-segment JSON-path unreachable; BETWEEN/IN not plan-type-gated.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (D-1292 is pre-merge stale — update for D-1294 needed).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (D-1292 is pre-merge stale — update for D-1295 needed).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `5504c152`.
 3. `gh pr list --state open --base develop` → expect none.
-4. `git worktree list` → expect .worktrees/S-5.04 @38b2726b (post-fix-burst) + .worktrees/S-3.09 (frozen) + .worktrees/W3-FIX-S307-001 (frozen).
+4. `git worktree list` → expect .worktrees/S-5.04 @b7681306 (post-fix-burst) + .worktrees/S-3.09 (frozen) + .worktrees/W3-FIX-S307-001 (frozen).
 5. Apply lessons + DO-NOT-REFLAG above.
 6. Execute next pickable tasks above. Autonomy D-989+D-1090 active.

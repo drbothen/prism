@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.141"
+version: "2.142"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -168,6 +168,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.142 | enrichment-remediation-design-D1295 | 2026-06-23 | state-manager | D-1295 enrichment remediation architect design burst. **2 new scoping design docs committed:** `scoping/sensor-column-source-path-design.md` — `source_path` column-schema convention (nested/array extraction design; supersedes PIVOT-003 bracket-in-name `iocs[].value` convention; fixes build_column_array() + ColumnMapper::map_record() flat-key NULL root cause; related: ADR-028, ADR-033, BC-2.06.019); `scoping/pipe-execution-engine-design.md` — Pipe→SQL execution lowering for ENRICH-4-B (Ast::Pipe/Filter arm returns raw table_batches verbatim — UDFs never called, all pipe ops silent no-ops; fix: lower Pipe to SELECT with registered async UDFs via session_ctx.sql(); traces to BC-2.11.004, BC-2.19.001, BC-2.11.006). These are implementer design specs (no new ADR); referenced here per scoping-doc convention. ARCH-INDEX v2.141→v2.142. |
 | 2.141 | post-merge-D1277-001-A | 2026-06-21 | state-manager | D-1277 S-DEMO-PRISMQL-ONBOARDING-001-A post-merge burst. **ADR-042 PROPOSED→ACCEPTED** (PR #197 squash-merged to develop@ffe9315a; implementation delivered LOCAL strict-3-CLEAN + PR-LEVEL strict-3-CLEAN CONVERGED; CI 43/43 green). ADR-042 frontmatter `status: proposed` → `accepted`; §Status body updated PROPOSED v1.1 → ACCEPTED v1.1 with merge provenance. ADR-042 Registry row Status cell updated PROPOSED→ACCEPTED v1.1, date 2026-06-20→2026-06-21. ARCH-INDEX v2.140→v2.141. |
 | 2.140 | round-8-closure-burst-D1274 | 2026-06-21 | state-manager | D-1274 round-8 LOCAL cascade closure burst. **ADR-042 adjudication doc v1.0→v1.1 (addendum):** `scoping/001-A-reload-notify-diff-adjudication.md` updated by architect — status now superseded-in-part; D-1267 override recorded (build-now decision + BC-2.10.013 §76 single-connection invariant; F-R8PB-MED-002 unsubscribe correct-by-construction). ADR-042 row itself UNCHANGED (already v1.1 from D-1273). ARCH-INDEX v2.139→v2.140. |
 | 2.139 | ADR-042-reload-aware-design-D1267 | 2026-06-20 | architect | D-1267 human override of 001-A deferral — build multi-tenant schema-change notification now. **ADR-042 PROPOSED v1.0** registered: Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild. Decisions: D1 field type changed to `Option<Arc<ArcSwap<HashMap>>>`, D2 public accessor return type unchanged, D3 new `rebuild_resolved_spec_map` method, D4 rebuild wired in `reload_config_core`, D5 per-org notify-diff updated. Crates affected: prism-query (new arc-swap dep + field change + method), prism-mcp (reload wiring + notify-diff). Implementer design spec at `scoping/resolved-spec-map-reload-aware-design.md`. BC-2.10.013 update guidance + test vectors included. ARCH-INDEX v2.138→v2.139. |
