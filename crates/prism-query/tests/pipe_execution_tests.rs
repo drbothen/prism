@@ -721,13 +721,22 @@ async fn test_pipe_memory_budget_error_surfaces_e_watchdog_001() {
          If Ok, the pipe sort stage bypassed DataFusion — ENRICH-4-B not yet implemented",
     );
 
-    match err {
-        PrismError::QueryMemoryBudgetExceeded { .. } | PrismError::QueryExecutionFailed { .. } => {
-            // Both acceptable — both confirm DataFusion SortExec was invoked and
-            // tried to allocate from the pool.
-        }
-        other => panic!(
-            "MEM Test 8: expected QueryMemoryBudgetExceeded or QueryExecutionFailed; got: {other:?}"
-        ),
-    }
+    // Strict assertion mirrors sibling test_qry03_memory_pool_trip_in_sql_execution_maps_to_memory_variant:
+    // The pipe arm routes through map_datafusion_memory_error identically to the SQL arm,
+    // so a ResourcesExhausted error from SortExec MUST produce QueryMemoryBudgetExceeded,
+    // not the generic QueryExecutionFailed.  If this assertion fails, it means the pipe
+    // arm is NOT correctly mapping memory errors — a real code bug, not just a test gap.
+    assert!(
+        matches!(err, PrismError::QueryMemoryBudgetExceeded { .. }),
+        "MEM Test 8: 1-byte pool trip must produce QueryMemoryBudgetExceeded (E-WATCHDOG-001), \
+         not {:?}. If QueryExecutionFailed, the pipe arm is NOT routing through \
+         map_datafusion_memory_error — BC-2.11.006 invariant violated.",
+        err
+    );
+
+    let msg = err.to_string();
+    assert!(
+        msg.contains("E-WATCHDOG-001"),
+        "MEM Test 8: memory-budget error must carry E-WATCHDOG-001 code; got: {msg}"
+    );
 }
