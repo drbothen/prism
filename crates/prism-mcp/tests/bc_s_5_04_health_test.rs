@@ -30,6 +30,8 @@
 //! | BC-2.08.007 — all down→Unhealthy | test_BC_2_08_007_aggregate_unhealthy_when_all_down |
 //! | BC-2.08.007 invariant — partial is success | test_BC_2_08_007_invariant_partial_is_not_error |
 //! | BC-2.08.007 — auth_invalid counts as not healthy | test_BC_2_08_007_aggregate_auth_invalid_sensor_is_not_healthy |
+//! | BC-2.08.007 — ALL auth-invalid → Unhealthy (F-S504-LP3-HIGH-001) | test_BC_2_08_007_aggregate_all_auth_invalid_is_unhealthy |
+//! | BC-2.08.007 — ALL auth-invalid server response → "unhealthy" (F-S504-LP3-HIGH-001) | test_BC_2_08_007_all_auth_invalid_server_response_is_unhealthy |
 //! | BC-2.08.007 — empty list → Unhealthy | test_BC_2_08_007_aggregate_empty_list_is_unhealthy |
 //! | SensorHealthChecker::new GREEN | test_BC_S_5_04_sensor_health_checker_new_constructs_successfully |
 //! | BC-2.08.004 checker — record+read round-trip | test_BC_2_08_004_checker_record_and_read_timestamp |
@@ -180,6 +182,36 @@ impl SensorAdapter for MockAdapterForbidden {
 
     fn sensor_name(&self) -> &'static str {
         "crowdstrike-mock-forbidden"
+    }
+}
+
+/// Mock adapter simulating HTTP 401 Unauthorized for an "armis" sensor type.
+///
+/// Used by F-S504-LP3-HIGH-001 all-auth-invalid server-response test that needs two
+/// distinct sensor types (crowdstrike + armis) both returning 401.
+struct MockAdapterUnauthorizedArmis;
+
+#[async_trait]
+impl SensorAdapter for MockAdapterUnauthorizedArmis {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("armis")
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        Err(SensorError::HttpError {
+            sensor: "armis".to_string(),
+            status: 401,
+            body: "mock armis 401 unauthorized".to_string(),
+        })
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "armis-mock-unauthorized"
     }
 }
 
@@ -740,6 +772,81 @@ fn test_BC_2_08_007_aggregate_auth_invalid_sensor_is_not_healthy() {
         status,
         OverallStatus::Partial,
         "BC-2.08.007: auth_invalid sensor must not count toward Healthy"
+    );
+}
+
+/// BC-2.08.007 F-S504-LP3-HIGH-001: ALL sensors auth-invalid (reachable=true, auth_valid=false,
+/// no rate_limit) MUST return `OverallStatus::Unhealthy` — NOT `Partial`.
+///
+/// BC-2.08.007 §Postconditions canonical classification table:
+/// - `"unhealthy"` = ALL sensors are unreachable OR auth-invalid (no rate-limited sensor present).
+/// - `"partial"` = at least one sensor is unreachable OR auth-invalid (but not ALL).
+///
+/// Root cause: before this fix, `any_reachable = results.iter().any(|r| r.reachable != Some(false))`
+/// treated auth-invalid sensors (reachable=true, auth_valid=false) as "partially available",
+/// so a fleet of all-401 sensors returned `Partial`. This is a realistic MSSP scenario:
+/// a client's entire fleet on an expired/rotated API key returns 401 from every sensor.
+///
+/// F-S504-LP3-HIGH-001 load-bearing test (TD-VSDD-059): uses sensors that are
+/// `reachable=Some(true)` + `auth_valid=Some(false)` (NOT the `down_result` helper which also
+/// sets `reachable=false` and would mask the bug).
+///
+/// RED GATE: currently returns `Partial` due to the `any_reachable` predicate bug → MUST be RED
+/// before the fix is applied.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_08_007_aggregate_all_auth_invalid_is_unhealthy() {
+    // ALL sensors are reachable-but-auth-invalid (401/403 pattern).
+    // reachable=Some(true): connectivity probe returned Up (HTTP 4xx confirms exchange)
+    // auth_valid=Some(false): auth probe returned Invalid
+    // rate_limit=None: no rate-limiting observed
+    let auth_invalid_cs = SensorHealthResult::new("crowdstrike", "acme")
+        .with_reachable(true)
+        .with_auth_valid(false);
+    let auth_invalid_armis = SensorHealthResult::new("armis", "acme")
+        .with_reachable(true)
+        .with_auth_valid(false);
+    let auth_invalid_claroty = SensorHealthResult::new("claroty", "acme")
+        .with_reachable(true)
+        .with_auth_valid(false);
+
+    let status = HealthCheckResult::aggregate(vec![
+        auth_invalid_cs,
+        auth_invalid_armis,
+        auth_invalid_claroty,
+    ]);
+
+    assert_eq!(
+        status,
+        OverallStatus::Unhealthy,
+        "BC-2.08.007 F-S504-LP3-HIGH-001: when ALL sensors are auth-invalid \
+         (reachable=true, auth_valid=false, no rate_limit), aggregate MUST return \
+         OverallStatus::Unhealthy — NOT Partial. \
+         'partial' = some sensors up, some down/auth-invalid; \
+         'unhealthy' = ALL sensors unreachable or auth-invalid. \
+         Got: {status:?}"
+    );
+}
+
+/// BC-2.08.007 F-S504-LP3-HIGH-001 boundary: mixed (one auth-invalid + one healthy) → Partial.
+///
+/// This companion test verifies the fix does NOT break the existing partial case:
+/// when SOME but not ALL sensors are auth-invalid, the result must still be Partial.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_08_007_aggregate_mixed_auth_invalid_and_healthy_is_partial() {
+    let auth_invalid = SensorHealthResult::new("crowdstrike", "acme")
+        .with_reachable(true)
+        .with_auth_valid(false);
+    let healthy = live_result("armis", "acme");
+
+    let status = HealthCheckResult::aggregate(vec![auth_invalid, healthy]);
+
+    assert_eq!(
+        status,
+        OverallStatus::Partial,
+        "BC-2.08.007: mixed auth-invalid + healthy MUST remain Partial (not Unhealthy). \
+         Only ALL-auth-invalid maps to Unhealthy. Got: {status:?}"
     );
 }
 
@@ -2361,6 +2468,128 @@ async fn test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_su
     assert!(
         json_str.contains("0 of 2 sensors healthy") && json_str.contains("all rate-limited"),
         "F-S504-P5-002: prose summary MUST match '0 of N sensors healthy — all rate-limited'. \
+         Got JSON: {:.500}",
+        json_str
+    );
+}
+
+// ─── F-S504-LP3-HIGH-001 — all-auth-invalid server response shape ─────────────
+
+/// F-S504-LP3-HIGH-001 (BC-2.08.007): `check_sensor_health` for an all-401 client MUST
+/// emit `overall_status: "unhealthy"` (NOT `"partial"`).
+///
+/// Canonical test-vector: "All sensors unhealthy (unreachable/auth-invalid) → overall_status: 'unhealthy'".
+///
+/// RED GATE: currently returns `"partial"` due to the `any_reachable` predicate bug.
+/// After fix, the all-auth-invalid fleet MUST produce:
+/// - `overall_status: "unhealthy"`
+/// - `summary_counts.unhealthy_count == 2`
+/// - `summary_counts.healthy_count == 0`
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_007_all_auth_invalid_server_response_is_unhealthy() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{CheckSensorHealthParams, PrismServer};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // Register two sensors both returning 401 (all-auth-invalid fleet).
+    let org_id = OrgId::new();
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(MockAdapterUnauthorized));
+    adapter_registry.register(org_id, Arc::new(MockAdapterUnauthorizedArmis));
+    let adapter_registry = Arc::new(adapter_registry);
+
+    // Build a TableRegistry with both sensors so check_sensor_health enumerates them.
+    let table_registry = TableRegistry::new();
+    let cs_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike (all-401 mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.crowdstrike.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    let armis_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "armis",
+        "Armis (all-401 mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.armis.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    table_registry
+        .register_sensor(&cs_spec)
+        .expect("register crowdstrike");
+    table_registry
+        .register_sensor(&armis_spec)
+        .expect("register armis");
+
+    let engine = QueryEngine::new(
+        Arc::clone(&adapter_registry),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(table_registry));
+
+    let checker = SensorHealthChecker::new(Arc::clone(&adapter_registry));
+
+    let server = PrismServer::new()
+        .with_query_engine(Arc::new(engine))
+        .with_health_checker(checker);
+
+    let params = CheckSensorHealthParams::for_client("acme");
+    let call_result = server.check_sensor_health(Parameters(params)).await.expect(
+        "F-S504-LP3-HIGH-001: check_sensor_health MUST succeed for all-auth-invalid sensors",
+    );
+
+    let json_str = serde_json::to_string(&call_result)
+        .expect("F-S504-LP3-HIGH-001: CallToolResult must serialize to JSON");
+
+    // overall_status MUST be "unhealthy" — NOT "partial"
+    assert!(
+        json_str.contains(r#""overall_status":"unhealthy""#)
+            || json_str.contains(r#""overall_status": "unhealthy""#),
+        "F-S504-LP3-HIGH-001 (BC-2.08.007 canonical test-vector): \
+         all sensors auth-invalid MUST produce overall_status=\"unhealthy\" (not \"partial\"). \
+         Canonical test-vector: 'All sensors unhealthy (unreachable/auth-invalid) → \
+         overall_status: unhealthy'. Got JSON: {:.500}",
+        json_str
+    );
+
+    // summary_counts.unhealthy_count == 2, healthy_count == 0
+    assert!(
+        json_str.contains(r#""unhealthy_count":2"#) || json_str.contains(r#""unhealthy_count": 2"#),
+        "F-S504-LP3-HIGH-001: summary_counts.unhealthy_count MUST be 2 for all-auth-invalid fleet. \
+         Got JSON: {:.500}",
+        json_str
+    );
+    assert!(
+        json_str.contains(r#""healthy_count":0"#) || json_str.contains(r#""healthy_count": 0"#),
+        "F-S504-LP3-HIGH-001: summary_counts.healthy_count MUST be 0 for all-auth-invalid fleet. \
          Got JSON: {:.500}",
         json_str
     );
