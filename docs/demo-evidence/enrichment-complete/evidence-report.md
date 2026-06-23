@@ -86,7 +86,7 @@ Row 3:
 
 **Verification:** The `threat_score` column contains the full ThreatIntel enrichment
 JSON object: `{"threat_score":95,"threat_is_known_malicious":true,"threat_sources":["virustotal"]}`.
-The value `95 ≥ 75` satisfies the Malicious threshold per BC-2.06.019.
+The value `95 ≥ 75` satisfies the Malicious threshold per BC-2.06.020.
 
 **Note on `iocs_value` format:** Per ENRICH-1 (source_path `$.iocs[*].value`),
 `iocs_value` is a JSON-list string (e.g., `["037f558b..."]`). The enrichment UDF
