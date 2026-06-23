@@ -326,6 +326,11 @@ else
 fi
 echo ""
 
+# PRISM_DTU_MODE: must be "true" so the SSRF guard (E-INFUSE-011) permits outbound
+# calls to DTU clone endpoints (127.0.0.1:*). Without this flag, the guard rejects
+# every NVD and ThreatIntel infusion request at boot with E-INFUSE-011.
+export PRISM_DTU_MODE=true
+
 # PRISM_THREATINTEL_API_KEY: fixed demo value.
 # AD-017: in real deployments, the value is piped via stdin or read from keyring;
 # the demo uses a well-known test key that matches the DTU server's allow-list.
@@ -375,6 +380,7 @@ echo "    CROWDSTRIKE_BASE_URL=http://127.0.0.1 \\"
 echo "    ARMIS_INSTANCE_URL=http://127.0.0.1 \\"
 echo "    CLAROTY_INSTANCE_URL=http://127.0.0.1 \\"
 echo "    CYBERINT_ENVIRONMENT=demo \\"
+echo "    PRISM_DTU_MODE=true \\"
 echo "    PRISM_THREATINTEL_BASE_URL=${PRISM_THREATINTEL_BASE_URL} \\"
 echo "    PRISM_THREATINTEL_API_KEY=${PRISM_THREATINTEL_API_KEY} \\"
 echo "    PRISM_NVD_BASE_URL=${PRISM_NVD_BASE_URL} \\"
