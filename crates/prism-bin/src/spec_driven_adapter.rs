@@ -1371,6 +1371,158 @@ mod tests {
         );
     }
 
+    // ---------------------------------------------------------------------------
+    // build_column_array source_path unit tests (F-ENRICH-P1-MED-001)
+    // ---------------------------------------------------------------------------
+    //
+    // These tests drive `build_column_array` (a pure fn over &[serde_json::Value] + &ColumnSpec)
+    // in-process with no external/DTU dependency. They are load-bearing (TD-VSDD-059) per SID-1:
+    // the E2E tests covering the same paths are `#[ignore]`'d due to DTU dependency;
+    // these unit tests ensure the behavior is verified without external services.
+    //
+    // Imports scoped here to avoid polluting the module with test-only pub-use.
+    use super::build_column_array;
+    use arrow::array::{Array, Int64Array, StringArray as ArrowStringArray};
+    use serde_json::json;
+
+    /// Helper: construct a `ColumnSpec` with a `source_path` set.
+    ///
+    /// `ColumnSpec` is `#[non_exhaustive]` from the defining crate (`prism-spec-engine`).
+    /// External crates (including `prism-bin` tests) cannot use struct literal or update
+    /// syntax (`..Default::default()`) directly — E0639 applies to both forms.
+    /// The correct approach: use `ColumnSpec::new()` (the provided constructor), then
+    /// mutate the `source_path` field on the owned value (field mutation is allowed;
+    /// only literal/update construction is gated by `#[non_exhaustive]`).
+    ///
+    /// CLAUDE.md non-exhaustive discipline: external callers MUST use the provided
+    /// constructors for forward-compatible construction.
+    fn col_with_source_path(
+        name: &str,
+        col_type: prism_core::ColumnType,
+        source_path: &str,
+    ) -> ColumnSpec {
+        let mut col = ColumnSpec::new(name, col_type, None, vec![]);
+        col.source_path = Some(source_path.to_string());
+        col
+    }
+
+    /// F-ENRICH-P1-MED-001 (load-bearing test, SID-1):
+    ///
+    /// `build_column_array` with a wildcard `source_path = "$.iocs[*].value"` on a
+    /// `ColumnType::String` column over records containing `{"iocs":[{"value":"hash1"},{"value":"hash2"}]}`
+    /// MUST produce a non-null cell with the compact JSON-list string `["hash1","hash2"]`.
+    ///
+    /// This is the core ENRICH-1 behavior that DD-5 item 9 mandated be covered by an in-process test.
+    /// The `column_source_path_extraction_failed` tracing emission path (AUDIT-003) is NOT triggered
+    /// on success — the emission is covered by the existing `#[ignore]`'d E2E path tests.
+    #[test]
+    fn test_build_column_array_wildcard_source_path_string_column_non_null() {
+        let records = vec![
+            json!({"iocs": [{"value": "hash1"}, {"value": "hash2"}]}),
+            json!({"iocs": [{"value": "hash3"}]}),
+        ];
+        let col = col_with_source_path(
+            "ioc_values",
+            prism_core::ColumnType::String,
+            "$.iocs[*].value",
+        );
+
+        let array = build_column_array(&records, &col);
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray");
+
+        // Row 0: ["hash1","hash2"] — non-null, compact JSON-list string.
+        assert!(
+            !string_array.is_null(0),
+            "F-ENRICH-P1-MED-001: wildcard extraction must produce non-null cell (AUDIT-003)"
+        );
+        assert_eq!(
+            string_array.value(0),
+            r#"["hash1","hash2"]"#,
+            "F-ENRICH-P1-MED-001: wildcard must produce compact JSON-list string"
+        );
+
+        // Row 1: ["hash3"] — single-element list.
+        assert!(!string_array.is_null(1));
+        assert_eq!(string_array.value(1), r#"["hash3"]"#);
+    }
+
+    /// F-ENRICH-P1-MED-001 (load-bearing test, null path, SID-1):
+    ///
+    /// `build_column_array` with a `source_path` pointing to a field ABSENT from the record
+    /// MUST produce a null cell. The `column_source_path_extraction_failed` tracing emission
+    /// path is exercised by the `extract_at_path` `Err` branch in `extract_raw` — we assert
+    /// the null cell outcome here. The tracing emission itself is a side-effect that cannot
+    /// be easily asserted in a unit test; it is covered by the existing E2E path tests.
+    #[test]
+    fn test_build_column_array_wildcard_source_path_missing_field_yields_null() {
+        let records = vec![
+            json!({"other_field": "value"}), // no "iocs" key
+        ];
+        let col = col_with_source_path(
+            "ioc_values",
+            prism_core::ColumnType::String,
+            "$.iocs[*].value",
+        );
+
+        let array = build_column_array(&records, &col);
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray");
+
+        // Missing path → extract_at_path returns Err → extract_raw returns None → null cell.
+        assert!(
+            string_array.is_null(0),
+            "F-ENRICH-P1-MED-001: missing source_path field must produce null cell"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // build_column_array first-element-with-warn for numeric wildcard (F-ENRICH-P1-LOW-001)
+    // ---------------------------------------------------------------------------
+
+    /// F-ENRICH-P1-LOW-001 (RED GATE — TDD: fails before fix, passes after):
+    ///
+    /// `build_column_array` with `ColumnType::Integer` column and wildcard `source_path`
+    /// (e.g., `"$.arr[*].value"`) over a record yielding an Array from `extract_raw`
+    /// MUST return the FIRST element's integer value (42), NOT null.
+    ///
+    /// Current behavior (before fix): silent-null (the `.and_then(|v| v.as_i64())` call
+    /// on `Value::Array` returns None). Expected behavior per DD-5 item 3: first-element
+    /// extraction with `tracing::warn!` (no `event_type=` field — plain diagnostic warn).
+    ///
+    /// This test is RED against the current code. After the fix it must be GREEN.
+    #[test]
+    fn test_build_column_array_numeric_wildcard_uses_first_element() {
+        let records = vec![json!({"arr": [{"value": 42}, {"value": 99}]})];
+        let col = col_with_source_path(
+            "first_val",
+            prism_core::ColumnType::Integer,
+            "$.arr[*].value",
+        );
+
+        let array = build_column_array(&records, &col);
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("expected Int64Array");
+
+        // DD-5 item 3: first element (42), not null.
+        assert!(
+            !int_array.is_null(0),
+            "F-ENRICH-P1-LOW-001: numeric wildcard must yield first element (42), not null \
+             (DD-5 item 3: first-element-with-warn)"
+        );
+        assert_eq!(
+            int_array.value(0),
+            42,
+            "F-ENRICH-P1-LOW-001: first element must be 42"
+        );
+    }
+
     /// `BearerStaticCredentialAuthProvider::acquire_token` MUST return `Ok(AuthToken)`
     /// when the credential is present (injected via `MockCredentialResolver`).
     ///
