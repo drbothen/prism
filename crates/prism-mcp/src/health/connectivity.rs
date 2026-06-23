@@ -136,11 +136,62 @@ pub struct ProbeOutcome {
 /// # FIX-001/v1.6 mandate
 /// This function MUST NOT construct a `reqwest::Client`. It MUST obtain the
 /// adapter via `registry.get(org_id, sensor_id)`.
+///
+/// # AC-9 probe_table routing (BC-2.08.001 postcondition 5 / S-5.04)
+///
+/// `probe_table` and `first_table_name` implement the three-tier fallback chain:
+/// 1. `probe_table = Some(tbl)` → `source_table = "{sensor_id}.{tbl}"`.
+/// 2. `probe_table = None`, `first_table_name = Some(tbl)` → `source_table = "{sensor_id}.{tbl}"`.
+/// 3. Both `None` → legacy sentinel `"{sensor_id}_devices"` (pre-S-1.11 hollow probe).
+///
+/// The dot-notation `{sensor_id}.{table}` maps directly to how
+/// `SpecDrivenSensorAdapter::fetch` resolves table entries from the loaded spec
+/// (sensor prefix + "." + table_name).  The legacy underscore form is kept as a
+/// structural no-op fallback for sensors with no declared tables (returns `Ok([])` from
+/// the adapter's empty-tables fast-path) — BC-2.08.001 / FIX-001 v1.6.
 pub async fn probe_connectivity(
     registry: &AdapterRegistry,
     org_id: OrgId,
     sensor_id: &SensorId,
     _client_id: &str,
+) -> Result<ProbeOutcome, prism_core::error::PrismError> {
+    probe_connectivity_inner(registry, org_id, sensor_id, _client_id, None, None).await
+}
+
+/// Extended form of `probe_connectivity` with explicit probe_table routing.
+///
+/// Called by `SensorHealthChecker::check_one` (and from AC-9 tests) with the
+/// sensor spec's `probe_table` and `first_table_name` resolved from the loaded spec.
+///
+/// `probe_table`      — `Some(name)` if the spec declares `probe_table`.
+/// `first_table_name` — `Some(name)` of `spec.tables[0].table_name` when tables exist and
+///                      `probe_table` is absent.  `None` when no tables are declared.
+pub async fn probe_connectivity_with_routing(
+    registry: &AdapterRegistry,
+    org_id: OrgId,
+    sensor_id: &SensorId,
+    client_id: &str,
+    probe_table: Option<&str>,
+    first_table_name: Option<&str>,
+) -> Result<ProbeOutcome, prism_core::error::PrismError> {
+    probe_connectivity_inner(
+        registry,
+        org_id,
+        sensor_id,
+        client_id,
+        probe_table,
+        first_table_name,
+    )
+    .await
+}
+
+async fn probe_connectivity_inner(
+    registry: &AdapterRegistry,
+    org_id: OrgId,
+    sensor_id: &SensorId,
+    _client_id: &str,
+    probe_table: Option<&str>,
+    first_table_name: Option<&str>,
 ) -> Result<ProbeOutcome, prism_core::error::PrismError> {
     use prism_sensors::adapter::{QueryParams, SensorSpec};
 
@@ -193,15 +244,24 @@ pub async fn probe_connectivity(
 
     // Minimal probe query — LIMIT 0.
     //
-    // source_table is derived from the sensor's own ID to be sensor-generic:
-    //   `{sensor_id}_devices` → e.g. "crowdstrike_devices", "armis_devices".
-    // SpecDrivenSensorAdapter strips the sensor prefix when routing table selection;
-    // if no matching table exists (e.g. before S-1.11 adds read-side tables), the
-    // for-loop over spec.tables is empty and adapter returns Ok([]) without making
-    // HTTP requests. Once tables are added, the probe routes to the "devices" table
-    // (the canonical first table for all current sensors) — BC-2.08.001 / FIX-001 v1.6.
-    // F-S504-P2-009: generalized from CrowdStrike-specific "devices" to sensor-id-prefixed form.
-    let probe_source_table = format!("{}_devices", adapter.sensor_type());
+    // AC-9 / BC-2.08.001 postcondition 5 — probe_table fallback chain:
+    //   1. probe_table = Some(tbl) → "{sensor_id}.{tbl}" (explicit probe table).
+    //   2. probe_table = None, first_table_name = Some(tbl) → "{sensor_id}.{tbl}" (first table).
+    //   3. Both None → "{sensor_id}_devices" (legacy sentinel; structural no-op when no tables
+    //      exist, adapter's empty-tables fast-path returns Ok([]) — BC-2.08.001 / FIX-001 v1.6).
+    //
+    // Dot-notation "{sensor_id}.{table}" is the canonical form used by
+    // SpecDrivenSensorAdapter::fetch (sensor prefix + "." + table_name routing).
+    // The underscore-sentinel is kept as backward-compat for sensors without declared tables.
+    let sensor_type = adapter.sensor_type();
+    let probe_source_table = if let Some(tbl) = probe_table {
+        format!("{sensor_type}.{tbl}")
+    } else if let Some(tbl) = first_table_name {
+        format!("{sensor_type}.{tbl}")
+    } else {
+        // Legacy sentinel: structural no-op (F-S504-P2-009 — sensor-id-prefixed form).
+        format!("{sensor_type}_devices")
+    };
     #[allow(deprecated)]
     let spec = SensorSpec {
         source_table: probe_source_table,

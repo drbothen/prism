@@ -499,6 +499,21 @@ pub struct SensorSpec {
     /// DTU topology used for this sensor's data flow (BC-3.2.005).
     #[serde(default)]
     pub mode: crate::types::DtuMode,
+
+    /// Health-probe table name (BC-2.08.001 probe_table / probe-table-field-design.md §1).
+    ///
+    /// When `Some(name)`, `name` MUST case-sensitively match the `table_name` of a declared
+    /// `[[tables]]` block in this spec. Validated at parse time as Rule 8 (E-SPEC-026).
+    ///
+    /// When `None`, the connectivity probe falls back to the first declared table (if any),
+    /// or to the legacy `{sensor_id}_devices` no-op if no tables are declared (Section 3
+    /// of probe-table-field-design.md).
+    ///
+    /// `#[serde(default)]` ensures existing TOML files without this field parse without error.
+    ///
+    /// # S-5.04 AC-8/9/10: type scaffold only; Rule 8 validation logic in implementer pass
+    #[serde(default)]
+    pub probe_table: Option<String>,
 }
 
 impl Default for SensorSpec {
@@ -529,6 +544,8 @@ impl Default for SensorSpec {
             file_hash: String::new(),
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
+            // S-5.04 AC-8/9/10: type scaffold only; probe_table defaults to None for backward compat
+            probe_table: None,
         }
     }
 }
@@ -581,6 +598,8 @@ impl SensorSpec {
             file_hash: String::new(),
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
+            // S-5.04 AC-8/9/10: type scaffold only; probe_table not a positional arg per design doc §2
+            probe_table: None,
         }
     }
 }
@@ -995,6 +1014,38 @@ impl SpecLoader {
                         }));
                     }
                 }
+            }
+        }
+
+        // Rule 8 (E-SPEC-026 / AC-8): if probe_table is declared, it MUST match a table_name
+        // in the spec's [[tables]] blocks. An empty tables list is also rejected — there is
+        // nothing to probe against.
+        //
+        // Validation: collect declared table names, check membership, build sorted list for
+        // the error message (BC-2.16.009 Rule 8 / probe-table-field-design.md §1).
+        if let Some(ref pt) = spec.probe_table {
+            let mut declared_names: Vec<String> =
+                spec.tables.iter().map(|t| t.table_name.clone()).collect();
+            declared_names.sort_unstable();
+
+            if !declared_names.iter().any(|name| name == pt) {
+                let tables_list = if declared_names.is_empty() {
+                    "(none declared)".to_string()
+                } else {
+                    declared_names.join(", ")
+                };
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec026,
+                    message: format!(
+                        "sensor '{}' declares probe_table = '{}' but no [[tables]] block \
+                         has table_name = '{}'. Declared tables: [{}]. Remove probe_table \
+                         or add a matching [[tables]] block.",
+                        spec.sensor_id, pt, pt, tables_list,
+                    ),
+                    toml_path: Some("sensor.probe_table".to_string()),
+                    file_path: None,
+                    line_number: None,
+                }));
             }
         }
 

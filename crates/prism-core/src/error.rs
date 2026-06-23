@@ -1350,6 +1350,20 @@ pub enum SpecErrorCode {
     /// BC-2.16.009 §Validation Rules 7 (AC-7); S-SPEC-HTTP-METHOD-VALIDATION-001.
     /// error-taxonomy.md E-SPEC-025.
     ESpec025,
+    /// E-SPEC-026: `probe_table` names a table not present in the sensor spec's `[[tables]]` blocks.
+    ///
+    /// Emitted by `SpecLoader::parse()` Rule 8 when `spec.probe_table` is `Some(name)` but no
+    /// `[[tables]]` block has `table_name = name`.
+    ///
+    /// Error message template (probe-table-field-design.md §1, BC-2.16.009 Rule 8):
+    ///   "sensor '{sensor_id}' declares probe_table = '{name}' but no [[tables]] block
+    ///    has table_name = '{name}'. Declared tables: [{table_list}]. Remove probe_table
+    ///    or add a matching [[tables]] block."
+    ///
+    /// BC-2.08.001 Error Cases E-SPEC-026; BC-2.16.009 Validation Rule 8.
+    ///
+    /// # S-5.04 AC-8/9/10: type scaffold only; logic in implementer pass
+    ESpec026,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,

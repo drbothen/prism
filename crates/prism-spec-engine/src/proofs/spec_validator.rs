@@ -83,6 +83,8 @@ fn minimal_valid_spec() -> SensorSpec {
         file_hash: String::new(),
         source_path: String::new(),
         mode: crate::types::DtuMode::Shared,
+        // S-5.04 AC-8/9/10: type scaffold only; probe_table not a positional arg per design doc §2
+        probe_table: None,
     }
 }
 

@@ -72,7 +72,7 @@ use prism_mcp::{
     context::PrismContext,
     health::{
         auth::{probe_auth, AuthStatus},
-        connectivity::{probe_connectivity, ConnectivityStatus},
+        connectivity::{probe_connectivity, probe_connectivity_with_routing, ConnectivityStatus},
         rate_limit::{
             extract_rate_limit_state, parse_retry_after, RateLimitState, DEFAULT_RETRY_AFTER_SECS,
         },
@@ -1500,5 +1500,134 @@ async fn test_BC_2_08_001_probe_auth_stub_succeeds_when_adapter_handles_creds_in
         result.error.is_none(),
         "F-S504-P2-010: no error expected when adapter ignores auth arg. Got: {:?}",
         result.error
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-9 (BC-2.08.001 postcondition 5) — probe_table routing
+// S-5.04 Red Gate tests (test-writer pass, 2026-06-22)
+//
+// These tests drive the probe_table routing behavior that the implementer must add
+// to probe_connectivity(). The current implementation always uses
+// `format!("{}_devices", adapter.sensor_type())` (line ~204 of connectivity.rs).
+//
+// After AC-9 is implemented, the routing is:
+//   1. probe_table = Some("tbl") → source_table = "{sensor_id}.{probe_table}"
+//   2. probe_table = None, tables non-empty → source_table = "{sensor_id}.{tables[0].table_name}"
+//   3. probe_table = None, tables empty → structural no-op (returns Ok(Up)) with no adapter call
+//
+// RED GATE mechanism: tests call the CURRENT probe_connectivity (no probe_table param).
+// The assertions check for the NEW dotted format; current code produces the OLD underscore
+// format → assertion fails. The implementer will add probe_table: Option<&str> to the
+// signature and update these calls.
+//
+// NOTE: When the implementer changes the signature, the test call sites below must be
+// updated to pass the probe_table argument. The assertions remain unchanged.
+// ---------------------------------------------------------------------------
+
+/// AC-9 (S-5.04): When `probe_table = Some("detections")`, `probe_connectivity` MUST
+/// route the LIMIT-0 fetch to `"crowdstrike.detections"` (dot-notation, BC-2.08.001 §5).
+///
+/// RED GATE: Current code always produces `"crowdstrike_devices"` (underscore format).
+/// Assertion: `captured == "crowdstrike.detections"` → FAILS until AC-9 is implemented.
+///
+/// When the implementer adds `probe_table: Option<&str>` to `probe_connectivity`,
+/// update the call site to: `probe_connectivity(&registry, org_id, &sensor_id, "acme", Some("detections"))`.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_probe_routes_to_probe_table_when_set() {
+    // S-5.04 AC-9/10: type scaffold only; logic in implementer pass
+    // This test uses the existing 4-arg probe_connectivity. When the implementer
+    // adds probe_table: Option<&str> to the signature, this call must be updated.
+    let adapter = Arc::new(MockAdapterCapturingSpec::new("crowdstrike"));
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::clone(&adapter) as Arc<dyn SensorAdapter>);
+
+    // AC-9: use probe_connectivity_with_routing to pass probe_table = Some("detections").
+    // crowdstrike.sensor.toml declares probe_table = "detections" (S-5.04 AC-10).
+    let result = probe_connectivity_with_routing(
+        &registry,
+        org_id,
+        &sensor_id,
+        "acme",
+        Some("detections"),
+        None,
+    )
+    .await
+    .expect("probe_connectivity must not error");
+
+    assert_eq!(
+        result.status,
+        ConnectivityStatus::Up,
+        "AC-9: probe must succeed (Up) regardless of routing behavior"
+    );
+
+    let captured = adapter
+        .captured()
+        .expect("adapter must have been called (source_table captured)");
+
+    // RED GATE: current code produces "crowdstrike_devices"; AC-9 requires "crowdstrike.detections"
+    assert_eq!(
+        captured, "crowdstrike.detections",
+        "AC-9 (BC-2.08.001 §5): when probe_table = Some(\"detections\"), source_table MUST be \
+         \"crowdstrike.detections\" (dot-notation, not underscore). \
+         Got '{captured}' — probe_table routing not yet implemented (RED GATE)"
+    );
+}
+
+/// AC-9 (S-5.04): When `probe_table` is absent but tables exist, `probe_connectivity`
+/// MUST fall back to `"{sensor_id}.{spec.tables[0].table_name}"` (dot-notation, BC-2.08.001 §5).
+///
+/// For a sensor with `tables = ["alerts", "incidents"]`, the fallback is
+/// `"cyberint.alerts"` (first declared table in TOML order).
+///
+/// RED GATE: Current code always produces `"cyberint_devices"` regardless of
+/// whether tables exist. Assertion: `captured == "cyberint.alerts"` → FAILS.
+///
+/// When the implementer changes the signature:
+///   `probe_connectivity(&registry, org_id, &sensor_id, "acme", None, Some(&spec.tables))` or equivalent.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_probe_falls_back_to_first_table_when_probe_table_absent() {
+    // S-5.04 AC-9/10: type scaffold only; routing logic in implementer pass
+    let adapter = Arc::new(MockAdapterCapturingSpec::new("cyberint"));
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("cyberint");
+
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::clone(&adapter) as Arc<dyn SensorAdapter>);
+
+    // AC-9 fallback: probe_table = None, first_table_name = Some("alerts").
+    // cyberint.sensor.toml: probe_table absent, tables[0].table_name = "alerts".
+    let result = probe_connectivity_with_routing(
+        &registry,
+        org_id,
+        &sensor_id,
+        "acme",
+        None,
+        Some("alerts"),
+    )
+    .await
+    .expect("probe_connectivity must not error");
+
+    assert_eq!(
+        result.status,
+        ConnectivityStatus::Up,
+        "AC-9 fallback: probe must succeed (Up)"
+    );
+
+    let captured = adapter
+        .captured()
+        .expect("adapter must have been called (source_table captured)");
+
+    // AC-9 fallback: first_table_name = Some("alerts") → source_table = "cyberint.alerts"
+    assert_eq!(
+        captured, "cyberint.alerts",
+        "AC-9 (BC-2.08.001 §5): when probe_table is absent, source_table MUST fall back to \
+         \"{{sensor_id}}.{{tables[0].table_name}}\" = \"cyberint.alerts\". \
+         Got '{captured}'"
     );
 }
