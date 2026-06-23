@@ -1,0 +1,59 @@
+{
+  "_evidence_meta": {
+    "story_id": "S-DEMO-PRISMQL-ONBOARDING-001-B",
+    "ac": "AC-006",
+    "bc": "BC-2.11.018",
+    "description": "normalized_pql ABSENT (not null, not present) on ALL error responses",
+    "capture_method": "cargo run --example evidence_capture (real prism-mcp PrismServer::query, error path returns early via prism_error_to_structured_call_result before normalized_pql is computed)",
+    "test_gate": "test_BC_2_11_018_normalized_pql_present_on_success_absent_on_error (combined with AC-005)",
+    "captured_at": "2026-06-22",
+    "revision": "2026-06-22 re-capture after F-198 fix (ec_code_override E-QUERY-001 on QueryParseFailed arm)"
+  },
+  "case_a_parse_error": {
+    "description": "Query: !!invalid query!! (parse error → error path → normalized_pql must be ABSENT)",
+    "assertions": [
+      "normalized_pql key NOT present at sc top-level",
+      "normalized_pql key NOT present at sc['results']",
+      "normalized_pql key NOT present at sc['error']",
+      "is_error: true",
+      "normalized_pql_present_in_response: false (verified programmatically)",
+      "code: 'E-QUERY-001' (NOT 'E-MCP-002' — F-198 fix)"
+    ],
+    "normalized_pql_present_in_response": false,
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "category": "validation",
+        "code": "E-QUERY-001",
+        "message": "PrismQL parse error: expected keyword 'MATCHES'",
+        "near_text": "!!invalid",
+        "original_params_valid": false,
+        "reference_pointer": "prismql://reference",
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Check the request parameters and retry.",
+        "upstream_message": null
+      }
+    }
+  },
+  "case_b_e_query_038_error": {
+    "description": "E-QUERY-038 column-not-found error (from AC-001-a evidence) — normalized_pql also absent on this error type",
+    "assertions": [
+      "normalized_pql key absent from E-QUERY-038 error response",
+      "error path returns early before normalized_pql computation in PrismServer::query",
+      "the 'error' object in sc does NOT have a normalized_pql key"
+    ],
+    "note": "Cross-reference AC-001-a response — no 'normalized_pql' key appears anywhere in that payload"
+  },
+  "case_c_e_query_037_error": {
+    "description": "E-QUERY-037 table-not-found error (from AC-004-a evidence) — normalized_pql also absent",
+    "assertions": [
+      "normalized_pql key absent from E-QUERY-037 error response",
+      "error path returns early before normalized_pql computation"
+    ],
+    "note": "Cross-reference AC-004-a response — no 'normalized_pql' key appears anywhere in that payload"
+  }
+}

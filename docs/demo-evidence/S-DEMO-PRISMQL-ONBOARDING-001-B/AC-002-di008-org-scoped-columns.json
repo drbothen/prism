@@ -1,0 +1,48 @@
+{
+  "_evidence_meta": {
+    "story_id": "S-DEMO-PRISMQL-ONBOARDING-001-B",
+    "ac": "AC-002",
+    "bc": "BC-2.11.016 invariant DI-008",
+    "description": "E-QUERY-038 org-scoped available_columns: no cross-org column leak",
+    "capture_method": "cargo run --example evidence_capture (real prism-mcp PrismServer::query; multi-tenant resolved_spec_map with acme + globex)",
+    "test_gate": "test_BC_2_11_016_e_query_038_org_scoped_available_columns",
+    "captured_at": "2026-06-22"
+  },
+  "fixture": {
+    "acme_columns": ["severity", "acme_only_field"],
+    "globex_columns": ["severity", "globex_alert_type"],
+    "query_org": "acme",
+    "queried_column": "sevrity"
+  },
+  "assertions": [
+    "available_columns contains 'acme_only_field' (acme's column)",
+    "'globex_alert_type' does NOT appear in available_columns (no cross-org leak)",
+    "client_id is 'acme'",
+    "available_columns contains no URL strings or bearer token strings"
+  ],
+  "response": {
+    "_meta": {
+      "trust_level": "internal"
+    },
+    "error": {
+      "available_columns": [
+        "acme_only_field",
+        "severity"
+      ],
+      "category": "validation",
+      "code": "E-QUERY-038",
+      "did_you_mean": "severity",
+      "message": "E-QUERY-038: column 'sevrity' not found in table 'crowdstrike_alerts' for client 'acme'; available: [acme_only_field, severity] Did you mean: 'severity'?",
+      "original_params_valid": false,
+      "retry_after_seconds": null,
+      "retryable": false,
+      "source": "prism_mcp",
+      "suggestion": "Call prism_describe('<client_id>') to see available columns, or use the available_columns field in this error to correct the column name.",
+      "upstream_message": null
+    }
+  },
+  "globex_column_absent_proof": {
+    "globex_alert_type_present_in_available_columns": false,
+    "globex_region_present_in_available_columns": false
+  }
+}

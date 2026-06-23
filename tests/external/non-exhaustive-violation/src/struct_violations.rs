@@ -1285,3 +1285,26 @@ pub fn v82_column_descriptor() {
     };
     let _ = _cd;
 }
+
+/// Violation 83: prism_core::error::ColumnNotFoundDetails struct literal (E0639).
+///
+/// `ColumnNotFoundDetails` carries the E-QUERY-038 column-not-found error context:
+/// the missing column name, table, client, available columns, and an optional
+/// did-you-mean suggestion (strsim levenshtein).  `#[non_exhaustive]` ensures future
+/// fields (e.g., `column_type`, `query_position`) can be added without breaking
+/// callers that pattern-match or construct via struct literal.
+/// External callers MUST use `ColumnNotFoundDetails::new(...)`.
+///
+/// Added: S-DEMO-PRISMQL-ONBOARDING-001-B (BC-2.11.016 / E-QUERY-038).
+#[allow(dead_code)]
+pub fn v83_column_not_found_details() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _details = prism_core::error::ColumnNotFoundDetails {
+        column: "severity".to_string(),
+        table: "crowdstrike_alerts".to_string(),
+        client_id: "acme-corp".to_string(),
+        available_columns: vec![],
+        did_you_mean: None,
+    };
+    let _ = _details;
+}

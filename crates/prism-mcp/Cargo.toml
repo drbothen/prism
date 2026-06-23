@@ -69,6 +69,10 @@ prism-storage = { path = "../prism-storage", features = ["test-utils"] }
 # secrecy: needed by NullCredStore stub implementing CredentialStore (SecretString param).
 # Already a transitive dep via prism-credentials; explicit pin for test-binary compilation.
 secrecy = "0.8"
+# arrow: needed for RecordBatch in SensorAdapter stub (EC-11-054 partial-failure test).
+# Transitive via prism-sensors/prism-query; explicit pin so the crate is available in
+# the test binary's direct dep list (prism-mcp does not list arrow as a direct dep).
+arrow = "58"
 
 [lints.clippy]
 # From workspace

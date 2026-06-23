@@ -114,6 +114,7 @@ fn test_BC_2_10_007_map_prism_error_parse_error_to_32602() {
     let err = PrismError::QueryParseFailed {
         offset: 0,
         detail: "unexpected token 'FLOM' at offset 0".to_owned(),
+        query: String::new(),
     };
     let (code, _message) = map_prism_error(err);
     assert_eq!(
@@ -711,6 +712,7 @@ fn test_BC_2_10_007_parse_error_message_contains_prismql() {
     let err = PrismError::QueryParseFailed {
         offset: 10,
         detail: "unexpected EOF".to_owned(),
+        query: String::new(),
     };
     let (code, message) = map_prism_error(err);
     assert_eq!(

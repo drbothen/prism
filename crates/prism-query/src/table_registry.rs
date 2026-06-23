@@ -520,6 +520,42 @@ impl TableRegistry {
                 let available_tables = org_visible_tables.join(", ");
                 let did_you_mean = self.did_you_mean_for_tables(&table_name, &org_visible_tables);
 
+                // BC-2.11.017 AC-004: compute pedagogical suggestion so users learn to call
+                // prism_describe to discover available tables and columns.
+                // Extract the matched table name from the did_you_mean formatted string
+                // (e.g. " Did you mean: 'crowdstrike_alerts'?" → Some("crowdstrike_alerts")).
+                let did_you_mean_table: Option<&str> = if did_you_mean.is_empty() {
+                    None
+                } else {
+                    did_you_mean.find('\'').and_then(|start| {
+                        let rest = &did_you_mean[start + 1..];
+                        rest.find('\'').map(|end| &rest[..end])
+                    })
+                };
+
+                // BC-2.11.017 §E-QUERY-037: suggestion must reference `prism_describe('<client_id>')`,
+                // NOT `prism_describe('<sensor>')`. The sensor name is NOT a registered client_id
+                // and would fail with EC-10-023 "Client not registered".
+                // (F-001B-FRESH-P1-MED-001 fix)
+                //
+                // Derive client_id from the requesting org_scope:
+                // - Multi-tenant: `org_scope.first()` gives the requesting client_id (e.g. "acme").
+                // - Single-tenant (org_scope is None or empty): fall back to `&sensor` as the
+                //   best available identifier (no client context to resolve against).
+                // SEC-002 trust-boundary: `org_scope` elements are `OrgSlug` values validated
+                // to `^[a-zA-Z0-9_-]{1,64}$` by `OrgSlug::new` in `tenant.rs`. That regex
+                // prohibits newlines, quotes, and control characters, so the client_id passed
+                // to `e_query_037_suggestion` cannot carry prompt-injection characters into the
+                // LLM-facing suggestion string in the MCP error envelope.
+                let client_id_for_suggestion = org_scope
+                    .and_then(|s| s.first())
+                    .map(|o| o.as_str())
+                    .unwrap_or(&sensor);
+                let suggestion = crate::engine::e_query_037_suggestion(
+                    client_id_for_suggestion,
+                    did_you_mean_table,
+                );
+
                 return Err(PrismError::TableNotAvailable(Box::new(
                     TableNotAvailableDetails::new(
                         table_name,
@@ -527,6 +563,7 @@ impl TableRegistry {
                         available_sensors,
                         available_tables,
                         did_you_mean,
+                        suggestion,
                     ),
                 )));
             }

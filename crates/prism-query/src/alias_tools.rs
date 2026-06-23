@@ -377,6 +377,7 @@ pub(crate) fn create_alias_with_clients_gated_inner(
                 "alias '{}' query template is not valid PrismQL: {}",
                 input.name, query_for_parse
             ),
+            query: query_for_parse.clone(),
         });
     }
 
@@ -781,6 +782,7 @@ pub fn explain_alias(
                 "alias '{}' expanded form is not valid PrismQL: {}",
                 input.name, expanded
             ),
+            query: expanded.clone(),
         });
     }
 
