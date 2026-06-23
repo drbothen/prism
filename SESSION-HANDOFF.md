@@ -1,18 +1,78 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.931"
+version: "7.934"
 status: current
-timestamp: 2026-06-23T14:00:00Z
+timestamp: 2026-06-23T21:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1302 (2026-06-23): COMPREHENSIVE ZERO-CONTEXT RESUME SNAPSHOT. S-5.04 LOCAL ADVERSARY PASS 2/3 CLEAN(strict) on frozen 4a5db2bf (streak 2/3). Enrichment CRIT-001/HIGH-001 CLOSED on fix/enrichment-complete @e2a28520. Onboarding-discoverability decision recorded. PR #199 + PR #198 MERGED (develop@5504c152). No agents in flight at snapshot time. STATE v7.930→v7.931. §RESUME SNAPSHOT D-1302 authored (supersedes D-1292).**
+> **D-1305 (2026-06-23): SESSION WRAP — RESUME SNAPSHOT D-1305 authored. develop_head advanced to e4506a00 (LOCAL-ONLY /wrap-skill commit; origin/develop 5504c152 UNCHANGED — HUMAN DECISION PENDING push). Enrichment PR #200 OPEN; PR-LEVEL streak 0/3 on frozen 6f556c8c (pass 1/3 interrupted by wrap). S-5.04 PARKED pending human A/B (BC-2.08.004). 001-C PENDING HUMAN GO. STATE v7.933→v7.934. §RESUME SNAPSHOT D-1305 authored (supersedes D-1304/D-1302).**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1302** (authoritative zero-context restart protocol; supersedes D-1292). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1301 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1302 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `5504c152` (feat(S-DEMO-PRISMQL-ONBOARDING-001-B): merged PR #198 develop@5504c152; D-1293). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.931.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1305** (authoritative zero-context restart protocol; supersedes D-1304/D-1302). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1304 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1305 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD `e4506a00` (LOCAL-ONLY: chore(skills): add /wrap session-durability skill; origin/develop 5504c152 — HUMAN DECISION PENDING push to origin). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.934.
+
+---
+
+## §RESUME SNAPSHOT — D-1305 (2026-06-23 — SESSION WRAP; develop LOCAL e4506a00 / origin 5504c152; BC-INDEX v7.07; STORY-INDEX v2.468; ARCH-INDEX v2.142; STATE v7.934; PR #200 OPEN) [SUPERSEDES D-1304/D-1302]
+
+> **D-1305 burst (2026-06-23).** Session wrap. Three workstreams at pause: (1) Enrichment — fix/enrichment-complete @6f556c8c (PR #200 OPEN); LOCAL strict-3-CLEAN CONVERGED (banked); PR-LEVEL strict-3-CLEAN streak 0/3 on frozen 6f556c8c (pass 1/3 was interrupted by the wrap — no recorded verdict; re-dispatch fresh on resume). (2) S-5.04 — feature/S-5.04 @b2689177 PARKED; LOCAL pass 3/3 reset streak to 0/3; root cause BC-2.08.004 contract-semantics conflict; PENDING HUMAN A/B. (3) S-DEMO-PRISMQL-ONBOARDING-001-C — architect scoping complete (9 audit findings); story not yet authored; PENDING HUMAN GO. develop_head advanced to LOCAL e4506a00 (/wrap skill addition); origin/develop remains 5504c152; HUMAN DECISION PENDING push. All prior D-1101..D-1304 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+**Three paused workstreams, two human decisions needed.** (1) Enrichment PR #200 on frozen 6f556c8c is OPEN and needs PR-LEVEL adversary pass 1/3 re-dispatched fresh. (2) S-5.04 is PARKED awaiting human A/B on BC-2.08.004 (persist vs rip-out). (3) Onboarding-001-C story awaits human GO. Local develop is one commit ahead of origin (e4506a00) pending human decision to push.
+
+### HEADS
+- develop: LOCAL `e4506a00` (`chore(skills): add /wrap session-durability skill`); origin/develop `5504c152` (`feat(S-DEMO-PRISMQL-ONBOARDING-001-B)` — merged PR #198; D-1293). LOCAL is ahead by one unpushed commit. PENDING human decision to push.
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code).
+- Agents in flight at wrap: NONE (enrichment PR-LEVEL adversary pass 1/3 was STOPPED mid-run with no recorded verdict — re-dispatch fresh on resume).
+
+### WORKSTREAM 1 — Enrichment PR #200 (ACTIVE — PR-LEVEL GATING)
+
+- Branch `fix/enrichment-complete`; worktree `.worktrees/enrich-integrated`; FROZEN PR HEAD `6f556c8c`.
+- LOCAL strict-3-CLEAN CONVERGED on `d07025bf` (banked; 3 fresh-context passes, zero findings).
+- PR #200 OPEN (base develop). `just check` PASS on `6f556c8c` (full workspace, 83-type non-exhaustive gate). Demo evidence committed: `docs/demo-evidence/enrichment-complete/` (AC-001 threat_score=95, AC-002 cvss_base_score=8.1; GIF+WebM+report).
+- PR-LEVEL strict-3-CLEAN streak: 0/3 on frozen `6f556c8c` (pass 1/3 was interrupted by the wrap — no recorded verdict).
+- 3 LOCAL pass-1 findings CLOSED: F-ENRICH-P1-MED-001 (load-bearing build_column_array source_path tests), F-ENRICH-P1-LOW-001 (numeric-wildcard first-element-with-warn per DD-5; plain warns, no event_type → SAP-1 exempt), OBS-ENRICH-P1-001 (vestigial repo-root sensors/*.sensor.toml 4 files DELETED; bc_2_06_019_ioc_stamping parity tests now canonical-only). Plus demo-run.sh PRISM_DTU_MODE=true fix.
+- `scripts/demo.toml` gained pinned `scenario_start_secs = 1782214754` (org-c scenario) for demo reproducibility.
+- Gate stays 83 (no new pub types). MERGE-ORDERING: enrichment merges FIRST at 83; S-5.04 (gate 84) merges SECOND carrying 83→84 reconcile (ci.yml EXPECTED + CLAUDE.md non-exhaustive sentence).
+- **RESUME NEXT-ACTION:** dispatch `vsdd-factory:adversary` for PR-LEVEL pass 1/3 on PR #200 frozen HEAD `6f556c8c` (scrutinize demo-evidence POL-10 compliance + scenario_start_secs pin in addition to full diff); then 2/3, 3/3. On strict-3-CLEAN + CI green → pr-manager squash-merge → post-merge burst (bump develop_head; promote any draft BCs per POL-14; remove enrichment sub-branch worktrees).
+- DO-NOT-REFLAG (enrichment cascade): CRIT-001 (root sensors/ deleted, moot), HIGH-001 (closed), MED-001/LOW-001/OBS-001 (fixed), per-output-field UDF naming (by design), AUDIT-003 (DTU-data/MCP-presentation artifact, NOT code bug → fixes in 001-C), materialization.rs `_ => Ok(Vec::new())` catch-all (pre-existing non-SELECT SQL).
+
+### WORKSTREAM 2 — S-5.04 (PARKED — PENDING HUMAN A/B DECISION)
+
+- Branch `feature/S-5.04`; worktree `.worktrees/S-5.04`; FROZEN HEAD `b2689177`.
+- F-S504-LP3-HIGH-001 (all-auth-invalid misclassified Partial; BC-2.08.007 requires Unhealthy) FIXED at `b2689177` (any_partially_available = reachable && auth_valid predicate; load-bearing tests). LOCAL re-gate passes 1/3 + 2/3 CLEAN on `b2689177`.
+- LOCAL pass 3/3 found TWO findings, one root cause: BC-2.08.004 says "in-memory only / not persisted across restarts" (3 sites) but the shipped code persists timestamps to RocksDB StorageDomain::Default and a load-bearing test asserts restart-survival; AC-5/EC-006 cite a PHANTOM "BC-2.08.004 postcondition 2". Streak RESET to 0/3.
+- CONTRACT-SEMANTICS conflict per Source-of-Truth Rule 1 + Rule 7. AWAITING HUMAN A/B:
+  - **Option A (orchestrator-recommended):** ratify persistence — product-owner amends BC-2.08.004 to specify RocksDB StorageDomain::Default persistence + add the real numbered postcondition 2 + replace the "restart→null" canonical test vector with "restart→persisted" + add S-5.04 traceability row + bump version. Code stays.
+  - **Option B:** rip out RocksDB persistence + AC-5; make timestamp in-memory per current BC.
+- **RESUME NEXT-ACTION:** get human A or B. If A → dispatch `vsdd-factory:product-owner` for the BC-2.08.004 amendment fix-burst (factory artifacts), then re-gate S-5.04 LOCAL strict-3-CLEAN from 0/3 on the new HEAD. If B → dispatch `vsdd-factory:implementer` to remove persistence, then re-gate.
+- DO-NOT-REFLAG (S-5.04): F-S504-LP3-HIGH-001 (fixed), OBS-S503-1, OBS-3 DEC-004 (S-5.03 scope), BC-2.11.009 alias-scope (→S-ALIAS-CLIENT-SCOPE-001), F-R8PB-MED-002 unsubscribe, ColumnDescriptor.nullable hardcoded.
+
+### WORKSTREAM 3 — S-DEMO-PRISMQL-ONBOARDING-001-C (PENDING HUMAN GO)
+
+- Audit RE-CONDUCTED (black-box MCP-only) + persisted: `.factory/research/onboarding-discoverability-audit-2026-06-23.md` (D-1303). Goal 1 SUCCEEDED-with-friction; Goal 2 (enrichment) FAILED (undiscoverable). 9 findings AUDIT-001..009; 3 BLOCKERs.
+- AUDIT-003 (silent column drop) ROOT-CAUSED: source_path extraction correct on both SELECT+PIPE paths; naive empty result = static DTU fixture has zero IOC data + likely MCP null-column omission. T13/T14 capstone NOT impacted. NOT a code bug.
+- Architect scoping COMPLETE. S-DEMO-PRISMQL-ONBOARDING-001-C scope covers all 9: (1) qualified table names in prism_describe + available_tables on E-QUERY-036 [AUDIT-001/008]; (2) pql_hints enrichment UDFs + prismql://reference Enrichment section + tutorial fix [AUDIT-002/009]; (3) NEW E-QUERY-039 plan-time UDF-not-found gate (-32602, did_you_mean) replacing opaque E-INT-001 [AUDIT-005] — needs new BC-2.11.019 + EnrichUdfNotFoundDetails pub type (+1 gate); (4) fix triage_alerts prompt dot-syntax [AUDIT-004]; (5) JOIN/MATCHES in reference BNF [AUDIT-006]; (6) stub-tool -32003 redirects (list_alerts/get_help/get_diagnostics) [AUDIT-007]; (7) AUDIT-003 Fix1 (seed static fixture IOC data) + Fix2 (MCP null-column serialization) + Fix3 (doc scenario-seed requirement). BC amendments: BC-2.10.012, BC-2.10.014, BC-2.11.001. Crates: prism-mcp, prism-core, prism-query, prism-sensors.
+- **RESUME NEXT-ACTION:** get human GO (proceed with scope above, OR fold in a fuller audit report). Then F2 spec-evolution (PO: new BC-2.11.019 + E-QUERY-039 taxonomy + 3 BC amendments) → F3 story (story-writer) → TDD implement AFTER enrichment + S-5.04 merge (001-C touches same prism-mcp surface; merge-order dependency).
+
+### WORKTREE INVENTORY
+
+- ACTIVE: `.worktrees/enrich-integrated` (`fix/enrichment-complete` @`6f556c8c` — PR #200), `.worktrees/S-5.04` (`feature/S-5.04` @`b2689177` — parked A/B).
+- REMOVABLE post-PR#200-merge (enrichment sub-branches consolidated into -complete): `.worktrees/demo-prep`, `.worktrees/enrich-1`, `.worktrees/enrich-23`, `.worktrees/enrich-4b`.
+- STALE / leave-alone: `.worktrees/S-3.09` (FROZEN), `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded).
+
+### DECISION-LOG DELTA this session
+
+- D-1303 (onboarding audit persisted), D-1304 (durability checkpoint), D-1305 (this session wrap).
+
+---
+
+## §RESUME SNAPSHOT — D-1304 (2026-06-23 — DURABILITY CHECKPOINT; develop@5504c152; STATE v7.933) [SUPERSEDED — see D-1305 above]
+
+> **SUPERSEDED by §RESUME SNAPSHOT D-1305.** Retained for audit trail only.
 
 ---
 
