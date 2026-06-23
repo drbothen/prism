@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -41,7 +41,7 @@ The `check_sensor_health` tool invokes `verify_connectivity()` on the target sen
 - The response includes `reachable: true` or `reachable: false` with a reason string
 - The check completes within the sensor-specific timeout (default 30s)
 - An AuditEntry is emitted for the health check invocation
-- The probe routes the `LIMIT 0` fetch request to the table named by `probe_table` in the sensor spec (fully-qualified as `{sensor_id}.{probe_table}`). If `probe_table` is absent, the probe routes to the first declared table (`spec.tables[0].table_name`). If no tables are declared, the probe is a structural no-op: `SpecDrivenSensorAdapter::fetch()` receives a table name matching no registered table, returns `Ok([])` without making HTTP contact, and connectivity.rs classifies the result as `status: Up`.
+- The probe routes the `LIMIT 0` fetch request to the table named by `probe_table` in the sensor spec (fully-qualified as `{sensor_id}_{probe_table}`). If `probe_table` is absent, the probe routes to the first declared table (`spec.tables[0].table_name`, fully-qualified as `{sensor_id}_{spec.tables[0].table_name}`). If no tables are declared, the probe is a structural no-op: `SpecDrivenSensorAdapter::fetch()` receives a table name matching no registered table, returns `Ok([])` without making HTTP contact, and connectivity.rs classifies the result as `status: Up`.
 - Probes against sensors with no declared read tables (empty `spec.tables` and no `probe_table`) are accepted but guaranteed not to make HTTP contact; `Up` reflects only that the adapter was reachable by the runtime, not that the sensor API was contacted.
 
 ## Invariants
@@ -92,6 +92,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | F-S504-P1-002-spec-reconciliation | 2026-06-23 | product-owner | F-S504-P1-002 spec reconciliation: postcondition 5 qualified-table form dot→underscore to match canonical SpecDrivenSensorAdapter (strip_prefix `{sensor_id}_`) / PrismQL FROM convention. Changed `{sensor_id}.{probe_table}` → `{sensor_id}_{probe_table}`; added explicit underscore form for the first-declared-table fallback clause. |
 | 1.4 | S-5.04-spec-prep | 2026-06-22 | product-owner | probe_table field support (D-1260 / probe-table-field-design.md §5): added probe_table Precondition; two Postconditions (LIMIT 0 routes via probe_table → first-declared-table → no-op fallback chain); E-SPEC-026 Error Case row; probe-table parse-time enforcement Invariant. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

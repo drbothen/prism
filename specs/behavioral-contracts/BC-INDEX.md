@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "7.03"
+version: "7.04"
 status: draft
 producer: state-manager
 timestamp: 2026-06-22T23:30:00Z
@@ -124,7 +124,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
 | BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
 | BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
-| BC-2.08.001 | On-Demand Connectivity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft — v1.4 (D-1284 2026-06-22: probe_table precondition + postconditions + E-SPEC-026 error case + parse-time enforcement invariant) |
+| BC-2.08.001 | On-Demand Connectivity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft — v1.5 (D-1294 2026-06-22: postcondition 5 dot→underscore table-form reconciliation per F-S504-P1-002 spec side) |
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.003 | Rate Limit State Detection Per Sensor | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.004 | Last Successful Query Timestamp Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
@@ -386,6 +386,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v7.04 (2026-06-22, D-1294 S-5.04 spec reconciliation + runbook correction):** state-manager | BC-2.08.001 inline row: v1.4→v1.5 — postcondition 5 dot→underscore table-form reconciliation (F-S504-P1-002 spec side; canonical underscore form aligns with TOML spec field name convention). **No BC lifecycle/status/count changes:** active_contracts 241 / draft_contracts 2 / total_contracts 256 ALL UNCHANGED. develop_head UNCHANGED 5504c152. BC-INDEX v7.03→v7.04.
 
 **v7.03 (2026-06-22, D-1293 post-merge burst — POL-14 BC auto-promotions: BC-2.11.016/017/018 draft→active; DRIFT-BC-INDEX-COUNT-CORPUS-001 RESOLVED):** state-manager | **POL-14 BC auto-promotions (draft→active):** BC-2.11.016 `status: draft` → `active` (anchor story S-DEMO-PRISMQL-ONBOARDING-001-B merged PR #198 develop@5504c152 2026-06-22; admin-merge with LOCAL 3/3 + PR-LEVEL 3/3 strict-3-CLEAN @ frozen f141801b; human-directed bypass of in-flight test matrix); BC-2.11.017 `status: draft` → `active` (same); BC-2.11.018 `status: draft` → `active` (same). **Inline row updates:** BC-2.11.016/017/018 status inline rows updated from draft to active with merge provenance. **Count changes (DRIFT-BC-INDEX-COUNT-CORPUS-001 RESOLVED): draft_contracts 8→2** (BC-2.11.016+BC-2.11.017+BC-2.11.018 now promoted; additionally BC-2.10.012+BC-2.10.013+BC-2.10.014 had been promoted at D-1277 v6.95 but frontmatter was never synced — this burst corrects that: BC-INDEX frontmatter now matches STATE.md v7.922 post-D-1293 authoritative counts; remaining drafts: BC-2.06.011+BC-2.21.001); **active_contracts 235→241** (235 pre-D-1277 baseline + 3 from D-1277 + 3 from D-1293). total_contracts 256 UNCHANGED. PR #199 maintenance(rustfmt): develop@8d8be0fb (no BC changes). CLAUDE.md 82→83 reconciliation: already landed in PR #198 squash (develop@5504c152) — no separate develop commit needed. BC-INDEX v7.02→v7.03. develop_head fc954300→5504c152.
 
