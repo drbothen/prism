@@ -315,6 +315,20 @@ pub struct OrgConfig {
     /// When `None`, the Cyberint clone's allowlist is empty at startup.
     #[serde(default)]
     pub initial_access_token: Option<String>,
+
+    /// Scenario configuration shared across ALL sensors in this org's DTU fleet.
+    ///
+    /// When `Some` and `enabled = true`, `build_multi_clone_factory` calls
+    /// `new_with_scenario` (with a shared `Arc<IncidentTimeline>`) instead of
+    /// `new_with_seed`. All sensors in the org share the same timeline and
+    /// `ScenarioEntityCatalog` (derived from this org's `seed` + `org_id`).
+    ///
+    /// Mirrors the `CloneConfig.scenario` field used by the `start` path's
+    /// `build_clone_pairs` (harness.rs) — same `ScenarioConfig` type.
+    ///
+    /// When `None` or `enabled = false`, falls back to `new_with_seed` (backward compatible).
+    #[serde(default)]
+    pub scenario: Option<ScenarioConfig>,
 }
 
 /// Returns `true` if `slug` is a path-safe org slug.

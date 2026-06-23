@@ -37,7 +37,7 @@ pub type CloneFactoryFn<'a> = Box<dyn Fn(&InstanceEntry) -> Box<dyn BehavioralCl
 ///
 /// Returns a boxed `Fn(&InstanceEntry) -> Box<dyn BehavioralClone>` that dispatches
 /// `(org_slug, sensor_id)` (derived from `entry.name` via the `"{org_slug}-{sensor_id}"`
-/// convention) to the correct seeded clone constructor.
+/// convention) to the correct clone constructor.
 ///
 /// # Entry name convention
 ///
@@ -53,19 +53,36 @@ pub type CloneFactoryFn<'a> = Box<dyn Fn(&InstanceEntry) -> Box<dyn BehavioralCl
 /// FORBIDDEN — it would make org-a and org-c CrowdStrike clones serve IDENTICAL data,
 /// violating INV-DISTINCT-DATA-001 while still passing RG-005 socket-distinctness test.
 ///
+/// # Scenario path (BLOCKER 3)
+///
+/// When `org_cfg.scenario.as_ref().map(|s| s.enabled)` is `true`, all sensors for
+/// that org are constructed via `new_with_scenario` with a shared `Arc<IncidentTimeline>` +
+/// `ScenarioEntityCatalog`. The scenario context is built ONCE per org BEFORE the closure
+/// is returned (keyed by org_slug in `scenario_ctxs`), so that:
+/// - The `Arc<IncidentTimeline>` is shared across all sensors in the org (they advance in sync).
+/// - The factory closure is `Fn` (not `FnMut`) — no state mutation needed inside the closure.
+///
+/// Mirrors `build_clone_pairs` in harness.rs (the `start` path). The same `ScenarioConfig`
+/// type and `build_default_incident_timeline` / `build_scenario_entity_catalog` helpers are
+/// used. Differences vs `build_clone_pairs`:
+/// - No E-DEMO-002/003/006 prescans (multi-org config has one scenario per org, not per-clone;
+///   seed uniqueness is already guaranteed by distinct org seeds).
+/// - `new_with_scenario` is called for ALL sensors in the org, not per-clone opt-in.
+///
 /// # Reuses harness.rs helpers (Architecture Compliance)
 ///
 /// Uses:
 /// - `crate::harness::parse_org_id(str, name)` → `OrgId`
 /// - `crate::harness::fixture_set_to_archetype("default", name)` → `Archetype`
 /// - `prism_dtu_common::demo_time_anchor()` for the time anchor
-/// - `new_with_seed(seed, archetype, org_id)` seeded constructors on all 4 clone crates
+/// - `new_with_seed(seed, archetype, org_id)` seeded constructors (non-scenario path)
+/// - `new_with_scenario(seed, archetype, org_id, timeline, time_anchor, catalog)` (scenario path)
 ///
 /// # Cyberint composite path (GAP-2)
 ///
 /// `CyberintClone::new_with_seed` does NOT set `initial_access_token`. To satisfy BOTH
 /// seed-based data distinctness AND access-token auth, the factory uses the composite pattern:
-/// 1. Call `new_with_seed(seed, archetype, org_id)` to produce the seeded clone.
+/// 1. Call `new_with_seed` or `new_with_scenario` to produce the seeded clone.
 /// 2. If `org_cfg.initial_access_token.is_some()`, apply the token synchronously via
 ///    `clone.state.apply_config(...)`. `BehavioralClone::configure` is declared async in
 ///    the trait, but `CyberintState::apply_config` is synchronous. Calling `block_on`
@@ -94,6 +111,114 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
     // sensor validation (MultiOrgDemoConfig::from_str) and dispatch (here) cannot drift.
     // Adding a new sensor updates KNOWN_SENSORS once; both sites pick it up automatically.
     use crate::config::KNOWN_SENSORS;
+
+    // ---------------------------------------------------------------------------
+    // BLOCKER 3: Pre-build per-org scenario contexts BEFORE returning the closure.
+    //
+    // Key: org_slug (String).
+    // Value: (Arc<IncidentTimeline>, ScenarioEntityCatalog, time_anchor).
+    //
+    // Built here (not inside the closure) because:
+    // 1. The closure is `Fn` (not `FnMut`), so no mutable interior state.
+    // 2. The Arc<IncidentTimeline> must be SHARED across all sensors in the org
+    //    so they advance in sync — building it once guarantees this.
+    // 3. Mirrors harness.rs `scenario_ctx` which is also pre-built before
+    //    the clone-construction loop.
+    // ---------------------------------------------------------------------------
+    use prism_dtu_common::{build_default_incident_timeline, build_scenario_entity_catalog};
+    use std::collections::HashMap;
+
+    // ScenarioCtx carries the archetype alongside the timeline, catalog, and time anchor.
+    //
+    // The archetype is derived from `sc.archetype` (the SCENARIO archetype, e.g. "compromised_endpoint"
+    // → Archetype::CompromisedEndpoint), NOT from `fixture_set_to_archetype("default", ...)` which
+    // returns HealthyOtEnvironment. Using the wrong archetype causes `generate_with_scenario_iocs` to
+    // early-return with the un-stamped path (it only stamps ioc_value for CompromisedEndpoint).
+    //
+    // Mirrors harness.rs lines 484-504 (scenario archetype validation + conversion).
+    type ScenarioCtx = (
+        std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        prism_dtu_common::ScenarioEntityCatalog,
+        chrono::DateTime<chrono::Utc>,
+        prism_dtu_common::Archetype,
+    );
+
+    let mut scenario_ctxs: HashMap<String, ScenarioCtx> = HashMap::new();
+
+    for (org_slug, org_cfg) in &cfg.orgs {
+        let scenario_enabled = org_cfg
+            .scenario
+            .as_ref()
+            .map(|s| s.enabled)
+            .unwrap_or(false);
+
+        if !scenario_enabled {
+            continue;
+        }
+
+        #[allow(clippy::expect_used)]
+        let sc = org_cfg
+            .scenario
+            .as_ref()
+            .expect("scenario field must be Some when scenario_enabled is true (checked above)");
+
+        // Convert scenario archetype string to Archetype enum.
+        // Mirrors harness.rs lines 484-504 — only "compromised_endpoint" and "healthy" are valid.
+        // Unrecognized archetypes are a programming error: MultiOrgDemoConfig::from_str validates
+        // the archetype string at config parse time via the same match arm.
+        let scenario_archetype = match sc.archetype.as_str() {
+            "compromised_endpoint" => prism_dtu_common::Archetype::CompromisedEndpoint,
+            "healthy" => prism_dtu_common::Archetype::HealthyOtEnvironment,
+            other => {
+                panic!(
+                    "start-multi: E-DEMO-003: org '{}': unrecognized scenario archetype '{}'; \
+                     valid values: compromised_endpoint, healthy. \
+                     This is a programming error — MultiOrgDemoConfig::from_str must validate \
+                     archetype strings before this point.",
+                    org_slug, other
+                )
+            }
+        };
+
+        // Parse org_id to OrgId ([u8; 16]) for catalog construction.
+        // from_str / from_file validates UUID format at config parse time; expect() here
+        // is a programming-error guard (same rationale as the existing closure below).
+        #[allow(clippy::expect_used)]
+        let org_id = crate::harness::parse_org_id(&org_cfg.org_id, org_slug)
+            .expect("org_id in OrgConfig must be a valid UUID (validated at config parse time)");
+
+        // Build ScenarioEntityCatalog from seed + org_id.
+        let catalog = build_scenario_entity_catalog(org_cfg.seed, &org_id);
+
+        // Derive scenario_start_secs: config value or current system time.
+        let scenario_start_secs: i64 = sc
+            .scenario_start_secs
+            .unwrap_or_else(|| chrono::Utc::now().timestamp());
+
+        // Build IncidentTimeline from catalog + start time + stage durations.
+        let timeline = build_default_incident_timeline(
+            catalog.clone(),
+            scenario_start_secs,
+            &sc.stage_duration_secs,
+        );
+
+        // Derive time_anchor from scenario_start_secs.
+        // chrono::DateTime::from_timestamp returns None only for out-of-range values.
+        // scenario_start_secs comes from config (bounded i64) so this expect is safe.
+        #[allow(clippy::expect_used)]
+        let time_anchor = chrono::DateTime::from_timestamp(scenario_start_secs, 0)
+            .expect("scenario_start_secs is a valid epoch timestamp");
+
+        scenario_ctxs.insert(
+            org_slug.clone(),
+            (
+                std::sync::Arc::new(timeline),
+                catalog,
+                time_anchor,
+                scenario_archetype,
+            ),
+        );
+    }
 
     Box::new(move |entry: &InstanceEntry| -> Box<dyn BehavioralClone> {
         let entry_name = &entry.name;
@@ -138,35 +263,84 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
         let org_id = crate::harness::parse_org_id(&org_cfg.org_id, entry_name)
             .expect("org_id in OrgConfig must be a valid UUID (validated at config parse time by MultiOrgDemoConfig::from_str)");
 
-        // Derive Archetype from "default" fixture_set (start-multi always uses the seeded path).
+        // Derive base Archetype from "default" fixture_set for the NON-scenario seeded path.
         // SAFETY: "default" is a known-valid fixture_set; expect() is appropriate here.
+        // NOTE: for the scenario path, scenario_archetype from ScenarioCtx is used instead —
+        //       using fixture_set archetype (HealthyOtEnvironment) for new_with_scenario would
+        //       cause generate_with_scenario_iocs to early-return without stamping ioc_value.
         #[allow(clippy::expect_used)]
-        let archetype = crate::harness::fixture_set_to_archetype("default", entry_name)
+        let base_archetype = crate::harness::fixture_set_to_archetype("default", entry_name)
             .expect("'default' is a valid fixture_set; this expect cannot fail");
 
         let seed = org_cfg.seed;
 
-        // Dispatch to the correct seeded constructor based on sensor_id (EC-008).
-        // Each new_with_seed constructor uses demo_time_anchor() internally for the time anchor.
+        // Check if this org has a pre-built scenario context.
+        let scenario_ctx = scenario_ctxs.get(org_slug);
+
+        // Dispatch to the correct constructor based on sensor_id (EC-008).
+        // When scenario_ctx is Some: call new_with_scenario with the SCENARIO archetype (BLOCKER 3).
+        // When scenario_ctx is None: call new_with_seed with the base fixture_set archetype.
         match sensor_id {
             "crowdstrike" => {
-                // CrowdstrikeClone::new_with_seed is infallible.
-                Box::new(CrowdstrikeClone::new_with_seed(seed, archetype, org_id))
+                if let Some((timeline_arc, catalog, time_anchor, scenario_archetype)) = scenario_ctx
+                {
+                    Box::new(CrowdstrikeClone::new_with_scenario(
+                        seed,
+                        *scenario_archetype,
+                        org_id,
+                        std::sync::Arc::clone(timeline_arc),
+                        *time_anchor,
+                        catalog,
+                    ))
+                } else {
+                    // CrowdstrikeClone::new_with_seed is infallible.
+                    Box::new(CrowdstrikeClone::new_with_seed(
+                        seed,
+                        base_archetype,
+                        org_id,
+                    ))
+                }
             }
             "claroty" => {
-                // ClarotyClone::new_with_seed is infallible.
-                Box::new(ClarotyClone::new_with_seed(seed, archetype, org_id))
+                if let Some((timeline_arc, _, time_anchor, scenario_archetype)) = scenario_ctx {
+                    Box::new(ClarotyClone::new_with_scenario(
+                        seed,
+                        *scenario_archetype,
+                        org_id,
+                        std::sync::Arc::clone(timeline_arc),
+                        *time_anchor,
+                    ))
+                } else {
+                    // ClarotyClone::new_with_seed is infallible.
+                    Box::new(ClarotyClone::new_with_seed(seed, base_archetype, org_id))
+                }
             }
             "armis" => {
-                // ArmisClone::new_with_seed is fallible (returns Result).
-                #[allow(clippy::expect_used)]
-                Box::new(ArmisClone::new_with_seed(seed, archetype, org_id).expect(
-                    "ArmisClone::new_with_seed must succeed for valid seed/archetype/org_id",
-                ))
+                if let Some((timeline_arc, catalog, time_anchor, scenario_archetype)) = scenario_ctx
+                {
+                    #[allow(clippy::expect_used)]
+                    Box::new(
+                        ArmisClone::new_with_scenario(
+                            seed,
+                            *scenario_archetype,
+                            org_id,
+                            std::sync::Arc::clone(timeline_arc),
+                            *time_anchor,
+                            catalog,
+                        )
+                        .expect("ArmisClone::new_with_scenario must succeed for valid args"),
+                    )
+                } else {
+                    // ArmisClone::new_with_seed is fallible (returns Result).
+                    #[allow(clippy::expect_used)]
+                    Box::new(ArmisClone::new_with_seed(seed, base_archetype, org_id).expect(
+                        "ArmisClone::new_with_seed must succeed for valid seed/archetype/org_id",
+                    ))
+                }
             }
             "cyberint" => {
-                // GAP-2 composite path:
-                //   1. new_with_seed → seeded clone (no access_token yet)
+                // GAP-2 composite path (both scenario and seeded):
+                //   1. new_with_scenario or new_with_seed → seeded clone (no access_token yet)
                 //   2. if initial_access_token.is_some() → apply token synchronously via
                 //      clone.state.apply_config (CyberintState::apply_config is sync).
                 //
@@ -175,9 +349,23 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
                 // Box<dyn BehavioralClone>, only the async configure() trait method is
                 // accessible — which would require block_on and panic on a tokio thread.
                 #[allow(clippy::expect_used)]
-                let clone = CyberintClone::new_with_seed(seed, archetype, org_id).expect(
-                    "CyberintClone::new_with_seed must succeed for valid seed/archetype/org_id",
-                );
+                let clone = if let Some((timeline_arc, catalog, time_anchor, scenario_archetype)) =
+                    scenario_ctx
+                {
+                    CyberintClone::new_with_scenario(
+                        seed,
+                        *scenario_archetype,
+                        org_id,
+                        std::sync::Arc::clone(timeline_arc),
+                        *time_anchor,
+                        catalog,
+                    )
+                    .expect("CyberintClone::new_with_scenario must succeed for valid args")
+                } else {
+                    CyberintClone::new_with_seed(seed, base_archetype, org_id).expect(
+                        "CyberintClone::new_with_seed must succeed for valid seed/archetype/org_id",
+                    )
+                };
 
                 if let Some(token) = &org_cfg.initial_access_token {
                     // GAP-2: register access token synchronously via the state's sync path.

@@ -41,3 +41,20 @@ org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
 sensors = ["crowdstrike", "armis", "claroty", "cyberint"]
 seed = 200
 initial_access_token = "demo-cyberint-api-key-org-c"
+
+# Scenario clock for org-c (the demo centerpiece org — all 4 sensors).
+# All sensors in this org share a single Arc<IncidentTimeline> + ScenarioEntityCatalog
+# derived from seed=200 + org_id above.
+#
+# archetype = "compromised_endpoint" activates the 5-stage incident progression:
+#   Stage 0 (Baseline): normal activity — clean detections, healthy devices
+#   Stage 1 (t+60s):  initial access — first compromised detection appears
+#   Stage 2 (t+180s): lateral movement — beacon C2 IOC surfaces in Cyberint alerts
+#   Stage 3 (t+360s): escalation — Claroty shows network anomaly on OT segment
+#   Stage 4 (t+600s): full compromise — IOC correlation visible across all sensors
+#
+# scenario_start_secs: absent → uses current system time at demo-server start
+# stage_duration_secs: absent → uses archetype defaults [60, 180, 360, 600]
+[orgs.org-c.scenario]
+enabled = true
+archetype = "compromised_endpoint"
