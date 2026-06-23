@@ -1634,3 +1634,190 @@ async fn test_BC_2_08_001_probe_falls_back_to_first_table_when_probe_table_absen
          Got '{captured}' — F-S504-P1-002 fix required"
     );
 }
+
+// ─── F-S504-P1-002 integration test: strip_prefix stand-in ───────────────────
+//
+// The MockAdapterCapturingSpec above confirms that probe_connectivity_with_routing
+// passes the correct source_table string.  That is a necessary but NOT sufficient
+// guarantee: we also need to verify that the canonical UNDERSCORE form is what
+// SpecDrivenSensorAdapter::fetch would accept.
+//
+// SpecDrivenSensorAdapter::fetch (crates/prism-bin/src/spec_driven_adapter.rs §647-649):
+//
+//   let sensor_id_str = self.sensor_spec.spec.sensor_id.as_str();
+//   let queried_table_name: Option<&str> =
+//       spec.source_table.strip_prefix(&format!("{sensor_id_str}_"));
+//
+// The strip_prefix call resolves a single table from source_table.  The result is
+// Some(table_name) when source_table == "{sensor_id}_{table_name}" — i.e. exactly the
+// underscore form.  The result is None when source_table uses dot form or any other
+// convention, which causes the adapter to fan-out to all declared tables instead of
+// routing to a single table.
+//
+// This test uses MockAdapterStripPrefix (below): a stand-in that replicates the
+// strip_prefix logic and returns Err only when strip_prefix finds no match.  The test
+// proves end-to-end that probe_connectivity_with_routing produces a source_table that
+// strip_prefix("{sensor_id}_") resolves to a non-None table name.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Stand-in adapter that applies `strip_prefix("{sensor_id}_")` to `spec.source_table`,
+/// faithfully modelling `SpecDrivenSensorAdapter::fetch`'s single-table selection.
+///
+/// Returns `Ok(vec![])` when strip_prefix succeeds (underscore form).
+/// Returns `Err(SensorError::Other("strip_prefix_mismatch: ..."))` when strip_prefix fails
+/// (dot form or other convention), making the test assertion observable.
+struct MockAdapterStripPrefix {
+    sensor_id: &'static str,
+    resolved_table: std::sync::Mutex<Option<String>>,
+}
+
+impl MockAdapterStripPrefix {
+    fn new(sensor_id: &'static str) -> Self {
+        Self {
+            sensor_id,
+            resolved_table: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// Returns the table name resolved by strip_prefix, if the last fetch succeeded.
+    fn resolved(&self) -> Option<String> {
+        self.resolved_table
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
+    }
+}
+
+#[async_trait]
+impl SensorAdapter for MockAdapterStripPrefix {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from(self.sensor_id)
+    }
+
+    async fn fetch(
+        &self,
+        spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        // Replicate SpecDrivenSensorAdapter::fetch strip_prefix logic (spec_driven_adapter.rs §647-649).
+        let prefix = format!("{}_", self.sensor_id);
+        match spec.source_table.strip_prefix(&prefix) {
+            Some(table_name) => {
+                // Underscore form matched — record resolved table name.
+                *self
+                    .resolved_table
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner()) = Some(table_name.to_owned());
+                Ok(vec![])
+            }
+            None => {
+                // source_table did NOT start with "{sensor_id}_" — the probe used the wrong form.
+                // This would cause SpecDrivenSensorAdapter to fan-out to ALL declared tables
+                // instead of routing to a single table.
+                Err(SensorError::Internal {
+                    detail: format!(
+                        "strip_prefix_mismatch: source_table '{}' does not start with '{prefix}'",
+                        spec.source_table
+                    ),
+                })
+            }
+        }
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "mock-strip-prefix"
+    }
+}
+
+/// F-S504-P1-002 integration: `probe_connectivity_with_routing` with `probe_table=Some("detections")`
+/// produces `source_table = "crowdstrike_detections"` that passes `strip_prefix("crowdstrike_")`.
+///
+/// This test proves the underscore form is not just passed through (MockAdapterCapturingSpec)
+/// but is CORRECT for the SpecDrivenSensorAdapter table selection path.
+///
+/// If the routing produced "crowdstrike.detections" (dot form), the mock would return
+/// `SensorError::Other("strip_prefix_mismatch: ...")` and the probe would record Down,
+/// causing this test to fail with a clear message.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_probe_table_underscore_form_resolves_via_strip_prefix() {
+    let adapter = Arc::new(MockAdapterStripPrefix::new("crowdstrike"));
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::clone(&adapter) as Arc<dyn SensorAdapter>);
+
+    // Probe with probe_table = Some("detections").
+    // probe_connectivity_with_routing MUST produce source_table = "crowdstrike_detections".
+    let result = probe_connectivity_with_routing(
+        &registry,
+        org_id,
+        &sensor_id,
+        "acme",
+        Some("detections"),
+        None,
+    )
+    .await
+    .expect("probe_connectivity_with_routing must not error");
+
+    assert_eq!(
+        result.status,
+        ConnectivityStatus::Up,
+        "F-S504-P1-002 integration: probe must return Up — if Down, source_table used dot \
+         form and strip_prefix returned None (fan-out to all tables instead of single table). \
+         Probe outcome: {:?}",
+        result.error
+    );
+
+    // The stand-in's resolved() field holds the table name that strip_prefix extracted.
+    // It is Some("detections") when underscore form was used, None when strip_prefix found no match.
+    assert_eq!(
+        adapter.resolved(),
+        Some("detections".to_owned()),
+        "F-S504-P1-002 integration: strip_prefix MUST resolve to 'detections'. \
+         None means source_table used dot form ('crowdstrike.detections'), which would \
+         cause SpecDrivenSensorAdapter to fan-out to all tables instead of a single table."
+    );
+}
+
+/// F-S504-P1-002 integration: `probe_connectivity_with_routing` with `probe_table=None`,
+/// `first_table_name=Some("alerts")` produces `source_table = "cyberint_alerts"` that
+/// passes `strip_prefix("cyberint_")`.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_probe_table_fallback_underscore_form_resolves_via_strip_prefix() {
+    let adapter = Arc::new(MockAdapterStripPrefix::new("cyberint"));
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("cyberint");
+
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::clone(&adapter) as Arc<dyn SensorAdapter>);
+
+    // probe_table absent, first declared table = "alerts".
+    let result = probe_connectivity_with_routing(
+        &registry,
+        org_id,
+        &sensor_id,
+        "acme",
+        None,
+        Some("alerts"),
+    )
+    .await
+    .expect("probe_connectivity_with_routing must not error");
+
+    assert_eq!(
+        result.status,
+        ConnectivityStatus::Up,
+        "F-S504-P1-002 integration (fallback): probe must return Up. Error: {:?}",
+        result.error
+    );
+
+    assert_eq!(
+        adapter.resolved(),
+        Some("alerts".to_owned()),
+        "F-S504-P1-002 integration (fallback): strip_prefix MUST resolve to 'alerts'. \
+         None means dot form was used."
+    );
+}
