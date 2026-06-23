@@ -64,10 +64,7 @@ fn test_BC_2_06_019_crowdstrike_detection_toml_spec_has_ioc_columns() {
         .expect("workspace root")
         .to_path_buf();
 
-    let toml_paths = [
-        workspace_root.join("sensors/crowdstrike.sensor.toml"),
-        workspace_root.join("crates/prism-sensors/specs/crowdstrike.sensor.toml"),
-    ];
+    let toml_paths = [workspace_root.join("crates/prism-sensors/specs/crowdstrike.sensor.toml")];
 
     // (expected_name, expected_source_path) — post-ENRICH-1 values.
     // Column names match JSON keys stamped by make_detection_with_ioc() in src/generator.rs.

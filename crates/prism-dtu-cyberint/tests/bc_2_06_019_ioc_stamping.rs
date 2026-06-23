@@ -572,7 +572,8 @@ async fn test_BC_2_06_019_cyberint_alerts_real_schema_ioc_filter_no_synthetic() 
 /// Red Gate test plan #7 (S-DEMO-ENRICHMENT-PIVOT-003).
 #[test]
 fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
-    // Both sensor spec locations must be checked; they must be in sync.
+    // The canonical spec under crates/prism-sensors/specs/ is the single source of truth;
+    // the vestigial repo-root sensors/ directory has been removed (OBS-ENRICH-P1-001).
     let workspace_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("crates/ parent")
@@ -580,10 +581,7 @@ fn test_BC_2_06_019_cyberint_alert_toml_spec_has_ioc_columns() {
         .expect("workspace root")
         .to_path_buf();
 
-    let toml_paths = [
-        workspace_root.join("sensors/cyberint.sensor.toml"),
-        workspace_root.join("crates/prism-sensors/specs/cyberint.sensor.toml"),
-    ];
+    let toml_paths = [workspace_root.join("crates/prism-sensors/specs/cyberint.sensor.toml")];
 
     // (expected_name, expected_source_path) — post-ENRICH-1 values.
     // FAIL if any column uses the old bracket-in-name form (e.g., "iocs[].value")
