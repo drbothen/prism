@@ -4,7 +4,7 @@
 //! These tests are S-5.04 Red Gate tests for the unimplemented AC-9 and AC-10 behaviors:
 //!
 //! **AC-9**: When `probe_connectivity()` runs for a sensor, it routes the LIMIT-0 fetch
-//! to `"{sensor_id}.{probe_table}"` when `probe_table` is set, OR falls back to the first
+//! to `"{sensor_id}_{probe_table}"` when `probe_table` is set, OR falls back to the first
 //! declared table (`spec.tables[0].table_name`) when `probe_table` is absent, OR is a
 //! structural no-op when both `probe_table` is absent and `spec.tables` is empty.
 //!
