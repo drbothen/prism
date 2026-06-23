@@ -836,7 +836,12 @@ pub async fn run_materialization_pipeline(
 /// For Filter/Pipe mode: returns the union of all materialized `table_batches`
 /// (DataFusion MemTable registration already happened; no separate SQL step).
 /// (F-LP1-HIGH-1: Filter and Pipe must NOT return empty Vec)
-pub(crate) async fn execute_against_session(
+/// Execute a PrismQL AST against a pre-configured `SessionContext`.
+///
+/// `pub` so that integration tests can call it directly with a manually-configured
+/// `SessionContext` (e.g. with custom async UDFs + pre-registered MemTables).
+/// Production callers use `run_materialization_pipeline` which calls this internally.
+pub async fn execute_against_session(
     session_ctx: &SessionContext,
     query_str: &str,
     ast: &crate::ast::Ast,
@@ -868,14 +873,54 @@ pub(crate) async fn execute_against_session(
                 .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
             collect_record_batch_stream(stream, pool_bytes).await
         }
-        // F-LP1-HIGH-1: For Filter and Pipe modes, return the union of all materialized batches.
+        // F-LP1-HIGH-1: For Filter mode, return the union of all materialized batches.
         // The batches were already collected in the fan-out loop with virtual field injection.
         // DataFusion MemTable registration has already happened for SQL query capability;
-        // for Filter/Pipe, we return the pre-collected annotated batches directly.
-        Ast::Filter(_) | Ast::Pipe(_) => {
-            // Return the union of all table_batches values.
+        // for Filter mode we return the pre-collected annotated batches directly.
+        // (ENRICH-4-C: Filter-mode SQL execution is a follow-up story.)
+        Ast::Filter(_) => {
+            // Return the union of all table_batches values (unchanged from pre-ENRICH-4-B).
             let all_batches: Vec<RecordBatch> = table_batches.into_values().flatten().collect();
             Ok(all_batches)
+        }
+        // ENRICH-4-B: Pipe mode now routes through the SQL-lowering path.
+        //
+        // `pipe_to_executable_sql` lowers the PipeQuery AST to a DataFusion SQL string,
+        // which is then executed against the registered MemTables via `session_ctx.sql()`.
+        // This path mirrors the `Ast::Sql(Select)` arm exactly — same pool, same stream
+        // collection, same memory-error mapper — preserving all BC-2.11.006 invariants.
+        //
+        // The `table_batches` map is passed to the emitter for schema inspection (needed
+        // by the Fields-exclude projection). The MemTables have already been registered
+        // by `run_materialization_pipeline` before this function is called.
+        Ast::Pipe(pipe) => {
+            let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+            let sql = crate::pipe_sql_emitter::pipe_to_executable_sql(pipe, &table_batches)?;
+            tracing::debug!(
+                pipe_sql = %sql,
+                event_type = "pipe.sql_lowering",
+                "pipe-to-SQL lowering complete"
+            );
+            let df = session_ctx.sql(&sql).await.map_err(|e| {
+                tracing::error!(
+                    error = %e,
+                    pipe_sql = %sql,
+                    event_type = "pipe.sql_planning_error",
+                    "pipe-to-sql DataFusion planning error"
+                );
+                PrismError::QueryExecutionFailed {
+                    detail: "pipe SQL planning error: <redacted; see server logs>".to_string(),
+                }
+            })?;
+            // QRY-03: route execution errors through map_datafusion_memory_error
+            // so a GreedyMemoryPool trip (ResourcesExhausted) surfaces as
+            // PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001) instead of
+            // a generic QueryExecutionFailed (BC-2.11.006 EC-001).
+            let stream = df
+                .execute_stream()
+                .await
+                .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
+            collect_record_batch_stream(stream, pool_bytes).await
         }
         _ => {
             // Other AST variants: return empty (no sensor data applicable).
@@ -1520,7 +1565,11 @@ fn walk_expr(expr: &crate::ast::Expr, names: &mut std::collections::HashSet<Stri
 /// The table name is the source ref string (e.g., `"crowdstrike_detections"`).
 /// DataFusion table names containing dots must be quoted with backticks in
 /// SQL. (BC-2.11.005 dev note)
-pub(crate) fn register_mem_table(
+/// Register a `Vec<RecordBatch>` as a DataFusion `MemTable` under `table_name`.
+///
+/// `pub` so that integration tests can pre-register tables in a manually-configured
+/// `SessionContext` before calling `execute_against_session` directly.
+pub fn register_mem_table(
     ctx: &SessionContext,
     table_name: &str,
     batches: Vec<RecordBatch>,
