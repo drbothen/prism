@@ -702,17 +702,18 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 current_story:
-  story_id: S-3.13
+  story_id: S-DEMO-PRISMQL-ONBOARDING-001-B
   status: merged
   delivery_step: merged
-  spec_version: "1.20"
-  merged_sha: "60249ccc"
-  merged_pr: 192
-  merged_at: "2026-06-16"
-  task_ledger_item: "Lane B S-3.13 MERGED — L-POST roadmap now unblocked (S-5.03/S-5.04/T13/T14)"
-  resume_at: "D-1204 2026-06-16. S-3.13 MERGED PR #192 develop@60249ccc. BOTH open lanes CLOSED (Lane A S-5.02 PR #191 bec894a2 + Lane B S-3.13 PR #192 60249ccc). L-POST roadmap unblocked: S-5.03 (depends S-5.02+S-3.13), S-5.04, T13 capstone SOC-analyst narrative (PO+story-writer), T14 demo recording. OPEN USER SCOPING QUESTION: PIVOT-002/003 (+S-1.14-REDO) demo-blocking vs post-demo (awaiting user confirmation). POL-14: BC-2.16.007 status:draft→active (lifecycle_status was already active; no count change; active_contracts 235 / draft_contracts 2 UNCHANGED). develop@60249ccc. STATE v7.847. Worktrees .worktrees/S-3.13 + .worktrees/S-5.02 cleanup pending (devops)."
-  note: "D-1204 2026-06-16. S-3.13 MERGED PR #192 develop@60249ccc. POL-14 BC-2.16.007 status:draft→active (legacy-field sync; lifecycle_status was already active). BOTH lanes CLOSED."
-  last_updated_at: "2026-06-16"
+  spec_version: "v1.9"
+  code_head: "f141801b"
+  merged_sha: "5504c152"
+  merged_pr: 198
+  merged_at: "2026-06-22"
+  task_ledger_item: "001-B MERGED PR #198 develop@5504c152 — DEMO-BLOCKING lane closed; NEXT: S-5.04"
+  resume_at: "D-1293 2026-06-22. S-DEMO-PRISMQL-ONBOARDING-001-B MERGED PR #198 develop@5504c152 (admin-merge bypassing in-flight test matrix per human directive; LOCAL 3/3 + PR-LEVEL 3/3 strict-3-CLEAN @ frozen f141801b; pr-reviewer APPROVE; security CLEAR; demo evidence 6 ACs; non-exhaustive gate 83). POL-14: BC-2.11.016+BC-2.11.017+BC-2.11.018 draft→active; CLAUDE.md 82→83 landed in squash. PR #199 maintenance(rustfmt) develop@8d8be0fb also merged. Worktrees .worktrees/S-DEMO-PRISMQL-ONBOARDING-001-B + .worktrees/maintenance-rustfmt-stable REMOVED; branches DELETED. develop_head 5504c152. NEXT DEMO-BLOCKING story: S-5.04 (PARKED spec-ready @4282c997, serial). active_contracts 241 / draft_contracts 2. STATE v7.922."
+  note: "D-1293 2026-06-22. S-DEMO-PRISMQL-ONBOARDING-001-B MERGED PR #198 develop@5504c152. POL-14 BC-2.11.016+017+018 draft→active. Worktree REMOVED. Branch DELETED."
+  last_updated_at: "2026-06-22"
 
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.346 (STORY-INDEX v2.346 current; total_stories 194)
