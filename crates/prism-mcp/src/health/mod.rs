@@ -21,16 +21,20 @@ pub mod connectivity;
 pub mod rate_limit;
 pub mod timestamp;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use prism_core::{OrgId, SensorId};
+use prism_core::{OrgId, OrgSlug, SensorId};
 use prism_sensors::registry::AdapterRegistry;
+use prism_spec_engine::{ResolvedSensorSpec, ResolvedSpecKey};
 
 use crate::context::{PrismContext, SensorKey};
 use crate::health::connectivity::ConnectivityStatus;
 use crate::health::{
-    auth::AuthStatus, connectivity::ProbeOutcome, rate_limit::extract_rate_limit_state,
+    auth::{probe_auth_with_routing, AuthStatus},
+    connectivity::ProbeOutcome,
+    rate_limit::extract_rate_limit_state,
     rate_limit::RateLimitState,
 };
 use crate::resources::{RateLimitInfo, SensorHealthResult};
@@ -109,19 +113,53 @@ impl HealthCheckResult {
 /// All probes call `AdapterRegistry::get(org_id, sensor_id)` and invoke
 /// `adapter.fetch()` with a minimal probe query (e.g., `LIMIT 0`). The health
 /// module MUST NOT construct a `reqwest::Client` directly.
+///
+/// # probe_table routing (F-S504-P1-001 fix)
+/// When `resolved_spec_map` is wired (production path), `check_one` looks up
+/// the sensor's `ResolvedSensorSpec` and extracts `probe_table` + first table name
+/// to call `probe_auth_with_routing`. Without the spec map the probe falls back to
+/// the legacy `{sensor_id}_devices` sentinel (hollow probe, AC-9 no-op path).
 #[derive(Debug, Clone)]
 pub struct SensorHealthChecker {
     /// Shared adapter registry for live probe dispatch (FIX-001 / ADR-023 §C1).
-    #[allow(dead_code)]
     adapter_registry: Arc<AdapterRegistry>,
+    /// Resolved sensor spec map for probe_table routing (F-S504-P1-001).
+    ///
+    /// `Some` in production (wired at boot via `SensorHealthChecker::new_with_spec_map`).
+    /// `None` in tests that only supply an `AdapterRegistry` without a spec catalog.
+    /// When `None`, `check_one` falls back to the legacy `{sensor_id}_devices` sentinel.
+    resolved_spec_map: Option<Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>>,
 }
 
 impl SensorHealthChecker {
-    /// Construct a `SensorHealthChecker` with the provided adapter registry.
+    /// Construct a `SensorHealthChecker` with the provided adapter registry (no spec map).
     ///
-    /// Called at server construction time (boot step 9 / `PrismServer::with_deps`).
+    /// Backward-compatible constructor for tests and MVP mode. Probes use the legacy
+    /// `{sensor_id}_devices` sentinel (hollow, returns Up without HTTP contact for sensors
+    /// with no declared tables). Use `new_with_spec_map` for production wiring.
     pub fn new(adapter_registry: Arc<AdapterRegistry>) -> Self {
-        Self { adapter_registry }
+        Self {
+            adapter_registry,
+            resolved_spec_map: None,
+        }
+    }
+
+    /// Construct a `SensorHealthChecker` wired with both adapter registry and resolved
+    /// sensor spec map (production path — F-S504-P1-001 fix).
+    ///
+    /// With the spec map wired, `check_one` resolves `probe_table` and first table name
+    /// from the sensor's `ResolvedSensorSpec` before calling `probe_auth_with_routing`.
+    /// This ensures the probe routes to the correct single table (BC-2.08.001 postcondition 5).
+    ///
+    /// Called from `PrismServer::with_deps` at boot step 9.
+    pub fn new_with_spec_map(
+        adapter_registry: Arc<AdapterRegistry>,
+        resolved_spec_map: Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>,
+    ) -> Self {
+        Self {
+            adapter_registry,
+            resolved_spec_map: Some(resolved_spec_map),
+        }
     }
 
     /// Run a live health probe for all sensors registered for `org_id`.
@@ -160,8 +198,13 @@ impl SensorHealthChecker {
 
     /// Run a live health probe for a single sensor.
     ///
-    /// Delegates to `auth::probe_auth` using the adapter obtained from
-    /// `AdapterRegistry::get(org_id, sensor_id)`.
+    /// When `resolved_spec_map` is wired (production path), resolves the sensor's
+    /// `probe_table` and first table name from the spec catalog and delegates to
+    /// `auth::probe_auth_with_routing` (F-S504-P1-001 fix — routes to the correct
+    /// single table, not the legacy `{sensor_id}_devices` sentinel).
+    ///
+    /// When `resolved_spec_map` is `None` (test / legacy path), falls back to
+    /// `auth::probe_auth` using the legacy sentinel.
     ///
     /// Updates the last-successful-query timestamp in `context` on success
     /// (BC-2.08.004 postcondition 1).
@@ -172,7 +215,38 @@ impl SensorHealthChecker {
         sensor_id: &SensorId,
         context: &PrismContext,
     ) -> SensorHealthResult {
-        match auth::probe_auth(&self.adapter_registry, org_id, sensor_id, client_id).await {
+        // F-S504-P1-001: resolve probe_table and first_table_name from the sensor spec
+        // when the resolved_spec_map is wired (production path).
+        // OrgSlug is derived from client_id (string passed from server.rs call site).
+        let probe_table_owned: Option<String>;
+        let first_table_name_owned: Option<String>;
+        if let Some(ref spec_map) = self.resolved_spec_map {
+            let org_slug = OrgSlug::new(client_id);
+            let spec_key = (org_slug, sensor_id.clone());
+            if let Some(resolved) = spec_map.get(&spec_key) {
+                probe_table_owned = resolved.spec.probe_table.clone();
+                first_table_name_owned = resolved.spec.tables.first().map(|t| t.table_name.clone());
+            } else {
+                probe_table_owned = None;
+                first_table_name_owned = None;
+            }
+        } else {
+            probe_table_owned = None;
+            first_table_name_owned = None;
+        }
+        let probe_table_ref: Option<&str> = probe_table_owned.as_deref();
+        let first_table_ref: Option<&str> = first_table_name_owned.as_deref();
+
+        match auth::probe_auth_with_routing(
+            &self.adapter_registry,
+            org_id,
+            sensor_id,
+            client_id,
+            probe_table_ref,
+            first_table_ref,
+        )
+        .await
+        {
             Ok(probe) => {
                 let reachable = probe.connectivity != ConnectivityStatus::Down;
                 let auth_valid = matches!(probe.auth, AuthStatus::Valid);

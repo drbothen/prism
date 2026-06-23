@@ -68,6 +68,11 @@ pub struct AuthProbeResult {
 /// # FIX-001/v1.6 mandate
 /// This function MUST NOT construct a `reqwest::Client`. It MUST obtain the
 /// adapter via `registry.get(org_id, sensor_id)`.
+///
+/// # Note
+/// This 4-arg form calls `probe_connectivity` without probe_table routing.
+/// In production, callers should prefer `probe_auth_with_routing` to ensure
+/// the probe routes to the correct single table (F-S504-P1-001).
 pub async fn probe_auth(
     registry: &AdapterRegistry,
     org_id: OrgId,
@@ -105,5 +110,63 @@ pub async fn probe_auth(
     })
 }
 
+/// Issue an auth validity probe with explicit probe_table routing (F-S504-P1-001).
+///
+/// Extended form of `probe_auth` that accepts the sensor spec's `probe_table` and
+/// `first_table_name` so that the LIMIT-0 fetch is routed to the correct single table,
+/// not the legacy `{sensor_id}_devices` sentinel.
+///
+/// Called by `SensorHealthChecker::check_one` after looking up the resolved spec for
+/// the sensor.  The routing ensures the probe exercises the REAL API endpoint for the
+/// declared probe_table, not an arbitrary fallback.
+///
+/// `probe_table`      — `Some(name)` if `SensorSpec.probe_table` is declared.
+/// `first_table_name` — `Some(name)` of `spec.tables[0].table_name` when probe_table
+///                      is absent but tables exist.  `None` when no tables are declared.
+///
+/// BC-2.08.001 postcondition 5 / F-S504-P1-001 fix.
+pub async fn probe_auth_with_routing(
+    registry: &AdapterRegistry,
+    org_id: OrgId,
+    sensor_id: &SensorId,
+    client_id: &str,
+    probe_table: Option<&str>,
+    first_table_name: Option<&str>,
+) -> Result<AuthProbeResult, prism_core::error::PrismError> {
+    let outcome: ProbeOutcome = crate::health::connectivity::probe_connectivity_with_routing(
+        registry,
+        org_id,
+        sensor_id,
+        client_id,
+        probe_table,
+        first_table_name,
+    )
+    .await?;
+
+    let (auth, connectivity) = match &outcome.status {
+        ConnectivityStatus::Down => {
+            // Sensor unreachable — cannot determine auth validity (BC-2.08.002 postcondition 1)
+            (AuthStatus::Unknown, ConnectivityStatus::Down)
+        }
+        ConnectivityStatus::Up | ConnectivityStatus::Degraded => {
+            let auth = match outcome.http_status {
+                Some(401) | Some(403) => AuthStatus::Invalid,
+                _ => AuthStatus::Valid,
+            };
+            (auth, outcome.status.clone())
+        }
+    };
+
+    Ok(AuthProbeResult {
+        connectivity,
+        auth,
+        http_status: outcome.http_status,
+        error: outcome.error,
+        is_rate_limited: outcome.is_rate_limited,
+        rate_limit_retry_after_ms: outcome.rate_limit_retry_after_ms,
+    })
+}
+
 // BC-5.38.005 self-check (S-5.04 implementation complete):
 // probe_auth — non-trivial (delegates to probe_connectivity, classifies auth by HTTP status). IMPLEMENTED.
+// probe_auth_with_routing — non-trivial (delegates to probe_connectivity_with_routing, same auth logic). IMPLEMENTED.

@@ -272,8 +272,19 @@ impl PrismServer {
         alias_store: Arc<Mutex<AliasStore>>,
         org_registry: Arc<prism_core::OrgRegistry>,
     ) -> Self {
-        // S-5.04: Wire SensorHealthChecker with the adapter registry from QueryEngine.
-        let health_checker = Arc::new(SensorHealthChecker::new(query_engine.adapter_registry()));
+        // S-5.04 F-S504-P1-001: Wire SensorHealthChecker with the adapter registry AND the
+        // resolved spec map so that check_one can read probe_table + first-table fallback from
+        // the sensor spec.  When no overlay config is present (single-tenant / test mode) the
+        // spec map is None and we fall back to the no-spec constructor to preserve existing
+        // behaviour (probe routes to the legacy {sensor_id}_devices sentinel in that case).
+        let health_checker = if let Some(spec_map) = query_engine.resolved_spec_map() {
+            Arc::new(SensorHealthChecker::new_with_spec_map(
+                query_engine.adapter_registry(),
+                spec_map,
+            ))
+        } else {
+            Arc::new(SensorHealthChecker::new(query_engine.adapter_registry()))
+        };
         Self {
             injection_scanner,
             query_engine: Some(query_engine),
