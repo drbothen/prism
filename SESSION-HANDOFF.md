@@ -94,7 +94,7 @@ Expected: `f141801b`. If different (push was still in-flight at context-clear), 
 |----------|-----------|--------|-------|
 | **FIRST — housekeeping** | **PR #199 rustfmt merge** | READY TO MERGE | Merge first — speeds up all future commits (removes 740-warning flood) |
 | **P0 DEMO-BLOCKING** | **S-DEMO-PRISMQL-ONBOARDING-001-B** | FULLY CONVERGED — PR #198 READY TO MERGE | (1) Confirm f141801b pushed to origin; (2) confirm CI green-except-audit; (3) squash-merge; (4) post-merge burst |
-| **THEN — P0 DEMO-BLOCKING** | **S-5.04** | TDD-ready v2.5, code HEAD 4a5db2bf, LOCAL adversary LP3 RECONCILED; OBS-S504-LP3-001 CLOSED (FSR-table staleness); all 12 ACs GREEN; behavior fully converged | BC-pin sweep complete; story-hygiene reconcile done (story v2.5). NEXT: LOCAL adversary re-pass on frozen 4a5db2bf (streak 0/3). |
+| **THEN — P0 DEMO-BLOCKING** | **S-5.04** | TDD-ready v2.5, code HEAD 4a5db2bf, LOCAL adversary pass 1/3 CLEAN(strict); all 12 ACs GREEN; zero findings any severity | Streak 1/3 on frozen HEAD 4a5db2bf. NEXT: LOCAL adversary pass 2/3 on same frozen HEAD. |
 | **THEN — BLOCKED** | **T13 capstone** | not-authored | Multi-client SOC-analyst narrative. Hard-gated on S-5.04 + 001-B MERGED. |
 | **THEN — BLOCKED** | **T14 recording** | not-started | After T13. demo-recorder. DEMO TARGET: 2026-06-23. |
 | **P1 maintenance (after demo)** | **S-MAINT-RUSTSEC-QUINN-PROTO-001** | draft v1.0 | RUSTSEC-2026-0185 quinn-proto pin; `cargo update -p quinn-proto --precise 0.11.15` |
