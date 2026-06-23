@@ -123,8 +123,20 @@ impl HealthCheckResult {
         // Standard healthy/partial/unhealthy classification.
         //
         // A sensor is "fully healthy" when reachable, auth valid, and not rate-limited.
-        // A sensor is "reachable" (contributes to Partial, not Unhealthy) when
-        // connectivity is up, even if rate-limited or auth-invalid.
+        //
+        // A sensor is "partially available" (contributes to Partial, not Unhealthy) when:
+        //   - it is reachable (connectivity Up, i.e. reachable != Some(false)), AND
+        //   - it is not auth-invalid (auth_valid != Some(false))
+        //
+        // BC-2.08.007 postcondition:
+        //   "partial"   = at least one sensor is unreachable OR auth-invalid (but not ALL)
+        //   "unhealthy" = ALL sensors are unreachable OR auth-invalid (no rate-limited sensor present)
+        //
+        // Treating auth-invalid sensors as NOT partially available is the key fix for
+        // F-S504-LP3-HIGH-001: a fleet of all-401 sensors (reachable=true, auth_valid=false)
+        // must classify as Unhealthy, not Partial. Rate-limited sensors (reachable=true,
+        // auth_valid=true, rate_limit=Some) ARE partially available — they are reachable
+        // and authenticated; the EC-08-015 all-rate-limited guard fires first for that case.
         let fully_healthy_count = results
             .iter()
             .filter(|r| {
@@ -132,13 +144,16 @@ impl HealthCheckResult {
             })
             .count();
 
-        // A sensor is "reachable" if not explicitly down — rate-limited sensors are
-        // reachable (they returned HTTP 429) and count toward partial availability.
-        let any_reachable = results.iter().any(|r| r.reachable != Some(false));
+        // A sensor is "partially available" if reachable AND not auth-invalid.
+        // auth-invalid sensors (reachable=true, auth_valid=false) are NOT partially available —
+        // they count toward Unhealthy, not Partial (BC-2.08.007 F-S504-LP3-HIGH-001 fix).
+        let any_partially_available = results
+            .iter()
+            .any(|r| r.reachable != Some(false) && r.auth_valid != Some(false));
 
         if fully_healthy_count == results.len() {
             OverallStatus::Healthy
-        } else if fully_healthy_count > 0 || any_reachable {
+        } else if fully_healthy_count > 0 || any_partially_available {
             OverallStatus::Partial
         } else {
             OverallStatus::Unhealthy
