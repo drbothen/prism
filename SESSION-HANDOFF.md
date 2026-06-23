@@ -8,15 +8,17 @@ timestamp: 2026-06-23T23:59:00Z
 
 # Session Handoff — Prism VSDD Pipeline
 
+> **D-1311 (2026-06-24): WS-4 CLOSURE — PR #201 (maintenance/rustsec-quinn-proto) SQUASH-MERGED develop@233cfc66. RUSTSEC-2026-0185 CLOSED (quinn-proto 0.11.14→0.11.15). Lock-only; cargo audit clean. Remote branch deleted. Worktree .worktrees/maint-quinn-proto PENDING devops cleanup. WS-2 S-5.04 LOCAL 0/3 UNCHANGED on frozen 416677f6. develop_head acc6722c→233cfc66. STATE v7.939→v7.940.**
+>
 > **D-1310 (2026-06-23): SESSION WRAP — RESUME SNAPSHOT D-1310 authored. Enrichment MERGED (develop@acc6722c, T13 gate 1). 001-C BC layer FINALIZED (D-1308). S-5.04 CODE CONVERGED (9 defects fixed, FROZEN 416677f6) — LOCAL 0/3 (reset by now-closed POL-27 date fix D-1309). PR #201 quinn-proto OPEN (CI pending). §RESUME SNAPSHOT D-1310 authored (supersedes D-1305). STATE v7.938→v7.939.**
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1310** (authoritative zero-context restart protocol; supersedes D-1305). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1309 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1310 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `acc6722c` (enrichment merged). LOCAL develop `e4506a00` (LOCAL-ONLY: chore(skills): add /wrap session-durability skill — DIVERGED at acc6722c; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.939.
+> develop HEAD origin/develop `233cfc66` (PR #201 quinn-proto merged). LOCAL develop `e4506a00` (LOCAL-ONLY: chore(skills): add /wrap session-durability skill — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.940.
 
 ---
 
-## §RESUME SNAPSHOT — D-1310 (2026-06-23 — SESSION WRAP; develop origin acc6722c / LOCAL e4506a00 DIVERGED; BC-INDEX v7.09; STORY-INDEX v2.468; ARCH-INDEX v2.143; STATE v7.939; PR #201 OPEN) [SUPERSEDES D-1305]
+## §RESUME SNAPSHOT — D-1310 (2026-06-23 — SESSION WRAP; develop origin acc6722c / LOCAL e4506a00 DIVERGED; BC-INDEX v7.09; STORY-INDEX v2.468; ARCH-INDEX v2.143; STATE v7.939; PR #201 OPEN) [SUPERSEDES D-1305] [DELTA: D-1311 — PR #201 MERGED develop@233cfc66; WS-4 CLOSED; develop_head now 233cfc66; STATE v7.940]
 
 > **D-1310 burst (2026-06-23).** Session wrap. Enrichment MERGED (PR #200 develop@acc6722c, T13 gate 1 CLEARED). 001-C BC layer FINALIZED (D-1308, 4a6bbef2). S-5.04 CODE CONVERGED (9 defects fixed): FROZEN HEAD 416677f6; LOCAL strict-3-CLEAN streak 0/3 — reset by now-closed F-S504-LP3P3-MED-002 POL-27 date fix (D-1309, factory-only, code HEAD unchanged). PR #201 quinn-proto (maintenance/rustsec-quinn-proto @eb95502b) OPEN awaiting CI; pr-reviewer APPROVED. LOCAL develop e4506a00 (/wrap-skill commit) diverged from origin/develop acc6722c — HUMAN DECISION PENDING. All prior D-1101..D-1309 notes SUPERSEDED.
 
@@ -53,10 +55,10 @@ Enrichment MERGED (develop acc6722c, T13 gate 1) + 001-C BC layer FINALIZED (D-1
 - F4 IMPLEMENTER NOTE: BC-2.11.019 types available_infusions as comma-separated String; error-taxonomy E-QUERY-039 row says Vec<String> — reconcile against sibling ColumnNotFoundDetails/TableNotAvailableDetails struct types at implementation time.
 - Audit report persisted: `.factory/research/onboarding-discoverability-audit-2026-06-23.md` (D-1303).
 
-### WORKSTREAM 4 — PR #201 Quinn-Proto (NEAR-DONE)
+### WORKSTREAM 4 — PR #201 Quinn-Proto (CLOSED — MERGED D-1311)
 
-- Branch `maintenance/rustsec-quinn-proto`; worktree `.worktrees/maint-quinn-proto`; HEAD `eb95502b`. PR #201 OPEN (mergeStateStatus was UNSTABLE — CI was still running at wrap; cargo audit now passes post-quinn-proto pin). pr-reviewer APPROVED (lock-only, surgical, no behavioral risk). Closes RUSTSEC-2026-0185 (quinn-proto 0.11.14→0.11.15).
-- **RESUME NEXT-ACTION:** dispatch `vsdd-factory:pr-manager` to verify PR #201 CI green + squash-merge → develop audit green. Then remove the maint-quinn-proto worktree + bump develop_head to the #201 merge SHA in a state burst.
+- PR #201 (maintenance/rustsec-quinn-proto) SQUASH-MERGED into develop 2026-06-24. develop@233cfc66. RUSTSEC-2026-0185 CLOSED (quinn-proto 0.11.14→0.11.15). Lock-only change (Cargo.lock); cargo audit confirmed clean on 233cfc66. Remote branch deleted. develop_head advanced acc6722c→233cfc66 (STATE v7.940).
+- Worktree `.worktrees/maint-quinn-proto` still mounted — **PENDING devops-engineer cleanup** (`git worktree remove .worktrees/maint-quinn-proto`). NO ACTIVE WS-4 ACTION.
 
 ### PENDING HUMAN DECISIONS
 
@@ -65,17 +67,18 @@ Enrichment MERGED (develop acc6722c, T13 gate 1) + 001-C BC layer FINALIZED (D-1
 
 ### DEMO ROADMAP REMAINING
 
-T13 gate 1 (enrichment) DONE; T13 gate 2 (S-5.04) in LOCAL re-gate → demo → PR → merge; THEN T13 capstone (multi-client SOC narrative; runbook `.factory/objectives/T13-capstone-demo-runbook.md`, gated on S-5.04 merged) → T14 recording. 001-C discoverability story + impl after S-5.04 merge. P1 maintenance done (quinn-proto, pending #201 merge).
+T13 gate 1 (enrichment) DONE; T13 gate 2 (S-5.04) in LOCAL re-gate → demo → PR → merge; THEN T13 capstone (multi-client SOC narrative; runbook `.factory/objectives/T13-capstone-demo-runbook.md`, gated on S-5.04 merged) → T14 recording. 001-C discoverability story + impl after S-5.04 merge. P1 maintenance DONE (quinn-proto PR #201 MERGED develop@233cfc66 D-1311; RUSTSEC-2026-0185 CLOSED).
 
 ### WORKTREE INVENTORY
 
-- ACTIVE: `.worktrees/S-5.04` (`feature/S-5.04` @`416677f6` — re-gating LOCAL 0/3), `.worktrees/maint-quinn-proto` (`maintenance/rustsec-quinn-proto` @`eb95502b` — PR #201, removable post-merge).
+- ACTIVE: `.worktrees/S-5.04` (`feature/S-5.04` @`416677f6` — re-gating LOCAL 0/3).
+- PENDING-CLEANUP: `.worktrees/maint-quinn-proto` (`maintenance/rustsec-quinn-proto` — PR #201 MERGED develop@233cfc66 D-1311; branch deleted; worktree stale — devops-engineer to run `git worktree remove .worktrees/maint-quinn-proto`).
 - STALE / leave-alone: `.worktrees/S-3.09` (FROZEN), `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded).
 - Main worktree develop @`e4506a00` (DIVERGED — reconcile per pending decision 1).
 
 ### DECISION-LOG DELTA this session (not in a prior snapshot)
 
-D-1303 (audit persisted), D-1304 (checkpoint), D-1305 (prior wrap — superseded), D-1306 (BC-2.08.004 v1.4 persistence ratified), D-1307 (enrichment post-merge), D-1308 (001-C BC layer finalized), D-1309 (POL-27 modified-date sync), D-1310 (this wrap).
+D-1303 (audit persisted), D-1304 (checkpoint), D-1305 (prior wrap — superseded), D-1306 (BC-2.08.004 v1.4 persistence ratified), D-1307 (enrichment post-merge), D-1308 (001-C BC layer finalized), D-1309 (POL-27 modified-date sync), D-1310 (session wrap), D-1311 (PR #201 quinn-proto merged develop@233cfc66; WS-4 closed).
 
 ---
 
