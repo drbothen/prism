@@ -45,7 +45,9 @@ use datafusion::logical_expr::async_udf::{AsyncScalarUDF, AsyncScalarUDFImpl};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use prism_spec_engine::{InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor};
+use prism_spec_engine::{
+    InfusionLruCache, InfusionTier3Cache, InfusionUdfDescriptor, QueryScopedInfusionCache,
+};
 
 // Default per-infusion cache TTL (1 hour). Used when no `cache_ttl_secs` is set in spec.
 // `pub(crate)` so engine.rs can reference it for the three-tier cache wiring call sites.
@@ -248,7 +250,6 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
     ) -> DataFusionResult<ColumnarValue> {
         use datafusion::arrow::array::{Array, StringArray};
         use datafusion::common::ScalarValue;
-        use prism_spec_engine::QueryScopedInfusionCache;
 
         // Extract the input column — must be the first arg.
         let input_col = args.args.first().ok_or_else(|| {
@@ -325,78 +326,36 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
                 }
             };
 
-            let infusion_id = &self.descriptor.infusion_id;
-            let input_type = &self.descriptor.input_type;
-
-            // Step 1: Tier 1 (per-call dedup) lookup.
-            if let Some(cached) = tier1.get(infusion_id, input_str) {
-                // Tier 1 hit — cached is `&Option<Value>`, None means negative cache.
-                let result_str = cached.as_ref().map(|v| self.project_value(v));
-                enriched.push(result_str);
-                continue;
-            }
-
-            // Step 2: Tier 2 (LRU) lookup.
-            if let Some(ref lru) = self.lru_cache {
-                if let Some(cached_val) = lru.get(infusion_id, input_str).await {
-                    // Tier 2 hit — populate Tier 1 for subsequent rows in this batch.
-                    tier1.insert(infusion_id, input_str, Some(cached_val.clone()));
-                    let result_str = self.project_value(&cached_val);
-                    enriched.push(Some(result_str));
-                    continue;
-                }
-            }
-
-            // Step 3: Tier 3 (RocksDB) lookup.
-            if let Some(ref t3) = self.tier3_cache {
-                if let Some(cached_opt) = t3.get(infusion_id, input_str).await {
-                    // Tier 3 hit — populate Tier 1 + Tier 2 for subsequent lookups.
-                    tier1.insert(infusion_id, input_str, cached_opt.clone());
-                    if let Some(ref lru) = self.lru_cache {
-                        if let Some(ref val) = cached_opt {
-                            lru.insert(infusion_id, input_str, val.clone(), self.cache_ttl_secs)
-                                .await;
+            // ENRICH-1 (Design Decision 2): JSON-list string multi-value mode.
+            // If the input starts with '[' and parses as Vec<String>, this is a wildcard
+            // column value (e.g., from `$.iocs[*].value` → `["hash1","hash2"]`).
+            // Enrich each element individually and return a JSON-list of results.
+            // Elements that enrich to None are omitted from the output list.
+            // Scalar path (no leading '[' or failed parse) is unchanged — backward compat.
+            if input_str.starts_with('[') {
+                if let Ok(elements) = serde_json::from_str::<Vec<String>>(input_str) {
+                    let mut list_results: Vec<String> = Vec::with_capacity(elements.len());
+                    for elem in &elements {
+                        if let Some(result) = self.enrich_one_scalar(elem, &mut tier1).await {
+                            list_results.push(result);
                         }
                     }
-                    let result_str = cached_opt.as_ref().map(|v| self.project_value(v));
-                    enriched.push(result_str);
+                    if list_results.is_empty() {
+                        // All elements miss or empty list — produce NULL (not empty JSON array).
+                        // Callers can filter with IS NOT NULL to skip unmatched rows.
+                        enriched.push(None);
+                    } else {
+                        let json_list = serde_json::to_string(&list_results)
+                            .unwrap_or_else(|_| "[]".to_string());
+                        enriched.push(Some(json_list));
+                    }
                     continue;
                 }
+                // Fallthrough: starts with '[' but not valid JSON array — treat as scalar.
             }
 
-            // Step 4: All tiers missed — call source.
-            // For plugin/WASM sources, `enrich_single` is synchronous (wasmtime synchronous
-            // Linker). Wrap in spawn_blocking to avoid stalling tokio worker threads (AC-010).
-            // The LRU mutex is NOT held here — `lru.get()` above acquired and released it
-            // before reaching this point (lock-free across the spawn_blocking boundary).
-            let source_clone = Arc::clone(&self.descriptor.source);
-            let input_owned = input_str.to_owned();
-            let input_type_owned = input_type.clone();
-            let source_result: Option<serde_json::Value> = tokio::task::spawn_blocking(move || {
-                source_clone.enrich_single(&input_owned, &input_type_owned)
-            })
-            .await
-            .unwrap_or(None);
-
-            // Populate all tiers with the source result (including None for negative cache).
-            tier1.insert(infusion_id, input_str, source_result.clone());
-            if let Some(ref lru) = self.lru_cache {
-                if let Some(ref val) = source_result {
-                    lru.insert(infusion_id, input_str, val.clone(), self.cache_ttl_secs)
-                        .await;
-                }
-            }
-            if let Some(ref t3) = self.tier3_cache {
-                t3.set(
-                    infusion_id,
-                    input_str,
-                    source_result.clone(),
-                    self.cache_ttl_secs,
-                )
-                .await;
-            }
-
-            let result_str = source_result.as_ref().map(|v| self.project_value(v));
+            // Scalar path: enrich input_str as a single value.
+            let result_str = self.enrich_one_scalar(input_str, &mut tier1).await;
             enriched.push(result_str);
         }
 
@@ -412,6 +371,82 @@ impl AsyncScalarUDFImpl for InfusionAsyncUdf {
 }
 
 impl InfusionAsyncUdf {
+    /// Enrich a single scalar string through the full three-tier cache + source pipeline.
+    ///
+    /// ENRICH-1: extracted from `invoke_async_with_args` so that both the scalar path and
+    /// the JSON-list multi-value path can reuse the same tier-1→tier-2→tier-3→source logic.
+    ///
+    /// Returns `None` for cache-miss with no source result (negative enrichment).
+    async fn enrich_one_scalar(
+        &self,
+        input_str: &str,
+        tier1: &mut QueryScopedInfusionCache,
+    ) -> Option<String> {
+        let infusion_id = &self.descriptor.infusion_id;
+        let input_type = &self.descriptor.input_type;
+
+        // Step 1: Tier 1 (per-call dedup) lookup.
+        if let Some(cached) = tier1.get(infusion_id, input_str) {
+            return cached.as_ref().map(|v| self.project_value(v));
+        }
+
+        // Step 2: Tier 2 (LRU) lookup.
+        if let Some(ref lru) = self.lru_cache {
+            if let Some(cached_val) = lru.get(infusion_id, input_str).await {
+                tier1.insert(infusion_id, input_str, Some(cached_val.clone()));
+                return Some(self.project_value(&cached_val));
+            }
+        }
+
+        // Step 3: Tier 3 (RocksDB) lookup.
+        if let Some(ref t3) = self.tier3_cache {
+            if let Some(cached_opt) = t3.get(infusion_id, input_str).await {
+                tier1.insert(infusion_id, input_str, cached_opt.clone());
+                if let Some(ref lru) = self.lru_cache {
+                    if let Some(ref val) = cached_opt {
+                        lru.insert(infusion_id, input_str, val.clone(), self.cache_ttl_secs)
+                            .await;
+                    }
+                }
+                return cached_opt.as_ref().map(|v| self.project_value(v));
+            }
+        }
+
+        // Step 4: All tiers missed — call source.
+        // For plugin/WASM sources, `enrich_single` is synchronous (wasmtime synchronous
+        // Linker). Wrap in spawn_blocking to avoid stalling tokio worker threads (AC-010).
+        // The LRU mutex is NOT held here — `lru.get()` above acquired and released it
+        // before reaching this point (lock-free across the spawn_blocking boundary).
+        let source_clone = Arc::clone(&self.descriptor.source);
+        let input_owned = input_str.to_owned();
+        let input_type_owned = input_type.clone();
+        let source_result: Option<serde_json::Value> = tokio::task::spawn_blocking(move || {
+            source_clone.enrich_single(&input_owned, &input_type_owned)
+        })
+        .await
+        .unwrap_or(None);
+
+        // Populate all tiers with the source result (including None for negative cache).
+        tier1.insert(infusion_id, input_str, source_result.clone());
+        if let Some(ref lru) = self.lru_cache {
+            if let Some(ref val) = source_result {
+                lru.insert(infusion_id, input_str, val.clone(), self.cache_ttl_secs)
+                    .await;
+            }
+        }
+        if let Some(ref t3) = self.tier3_cache {
+            t3.set(
+                infusion_id,
+                input_str,
+                source_result.clone(),
+                self.cache_ttl_secs,
+            )
+            .await;
+        }
+
+        source_result.as_ref().map(|v| self.project_value(v))
+    }
+
     /// Project the declared `source_column` from a JSON object value, or passthrough.
     ///
     /// HIGH-A fix: if the descriptor declares a `source_column` AND the value is a JSON

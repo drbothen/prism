@@ -99,40 +99,56 @@ ocsf_class = "detection_finding"
   ocsf_field = "attack.technique.name"
 
   # ---------------------------------------------------------------------------
-  # AC-005 (S-DEMO-ENRICHMENT-PIVOT-003): behaviors[] IOC columns.
-  # BC-2.06.019 v1.13 Per-Sensor IOC-Surface Matrix: CrowdStrike detections carry
+  # ENRICH-1: behaviors[] IOC columns — migrated from bracket-in-name convention (PIVOT-003)
+  # to clean SQL identifiers + source_path (sensor-column-source-path-design.md §DD-3).
+  # BC-2.06.019 Per-Sensor IOC-Surface Matrix: CrowdStrike detections carry
   # real IOC fields in behaviors[] array (corrected ioc_type enum: hash_sha256,
   # hash_md5, domain, filename, registry_key — NOT bare 'hash'/'registry').
   #
-  # SAP-2 compliance (U19): column names match JSON keys in make_detection() in
+  # SAP-2 compliance: column names match JSON keys in make_detection() in
   # crates/prism-dtu-crowdstrike/src/generator.rs (untyped serde_json::Value path).
-  # Adversary MUST verify against generator.rs and fixtures/detections-detail.json,
-  # NOT types.rs (no typed Detection/Behavior struct exists — U19 ruling).
+  # Wire keys confirmed: "ioc_type", "ioc_value", "ioc_source", "ioc_description"
+  # (generator.rs lines ~751-755, NOT the Ioc struct serde convention).
+  # Adversary MUST verify against generator.rs — no typed Detection/Behavior struct.
   #
   # Tolerant-unknown-type policy: unknown ioc_type tokens (not in corrected enum)
-  # are preserved as raw strings (non-fatal, log only) per BC-2.06.019 v1.13.
+  # are preserved as raw strings (non-fatal, log only) per BC-2.06.019.
+  # Wildcard [*] → JSON-list string (Design Decision 2: sensor-column-source-path-design.md).
   # ---------------------------------------------------------------------------
 
   # DTU: behaviors[0].ioc_type — algorithm-qualified token (hash_sha256, hash_md5,
   # domain, filename, registry_key). 'cmdline' is a SEPARATE sibling field, NOT an ioc_type.
+  # ENRICH-1: renamed from "behaviors[].ioc_type" → "behaviors_ioc_type" + source_path.
   [[tables.columns]]
-  name = "behaviors[].ioc_type"
+  name = "behaviors_ioc_type"
   column_type = "string"
+  source_path = "$.behaviors[*].ioc_type"
 
   # DTU: behaviors[0].ioc_value — the IOC value (hash hex string, domain name, etc.).
+  # ENRICH-1: renamed from "behaviors[].ioc_value" → "behaviors_ioc_value" + source_path.
+  # THIS IS THE PRIMARY DEMO COLUMN used in pivot_enrich:
+  #   SELECT detection_id, severity, behaviors_ioc_value
+  #   FROM crowdstrike_detections
+  #   WHERE pivot_enrich(behaviors_ioc_value) IS NOT NULL
+  # Wildcard [*] → JSON-list string e.g. ["hash_sha256_abc123","hash_md5_def456"].
   [[tables.columns]]
-  name = "behaviors[].ioc_value"
+  name = "behaviors_ioc_value"
   column_type = "string"
+  source_path = "$.behaviors[*].ioc_value"
 
   # DTU: behaviors[0].ioc_source — provenance label (e.g., "catalog", "crowdstrike").
+  # ENRICH-1: renamed from "behaviors[].ioc_source" → "behaviors_ioc_source" + source_path.
   [[tables.columns]]
-  name = "behaviors[].ioc_source"
+  name = "behaviors_ioc_source"
   column_type = "string"
+  source_path = "$.behaviors[*].ioc_source"
 
   # DTU: behaviors[0].ioc_description — human-readable description (e.g., "scenario IOC").
+  # ENRICH-1: renamed from "behaviors[].ioc_description" → "behaviors_ioc_description" + source_path.
   [[tables.columns]]
-  name = "behaviors[].ioc_description"
+  name = "behaviors_ioc_description"
   column_type = "string"
+  source_path = "$.behaviors[*].ioc_description"
 
   # Step 1: QueryV2 — GET detection IDs
   # DTU route: GET /detects/queries/detects/v1 (mod.rs line ~189)

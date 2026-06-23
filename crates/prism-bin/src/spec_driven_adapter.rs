@@ -54,8 +54,9 @@ use prism_sensors::{
 use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
     error::SpecEngineError,
+    extract_at_path,
     pipeline::{FetchContext, PipelineExecutor, PipelineResult},
-    spec_parser::{AuthType, SensorSpec as SpecEngineSensorSpec, TableSpec},
+    spec_parser::{AuthType, ColumnSpec, SensorSpec as SpecEngineSensorSpec, TableSpec},
 };
 
 // ---------------------------------------------------------------------------
@@ -846,10 +847,10 @@ fn pipeline_result_to_record_batch(
                 let vals: Vec<Option<String>> = vec![s; n];
                 Arc::new(arrow::array::StringArray::from(vals)) as Arc<dyn Array>
             } else {
-                build_column_array(&result.records, &col_spec.name, &col_spec.column_type)
+                build_column_array(&result.records, col_spec)
             }
         } else {
-            build_column_array(&result.records, &col_spec.name, &col_spec.column_type)
+            build_column_array(&result.records, col_spec)
         };
         col_arrays.push(array);
     }
@@ -890,52 +891,140 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
     }
 }
 
-/// Build an Arrow array for a single named column across all records.
+/// Build an Arrow array for a single column across all records.
 ///
-/// Extracts the value at `col_name` from each raw JSON record.
+/// ENRICH-1: dispatches on `col.source_path`:
+/// - `None` (default) → flat `r.get(&col.name)` lookup (pre-ENRICH-1 behavior, backward compat).
+/// - `Some(path)` → `extract_at_path(r, path)` via the spec-engine extractor.
+///   Wildcard paths (`[*]`) that yield `Value::Array` are serialized to a compact JSON-list
+///   string for `String`-typed columns (e.g., `["h1","h2"]`). Non-string types on a wildcard
+///   path use first-element extraction with a tracing::warn (unusual; wildcard on non-string).
+///   On `Err` from `extract_at_path`, the cell becomes null.
+///
 /// Records where the field is absent or null produce a null entry in the array.
-fn build_column_array(
-    records: &[serde_json::Value],
-    col_name: &str,
-    col_type: &ColumnType,
-) -> Arc<dyn Array> {
-    match col_type {
+fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dyn Array> {
+    /// Extract a single raw `serde_json::Value` from a record for this column.
+    fn extract_raw(r: &serde_json::Value, col: &ColumnSpec) -> Option<serde_json::Value> {
+        if let Some(ref path) = col.source_path {
+            match extract_at_path(r, path) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    tracing::warn!(
+                        column = %col.name,
+                        source_path = %path,
+                        error = %e,
+                        event_type = "column_source_path_extraction_failed",
+                        "ENRICH-1: build_column_array source_path extraction failed; cell is null"
+                    );
+                    None
+                }
+            }
+        } else {
+            r.get(&col.name).cloned()
+        }
+    }
+
+    match &col.column_type {
         ColumnType::Integer => {
             let vals: Vec<Option<i64>> = records
                 .iter()
-                .map(|r| r.get(col_name).and_then(|v| v.as_i64()))
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Array(arr) => {
+                            // DD-5 item 3: wildcard path on a numeric/bool column yields an array.
+                            // Use first-element extraction with a plain tracing::warn! (no event_type=
+                            // field — this is a diagnostic warn, not an auditable structured event;
+                            // SAP-1 only catalogs event_type= emissions, so no BC-2.16.002 row needed).
+                            tracing::warn!(
+                                column = %col.name,
+                                source_path = col.source_path.as_deref().unwrap_or("(none)"),
+                                array_len = arr.len(),
+                                "ENRICH-1 DD-5: wildcard path on Integer column yields array; \
+                                 using first element (F-ENRICH-P1-LOW-001)"
+                            );
+                            arr.into_iter().next().and_then(|v| v.as_i64())
+                        }
+                        other => other.as_i64(),
+                    }
+                })
                 .collect();
             Arc::new(Int64Array::from(vals))
         }
         ColumnType::Float => {
             let vals: Vec<Option<f64>> = records
                 .iter()
-                .map(|r| r.get(col_name).and_then(|v| v.as_f64()))
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Array(arr) => {
+                            // DD-5 item 3: first-element with plain warn (no event_type=; SAP-1 exempt).
+                            tracing::warn!(
+                                column = %col.name,
+                                source_path = col.source_path.as_deref().unwrap_or("(none)"),
+                                array_len = arr.len(),
+                                "ENRICH-1 DD-5: wildcard path on Float column yields array; \
+                                 using first element (F-ENRICH-P1-LOW-001)"
+                            );
+                            arr.into_iter().next().and_then(|v| v.as_f64())
+                        }
+                        other => other.as_f64(),
+                    }
+                })
                 .collect();
             Arc::new(Float64Array::from(vals))
         }
         ColumnType::Boolean => {
             let vals: Vec<Option<bool>> = records
                 .iter()
-                .map(|r| r.get(col_name).and_then(|v| v.as_bool()))
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Array(arr) => {
+                            // DD-5 item 3: first-element with plain warn (no event_type=; SAP-1 exempt).
+                            tracing::warn!(
+                                column = %col.name,
+                                source_path = col.source_path.as_deref().unwrap_or("(none)"),
+                                array_len = arr.len(),
+                                "ENRICH-1 DD-5: wildcard path on Boolean column yields array; \
+                                 using first element (F-ENRICH-P1-LOW-001)"
+                            );
+                            arr.into_iter().next().and_then(|v| v.as_bool())
+                        }
+                        other => other.as_bool(),
+                    }
+                })
                 .collect();
             Arc::new(BooleanArray::from(vals))
         }
         // String / Datetime / Json / future variants → Utf8
-        // Json values are serialized as their compact string representation.
+        // Wildcard source_path (`[*]`) arrays are serialized to a compact JSON-list string.
+        // Json column values are serialized as their compact string representation.
         _ => {
             let vals: Vec<Option<String>> = records
                 .iter()
                 .map(|r| {
-                    r.get(col_name).and_then(|v| {
-                        if v.is_null() {
-                            None
-                        } else if let serde_json::Value::String(s) = v {
-                            Some(s.clone())
-                        } else {
-                            Some(v.to_string())
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Null => None,
+                        serde_json::Value::String(s) => Some(s),
+                        serde_json::Value::Array(arr) => {
+                            // Wildcard result: serialize to compact JSON-list string.
+                            // ENRICH-1 Design Decision 2: JSON-list string in string column.
+                            let strings: Vec<String> = arr
+                                .into_iter()
+                                .map(|v| match v {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .collect();
+                            Some(
+                                serde_json::to_string(&strings)
+                                    .unwrap_or_else(|_| "[]".to_string()),
+                            )
                         }
-                    })
+                        other => Some(other.to_string()),
+                    }
                 })
                 .collect();
             Arc::new(StringArray::from(
@@ -1330,6 +1419,158 @@ mod tests {
             err_str.contains("E-AUTH-005"),
             "ADV-SDEMO002-P01-CRIT-001: missing bearer_token MUST produce E-AUTH-005. \
              Got: {err_str}"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // build_column_array source_path unit tests (F-ENRICH-P1-MED-001)
+    // ---------------------------------------------------------------------------
+    //
+    // These tests drive `build_column_array` (a pure fn over &[serde_json::Value] + &ColumnSpec)
+    // in-process with no external/DTU dependency. They are load-bearing (TD-VSDD-059) per SID-1:
+    // the E2E tests covering the same paths are `#[ignore]`'d due to DTU dependency;
+    // these unit tests ensure the behavior is verified without external services.
+    //
+    // Imports scoped here to avoid polluting the module with test-only pub-use.
+    use super::build_column_array;
+    use arrow::array::{Array, Int64Array, StringArray as ArrowStringArray};
+    use serde_json::json;
+
+    /// Helper: construct a `ColumnSpec` with a `source_path` set.
+    ///
+    /// `ColumnSpec` is `#[non_exhaustive]` from the defining crate (`prism-spec-engine`).
+    /// External crates (including `prism-bin` tests) cannot use struct literal or update
+    /// syntax (`..Default::default()`) directly — E0639 applies to both forms.
+    /// The correct approach: use `ColumnSpec::new()` (the provided constructor), then
+    /// mutate the `source_path` field on the owned value (field mutation is allowed;
+    /// only literal/update construction is gated by `#[non_exhaustive]`).
+    ///
+    /// CLAUDE.md non-exhaustive discipline: external callers MUST use the provided
+    /// constructors for forward-compatible construction.
+    fn col_with_source_path(
+        name: &str,
+        col_type: prism_core::ColumnType,
+        source_path: &str,
+    ) -> ColumnSpec {
+        let mut col = ColumnSpec::new(name, col_type, None, vec![]);
+        col.source_path = Some(source_path.to_string());
+        col
+    }
+
+    /// F-ENRICH-P1-MED-001 (load-bearing test, SID-1):
+    ///
+    /// `build_column_array` with a wildcard `source_path = "$.iocs[*].value"` on a
+    /// `ColumnType::String` column over records containing `{"iocs":[{"value":"hash1"},{"value":"hash2"}]}`
+    /// MUST produce a non-null cell with the compact JSON-list string `["hash1","hash2"]`.
+    ///
+    /// This is the core ENRICH-1 behavior that DD-5 item 9 mandated be covered by an in-process test.
+    /// The `column_source_path_extraction_failed` tracing emission path (AUDIT-003) is NOT triggered
+    /// on success — the emission is covered by the existing `#[ignore]`'d E2E path tests.
+    #[test]
+    fn test_build_column_array_wildcard_source_path_string_column_non_null() {
+        let records = vec![
+            json!({"iocs": [{"value": "hash1"}, {"value": "hash2"}]}),
+            json!({"iocs": [{"value": "hash3"}]}),
+        ];
+        let col = col_with_source_path(
+            "ioc_values",
+            prism_core::ColumnType::String,
+            "$.iocs[*].value",
+        );
+
+        let array = build_column_array(&records, &col);
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray");
+
+        // Row 0: ["hash1","hash2"] — non-null, compact JSON-list string.
+        assert!(
+            !string_array.is_null(0),
+            "F-ENRICH-P1-MED-001: wildcard extraction must produce non-null cell (AUDIT-003)"
+        );
+        assert_eq!(
+            string_array.value(0),
+            r#"["hash1","hash2"]"#,
+            "F-ENRICH-P1-MED-001: wildcard must produce compact JSON-list string"
+        );
+
+        // Row 1: ["hash3"] — single-element list.
+        assert!(!string_array.is_null(1));
+        assert_eq!(string_array.value(1), r#"["hash3"]"#);
+    }
+
+    /// F-ENRICH-P1-MED-001 (load-bearing test, null path, SID-1):
+    ///
+    /// `build_column_array` with a `source_path` pointing to a field ABSENT from the record
+    /// MUST produce a null cell. The `column_source_path_extraction_failed` tracing emission
+    /// path is exercised by the `extract_at_path` `Err` branch in `extract_raw` — we assert
+    /// the null cell outcome here. The tracing emission itself is a side-effect that cannot
+    /// be easily asserted in a unit test; it is covered by the existing E2E path tests.
+    #[test]
+    fn test_build_column_array_wildcard_source_path_missing_field_yields_null() {
+        let records = vec![
+            json!({"other_field": "value"}), // no "iocs" key
+        ];
+        let col = col_with_source_path(
+            "ioc_values",
+            prism_core::ColumnType::String,
+            "$.iocs[*].value",
+        );
+
+        let array = build_column_array(&records, &col);
+        let string_array = array
+            .as_any()
+            .downcast_ref::<ArrowStringArray>()
+            .expect("expected StringArray");
+
+        // Missing path → extract_at_path returns Err → extract_raw returns None → null cell.
+        assert!(
+            string_array.is_null(0),
+            "F-ENRICH-P1-MED-001: missing source_path field must produce null cell"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // build_column_array first-element-with-warn for numeric wildcard (F-ENRICH-P1-LOW-001)
+    // ---------------------------------------------------------------------------
+
+    /// F-ENRICH-P1-LOW-001 (RED GATE — TDD: fails before fix, passes after):
+    ///
+    /// `build_column_array` with `ColumnType::Integer` column and wildcard `source_path`
+    /// (e.g., `"$.arr[*].value"`) over a record yielding an Array from `extract_raw`
+    /// MUST return the FIRST element's integer value (42), NOT null.
+    ///
+    /// Current behavior (before fix): silent-null (the `.and_then(|v| v.as_i64())` call
+    /// on `Value::Array` returns None). Expected behavior per DD-5 item 3: first-element
+    /// extraction with `tracing::warn!` (no `event_type=` field — plain diagnostic warn).
+    ///
+    /// This test is RED against the current code. After the fix it must be GREEN.
+    #[test]
+    fn test_build_column_array_numeric_wildcard_uses_first_element() {
+        let records = vec![json!({"arr": [{"value": 42}, {"value": 99}]})];
+        let col = col_with_source_path(
+            "first_val",
+            prism_core::ColumnType::Integer,
+            "$.arr[*].value",
+        );
+
+        let array = build_column_array(&records, &col);
+        let int_array = array
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .expect("expected Int64Array");
+
+        // DD-5 item 3: first element (42), not null.
+        assert!(
+            !int_array.is_null(0),
+            "F-ENRICH-P1-LOW-001: numeric wildcard must yield first element (42), not null \
+             (DD-5 item 3: first-element-with-warn)"
+        );
+        assert_eq!(
+            int_array.value(0),
+            42,
+            "F-ENRICH-P1-LOW-001: first element must be 42"
         );
     }
 

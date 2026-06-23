@@ -10,9 +10,12 @@
 #   3. Create demo config directory structure
 #   4. Copy sensor TOML specs to <DIR>/specs/
 #   5. Copy crowdstrike-oauth2.prx plugin + write crowdstrike-oauth2.manifest.toml
-#   6. Write <DIR>/prism.toml (3-org: org-a, org-b, org-c)
-#   7. Bootstrap N×M dummy credentials in OS keyring via `prism credential set`
-#   8. Print next-step instructions
+#   6. Provision infusion TOMLs (threatintel + nvd) to <DIR>/infusions/ and
+#      copy threatintel-lookup.prx + manifest to <DIR>/plugins/ (fixes boot
+#      "infusion count: 0" — InfusionLoader reads {config_dir}/infusions/)
+#   7. Write <DIR>/prism.toml (3-org: org-a, org-b, org-c)
+#   8. Bootstrap N×M dummy credentials in OS keyring via `prism credential set`
+#   9. Print next-step instructions
 #
 # IDEMPOTENCY
 #   Safe to run multiple times. mkdir -p is used for all directories.
@@ -89,7 +92,7 @@ PRISM_BIN="${REPO_ROOT}/target/release/prism"
 # Step 1: Prerequisites check
 # ---------------------------------------------------------------------------
 
-echo "==> [1/8] Checking prerequisites..."
+echo "==> [1/9] Checking prerequisites..."
 
 if ! command -v cargo &>/dev/null; then
     echo "ERROR: cargo not found. Install Rust from https://rustup.rs" >&2
@@ -100,7 +103,7 @@ fi
 # Step 2: Build prism (release)
 # ---------------------------------------------------------------------------
 
-echo "==> [2/8] Building prism (release)..."
+echo "==> [2/9] Building prism (release)..."
 cargo build --release -p prism-bin 2>&1
 
 echo "    Building prism-dtu-demo-server (release, features: dtu,fixture-gen)..."
@@ -110,7 +113,7 @@ cargo build --release -p prism-dtu-demo-server --features dtu,fixture-gen 2>&1
 # Step 3: Create config directory structure
 # ---------------------------------------------------------------------------
 
-echo "==> [3/8] Creating demo config directory at ${DEMO_CONFIG_DIR}..."
+echo "==> [3/9] Creating demo config directory at ${DEMO_CONFIG_DIR}..."
 mkdir -p "${DEMO_CONFIG_DIR}"
 mkdir -p "${DEMO_SPECS_DIR}"
 mkdir -p "${DEMO_STATE_DIR}"
@@ -125,7 +128,7 @@ mkdir -p "${DEMO_SPECS_DIR}/customers/${ORG_C_SLUG}"
 # Step 4: Copy sensor TOML specs
 # ---------------------------------------------------------------------------
 
-echo "==> [4/8] Copying sensor TOML specs to ${DEMO_SPECS_DIR}/..."
+echo "==> [4/9] Copying sensor TOML specs to ${DEMO_SPECS_DIR}/..."
 cp "${REPO_ROOT}/crates/prism-sensors/specs/crowdstrike.sensor.toml" "${DEMO_SPECS_DIR}/"
 cp "${REPO_ROOT}/crates/prism-sensors/specs/armis.sensor.toml" "${DEMO_SPECS_DIR}/"
 cp "${REPO_ROOT}/crates/prism-sensors/specs/claroty.sensor.toml" "${DEMO_SPECS_DIR}/"
@@ -137,7 +140,7 @@ echo "    Sensor specs copied: crowdstrike, armis, claroty, cyberint"
 # Step 5: Copy crowdstrike-oauth2.prx plugin
 # ---------------------------------------------------------------------------
 
-echo "==> [5/8] Copying crowdstrike-oauth2.prx plugin to ${DEMO_PLUGINS_DIR}/..."
+echo "==> [5/9] Copying crowdstrike-oauth2.prx plugin to ${DEMO_PLUGINS_DIR}/..."
 
 # EC-003: Exit 1 with actionable message if plugin artifact not found.
 if [[ ! -f "${PLUGIN_ARTIFACT}" ]]; then
@@ -173,12 +176,53 @@ MANIFESTEOF
 echo "    crowdstrike-oauth2.manifest.toml written (DTU-safe SEC-003 allowlist)"
 
 # ---------------------------------------------------------------------------
-# Step 6: Write multi-org prism.toml (3 orgs: org-a, org-b, org-c)
+# Step 6: Provision infusion TOMLs and threatintel plugin
+#
+# InfusionLoader loads from {config_dir}/infusions/ (boot.rs step 7.6).
+# Without this step, boot shows "infusion count: 0" and enrichment queries fail.
+#
+# Idempotent: mkdir -p + cp overwrites on re-run.
+# ---------------------------------------------------------------------------
+
+DEMO_INFUSIONS_DIR="${DEMO_CONFIG_DIR}/infusions"
+
+echo "==> [6/9] Provisioning infusion specs and threatintel plugin to ${DEMO_INFUSIONS_DIR}/..."
+mkdir -p "${DEMO_INFUSIONS_DIR}"
+
+# Copy the enrichment infusion TOML specs.
+# InfusionLoader::load_all expects *.infusion.toml files under {config_dir}/infusions/.
+cp "${REPO_ROOT}/specs/infusions/threatintel.infusion.toml" "${DEMO_INFUSIONS_DIR}/"
+cp "${REPO_ROOT}/specs/infusions/nvd.infusion.toml" "${DEMO_INFUSIONS_DIR}/"
+echo "    Infusion specs copied: threatintel.infusion.toml, nvd.infusion.toml"
+
+# Copy the threatintel WASM plugin .prx + its companion manifest.
+# PluginRuntime::load_all_plugins reads pairs: *.prx + *.manifest.toml.
+# The plugin must be present before prism boot loads the infusion registry (boot step 7.6).
+#
+# Artifact source: built by `just build-plugin-threatintel-infusion`
+#   → crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx
+#   → crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml
+THREATINTEL_PRX="${REPO_ROOT}/crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx"
+THREATINTEL_MANIFEST="${REPO_ROOT}/crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.manifest.toml"
+
+if [[ ! -f "${THREATINTEL_PRX}" ]]; then
+    echo "ERROR: threatintel-lookup.prx not found at ${THREATINTEL_PRX}" >&2
+    echo "       Run: just build-plugin-threatintel-infusion" >&2
+    echo "       Then re-run this script." >&2
+    exit 1
+fi
+
+cp "${THREATINTEL_PRX}" "${DEMO_PLUGINS_DIR}/threatintel-lookup.prx"
+cp "${THREATINTEL_MANIFEST}" "${DEMO_PLUGINS_DIR}/threatintel-lookup.manifest.toml"
+echo "    threatintel-lookup.prx + manifest copied to ${DEMO_PLUGINS_DIR}/"
+
+# ---------------------------------------------------------------------------
+# Step 7: Write multi-org prism.toml (3 orgs: org-a, org-b, org-c)
 #
 # BC-2.06.001: generated prism.toml must be schema-valid (N [[orgs]] entries).
 # ---------------------------------------------------------------------------
 
-echo "==> [6/8] Writing ${DEMO_CONFIG_DIR}/prism.toml (3-org: org-a, org-b, org-c)..."
+echo "==> [7/9] Writing ${DEMO_CONFIG_DIR}/prism.toml (3-org: org-a, org-b, org-c)..."
 
 cat > "${DEMO_CONFIG_DIR}/prism.toml" << TOMLEOF
 spec_dir   = "${DEMO_SPECS_DIR}"
@@ -201,14 +245,14 @@ TOMLEOF
 echo "    prism.toml written (3 [[orgs]] entries)"
 
 # ---------------------------------------------------------------------------
-# Step 7: Bootstrap N×M credentials (dummy values for DTU demo)
+# Step 8: Bootstrap N×M credentials (dummy values for DTU demo)
 #
 # 10 total credentials — one per (org_slug, sensor, credential_name) combination.
 # AD-017: values piped via stdin (rpassword reads from piped stdin in non-TTY mode).
 # Cyberint api_key values MUST match initial_access_token in scripts/demo.toml.
 # ---------------------------------------------------------------------------
 
-echo "==> [7/8] Bootstrapping demo credentials in OS keyring (10 total)..."
+echo "==> [8/9] Bootstrapping demo credentials in OS keyring (10 total)..."
 echo "    (Values are dummy credentials safe for DTU use only)"
 echo "    NOTE: If the keyring is unavailable, set env vars instead."
 echo "          See docs/DEMO-RUNBOOK.md §Troubleshooting for details."
@@ -267,11 +311,11 @@ set_cred "${ORG_C_SLUG}" "cyberint"    "api_key"       "demo-cyberint-api-key-or
 echo "    Credentials bootstrapped (10 entries)"
 
 # ---------------------------------------------------------------------------
-# Step 8: Print instructions
+# Step 9: Print instructions
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "==> [8/8] Setup complete!"
+echo "==> [9/9] Setup complete!"
 echo ""
 echo "Next steps:"
 echo ""

@@ -846,3 +846,173 @@ async fn test_configure_resolves_url_from_nested_sidecar() {
 
     servers.shutdown();
 }
+
+// ---------------------------------------------------------------------------
+// BLOCKER-3 proving test: start-multi scenario clock wiring
+//
+// Proves that build_multi_clone_factory calls new_with_scenario (not new_with_seed)
+// when OrgConfig.scenario.enabled = true.
+//
+// Discriminating observable: CrowdStrike detections generated via new_with_scenario
+// have behaviors[0].ioc_value stamped with catalog IOC hashes. This field is ONLY
+// present when `generate_with_scenario_iocs` is called internally by new_with_scenario.
+// In new_with_seed mode, no ioc_value injection occurs.
+//
+// Setup: scenario_start_secs = now - 1000s → elapsed ≫ 600s → stage_idx = 4 (all masks active).
+// At stage 4, primary_device=true, ioc_hashes=true — the IOC-bearing detection is visible.
+//
+// Traces to: BLOCKER-3 (demo-prep) — start-multi scenario wiring
+//            BC-2.06.019 PC-4 (stage mask gates detection visibility)
+//            F-PIVOT003-R2-001 (catalog IOC hash stamping on scenario detections)
+// ---------------------------------------------------------------------------
+
+/// BLOCKER-3 scenario clock: start-multi with scenario.enabled=true serves IOC-bearing
+/// detections (proves new_with_scenario was called, not new_with_seed).
+///
+/// In new_with_scenario at stage 4 (elapsed ≫ 600s), `behaviors[0].ioc_value` is stamped
+/// with a catalog IOC hash via `generate_with_scenario_iocs`. In new_with_seed mode,
+/// no ioc_value injection occurs — the behaviors array has no ioc_value field.
+#[tokio::test]
+async fn test_start_multi_scenario_org_crowdstrike_serves_ioc_bearing_detections() {
+    // scenario_start_secs = now - 1000s → elapsed ≫ 600s → stage_idx = 4 (Containment).
+    // Default thresholds: [60, 180, 360, 600] → stage 4 activates at elapsed ≥ 600s.
+    let scenario_start_past = chrono::Utc::now().timestamp() - 1_000;
+
+    let toml = format!(
+        r#"
+        [harness]
+        bind = "127.0.0.1"
+
+        [orgs.org-c]
+        org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
+        sensors = ["crowdstrike"]
+        seed = 200
+
+        [orgs.org-c.scenario]
+        enabled = true
+        archetype = "compromised_endpoint"
+        scenario_start_secs = {scenario_start_past}
+    "#
+    );
+
+    let cfg = MultiOrgDemoConfig::from_str(&toml).expect("scenario org config must parse");
+
+    let servers = prism_dtu_demo_server::start_multi_for_config(&cfg)
+        .await
+        .expect("BLOCKER-3: start_multi_for_config with scenario config must not error");
+
+    let socket_map = servers.socket_map();
+    let org_c_addr = socket_map
+        .get("org-c-crowdstrike")
+        .expect("org-c-crowdstrike must be in socket_map");
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("reqwest client must build");
+
+    // Step 1: GET detection IDs list.
+    // X-Org-Id required for real-org clones (CR-018 / W3-FIX-SEC-001).
+    let resp_ids = client
+        .get(format!("http://{org_c_addr}/detects/queries/detects/v1"))
+        .header("Authorization", "Bearer dtu-test-scenario-token")
+        .header("X-Org-Id", "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002")
+        .send()
+        .await
+        .expect("GET detection IDs must not network-error");
+
+    assert_eq!(
+        resp_ids.status().as_u16(),
+        200,
+        "BLOCKER-3: CrowdStrike detections query must return HTTP 200 in scenario mode"
+    );
+
+    let ids_body: serde_json::Value = resp_ids
+        .json()
+        .await
+        .expect("detection IDs response must be valid JSON");
+
+    let ids: Vec<String> = ids_body
+        .get("resources")
+        .and_then(|v| v.as_array())
+        .expect("BLOCKER-3: detection IDs response must have 'resources' array")
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect();
+
+    assert!(
+        !ids.is_empty(),
+        "BLOCKER-3: at stage 4 (elapsed ≫ 600s), CrowdStrike scenario clone must serve \
+         at least one detection ID. Got empty resources array. \
+         Check that new_with_scenario was called (not new_with_seed)."
+    );
+
+    // Step 2: POST to /detects/entities/summaries/GET/v1 with ALL IDs.
+    // Fetch ALL detection records to inspect behaviors[].ioc_value.
+    // We pass all IDs (not just ids[0]) because the IOC-bearing detection (primary device,
+    // detection index 0 from generate_with_scenario_iocs) may not be at index 0 of the
+    // returned IDs list — the queries endpoint may return IDs in a different order.
+    let resp_summaries = client
+        .post(format!(
+            "http://{org_c_addr}/detects/entities/summaries/GET/v1"
+        ))
+        .header("Authorization", "Bearer dtu-test-scenario-token")
+        .header("X-Org-Id", "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002")
+        .json(&serde_json::json!({"ids": ids}))
+        .send()
+        .await
+        .expect("POST detection summaries must not network-error");
+
+    assert_eq!(
+        resp_summaries.status().as_u16(),
+        200,
+        "BLOCKER-3: detection summaries endpoint must return HTTP 200 in scenario mode"
+    );
+
+    let summaries_body: serde_json::Value = resp_summaries
+        .json()
+        .await
+        .expect("detection summaries response must be valid JSON");
+
+    let resources = summaries_body
+        .get("resources")
+        .and_then(|v| v.as_array())
+        .expect("BLOCKER-3: summaries response must have 'resources' array");
+
+    assert!(
+        !resources.is_empty(),
+        "BLOCKER-3: detection summaries must contain at least one resource. \
+         At stage 4 all detections including the primary device's IOC-bearing detection must be visible. \
+         IDs submitted: {:?}",
+        ids
+    );
+
+    // Step 3: Verify at least one detection has behaviors[].ioc_value set.
+    // This is the discriminating signal: only new_with_scenario stamps ioc_value
+    // via generate_with_scenario_iocs (F-PIVOT003-R2-001).
+    let has_ioc_value = resources.iter().any(|det| {
+        det.get("behaviors")
+            .and_then(|b| b.as_array())
+            .map(|behaviors| {
+                behaviors.iter().any(|behavior| {
+                    behavior
+                        .get("ioc_value")
+                        .and_then(|v| v.as_str())
+                        .map(|s| !s.is_empty())
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false)
+    });
+
+    assert!(
+        has_ioc_value,
+        "BLOCKER-3: at least one detection must have behaviors[].ioc_value set. \
+         This proves new_with_scenario (not new_with_seed) was called in start-multi \
+         when scenario.enabled=true. If this fails, build_multi_clone_factory is still \
+         calling new_with_seed instead of new_with_scenario. \
+         Got resources: {summaries_body}"
+    );
+
+    servers.shutdown();
+}

@@ -43,6 +43,7 @@ proptest = "1"
 prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 serde_json = "1"
+toml = "0.8"
 tokio = { version = "1", features = ["full"] }
 
 [[test]]

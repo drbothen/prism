@@ -36,6 +36,27 @@ plugin_ref = "threatintel-lookup.prx"
 [source.credential]
 ref = "threatintel.api_key"
 
+# ENRICH-2: [[infusion.credentials]] — PluginConfigMap wiring (CLAUDE.md §Conventions §Arc-DI).
+#
+# Plugin-type infusions receive config via PluginConfigMap keyed by field_name.
+# The PluginConfigMap is built from [[infusion.credentials]] in mod.rs (~line 894):
+#   for cred in &spec.credentials { config_map.insert(field_name, env::var(env_var)) }
+#
+# `base_url`: the ThreatIntel DTU endpoint URL, resolved at call time from
+#   PRISM_THREATINTEL_BASE_URL. demo-run.sh exports this from the _global sidecar.
+# `api_key`: the ThreatIntel API key, resolved at call time from
+#   PRISM_THREATINTEL_API_KEY. demo-setup.sh exports this (AD-017 credential reference model).
+#
+# NEVER store credential values inline — env_var is the reference, not the value.
+
+[[infusion.credentials]]
+field_name = "base_url"
+env_var    = "PRISM_THREATINTEL_BASE_URL"
+
+[[infusion.credentials]]
+field_name = "api_key"
+env_var    = "PRISM_THREATINTEL_API_KEY"
+
 # DTU-grounded fields (SAP-2 verified 2026-06-12):
 # threat_is_known_malicious: bool in ThreatLookupResponse → Boolean
 # threat_score: i64 in ThreatLookupResponse → Integer
@@ -46,21 +67,21 @@ ref = "threatintel.api_key"
 
 [[infusion.fields]]
 name = "threat_is_known_malicious"
-input_field = "ioc_value"
+input_field = "iocs_value"
 input_type = "ioc"
 output_type = "boolean"
 description = "True if the IOC is confirmed malicious by the ThreatIntel backend"
 
 [[infusion.fields]]
 name = "threat_score"
-input_field = "ioc_value"
+input_field = "iocs_value"
 input_type = "ioc"
 output_type = "integer"
 description = "Threat intelligence confidence score (0-100)"
 
 [[infusion.fields]]
 name = "threat_sources"
-input_field = "ioc_value"
+input_field = "iocs_value"
 input_type = "ioc"
 output_type = "json"
 description = "JSON array of source names that flagged this IOC (e.g. [\"greynoise\", \"abuseipdb\"])"

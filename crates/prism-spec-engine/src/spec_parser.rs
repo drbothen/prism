@@ -232,6 +232,30 @@ pub struct ColumnSpec {
     /// BC-2.16.013 §O-001 Option A LOCKED; ADR-028 v1.10 §D8-B/C.
     #[serde(default)]
     pub timestamp_fallback_chain: Vec<String>,
+    /// Optional JSONPath expression for extracting this column's value from the
+    /// raw JSON record returned by the pipeline executor.
+    ///
+    /// ## Semantics
+    ///
+    /// When `None` (default), the column value is extracted by looking up `col.name`
+    /// as a flat top-level key on the record — identical to the pre-ENRICH-1 behavior.
+    /// This default preserves full backward compatibility for all existing flat columns.
+    ///
+    /// When `Some(path)`, the column value is extracted using `extract_at_path(record, path)`.
+    /// Paths MUST use the `$.` prefix convention of the existing `extract_at_path` function:
+    ///   - `$.field`          — top-level key (redundant but valid)
+    ///   - `$.a.b`            — nested object traversal
+    ///   - `$.arr[*].field`   — wildcard: yields all `field` values from array `arr`
+    ///
+    /// The `name` field is always the SQL column identifier — a clean identifier with
+    /// no `.`, `[`, or `]` characters. `source_path` is the extraction instruction only.
+    ///
+    /// `#[serde(default)]` ensures backward compatibility: existing TOML files without
+    /// this field parse as `None`.
+    ///
+    /// ENRICH-1 / design document §Design Decision 1.
+    #[serde(default)]
+    pub source_path: Option<String>,
 }
 
 impl Default for ColumnSpec {
@@ -250,6 +274,7 @@ impl Default for ColumnSpec {
             options: vec![],
             timestamp_formats: vec![],
             timestamp_fallback_chain: vec![],
+            source_path: None,
         }
     }
 }
@@ -272,6 +297,7 @@ impl ColumnSpec {
             options,
             timestamp_formats: vec![],
             timestamp_fallback_chain: vec![],
+            source_path: None,
         }
     }
 }
@@ -457,6 +483,11 @@ pub struct SensorSpec {
     pub file_hash: String,
 
     /// Source file path of the `.sensor.toml` file from which this spec was parsed.
+    ///
+    /// **File-origin metadata** — NOT a JSONPath extraction instruction.  Distinct from
+    /// `ColumnSpec::source_path` (which is a JSONPath like `$.device.hostname` used to
+    /// extract a column value from the API response).  This field records where on disk
+    /// the sensor spec lives; used by hot-reload change detection.
     ///
     /// Set by the file-loading caller. Empty string for in-memory-constructed specs.
     #[serde(default)]
@@ -904,6 +935,60 @@ impl SpecLoader {
                             toml_path: Some(format!(
                                 "sensor.tables[{}].columns[{}].timestamp_fallback_chain",
                                 table.table_name, col.name,
+                            )),
+                            file_path: None,
+                            line_number: None,
+                        }));
+                    }
+                }
+            }
+        }
+
+        // Stage 4 (ENRICH-1): source_path validation gate.
+        //
+        // When `source_path` is `Some(p)`:
+        //   - `p` must begin with `$.` (the extract_at_path prefix convention).
+        //   - `p` must have at least one key segment after `$.` (i.e., not just `"$."`)
+        //     to avoid the empty-path error surface already guarded by extract_at_path.
+        //
+        // Rationale: early rejection at parse time gives a clear actionable error rather
+        // than a runtime extraction failure. Runtime validation of wildcard syntax is
+        // deferred per design §1 (handled by extract_at_path on first execution).
+        for table in &spec.tables {
+            for col in &table.columns {
+                if let Some(ref p) = col.source_path {
+                    if !p.starts_with("$.") {
+                        return Err(PrismError::Spec(SpecError {
+                            code: SpecErrorCode::ESpec001,
+                            message: format!(
+                                "sensor '{}' table '{}' column '{}': \
+                                 source_path '{p}' must start with '$.'. \
+                                 Use JSONPath expressions like '$.field', '$.a.b', \
+                                 or '$.arr[*].field' (ENRICH-1 §Design Decision 1).",
+                                spec.sensor_id, table.table_name, col.name
+                            ),
+                            toml_path: Some(format!(
+                                "sensor.tables[{}].columns[{}].source_path",
+                                table.table_name, col.name
+                            )),
+                            file_path: None,
+                            line_number: None,
+                        }));
+                    }
+                    // Reject bare "$." with no key segment after it.
+                    let after_prefix = p.trim_start_matches("$.");
+                    if after_prefix.is_empty() {
+                        return Err(PrismError::Spec(SpecError {
+                            code: SpecErrorCode::ESpec001,
+                            message: format!(
+                                "sensor '{}' table '{}' column '{}': \
+                                 source_path '{p}' must contain at least one key segment \
+                                 after '$.' (ENRICH-1 §Design Decision 1).",
+                                spec.sensor_id, table.table_name, col.name
+                            ),
+                            toml_path: Some(format!(
+                                "sensor.tables[{}].columns[{}].source_path",
+                                table.table_name, col.name
                             )),
                             file_path: None,
                             line_number: None,

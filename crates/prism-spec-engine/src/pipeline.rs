@@ -1197,10 +1197,7 @@ pub(crate) fn build_http_client_with_timeout() -> reqwest::Client {
 /// - Key not found at any step
 /// - Bracket index out of bounds
 /// - Wildcard on non-array value (EC-002)
-pub(crate) fn extract_at_path(
-    body: &serde_json::Value,
-    path: &str,
-) -> Result<serde_json::Value, String> {
+pub fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, String> {
     let stripped = path
         .strip_prefix("$.")
         .ok_or_else(|| format!("path must start with '$.' : {path}"))?;
@@ -1961,6 +1958,7 @@ mod execute_step_tests {
                     options: vec![],
                     timestamp_formats: vec![],
                     timestamp_fallback_chain: vec![],
+                    source_path: None,
                 }],
                 vec![FetchStep {
                     name: step_name.to_string(),
@@ -2216,6 +2214,7 @@ mod execute_step_tests {
                     options: vec![],
                     timestamp_formats: vec![],
                     timestamp_fallback_chain: vec![],
+                    source_path: None,
                 }],
                 vec![FetchStep {
                     name: "fetch_items".to_string(),
@@ -2938,6 +2937,7 @@ mod timestamp_normalization_tests {
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect(),
+            source_path: None,
         }
     }
 
@@ -3063,6 +3063,7 @@ mod timestamp_normalization_tests {
             options: vec![],
             timestamp_formats: vec![],
             timestamp_fallback_chain: vec!["last_seen".to_string(), "first_seen".to_string()],
+            source_path: None,
         }];
         // primary field "last_seen" is null; fallback "first_seen" has a value.
         let records = vec![json!({"last_seen": null, "first_seen": "2026-05-21T00:00:00Z"})];
@@ -3109,6 +3110,7 @@ mod timestamp_normalization_tests {
             options: vec![],
             timestamp_formats: vec![],
             timestamp_fallback_chain: vec!["last_seen".to_string(), "first_seen".to_string()],
+            source_path: None,
         }];
         // Both primary and fallback are null.
         let records = vec![json!({"last_seen": null, "first_seen": null})];
@@ -3153,6 +3155,7 @@ mod timestamp_normalization_tests {
             options: vec![],
             timestamp_formats: vec![],
             timestamp_fallback_chain: vec![],
+            source_path: None,
         }];
         let records = vec![json!({"event_time": "2026-05-21T00:00:00Z"})];
 
@@ -3230,6 +3233,7 @@ mod timestamp_normalization_tests {
             // Deliberately includes the primary column name as first chain entry
             // to exercise the skip guard.
             timestamp_fallback_chain: vec!["last_seen".to_string(), "first_seen".to_string()],
+            source_path: None,
         }];
         // last_seen is null; first_seen has a valid value.
         let records = vec![json!({"last_seen": null, "first_seen": "2026-05-21T00:00:00Z"})];

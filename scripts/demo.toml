@@ -15,6 +15,22 @@
 bind = "127.0.0.1"
 
 # ---------------------------------------------------------------------------
+# Global enrichment DTUs (ENRICH-3)
+#
+# ThreatIntel and NVD are GLOBAL shared instances — all orgs query the same backend.
+# When enabled, start_multi_for_config starts them under stable names ("threatintel", "nvd")
+# and write_multi_url_sidecar_to_path emits their URLs under the "_global" key.
+# demo-run.sh reads _global.threatintel / _global.nvd and exports:
+#   PRISM_THREATINTEL_BASE_URL=http://127.0.0.1:<port>
+#   PRISM_NVD_BASE_URL=http://127.0.0.1:<port>
+# so the infusion plugin/HttpLookup calls reach the DTU rather than production services.
+# ---------------------------------------------------------------------------
+
+[enrichment]
+threatintel = true
+nvd = true
+
+# ---------------------------------------------------------------------------
 # Multi-org fleet config for `start-multi` (S-DEMO-LAUNCHER-CONSOLIDATION-001)
 #
 # Seed assignments match S-DEMO-004 test harness (INV-DISTINCT-DATA-001):
@@ -41,3 +57,21 @@ org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0002"
 sensors = ["crowdstrike", "armis", "claroty", "cyberint"]
 seed = 200
 initial_access_token = "demo-cyberint-api-key-org-c"
+
+# Scenario clock for org-c (the demo centerpiece org — all 4 sensors).
+# All sensors in this org share a single Arc<IncidentTimeline> + ScenarioEntityCatalog
+# derived from seed=200 + org_id above.
+#
+# archetype = "compromised_endpoint" activates the 5-stage incident progression:
+#   Stage 0 (Baseline): normal activity — clean detections, healthy devices
+#   Stage 1 (t+60s):  initial access — first compromised detection appears
+#   Stage 2 (t+180s): lateral movement — beacon C2 IOC surfaces in Cyberint alerts
+#   Stage 3 (t+360s): escalation — Claroty shows network anomaly on OT segment
+#   Stage 4 (t+600s): full compromise — IOC correlation visible across all sensors
+#
+# scenario_start_secs: absent → uses current system time at demo-server start
+# stage_duration_secs: absent → uses archetype defaults [60, 180, 360, 600]
+[orgs.org-c.scenario]
+enabled = true
+archetype = "compromised_endpoint"
+scenario_start_secs = 1782214754  # Absolute epoch (~2026-06-23T15:00Z). Any wall-clock run after this instant yields elapsed >= 600s -> Stage 4 (terminal/absorbing), making the demo's enrichment stage deterministic regardless of replay date.

@@ -48,18 +48,59 @@ impl ColumnMapper {
     /// - Columns without `ocsf_field` -> raw_extensions
     /// - Type coercion failures -> raw_extensions + CoercionWarning (non-fatal)
     /// - Records are NEVER dropped (invariant BC-2.16.003)
+    ///
+    /// ENRICH-1: when `col.source_path` is `Some(path)`, extraction uses
+    /// `extract_at_path(raw, path)` instead of the flat `raw.get(&col.name)` lookup.
+    /// Wildcard paths (`[*]`) that yield a `Value::Array` are serialized to a compact
+    /// JSON-list string (e.g., `["v1","v2"]`). Empty array → `"[]"` (not null).
+    /// On `extract_at_path` error, the column is skipped with a `tracing::warn!` emission.
     pub fn map_record(raw: &Value, table: &TableSpec) -> Result<MappingResult, PrismError> {
         let mut mapped_fields = std::collections::HashMap::new();
         let mut raw_extensions = std::collections::HashMap::new();
         let mut coercion_warnings = Vec::new();
 
         for col in &table.columns {
-            // Extract the raw value for this column from the record
-            let raw_value = match raw.get(&col.name) {
-                Some(v) => v.clone(),
-                None => {
-                    // Column not present in record — skip (no error, no raw_extension)
-                    continue;
+            // ENRICH-1: dispatch on source_path vs flat key lookup.
+            let raw_value = if let Some(ref path) = col.source_path {
+                // source_path extraction via extract_at_path (ENRICH-1 §Design Decision 1).
+                match crate::pipeline::extract_at_path(raw, path) {
+                    Ok(Value::Array(arr)) => {
+                        // Wildcard result: serialize to compact JSON-list string.
+                        // Empty array → "[]" (distinguishable from absent field).
+                        // Design Decision 2: JSON-list string in string column.
+                        let strings: Vec<String> = arr
+                            .iter()
+                            .map(|v| match v {
+                                Value::String(s) => s.clone(),
+                                other => other.to_string(),
+                            })
+                            .collect();
+                        let json_list =
+                            serde_json::to_string(&strings).unwrap_or_else(|_| "[]".to_string());
+                        Value::String(json_list)
+                    }
+                    Ok(v) => v,
+                    Err(e) => {
+                        // Extraction failed (path absent or type mismatch) — skip column.
+                        // Emit structured warning per SAP-1 (ENRICH-1 §Design Decision 1).
+                        tracing::warn!(
+                            column = %col.name,
+                            source_path = %path,
+                            error = %e,
+                            event_type = "column_source_path_extraction_failed",
+                            "ENRICH-1: source_path extraction failed; column skipped"
+                        );
+                        continue;
+                    }
+                }
+            } else {
+                // Fast-path: flat key lookup (pre-ENRICH-1 behavior, fully backward compat).
+                match raw.get(&col.name) {
+                    Some(v) => v.clone(),
+                    None => {
+                        // Column not present in record — skip (no error, no raw_extension)
+                        continue;
+                    }
                 }
             };
 
