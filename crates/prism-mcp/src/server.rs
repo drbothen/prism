@@ -72,6 +72,7 @@ use uuid::Uuid;
 use crate::{
     context::PrismContext,
     error_mapping::{codes, prism_error_to_structured_call_result, to_error_data},
+    health::SensorHealthChecker,
     prompts::build_prompt_router,
     resources,
     safety_envelope::{
@@ -11253,7 +11254,7 @@ mod adr_042_tests {
             .collect::<Vec<_>>()
             .join("\n")
     }
-}
+
     // ─── AC-7 (BC-2.08.005 S-5.04 live-probe path) ─────────────────────────
     //
     // These tests live here (not in tests/bc_s_5_04_health_test.rs) because they need
@@ -11462,4 +11463,3 @@ mod adr_042_tests {
         panic!("DTU-EXT-001: test body not yet filled in — gated on S-DEMO-001 boot step 9A")
     }
 }
-
