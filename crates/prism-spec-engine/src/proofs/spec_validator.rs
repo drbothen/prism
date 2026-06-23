@@ -58,6 +58,7 @@ fn minimal_valid_spec() -> SensorSpec {
                 options: vec![],
                 timestamp_formats: vec![],
                 timestamp_fallback_chain: vec![],
+                source_path: None,
             }],
             steps: vec![FetchStep {
                 name: "fetch_alerts".to_string(),
@@ -153,6 +154,7 @@ fn inject_error_empty_table_no_steps(spec: &mut SensorSpec) {
             options: vec![],
             timestamp_formats: vec![],
             timestamp_fallback_chain: vec![],
+            source_path: None,
         }],
         steps: vec![], // violation: must have at least one step
         table_type: Default::default(),
@@ -183,6 +185,7 @@ fn inject_error_empty_table_name(spec: &mut SensorSpec) {
             options: vec![],
             timestamp_formats: vec![],
             timestamp_fallback_chain: vec![],
+            source_path: None,
         }],
         steps: vec![FetchStep {
             name: "fetch".to_string(),
@@ -259,6 +262,7 @@ fn build_spec_with_n_warnings_no_errors(n_warnings: usize) -> SensorSpec {
                 options: vec![],
                 timestamp_formats: vec![],
                 timestamp_fallback_chain: vec![],
+                source_path: None,
             });
         }
     }
