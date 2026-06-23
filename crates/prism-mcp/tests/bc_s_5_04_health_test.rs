@@ -2855,104 +2855,157 @@ async fn test_BC_2_08_001_EC_08_001_503_probe_sets_service_unavailable_reason() 
     );
 }
 
-/// EC-08-001 + BC-2.08.007: The suggestion for a 503 Degraded sensor MUST be distinct from
-/// the "genuinely unreachable" (connectivity==Down) suggestion.
+/// EC-08-001 + BC-2.08.007: The 503-Degraded suggestion fires through the REAL production
+/// handler — not through a test-local duplicate of the ladder logic.
 ///
-/// BC-2.08.001 EC-08-001 semantic: a 503 sensor IS network-reachable and authenticating;
-/// it returned a server error.  The remediation guidance must reflect the server-side 5xx
-/// condition, NOT the "verify network" guidance that applies to Down/unreachable sensors.
+/// F-S504-LP1P2-MED-001 (fix): previous coverage used `apply_suggestion_ladder`, a
+/// test-local duplicate of server.rs logic.  Reverting/collapsing the server.rs
+/// `service_unavailable` branch would leave that test green while the production path
+/// silently regressed.  This test exercises `PrismServer::check_sensor_health` directly
+/// (same pattern as `test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_suggestion`).
 ///
-/// Suggestion strings (per BC-2.08.007 EC-08-015 verbatim contract):
-/// - 503 Degraded (reachable=false, error="service_unavailable"):
-///     "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable."
-/// - Genuine Down (reachable=false, error != "service_unavailable"):
-///     "Sensor unreachable \u{2014} verify network and endpoint configuration."
+/// Production path for HTTP 503:
+///   `MockAdapterServiceUnavailable` → `SensorError::HttpError { status: 503 }`
+///   → `probe_connectivity` → `ConnectivityStatus::Degraded`
+///   → `check_one` → `reachable=false`, `auth_valid=true` (503 is not 401/403),
+///                    `error=Some("service_unavailable")`
+///   → `server.rs` suggestion ladder → `reachable == Some(false)` +
+///     `error == "service_unavailable"` → "Sensor returned a server error (5xx) …"
 ///
-/// RED GATE (F-S504-LP1P1-MED-001 part 2): the current suggestion ladder emits the
-/// generic "unreachable — verify network" string for ALL reachable=false sensors,
-/// regardless of whether they are Degraded (5xx) or Down (connection error).
+/// RED GATE: if the server.rs `service_unavailable` branch is reverted or collapsed
+/// into the generic "verify network" fallback, the first assertion below fails.
 ///
-/// Note: this test exercises the suggestion assignment logic in check_sensor_health
-/// (server.rs) by directly constructing SensorHealthResult instances that match
-/// the two cases, then verifying the correct suggestion is assigned to each.
-/// The server.rs suggestion ladder uses result.error to distinguish the two.
-#[test]
+/// A second sensor (`MockAdapterServiceUnavailableArmis`, also 503) confirms the 5xx
+/// branch fires for both, and that "verify network" is absent from the entire response —
+/// proving the 5xx branch is distinct from the Down/unreachable branch.
+///
+/// Verbatim BC-2.08.007 EC-08-015 suggestion:
+/// "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable."
+#[tokio::test]
 #[allow(non_snake_case)]
-fn test_BC_2_08_001_EC_08_001_degraded_503_suggestion_distinct_from_down_suggestion() {
-    // Case 1: 503 Degraded sensor — reachable=false, error=Some("service_unavailable").
-    // Expected suggestion: "Sensor returned a server error (5xx) — service may be temporarily unavailable."
-    let degraded_503 = SensorHealthResult::new("crowdstrike", "acme")
-        .with_reachable(false)
-        .with_error("service_unavailable");
+async fn test_BC_2_08_001_EC_08_001_503_production_path_suggestion_distinct_from_down() {
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{CheckSensorHealthParams, PrismServer};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    use rmcp::handler::server::wrapper::Parameters;
 
-    // Case 2: Genuine Down sensor — reachable=false, error=None (or non-5xx error).
-    let down_sensor = SensorHealthResult::new("armis", "acme").with_reachable(false);
+    // Register two 503 sensors (crowdstrike + armis) — both trigger the 5xx branch.
+    // Using two distinct sensors proves the branch fires for sensor-type-agnostic cases.
+    let org_id = OrgId::new();
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(MockAdapterServiceUnavailable));
+    adapter_registry.register(org_id, Arc::new(MockAdapterServiceUnavailableArmis));
+    let adapter_registry = Arc::new(adapter_registry);
 
-    // Apply the suggestion ladder (same logic as server.rs check_sensor_health).
-    // The ladder must distinguish the two cases via result.error.
-    let degraded_with_suggestion = apply_suggestion_ladder(degraded_503);
-    let down_with_suggestion = apply_suggestion_ladder(down_sensor);
+    // TableRegistry — enumerate both sensors in check_sensor_health.
+    let table_registry = TableRegistry::new();
+    let cs_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike (503-mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.crowdstrike.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    let armis_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "armis",
+        "Armis (503-mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.armis.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    table_registry
+        .register_sensor(&cs_spec)
+        .expect("register crowdstrike");
+    table_registry
+        .register_sensor(&armis_spec)
+        .expect("register armis");
 
-    let degraded_suggestion = degraded_with_suggestion.suggestion.as_deref().unwrap_or("");
-    let down_suggestion = down_with_suggestion.suggestion.as_deref().unwrap_or("");
+    let engine = QueryEngine::new(
+        Arc::clone(&adapter_registry),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(table_registry));
 
-    // The two suggestions MUST be distinct.
+    let checker = SensorHealthChecker::new(Arc::clone(&adapter_registry));
+
+    let server = PrismServer::new()
+        .with_query_engine(Arc::new(engine))
+        .with_health_checker(checker);
+
+    let params = CheckSensorHealthParams::for_client("acme");
+    let call_result = server
+        .check_sensor_health(Parameters(params))
+        .await
+        .expect("F-S504-LP1P2-MED-001: check_sensor_health MUST succeed");
+
+    let json_str = serde_json::to_string(&call_result)
+        .expect("F-S504-LP1P2-MED-001: CallToolResult must serialize to JSON");
+
+    // ── RED GATE (primary): 503 sensors MUST get the 5xx-specific suggestion ─────────────
+    // This assertion FAILS if the server.rs `service_unavailable` branch is reverted.
+    // If reverted: 503 sensors have reachable=false + auth_valid=true + no service_unavailable
+    // error marker → fall to the "Sensor unreachable — verify network" fallback.
+    // (Actually check_one always sets error="service_unavailable" for Degraded; the revert
+    //  would need to remove both the server.rs branch AND the check_one assignment.)
+    // Minimum revert that breaks this test: remove the `service_unavailable` check in server.rs
+    // so all reachable=false sensors get "verify network" — then this assert fails because
+    // "verify network" appears instead of the 5xx string.
+    let expected_5xx_suggestion =
+        "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.";
+    assert!(
+        json_str.contains(expected_5xx_suggestion),
+        "F-S504-LP1P2-MED-001 (RED GATE — production handler): \
+         a 503-Degraded sensor MUST carry suggestion: \"{expected_5xx_suggestion}\" \
+         (verbatim per BC-2.08.007 EC-08-015) through PrismServer::check_sensor_health. \
+         If the server.rs `service_unavailable` branch is removed, this fails. \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── "verify network" MUST NOT appear: 503 sensors are NOT network-unreachable ───────
+    // Both sensors return HTTP 503 (they ARE reachable at the network layer).
+    // The "verify network" text belongs to ConnectivityStatus::Down sensors only.
+    // With only 503 sensors in this test, "verify network" MUST be absent entirely.
+    assert!(
+        !json_str.contains("verify network"),
+        "F-S504-LP1P2-MED-001 (distinctness from Down/unreachable): \
+         503 sensors are network-reachable (HTTP 503 = server-side error, NOT connection failure). \
+         The 'verify network' suggestion MUST NOT appear. \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── Sanity: the 5xx and "verify network" strings are distinct constants ─────────────
+    let would_be_down_suggestion =
+        "Sensor unreachable \u{2014} verify network and endpoint configuration.";
     assert_ne!(
-        degraded_suggestion, down_suggestion,
-        "BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001 part 2): suggestion for a 503 Degraded \
-         sensor MUST differ from suggestion for a genuinely unreachable Down sensor. \
-         Both currently get: {:?}",
-        degraded_suggestion
+        expected_5xx_suggestion, would_be_down_suggestion,
+        "F-S504-LP1P2-MED-001: the 5xx and Down suggestion constants must differ (sanity)"
     );
-
-    // The 503 suggestion MUST NOT be the generic network/unreachable guidance.
-    assert!(
-        !degraded_suggestion.contains("verify network"),
-        "BC-2.08.001 EC-08-001: the 503 Degraded suggestion MUST NOT say 'verify network' — \
-         the sensor IS network-reachable; it returned a 5xx error. Got: {:?}",
-        degraded_suggestion
-    );
-
-    // The 503 suggestion MUST reference the 5xx / server error condition.
-    assert!(
-        degraded_suggestion.contains("5xx")
-            || degraded_suggestion.contains("server error")
-            || degraded_suggestion.contains("unavailable"),
-        "BC-2.08.001 EC-08-001: the 503 Degraded suggestion MUST reference the server-side \
-         error condition (5xx / server error / unavailable). Got: {:?}",
-        degraded_suggestion
-    );
-
-    // The Down suggestion MUST still be the network guidance (regression check).
-    assert!(
-        down_suggestion.contains("verify network") || down_suggestion.contains("unreachable"),
-        "BC-2.08.001 EC-08-001 regression: genuine Down sensor must still get the 'unreachable' \
-         / 'verify network' suggestion. Got: {:?}",
-        down_suggestion
-    );
-}
-
-/// Helper: apply the suggestion-ladder logic from server.rs to a single SensorHealthResult.
-///
-/// This mirrors the `map(|mut s| { ... })` closure in `check_sensor_health` (server.rs).
-/// Extracted here so the unit test can verify the ladder logic without spinning up a server.
-fn apply_suggestion_ladder(mut s: SensorHealthResult) -> SensorHealthResult {
-    if s.rate_limit.is_some() {
-        s = s.with_suggestion("Rate limit in effect \u{2014} wait before retrying.");
-    } else if s.auth_valid == Some(false) {
-        s = s.with_suggestion("Check credentials \u{2014} sensor rejected authentication.");
-    } else if s.reachable == Some(false) {
-        // F-S504-LP1P1-MED-001: distinguish Degraded (5xx) from Down (connection error).
-        // Degraded sensors have error="service_unavailable"; Down sensors have no such marker.
-        if s.error.as_deref() == Some("service_unavailable") {
-            s = s.with_suggestion(
-                "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.",
-            );
-        } else {
-            s = s.with_suggestion(
-                "Sensor unreachable \u{2014} verify network and endpoint configuration.",
-            );
-        }
-    }
-    s
 }
