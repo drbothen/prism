@@ -53,7 +53,7 @@ const MAX_PAGES_PER_STEP: usize = 1_000;
 ///
 /// When the running total of HTTP requests across all steps in a pipeline reaches
 /// this cap, the executor returns `SpecEngineError::TooManyRequests { total }` immediately
-/// and emits `event_type = "pipeline_max_requests_exceeded"` per BC-2.16.002 v1.12 catalog.
+/// and emits `event_type = "pipeline_max_requests_exceeded"` per BC-2.16.002 catalog.
 ///
 /// This is a hard invariant — non-retryable. Partial results are discarded.
 /// Closes TD-S-PLUGIN-PREREQ-B-004 (AC-16 / BC-2.16.002 §Postconditions).
@@ -245,7 +245,7 @@ impl PipelineExecutor {
             "query.client_id".to_string(),
             serde_json::Value::String(context.client_id.to_string()),
         );
-        // AC-CWS-001 / BC-2.01.013 v1.14: seed ${query.limit} from QueryParams.limit so
+        // AC-CWS-001 / BC-2.01.013: seed ${query.limit} from QueryParams.limit so
         // sensor TOML path_templates can push the LIMIT clause down to the sensor API
         // (e.g., CrowdStrike Step 1 DetectionListParams.limit).
         // Default: empty string → PipelineExecutor::strip_empty_url_params removes the
@@ -409,7 +409,7 @@ impl PipelineExecutor {
                     let paged_url = build_paged_url(&url, step, &encoded_cursor, offset);
 
                     // Derive the active page_size for OffsetLimit POST-body injection
-                    // (BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+                    // (BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
                     // POST-body vs GET-URL"). Non-OffsetLimit steps pass page_size=0 to
                     // indicate no body injection is needed.
                     let active_page_size: u32 = match &step.pagination {
@@ -1015,7 +1015,7 @@ fn build_request(
             Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
                 .map_err(|e| format!("body template interpolation failed: {e}"))?;
 
-        // BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+        // BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
         // POST-body vs GET-URL (DRIFT-D850-001)": for POST steps with OffsetLimit
         // pagination, inject "offset" and "limit" as top-level keys in the JSON body.
         // Merge semantics: preserve all existing body_template fields (AC-004).
@@ -1057,7 +1057,7 @@ fn build_request(
                     return Err(format!(
                         "POST OffsetLimit step '{}' body_template interpolated to a non-object \
                          JSON value ({type_name}); expected a JSON object to merge offset+limit \
-                         into (BC-2.16.002 v1.70 EC-002)",
+                         into (BC-2.16.002 EC-002)",
                         step.name
                     ));
                 }
@@ -1137,7 +1137,7 @@ fn build_paged_url_impl(
             url
         }
         Some(PaginationConfig::OffsetLimit { page_size }) => {
-            // BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+            // BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
             // POST-body vs GET-URL (DRIFT-D850-001)": for POST steps, offset+limit
             // go in the request body (injected in build_request); return URL unchanged.
             // For GET steps (and any non-POST method), append ?offset=N&limit=M as before.
@@ -1436,7 +1436,7 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
 /// - `?a=1&b=&c=3` → `?a=1&c=3`       (middle-param empty)
 /// - Params with non-empty values are preserved.
 ///
-/// AC-CWS-001 / BC-2.01.013 v1.14 limit push-down.
+/// AC-CWS-001 / BC-2.01.013 limit push-down.
 pub(crate) fn strip_empty_url_params(path: &str) -> String {
     // Split at the first `?` to separate path from query string.
     let (base, query) = match path.split_once('?') {
@@ -1481,7 +1481,7 @@ pub(crate) fn strip_empty_url_params(path: &str) -> String {
 /// (e.g., `?filter=`), which is safely ignored by DTUs that do not parse
 /// the param when it is empty.
 ///
-/// ADR-033 T1 / BC-2.01.013 v1.14: CrowdStrike FQL injection via
+/// ADR-033 T1 / BC-2.01.013: CrowdStrike FQL injection via
 /// `${query.filter._fql}` in path_template requires this pre-seeding to be
 /// robust when no time predicates are present in the PrismQL query.
 fn seed_missing_query_filter_vars(
@@ -3100,7 +3100,7 @@ mod timestamp_normalization_tests {
     /// now() (within ±10 seconds tolerance).
     ///
     /// Note: tracing::warn!(event_type = "timestamp.fallback_to_now") emission is the
-    /// behavioral contract per BC-2.16.002 v1.37 row 35. The BC catalog row is the
+    /// behavioral contract per BC-2.16.002 row 35 (timestamp.fallback_to_now catalog entry). The BC catalog row is the
     /// authoritative contract record; direct assertion of the emission from this unit
     /// test would require tracing-test infrastructure not available in-scope.
     #[test]
@@ -3334,7 +3334,7 @@ mod timestamp_normalization_tests {
 }
 
 // ---------------------------------------------------------------------------
-// S-DEMO-CLAROTY-PAGINATION-001 — BC-2.16.002 v1.70 §Postconditions
+// S-DEMO-CLAROTY-PAGINATION-001 — BC-2.16.002 §Postconditions
 // "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)"
 //
 // Red Gate tests for AC-001, AC-002, AC-003, AC-004, AC-005, AC-006.
@@ -3446,7 +3446,7 @@ mod pagination_post_body_tests {
     // methods. This test MUST FAIL until build_paged_url_impl branches on step.method.
     // -----------------------------------------------------------------------
 
-    /// AC-001 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// AC-001 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
     /// POST-body vs GET-URL" — POST step clause.
     ///
     /// For `method == "POST"` with OffsetLimit pagination, `build_paged_url_impl`
@@ -3498,7 +3498,7 @@ mod pagination_post_body_tests {
     // MUST FAIL until Task 3a (thread offset/page_size) + Task 3b (body injection) complete.
     // -----------------------------------------------------------------------
 
-    /// AC-001 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// AC-001 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
     /// POST-body vs GET-URL" — POST step body-injection clause.
     ///
     /// For `method == "POST"` with OffsetLimit pagination, the request body MUST
@@ -3637,7 +3637,7 @@ mod pagination_post_body_tests {
     // accidentally breaks GET appending would cause this to FAIL.
     // -----------------------------------------------------------------------
 
-    /// AC-002 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// AC-002 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
     /// POST-body vs GET-URL" — GET/absent-method step clause (regression guard).
     ///
     /// For `method == "GET"` with OffsetLimit pagination, `build_paged_url_impl`
@@ -3681,7 +3681,7 @@ mod pagination_post_body_tests {
     // MUST FAIL until Tasks 3a + 3b complete.
     // -----------------------------------------------------------------------
 
-    /// AC-004 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// AC-004 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
     /// POST-body vs GET-URL" — body merge clause.
     ///
     /// When offset+limit are injected into the POST body, any existing keys from
@@ -3787,7 +3787,7 @@ mod pagination_post_body_tests {
     // above. This test provides focused dedicated coverage with a clearer diagnostic.
     // -----------------------------------------------------------------------
 
-    /// AC-005 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// AC-005 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
     /// POST-body vs GET-URL" — offset initialization clause.
     ///
     /// For the first pagination step, `offset = 0` and `limit = page_size` MUST be
@@ -3890,7 +3890,7 @@ mod pagination_post_body_tests {
     // Expected to PASS today. Included as a conditional structural regression guard.
     // -----------------------------------------------------------------------
 
-    /// AC-006 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// AC-006 / BC-2.16.002 §Postconditions "OffsetLimit Pagination Dispatch:
     /// POST-body vs GET-URL" — GET regression guard.
     ///
     /// The existing `build_paged_url_for_test` public test helper MUST remain callable
@@ -4107,11 +4107,11 @@ mod pagination_post_body_tests {
     // The HTTP request is never sent (build_request returns Err before .send()).
     // -----------------------------------------------------------------------
 
-    /// EC-002 / BC-2.16.002 v1.70 §Edge Cases — POST OffsetLimit body_template
+    /// EC-002 / BC-2.16.002 §Edge Cases — POST OffsetLimit body_template
     /// interpolates to a non-object JSON value (e.g., raw array `[]`).
     ///
     /// Contract: "Treat as parse error; surface SpecEngineError with sensor_id and
-    /// step_name. Do NOT panic." (BC-2.16.002 v1.70 EC-002)
+    /// step_name. Do NOT panic." (BC-2.16.002 EC-002)
     ///
     /// Test vector: `body_template = "[]"` (a JSON array literal). After interpolation
     /// the `serde_json::Value` is `Array([])` — not an Object — which triggers the
@@ -4206,11 +4206,11 @@ mod pagination_post_body_tests {
         );
     }
 
-    /// EC-002 / BC-2.16.002 v1.70 §Edge Cases — POST OffsetLimit body_template
+    /// EC-002 / BC-2.16.002 §Edge Cases — POST OffsetLimit body_template
     /// is not valid JSON (parse branch, EC-002 branch a).
     ///
     /// Contract: "Treat as parse error; surface SpecEngineError with sensor_id and
-    /// step_name. Do NOT panic." (BC-2.16.002 v1.70 EC-002)
+    /// step_name. Do NOT panic." (BC-2.16.002 EC-002)
     ///
     /// Test vector: `body_template = "{SENSITIVE_SENTINEL_VALUE"` — an unterminated/malformed
     /// JSON object that embeds a recognizable sentinel token.  After

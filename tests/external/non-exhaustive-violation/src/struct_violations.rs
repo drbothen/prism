@@ -861,7 +861,7 @@ pub fn v61_multi_instance_servers() {
 
 /// Violation 62: StructuredErrorFields (prism-mcp error_mapping) struct literal (E0639).
 ///
-/// BC-2.10.007 v1.5 / S-5.02 HC-3: `StructuredErrorFields` carries `#[non_exhaustive]`
+/// BC-2.10.007 / S-5.02 HC-3: `StructuredErrorFields` carries `#[non_exhaustive]`
 /// so that adding a field (e.g. a future `request_id` or `trace_id`) is backward-compatible.
 /// External callers MUST use `StructuredErrorFields::new(...)` (the 9-argument constructor).
 ///
@@ -886,7 +886,7 @@ pub fn v62_structured_error_fields() {
 /// Violation 63: prism_mcp::CapabilityEntry struct literal (E0639).
 ///
 /// `CapabilityEntry` is the per-capability-path response entry in the `list_capabilities`
-/// tool response (BC-2.10.011 v1.5, S-5.02 R4). `#[non_exhaustive]` ensures that future
+/// tool response (BC-2.10.011, S-5.02 R4). `#[non_exhaustive]` ensures that future
 /// fields (e.g., `last_evaluated_at`, `policy_source`) can be added without breaking
 /// external consumers. External callers MUST NOT construct this directly — it is produced
 /// exclusively by `PrismServer::list_capabilities`.
@@ -906,7 +906,7 @@ pub fn v63_capability_entry() {
 /// Violation 64: prism_mcp::ResolutionStep struct literal (E0639).
 ///
 /// `ResolutionStep` is a single tier step in the capability resolution chain returned
-/// by `list_capabilities` (BC-2.10.011 v1.5, S-5.02 R4). `#[non_exhaustive]` ensures
+/// by `list_capabilities` (BC-2.10.011, S-5.02 R4). `#[non_exhaustive]` ensures
 /// that new step fields (e.g., `timestamp`, `policy_id`) can be added without breaking
 /// external consumers. External callers MUST NOT construct this directly.
 ///
@@ -1135,7 +1135,7 @@ pub fn v74_rate_limit_info() {
 pub fn v75_resource_pressure() {
     // Triggers E0639 (#[non_exhaustive]).
     // Fields are Option<usize>; use None to match the production contract
-    // (BC-2.08.005 v1.6: hardcoded 0 is FORBIDDEN in S-5.03 scope).
+    // (BC-2.08.005: hardcoded 0 is FORBIDDEN in S-5.03 scope).
     let _pressure = ResourcePressure {
         active_cursor_count: None,
         active_token_count: None,
@@ -1313,7 +1313,7 @@ pub fn v83_column_not_found_details() {
 // ─── S-5.04 F-S504-P5-002: HealthSummary (summary_counts shape) ──────────────
 //
 // `HealthSummary` is the structured `summary_counts` object embedded in
-// `SensorHealthStructuredContent` (BC-2.08.007 v1.4 postcondition). It is the
+// `SensorHealthStructuredContent` (BC-2.08.007 postcondition). It is the
 // wire-format shape for `healthy_count`, `unhealthy_count`, `total_count`, and
 // `rate_limited_count` returned in the `check_sensor_health` response.
 // `#[non_exhaustive]` ensures future summary fields can be added without
@@ -1322,12 +1322,12 @@ pub fn v83_column_not_found_details() {
 /// Violation 84: prism_mcp::HealthSummary struct literal (E0639).
 ///
 /// `HealthSummary` is the `summary_counts` shape in `SensorHealthStructuredContent`
-/// (BC-2.08.007 v1.4). `#[non_exhaustive]` ensures external callers cannot use
+/// (BC-2.08.007). `#[non_exhaustive]` ensures external callers cannot use
 /// struct-literal construction — callers MUST use `HealthSummary::from_results(...)`.
 /// Future fields (e.g., auth_invalid_count, degraded_count) can be added without
 /// breaking downstream callers.
 ///
-/// Added: S-5.04 (F-S504-P5-002 fix — BC-2.08.007 v1.4 summary_counts postcondition).
+/// Added: S-5.04 (F-S504-P5-002 fix — BC-2.08.007 summary_counts postcondition).
 #[allow(dead_code)]
 pub fn v84_health_summary() {
     // Triggers E0639 (#[non_exhaustive]).

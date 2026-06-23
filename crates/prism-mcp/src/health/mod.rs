@@ -56,13 +56,13 @@ pub struct HealthCheckResult {
     pub checked_at: DateTime<Utc>,
 }
 
-/// Aggregate sensor health status across a client (BC-2.08.007 v1.4).
+/// Aggregate sensor health status across a client (BC-2.08.007).
 ///
 /// - `Healthy` — all sensors are reachable and authenticated, none rate-limited.
 /// - `Partial` — some sensors up, some down or degraded.
 ///   This is a SUCCESS state, not an error (BC-2.08.007 postcondition 1).
 /// - `RateLimited` — ALL sensors are rate-limited and none are unreachable/auth-invalid
-///   (EC-08-015 / BC-2.08.007 v1.4 classification table).  This is a separate
+///   (EC-08-015 / BC-2.08.007 classification table).  This is a separate
 ///   status from `Partial` to give AI consumers an unambiguous signal that waiting
 ///   (not retrying immediately) is the correct remediation.
 /// - `Unhealthy` — all sensors are unreachable or auth-invalid.
@@ -80,7 +80,7 @@ pub enum OverallStatus {
 }
 
 impl OverallStatus {
-    /// Serialize to the canonical BC-2.08.007 v1.4 wire string.
+    /// Serialize to the canonical BC-2.08.007 wire string.
     ///
     /// - `"healthy"` — `Healthy`
     /// - `"partial"` — `Partial`
@@ -99,7 +99,7 @@ impl OverallStatus {
 impl HealthCheckResult {
     /// Aggregate a batch of `SensorHealthResult` values into an `OverallStatus`.
     ///
-    /// Rules (BC-2.08.007 v1.4 classification table):
+    /// Rules (BC-2.08.007 classification table):
     /// - All `reachable: true, auth_valid: true, rate_limit: None` → `Healthy`
     /// - ALL sensors have `rate_limit: Some(...)` and none have `reachable: false`
     ///   or `auth_valid: false` → `RateLimited` (EC-08-015)
@@ -212,7 +212,7 @@ impl SensorHealthChecker {
     /// For each sensor, calls `AdapterRegistry::get(org_id, sensor_id)` and issues
     /// a minimal probe query via `adapter.fetch()`.  Populates `SensorHealthResult`
     /// with `probe_level: "live"`, `reachable`, `auth_valid`, and
-    /// `last_successful_query_at` fields (BC-2.08.005 v1.5 live-probe postcondition).
+    /// `last_successful_query_at` fields (BC-2.08.005 live-probe postcondition).
     ///
     /// Returns a `HealthCheckResult` containing per-sensor results and the aggregate
     /// `OverallStatus`.  The caller writes results to the health cache.

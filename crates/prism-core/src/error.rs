@@ -351,7 +351,7 @@ pub enum PrismError {
     /// - **E-FLAG-002 (compile tier)** — produced from
     ///   `CapabilityCheckResult::DeniedCompileTime`: no `[[write_endpoints]]`
     ///   declaration for the capability in the sensor's TOML spec
-    ///   (registry-derived per BC-2.04.001 v1.2 / BC-2.16.012).
+    ///   (registry-derived per BC-2.04.001 / BC-2.16.012).
     ///
     /// The `resolution_trace` is a BTreeMap-derived ordered list of path→effect
     /// pairs showing how the denial was reached.
@@ -384,7 +384,7 @@ pub enum PrismError {
     // production emitters (constructed only in its own pinning tests).
     // E-FLAG-002 is the COMPILE-TIER capability denial carried by
     // `CapabilityDenied` (via `CapabilityCheckResult::DeniedCompileTime`) per
-    // error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 / BC-2.04.001 v1.2.
+    // error-taxonomy E-FLAG-002 row / BC-2.04.015 / BC-2.04.001.
     /// E-FLAG-010: Feature flag evaluation error.
     #[error("E-FLAG-010: feature flag evaluation error for {flag}: {detail}")]
     FeatureFlagEvalError { flag: String, detail: String },

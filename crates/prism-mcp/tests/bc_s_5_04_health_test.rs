@@ -959,7 +959,7 @@ async fn test_BC_2_08_002_live_probe_401_returns_auth_invalid_dtu() {
 
 /// BC-2.08.006 postcondition 2: `sensors` must be a JSON OBJECT keyed by `sensor_id`.
 ///
-/// Verifies the `BTreeMap` keyed-object shape introduced in BC-2.08.006 v1.5 via a
+/// Verifies the `BTreeMap` keyed-object shape introduced in BC-2.08.006 via a
 /// live-scope cache entry (S-5.04 probe_level="live").
 ///
 /// `render_sensors_health_resource` is implemented (not todo!()); this test uses a
@@ -2136,11 +2136,11 @@ async fn test_BC_2_08_001_check_one_falls_back_to_devices_when_org_not_in_spec_m
 
 // ─── EC-007 / F-S504-P5-001 — all-rate-limited aggregate (RED GATE) ─────────
 
-/// EC-007 (BC-2.08.007 v1.4 / F-S504-P5-001): When ALL sensors are rate-limited
+/// EC-007 (BC-2.08.007 / F-S504-P5-001): When ALL sensors are rate-limited
 /// (`rate_limit.is_some()`) and none are unreachable or auth-invalid,
 /// `HealthCheckResult::aggregate` MUST return `OverallStatus::RateLimited`.
 ///
-/// BC-2.08.007 v1.4 postcondition: `"rate_limited"` — ALL sensors are rate-limited,
+/// BC-2.08.007 postcondition: `"rate_limited"` — ALL sensors are rate-limited,
 /// none unreachable or auth-invalid. NOT `"partial"` (which implies connectivity/auth failure
 /// requiring different remediation). NOT `"unhealthy"` (sensors ARE reachable/auth-valid).
 ///
@@ -2157,7 +2157,7 @@ fn test_BC_2_08_007_EC_007_all_rate_limited_aggregate_yields_rate_limited() {
     assert_eq!(
         status,
         OverallStatus::RateLimited,
-        "EC-007 (BC-2.08.007 v1.4 / F-S504-P5-001): when ALL sensors are rate-limited, \
+        "EC-007 (BC-2.08.007 / F-S504-P5-001): when ALL sensors are rate-limited, \
          aggregate MUST return OverallStatus::RateLimited (not Partial, not Unhealthy). \
          Got: {status:?}"
     );
@@ -2168,7 +2168,7 @@ fn test_BC_2_08_007_EC_007_all_rate_limited_aggregate_yields_rate_limited() {
 /// The `RateLimited` aggregate only applies when ALL sensors are rate-limited AND
 /// NONE are unreachable or auth-invalid. A mix falls into `Partial`.
 ///
-/// BC-2.08.007 v1.4 postcondition:
+/// BC-2.08.007 postcondition:
 /// `"partial"` — at least one sensor is unreachable or auth-invalid (regardless of RL state on others).
 ///
 /// RED GATE: `OverallStatus::RateLimited` variant does not exist yet → compile error.
@@ -2192,7 +2192,7 @@ fn test_BC_2_08_007_EC_007_mixed_rate_limited_and_down_is_partial() {
 
 // ─── F-S504-P5-002 — response-shape postconditions (RED GATE) ─────────────────
 
-/// F-S504-P5-002 (BC-2.08.007 v1.4): `SensorHealthStructuredContent` MUST carry:
+/// F-S504-P5-002 (BC-2.08.007): `SensorHealthStructuredContent` MUST carry:
 ///   1. `overall_status: String` — serialized aggregate status (e.g., `"rate_limited"`).
 ///   2. `summary_counts` object — `healthy_count`, `unhealthy_count`, `total_count` (integers).
 ///   3. Per-sensor `suggestion: Option<String>` on unhealthy/rate-limited sensors.
@@ -2315,7 +2315,7 @@ async fn test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_su
             || json_str.contains(r#""overall_status": "rate_limited""#),
         "F-S504-P5-002 (RED GATE 1 — F-S504-P5-001): \
          `structuredContent.overall_status` MUST be \"rate_limited\" when all sensors are rate-limited. \
-         BC-2.08.007 v1.4 EC-08-015: all-rate-limited MUST NOT be reported as Partial or Healthy. \
+         BC-2.08.007 EC-08-015: all-rate-limited MUST NOT be reported as Partial or Healthy. \
          Got JSON: {:.500}",
         json_str
     );

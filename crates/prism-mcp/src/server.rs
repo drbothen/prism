@@ -899,13 +899,13 @@ impl ListCapabilitiesParams {
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.10.011 v1.5 tri-state capability model types
+// BC-2.10.011 tri-state capability model types
 // ---------------------------------------------------------------------------
 //
 // These types form the public API surface of the `list_capabilities` response.
 // The `list_capabilities` handler is fully implemented (S-5.02 green phase):
 // it returns the tri-state capability matrix using `CapabilityEntry` with
-// `status` and `resolution_chain` per BC-2.10.011 v1.5.
+// `status` and `resolution_chain` per BC-2.10.011.
 
 /// Status of a capability in the tri-state BC-2.10.011 model.
 ///
@@ -925,7 +925,7 @@ pub enum CapabilityStatus {
     CompileTimeDisabled,
 }
 
-/// One step in the resolution chain for a capability (BC-2.10.011 v1.5).
+/// One step in the resolution chain for a capability (BC-2.10.011).
 #[non_exhaustive]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResolutionStep {
@@ -965,7 +965,7 @@ pub struct ConfirmActionParams {
 
 /// Parameters for the `check_sensor_health` tool (BC-2.08.005 precondition).
 ///
-/// BC-2.08.005 v1.5 (OOD-001 adjudication — SPEC WINS): `client_id` is required.
+/// BC-2.08.005 (OOD-001 adjudication — SPEC WINS): `client_id` is required.
 /// The legacy `sensor: Option<String>` stub (absent `client_id`) was non-conformant.
 /// v1.5 amendment: two-phase probe model — S-5.03 scope returns `probe_level: "spec-only"`
 /// with `reachable: None` / `auth_valid: None`; S-5.04 adds live probe results.
@@ -1492,7 +1492,7 @@ fn injection_rejection_error() -> rmcp::model::ErrorData {
 /// Validate that every string in `client_ids` matches `[a-zA-Z0-9_-]{1,64}`.
 ///
 /// Returns `Err(CallToolResult)` with BC-2.10.007 structured error on invalid entry.
-/// BC-2.10.004 v2.8: client_id/clients entries must be validated before use.
+/// BC-2.10.004: client_id/clients entries must be validated before use.
 /// Error message MUST start with `"E-MCP-001: invalid client_id format:"` (Implementer Note §1).
 /// `structuredContent.error.original_params_valid` is `false` (format check failed).
 /// CRITICAL: do NOT route through PrismError::InvalidClientId — it displays E-AUTH-003,
@@ -1703,7 +1703,7 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 /// NOTE: `reload_plugin` is currently a non-mutating stub (returns
 /// `not_yet_available` before any mutation) and is NOT classified here. It
 /// MUST be added as WriteTool when wired to actual plugin mutation
-/// (BC-2.05.001 v1.4 Invariants §write-tool-set-invariant).
+/// (BC-2.05.001 Invariants §write-tool-set-invariant).
 ///
 /// Every other tool defaults to [`ToolClass::ReadTool`] (fail-open with
 /// `_meta.audit_warning` per BC-2.05.001 EC-05-002), mirroring the
@@ -3059,7 +3059,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CheckSensorHealthParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // BC-2.08.005 v1.4: client_id is required — reject empty string first (OOD-001).
+        // BC-2.08.005: client_id is required — reject empty string first (OOD-001).
         // validate_text_field only checks max_bytes (> 256); it does NOT reject empty strings.
         // An explicit empty check is required here per BC-2.08.005 precondition.
         if params.client_id.is_empty() {
@@ -3093,14 +3093,14 @@ impl PrismServer {
         .await?;
 
         // S-5.03: Return a structured SensorHealthStructuredContent per BC-2.08.005.
-        // BC-2.08.005 v1.5 two-phase probe contract: this is the spec-only phase.
+        // BC-2.08.005 two-phase probe contract: this is the spec-only phase.
         // probe_level="spec-only"; reachable/auth_valid are null (no live probe).
         // trust_level="internal" (health data is Prism-generated, not sensor-sourced).
         //
         // DI-008 / F-S503-ADV-001: scope sensor enumeration by client_id.
         // When resolved_spec_map is wired (multi-tenant mode): return only the sensors
         // provisioned for this org via resolved_spec_map. An org registered in
-        // OrgRegistry with zero overlay entries returns empty (BC-2.10.008 v1.9 Option B).
+        // OrgRegistry with zero overlay entries returns empty (BC-2.10.008 Option B).
         // An unknown client_id is rejected with INVALID_PARAMS (BC-2.08.005 §Errors).
         // When resolved_spec_map is not wired (single-tenant / test mode): fall back to
         // the global TableRegistry (existing pre-multi-tenant behaviour).
@@ -3173,7 +3173,7 @@ impl PrismServer {
             None => sensor_ids,
         };
 
-        // BC-2.08.005 v1.5 two-phase probe model (F-S503-004 adjudication):
+        // BC-2.08.005 two-phase probe model (F-S503-004 adjudication):
         //
         // S-5.04 scope (live probe — health_checker is Some):
         //   Delegate to SensorHealthChecker::check_all(), which issues real API probes
@@ -3185,7 +3185,7 @@ impl PrismServer {
         //   probe_level="spec-only", reachable=null, auth_valid=null.
         //   Hardcoding reachable=true / auth_valid=true is FORBIDDEN (F-S503-004 adjudication).
         if let Some(ref health_checker) = self.health_checker {
-            // S-5.04 LIVE PROBE PATH (BC-2.08.005 v1.5 postcondition — AC-7)
+            // S-5.04 LIVE PROBE PATH (BC-2.08.005 postcondition — AC-7)
             //
             // Resolve OrgId from the OrgRegistry.
             // F-S504-P2-006: replace org_slug.expect() with is_err() structural guard.
@@ -3254,7 +3254,7 @@ impl PrismServer {
                 );
             }
 
-            // Live resource_pressure (BC-2.08.005 v1.6 RECONCILIATION-3)
+            // Live resource_pressure (BC-2.08.005 RECONCILIATION-3)
             // cursor_count and token_count are read from QueryEngine live accessors.
             // write_executor.confirmation_store().active_count() is used when available
             // but falls back to QueryEngine::token_count() (which reads from the wired
@@ -3267,7 +3267,7 @@ impl PrismServer {
             };
             let pressure = resources::ResourcePressure::new(cursor_count, token_count);
 
-            // Prose summary (BC-2.08.007 v1.4 — classification-aware, MUST NOT contain "spec-only")
+            // Prose summary (BC-2.08.007 — classification-aware, MUST NOT contain "spec-only")
             //
             // Phrasing is driven by the aggregate OverallStatus computed by check_all:
             // - RateLimited (EC-08-015): "0 of N sensors healthy — all rate-limited"
@@ -3295,7 +3295,7 @@ impl PrismServer {
                 ),
             };
 
-            // BC-2.08.007 v1.4 EC-08-015: populate per-sensor suggestion for unhealthy/rate-limited.
+            // BC-2.08.007 EC-08-015: populate per-sensor suggestion for unhealthy/rate-limited.
             // Verbatim BC strings per POL-24 (no paraphrasing):
             // - Rate-limited: "Rate limit in effect — wait before retrying." (em-dash U+2014)
             // - Auth-invalid: "Check credentials — sensor rejected authentication."
@@ -3357,13 +3357,13 @@ impl PrismServer {
             }
 
             let total_count = sensors.len();
-            // BC-2.08.005 v1.5 postcondition 6: prose MUST contain
+            // BC-2.08.005 postcondition 6: prose MUST contain
             // "spec-only: no live probe performed".
             let summary = format!(
                 "{total_count} sensor(s) available for client '{}' (spec-only: no live probe performed)",
                 params.client_id
             );
-            // BC-2.08.005 v1.6 RECONCILIATION-3: emit null for both counts in S-5.03 scope.
+            // BC-2.08.005 RECONCILIATION-3: emit null for both counts in S-5.03 scope.
             let pressure = resources::ResourcePressure::new(None, None);
             let structured =
                 resources::SensorHealthStructuredContent::new(sensors, pressure, summary.clone());
@@ -4152,7 +4152,7 @@ is NOT an error — returns matrix with client_registered: false",
         )
         .await?;
 
-        // BC-2.10.011 v1.5: tri-state capability model.
+        // BC-2.10.011: tri-state capability model.
         // WriteExecutor is wired via `with_write_executor()` builder or `with_deps()` at boot.
         // `new()` leaves write_executor as None; the guard below returns Internal when not wired
         // (boot step 9 incomplete), covered by test_confirm_action_returns_internal_when_not_wired.
@@ -6185,7 +6185,7 @@ mod tests {
     // Ok(CallToolResult{is_error:true, structured_content: {error:{9 fields}, _meta}})
     // NOT as Err(ErrorData) (which is the flat protocol-level error shape).
 
-    /// CRIT-1 (BC-2.10.007 v1.5): domain error from QueryEngine.execute() is delivered as
+    /// CRIT-1 (BC-2.10.007): domain error from QueryEngine.execute() is delivered as
     /// `Ok(CallToolResult{is_error:true})` with 9-field `structuredContent.error` envelope.
     ///
     /// Wires a minimal QueryEngine (no adapters, no sensor data) so that an invalid
@@ -6235,7 +6235,7 @@ mod tests {
 
         let sc = call_result
             .structured_content
-            .expect("CRIT-1: structured_content must be present (BC-2.10.007 v1.5)");
+            .expect("CRIT-1: structured_content must be present (BC-2.10.007)");
 
         // _meta.trust_level must be "internal".
         let trust_level = sc
@@ -6471,7 +6471,7 @@ mod tests {
     // map_prism_error directly, bypassing confirm_action entirely.
     //
     // CRIT-1 update: CapabilityDenied is a domain error → Ok(structured_error)
-    // per BC-2.10.007 v1.5, not Err(ErrorData). The test expectation was updated
+    // per BC-2.10.007, not Err(ErrorData). The test expectation was updated
     // in the S-5.02 fix-burst to reflect the correct boundary.
     //
     // LOAD-BEARING path:
@@ -6529,7 +6529,7 @@ mod tests {
     /// CRIT-1 behavioral change: `CapabilityDenied` is a USER-VISIBLE domain error
     /// (the user asked for a capability they don't have) and must be surfaced as
     /// `Ok(CallToolResult{is_error:true, structured_content: {error:{...}, _meta}})` per
-    /// BC-2.10.007 v1.5, NOT as `Err(ErrorData)` which is reserved for protocol-level
+    /// BC-2.10.007, NOT as `Err(ErrorData)` which is reserved for protocol-level
     /// errors (injection rejected, audit fail-closed).
     ///
     /// Mental-deletion proof: if the `we.execute()` error branch is removed,
@@ -6717,7 +6717,7 @@ mod tests {
     /// BC-2.10.004: client_id validation rejects invalid characters with structured error.
     ///
     /// CRIT-2 fix: validate_client_ids now returns Err(CallToolResult) with
-    /// structuredContent.error.original_params_valid = false (BC-2.10.007 v1.5).
+    /// structuredContent.error.original_params_valid = false (BC-2.10.007).
     #[test]
     fn test_validate_client_ids_rejects_invalid_chars() {
         let result = validate_client_ids(&["acme; DROP TABLE sensors".to_string()]);
@@ -8671,7 +8671,7 @@ mod tests {
 
     /// F-PR163-PASS3-MED-1: check_sensor_health rejects a 257-byte sensor_id with INVALID_PARAMS.
     ///
-    /// Updated for BC-2.08.005 v1.4 (OOD-001 adjudication): struct now has
+    /// Updated for BC-2.08.005 (OOD-001 adjudication): struct now has
     /// `client_id: String` (required) and `sensor_id: Option<String>` (renamed from `sensor`).
     #[tokio::test]
     async fn test_F_PR163_PASS3_MED_1_check_sensor_health_sensor_length_bounded() {
@@ -8715,7 +8715,7 @@ mod tests {
 
     /// Recording AuditWriter stub: captures every `write_tool_call` invocation.
     ///
-    /// BC-2.10.012 v1.1: stores 4-tuple (tool_name, client_id, operation, outcome).
+    /// BC-2.10.012: stores 4-tuple (tool_name, client_id, operation, outcome).
     #[derive(Default)]
     struct RecordingAudit {
         #[allow(clippy::type_complexity)]
@@ -8763,7 +8763,7 @@ mod tests {
     /// `emit_tool_audit` is removed (the pre-fix tracing-only behavior), this
     /// test fails with zero recorded calls.
     ///
-    /// BC-2.10.012 v1.1: `emit_tool_audit` passes `operation = tool_name`
+    /// BC-2.10.012: `emit_tool_audit` passes `operation = tool_name`
     /// and `outcome = caller_label` to `write_tool_call`.
     /// The tool name is the canonical operation name; the caller-supplied label
     /// (e.g., "invoked", "error") is the outcome field.
@@ -8787,10 +8787,10 @@ mod tests {
             vec![(
                 "query".to_owned(),
                 Some("acme".to_owned()),
-                "query".to_owned(),   // operation = tool name (BC-2.10.012 v1.1)
+                "query".to_owned(),   // operation = tool name (BC-2.10.012)
                 "invoked".to_owned()  // outcome = caller-supplied label
             )],
-            "MCP-02 (BC-2.10.012 v1.1): emit_tool_audit must write one durable tool-call record \
+            "MCP-02 (BC-2.10.012): emit_tool_audit must write one durable tool-call record \
              with tool_name, client_id, operation=tool_name, outcome=caller_label"
         );
     }
@@ -9422,7 +9422,7 @@ mod tests {
     /// Build a PrismServer with a WriteExecutor whose FeatureFlagEvaluator has
     /// `registered_client` in its runtime capability registry.
     ///
-    /// Updated for BC-2.10.011 v1.5: the WriteEndpointRegistry includes one
+    /// Updated for BC-2.10.011: the WriteEndpointRegistry includes one
     /// write endpoint (`sensor.test.containment`) so the capabilities map is
     /// non-empty. `registered_client` is granted Allow on that path.
     fn server_with_write_executor(registered_client: &str) -> PrismServer {
@@ -9487,11 +9487,11 @@ mod tests {
             .expect("list_capabilities must return structured content")
     }
 
-    /// MCP-01 (BC-2.10.011 v1.5): registered client → client_registered = true;
+    /// MCP-01 (BC-2.10.011): registered client → client_registered = true;
     /// capabilities map contains write capability paths with tri-state {status, resolution_chain};
     /// not_registered_tools contains MCP tools that return -32003.
     ///
-    /// Updated from bool-map shape (pre-BC-2.10.011 v1.5) to tri-state shape.
+    /// Updated from bool-map shape (pre-BC-2.10.011) to tri-state shape.
     #[tokio::test]
     async fn test_MCP_01_list_capabilities_registered_client_derived_map() {
         let server = server_with_write_executor("acme");
@@ -9536,15 +9536,15 @@ mod tests {
             "not_registered_tools must contain all NOT_YET_AVAILABLE_TOOLS"
         );
 
-        // not_implemented must NOT be present (renamed in BC-2.10.011 v1.5).
+        // not_implemented must NOT be present (renamed in BC-2.10.011).
         assert!(
             body.get("not_implemented").is_none(),
             "not_implemented must be absent (renamed to not_registered_tools); got {body}"
         );
-        // note field must NOT be present (removed in BC-2.10.011 v1.5).
+        // note field must NOT be present (removed in BC-2.10.011).
         assert!(
             body.get("note").is_none(),
-            "note field must be absent (removed in BC-2.10.011 v1.5); got {body}"
+            "note field must be absent (removed in BC-2.10.011); got {body}"
         );
     }
 
@@ -9670,7 +9670,7 @@ mod tests {
         );
     }
 
-    /// MCP-01 (BC-2.10.011 v1.5): unregistered client → client_registered = false;
+    /// MCP-01 (BC-2.10.011): unregistered client → client_registered = false;
     /// write capabilities map shows runtime_disabled for registry paths (no Allow rule),
     /// capabilities for paths in registry but no client config → runtime_disabled.
     ///
@@ -9711,12 +9711,12 @@ mod tests {
         );
     }
 
-    // ─── AC-4 (BC-2.08.005 v1.5): check_sensor_health spec-only contract ────
+    // ─── AC-4 (BC-2.08.005): check_sensor_health spec-only contract ────
     //
     // This test MUST live in `mod tests` (not `tests/resources.rs`) because it
     // needs to wire `PrismServer.query_engine` directly — the field is private.
     //
-    // BC-2.08.005 v1.5 two-phase probe contract (F-S503-004 adjudication):
+    // BC-2.08.005 two-phase probe contract (F-S503-004 adjudication):
     // - S-5.03 scope: `probe_level: "spec-only"`, `reachable: null`, `auth_valid: null`
     //   `last_successful_query_at: null`, prose contains "spec-only: no live probe performed".
     // - S-5.04 scope: `probe_level: "live"`, real `reachable`/`auth_valid` bool values.
@@ -9803,41 +9803,41 @@ mod tests {
                 "BC-2.08.005: 'crowdstrike' sensor entry must appear in structured_content.sensors",
             );
 
-        // BC-2.08.005 v1.5 postcondition: S-5.03 scope requires probe_level="spec-only".
+        // BC-2.08.005 postcondition: S-5.03 scope requires probe_level="spec-only".
         assert_eq!(
             crowdstrike_entry["probe_level"].as_str(),
             Some("spec-only"),
-            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
+            "BC-2.08.005 postcondition (AC-4): S-5.03-scoped check_sensor_health \
              MUST set probe_level='spec-only'. \
              Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition: reachable MUST be null for spec-only scope.
+        // BC-2.08.005 postcondition: reachable MUST be null for spec-only scope.
         // Hardcoding reachable=true is FORBIDDEN — false-positive health signal.
         assert!(
             crowdstrike_entry["reachable"].is_null(),
-            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
+            "BC-2.08.005 postcondition (AC-4): S-5.03-scoped check_sensor_health \
              MUST return reachable=null (honest-unknown — no live probe). \
              Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition: auth_valid MUST be null for spec-only scope.
+        // BC-2.08.005 postcondition: auth_valid MUST be null for spec-only scope.
         assert!(
             crowdstrike_entry["auth_valid"].is_null(),
-            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped check_sensor_health \
+            "BC-2.08.005 postcondition (AC-4): S-5.03-scoped check_sensor_health \
              MUST return auth_valid=null (honest-unknown — no live probe). \
              Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition: last_successful_query_at MUST be null.
+        // BC-2.08.005 postcondition: last_successful_query_at MUST be null.
         assert!(
             crowdstrike_entry["last_successful_query_at"].is_null(),
-            "BC-2.08.005 v1.5 postcondition (AC-4): S-5.03-scoped \
+            "BC-2.08.005 postcondition (AC-4): S-5.03-scoped \
              check_sensor_health MUST return last_successful_query_at=null. \
              Got entry: {crowdstrike_entry:?}"
         );
 
-        // BC-2.08.005 v1.5 postcondition: prose summary MUST contain
+        // BC-2.08.005 postcondition: prose summary MUST contain
         // "spec-only: no live probe performed" so the AI consumer cannot mistake this
         // response for a live health check.
         let prose = result
@@ -9848,7 +9848,7 @@ mod tests {
             .join(" ");
         assert!(
             prose.contains("spec-only: no live probe performed"),
-            "BC-2.08.005 v1.5 postcondition (AC-4): prose summary MUST contain \
+            "BC-2.08.005 postcondition (AC-4): prose summary MUST contain \
              'spec-only: no live probe performed' so the AI consumer cannot mistake this \
              response for a live health check. Got prose: {prose:?}"
         );
@@ -10559,13 +10559,13 @@ mod tests {
     // construction pattern used here is the only way to wire `health_checker: Some(...)` in
     // tests (the public API constructors `new()` and `minimal()` both set it to None).
     //
-    // AC-7 (BC-2.08.005 v1.5): when `health_checker` is Some, the live-probe branch runs.
+    // AC-7 (BC-2.08.005): when `health_checker` is Some, the live-probe branch runs.
     // S-5.04 IMPLEMENTED: probe_level="live", reachable=Some(bool), auth_valid=Some(bool),
     // last_successful_query_at=Some(DateTime), resource_pressure wired via cursor_count/token_count.
     //
     // SID-1: mock adapter at the adapter boundary — no live DTU required.
 
-    /// AC-7 (BC-2.08.005 v1.5): `check_sensor_health` enters live-probe branch when
+    /// AC-7 (BC-2.08.005): `check_sensor_health` enters live-probe branch when
     /// `health_checker` is wired and returns structured results with probe_level="live".
     ///
     /// Mock adapter returns HTTP 200 (MockOk) — adapter boundary isolation per SID-1.
@@ -10684,7 +10684,7 @@ mod tests {
              (live probe path)",
         );
 
-        // BC-2.08.005 v1.5 S-5.04 postcondition: probe_level MUST be 'live'.
+        // BC-2.08.005 S-5.04 postcondition: probe_level MUST be 'live'.
         let sc = call_result
             .structured_content
             .as_ref()
@@ -10707,7 +10707,7 @@ mod tests {
             crowdstrike_entry["probe_level"]
         );
 
-        // BC-2.08.005 v1.5: reachable MUST be Some(bool) in live scope (not null).
+        // BC-2.08.005: reachable MUST be Some(bool) in live scope (not null).
         assert!(
             crowdstrike_entry["reachable"].is_boolean(),
             "BC-2.08.005 AC-7: live probe must populate reachable as bool (not null); \
@@ -10715,7 +10715,7 @@ mod tests {
             crowdstrike_entry["reachable"]
         );
 
-        // BC-2.08.005 v1.5: auth_valid MUST be Some(bool) in live scope (not null).
+        // BC-2.08.005: auth_valid MUST be Some(bool) in live scope (not null).
         assert!(
             crowdstrike_entry["auth_valid"].is_boolean(),
             "BC-2.08.005 AC-7: live probe must populate auth_valid as bool (not null); \
@@ -10723,7 +10723,7 @@ mod tests {
             crowdstrike_entry["auth_valid"]
         );
 
-        // BC-2.08.005 v1.5: prose MUST NOT contain "spec-only" when live probe ran.
+        // BC-2.08.005: prose MUST NOT contain "spec-only" when live probe ran.
         let prose = call_result
             .content
             .iter()

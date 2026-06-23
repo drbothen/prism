@@ -17,7 +17,7 @@
 //! - BC-2.11.011 — Cross-client query scoping
 //!
 //! # Architecture Compliance
-//! - Security perimeter (INV-SEC-PERIMETER-001, BC-2.11.006 v1.10):
+//! - Security perimeter (INV-SEC-PERIMETER-001, BC-2.11.006):
 //!   parser consumed ONLY via `PrismQlParser::parse`. Restricted symbols
 //!   (`parse_filter`, `parse_pipe`, `parse_sql`, sub-builders, `ParseLimits`
 //!   thread-local API) MUST NOT appear here.
@@ -542,7 +542,7 @@ impl QueryEngine {
     /// The map holds `(OrgSlug, SensorId) → ResolvedSensorSpec` entries built at boot
     /// from `customers/<slug>/*.overlay.toml` files. Only orgs with explicit overlay
     /// entries appear as keys — an org registered in `OrgRegistry` but absent from this
-    /// map has zero provisioned sensors (BC-2.10.008 v1.9 Option B semantics).
+    /// map has zero provisioned sensors (BC-2.10.008 Option B semantics).
     ///
     /// Returns `None` when no overlay config exists (test / MVP mode without multi-tenant).
     pub fn resolved_spec_map(
@@ -639,7 +639,7 @@ impl QueryEngine {
     /// Return the current number of non-expired active pagination cursors.
     ///
     /// Used by `check_sensor_health` to populate `resource_pressure.active_cursor_count`
-    /// (BC-2.08.005 v1.6 RECONCILIATION-3 — S-5.04 live-wiring obligation).
+    /// (BC-2.08.005 RECONCILIATION-3 — S-5.04 live-wiring obligation).
     ///
     /// Acquires the cursor-registry mutex; poison-tolerant (recovers via `into_inner`
     /// per the F-006 pattern established in `context.rs`).
@@ -654,7 +654,7 @@ impl QueryEngine {
     /// Return the current number of unexpired, unconsumed confirmation tokens.
     ///
     /// Used by `check_sensor_health` to populate `resource_pressure.active_token_count`
-    /// (BC-2.08.005 v1.6 RECONCILIATION-3 — S-5.04 live-wiring obligation).
+    /// (BC-2.08.005 RECONCILIATION-3 — S-5.04 live-wiring obligation).
     ///
     /// Reads `ConfirmationTokenStore::active_count()` from the optional token store.
     /// Returns `0` when no `ConfirmationTokenStore` is available (query-only mode).

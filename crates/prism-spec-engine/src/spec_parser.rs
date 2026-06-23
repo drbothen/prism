@@ -1106,7 +1106,7 @@ impl SpecLoader {
 
             match Self::parse(&content) {
                 Ok(mut spec) => {
-                    // BC-2.16.001 v1.6 §Error Conditions E-SPEC-017:
+                    // BC-2.16.001 §Error Conditions E-SPEC-017:
                     // The filename stem must case-sensitively match the spec's sensor_id.
                     // E.g., `crowdstrike.sensor.toml` → stem = "crowdstrike" → must match
                     // sensor_id "crowdstrike". Generic check — no hardcoded sensor names
@@ -1371,7 +1371,7 @@ impl SpecLoader {
     ///   custom_via_plugin}`.
     /// - **Rule B / E-SPEC-013:** `credential_refs` cardinality must match the auth method's
     ///   schema: exactly 2 for `oauth2_client_credentials` (client_id + client_secret per
-    ///   BC-2.06.003 v1.3 / ADR-032), exactly 1 for all other auth types.
+    ///   BC-2.06.003 / ADR-032), exactly 1 for all other auth types.
     /// - **Rule C / E-SPEC-014:** Structural mismatch between resolved credential shape and
     ///   declared `auth_type`.
     ///
@@ -1406,9 +1406,9 @@ impl SpecLoader {
 
         // Rule B (E-SPEC-013): credential_ref cardinality must match the auth method's schema.
         //
-        // Per BC-2.06.003 v1.3 / ADR-032 (per-client credential convention):
+        // Per BC-2.06.003 / ADR-032 (per-client credential convention):
         //   - `oauth2_client_credentials` requires exactly 2 refs: client_id + client_secret
-        //     (BC-2.06.003 v1.3 §Per-Sensor credential_refs Declarations, CrowdStrike entry).
+        //     (BC-2.06.003 §Per-Sensor credential_refs Declarations, CrowdStrike entry).
         //   - All other auth types require exactly 1 ref.
         //
         // Note: Rule B fires only when credential_refs.len() > 1 (call site in SpecLoader::parse).
