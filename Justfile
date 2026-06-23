@@ -285,7 +285,7 @@ build-plugin-threatintel-infusion:
     @echo "Lifting to WASM Component via wasm-tools..."
     mkdir -p crates/prism-spec-engine/plugins/threatintel-lookup
     wasm-tools component new \
-        target/wasm32-wasip1/release/prism_threatintel_infusion.wasm \
+        crates/plugins/prism-threatintel-infusion/target/wasm32-wasip1/release/prism_threatintel_infusion.wasm \
         --adapt wasi_snapshot_preview1=tests/fixtures/wasi_snapshot_preview1.wasm \
         -o crates/prism-spec-engine/plugins/threatintel-lookup/threatintel-lookup.prx || \
         (echo "ERROR: wasm-tools component new --adapt failed — build aborted"; exit 1)

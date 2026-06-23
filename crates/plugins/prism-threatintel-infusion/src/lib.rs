@@ -95,8 +95,10 @@ mod host_impl {
             let url = format!("{}{}", base_url.trim_end_matches('/'), route);
 
             // Issue HTTP request via host WIT import (U9: WASM guests have no sockets).
+            // wit-bindgen 0.51 generates borrowed-slice signatures: (&str, &str, &[(String,String)], Option<...>).
+            // Pass empty headers as &[] (empty slice ref), NOT vec![] (owned Vec).
             let response =
-                prism::infusion_plugin::host::http_request("GET".to_string(), url, vec![], None);
+                prism::infusion_plugin::host::http_request("GET", &url, &[], None);
 
             // Non-2xx → no enrichment.
             if response.status < 200 || response.status >= 300 {
