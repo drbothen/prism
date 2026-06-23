@@ -928,21 +928,72 @@ fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dy
         ColumnType::Integer => {
             let vals: Vec<Option<i64>> = records
                 .iter()
-                .map(|r| extract_raw(r, col).and_then(|v| v.as_i64()))
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Array(arr) => {
+                            // DD-5 item 3: wildcard path on a numeric/bool column yields an array.
+                            // Use first-element extraction with a plain tracing::warn! (no event_type=
+                            // field — this is a diagnostic warn, not an auditable structured event;
+                            // SAP-1 only catalogs event_type= emissions, so no BC-2.16.002 row needed).
+                            tracing::warn!(
+                                column = %col.name,
+                                source_path = col.source_path.as_deref().unwrap_or("(none)"),
+                                array_len = arr.len(),
+                                "ENRICH-1 DD-5: wildcard path on Integer column yields array; \
+                                 using first element (F-ENRICH-P1-LOW-001)"
+                            );
+                            arr.into_iter().next().and_then(|v| v.as_i64())
+                        }
+                        other => other.as_i64(),
+                    }
+                })
                 .collect();
             Arc::new(Int64Array::from(vals))
         }
         ColumnType::Float => {
             let vals: Vec<Option<f64>> = records
                 .iter()
-                .map(|r| extract_raw(r, col).and_then(|v| v.as_f64()))
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Array(arr) => {
+                            // DD-5 item 3: first-element with plain warn (no event_type=; SAP-1 exempt).
+                            tracing::warn!(
+                                column = %col.name,
+                                source_path = col.source_path.as_deref().unwrap_or("(none)"),
+                                array_len = arr.len(),
+                                "ENRICH-1 DD-5: wildcard path on Float column yields array; \
+                                 using first element (F-ENRICH-P1-LOW-001)"
+                            );
+                            arr.into_iter().next().and_then(|v| v.as_f64())
+                        }
+                        other => other.as_f64(),
+                    }
+                })
                 .collect();
             Arc::new(Float64Array::from(vals))
         }
         ColumnType::Boolean => {
             let vals: Vec<Option<bool>> = records
                 .iter()
-                .map(|r| extract_raw(r, col).and_then(|v| v.as_bool()))
+                .map(|r| {
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Array(arr) => {
+                            // DD-5 item 3: first-element with plain warn (no event_type=; SAP-1 exempt).
+                            tracing::warn!(
+                                column = %col.name,
+                                source_path = col.source_path.as_deref().unwrap_or("(none)"),
+                                array_len = arr.len(),
+                                "ENRICH-1 DD-5: wildcard path on Boolean column yields array; \
+                                 using first element (F-ENRICH-P1-LOW-001)"
+                            );
+                            arr.into_iter().next().and_then(|v| v.as_bool())
+                        }
+                        other => other.as_bool(),
+                    }
+                })
                 .collect();
             Arc::new(BooleanArray::from(vals))
         }
