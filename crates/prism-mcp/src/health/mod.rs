@@ -308,7 +308,12 @@ impl SensorHealthChecker {
         .await
         {
             Ok(probe) => {
-                let reachable = probe.connectivity != ConnectivityStatus::Down;
+                // BC-2.08.001 EC-08-001 (F-S504-LP3P5-HIGH-001): ONLY ConnectivityStatus::Up
+                // means "sensor is reachable and serving responses". Degraded (HTTP 5xx) means
+                // the sensor returned an error response — it is NOT in a healthy reachable state.
+                // The previous predicate `!= Down` incorrectly treated Degraded as reachable=true,
+                // producing a FALSE-POSITIVE health signal for 503 sensors.
+                let reachable = probe.connectivity == ConnectivityStatus::Up;
                 let auth_valid = matches!(probe.auth, AuthStatus::Valid);
 
                 // F-S504-P1-001: when HTTP 429 observed, extract rate-limit state and persist

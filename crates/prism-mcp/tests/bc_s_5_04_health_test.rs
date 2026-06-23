@@ -1803,6 +1803,66 @@ async fn test_BC_2_08_001_probe_falls_back_to_first_table_when_probe_table_absen
 // strip_prefix("{sensor_id}_") resolves to a non-None table name.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Mock adapter simulating HTTP 503 Service Unavailable.
+///
+/// Returns `SensorError::HttpError { status: 503 }` to drive EC-08-001 coverage:
+/// BC-2.08.001 EC-08-001 requires HTTP 503 → `reachable: false`, `reason: "service_unavailable"`.
+struct MockAdapterServiceUnavailable;
+
+#[async_trait]
+impl SensorAdapter for MockAdapterServiceUnavailable {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("crowdstrike")
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        Err(SensorError::HttpError {
+            sensor: "crowdstrike".to_string(),
+            status: 503,
+            body: "Service Unavailable".to_string(),
+        })
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike-mock-service-unavailable"
+    }
+}
+
+/// Mock adapter simulating HTTP 503 Service Unavailable for "armis" sensor type.
+///
+/// Used by the all-503-fleet aggregate test requiring two distinct sensor types
+/// (crowdstrike + armis) both returning 503 Service Unavailable.
+struct MockAdapterServiceUnavailableArmis;
+
+#[async_trait]
+impl SensorAdapter for MockAdapterServiceUnavailableArmis {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("armis")
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        Err(SensorError::HttpError {
+            sensor: "armis".to_string(),
+            status: 503,
+            body: "Service Unavailable".to_string(),
+        })
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "armis-mock-service-unavailable"
+    }
+}
+
 /// Stand-in adapter that applies `strip_prefix("{sensor_id}_")` to `spec.source_table`,
 /// faithfully modelling `SpecDrivenSensorAdapter::fetch`'s single-table selection.
 ///
@@ -2592,5 +2652,153 @@ async fn test_BC_2_08_007_all_auth_invalid_server_response_is_unhealthy() {
         "F-S504-LP3-HIGH-001: summary_counts.healthy_count MUST be 0 for all-auth-invalid fleet. \
          Got JSON: {:.500}",
         json_str
+    );
+}
+
+// ─── F-S504-LP3P5-HIGH-001 — HTTP 5xx/Degraded → reachable=false (EC-08-001) ─────
+
+/// EC-08-001 (BC-2.08.001): HTTP 503 during health probe → `ConnectivityStatus::Degraded`.
+///
+/// `probe_connectivity` already maps status >= 500 to `Degraded`.  This test verifies
+/// that mapping at the raw connectivity layer so the `check_one` test below can rely on
+/// the input condition being correct.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_live_probe_503_connectivity_is_degraded() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterServiceUnavailable));
+
+    let outcome = probe_connectivity(&registry, org_id, &sensor_id, "acme")
+        .await
+        .expect("BC-2.08.001 EC-08-001: probe_connectivity must return Ok for HTTP 503");
+
+    assert_eq!(
+        outcome.status,
+        ConnectivityStatus::Degraded,
+        "BC-2.08.001 EC-08-001: HTTP 503 must yield ConnectivityStatus::Degraded. Got: {:?}",
+        outcome.status
+    );
+    assert_eq!(
+        outcome.http_status,
+        Some(503),
+        "BC-2.08.001 EC-08-001: http_status must be Some(503). Got: {:?}",
+        outcome.http_status
+    );
+}
+
+/// EC-08-001 (BC-2.08.001): HTTP 503 → `SensorHealthResult.reachable == Some(false)`.
+///
+/// F-S504-LP3P5-HIGH-001 load-bearing test (TD-VSDD-059):
+/// `check_one` with a `MockAdapterServiceUnavailable` (HTTP 503) MUST produce
+/// `reachable = Some(false)`.
+///
+/// ROOT CAUSE of the defect: `check_one` computed
+///   `let reachable = probe.connectivity != ConnectivityStatus::Down;`
+/// which evaluates to `true` for `Degraded` (503), producing a FALSE-POSITIVE health signal.
+///
+/// The FIX must compute `reachable = probe.connectivity == ConnectivityStatus::Up`
+/// so that `Degraded` (5xx) → `reachable = false`.
+///
+/// RED GATE: before the fix, this assertion fails because `reachable` is `Some(true)`.
+///
+/// Additional assertions:
+/// - `last_successful_query_at` MUST be `None` (no false success timestamp per EC-08-001).
+/// - `auth_valid` MAY be `Some(true)` (503 is not an auth error, but sensor is NOT healthy).
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_EC_08_001_503_probe_yields_reachable_false() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterServiceUnavailable));
+
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+
+    let result = checker
+        .check_one(org_id, "acme", &sensor_id, &context)
+        .await;
+
+    // BC-2.08.001 EC-08-001: HTTP 503 MUST yield reachable=false.
+    // Before the fix, Degraded != Down == true → reachable=Some(true) (FALSE-POSITIVE).
+    assert_eq!(
+        result.reachable,
+        Some(false),
+        "BC-2.08.001 EC-08-001 (F-S504-LP3P5-HIGH-001): HTTP 503 MUST yield \
+         reachable=Some(false). ConnectivityStatus::Degraded (5xx) means the sensor is in \
+         error state — not a healthy/reachable state. Got: {:?}. \
+         ROOT CAUSE: check_one computed reachable = (connectivity != Down), which is true \
+         for Degraded. FIX: reachable = (connectivity == Up).",
+        result.reachable
+    );
+
+    // BC-2.08.001 EC-08-001: MUST NOT record a successful-query timestamp for a 5xx probe.
+    assert_eq!(
+        result.last_successful_query_at, None,
+        "BC-2.08.001 EC-08-001: HTTP 503 probe MUST NOT record last_successful_query_at \
+         (no false success timestamp). Got: {:?}",
+        result.last_successful_query_at
+    );
+}
+
+/// F-S504-LP3P5-HIGH-001 (aggregate path): an all-503 sensor fleet MUST produce
+/// `OverallStatus::Unhealthy` via `HealthCheckResult::aggregate`.
+///
+/// BC-2.08.007 canonical test-vector: "All sensors unhealthy (unreachable/auth-invalid)
+/// → overall_status: 'unhealthy'". A 503 fleet is indistinguishable from an unreachable
+/// fleet from the health consumer's perspective: sensors cannot serve data.
+///
+/// RED GATE: before the fix, aggregate returns `Healthy` for an all-503 fleet because
+/// `reachable=Some(true)` and `auth_valid=Some(true)` makes every sensor count as
+/// `fully_healthy`, yielding `OverallStatus::Healthy`.
+///
+/// After the fix (`reachable = probe.connectivity == Up`):
+/// - `reachable=Some(false)` for each 503 sensor.
+/// - `fully_healthy_count == 0`.
+/// - `any_partially_available == false` (reachable IS Some(false) for all sensors).
+/// - `aggregate` → `OverallStatus::Unhealthy`.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_EC_08_001_all_503_fleet_aggregate_unhealthy() {
+    let org_id = OrgId::new();
+    let sensor_id_cs = SensorId::from("crowdstrike");
+    let sensor_id_armis = SensorId::from("armis");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterServiceUnavailable));
+    registry.register(org_id, Arc::new(MockAdapterServiceUnavailableArmis));
+
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+
+    let result_cs = checker
+        .check_one(org_id, "acme", &sensor_id_cs, &context)
+        .await;
+    let result_armis = checker
+        .check_one(org_id, "acme", &sensor_id_armis, &context)
+        .await;
+
+    // Both sensors must be reachable=false (prerequisite for Unhealthy aggregate).
+    assert_eq!(
+        result_cs.reachable,
+        Some(false),
+        "F-S504-LP3P5-HIGH-001: crowdstrike 503 probe must yield reachable=false"
+    );
+    assert_eq!(
+        result_armis.reachable,
+        Some(false),
+        "F-S504-LP3P5-HIGH-001: armis 503 probe must yield reachable=false"
+    );
+
+    // Aggregate of all-503 fleet → Unhealthy (not Healthy, not Partial).
+    let overall = HealthCheckResult::aggregate(vec![result_cs, result_armis]);
+    assert_eq!(
+        overall,
+        OverallStatus::Unhealthy,
+        "F-S504-LP3P5-HIGH-001 (BC-2.08.007): an all-503 sensor fleet MUST aggregate to \
+         OverallStatus::Unhealthy. Before the fix, aggregate returned Healthy because \
+         Degraded was treated as reachable=true+auth_valid=true+rate_limit=None, \
+         making every sensor count as fully_healthy. Got: {overall:?}"
     );
 }
