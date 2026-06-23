@@ -35,7 +35,10 @@ pub const URL_FILE: &str = ".prism-dtu-demo-server.urls.json";
 pub const URL_MULTI_FILE: &str = ".prism-dtu-demo-server.urls-multi.json";
 
 // Re-export primary types for test usage.
-pub use config::{DemoConfig, MultiOrgDemoConfig, OrgConfig, KNOWN_SENSORS};
+pub use config::{
+    DemoConfig, EnrichmentConfig, MultiOrgDemoConfig, OrgConfig, KNOWN_ENRICHMENT_CLONES,
+    KNOWN_SENSORS,
+};
 pub use harness::{ClonePair, DemoHarness, StartReport};
 pub use multi_instance::{
     start_instances, DemoBindError, InstanceEntry, MultiInstanceBindError, MultiInstanceConfig,
