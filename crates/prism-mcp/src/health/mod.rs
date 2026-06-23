@@ -56,28 +56,53 @@ pub struct HealthCheckResult {
     pub checked_at: DateTime<Utc>,
 }
 
-/// Aggregate sensor health status across a client (BC-2.08.007).
+/// Aggregate sensor health status across a client (BC-2.08.007 v1.4).
 ///
-/// - `Healthy` — all sensors are reachable and authenticated.
+/// - `Healthy` — all sensors are reachable and authenticated, none rate-limited.
 /// - `Partial` — some sensors up, some down or degraded.
 ///   This is a SUCCESS state, not an error (BC-2.08.007 postcondition 1).
+/// - `RateLimited` — ALL sensors are rate-limited and none are unreachable/auth-invalid
+///   (EC-08-015 / BC-2.08.007 v1.4 classification table).  This is a separate
+///   status from `Partial` to give AI consumers an unambiguous signal that waiting
+///   (not retrying immediately) is the correct remediation.
 /// - `Unhealthy` — all sensors are unreachable or auth-invalid.
 ///   Returned as a success response, not an error (BC-2.08.007 postcondition).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OverallStatus {
-    /// All sensors are reachable and authenticated.
+    /// All sensors are reachable and authenticated, not rate-limited.
     Healthy,
     /// Some sensors are up, others are down or degraded.
     Partial,
+    /// ALL sensors are rate-limited; none unreachable or auth-invalid (EC-08-015).
+    RateLimited,
     /// All sensors are unreachable or auth-invalid.
     Unhealthy,
+}
+
+impl OverallStatus {
+    /// Serialize to the canonical BC-2.08.007 v1.4 wire string.
+    ///
+    /// - `"healthy"` — `Healthy`
+    /// - `"partial"` — `Partial`
+    /// - `"rate_limited"` — `RateLimited` (EC-08-015)
+    /// - `"unhealthy"` — `Unhealthy`
+    pub fn as_status_str(&self) -> &'static str {
+        match self {
+            OverallStatus::Healthy => "healthy",
+            OverallStatus::Partial => "partial",
+            OverallStatus::RateLimited => "rate_limited",
+            OverallStatus::Unhealthy => "unhealthy",
+        }
+    }
 }
 
 impl HealthCheckResult {
     /// Aggregate a batch of `SensorHealthResult` values into an `OverallStatus`.
     ///
-    /// Rules (BC-2.08.007 postcondition 1):
-    /// - All `reachable: true, auth_valid: true` → `Healthy`
+    /// Rules (BC-2.08.007 v1.4 classification table):
+    /// - All `reachable: true, auth_valid: true, rate_limit: None` → `Healthy`
+    /// - ALL sensors have `rate_limit: Some(...)` and none have `reachable: false`
+    ///   or `auth_valid: false` → `RateLimited` (EC-08-015)
     /// - At least one healthy and at least one not → `Partial`
     /// - None healthy → `Unhealthy`
     /// - `Partial` is a SUCCESS state — callers MUST NOT return an error for it.
@@ -86,14 +111,34 @@ impl HealthCheckResult {
             return OverallStatus::Unhealthy;
         }
 
-        let healthy_count = results
+        // EC-08-015: ALL sensors rate-limited, none unreachable/auth-invalid → RateLimited
+        let all_rate_limited = results.iter().all(|r| r.rate_limit.is_some());
+        let any_unreachable_or_auth_invalid = results
             .iter()
-            .filter(|r| r.reachable == Some(true) && r.auth_valid == Some(true))
+            .any(|r| r.reachable == Some(false) || r.auth_valid == Some(false));
+        if all_rate_limited && !any_unreachable_or_auth_invalid {
+            return OverallStatus::RateLimited;
+        }
+
+        // Standard healthy/partial/unhealthy classification.
+        //
+        // A sensor is "fully healthy" when reachable, auth valid, and not rate-limited.
+        // A sensor is "reachable" (contributes to Partial, not Unhealthy) when
+        // connectivity is up, even if rate-limited or auth-invalid.
+        let fully_healthy_count = results
+            .iter()
+            .filter(|r| {
+                r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none()
+            })
             .count();
 
-        if healthy_count == results.len() {
+        // A sensor is "reachable" if not explicitly down — rate-limited sensors are
+        // reachable (they returned HTTP 429) and count toward partial availability.
+        let any_reachable = results.iter().any(|r| r.reachable != Some(false));
+
+        if fully_healthy_count == results.len() {
             OverallStatus::Healthy
-        } else if healthy_count > 0 {
+        } else if fully_healthy_count > 0 || any_reachable {
             OverallStatus::Partial
         } else {
             OverallStatus::Unhealthy

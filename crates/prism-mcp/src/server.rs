@@ -221,6 +221,21 @@ impl PrismServer {
         self
     }
 
+    /// Wire a `SensorHealthChecker` into an existing `PrismServer` (test fixture helper).
+    ///
+    /// Intended for integration tests that need to exercise the live-probe path of
+    /// `check_sensor_health` (S-5.04 scope — `OverallStatus::RateLimited`, per-sensor
+    /// `suggestion`, `overall_status` field, etc.) without a fully-booted production stack.
+    ///
+    /// The caller constructs the `SensorHealthChecker` with the required adapter registry
+    /// already populated, then passes it here.
+    ///
+    /// `with_deps()` remains the production wiring path (boot step 9).
+    pub fn with_health_checker(mut self, checker: SensorHealthChecker) -> Self {
+        self.health_checker = Some(Arc::new(checker));
+        self
+    }
+
     /// Construct a minimal PrismServer with NO domain dependencies wired.
     ///
     /// All domain tools return `PrismError::Internal` when called.

@@ -53,6 +53,9 @@
 //! | F-S504-P2-RE-001 (1/3) — check_one + new_with_spec_map: probe_table=Some("detections") | test_BC_2_08_001_check_one_routes_to_probe_table_via_spec_map |
 //! | F-S504-P2-RE-001 (2/3) — check_one + new_with_spec_map: probe_table=None, tables fallback | test_BC_2_08_001_check_one_falls_back_to_first_table_via_spec_map |
 //! | F-S504-P2-RE-001 (3/3) — check_one key-miss: client_id not in spec_map → devices sentinel | test_BC_2_08_001_check_one_falls_back_to_devices_when_org_not_in_spec_map |
+//! | EC-007/F-S504-P5-001 — aggregate: all-rate-limited → RateLimited (not Partial) | test_BC_2_08_007_EC_007_all_rate_limited_aggregate_yields_rate_limited |
+//! | EC-007/F-S504-P5-001 — aggregate: mixed (some RL + some down) → Partial, not RateLimited | test_BC_2_08_007_EC_007_mixed_rate_limited_and_down_is_partial |
+//! | F-S504-P5-002 — SensorHealthStructuredContent: overall_status + summary_counts + suggestion | test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_suggestion |
 //!
 //! # AC-7 (BC-2.08.005 live-probe path) tests
 //! Tests requiring `PrismServer.health_checker` (a private field set only from
@@ -83,7 +86,7 @@ use prism_mcp::{
         timestamp::{read_timestamp, timestamp_key, write_timestamp, HEALTH_TS_KEY_PREFIX},
         HealthCheckResult, OverallStatus, SensorHealthChecker,
     },
-    resources::{render_sensors_health_resource, SensorHealthResult},
+    resources::{render_sensors_health_resource, RateLimitInfo, SensorHealthResult},
 };
 use prism_sensors::{
     adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
@@ -236,6 +239,35 @@ impl SensorAdapter for MockAdapterRateLimited {
 
     fn sensor_name(&self) -> &'static str {
         "crowdstrike-mock-rate-limited"
+    }
+}
+
+/// Mock adapter simulating HTTP 429 for an "armis" sensor type.
+///
+/// Used by EC-007 all-rate-limited tests that require two distinct sensor types
+/// (crowdstrike + armis) to be registered under the same org_id.
+struct MockAdapterRateLimitedArmis;
+
+#[async_trait]
+impl SensorAdapter for MockAdapterRateLimitedArmis {
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("armis")
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        Err(SensorError::RateLimited {
+            sensor: "armis".to_string(),
+            retry_after_ms: 30_000,
+        })
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "armis-mock-rate-limited"
     }
 }
 
@@ -2019,6 +2051,27 @@ async fn test_BC_2_08_001_check_one_falls_back_to_first_table_via_spec_map() {
     );
 }
 
+// ─── RED GATE HELPER — rate-limited SensorHealthResult ────────────────────────
+
+/// Build a `SensorHealthResult` simulating a rate-limited sensor (HTTP 429).
+///
+/// Matches the output of `check_one` when `SensorError::RateLimited` is observed:
+/// - `reachable = Some(true)` (sensor responded — Up, not Down)
+/// - `auth_valid = Some(true)` (no auth failure observed)
+/// - `rate_limit = Some(RateLimitInfo { ... })` (rate-limit state populated)
+///
+/// Uses `RateLimitInfo::with_reset_at` builder (avoids `#[non_exhaustive]` struct-literal
+/// restriction in external test crates). Used by EC-007 aggregate tests.
+fn rate_limited_result(sensor_id: &str, client_id: &str) -> SensorHealthResult {
+    let mut r = SensorHealthResult::new(sensor_id, client_id)
+        .with_reachable(true)
+        .with_auth_valid(true);
+    r.rate_limit = Some(RateLimitInfo::new_with_reset_at(
+        Utc::now() + ChronoDuration::seconds(60),
+    ));
+    r
+}
+
 /// F-S504-P2-RE-001 (3/3): OrgSlug key-miss degradation — `client_id` not in spec_map
 /// → `check_one` falls back to the legacy `"{sensor_id}_devices"` sentinel.
 ///
@@ -2078,5 +2131,237 @@ async fn test_BC_2_08_001_check_one_falls_back_to_devices_when_org_not_in_spec_m
          check_one MUST fall back to legacy sentinel 'crowdstrike_devices'. \
          Got '{captured}'. If this breaks, the OrgSlug key construction or the \
          None-spec fallback path in check_one was changed."
+    );
+}
+
+// ─── EC-007 / F-S504-P5-001 — all-rate-limited aggregate (RED GATE) ─────────
+
+/// EC-007 (BC-2.08.007 v1.4 / F-S504-P5-001): When ALL sensors are rate-limited
+/// (`rate_limit.is_some()`) and none are unreachable or auth-invalid,
+/// `HealthCheckResult::aggregate` MUST return `OverallStatus::RateLimited`.
+///
+/// BC-2.08.007 v1.4 postcondition: `"rate_limited"` — ALL sensors are rate-limited,
+/// none unreachable or auth-invalid. NOT `"partial"` (which implies connectivity/auth failure
+/// requiring different remediation). NOT `"unhealthy"` (sensors ARE reachable/auth-valid).
+///
+/// RED GATE: `OverallStatus::RateLimited` variant does not exist yet → compile error / assert fails.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_08_007_EC_007_all_rate_limited_aggregate_yields_rate_limited() {
+    let results = vec![
+        rate_limited_result("crowdstrike", "acme"),
+        rate_limited_result("armis", "acme"),
+        rate_limited_result("claroty", "acme"),
+    ];
+    let status = HealthCheckResult::aggregate(results);
+    assert_eq!(
+        status,
+        OverallStatus::RateLimited,
+        "EC-007 (BC-2.08.007 v1.4 / F-S504-P5-001): when ALL sensors are rate-limited, \
+         aggregate MUST return OverallStatus::RateLimited (not Partial, not Unhealthy). \
+         Got: {status:?}"
+    );
+}
+
+/// EC-007 boundary: mixed (some rate-limited + some unreachable/down) → `Partial`, not `RateLimited`.
+///
+/// The `RateLimited` aggregate only applies when ALL sensors are rate-limited AND
+/// NONE are unreachable or auth-invalid. A mix falls into `Partial`.
+///
+/// BC-2.08.007 v1.4 postcondition:
+/// `"partial"` — at least one sensor is unreachable or auth-invalid (regardless of RL state on others).
+///
+/// RED GATE: `OverallStatus::RateLimited` variant does not exist yet → compile error.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_08_007_EC_007_mixed_rate_limited_and_down_is_partial() {
+    // One sensor is rate-limited (reachable=true, auth_valid=true, rate_limit=Some(...))
+    // One sensor is down (reachable=false, auth_valid=false) — connectivity failure.
+    let results = vec![
+        rate_limited_result("crowdstrike", "acme"),
+        down_result("armis", "acme"),
+    ];
+    let status = HealthCheckResult::aggregate(results);
+    assert_eq!(
+        status,
+        OverallStatus::Partial,
+        "EC-007 boundary: mixed rate-limited + down MUST be Partial (connectivity failure \
+         present). Got: {status:?}"
+    );
+}
+
+// ─── F-S504-P5-002 — response-shape postconditions (RED GATE) ─────────────────
+
+/// F-S504-P5-002 (BC-2.08.007 v1.4): `SensorHealthStructuredContent` MUST carry:
+///   1. `overall_status: String` — serialized aggregate status (e.g., `"rate_limited"`).
+///   2. `summary_counts` object — `healthy_count`, `unhealthy_count`, `total_count` (integers).
+///   3. Per-sensor `suggestion: Option<String>` on unhealthy/rate-limited sensors.
+///
+/// This test exercises the full production path via `check_sensor_health` response JSON
+/// (not just `aggregate()` in isolation — TD-VSDD-059 load-bearing requirement).
+///
+/// RED GATE (1): `SensorHealthStructuredContent.overall_status` field does not exist yet.
+/// RED GATE (2): `SensorHealthStructuredContent.summary_counts` field does not exist yet.
+/// RED GATE (3): `SensorHealthResult.suggestion` field does not exist yet.
+///
+/// When all sensors in the response are rate-limited (EC-08-015):
+/// - `overall_status` == `"rate_limited"`
+/// - `summary_counts.healthy_count` == 0
+/// - `summary_counts.unhealthy_count` == N (all sensors)
+/// - `summary_counts.total_count` == N
+/// - each sensor entry has `suggestion: "Rate limit in effect — wait before retrying."`
+///   (verbatim per BC-2.08.007 / EC-08-015 / EC-007 in S-5.04)
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_suggestion() {
+    // ── Build a server with health_checker wired + 2 rate-limited mock sensors ──
+    // This exercises the PRODUCTION check_sensor_health path (not just aggregate()).
+    // Two sensors: both are rate-limited (MockAdapterRateLimited + MockAdapterRateLimitedArmis).
+    use prism_credentials::InMemoryCredentialStore;
+    use prism_mcp::server::{CheckSensorHealthParams, PrismServer};
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        table_registry::TableRegistry,
+    };
+    use rmcp::handler::server::wrapper::Parameters;
+
+    // Register two sensors under the same org_id with rate-limited adapters.
+    let org_id = OrgId::new();
+
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(MockAdapterRateLimited));
+    adapter_registry.register(org_id, Arc::new(MockAdapterRateLimitedArmis));
+    let adapter_registry = Arc::new(adapter_registry);
+
+    // Build a TableRegistry with both sensors registered so check_sensor_health
+    // enumerates them (single-tenant fallback path: table_registry.registered_sensor_ids()).
+    let table_registry = TableRegistry::new();
+    let cs_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike (rate-limited mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.crowdstrike.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    let armis_spec = prism_spec_engine::spec_parser::SensorSpec::new(
+        "armis",
+        "Armis (rate-limited mock)",
+        prism_spec_engine::spec_parser::AuthType::ApiKey,
+        "https://api.armis.com",
+        vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "devices",
+                "security_finding",
+                vec![],
+                vec![],
+            ),
+        ],
+        None,
+        "1.0.0",
+        vec![],
+    );
+    table_registry
+        .register_sensor(&cs_spec)
+        .expect("register crowdstrike");
+    table_registry
+        .register_sensor(&armis_spec)
+        .expect("register armis");
+
+    // Build a QueryEngine wired with the table_registry (for sensor ID enumeration).
+    let engine = QueryEngine::new(
+        Arc::clone(&adapter_registry),
+        Arc::new(InMemoryCredentialStore::new()),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(prism_query::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+    )
+    .with_table_registry(Arc::new(table_registry));
+
+    // Build SensorHealthChecker with the populated adapter registry.
+    let checker = SensorHealthChecker::new(Arc::clone(&adapter_registry));
+
+    // Build a PrismServer with the health_checker + query_engine wired.
+    let server = PrismServer::new()
+        .with_query_engine(Arc::new(engine))
+        .with_health_checker(checker);
+
+    // ── Build params: client_id = "acme", sensor_id = None (all sensors) ─────
+    let params = CheckSensorHealthParams::for_client("acme");
+
+    let call_result = server
+        .check_sensor_health(Parameters(params))
+        .await
+        .expect("F-S504-P5-002: check_sensor_health MUST succeed for all-rate-limited sensors");
+
+    // The simplest extraction: serialize CallToolResult to JSON and check for key-value pairs.
+    // CallToolResult::structured() embeds the structured value in the response JSON.
+    let json_str = serde_json::to_string(&call_result)
+        .expect("F-S504-P5-002: CallToolResult must serialize to JSON");
+
+    // ── Assert overall_status == "rate_limited" ─────────────────────────────
+    // structuredContent field in CallToolResult JSON (rmcp CallToolResult shape).
+    assert!(
+        json_str.contains(r#""overall_status":"rate_limited""#)
+            || json_str.contains(r#""overall_status": "rate_limited""#),
+        "F-S504-P5-002 (RED GATE 1 — F-S504-P5-001): \
+         `structuredContent.overall_status` MUST be \"rate_limited\" when all sensors are rate-limited. \
+         BC-2.08.007 v1.4 EC-08-015: all-rate-limited MUST NOT be reported as Partial or Healthy. \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── Assert summary_counts present with correct values ───────────────────
+    assert!(
+        json_str.contains(r#""healthy_count":0"#) || json_str.contains(r#""healthy_count": 0"#),
+        "F-S504-P5-002 (RED GATE 2): \
+         `summary_counts.healthy_count` MUST be 0 when all sensors are rate-limited. \
+         Got JSON: {:.500}",
+        json_str
+    );
+    assert!(
+        json_str.contains(r#""total_count":2"#) || json_str.contains(r#""total_count": 2"#),
+        "F-S504-P5-002 (RED GATE 2): \
+         `summary_counts.total_count` MUST be 2 (two sensors probed). \
+         Got JSON: {:.500}",
+        json_str
+    );
+    assert!(
+        json_str.contains(r#""unhealthy_count":2"#) || json_str.contains(r#""unhealthy_count": 2"#),
+        "F-S504-P5-002 (RED GATE 2): \
+         `summary_counts.unhealthy_count` MUST be 2 when all sensors are rate-limited. \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── Assert per-sensor suggestion == verbatim BC text ────────────────────
+    // BC-2.08.007 EC-08-015: suggestion for rate-limited sensor:
+    // "Rate limit in effect — wait before retrying." (verbatim, em-dash U+2014)
+    let expected_suggestion = "Rate limit in effect \u{2014} wait before retrying.";
+    assert!(
+        json_str.contains(expected_suggestion),
+        "F-S504-P5-002 (RED GATE 3): \
+         each rate-limited sensor entry MUST carry suggestion: \"{expected_suggestion}\" \
+         (verbatim per BC-2.08.007 EC-08-015). \
+         Got JSON: {:.500}",
+        json_str
+    );
+
+    // ── Assert prose summary matches BC wording ──────────────────────────────
+    // BC-2.08.007 EC-08-015: prose: "0 of N sensors healthy — all rate-limited"
+    assert!(
+        json_str.contains("0 of 2 sensors healthy") && json_str.contains("all rate-limited"),
+        "F-S504-P5-002: prose summary MUST match '0 of N sensors healthy — all rate-limited'. \
+         Got JSON: {:.500}",
+        json_str
     );
 }

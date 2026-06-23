@@ -109,6 +109,16 @@ pub struct SensorHealthResult {
     pub last_successful_query_at: Option<DateTime<Utc>>,
     /// Sanitised error text (prompt-injection-safe), if the health check failed.
     pub error: Option<String>,
+    /// Remediation guidance for unhealthy, auth-invalid, or rate-limited sensors.
+    ///
+    /// `None` for healthy sensors. Populated by `check_one` / `check_sensor_health` when
+    /// the sensor is not fully healthy (BC-2.08.007 v1.4 postcondition — suggestion field).
+    ///
+    /// Examples (verbatim BC-2.08.007 text):
+    /// - Rate-limited: `"Rate limit in effect — wait before retrying."`
+    /// - Auth-invalid: `"Check sensor credentials and re-authenticate."`
+    /// - Unreachable:  `"Verify sensor endpoint and network connectivity."`
+    pub suggestion: Option<String>,
 }
 
 impl SensorHealthResult {
@@ -126,6 +136,7 @@ impl SensorHealthResult {
             rate_limit: None,
             last_successful_query_at: None,
             error: None,
+            suggestion: None,
         }
     }
 
@@ -159,6 +170,15 @@ impl SensorHealthResult {
         self.error = Some(error.into());
         self
     }
+
+    /// Builder: set remediation suggestion for unhealthy/rate-limited sensors.
+    ///
+    /// Called by `check_one` / `check_sensor_health` when the sensor is not fully
+    /// healthy (BC-2.08.007 v1.4 postcondition — suggestion field).
+    pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
+        self.suggestion = Some(suggestion.into());
+        self
+    }
 }
 
 /// Rate limit state for a sensor (BC-2.08.005 postcondition field).
@@ -171,6 +191,20 @@ pub struct RateLimitInfo {
     pub limit: Option<u32>,
     /// UTC time when the window resets (None if unavailable).
     pub reset_at: Option<DateTime<Utc>>,
+}
+
+impl RateLimitInfo {
+    /// Construct a `RateLimitInfo` with only the `reset_at` timestamp set.
+    ///
+    /// Used in tests and health-checker paths where only the retry deadline is known
+    /// (e.g., parsed from `Retry-After` header). `remaining` and `limit` are `None`.
+    pub fn new_with_reset_at(reset_at: DateTime<Utc>) -> Self {
+        Self {
+            remaining: None,
+            limit: None,
+            reset_at: Some(reset_at),
+        }
+    }
 }
 
 /// Resource pressure section in `check_sensor_health` response (BC-2.08.005 postcondition).
@@ -203,7 +237,46 @@ impl ResourcePressure {
     }
 }
 
-/// Top-level structured content shape for `check_sensor_health` (BC-2.08.005).
+/// Summary counts object for `check_sensor_health` response (BC-2.08.007 v1.4 postcondition).
+///
+/// Provides structured counts that enable AI consumers to quickly triage the health picture
+/// without scanning individual sensor entries. Serializes into `summary_counts` in the
+/// `SensorHealthStructuredContent` JSON response.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthSummary {
+    /// Number of sensors that are fully healthy (reachable + auth valid, not rate-limited).
+    pub healthy_count: usize,
+    /// Number of sensors that are NOT fully healthy (unreachable, auth-invalid, or rate-limited).
+    pub unhealthy_count: usize,
+    /// Total number of sensors probed.
+    pub total_count: usize,
+    /// Number of sensors that are rate-limited (subset of unhealthy_count).
+    pub rate_limited_count: usize,
+}
+
+impl HealthSummary {
+    /// Compute a `HealthSummary` from a slice of `SensorHealthResult` entries.
+    pub fn from_results(results: &[SensorHealthResult]) -> Self {
+        let total_count = results.len();
+        let healthy_count = results
+            .iter()
+            .filter(|r| {
+                r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none()
+            })
+            .count();
+        let rate_limited_count = results.iter().filter(|r| r.rate_limit.is_some()).count();
+        let unhealthy_count = total_count.saturating_sub(healthy_count);
+        Self {
+            healthy_count,
+            unhealthy_count,
+            total_count,
+            rate_limited_count,
+        }
+    }
+}
+
+/// Top-level structured content shape for `check_sensor_health` (BC-2.08.005, BC-2.08.007 v1.4).
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorHealthStructuredContent {
@@ -215,23 +288,66 @@ pub struct SensorHealthStructuredContent {
     pub trust_level: String,
     /// Prose summary text (e.g., "2 of 3 sensors healthy for client 'acme'").
     pub summary: String,
+    /// Aggregate status string (BC-2.08.007 v1.4 postcondition).
+    ///
+    /// Values (verbatim BC-2.08.007 v1.4 postcondition):
+    /// - `"healthy"` — all sensors reachable, auth valid, not rate-limited
+    /// - `"partial"` — at least one sensor is unreachable or auth-invalid
+    /// - `"rate_limited"` — ALL sensors rate-limited, none unreachable/auth-invalid (EC-08-015)
+    /// - `"unhealthy"` — all sensors unreachable or auth-invalid
+    pub overall_status: String,
+    /// Structured summary counts (BC-2.08.007 v1.4 postcondition).
+    ///
+    /// Contains `healthy_count`, `unhealthy_count`, `total_count`, `rate_limited_count`.
+    pub summary_counts: HealthSummary,
 }
 
 impl SensorHealthStructuredContent {
-    /// Construct a `SensorHealthStructuredContent` with the given sensors and summary.
+    /// Construct a `SensorHealthStructuredContent` with the given sensors, summary, and aggregate status.
     ///
     /// `trust_level` is always `"internal"` — it is set unconditionally here per
     /// BC-2.08.005 postcondition 7 (health data is Prism-generated, not sensor-sourced).
+    ///
+    /// `overall_status` is the serialized `OverallStatus` string (e.g., `"rate_limited"`).
+    /// `summary_counts` is computed from `sensors` via `HealthSummary::from_results`.
     pub fn new(
         sensors: Vec<SensorHealthResult>,
         resource_pressure: ResourcePressure,
         summary: impl Into<String>,
     ) -> Self {
+        let overall_status = "healthy".to_string(); // default; callers override via new_with_status
+        let summary_counts = HealthSummary::from_results(&sensors);
         Self {
             sensors,
             resource_pressure,
             trust_level: "internal".to_string(),
             summary: summary.into(),
+            overall_status,
+            summary_counts,
+        }
+    }
+
+    /// Construct a `SensorHealthStructuredContent` with an explicit `overall_status` string.
+    ///
+    /// Use this constructor in the live-probe path where `OverallStatus` is computed by
+    /// `HealthCheckResult::aggregate` and must be serialized into the response.
+    ///
+    /// `overall_status_str` MUST be one of `"healthy"`, `"partial"`, `"rate_limited"`,
+    /// or `"unhealthy"` (verbatim BC-2.08.007 v1.4 postcondition classification table).
+    pub fn new_with_status(
+        sensors: Vec<SensorHealthResult>,
+        resource_pressure: ResourcePressure,
+        summary: impl Into<String>,
+        overall_status_str: impl Into<String>,
+    ) -> Self {
+        let summary_counts = HealthSummary::from_results(&sensors);
+        Self {
+            sensors,
+            resource_pressure,
+            trust_level: "internal".to_string(),
+            summary: summary.into(),
+            overall_status: overall_status_str.into(),
+            summary_counts,
         }
     }
 }
