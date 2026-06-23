@@ -333,6 +333,16 @@ echo ""
 # [[infusion.credentials]] field_name="api_key", env_var="PRISM_THREATINTEL_API_KEY").
 PRISM_THREATINTEL_API_KEY="demo-threatintel-api-key"
 
+# PRISM_NVD_API_KEY: fixed demo value.
+# AD-017: in real deployments, the value is piped via stdin or read from keyring.
+# The http_lookup source resolves this at call time via std::env::var("PRISM_NVD_API_KEY")
+# (http_lookup.rs enrich_single_async, E-INFUSE-010 guard). If absent, the env var
+# resolver returns None and NVD enrichment fails silently, with the None result cached
+# in RocksDB tier-3 — the silent-failure mode identified as audit GAP-2.
+# The DTU NVD server accepts any non-empty key in its default AuthMode::Accept.
+# (nvd.infusion.toml [source.credential] env_var = "PRISM_NVD_API_KEY", auth = "query_param").
+PRISM_NVD_API_KEY="demo-nvd-api-key"
+
 # ---------------------------------------------------------------------------
 # Print prism-bin start command
 #
@@ -367,6 +377,8 @@ echo "    CLAROTY_INSTANCE_URL=http://127.0.0.1 \\"
 echo "    CYBERINT_ENVIRONMENT=demo \\"
 echo "    PRISM_THREATINTEL_BASE_URL=${PRISM_THREATINTEL_BASE_URL} \\"
 echo "    PRISM_THREATINTEL_API_KEY=${PRISM_THREATINTEL_API_KEY} \\"
+echo "    PRISM_NVD_BASE_URL=${PRISM_NVD_BASE_URL} \\"
+echo "    PRISM_NVD_API_KEY=${PRISM_NVD_API_KEY} \\"
 echo "    ${PRISM_BIN} --config-dir ${DEMO_CONFIG_DIR} start"
 echo ""
 echo "    Then add prism to Claude Code (see docs/DEMO-RUNBOOK.md §4)."
