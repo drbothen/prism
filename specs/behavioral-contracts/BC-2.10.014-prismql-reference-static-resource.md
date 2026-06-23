@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: active
 producer: product-owner
 timestamp: 2026-06-19T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: 2026-06-19
-modified: 2026-06-22
+modified: 2026-06-23
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -51,7 +51,7 @@ The resource MUST contain the following sections (order may vary; headers are re
 
 1. **`## What is PrismQL`** — one paragraph: "PrismQL (PQL) is a custom federated query DSL for the Prism MSSP platform. It queries live sensor APIs via an ephemeral in-memory data lake. PQL is NOT SQL — it has its own syntax that must be learned from this reference."
 
-2. **`## Clause Grammar (BNF)`** — BNF-style grammar covering:
+2. **`## Clause Grammar (BNF)`** — BNF-style grammar covering (closes AUDIT-006):
    - `SELECT` clause: `SELECT * | SELECT col1, col2, COUNT(*), ...`
    - `FROM` clause: `FROM <sensor_table>` (table names come from `prism_describe`)
    - `WHERE` clause: field predicates, boolean operators (`AND`, `OR`, `NOT`), comparison operators (`=`, `!=`, `>`, `>=`, `<`, `<=`), `IN (...)`, `LIKE`, `BETWEEN`
@@ -60,6 +60,9 @@ The resource MUST contain the following sections (order may vary; headers are re
    - `LIMIT N`
    - Filter mode shorthand: `field = value AND field >= value` (no SELECT/FROM required)
    - Pipe mode: `FROM <table> | where ... | sort ... | head N | enrich ... | limit N`
+   - **`JOIN` syntax (closes AUDIT-006):** `FROM <table_a> [INNER | LEFT | RIGHT | FULL | CROSS] JOIN <table_b> ON <condition>`. Note: joinable tables are restricted to registered sensor tables; no external enrichment table is exposed as a JOIN target. BNF production: `join_clause ::= ("INNER" | "LEFT" | "RIGHT" | "FULL" | "CROSS")? "JOIN" sensor_table "ON" predicate`
+   - **`MATCHES` keyword (closes AUDIT-006):** String-match operator for pattern matching against a quoted literal. BNF: `matches_expr ::= field_path "MATCHES" quoted_string`. `MATCHES` is NOT an enrichment verb — it is a string predicate operator analogous to `LIKE` with pattern-match semantics. Example: `WHERE hostname MATCHES "web-*"`
+   - **`enrich_stage` in pipe mode (closes AUDIT-006):** BNF production: `query_stage ::= where_stage | sort_stage | head_stage | enrich_stage | limit_stage`. `enrich_stage ::= "enrich" udf_name "(" field_path ")"` where `udf_name` is an identifier corresponding to a registered enrichment UDF and `field_path` is the column passed as input. Available UDFs are discovered via `prism_describe` `pql_hints`. Example: `| enrich threat_score(ioc_value_singleton)`
 
 3. **`## Operators and Types`** — table mapping: operator → valid ColumnTypes → invalid ColumnTypes, with one example per operator. Covers: `=`, `!=`, `<`, `>`, `<=`, `>=`, `IN`, `LIKE`, `BETWEEN`, `AND`, `OR`, `NOT`.
 
@@ -74,6 +77,7 @@ The resource MUST contain the following sections (order may vary; headers are re
    | E-QUERY-003 | Security limit exceeded (query too long, too deep) | Shorten or simplify the query |
    | E-QUERY-037 | Table unavailable (sensor not configured) | Use available_tables list in the error; call prism_describe to see configured tables |
    | E-QUERY-038 | Column not found | Use available_columns list in the error; call prism_describe to see real column names |
+   | E-QUERY-039 | Enrichment UDF not registered (pipe `\| enrich <udf>(...)` with unknown UDF name) | Use available_udfs list in the error; call prism_describe and read pql_hints for registered UDF signatures |
 
 6. **`## Query Examples (5–10)`** — multi-clause examples covering:
    - Aggregate with GROUP BY and ORDER BY (at least one example)
@@ -84,7 +88,28 @@ The resource MUST contain the following sections (order may vary; headers are re
    
    All examples use placeholder table names (e.g., `<sensor_table>`) or generic names (e.g., `sensor_detections`). No examples may hard-code a real sensor vendor table name that would cause hallucination on clients lacking that sensor.
 
-7. **`## Self-Correction Workflow`** — prose: "On E-QUERY error: (1) read the error's actionable fields (near_text, available_columns, available_tables, valid_operators_for_type, did_you_mean); (2) consult this reference for correct grammar; (3) retry up to 3 times before reporting failure to the user."
+7. **`## Enrichment (Infusions)`** — required section documenting the `| enrich` syntax for pipe-mode enrichment queries (closes AUDIT-002):
+
+   Content MUST include:
+   - Explanation: "PrismQL pipe mode supports enrichment stages that augment query results with additional data from registered enrichment UDFs. Enrichment is invoked via the `| enrich` pipe stage and is only available when the client has enrichment UDFs registered."
+   - Syntax block (verbatim):
+     ```
+     FROM <sensor_table>
+     | where <predicate>
+     | enrich <udf_name>(<input_field>)
+     | limit N
+     ```
+   - A worked PLACEHOLDER example using generic table/field names (MUST NOT hard-code a real sensor vendor name per injection-safety invariant):
+     ```
+     FROM <sensor_table>
+     | where severity IN ('high', 'critical')
+     | enrich <udf_name>(<indicator_field>)
+     | limit 25
+     ```
+   - Discoverability note: "Available enrichment UDFs for your client are listed in `prism_describe` `pql_hints`. If no UDFs are listed, enrichment is not available for this client."
+   - Error note: "E-QUERY-039 is returned at plan time if `<udf_name>` is not registered. The error's `available_udfs` field lists the registered UDF names."
+
+8. **`## Self-Correction Workflow`** — prose: "On E-QUERY error: (1) read the error's actionable fields (near_text, available_columns, available_tables, available_udfs, valid_operators_for_type, did_you_mean); (2) consult this reference for correct grammar; (3) retry up to 3 times before reporting failure to the user."
 
 ### Content authorship invariant
 
@@ -128,11 +153,13 @@ There are no parameter validation errors for a static URI resource (no URI templ
 
 | Input | Expected Output | Category |
 |-------|----------------|----------|
-| `resources/read("prismql://reference")` | Response with `mimeType: "text/markdown"` (or `text/plain`); content contains all 7 required sections (## What is PrismQL, ## Clause Grammar, ## Operators and Types, ## Datetime Arithmetic, ## Error Code Quick-Reference, ## Query Examples, ## Self-Correction Workflow) | happy-path |
+| `resources/read("prismql://reference")` | Response with `mimeType: "text/markdown"` (or `text/plain`); content contains all 8 required sections (## What is PrismQL, ## Clause Grammar, ## Operators and Types, ## Datetime Arithmetic, ## Error Code Quick-Reference, ## Query Examples, ## Enrichment (Infusions), ## Self-Correction Workflow) | happy-path |
 | `resources/list` | `prismql://reference` appears as a static (non-template) URI with correct mimeType and annotations.priority set | registration |
 | Content inspection: `prismql://reference` after hot-reload | Identical to pre-reload content — static build-time content does not change | static-invariant |
 | Content inspection: contains no real sensor table names | No hardcoded vendor table names (e.g., not `crowdstrike_alerts`, `armis_devices`) in examples — only `<sensor_table>` or generic placeholder names | injection-safety |
-| Content inspection: error quick-reference table | Contains rows for E-QUERY-001, E-QUERY-002, E-QUERY-003, E-QUERY-037, E-QUERY-038 | error-reference |
+| Content inspection: error quick-reference table | Contains rows for E-QUERY-001, E-QUERY-002, E-QUERY-003, E-QUERY-037, E-QUERY-038, E-QUERY-039 | error-reference (AUDIT-006) |
+| Content inspection: BNF grammar section | Contains `enrich_stage ::= "enrich" udf_name "(" field_path ")"`, `join_clause` production covering INNER/LEFT/RIGHT/FULL/CROSS JOIN, and `MATCHES` keyword definition | bnf-completeness (AUDIT-006) |
+| Content inspection: ## Enrichment (Infusions) section | Section present; contains `\| enrich <udf_name>(<input_field>)` syntax, a worked placeholder example (no vendor table names), discoverability note referencing `prism_describe` pql_hints, and E-QUERY-039 error note | enrichment-section (AUDIT-002) |
 
 ## Verification Properties
 
@@ -153,9 +180,10 @@ There are no parameter validation errors for a static URI resource (no URI templ
 
 ## Related BCs
 
-- BC-2.10.012 — composes with: `prism_describe` discovers per-client schema; `prismql://reference` provides the grammar to write queries against that schema
+- BC-2.10.012 — composes with: `prism_describe` discovers per-client schema and advertises enrichment UDFs in pql_hints; `prismql://reference` provides the grammar (including `| enrich` syntax) to write queries against that schema
 - BC-2.10.009 (amended) — composes with: `query_tutorial` MCP Prompt references `prismql://reference` in its "step 3: consult reference on grammar error" workflow
 - BC-2.11.016 — composes with: E-QUERY-001 pedagogical upgrade includes a pointer to `prismql://reference` in the error response
+- BC-2.11.019 — composes with: E-QUERY-039 enrich-UDF-not-found error references `prismql://reference` for `| enrich` syntax; the `## Enrichment (Infusions)` section in this resource teaches the syntax that E-QUERY-039 corrects
 
 ## Architecture Anchors
 
@@ -173,5 +201,6 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | onboarding-001-C-spec-burst-2026-06-23 | 2026-06-23 | product-owner | S-DEMO-PRISMQL-ONBOARDING-001-C — closes AUDIT-002 (added required `## Enrichment (Infusions)` section with `\| enrich <udf_name>(<input_field>)` syntax, worked placeholder example, discoverability note, E-QUERY-039 reference) and AUDIT-006 (extended BNF with `enrich_stage ::= "enrich" udf_name "(" field_path ")"`, `join_clause` for INNER/LEFT/RIGHT/FULL/CROSS JOIN, `MATCHES` keyword definition; added E-QUERY-039 row to error quick-reference; changed 7 → 8 required sections). Updated test vectors. Added BC-2.11.019 to Related BCs. Content size constraint (EC-10-036 ≤ ~12KB) monitored — new content adds ~800 bytes net; implementer must verify ≤ 3,000 tokens at build time. |
 | 1.1 | F-001B-FRESH2-MED-001-pol20-normalization | 2026-06-22 | product-owner | POL-20 normalization: `introduced: ADR-041-teaching-burst-2026-06-19` → `introduced: 2026-06-19` (opaque burst-ID format prohibited by POL-20 anchored-regex; ISO date extracted). Also set `modified: 2026-06-22` (first amendment; POL-27). Sibling sweep of BC-2.11.016/017/018 in same burst. No body semantics changed. |
 | 1.0 | ADR-041-teaching-burst-2026-06-19 | 2026-06-19 | product-owner | Initial draft — ADR-041 L3 `prismql://reference` static grammar resource contract |

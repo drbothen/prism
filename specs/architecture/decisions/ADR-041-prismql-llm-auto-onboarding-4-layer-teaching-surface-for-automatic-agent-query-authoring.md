@@ -4,8 +4,8 @@ adr_id: "ADR-041"
 title: "PrismQL LLM Auto-Onboarding — 4-Layer Teaching Surface for Automatic Agent Query Authoring"
 status: proposed
 date: "2026-06-19"
-modified: "2026-06-19"
-version: "1.1"
+modified: "2026-06-23"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-10, SS-11]
 supersedes: null
@@ -22,7 +22,11 @@ wiring_deferred_to: null
 
 ## Status
 
-PROPOSED v1.1 (2026-06-19). Amended to adopt OPD-1 (echo-normalized-PQL-back,
+PROPOSED v1.2 (2026-06-23). Amended to allocate E-QUERY-039 (enrichment-UDF-not-found
+gate; SR-004 resolution); closes AUDIT-005; covers EnrichStage pipe-mode and
+FuncCall::Scalar{ScalarFunc::Unknown} SQL-mode SELECT projection path. See §Changelog.
+
+v1.1 (2026-06-19). Amended to adopt OPD-1 (echo-normalized-PQL-back,
 Pattern B) in v1 per human product decision 2026-06-19 (project lead). See §Changelog.
 
 v1.0 authored by architect to define the 4-layer teaching mechanism that enables an
@@ -251,6 +255,7 @@ Every parse-time and plan-time PQL error that a model can recover from MUST be
 | E-QUERY-002 (type error) | field + actual_type + operator | Add `valid_operators_for_type: [...]` list |
 | E-QUERY-003 (security limits) | limit_detail string | Add `how_to_fix` field (e.g., "narrow WHERE clause to reduce depth") |
 | NEW: column-not-found | not yet allocated | New code `E-QUERY-038`: "column '{col}' not found in table '{table}'; available: [...]". Triggered at plan time when a column reference is not in the `TableRegistry` schema for that table/client. |
+| NEW: enrichment-UDF-not-found | not yet allocated | New code `E-QUERY-039`: "enrichment infusion '{infusion}' is not registered; available: {available_infusions}, did_you_mean: {did_you_mean}". Triggered at plan time when an `EnrichStage.infusion` token (pipe mode) OR a `FuncCall::Scalar { func: ScalarFunc::Unknown(name) }` in a SQL SELECT projection does NOT match any key in `InfusionRegistry.udf_to_infusion`. Closes AUDIT-005 (E-INT-001 on unregistered enrichment function call). Note: `available_infusions` reflects the process-global `InfusionRegistry`; per-org scoping is a future follow-up. |
 
 **E-QUERY-038 allocation:** This is a new code required by this ADR. The error-taxonomy
 owner (product-owner) must register `E-QUERY-038` in `prd-supplements/error-taxonomy.md`
@@ -482,16 +487,18 @@ equivalent is the server-side parse gate, which Prism already has.
   cost. At 20 query tool calls per session, this is 6,000–10,000 tokens of permanent
   context overhead. At current model pricing this is negligible, but it is not zero.
 
-### Status as of v1.1 (2026-06-19)
+### Status as of v1.2 (2026-06-23)
 
 PROPOSED. No implementation exists. The `prism_describe` tool, `prismql://schema/` and
-`prismql://reference` resources, `query_tutorial` MCP Prompt, and E-QUERY-038 error
-code are all new. The L1 primer is an upgrade to an existing tool description. The L4
-pedagogical upgrades to E-QUERY-037 (already pedagogical per ADR-039), E-QUERY-001,
-E-QUERY-002, E-QUERY-003 are incremental additions to existing error codes. The
-`normalized_pql` echo field on successful `query` responses is adopted (v1.1 amendment,
-OPD-1 resolved). Delivery scope is defined in the "Scope Statement for Product-Owner
-Story" section below.
+`prismql://reference` resources, `query_tutorial` MCP Prompt, E-QUERY-038, and
+E-QUERY-039 error codes are all new. The L1 primer is an upgrade to an existing tool
+description. The L4 pedagogical upgrades to E-QUERY-037 (already pedagogical per
+ADR-039), E-QUERY-001, E-QUERY-002, E-QUERY-003 are incremental additions to existing
+error codes. The `normalized_pql` echo field on successful `query` responses is adopted
+(v1.1 amendment, OPD-1 resolved). E-QUERY-039 (v1.2 amendment, SR-004 resolution)
+allocates the infusion-not-registered gate covering EnrichStage + ScalarFunc::Unknown
+paths; closes AUDIT-005. Delivery scope is defined in the "Scope Statement for
+Product-Owner Story" section below.
 
 ---
 
@@ -550,7 +557,7 @@ Story" section below.
 | L2 discovery tool | `prism_describe` tool | `prism-mcp` + `prism-query` (schema projection) | SS-10 + SS-11 |
 | L2 schema resource | `prismql://schema/{client_id}` resource template | `prism-mcp` | SS-10 |
 | L3 reference resource | `prismql://reference` static resource | `prism-mcp` | SS-10 |
-| L4 pedagogical errors | `E-QUERY-001/002/003/037/038` enrichment | `prism-query` (error.rs) | SS-11 |
+| L4 pedagogical errors | `E-QUERY-001/002/003/037/038/039` enrichment | `prism-query` (error.rs) | SS-11 |
 | L4 column-not-found gate | New plan-time column gate | `prism-query` (engine.rs) | SS-11 |
 | Echo — `normalized_pql` field | Chumsky-normalized PQL string in successful query response (optional, additive) | `prism-mcp` (response envelope) + `prism-query` (normalized query string source) | SS-10 + SS-11 |
 
@@ -649,6 +656,14 @@ independently; this is an informational hand-off only.
    - **E-QUERY-038 (new):** register in error-taxonomy; implement column-not-found gate
      in `prism-query`; payload: `column, table, client_id, available_columns,
      did_you_mean`.
+   - **E-QUERY-039 (new):** register in error-taxonomy; implement an
+     infusion-not-registered gate in `prism-query` covering BOTH `EnrichStage`
+     (pipe-mode) AND `FuncCall::Scalar { ScalarFunc::Unknown }` (SQL-mode SELECT
+     projection); payload: `infusion, available_infusions, did_you_mean`; closes
+     AUDIT-005. NOTE: `InfusionRegistry` is process-global (not per-org) in the current
+     architecture, so `available_infusions` reflects the global registry — per-org
+     scoping is a future follow-up (CWE-200 risk only when per-org infusion specs are
+     introduced). Bound to BC-2.11.019 + InfusionRegistry (BC-2.19.001).
 
 7. **Non-exhaustive types:** All new public response types (`PrismDescribeResponse`,
    `TableDescriptor`, `ColumnDescriptor`, etc.) must carry `#[non_exhaustive]`.
@@ -715,3 +730,4 @@ independently; this is an informational hand-off only.
 |---------|------|--------|--------|
 | 1.0 | 2026-06-19 | architect | Initial ADR — 4-layer teaching mechanism, 6 open-question resolutions, scope statement for product-owner story. |
 | 1.1 | 2026-06-19 | architect (human-directed amendment) | OPD-1 RESOLVED — Echo-normalized-PQL-back (Pattern B) adopted in v1 per human product decision, project lead, 2026-06-19. "Echo-Planned-PQL-Back: DEFERRED" section replaced with "Echo-Normalized-PQL-Back: ADOPTED IN V1" including injection-safety reasoning, echo surface spec (Chumsky-normalized PQL, optimizer internals excluded), `normalized_pql` response field placement, token-cost acceptance, and L4 composition benefit. Architectural Surface table updated (new echo row). Scope Statement updated (item 8 + BC anchor BC-2.11.MMM). Alternatives Considered Option D updated to reflect adoption with scoping. Open Product Decisions section updated to RESOLVED. |
+| 1.2 | 2026-06-23 | architect (SR-004 resolution) | E-QUERY-039 allocated (L4 suite); gate covers `EnrichStage` (pipe-mode) + `FuncCall::Scalar{ScalarFunc::Unknown}` SELECT-projection path; payload: `infusion, available_infusions, did_you_mean`; closes AUDIT-005. L4 error-suite table: new E-QUERY-039 row added. Architectural Surface table: L4-pedagogical-errors row updated from `E-QUERY-001/002/003/037/038` to `E-QUERY-001/002/003/037/038/039`. Scope Statement item 6: E-QUERY-039 bullet added with InfusionRegistry process-global note and CWE-200 follow-up flag. Bound to BC-2.11.019 + InfusionRegistry (BC-2.19.001). |
