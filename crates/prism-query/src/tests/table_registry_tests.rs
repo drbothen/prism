@@ -1645,6 +1645,7 @@ pub(crate) mod helpers {
             "armis, claroty",
             "armis_alerts, claroty_devices",
             "",
+            "",
         )))
     }
 }

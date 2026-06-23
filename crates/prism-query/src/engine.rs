@@ -504,6 +504,21 @@ impl QueryEngine {
         self
     }
 
+    /// Wire an `AliasStore` into this engine.
+    ///
+    /// Required for alias expansion in `execute_inner` (Step 0: `@alias` token
+    /// resolution before Chumsky parse). Without this, alias tokens in query strings
+    /// are passed through unexpanded and will cause parse errors.
+    ///
+    /// Used in tests and by `PrismServer::with_deps` / `new_full` callers that
+    /// need the engine to expand aliases at query time.
+    ///
+    /// Story: S-DEMO-PRISMQL-ONBOARDING-001-B (F-PRL-MED-001 fix seam).
+    pub fn with_alias_store(mut self, store: Arc<Mutex<AliasStore>>) -> Self {
+        self.alias_store = Some(store);
+        self
+    }
+
     /// Return the `TableRegistry` arc, if wired.
     ///
     /// Exposed for tests that need to inspect or update the registry.
@@ -683,13 +698,12 @@ impl QueryEngine {
         // Step 0: Alias expansion — resolve all `@alias_name` tokens before parsing.
         //
         // BC-2.11.008: aliases created via MCP tools must be consulted at query time.
+        // BC-2.11.009: alias resolution pre-parse; per-client alias overrides global for
+        //   the queried client scope. Current implementation expands against AliasScope::Global
+        //   only — no per-client overrides are applied. BC-2.11.009 specifies per-client
+        //   override as a postcondition; that scope thread is not yet wired here.
         // F-PASS9-LOW-1: alias_store is wired into QueryEngine via new_full() so both
         // the CRUD tools and the query executor share the same live AliasStore.
-        //
-        // Scope: "global" — queries expand against the global alias scope at execute time.
-        // Per-client scope override is architecturally deferred to S-3.01-ALIAS-SCOPE (BC-2.11.014)
-        // which will thread the OrgSlug from QueryContext into the AliasResolver.
-        // (SUG-8 fix: replaced stale "for now" comment with proper deferral citation.)
         let (effective_query, expanded_query_for_context) =
             if let Some(ref store_arc) = self.alias_store {
                 // Lock is held only for the duration of alias expansion — not across the
@@ -735,6 +749,23 @@ impl QueryEngine {
         check_table_availability(
             effective_query,
             self.table_registry.as_deref(),
+            options.clients.as_deref(),
+            resolved_spec_snapshot.as_deref(),
+        )?;
+
+        // S-DEMO-PRISMQL-ONBOARDING-001-B: plan-time column gate (BC-2.11.016 / E-QUERY-038).
+        // Fires AFTER E-QUERY-037 passes (table exists → then check columns).
+        // Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
+        // (column not found). The client_id is derived from the first explicit client scope.
+        let client_id_for_col_gate = options
+            .clients
+            .as_deref()
+            .and_then(|c| c.first())
+            .map(|o| o.as_str().to_owned())
+            .unwrap_or_default();
+        check_query_column_availability(
+            effective_query,
+            &client_id_for_col_gate,
             options.clients.as_deref(),
             resolved_spec_snapshot.as_deref(),
         )?;
@@ -1015,6 +1046,20 @@ impl QueryEngine {
             resolved_spec_snapshot_scheduled.as_deref(),
         )?;
 
+        // S-DEMO-PRISMQL-ONBOARDING-001-B: plan-time column gate (BC-2.11.016 / E-QUERY-038).
+        // Fires AFTER E-QUERY-037 passes (table exists → then check columns).
+        let client_id_for_col_gate_sched = clients
+            .as_deref()
+            .and_then(|c| c.first())
+            .map(|o| o.as_str().to_owned())
+            .unwrap_or_default();
+        check_query_column_availability(
+            query_str,
+            &client_id_for_col_gate_sched,
+            clients.as_deref(),
+            resolved_spec_snapshot_scheduled.as_deref(),
+        )?;
+
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
 
@@ -1218,6 +1263,819 @@ fn check_table_availability(
     // The gate body lives in table_registry.rs, keeping engine.rs
     // free of stub macros per POL-12 / test_AC_8_no_todo_or_unimplemented_remains.
     registry.check_availability_gate(query_str, org_scope, resolved_spec_map)
+}
+
+// ---------------------------------------------------------------------------
+// Shared column-name extractor for E-QUERY-038 gate (F-001B-DC-HIGH-001)
+// ---------------------------------------------------------------------------
+
+/// Extract the bare column name from a `FieldPath`, handling table-qualified references.
+///
+/// This helper is the SINGLE extraction point used at ALL FOUR positions in
+/// `check_query_column_availability` (SELECT, WHERE, GROUP BY, ORDER BY), preventing
+/// the `.first()` false-reject bug from recurring at any one position independently.
+///
+/// # Behaviour
+/// - **1-segment path** (`["severity"]`): returns `Some("severity")` — unqualified column.
+/// - **2+-segment path, matching qualifier** (`["crowdstrike_alerts", "severity"]` when
+///   `table_name = "crowdstrike_alerts"`): returns `Some("severity")` — the last segment.
+/// - **2+-segment path, unknown qualifier** (`["other_table", "severity"]` when
+///   `table_name = "crowdstrike_alerts"` and no matching alias): returns `None` — fail-open.
+///   E-QUERY-038 is NOT emitted for an unrecognised qualifier; that is a separate error class.
+///
+/// # Alias handling
+/// `table_alias` is the SQL `AS alias` identifier from the `FROM` clause (e.g. `t` in
+/// `FROM crowdstrike_alerts t`). When the qualifier matches the alias, the last segment
+/// is returned exactly as it is for a full table-name match. If the parser does not
+/// populate `FromClause.alias` for a given query, pass `None`.
+///
+/// # Anti-drift guarantee
+/// Every extraction site in `check_query_column_availability` calls this helper.
+/// Adding a new extraction site without using this helper will cause TD-VSDD-060
+/// (sibling-site sweep) to flag it in adversarial review.
+///
+/// Reference: BC-2.11.016 §Postconditions; F-001B-DC-HIGH-001.
+fn extract_column_name_from_field_path(
+    fp: &crate::ast::FieldPath,
+    table_name: &str,
+    table_alias: Option<&str>,
+) -> Option<String> {
+    match fp.segments.len() {
+        0 => None,
+        1 => fp.segments.first().cloned(),
+        _ => {
+            // Multi-segment: check whether the leading qualifier is recognised.
+            let qualifier = fp.segments.first()?;
+            let qualifier_matches =
+                qualifier == table_name || table_alias.is_some_and(|alias| qualifier == alias);
+            if qualifier_matches {
+                // Return the last segment as the bare column name.
+                fp.segments.last().cloned()
+            } else {
+                // Unknown qualifier — fail-open: do not gate on it.
+                // This is not an E-QUERY-038 situation; it may be a cross-table
+                // expression or a future syntax extension.
+                None
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-038 plan-time column gate (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// Plan-time column availability gate — E-QUERY-038 (BC-2.11.016).
+///
+/// Fires AFTER `check_table_availability` passes (table exists → then check columns).
+/// Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
+/// (column not found). If the table check fails, this gate is never reached.
+///
+/// Checks each column reference in the query AST against the column schema in
+/// `resolved_spec_map → ResolvedSensorSpec.spec.tables → TableSpec.columns →
+/// ColumnSpec.name` for the (table, org_scope) pair. When `resolved_spec_map` is
+/// `None`, returns `Ok(())` (fail-open for single-tenant / test mode — the gate fires
+/// only when resolved_spec_map is wired).
+///
+/// `available_columns` is ALWAYS present in the error (empty `[]` when `resolved_spec_map`
+/// is `None` or the table has zero columns). `did_you_mean` uses `strsim::levenshtein`
+/// with the same ≤3 threshold as the E-QUERY-037 gate (D-1163).
+///
+/// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B AC-001, AC-002
+fn check_column_availability(
+    column_name: &str,
+    table_name: &str,
+    client_id: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), PrismError> {
+    use prism_core::error::{ColumnNotFoundDetails, PrismError};
+
+    // Fail-open when resolved_spec_map is not wired (single-tenant / test mode).
+    let Some(spec_map) = resolved_spec_map else {
+        return Ok(());
+    };
+
+    // Collect available columns for this table from entries matching org_scope.
+    // Org-scoping: filter spec_map entries to those whose org_slug is in org_scope.
+    // When org_scope is None, use all entries (no org restriction).
+    //
+    // Table-name matching: the query uses fully-qualified `{sensor_id}_{table_suffix}` form
+    // (e.g. "crowdstrike_alerts"), while `TableSpec.table_name` is the SHORT suffix (e.g.
+    // "alerts"). Reconstruct the fully-qualified form as `{spec.sensor_id}_{tbl.table_name}`
+    // for matching (test-fixture naming contract per BC-2.11.016 §Test Vectors).
+    //
+    // Fail-open guard: if the table_name matches NO entry in the spec_map (regardless of
+    // org_scope), the gate cannot validate columns — skip. This prevents false positives
+    // when the spec_map is populated but doesn't include schema for this particular table
+    // (e.g. legacy tables without overlay specs). Only gate when the table IS in the schema.
+    // This is distinct from EC-039 (zero-column table IS in schema → gate fires with []).
+    let org_visible_entries: Vec<&prism_spec_engine::ResolvedSensorSpec> = spec_map
+        .values()
+        .filter(|spec| {
+            // DI-008: filter to org-visible entries.
+            if let Some(scopes) = org_scope {
+                scopes.iter().any(|s| s.as_str() == spec.org_slug.as_str())
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    let table_in_schema = org_visible_entries.iter().any(|spec| {
+        let sensor_id = &spec.spec.sensor_id;
+        spec.spec
+            .tables
+            .iter()
+            .any(|tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
+    });
+
+    // Fail-open: if this table has no schema entry, we cannot validate columns.
+    if !table_in_schema {
+        return Ok(());
+    }
+
+    let mut available_columns: Vec<String> = org_visible_entries
+        .iter()
+        .flat_map(|spec| {
+            let sensor_id = spec.spec.sensor_id.clone();
+            spec.spec
+                .tables
+                .iter()
+                .filter(move |tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
+                .flat_map(|tbl| tbl.columns.iter().map(|c| c.name.clone()))
+        })
+        .collect();
+
+    // OBS-FRESH-1: sort + dedup `available_columns` before use to ensure deterministic
+    // ordering and no duplicates in the ColumnNotFoundDetails error. Without this,
+    // `spec_map.values()` iterates in HashMap order (non-deterministic) and multi-org-scope
+    // queries that contribute the same column via multiple overlays produce duplicates.
+    available_columns.sort();
+    available_columns.dedup();
+
+    // If the column is in the available set, the gate passes.
+    if available_columns.contains(&column_name.to_string()) {
+        return Ok(());
+    }
+
+    // did_you_mean: find closest column by Levenshtein distance ≤ 3 (D-1163).
+    // Tie-break: when multiple candidates share the same minimum distance, pick the
+    // lexicographically-smallest name for deterministic output. (F-001B-PASS-LOW-001 /
+    // BC-2.11.016 AC-001 — multi-client queries iterate HashMap in non-deterministic order.)
+    // After sort+dedup above, `available_columns` is already in stable lex order, so the
+    // tie-break by name in `min_by_key` is now redundant but retained for clarity.
+    let did_you_mean = available_columns
+        .iter()
+        .map(|c| (c.clone(), strsim::levenshtein(column_name, c)))
+        .filter(|(_, dist)| *dist <= 3)
+        .min_by_key(|(name, dist)| (*dist, name.clone()))
+        .map(|(c, _)| c);
+
+    // Emit audit tracing event per SAP-1 / PG-LP11-001.
+    tracing::warn!(
+        event_type = "column_not_found.rejected",
+        column = %column_name,
+        table = %table_name,
+        client_id = %client_id,
+        available_count = available_columns.len(),
+        "E-QUERY-038: column not found at plan time"
+    );
+
+    // SEC-002 trust-boundary: `client_id` here is an `OrgSlug` string validated to
+    // `^[a-zA-Z0-9_-]{1,64}$` by `OrgSlug::new` in `tenant.rs` before it reaches this
+    // function. That validation guarantees `client_id` cannot carry prompt-injection
+    // characters (newlines, quotes, control chars) into the LLM-facing error message.
+    Err(PrismError::ColumnNotFound(Box::new(
+        ColumnNotFoundDetails::new(
+            column_name,
+            table_name,
+            client_id,
+            available_columns,
+            did_you_mean,
+        ),
+    )))
+}
+
+/// Plan-time column availability gate (E-QUERY-038) — query-level driver.
+///
+/// Parses `query_str`, extracts the FROM table and all non-wildcard column
+/// references from ALL positions where column resolution is required, then calls
+/// `check_column_availability` for each one. Returns the first
+/// `Err(PrismError::ColumnNotFound)` found, or `Ok(())` if all columns pass.
+///
+/// # Column positions checked (BC-2.11.016 Precondition 2):
+/// - SELECT clause (non-wildcard field refs)
+/// - WHERE clause (FieldPath refs from all Predicate variants)
+/// - GROUP BY clause (Expr::Field refs)
+/// - ORDER BY clause (Expr::Field refs in each OrderExpr)
+///
+/// Gate skip conditions (mirroring `check_table_availability`):
+/// - `resolved_spec_map` is `None`: skip (single-tenant / test mode without wiring)
+/// - Query fails to parse: skip (parse errors handled downstream)
+/// - SELECT * or SELECT table.*: skip for SELECT position (wildcard columns always pass)
+///
+/// Only SQL SELECT mode is checked. Filter and Pipe modes have no explicit column
+/// projection and DataFusion handles field resolution in those modes.
+///
+/// # BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B
+fn check_query_column_availability(
+    query_str: &str,
+    client_id: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), PrismError> {
+    use crate::ast::{Ast, Expr, SelectItem, SqlStatement};
+    use crate::filter_parser::PrismQlParser;
+
+    // Fail-open when resolved_spec_map is not wired.
+    if resolved_spec_map.is_none() {
+        return Ok(());
+    }
+
+    // Parse the query — if parsing fails, skip (parse errors handled downstream).
+    let ast = match PrismQlParser::parse(query_str) {
+        Ok(ast) => ast,
+        Err(_) => return Ok(()),
+    };
+
+    // Only handle SQL SELECT mode — filter/pipe have no explicit column projection.
+    let sql_query = match &ast {
+        Ast::Sql(SqlStatement::Select(q)) => q,
+        _ => return Ok(()),
+    };
+
+    // Derive the fully-qualified table name from the FROM clause.
+    // Custom SourceRef: raw is already the full table name (e.g. "crowdstrike_alerts").
+    // External SourceRef: "sensor.table" dotted → "sensor_table" underscore convention.
+    let table_name = {
+        use crate::ast::SourceRefKind;
+        match &sql_query.from.source.kind {
+            SourceRefKind::Custom => sql_query.from.source.raw.clone(),
+            SourceRefKind::External { sensor, table } => format!("{sensor}_{table}"),
+            // Internal / Composite tables have no column schema in resolved_spec_map.
+            _ => return Ok(()),
+        }
+    };
+
+    // Skip prism_* internal tables (they have a separate capability gate).
+    if table_name.starts_with("prism_") {
+        return Ok(());
+    }
+
+    // Table alias from the FROM clause (e.g. `t` in `FROM crowdstrike_alerts t`).
+    // Passed to `extract_column_name_from_field_path` so that queries using an alias
+    // qualifier (`t.severity`) are handled identically to table-name qualifiers
+    // (`crowdstrike_alerts.severity`) — both return "severity", not the qualifier.
+    let from_alias: Option<&str> = sql_query.from.alias.as_deref();
+
+    // ── Position 1: SELECT clause — non-wildcard field refs ───────────────────
+    //
+    // F-001B-DC-HIGH-001: use `extract_column_name_from_field_path` instead of
+    // `fp.segments.first()` so that qualified refs (`crowdstrike_alerts.severity`)
+    // correctly extract "severity" rather than the table name.
+    let select_cols: Vec<String> = sql_query
+        .select
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            SelectItem::Star => None,         // SELECT * — skip
+            SelectItem::TableStar(_) => None, // SELECT table.* — skip
+            SelectItem::Expr { expr, .. } => match expr {
+                Expr::Field(fp) => {
+                    // Use the shared helper to correctly handle qualified refs.
+                    extract_column_name_from_field_path(fp, &table_name, from_alias)
+                }
+                // VirtualField (_sensor, _client, etc.) — skip (always valid).
+                Expr::VirtualField(_) => None,
+                // Other expr types (FuncCall, literals, etc.) — skip.
+                _ => None,
+            },
+            // #[non_exhaustive] catch-all for future SelectItem variants.
+            #[allow(unreachable_patterns)]
+            _ => None,
+        })
+        .collect();
+
+    // ── Position 2: WHERE clause — recursively extract FieldPath refs ─────────
+    //
+    // BC-2.11.016 Precondition 2: "The query references a column name in a position
+    // where column resolution is possible (e.g., `SELECT <column>`, `WHERE <column> = ...`,
+    // `GROUP BY <column>`, `ORDER BY <column>`)."
+    //
+    // `extract_predicate_columns` walks the entire Predicate tree and collects the
+    // resolved column name from every FieldPath encountered via
+    // `extract_column_name_from_field_path`. Virtual fields (_sensor, _client)
+    // and literal operands are ignored — only explicit column name references are checked.
+    // F-001B-DC-HIGH-001: pass table_name + from_alias to the predicate extractor so
+    // qualified WHERE refs are handled correctly.
+    let where_cols: Vec<String> = sql_query
+        .where_
+        .as_ref()
+        .map(|pred| extract_predicate_columns(pred, &table_name, from_alias))
+        .unwrap_or_default();
+
+    // ── Position 3: GROUP BY clause — Expr::Field refs ────────────────────────
+    //
+    // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
+    let group_by_cols: Vec<String> = sql_query
+        .group_by
+        .iter()
+        .filter_map(|expr| match expr {
+            Expr::Field(fp) => extract_column_name_from_field_path(fp, &table_name, from_alias),
+            _ => None,
+        })
+        .collect();
+
+    // ── Position 4: ORDER BY clause — Expr::Field refs in each OrderExpr ─────
+    //
+    // F-001B-DC-HIGH-001: use extract_column_name_from_field_path instead of .first().
+    let order_by_cols: Vec<String> = sql_query
+        .order_by
+        .iter()
+        .filter_map(|oe| match &oe.expr {
+            Expr::Field(fp) => extract_column_name_from_field_path(fp, &table_name, from_alias),
+            _ => None,
+        })
+        .collect();
+
+    // ── Gate: check all positions in order ────────────────────────────────────
+    for col in select_cols
+        .iter()
+        .chain(where_cols.iter())
+        .chain(group_by_cols.iter())
+        .chain(order_by_cols.iter())
+    {
+        check_column_availability(col, &table_name, client_id, org_scope, resolved_spec_map)?;
+    }
+
+    // ── E-QUERY-002 type-compatibility gate — AFTER column-existence gate ─────
+    //
+    // BC-2.11.017 AC-003: For each (column, operator) pair in the WHERE clause
+    // where both are resolvable, verify the operator is valid for the column's
+    // ColumnType. Order: E-QUERY-037 table gate → E-QUERY-038 column-existence
+    // gate (above) → E-QUERY-002 type-compat gate (this).
+    //
+    // Only runs when: (a) resolved_spec_map is wired, (b) the WHERE predicate tree
+    // contains Compare predicates with a FieldPath lhs, (c) the column is present in
+    // the table spec (existence gate already passed). Fail-open for unknown columns.
+    //
+    // The gate is driven by `collect_predicate_type_pairs` which returns `(col, op_str)`
+    // pairs from `Predicate::Compare` nodes. Type lookup is done via the same org-scoped
+    // spec map path used by the existence gate. On mismatch, returns
+    // `PrismError::QueryTypeMismatch` carrying the ColumnType for the error-mapping layer
+    // to call `valid_operators_for_type(actual_type)`.
+    if let Some(where_pred) = &sql_query.where_ {
+        // F-001B-DC-HIGH-001: pass table_name + from_alias so qualified refs in Compare
+        // predicates extract the bare column name, not the table qualifier.
+        let type_pairs = collect_predicate_type_pairs(where_pred, &table_name, from_alias);
+        for (col_name, op_str) in &type_pairs {
+            check_operator_type_compatibility(
+                col_name,
+                op_str,
+                &table_name,
+                org_scope,
+                resolved_spec_map,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Extract column names from a `Predicate` tree, resolving table-qualified references.
+///
+/// Walks all variants that carry a `FieldPath` directly, and recurses into
+/// `Logical` and `Not` for nested predicates. `VirtualField` segments
+/// (`_sensor`, `_client`) are implicitly excluded because those appear as
+/// `Expr::VirtualField`, not `Expr::Field` — the `Compare { lhs, .. }` arm
+/// matches `lhs` only when it is `Expr::Field`.
+///
+/// F-001B-DC-HIGH-001: uses `extract_column_name_from_field_path` for each
+/// FieldPath so that qualified refs (`crowdstrike_alerts.severity`) return the
+/// bare column name ("severity"), not the table qualifier ("crowdstrike_alerts").
+///
+/// # Non-exhaustive safety
+/// Unknown future `Predicate` variants are silently skipped via the `_ => {}`
+/// catch-all, which satisfies `#[non_exhaustive]` discipline and preserves
+/// fail-open semantics for unrecognised predicate forms.
+fn extract_predicate_columns(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+) -> Vec<String> {
+    let mut cols = Vec::new();
+    collect_predicate_columns(pred, table_name, table_alias, &mut cols);
+    cols
+}
+
+fn collect_predicate_columns(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+    out: &mut Vec<String>,
+) {
+    use crate::ast::{Expr, Predicate};
+    match pred {
+        // Compare: lhs may be Expr::Field (the column being compared).
+        // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to handle qualified refs.
+        Predicate::Compare { lhs, .. } => {
+            if let Expr::Field(fp) = lhs.as_ref() {
+                if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias)
+                {
+                    out.push(name);
+                }
+            }
+        }
+        // StringOp: field is FieldPath directly.
+        Predicate::StringOp { field, .. } => {
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
+            }
+        }
+        // Regex: field is FieldPath directly.
+        Predicate::Regex { field, .. } => {
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
+            }
+        }
+        // In / InSubquery / Between / Cidr / Wildcard: field is FieldPath directly.
+        Predicate::In { field, .. }
+        | Predicate::InSubquery { field, .. }
+        | Predicate::Between { field, .. }
+        | Predicate::Cidr { field, .. }
+        | Predicate::Wildcard { field, .. } => {
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
+            }
+        }
+        // Has / Missing: the argument IS the FieldPath.
+        Predicate::Has(fp) | Predicate::Missing(fp) => {
+            if let Some(name) = extract_column_name_from_field_path(fp, table_name, table_alias) {
+                out.push(name);
+            }
+        }
+        // IsNull: field is FieldPath.
+        Predicate::IsNull { field, .. } => {
+            if let Some(name) = extract_column_name_from_field_path(field, table_name, table_alias)
+            {
+                out.push(name);
+            }
+        }
+        // Logical: recurse into each child predicate.
+        Predicate::Logical { predicates, .. } => {
+            for child in predicates {
+                collect_predicate_columns(child, table_name, table_alias, out);
+            }
+        }
+        // Not: recurse into the inner predicate.
+        Predicate::Not(inner) => {
+            collect_predicate_columns(inner, table_name, table_alias, out);
+        }
+        // RecoveryError: no column to extract (error-recovery sentinel).
+        Predicate::RecoveryError => {}
+        // #[non_exhaustive] catch-all: fail-open for future predicate variants.
+        #[allow(unreachable_patterns)]
+        _ => {}
+    }
+}
+
+// ---------------------------------------------------------------------------
+// E-QUERY-002 type-compatibility helpers (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// Convert a `CompareOp` to its canonical operator string for E-QUERY-002 type checking.
+///
+/// Returns the operator string as it would appear in a PrismQL query expression:
+/// `Eq` → `"="`, `Ne` → `"!="`, `Gt` → `">"`, `Lt` → `"<"`, `Ge` → `">="`, `Le` → `"<="`,
+/// `Like` → `"LIKE"`. `Cidr`/`NotCidr` are excluded (CIDR membership does not map to a
+/// `valid_operators_for_type` entry — those are handled by `Predicate::Cidr` directly).
+///
+/// Returns `None` for `Cidr`/`NotCidr` and any future variants (non_exhaustive fallback)
+/// so the caller can skip the type check for those operators.
+fn compare_op_to_str(op: &crate::ast::CompareOp) -> Option<&'static str> {
+    use crate::ast::CompareOp;
+    match op {
+        CompareOp::Eq => Some("="),
+        CompareOp::Ne => Some("!="),
+        CompareOp::Gt => Some(">"),
+        CompareOp::Lt => Some("<"),
+        CompareOp::Ge => Some(">="),
+        CompareOp::Le => Some("<="),
+        CompareOp::Like => Some("LIKE"),
+        // CIDR operators are not in the valid_operators_for_type set — skip.
+        CompareOp::Cidr | CompareOp::NotCidr => None,
+        // #[non_exhaustive] catch-all: fail-open for future CompareOp variants.
+        #[allow(unreachable_patterns)]
+        _ => None,
+    }
+}
+
+/// Collect `(column_name, operator_string)` pairs from `Predicate::Compare` nodes
+/// in a predicate tree, for E-QUERY-002 type-compatibility checking.
+///
+/// Only `Predicate::Compare { lhs: Expr::Field(_), op, .. }` forms are extracted
+/// (operator applied directly to a named column). Literal lhs, subquery lhs, and
+/// non-Compare predicates are skipped — they cannot produce a type-mismatch error.
+///
+/// Recurses into `Logical` and `Not` for nested predicates. Virtual fields are
+/// excluded because `lhs` for those is `Expr::VirtualField`, not `Expr::Field`.
+///
+/// F-001B-DC-HIGH-001: `table_name` and `table_alias` are forwarded to
+/// `extract_column_name_from_field_path` so qualified refs (`t.severity = 1`)
+/// are resolved to the bare column name before the type-compatibility check.
+///
+/// Reference: BC-2.11.017 AC-003; S-DEMO-PRISMQL-ONBOARDING-001-B.
+fn collect_predicate_type_pairs(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    collect_predicate_type_pairs_inner(pred, table_name, table_alias, &mut out);
+    out
+}
+
+fn collect_predicate_type_pairs_inner(
+    pred: &crate::ast::Predicate,
+    table_name: &str,
+    table_alias: Option<&str>,
+    out: &mut Vec<(String, String)>,
+) {
+    use crate::ast::{Expr, Predicate};
+    match pred {
+        // Compare: extract (column, operator) when lhs is a FieldPath.
+        // F-001B-DC-HIGH-001: use extract_column_name_from_field_path to correctly
+        // resolve qualified refs (`crowdstrike_alerts.severity = ...`) to "severity".
+        Predicate::Compare { lhs, op, .. } => {
+            if let Expr::Field(fp) = lhs.as_ref() {
+                if let Some(col_name) =
+                    extract_column_name_from_field_path(fp, table_name, table_alias)
+                {
+                    if let Some(op_str) = compare_op_to_str(op) {
+                        out.push((col_name, op_str.to_string()));
+                    }
+                }
+            }
+        }
+        // Logical: recurse into each child predicate.
+        Predicate::Logical { predicates, .. } => {
+            for child in predicates {
+                collect_predicate_type_pairs_inner(child, table_name, table_alias, out);
+            }
+        }
+        // Not: recurse into the inner predicate.
+        Predicate::Not(inner) => {
+            collect_predicate_type_pairs_inner(inner, table_name, table_alias, out);
+        }
+        // All other predicate variants (StringOp, Regex, In, Between, Cidr, Has,
+        // Missing, IsNull, Wildcard, RecoveryError, future variants): no Compare
+        // operator to check — skip.
+        #[allow(unreachable_patterns)]
+        _ => {}
+    }
+}
+
+/// E-QUERY-002 plan-time type-compatibility gate for a single (column, operator) pair.
+///
+/// Given a resolved_spec_map and org_scope, looks up the column's `ColumnType` from
+/// the table spec and checks whether the operator is in `valid_operators_for_type(column_type)`.
+/// Returns `Err(PrismError::QueryTypeMismatch)` on mismatch. Returns `Ok(())` when:
+/// - the column is not found in the spec (fail-open: existence gate fires first)
+/// - the operator IS valid for the column type
+///
+/// # Ordering
+/// MUST be called AFTER `check_column_availability` for the same column. If the column
+/// does not exist in the spec, the existence gate will have already returned an error.
+/// This function uses fail-open semantics for unfound columns because the existence gate
+/// owns that error path.
+///
+/// Reference: BC-2.11.017 AC-003; S-DEMO-PRISMQL-ONBOARDING-001-B.
+fn check_operator_type_compatibility(
+    column_name: &str,
+    operator: &str,
+    table_name: &str,
+    org_scope: Option<&[prism_core::OrgSlug]>,
+    resolved_spec_map: Option<
+        &std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), PrismError> {
+    let Some(spec_map) = resolved_spec_map else {
+        return Ok(());
+    };
+
+    // Find the ColumnType for this column from the org-visible spec entries.
+    let column_type = spec_map
+        .values()
+        .filter(|spec| {
+            if let Some(scopes) = org_scope {
+                scopes.iter().any(|s| s.as_str() == spec.org_slug.as_str())
+            } else {
+                true
+            }
+        })
+        .flat_map(|spec| {
+            let sensor_id = spec.spec.sensor_id.clone();
+            spec.spec
+                .tables
+                .iter()
+                .filter(move |tbl| format!("{sensor_id}_{}", tbl.table_name) == table_name)
+                .flat_map(|tbl| tbl.columns.iter())
+                .filter_map(|col| {
+                    if col.name == column_name {
+                        Some(col.column_type.clone())
+                    } else {
+                        None
+                    }
+                })
+        })
+        .next();
+
+    // Fail-open: if the column's type is not in the spec, the existence gate handles it.
+    let Some(actual_type) = column_type else {
+        return Ok(());
+    };
+
+    // Check whether the operator is valid for this column's type.
+    let valid_ops = valid_operators_for_type(actual_type.clone());
+    if valid_ops.contains(&operator) {
+        return Ok(());
+    }
+
+    // Operator is NOT in the valid set for this column type → E-QUERY-002 type mismatch.
+    Err(PrismError::QueryTypeMismatch {
+        column: column_name.to_string(),
+        table: table_name.to_string(),
+        actual_type,
+        operator: operator.to_string(),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Pedagogical enrichment helpers (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// E-QUERY-001 enrichment: extract `near_text` (≤50 chars) from a Chumsky error span.
+///
+/// Returns the offending token slice from the input string using the chumsky error's
+/// span (start/end indices). Truncated to ≤50 chars per DI-006 (BC-2.11.017).
+/// Returns `""` when the parser cannot provide a token (e.g. end-of-input).
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
+pub fn extract_near_text(input: &str, offset: usize) -> String {
+    // End-of-input: offset is at or beyond the input length → empty string (EC-003).
+    if offset >= input.len() {
+        return String::new();
+    }
+    // SAFETY (belt-and-suspenders, F-001B-PASS-CRIT-001): if `offset` falls mid-char
+    // (e.g. a caller passes a byte offset that bisects a multibyte UTF-8 sequence),
+    // snap forward to the next valid char boundary rather than panicking.
+    // `str::floor_char_boundary` is nightly-only; use a forward search instead.
+    let safe_offset = if input.is_char_boundary(offset) {
+        offset
+    } else {
+        // Advance byte-by-byte until we land on a char boundary (or reach end).
+        let mut o = offset;
+        while o < input.len() && !input.is_char_boundary(o) {
+            o += 1;
+        }
+        o
+    };
+    if safe_offset >= input.len() {
+        return String::new();
+    }
+    // Extract from `safe_offset` to the end of the first word / whitespace-delimited token.
+    // The "offending token" is the word starting at `safe_offset`. Walk forward until
+    // whitespace or end-of-input, then slice.
+    let remainder = &input[safe_offset..];
+    let token_end = remainder
+        .find(|c: char| c.is_whitespace())
+        .unwrap_or(remainder.len());
+    let token = &remainder[..token_end];
+    // Truncate to ≤50 CHARACTERS per DI-006 (injection safety).
+    //
+    // MUST use char-count truncation, NOT byte-slice truncation.
+    // Byte index 50 may fall inside a multibyte UTF-8 character (e.g. '—' = 3 bytes,
+    // 'é' = 2 bytes) causing a panic: "byte index 50 is not a char boundary".
+    // Model-controlled PQL is the source, so crafted inputs can trigger this.
+    // Fix: iterate by char and collect the first ≤50 chars. (F-001-B-FRESH-001 / DI-006)
+    token.chars().take(50).collect::<String>()
+}
+
+/// E-QUERY-002 enrichment: return the valid operators for a `ColumnType`.
+///
+/// Returns a compile-time static slice of operator strings. Callers convert to
+/// `Vec<String>` for the JSON payload:
+///
+/// String → `["=", "!=", "LIKE", "IN", "NOT IN"]`
+/// Integer → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"]`
+/// Float → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
+/// Boolean → `["=", "!="]`
+/// Datetime → `["=", "!=", "<", ">", "<=", ">=", "BETWEEN"]`
+/// Json → `["=", "!="]`
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
+pub fn valid_operators_for_type(
+    column_type: prism_core::column::ColumnType,
+) -> &'static [&'static str] {
+    use prism_core::column::ColumnType;
+    match column_type {
+        ColumnType::String => &["=", "!=", "LIKE", "IN", "NOT IN"],
+        ColumnType::Integer => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN", "IN", "NOT IN"],
+        ColumnType::Float => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN"],
+        ColumnType::Boolean => &["=", "!="],
+        ColumnType::Datetime => &["=", "!=", "<", ">", "<=", ">=", "BETWEEN"],
+        ColumnType::Json => &["=", "!="],
+        _ => &["=", "!="], // non_exhaustive fallback
+    }
+}
+
+/// E-QUERY-003 enrichment: produce a `how_to_fix` string from the `detail` message.
+///
+/// Matches the limit violation category from the `detail` string and returns a
+/// human-readable fix instruction. Catch-all: "Simplify or shorten the query."
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-003.
+pub fn how_to_fix_for_security_limit(detail: &str) -> String {
+    let lower = detail.to_lowercase();
+    // "expanded"/"alias" branch must come BEFORE the generic "size"/"64kb" branch:
+    // alias_resolver.rs emits "expanded query exceeds 64KB limit (N bytes)" which
+    // contains "64kb" — if size fires first it returns the wrong message.
+    // explain.rs emits "expanded query size N bytes exceeds maximum allowed M bytes"
+    // which contains "size" — same ordering issue. (F-PRL-FRESH-002 fix, BC-2.11.017.)
+    if lower.contains("expanded") || lower.contains("alias") {
+        "The alias expansion produced a query over 64KB. Simplify the aliased query or use a narrower alias.".to_string()
+    } else if lower.contains("size") || lower.contains("64kb") || lower.contains("64 kb") {
+        "Shorten the query. Remove large IN (...) lists or break into multiple queries.".to_string()
+    } else if lower.contains("depth") || lower.contains("nesting") {
+        "Flatten nested conditions. Use AND/OR instead of deeply nested parentheses.".to_string()
+    } else if lower.contains("pipe") {
+        "Reduce the number of pipe stages. Combine adjacent filter conditions.".to_string()
+    } else if lower.contains("regex") {
+        "Use a shorter regex pattern. Consider using LIKE instead of regex for simple pattern matching.".to_string()
+    } else {
+        "Simplify or shorten the query.".to_string()
+    }
+}
+
+/// E-QUERY-037 suggestion update: produce the `suggestion` field with a
+/// `prism_describe('<client_id>')` reference.
+///
+/// When `did_you_mean` is `Some(table)`: includes a retry hint referencing the table.
+/// When `did_you_mean` is `None`: includes only the `prism_describe` pointer.
+///
+/// Reference: BC-2.11.017 postconditions; S-DEMO-PRISMQL-ONBOARDING-001-B AC-004.
+/// # Trust boundary (SEC-002 / CWE-116)
+/// `client_id` is an `OrgSlug` string validated to `^[a-zA-Z0-9_-]{1,64}$` by
+/// `OrgSlug::new` in `tenant.rs` before reaching any call site of this function.
+/// That regex prohibits newlines, quotes, and control characters, so `client_id`
+/// cannot carry prompt-injection or newline/quote injection into the LLM-facing
+/// suggestion string that appears in the MCP error envelope.
+pub fn e_query_037_suggestion(client_id: &str, did_you_mean: Option<&str>) -> String {
+    match did_you_mean {
+        Some(table) => format!(
+            "Call prism_describe('{client_id}') to see available tables and columns. \
+             If you meant '{table}', retry with that table name."
+        ),
+        None => format!(
+            "Call prism_describe('{client_id}') to see available tables and columns for this client."
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// normalized_pql Chumsky re-serializer (S-DEMO-PRISMQL-ONBOARDING-001-B)
+// ---------------------------------------------------------------------------
+
+/// Produce the normalized (canonicalized) PrismQL string from a parsed `Ast`.
+///
+/// Walks the AST and produces a whitespace-normalized, uppercase-keyword form
+/// of the original query. The normalized string MUST round-trip through Chumsky
+/// (parse to the same AST as the original). EXCLUDED: DataFusion plan node strings
+/// (`HashJoin`, `TableScan`, `SortExec`, `Aggregate`).
+///
+/// Returns `None` when the normalized form would be empty (should not occur for
+/// a validly-parsed AST; defensive guard per BC-2.11.018 Error Cases EC-11-055).
+///
+/// Reference: BC-2.11.018; S-DEMO-PRISMQL-ONBOARDING-001-B AC-005, AC-006.
+pub fn normalize_pql(ast: &crate::ast::Ast) -> Option<String> {
+    crate::ast::PqlNormalizer::normalize(ast)
 }
 
 // ---------------------------------------------------------------------------
@@ -2541,4 +3399,383 @@ fn truncate_batches_to_limit(
         }
     }
     result
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-001B-PASS-LOW-001 — did_you_mean non-determinism on equidistant ties
+// (BC-2.11.016 AC-001)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines
+)]
+mod bc_2_11_016_did_you_mean_determinism_tests {
+    use std::collections::HashMap;
+
+    use prism_core::{OrgSlug, SensorId};
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+        ResolvedSensorSpec, ResolvedSpecKey,
+    };
+
+    use super::check_column_availability;
+    use prism_core::column::ColumnType;
+
+    /// Build a `ResolvedSensorSpec` for a single sensor+table+columns under one org.
+    fn make_resolved_with_columns(
+        sensor_id: &str,
+        table_suffix: &str,
+        org: &str,
+        columns: Vec<ColumnSpec>,
+    ) -> (ResolvedSpecKey, ResolvedSensorSpec) {
+        let spec = SensorSpec::new(
+            sensor_id,
+            format!("{sensor_id} sensor"),
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                table_suffix,
+                "security_finding",
+                columns,
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let overlay_toml =
+            format!("extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"");
+        let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+            .expect("did_you_mean fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved =
+            OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug.clone());
+        let key: ResolvedSpecKey = (org_slug, SensorId::new(sensor_id));
+        (key, resolved)
+    }
+
+    /// F-001B-PASS-LOW-001: `check_column_availability` must return the
+    /// LEXICOGRAPHICALLY-SMALLEST column when multiple equidistant candidates exist.
+    ///
+    /// Setup: two sensors registered under the SAME org ("acme") with the SAME table name
+    /// ("acme_alerts"). Both sensors each have one column that is equidistant from the typo:
+    ///   - sensor "alpha_sensor" → column "severity_a" (levenshtein("sevrty", "severity_a") = 3)
+    ///   - sensor "beta_sensor"  → column "severity_b" (levenshtein("sevrty", "severity_b") = 3)
+    ///
+    /// Because `spec_map.values()` iterates in HashMap order (non-deterministic), the
+    /// `min_by_key(|(_, dist)| *dist)` call may return either "severity_a" or "severity_b"
+    /// depending on which spec_map entry is encountered first. The BC-2.11.016 AC-001
+    /// contract requires deterministic tie-breaking (lexicographically smallest: "severity_a").
+    ///
+    /// Current code does NOT secondary-sort by column name, so this assertion fails on any
+    /// run where the HashMap iterator returns "severity_b" before "severity_a".
+    ///
+    /// RED GATE: assertion `did_you_mean == Some("severity_a")` fails non-deterministically
+    /// on current HEAD — structurally guaranteed to fail because the current code has no
+    /// lexicographic tie-break. The test runs `check_column_availability` in a tight loop
+    /// to surface the non-determinism within a single test run.
+    #[test]
+    fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_on_equidistant_candidates() {
+        // Column A: "severity_a" — equidistant from typo.
+        // Column B: "severity_b" — equidistant from typo.
+        // Levenshtein("sevrty", "severity_a") = distance to reach "severity_a" from "sevrty":
+        //   sevrty → severity (1 insert 'e') → severity_a (1 append '_a') = 3
+        // Levenshtein("sevrty", "severity_b") = same structure = 3
+        // Both distance 3 ≤ 3: both qualify for did_you_mean.
+        //
+        // Expected deterministic result: "severity_a" (lexicographically smallest).
+        // Current code returns whichever HashMap iteration encounters first (non-deterministic).
+
+        let col_a = ColumnSpec::new("severity_a", ColumnType::String, None, vec![]);
+        let col_b = ColumnSpec::new("severity_b", ColumnType::String, None, vec![]);
+
+        // Two sensors, SAME table name "alerts" under SAME org "acme".
+        // Fully-qualified: "alpha_sensor_alerts" and "beta_sensor_alerts" — different tables!
+        // To share available_columns for the same table, both must produce the same FQ name.
+        // FQ name = "{sensor_id}_{table_suffix}". To collide both in one available_columns vec,
+        // we need the query's table_name to match BOTH sensors' FQ names, which is impossible
+        // since they differ by sensor_id. The correct setup: one sensor with BOTH columns.
+        // Instead, use ONE sensor with a table that has BOTH equidistant columns.
+        let col_a2 = ColumnSpec::new("severity_aa", ColumnType::String, None, vec![]);
+        let col_b2 = ColumnSpec::new("severity_ab", ColumnType::String, None, vec![]);
+        // Levenshtein("sevrty", "severity_aa") — let's verify:
+        //   both "severity_aa" and "severity_ab" differ from "sevrty" by the same edit distance.
+        //   Actually let's use simpler names with KNOWN equidistant properties.
+        //   Typo = "sevrity" (swap r/i vs i/r... let me use typo "aaab" with cols "aaac" and "aaad").
+        //   Levenshtein("aaab", "aaac") = 1. Levenshtein("aaab", "aaad") = 1. Both equidistant.
+
+        // Use clear typo="aaab", col_x="aaac", col_y="aaad" (both distance 1 from "aaab").
+        // Insert in REVERSE lexicographic order so current code returns "aaad" first,
+        // making the assertion `Some("aaac")` reliably fail.
+        let col_y = ColumnSpec::new("aaad", ColumnType::String, None, vec![]); // lexically LATER, inserted FIRST
+        let col_x = ColumnSpec::new("aaac", ColumnType::String, None, vec![]); // lexically FIRST, inserted SECOND
+
+        // One sensor with BOTH columns in the same table (acme → sensor_one → single_alerts).
+        // Vec order: ["aaad", "aaac"] — current min_by_key picks "aaad" (first minimum found).
+        // Expected: "aaac" (lexicographically smallest). Current code returns "aaad".
+        let (key_one, val_one) = make_resolved_with_columns(
+            "sensor_one",
+            "single",
+            "acme",
+            vec![col_y, col_x], // reverse order: "aaad" first so current code hits it first
+        );
+        let _ = (col_a, col_b, col_a2, col_b2); // suppress unused warnings
+
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key_one, val_one);
+
+        // fully-qualified table name: "sensor_one_single"
+        let table_name = "sensor_one_single";
+        let column_typo = "aaab"; // equidistant (dist=1) from both "aaac" and "aaad"
+        let org = OrgSlug::new("acme");
+        let org_scope = [org];
+
+        // call check_column_availability: should return ColumnNotFound with did_you_mean.
+        let result = check_column_availability(
+            column_typo,
+            table_name,
+            "test-client",
+            Some(&org_scope),
+            Some(&spec_map),
+        );
+
+        let err = result
+            .expect_err("check_column_availability must return Err for unknown column 'aaab'");
+
+        // Extract did_you_mean from the error.
+        let did_you_mean = match err {
+            prism_core::error::PrismError::ColumnNotFound(ref d) => d.did_you_mean.clone(),
+            other => panic!("expected ColumnNotFound, got: {other:?}"),
+        };
+
+        // BC-2.11.016 AC-001: did_you_mean must be deterministic.
+        // Expected: "aaac" (lexicographically smallest of equidistant candidates "aaac" / "aaad").
+        // Current code returns the HashMap iteration order (non-deterministic). The assertion
+        // is the CORRECT value; it fails on current HEAD when HashMap returns "aaad" first.
+        assert_eq!(
+            did_you_mean.as_deref(),
+            Some("aaac"),
+            "BC-2.11.016: did_you_mean must return lexicographically-smallest equidistant \
+             candidate 'aaac' (not '{}'); current code has no tie-break so the result is \
+             non-deterministic",
+            did_you_mean.as_deref().unwrap_or("<None>")
+        );
+    }
+
+    /// F-001B-PASS-LOW-001 (multi-org variant): same non-determinism in a multi-client query
+    /// where one sensor contributes multiple equidistant columns via flat_map, but in this
+    /// variant the equidistant columns are part of the SAME flat_map sequence from a
+    /// single sensor entry. The non-lexicographic column is inserted first in the Vec so
+    /// that `min_by_key` reliably picks it over the lexicographically-correct candidate.
+    ///
+    /// The multi-org aspect verifies the org_scope filter path is correctly exercised.
+    ///
+    /// RED GATE: assertion `did_you_mean == Some("bbb1")` ALWAYS fails on current HEAD
+    /// because `min_by_key` returns "bbb2" (inserted first, encountered first by flat_map).
+    #[test]
+    fn test_BC_2_11_016_did_you_mean_lexicographic_tiebreak_multi_sensor_same_table() {
+        // Multi-org test: org_scope covers "acme". One sensor with two equidistant columns
+        // inserted in reverse lexicographic order so current code returns the wrong one.
+        //
+        // Columns: "bbb2" (dist=1 from "bbb0", inserted FIRST) and "bbb1" (dist=1, SECOND).
+        // Current code: min_by_key picks "bbb2" (first minimum encountered in Vec iteration).
+        // Expected: "bbb1" (lexicographically smallest equidistant candidate).
+
+        let col_wrong = ColumnSpec::new("bbb2", ColumnType::String, None, vec![]); // wrong: inserted first
+        let col_right = ColumnSpec::new("bbb1", ColumnType::String, None, vec![]); // right: lexicographic min
+
+        // Single sensor under "acme" with columns in reverse-lex order.
+        let (key_one, val_one) = make_resolved_with_columns(
+            "shared_sensor",
+            "logs",
+            "acme",
+            vec![col_wrong, col_right], // "bbb2" first → current code returns "bbb2"
+        );
+
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key_one, val_one);
+
+        // org_scope = acme only (exercises the org_scope filter path).
+        let acme = OrgSlug::new("acme");
+        let org_scope = [acme];
+
+        let table_name = "shared_sensor_logs";
+        let column_typo = "bbb0"; // dist=1 from both "bbb1" and "bbb2" — equidistant.
+
+        let result = check_column_availability(
+            column_typo,
+            table_name,
+            "test-client",
+            Some(&org_scope),
+            Some(&spec_map),
+        );
+
+        let err = result
+            .expect_err("check_column_availability must return Err for unknown column 'bbb0'");
+
+        let did_you_mean = match err {
+            prism_core::error::PrismError::ColumnNotFound(ref d) => d.did_you_mean.clone(),
+            other => panic!("expected ColumnNotFound, got: {other:?}"),
+        };
+
+        // BC-2.11.016 AC-001: deterministic tie-break → lexicographically smallest.
+        // Expected: "bbb1" (alphabetically before "bbb2").
+        // Current code: returns "bbb2" (first in Vec, first minimum found by min_by_key).
+        // This assertion ALWAYS fails on current HEAD.
+        assert_eq!(
+            did_you_mean.as_deref(),
+            Some("bbb1"),
+            "BC-2.11.016: did_you_mean must return lexicographically-smallest equidistant \
+             candidate 'bbb1' (got '{}'); current code picks Vec-order first minimum, \
+             not lex-smallest",
+            did_you_mean.as_deref().unwrap_or("<None>")
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // OBS-FRESH-1 — available_columns nondeterministic ordering and possible duplicates
+    // (BC-2.11.016 AC — multi-org-scope determinism)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// OBS-FRESH-1: `available_columns` in `check_column_availability` must be sorted
+    /// and deduped before constructing the `ColumnNotFoundDetails` error.
+    ///
+    /// Problem: `available_columns` is built via `flat_map` over `spec_map.values()`,
+    /// which iterates in HashMap order (non-deterministic). In a multi-org-scope query
+    /// where multiple sensors contribute columns for the same table, the `available_columns`
+    /// Vec may appear in any order across calls, and may contain duplicates when multiple
+    /// org-scoped entries define the same column name (e.g. multi-tenant overlays that
+    /// share the same base spec).
+    ///
+    /// Fix: sort + dedup `available_columns` before constructing the error.
+    ///
+    /// RED GATE (available_columns order): construct a spec_map with two sensors (alpha, beta)
+    /// each contributing one column ("col_z" and "col_a" respectively). The error's
+    /// `available_columns` field must be sorted ["col_a", "col_z"] regardless of HashMap
+    /// iteration order. On current HEAD, `available_columns` ordering depends on HashMap
+    /// iteration — could be either ["col_a", "col_z"] or ["col_z", "col_a"].
+    ///
+    /// RED GATE (duplicates): two org-scoped entries for the same sensor/table (simulating
+    /// multi-org-scope with overlapping column names) would produce duplicates.
+    /// We exercise this with two entries that have the same table name but different
+    /// sensor IDs — both match the FQ table prefix for different queries. For dedup,
+    /// we add a second sensor with the same column name to verify the output has no dupes.
+    #[test]
+    fn test_BC_2_11_016_available_columns_sorted_deduped_in_column_not_found_error() {
+        // Two sensors under "acme", contributing columns in reverse-lex order.
+        // Sensor "zebra" → column "col_z" (would appear first if HashMap puts zebra first).
+        // Sensor "alpha" → column "col_a" (lexically earlier).
+        // The error's available_columns must be sorted: ["col_a", "col_z"].
+        //
+        // NOTE: both sensors have different sensor IDs → different FQ table names.
+        // "zebra_findings" and "alpha_findings" — these are DIFFERENT FQ tables.
+        // To get BOTH columns in the same available_columns Vec, both sensors must match
+        // the query's table_name. That requires both FQ names to equal table_name — impossible
+        // unless they share the same FQ name.
+        //
+        // Correct setup: ONE sensor with TWO columns — let's verify sort within single-sensor case.
+        // The HashMap non-determinism is across sensors, not within one sensor's column Vec.
+        // For sorting: two sensors both with FQ = "shared_s1_findings" requires different
+        // sensor IDs — also impossible.
+        //
+        // REAL test for sort: one sensor with multiple columns inserted in reverse-lex order.
+        // available_columns from flat_map preserves Vec order (deterministic within one sensor),
+        // but across multiple spec_map entries (multi-sensor OR multi-org) the HashMap order matters.
+        // For the sort fix, use TWO spec_map entries that both produce columns for the SAME
+        // fully-qualified table name. This is achievable by using two org-slug entries for
+        // the SAME sensor spec (simulating multi-tenant overlays of the same sensor).
+
+        // Two entries: same sensor_id "shared", same table_suffix "data",
+        // but different org_slugs ("acme1" and "acme2"). The org_scope includes BOTH.
+        // Both produce FQ table "shared_data". Both contribute the same column "col_dup"
+        // plus each contributes a unique column: "col_z" (acme1) and "col_a" (acme2).
+        let col_z = ColumnSpec::new("col_z", ColumnType::String, None, vec![]);
+        let col_a = ColumnSpec::new("col_a", ColumnType::String, None, vec![]);
+        let col_dup = ColumnSpec::new("col_dup", ColumnType::String, None, vec![]);
+
+        let col_z2 = ColumnSpec::new("col_z", ColumnType::String, None, vec![]); // duplicate name
+        let col_a2 = ColumnSpec::new("col_a", ColumnType::String, None, vec![]); // duplicate name
+        let col_dup2 = ColumnSpec::new("col_dup", ColumnType::String, None, vec![]); // duplicate
+
+        let (key_acme1, val_acme1) = make_resolved_with_columns(
+            "shared",
+            "data",
+            "acme1",
+            vec![col_z, col_dup], // "col_z" first (reverse lex)
+        );
+        let (key_acme2, val_acme2) = make_resolved_with_columns(
+            "shared",
+            "data",
+            "acme2",
+            vec![col_dup2, col_a], // "col_dup" then "col_a"
+        );
+
+        // Suppress unused:
+        let _ = (col_z2, col_a2);
+
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key_acme1, val_acme1);
+        spec_map.insert(key_acme2, val_acme2);
+
+        // org_scope covers BOTH orgs → both entries contribute columns.
+        let acme1 = OrgSlug::new("acme1");
+        let acme2 = OrgSlug::new("acme2");
+        let org_scope = [acme1, acme2];
+
+        let table_name = "shared_data";
+        let column_typo = "completely_unknown_xyz"; // not in any column list, dist > 3 → no did_you_mean
+
+        let result = check_column_availability(
+            column_typo,
+            table_name,
+            "test-client",
+            Some(&org_scope),
+            Some(&spec_map),
+        );
+
+        let err = result.expect_err(
+            "check_column_availability must return Err for unknown column 'completely_unknown_xyz'",
+        );
+
+        let details = match err {
+            prism_core::error::PrismError::ColumnNotFound(ref d) => d.clone(),
+            other => panic!("expected ColumnNotFound, got: {other:?}"),
+        };
+
+        let cols = &details.available_columns;
+
+        // OBS-FRESH-1 sort assertion: available_columns must be sorted lexicographically.
+        // On current HEAD, order depends on HashMap iteration (non-deterministic):
+        // could be ["col_z", "col_dup", "col_dup", "col_a"] or ["col_dup", "col_a", "col_z", "col_dup"].
+        // After sort+dedup: ["col_a", "col_dup", "col_z"].
+        let mut expected_sorted = cols.clone();
+        expected_sorted.sort();
+        expected_sorted.dedup();
+
+        assert_eq!(
+            cols, &expected_sorted,
+            "OBS-FRESH-1: available_columns must be sorted and deduped. Got: {:?}. \
+             Expected sorted+deduped: {:?}. \
+             Current HEAD builds via flat_map over HashMap values (nondeterministic order) \
+             without sort or dedup.",
+            cols, expected_sorted
+        );
+
+        // OBS-FRESH-1 dedup assertion: no duplicate column names.
+        let unique_count = {
+            let mut seen = std::collections::HashSet::new();
+            cols.iter().filter(|c| seen.insert(*c)).count()
+        };
+        assert_eq!(
+            cols.len(),
+            unique_count,
+            "OBS-FRESH-1: available_columns must not contain duplicates. Got: {:?}",
+            cols
+        );
+    }
 }

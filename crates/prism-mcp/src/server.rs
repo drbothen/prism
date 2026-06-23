@@ -186,6 +186,21 @@ impl PrismServer {
         self
     }
 
+    /// Wire a `QueryEngine` into an existing `PrismServer` (test fixture helper).
+    ///
+    /// Intended for integration tests that need to exercise the query path (e.g.,
+    /// `normalized_pql` field, E-QUERY-038 column-not-found gate, E-QUERY-037
+    /// table-not-found enrichment) without a fully-booted production stack.
+    ///
+    /// The caller constructs the `QueryEngine` with the required resolved_spec_map
+    /// and table_registry wired, then passes it here.
+    ///
+    /// `with_deps()` remains the production wiring path (boot step 9).
+    pub fn with_query_engine(mut self, engine: Arc<QueryEngine>) -> Self {
+        self.query_engine = Some(engine);
+        self
+    }
+
     /// Wire an AliasStore for testing alias tool handlers.
     ///
     /// Used in integration tests that need list_aliases / explain_alias / create_alias
@@ -1850,12 +1865,42 @@ impl PrismServer {
                 })?
             }
         };
-        let payload = serde_json::json!({
+        // S-DEMO-PRISMQL-ONBOARDING-001-B / BC-2.11.018 / EC-11-052: produce normalized PQL
+        // string. Parse the alias-expanded query the engine validated and executed, then
+        // re-serialize it to canonical (whitespace-normalized, uppercase-keyword) PQL.
+        // `result.context.expanded_query` is populated by execute_inner Step 0 and always
+        // carries the post-alias-resolution form (ADR-022; BC-2.11.018 §Field content).
+        // For queries without aliases, expanded_query == original_query, so this is
+        // correct in both the alias and non-alias paths.
+        // When `Some`, the key is inserted below. When `None`, the key is absent
+        // (not null) per BC-2.11.018 invariant.
+        // ABSENT-ON-ERROR structural guarantee: the error path returns early via
+        // `prism_error_to_structured_call_result` before reaching this line, so
+        // `normalized_pql_str` is only computed on the success path.
+        let normalized_pql_str: Option<String> =
+            prism_query::filter_parser::PrismQlParser::parse(&result.context.expanded_query)
+                .ok()
+                .and_then(|ast| prism_query::engine::normalize_pql(&ast));
+
+        let mut payload = serde_json::json!({
             "rows": rows,
             "returned_results": result.returned_results,
             "total_available": result.total_available,
             "is_truncated": result.is_truncated,
+            // BC-2.11.005 / BC-2.11.011: per-sensor partial-failure errors are surfaced
+            // here so the LLM agent can see which sensors had problems while the query
+            // still returned results. An empty array means all sensors succeeded.
+            // (OBS-1 fix: ensures partial-failure information reaches the MCP response
+            // and is testable at the integration level — see EC-11-054 test.)
+            "sensor_errors": result.sensor_errors,
         });
+        // BC-2.11.018: conditionally insert normalized_pql key.
+        // When None, no key is inserted and the field is absent from the JSON output.
+        // `#[serde(skip_serializing_if)]` does NOT apply to serde_json::Value — conditional
+        // key insertion is the correct equivalent (S-DEMO-PRISMQL-ONBOARDING-001-B v1.3).
+        if let Some(ref s) = normalized_pql_str {
+            payload["normalized_pql"] = serde_json::Value::String(s.clone());
+        }
         // F-PASS11-MED-2: DataSource must carry sensor IDs (which sensors were queried),
         // not client IDs (who asked). result.context.sensors_queried is populated by the
         // fan-out pipeline for each sensor table fetched. If the query touches no sensor
@@ -8429,6 +8474,7 @@ mod tests {
     /// BC-2.10.012 v1.1: stores 4-tuple (tool_name, client_id, operation, outcome).
     #[derive(Default)]
     struct RecordingAudit {
+        #[allow(clippy::type_complexity)]
         tool_calls: std::sync::Mutex<Vec<(String, Option<String>, String, String)>>,
     }
 

@@ -5167,6 +5167,7 @@ name = "prism-mcp"
 version = "0.1.0"
 dependencies = [
  "arc-swap",
+ "arrow",
  "arrow-json",
  "async-trait",
  "chrono",

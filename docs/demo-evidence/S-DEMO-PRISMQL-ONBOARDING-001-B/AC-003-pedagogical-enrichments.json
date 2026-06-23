@@ -1,0 +1,102 @@
+{
+  "_evidence_meta": {
+    "story_id": "S-DEMO-PRISMQL-ONBOARDING-001-B",
+    "ac": "AC-003",
+    "bc": "BC-2.11.017",
+    "description": "E-QUERY-001/002/003 pedagogical enrichments: near_text + reference_pointer, valid_operators_for_type, how_to_fix",
+    "capture_method": "cargo run --example evidence_capture (real prism-mcp PrismServer::query + prism_error_to_structured_call_result)",
+    "test_gates": [
+      "test_BC_2_11_017_enrichment_helpers_valid_operators_for_type (prism-query)",
+      "test_BC_2_11_017_enrichment_helper_extract_near_text (prism-query)",
+      "test_BC_2_11_017_enrichment_helper_how_to_fix_for_security_limit (prism-query)",
+      "test_BC_2_11_017_ac003_parse_error_response_carries_near_text (prism-mcp)",
+      "test_BC_2_11_017_ac003_type_error_response_carries_valid_operators (prism-mcp)",
+      "test_BC_2_11_017_ac003_security_limit_error_carries_how_to_fix (prism-mcp)"
+    ],
+    "captured_at": "2026-06-22",
+    "revision": "2026-06-22 re-capture after F-198 fix (ec_code_override E-QUERY-001 on QueryParseFailed arm)"
+  },
+  "case_e_query_001_parse_error": {
+    "description": "Query: SELCT * FROM crowdstrike_alerts (typo in SELECT keyword → E-QUERY-001 parse error)",
+    "assertions": [
+      "near_text: 'SELCT' (the offending token, ≤50 chars)",
+      "reference_pointer: 'prismql://reference'",
+      "both fields present in sc['error']",
+      "code: 'E-QUERY-001' (NOT 'E-MCP-002' — F-198 fix)"
+    ],
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "category": "validation",
+        "code": "E-QUERY-001",
+        "message": "PrismQL parse error: found '*' expected '=', something else, '|', '\"cidr\"', '\"CIDR\"', '\"LIKE\"', '\"like\"', '>', '<', or '!'",
+        "near_text": "SELCT",
+        "original_params_valid": false,
+        "reference_pointer": "prismql://reference",
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Check the request parameters and retry.",
+        "upstream_message": null
+      }
+    }
+  },
+  "case_e_query_002_type_mismatch": {
+    "description": "Query: SELECT * FROM crowdstrike_alerts WHERE severity > 5 (String column with ordering operator → E-QUERY-002)",
+    "assertions": [
+      "valid_operators_for_type: ['=', '!=', 'LIKE', 'IN', 'NOT IN'] (String-specific set, NOT the generic superset)",
+      "ordering operators '>', '<', 'BETWEEN' ABSENT from the array",
+      "code: 'E-QUERY-002'"
+    ],
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "category": "validation",
+        "code": "E-QUERY-002",
+        "message": "E-QUERY-002: type mismatch — column 'severity' in table 'crowdstrike_alerts' has type 'String' which does not support operator '>'",
+        "original_params_valid": false,
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Use prism_describe('<client_id>') to inspect column types and choose a valid operator from the valid_operators_for_type list.",
+        "upstream_message": null,
+        "valid_operators_for_type": [
+          "=",
+          "!=",
+          "LIKE",
+          "IN",
+          "NOT IN"
+        ]
+      }
+    }
+  },
+  "case_e_query_003_security_limit": {
+    "description": "Query security limit exceeded (query > 64KB): E-QUERY-003 with how_to_fix",
+    "assertions": [
+      "how_to_fix: non-empty actionable string starting with 'Shorten'",
+      "code: 'E-QUERY-003'"
+    ],
+    "note": "Synthetic injection of PrismError::QuerySecurityLimitExceeded via prism_error_to_structured_call_result — no full PrismServer needed for this variant",
+    "response": {
+      "_meta": {
+        "trust_level": "internal"
+      },
+      "error": {
+        "category": "validation",
+        "code": "E-QUERY-003",
+        "how_to_fix": "Shorten the query. Remove large IN (...) lists or break into multiple queries.",
+        "message": "E-QUERY-003: query size exceeds 64KB limit",
+        "original_params_valid": false,
+        "retry_after_seconds": null,
+        "retryable": false,
+        "source": "prism_mcp",
+        "suggestion": "Check the request parameters and retry.",
+        "upstream_message": null
+      }
+    }
+  }
+}

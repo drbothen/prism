@@ -75,6 +75,7 @@ fn test_ac5_prism_error_display_e_query_001() {
     let err = PrismError::QueryParseFailed {
         offset: 42,
         detail: "unexpected token".to_string(),
+        query: String::new(),
     };
     assert_error_code_prefix(&err, "E-QUERY-001");
 }

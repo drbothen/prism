@@ -942,7 +942,11 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             .map(|e| e.to_string())
             .unwrap_or_else(|| "parse failed".to_string());
         emit_audit("E-QUERY-001");
-        PrismError::QueryParseFailed { offset: 0, detail }
+        PrismError::QueryParseFailed {
+            offset: 0,
+            detail,
+            query: expanded_query.clone(),
+        }
     })?;
 
     let parsed_mode = query_mode_str(&ast).to_string();
