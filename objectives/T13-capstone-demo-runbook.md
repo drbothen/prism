@@ -2,9 +2,9 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.1"
+version: "1.2"
 producer: product-owner
-timestamp: 2026-06-22T00:00:00Z
+timestamp: 2026-06-23T00:00:00Z
 project: prism
 status: draft
 gates_on:
@@ -85,7 +85,7 @@ deterministically over wall-clock time from scenario start. Stage thresholds:
 | 0 | Baseline | 0s | Normal device inventory; no attacker activity |
 | 1 | Recon | 60s | Compromised device `dev-<hex>-<seed>-0` appears in sensor data |
 | 2 | Lateral Movement | 180s | Lateral spread devices appear; `ioc_hashes` surface on CrowdStrike detections |
-| 3 | Exfil | 360s | IOC IPs and domains appear; Cyberint alerts fire with `iocs[].value`/`iocs[].type` fields |
+| 3 | Exfil | 360s | IOC IPs and domains appear; Cyberint alerts fire with `iocs_value`/`iocs_type` fields |
 | 4 | Containment | 600s | All IOC fields visible; containment-related isolation flags set |
 
 The same device ID appears coherently across **CrowdStrike, Armis, and Claroty** for
@@ -194,9 +194,9 @@ surface, different query pattern.
 ### Act 4 — IOC Enrichment (10 min)
 
 At Stage 3 (Exfil), Cyberint alerts for org-b and org-c surface with IOC fields
-(`iocs[].value`, `iocs[].type`). CrowdStrike detection behaviors for org-c
+(`iocs_value`, `iocs_type`). CrowdStrike detection behaviors for org-c
 surface with `behaviors_ioc_type`/`behaviors_ioc_value` on the `behaviors` array. The analyst enriches
-in-prism via `| enrich threat_intel(iocs[].value)` and `| enrich nvd(device_cves_first)`.
+in-prism via `| enrich threat_intel(iocs_value)` and `| enrich nvd(device_cves_first)`.
 The ThreatIntel DTU resolves every scenario IOC as Malicious (score >= 75). The NVD
 DTU resolves every scenario CVE at HIGH CVSS 8.1. The enrichment flows through the
 real prism code path — DataFusion UDF → InfusionRegistry → WASM plugin → DTU HTTP.
@@ -296,8 +296,8 @@ Expected return (BC-2.10.012, S-DEMO-PRISMQL-ONBOARDING-001-A merged PR #197):
     {
       "table_name": "cyberint_alerts",
       "columns": [
-        {"name": "iocs[].value", "type": "String"},
-        {"name": "iocs[].type", "type": "String"},
+        {"name": "iocs_value", "type": "String"},
+        {"name": "iocs_type", "type": "String"},
         {"name": "severity", "type": "String"},
         ...
       ]
@@ -316,10 +316,8 @@ guides Claude toward the enrichment path.
 query authorship. Claude enumerates tables, sees real column names, and writes correct
 PrismQL on the first try. No hallucinated field names."
 
-**VERIFY IN DRY-RUN:** Confirm `iocs[].value`, `iocs[].type`, and `severity` appear in the
-`cyberint_alerts` column list (PIVOT-003 merged; these fields were stamped on the TOML
-spec in S-DEMO-ENRICHMENT-PIVOT-003 PR #196 `develop@f6739764`). Note: `severity` is the
-top-level alert severity field; there is no separate `ioc_severity` column.
+**VERIFY IN DRY-RUN:** Confirm `iocs_value`, `iocs_type`, and `severity` appear in the
+`cyberint_alerts` column list. These are the ENRICH-1 clean column names (S-DEMO-ENRICH-1) for the IOC fields originally introduced in PIVOT-003 (PR #196 `develop@f6739764`) using bracket-in-name convention. ENRICH-1 renames them to clean SQL identifiers with source_path. Note: `severity` is the top-level alert severity field; there is no separate `ioc_severity` column.
 
 ---
 
@@ -445,16 +443,15 @@ Cyberint alerts and CrowdStrike detection behaviors.
 
 ```sql
 FROM cyberint_alerts
-WHERE iocs[].value IS NOT NULL
+WHERE iocs_value IS NOT NULL
 LIMIT 10
 client_id = "org-c"
 ```
 
-Expected at Stage 3+: Returns alert rows with `iocs[].value` (IP address, domain, or
-hash string) and `iocs[].type` (e.g., `"ip"`, `"domain"`, `"hash_sha256"`) populated.
+Expected at Stage 3+: Returns alert rows with `iocs_value` (IP address, domain, or
+hash string; wildcard source_path `$.iocs[*].value` → JSON-list string, e.g., `["hash1","hash2"]`) and `iocs_type` (e.g., `"[\"ip\"]"`, `"[\"domain\"]"`, `"[\"hash_sha256\"]"`) populated.
 The top-level `severity` column carries the alert severity. These are real-schema fields
-added by PIVOT-003 (note: `ioc_value`/`ioc_type` are serde aliases resolved at the Rust
-struct level; the queryable PrismQL column names use the `iocs[].` nested path form).
+added by PIVOT-003 and surfaced via ENRICH-1 clean column names with source_path extraction (note: the wire-level serde alias `ioc_type`/`ioc_value` is resolved inside the DTU Rust struct; the queryable PrismQL column names are `iocs_value` and `iocs_type` per the TOML spec).
 
 **What it demonstrates:** IOC fields are now first-class columns in the TOML sensor
 spec, not synthetic filters. The TOML column declarations match the DTU Alert struct
@@ -464,9 +461,9 @@ fields exactly (SAP-2 compliance, BC-2.06.019 Per-Sensor IOC-Surface Matrix).
 in its native alert format. Prism exposes them as typed columns. The analyst can filter,
 join, or enrich on them directly in PrismQL."
 
-**VERIFY IN DRY-RUN:** Confirm `iocs[].value` column returns non-null values at Stage 3.
+**VERIFY IN DRY-RUN:** Confirm `iocs_value` column returns non-null values at Stage 3.
 If null at Stage 3, the scenario clock may not have advanced far enough, or the
-synthetic `_ioc_value` filter removal in PIVOT-003 may not be working correctly.
+ENRICH-1 `source_path = "$.iocs[*].value"` extraction may not be working (check for `column_source_path_extraction_failed` warn events in the prism log).
 
 ---
 
@@ -474,8 +471,8 @@ synthetic `_ioc_value` filter removal in PIVOT-003 may not be working correctly.
 
 ```sql
 FROM cyberint_alerts
-WHERE iocs[].value IS NOT NULL
-| enrich threat_intel(iocs[].value)
+WHERE iocs_value IS NOT NULL
+| enrich threat_intel(iocs_value)
 LIMIT 10
 client_id = "org-c"
 ```
@@ -695,8 +692,8 @@ introduced lateral devices; they remain visible at Stage 4). All device fields v
 
 ```sql
 FROM cyberint_alerts
-WHERE iocs[].type IS NOT NULL
-| enrich threat_intel(iocs[].value)
+WHERE iocs_type IS NOT NULL
+| enrich threat_intel(iocs_value)
 client_id = "org-c"
 ```
 
@@ -753,7 +750,7 @@ PrismQL spec directly from the server, not from its training data (which may be 
 | Multi-client isolation | Org-a and org-c CrowdStrike return disjoint device IDs | "Multi-tenancy is data isolation, not just routing" |
 | Sensor-combo scoping | `claroty_devices` returns E-QUERY-037 for org-a | "Prism fails early with a helpful error; Claude self-corrects" |
 | Cross-sensor correlation | Same device ID in CrowdStrike and Armis for org-c | "One endpoint, two sensor perspectives, one PrismQL query" |
-| IOC enrichment | `| enrich threat_intel(iocs[].value)` returns Malicious score | "Enrichment is in-query, not post-processing" |
+| IOC enrichment | `| enrich threat_intel(iocs_value)` returns Malicious score (ENRICH-1 clean column name) | "Enrichment is in-query, not post-processing" |
 | CVE enrichment | `| enrich nvd(cve_id)` returns CVSS 8.1 HIGH | "CVE context in the same query that found the alert" |
 | Sensor health | `check_sensor_health` returns `probe_level: "live"` | "Verify data quality before drawing conclusions" |
 | Full blast radius | Stage 4 shows all IOC types + lateral devices | "Ten minutes into the incident, the full picture is clear" |
@@ -798,7 +795,7 @@ must pass before recording begins.
       devices only (no `dev-<hex>-200-0` primary compromised device)
 - [ ] At elapsed >= 60s: `dev-<hex>-200-0` device appears in Armis results for org-c
 - [ ] At elapsed >= 180s: lateral devices appear in Armis/CrowdStrike for org-c
-- [ ] At elapsed >= 360s: `iocs[].value` field is non-null in Cyberint alerts for org-c
+- [ ] At elapsed >= 360s: `iocs_value` column is non-null (returns JSON-list string) in Cyberint alerts for org-c
 - [ ] At elapsed >= 600s: all IOC types (IP, domain, hash, CVE) visible simultaneously
 
 **VERIFY IN DRY-RUN:** If stage progression is not working, confirm
@@ -808,8 +805,8 @@ route handlers.
 
 ### 5.5 Enrichment Path
 
-- [ ] `| enrich threat_intel(iocs[].value)` on a Cyberint alert at Stage 3+ returns
-      `threat_score >= 75` for at least one IOC value
+- [ ] `| enrich threat_intel(iocs_value)` on a Cyberint alert at Stage 3+ returns
+      `threat_score >= 75` for at least one IOC value (note: `iocs_value` is a JSON-list string; enrich operates on the list)
 - [ ] `| enrich nvd(cve_id)` on a Cyberint alert returns `cvss_score >= 7.0` for
       at least one CVE
 - [ ] Enrichment response includes the source column value (not just the enrichment fields)
@@ -822,8 +819,8 @@ fallback HTTP path must be active.
 ### 5.6 MCP Teaching Surface
 
 - [ ] `prism_describe(client_id: "org-c")` returns a JSON response with tables and
-      columns including `cyberint_alerts` table with `iocs[].value`/`iocs[].type`/`severity`
-      columns (PIVOT-003 TOML spec alignment; note: alert-level `severity`, no separate `ioc_severity`)
+      columns including `cyberint_alerts` table with `iocs_value`/`iocs_type`/`severity`
+      columns (ENRICH-1 clean column names; note: alert-level `severity`, no separate `ioc_severity`)
 - [ ] `prism_describe(client_id: "org-a")` does NOT include `claroty_devices` or
       `cyberint_alerts` tables (per-client isolation)
 - [ ] `FROM claroty_devices LIMIT 5 client_id="org-a"` returns E-QUERY-037 with
@@ -867,8 +864,8 @@ error naming the invalid column and listing alternatives.
 
 ### Capability caveats
 
-- **Enrichment at Stage < 3:** The `| enrich threat_intel(iocs[].value)` query will
-  return results but `iocs[].value` will be null for most rows at Stage 0-2. IOC values
+- **Enrichment at Stage < 3:** The `| enrich threat_intel(iocs_value)` query will
+  return results but `iocs_value` will be null (or `"[]"` empty JSON-list) for most rows at Stage 0-2. IOC values
   only populate at Stage 3+. If demonstrating enrichment, confirm elapsed >= 360s.
 
 - **Device ID format in queries:** Device IDs are derived from org_id UUID bytes, NOT
@@ -895,16 +892,21 @@ error naming the invalid column and listing alternatives.
   per D-1164. The analyst-visible behavior is identical — only the internal execution
   path differs.
 
-- **Cyberint IOC column naming — `iocs[].` nested path form is required (v1.1
-  correction):** The queryable PrismQL column names for Cyberint IOC fields are
-  `iocs[].value` and `iocs[].type` — the nested path form declared in
-  `cyberint.sensor.toml` `[[tables.columns]]` entries. The short forms `ioc_value` and
+- **Cyberint IOC column naming — ENRICH-1 clean column names are required (v1.2
+  correction, supersedes v1.1):** The queryable PrismQL column names for Cyberint IOC fields are
+  `iocs_value` and `iocs_type` — the ENRICH-1 clean SQL identifiers declared as TOML
+  `[[tables.columns]]` entries with `source_path = "$.iocs[*].value"` and
+  `source_path = "$.iocs[*].type"` respectively (S-DEMO-ENRICH-1). The bracket-in-name
+  forms `iocs[].value` / `iocs[].type` (PIVOT-003 convention) are NOT the TOML column names and
+  are NOT queryable as PrismQL column names. The short forms `ioc_value` and
   `ioc_type` are serde aliases resolved at the Rust struct level (see Ioc struct
-  `#[serde(rename = "type")]` annotation); they are NOT separate TOML column
-  declarations and are NOT queryable as bare column names in PrismQL. There is no
-  `ioc_severity` column — the alert-level severity is `severity` (a top-level alert
-  column, not an IOC sub-field). Any PrismQL query using `ioc_value`/`ioc_type`/
-  `ioc_severity` as bare column names will fail at plan time with E-QUERY-038.
+  `#[serde(rename = "type")]` annotation); they are NOT TOML column
+  declarations. There is no `ioc_severity` column — the alert-level severity is `severity`.
+  Any PrismQL query using `ioc_value`/`ioc_type`/`ioc_severity`/`iocs[].value`/`iocs[].type`
+  as column names will fail at plan time with E-QUERY-038. The wildcard source_path
+  `$.iocs[*].value` means `iocs_value` returns a JSON-list string (e.g., `["hash1","hash2"]`),
+  not a single scalar. Callers should use `iocs_value IS NOT NULL` (or IS NULL) for filtering
+  rather than equality comparisons against a scalar value.
 
 ---
 
@@ -915,7 +917,7 @@ Suggested presentation order for T14 demo-recorder:
 1. Open Claude Code with prism MCP server connected. Show the tool list.
 2. Block 1: `list_capabilities(org-c)` → `prism_describe(org-c)` → `prism_describe(org-a)` [schema diff]
 3. Block 2: CrowdStrike query org-c → Armis correlation → org-a isolation proof
-4. Block 3: Cyberint IOC query at Stage 3 → `| enrich threat_intel(iocs[].value)` → `| enrich nvd(cve_id)`
+4. Block 3: Cyberint IOC query at Stage 3 (`WHERE iocs_value IS NOT NULL`) → `| enrich threat_intel(iocs_value)` → `| enrich nvd(cve_id)`
 5. Block 4: E-QUERY-037 table-not-available for org-a → pedagogical error → Claude self-corrects
 6. Block 5 (PENDING S-5.04): `check_sensor_health(org-c)` → live probe confirmation
 7. Block 6: Stage 4 full blast radius query → Claroty audit log
@@ -933,5 +935,6 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
-| 1.1 | 2026-06-23 | Corrected Cyberint IOC column names throughout: `ioc_value` → `iocs[].value`, `ioc_type` → `iocs[].type`, `ioc_severity` → `severity` (alert-level field; no separate IOC severity column exists). These short forms are serde aliases, not queryable PrismQL column names. Added §6 capability caveat documenting the `iocs[].` nested path requirement. BLOCKER 4 fix from dry-run. |
+| 1.2 | 2026-06-23 | ENRICH-1 clean-column-name amendment (S-DEMO-ENRICH-1). PIVOT-003 bracket-in-name column references (`iocs[].value`, `iocs[].type`) superseded by ENRICH-1 clean SQL identifiers: `iocs_value` (source_path `$.iocs[*].value`), `iocs_type` (source_path `$.iocs[*].type`). All queries, expected outputs, VERIFY IN DRY-RUN notes, checklist items, Expected Outputs table, and §6 caveat updated. prism_describe JSON example updated (`iocs[].value` → `iocs_value`, `iocs[].type` → `iocs_type`). §6 caveat rewritten: bracket-in-name forms NOT queryable as PrismQL column names; wildcard source_path means `iocs_value` returns JSON-list string (e.g., `["hash1","hash2"]`). Added diagnostic note: check `column_source_path_extraction_failed` warn events if `iocs_value` is unexpectedly null. `behaviors_ioc_type`/`behaviors_ioc_value` (CrowdStrike) were already correct clean names (set in PIVOT-003). |
+| 1.1 | 2026-06-23 | Corrected Cyberint IOC column names throughout: `ioc_value` → `iocs_value`, `ioc_type` → `iocs_type`, `ioc_severity` → `severity` (alert-level field; no separate IOC severity column exists). These short forms are serde aliases, not queryable PrismQL column names. Added §6 capability caveat documenting the `iocs[].` nested path requirement. BLOCKER 4 fix from dry-run. |
 | 1.0 | 2026-06-22 | Initial draft. |

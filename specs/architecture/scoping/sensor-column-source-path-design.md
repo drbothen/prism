@@ -98,6 +98,7 @@ compile with one MORE E0639 error after this field is added, not fewer. The
 more field to `ColumnSpec` still passes the gate — the count goes from 83 to 84.
 Update the EXPECTED value to `84` and the type list commentary in ci.yml as part
 of this story.
+**CORRECTION (2026-06-23, ENRICH-1 post-implementation, D-1296):** EXPECTED stays at **83**. Adding a new `#[serde(default)]` optional field to an already-`#[non_exhaustive]` struct adds no new E0639 compile-fail site — the struct was already non-exhaustive, so no external exhaustive match arm fails. Empirically confirmed: `just check` passes with gate=83 after ENRICH-1 implementation. The "83→84" claim above was a design-time prediction that proved incorrect at implementation time. ci.yml EXPECTED remains 83; CLAUDE.md non-exhaustive count 82 (pre-ENRICH-1 baseline on develop@5504c152) is UNCHANGED by ENRICH-1.
 
 ### TOML syntax (how authors declare it)
 
@@ -359,6 +360,8 @@ the struct being non-exhaustive, not about which fields are included.
 include `source_path` in `spec_parser::ColumnSpec` (field count is now 7 with
 the new field). Also update the inline human-readable type list.
 
+**CORRECTION (2026-06-23, D-1296):** NO CI GATE CHANGE NEEDED. EXPECTED stays at **83**. See correction note in §`#[non_exhaustive]` implications above. This design-doc item (DD-5 item 8) was written under the incorrect assumption that adding a field to a `#[non_exhaustive]` struct would produce a new E0639 compile-fail site. It does not — the struct was already non-exhaustive, so existing external match arms already require a wildcard. ci.yml is NOT modified as part of ENRICH-1.
+
 ### 9. Tests to add
 
 | Test location | What to test |
@@ -389,7 +392,7 @@ the new field). Also update the inline human-readable type list.
 | Path convention | `$.` prefix, reusing `extract_at_path` grammar |
 | Wildcard cardinality | JSON-list string in `string` column |
 | `pivot_enrich` contract | Accepts scalar OR JSON-list string; enriches each element |
-| CI gate | EXPECTED 83 → 84 |
+| CI gate | EXPECTED stays **83** (CORRECTED D-1296 — adding field to already-`#[non_exhaustive]` struct adds no new E0639 site) |
 | Cyberint migration | 7 columns renamed + `source_path` added |
 | CrowdStrike migration | 4 columns renamed + `source_path` added |
 | Other sensors | No changes needed |
