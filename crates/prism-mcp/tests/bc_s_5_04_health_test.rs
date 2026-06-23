@@ -50,6 +50,9 @@
 //! | F-S504-P2-008 — sanitize_error truncates long body; strips control chars | test_BC_2_08_001_live_probe_error_body_is_sanitized |
 //! | F-S504-P1-004 — with_token_store wired: token_count reflects live store | test_BC_2_08_005_query_engine_token_count_reflects_wired_store |
 //! | F-S504-P1-005 — timestamp RocksDB read/write survives context reconstruction | test_BC_2_08_004_timestamp_survives_context_reconstruction_with_storage |
+//! | F-S504-P2-RE-001 (1/3) — check_one + new_with_spec_map: probe_table=Some("detections") | test_BC_2_08_001_check_one_routes_to_probe_table_via_spec_map |
+//! | F-S504-P2-RE-001 (2/3) — check_one + new_with_spec_map: probe_table=None, tables fallback | test_BC_2_08_001_check_one_falls_back_to_first_table_via_spec_map |
+//! | F-S504-P2-RE-001 (3/3) — check_one key-miss: client_id not in spec_map → devices sentinel | test_BC_2_08_001_check_one_falls_back_to_devices_when_org_not_in_spec_map |
 //!
 //! # AC-7 (BC-2.08.005 live-probe path) tests
 //! Tests requiring `PrismServer.health_checker` (a private field set only from
@@ -62,12 +65,13 @@
 //! comments. Each has a companion in-process unit test driving the behavior via a mock
 //! `SensorAdapter`.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use chrono::{Duration as ChronoDuration, TimeZone, Utc};
-use prism_core::{OrgId, SensorId};
+use prism_core::{OrgId, OrgSlug, SensorId};
 use prism_mcp::{
     context::PrismContext,
     health::{
@@ -85,6 +89,10 @@ use prism_sensors::{
     adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
     registry::AdapterRegistry,
+};
+use prism_spec_engine::{
+    AuthType as EngAuthType, OverlayLoader, ResolvedSensorSpec, ResolvedSpecKey,
+    SensorInstanceOverlay, SensorSpec as EngSensorSpec, TableSpec,
 };
 
 // ─── Mock SensorAdapter implementations ──────────────────────────────────────
@@ -1504,41 +1512,37 @@ async fn test_BC_2_08_001_probe_auth_stub_succeeds_when_adapter_handles_creds_in
 }
 
 // ---------------------------------------------------------------------------
-// AC-9 (BC-2.08.001 postcondition 5) — probe_table routing
-// S-5.04 Red Gate tests (test-writer pass, 2026-06-22)
+// AC-9 (BC-2.08.001 postcondition 5) — probe_table routing via probe_connectivity_with_routing
+// S-5.04 IMPLEMENTED (implementer pass complete)
 //
-// These tests drive the probe_table routing behavior that the implementer must add
-// to probe_connectivity(). The current implementation always uses
-// `format!("{}_devices", adapter.sensor_type())` (line ~204 of connectivity.rs).
+// These tests exercise the probe_table routing behavior implemented in
+// probe_connectivity_inner (connectivity.rs). The routing uses UNDERSCORE form:
+//   1. probe_table = Some("tbl") → source_table = "{sensor_id}_{probe_table}"
+//   2. probe_table = None, first_table_name = Some("tbl") → source_table = "{sensor_id}_{tbl}"
+//   3. Both None → legacy sentinel "{sensor_id}_devices"
 //
-// After AC-9 is implemented, the routing is:
-//   1. probe_table = Some("tbl") → source_table = "{sensor_id}.{probe_table}"
-//   2. probe_table = None, tables non-empty → source_table = "{sensor_id}.{tables[0].table_name}"
-//   3. probe_table = None, tables empty → structural no-op (returns Ok(Up)) with no adapter call
+// UNDERSCORE contract: `SpecDrivenSensorAdapter::fetch` selects a single table by calling
+// `spec.source_table.strip_prefix("{sensor_id}_")`. Dot form "{sensor_id}.{table}" would
+// never match the strip_prefix and would cause fan-out to ALL tables (F-S504-P1-002 fix).
 //
-// RED GATE mechanism: tests call the CURRENT probe_connectivity (no probe_table param).
-// The assertions check for the NEW dotted format; current code produces the OLD underscore
-// format → assertion fails. The implementer will add probe_table: Option<&str> to the
-// signature and update these calls.
-//
-// NOTE: When the implementer changes the signature, the test call sites below must be
-// updated to pass the probe_table argument. The assertions remain unchanged.
+// Tests call probe_connectivity_with_routing (the extended form that accepts probe_table
+// and first_table_name explicitly). Assertions correctly assert underscore form.
+// See F-S504-P2-RE-001 tests below for the check_one / new_with_spec_map end-to-end path.
 // ---------------------------------------------------------------------------
 
-/// AC-9 (S-5.04): When `probe_table = Some("detections")`, `probe_connectivity` MUST
-/// route the LIMIT-0 fetch to `"crowdstrike.detections"` (dot-notation, BC-2.08.001 §5).
+/// AC-9 (S-5.04): When `probe_table = Some("detections")`, `probe_connectivity_with_routing`
+/// MUST route the LIMIT-0 fetch to `"crowdstrike_detections"` (underscore form, BC-2.08.001 §5).
 ///
-/// RED GATE: Current code always produces `"crowdstrike_devices"` (underscore format).
-/// Assertion: `captured == "crowdstrike.detections"` → FAILS until AC-9 is implemented.
-///
-/// When the implementer adds `probe_table: Option<&str>` to `probe_connectivity`,
-/// update the call site to: `probe_connectivity(&registry, org_id, &sensor_id, "acme", Some("detections"))`.
+/// UNDERSCORE contract: `SpecDrivenSensorAdapter::fetch` calls
+/// `spec.source_table.strip_prefix("crowdstrike_")` to select the table.  Dot form
+/// "crowdstrike.detections" would never match the strip_prefix and would cause fan-out to
+/// all tables (F-S504-P1-002 fix).  The assertion correctly checks for underscore form.
 #[tokio::test]
 #[allow(non_snake_case)]
 async fn test_BC_2_08_001_probe_routes_to_probe_table_when_set() {
-    // S-5.04 AC-9/10: type scaffold only; logic in implementer pass
-    // This test uses the existing 4-arg probe_connectivity. When the implementer
-    // adds probe_table: Option<&str> to the signature, this call must be updated.
+    // AC-9 IMPLEMENTED: calls probe_connectivity_with_routing with probe_table = Some("detections").
+    // Assertion checks for UNDERSCORE form "crowdstrike_detections" (canonical for
+    // SpecDrivenSensorAdapter::fetch's strip_prefix selection).
     let adapter = Arc::new(MockAdapterCapturingSpec::new("crowdstrike"));
     let org_id = OrgId::new();
     let sensor_id = SensorId::from("crowdstrike");
@@ -1580,21 +1584,21 @@ async fn test_BC_2_08_001_probe_routes_to_probe_table_when_set() {
     );
 }
 
-/// AC-9 (S-5.04): When `probe_table` is absent but tables exist, `probe_connectivity`
-/// MUST fall back to `"{sensor_id}.{spec.tables[0].table_name}"` (dot-notation, BC-2.08.001 §5).
+/// AC-9 (S-5.04): When `probe_table` is absent but tables exist, `probe_connectivity_with_routing`
+/// MUST fall back to `"{sensor_id}_{spec.tables[0].table_name}"` (underscore form, BC-2.08.001 §5).
 ///
 /// For a sensor with `tables = ["alerts", "incidents"]`, the fallback is
-/// `"cyberint.alerts"` (first declared table in TOML order).
+/// `"cyberint_alerts"` (first declared table in TOML order, underscore-joined).
 ///
-/// RED GATE: Current code always produces `"cyberint_devices"` regardless of
-/// whether tables exist. Assertion: `captured == "cyberint.alerts"` → FAILS.
-///
-/// When the implementer changes the signature:
-///   `probe_connectivity(&registry, org_id, &sensor_id, "acme", None, Some(&spec.tables))` or equivalent.
+/// UNDERSCORE contract: same as the probe_table case — `SpecDrivenSensorAdapter::fetch`
+/// uses `strip_prefix("cyberint_")` for table selection; dot form "cyberint.alerts" would
+/// not match and would fan-out to all tables (F-S504-P1-002 fix).
+/// The assertion correctly checks `captured == "cyberint_alerts"`.
 #[tokio::test]
 #[allow(non_snake_case)]
 async fn test_BC_2_08_001_probe_falls_back_to_first_table_when_probe_table_absent() {
-    // S-5.04 AC-9/10: type scaffold only; routing logic in implementer pass
+    // AC-9 IMPLEMENTED: calls probe_connectivity_with_routing with probe_table = None,
+    // first_table_name = Some("alerts"). Assertion checks for UNDERSCORE form "cyberint_alerts".
     let adapter = Arc::new(MockAdapterCapturingSpec::new("cyberint"));
     let org_id = OrgId::new();
     let sensor_id = SensorId::from("cyberint");
@@ -1819,5 +1823,260 @@ async fn test_BC_2_08_001_probe_table_fallback_underscore_form_resolves_via_stri
         Some("alerts".to_owned()),
         "F-S504-P1-002 integration (fallback): strip_prefix MUST resolve to 'alerts'. \
          None means dot form was used."
+    );
+}
+
+// ─── F-S504-P2-RE-001 — check_one / new_with_spec_map end-to-end probe routing ─
+//
+// These tests close F-S504-P2-RE-001 (MED): the production chain
+//   server.rs::with_deps
+//     → SensorHealthChecker::new_with_spec_map(registry, Arc::new(spec_map))
+//       → check_one(org_id, client_id, sensor_id, context)
+//         → resolves resolved.spec.probe_table via spec_map.get
+//           → probe_auth_with_routing(probe_table_ref, first_table_ref)
+//             → probe_connectivity_inner → adapter.fetch(SensorSpec { source_table })
+//
+// Tests 1 + 2 prove that check_one correctly EXTRACTS probe_table / first_table_name
+// from a wired ResolvedSensorSpec and forms the underscore source_table.
+// Test 3 proves the OrgSlug key-miss degradation path: when client_id is not in
+// the spec map, check_one falls back to "{sensor_id}_devices" (legacy sentinel).
+//
+// LOAD-BEARING: these tests fail if the (OrgSlug, SensorId) key construction in
+// check_one is refactored incorrectly (e.g., key shape changed), or if the
+// probe_table / tables field extraction logic is broken.
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// Helper: build a minimal `ResolvedSensorSpec` with the given probe_table and table list.
+///
+/// Construction path (avoids #[non_exhaustive] struct-literal restrictions for both
+/// `SensorSpec` and `ResolvedSensorSpec`):
+///   1. `SensorSpec::new()` for the base spec (no probe_table).
+///   2. Direct field assignment `spec.probe_table = ...` (all SensorSpec fields are pub).
+///   3. `TableSpec::new_point_in_time()` for each table (forward-compatible constructor).
+///   4. `OverlayLoader::merge_overlay_onto_type_spec` to produce the `ResolvedSensorSpec`
+///      (the canonical factory for this type, as used in prism-bin tests).
+fn make_resolved_spec(
+    sensor_id: &str,
+    org_slug: OrgSlug,
+    probe_table: Option<&str>,
+    table_names: &[&str],
+) -> ResolvedSensorSpec {
+    let tables: Vec<TableSpec> = table_names
+        .iter()
+        .map(|name| {
+            TableSpec::new_point_in_time(
+                name.to_string(),
+                "security_finding".to_string(),
+                vec![],
+                vec![],
+            )
+        })
+        .collect();
+    // SensorSpec::new does not accept probe_table; set it via direct field assignment
+    // (all SensorSpec fields are pub — direct assignment avoids the non-exhaustive restriction).
+    let mut spec = EngSensorSpec::new(
+        sensor_id.to_string(),
+        sensor_id.to_string(),
+        EngAuthType::ApiKey,
+        format!("https://{sensor_id}.example.com"),
+        tables,
+        None,
+        "1.0.0",
+        vec![],
+    );
+    spec.probe_table = probe_table.map(|s| s.to_string());
+
+    // Use OverlayLoader::merge_overlay_onto_type_spec (the canonical factory — same path
+    // as prism-bin tests) to produce a ResolvedSensorSpec without #[non_exhaustive] issues.
+    let overlay_toml = format!(
+        "extends = \"{sensor_id}\"\ninstance_id = \"{sensor_id}@{org}\"",
+        org = org_slug.as_str()
+    );
+    let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
+        .expect("make_resolved_spec: SensorInstanceOverlay TOML parse failed");
+    OverlayLoader::merge_overlay_onto_type_spec(&spec, &overlay, org_slug)
+}
+
+/// F-S504-P2-RE-001 (1/3): `check_one` via `new_with_spec_map` with `probe_table = Some("detections")`.
+///
+/// Constructs `SensorHealthChecker::new_with_spec_map` with a spec_map containing a
+/// `ResolvedSensorSpec` for `(acme, crowdstrike)` with `probe_table = Some("detections")`.
+/// Calls `check_one` — the PRODUCTION entry point — and asserts the
+/// `MockAdapterStripPrefix` received `source_table == "crowdstrike_detections"`.
+///
+/// LOAD-BEARING: fails if:
+/// - `check_one` does not look up the spec_map (bypasses spec lookup)
+/// - The `(OrgSlug, SensorId)` key shape changes without updating `check_one`
+/// - `probe_table` extraction from `resolved.spec.probe_table` is broken
+/// - The underscore form (not dot form) is no longer used
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_check_one_routes_to_probe_table_via_spec_map() {
+    let org_id = OrgId::new();
+    let org_slug = OrgSlug::new("acme");
+    let sensor_id = SensorId::from("crowdstrike");
+
+    // Build spec_map: (acme, crowdstrike) → probe_table = Some("detections")
+    let resolved = make_resolved_spec(
+        "crowdstrike",
+        org_slug.clone(),
+        Some("detections"),
+        &["detections", "incidents"],
+    );
+    let key: ResolvedSpecKey = (org_slug, sensor_id.clone());
+    let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    spec_map.insert(key, resolved);
+
+    // Wire the MockAdapterStripPrefix — it returns Err if source_table doesn't start with
+    // "crowdstrike_", making the assertion observable via check_one's result.
+    let adapter = Arc::new(MockAdapterStripPrefix::new("crowdstrike"));
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::clone(&adapter) as Arc<dyn SensorAdapter>);
+
+    let checker = SensorHealthChecker::new_with_spec_map(Arc::new(registry), Arc::new(spec_map));
+    let context = PrismContext::new();
+
+    let result = checker
+        .check_one(org_id, "acme", &sensor_id, &context)
+        .await;
+
+    // The probe must succeed (Up): MockAdapterStripPrefix returns Ok when strip_prefix matches.
+    // If the routing produced dot form "crowdstrike.detections", strip_prefix("crowdstrike_")
+    // would fail → SensorError::Internal → probe records Down here.
+    assert_eq!(
+        result.reachable,
+        Some(true),
+        "F-S504-P2-RE-001 (1/3): check_one with probe_table=Some('detections') MUST record \
+         reachable=true. Down means source_table used wrong form (not 'crowdstrike_detections'). \
+         Got: {:?}",
+        result.reachable
+    );
+
+    // The table resolved by strip_prefix must be "detections" (not "detections" of dot form).
+    assert_eq!(
+        adapter.resolved(),
+        Some("detections".to_owned()),
+        "F-S504-P2-RE-001 (1/3): MockAdapterStripPrefix MUST resolve table 'detections' via \
+         strip_prefix('crowdstrike_'). None means source_table used dot form \
+         'crowdstrike.detections' instead of 'crowdstrike_detections'. \
+         check_one probe_table extraction broken."
+    );
+}
+
+/// F-S504-P2-RE-001 (2/3): `check_one` via `new_with_spec_map` with `probe_table = None`,
+/// tables = ["alerts", "incidents"] → fallback to first table "alerts".
+///
+/// Asserts the adapter received `source_table == "crowdstrike_alerts"`.
+///
+/// LOAD-BEARING: fails if:
+/// - `first_table_name` extraction from `resolved.spec.tables.first()` is broken
+/// - The fallback chain does not use the first declared table when probe_table is None
+/// - The underscore form is not used in the fallback path
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_check_one_falls_back_to_first_table_via_spec_map() {
+    let org_id = OrgId::new();
+    let org_slug = OrgSlug::new("acme");
+    let sensor_id = SensorId::from("crowdstrike");
+
+    // probe_table = None, tables[0] = "alerts"
+    let resolved = make_resolved_spec(
+        "crowdstrike",
+        org_slug.clone(),
+        None,
+        &["alerts", "incidents"],
+    );
+    let key: ResolvedSpecKey = (org_slug, sensor_id.clone());
+    let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    spec_map.insert(key, resolved);
+
+    let adapter = Arc::new(MockAdapterStripPrefix::new("crowdstrike"));
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::clone(&adapter) as Arc<dyn SensorAdapter>);
+
+    let checker = SensorHealthChecker::new_with_spec_map(Arc::new(registry), Arc::new(spec_map));
+    let context = PrismContext::new();
+
+    let result = checker
+        .check_one(org_id, "acme", &sensor_id, &context)
+        .await;
+
+    assert_eq!(
+        result.reachable,
+        Some(true),
+        "F-S504-P2-RE-001 (2/3): check_one with probe_table=None, tables=['alerts','incidents'] \
+         MUST record reachable=true (fallback to first table 'alerts' → source_table \
+         'crowdstrike_alerts' passes strip_prefix). Down means first_table_name not extracted \
+         or wrong form used. Got: {:?}",
+        result.reachable
+    );
+
+    assert_eq!(
+        adapter.resolved(),
+        Some("alerts".to_owned()),
+        "F-S504-P2-RE-001 (2/3): strip_prefix MUST resolve to 'alerts'. None means \
+         first_table_name was not extracted from spec.tables[0] or dot form was used."
+    );
+}
+
+/// F-S504-P2-RE-001 (3/3): OrgSlug key-miss degradation — `client_id` not in spec_map
+/// → `check_one` falls back to the legacy `"{sensor_id}_devices"` sentinel.
+///
+/// The spec_map contains a resolved spec keyed by `(acme, crowdstrike)`. `check_one` is
+/// called with `client_id = "unknown-org"` (not in the map). The fallback path must use
+/// `probe_table = None, first_table_name = None` → `"crowdstrike_devices"`.
+///
+/// This test documents and locks the intended degradation: a client_id that does not have
+/// a matching spec entry gets a hollow probe (no specific table routing). It asserts this
+/// loudly so a future key-shape refactor (e.g., changing OrgSlug construction in check_one)
+/// fails loudly rather than silently producing wrong routing.
+///
+/// LOAD-BEARING: fails if:
+/// - The OrgSlug/SensorId key shape changes and check_one incorrectly matches non-existent orgs
+/// - The fallback path does not produce "{sensor_id}_devices" when spec_map.get returns None
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_check_one_falls_back_to_devices_when_org_not_in_spec_map() {
+    let org_id = OrgId::new();
+    // Spec map only knows "acme" — the probe is for "unknown-org".
+    let known_slug = OrgSlug::new("acme");
+    let sensor_id = SensorId::from("crowdstrike");
+
+    let resolved = make_resolved_spec(
+        "crowdstrike",
+        known_slug.clone(),
+        Some("detections"),
+        &["detections"],
+    );
+    let key: ResolvedSpecKey = (known_slug, sensor_id.clone());
+    let mut spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    spec_map.insert(key, resolved);
+
+    // MockAdapterCapturingSpec: captures the source_table verbatim (no strip_prefix validation).
+    // Used here because the legacy sentinel "crowdstrike_devices" would cause
+    // MockAdapterStripPrefix to resolve "devices" (valid underscore form but wrong table),
+    // making the assertion harder to read. We want to directly assert the sentinel value.
+    let adapter = Arc::new(MockAdapterCapturingSpec::new("crowdstrike"));
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::clone(&adapter) as Arc<dyn SensorAdapter>);
+
+    let checker = SensorHealthChecker::new_with_spec_map(Arc::new(registry), Arc::new(spec_map));
+    let context = PrismContext::new();
+
+    // Call with "unknown-org" — NOT in the spec_map keyed by (acme, crowdstrike).
+    let _result = checker
+        .check_one(org_id, "unknown-org", &sensor_id, &context)
+        .await;
+
+    let captured = adapter
+        .captured()
+        .expect("adapter must have been called even for key-miss path");
+
+    assert_eq!(
+        captured, "crowdstrike_devices",
+        "F-S504-P2-RE-001 (3/3): when client_id='unknown-org' is not in spec_map, \
+         check_one MUST fall back to legacy sentinel 'crowdstrike_devices'. \
+         Got '{captured}'. If this breaks, the OrgSlug key construction or the \
+         None-spec fallback path in check_one was changed."
     );
 }
