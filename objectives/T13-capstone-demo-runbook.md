@@ -2,7 +2,7 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.2"
+version: "1.3"
 producer: product-owner
 timestamp: 2026-06-23T00:00:00Z
 project: prism
@@ -196,7 +196,8 @@ surface, different query pattern.
 At Stage 3 (Exfil), Cyberint alerts for org-b and org-c surface with IOC fields
 (`iocs_value`, `iocs_type`). CrowdStrike detection behaviors for org-c
 surface with `behaviors_ioc_type`/`behaviors_ioc_value` on the `behaviors` array. The analyst enriches
-in-prism via `| enrich threat_intel(iocs_value)` and `| enrich nvd(device_cves_first)`.
+in-prism via `| enrich threat_score(iocs_value)` (registered UDF name from `threatintel.infusion.toml`)
+and `| enrich cvss_base_score(device_cves_first)` (registered UDF name from `nvd.infusion.toml`).
 The ThreatIntel DTU resolves every scenario IOC as Malicious (score >= 75). The NVD
 DTU resolves every scenario CVE at HIGH CVSS 8.1. The enrichment flows through the
 real prism code path — DataFusion UDF → InfusionRegistry → WASM plugin → DTU HTTP.
@@ -276,7 +277,7 @@ Expected return (BC-2.10.012, S-DEMO-PRISMQL-ONBOARDING-001-A merged PR #197):
   "client_id": "org-c",
   "tables": [
     {
-      "table_name": "crowdstrike_detections",
+      "name": "crowdstrike_detections",
       "columns": [
         {"name": "device_id", "type": "String"},
         {"name": "behavior_id", "type": "String"},
@@ -286,15 +287,15 @@ Expected return (BC-2.10.012, S-DEMO-PRISMQL-ONBOARDING-001-A merged PR #197):
       ]
     },
     {
-      "table_name": "armis_devices",
+      "name": "armis_devices",
       "columns": [...]
     },
     {
-      "table_name": "claroty_devices",
+      "name": "claroty_devices",
       "columns": [...]
     },
     {
-      "table_name": "cyberint_alerts",
+      "name": "cyberint_alerts",
       "columns": [
         {"name": "iocs_value", "type": "String"},
         {"name": "iocs_type", "type": "String"},
@@ -303,7 +304,7 @@ Expected return (BC-2.10.012, S-DEMO-PRISMQL-ONBOARDING-001-A merged PR #197):
       ]
     }
   ],
-  "pql_hints": ["Use | enrich threat_intel(column) to enrich IOC values", ...]
+  "pql_hints": ["Use | enrich threat_score(column) to enrich IOC values with threat score", ...]
 }
 ```
 
@@ -472,14 +473,17 @@ ENRICH-1 `source_path = "$.iocs[*].value"` extraction may not be working (check 
 ```sql
 FROM cyberint_alerts
 WHERE iocs_value IS NOT NULL
-| enrich threat_intel(iocs_value)
+| enrich threat_score(iocs_value)
 LIMIT 10
 client_id = "org-c"
 ```
 
-Expected: Each row gains a `threat_intel.threat_score` column (value >= 75, Malicious),
-`threat_intel.category`, and `threat_intel.description`. The ThreatIntel DTU clone
-resolves every scenario IOC as Malicious.
+Expected: Each row gains a `threat_score` column (value >= 75, Malicious). The ThreatIntel
+DTU clone resolves every scenario IOC as Malicious. To additionally get the known-malicious
+boolean, add `| enrich threat_is_known_malicious(iocs_value)`. To get source names, add
+`| enrich threat_sources(iocs_value)`. Each field is a separate registered UDF
+(per `threatintel.infusion.toml` `[[infusion.fields]]` entries: `threat_score`,
+`threat_is_known_malicious`, `threat_sources`).
 
 **What it demonstrates:** The full in-prism enrichment path (BC-2.19.001/003):
 `| enrich` PrismQL pipe → DataFusion ScalarUDF (registered by S-DEMO-ENRICHMENT-PIVOT-001)
@@ -492,12 +496,14 @@ first-class PrismQL operator. The analyst writes | enrich just like a SQL JOIN, 
 prism fans out to the enrichment source. ThreatIntel scores, CVE details, geolocation —
 all available inline in the query."
 
-**VERIFY IN DRY-RUN:** Confirm the DataFusion UDF `threat_intel` is registered and
+**VERIFY IN DRY-RUN:** Confirm the DataFusion UDF `threat_score` is registered and
 returns data from the DTU HTTP endpoint. The WASM plugin path (PIVOT-002) or the
 fallback direct `reqwest` path (D-1164 contingency) must be active. If `| enrich`
 returns E-QUERY-039 "unknown enrichment function" or similar, the InfusionRegistry is
 not loaded — check that `threatintel.infusion.toml` is in the specs directory and
-that S-1.14-REDO + PIVOT-001/002 are merged.
+that S-1.14-REDO + PIVOT-001/002 are merged. The registered UDF names are
+`threat_score`, `threat_is_known_malicious`, and `threat_sources` (one per
+`[[infusion.fields]]` entry) — NOT a single `threat_intel` function.
 
 ---
 
@@ -528,7 +534,7 @@ different sensor perspectives."
 ```sql
 FROM crowdstrike_detections
 WHERE behaviors_ioc_type = 'hash_sha256'
-| enrich threat_intel(behaviors_ioc_value)
+| enrich threat_score(behaviors_ioc_value)
 LIMIT 5
 client_id = "org-c"
 ```
@@ -537,31 +543,35 @@ Expected: Hash values resolve in ThreatIntel with `threat_score >= 75`.
 
 **What it demonstrates:** The enrichment works on any column that contains an IOC
 value — whether it originates from Cyberint alerts or CrowdStrike detection behaviors.
-The same `| enrich` operator is sensor-agnostic.
+The same `| enrich threat_score(...)` UDF is sensor-agnostic.
 
 ---
 
 **Step 3.5 — Enrich CVEs from Cyberint alerts against NVD**
 
 ```sql
-FROM cyberint_alerts
-WHERE cve_id IS NOT NULL
-| enrich nvd(cve_id)
+FROM armis_devices
+WHERE device_cves_first IS NOT NULL
+| enrich cvss_base_score(device_cves_first)
+| enrich cvss_severity(device_cves_first)
 LIMIT 5
 client_id = "org-b"
 ```
 
-Expected: Each row gains `nvd.cvss_score` (~8.1), `nvd.severity` (`"HIGH"`),
-`nvd.description`. The NVD DTU clone returns HIGH CVSS for all scenario CVEs
-(`CVE-9999-NNNN` format — collision-safe, never matches a real advisory).
+Expected: Each row gains `cvss_base_score` (~8.1) and `cvss_severity` (`"HIGH"`).
+The NVD DTU clone returns HIGH CVSS for all scenario CVEs (`CVE-9999-NNNN` format —
+collision-safe, never matches a real advisory). The registered NVD UDFs are
+`cvss_base_score`, `cvss_severity`, and `cvss_vector` (one per `[[infusion.fields]]`
+entry in `nvd.infusion.toml`). The input field is `device_cves_first` (scalar String
+projected per Ruling 1b / BC-2.06.019 §PC-4 — NOT `cve_id`, NOT `device_cves`).
 
-**What it demonstrates:** The NVD enrichment path (prism-nvd-infusion WASM plugin →
+**What it demonstrates:** The NVD enrichment path (HttpLookup path, ADR-040 →
 prism-dtu-nvd DTU). Same `| enrich` syntax, different enrichment source.
 
-**Talking point:** "Org-b uses Cyberint for threat intel alerts. The alert includes a
-CVE reference. The analyst enriches it against NVD in the same query. CVSS 8.1 HIGH.
-No context switching, no copy-paste into a browser — the vulnerability context is
-right there."
+**Talking point:** "Org-b uses Cyberint for threat intel alerts. The device record
+includes a CVE reference. The analyst enriches it against NVD in the same query.
+CVSS 8.1 HIGH. No context switching, no copy-paste into a browser — the vulnerability
+context is right there."
 
 ---
 
@@ -693,7 +703,7 @@ introduced lateral devices; they remain visible at Stage 4). All device fields v
 ```sql
 FROM cyberint_alerts
 WHERE iocs_type IS NOT NULL
-| enrich threat_intel(iocs_value)
+| enrich threat_score(iocs_value)
 client_id = "org-c"
 ```
 
@@ -750,8 +760,8 @@ PrismQL spec directly from the server, not from its training data (which may be 
 | Multi-client isolation | Org-a and org-c CrowdStrike return disjoint device IDs | "Multi-tenancy is data isolation, not just routing" |
 | Sensor-combo scoping | `claroty_devices` returns E-QUERY-037 for org-a | "Prism fails early with a helpful error; Claude self-corrects" |
 | Cross-sensor correlation | Same device ID in CrowdStrike and Armis for org-c | "One endpoint, two sensor perspectives, one PrismQL query" |
-| IOC enrichment | `| enrich threat_intel(iocs_value)` returns Malicious score (ENRICH-1 clean column name) | "Enrichment is in-query, not post-processing" |
-| CVE enrichment | `| enrich nvd(cve_id)` returns CVSS 8.1 HIGH | "CVE context in the same query that found the alert" |
+| IOC enrichment | `| enrich threat_score(iocs_value)` returns `threat_score >= 75` Malicious (registered UDF from `threatintel.infusion.toml`) | "Enrichment is in-query, not post-processing" |
+| CVE enrichment | `| enrich cvss_base_score(device_cves_first)` returns CVSS 8.1 HIGH (registered UDF from `nvd.infusion.toml`) | "CVE context in the same query that found the alert" |
 | Sensor health | `check_sensor_health` returns `probe_level: "live"` | "Verify data quality before drawing conclusions" |
 | Full blast radius | Stage 4 shows all IOC types + lateral devices | "Ten minutes into the incident, the full picture is clear" |
 
@@ -805,16 +815,18 @@ route handlers.
 
 ### 5.5 Enrichment Path
 
-- [ ] `| enrich threat_intel(iocs_value)` on a Cyberint alert at Stage 3+ returns
-      `threat_score >= 75` for at least one IOC value (note: `iocs_value` is a JSON-list string; enrich operates on the list)
-- [ ] `| enrich nvd(cve_id)` on a Cyberint alert returns `cvss_score >= 7.0` for
-      at least one CVE
+- [ ] `| enrich threat_score(iocs_value)` on a Cyberint alert at Stage 3+ returns
+      `threat_score >= 75` for at least one IOC value (note: `iocs_value` is a JSON-list string; enrich operates on the list). Registered UDF name: `threat_score` (from `threatintel.infusion.toml` `[[infusion.fields]]`).
+- [ ] `| enrich cvss_base_score(device_cves_first)` on an Armis device record returns `cvss_base_score >= 7.0` for at least one CVE. Registered UDF name: `cvss_base_score` (from `nvd.infusion.toml` `[[infusion.fields]]`). Input field is `device_cves_first` (scalar String, Ruling 1b).
 - [ ] Enrichment response includes the source column value (not just the enrichment fields)
 
 **VERIFY IN DRY-RUN:** If `| enrich` returns a syntax error or unknown function,
 check that `threatintel.infusion.toml` and `nvd.infusion.toml` are in the specs
 directory and that the InfusionLoader loaded them at startup. The WASM plugin or
-fallback HTTP path must be active.
+fallback HTTP path must be active. The registered UDF names are the per-field names
+from `[[infusion.fields]]` entries: `threat_score`, `threat_is_known_malicious`,
+`threat_sources` (ThreatIntel) and `cvss_base_score`, `cvss_severity`, `cvss_vector`
+(NVD). The single-function forms `threat_intel(...)` and `nvd(...)` are NOT registered.
 
 ### 5.6 MCP Teaching Surface
 
@@ -864,9 +876,12 @@ error naming the invalid column and listing alternatives.
 
 ### Capability caveats
 
-- **Enrichment at Stage < 3:** The `| enrich threat_intel(iocs_value)` query will
+- **Enrichment at Stage < 3:** The `| enrich threat_score(iocs_value)` query will
   return results but `iocs_value` will be null (or `"[]"` empty JSON-list) for most rows at Stage 0-2. IOC values
   only populate at Stage 3+. If demonstrating enrichment, confirm elapsed >= 360s.
+  Registered UDF names: `threat_score`, `threat_is_known_malicious`, `threat_sources` (ThreatIntel);
+  `cvss_base_score`, `cvss_severity`, `cvss_vector` (NVD). The single-function forms
+  `threat_intel(...)` and `nvd(...)` are NOT registered UDF names.
 
 - **Device ID format in queries:** Device IDs are derived from org_id UUID bytes, NOT
   from the human-readable slug. `WHERE device_id = 'dev-org-c-200-0'` will return zero
@@ -917,7 +932,7 @@ Suggested presentation order for T14 demo-recorder:
 1. Open Claude Code with prism MCP server connected. Show the tool list.
 2. Block 1: `list_capabilities(org-c)` → `prism_describe(org-c)` → `prism_describe(org-a)` [schema diff]
 3. Block 2: CrowdStrike query org-c → Armis correlation → org-a isolation proof
-4. Block 3: Cyberint IOC query at Stage 3 (`WHERE iocs_value IS NOT NULL`) → `| enrich threat_intel(iocs_value)` → `| enrich nvd(cve_id)`
+4. Block 3: Cyberint IOC query at Stage 3 (`WHERE iocs_value IS NOT NULL`) → `| enrich threat_score(iocs_value)` → `| enrich cvss_base_score(device_cves_first)`
 5. Block 4: E-QUERY-037 table-not-available for org-a → pedagogical error → Claude self-corrects
 6. Block 5 (PENDING S-5.04): `check_sensor_health(org-c)` → live probe confirmation
 7. Block 6: Stage 4 full blast radius query → Claroty audit log
@@ -935,6 +950,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.3 | 2026-06-23 | GAP-1: corrected enrichment UDF function names throughout. Actual registered UDF names are per-field from `[[infusion.fields]]`: ThreatIntel → `threat_score`, `threat_is_known_malicious`, `threat_sources`; NVD → `cvss_base_score`, `cvss_severity`, `cvss_vector`. Replaced all `\| enrich threat_intel(...)` with `\| enrich threat_score(...)` and all `\| enrich nvd(...)` with `\| enrich cvss_base_score(device_cves_first)`. Updated Step 3.2 expected output (no `threat_intel.threat_score` namespace prefix; column is `threat_score`), Step 3.5 to use Armis devices with `device_cves_first` (Ruling 1b) and `cvss_base_score`/`cvss_severity` column names, §4 Expected Outputs table, §5.5 dry-run checklist, §6 enrichment caveat, §7 recording sequence. GAP-3: corrected `prism_describe` JSON example key `"table_name"` → `"name"` in all four table entries (matches `TableDescriptor.name` field in `prism-mcp/src/tools/prism_describe.rs`). |
 | 1.2 | 2026-06-23 | ENRICH-1 clean-column-name amendment (S-DEMO-ENRICH-1). PIVOT-003 bracket-in-name column references (`iocs[].value`, `iocs[].type`) superseded by ENRICH-1 clean SQL identifiers: `iocs_value` (source_path `$.iocs[*].value`), `iocs_type` (source_path `$.iocs[*].type`). All queries, expected outputs, VERIFY IN DRY-RUN notes, checklist items, Expected Outputs table, and §6 caveat updated. prism_describe JSON example updated (`iocs[].value` → `iocs_value`, `iocs[].type` → `iocs_type`). §6 caveat rewritten: bracket-in-name forms NOT queryable as PrismQL column names; wildcard source_path means `iocs_value` returns JSON-list string (e.g., `["hash1","hash2"]`). Added diagnostic note: check `column_source_path_extraction_failed` warn events if `iocs_value` is unexpectedly null. `behaviors_ioc_type`/`behaviors_ioc_value` (CrowdStrike) were already correct clean names (set in PIVOT-003). |
 | 1.1 | 2026-06-23 | Corrected Cyberint IOC column names throughout: `ioc_value` → `iocs_value`, `ioc_type` → `iocs_type`, `ioc_severity` → `severity` (alert-level field; no separate IOC severity column exists). These short forms are serde aliases, not queryable PrismQL column names. Added §6 capability caveat documenting the `iocs[].` nested path requirement. BLOCKER 4 fix from dry-run. |
 | 1.0 | 2026-06-22 | Initial draft. |

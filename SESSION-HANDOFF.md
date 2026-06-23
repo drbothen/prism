@@ -12,11 +12,11 @@ timestamp: 2026-06-22T23:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1292** (authoritative zero-context restart protocol; supersedes D-1282). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1291 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1292 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD `fc954300` (docs(CLAUDE.md): bump 79→82 @fc954300; rebased onto ffe9315a 2026-06-21; D-1277-RECONCILE). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.921.
+> develop HEAD `5504c152` (feat(S-DEMO-PRISMQL-ONBOARDING-001-B): merged PR #198 develop@5504c152; D-1293). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.928.
 
 ---
 
-## §RESUME SNAPSHOT — D-1292 (2026-06-22 — ZERO-CONTEXT RESUME SNAPSHOT + RUSTSEC MAINT REGISTRATION; develop@fc954300; BC-INDEX v7.02; STORY-INDEX v2.462; ARCH-INDEX v2.141; STATE v7.921; OPEN PRs #198 #199)
+## §RESUME SNAPSHOT — D-1292 (2026-06-22 — ZERO-CONTEXT RESUME SNAPSHOT + RUSTSEC MAINT REGISTRATION; develop@fc954300; BC-INDEX v7.02; STORY-INDEX v2.462; ARCH-INDEX v2.141; STATE v7.921; OPEN PRs #198 #199) [SUPERSEDED — develop now at 5504c152; see D-1299 SHA refresh]
 
 > **D-1292 burst (2026-06-22).** Comprehensive zero-context resume snapshot. 001-B FULLY CONVERGED (LOCAL strict-3-CLEAN D-1291 + PR-LEVEL strict-3-CLEAN on final HEAD f141801b: 4 consecutive CLEAN(strict) passes on unchanged HEAD; security CLEAR; pr-reviewer APPROVE; just check exit 0 4730 tests gate=83). PR #198 open, READY TO MERGE (only non-required cargo-audit RUSTSEC-2026-0185 red). PR #199 (maintenance/rustfmt-stable-no-nightly-opts @caea6ff7) READY TO MERGE — removes nightly-only rustfmt.toml options (imports_granularity, group_imports) that caused 740-line warning flood → agent commit stalls. S-MAINT-RUSTSEC-QUINN-PROTO-001 draft v1.0 registered (RUSTSEC-2026-0185 quinn-proto transitive dep; `cargo update -p quinn-proto --precise 0.11.15`; P1; after-demo; total_stories 208→209). Lefthook stall root-causes codified. SESSION-HANDOFF §DO-NOT-REFLAG updated with 001-B PR-LEVEL carry-forward. STORY-INDEX v2.461→v2.462. STATE v7.920→v7.921.
 
@@ -30,7 +30,7 @@ timestamp: 2026-06-22T23:00:00Z
 ```bash
 git log --oneline -1 origin/develop
 ```
-Expected: `fc954300` (docs(CLAUDE.md): bump non-exhaustive count 79→82 — rebased onto ffe9315a; 2026-06-21; D-1277-RECONCILE). develop_head UNCHANGED.
+Expected: `5504c152` (feat(S-DEMO-PRISMQL-ONBOARDING-001-B): merged PR #198; 2026-06-22; D-1293). develop_head advanced from fc954300 at D-1299 SHA-refresh burst.
 
 **Step 3.** Confirm open PRs:
 ```bash
@@ -57,8 +57,8 @@ Expected: `f141801b`. If different (push was still in-flight at context-clear), 
 
 | Variable | Value | Note |
 |----------|-------|------|
-| develop HEAD | `fc954300` | CLAUDE.md 79→82 rebased onto ffe9315a; 2026-06-21; D-1277-RECONCILE — UNCHANGED |
-| STATE version | 7.921 | D-1292 zero-context resume snapshot + RUSTSEC registration |
+| develop HEAD | `5504c152` | feat(S-DEMO-PRISMQL-ONBOARDING-001-B) merged PR #198; 2026-06-22; D-1293 — ADVANCED from fc954300 |
+| STATE version | 7.928 | D-1299 enrichment-GAP closure + SHA refresh |
 | BC-INDEX version | 7.02 | BC-2.11.016 v1.4/017 v1.3/018 v1.2 story-anchor fix; D-1290 — UNCHANGED |
 | STORY-INDEX version | v2.462 | S-MAINT-RUSTSEC-QUINN-PROTO-001 registered; total_stories 209; D-1292 |
 | ARCH-INDEX version | 2.141 | ADR-042 ACCEPTED; D-1277 — UNCHANGED |

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.927"
+version: "7.928"
 producer: state-manager
-timestamp: 2026-06-23T09:00:00Z
+timestamp: 2026-06-23T10:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,7 +17,7 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "5504c152"
-bc_index_version: "7.06"
+bc_index_version: "7.07"
 vp_index_version: "1.79"
 story_index_version: "v2.467"
 arch_index_version: "2.142"
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1298 (2026-06-23). S-5.04 v2.3→v2.4: F-S504-LP1-MED-001 CLOSED (BC-2.08.005 pin v1.5→v1.7 + comprehensive BC-pin sweep). Adversary LP1 pass on ea14a39c: P5-001/P5-002 VERIFIED CLOSED; F-S504-LP1-MED-001 MED (stale BC-2.08.005 v1.5 pin) + OBS-LP1-001 (ci.yml comment arithmetic) + OBS-LP1-002 (doc-comment examples) + OBS-LP1-003 (BC-vs-AC prose, no-action). Implementer fix-burst ea14a39c→ea496bd2: OBS-LP1-001+002 fixed; just check exit 0; 4796 tests; gate 84. ENRICHMENT MILESTONE: fix/enrichment-complete @db2e77af E2E audit PROVED full chain working — `| enrich threat_score(iocs_value)` → threat_score=95 (≥75), NVD cvss=8.1; 3 doc/script gaps (GAP-1/2/3) in separate lanes. develop_head UNCHANGED 5504c152. STORY-INDEX v2.466→v2.467. STATE v7.926→v7.927. NEXT: S-5.04 LOCAL adversary re-pass on frozen ea496bd2 (streak reset 0/3); enrichment GAP-1/2/3 fix lanes."
+current_step: "D-1299 (2026-06-23). ENRICHMENT GAP-1+GAP-3 CLOSED + SESSION-HANDOFF SHA REFRESHED. BC-2.06.019 v1.14→v1.15 (GAP-1: canonical NVD pivot `| enrich nvd(...)` → `| enrich cvss_base_score(device_cves_first)`; adversary-probe P1 prohibition for stale nvd form). T13 runbook v1.2→v1.3 (GAP-1: all threat_intel/nvd UDF forms corrected to per-field names threat_score/cvss_base_score; GAP-3: prism_describe JSON key table_name→name). BC-INDEX v7.06→v7.07. SESSION-HANDOFF develop-SHA refreshed fc954300→5504c152 (current-state header only; immutable historical cites untouched). develop_head UNCHANGED 5504c152. STATE v7.927→v7.928. NEXT: S-5.04 LOCAL adversary re-pass on frozen ea496bd2 (streak 0/3)."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -74,7 +74,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-23 (D-1298 S-5.04 v2.4 BC-pin sweep + LP1 adversary pass; STORY-INDEX v2.467; STATE v7.927)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-23 (D-1299 enrichment GAP-1+GAP-3 spec closure + SHA refresh; BC-INDEX v7.07; STATE v7.928)
 
 ## Active Objective (North Star)
 
@@ -201,6 +201,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1299 | state-manager | 2026-06-23 | **ENRICHMENT GAP-1+GAP-3 SPEC CLOSURE + SESSION-HANDOFF SHA REFRESH (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). GAP-1 closed: enrichment UDF names corrected throughout — registered per-field UDF names are `threat_score`/`cvss_base_score` etc., NOT infusion_ids `threat_intel`/`nvd`; adversary-probe P1 prohibition added in BC-2.06.019 v1.15. GAP-3 closed: prism_describe JSON key `table_name`→`name` in T13 runbook. GAP-2 closed (code, not factory): demo-run.sh PRISM_NVD_API_KEY export on fix/enrichment-complete @37f0fd56. Enrichment centerpiece PROVEN end-to-end (threat_score=95, cvss=8.1). SESSION-HANDOFF develop-SHA refreshed fc954300→5504c152 (current-state cites only). bc_index_version 7.06→7.07. STATE v7.927→v7.928. NEXT: S-5.04 LOCAL adversary re-pass on frozen ea496bd2 (streak 0/3); enrichment integrated diff adversarial review → PR.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1298 | state-manager | 2026-06-23 | **S-5.04 v2.3→v2.4 BC-PIN SWEEP + LP1 ADVERSARY PASS (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). See Current Phase Steps row for full detail. story_index_version v2.466→v2.467. STATE v7.926→v7.927.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1297 | state-manager | 2026-06-23 | **S-5.04 v2.3 AC-11+AC-12 + BC-2.16.002 v1.89 SAP-1 (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). See Current Phase Steps row for full detail. bc_index_version 7.05→7.06. story_index_version v2.465→v2.466. STATE v7.925→v7.926.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1296 | state-manager | 2026-06-23 | **ENRICH-1 SPEC RECONCILIATION + ENRICH-2+3 DONE (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). ENRICH-2+3 DONE: worktree enrich-23 @61ae28bd, just check green — global ThreatIntel/NVD DTU startup in start-multi + base_url/api_key env wiring + NVD demo-time override; gate UNCHANGED 83. ENRICH-1 DONE: worktree enrich-1, just check green, 15 tests — source_path clean-column extraction + JSON-list + pivot_enrich list handling; cyberint(7)+crowdstrike(4) columns migrated; gate stays 83 (design-doc 84 claim corrected). NVD InfusionSpec `${env}` resolution noted as possible follow-up (env_resolver covers SensorSpec only). FILES COMMITTED (spec reconciliation): (1) BC-2.16.002 v1.87→v1.88: SAP-1 catalog row `column_source_path_extraction_failed` WARN (2 emission sites: column_mapping.rs ColumnMapper::map_record + spec_driven_adapter.rs build_column_array::extract_raw, identical schema: sensor_id, column_name, source_path, event_type; S-DEMO-ENRICH-1); catalog label (v1.53)→(v1.54); catalog count 83→84 (NOTE: 84 is CATALOG row count, NOT non-exhaustive E0639 gate — ci.yml EXPECTED stays 83). (2) BC-2.06.019 v1.13→v1.14: IOC-surface matrix updated with ENRICH-1 clean column names; PIVOT-003 bracket-in-name convention superseded for Cyberint (`iocs_value`/`iocs_type` with `source_path`) + CrowdStrike (`behaviors_ioc_value`/`behaviors_ioc_type`/`behaviors_ioc_source`/`behaviors_ioc_description`); cites sensor-column-source-path-design.md. (3) T13-capstone-demo-runbook.md v1.1→v1.2: clean-name queries throughout; canonical pivot `| enrich threat_intel(iocs_value)`; diagnostic note for column_source_path_extraction_failed. (4) sensor-column-source-path-design.md §DD-5 item 8 + §Summary CI-gate row CORRECTED: EXPECTED stays 83 (design-time "83→84" prediction wrong for already-#[non_exhaustive] struct — adding `#[serde(default)]` field adds no new E0639 site; empirically confirmed). INDEX RECONCILIATION: BC-INDEX v7.04→v7.05 (BC-2.16.002 row v1.87→v1.88; BC-2.06.019 row v1.13→v1.14; v7.05 changelog row added; frontmatter version/timestamp bumped). POL-29 SIBLING SWEEP: v1.87 live cites — BC-INDEX row 226 (updated v1.87→v1.88); BC-INDEX changelog v6.96 entry (IMMUTABLE historical — leave). v1.13 live cites — BC-INDEX row 119 (updated v1.13→v1.14); SESSION-HANDOFF.md line 1831 (IMMUTABLE historical row from D-1258 PIVOT-003 merge burst — leave). No stale live cite remains. ENRICH-4-B (pipe→SQL execution) + S-5.04 fix-burst (P5-001/002 rate_limited + response-shape) IN FLIGHT. bc_index_version 7.04→7.05. STATE v7.924→v7.925. NEXT: ENRICH-4-B implementer + S-5.04 LOCAL adversary re-pass.** | wave-5-e-demo-fidelity | 2026-06-23 |
