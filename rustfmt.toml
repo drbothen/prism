@@ -2,5 +2,8 @@
 edition = "2021"
 max_width = 100
 use_small_heuristics = "Default"
-imports_granularity = "Crate"
-group_imports = "StdExternalCrate"
+# imports_granularity and group_imports were removed: both are nightly-only rustfmt
+# options that are silently ignored on the pinned stable toolchain (rust-toolchain.toml
+# channel = "stable"), producing 740 warning lines per `cargo fmt --all` invocation and
+# causing pre-commit hook back-pressure. Re-add only if/when the project moves to a
+# nightly rustfmt channel.
