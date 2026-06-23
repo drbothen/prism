@@ -63,6 +63,7 @@
 //! | F-S504-P5-002 — SensorHealthStructuredContent: overall_status + summary_counts + suggestion | test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_suggestion |
 //! | F-S504-LP1P3-MED-001 (1/2) — auth-invalid production-path suggestion (AC-12) | test_BC_2_08_007_EC_08_015_auth_invalid_production_path_suggestion |
 //! | F-S504-LP1P3-MED-001 (2/2) — genuine-Down production-path suggestion (AC-12) | test_BC_2_08_007_EC_08_015_genuine_down_production_path_suggestion_distinct_from_5xx |
+//! | BC-2.08.002 EC-08-005 — Down check_one sets reason="sensor_unreachable_cannot_verify" | test_BC_2_08_002_EC_08_005_down_check_one_sets_sensor_unreachable_cannot_verify_reason |
 //!
 //! # AC-7 (BC-2.08.005 live-probe path) tests
 //! Tests requiring `PrismServer.health_checker` (a private field set only from
@@ -2883,6 +2884,77 @@ async fn test_BC_2_08_001_EC_08_001_503_probe_sets_service_unavailable_reason() 
         "BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): HTTP 503 probe MUST set \
          result.error = Some(\"service_unavailable\"). \
          The BC canonical contract for EC-08-001 specifies reason: \"service_unavailable\". \
+         Current: result.error = {:?}",
+        result.error
+    );
+}
+
+// ─── BC-2.08.002 EC-08-005 — Down reason string ───────────────────────────────
+
+/// BC-2.08.002 EC-08-005: A genuinely-unreachable sensor (connection refused / timeout)
+/// MUST set `result.error = Some("sensor_unreachable_cannot_verify")` through `check_one`.
+///
+/// BC-2.08.002 EC-08-005 canonical contract:
+///   "Sensor API is unreachable (auth cannot be verified) →
+///    `auth_valid: null` with `reason: "sensor_unreachable_cannot_verify"`"
+///
+/// The `reason` is carried in `SensorHealthResult.error`.  The previous implementation
+/// did NOT set this — `result.error` stayed `None` for Down sensors, leaving AI consumers
+/// with no machine-readable reason string to distinguish "unreachable" from "no error recorded".
+///
+/// RED GATE (TD-VSDD-059): removing the `probe.connectivity == Down` branch in check_one
+/// that calls `with_error("sensor_unreachable_cannot_verify")` causes this assertion to fail.
+///
+/// Distinctness from 503: `service_unavailable` and `sensor_unreachable_cannot_verify` are
+/// mutually exclusive — Degraded (5xx, HTTP response received) sets the former; Down (no
+/// HTTP exchange) sets the latter.  The 503 test above covers the Degraded arm separately.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_002_EC_08_005_down_check_one_sets_sensor_unreachable_cannot_verify_reason() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterConnectionRefused));
+
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+
+    let result = checker
+        .check_one(org_id, "acme", &sensor_id, &context)
+        .await;
+
+    // Prerequisite: reachable=false, auth_valid=None (from prior fix).
+    assert_eq!(
+        result.reachable,
+        Some(false),
+        "BC-2.08.002 EC-08-005 prerequisite: Down sensor must yield reachable=Some(false)"
+    );
+    assert_eq!(
+        result.auth_valid,
+        None,
+        "BC-2.08.002 EC-08-005 prerequisite: Down sensor must yield auth_valid=None (never attempted)"
+    );
+
+    // PRIMARY assertion (BC-2.08.002 EC-08-005):
+    // reason="sensor_unreachable_cannot_verify" must be set in result.error.
+    assert_eq!(
+        result.error.as_deref(),
+        Some("sensor_unreachable_cannot_verify"),
+        "BC-2.08.002 EC-08-005: Down/timeout sensor MUST set \
+         result.error = Some(\"sensor_unreachable_cannot_verify\"). \
+         The BC-2.08.002 EC-08-005 canonical contract specifies this reason string \
+         for sensors that were unreachable (auth could not be verified). \
+         Current: result.error = {:?}",
+        result.error
+    );
+
+    // Distinctness: "service_unavailable" MUST NOT appear for a Down sensor.
+    // A timeout never produces a 5xx HTTP response — it never reached the server.
+    assert_ne!(
+        result.error.as_deref(),
+        Some("service_unavailable"),
+        "BC-2.08.002 EC-08-005 distinctness: Down sensor MUST NOT carry \
+         reason=\"service_unavailable\" (that is for HTTP 503 Degraded, not Down). \
          Current: result.error = {:?}",
         result.error
     );

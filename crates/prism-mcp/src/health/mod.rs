@@ -397,8 +397,16 @@ impl SensorHealthChecker {
                 // canonical contract.  This is the authoritative string — it is not the raw
                 // upstream body (which may be a large HTML page); the BC specifies the reason
                 // string for this edge case explicitly.
+                //
+                // BC-2.08.002 EC-08-005: when the sensor is unreachable (ConnectivityStatus::Down),
+                // set reason="sensor_unreachable_cannot_verify".  This is the BC-2.08.002 canonical
+                // string for "auth could not be verified because the sensor was unreachable".
+                // It pairs with auth_valid=None (set above) to give AI consumers an unambiguous
+                // signal that the sensor was not reachable — NOT that credentials were rejected.
                 if probe.connectivity == ConnectivityStatus::Degraded {
                     result = result.with_error("service_unavailable");
+                } else if probe.connectivity == ConnectivityStatus::Down {
+                    result = result.with_error("sensor_unreachable_cannot_verify");
                 }
                 if let Some(ts) = last_successful_query_at {
                     result = result.with_last_successful_query_at(ts);
@@ -408,9 +416,10 @@ impl SensorHealthChecker {
             Err(_) => {
                 // Engine error — sensor unreachable; auth was never attempted (BC-2.08.002 EC-08-005).
                 // MUST NOT set auth_valid=Some(false): that conflates "unreachable" with auth failure.
-                // auth_valid remains None (sensor_unreachable_cannot_verify).
-                let mut result =
-                    SensorHealthResult::new(sensor_id.as_ref(), client_id).with_reachable(false);
+                // auth_valid remains None; reason="sensor_unreachable_cannot_verify" (BC-2.08.002 EC-08-005).
+                let mut result = SensorHealthResult::new(sensor_id.as_ref(), client_id)
+                    .with_reachable(false)
+                    .with_error("sensor_unreachable_cannot_verify");
                 result.probe_level = "live".to_string();
                 result
             }
