@@ -1569,12 +1569,14 @@ async fn test_BC_2_08_001_probe_routes_to_probe_table_when_set() {
         .captured()
         .expect("adapter must have been called (source_table captured)");
 
-    // RED GATE: current code produces "crowdstrike_devices"; AC-9 requires "crowdstrike.detections"
+    // F-S504-P1-002: source_table MUST use underscore form to match SpecDrivenSensorAdapter::fetch's
+    // strip_prefix("{sensor_id}_") table selection. Dot form "crowdstrike.detections" would
+    // never match strip_prefix("crowdstrike_") and would cause fan-out to ALL tables.
     assert_eq!(
-        captured, "crowdstrike.detections",
+        captured, "crowdstrike_detections",
         "AC-9 (BC-2.08.001 §5): when probe_table = Some(\"detections\"), source_table MUST be \
-         \"crowdstrike.detections\" (dot-notation, not underscore). \
-         Got '{captured}' — probe_table routing not yet implemented (RED GATE)"
+         \"crowdstrike_detections\" (underscore form, canonical for SpecDrivenSensorAdapter). \
+         Got '{captured}' — F-S504-P1-002 fix required"
     );
 }
 
@@ -1623,11 +1625,12 @@ async fn test_BC_2_08_001_probe_falls_back_to_first_table_when_probe_table_absen
         .captured()
         .expect("adapter must have been called (source_table captured)");
 
-    // AC-9 fallback: first_table_name = Some("alerts") → source_table = "cyberint.alerts"
+    // F-S504-P1-002: underscore form is canonical for SpecDrivenSensorAdapter::fetch.
+    // "cyberint.alerts" (dot form) would fail strip_prefix("cyberint_") → fan-out to ALL tables.
     assert_eq!(
-        captured, "cyberint.alerts",
+        captured, "cyberint_alerts",
         "AC-9 (BC-2.08.001 §5): when probe_table is absent, source_table MUST fall back to \
-         \"{{sensor_id}}.{{tables[0].table_name}}\" = \"cyberint.alerts\". \
-         Got '{captured}'"
+         \"{{sensor_id}}_{{tables[0].table_name}}\" = \"cyberint_alerts\" (underscore form). \
+         Got '{captured}' — F-S504-P1-002 fix required"
     );
 }

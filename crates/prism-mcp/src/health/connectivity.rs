@@ -140,15 +140,15 @@ pub struct ProbeOutcome {
 /// # AC-9 probe_table routing (BC-2.08.001 postcondition 5 / S-5.04)
 ///
 /// `probe_table` and `first_table_name` implement the three-tier fallback chain:
-/// 1. `probe_table = Some(tbl)` → `source_table = "{sensor_id}.{tbl}"`.
-/// 2. `probe_table = None`, `first_table_name = Some(tbl)` → `source_table = "{sensor_id}.{tbl}"`.
+/// 1. `probe_table = Some(tbl)` → `source_table = "{sensor_id}_{tbl}"`.
+/// 2. `probe_table = None`, `first_table_name = Some(tbl)` → `source_table = "{sensor_id}_{tbl}"`.
 /// 3. Both `None` → legacy sentinel `"{sensor_id}_devices"` (pre-S-1.11 hollow probe).
 ///
-/// The dot-notation `{sensor_id}.{table}` maps directly to how
-/// `SpecDrivenSensorAdapter::fetch` resolves table entries from the loaded spec
-/// (sensor prefix + "." + table_name).  The legacy underscore form is kept as a
-/// structural no-op fallback for sensors with no declared tables (returns `Ok([])` from
-/// the adapter's empty-tables fast-path) — BC-2.08.001 / FIX-001 v1.6.
+/// The underscore form `{sensor_id}_{table}` is the canonical fully-qualified table name
+/// used by PrismQL `FROM {sensor_id}_{table}` and by `SpecDrivenSensorAdapter::fetch`,
+/// which strips the `"{sensor_id}_"` prefix from `source_table` to select the matching
+/// `[[tables]]` entry.  Dot-notation was incorrect — it would never match the strip_prefix
+/// and cause the adapter to fan out to ALL tables (F-S504-P1-002 fix).
 pub async fn probe_connectivity(
     registry: &AdapterRegistry,
     org_id: OrgId,
@@ -166,6 +166,10 @@ pub async fn probe_connectivity(
 /// `probe_table`      — `Some(name)` if the spec declares `probe_table`.
 /// `first_table_name` — `Some(name)` of `spec.tables[0].table_name` when tables exist and
 ///                      `probe_table` is absent.  `None` when no tables are declared.
+///
+/// The resolved `source_table` uses underscore form `"{sensor_id}_{tbl}"` matching
+/// `SpecDrivenSensorAdapter::fetch`'s `strip_prefix("{sensor_id}_")` table selection
+/// (F-S504-P1-002 fix — dot form caused fan-out to ALL tables).
 pub async fn probe_connectivity_with_routing(
     registry: &AdapterRegistry,
     org_id: OrgId,
@@ -245,19 +249,21 @@ async fn probe_connectivity_inner(
     // Minimal probe query — LIMIT 0.
     //
     // AC-9 / BC-2.08.001 postcondition 5 — probe_table fallback chain:
-    //   1. probe_table = Some(tbl) → "{sensor_id}.{tbl}" (explicit probe table).
-    //   2. probe_table = None, first_table_name = Some(tbl) → "{sensor_id}.{tbl}" (first table).
+    //   1. probe_table = Some(tbl) → "{sensor_id}_{tbl}" (explicit probe table).
+    //   2. probe_table = None, first_table_name = Some(tbl) → "{sensor_id}_{tbl}" (first table).
     //   3. Both None → "{sensor_id}_devices" (legacy sentinel; structural no-op when no tables
     //      exist, adapter's empty-tables fast-path returns Ok([]) — BC-2.08.001 / FIX-001 v1.6).
     //
-    // Dot-notation "{sensor_id}.{table}" is the canonical form used by
-    // SpecDrivenSensorAdapter::fetch (sensor prefix + "." + table_name routing).
-    // The underscore-sentinel is kept as backward-compat for sensors without declared tables.
+    // F-S504-P1-002 FIX: underscore form "{sensor_id}_{table}" is the canonical form used by
+    // both PrismQL `FROM` syntax and `SpecDrivenSensorAdapter::fetch`, which strips the
+    // "{sensor_id}_" prefix from source_table to select the matching [[tables]] entry.
+    // Dot-notation "{sensor_id}.{table}" was incorrect — strip_prefix("{sensor_id}_") would
+    // never match it, causing the adapter to fan out to ALL tables instead of just the probe table.
     let sensor_type = adapter.sensor_type();
     let probe_source_table = if let Some(tbl) = probe_table {
-        format!("{sensor_type}.{tbl}")
+        format!("{sensor_type}_{tbl}")
     } else if let Some(tbl) = first_table_name {
-        format!("{sensor_type}.{tbl}")
+        format!("{sensor_type}_{tbl}")
     } else {
         // Legacy sentinel: structural no-op (F-S504-P2-009 — sensor-id-prefixed form).
         format!("{sensor_type}_devices")
@@ -284,7 +290,12 @@ async fn probe_connectivity_inner(
             status: ConnectivityStatus::Up,
             latency_ms: Some(elapsed_ms.max(1)), // at least 1ms to satisfy non-zero assertion
             probed_at: Utc::now(),
-            http_status: Some(200),
+            // F-S504-P2-004: Do NOT fabricate http_status=200 for a hollow Ok([]).
+            // The adapter may return Ok([]) without making any HTTP request (e.g., when
+            // no tables are declared or via the empty-tables fast-path). Asserting 200
+            // when no HTTP contact was confirmed violates BC-2.08.001 postcondition 5's
+            // no-op clause. Use None — Up status alone signals reachable-by-runtime.
+            http_status: None,
             error: None,
             is_rate_limited: false,
             rate_limit_retry_after_ms: None,
