@@ -15,6 +15,22 @@
 bind = "127.0.0.1"
 
 # ---------------------------------------------------------------------------
+# Global enrichment DTUs (ENRICH-3)
+#
+# ThreatIntel and NVD are GLOBAL shared instances — all orgs query the same backend.
+# When enabled, start_multi_for_config starts them under stable names ("threatintel", "nvd")
+# and write_multi_url_sidecar_to_path emits their URLs under the "_global" key.
+# demo-run.sh reads _global.threatintel / _global.nvd and exports:
+#   PRISM_THREATINTEL_BASE_URL=http://127.0.0.1:<port>
+#   PRISM_NVD_BASE_URL=http://127.0.0.1:<port>
+# so the infusion plugin/HttpLookup calls reach the DTU rather than production services.
+# ---------------------------------------------------------------------------
+
+[enrichment]
+threatintel = true
+nvd = true
+
+# ---------------------------------------------------------------------------
 # Multi-org fleet config for `start-multi` (S-DEMO-LAUNCHER-CONSOLIDATION-001)
 #
 # Seed assignments match S-DEMO-004 test harness (INV-DISTINCT-DATA-001):

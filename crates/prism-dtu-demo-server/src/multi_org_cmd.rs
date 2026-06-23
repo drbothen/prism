@@ -102,6 +102,10 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_crowdstrike::CrowdstrikeClone;
     use prism_dtu_cyberint::CyberintClone;
+    // ENRICH-3: enrichment clone imports for global instance dispatch.
+    // Used in the KNOWN_ENRICHMENT_CLONES dispatch arm in the returned closure.
+    use prism_dtu_nvd::NvdClone;
+    use prism_dtu_threatintel::ThreatIntelClone;
 
     // Known sensor names in suffix-search order. The name convention is
     // "{org_slug}-{sensor_id}" where both parts may contain '-' themselves
@@ -220,8 +224,76 @@ pub fn build_multi_clone_factory(cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'_>
         );
     }
 
+    // Pre-build a per-org ScenarioEntityCatalog lookup for enrichment clone construction.
+    // When any org has scenario.enabled=true, enrichment clones are seeded with that org's
+    // catalog so IOCs/CVEs correlate with the incident. We prefer the scenario org (usually
+    // "org-c") over a non-scenario org. When no scenario org exists, use new()/new()? instead.
+    //
+    // We collect all scenario catalogs; enrichment will use the first scenario one found
+    // (or None if none are configured). This lookup is done once here, not inside the closure,
+    // for Fn-compatibility.
+    let scenario_catalog_for_enrichment: Option<prism_dtu_common::ScenarioEntityCatalog> = cfg
+        .orgs
+        .iter()
+        .find(|(_, org_cfg)| {
+            org_cfg
+                .scenario
+                .as_ref()
+                .map(|s| s.enabled)
+                .unwrap_or(false)
+        })
+        .map(|(org_slug, org_cfg)| {
+            #[allow(clippy::expect_used)]
+            let org_id = crate::harness::parse_org_id(&org_cfg.org_id, org_slug)
+                .expect("org_id validated at config parse time");
+            build_scenario_entity_catalog(org_cfg.seed, &org_id)
+        });
+
     Box::new(move |entry: &InstanceEntry| -> Box<dyn BehavioralClone> {
         let entry_name = &entry.name;
+
+        // ENRICH-3: check for global enrichment clone names BEFORE attempting org-suffix parsing.
+        // Global enrichment entries ("threatintel", "nvd") have no org-prefix and would panic
+        // in the KNOWN_SENSORS suffix-strip logic if not intercepted here.
+        use crate::config::KNOWN_ENRICHMENT_CLONES;
+        if KNOWN_ENRICHMENT_CLONES.contains(&entry_name.as_str()) {
+            return match entry_name.as_str() {
+                "threatintel" => {
+                    // Use scenario catalog (from the scenario org) when available so IOCs
+                    // correlate with the incident; otherwise use the default fixture registry.
+                    if let Some(ref catalog) = scenario_catalog_for_enrichment {
+                        Box::new(ThreatIntelClone::new_with_scenario(catalog))
+                    } else {
+                        Box::new(ThreatIntelClone::new())
+                    }
+                }
+                "nvd" => {
+                    // NvdClone::new() is fallible (loads fixtures/cves.json from embed).
+                    // NvdClone::new_with_scenario is also fallible. Either way use expect()
+                    // with an actionable message — fixture load failure is a build-time defect.
+                    #[allow(clippy::expect_used)]
+                    if let Some(ref catalog) = scenario_catalog_for_enrichment {
+                        Box::new(
+                            NvdClone::new_with_scenario(catalog)
+                                .expect("NvdClone::new_with_scenario must succeed — fixtures/cves.json is embedded at build time"),
+                        )
+                    } else {
+                        Box::new(
+                            NvdClone::new()
+                                .expect("NvdClone::new must succeed — fixtures/cves.json is embedded at build time"),
+                        )
+                    }
+                }
+                other => {
+                    // EC-010: unknown global enrichment name — programming error.
+                    panic!(
+                        "start-multi: EC-010: KNOWN_ENRICHMENT_CLONES contains '{}' but no \
+                         dispatch arm handles it. Update build_multi_clone_factory.",
+                        other
+                    )
+                }
+            };
+        }
 
         // Parse (org_slug, sensor_id) from entry.name by matching known sensor suffixes.
         // Try each sensor as a suffix "-{sensor_id}"; first match wins.
@@ -406,7 +478,8 @@ pub fn build_multi_clone_factory(_cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'s
     )
 }
 
-/// Build `MultiInstanceConfig` + start all org clone instances.
+/// Build `MultiInstanceConfig` + start all org clone instances and any enabled global
+/// enrichment DTU instances.
 ///
 /// Extracted as a separately-testable async fn so RG-005 can verify socket isolation
 /// without subprocess overhead. `cmd_start_multi` in `main.rs` delegates to this.
@@ -414,15 +487,19 @@ pub fn build_multi_clone_factory(_cfg: &MultiOrgDemoConfig) -> CloneFactoryFn<'s
 /// # Contract
 ///
 /// - Reads `cfg.orgs` to build `MultiInstanceConfig` entries named `"{org_slug}-{sensor_id}"`.
+/// - When `cfg.enrichment.threatintel = true`, appends an entry named `"threatintel"` (global).
+/// - When `cfg.enrichment.nvd = true`, appends an entry named `"nvd"` (global).
 /// - Calls `build_multi_clone_factory(cfg)` to produce the clone factory.
 /// - Calls `start_instances(multi_cfg, clone_factory).await` from `crate::multi_instance`.
-/// - Returns `Ok(MultiInstanceServers)` with a socket_map keyed by `"{org_slug}-{sensor_id}"`.
+/// - Returns `Ok(MultiInstanceServers)` with a socket_map keyed by `"{org_slug}-{sensor_id}"`
+///   for per-org sensors and `"threatintel"` / `"nvd"` for global enrichment instances.
 ///
 /// # Entry name convention
 ///
-/// Each `InstanceEntry` name is `"{org_slug}-{sensor_id}"` (e.g. `"org-a-crowdstrike"`).
-/// The `build_multi_clone_factory` closure reconstructs `(org_slug, sensor_id)` from this
-/// name by stripping known sensor suffixes (Architecture Compliance Rule).
+/// Per-org entries: `"{org_slug}-{sensor_id}"` (e.g. `"org-a-crowdstrike"`).
+/// Global enrichment entries: `"threatintel"`, `"nvd"` (stable names, no org prefix).
+/// The `build_multi_clone_factory` closure uses `KNOWN_ENRICHMENT_CLONES` to detect global
+/// names before attempting org-suffix parsing, so the two namespaces do not conflict.
 ///
 /// # Bind address
 ///
@@ -434,6 +511,14 @@ pub async fn start_multi_for_config(
 ) -> anyhow::Result<MultiInstanceServers> {
     use crate::multi_instance::{InstanceEntry, MultiInstanceConfig};
 
+    // Bind-address parser helper.
+    let make_bind = |bind_ip: &str| -> anyhow::Result<std::net::SocketAddr> {
+        let bind_str = format!("{bind_ip}:0");
+        bind_str
+            .parse()
+            .map_err(|e| anyhow::anyhow!("Invalid bind address '{}': {}", bind_str, e))
+    };
+
     // Build MultiInstanceConfig entries named "{org_slug}-{sensor_id}".
     // The iteration order of a HashMap is not deterministic, but the binding order
     // does not matter — all N entries must bind before this returns Ok.
@@ -441,12 +526,22 @@ pub async fn start_multi_for_config(
     for (org_slug, org_cfg) in &cfg.orgs {
         for sensor_id in &org_cfg.sensors {
             let name = format!("{org_slug}-{sensor_id}");
-            let bind_str = format!("{}:0", cfg.harness.bind);
-            let bind: std::net::SocketAddr = bind_str
-                .parse()
-                .map_err(|e| anyhow::anyhow!("Invalid bind address '{}': {}", bind_str, e))?;
-            instances.push(InstanceEntry::new(name, bind));
+            instances.push(InstanceEntry::new(name, make_bind(&cfg.harness.bind)?));
         }
+    }
+
+    // Append global enrichment instances (ENRICH-3).
+    // These use stable names ("threatintel", "nvd") that are not org-prefixed.
+    // The factory closure handles them via KNOWN_ENRICHMENT_CLONES before attempting
+    // the org-suffix-parse path (which would panic on these names).
+    if cfg.enrichment.threatintel {
+        instances.push(InstanceEntry::new(
+            "threatintel",
+            make_bind(&cfg.harness.bind)?,
+        ));
+    }
+    if cfg.enrichment.nvd {
+        instances.push(InstanceEntry::new("nvd", make_bind(&cfg.harness.bind)?));
     }
 
     let multi_cfg = MultiInstanceConfig::new(instances);
@@ -488,6 +583,7 @@ pub fn write_multi_url_sidecar_to_path(
     cfg: &MultiOrgDemoConfig,
     path: &Path,
 ) -> anyhow::Result<()> {
+    use crate::config::KNOWN_ENRICHMENT_CLONES;
     use std::collections::HashMap;
 
     let socket_map = servers.socket_map();
@@ -512,6 +608,42 @@ pub fn write_multi_url_sidecar_to_path(
             sensor_urls.insert(sensor_id.clone(), format!("http://{addr}"));
         }
         nested.insert(org_slug.clone(), sensor_urls);
+    }
+
+    // ENRICH-3: emit global enrichment DTU URLs under the reserved "_global" key.
+    //
+    // The "_global" key is NOT an org slug — it is a reserved top-level key that demo-run.sh
+    // reads specifically to export PRISM_THREATINTEL_BASE_URL / PRISM_NVD_BASE_URL env vars
+    // without generating per-org sensor overlay TOMLs. This keeps the sidecar format
+    // backward-compatible: existing demo-run.sh code that iterates org slugs and skips
+    // "_global" (which is not in cfg.orgs) is unaffected.
+    //
+    // Validation: if an enrichment clone is enabled in cfg.enrichment but its global
+    // socket_map key is absent, fail LOUDLY — same production-grade principle as per-org sensors.
+    let mut global_urls: HashMap<String, String> = HashMap::new();
+    for &enrichment_name in KNOWN_ENRICHMENT_CLONES {
+        // Determine whether this enrichment clone was requested in the config.
+        let enabled = match enrichment_name {
+            "threatintel" => cfg.enrichment.threatintel,
+            "nvd" => cfg.enrichment.nvd,
+            _ => false,
+        };
+        if enabled {
+            let addr = socket_map.get(enrichment_name).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "write_multi_url_sidecar: socket_map is missing expected enrichment entry \
+                     '{}'. This is a programming error — enrichment clones enabled in \
+                     EnrichmentConfig must have been started by start_instances before writing \
+                     the sidecar. Available socket_map keys: {:?}",
+                    enrichment_name,
+                    socket_map.keys().collect::<Vec<_>>()
+                )
+            })?;
+            global_urls.insert(enrichment_name.to_string(), format!("http://{addr}"));
+        }
+    }
+    if !global_urls.is_empty() {
+        nested.insert("_global".to_string(), global_urls);
     }
 
     let json = serde_json::to_string(&nested)
