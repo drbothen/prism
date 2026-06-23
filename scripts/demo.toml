@@ -74,3 +74,4 @@ initial_access_token = "demo-cyberint-api-key-org-c"
 [orgs.org-c.scenario]
 enabled = true
 archetype = "compromised_endpoint"
+scenario_start_secs = 1782214754  # 700s in the past → Stage 4 (Containment, elapsed >= 600s)
