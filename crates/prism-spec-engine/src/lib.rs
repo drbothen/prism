@@ -106,7 +106,7 @@ pub use overlay::{
     OverlayLoadResult, OverlayLoader, OverlayProvenance, ResolvedSensorSpec, ResolvedSpecKey,
     SensorInstanceOverlay,
 };
-pub use pipeline::{FetchContext, PipelineExecutor, PipelineResult};
+pub use pipeline::{FetchContext, PipelineExecutor, PipelineResult, extract_at_path};
 pub use plugin::{
     ActionResult, AlertContext, CaseContext, LoadedPlugin, ManifestWriteTool, PluginRuntime,
     PluginType, ReportContext,

@@ -1197,10 +1197,7 @@ pub(crate) fn build_http_client_with_timeout() -> reqwest::Client {
 /// - Key not found at any step
 /// - Bracket index out of bounds
 /// - Wildcard on non-array value (EC-002)
-pub(crate) fn extract_at_path(
-    body: &serde_json::Value,
-    path: &str,
-) -> Result<serde_json::Value, String> {
+pub fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, String> {
     let stripped = path
         .strip_prefix("$.")
         .ok_or_else(|| format!("path must start with '$.' : {path}"))?;

@@ -54,8 +54,9 @@ use prism_sensors::{
 use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
     error::SpecEngineError,
+    extract_at_path,
     pipeline::{FetchContext, PipelineExecutor, PipelineResult},
-    spec_parser::{AuthType, SensorSpec as SpecEngineSensorSpec, TableSpec},
+    spec_parser::{AuthType, ColumnSpec, SensorSpec as SpecEngineSensorSpec, TableSpec},
 };
 
 // ---------------------------------------------------------------------------
@@ -846,10 +847,10 @@ fn pipeline_result_to_record_batch(
                 let vals: Vec<Option<String>> = vec![s; n];
                 Arc::new(arrow::array::StringArray::from(vals)) as Arc<dyn Array>
             } else {
-                build_column_array(&result.records, &col_spec.name, &col_spec.column_type)
+                build_column_array(&result.records, col_spec)
             }
         } else {
-            build_column_array(&result.records, &col_spec.name, &col_spec.column_type)
+            build_column_array(&result.records, col_spec)
         };
         col_arrays.push(array);
     }
@@ -890,52 +891,89 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
     }
 }
 
-/// Build an Arrow array for a single named column across all records.
+/// Build an Arrow array for a single column across all records.
 ///
-/// Extracts the value at `col_name` from each raw JSON record.
+/// ENRICH-1: dispatches on `col.source_path`:
+/// - `None` (default) → flat `r.get(&col.name)` lookup (pre-ENRICH-1 behavior, backward compat).
+/// - `Some(path)` → `extract_at_path(r, path)` via the spec-engine extractor.
+///   Wildcard paths (`[*]`) that yield `Value::Array` are serialized to a compact JSON-list
+///   string for `String`-typed columns (e.g., `["h1","h2"]`). Non-string types on a wildcard
+///   path use first-element extraction with a tracing::warn (unusual; wildcard on non-string).
+///   On `Err` from `extract_at_path`, the cell becomes null.
+///
 /// Records where the field is absent or null produce a null entry in the array.
-fn build_column_array(
-    records: &[serde_json::Value],
-    col_name: &str,
-    col_type: &ColumnType,
-) -> Arc<dyn Array> {
-    match col_type {
+fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dyn Array> {
+    /// Extract a single raw `serde_json::Value` from a record for this column.
+    fn extract_raw(r: &serde_json::Value, col: &ColumnSpec) -> Option<serde_json::Value> {
+        if let Some(ref path) = col.source_path {
+            match extract_at_path(r, path) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    tracing::warn!(
+                        column = %col.name,
+                        source_path = %path,
+                        error = %e,
+                        event_type = "column_source_path_extraction_failed",
+                        "ENRICH-1: build_column_array source_path extraction failed; cell is null"
+                    );
+                    None
+                }
+            }
+        } else {
+            r.get(&col.name).cloned()
+        }
+    }
+
+    match &col.column_type {
         ColumnType::Integer => {
             let vals: Vec<Option<i64>> = records
                 .iter()
-                .map(|r| r.get(col_name).and_then(|v| v.as_i64()))
+                .map(|r| extract_raw(r, col).and_then(|v| v.as_i64()))
                 .collect();
             Arc::new(Int64Array::from(vals))
         }
         ColumnType::Float => {
             let vals: Vec<Option<f64>> = records
                 .iter()
-                .map(|r| r.get(col_name).and_then(|v| v.as_f64()))
+                .map(|r| extract_raw(r, col).and_then(|v| v.as_f64()))
                 .collect();
             Arc::new(Float64Array::from(vals))
         }
         ColumnType::Boolean => {
             let vals: Vec<Option<bool>> = records
                 .iter()
-                .map(|r| r.get(col_name).and_then(|v| v.as_bool()))
+                .map(|r| extract_raw(r, col).and_then(|v| v.as_bool()))
                 .collect();
             Arc::new(BooleanArray::from(vals))
         }
         // String / Datetime / Json / future variants → Utf8
-        // Json values are serialized as their compact string representation.
+        // Wildcard source_path (`[*]`) arrays are serialized to a compact JSON-list string.
+        // Json column values are serialized as their compact string representation.
         _ => {
             let vals: Vec<Option<String>> = records
                 .iter()
                 .map(|r| {
-                    r.get(col_name).and_then(|v| {
-                        if v.is_null() {
-                            None
-                        } else if let serde_json::Value::String(s) = v {
-                            Some(s.clone())
-                        } else {
-                            Some(v.to_string())
+                    let raw = extract_raw(r, col)?;
+                    match raw {
+                        serde_json::Value::Null => None,
+                        serde_json::Value::String(s) => Some(s),
+                        serde_json::Value::Array(arr) => {
+                            // Wildcard result: serialize to compact JSON-list string.
+                            // ENRICH-1 Design Decision 2: JSON-list string in string column.
+                            let strings: Vec<String> = arr
+                                .into_iter()
+                                .map(|v| match v {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .collect();
+                            Some(
+                                serde_json::to_string(&strings)
+                                    .unwrap_or_else(|_| "[]".to_string()),
+                            )
                         }
-                    })
+                        other => Some(other.to_string()),
+                    }
                 })
                 .collect();
             Arc::new(StringArray::from(

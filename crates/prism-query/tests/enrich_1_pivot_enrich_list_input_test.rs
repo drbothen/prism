@@ -21,7 +21,7 @@ use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::datasource::MemTable;
 
-use prism_query::infusion_udf::{register_infusion_udfs, InfusionAsyncUdf};
+use prism_query::infusion_udf::register_infusion_udfs;
 use prism_query::memory::build_session_context;
 use prism_spec_engine::{InfusionSource, InfusionUdfDescriptor};
 
@@ -45,6 +45,13 @@ impl InfusionSource for PrefixInfusionSource {
     fn enrich_single(&self, input_value: &str, _input_type: &str) -> Option<serde_json::Value> {
         self.call_count.fetch_add(1, Ordering::SeqCst);
         Some(serde_json::Value::String(format!("enriched:{input_value}")))
+    }
+
+    fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
+        inputs
+            .iter()
+            .map(|s| self.enrich_single(s, input_type))
+            .collect()
     }
 }
 
