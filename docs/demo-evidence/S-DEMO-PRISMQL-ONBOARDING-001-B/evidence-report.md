@@ -3,7 +3,7 @@ story_id: S-DEMO-PRISMQL-ONBOARDING-001-B
 title: "PrismQL LLM Auto-Onboarding — Query Engine L4 (E-QUERY-038 Gate + Pedagogical Enrichments + normalized_pql)"
 captured_at: "2026-06-22"
 revised_at: "2026-06-22"
-revision_reason: "OBS-198-1: AC-001 case_a re-captured with clients=[acme] org-scope; OBS-198-2: AC-005 case_a label corrected to match zero-row capture reality"
+revision_reason: "OBS-198-1: AC-001 case_a re-captured with clients=[acme] org-scope; OBS-198-2: AC-005 case_a label corrected to match zero-row capture reality; F-198-FRESH-MED-001: AC-003 and AC-006 parse-error cases re-captured after ec_code_override fix — code now E-QUERY-001 (was E-MCP-002)"
 product_type: "CLI/MCP (Rust — no browser UI)"
 recording_tool: "cargo nextest (Red Gate test output) + cargo run --example (engine-driven JSON captures)"
 coverage: "6/6 ACs covered"
@@ -83,6 +83,7 @@ Multi-tenant fixture: acme has `[severity, acme_only_field]`; globex has `[sever
 - `test_BC_2_11_017_ac003_security_limit_error_carries_how_to_fix` (prism-mcp)
 
 **Case a — E-QUERY-001 parse error** (query `SELCT * FROM crowdstrike_alerts`):
+- `"code": "E-QUERY-001"` — correct canonical code (F-198-FRESH-MED-001 fix: was `"E-MCP-002"` before `ec_code_override` was added to the `QueryParseFailed` arm)
 - `"near_text": "SELCT"` — the offending token (≤50 chars), present in `sc["error"]`
 - `"reference_pointer": "prismql://reference"` — literal string, present in `sc["error"]`
 
@@ -145,6 +146,7 @@ Multi-tenant fixture: acme has `[severity, acme_only_field]`; globex has `[sever
 **Red Gate test:** `test_BC_2_11_018_normalized_pql_present_on_success_absent_on_error` (combined with AC-005)
 
 Parse error response for query `!!invalid query!!`:
+- `"code": "E-QUERY-001"` — correct code after F-198-FRESH-MED-001 fix (was `"E-MCP-002"`)
 - `normalized_pql_present_in_response: false` (verified programmatically by checking both `sc["normalized_pql"]` and `sc["results"]["normalized_pql"]`)
 - The error payload contains only `"error": {...}` — no `normalized_pql` key at any level
 - Error path returns early via `prism_error_to_structured_call_result` BEFORE the `normalized_pql_str` computation in `PrismServer::query`, making absence structurally guaranteed

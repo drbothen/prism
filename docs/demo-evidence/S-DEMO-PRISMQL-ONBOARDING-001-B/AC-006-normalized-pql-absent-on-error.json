@@ -6,7 +6,8 @@
     "description": "normalized_pql ABSENT (not null, not present) on ALL error responses",
     "capture_method": "cargo run --example evidence_capture (real prism-mcp PrismServer::query, error path returns early via prism_error_to_structured_call_result before normalized_pql is computed)",
     "test_gate": "test_BC_2_11_018_normalized_pql_present_on_success_absent_on_error (combined with AC-005)",
-    "captured_at": "2026-06-22"
+    "captured_at": "2026-06-22",
+    "revision": "2026-06-22 re-capture after F-198 fix (ec_code_override E-QUERY-001 on QueryParseFailed arm)"
   },
   "case_a_parse_error": {
     "description": "Query: !!invalid query!! (parse error → error path → normalized_pql must be ABSENT)",
@@ -15,7 +16,8 @@
       "normalized_pql key NOT present at sc['results']",
       "normalized_pql key NOT present at sc['error']",
       "is_error: true",
-      "normalized_pql_present_in_response: false (verified programmatically)"
+      "normalized_pql_present_in_response: false (verified programmatically)",
+      "code: 'E-QUERY-001' (NOT 'E-MCP-002' — F-198 fix)"
     ],
     "normalized_pql_present_in_response": false,
     "response": {
@@ -24,8 +26,8 @@
       },
       "error": {
         "category": "validation",
-        "code": "E-MCP-002",
-        "message": "PrismQL parse error: parse error at offset 10: expected keyword 'MATCHES'",
+        "code": "E-QUERY-001",
+        "message": "PrismQL parse error: expected keyword 'MATCHES'",
         "near_text": "!!invalid",
         "original_params_valid": false,
         "reference_pointer": "prismql://reference",

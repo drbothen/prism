@@ -13,14 +13,16 @@
       "test_BC_2_11_017_ac003_type_error_response_carries_valid_operators (prism-mcp)",
       "test_BC_2_11_017_ac003_security_limit_error_carries_how_to_fix (prism-mcp)"
     ],
-    "captured_at": "2026-06-22"
+    "captured_at": "2026-06-22",
+    "revision": "2026-06-22 re-capture after F-198 fix (ec_code_override E-QUERY-001 on QueryParseFailed arm)"
   },
   "case_e_query_001_parse_error": {
     "description": "Query: SELCT * FROM crowdstrike_alerts (typo in SELECT keyword → E-QUERY-001 parse error)",
     "assertions": [
       "near_text: 'SELCT' (the offending token, ≤50 chars)",
       "reference_pointer: 'prismql://reference'",
-      "both fields present in sc['error']"
+      "both fields present in sc['error']",
+      "code: 'E-QUERY-001' (NOT 'E-MCP-002' — F-198 fix)"
     ],
     "response": {
       "_meta": {
@@ -28,8 +30,8 @@
       },
       "error": {
         "category": "validation",
-        "code": "E-MCP-002",
-        "message": "PrismQL parse error: parse error at offset 6: found '*' expected '=', something else, '|', '\"cidr\"', '\"CIDR\"', '\"LIKE\"', '\"like\"', '>', '<', or '!'",
+        "code": "E-QUERY-001",
+        "message": "PrismQL parse error: found '*' expected '=', something else, '|', '\"cidr\"', '\"CIDR\"', '\"LIKE\"', '\"like\"', '>', '<', or '!'",
         "near_text": "SELCT",
         "original_params_valid": false,
         "reference_pointer": "prismql://reference",
