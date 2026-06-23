@@ -74,4 +74,4 @@ initial_access_token = "demo-cyberint-api-key-org-c"
 [orgs.org-c.scenario]
 enabled = true
 archetype = "compromised_endpoint"
-scenario_start_secs = 1782214754  # 700s in the past → Stage 4 (Containment, elapsed >= 600s)
+scenario_start_secs = 1782214754  # Absolute epoch (~2026-06-23T15:00Z). Any wall-clock run after this instant yields elapsed >= 600s -> Stage 4 (terminal/absorbing), making the demo's enrichment stage deterministic regardless of replay date.

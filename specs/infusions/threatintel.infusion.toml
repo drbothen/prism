@@ -67,21 +67,21 @@ env_var    = "PRISM_THREATINTEL_API_KEY"
 
 [[infusion.fields]]
 name = "threat_is_known_malicious"
-input_field = "ioc_value"
+input_field = "iocs_value"
 input_type = "ioc"
 output_type = "boolean"
 description = "True if the IOC is confirmed malicious by the ThreatIntel backend"
 
 [[infusion.fields]]
 name = "threat_score"
-input_field = "ioc_value"
+input_field = "iocs_value"
 input_type = "ioc"
 output_type = "integer"
 description = "Threat intelligence confidence score (0-100)"
 
 [[infusion.fields]]
 name = "threat_sources"
-input_field = "ioc_value"
+input_field = "iocs_value"
 input_type = "ioc"
 output_type = "json"
 description = "JSON array of source names that flagged this IOC (e.g. [\"greynoise\", \"abuseipdb\"])"
