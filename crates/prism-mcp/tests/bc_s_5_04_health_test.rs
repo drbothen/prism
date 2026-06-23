@@ -32,6 +32,9 @@
 //! | BC-2.08.007 — auth_invalid counts as not healthy | test_BC_2_08_007_aggregate_auth_invalid_sensor_is_not_healthy |
 //! | BC-2.08.007 — ALL auth-invalid → Unhealthy (F-S504-LP3-HIGH-001) | test_BC_2_08_007_aggregate_all_auth_invalid_is_unhealthy |
 //! | BC-2.08.007 — ALL auth-invalid server response → "unhealthy" (F-S504-LP3-HIGH-001) | test_BC_2_08_007_all_auth_invalid_server_response_is_unhealthy |
+//! | EC-08-001 (BC-2.08.001) — HTTP 503 connectivity probe → Degraded | test_BC_2_08_001_live_probe_503_connectivity_is_degraded |
+//! | EC-08-001 (BC-2.08.001) — 503 check_one → reachable=false + no last_successful_query_at (F-S504-LP3P5-HIGH-001) | test_BC_2_08_001_EC_08_001_503_probe_yields_reachable_false |
+//! | F-S504-LP3P5-HIGH-001 — all-503 fleet → OverallStatus::Unhealthy | test_BC_2_08_001_EC_08_001_all_503_fleet_aggregate_unhealthy |
 //! | BC-2.08.007 — empty list → Unhealthy | test_BC_2_08_007_aggregate_empty_list_is_unhealthy |
 //! | SensorHealthChecker::new GREEN | test_BC_S_5_04_sensor_health_checker_new_constructs_successfully |
 //! | BC-2.08.004 checker — record+read round-trip | test_BC_2_08_004_checker_record_and_read_timestamp |
