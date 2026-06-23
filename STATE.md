@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.930"
+version: "7.931"
 producer: state-manager
-timestamp: 2026-06-23T12:00:00Z
+timestamp: 2026-06-23T14:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -35,7 +35,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1301 (2026-06-23). S-5.04 LOCAL ADVERSARY PASS 1/3 CLEAN(strict) on frozen 4a5db2bf. Zero findings of any severity (CRIT+HIGH+MED+LOW+OBS+PROCESS-GAP all zero). AC-1..AC-12 GREEN (load-bearing, no paper-fix); SAP-1 CLEAN (no event_type emissions in health module); SAP-2 CLEAN (all 4 probe_table values resolve to declared [[tables]]); SID-1 CLEAN (#[ignore]'d DTU tests carry DTU-EXT-001 comments + in-process mock companions); POL-7/8/12/16/23/32 all CLEAN. CLEAN(strict)=yes CLEAN(PR-merge)=yes. Streak 1/3. develop_head UNCHANGED 5504c152. STATE v7.929→v7.930. NEXT: S-5.04 LOCAL adversary pass 2/3 on same frozen HEAD 4a5db2bf."
+current_step: "D-1302 (2026-06-23). COMPREHENSIVE ZERO-CONTEXT RESUME SNAPSHOT. S-5.04 LOCAL ADVERSARY PASS 2/3 CLEAN(strict) on frozen 4a5db2bf — streak 2/3 (frozen-HEAD intact; no push between passes 1 and 2). Enrichment CRIT-001 (root sensors/*.sensor.toml split-brain migrated @3ff64311) + HIGH-001 (vacuous SAP-2 parity tests rewritten to load-bearing TOML-parse @e2a28520) CLOSED; enrichment LOCAL streak RESET to 0/3 per frozen-HEAD rule. Onboarding-discoverability verdict: enrichment unlearnable via MCP; USER approved new story (S-DEMO-PRISMQL-ONBOARDING-001-C scope). SESSION-HANDOFF §RESUME SNAPSHOT D-1302 authored (supersedes D-1292). develop_head UNCHANGED 5504c152. STATE v7.930→v7.931. NEXT: S-5.04 LOCAL adversary pass 3/3 on same frozen HEAD 4a5db2bf + enrichment PRISM_DTU_MODE fix-burst then LOCAL re-gate 0→1/3."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -201,6 +201,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1302 | state-manager | 2026-06-23 | **COMPREHENSIVE ZERO-CONTEXT RESUME SNAPSHOT + S-5.04 LOCAL ADVERSARY PASS 2/3 CLEAN(strict) + ENRICHMENT CRIT-001/HIGH-001 CLOSED + DISCOVERABILITY DECISION (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). S-5.04 LOCAL adversary pass 2/3 on frozen 4a5db2bf: CLEAN(strict)=yes CLEAN(PR-merge)=yes. Zero findings any severity. Frozen-HEAD streak intact (no push between pass 1 and pass 2). Streak advances 1/3→2/3. ENRICHMENT: LOCAL adversary pass 1 on fix/enrichment-complete (prior HEAD 63c243d8): CRIT-001 (root sensors/cyberint+crowdstrike.sensor.toml un-migrated split-brain) CLOSED via migration @3ff64311; HIGH-001 (vacuous SAP-2 parity tests) CLOSED via load-bearing TOML-parse rewrite @e2a28520. Enrichment HEAD now e2a28520; LOCAL streak RESET to 0/3 per frozen-HEAD rule (DRIFT-ORCH-PRLEVEL-PUSH-001). KNOWN OPEN: scripts/demo-run.sh missing `export PRISM_DTU_MODE=true` (NVD SSRF-guard at boot; GAP-2 PRISM_NVD_API_KEY already fixed). ONBOARDING DISCOVERABILITY: naive LLM agent MCP-only test verdict — basic querying = YES-with-friction; enrichment = NOT discoverable via MCP (flagship gap). USER DECISION: fix discoverability now; scoped as new story S-DEMO-PRISMQL-ONBOARDING-001-C (PO/architect scope on resume). SESSION-HANDOFF §RESUME SNAPSHOT D-1302 authored (supersedes D-1292); §DO-NOT-REFLAG updated (CRIT-001+HIGH-001 closed). STATE v7.930→v7.931. NEXT: S-5.04 LOCAL adversary pass 3/3 on frozen 4a5db2bf + enrichment PRISM_DTU_MODE fix-burst then LOCAL re-gate.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1301 | state-manager | 2026-06-23 | **S-5.04 LOCAL ADVERSARY PASS 1/3 CLEAN(strict) on frozen 4a5db2bf (factory-only; develop_head UNCHANGED 5504c152). Adversary result: CLEAN(strict)=yes CLEAN(PR-merge)=yes. Zero findings of any severity. AC-1..AC-12 all GREEN (load-bearing tests, no paper-fix; TD-VSDD-059 satisfied). SAP-1 CLEAN (no event_type= emissions in health module). SAP-2 CLEAN (all 4 probe_table values match declared [[tables]]: crowdstrike→detections, cyberint→alerts, claroty→devices, armis→devices). SID-1 CLEAN (#[ignore]'d DTU tests carry DTU-EXT-001 comments + in-process mock companions). POL-7 CLEAN (all 7 BC body-table titles match H1 verbatim; BC-2.08.005 two-phase-anchor enrichment suffix acceptable). POL-8 CLEAN (frontmatter 7 BCs ↔ body table ↔ AC traces bidirectionally consistent; acceptance_criteria_count 12 matches). POL-12/16/23/32 CLEAN. OBS-S504-LP3-001 (FSR staleness from prior pass) VERIFIED CLOSED. Streak advances 0/3→1/3. STATE v7.929→v7.930. NEXT: S-5.04 LOCAL adversary pass 2/3 on same frozen HEAD 4a5db2bf.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1300 | state-manager | 2026-06-23 | **S-5.04 v2.4→v2.5 LP3 ADVERSARY PASS + COMPREHENSIVE STORY-HYGIENE RECONCILE (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). FILE COMMITTED: stories/S-5.04-sensor-health.md v2.4→v2.5. Adversary pass on frozen 4a5db2bf: all 12 ACs GREEN (AC-1 through AC-12 behavioral behavior fully converged), all policies pass, BC-pin sweep CLEAN (comment-only); found OBS-S504-LP3-001 (LOW, FSR-table filename staleness — `health.rs` → `bc_s_5_04_health_test.rs`). Closed via comprehensive story-hygiene reconcile: FSR table rebuilt to match 22 delivered files (correct filenames + Modify/New annotations); Architecture Mapping subsystems/crates verified correct; Architecture Purity section corrected; Token Budget section updated. §Changelog row v2.5 added. Code HEAD 4a5db2bf UNCHANGED (story-only edit). ENRICHMENT: fix/enrichment-complete pass-1 HIGH (F-ENRICH-P1-001 Test 8 strengthened — no code bug) + OBS-1 (fields-exclude) + OBS-2 (doc) CLOSED on fix/enrichment-complete @63c243d8 (just check exit 0); re-pass adversary in flight. Naive-agent MCP onboarding test in flight. INDEX RECONCILIATION: STORY-INDEX v2.467→v2.468 (S-5.04 row v2.4→v2.5; D-1300 changelog row added). POL-29 SIBLING SWEEP (S-5.04 v2.4 live cites): SESSION-HANDOFF.md §THEN roadmap row (updated → v2.5/4a5db2bf); SESSION-HANDOFF.md §S-5.04 IMPLEMENTER GUIDANCE Spec line (updated → v2.5). IMMUTABLE historical cites: STATE.md D-1298 row + STORY-INDEX D-1298 changelog row (left as-is). Post-sweep: 0 stale live cites remain. story_index_version v2.467→v2.468. STATE v7.928→v7.929. NEXT: S-5.04 LOCAL adversary re-pass on frozen 4a5db2bf (streak 0/3); enrichment re-pass on fix/enrichment-complete @63c243d8.** | wave-5-e-demo-fidelity | 2026-06-23 |
 | D-1299 | state-manager | 2026-06-23 | **ENRICHMENT GAP-1+GAP-3 SPEC CLOSURE + SESSION-HANDOFF SHA REFRESH (TD-VSDD-053 single-commit; factory-only; develop_head UNCHANGED 5504c152). GAP-1 closed: enrichment UDF names corrected throughout — registered per-field UDF names are `threat_score`/`cvss_base_score` etc., NOT infusion_ids `threat_intel`/`nvd`; adversary-probe P1 prohibition added in BC-2.06.019 v1.15. GAP-3 closed: prism_describe JSON key `table_name`→`name` in T13 runbook. GAP-2 closed (code, not factory): demo-run.sh PRISM_NVD_API_KEY export on fix/enrichment-complete @37f0fd56. Enrichment centerpiece PROVEN end-to-end (threat_score=95, cvss=8.1). SESSION-HANDOFF develop-SHA refreshed fc954300→5504c152 (current-state cites only). bc_index_version 7.06→7.07. STATE v7.927→v7.928. NEXT: S-5.04 LOCAL adversary re-pass on frozen ea496bd2 (streak 0/3); enrichment integrated diff adversarial review → PR.** | wave-5-e-demo-fidelity | 2026-06-23 |
@@ -379,26 +380,23 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1298 — 2026-06-23; STATE v7.927)
+## Session Resume Checkpoint (D-1302 — 2026-06-23; STATE v7.931)
 
-**STATE v7.927. CURRENT POSITION: D-1298 S-5.04 v2.4 BC-PIN SWEEP + LP1 ADVERSARY PASS RECONCILED. S-5.04 v2.4 (F-S504-LP1-MED-001 CLOSED: BC-2.08.005 pin v1.5→v1.7; all 7 BCs swept); LP1 adversary on ea14a39c: P5-001/P5-002 VERIFIED CLOSED; OBS-LP1-001+002 FIXED in code. Code HEAD now ea496bd2 (OBS nits fixed; just check exit 0; 4796 tests; gate 84). Streak reset 0/3. ENRICHMENT MILESTONE: E2E chain PROVED on fix/enrichment-complete @db2e77af (threat_score=95 ≥75, NVD cvss=8.1); 3 doc/script gaps (GAP-1/2/3) in separate lanes. develop_head 5504c152 UNCHANGED. OPEN PRs: none. bc_index_version 7.06. story_index_version v2.467. CLAUDE.md non-exhaustive=83 on develop; 84 ON S-5.04 BRANCH. MERGE-ORDERING: fix/enrichment-complete at gate 83 — whichever merges second needs count 84.**
+**STATE v7.931. CURRENT POSITION: D-1302 COMPREHENSIVE ZERO-CONTEXT RESUME SNAPSHOT. TWO ACTIVE WORKSTREAMS:**
 
-**DEMO-BLOCKING STATUS:** **001-A MERGED** (PR #197 develop@ffe9315a) + **001-B MERGED** (PR #198 develop@5504c152; D-1293) + **S-5.04 (TDD-ready v2.4; code HEAD ea496bd2; worktree .worktrees/S-5.04 exists; LOCAL adversary STREAK RESET 0/3 — re-pass required on frozen ea496bd2)**. T13 gated on S-5.04 MERGED (1 remaining). Enrichment: E-1/E-2+3/E-4-B DONE (db2e77af); 3 doc/script gaps in fix lanes.
+**WORKSTREAM A — S-5.04:** Code HEAD `4a5db2bf` FROZEN (feature/S-5.04; worktree .worktrees/S-5.04). Story v2.5 final, 12 ACs GREEN, `just check` exit 0, gate=84 on branch. LOCAL strict-3-CLEAN streak **2/3** on frozen 4a5db2bf (pass 1 = D-1301 CLEAN; pass 2 = CLEAN this burst; zero findings both passes; frozen-HEAD rule satisfied). NEXT: LOCAL adversary pass **3/3** on same frozen HEAD → if CLEAN(strict): demo-recorder per-AC → push → PR → PR-LEVEL strict-3-CLEAN → merge (POL-14 promotes 7 BCs draft→active; ci.yml EXPECTED + CLAUDE.md 83→84).
 
-**NEXT PICKABLE TASKS (in order):**
-1. S-5.04 LOCAL adversary re-pass on frozen code HEAD ea496bd2 (streak 0/3 — reset per LP1 fix-burst push)
-2. After 3/3 LOCAL: demo-recorder → push → PR → PR-LEVEL strict-3-CLEAN → merge (POL-14 auto-promotes BC-2.08.001/002/003/004/005/007)
-3. Enrichment GAP-1 (enrich fn name threat_intel→threat_score) + GAP-2 (demo-run.sh PRISM_NVD_API_KEY) + GAP-3 (prism_describe JSON key) fix lanes
-4. T13 capstone + T14 recording
-5. Update SESSION-HANDOFF.md §RESUME SNAPSHOT to D-1298 state
+**WORKSTREAM B — ENRICHMENT:** `fix/enrichment-complete` HEAD `e2a28520` (worktree .worktrees/enrich-integrated; gate=83). E2E PROVEN (threat_score=95, cvss=8.1). LOCAL streak **0/3** (reset by CRIT-001/HIGH-001 fix push). KNOWN OPEN: scripts/demo-run.sh missing `export PRISM_DTU_MODE=true` → NVD dies at boot. NEXT: (a) PRISM_DTU_MODE fix-burst (resets HEAD); (b) LOCAL adversary re-gate on new frozen HEAD 0→1/3 → 3/3 → push → PR → merge.
 
-**DO-NOT-REFLAG carry-forward:** F-R8PB-MED-002 (unsubscribe correct-by-construction). **BC-2.11.009 per-client-alias-scope deviation** → S-ALIAS-CLIENT-SCOPE-001 (P2, no cascade needed for S-5.04). **001-B closed findings (DO-NOT-REFLAG for S-5.04 cascade):** explain_query parity→S-EXPLAIN-PARITY-001; E-QUERY-002 dual-Display→error-taxonomy v1.94; multi-client client_id=first(); both-quotes literal unreachable; func-call-arg-column-typos acceptable; 3-segment JSON-path unreachable; BETWEEN/IN not plan-type-gated.
+**WORKSTREAM C — DISCOVERABILITY (NEW, USER-APPROVED):** Enrichment unlearnable via MCP. New story needed (S-DEMO-PRISMQL-ONBOARDING-001-C). PO/architect scope on resume. 6 fix items in SESSION-HANDOFF §DISCOVERABILITY FIX LIST.
+
+**STATE INDICES:** develop_head 5504c152 | BC-INDEX v7.07 | STORY-INDEX v2.468 | ARCH-INDEX v2.142 | error_taxonomy 1.94 | active_contracts 241 | draft_contracts 2 | total_stories 209 | CLAUDE.md non-exhaustive=83 on develop; 84 on feature/S-5.04. T13 runbook v1.3 ready. No open PRs.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (D-1292 is pre-merge stale — update for D-1298 needed).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1302 (authoritative; supersedes D-1292).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `5504c152`.
 3. `gh pr list --state open --base develop` → expect none.
-4. `git worktree list` → expect .worktrees/S-5.04 @ea496bd2 (post-LP1-fix-burst) + .worktrees/S-3.09 (frozen) + .worktrees/W3-FIX-S307-001 (frozen).
-5. Apply lessons + DO-NOT-REFLAG above.
-6. Execute next pickable tasks above. Autonomy D-989+D-1090 active.
+4. `git worktree list` → expect .worktrees/S-5.04 @4a5db2bf (FROZEN streak 2/3) + .worktrees/enrich-integrated @e2a28520 (streak 0/3) + .worktrees/S-3.09 (frozen) + .worktrees/W3-FIX-S307-001 (frozen).
+5. Apply DO-NOT-REFLAG and convergence rules from SESSION-HANDOFF §D-1302.
+6. Execute workstream next actions above. Autonomy D-989+D-1090 active.
