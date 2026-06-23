@@ -193,6 +193,13 @@ with open(urls_multi_file) as f:
     nested = json.load(f)  # {"org-a": {"crowdstrike": "http://...", ...}, ...}
 
 for org_slug, sensor_map in nested.items():
+    # "_global" holds enrichment DTU URLs (ENRICH-3); skip it in overlay generation.
+    # Global enrichment DTUs are NOT per-org sensors — writing overlays for them would
+    # create bogus {customers_dir}/_global/{enrichment_name}.sensor.toml files that
+    # prism would try to parse as sensor specs (which they are not). demo-run.sh reads
+    # _global entries separately to export PRISM_THREATINTEL_BASE_URL etc.
+    if org_slug == "_global":
+        continue
     org_dir = os.path.join(customers_dir, org_slug)
     os.makedirs(org_dir, exist_ok=True)
     for sensor_id, base_url in sensor_map.items():
