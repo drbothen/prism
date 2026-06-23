@@ -3299,7 +3299,14 @@ impl PrismServer {
             // Verbatim BC strings per POL-24 (no paraphrasing):
             // - Rate-limited: "Rate limit in effect — wait before retrying." (em-dash U+2014)
             // - Auth-invalid: "Check credentials — sensor rejected authentication."
-            // - Unreachable:  "Sensor unreachable — verify network and endpoint configuration."
+            // - Degraded (5xx): "Sensor returned a server error (5xx) — service may be temporarily unavailable."
+            // - Unreachable:    "Sensor unreachable — verify network and endpoint configuration."
+            //
+            // BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): distinguish Degraded (5xx) from Down.
+            // A 503 sensor IS network-reachable; check_one sets result.error="service_unavailable"
+            // for Degraded probes (ConnectivityStatus::Degraded).  The suggestion ladder checks
+            // result.error to emit the correct 5xx-specific guidance rather than the generic
+            // "verify network" message that applies only to genuine network-unreachable (Down) sensors.
             let sensors_with_suggestions: Vec<resources::SensorHealthResult> = health_result
                 .sensors
                 .into_iter()
@@ -3313,9 +3320,17 @@ impl PrismServer {
                             "Check credentials \u{2014} sensor rejected authentication.",
                         );
                     } else if s.reachable == Some(false) {
-                        s = s.with_suggestion(
-                            "Sensor unreachable \u{2014} verify network and endpoint configuration.",
-                        );
+                        // F-S504-LP1P1-MED-001: Degraded (5xx) vs Down (connection error).
+                        // check_one sets error="service_unavailable" for ConnectivityStatus::Degraded.
+                        if s.error.as_deref() == Some("service_unavailable") {
+                            s = s.with_suggestion(
+                                "Sensor returned a server error (5xx) \u{2014} service may be temporarily unavailable.",
+                            );
+                        } else {
+                            s = s.with_suggestion(
+                                "Sensor unreachable \u{2014} verify network and endpoint configuration.",
+                            );
+                        }
                     }
                     s
                 })

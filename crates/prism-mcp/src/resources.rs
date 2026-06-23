@@ -115,9 +115,15 @@ pub struct SensorHealthResult {
     /// the sensor is not fully healthy (BC-2.08.007 postcondition — suggestion field).
     ///
     /// Examples (verbatim BC-2.08.007 text):
-    /// - Rate-limited: `"Rate limit in effect — wait before retrying."`
-    /// - Auth-invalid: `"Check credentials — sensor rejected authentication."`
-    /// - Unreachable:  `"Sensor unreachable — verify network and endpoint configuration."`
+    /// - Rate-limited:  `"Rate limit in effect — wait before retrying."`
+    /// - Auth-invalid:  `"Check credentials — sensor rejected authentication."`
+    /// - Degraded (5xx): `"Sensor returned a server error (5xx) — service may be temporarily unavailable."`
+    /// - Unreachable:   `"Sensor unreachable — verify network and endpoint configuration."`
+    ///
+    /// BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): Degraded (ConnectivityStatus::Degraded,
+    /// HTTP 5xx) and Down (connection error) produce distinct suggestions.  `check_one` sets
+    /// `result.error = Some("service_unavailable")` for Degraded probes; the suggestion ladder
+    /// in `check_sensor_health` uses this marker to dispatch the correct string.
     pub suggestion: Option<String>,
 }
 

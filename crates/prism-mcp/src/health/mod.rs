@@ -377,6 +377,14 @@ impl SensorHealthChecker {
                     .with_auth_valid(auth_valid);
                 result.probe_level = "live".to_string();
                 result.rate_limit = rate_limit_info;
+                // BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): when the probe returned a 5xx
+                // (ConnectivityStatus::Degraded), set reason="service_unavailable" per the BC
+                // canonical contract.  This is the authoritative string — it is not the raw
+                // upstream body (which may be a large HTML page); the BC specifies the reason
+                // string for this edge case explicitly.
+                if probe.connectivity == ConnectivityStatus::Degraded {
+                    result = result.with_error("service_unavailable");
+                }
                 if let Some(ts) = last_successful_query_at {
                     result = result.with_last_successful_query_at(ts);
                 }
