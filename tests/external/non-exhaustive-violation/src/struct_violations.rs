@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-82 (57 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-84 (58 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -413,9 +413,10 @@ use prism_mcp::safety_envelope::{
     SafetyFlagSchema, StructuredContent,
 };
 // S-5.03 F-007: 6 new #[non_exhaustive] pub types from prism_mcp::resources
+// S-5.04 F-S504-P5-002: HealthSummary added (summary_counts shape for check_sensor_health)
 use prism_mcp::{
-    ClientInventoryEntry, RateLimitInfo, ResourcePressure, SensorConfigEntry, SensorHealthResult,
-    SensorHealthStructuredContent,
+    ClientInventoryEntry, HealthSummary, RateLimitInfo, ResourcePressure, SensorConfigEntry,
+    SensorHealthResult, SensorHealthStructuredContent,
 };
 
 /// Violation 37: prism_mcp::safety_envelope::ResponseMeta struct literal (E0639).
@@ -1307,4 +1308,34 @@ pub fn v83_column_not_found_details() {
         did_you_mean: None,
     };
     let _ = _details;
+}
+
+// ─── S-5.04 F-S504-P5-002: HealthSummary (summary_counts shape) ──────────────
+//
+// `HealthSummary` is the structured `summary_counts` object embedded in
+// `SensorHealthStructuredContent` (BC-2.08.007 v1.4 postcondition). It is the
+// wire-format shape for `healthy_count`, `unhealthy_count`, `total_count`, and
+// `rate_limited_count` returned in the `check_sensor_health` response.
+// `#[non_exhaustive]` ensures future summary fields can be added without
+// breaking downstream callers. ci.yml EXPECTED bumped from 83 to 84.
+
+/// Violation 84: prism_mcp::HealthSummary struct literal (E0639).
+///
+/// `HealthSummary` is the `summary_counts` shape in `SensorHealthStructuredContent`
+/// (BC-2.08.007 v1.4). `#[non_exhaustive]` ensures external callers cannot use
+/// struct-literal construction — callers MUST use `HealthSummary::from_results(...)`.
+/// Future fields (e.g., auth_invalid_count, degraded_count) can be added without
+/// breaking downstream callers.
+///
+/// Added: S-5.04 (F-S504-P5-002 fix — BC-2.08.007 v1.4 summary_counts postcondition).
+#[allow(dead_code)]
+pub fn v84_health_summary() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _summary = HealthSummary {
+        healthy_count: 0,
+        unhealthy_count: 2,
+        total_count: 2,
+        rate_limited_count: 2,
+    };
+    let _ = _summary;
 }

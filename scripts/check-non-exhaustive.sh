@@ -27,8 +27,9 @@
 # S-DEMO-PRISMQL-ONBOARDING-001-A: bumped 79→82 for 3 prism_describe response types
 #   (PrismDescribeResponse E0639 v80, TableDescriptor E0639 v81, ColumnDescriptor E0639 v82).
 # S-DEMO-PRISMQL-ONBOARDING-001-B: bumped 82→83 for ColumnNotFoundDetails (prism-core::error E0639 v83).
+# S-5.04 F-S504-P5-002: bumped 83→84 for HealthSummary (prism_mcp::resources E0639 v84).
 
-EXPECTED=83
+EXPECTED=84
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 
