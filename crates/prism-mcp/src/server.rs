@@ -3267,22 +3267,66 @@ impl PrismServer {
             };
             let pressure = resources::ResourcePressure::new(cursor_count, token_count);
 
-            // Prose summary (AC-7 postcondition: MUST NOT contain "spec-only")
-            let healthy_count = health_result
+            // Prose summary (BC-2.08.007 v1.4 — classification-aware, MUST NOT contain "spec-only")
+            //
+            // Phrasing is driven by the aggregate OverallStatus computed by check_all:
+            // - RateLimited (EC-08-015): "0 of N sensors healthy — all rate-limited"
+            // - Healthy: "N of N sensor(s) healthy for client 'X' (live probe)"
+            // - Partial: "H of T sensor(s) healthy for client 'X' (live probe)"
+            // - Unhealthy: "0 of N sensor(s) healthy for client 'X' (live probe)"
+            let total_count = health_result.sensors.len();
+            let fully_healthy_count = health_result
                 .sensors
                 .iter()
-                .filter(|s| s.reachable == Some(true) && s.auth_valid == Some(true))
+                .filter(|s| {
+                    s.reachable == Some(true)
+                        && s.auth_valid == Some(true)
+                        && s.rate_limit.is_none()
+                })
                 .count();
-            let total_count = health_result.sensors.len();
-            let summary = format!(
-                "{healthy_count} of {total_count} sensor(s) healthy for client '{}' (live probe)",
-                params.client_id
-            );
+            let summary = match &health_result.overall {
+                crate::health::OverallStatus::RateLimited => format!(
+                    "0 of {total_count} sensors healthy for client '{}' — all rate-limited",
+                    params.client_id
+                ),
+                _ => format!(
+                    "{fully_healthy_count} of {total_count} sensor(s) healthy for client '{}' (live probe)",
+                    params.client_id
+                ),
+            };
 
-            let structured = resources::SensorHealthStructuredContent::new(
-                health_result.sensors,
+            // BC-2.08.007 v1.4 EC-08-015: populate per-sensor suggestion for unhealthy/rate-limited.
+            // Verbatim BC strings per POL-24 (no paraphrasing):
+            // - Rate-limited: "Rate limit in effect — wait before retrying." (em-dash U+2014)
+            // - Auth-invalid: "Check credentials — sensor rejected authentication."
+            // - Unreachable:  "Sensor unreachable — verify network and endpoint configuration."
+            let sensors_with_suggestions: Vec<resources::SensorHealthResult> = health_result
+                .sensors
+                .into_iter()
+                .map(|mut s| {
+                    if s.rate_limit.is_some() {
+                        s = s.with_suggestion(
+                            "Rate limit in effect \u{2014} wait before retrying.",
+                        );
+                    } else if s.auth_valid == Some(false) {
+                        s = s.with_suggestion(
+                            "Check credentials \u{2014} sensor rejected authentication.",
+                        );
+                    } else if s.reachable == Some(false) {
+                        s = s.with_suggestion(
+                            "Sensor unreachable \u{2014} verify network and endpoint configuration.",
+                        );
+                    }
+                    s
+                })
+                .collect();
+
+            let overall_status_str = health_result.overall.as_status_str().to_string();
+            let structured = resources::SensorHealthStructuredContent::new_with_status(
+                sensors_with_suggestions,
                 pressure,
                 summary,
+                overall_status_str,
             );
             let structured_value = serde_json::to_value(&structured).map_err(|e| {
                 rmcp::model::ErrorData::new(
