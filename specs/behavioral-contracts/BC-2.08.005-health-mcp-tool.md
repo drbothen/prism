@@ -15,7 +15,7 @@ subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["OOD-001-adjudication-2026-06-17", "F-S503-004-adjudication-2026-06-17", "RECONCILIATION-3-resource-pressure-scope-2026-06-17", "RECONCILIATION-2-cross-client-null-removal-2026-06-18"]
+modified: "2026-06-18"
 deprecated: null
 deprecated_by: null
 replacement: null

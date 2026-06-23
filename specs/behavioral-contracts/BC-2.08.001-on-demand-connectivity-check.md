@@ -15,7 +15,7 @@ subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-23"
 deprecated: null
 deprecated_by: null
 replacement: null

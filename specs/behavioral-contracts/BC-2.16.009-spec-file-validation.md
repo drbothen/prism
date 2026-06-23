@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-04"  # v1.10 FB-PR4 spec fix-burst (F-PR6-HIGH-001 full-match skip-guard clause + EC-009-022..025 + OBS-PR6-001 test rename)
+modified: "2026-06-22"  # v1.11 S-5.04-spec-prep (Rule 8 / E-SPEC-026 probe_table-must-reference-declared-table; EC-009-026..028; S-5.04 traceability)
 deprecated: null
 deprecated_by: null
 replacement: null
