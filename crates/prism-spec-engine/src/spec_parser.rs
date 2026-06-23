@@ -484,6 +484,11 @@ pub struct SensorSpec {
 
     /// Source file path of the `.sensor.toml` file from which this spec was parsed.
     ///
+    /// **File-origin metadata** — NOT a JSONPath extraction instruction.  Distinct from
+    /// `ColumnSpec::source_path` (which is a JSONPath like `$.device.hostname` used to
+    /// extract a column value from the API response).  This field records where on disk
+    /// the sensor spec lives; used by hot-reload change detection.
+    ///
     /// Set by the file-loading caller. Empty string for in-memory-constructed specs.
     #[serde(default)]
     pub source_path: String,

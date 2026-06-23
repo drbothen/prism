@@ -286,14 +286,20 @@ impl PipeQueryBuilder {
         } else {
             // Exclude: `SELECT retained_cols FROM ...` (DataFusion lacks EXCEPT syntax).
             // Requires schema knowledge; fall back gracefully if schema unavailable.
-            let excluded: Vec<String> = fs.fields.iter().map(field_path_to_sql).collect();
+            //
+            // IMPORTANT: compare bare (unescaped) identifiers on both sides.
+            // `field_path_to_sql` quotes reserved words (e.g. `order` → `"order"`),
+            // but `schema.fields()[i].name()` always returns the bare name.  Comparing
+            // escaped against bare would silently fail to exclude reserved-word columns.
+            let excluded_bare: Vec<String> =
+                fs.fields.iter().map(|fp| fp.segments.join(".")).collect();
             match &self.schema {
                 Some(schema) => {
                     let retained: Vec<String> = schema
                         .fields()
                         .iter()
                         .map(|f| f.name().clone())
-                        .filter(|name| !excluded.contains(name))
+                        .filter(|name| !excluded_bare.contains(name))
                         .map(|name| escape_identifier(&name))
                         .collect();
                     if retained.is_empty() {
@@ -309,7 +315,7 @@ impl PipeQueryBuilder {
                     // Cannot build the exclude projection; fall back to SELECT *.
                     // This is a known limitation documented in §3.3.
                     tracing::warn!(
-                        excluded = ?excluded,
+                        excluded = ?excluded_bare,
                         "pipe_sql_emitter: fields-exclude cannot be lowered \
                          without a schema (after an Enrich stage or when fan-out \
                          returned no batches); falling back to SELECT *"
@@ -961,6 +967,59 @@ mod tests {
         );
         let sql = build_sql(&pipe);
         assert!(sql.contains("msg LIKE '%critical%'"), "got: {sql}");
+    }
+
+    /// OBS-1 load-bearing test: `fields -` exclude of a reserved-word column name.
+    ///
+    /// Before the fix, `excluded` was built via `field_path_to_sql` which quotes reserved
+    /// words (`order` → `"order"`), while `schema.fields().name()` returns the bare name
+    /// `order`.  The `contains` check compared quoted against bare → mismatch → `order`
+    /// was silently retained in the projection instead of being excluded.
+    ///
+    /// After the fix, `excluded_bare` collects raw segments (no escaping), so the
+    /// comparison is bare-vs-bare and the exclude works correctly.
+    #[test]
+    fn test_pipe_fields_exclude_reserved_word_column() {
+        use arrow::datatypes::{DataType, Field, Schema};
+        use arrow::record_batch::RecordBatch;
+        use std::collections::HashMap;
+        use std::sync::Arc;
+
+        // Build a schema with columns: "value", "order" (reserved word), "status"
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("value", DataType::Utf8, true),
+            Field::new("order", DataType::Utf8, true), // reserved word — would be quoted by escape_identifier
+            Field::new("status", DataType::Utf8, true),
+        ]));
+        let batch = RecordBatch::new_empty(schema);
+        let mut table_batches: HashMap<String, Vec<RecordBatch>> = HashMap::new();
+        table_batches.insert("tbl".to_string(), vec![batch]);
+
+        // `fields - order` — exclude the reserved-word column
+        let pipe = PipeQuery::new(
+            SourceRef::from_raw("tbl"),
+            vec![PipeStage::Fields(FieldsStage {
+                include: false,
+                fields: vec![FieldPath::new(["order"])],
+            })],
+        );
+
+        let sql = pipe_to_executable_sql(&pipe, &table_batches).expect("must succeed");
+
+        // "order" must NOT appear in the projection (it was excluded).
+        // The SELECT clause should contain "value" and "status" but NOT "order".
+        assert!(
+            !sql.contains("\"order\""),
+            "OBS-1: reserved-word column 'order' must be excluded from SELECT; got: {sql}"
+        );
+        assert!(
+            sql.contains("value"),
+            "OBS-1: 'value' must be retained; got: {sql}"
+        );
+        assert!(
+            sql.contains("status"),
+            "OBS-1: 'status' must be retained; got: {sql}"
+        );
     }
 
     #[test]
