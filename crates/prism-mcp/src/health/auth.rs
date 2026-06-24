@@ -51,6 +51,12 @@ pub struct AuthProbeResult {
     pub is_rate_limited: bool,
     /// Retry-after delay in milliseconds from the 429 response (F-S504-P1-001).
     pub rate_limit_retry_after_ms: Option<u64>,
+    /// Round-trip probe latency in milliseconds (F-S504-P1-MED-001).
+    ///
+    /// Sourced from `ProbeOutcome.latency_ms`. `None` when connectivity is `Down`
+    /// (no HTTP exchange occurred so no meaningful latency was measured).
+    /// Threaded through to `SensorHealthResult.latency_ms` by `check_one`.
+    pub latency_ms: Option<u64>,
 }
 
 // ── probe_auth ────────────────────────────────────────────────────────────────
@@ -107,6 +113,7 @@ pub async fn probe_auth(
         error: outcome.error,
         is_rate_limited: outcome.is_rate_limited,
         rate_limit_retry_after_ms: outcome.rate_limit_retry_after_ms,
+        latency_ms: outcome.latency_ms,
     })
 }
 
@@ -164,6 +171,7 @@ pub async fn probe_auth_with_routing(
         error: outcome.error,
         is_rate_limited: outcome.is_rate_limited,
         rate_limit_retry_after_ms: outcome.rate_limit_retry_after_ms,
+        latency_ms: outcome.latency_ms,
     })
 }
 

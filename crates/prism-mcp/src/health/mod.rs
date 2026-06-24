@@ -411,6 +411,10 @@ impl SensorHealthChecker {
                 if let Some(ts) = last_successful_query_at {
                     result = result.with_last_successful_query_at(ts);
                 }
+                // F-S504-P1-MED-001 (AC-1): surface probe latency on the consumer-facing result.
+                // latency_ms is Some(ms) when connectivity is Up (sensor responded).
+                // It is None when connectivity is Down (no HTTP exchange, no meaningful latency).
+                result.latency_ms = probe.latency_ms;
                 result
             }
             Err(_) => {

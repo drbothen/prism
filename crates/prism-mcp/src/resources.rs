@@ -109,6 +109,12 @@ pub struct SensorHealthResult {
     pub last_successful_query_at: Option<DateTime<Utc>>,
     /// Sanitised error text (prompt-injection-safe), if the health check failed.
     pub error: Option<String>,
+    /// Round-trip probe latency in milliseconds (F-S504-P1-MED-001 / AC-1).
+    ///
+    /// `Some(ms)` for live probes where the sensor responded (connectivity Up).
+    /// `None` when the sensor was unreachable (Down), not yet probed (spec-only),
+    /// or when latency could not be meaningfully measured.
+    pub latency_ms: Option<u64>,
     /// Remediation guidance for unhealthy, auth-invalid, or rate-limited sensors.
     ///
     /// `None` for healthy sensors. Populated by `check_one` / `check_sensor_health` when
@@ -142,6 +148,7 @@ impl SensorHealthResult {
             rate_limit: None,
             last_successful_query_at: None,
             error: None,
+            latency_ms: None,
             suggestion: None,
         }
     }

@@ -41,6 +41,7 @@
 //! | BC-2.08.004 checker — None before record | test_BC_2_08_004_checker_last_successful_query_none_before_record |
 //! | AC-5 (BC-2.08.004 postcondition 2) — survives checker reconstruction | test_BC_2_08_004_timestamp_survives_checker_reconstruction |
 //! | AC-1 (BC-2.08.001) — 200→Up+latency | test_BC_2_08_001_live_probe_200_returns_up_with_latency |
+//! | AC-1 consumer (F-S504-P1-MED-001) — check_one Up→latency_ms on SensorHealthResult | test_BC_2_08_001_check_one_surfaces_latency_ms_on_consumer_result_F_S504_P1_MED_001 |
 //! | AC-2 (BC-2.08.002) — 401→auth_invalid not down | test_BC_2_08_002_live_probe_401_returns_auth_invalid_not_down |
 //! | EC-004 (BC-2.08.002) — connection refused→Down+Unknown | test_BC_2_08_002_connection_refused_returns_down_auth_unknown |
 //! | BC-2.08.002 — 403→auth_invalid | test_BC_2_08_002_live_probe_403_returns_auth_invalid |
@@ -1006,6 +1007,63 @@ async fn test_BC_2_08_001_live_probe_200_returns_up_with_latency() {
     assert!(
         outcome.latency_ms.unwrap() > 0,
         "BC-2.08.001 AC-1: latency_ms must be non-zero"
+    );
+}
+
+/// AC-1 consumer boundary (F-S504-P1-MED-001): `check_one` for an `Up` sensor MUST
+/// surface `latency_ms` as a non-zero `Some(u64)` on the CONSUMER-FACING `SensorHealthResult`.
+///
+/// This is the load-bearing test that closes finding F-S504-P1-MED-001.
+/// The prior AC-1 test (`test_BC_2_08_001_live_probe_200_returns_up_with_latency`) verified
+/// `ProbeOutcome.latency_ms` (internal). THIS test verifies the CONSUMER-FACING result from
+/// `check_one` — the path that actually reaches the MCP response.
+///
+/// Thread:
+///   probe_connectivity_inner → ProbeOutcome.latency_ms = Some(elapsed_ms.max(1))
+///   → probe_auth_with_routing drops it (AuthProbeResult has no latency_ms field) [GAP]
+///   → check_one never sees it → SensorHealthResult has no latency_ms field [GAP]
+///   → consumer never receives latency.
+///
+/// RED GATE: fails until `latency_ms: Option<u64>` is threaded through
+/// `AuthProbeResult` → `check_one` → `SensorHealthResult`.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_08_001_check_one_surfaces_latency_ms_on_consumer_result_F_S504_P1_MED_001() {
+    let org_id = OrgId::new();
+    let sensor_id = SensorId::from("crowdstrike");
+    let mut registry = AdapterRegistry::new();
+    registry.register(org_id, Arc::new(MockAdapterOk));
+
+    let checker = SensorHealthChecker::new(Arc::new(registry));
+    let context = PrismContext::new();
+
+    let result = checker
+        .check_one(org_id, "acme", &sensor_id, &context)
+        .await;
+
+    // Precondition: sensor must be Up (reachable) for latency_ms to be meaningful.
+    assert_eq!(
+        result.reachable,
+        Some(true),
+        "F-S504-P1-MED-001: precondition — sensor must be reachable (Up). Got: {:?}",
+        result.reachable
+    );
+
+    // RED GATE (primary): latency_ms must be present and non-zero on SensorHealthResult.
+    // This is the consumer-facing field. Before the fix, latency_ms was silently dropped
+    // at the AuthProbeResult boundary and never reached SensorHealthResult.
+    assert!(
+        result.latency_ms.is_some(),
+        "F-S504-P1-MED-001 RED GATE: SensorHealthResult.latency_ms MUST be Some(u64) for an \
+         Up sensor — latency_ms was measured in probe_connectivity_inner but dropped at the \
+         AuthProbeResult boundary, never reaching the consumer. Field must be threaded through \
+         AuthProbeResult → check_one → SensorHealthResult. Got: None"
+    );
+    assert!(
+        result.latency_ms.unwrap() > 0,
+        "F-S504-P1-MED-001: SensorHealthResult.latency_ms MUST be non-zero (min 1ms). \
+         Got: {:?}",
+        result.latency_ms
     );
 }
 
