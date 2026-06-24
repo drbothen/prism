@@ -12,13 +12,17 @@ timestamp: 2026-06-23T23:59:00Z
 >
 > **D-1310 (2026-06-23): SESSION WRAP — RESUME SNAPSHOT D-1310 authored. Enrichment MERGED (develop@acc6722c, T13 gate 1). 001-C BC layer FINALIZED (D-1308). S-5.04 CODE CONVERGED (9 defects fixed, FROZEN 416677f6) — LOCAL 0/3 (reset by now-closed POL-27 date fix D-1309). PR #201 quinn-proto OPEN (CI pending). §RESUME SNAPSHOT D-1310 authored (supersedes D-1305). STATE v7.938→v7.939.**
 >
+> **D-1311 (2026-06-24): WS-4 CLOSURE — PR #201 quinn-proto SQUASH-MERGED develop@233cfc66; RUSTSEC-2026-0185 CLOSED. develop_head acc6722c→233cfc66. STATE v7.939→v7.940.**
+>
+> **D-1312 (2026-06-24): PRE-FLIGHT DEMO AUDIT — DEMO-READY:NO. T13 smoke-test + discoverability audit against develop@ba1108d2. 4 NEW blockers (CrowdStrike OAuth corruption; runbook pipe-syntax drift; query_tutorial/investigate_host hang; list_infusions/plugin_status/infusion_status hang) + MAJOR-001 (list_capabilities client_registered:false). T13 capstone BLOCKED. Routing TBD. STATE v7.940→v7.941.**
+>
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1310** (authoritative zero-context restart protocol; supersedes D-1305). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1309 notes SUPERSEDED.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1310 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `233cfc66` (PR #201 quinn-proto merged). LOCAL develop `e4506a00` (LOCAL-ONLY: chore(skills): add /wrap session-durability skill — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.940.
+> develop HEAD origin/develop `233cfc66` (PR #201 quinn-proto merged). LOCAL develop `e4506a00` (LOCAL-ONLY: chore(skills): add /wrap session-durability skill — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.941.
 
 ---
 
-## §RESUME SNAPSHOT — D-1310 (2026-06-23 — SESSION WRAP; develop origin acc6722c / LOCAL e4506a00 DIVERGED; BC-INDEX v7.09; STORY-INDEX v2.468; ARCH-INDEX v2.143; STATE v7.939; PR #201 OPEN) [SUPERSEDES D-1305] [DELTA: D-1311 — PR #201 MERGED develop@233cfc66; WS-4 CLOSED; develop_head now 233cfc66; STATE v7.940]
+## §RESUME SNAPSHOT — D-1310 (2026-06-23 — SESSION WRAP; develop origin acc6722c / LOCAL e4506a00 DIVERGED; BC-INDEX v7.09; STORY-INDEX v2.468; ARCH-INDEX v2.143; STATE v7.939; PR #201 OPEN) [SUPERSEDES D-1305] [DELTA: D-1311 — PR #201 MERGED develop@233cfc66; WS-4 CLOSED; develop_head now 233cfc66; STATE v7.940] [DELTA: D-1312 — PRE-FLIGHT DEMO AUDIT DEMO-READY:NO; 4 blockers + MAJOR-001; T13 capstone BLOCKED; STATE v7.941]
 
 > **D-1310 burst (2026-06-23).** Session wrap. Enrichment MERGED (PR #200 develop@acc6722c, T13 gate 1 CLEARED). 001-C BC layer FINALIZED (D-1308, 4a6bbef2). S-5.04 CODE CONVERGED (9 defects fixed): FROZEN HEAD 416677f6; LOCAL strict-3-CLEAN streak 0/3 — reset by now-closed F-S504-LP3P3-MED-002 POL-27 date fix (D-1309, factory-only, code HEAD unchanged). PR #201 quinn-proto (maintenance/rustsec-quinn-proto @eb95502b) OPEN awaiting CI; pr-reviewer APPROVED. LOCAL develop e4506a00 (/wrap-skill commit) diverged from origin/develop acc6722c — HUMAN DECISION PENDING. All prior D-1101..D-1309 notes SUPERSEDED.
 
@@ -68,6 +72,8 @@ Enrichment MERGED (develop acc6722c, T13 gate 1) + 001-C BC layer FINALIZED (D-1
 ### DEMO ROADMAP REMAINING
 
 T13 gate 1 (enrichment) DONE; T13 gate 2 (S-5.04) in LOCAL re-gate → demo → PR → merge; THEN T13 capstone (multi-client SOC narrative; runbook `.factory/objectives/T13-capstone-demo-runbook.md`, gated on S-5.04 merged) → T14 recording. 001-C discoverability story + impl after S-5.04 merge. P1 maintenance DONE (quinn-proto PR #201 MERGED develop@233cfc66 D-1311; RUSTSEC-2026-0185 CLOSED).
+
+**DELTA D-1312 (2026-06-24) — PRE-FLIGHT AUDIT DEMO-READY:NO:** Pre-flight demo audit against develop@ba1108d2 found 4 NEW demo blockers (BLOCKER-001 CrowdStrike OAuth state corruption; BLOCKER-002 runbook §5.5 pipe-syntax drift; BLOCKER-003 query_tutorial/investigate_host hang; BLOCKER-004 list_infusions/plugin_status/infusion_status hang) + MAJOR-001 (list_capabilities client_registered:false). T13 capstone BLOCKED until triaged/fixed. Routing TBD (human input required). Full audit: `.factory/research/demo-pre-flight-audit-2026-06-24.md`. The 3 already-known gaps (AUDIT-001/004/DISCOVERABILITY-GAP-001) remain in 001-C workstream — no change.
 
 ### WORKTREE INVENTORY
 
