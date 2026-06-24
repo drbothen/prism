@@ -227,15 +227,19 @@ fn test_bc_2_10_015_demo_provisioned_org_registered() {
 ///
 /// Note: `render_query_tutorial` is currently implemented (not todo!()). This test
 /// serves as a regression guard against blocking calls introduced during BLOCKER-003 fix.
-/// See DONE_WITH_CONCERNS at bottom of file for dispatch-layer coverage context.
+///
+/// HIGH-001 fix: use `async { render_query_tutorial(...) }` instead of
+/// `std::future::ready(render_query_tutorial(...))`. The `ready()` form evaluates the
+/// function eagerly (before the timeout begins), so the timeout CANNOT detect a hang.
+/// The `async { ... }` form runs the function lazily inside the tokio executor, allowing
+/// `timeout` to race against a genuinely slow computation.
 #[tokio::test]
 async fn test_bc_2_10_016_prompts_fast_return_within_5s() {
     use tokio::time::timeout;
 
-    let result = timeout(
-        Duration::from_secs(5),
-        std::future::ready(render_query_tutorial("test-org", None)),
-    )
+    let result = timeout(Duration::from_secs(5), async {
+        render_query_tutorial("test-org", None)
+    })
     .await;
 
     assert!(
@@ -259,14 +263,17 @@ async fn test_bc_2_10_016_prompts_fast_return_within_5s() {
 ///
 /// `render_investigate_host("test-org", "(unknown)")` (missing hostname default) must
 /// return within 5 seconds — must NOT hang on missing required arg.
+///
+/// HIGH-001 fix: use `async { render_investigate_host(...) }` instead of
+/// `std::future::ready(render_investigate_host(...))` so the timeout can actually race
+/// against the function execution (see AC-015 doc comment for full rationale).
 #[tokio::test]
 async fn test_bc_2_10_016_missing_required_arg_fast_error() {
     use tokio::time::timeout;
 
-    let result = timeout(
-        Duration::from_secs(5),
-        std::future::ready(render_investigate_host("test-org", "(unknown)")),
-    )
+    let result = timeout(Duration::from_secs(5), async {
+        render_investigate_host("test-org", "(unknown)")
+    })
     .await;
 
     assert!(
