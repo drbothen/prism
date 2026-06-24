@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.942"
+version: "7.943"
 producer: state-manager
-timestamp: 2026-06-24T05:00:00Z
+timestamp: 2026-06-24T06:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -21,7 +21,7 @@ develop_head: "233cfc66"
 bc_index_version: "7.09"
 vp_index_version: "1.79"
 story_index_version: "v2.468"
-arch_index_version: "2.143"
+arch_index_version: "2.144"
 error_taxonomy_version: "1.95"
 total_stories: 209
 active_contracts: 241
@@ -36,7 +36,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1313 (2026-06-24). PRISMQL GRAMMAR USABILITY AUDIT COMPLETE — 19 findings (6 BLOCKER, 7 MAJOR, 5 MINOR, 1 NIT) across consistency/naturalness/discoverability/error-pedagogy/completeness/naming; run against develop@ba1108d2; producer spec-reviewer. Headline: teaching surfaces (prismql://reference, prism_describe examples) actively misdocument the grammar. Recommendation: keep dual-mode but bridge (pipe-mode canonical in teaching surfaces, mode-bridge error w/ normalized_pql, fix describe table names). SQL→pipe composition flagged as architect-feasibility fork (human decision pending). Findings to be folded into single demo-readiness remediation story alongside pre-flight blockers. Artifact: .factory/research/prismql-grammar-usability-audit-2026-06-24.md. STATE v7.941→v7.942."
+current_step: "D-1314 (2026-06-24). Architect demo-readiness remediation spec layer committed. 4 new ADRs PROPOSED: ADR-043 (True SQL→Pipe Composition — `SELECT … FROM t | stage` head lowers to pipe source; `Ast::SqlPipe`, `SqlPipeQuery { head, stages }`, `QueryMode` tristate enum); ADR-044 (Temporal Grammar — `NOW()` + `INTERVAL`/relative-duration literals; `Expr::Now`, `Expr::Interval(Duration)`, `Expr::TimestampArithmetic`; `build_example_query` fix; both SQL+Pipe modes); ADR-045 (Auto-Generated PrismQL Reference Resource — replace static `pql_reference.md` with `build_reference_content(infusion_registry: Option<&InfusionRegistry>)`; CI parse-round-trip parity gate; amends ADR-041 §L3); ADR-046 (Three-Mode Correctness — Filter/SQL/Pipe mode-bridge E-QUERY-001 heuristic on `|` in SQL mode with `normalized_pql` rewrite; `ParseErrorDetails.normalized_pql` field; Filter mode end-to-end execution test mandate; BLOCKER-003 prompt-hang investigation protocol; amends ADR-041 §L4). Remediation design map (`demo-readiness-remediation-design-2026-06-24.md`) maps all 19 grammar findings + 5 pre-flight blockers + MAJOR-001 to fix-bucket/component/contract-surface; 3 of 001-C's BCs already close GRAMMAR-010/AUDIT-001/AUDIT-004/GRAMMAR-012; blocker root-cause hypotheses recorded. ADRs PROPOSED pending HRG-1/HRG-3/HRG-4 human ratification. ARCH-INDEX v2.143→v2.144. Awaiting HRG ratification before product-owner BC authoring + story-writer. STATE v7.942→v7.943."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-24 (D-1313 PRISMQL GRAMMAR USABILITY AUDIT — 19 findings; SQL→pipe composition fork pending human decision; remediation story authoring pending; STATE v7.942)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-24 (D-1314 ARCHITECT SPEC LAYER COMMITTED — ADR-043..046 PROPOSED; demo-readiness remediation design map; HRG-1/3/4 ratification pending; STATE v7.943)
 
 ## Active Objective (North Star)
 
@@ -412,7 +412,7 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 
 **DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop e4506a00 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 233cfc66 at 5504c152. New branches must cut from origin/develop (233cfc66). HUMAN DECISION PENDING: rebase wrap-skill commit onto 233cfc66 or rework as PR.
 
-**STATE INDICES:** develop_head 233cfc66 (origin/develop) | local develop e4506a00 (LOCAL-ONLY — diverged) | BC-INDEX v7.09 | STORY-INDEX v2.468 | ARCH-INDEX v2.143 | error_taxonomy 1.95 | active_contracts 241 | draft_contracts 3 | total_stories 209 | CLAUDE.md non-exhaustive=83 on develop; 84 on feature/S-5.04.
+**STATE INDICES:** develop_head 233cfc66 (origin/develop) | local develop e4506a00 (LOCAL-ONLY — diverged) | BC-INDEX v7.09 | STORY-INDEX v2.468 | ARCH-INDEX v2.144 | error_taxonomy 1.95 | active_contracts 241 | draft_contracts 3 | total_stories 209 | CLAUDE.md non-exhaustive=83 on develop; 84 on feature/S-5.04.
 
 **RESUME PROTOCOL (zero prior context):**
 0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1310 (authoritative zero-context restart; WS-4 now CLOSED per D-1311 — PR #201 merged develop@233cfc66).

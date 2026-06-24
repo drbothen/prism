@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.143"
+version: "2.144"
 status: draft
 producer: state-manager
 timestamp: 2026-06-23T23:30:00Z
@@ -109,6 +109,10 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-040 | Dual-Path Infusion Architecture — HttpLookup (Declarative TOML) vs WASM Plugin; NVD via HttpLookup, ThreatIntel via WASM; Host-Decode Val Lift for .prx Plugins | ACCEPTED v2.0 | 2026-06-17 | decisions/ADR-040-wasm-infusion-plugin-host-decode-path.md |
 | ADR-041 | PrismQL LLM Auto-Onboarding — 4-Layer Teaching Surface for Automatic Agent Query Authoring | PROPOSED v1.2 | 2026-06-23 | decisions/ADR-041-prismql-llm-auto-onboarding-4-layer-teaching-surface-for-automatic-agent-query-authoring.md |
 | ADR-042 | Reload-Aware resolved_spec_map — ArcSwap-Backed Overlay Map with Hot-Reload Rebuild | ACCEPTED v1.1 | 2026-06-21 | decisions/ADR-042-resolved-spec-map-reload-aware-arcswap.md |
+| ADR-043 | True SQL→Pipe Composition — `SELECT … FROM t \| stage` Head Lowers to Pipe Source | PROPOSED v1.0 | 2026-06-24 | decisions/ADR-043-true-sql-to-pipe-composition-select-from-t-stage-head-lowers-to-pipe-source.md |
+| ADR-044 | Temporal Grammar — `NOW()` and `INTERVAL`/Relative-Duration Literals in PrismQL | PROPOSED v1.0 | 2026-06-24 | decisions/ADR-044-temporal-grammar-now-and-interval-relative-duration-literals.md |
+| ADR-045 | Auto-Generated PrismQL Reference Resource — Grammar-Registry Parity Gate | PROPOSED v1.0 | 2026-06-24 | decisions/ADR-045-auto-generated-prismql-reference-resource-grammar-registry-parity-gate.md |
+| ADR-046 | Three-Mode Correctness — Filter / SQL / Pipe Mode-Bridge Error and Execution Validation | PROPOSED v1.0 | 2026-06-24 | decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md |
 
 ## Architecture Decisions
 
@@ -168,6 +172,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.144 | demo-readiness-remediation-ADR-043-046 | 2026-06-24 | architect | Demo-readiness remediation design burst. **4 new ADRs registered:** ADR-043 PROPOSED v1.0 (True SQL→Pipe Composition — `Ast::SqlPipe` variant, `SqlPipeQuery { head, stages }`, SQL-head then pipe-stage execution, `QueryMode` tristate enum); ADR-044 PROPOSED v1.0 (Temporal Grammar — `Expr::Now` + `Expr::Interval(Duration)` + `Expr::TimestampArithmetic`, planning-time constant injection, `build_example_query` fix, both SQL+Pipe modes); ADR-045 PROPOSED v1.0 (Auto-Generated PrismQL Reference — replace static `pql_reference.md` with `build_reference_content(infusion_registry: Option<&InfusionRegistry>)`, CI parse-round-trip gate, amends ADR-041 §L3); ADR-046 PROPOSED v1.0 (Three-Mode Correctness — mode-bridge E-QUERY-001 heuristic on `\|` in SQL mode with `normalized_pql` rewrite, `ParseErrorDetails.normalized_pql` field, Filter mode end-to-end execution test mandate, BLOCKER-003 prompt-hang investigation protocol, amends ADR-041 §L4). ADR Registry rows added. ARCH-INDEX v2.143→v2.144. |
 | 2.143 | 001-C-F2-spec-evolution-D1308 | 2026-06-23 | state-manager | D-1308 001-C F2 spec-evolution. **ADR-041 v1.1→v1.2:** E-QUERY-039 allocated in §Error-Taxonomy Allocations (plan-time enrich-UDF-not-found gate; MCP -32602; payload infusion/available_infusions/did_you_mean; global InfusionRegistry; gates both EnrichStage pipe + FuncCall::Scalar Unknown SQL path). ADR Registry row updated PROPOSED v1.1→v1.2 with date 2026-06-23. ARCH-INDEX v2.142→v2.143. |
 | 2.142 | enrichment-remediation-design-D1295 | 2026-06-23 | state-manager | D-1295 enrichment remediation architect design burst. **2 new scoping design docs committed:** `scoping/sensor-column-source-path-design.md` — `source_path` column-schema convention (nested/array extraction design; supersedes PIVOT-003 bracket-in-name `iocs[].value` convention; fixes build_column_array() + ColumnMapper::map_record() flat-key NULL root cause; related: ADR-028, ADR-033, BC-2.06.019); `scoping/pipe-execution-engine-design.md` — Pipe→SQL execution lowering for ENRICH-4-B (Ast::Pipe/Filter arm returns raw table_batches verbatim — UDFs never called, all pipe ops silent no-ops; fix: lower Pipe to SELECT with registered async UDFs via session_ctx.sql(); traces to BC-2.11.004, BC-2.19.001, BC-2.11.006). These are implementer design specs (no new ADR); referenced here per scoping-doc convention. ARCH-INDEX v2.141→v2.142. |
 | 2.141 | post-merge-D1277-001-A | 2026-06-21 | state-manager | D-1277 S-DEMO-PRISMQL-ONBOARDING-001-A post-merge burst. **ADR-042 PROPOSED→ACCEPTED** (PR #197 squash-merged to develop@ffe9315a; implementation delivered LOCAL strict-3-CLEAN + PR-LEVEL strict-3-CLEAN CONVERGED; CI 43/43 green). ADR-042 frontmatter `status: proposed` → `accepted`; §Status body updated PROPOSED v1.1 → ACCEPTED v1.1 with merge provenance. ADR-042 Registry row Status cell updated PROPOSED→ACCEPTED v1.1, date 2026-06-20→2026-06-21. ARCH-INDEX v2.140→v2.141. |
