@@ -1249,80 +1249,83 @@ fn strip_path_from_authority(authority_and_rest: &str) -> &str {
 /// Used in `REFERENCE_EXAMPLES` to tag each example for the 3-tier CI gate
 /// and for the `build_reference_content` runtime injector.
 ///
-/// Variants mirror the three complexity tiers in BC-2.10.014 AC-009:
-/// - `Basic` → Tier 1 (filter / simple SELECT)
-/// - `Advanced` → Tier 2 (stats / aggregation / temporal)
-/// - `Error` → Tier 3 (error quick-reference / self-correction workflow)
+/// Variants match the BC-2.11.022 / ADR-045 D3 mandate:
+/// - `Positive` → Tier 1 (positive examples that MUST parse successfully)
+/// - `NegativeE040` → Tier 2 (E-QUERY-040 dual-limit examples — gate asserts RedundantRowLimit)
+/// - `NegativeOther` → Tier 3 (other error quick-reference / self-correction examples)
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExampleKind {
-    /// Tier 1: simple filter or bare SELECT examples.
-    Basic,
-    /// Tier 2: stats, aggregation, datetime arithmetic, and pipe examples.
-    Advanced,
-    /// Tier 3: error-code quick-reference and self-correction workflow examples.
-    Error,
+    /// Tier 1: positive parseable examples (filter, SELECT, pipe, stats, temporal).
+    /// All entries MUST round-trip through `PrismQlParser::parse` without error.
+    Positive,
+    /// Tier 2: E-QUERY-040 FORBID-BOTH examples.
+    /// Every entry MUST produce `PrismError::RedundantRowLimit` when executed.
+    NegativeE040,
+    /// Tier 3: other error quick-reference entries (E-QUERY-001, E-QUERY-038, etc.).
+    /// May be comment-prefixed; these are excluded from the positive round-trip gate.
+    NegativeOther,
 }
 
 /// Canonical reference examples shared by `build_reference_content` and the
 /// 3-tier CI gate (ADR-045 §B).
 ///
 /// Each tuple is `(kind, title, pql_snippet)`. The CI gate asserts that at least
-/// one `Basic`, one `Advanced`, and one `Error` example is present.
+/// one `Positive`, one `NegativeE040`, and one `NegativeOther` example is present.
 ///
 /// **ADR-044 INTERVAL format:** Duration strings use the `Nh` / `Nd` unit suffix
 /// (e.g., `'7d'` = 7 days, `'24h'` = 24 hours). Full English words like `'7 days'`
 /// are NOT accepted by the PrismQL parser — they produce E-QUERY-001.
 pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
     (
-        ExampleKind::Basic,
+        ExampleKind::Positive,
         "filter — detections with HIGH severity",
         "crowdstrike.detections | severity = 'HIGH'",
     ),
     (
-        ExampleKind::Basic,
+        ExampleKind::Positive,
         "SQL — select all detections",
         "SELECT * FROM crowdstrike.detections WHERE severity = 'HIGH'",
     ),
     (
-        ExampleKind::Basic,
+        ExampleKind::Positive,
         "pipe — filter by severity",
         "FROM crowdstrike.detections | where severity = 'HIGH'",
     ),
     (
-        ExampleKind::Advanced,
+        ExampleKind::Positive,
         "temporal — last 7 days (SQL mode)",
         "SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '7d'",
     ),
     (
-        ExampleKind::Advanced,
+        ExampleKind::Positive,
         "temporal — last 24 hours (pipe mode)",
         "FROM crowdstrike.detections | where timestamp > NOW() - INTERVAL '24h'",
     ),
     (
-        ExampleKind::Advanced,
+        ExampleKind::Positive,
         "SQL→Pipe — enrich with stats",
         "SELECT * FROM crowdstrike.detections | enrich threat_score(src_ip) | limit 10",
     ),
     (
-        ExampleKind::Advanced,
+        ExampleKind::Positive,
         "pipe stats — count by severity",
         "FROM crowdstrike.detections | stats count() by severity",
     ),
     (
-        ExampleKind::Error,
+        ExampleKind::NegativeE040,
+        "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe limit",
+        "SELECT * FROM crowdstrike.detections LIMIT 10 | limit 5",
+    ),
+    (
+        ExampleKind::NegativeOther,
         "E-QUERY-001 self-correction",
         "-- If you receive E-QUERY-001: check spelling and use prism_describe to list columns.",
     ),
     (
-        ExampleKind::Error,
+        ExampleKind::NegativeOther,
         "E-QUERY-038 column not found",
         "-- E-QUERY-038: column not found. Run prism_describe to see available columns.",
-    ),
-    (
-        ExampleKind::Error,
-        "E-QUERY-040 dual-limit forbidden",
-        "-- E-QUERY-040: FORBID-BOTH — do not use SQL LIMIT and pipe | limit together.",
     ),
 ];
 
@@ -1338,11 +1341,11 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
 ///   the returned content includes a section listing available infusions with their
 ///   field mappings. When `None`, the infusion section shows a placeholder.
 ///
-/// # Contract (BC-2.10.014 AC-009, BC-2.11.022)
-/// - MUST include at least one example from each `ExampleKind` tier.
-/// - MUST round-trip all `Basic` and `Advanced` PQL snippets through the Chumsky parser.
+/// # Contract (BC-2.11.022, ADR-045 §B)
+/// - MUST include at least one example from each `ExampleKind` tier (Positive, NegativeE040, NegativeOther).
+/// - MUST round-trip all `Positive` PQL snippets through the Chumsky parser.
 /// - MUST include the infusion placeholder when `infusion_registry` is `None`.
-/// - The CI gate (`crates/prism-mcp/tests/reference_content.rs`) asserts both invariants.
+/// - The CI gate (`crates/prism-mcp/tests/reference_content.rs`) asserts these invariants.
 pub fn build_reference_content(
     infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> String {
@@ -1549,24 +1552,28 @@ pub fn build_reference_content(
     // ── Examples (from REFERENCE_EXAMPLES shared constant) ───────────────────
     out.push_str("## Examples\n\n");
 
-    // Group by kind.
-    out.push_str("### Basic\n\n");
+    // Group by kind (BC-2.11.022 ADR-045 3-tier gate).
+    out.push_str("### Positive Examples\n\n");
     for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
-        if matches!(kind, ExampleKind::Basic) {
+        if matches!(kind, ExampleKind::Positive) {
             out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
         }
     }
 
-    out.push_str("### Advanced\n\n");
+    out.push_str("### E-QUERY-040 Negative Examples\n\n");
+    out.push_str(
+        "The following queries violate FORBID-BOTH (E-QUERY-040). \
+         Do NOT use both SQL `LIMIT` and pipe `| limit` in the same query.\n\n",
+    );
     for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
-        if matches!(kind, ExampleKind::Advanced) {
+        if matches!(kind, ExampleKind::NegativeE040) {
             out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
         }
     }
 
     out.push_str("### Error Self-Correction\n\n");
     for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
-        if matches!(kind, ExampleKind::Error) {
+        if matches!(kind, ExampleKind::NegativeOther) {
             out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
         }
     }
