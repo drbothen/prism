@@ -5458,22 +5458,11 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn list_infusions(
         &self,
-        Parameters(params): Parameters<ListInfusionsParams>,
+        Parameters(_params): Parameters<ListInfusionsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        if let Some(ref client_id) = params.client_id {
-            self.scan_inputs_audited("list_infusions", &[("client_id", client_id.as_str())])
-                .await?;
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_infusions",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: the not_yet_available
+        // guard fires BEFORE emit_tool_audit — no audit for unavailable tools
+        // (nothing was executed; Option A per BC-2.10.017 postconditions).
         Err(not_yet_available_msg("infusion management"))
     }
 
@@ -5497,21 +5486,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn infusion_status(
         &self,
-        Parameters(params): Parameters<InfusionStatusParams>,
+        Parameters(_params): Parameters<InfusionStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("infusion_id", params.infusion_id.as_str())?;
-        self.scan_inputs_audited(
-            "infusion_status",
-            &[("infusion_id", params.infusion_id.as_str())],
-        )
-        .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "infusion_status",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before audit.
         Err(not_yet_available_msg("infusion management"))
     }
 
@@ -5601,12 +5578,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn plugin_status(
         &self,
-        Parameters(params): Parameters<PluginStatusParams>,
+        Parameters(_params): Parameters<PluginStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("plugin_id", params.plugin_id.as_str())?;
-        self.scan_inputs_audited("plugin_status", &[("plugin_id", params.plugin_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "plugin_status", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before audit.
         Err(not_yet_available_msg("plugin management"))
     }
 
