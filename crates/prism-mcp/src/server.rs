@@ -236,6 +236,18 @@ impl PrismServer {
         self
     }
 
+    /// Wire an `OrgRegistry` into an existing `PrismServer` (test fixture helper).
+    ///
+    /// Intended for integration tests that need `valid_client_ids()` to return a
+    /// non-empty set (e.g., `server_with_write_executor_acme_crowdstrike`). Without
+    /// an `OrgRegistry`, `validate_client_ids` rejects all slugs with CLIENT_VALIDATION_FAILED.
+    ///
+    /// `with_deps()` remains the production wiring path (boot step 9).
+    pub fn with_org_registry(mut self, registry: Arc<prism_core::OrgRegistry>) -> Self {
+        self.org_registry = Some(registry);
+        self
+    }
+
     /// Wire an `AuditWriter` into an existing `PrismServer` (test fixture helper).
     ///
     /// Intended for integration tests that exercise the `emit_tool_audit` call path
