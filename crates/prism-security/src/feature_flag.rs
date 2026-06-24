@@ -15,7 +15,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use prism_core::{
     capability::{CapabilityPath, ClientCapabilities},
     error::PrismError,
-    OrgRegistry,
+    OrgRegistry, OrgSlug,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -91,10 +91,7 @@ pub struct FeatureFlagEvaluator {
     /// authoritative path for org membership. `OrgSlug::new_unchecked` MUST NOT
     /// be used; call `OrgSlug::new(client_id)` (fallible, non-panicking) instead.
     ///
-    /// Stub phase: `client_exists` body is `todo!()` so this field is structurally
-    /// unused until the implementer promotes the stub. `#[allow(dead_code)]` is
-    /// removed by the implementer in the same commit that fills `client_exists`.
-    #[allow(dead_code)]
+    /// BC-2.10.015: consulted by `client_exists` via `slug_exists(&OrgSlug)`.
     org_registry: Arc<OrgRegistry>,
 }
 
@@ -288,11 +285,15 @@ impl FeatureFlagEvaluator {
     /// # Invariant
     /// MUST NOT use `OrgSlug::new_unchecked` — that is a validation-bypass constructor
     /// forbidden in production code paths (CLAUDE.md §Conventions).
-    pub fn client_exists(&self, _client_id: &str) -> bool {
-        todo!(
-            "BC-2.10.015: implement via OrgSlug::new(client_id).map(|slug| \
-             self.org_registry.slug_exists(&slug)).unwrap_or(false)"
-        )
+    pub fn client_exists(&self, client_id: &str) -> bool {
+        // OrgSlug::new validates format (is_ok() / is_err() carries validity state).
+        // Invalid client_ids (too long, bad chars) return is_err() → false.
+        // No new_unchecked, no panic (AD-017 / CLAUDE.md §Conventions).
+        let slug = OrgSlug::new(client_id);
+        if slug.is_err() {
+            return false;
+        }
+        self.org_registry.slug_exists(&slug)
     }
 
     /// Return all capability paths configured for a specific client.
