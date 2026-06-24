@@ -1269,21 +1269,60 @@ pub enum ExampleKind {
 ///
 /// Each tuple is `(kind, title, pql_snippet)`. The CI gate asserts that at least
 /// one `Basic`, one `Advanced`, and one `Error` example is present.
+///
+/// **ADR-044 INTERVAL format:** Duration strings use the `Nh` / `Nd` unit suffix
+/// (e.g., `'7d'` = 7 days, `'24h'` = 24 hours). Full English words like `'7 days'`
+/// are NOT accepted by the PrismQL parser — they produce E-QUERY-001.
 pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
     (
         ExampleKind::Basic,
-        "filter — all detections",
-        "crowdstrike.detections",
+        "filter — detections with HIGH severity",
+        "crowdstrike.detections | severity = 'HIGH'",
+    ),
+    (
+        ExampleKind::Basic,
+        "SQL — select all detections",
+        "SELECT * FROM crowdstrike.detections WHERE severity = 'HIGH'",
+    ),
+    (
+        ExampleKind::Basic,
+        "pipe — filter by severity",
+        "FROM crowdstrike.detections | where severity = 'HIGH'",
     ),
     (
         ExampleKind::Advanced,
-        "temporal — last 7 days",
-        "SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '7 days'",
+        "temporal — last 7 days (SQL mode)",
+        "SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '7d'",
+    ),
+    (
+        ExampleKind::Advanced,
+        "temporal — last 24 hours (pipe mode)",
+        "FROM crowdstrike.detections | where timestamp > NOW() - INTERVAL '24h'",
+    ),
+    (
+        ExampleKind::Advanced,
+        "SQL→Pipe — enrich with stats",
+        "SELECT * FROM crowdstrike.detections | enrich threat_score(src_ip) | limit 10",
+    ),
+    (
+        ExampleKind::Advanced,
+        "pipe stats — count by severity",
+        "FROM crowdstrike.detections | stats count() by severity",
     ),
     (
         ExampleKind::Error,
         "E-QUERY-001 self-correction",
         "-- If you receive E-QUERY-001: check spelling and use prism_describe to list columns.",
+    ),
+    (
+        ExampleKind::Error,
+        "E-QUERY-038 column not found",
+        "-- E-QUERY-038: column not found. Run prism_describe to see available columns.",
+    ),
+    (
+        ExampleKind::Error,
+        "E-QUERY-040 dual-limit forbidden",
+        "-- E-QUERY-040: FORBID-BOTH — do not use SQL LIMIT and pipe | limit together.",
     ),
 ];
 
@@ -1297,16 +1336,242 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
 /// # Parameters
 /// - `infusion_registry`: optional live `InfusionRegistry` snapshot. When `Some`,
 ///   the returned content includes a section listing available infusions with their
-///   field mappings. When `None`, the infusion section is omitted.
+///   field mappings. When `None`, the infusion section shows a placeholder.
 ///
-/// # Contract (BC-2.10.014 AC-009)
+/// # Contract (BC-2.10.014 AC-009, BC-2.11.022)
 /// - MUST include at least one example from each `ExampleKind` tier.
 /// - MUST round-trip all `Basic` and `Advanced` PQL snippets through the Chumsky parser.
+/// - MUST include the infusion placeholder when `infusion_registry` is `None`.
 /// - The CI gate (`crates/prism-mcp/tests/reference_content.rs`) asserts both invariants.
 pub fn build_reference_content(
-    _infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
+    infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> String {
-    todo!()
+    let mut out = String::with_capacity(16 * 1024);
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    out.push_str("# PrismQL Reference\n\n");
+    out.push_str(
+        "PrismQL (PQL) is the Prism query language for querying security sensor data. \
+         It supports four modes: Filter, SQL, Pipe, and SqlPipe (SQL→Pipe composition).\n\n",
+    );
+
+    // ── Mode Overview ────────────────────────────────────────────────────────
+    out.push_str("## Query Modes\n\n");
+    out.push_str(
+        "| Mode | Syntax | Notes |\n\
+         |------|--------|-------|\n\
+         | **Filter** | `field op value` | Bare predicate; no FROM clause required. Evaluated against current sensor context. |\n\
+         | **SQL** | `SELECT ... FROM t WHERE ...` | Standard SQL SELECT; no pipe stages. |\n\
+         | **Pipe** | `FROM t | where ... | stage ...` | Source + pipeline stages chained with `|`. |\n\
+         | **SqlPipe** | `SELECT ... FROM t | stage ...` | SQL→Pipe composition; SQL header + one or more pipe stages. |\n\n",
+    );
+    out.push_str(
+        "All PrismQL keywords are case-insensitive. Convention: UPPER for SQL mode keywords, \
+         lowercase for pipe stage names (e.g., `SELECT` vs `from`, `WHERE` vs `where`).\n\n",
+    );
+
+    // ── SQL Mode BNF ─────────────────────────────────────────────────────────
+    out.push_str("## SQL Mode\n\n");
+    out.push_str("```sql\n");
+    out.push_str(
+        "SELECT <columns>      -- * or comma-separated field list\n\
+         FROM <table>          -- sensor.table or bare table name\n\
+         [WHERE <predicate>]   -- filter expression\n\
+         [GROUP BY <fields>]\n\
+         [ORDER BY <field> [ASC|DESC]]\n\
+         [LIMIT <n>]           -- trailing row cap; do NOT combine with pipe | limit\n",
+    );
+    out.push_str("```\n\n");
+
+    // ── Pipe Mode BNF ────────────────────────────────────────────────────────
+    out.push_str("## Pipe Mode\n\n");
+    out.push_str("```\n");
+    out.push_str(
+        "FROM <table>\n\
+         [| where <predicate>]\n\
+         [| sort <field> [asc|desc]]\n\
+         [| head <n>]\n\
+         [| tail <n>]\n\
+         [| stats <agg> [by <field>]]\n\
+         [| dedup <field>]\n\
+         [| fields <field_list>]\n\
+         [| enrich <fn>(<col>)]\n\
+         [| limit <n>]\n",
+    );
+    out.push_str("```\n\n");
+    out.push_str("`head N` and `limit N` are equivalent in pipe mode.\n\n");
+
+    // ── SQL→Pipe Composition ─────────────────────────────────────────────────
+    out.push_str("## SQL→Pipe Composition (SqlPipe Mode)\n\n");
+    out.push_str(
+        "`SELECT ... FROM t | <stage> ...` — SQL header followed by one or more pipe stages. \
+         **FORBID-BOTH (E-QUERY-040):** You cannot use both `SQL LIMIT` and `| limit` in the same \
+         query. Use one or the other.\n\n",
+    );
+
+    // ── Operators Table ──────────────────────────────────────────────────────
+    out.push_str("## Operators\n\n");
+    out.push_str(
+        "| Operator | Description | Example |\n\
+         |----------|-------------|--------|\n\
+         | `=` | Equality | `severity = 'HIGH'` |\n\
+         | `!=` | Inequality | `status != 'closed'` |\n\
+         | `>`, `>=`, `<`, `<=` | Comparison | `risk_score > 50` |\n\
+         | `IN` | Set membership | `status IN ('open', 'new')` |\n\
+         | `BETWEEN` | Range (inclusive) | `score BETWEEN 50 AND 90` |\n\
+         | `CONTAINS` | Substring match (case-sensitive) | `hostname CONTAINS 'prod'` |\n\
+         | `ICONTAINS` | Substring match (case-insensitive) | `hostname ICONTAINS 'prod'` |\n\
+         | `=~` / `MATCHES` | Regex match | `hostname =~ '^web-'` |\n\
+         | `IN CIDR` | CIDR range check | `src_ip IN CIDR '10.0.0.0/8'` |\n\
+         | `HAS` | Field exists and is non-null | `HAS extra_data` |\n\
+         | `MISSING` | Field is absent or null | `MISSING assigned_to` |\n\
+         | `IS NULL` | Null check | `resolved_at IS NULL` |\n\
+         | `IS NOT NULL` | Non-null check | `resolved_at IS NOT NULL` |\n\
+         | `AND`, `OR`, `NOT` | Logical combinators | `severity = 'HIGH' AND NOT MISSING src_ip` |\n\n",
+    );
+
+    // ── Temporal Grammar ──────────────────────────────────────────────────────
+    out.push_str("## Temporal Grammar (ADR-044)\n\n");
+    out.push_str(
+        "PrismQL supports temporal expressions in WHERE / `| where` predicates:\n\n\
+         - `NOW()` — current timestamp at query planning time\n\
+         - `INTERVAL 'Nd'` — duration literal; units: `s`=seconds, `m`=minutes, `h`=hours, `d`=days\n\
+         - `NOW() - INTERVAL 'Nd'` — timestamp subtraction (subtraction only in v1; `+` is not supported)\n\n\
+         **Examples:**\n\
+         ```sql\n\
+         -- Last 7 days\n\
+         WHERE timestamp > NOW() - INTERVAL '7d'\n\
+         -- Last 24 hours\n\
+         WHERE timestamp > NOW() - INTERVAL '24h'\n\
+         ```\n\n\
+         **Note:** Use `'7d'` not `'7 days'` — full English words are not accepted \
+         (produces E-QUERY-001).\n\n",
+    );
+
+    // ── Aggregates / Stats ────────────────────────────────────────────────────
+    out.push_str("## Aggregates and Stats\n\n");
+    out.push_str(
+        "Available aggregate functions for `| stats` (pipe mode) and SQL `SELECT`:\n\n\
+         | Function | Description |\n\
+         |----------|-------------|\n\
+         | `count()` | Row count |\n\
+         | `sum(field)` | Sum of a numeric field |\n\
+         | `avg(field)` | Average of a numeric field |\n\
+         | `min(field)` / `max(field)` | Min / max of a field |\n\
+         | `percentile(field, p)` | p-th percentile (p in [0, 100]) |\n\
+         | `distinct_count(field)` | Count of unique values |\n\n\
+         **Pipe stats syntax:** `| stats <agg> [by <field>]`\n\n",
+    );
+
+    // ── Virtual Fields and Scope Model ────────────────────────────────────────
+    out.push_str("## Virtual Fields\n\n");
+    out.push_str(
+        "Prism injects these virtual fields into every query result:\n\n\
+         | Field | Description |\n\
+         |-------|-------------|\n\
+         | `_sensor` | Sensor ID that produced the row |\n\
+         | `_client` | Client (org) the row belongs to |\n\
+         | `_source_table` | Source table name |\n\
+         | `_safety_flags` | Safety/classification flags |\n\n\
+         Scope is controlled via tool parameters (e.g., `client_id` on `run_query`), \
+         not by embedding client IDs in the query.\n\n",
+    );
+
+    // ── Column Naming Note ────────────────────────────────────────────────────
+    out.push_str("## Column Names\n\n");
+    out.push_str(
+        "Column names come verbatim from `prism_describe`. Use the name exactly as shown; \
+         do not construct dot-path names like `sensor.column`.\n\n",
+    );
+
+    // ── LIMIT / head / limit Equivalence ──────────────────────────────────────
+    out.push_str("## Row Limits\n\n");
+    out.push_str(
+        "`head N` and `limit N` are equivalent in pipe mode. `LIMIT N` is the trailing clause \
+         in SQL mode. All keywords are case-insensitive.\n\n",
+    );
+
+    // ── Error Code Quick-Reference ────────────────────────────────────────────
+    out.push_str("## Error Code Quick-Reference\n\n");
+    out.push_str(
+        "| Code | Cause | Self-Correction |\n\
+         |------|-------|-----------------|\n\
+         | **E-QUERY-001** | Parse error — invalid syntax, bad operator, unknown keyword | Check spelling; use `prism_describe` to list valid columns |\n\
+         | **E-QUERY-002** | Query size limit exceeded | Shorten the query |\n\
+         | **E-QUERY-003** | Depth limit exceeded | Reduce nesting depth |\n\
+         | **E-QUERY-010** | Write verb used in filter mode | Use SQL mode DML or pipe write stage |\n\
+         | **E-QUERY-011** | Unsupported DML statement | Check write verb documentation |\n\
+         | **E-QUERY-020** | Multi-tenant scope resolution failure | Verify `client_id` is registered |\n\
+         | **E-QUERY-038** | Column not found | Run `prism_describe(client_id, table)` to see available columns |\n\
+         | **E-QUERY-039** | Table not available for client | Run `prism_describe(client_id)` to see available tables |\n\
+         | **E-QUERY-040** | FORBID-BOTH — dual SQL LIMIT + pipe limit | Remove one of the two LIMIT clauses |\n\n",
+    );
+
+    // ── Enrichment Section ────────────────────────────────────────────────────
+    out.push_str("## Enrichment Functions (Infusions)\n\n");
+    out.push_str(
+        "Enrichment functions are called via `| enrich <fn>(<col>)` in pipe or SqlPipe mode.\n\n",
+    );
+
+    match infusion_registry {
+        Some(registry) => {
+            // Build enrichment list from live registry via udf_descriptors().
+            // Collect unique infusion names (multiple UDFs can belong to one infusion).
+            let descriptors = registry.udf_descriptors();
+            // Deduplicate by infusion_id to list each infusion once.
+            let mut seen_ids = std::collections::BTreeSet::new();
+            let mut infusion_names: Vec<String> = Vec::new();
+            for desc in &descriptors {
+                if seen_ids.insert(desc.infusion_id.clone()) {
+                    infusion_names.push(desc.infusion_id.clone());
+                }
+            }
+            if infusion_names.is_empty() {
+                out.push_str(
+                    "No enrichment functions are currently registered for your deployment.\n\n",
+                );
+            } else {
+                out.push_str("Available enrichment functions:\n\n");
+                for name in &infusion_names {
+                    out.push_str(&format!("- `enrich {name}(col)`\n"));
+                }
+                out.push('\n');
+            }
+        }
+        None => {
+            // BC-2.11.022 invariant — placeholder text when registry is not available.
+            out.push_str(
+                "Call `list_infusions` to see available enrichment functions for your deployment.\n\n",
+            );
+        }
+    }
+
+    // ── Examples (from REFERENCE_EXAMPLES shared constant) ───────────────────
+    out.push_str("## Examples\n\n");
+
+    // Group by kind.
+    out.push_str("### Basic\n\n");
+    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
+        if matches!(kind, ExampleKind::Basic) {
+            out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+        }
+    }
+
+    out.push_str("### Advanced\n\n");
+    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
+        if matches!(kind, ExampleKind::Advanced) {
+            out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+        }
+    }
+
+    out.push_str("### Error Self-Correction\n\n");
+    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
+        if matches!(kind, ExampleKind::Error) {
+            out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+        }
+    }
+
+    out
 }
 
 // ─── Hot-reload notification dispatch (AC-9) ────────────────────────────────
