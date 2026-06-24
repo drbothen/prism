@@ -47,6 +47,22 @@ pub enum Ast {
     Sql(SqlStatement),
     /// Pipe mode: `source | stage | stage …` (BC-2.11.004)
     Pipe(PipeQuery),
+    /// SQL→Pipe composition mode (BC-2.11.020, ADR-043):
+    /// `SELECT … FROM t [WHERE …] [LIMIT n] | stage | stage …`
+    SqlPipe(SqlPipeQuery),
+}
+
+/// SQL→Pipe composition query (BC-2.11.020, ADR-043).
+///
+/// The head SQL SELECT is subject to the FORBID-BOTH invariant: if the SQL
+/// SELECT carries `LIMIT n` AND any pipe stage has `| limit m`, the planner
+/// must return `E-QUERY-040` (`PrismError::RedundantRowLimit`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SqlPipeQuery {
+    /// The SQL SELECT head (without pipe stages).
+    pub head: SqlQuery,
+    /// Pipe stages following the SQL head.
+    pub stages: Vec<PipeStage>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -632,6 +648,19 @@ pub enum Expr {
     FuncCall(FuncCall),
     /// Wildcard `*` used as a function argument (e.g. the `*` in `count(*)`).
     Star,
+    /// Planning-time constant: current timestamp (ADR-044).
+    /// Injected by the planner at query planning time; never stored in results.
+    Now,
+    /// Planning-time duration constant, e.g. `INTERVAL '7 days'` (ADR-044).
+    /// `chrono::Duration` represents the resolved duration after parsing `<int><unit>`.
+    Interval(chrono::Duration),
+    /// Timestamp arithmetic: `base ± offset` (ADR-044).
+    /// Used in WHERE clauses: `timestamp > NOW() - INTERVAL '7 days'`.
+    TimestampArithmetic {
+        base: Box<Expr>,
+        op: BinaryOp,
+        offset: chrono::Duration,
+    },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1287,6 +1316,20 @@ pub enum StringOp {
     Contains,
     StartsWith,
     EndsWith,
+}
+
+/// Arithmetic binary operator for timestamp expressions (ADR-044).
+///
+/// Used in `Expr::TimestampArithmetic` to distinguish addition from subtraction.
+/// Only `Add` and `Sub` are valid — multiplication/division of timestamps is
+/// semantically undefined and must return `E-QUERY-041` at planning time.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BinaryOp {
+    /// `+` — add a duration to a timestamp.
+    Add,
+    /// `-` — subtract a duration from a timestamp.
+    Sub,
 }
 
 // ---------------------------------------------------------------------------

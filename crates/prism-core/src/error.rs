@@ -1241,6 +1241,23 @@ pub enum PrismError {
     },
 
     // -------------------------------------------------------------------------
+    // E-QUERY-040 — SQL→Pipe redundant row-limit (ADR-043)
+    // -------------------------------------------------------------------------
+    /// E-QUERY-040: Both the SQL SELECT head and a pipe `| limit` stage carry a
+    /// row-limit.  Only one may be specified; the other must be removed.
+    ///
+    /// Raised at planning time by the FORBID-BOTH invariant (ADR-043 §C).
+    #[error(
+        "E-QUERY-040: redundant row limit: SQL LIMIT {sql_limit} and pipe | limit {pipe_limit} both specified; use only one"
+    )]
+    RedundantRowLimit {
+        /// The `LIMIT n` value in the SQL SELECT head.
+        sql_limit: u64,
+        /// The `| limit m` value from the pipe stage.
+        pipe_limit: u64,
+    },
+
+    // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------
     /// E-INT-001: Internal invariant violated — indicates a bug.

@@ -1242,6 +1242,73 @@ fn strip_path_from_authority(authority_and_rest: &str) -> &str {
     }
 }
 
+// ─── PrismQL reference content (ADR-045) ────────────────────────────────────
+
+/// Classification of a PQL usage example (ADR-045).
+///
+/// Used in `REFERENCE_EXAMPLES` to tag each example for the 3-tier CI gate
+/// and for the `build_reference_content` runtime injector.
+///
+/// Variants mirror the three complexity tiers in BC-2.10.014 AC-009:
+/// - `Basic` → Tier 1 (filter / simple SELECT)
+/// - `Advanced` → Tier 2 (stats / aggregation / temporal)
+/// - `Error` → Tier 3 (error quick-reference / self-correction workflow)
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExampleKind {
+    /// Tier 1: simple filter or bare SELECT examples.
+    Basic,
+    /// Tier 2: stats, aggregation, datetime arithmetic, and pipe examples.
+    Advanced,
+    /// Tier 3: error-code quick-reference and self-correction workflow examples.
+    Error,
+}
+
+/// Canonical reference examples shared by `build_reference_content` and the
+/// 3-tier CI gate (ADR-045 §B).
+///
+/// Each tuple is `(kind, title, pql_snippet)`. The CI gate asserts that at least
+/// one `Basic`, one `Advanced`, and one `Error` example is present.
+pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
+    (
+        ExampleKind::Basic,
+        "filter — all detections",
+        "crowdstrike.detections",
+    ),
+    (
+        ExampleKind::Advanced,
+        "temporal — last 7 days",
+        "SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '7 days'",
+    ),
+    (
+        ExampleKind::Error,
+        "E-QUERY-001 self-correction",
+        "-- If you receive E-QUERY-001: check spelling and use prism_describe to list columns.",
+    ),
+];
+
+/// Build the `prismql://reference` resource content at runtime (ADR-045 §A).
+///
+/// Replaces the static `include_str!("../pql_reference.md")` approach with a
+/// runtime-assembled Markdown document so that infusion examples, sensor-specific
+/// tables, and the 3-tier example set can be injected at query time rather than
+/// baked in at compile time.
+///
+/// # Parameters
+/// - `infusion_registry`: optional live `InfusionRegistry` snapshot. When `Some`,
+///   the returned content includes a section listing available infusions with their
+///   field mappings. When `None`, the infusion section is omitted.
+///
+/// # Contract (BC-2.10.014 AC-009)
+/// - MUST include at least one example from each `ExampleKind` tier.
+/// - MUST round-trip all `Basic` and `Advanced` PQL snippets through the Chumsky parser.
+/// - The CI gate (`crates/prism-mcp/tests/reference_content.rs`) asserts both invariants.
+pub fn build_reference_content(
+    _infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
+) -> String {
+    todo!()
+}
+
 // ─── Hot-reload notification dispatch (AC-9) ────────────────────────────────
 
 /// Dispatch MCP `notifications/resources/list_changed` and

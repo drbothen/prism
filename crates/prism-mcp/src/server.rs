@@ -6593,7 +6593,10 @@ mod tests {
             .expect("endpoint registration must succeed");
 
         // FeatureFlagEvaluator with empty client map — deny-by-default for any client.
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+            BTreeMap::new(),
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
+        ));
         let confirmation_store = Arc::new(ConfirmationTokenStore::new());
         let adapter_registry = Arc::new(AdapterRegistry::new());
 
@@ -7051,7 +7054,10 @@ mod tests {
             .register("test_sensor", vec![endpoint_spec])
             .expect("endpoint registration must succeed");
 
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+            BTreeMap::new(),
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
+        ));
         let confirmation_store = Arc::new(ConfirmationTokenStore::new());
         let adapter_registry = Arc::new(AdapterRegistry::new());
 
@@ -7976,7 +7982,10 @@ mod tests {
             .register("test_sensor", vec![endpoint_spec])
             .expect("endpoint registration must succeed");
 
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+            BTreeMap::new(),
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
+        ));
         let confirmation_store =
             Arc::new(prism_security::confirmation_token::ConfirmationTokenStore::new());
         let adapter_registry = Arc::new(AdapterRegistry::new());
@@ -9481,7 +9490,10 @@ mod tests {
         let mut clients = BTreeMap::new();
         clients.insert(registered_client.to_owned(), caps);
 
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(clients));
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+            clients,
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
+        ));
         let write_executor = Arc::new(WriteExecutor::new(
             feature_flags,
             Arc::new(ConfirmationTokenStore::new()),

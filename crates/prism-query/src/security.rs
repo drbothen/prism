@@ -320,6 +320,13 @@ impl ParseLimits {
                     FuncCall::Window { .. } => Ok(()),
                 }
             }
+            // ADR-044: temporal leaf nodes — Now and Interval have no sub-expressions.
+            Expr::Now | Expr::Interval(_) => Ok(()),
+            // ADR-044: timestamp arithmetic — the base expression may contain nested
+            // structure (e.g., a FuncCall wrapping NOW()), so recurse into it.
+            Expr::TimestampArithmetic { base, .. } => {
+                self.check_expr_nesting_depth_with(base, next)
+            }
         }
     }
 
@@ -591,6 +598,10 @@ pub fn check_expr_nesting_depth(expr: &Expr, depth: u32) -> Result<(), PrismErro
                 FuncCall::Window { .. } => Ok(()),
             }
         }
+        // ADR-044: temporal leaf nodes — no sub-expression nesting.
+        Expr::Now | Expr::Interval(_) => Ok(()),
+        // ADR-044: timestamp arithmetic — recurse into base expression.
+        Expr::TimestampArithmetic { base, .. } => check_expr_nesting_depth(base, next),
     }
 }
 

@@ -427,7 +427,10 @@ fn test_ac12_write_capability_gate() {
     use crate::{alias_capability::check_alias_write, alias_types::AliasScope};
 
     // An evaluator with no configured clients — no one has alias.write capability.
-    let evaluator = FeatureFlagEvaluator::new(BTreeMap::new());
+    let evaluator = FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let scope = AliasScope::Global;
 
     // With no clients configured, check_alias_write must deny (no client allows it).
@@ -2832,7 +2835,10 @@ fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
     };
 
     // Compile-time gate absent → always denied regardless of runtime config.
-    let evaluator = FeatureFlagEvaluator::new(BTreeMap::new());
+    let evaluator = FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let token_store = prism_security::ConfirmationTokenStore::new();
     let result = create_alias_with_clients_gated(
         input,
@@ -2891,7 +2897,10 @@ fn test_BC_2_11_008_global_scope_alias_write_allowed_when_any_client_allows() {
     client_map.insert("client_b".to_string(), caps_b);
     client_map.insert("client_c".to_string(), caps_c);
 
-    let evaluator = FeatureFlagEvaluator::new(client_map);
+    let evaluator = FeatureFlagEvaluator::new(
+        client_map,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let valid_client_ids = vec![
         "client_a".to_string(),
         "client_b".to_string(),
@@ -2941,7 +2950,10 @@ fn test_BC_2_11_008_global_scope_alias_write_denied_when_all_clients_deny() {
     client_map.insert("client_b".to_string(), caps_b);
     client_map.insert("client_c".to_string(), caps_c);
 
-    let evaluator = FeatureFlagEvaluator::new(client_map);
+    let evaluator = FeatureFlagEvaluator::new(
+        client_map,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let valid_client_ids = vec![
         "client_a".to_string(),
         "client_b".to_string(),

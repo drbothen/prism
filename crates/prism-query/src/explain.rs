@@ -686,6 +686,10 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
                         // confirms at least one predicate is post_filter (not api_filters_pushed).
                         // Requires threading the classify_predicates plan result into this function.
         }
+        // ADR-043: SQL→Pipe composition — explain support is a TODO for the implementer.
+        // Post-fetch operations for SqlPipe are handled by the implementer in the
+        // S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 TDD implementation phase.
+        Ast::SqlPipe(_) => {}
     }
 
     ops

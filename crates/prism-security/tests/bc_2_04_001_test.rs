@@ -31,7 +31,10 @@ use prism_security::feature_flag::{
 /// the `test_BC_2_04_001_real_crowdstrike_write_gate_absent` test below.
 #[test]
 fn test_BC_2_04_001_absent_gate_returns_denied_compile_time() {
-    let evaluator = FeatureFlagEvaluator::new(BTreeMap::new());
+    let evaluator = FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let result = evaluator.check_permission(
         CompileTimeGate::Absent,
         "acme",
@@ -59,7 +62,10 @@ fn test_BC_2_04_001_absent_gate_runtime_allow_still_denied() {
     let mut client_map = BTreeMap::new();
     client_map.insert("acme".to_string(), caps);
 
-    let evaluator = FeatureFlagEvaluator::new(client_map);
+    let evaluator = FeatureFlagEvaluator::new(
+        client_map,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let result = evaluator.check_permission(
         CompileTimeGate::Absent, // NOT compiled in
         "acme",
@@ -141,7 +147,10 @@ fn test_BC_2_04_001_ec_mixed_features_independent_gates() {
     let mut client_map = BTreeMap::new();
     client_map.insert("acme".to_string(), caps);
 
-    let evaluator = FeatureFlagEvaluator::new(client_map);
+    let evaluator = FeatureFlagEvaluator::new(
+        client_map,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
 
     // CrowdStrike feature present → both tiers pass → Allowed
     let cs_result = evaluator.check_permission(
@@ -169,7 +178,10 @@ fn test_BC_2_04_001_ec_mixed_features_independent_gates() {
 /// Resolution trace must include the denied capability path (BC-2.04.015 minimum).
 #[test]
 fn test_BC_2_04_001_resolution_trace_minimum_fields() {
-    let evaluator = FeatureFlagEvaluator::new(BTreeMap::new());
+    let evaluator = FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let result = evaluator.check_permission(
         CompileTimeGate::Absent,
         "acme",

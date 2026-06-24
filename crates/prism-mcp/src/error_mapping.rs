@@ -400,6 +400,16 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
+        // E-QUERY-040: SQL→Pipe redundant row limit → -32602 INVALID_PARAMS (ADR-043).
+        //
+        // MUST be explicit: `PrismError` is `#[non_exhaustive]`; without this arm the
+        // variant would fall through to the catch-all `-32000 INTERNAL_ERROR`, losing the
+        // caller-actionable E-QUERY-040 guidance.
+        //
+        // Caller-resolvable: remove either the SQL `LIMIT n` or the pipe `| limit m`.
+        // Reference: BC-2.11.020; ADR-043 §C; error-taxonomy.md E-QUERY-040.
+        PrismError::RedundantRowLimit { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-INT-001: Internal invariant violated → -32000 Internal
         // Detail is suppressed — audit log has it.
         PrismError::Internal { .. } => (
@@ -541,6 +551,18 @@ pub struct StructuredErrorFields {
     /// `None` for all other error types (field absent from JSON via `skip_serializing_if`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub did_you_mean: Option<String>,
+    /// Canonical re-serialized PQL for three-mode bridge errors (ADR-046, BC-2.11.019 AC-001).
+    ///
+    /// When the mode-bridge produces a D1 error (wrong parsing mode selected), this field
+    /// carries the normalized PQL string showing the correct form. The LLM agent uses this
+    /// to self-correct its next query without manual reformulation.
+    ///
+    /// ABSENT (key omitted from JSON via `skip_serializing_if`) for all non-mode-bridge errors.
+    /// `None` for all error types that do not involve a mode mismatch.
+    ///
+    /// Reference: ADR-046 §D1; BC-2.11.019 AC-001; S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub normalized_pql: Option<String>,
 }
 
 impl StructuredErrorFields {
@@ -601,6 +623,9 @@ impl StructuredErrorFields {
             // Only set for ColumnNotFound via prism_error_to_structured_call_result.
             available_columns: None,
             did_you_mean: None,
+            // ADR-046 BC-2.11.019 AC-001: normalized_pql defaults to None.
+            // Only set for mode-bridge D1 errors via prism_error_to_structured_call_result.
+            normalized_pql: None,
         }
     }
 
@@ -629,6 +654,7 @@ pub struct StructuredErrorFieldsBuilder {
     upstream_message: Option<String>,
     available_columns: Option<Vec<String>>,
     did_you_mean: Option<String>,
+    normalized_pql: Option<String>,
 }
 
 impl StructuredErrorFieldsBuilder {
@@ -676,6 +702,10 @@ impl StructuredErrorFieldsBuilder {
         self.did_you_mean = v;
         self
     }
+    pub fn normalized_pql(mut self, v: Option<String>) -> Self {
+        self.normalized_pql = v;
+        self
+    }
     /// Build the `StructuredErrorFields`.
     ///
     /// # Panics
@@ -708,6 +738,7 @@ impl StructuredErrorFieldsBuilder {
             how_to_fix: None,
             available_columns: self.available_columns,
             did_you_mean: self.did_you_mean,
+            normalized_pql: self.normalized_pql,
         }
     }
 }
@@ -797,6 +828,11 @@ pub fn build_structured_error_response(
     }
     if let Some(dym) = fields.did_you_mean {
         error_obj["did_you_mean"] = serde_json::Value::String(dym);
+    }
+    // ADR-046 BC-2.11.019 AC-001: normalized_pql for mode-bridge D1 errors.
+    // Absent (key omitted) for all non-mode-bridge error types.
+    if let Some(npql) = fields.normalized_pql {
+        error_obj["normalized_pql"] = serde_json::Value::String(npql);
     }
     let structured_content = serde_json::json!({
         "error": error_obj,
@@ -935,6 +971,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         /// Levenshtein spelling suggestion (E-QUERY-038 / BC-2.11.016 AC-001).
         /// Some(best_match) when distance ≤ 3; None (omitted from JSON) otherwise.
         did_you_mean: Option<String>,
+        /// Canonical normalized PQL for mode-bridge D1 errors (ADR-046 / BC-2.11.019 AC-001).
+        /// None for all non-mode-bridge error types.
+        normalized_pql: Option<String>,
     }
     let meta = match &err {
         // ── Authentication errors: credential invalid or identity format failure ─
@@ -979,6 +1018,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // (b) Valid-format credential failures: token expired/invalid → original_params_valid: true
@@ -1000,6 +1040,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         PrismError::AuthTokenInvalid { .. } => VariantMeta {
@@ -1020,6 +1061,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── Validation errors: caller-supplied bad parameters ────────────────
@@ -1109,6 +1151,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 how_to_fix: None,
                 available_columns: None,
                 did_you_mean: None,
+                normalized_pql: None,
             }
         }
 
@@ -1136,6 +1179,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── E-QUERY-003 security-limit error: wire how_to_fix_for_security_limit ──
@@ -1159,6 +1203,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             how_to_fix: Some(prism_query::engine::how_to_fix_for_security_limit(detail)),
             available_columns: None,
             did_you_mean: None,
+            normalized_pql: None,
         },
 
         PrismError::McpParameterInvalid { .. }
@@ -1166,6 +1211,10 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::InvalidCapabilityPath { .. }
         | PrismError::QueryLimitExceeded { .. }
         | PrismError::UnknownSourceTable { .. }
+        // E-QUERY-040: SQL→Pipe redundant row limit (ADR-043). Both SQL LIMIT and
+        // pipe | limit specified; caller must remove one. original_params_valid: false
+        // (the combined query structure violates the FORBID-BOTH invariant).
+        | PrismError::RedundantRowLimit { .. }
         | PrismError::AliasNotFound { .. }
         | PrismError::AliasCycleDetected { .. }
         | PrismError::AliasDepthExceeded { .. }
@@ -1191,6 +1240,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── Write-policy errors: structurally valid params, policy denied ────
@@ -1219,6 +1269,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── Configuration errors: well-formed params but not in config ───────
@@ -1249,6 +1300,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── Permission errors: capability denied, auth failures, org-scoping ──
@@ -1283,6 +1335,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // (b) CapabilityDenied: thread the variant's own suggestion field verbatim.
@@ -1306,6 +1359,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // (c) All other permission variants: generic permission/confirmation guidance.
@@ -1340,6 +1394,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── Transient errors: retryable, no permanent fix needed ─────────────
@@ -1360,6 +1415,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // BC-2.10.007 §115: SensorRateLimited requires explicit arm binding both fields.
@@ -1397,6 +1453,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // BC-2.10.007 §81: source = sensor name; DI-006: body → upstream_message.
@@ -1460,6 +1517,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 how_to_fix: None,
                 available_columns: None,
                 did_you_mean: None,
+                normalized_pql: None,
             }
         }
 
@@ -1483,6 +1541,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         PrismError::SensorResponseParse { sensor, .. } => VariantMeta {
@@ -1501,6 +1560,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // AuditPersistenceFailed is retryable and transient (not permanent "internal").
@@ -1521,6 +1581,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── Prism-side infrastructure failures → category "internal" ────────
@@ -1561,6 +1622,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── MCP serialization error → fallback (not a sensor failure, not listed in
@@ -1582,6 +1644,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── Process-supervision watchdog failures → category "internal" ────────
@@ -1614,6 +1677,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // ── E-QUERY-002 type-mismatch: wire valid_operators_for_type from ColumnType ──
@@ -1656,6 +1720,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // E-QUERY-002: QueryPlanFailed — generic plan-time error without ColumnType context.
@@ -1692,6 +1757,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
 
         // E-QUERY-038: ColumnNotFound → "validation", original_params_valid: false.
@@ -1731,6 +1797,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
             // did_you_mean uses #[serde(skip_serializing_if = "Option::is_none")] so None → absent.
             available_columns: Some(d.available_columns.clone()),
             did_you_mean: d.did_you_mean.clone(),
+            normalized_pql: None,
         },
 
         // ── Catch-all: unknown variants → "upstream_error" (legal BC category) ──
@@ -1752,6 +1819,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         how_to_fix: None,
         available_columns: None,
         did_you_mean: None,
+        normalized_pql: None,
         },
     };
 
@@ -1805,6 +1873,9 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // Only Some for ColumnNotFound; None for all other variants (absent from JSON).
         available_columns: meta.available_columns,
         did_you_mean: meta.did_you_mean,
+        // ADR-046 BC-2.11.019 AC-001: normalized_pql comes from VariantMeta.
+        // Only Some for mode-bridge D1 errors; None for all other variants (absent from JSON).
+        normalized_pql: meta.normalized_pql,
     };
     let content_text = format!(
         "ERROR: [{}] - {}. {}",

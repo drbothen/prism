@@ -29,7 +29,7 @@ fn make_evaluator(client_id: &str, rules: Vec<(&str, CapabilityEffect)>) -> Feat
     }
     let mut map = BTreeMap::new();
     map.insert(client_id.to_string(), caps);
-    FeatureFlagEvaluator::new(map)
+    FeatureFlagEvaluator::new(map, std::sync::Arc::new(prism_core::OrgRegistry::new()))
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -165,7 +165,8 @@ fn test_BC_2_04_004_ec_per_invocation_client_id_determines_capability() {
     let caps_b = ClientCapabilities::new();
     map.insert("client_b".to_string(), caps_b);
 
-    let evaluator = FeatureFlagEvaluator::new(map);
+    let evaluator =
+        FeatureFlagEvaluator::new(map, std::sync::Arc::new(prism_core::OrgRegistry::new()));
 
     // client_a: both gates pass → Allowed.
     let result_a = evaluator.check_permission(
@@ -203,7 +204,8 @@ fn test_BC_2_04_004_ec_all_write_compiled_all_runtime_denied() {
     for client in &clients {
         map.insert(client.to_string(), ClientCapabilities::new()); // all deny-by-default
     }
-    let evaluator = FeatureFlagEvaluator::new(map);
+    let evaluator =
+        FeatureFlagEvaluator::new(map, std::sync::Arc::new(prism_core::OrgRegistry::new()));
 
     let write_paths = [
         "sensor.crowdstrike.containment",

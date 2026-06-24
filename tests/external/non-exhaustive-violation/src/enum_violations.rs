@@ -4,7 +4,10 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70 (18 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 46, 48, 60, 65, 70, 85 (19 total E0004 expected).
+//!
+//! S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 additions:
+//!   85. prism_mcp::resources::ExampleKind — enum, resources.rs (ADR-045 reference example classification)
 //!
 //! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
 //!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
@@ -342,5 +345,26 @@ pub fn v79_http_lookup_auth_type_match() {
         HttpLookupAuthType::BearerHeader => {}
         HttpLookupAuthType::ApiKeyHeader { .. } => {}
         // After S-DEMO-ENRICHMENT-PIVOT-002: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 85: prism_mcp::resources::ExampleKind exhaustive match (E0004).
+///
+/// `ExampleKind` classifies PQL usage examples for the 3-tier CI gate and for
+/// `build_reference_content` (ADR-045 §B). `#[non_exhaustive]` ensures new
+/// example tiers (e.g., `Temporal`, `SqlPipe`) can be added without requiring
+/// external `match` arms to be updated immediately.
+/// External callers MUST include `_ => {}`.
+///
+/// Added: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (resources.rs).
+#[allow(dead_code)]
+pub fn v85_example_kind_match() {
+    use prism_mcp::resources::ExampleKind;
+    let kind: ExampleKind = ExampleKind::Basic;
+    match kind {
+        ExampleKind::Basic => {}
+        ExampleKind::Advanced => {}
+        ExampleKind::Error => {}
+        // After S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

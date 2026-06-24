@@ -249,7 +249,10 @@ fn make_full_query_engine_with_registry(
 fn make_write_executor() -> WriteExecutor {
     use std::collections::BTreeMap;
 
-    let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
     let audit_writer: Arc<dyn AuditWriter> = Arc::new(NoOpAuditWriter);
     let adapter_registry = Arc::new(AdapterRegistry::new());
@@ -661,7 +664,10 @@ fn test_BC_2_22_001_step8_constructs_write_executor() {
     // Verify WriteExecutor::new() wires correctly with a populated Arc<WriteEndpointRegistry>.
     // Post-implementation: step8 must call this constructor (or equivalent) with
     // the Arc<WriteEndpointRegistry> populated from sensor specs.
-    let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
     let audit_writer: Arc<dyn AuditWriter> = Arc::new(NoOpAuditWriter);
     let adapter_registry = Arc::new(AdapterRegistry::new());

@@ -1860,7 +1860,10 @@ fn server_with_write_executor_acme_crowdstrike() -> prism_mcp::PrismServer {
     let mut client_map = BTreeMap::new();
     client_map.insert("acme".to_owned(), acme_caps);
 
-    let feature_flags = Arc::new(FeatureFlagEvaluator::new(client_map));
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+        client_map,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
     let audit_writer = Arc::new(NullAuditWriter);
     let adapter_registry = Arc::new(AdapterRegistry::new());
