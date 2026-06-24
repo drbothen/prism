@@ -2,7 +2,7 @@
 document_type: adr
 adr_id: "ADR-045"
 title: "Auto-Generated prismql://reference — Grammar-Registry Parity Gate via Runtime Assembly"
-status: proposed
+status: accepted
 date: "2026-06-24"
 version: "1.0"
 producer: architect
@@ -21,11 +21,13 @@ wiring_deferred_to: null
 
 ## Status
 
-PROPOSED v1.0 (2026-06-24). Architect decision following grammar usability audit
+ACCEPTED v1.1 (2026-06-24). Architect decision following grammar usability audit
 (GRAMMAR-008, GRAMMAR-009, GRAMMAR-011, GRAMMAR-017) and pre-flight audit
 (DISCOVERABILITY-GAP-001). Amends ADR-041 §L3 by specifying the generation strategy for
-`prismql://reference`. Human ratification required on the build-time vs runtime tradeoff
-(see §Human Ratification Gate). This ADR supersedes the static `pql_reference.md` file
+`prismql://reference`. Human ratification recorded 2026-06-24: HRG-3 HYBRID ratified
+(static Rust constants for grammar/operator sections + runtime assembly of the infusions
+section from the live registry + CI round-trip gate; build-time codegen rejected; see
+§Human Ratification Gate). This ADR supersedes the static `pql_reference.md` file
 approach implied by ADR-041 §L3 in favor of a hybrid model.
 
 ---
@@ -108,12 +110,29 @@ functions for your deployment."
 | Enrichment section | `InfusionRegistry` (live) | Runtime: iterate registered infusions, emit names + call signatures |
 | Query examples | Static, validated by CI gate | Static Rust string constant; each example is a string that MUST round-trip through `PrismQlParser::parse` |
 
-**D3 — CI parse-round-trip gate (the parity enforcer).** A unit test in
-`crates/prism-mcp/src/resources.rs` (or `crates/prism-query/tests/`) calls
-`build_reference_content(None)`, extracts all PQL code blocks (delimited by
-` ```\n…\n``` ` fences), and runs each non-placeholder example through
-`PrismQlParser::parse`. Any `PARSE_ERR` result is a test failure. This gate would have
-caught GRAMMAR-009 and GRAMMAR-011 mechanically. It must run in CI on every push.
+**D3 — CI round-trip gate (the parity enforcer).** The example strings that appear in
+the assembled reference are maintained as a **`&'static str` array constant** that is
+the single source of truth for examples — the doc and the test consume the *same* array,
+so a documented example physically cannot exist without being parse-tested. The gate has
+three complementary assertions:
+
+1. **Positive round-trip gate (catches GRAMMAR-009 / GRAMMAR-011 class):** for each
+   example in the array that is labeled as a positive example, assert it parses (and
+   plans, where planning is cheap/pure) through `PrismQlParser::parse`. Any `PARSE_ERR`
+   is a test failure.
+
+2. **Negative gate (ties to HRG-1 FORBID-BOTH, ADR-043 D4):** for each example in the
+   array that is labeled as an error example (e.g., the double-`limit` composed query
+   with both SQL `LIMIT` and `| limit`), assert it FAILS to plan with the documented
+   `E-QUERY-040` code. This keeps the pedagogical error examples honest and prevents the
+   forbid-both gate from being silently bypassed.
+
+3. **Registry-parity gate for the dynamic section:** a test that builds the reference's
+   infusions section from a known test registry and asserts the rendered UDF names and
+   call signatures exactly equal the registry's enumerated capabilities.
+
+This gate would have caught GRAMMAR-009 and GRAMMAR-011 mechanically. It must run in CI
+on every push.
 
 **D4 — Static sections are Rust string constants in `resources.rs`, not a `.md` file.**
 The `include_str!("pql_reference.md")` pattern is retired. All sections are inlined as
@@ -188,22 +207,37 @@ query session setup, not per query).
   resource will grow from ~6.5KB to an estimated ~12-16KB. This is acceptable (the
   resource is fetched on demand, not injected on every turn per ADR-041 §L3).
 
-### Status as of v1.0 (2026-06-24)
+### Status as of v1.1 (2026-06-24)
 
-PROPOSED. The static `pql_reference.md` continues to exist at current HEAD. This ADR
-gates the reference rewrite story.
+ACCEPTED. HRG-3 HYBRID ratified 2026-06-24 (see §Human Ratification Gate). The static
+`pql_reference.md` continues to exist at current HEAD. This ADR gates the reference
+rewrite story.
 
 ---
 
-## Human Ratification Gate
+## Human Ratification Gate — CLOSED (2026-06-24)
 
-**HRG-1 — Build-time vs runtime assembly:** The human should confirm that runtime
-assembly (Option B, D1) is acceptable versus build-time generation (Option A). The
-architect's recommendation is Option B because of the per-deployment infusion names
-requirement (D2). If the human prefers build-time generation with a runtime overlay for
-infusions, a hybrid approach is feasible: bake the grammar sections at build time, append
-the live infusion section at runtime. The functional outcome is identical; the difference
-is implementation complexity. The recommendation stands with Option B (pure runtime).
+**HRG-3 — Build-time vs runtime assembly (this gate's designation in the design map):
+RATIFIED — HYBRID (static constants + runtime infusions + CI gate).**
+
+The human ratified the HYBRID approach on 2026-06-24:
+- **Static Rust `&'static str` constants** for grammar/operator sections, co-located with
+  the Chumsky grammar in `crates/prism-query` (proximity reduces drift; PR review applies
+  as to production code).
+- **Runtime assembly** of the infusions section from the live `InfusionRegistry`
+  (mandatory because the per-deployment WASM plugin set varies and cannot be baked at
+  build time).
+- **CI parity gate** built on a **shared `&'static str` example table** (D3): the doc
+  and the test consume the same constant; every positive example round-trips through the
+  real parser; documented-error examples assert the correct E-QUERY code (including the
+  HRG-1 forbid-both E-QUERY-040 error); registry-parity gate for the infusions section.
+
+**Build-time codegen REJECTED.** Chumsky-as-grammar gives codegen no clean grammar
+artifact to derive from; the per-deployment registry makes a build-host snapshot wrong at
+runtime. Both flaws would reintroduce drift — the exact problem this ADR was designed to
+eliminate. Research basis:
+`.factory/research/prismql-composition-and-reference-research-2026-06-24.md` (HRG-3
+analysis; PRQL book compile-test pattern; Chumsky/DataFusion CI gate patterns).
 
 ---
 
@@ -222,6 +256,15 @@ is implementation complexity. The recommendation stands with Option B (pure runt
   attention boundary; (b) the file cannot include live infusion names; (c) new sections
   (enrichment, pipe modes, virtual fields) still need to be written into it, which is the
   same effort as writing Rust constants with the added risk of future drift.
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| v1.1 | 2026-06-24 | architect | HRG ratification burst. HRG-3: HYBRID ratified; D3 CI gate expanded to shared `&'static str` example array with positive round-trip gate + negative E-QUERY-040 gate + registry-parity gate; build-time codegen formally rejected. Status PROPOSED→ACCEPTED. Research basis: `.factory/research/prismql-composition-and-reference-research-2026-06-24.md`. |
+| v1.0 | 2026-06-24 | architect | Initial draft. PROPOSED. HRG-3 pending human ratification. |
 
 ---
 

@@ -2,7 +2,7 @@
 document_type: adr
 adr_id: "ADR-046"
 title: "Three-Mode Correctness — Filter / SQL / Pipe Mode-Bridge Error and Execution Validation"
-status: proposed
+status: accepted
 date: "2026-06-24"
 version: "1.0"
 producer: architect
@@ -21,11 +21,14 @@ wiring_deferred_to: null
 
 ## Status
 
-PROPOSED v1.0 (2026-06-24). Architect decision following grammar usability audit
+ACCEPTED v1.2 (2026-06-24). Architect decision following grammar usability audit
 (GRAMMAR-001, GRAMMAR-014, GRAMMAR-015, GRAMMAR-016) and pre-flight audit
 (BLOCKER-002, BLOCKER-003). Amends ADR-041 by specifying the mode-bridge error
-architecture and Filter mode execution validation requirement. No human ratification
-required — these are implementation decisions within established spec.
+architecture and Filter mode execution validation requirement. Human ratifications
+recorded 2026-06-24: HRG-4/MAJOR-001 ruling is Path B — `list_capabilities` consults
+the authoritative `OrgRegistry` for org existence; D7 mode composition boundary ruling —
+Filter is bare-predicate sugar, only SQL→Pipe composes, pipe is the canonical execution
+model (see §Decision D7 and §Changelog).
 
 ---
 
@@ -157,6 +160,66 @@ The architect does NOT specify the fix for BLOCKER-003 — it requires implement
 investigation. The BC for `query_tutorial` is BC-2.10.009 §query_tutorial; the
 implementer must verify the fix makes that BC's postcondition true.
 
+**D7 — Mode Composition Boundary: Filter is sugar; only SQL→Pipe composes.**
+
+The three parse modes are NOT equivalent in syntactic scope — they have a strict
+expressiveness hierarchy, and only ONE syntactic composition path is supported:
+
+1. **Filter mode is bare-predicate sugar.** Its expressive power is a strict subset of
+   SQL and Pipe modes. A filter-mode predicate (`severity = 'HIGH'`) is semantically
+   identical to a SQL `WHERE p` or a pipe `| where p`. Filter mode adds no capability
+   that either of the other two modes lacks.
+
+2. **The ONLY supported syntactic composition is SQL→Pipe** (per ADR-043 D1–D6). There
+   is NO three-way composition (filter + SQL + pipe). Concatenating a bare filter
+   predicate onto a `SELECT … FROM … | …` composed query is rejected at plan time:
+   - If the predicate appears as a trailing bare term, it is either redundant
+     (semantically identical to the WHERE/`| where` already present) or has no defined
+     meaning adjacent to SELECT/FROM. Neither case should silently succeed.
+   - The plan-time rejection message should redirect to the supported forms.
+
+3. **Canonical mental model:** Pipe is the single underlying EXECUTION model. SQL and
+   Filter are two sugar ENTRY syntaxes that lower into it. Filter mode lowers to the
+   same predicate AST used by `WHERE` / `| where`. The predicate grammar is SHARED
+   across all three modes — one predicate parser, three entry points. A predicate that
+   parses in Filter mode parses identically in SQL `WHERE` and pipe `| where`.
+
+4. **Requirements that follow from this model:**
+   - One shared predicate grammar consumed by Filter, SQL, and Pipe modes.
+   - A clean "graduation" path: a filter-mode query (`severity = 'HIGH'`) can be
+     escalated to a pipe query by adding `FROM <table> | where <predicate> | …` — the
+     predicate grammar is unchanged, only the entry syntax changes.
+   - The mode-bridge error (D1) fires on a half-graduated query (e.g., a bare predicate
+     adjacent to `SELECT` without a `|` prefix), directing the user to the correct form.
+
+**Rationale:** Filter mode contributes nothing that SQL or Pipe cannot express. Collapsing
+the conceptual model to "pipe is canonical execution; SQL and filter are syntactic sugar
+that lower into it" kills the mode-mixing foot-gun at its root — analysts learn ONE
+execution model with two alternative entry syntaxes rather than three separate languages
+with different rules. The shared predicate grammar enforces this at the parser level.
+
+**MAJOR-001 ruling — Path B: `list_capabilities` consults `OrgRegistry` (HRG-4,
+2026-06-24).** The `client_exists()` check in `feature_flag.rs` is modified to consult
+the authoritative `OrgRegistry` (populated from spec overlays per ADR-006/ADR-029) for
+basic org existence, independently of `prism.toml` `[clients.*.capabilities]`
+write-capability config entries. This decouples org-registration discovery from
+write-capability provisioning, which is the correct semantic per ADR-006 (org existence
+is determined by spec overlay registration, not by write-capability config).
+
+**Path A (add `[clients.org-*]` entries to `prism.toml` or `demo-setup.sh`) is
+explicitly rejected.** Path A would hard-code the client registration check to a
+config-file side-channel that is not the authoritative source of truth for org
+registration. It is a demo-expedient workaround that would paper over the architectural
+misalignment and require re-visiting the same issue whenever a client is provisioned via
+spec overlays without explicit `prism.toml` entries. Under the production-grade default,
+the correct mechanism is implemented now.
+
+**Implementation note:** The `FeatureFlagEvaluator` currently holds the
+`client_capabilities` map (populated from `prism.toml` at construction). It needs access
+to the `OrgRegistry` to implement Path B. The wiring is:
+`FeatureFlagEvaluator::new(client_capabilities, org_registry: Arc<OrgRegistry>)` —
+adding the `OrgRegistry` dependency follows the Arc-DI wiring contract (ADR-022 §C).
+
 ---
 
 ## Rationale
@@ -203,10 +266,12 @@ implementer must verify the fix makes that BC's postcondition true.
 - D6 requires implementer investigation time before a fix can be designed; this blocks
   BLOCKER-003 resolution until the root cause is established.
 
-### Status as of v1.0 (2026-06-24)
+### Status as of v1.1 (2026-06-24)
 
-PROPOSED. BLOCKER-003 fix is blocked pending implementer investigation per D6.
-Mode-bridge error (D1/D2/D3) and Filter mode tests (D4) are implementable immediately.
+ACCEPTED. HRG-4/MAJOR-001 ruling: Path B (`list_capabilities` consults `OrgRegistry`)
+ratified 2026-06-24. BLOCKER-003 fix is blocked pending implementer investigation per D6.
+Mode-bridge error (D1/D2/D3), Filter mode tests (D4), and MAJOR-001 Path B wiring are
+implementable immediately.
 
 ---
 
@@ -223,6 +288,16 @@ Mode-bridge error (D1/D2/D3) and Filter mode tests (D4) are implementable immedi
   `is_pipe_mode` and the pre-parse layer would duplicate it. The correct place for the
   mode-bridge diagnostic is the post-parse error handler where we know both (a) which
   mode was selected and (b) where the parse failed.
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| v1.2 | 2026-06-24 | architect | D7 mode composition boundary ruling added: Filter is bare-predicate sugar (strict subset of SQL/Pipe); only SQL→Pipe syntactic composition is supported (ADR-043); pipe is the canonical execution model; SQL and Filter are sugar entry syntaxes that lower into it; shared predicate grammar across all three modes; three-way composition rejected; graduation path Filter→Pipe documented. |
+| v1.1 | 2026-06-24 | architect | HRG ratification burst. HRG-4/MAJOR-001: Path B ratified; MAJOR-001 ruling section added to §Decision (list_capabilities consults OrgRegistry via Arc-DI wiring; Path A rejected). Status PROPOSED→ACCEPTED. |
+| v1.0 | 2026-06-24 | architect | Initial draft. PROPOSED. No human ratification gate (all decisions within established spec), but MAJOR-001 fix path choice deferred for human selection. |
 
 ---
 

@@ -2,7 +2,7 @@
 document_type: adr
 adr_id: "ADR-043"
 title: "True SQL→Pipe Composition — SELECT … FROM t | stage Head-Lowers to Pipe Source"
-status: proposed
+status: accepted
 date: "2026-06-24"
 version: "1.0"
 producer: architect
@@ -21,11 +21,11 @@ wiring_deferred_to: null
 
 ## Status
 
-PROPOSED v1.0 (2026-06-24). Architect decision following grammar usability audit
+ACCEPTED v1.1 (2026-06-24). Architect decision following grammar usability audit
 `.factory/research/prismql-grammar-usability-audit-2026-06-24.md` (GRAMMAR-001,
 GRAMMAR-009, GRAMMAR-014) and human direction to implement full Option 2 (true
-SQL→pipe composition). Human ratification required before implementation (see §Human
-Ratification Gate below).
+SQL→pipe composition). Human ratification recorded 2026-06-24: HRG-1 ruling is
+FORBID-BOTH (see §Decision D4 and §Changelog).
 
 ---
 
@@ -89,12 +89,40 @@ set through the `PipeStage` sequence exactly as `Ast::Pipe` does today. This reu
 entire existing pipe execution path (including the `enrich` UDF dispatch and `stats`/
 `dedup`/`fields` pipeline) with zero new execution logic.
 
-**D4 — Constraint: SQL head LIMIT and pipe `| limit` interact.** If the SQL head has a
-`LIMIT N` clause AND the pipe stage sequence contains a `| limit M`, the pipe limit takes
-precedence (the SQL head limit applies to the intermediate result, the pipe limit applies
-to the final output). This is documented in the reference and in the error-recovery layer.
-The execution lowering must apply SQL head LIMIT first (to cap the fan-out result set)
-before pipe stages process it.
+**D4 — Constraint: SQL head LIMIT and pipe `| limit` are mutually exclusive (HRG-1
+FORBID-BOTH ruling, 2026-06-24).** A composed query MAY NOT specify both a SQL `LIMIT N`
+clause in the head AND a `| limit M` pipe stage in the tail. Doing so produces a
+plan-time pedagogical error:
+
+```
+E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT N` in
+the head and a `| limit M` pipe stage. PrismQL requires exactly one row cap. Remove the
+SQL `LIMIT N` and place a single `| limit` at the end of the pipeline (recommended for
+composed queries), or use `LIMIT` only in pure SQL-mode queries.
+```
+
+This is a **plan-time rejection** (after parse, during logical planning), not a
+parse-time error — the grammar accepts the construct so the error can be semantic and
+specific rather than a generic syntax error. The error code E-QUERY-040 is allocated here;
+the full error-taxonomy row (MCP mapping, `ParseErrorDetails` subtype, and BC postcondition)
+is authored by the product-owner. The canonical form for a composed query with a row cap
+is a single tail `| limit`, e.g. `SELECT cols FROM t | enrich fn(c) | limit N`.
+
+**Rationale for FORBID-BOTH over pipe-wins:** Every cross-language precedent (GoogleSQL
+pipe syntax, PRQL, KQL, Splunk SPL, Spark) structurally avoids placing two caps at the
+same syntactic level — they compose caps across subquery boundaries where nesting makes
+intent unambiguous. Prism's composed form deliberately places a SQL-clause `LIMIT` and a
+pipe `| limit` at the same level with no nesting, which is exactly the ambiguous construct
+mature languages avoid by design. For a pedagogical DSL consumed by AI agents, a clear
+plan-time error trains the correct idiom; silent composition (pipe-wins) trains agents
+that redundant caps are acceptable. FORBID-BOTH is also the reversible choice:
+forbid→permit is non-breaking; permit→forbid would be a breaking change.
+
+The only acceptable future relaxation is **pipe-wins** (option b) — SQL head `LIMIT`
+becomes an intermediate cap; pipe `| limit` is the final cap. This relaxation is
+non-breaking and may be adopted in a later cycle if operational evidence shows the
+pedagogical error is overly restrictive. **SQL-wins has zero precedent and contradicts
+the pipe-operator design ethos; it must never be adopted.**
 
 **D5 — Mode detection update:** `is_pipe_mode` in `filter_parser.rs` currently returns
 `true` only if the query does NOT start with `SELECT` AND contains `|` + pipe-keyword. It
@@ -172,17 +200,19 @@ True SQL→pipe composition is the correct answer because:
   in `engine.rs` (execution) and any other `Ast` match sites in `prism-query` — these are
   small, bounded changes given the `#[non_exhaustive]` attribute already enforces wildcard
   arms on external consumers.
-- D4 (SQL head LIMIT + pipe `| limit` interaction) needs a spec and test; without it,
-  the limit semantics are ambiguous.
+- D4 (FORBID-BOTH dual-LIMIT) requires an E-QUERY-040 plan-time rejection path and a
+  negative-gate test in the CI round-trip suite (asserts the double-cap form fails with
+  E-QUERY-040). The full error-taxonomy row is product-owner scope.
 - A new BC for `Ast::SqlPipe` is required (product-owner deliverable).
 - This is a grammar extension with security implications: the new `parse_sql_pipe` path
   must be covered by the same security checks as `parse_sql` and `parse_pipe` (size
   limits, depth limits, injection defense via `scan_inputs_audited`).
 
-### Status as of v1.0 (2026-06-24)
+### Status as of v1.1 (2026-06-24)
 
-PROPOSED. Human ratification required (see §Human Ratification Gate). Not yet implemented.
-The existing `Ast::Sql` and `Ast::Pipe` paths are unaffected at current HEAD.
+ACCEPTED. HRG-1 ratified FORBID-BOTH (2026-06-24); HRG-2 confirmed Option 2 over
+Option 1. Not yet implemented. The existing `Ast::Sql` and `Ast::Pipe` paths are
+unaffected at current HEAD.
 
 ---
 
@@ -193,7 +223,7 @@ The existing `Ast::Sql` and `Ast::Pipe` paths are unaffected at current HEAD.
   Rejected because: (a) the reference already documents the composed form as true —
   Option 1 requires retracting that documentation; (b) it puts the cognitive burden on
   the analyst to manually rewrite their intuitive query; (c) it leaves the mode-split as
-  a permanent foot-gun. Option 1's mode-bridge error is still produced by ADR-044 as a
+  a permanent foot-gun. Option 1's mode-bridge error is still produced by ADR-046 as a
   complementary measure for the residual case where `|` appears in a non-composition
   context.
 
@@ -204,20 +234,42 @@ The existing `Ast::Sql` and `Ast::Pipe` paths are unaffected at current HEAD.
   zero new capability; (c) SQL-literate analysts find `SELECT … FROM …` more readable
   for simple projections; (d) breaking change with high blast radius.
 
+- **D4 alternative: pipe-wins (SQL head LIMIT = intermediate cap, pipe `| limit` = final
+  cap, both silently composed):** This is the behavior observed across GoogleSQL pipe
+  syntax, PRQL, KQL, Splunk SPL, and Spark — all model caps as compositional unary
+  operators. It was the architect's original recommendation (v1.0) and was demoted by
+  HRG-1 human ratification. It remains the **only acceptable future relaxation** of the
+  FORBID-BOTH ruling: if operational evidence shows FORBID-BOTH is overly restrictive,
+  pipe-wins may be adopted without breaking existing valid queries (forbid→permit is
+  non-breaking). No other LIMIT-precedence alternative is acceptable — SQL-wins has zero
+  precedent in any researched language and is permanently ruled out.
+
 ---
 
-## Human Ratification Gate
+## Human Ratification Gate — CLOSED (2026-06-24)
 
-The following decisions require human sign-off before implementation begins:
+Both gates ratified by the human on 2026-06-24.
 
-**HRG-1 — SQL head LIMIT + pipe `| limit` interaction (D4):** When both `SELECT … FROM t
-LIMIT 100 | stats count() BY field` and `SELECT … FROM t | stats count() BY field | limit 5`
-are valid, what is the canonical execution order and the semantics when both limits are
-present? This is a product decision about operator precedence, not a purely technical one.
+**HRG-1 — SQL head LIMIT + pipe `| limit` interaction (D4): RATIFIED — FORBID-BOTH.**
+A composed query MAY NOT specify both a SQL `LIMIT` clause in the head and a `| limit`
+pipe stage in the tail; doing so is a plan-time pedagogical error (E-QUERY-040). This
+overrides the architect's original recommendation (pipe-wins). See D4 and §Alternatives
+Considered for the complete rationale. Research basis:
+`.factory/research/prismql-composition-and-reference-research-2026-06-24.md` (HRG-1
+analysis; GoogleSQL pipe syntax / PRQL / Kusto / Splunk / Spark cross-language verdict).
 
-**HRG-2 — Confirmation of Option 2 over Option 1:** The human has verbally directed Option
-2 during the audit review session. This ADR formalizes that direction. The implementer
-may proceed after human LGTM on this ADR.
+**HRG-2 — Confirmation of Option 2 over Option 1: RATIFIED — Option 2 confirmed.**
+The human directed full SQL→pipe composition (Option 2) during the audit review session.
+Formalized here for traceability. Implementation may proceed.
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| v1.1 | 2026-06-24 | architect | HRG ratification burst. HRG-1: FORBID-BOTH ruling recorded; D4 rewritten from pipe-wins to plan-time E-QUERY-040 rejection; pipe-wins demoted to Considered Alternatives as only acceptable future relaxation. HRG-2: Option 2 confirmed. Status PROPOSED→ACCEPTED. Research basis: `.factory/research/prismql-composition-and-reference-research-2026-06-24.md`. |
+| v1.0 | 2026-06-24 | architect | Initial draft. PROPOSED. HRG-1 and HRG-2 pending human ratification. |
 
 ---
 
