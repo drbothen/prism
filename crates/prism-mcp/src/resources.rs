@@ -856,7 +856,7 @@ pub async fn render_client_sensors_resource(
     }
 
     let entries: Vec<SensorConfigEntry> = if let Some(spec_map) = resolved_spec_map {
-        // ── Per-org path (IMP-8 / DI-008 / BC-2.10.008+v1.9) ───────────────
+        // ── Per-org path (IMP-8 / DI-008 / BC-2.10.008) ───────────────────
         // Validate that the org is registered when org_registry is available.
         // An unregistered org returns a 404-equivalent error.
         if let Some(reg) = org_registry {

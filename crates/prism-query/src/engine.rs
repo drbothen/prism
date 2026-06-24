@@ -667,7 +667,8 @@ impl QueryEngine {
 
     /// Wire an optional `ConfirmationTokenStore` for `token_count()` (BC-2.08.005 RECONCILIATION-3).
     ///
-    /// Called by `PrismServer::with_deps` when the write pipeline is active.
+    /// Called by `boot.rs::step9_start_mcp_server` via the `QueryEngine::new_full` chain
+    /// when the write pipeline is active.
     pub fn with_token_store(mut self, store: Arc<prism_security::ConfirmationTokenStore>) -> Self {
         self.token_store = Some(store);
         self

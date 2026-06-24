@@ -38,7 +38,8 @@ const MAX_ERROR_LEN: usize = 512;
 ///
 /// Applies two transformations:
 /// 1. Truncates to `MAX_ERROR_LEN` characters (prevents context-stuffing).
-/// 2. Replaces control characters with spaces (prevents ANSI/control-char injection).
+/// 2. Replaces control characters with spaces (prevents ANSI/control-char injection,
+///    including Unicode control chars U+0085/U+2028/U+2029; SEC-001/CWE-116).
 ///
 /// The result is safe for inclusion in AI agent-consumed health output.
 fn sanitize_error(raw: &str) -> String {
@@ -53,7 +54,11 @@ fn sanitize_error(raw: &str) -> String {
     capped
         .chars()
         .map(|c| {
-            if c.is_ascii() && c.is_ascii_control() {
+            // Strip Unicode control chars (Cc category via is_control()) AND the two Unicode
+            // line/paragraph separators U+2028 / U+2029 (category Zl/Zp) which Rust's
+            // is_control() does not cover but which act as injection vectors in LLM context.
+            // SEC-001 / CWE-116.
+            if c.is_control() || c == '\u{2028}' || c == '\u{2029}' {
                 ' '
             } else {
                 c
@@ -202,34 +207,24 @@ async fn probe_connectivity_inner(
     // F-S504-P1-003: when org_id is nil (single-tenant sentinel from server.rs), fall back to
     // get_all_for_sensor() to locate the sole registered adapter without requiring an OrgId.
     // Multi-tenant callers always pass a real resolved OrgId; nil is never a valid tenant UUID.
-    let adapter = if org_id.as_uuid().is_nil() {
-        // Single-tenant fallback: find the first adapter registered for this sensor.
-        registry
+    //
+    // NIT-2: destructure (oid, adapter) from a single get_all_for_sensor() call so we do not
+    // pay for two full registry scans in the single-tenant fallback path.
+    let (adapter, actual_org_id) = if org_id.as_uuid().is_nil() {
+        // Single-tenant fallback: one call, capture both the adapter and its registered org_id.
+        let (oid, adapter) = registry
             .get_all_for_sensor(sensor_id)
             .into_iter()
             .next()
-            .map(|(_, a)| a)
+            .map(|(oid, a)| (oid, Some(a)))
+            .unwrap_or((org_id, None));
+        (adapter, oid)
     } else {
-        registry.get(org_id, sensor_id)
+        (registry.get(org_id, sensor_id), org_id)
     };
 
     let (adapter, actual_org_id) = match adapter {
-        Some(a) => {
-            // Recover the org_id to build the correct SensorSpec.
-            // For nil sentinel, get_all_for_sensor already gave us the adapter above;
-            // re-query to get the org_id for the SensorSpec (avoids a second allocation path).
-            let resolved_org = if org_id.as_uuid().is_nil() {
-                registry
-                    .get_all_for_sensor(sensor_id)
-                    .into_iter()
-                    .next()
-                    .map(|(oid, _)| oid)
-                    .unwrap_or(org_id)
-            } else {
-                org_id
-            };
-            (a, resolved_org)
-        }
+        Some(a) => (a, actual_org_id),
         None => {
             // No adapter registered — treat as Down (sensor not configured)
             return Ok(ProbeOutcome {
@@ -352,3 +347,73 @@ async fn probe_connectivity_inner(
 // BC-5.38.005 self-check (S-5.04 implementation complete):
 // probe_connectivity — non-trivial (adapter lookup + single-tenant fallback, fetch, latency
 //   measurement, RateLimited arm, sanitize_error). IMPLEMENTED.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // SEC-001 / CWE-116: sanitize_error must strip ALL Unicode control characters,
+    // not just ASCII control characters.  The original guard `c.is_ascii() &&
+    // c.is_ascii_control()` allowed U+0085 (NEL), U+2028 (LINE SEPARATOR), and
+    // U+2029 (PARAGRAPH SEPARATOR) to pass through into the LLM-agent-consumed MCP
+    // health response (prompt-injection surface).
+    #[test]
+    fn test_sanitize_error_strips_unicode_control_chars() {
+        // All four of these chars are Unicode "control" category and must be replaced.
+        let nel = '\u{0085}'; // NEL — Next Line
+        let ls = '\u{2028}'; // LINE SEPARATOR
+        let ps = '\u{2029}'; // PARAGRAPH SEPARATOR
+        let lf = '\n'; // ASCII control (must still be stripped)
+
+        let raw = format!("before{nel}middle{ls}end{ps}tail{lf}fin");
+        let sanitized = sanitize_error(&raw);
+
+        // None of the control chars should survive.
+        assert!(
+            !sanitized.contains(nel),
+            "U+0085 NEL must be stripped; got: {sanitized:?}"
+        );
+        assert!(
+            !sanitized.contains(ls),
+            "U+2028 LINE SEPARATOR must be stripped; got: {sanitized:?}"
+        );
+        assert!(
+            !sanitized.contains(ps),
+            "U+2029 PARAGRAPH SEPARATOR must be stripped; got: {sanitized:?}"
+        );
+        assert!(
+            !sanitized.contains(lf),
+            "\\n ASCII control must be stripped; got: {sanitized:?}"
+        );
+
+        // Normal printable ASCII must survive intact.
+        assert!(
+            sanitized.contains("before"),
+            "printable text must survive; got: {sanitized:?}"
+        );
+        assert!(
+            sanitized.contains("middle"),
+            "printable text must survive; got: {sanitized:?}"
+        );
+    }
+
+    // Verify the 512-char cap is still honoured after the Unicode-control fix.
+    #[test]
+    fn test_sanitize_error_cap_still_enforced() {
+        let long = "x".repeat(1000);
+        let result = sanitize_error(&long);
+        assert_eq!(
+            result.chars().count(),
+            MAX_ERROR_LEN,
+            "sanitize_error must cap at MAX_ERROR_LEN chars"
+        );
+    }
+
+    // Normal printable non-ASCII (e.g. accented letters) must pass through.
+    #[test]
+    fn test_sanitize_error_preserves_printable_unicode() {
+        let input = "café résumé naïve";
+        let result = sanitize_error(input);
+        assert_eq!(result, input, "printable non-ASCII must be preserved");
+    }
+}
