@@ -1,0 +1,120 @@
+---
+document_type: behavioral-contract
+level: L3
+version: "1.0"
+status: draft
+producer: product-owner
+timestamp: 2026-06-24T00:00:00Z
+phase: 1a
+origin: greenfield
+subsystem: "SS-10"
+capability: "CAP-034"
+lifecycle_status: active
+introduced: demo-readiness-2026-06-24
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
+inputs:
+  - ".factory/specs/domain-spec/capabilities.md"
+  - ".factory/specs/architecture/decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md"
+input-hash: "TBD"
+traces_to: ["CAP-034"]
+extracted_from: null
+---
+
+# BC-2.10.016: MCP Prompts Fast-Return Guarantee — No Indefinite Hang
+
+## Description
+
+All registered MCP prompts (`triage_alerts`, `investigate_host`, `client_overview`, `cross_client_status`, `query_tutorial`) MUST return a prompt response within 5 seconds of the `prompts/get` request arriving at the MCP server. Prompt render functions (`render_query_tutorial`, `render_investigate_host`, etc.) are synchronous pure functions and return immediately; any hang observed is in the `PromptRouter` dispatch layer or `#[prompt_handler]` macro expansion. This contract defines the observable time-bounded postcondition that the implementer must verify after fixing BLOCKER-003.
+
+## Preconditions
+
+- A `prompts/get` request arrives with a valid prompt name (one of the registered prompts per BC-2.10.009)
+- Prompt arguments are provided as required by the prompt's argument schema (e.g., `client_id` for `query_tutorial`, `client_id` + `hostname` for `investigate_host`)
+
+## Postconditions
+
+- The `prompts/get` response is returned within **5 seconds** of request receipt (wall clock), under normal operating conditions
+- The response contains the prompt message array with the correct textual content per BC-2.10.009
+- The MCP server is NOT blocked for other tool/resource requests while a prompt is being served (no lock held across prompt dispatch)
+- Prompt response time is **independent of** any blocked audit channel, in-flight query execution, or tool dispatch lock
+
+## Invariants
+
+- Prompt render functions (`render_*` in `prompts.rs`) are and remain **synchronous pure functions** — they take parameter values and return `String` or `GetPromptResult`; they do NOT await, lock, or block
+- The `PromptRouter` dispatch infrastructure MUST NOT hold any lock that is also held by the tool router or any other MCP server handler during prompt resolution
+- **INV-PROMPT-NO-SHARED-LOCK:** There is no shared mutex between prompt dispatch and tool dispatch. The rmcp 1.7 `PromptRoute::new_dyn` closure MUST NOT capture any `Arc<Mutex<…>>` that is also held during tool execution.
+- **INV-PROMPT-REQUIRED-ARGS:** For prompts with required arguments (`investigate_host.hostname`), the dispatch machinery MUST either: (a) return the prompt with the argument value substituted, OR (b) return a structured MCP error indicating the missing argument — it MUST NOT hang while waiting for the argument to arrive.
+
+## Error Cases
+
+| Error | Condition | Behavior |
+|-------|-----------|----------|
+| Standard MCP error | Prompt name is unknown | Standard MCP error per BC-2.10.009 — returns within 5 seconds |
+| Standard MCP error | Required argument missing from `prompts/get` request | Returns structured MCP error within 5 seconds; does NOT hang |
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-10-016-001 | `prompts/get query_tutorial` with `client_id` provided but `goal` absent (optional arg) | Returns prompt without goal context within 5 seconds; `goal` substituted with empty/default |
+| EC-10-016-002 | `prompts/get investigate_host` with `client_id` and `hostname` provided | Returns prompt within 5 seconds |
+| EC-10-016-003 | `prompts/get investigate_host` with `hostname` argument MISSING | Returns structured MCP error within 5 seconds; MUST NOT hang |
+| EC-10-016-004 | Prompt dispatch concurrent with a long-running `query` tool execution | Prompt returns within 5 seconds regardless of in-flight query state |
+
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `prompts/get query_tutorial` with `client_id: "org-c"` | Prompt message array within 5s; no hang | happy-path |
+| `prompts/get investigate_host` with `client_id: "org-c"`, `hostname: "host-001"` | Prompt message array within 5s; no hang | happy-path |
+| `prompts/get triage_alerts` with `client_id: "org-c"` | Prompt message array within 5s | happy-path |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| (none allocated) | Prompt returns within 5s | integration test (timing assertion against MCP server) |
+
+## Related BCs
+
+- **BC-2.10.009** (extends — MCP Prompts for Common Workflows): this BC adds the fast-return time-bound guarantee and the no-hang invariant to the prompt registration contract
+
+## Architecture Anchors
+
+- `crates/prism-mcp/src/prompts.rs` — `render_query_tutorial`, `render_investigate_host`, etc. (confirmed synchronous pure functions)
+- `crates/prism-mcp/src/prompts.rs` lines 247–300 — `PromptRoute::new_dyn` closures (candidate hang sites per ADR-046 D6)
+- `crates/prism-mcp/src/server.rs` or equivalent — `#[prompt_handler]` macro expansion (root cause investigation target per ADR-046 D6)
+- ADR-046 D6: BLOCKER-003 investigation protocol
+
+## Story Anchor
+
+TBD
+
+## VP Anchors
+
+(none allocated; timing test is integration test scope)
+
+## Traceability
+
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-034 |
+| Capability Anchor Justification | CAP-034 ("MCP Server & Transport") per capabilities.md §CAP-034 — this BC governs the prompt dispatch behavior of the `PrismServer`. CAP-034 explicitly describes "MCP prompts for common analyst workflows" registered in `prompts/list` and the server's response infrastructure. The fast-return guarantee is a property of the MCP server's prompt routing layer. |
+| L2 Invariants | DI-004 (audit completeness does NOT apply to prompt dispatch — prompts are not tool invocations) |
+| Priority | P0 |
+| Closes findings | BLOCKER-003 (`query_tutorial` and `investigate_host` prompts hang indefinitely) |
+| ADR traces | ADR-046 D6 (BLOCKER-003 investigation protocol) |
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 D6. Closes BLOCKER-003. Implementer must investigate `#[prompt_handler]` macro expansion + `PromptRoute::new_dyn` closure before fixing. |

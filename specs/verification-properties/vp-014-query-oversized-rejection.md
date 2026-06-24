@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.6"
+version: "1.7"
 status: verified
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -45,6 +45,7 @@ Chumsky.
 
 - **Anchor Story:** `S-3.01`
 - **Source BC:** BC-2.11.006 — Query Security Limits Enforcement
+- **Also cited by:** BC-2.11.020 (SQL→Pipe Composition — applies same 64KB size limit + 32-stage limit to composed queries, DI-019)
 - **Module:** prism-query
 - **Category:** Security
 
@@ -105,6 +106,7 @@ Chumsky.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.7 | demo-readiness-2026-06-24 | 2026-06-24 | state-manager | POL-9 back-link: BC-2.11.020 cites this VP (SQL→Pipe Composition — composed queries subject to same 64KB size limit per DI-019). Added "Also cited by" note to §Source Contract. No property semantics changed. |
 | 1.6 | pr-127-pass4-remediation | 2026-05-05 | architect | Property statement corrected to match actual `ParseError` struct API (returns `Err(Vec<ParseError>)` with `message` containing `E-QUERY-003`). Replaces incorrect `ParseError::QueryTooLarge` enum-variant reference identified by adversary pass-4 (F-MEDIUM-001). Verification lock retained — Kani proof at f5212641 covers `check_query_size` gate-level property; structural composition argument unchanged. Proof harness skeleton comment updated to match corrected return type. |
 | 1.5 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 promoted to verified. Real Kani harness `proof_check_query_size_rejects_oversize` lands in commit f5212641 (PR #127). Replaces prior `assert(true)` stub. Verification successful: 0 of 4371 failed (285 unreachable). Property: gate-level (`check_query_size`) + structural composition (parser calls gate first) + dynamic boundary test. Cross-ref: VP-INDEX v1.28 VP-014 row promoted to verified; verification-architecture.md v1.29 Provable Properties Catalog updated. |
 | 1.4 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-3.01-prismql-parser.md) to pure ID (S-3.01). |

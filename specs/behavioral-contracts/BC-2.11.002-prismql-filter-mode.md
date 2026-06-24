@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -82,6 +82,16 @@ Filter mode is the default query mode: it activates when a query does not start 
 | 65 levels of nested `( ... )` | `Err(E-QUERY-003)` nesting depth exceeded | error |
 | `severity matches '(a+)+'` | `Err(E-QUERY-001)` invalid regex at parse time | error |
 
+## Execution Validation Requirements (ADR-046 D4)
+
+Filter mode execution is UNVERIFIED unless the following two integration tests exist and pass:
+
+1. **`test_filter_mode_simple_predicate`**: executes `severity='HIGH'` as `Ast::Filter` against a mocked or DTU sensor source via `QueryEngine::execute`; asserts rows matching the predicate are returned and rows NOT matching are absent.
+
+2. **`test_filter_mode_with_source`**: executes a source-qualified filter (e.g., `crowdstrike_detections | severity='HIGH'`) via `QueryEngine::execute`; asserts correct row filtering.
+
+Both tests MUST use `QueryEngine::execute`, not just `PrismQlParser::parse`. Parse-only tests do NOT satisfy the execution validation requirement.
+
 ## Verification Properties
 
 | VP ID | Property | Proof Method |
@@ -100,6 +110,7 @@ Filter mode is the default query mode: it activates when a query does not start 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | AMENDMENT: added §Execution Validation Requirements (ADR-046 D4). Filter mode execution was UNVERIFIED — parse-only tests do not satisfy BC-2.11.002 which specifies "Filter mode predicates are applied to the sensor data source." Two mandatory integration tests added: `test_filter_mode_simple_predicate` and `test_filter_mode_with_source`, both using `QueryEngine::execute`. Closes ADR-046 D4 obligation. BC-2.11.023 governs the D7 shared-predicate-grammar invariant as a companion constraint. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
