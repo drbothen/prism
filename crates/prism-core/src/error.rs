@@ -351,7 +351,7 @@ pub enum PrismError {
     /// - **E-FLAG-002 (compile tier)** — produced from
     ///   `CapabilityCheckResult::DeniedCompileTime`: no `[[write_endpoints]]`
     ///   declaration for the capability in the sensor's TOML spec
-    ///   (registry-derived per BC-2.04.001 v1.2 / BC-2.16.012).
+    ///   (registry-derived per BC-2.04.001 / BC-2.16.012).
     ///
     /// The `resolution_trace` is a BTreeMap-derived ordered list of path→effect
     /// pairs showing how the denial was reached.
@@ -384,7 +384,7 @@ pub enum PrismError {
     // production emitters (constructed only in its own pinning tests).
     // E-FLAG-002 is the COMPILE-TIER capability denial carried by
     // `CapabilityDenied` (via `CapabilityCheckResult::DeniedCompileTime`) per
-    // error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 / BC-2.04.001 v1.2.
+    // error-taxonomy E-FLAG-002 row / BC-2.04.015 / BC-2.04.001.
     /// E-FLAG-010: Feature flag evaluation error.
     #[error("E-FLAG-010: feature flag evaluation error for {flag}: {detail}")]
     FeatureFlagEvalError { flag: String, detail: String },
@@ -1350,6 +1350,19 @@ pub enum SpecErrorCode {
     /// BC-2.16.009 §Validation Rules 7 (AC-7); S-SPEC-HTTP-METHOD-VALIDATION-001.
     /// error-taxonomy.md E-SPEC-025.
     ESpec025,
+    /// E-SPEC-026: `probe_table` names a table not present in the sensor spec's `[[tables]]` blocks.
+    ///
+    /// Emitted by `SpecLoader::parse()` Rule 8 when `spec.probe_table` is `Some(name)` but no
+    /// `[[tables]]` block has `table_name = name`.
+    ///
+    /// Error message template (probe-table-field-design.md §1, BC-2.16.009 Rule 8):
+    ///   "sensor '{sensor_id}' declares probe_table = '{name}' but no [[tables]] block
+    ///    has table_name = '{name}'. Declared tables: [{table_list}]. Remove probe_table
+    ///    or add a matching [[tables]] block."
+    ///
+    /// BC-2.08.001 Error Cases E-SPEC-026; BC-2.16.009 Validation Rule 8.
+    ///
+    ESpec026,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,

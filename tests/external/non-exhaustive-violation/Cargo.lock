@@ -4284,12 +4284,14 @@ dependencies = [
  "prism-security",
  "prism-sensors",
  "prism-spec-engine",
+ "prism-storage",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-82 (57 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-84 (58 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -413,9 +413,10 @@ use prism_mcp::safety_envelope::{
     SafetyFlagSchema, StructuredContent,
 };
 // S-5.03 F-007: 6 new #[non_exhaustive] pub types from prism_mcp::resources
+// S-5.04 F-S504-P5-002: HealthSummary added (summary_counts shape for check_sensor_health)
 use prism_mcp::{
-    ClientInventoryEntry, RateLimitInfo, ResourcePressure, SensorConfigEntry, SensorHealthResult,
-    SensorHealthStructuredContent,
+    ClientInventoryEntry, HealthSummary, RateLimitInfo, ResourcePressure, SensorConfigEntry,
+    SensorHealthResult, SensorHealthStructuredContent,
 };
 
 /// Violation 37: prism_mcp::safety_envelope::ResponseMeta struct literal (E0639).
@@ -860,7 +861,7 @@ pub fn v61_multi_instance_servers() {
 
 /// Violation 62: StructuredErrorFields (prism-mcp error_mapping) struct literal (E0639).
 ///
-/// BC-2.10.007 v1.5 / S-5.02 HC-3: `StructuredErrorFields` carries `#[non_exhaustive]`
+/// BC-2.10.007 / S-5.02 HC-3: `StructuredErrorFields` carries `#[non_exhaustive]`
 /// so that adding a field (e.g. a future `request_id` or `trace_id`) is backward-compatible.
 /// External callers MUST use `StructuredErrorFields::new(...)` (the 9-argument constructor).
 ///
@@ -885,7 +886,7 @@ pub fn v62_structured_error_fields() {
 /// Violation 63: prism_mcp::CapabilityEntry struct literal (E0639).
 ///
 /// `CapabilityEntry` is the per-capability-path response entry in the `list_capabilities`
-/// tool response (BC-2.10.011 v1.5, S-5.02 R4). `#[non_exhaustive]` ensures that future
+/// tool response (BC-2.10.011, S-5.02 R4). `#[non_exhaustive]` ensures that future
 /// fields (e.g., `last_evaluated_at`, `policy_source`) can be added without breaking
 /// external consumers. External callers MUST NOT construct this directly — it is produced
 /// exclusively by `PrismServer::list_capabilities`.
@@ -905,7 +906,7 @@ pub fn v63_capability_entry() {
 /// Violation 64: prism_mcp::ResolutionStep struct literal (E0639).
 ///
 /// `ResolutionStep` is a single tier step in the capability resolution chain returned
-/// by `list_capabilities` (BC-2.10.011 v1.5, S-5.02 R4). `#[non_exhaustive]` ensures
+/// by `list_capabilities` (BC-2.10.011, S-5.02 R4). `#[non_exhaustive]` ensures
 /// that new step fields (e.g., `timestamp`, `policy_id`) can be added without breaking
 /// external consumers. External callers MUST NOT construct this directly.
 ///
@@ -1134,7 +1135,7 @@ pub fn v74_rate_limit_info() {
 pub fn v75_resource_pressure() {
     // Triggers E0639 (#[non_exhaustive]).
     // Fields are Option<usize>; use None to match the production contract
-    // (BC-2.08.005 v1.6: hardcoded 0 is FORBIDDEN in S-5.03 scope).
+    // (BC-2.08.005: hardcoded 0 is FORBIDDEN in S-5.03 scope).
     let _pressure = ResourcePressure {
         active_cursor_count: None,
         active_token_count: None,
@@ -1307,4 +1308,34 @@ pub fn v83_column_not_found_details() {
         did_you_mean: None,
     };
     let _ = _details;
+}
+
+// ─── S-5.04 F-S504-P5-002: HealthSummary (summary_counts shape) ──────────────
+//
+// `HealthSummary` is the structured `summary_counts` object embedded in
+// `SensorHealthStructuredContent` (BC-2.08.007 postcondition). It is the
+// wire-format shape for `healthy_count`, `unhealthy_count`, `total_count`, and
+// `rate_limited_count` returned in the `check_sensor_health` response.
+// `#[non_exhaustive]` ensures future summary fields can be added without
+// breaking downstream callers. ci.yml EXPECTED bumped from 83 to 84.
+
+/// Violation 84: prism_mcp::HealthSummary struct literal (E0639).
+///
+/// `HealthSummary` is the `summary_counts` shape in `SensorHealthStructuredContent`
+/// (BC-2.08.007). `#[non_exhaustive]` ensures external callers cannot use
+/// struct-literal construction — callers MUST use `HealthSummary::from_results(...)`.
+/// Future fields (e.g., auth_invalid_count, degraded_count) can be added without
+/// breaking downstream callers.
+///
+/// Added: S-5.04 (F-S504-P5-002 fix — BC-2.08.007 summary_counts postcondition).
+#[allow(dead_code)]
+pub fn v84_health_summary() {
+    // Triggers E0639 (#[non_exhaustive]).
+    let _summary = HealthSummary {
+        healthy_count: 0,
+        unhealthy_count: 2,
+        total_count: 2,
+        rate_limited_count: 2,
+    };
+    let _ = _summary;
 }

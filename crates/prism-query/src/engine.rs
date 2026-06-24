@@ -17,7 +17,7 @@
 //! - BC-2.11.011 — Cross-client query scoping
 //!
 //! # Architecture Compliance
-//! - Security perimeter (INV-SEC-PERIMETER-001, BC-2.11.006 v1.10):
+//! - Security perimeter (INV-SEC-PERIMETER-001, BC-2.11.006):
 //!   parser consumed ONLY via `PrismQlParser::parse`. Restricted symbols
 //!   (`parse_filter`, `parse_pipe`, `parse_sql`, sub-builders, `ParseLimits`
 //!   thread-local API) MUST NOT appear here.
@@ -275,6 +275,12 @@ pub struct QueryEngine {
     /// `Arc<TableRegistry>` so the gate and hot-reload path share the same instance.
     /// When `None`, the availability gate is skipped (legacy / test mode without spec engine).
     pub(crate) table_registry: Option<Arc<TableRegistry>>,
+
+    /// Optional confirmation token store for `token_count()` accessor (BC-2.08.005 RECONCILIATION-3).
+    ///
+    /// Wired via `with_token_store()` when the write pipeline is active.
+    /// `None` in query-only mode (new/new_with_cache_config paths) → `token_count()` returns 0.
+    pub(crate) token_store: Option<Arc<prism_security::ConfirmationTokenStore>>,
 }
 
 impl QueryEngine {
@@ -349,6 +355,9 @@ impl QueryEngine {
             // Production boot uses new_full (with a real ConfigSnapshot) or
             // with_table_registry() to supply a pre-populated TableRegistry.
             table_registry: None,
+            // S-5.04 RECONCILIATION-3: token_store None by default; wired via with_token_store()
+            // when the write pipeline is active.
+            token_store: None,
         }
     }
 
@@ -435,6 +444,8 @@ impl QueryEngine {
             // S-3.13: table_registry is None in new_full; callers that need it
             // (production boot path with spec engine loaded) use with_table_registry().
             table_registry: None,
+            // S-5.04 RECONCILIATION-3: token_store None; wired via with_token_store()
+            token_store: None,
         }
     }
 
@@ -531,7 +542,7 @@ impl QueryEngine {
     /// The map holds `(OrgSlug, SensorId) → ResolvedSensorSpec` entries built at boot
     /// from `customers/<slug>/*.overlay.toml` files. Only orgs with explicit overlay
     /// entries appear as keys — an org registered in `OrgRegistry` but absent from this
-    /// map has zero provisioned sensors (BC-2.10.008 v1.9 Option B semantics).
+    /// map has zero provisioned sensors (BC-2.10.008 Option B semantics).
     ///
     /// Returns `None` when no overlay config exists (test / MVP mode without multi-tenant).
     pub fn resolved_spec_map(
@@ -614,6 +625,53 @@ impl QueryEngine {
     /// engine is running in test / MVP mode without multi-tenant org support.
     pub fn org_registry(&self) -> Option<Arc<prism_core::OrgRegistry>> {
         self.org_registry.as_ref().map(Arc::clone)
+    }
+
+    /// Return the `AdapterRegistry` arc (S-5.04 — health probe wiring).
+    ///
+    /// Exposed so `PrismServer::with_deps` can pass the adapter registry to
+    /// `SensorHealthChecker::new()` without requiring a separate constructor argument.
+    /// The registry is always present (populated at boot step 9A for S-DEMO-001 scope).
+    pub fn adapter_registry(&self) -> Arc<AdapterRegistry> {
+        Arc::clone(&self.adapter_registry)
+    }
+
+    /// Return the current number of non-expired active pagination cursors.
+    ///
+    /// Used by `check_sensor_health` to populate `resource_pressure.active_cursor_count`
+    /// (BC-2.08.005 RECONCILIATION-3 — S-5.04 live-wiring obligation).
+    ///
+    /// Acquires the cursor-registry mutex; poison-tolerant (recovers via `into_inner`
+    /// per the F-006 pattern established in `context.rs`).
+    pub fn cursor_count(&self) -> usize {
+        let guard = match self.cursor_registry.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        guard.active_count()
+    }
+
+    /// Return the current number of unexpired, unconsumed confirmation tokens.
+    ///
+    /// Used by `check_sensor_health` to populate `resource_pressure.active_token_count`
+    /// (BC-2.08.005 RECONCILIATION-3 — S-5.04 live-wiring obligation).
+    ///
+    /// Reads `ConfirmationTokenStore::active_count()` from the optional token store.
+    /// Returns `0` when no `ConfirmationTokenStore` is available (query-only mode).
+    pub fn token_count(&self) -> usize {
+        self.token_store
+            .as_ref()
+            .map(|ts| ts.active_count())
+            .unwrap_or(0)
+    }
+
+    /// Wire an optional `ConfirmationTokenStore` for `token_count()` (BC-2.08.005 RECONCILIATION-3).
+    ///
+    /// Called by `boot.rs::step9_start_mcp_server` via the `QueryEngine::new_full` chain
+    /// when the write pipeline is active.
+    pub fn with_token_store(mut self, store: Arc<prism_security::ConfirmationTokenStore>) -> Self {
+        self.token_store = Some(store);
+        self
     }
 }
 

@@ -7,6 +7,7 @@
 
 pub mod context;
 pub mod error_mapping;
+pub mod health;
 pub mod prompts;
 pub mod proofs;
 pub mod resources;
@@ -26,7 +27,7 @@ pub use resources::schema::{SchemaSubscriberRegistry, URI_PQL_REFERENCE, URI_TEM
 pub use resources::{
     dispatch_hot_reload_notifications, render_client_list_resource, render_client_sensors_resource,
     render_sensor_inventory_resource, render_sensors_health_resource, ClientInventoryEntry,
-    RateLimitInfo, ResourcePressure, SensorConfigEntry, SensorHealthResult,
+    HealthSummary, RateLimitInfo, ResourcePressure, SensorConfigEntry, SensorHealthResult,
     SensorHealthStructuredContent, URI_CONFIG_CLIENTS, URI_SENSORS_HEALTH,
 };
 pub use safety_envelope::{ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder};

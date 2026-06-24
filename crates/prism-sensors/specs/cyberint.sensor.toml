@@ -22,6 +22,8 @@
 # in PipelineExecutor tries each format in order; on failure emits E-SPEC-018.
 
 sensor_id = "cyberint"
+# probe_table: table routed to by LIMIT-0 health probe (BC-2.08.001 postcondition 5 / S-5.04 AC-10).
+probe_table = "alerts"
 name = "Cyberint"
 auth_type = "cookie_roundtrip"
 base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"

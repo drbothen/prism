@@ -1267,3 +1267,306 @@ ocsf_class = "security_finding"
         panic!("expected PrismError::Spec but got: {e_spec_025:?}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// AC-8 (BC-2.16.009 Rule 8 / E-SPEC-026) — probe_table validation
+// S-5.04 Red Gate tests (test-writer pass, 2026-06-22)
+// ---------------------------------------------------------------------------
+//
+// These tests drive the unimplemented Rule 8 validation in SpecLoader::parse().
+// The ESpec026 variant and probe_table: Option<String> field exist as type scaffold;
+// the validation logic (Rule 8 block returning Err(ESpec026)) does NOT exist yet.
+// Every test below MUST FAIL until the implementer adds Rule 8 to SpecLoader::parse().
+
+/// TOML fixture with probe_table pointing at a non-existent table.
+///
+/// Used by AC-8 negative tests. `probe_table = "missing_table"` but only
+/// `[[tables]]` with `table_name = "events"` is declared — Rule 8 MUST reject.
+const TOML_PROBE_TABLE_MISSING: &str = r#"
+sensor_id = "test-sensor"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+probe_table = "missing_table"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/events"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "none"
+"#;
+
+/// TOML fixture with a valid probe_table that matches a declared [[tables]] block.
+///
+/// `probe_table = "events"` matches the single `[[tables]]` block.
+/// Rule 8 MUST pass — spec loads successfully.
+const TOML_PROBE_TABLE_VALID: &str = r#"
+sensor_id = "test-sensor"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+probe_table = "events"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/events"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "none"
+"#;
+
+/// TOML fixture with multiple tables and probe_table naming a non-existent one.
+///
+/// `probe_table = "nonexistent"` while `alerts` and `devices` are declared.
+/// Error message MUST include both declared table names sorted: ["alerts", "devices"].
+const TOML_PROBE_TABLE_MULTI_TABLE_MISSING: &str = r#"
+sensor_id = "multi-sensor"
+name = "Multi Table Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+probe_table = "nonexistent"
+
+[[tables]]
+table_name = "alerts"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch_alerts"
+  method = "GET"
+  path_template = "/alerts"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "none"
+
+[[tables]]
+table_name = "devices"
+ocsf_class = "device"
+
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch_devices"
+  method = "GET"
+  path_template = "/devices"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "none"
+"#;
+
+/// TOML fixture with probe_table set but NO [[tables]] blocks declared.
+///
+/// Per probe-table-field-design.md §1 Rule 3: if probe_table is Some AND tables is empty,
+/// this is ALSO an E-SPEC-026 condition (no tables to match against).
+const TOML_PROBE_TABLE_NO_TABLES: &str = r#"
+sensor_id = "no-tables-sensor"
+name = "No Tables Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+probe_table = "some_table"
+"#;
+
+/// BC-2.16.009 Rule 8 / E-SPEC-026 (S-5.04 AC-8):
+/// `probe_table = "missing_table"` with only `"events"` declared → must reject with E-SPEC-026.
+///
+/// Tests:
+/// 1. parse() returns Err (not Ok)
+/// 2. The error is PrismError::Spec with code ESpec026
+/// 3. Error message contains the sensor_id
+/// 4. Error message contains the invalid probe_table value ("missing_table")
+/// 5. Error message contains the declared table name ("events")
+///
+/// RED GATE: Rule 8 is NOT implemented yet. SpecLoader::parse() returns Ok(spec) with
+/// probe_table=Some("missing_table") — this test panics at the `expect_err` assertion.
+#[test]
+fn test_BC_2_16_009_probe_table_names_missing_table_returns_ESpec026() {
+    use prism_core::PrismError;
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    let result = SpecLoader::parse(TOML_PROBE_TABLE_MISSING);
+
+    let err = result.expect_err(
+        "BC-2.16.009 Rule 8 / AC-8: probe_table = 'missing_table' with no matching [[tables]] \
+         block MUST be rejected with E-SPEC-026; got Ok(spec) — Rule 8 not yet implemented",
+    );
+
+    match err {
+        PrismError::Spec(ref se) => {
+            assert_eq!(
+                se.code,
+                SpecErrorCode::ESpec026,
+                "AC-8: error code must be ESpec026; got {:?}. \
+                 Rule 8 must emit ESpec026 specifically (not ESpec001 or another code)",
+                se.code
+            );
+            let msg = &se.message;
+            assert!(
+                msg.contains("test-sensor"),
+                "AC-8 (E-SPEC-026): error message must include sensor_id 'test-sensor'; got: {msg}"
+            );
+            assert!(
+                msg.contains("missing_table"),
+                "AC-8 (E-SPEC-026): error message must include the invalid probe_table value \
+                 'missing_table'; got: {msg}"
+            );
+            assert!(
+                msg.contains("events"),
+                "AC-8 (E-SPEC-026): error message must include the sorted list of declared \
+                 table names ('events'); got: {msg}"
+            );
+        }
+        other => panic!("AC-8: expected PrismError::Spec(ESpec026), got: {other:?}"),
+    }
+}
+
+/// BC-2.16.009 Rule 8 — happy path (S-5.04 AC-8):
+/// `probe_table = "events"` matching the sole declared `[[tables]]` block loads cleanly.
+///
+/// RED GATE: Currently this test will PASS against the stubs (parse returns Ok).
+/// HOWEVER once Rule 8 validation is implemented, this test must continue to pass
+/// (confirming the non-error path). This test is included as the happy-path companion
+/// to the negative test above — together they verify Rule 8 is correctly scoped.
+///
+/// NOTE: This test is GREEN-BY-DESIGN against the current stub (no validation logic).
+/// It becomes a regression guard once the implementer adds Rule 8.
+#[test]
+fn test_BC_2_16_009_probe_table_valid_name_loads_clean() {
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    let result = SpecLoader::parse(TOML_PROBE_TABLE_VALID);
+
+    let spec = result.expect(
+        "BC-2.16.009 Rule 8 AC-8 happy path: probe_table = 'events' matching a declared \
+         [[tables]] block MUST parse successfully (no E-SPEC-026)",
+    );
+
+    assert_eq!(
+        spec.probe_table,
+        Some("events".to_string()),
+        "AC-8 happy path: probe_table must be deserialized from TOML as Some('events'); \
+         got: {:?}",
+        spec.probe_table
+    );
+    assert_eq!(
+        spec.sensor_id, "test-sensor",
+        "AC-8 happy path: sensor_id must be 'test-sensor'"
+    );
+}
+
+/// BC-2.16.009 Rule 8 / E-SPEC-026 — multi-table case (S-5.04 AC-8):
+/// Sorted declared table names appear in error message when probe_table is missing.
+///
+/// `tables` = ["alerts", "devices"], `probe_table = "nonexistent"`.
+/// Error MUST include both "alerts" and "devices" in sorted order.
+///
+/// RED GATE: Rule 8 not yet implemented — parse() returns Ok.
+#[test]
+fn test_BC_2_16_009_probe_table_error_includes_sorted_declared_tables() {
+    use prism_core::PrismError;
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    let result = SpecLoader::parse(TOML_PROBE_TABLE_MULTI_TABLE_MISSING);
+
+    let err = result.expect_err(
+        "AC-8: probe_table='nonexistent' with tables=['alerts','devices'] MUST be rejected \
+         (E-SPEC-026); got Ok(spec) — Rule 8 not implemented yet",
+    );
+
+    match err {
+        PrismError::Spec(ref se) => {
+            assert_eq!(se.code, SpecErrorCode::ESpec026, "code must be ESpec026");
+            let msg = &se.message;
+            assert!(
+                msg.contains("alerts"),
+                "E-SPEC-026: message must include declared table 'alerts'; got: {msg}"
+            );
+            assert!(
+                msg.contains("devices"),
+                "E-SPEC-026: message must include declared table 'devices'; got: {msg}"
+            );
+            // Sorted order: "alerts" must appear before "devices"
+            let alerts_pos = msg.find("alerts").unwrap_or(usize::MAX);
+            let devices_pos = msg.find("devices").unwrap_or(usize::MAX);
+            assert!(
+                alerts_pos < devices_pos,
+                "E-SPEC-026: declared tables must be sorted ('alerts' before 'devices'); \
+                 alerts_pos={alerts_pos}, devices_pos={devices_pos} in: {msg}"
+            );
+        }
+        other => panic!("expected PrismError::Spec(ESpec026); got: {other:?}"),
+    }
+}
+
+/// BC-2.16.009 Rule 8 / E-SPEC-026 — empty tables case (S-5.04 AC-8):
+/// `probe_table = "some_table"` with NO [[tables]] blocks → E-SPEC-026.
+///
+/// Per probe-table-field-design.md §1 Rule 3: probe_table reference with no tables
+/// is also an E-SPEC-026 condition.
+///
+/// RED GATE: Rule 8 not yet implemented — parse() returns Ok.
+#[test]
+fn test_BC_2_16_009_probe_table_with_empty_tables_returns_ESpec026() {
+    use prism_core::PrismError;
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    let result = SpecLoader::parse(TOML_PROBE_TABLE_NO_TABLES);
+
+    let err = result.expect_err(
+        "AC-8: probe_table='some_table' with no [[tables]] blocks MUST be rejected (E-SPEC-026); \
+         got Ok(spec) — Rule 8 not implemented yet",
+    );
+
+    match err {
+        PrismError::Spec(ref se) => {
+            assert_eq!(
+                se.code,
+                SpecErrorCode::ESpec026,
+                "E-SPEC-026: code must be ESpec026 when probe_table references an empty table set; \
+                 got {:?}",
+                se.code
+            );
+            // F-S504-P2-003: empty tables MUST render as "Declared tables: []", NOT
+            // "Declared tables: [(none declared)]".  The brackets come from the format
+            // string in spec_parser.rs Rule 8; the list body must be empty string.
+            assert!(
+                se.message.contains("Declared tables: []"),
+                "F-S504-P2-003: E-SPEC-026 message MUST contain 'Declared tables: []' for empty \
+                 table list, not '(none declared)'. Got: {:?}",
+                se.message
+            );
+        }
+        other => panic!("expected PrismError::Spec(ESpec026); got: {other:?}"),
+    }
+}
