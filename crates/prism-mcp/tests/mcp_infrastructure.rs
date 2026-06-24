@@ -45,60 +45,93 @@ use ulid::Ulid;
 // ─── Area D (cross-crate): BC-2.11.023 AC-010 — normalized_pql on mode-bridge error ──
 //
 // This test is placed in prism-mcp/tests/ because it uses both:
-//   prism_mcp::error_mapping::map_prism_error_to_structured (prism-mcp)
+//   prism_mcp::error_mapping::prism_error_to_structured_call_result (prism-mcp)
 //   prism_query::PrismQlParser (prism-query)
 // prism-mcp depends on prism-query, so both are available here.
+//
+// ADJUDICATION D-1323: The original test used `SELECT * FROM t WHERE severity = 'HIGH' | limit 10`
+// which now PARSES SUCCESSFULLY as Ast::SqlPipe after the Group-1 grammar landing
+// (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001). The test is rewritten to:
+// (a) Drive the REAL PRODUCTION path `prism_error_to_structured_call_result` (not
+//     the test-helper `map_prism_error_to_structured`).
+// (b) Use a synthetic QueryParseFailed whose query is a valid D1 mode-bridge candidate
+//     that `mode_bridge_normalized_pql` can rewrite into a valid Pipe query.
+// (c) Assert `structuredContent.error.normalized_pql` is populated.
+//
+// Red Gate: `prism_error_to_structured_call_result` QueryParseFailed arm has
+// `normalized_pql: None` hardcoded — test FAILS RED until that arm calls
+// `mode_bridge_normalized_pql(query)`.
 
-/// AC-010 / BC-2.11.023 postcondition — `normalized_pql` on `StructuredErrorFields`.
+/// AC-010 / BC-2.11.023 postcondition — `normalized_pql` on production structured error envelope.
 ///
-/// `SELECT * FROM t WHERE severity = 'HIGH' | limit 10` triggers a D1 mode-bridge.
-/// Assert `map_prism_error_to_structured(...).normalized_pql` is `Some(rewrite)`
-/// where `rewrite` is a valid Pipe-mode query re-parse.
+/// For a `QueryParseFailed` carrying a SQL-with-pipe query (D1 mode-bridge candidate),
+/// the production `prism_error_to_structured_call_result` must populate
+/// `structuredContent.error.normalized_pql` with a valid Pipe-mode rewrite.
 ///
-/// Red Gate: `map_prism_error_to_structured` is a `todo!()` stub → panics RED.
+/// Red Gate: the production `prism_error_to_structured_call_result` QueryParseFailed arm
+/// hardcodes `normalized_pql: None` — test FAILS RED until the arm is wired to call
+/// `mode_bridge_normalized_pql`.
 #[test]
 fn test_bc_2_11_023_normalized_pql_on_mode_bridge_error() {
     use prism_core::error::PrismError;
-    use prism_mcp::error_mapping::map_prism_error_to_structured;
+    use prism_mcp::error_mapping::prism_error_to_structured_call_result;
     use prism_query::{ast::Ast, PrismQlParser};
 
-    let query = "SELECT * FROM t WHERE severity = 'HIGH' | limit 10";
+    // Query that mode_bridge_normalized_pql can rewrite into a valid Pipe query.
+    // Step 1 (re-parse): PrismQlParser::parse succeeds as Ast::SqlPipe, so normalize_pql
+    // returns the canonical pipe form "FROM crowdstrike.detections | where severity = 'HIGH'
+    // | limit 10".
+    // This query already parses as SqlPipe post-Group-1 grammar, so mode_bridge_normalized_pql
+    // step 1 will call normalize_pql and return Some(rewrite).
+    let query = "SELECT * FROM crowdstrike.detections WHERE severity = 'HIGH' | limit 10";
 
-    // Produce the parse error first.
-    let errs = PrismQlParser::parse(query)
-        .expect_err("BC-2.11.023: SQL+pipe mode-bridge query must fail to parse in current parser");
-
-    // Convert to PrismError::QueryParseFailed.
+    // Construct a synthetic QueryParseFailed — this represents a D1 mode-bridge error
+    // as it would appear in production (e.g., generated before the SqlPipe grammar landed,
+    // or from a parser version that rejected this combination).
     let prism_err = PrismError::QueryParseFailed {
         offset: 0,
-        detail: errs
-            .iter()
-            .map(|e| e.to_string())
-            .collect::<Vec<_>>()
-            .join("; "),
+        detail: "D1 mode-bridge: SQL+pipe mode mix".to_string(),
         query: query.to_string(),
     };
 
-    // Call the stub — panics on todo!() → RED.
-    let structured = map_prism_error_to_structured(&prism_err, query);
+    // Drive the REAL PRODUCTION path: prism_error_to_structured_call_result.
+    // This is the function wired into the query tool at server.rs.
+    // Red Gate: production QueryParseFailed arm has normalized_pql: None → test FAILS.
+    let result = prism_error_to_structured_call_result(prism_err);
 
-    // Assert normalized_pql is Some for D1 mode-bridge.
+    // Extract normalized_pql from structuredContent.error.
+    let structured = result
+        .structured_content
+        .expect("BC-2.11.023: production path must return structuredContent");
+    let normalized_pql = structured
+        .get("error")
+        .and_then(|e| e.get("normalized_pql"))
+        .and_then(|v| v.as_str());
+
     assert!(
-        structured.normalized_pql.is_some(),
-        "BC-2.11.023 AC-010: normalized_pql must be Some on a D1 mode-bridge error; got None"
+        normalized_pql.is_some(),
+        "BC-2.11.023 AC-010: prism_error_to_structured_call_result must populate \
+         normalized_pql for a D1 mode-bridge QueryParseFailed; got None. \
+         Fix: wire mode_bridge_normalized_pql(query) into the QueryParseFailed arm of \
+         prism_error_to_structured_call_result."
     );
 
-    let normalized = structured.normalized_pql.as_deref().unwrap();
-    // The rewrite must itself be valid PrismQL in Pipe mode.
+    // The normalized rewrite must be valid PrismQL.
+    let normalized = normalized_pql.unwrap();
     let reparse = PrismQlParser::parse(normalized);
     assert!(
         reparse.is_ok(),
         "BC-2.11.023 AC-010: normalized_pql must be valid PrismQL; reparse got: {:?}",
         reparse
     );
+
+    // Verify normalized form is Pipe or SqlPipe (canonical pipe-mode rewrite).
+    let ast = reparse.unwrap();
     assert!(
-        matches!(reparse.unwrap(), Ast::Pipe(_)),
-        "BC-2.11.023 AC-010: normalized_pql must parse as Ast::Pipe (pipe rewrite of the SQL query)"
+        matches!(ast, Ast::Pipe(_) | Ast::SqlPipe(_)),
+        "BC-2.11.023 AC-010: normalized_pql must parse as Ast::Pipe or Ast::SqlPipe; \
+         got: {:?}",
+        ast
     );
 }
 

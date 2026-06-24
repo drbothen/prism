@@ -1151,7 +1151,11 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                 how_to_fix: None,
                 available_columns: None,
                 did_you_mean: None,
-                normalized_pql: None,
+                // BC-2.11.023 AC-010 (CRIT-002): wire mode_bridge_normalized_pql into the
+                // QueryParseFailed arm. For D1 mode-bridge errors (SQL+pipe mix), this
+                // computes a valid Pipe-mode rewrite so the agent can self-correct.
+                // Returns None for non-mode-bridge parse errors (unknown keywords, etc.).
+                normalized_pql: mode_bridge_normalized_pql(query),
             }
         }
 
@@ -2003,11 +2007,16 @@ fn mode_bridge_normalized_pql(original_query: &str) -> Option<String> {
         return None;
     }
 
-    // Step 1: Re-parse. If it now succeeds (SqlPipe grammar), normalize.
+    // Step 1: Re-parse. If it now succeeds (Pipe/Sql grammar), normalize.
+    // normalize_pql returns Some for Ast::Pipe and Ast::Sql but currently returns
+    // None for Ast::SqlPipe (PqlNormalizer does not yet emit the canonical pipe form
+    // for SqlPipe). When normalize_pql returns None, fall through to step 2 heuristic.
     if let Ok(ast) = PrismQlParser::parse(trimmed) {
-        // For SqlPipe or Pipe ASTs, normalize into canonical pipe form.
-        // normalize_pql produces FROM <table> | <stages> for SqlPipe.
-        return normalize_pql(&ast);
+        if let Some(normalized) = normalize_pql(&ast) {
+            return Some(normalized);
+        }
+        // normalize_pql returned None (e.g., Ast::SqlPipe not yet handled by normalizer).
+        // Fall through to step 2 heuristic to attempt a string-based pipe rewrite.
     }
 
     // Step 2: String-based heuristic for simple SELECT * FROM t WHERE predicate | stages.
