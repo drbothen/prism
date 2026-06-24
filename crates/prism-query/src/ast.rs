@@ -57,6 +57,10 @@ pub enum Ast {
 /// The head SQL SELECT is subject to the FORBID-BOTH invariant: if the SQL
 /// SELECT carries `LIMIT n` AND any pipe stage has `| limit m`, the planner
 /// must return `E-QUERY-040` (`PrismError::RedundantRowLimit`).
+///
+/// `#[non_exhaustive]` allows future fields (e.g., `with` CTEs, query-level
+/// hints) without breaking external struct literals.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SqlPipeQuery {
     /// The SQL SELECT head (without pipe stages).

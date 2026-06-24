@@ -1197,14 +1197,28 @@ fn sensor_id_from_table_name(table_name: &str) -> Option<SensorId> {
     // Convention: `crowdstrike_hosts` → "crowdstrike", `armis_devices` → "armis".
     // MED-002: apply .to_lowercase() to match explain.rs convention and the
     // SensorId validation charset (lowercase only).
-    let prefix = table_name.split('_').next()?;
-    if prefix.is_empty() {
-        return None;
+    //
+    // BC-2.11.023 / AC-011 extension: filter-mode source refs use dot notation
+    // (`crowdstrike.detections`) rather than underscore notation. If the
+    // underscore-split path yields a prefix with a `.` (not a valid SensorId),
+    // also try splitting by `.` to extract the sensor component.
+    let underscore_prefix = table_name.split('_').next()?;
+    if !underscore_prefix.is_empty() && !underscore_prefix.contains('.') {
+        let prefix_lower = underscore_prefix.to_lowercase();
+        if let Ok(sid) = SensorId::try_from_str(prefix_lower.as_str()) {
+            return Some(sid);
+        }
     }
-    let prefix_lower = prefix.to_lowercase();
-    // Construct SensorId from lowercase prefix. SensorId::from panics on invalid
-    // charset, so use the fallible try_from_str for untrusted table name input.
-    SensorId::try_from_str(prefix_lower.as_str()).ok()
+    // Dot-notation fallback: `crowdstrike.detections` → sensor = "crowdstrike".
+    if let Some(dot_prefix) = table_name.split('.').next() {
+        if !dot_prefix.is_empty() {
+            let prefix_lower = dot_prefix.to_lowercase();
+            if let Ok(sid) = SensorId::try_from_str(prefix_lower.as_str()) {
+                return Some(sid);
+            }
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -1340,8 +1354,17 @@ fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
                 names.push(join.source.raw.clone());
             }
         }
-        Ast::Filter(filter) => {
+        // BC-2.11.002 / BC-2.11.023 AC-011: a bare-predicate filter query has
+        // source.raw = "" (no explicit sensor source). An empty source means
+        // "fan out to all sensors" — do NOT add the empty string to source_names
+        // or resolve_source_refs will fail with UnknownSourceTable { source_name: "" }.
+        // A source-qualified filter (e.g. "crowdstrike.detections | pred") has a
+        // non-empty raw source and IS pushed normally for targeted fan-out.
+        Ast::Filter(filter) if !filter.source.raw.is_empty() => {
             names.push(filter.source.raw.clone());
+        }
+        Ast::Filter(_) => {
+            // Bare predicate (no source): fan-out-to-all — add nothing to source_names.
         }
         Ast::Pipe(pipe) => {
             names.push(pipe.source.raw.clone());

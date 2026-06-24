@@ -142,8 +142,12 @@ impl PrismQlParser {
             return parse_dml_internal(input, &limits);
         }
 
-        // SQL SELECT mode: delegate as-is.
+        // SQL SELECT mode: delegate as-is; but route SqlPipe first.
         if first_token_upper == "SELECT" {
+            // BC-2.11.020: SqlPipe routing must happen in parse_with_registry too.
+            if is_sqlpipe_mode(trimmed) {
+                return parse_sqlpipe_internal(input, &limits);
+            }
             return parse_sql_internal(input, &limits);
         }
 
@@ -217,7 +221,27 @@ impl PrismQlParser {
         // `first_token_upper` is the uppercase of the first whitespace-separated
         // token; it is the same as `trimmed.to_uppercase().split_whitespace().next()`.
         if first_token_upper == "SELECT" {
-            return parse_sql_internal(input, limits);
+            // BC-2.11.020: If the input contains pipe stage keywords after an unquoted
+            // `|`, route to SqlPipe mode (SELECT … | stage | stage …).  Pure SELECT
+            // (no pipe stage `|`) falls through to the SQL parser unchanged.
+            if is_sqlpipe_mode(trimmed) {
+                return parse_sqlpipe_internal(input, limits);
+            }
+            // BC-2.11.023 / ADR-046 §D1 — mode-bridge diagnostic:
+            // If SQL parse fails AND the input contains an unquoted `|`, replace the
+            // raw Chumsky token-dump with an actionable message explaining that pipe
+            // stages are not valid after a SQL SELECT query in SQL mode.
+            let sql_result = parse_sql_internal(input, limits);
+            return match sql_result {
+                ok @ Ok(_) => ok,
+                Err(_errs) if contains_unquoted_pipe(trimmed) => Err(vec![ParseError::new(
+                    find_unquoted_pipe_offset(trimmed).unwrap_or(0),
+                    "E-QUERY-001: parse error near '|': pipe stages are not valid after \
+                         a SQL SELECT query in SQL mode. To use pipe stages, use SqlPipe mode \
+                         (SELECT … FROM t | stage …) or pure Pipe mode (FROM t | stage …).",
+                )]),
+                err => err,
+            };
         }
         if first_token_upper == "FROM" || trimmed.starts_with('|') {
             return parse_pipe_internal(input, limits);
@@ -383,6 +407,177 @@ fn is_pipe_mode(input: &str) -> bool {
         i += 1;
     }
     false
+}
+
+/// Detect whether a `SELECT …` input should be parsed as SqlPipe mode
+/// (BC-2.11.020, ADR-043) rather than pure SQL mode.
+///
+/// Returns `true` when ALL of:
+/// 1. The input starts with `SELECT` (case-insensitive).
+/// 2. There is at least one unquoted `|` in the input.
+/// 3. The token immediately following that unquoted `|` (after optional
+///    whitespace) is a recognised pipe stage keyword.
+///
+/// Condition 3 is the key discriminant: it prevents `WHERE x | y` (bitwise OR
+/// inside a SQL expression) from being mis-classified as SqlPipe.  Only `|`
+/// followed by a stage keyword triggers SqlPipe routing.
+///
+/// # Invariant (BC-2.11.020 additive invariant)
+/// Pure SQL without pipe-stage `|` MUST still return `false` and be routed to
+/// the SQL parser.  The check is conservative: if uncertain, fall through to
+/// SQL mode.
+fn is_sqlpipe_mode(input: &str) -> bool {
+    let trimmed = input.trim();
+    // Must start with SELECT (case-insensitive).
+    if !trimmed
+        .get(..6)
+        .is_some_and(|h| h.eq_ignore_ascii_case("SELECT"))
+    {
+        return false;
+    }
+    // Reuse the same unquoted-`|`-scan logic as `is_pipe_mode`.
+    // We must also ensure the character after `SELECT` is whitespace (not
+    // `SELECTOR` etc.), but `is_pipe_mode` only checks for pipe-keyword after
+    // `|`, so we can delegate directly.
+    is_pipe_mode(trimmed)
+}
+
+/// Parse a SQL→Pipe composition query: `SELECT … | stage | stage …`.
+///
+/// Algorithm:
+/// 1. Find the first unquoted `|` that is followed by a pipe stage keyword.
+/// 2. Split the input at that position: `sql_head` | `stages_suffix`.
+/// 3. Parse `sql_head` as SQL (`parse_sql_internal`).
+/// 4. Parse `stages_suffix` as pipe stages (`build_pipe_stages_parser`).
+/// 5. Combine into `Ast::SqlPipe(SqlPipeQuery { head, stages })`.
+///
+/// # Errors
+/// Returns SQL parse errors or pipe stage parse errors if either half fails.
+///
+/// # Clippy exemption (OBS-002)
+/// Same rationale as `parse_filter_internal`.
+#[allow(clippy::disallowed_methods)]
+fn parse_sqlpipe_internal(
+    input: &str,
+    limits: &security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
+    use crate::ast::{SqlPipeQuery, SqlStatement};
+
+    // Step 1: Find the split offset — first unquoted `|` followed by a pipe
+    // stage keyword.
+    let split_offset = find_sqlpipe_split(input).ok_or_else(|| {
+        vec![ParseError::new(
+            0,
+            "E-QUERY-001: SqlPipe mode detected but could not locate pipe stage boundary",
+        )]
+    })?;
+
+    let sql_head_str = input[..split_offset].trim_end();
+    let stages_str = &input[split_offset..]; // starts with `|`
+
+    // Step 2: Parse SQL head.
+    let sql_ast = crate::sql_parser::parse_sql_with_limits(sql_head_str, limits)?;
+    let head = match sql_ast {
+        Ast::Sql(SqlStatement::Select(sq)) => sq,
+        _ => {
+            return Err(vec![ParseError::new(
+                0,
+                "E-QUERY-001: SqlPipe head must be a SELECT statement",
+            )]);
+        }
+    };
+
+    // Step 3: Parse pipe stages suffix.
+    let stage_parser = crate::pipe_parser::build_pipe_stages_parser();
+    let (stage_result, stage_errs) = stage_parser.parse(stages_str).into_output_errors();
+    if !stage_errs.is_empty() {
+        let errs: Vec<ParseError> = stage_errs.iter().map(rich_to_parse_error).collect();
+        return Err(errs);
+    }
+    let stages = stage_result.ok_or_else(|| {
+        vec![ParseError::new(
+            split_offset,
+            "E-QUERY-001: SqlPipe stage list failed to parse",
+        )]
+    })?;
+
+    // Security: check stage count.
+    limits
+        .check_pipe_stage_count_with(&stages)
+        .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+
+    Ok(Ast::SqlPipe(SqlPipeQuery { head, stages }))
+}
+
+/// Find the byte offset of the first unquoted `|` in `input` that is followed
+/// (after optional ASCII whitespace) by a recognised pipe stage keyword.
+///
+/// Returns `None` if no such `|` exists.
+fn find_sqlpipe_split(input: &str) -> Option<usize> {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            b'\'' if !in_dq => in_sq = !in_sq,
+            b'"' if !in_sq => in_dq = !in_dq,
+            b'|' if !in_sq && !in_dq => {
+                // Skip whitespace after `|`.
+                let mut j = i + 1;
+                while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
+                    j += 1;
+                }
+                if let Some(rest) = input.get(j..) {
+                    for kw in PIPE_STAGE_KEYWORDS {
+                        let kw_len = kw.len();
+                        if let Some(candidate) = rest.get(..kw_len) {
+                            if candidate.eq_ignore_ascii_case(kw) {
+                                let after_kw = rest.get(kw_len..).unwrap_or("");
+                                if after_kw.is_empty()
+                                    || matches!(
+                                        after_kw.as_bytes().first(),
+                                        Some(b' ' | b'\t' | b'\n' | b'|' | b'(')
+                                    )
+                                {
+                                    return Some(i);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Return `true` if `input` contains at least one unquoted `|` character.
+///
+/// Used by the BC-2.11.023 mode-bridge heuristic to detect `SELECT … | token`
+/// patterns that should emit a D1 diagnostic instead of a raw Chumsky dump.
+fn contains_unquoted_pipe(input: &str) -> bool {
+    find_unquoted_pipe_offset(input).is_some()
+}
+
+/// Return the byte offset of the first unquoted `|` in `input`, or `None`.
+fn find_unquoted_pipe_offset(input: &str) -> Option<usize> {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
+    for (i, &b) in bytes.iter().enumerate().take(len) {
+        match b {
+            b'\'' if !in_dq => in_sq = !in_sq,
+            b'"' if !in_sq => in_dq = !in_dq,
+            b'|' if !in_sq && !in_dq => return Some(i),
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Parse filter mode internally, wrapping result as `Ast::Filter`.
@@ -778,16 +973,28 @@ pub(crate) fn build_predicate_parser<'a>(
                 }
             });
 
-        // --- Basic comparison: field op literal ---
-        // Auto-promotes = or != with wildcard patterns to Predicate::Wildcard.
+        // RHS value expression: temporal (NOW/INTERVAL) or literal.
+        //
+        // Temporal parser is tried first (BC-2.11.021 / ADR-044 D7 invariant):
+        // `NOW()`, `NOW() - INTERVAL '...'`, `INTERVAL '...'` are recognized here
+        // before falling back to a plain literal. This makes temporal expressions
+        // available in all three modes (filter / SQL WHERE / pipe where) via the
+        // shared build_predicate_parser.
+        let temporal_rhs = build_temporal_rhs_parser();
+        let rhs_expr = temporal_rhs
+            .clone()
+            .or(literal.clone().padded().map(crate::ast::Expr::Literal));
+
+        // --- Basic comparison: field op (temporal_expr | literal) ---
+        // Auto-promotes = or != with wildcard string patterns to Predicate::Wildcard.
         let field_comparison = field_path
             .clone()
             .padded()
             .then(compare_op.clone())
-            .then(literal.clone().padded())
-            .try_map(|((fp, op), lit), span| {
-                // Wildcard promotion: = or != with string containing * or ?
-                if let Literal::String(ref s) = lit {
+            .then(rhs_expr.padded())
+            .try_map(|((fp, op), rhs), span| {
+                // Wildcard promotion only applies when RHS is a string literal.
+                if let crate::ast::Expr::Literal(Literal::String(ref s)) = rhs {
                     if s.contains('*') || s.contains('?') {
                         match op {
                             CompareOp::Eq => {
@@ -817,7 +1024,7 @@ pub(crate) fn build_predicate_parser<'a>(
                 Ok(Predicate::Compare {
                     lhs: Box::new(field_path_to_expr(fp)),
                     op,
-                    rhs: Box::new(crate::ast::Expr::Literal(lit)),
+                    rhs: Box::new(rhs),
                 })
             });
 
@@ -1088,6 +1295,190 @@ pub(crate) fn build_literal_parser<'a>(
         float_lit,
         int_lit,
     ))
+}
+
+/// Parse a quoted INTERVAL duration string: `'<int><unit>'` where unit ∈ {s,m,h,d}.
+///
+/// Called from `build_temporal_rhs_parser`; separated because `chrono` 0.4.44 has
+/// no duration-string parser and the custom `<int><unit>` format is ADR-044-specific.
+///
+/// Returns `Err` on any of:
+/// - Non-integer digit prefix
+/// - Unknown unit character (not s/m/h/d)
+/// - Value overflow when converting to `chrono::Duration`
+///
+/// # Implements BC-2.11.021 / ADR-044
+fn parse_interval_duration_str(s: &str) -> Result<chrono::Duration, String> {
+    // Must be non-empty.
+    if s.is_empty() {
+        return Err("E-QUERY-001: INTERVAL duration string must not be empty".to_string());
+    }
+
+    // Split at the last character which should be the unit.
+    let (digits_part, unit_char) = s.split_at(s.len() - 1);
+
+    if digits_part.is_empty() {
+        return Err(format!(
+            "E-QUERY-001: INTERVAL duration '{s}' has no numeric part"
+        ));
+    }
+
+    let value: u64 = digits_part.parse().map_err(|_| {
+        format!(
+            "E-QUERY-001: INTERVAL duration '{s}' has invalid numeric part '{digits_part}' (must be a non-negative integer)"
+        )
+    })?;
+
+    let duration = match unit_char {
+        "s" => chrono::Duration::seconds(value as i64),
+        "m" => chrono::Duration::minutes(value as i64),
+        "h" => chrono::Duration::hours(value as i64),
+        "d" => chrono::Duration::days(value as i64),
+        _ => {
+            return Err(format!(
+                "E-QUERY-001: INTERVAL duration '{s}' has unknown unit '{unit_char}' \
+                 (expected s=seconds, m=minutes, h=hours, d=days)"
+            ));
+        }
+    };
+    Ok(duration)
+}
+
+/// Build a parser for temporal RHS expressions used in predicate comparisons.
+///
+/// Recognises:
+/// - `NOW()` → `Expr::Now`
+/// - `NOW(args)` → `Err("E-QUERY-001: NOW() takes no arguments")`
+/// - `NOW() - INTERVAL '...'` → `Expr::TimestampArithmetic { base: Now, op: Sub, offset }`
+/// - `NOW() + INTERVAL '...'` → `Err("E-QUERY-001: subtraction-only constraint")`
+/// - `INTERVAL '...'` (standalone) → `Expr::Interval(duration)`
+///
+/// # D7 invariant
+/// This parser is used by `build_predicate_parser` which is shared across all
+/// three query modes (filter / SQL WHERE / pipe where). Adding it here makes
+/// temporal expressions available in all modes without duplication.
+///
+/// # Implements BC-2.11.021 / ADR-044
+pub(crate) fn build_temporal_rhs_parser<'a>(
+) -> impl Parser<'a, &'a str, crate::ast::Expr, extra::Err<Rich<'a, char>>> + Clone {
+    use crate::ast::{BinaryOp, Expr};
+
+    // Quoted string inside INTERVAL — any chars until closing quote.
+    let interval_content = none_of('\'')
+        .repeated()
+        .to_slice()
+        .delimited_by(just('\''), just('\''))
+        .try_map(|s: &str, span| parse_interval_duration_str(s).map_err(|e| Rich::custom(span, e)));
+
+    // `INTERVAL '<int><unit>'` — standalone interval literal (Expr::Interval).
+    let interval_expr = any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphabetic())
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .try_map(|s: &str, span| {
+            if s.eq_ignore_ascii_case("INTERVAL") {
+                Ok(())
+            } else {
+                Err(Rich::custom(span, "expected INTERVAL keyword"))
+            }
+        })
+        .padded()
+        .ignore_then(interval_content.padded())
+        .map(Expr::Interval);
+
+    // `NOW` keyword (case-insensitive).
+    let now_kw = any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphabetic())
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .try_map(|s: &str, span| {
+            if s.eq_ignore_ascii_case("NOW") {
+                Ok(())
+            } else {
+                Err(Rich::custom(span, "expected NOW keyword"))
+            }
+        });
+
+    // `NOW(...)` — parse parens and error if any arguments present.
+    let now_call = now_kw
+        .padded()
+        .then(
+            just('(')
+                .padded()
+                .ignore_then(
+                    // Capture everything inside the parens to detect arguments.
+                    none_of(')').repeated().to_slice().padded(),
+                )
+                .then_ignore(just(')').padded()),
+        )
+        .try_map(|((), args): ((), &str), span| {
+            let args_trimmed = args.trim();
+            if !args_trimmed.is_empty() {
+                return Err(Rich::custom(
+                    span,
+                    format!("E-QUERY-001: NOW() takes no arguments; got '{args_trimmed}'"),
+                ));
+            }
+            Ok(Expr::Now)
+        });
+
+    // Design: NOW() with optional arithmetic.
+    //
+    // Using `choice((now_arithmetic, now_call))` would cause backtracking:
+    // if now_arithmetic's try_map rejects '+' (subtraction-only), Chumsky
+    // backtracks to now_call which succeeds — the error is silently swallowed.
+    //
+    // Instead: parse NOW() then OPTIONALLY accept arithmetic. If arithmetic is
+    // present, validate the operator in try_map. If absent, return Expr::Now.
+    // This is non-backtracking: once NOW( is committed, any following arithmetic
+    // operator is consumed and validated.
+    let now_then_optional_arithmetic = now_call
+        .then(
+            choice((
+                just('-').padded().to(BinaryOp::Sub),
+                just('+').padded().to(BinaryOp::Add),
+            ))
+            .padded()
+            .then(
+                any::<&str, extra::Err<Rich<char>>>()
+                    .filter(|c: &char| c.is_ascii_alphabetic())
+                    .repeated()
+                    .at_least(1)
+                    .to_slice()
+                    .try_map(|s: &str, span| {
+                        if s.eq_ignore_ascii_case("INTERVAL") {
+                            Ok(())
+                        } else {
+                            Err(Rich::custom(span, "expected INTERVAL after NOW() operator"))
+                        }
+                    })
+                    .padded()
+                    .ignore_then(interval_content.padded()),
+            )
+            .or_not(),
+        )
+        .try_map(
+            |(base_expr, arith_opt): (Expr, Option<(BinaryOp, chrono::Duration)>), span| {
+                match arith_opt {
+                    None => Ok(base_expr), // bare NOW() → Expr::Now
+                    Some((BinaryOp::Add, _)) => Err(Rich::custom(
+                        span,
+                        "E-QUERY-001: timestamp arithmetic subtraction-only constraint in v1; \
+                     NOW() + INTERVAL is not supported. Use NOW() - INTERVAL instead.",
+                    )),
+                    Some((BinaryOp::Sub, offset)) => Ok(Expr::TimestampArithmetic {
+                        base: Box::new(base_expr),
+                        op: BinaryOp::Sub,
+                        offset,
+                    }),
+                }
+            },
+        );
+
+    // Precedence: NOW() (with optional arithmetic) first, then standalone INTERVAL.
+    choice((now_then_optional_arithmetic, interval_expr))
 }
 
 /// Build the shared Expr parser for value expressions (SELECT projections,

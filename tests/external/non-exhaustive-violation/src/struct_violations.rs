@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-84 (58 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-84, 86 (59 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -1338,4 +1338,33 @@ pub fn v84_health_summary() {
         rate_limited_count: 2,
     };
     let _ = _summary;
+}
+
+// ─── S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: SqlPipeQuery ────────────────────
+//
+// `SqlPipeQuery` is the SQL→Pipe composition AST node (BC-2.11.020, ADR-043).
+// `#[non_exhaustive]` ensures future fields (e.g., `with` CTEs, query-level hints)
+// can be added without breaking external struct literals.
+// ci.yml EXPECTED bumped from 85 to 86.
+
+/// Violation 86: prism_query::ast::SqlPipeQuery struct literal (E0639).
+///
+/// `SqlPipeQuery` holds the SQL head and pipe stages for `SELECT … | stage …`
+/// composition queries (BC-2.11.020 / ADR-043). `#[non_exhaustive]` prevents
+/// external crates from constructing it via struct literal — callers must use
+/// the parser. Future fields (e.g., `with`, `hints`) can be added safely.
+///
+/// Added: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (AC-001).
+#[allow(dead_code)]
+pub fn v86_sql_pipe_query() {
+    use prism_query::ast::{FromClause, SelectClause, SourceRef, SqlPipeQuery, SqlQuery};
+    // Triggers E0639 (#[non_exhaustive]).
+    let _spq = SqlPipeQuery {
+        head: SqlQuery::new(
+            SelectClause::new(vec![]),
+            FromClause::new(SourceRef::from_raw("t")),
+        ),
+        stages: vec![],
+    };
+    let _ = _spq;
 }

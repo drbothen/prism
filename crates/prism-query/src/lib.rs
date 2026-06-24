@@ -196,29 +196,153 @@ pub use write_verb_registry::WriteVerbRegistry;
 // todo!() until the implementer provides real bodies (Area A/B plan-time gates).
 
 /// Plan a parsed `SqlPipeQuery` AST: applies the FORBID-BOTH E-QUERY-040 check
-/// and any other plan-time validation (BC-2.11.020 postcondition 5, ADR-043 §C).
+/// (BC-2.11.020 postcondition 5, ADR-043 §C §D4).
 ///
-/// Returns `Ok(())` on a valid plan or `Err(PrismError::RedundantRowLimit)` when
-/// both the SQL head LIMIT and a pipe `| limit` stage are present.
+/// Returns `Ok(())` on a valid plan, or `Err(PrismError::RedundantRowLimit)`
+/// when both the SQL head LIMIT and a pipe `| limit` stage are present.
 ///
-/// Red Gate stub — body is `todo!()` until Area A implementation.
-pub fn plan_sqlpipe_query(_spq: &ast::SqlPipeQuery) -> Result<(), prism_core::error::PrismError> {
-    todo!(
-        "BC-2.11.020 AC-002: implement FORBID-BOTH plan-time check — \
-         return Err(PrismError::RedundantRowLimit) when both sql_limit and pipe | limit are set"
-    )
+/// # FORBID-BOTH invariant (ADR-043 §C §D4 — permanent ruling)
+/// It is a hard error to have both `SELECT … LIMIT n` and `| limit m` in the
+/// same SqlPipe query. The caller must remove one.  This is a plan-time check
+/// (not a parse-time check) so that the AST is available for inspection.
+pub fn plan_sqlpipe_query(spq: &ast::SqlPipeQuery) -> Result<(), prism_core::error::PrismError> {
+    use ast::PipeStage;
+
+    // Find the SQL head LIMIT, if any.
+    if let Some(sql_limit) = spq.head.limit {
+        // Find the first pipe `| limit N` stage.
+        for stage in &spq.stages {
+            if let PipeStage::Limit(pipe_limit) = stage {
+                return Err(prism_core::error::PrismError::RedundantRowLimit {
+                    sql_limit,
+                    pipe_limit: *pipe_limit,
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
-/// Parse a PrismQL string and apply plan-time constant injection (NOW() → timestamp literal).
+/// Parse a PrismQL string and apply plan-time constant injection (BC-2.11.021, ADR-044).
 ///
-/// Returns `Ok(Ast)` with all `Expr::Now` nodes replaced by `Expr::Literal(Literal::Timestamp)`
-/// for the current UTC instant (BC-2.11.021 postcondition — planning-time constant injection).
+/// Returns `Ok(Ast)` with all `Expr::Now` nodes replaced by
+/// `Expr::Literal(Literal::Timestamp(now))` where `now` is captured ONCE at the
+/// start of planning.  All occurrences of `NOW()` in the query are substituted
+/// with the same instant, so multi-predicate queries behave consistently.
 ///
-/// Red Gate stub — body is `todo!()` until Area B implementation.
+/// # Implements BC-2.11.021 postcondition — planning-time constant injection
 pub fn parse_and_plan(input: &str) -> Result<Ast, Vec<ParseError>> {
-    let _ = input;
-    todo!(
-        "BC-2.11.021 AC-004: implement parse_and_plan — call PrismQlParser::parse then \
-         replace Expr::Now with Literal::Timestamp(chrono::Utc::now()) at plan time"
-    )
+    use ast::{Expr, Literal, TimestampLiteral};
+    use chrono::Utc;
+
+    let parsed = PrismQlParser::parse(input)?;
+
+    // Capture NOW() once for the entire planning session.
+    let now: chrono::DateTime<Utc> = Utc::now();
+    let now_iso = now.to_rfc3339();
+    let now_ts = TimestampLiteral {
+        iso8601: now_iso,
+        instant: now,
+    };
+    let now_literal_expr = Expr::Literal(Literal::Timestamp(now_ts));
+
+    Ok(inject_now(parsed, &now_literal_expr))
+}
+
+/// Recursively replace all `Expr::Now` nodes in `ast` with `now_literal`.
+///
+/// Pure function (clone-based transformation). Returns a new `Ast` with all
+/// occurrences substituted.
+fn inject_now(ast: Ast, now_literal: &ast::Expr) -> Ast {
+    use ast::{Ast as A, FilterExpr, PipeQuery, SqlPipeQuery, SqlStatement};
+
+    match ast {
+        A::Filter(fe) => A::Filter(FilterExpr {
+            source: fe.source,
+            predicate: inject_now_predicate(fe.predicate, now_literal),
+        }),
+        A::Sql(SqlStatement::Select(sq)) => {
+            A::Sql(SqlStatement::Select(inject_now_sql_query(sq, now_literal)))
+        }
+        A::Sql(other) => A::Sql(other), // DML — no NOW() injection needed
+        A::Pipe(pq) => A::Pipe(PipeQuery {
+            source: pq.source,
+            stages: pq
+                .stages
+                .into_iter()
+                .map(|s| inject_now_pipe_stage(s, now_literal))
+                .collect(),
+            write: pq.write,
+        }),
+        A::SqlPipe(spq) => A::SqlPipe(SqlPipeQuery {
+            head: inject_now_sql_query(spq.head, now_literal),
+            stages: spq
+                .stages
+                .into_iter()
+                .map(|s| inject_now_pipe_stage(s, now_literal))
+                .collect(),
+        }),
+    }
+}
+
+fn inject_now_sql_query(mut sq: ast::SqlQuery, now_literal: &ast::Expr) -> ast::SqlQuery {
+    sq.where_ = sq.where_.map(|p| inject_now_predicate(p, now_literal));
+    sq.having = sq.having.map(|p| inject_now_predicate(p, now_literal));
+    sq
+}
+
+fn inject_now_pipe_stage(stage: ast::PipeStage, now_literal: &ast::Expr) -> ast::PipeStage {
+    use ast::PipeStage;
+    match stage {
+        PipeStage::Where(pred) => PipeStage::Where(inject_now_predicate(pred, now_literal)),
+        other => other,
+    }
+}
+
+fn inject_now_predicate(pred: ast::Predicate, now_literal: &ast::Expr) -> ast::Predicate {
+    use ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, op, rhs } => Predicate::Compare {
+            lhs: Box::new(inject_now_expr(*lhs, now_literal)),
+            op,
+            rhs: Box::new(inject_now_expr(*rhs, now_literal)),
+        },
+        Predicate::Logical { op, predicates } => Predicate::Logical {
+            op,
+            predicates: predicates
+                .into_iter()
+                .map(|p| inject_now_predicate(p, now_literal))
+                .collect(),
+        },
+        Predicate::Not(inner) => {
+            Predicate::Not(Box::new(inject_now_predicate(*inner, now_literal)))
+        }
+        // All other predicate variants do not contain Expr::Now.
+        other => other,
+    }
+}
+
+fn inject_now_expr(expr: ast::Expr, now_literal: &ast::Expr) -> ast::Expr {
+    use ast::Expr;
+    match expr {
+        Expr::Now => now_literal.clone(),
+        Expr::TimestampArithmetic { base, op, offset } => Expr::TimestampArithmetic {
+            base: Box::new(inject_now_expr(*base, now_literal)),
+            op,
+            offset,
+        },
+        Expr::Compare { lhs, op, rhs } => Expr::Compare {
+            lhs: Box::new(inject_now_expr(*lhs, now_literal)),
+            op,
+            rhs: Box::new(inject_now_expr(*rhs, now_literal)),
+        },
+        Expr::Logical { lhs, op, rhs } => Expr::Logical {
+            lhs: Box::new(inject_now_expr(*lhs, now_literal)),
+            op,
+            rhs: Box::new(inject_now_expr(*rhs, now_literal)),
+        },
+        Expr::Not(inner) => Expr::Not(Box::new(inject_now_expr(*inner, now_literal))),
+        // Literal, Field, VirtualField, In, InSubquery, FuncCall, Star, Interval — no NOW() to inject.
+        other => other,
+    }
 }
