@@ -49,13 +49,23 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.1"
+version: "1.2"
 updated: "2026-06-24"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
 # emit_tool_audit guard-reorder not try_send; DTU routes/oauth.rs path; DataFusion plan-time
 # soundness confirmed; chrono custom interval parse; rmcp prompt-dispatch investigation reaffirmed).
 # No AC count / BC trace change. See Changelog v1.1 row.
+# v1.2: dclaude:remove-uncertainty pass 2 (D-1110, pre-TDD-delivery) — re-validated against the
+# post-S-5.04 develop tip (903c8fcb). All 4 pass-1 code-grounded corrections RE-CONFIRMED on
+# 903c8fcb (StructuredErrorFields shape, OrgRegistry::slug_exists(&OrgSlug), emit_tool_audit
+# guard-reorder-before-audit-await, DTU oauth.rs/plugin internals). S-5.04 introduced NO new
+# conflicts (check_sensor_health is a LIVE_TOOLS handler, not NOT_YET_AVAILABLE; emit_tool_audit
+# + not-yet-available stub structure unchanged). 2 NEW corrections applied: (a) Area C location —
+# the prismql://reference include_str! is PQL_REFERENCE_CONTENT in resources/schema.rs (served by
+# render_pql_reference_resource), NOT in resources.rs as v1.1 stated; (b) BLOCKER-001 — no dedicated
+# "force-refresh entrypoint" in the plugin; acquire_token is the unconditional fresh-acquire fn,
+# get_token re-acquires only on cache-miss/stale. No AC count / BC trace change. See Changelog v1.2 row.
 producer: story-writer
 timestamp: "2026-06-24T00:00:00Z"
 input-hash: "TBD"
@@ -114,8 +124,11 @@ crates_touched:
   # NOTE (D-1110): the normalized_pql FIELD lives on StructuredErrorFields in prism-mcp, not on
   # a prism-query struct. There is no `ParseErrorDetails` type in the codebase.
   - prism-mcp
-  # resources.rs (build_reference_content function + static constants + example array + retire
-  # pql_reference.md), error_mapping.rs (StructuredErrorFields.normalized_pql field — D-1110),
+  # resources.rs (build_reference_content function + static constants + example array; repoint the
+  # read_resource prismql://reference arm), resources/schema.rs (D-1110 pass-2: remove
+  # PQL_REFERENCE_CONTENT include_str! + retire/repoint render_pql_reference_resource — the
+  # include_str! lives in resources/schema.rs, NOT resources.rs),
+  # error_mapping.rs (StructuredErrorFields.normalized_pql field — D-1110),
   # server.rs (NOT_YET_AVAILABLE guard reorder BEFORE emit_tool_audit await — D-1110: emit_tool_audit
   # awaits AuditWriter::write_tool_call, it is NOT an mpsc try_send path), tools/ (list_capabilities
   # wiring), prompts.rs / #[prompt_handler] macro expansion investigation
@@ -234,7 +247,21 @@ SQL→Pipe composition with FORBID-BOTH note, (5) operators table (including `CO
 (7) temporal grammar (NOW, INTERVAL, subtraction-only), (8) virtual fields and scope model,
 (9) case-sensitivity note, (10) column naming note, (11) LIMIT/head/limit equivalence note,
 (12) E-QUERY error quick-reference, (13) enrichment section. The static `pql_reference.md`
-file is RETIRED (`include_str!` removed from `resources.rs`).
+file is RETIRED.
+> **CORRECTION (remove-uncertainty pass-2, D-1110, develop@903c8fcb):** v1.1 said the
+> `include_str!` for the reference lives in `resources.rs`. **It does not.** Verified on
+> 903c8fcb: the embedded constant is
+> `PQL_REFERENCE_CONTENT: &str = include_str!("../pql_reference.md")` in
+> `crates/prism-mcp/src/resources/schema.rs`, and `prismql://reference` is served by
+> `schema::render_pql_reference_resource()` (also in `resources/schema.rs`), which `resources.rs`
+> dispatches to (the `prismql://reference` arm of the `read_resource` handler calls
+> `schema::render_pql_reference_resource()`). The implementer adds `build_reference_content`
+> (and `REFERENCE_EXAMPLES` / `ExampleKind`) to `resources.rs`, removes the `include_str!` of
+> `PQL_REFERENCE_CONTENT` from `resources/schema.rs` (and retires `render_pql_reference_resource`
+> or repoints it), and changes the `resources.rs` `read_resource` `prismql://reference` arm to
+> call `build_reference_content(Some(&registry))` instead of `schema::render_pql_reference_resource()`.
+> The markdown file path (`crates/prism-mcp/src/pql_reference.md`) is unchanged — the `../` in the
+> `include_str!` resolves there from `resources/schema.rs`.
 
 **Red Gate test:** `test_BC_2_11_022_reference_content_completeness` — call
 `build_reference_content(None)` and assert the returned string contains key phrases from
@@ -453,23 +480,32 @@ second Prism session start.
   always returns the same static token) — meaning the hang is more likely a plugin-side
   token-cache / state-mismatch issue across sessions than a missing DTU endpoint. The implementer
   should confirm against the plugin's actual on-cache-miss behavior before choosing a fix path.
-- **VERIFIED plugin internals (D-1110):** `crates/prism-spec-engine/plugins/crowdstrike-oauth2/src/lib.rs`
-  caches `"token"` + `"expires_at_secs"` in the plugin KV store (plugin_state CF) and returns
-  the cached token while `current_time_secs() < expires_at_secs` (cache-hit path). It has a
-  FORCED-REFRESH entrypoint that bypasses the KV cache and always issues a new
-  `grant_type=client_credentials` request. The cross-session hang is consistent with a stale
-  KV-cached token from a prior Prism session being presented to a freshly-reset DTU session
-  (DTU session state resets between Prism runs, but the plugin's persisted KV token does not).
-  Lower-risk fix: on the cross-session/cache-miss boundary, invoke the force-refresh entrypoint
-  to re-acquire via `client_credentials` (which the DTU does honor) rather than relying on a
-  persisted token. Confirm the plugin_state CF persistence model in `prism-storage` before
+- **VERIFIED plugin internals (D-1110; RE-VERIFIED pass-2 against develop@903c8fcb):**
+  `crates/prism-spec-engine/plugins/crowdstrike-oauth2/src/lib.rs` caches `"token"` +
+  `"expires_at_secs"` in the plugin KV store (plugin_state CF) and returns the cached token while
+  `current_time_secs() < expires_at_secs` (the cache-hit branch of `get_token(host, token_endpoint)`).
+  **CORRECTION (pass-2):** there is NO dedicated "FORCED-REFRESH entrypoint." The unconditional
+  fresh-acquire function is `acquire_token(host, token_endpoint)` (it always issues a new
+  `grant_type=client_credentials` request and writes a new `expires_at_secs`); `get_token` is the
+  cache-aware wrapper that calls `acquire_token` ONLY on cache-miss/stale (`now >= expires_at_secs`
+  or empty cached token). To force a refresh, the plugin path must either call `acquire_token`
+  directly or invalidate the KV entry so `get_token` falls through. The cross-session hang is
+  consistent with a stale KV-cached token from a prior Prism session being presented to a
+  freshly-reset DTU session (DTU session state resets between Prism runs, but the plugin's
+  persisted KV token does not). Lower-risk fix: on the cross-session/cache-miss boundary, force a
+  fresh acquire (call `acquire_token` directly or evict the KV `token`/`expires_at_secs` keys so
+  `get_token` re-acquires) via `client_credentials` (which the DTU does honor) rather than relying
+  on a persisted token. Confirm the plugin_state CF persistence model in `prism-storage` before
   finalizing.
 - Fix path: EITHER the plugin detects a stale token (different DTU session) and forces a
   full re-auth via `client_credentials` (plugin-side fix, more robust — and aligns with the DTU
-  only supporting `client_credentials`) OR the DTU's `token` handler is extended to accept
-  `grant_type=refresh_token` and return a fresh static token (DTU-side fix). Both paths are
-  acceptable; implementer chooses based on root-cause investigation. Given the DTU only models
-  `client_credentials`, the plugin-side full-reauth path is the lower-risk default.
+  only supporting `client_credentials`; mechanically this means calling `acquire_token` directly
+  or evicting the KV cache keys so `get_token` re-acquires — there is no separate force-refresh
+  API) OR the DTU's `token` handler (`crates/prism-dtu-crowdstrike/src/routes/oauth.rs`,
+  `pub async fn token`) is extended to accept `grant_type=refresh_token` and return a fresh static
+  token (DTU-side fix). Both paths are acceptable; implementer chooses based on root-cause
+  investigation. Given the DTU only models `client_credentials`, the plugin-side full-reauth path
+  is the lower-risk default.
 - Existing BC-2.06.001 (CrowdStrike OAuth flow) governs the correct token acquisition
   behavior. No new BC required.
 - Verification: start Prism, run a CrowdStrike query, restart Prism (new session), run
@@ -558,7 +594,7 @@ if it checks the aggregates section).
 | `StructuredErrorFields` — add `normalized_pql: Option<String>` (NOT `ParseErrorDetails`/prism-query; D-1110 correction) | `crates/prism-mcp/src/error_mapping.rs` | Pure |
 | `PrismError::RedundantRowLimit { sql_limit: u64, pipe_limit: u64 }` | `crates/prism-core/src/error.rs` | Pure |
 | `build_reference_content` + static constants + example array | `crates/prism-mcp/src/resources.rs` | Pure (fn); Effectful (server) |
-| Retire `pql_reference.md` (remove `include_str!`) | `crates/prism-mcp/src/pql_reference.md` + `resources.rs` | n/a |
+| Retire `pql_reference.md` (remove `PQL_REFERENCE_CONTENT include_str!` in `resources/schema.rs`; repoint `read_resource` arm in `resources.rs`; D-1110 pass-2 — `include_str!` is in `resources/schema.rs`, NOT `resources.rs`) | `crates/prism-mcp/src/pql_reference.md` + `crates/prism-mcp/src/resources/schema.rs` + `resources.rs` | n/a |
 | `FeatureFlagEvaluator` — add `Arc<OrgRegistry>` field | `crates/prism-security/src/feature_flag.rs` | Pure |
 | `client_exists` — build `OrgSlug` from `&str` and consult `OrgRegistry::slug_exists(&OrgSlug)` (D-1110: `contains` does not exist) | `crates/prism-security/src/feature_flag.rs` | Pure |
 | `list_capabilities` handler — wire `Arc<OrgRegistry>` | `crates/prism-mcp/src/tools/list_capabilities.rs` | Effectful |
@@ -673,7 +709,11 @@ must both fail (Red Gate requirement BC-5.38.001).
 1. In `crates/prism-mcp/src/resources.rs`, add `pub const REFERENCE_EXAMPLES: &[(&'static str, ExampleKind)] = &[…]` with positive and negative examples covering all required sections.
 2. Add `ExampleKind` enum: `Positive`, `NegativeE040`, `NegativeOther(&'static str)`.
 3. Implement `build_reference_content(infusion_registry: Option<&InfusionRegistry>) -> String`. Write each section as a `&'static str` constant. Assemble the enrichment section from the live registry (or placeholder if `None`).
-4. Remove `include_str!("pql_reference.md")` from the `read_resource` handler. Update the handler to call `build_reference_content(Some(&registry))`.
+4. Remove the `PQL_REFERENCE_CONTENT = include_str!("../pql_reference.md")` constant from
+   `crates/prism-mcp/src/resources/schema.rs` (NOT `resources.rs` — D-1110 pass-2 location
+   correction) and retire/repoint `schema::render_pql_reference_resource()`. Update the
+   `prismql://reference` arm of the `read_resource` handler in `resources.rs` (which currently
+   calls `schema::render_pql_reference_resource()`) to call `build_reference_content(Some(&registry))`.
 5. Write the 3-tier CI gate test driven by `REFERENCE_EXAMPLES`.
 6. Run `just iter prism-mcp` — AC-006/AC-007/AC-008 tests must turn GREEN.
 
@@ -807,7 +847,8 @@ From CLAUDE.md conventions:
 | `crates/prism-core/src/error.rs` | Modify | `PrismError::RedundantRowLimit { sql_limit: u64, pipe_limit: u64 }` variant |
 | `crates/prism-core/src/error_mapping.rs` | Modify | Add `-32602 INVALID_PARAMS` arm for `RedundantRowLimit` |
 | `crates/prism-mcp/src/resources.rs` | Modify | `build_reference_content`, `REFERENCE_EXAMPLES`, `ExampleKind`; remove `include_str!` |
-| `crates/prism-mcp/src/pql_reference.md` | Delete / retire | `include_str!` removed; file may remain as documentation archive |
+| `crates/prism-mcp/src/resources/schema.rs` | Modify | Remove `PQL_REFERENCE_CONTENT = include_str!("../pql_reference.md")` + retire/repoint `render_pql_reference_resource()` (D-1110 pass-2: the `include_str!` lives HERE, not in `resources.rs`) |
+| `crates/prism-mcp/src/pql_reference.md` | Delete / retire | `include_str!` (in `resources/schema.rs`) removed; file may remain as documentation archive |
 | `crates/prism-mcp/src/server.rs` | Modify | NOT_YET_AVAILABLE guard reorder BEFORE `emit_tool_audit(...).await` (D-1110: emit_tool_audit awaits AuditWriter::write_tool_call — no mpsc try_send path exists) |
 | `crates/prism-mcp/src/prompts.rs` | Modify | Fix prompt hang (BLOCKER-003 root cause from `cargo expand` investigation) |
 | `crates/prism-mcp/src/tools/list_capabilities.rs` | Modify | Wire `Arc<OrgRegistry>` through to `FeatureFlagEvaluator` |
@@ -827,4 +868,5 @@ From CLAUDE.md conventions:
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | demo-readiness-remediation-2026-06-24 | 2026-06-24 | story-writer | Initial story. 26 ACs (19 BC-traced + 7 implementer/doc). 8 BCs. Explicit human directive: single consolidated story for all T13 demo-readiness findings. Size flag included per story-writer mandate (111k token estimate). |
+| 1.2 | remove-uncertainty-pass2-D1110 | 2026-06-24 | research-agent | `dclaude:remove-uncertainty` pass 2 (D-1110, pre-TDD-delivery) — re-validated against the post-S-5.04 develop tip (develop@903c8fcb, contains merged S-5.04). **Pass-1 corrections RE-CONFIRMED on 903c8fcb:** (1) `StructuredErrorFields` in `prism-mcp/src/error_mapping.rs` — `#[non_exhaustive]`, carries `near_text`/`reference_pointer`/`available_columns`/`did_you_mean` via `skip_serializing_if`; no `ParseErrorDetails` exists. (2) `OrgRegistry::slug_exists(&self, slug: &OrgSlug) -> bool` (org_registry.rs) — no `contains`. (3) `emit_tool_audit` (server.rs) is `async fn` calling `writer.write_tool_call(...).await` on `Arc<dyn AuditWriter>` returning `Result<Option<String>, ErrorData>` — NO mpsc/try_send; not-yet-available stubs (`create_schedule`, `list_schedules`, etc.) call `scan_inputs_audited().await? → emit_tool_audit().await? → Err(not_yet_available_msg(...))`; guard-reorder-before-audit-await fix is correct. (4) DTU `routes/oauth.rs` `pub async fn token` is `client_credentials`-only / static `"dtu-fake-cs-token"` / 401 only on `auth_mode=="reject"`; plugin caches `token`+`expires_at_secs` in KV. **NEW S-5.04 conflict check:** NONE — S-5.04 added `check_sensor_health` as a `LIVE_TOOLS` handler (line in `LIVE_TOOLS` const, not `NOT_YET_AVAILABLE_TOOLS`), and left `emit_tool_audit` + the not-yet-available handler structure unchanged; Area E guard-reorder scope does not intersect S-5.04 code. EXPECTED=84 (S-5.04 HealthSummary) already correctly reflected in Previous Story Intelligence + Phase 8. **2 NEW corrections applied (mechanical/code-grounded, no architect adjudication):** (A) Area C location — the `prismql://reference` `include_str!` is `PQL_REFERENCE_CONTENT = include_str!("../pql_reference.md")` in `crates/prism-mcp/src/resources/schema.rs` (served by `render_pql_reference_resource()`), NOT in `resources.rs` as v1.1 said; `resources.rs` only dispatches to `schema::render_pql_reference_resource()` from the `read_resource` `prismql://reference` arm. Corrected AC-006, Phase 4 step 4, Architecture Mapping, File Structure (added `resources/schema.rs` row), crates_touched. The `pql_reference.md` path itself was already correct. (B) BLOCKER-001 / AC-019 — the plugin has NO dedicated "FORCED-REFRESH entrypoint"; `acquire_token(host, token_endpoint)` is the unconditional fresh-acquire fn, and `get_token` re-acquires only on cache-miss/stale (`now >= expires_at_secs` or empty cached token). To force a refresh the plugin path calls `acquire_token` directly or evicts the KV `token`/`expires_at_secs` keys. Corrected AC-019 plugin-internals + fix-path bullets. No AC count / BC trace change. |
 | 1.1 | remove-uncertainty-pass-D1110 | 2026-06-24 | research-agent | `dclaude:remove-uncertainty` pass 1 (D-1110). Validated all version-sensitive tech assumptions against `Cargo.lock` (source of truth) + CURRENT (2026) authoritative docs (Perplexity sonar-deep-research + Context7-grade source verification). Corrections applied (no AC count / BC trace change): (1) **Pinned exact resolved versions** — rmcp 1.7.0, chumsky 0.12.0, datafusion 53.1.0 (arrow 58), strsim 0.11.1, tokio 1.52.1, chrono 0.4.44. (2) **`ParseErrorDetails` does not exist** — the `normalized_pql` field belongs on the existing `#[non_exhaustive]` `StructuredErrorFields` in `prism-mcp/src/error_mapping.rs`; rewrite STRING produced in `prism-query` error_recovery; corrected AC-010, Architecture Mapping, File Structure, crates_touched, Phase 5, Phase 8 EXPECTED note, Previous Story Intelligence. (3) **OrgRegistry API** — method is `slug_exists(&OrgSlug)` not `contains(&str)`; corrected AC-013 + Phase 6 + crates_touched; no new OrgRegistry method needed; `OrgSlug::new_unchecked` forbidden. (4) **BLOCKER-004 mechanism** — `emit_tool_audit` awaits `AuditWriter::write_tool_call`, it is NOT an mpsc `try_send` path; the fix is guard-reorder-before-audit-await, not try_send; corrected AC-017/AC-018 (test renamed `..._guard_precedes_audit`), EC-009, points note, Architecture Mapping, File Structure. (5) **BLOCKER-001 path** — DTU route is `routes/oauth.rs` (`fn token`, client_credentials-only, static token) not `routes/oauth2.rs`; plugin-side full-reauth is lower-risk default; corrected AC-019, Phase 7, File Structure, crates_touched. (6) **DataFusion 53 plan-time injection confirmed sound** — PrismQL substitutes its own `Expr::Now` before the plan reaches DataFusion, avoiding any collision with DataFusion's built-in `now()`; added soundness note to Phase 3. (7) **chrono 0.4 has no duration-string parser** — `INTERVAL` literals require custom `<int><unit>` parsing via chumsky `try_map`; added note to Library table + Phase 3. (8) **rmcp PromptRouter required-arg validation** — design-expected but NOT explicitly documented in rmcp 1.7 docs; reaffirmed `cargo expand` investigation mandate (ADR-046 D6) before any fix; routes use `new_dyn` closures with `.unwrap_or` so closures don't block — hang is in macro-dispatch/transport layer. No item required architect adjudication (all corrections mechanical/code-grounded per production-grade default). |
