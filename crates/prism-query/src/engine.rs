@@ -627,6 +627,16 @@ impl QueryEngine {
         self.org_registry.as_ref().map(Arc::clone)
     }
 
+    /// Return the `InfusionRegistry` arc, if wired (CRIT-001 — BC-2.11.022 ADR-045 §A).
+    ///
+    /// Used by `dispatch_read_resource` to pass a live infusion registry snapshot to
+    /// `build_reference_content` so the `prismql://reference` resource reflects the
+    /// currently-loaded enrichment UDFs at query time. Returns `None` when the engine
+    /// is running in test mode without enrichment configured.
+    pub fn infusion_registry(&self) -> Option<Arc<prism_spec_engine::InfusionRegistry>> {
+        self.infusion_registry.as_ref().map(Arc::clone)
+    }
+
     /// Return the `AdapterRegistry` arc (S-5.04 — health probe wiring).
     ///
     /// Exposed so `PrismServer::with_deps` can pass the adapter registry to

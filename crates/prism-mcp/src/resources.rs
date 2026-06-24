@@ -436,7 +436,7 @@ fn sanitize_display_name(name: &str) -> String {
 /// S-DEMO-PRISMQL-ONBOARDING-001-A.
 ///
 /// Content delivery is handled by `dispatch_read_resource` →
-/// `render_pql_reference_resource` in `resources/schema.rs`.
+/// `build_reference_content` (runtime-assembled; ADR-045 §A / CRIT-001).
 pub fn build_resource_list() -> ListResourcesResult {
     let resources = vec![
         RawResource::new(URI_CONFIG_CLIENTS, "Prism Client Inventory")
@@ -449,9 +449,9 @@ pub fn build_resource_list() -> ListResourcesResult {
             )
             .with_mime_type("application/json")
             .no_annotation(),
-        // L3: PQL grammar reference static resource (BC-2.10.014 — S-DEMO-PRISMQL-ONBOARDING-001-A).
-        // Content embedded via include_str! in resources/schema.rs::PQL_REFERENCE_CONTENT.
-        // No subscribe/listChanged (static content — BC-2.10.014).
+        // L3: PQL grammar reference resource (BC-2.10.014 — S-DEMO-PRISMQL-ONBOARDING-001-A).
+        // Content assembled at runtime via build_reference_content (ADR-045 §A / CRIT-001).
+        // No subscribe/listChanged (content is stable per session — BC-2.10.014).
         // BC-2.10.014 AC-007: annotations.priority=0.8 + audience=["assistant"] required
         // (high-value reference material targeted at LLM agents, not human users).
         RawResource::new(schema::URI_PQL_REFERENCE, "PrismQL Grammar Reference")
@@ -601,9 +601,18 @@ pub async fn dispatch_read_resource(
         }
     }
 
-    // Exact match: prismql://reference (BC-2.10.014 — static PQL grammar reference)
+    // Exact match: prismql://reference (BC-2.11.022, ADR-045 §A — runtime reference content)
+    // CRIT-001 fix: call build_reference_content with the live InfusionRegistry so the
+    // returned document reflects currently-loaded enrichment UDFs at query time.
+    // The static include_str! path (render_pql_reference_resource / PQL_REFERENCE_CONTENT)
+    // is no longer the live production path; build_reference_content replaces it.
     if uri == schema::URI_PQL_REFERENCE {
-        return schema::render_pql_reference_resource();
+        let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());
+        let content = build_reference_content(infusion_registry.as_deref());
+        return Ok(ReadResourceResult::new(vec![ResourceContents::text(
+            content,
+            schema::URI_PQL_REFERENCE,
+        )]));
     }
 
     // Template match: prismql://schema/{client_id} (BC-2.10.013 — per-client schema catalog)
@@ -1353,67 +1362,53 @@ pub fn build_reference_content(
 
     // ── Header ──────────────────────────────────────────────────────────────
     out.push_str("# PrismQL Reference\n\n");
+
+    // ── Section 1: What is PrismQL ───────────────────────────────────────────
+    out.push_str("## What is PrismQL\n\n");
     out.push_str(
         "PrismQL (PQL) is the Prism query language for querying security sensor data. \
-         It supports four modes: Filter, SQL, Pipe, and SqlPipe (SQL→Pipe composition).\n\n",
-    );
-
-    // ── Mode Overview ────────────────────────────────────────────────────────
-    out.push_str("## Query Modes\n\n");
-    out.push_str(
-        "| Mode | Syntax | Notes |\n\
+         It supports four modes:\n\n\
+         | Mode | Syntax | Notes |\n\
          |------|--------|-------|\n\
-         | **Filter** | `field op value` | Bare predicate; no FROM clause required. Evaluated against current sensor context. |\n\
+         | **Filter** | `field op value` | Bare predicate; no FROM clause. |\n\
          | **SQL** | `SELECT ... FROM t WHERE ...` | Standard SQL SELECT; no pipe stages. |\n\
          | **Pipe** | `FROM t | where ... | stage ...` | Source + pipeline stages chained with `|`. |\n\
-         | **SqlPipe** | `SELECT ... FROM t | stage ...` | SQL→Pipe composition; SQL header + one or more pipe stages. |\n\n",
-    );
-    out.push_str(
-        "All PrismQL keywords are case-insensitive. Convention: UPPER for SQL mode keywords, \
-         lowercase for pipe stage names (e.g., `SELECT` vs `from`, `WHERE` vs `where`).\n\n",
+         | **SqlPipe** | `SELECT ... FROM t | stage ...` | SQL→Pipe composition; SQL header + pipe stages. |\n\n\
+         All PrismQL keywords are case-insensitive. Convention: UPPER for SQL keywords, \
+         lowercase for pipe stage names.\n\n",
     );
 
-    // ── SQL Mode BNF ─────────────────────────────────────────────────────────
-    out.push_str("## SQL Mode\n\n");
-    out.push_str("```sql\n");
+    // ── Section 2: Clause Grammar (BNF) ─────────────────────────────────────
+    out.push_str("## Clause Grammar (BNF)\n\n");
+    out.push_str("**SQL Mode:**\n```sql\n");
     out.push_str(
         "SELECT <columns>      -- * or comma-separated field list\n\
-         FROM <table>          -- sensor.table or bare table name\n\
+         FROM <table>          -- sensor_table or bare table name\n\
          [WHERE <predicate>]   -- filter expression\n\
          [GROUP BY <fields>]\n\
          [ORDER BY <field> [ASC|DESC]]\n\
          [LIMIT <n>]           -- trailing row cap; do NOT combine with pipe | limit\n",
     );
-    out.push_str("```\n\n");
-
-    // ── Pipe Mode BNF ────────────────────────────────────────────────────────
-    out.push_str("## Pipe Mode\n\n");
-    out.push_str("```\n");
+    out.push_str("```\n\n**Pipe Mode:**\n```\n");
     out.push_str(
         "FROM <table>\n\
          [| where <predicate>]\n\
          [| sort <field> [asc|desc]]\n\
-         [| head <n>]\n\
-         [| tail <n>]\n\
+         [| head <n>] [| tail <n>] [| limit <n>]  -- head/limit are equivalent\n\
          [| stats <agg> [by <field>]]\n\
          [| dedup <field>]\n\
          [| fields <field_list>]\n\
-         [| enrich <fn>(<col>)]\n\
-         [| limit <n>]\n",
+         [| enrich <fn>(<col>)]\n",
     );
-    out.push_str("```\n\n");
-    out.push_str("`head N` and `limit N` are equivalent in pipe mode.\n\n");
-
-    // ── SQL→Pipe Composition ─────────────────────────────────────────────────
-    out.push_str("## SQL→Pipe Composition (SqlPipe Mode)\n\n");
     out.push_str(
-        "`SELECT ... FROM t | <stage> ...` — SQL header followed by one or more pipe stages. \
-         **FORBID-BOTH (E-QUERY-040):** You cannot use both `SQL LIMIT` and `| limit` in the same \
-         query. Use one or the other.\n\n",
+        "```\n\n**SqlPipe Mode (SQL→Pipe composition):**\n\
+         `SELECT ... FROM t | <stage> ...` — SQL header followed by one or more pipe stages. \
+         **FORBID-BOTH (E-QUERY-040):** You cannot use both SQL `LIMIT` and `| limit` in the \
+         same query. Use one or the other.\n\n",
     );
 
-    // ── Operators Table ──────────────────────────────────────────────────────
-    out.push_str("## Operators\n\n");
+    // ── Section 3: Operators and Types ──────────────────────────────────────
+    out.push_str("## Operators and Types\n\n");
     out.push_str(
         "| Operator | Description | Example |\n\
          |----------|-------------|--------|\n\
@@ -1428,18 +1423,23 @@ pub fn build_reference_content(
          | `IN CIDR` | CIDR range check | `src_ip IN CIDR '10.0.0.0/8'` |\n\
          | `HAS` | Field exists and is non-null | `HAS extra_data` |\n\
          | `MISSING` | Field is absent or null | `MISSING assigned_to` |\n\
-         | `IS NULL` | Null check | `resolved_at IS NULL` |\n\
-         | `IS NOT NULL` | Non-null check | `resolved_at IS NOT NULL` |\n\
-         | `AND`, `OR`, `NOT` | Logical combinators | `severity = 'HIGH' AND NOT MISSING src_ip` |\n\n",
+         | `IS NULL` / `IS NOT NULL` | Null check | `resolved_at IS NULL` |\n\
+         | `AND`, `OR`, `NOT` | Logical combinators | `severity = 'HIGH' AND NOT MISSING src_ip` |\n\n\
+         **Aggregate functions** (for `| stats` and SQL `SELECT`):\n\n\
+         `count()`, `sum(field)`, `avg(field)`, `min(field)`, `max(field)`, \
+         `percentile(field, p)`, `distinct_count(field)`.\n\n\
+         **Virtual fields** injected into every result:\n\
+         `_sensor`, `_client`, `_source_table`, `_safety_flags`.\n\n\
+         Column names come verbatim from `prism_describe` — do not construct dot-path names.\n\n",
     );
 
-    // ── Temporal Grammar ──────────────────────────────────────────────────────
-    out.push_str("## Temporal Grammar (ADR-044)\n\n");
+    // ── Section 4: Datetime Arithmetic ───────────────────────────────────────
+    out.push_str("## Datetime Arithmetic\n\n");
     out.push_str(
         "PrismQL supports temporal expressions in WHERE / `| where` predicates:\n\n\
          - `NOW()` — current timestamp at query planning time\n\
          - `INTERVAL 'Nd'` — duration literal; units: `s`=seconds, `m`=minutes, `h`=hours, `d`=days\n\
-         - `NOW() - INTERVAL 'Nd'` — timestamp subtraction (subtraction only in v1; `+` is not supported)\n\n\
+         - `NOW() - INTERVAL 'Nd'` — timestamp subtraction (subtraction only; `+` not supported)\n\n\
          **Examples:**\n\
          ```sql\n\
          -- Last 7 days\n\
@@ -1448,70 +1448,24 @@ pub fn build_reference_content(
          WHERE timestamp > NOW() - INTERVAL '24h'\n\
          ```\n\n\
          **Note:** Use `'7d'` not `'7 days'` — full English words are not accepted \
-         (produces E-QUERY-001).\n\n",
+         (results in a parse error).\n\n",
     );
 
-    // ── Aggregates / Stats ────────────────────────────────────────────────────
-    out.push_str("## Aggregates and Stats\n\n");
-    out.push_str(
-        "Available aggregate functions for `| stats` (pipe mode) and SQL `SELECT`:\n\n\
-         | Function | Description |\n\
-         |----------|-------------|\n\
-         | `count()` | Row count |\n\
-         | `sum(field)` | Sum of a numeric field |\n\
-         | `avg(field)` | Average of a numeric field |\n\
-         | `min(field)` / `max(field)` | Min / max of a field |\n\
-         | `percentile(field, p)` | p-th percentile (p in [0, 100]) |\n\
-         | `distinct_count(field)` | Count of unique values |\n\n\
-         **Pipe stats syntax:** `| stats <agg> [by <field>]`\n\n",
-    );
-
-    // ── Virtual Fields and Scope Model ────────────────────────────────────────
-    out.push_str("## Virtual Fields\n\n");
-    out.push_str(
-        "Prism injects these virtual fields into every query result:\n\n\
-         | Field | Description |\n\
-         |-------|-------------|\n\
-         | `_sensor` | Sensor ID that produced the row |\n\
-         | `_client` | Client (org) the row belongs to |\n\
-         | `_source_table` | Source table name |\n\
-         | `_safety_flags` | Safety/classification flags |\n\n\
-         Scope is controlled via tool parameters (e.g., `client_id` on `run_query`), \
-         not by embedding client IDs in the query.\n\n",
-    );
-
-    // ── Column Naming Note ────────────────────────────────────────────────────
-    out.push_str("## Column Names\n\n");
-    out.push_str(
-        "Column names come verbatim from `prism_describe`. Use the name exactly as shown; \
-         do not construct dot-path names like `sensor.column`.\n\n",
-    );
-
-    // ── LIMIT / head / limit Equivalence ──────────────────────────────────────
-    out.push_str("## Row Limits\n\n");
-    out.push_str(
-        "`head N` and `limit N` are equivalent in pipe mode. `LIMIT N` is the trailing clause \
-         in SQL mode. All keywords are case-insensitive.\n\n",
-    );
-
-    // ── Error Code Quick-Reference ────────────────────────────────────────────
+    // ── Section 5: Error Code Quick-Reference ────────────────────────────────
     out.push_str("## Error Code Quick-Reference\n\n");
     out.push_str(
         "| Code | Cause | Self-Correction |\n\
          |------|-------|-----------------|\n\
-         | **E-QUERY-001** | Parse error — invalid syntax, bad operator, unknown keyword | Check spelling; use `prism_describe` to list valid columns |\n\
-         | **E-QUERY-002** | Query size limit exceeded | Shorten the query |\n\
+         | **E-QUERY-001** | Parse/syntax error — invalid syntax, bad operator, unknown keyword | Check spelling; use `prism_describe` to list valid columns |\n\
+         | **E-QUERY-002** | Query planning failed — type mismatch, invalid operator for column type, or plan construction failure | Use `prism_describe` to verify column types; select a compatible operator |\n\
          | **E-QUERY-003** | Depth limit exceeded | Reduce nesting depth |\n\
-         | **E-QUERY-010** | Write verb used in filter mode | Use SQL mode DML or pipe write stage |\n\
-         | **E-QUERY-011** | Unsupported DML statement | Check write verb documentation |\n\
-         | **E-QUERY-020** | Multi-tenant scope resolution failure | Verify `client_id` is registered |\n\
+         | **E-QUERY-037** | Table not available — sensor not configured for this client | Run `prism_describe(client_id)` to see available tables and sensors |\n\
          | **E-QUERY-038** | Column not found | Run `prism_describe(client_id, table)` to see available columns |\n\
-         | **E-QUERY-039** | Table not available for client | Run `prism_describe(client_id)` to see available tables |\n\
-         | **E-QUERY-040** | FORBID-BOTH — dual SQL LIMIT + pipe limit | Remove one of the two LIMIT clauses |\n\n",
+         | **E-QUERY-039** | Enrichment infusion not registered | Call `list_infusions` to see available enrichment functions |\n\
+         | **E-QUERY-040** | FORBID-BOTH — both SQL LIMIT and pipe `| limit` in same query | Remove one of the two LIMIT clauses |\n\n",
     );
 
     // ── Enrichment Section ────────────────────────────────────────────────────
-    out.push_str("## Enrichment Functions (Infusions)\n\n");
     out.push_str(
         "Enrichment functions are called via `| enrich <fn>(<col>)` in pipe or SqlPipe mode.\n\n",
     );
@@ -1549,8 +1503,8 @@ pub fn build_reference_content(
         }
     }
 
-    // ── Examples (from REFERENCE_EXAMPLES shared constant) ───────────────────
-    out.push_str("## Examples\n\n");
+    // ── Section 6: Query Examples (from REFERENCE_EXAMPLES shared constant) ───
+    out.push_str("## Query Examples\n\n");
 
     // Group by kind (BC-2.11.022 ADR-045 3-tier gate).
     out.push_str("### Positive Examples\n\n");
@@ -1577,6 +1531,24 @@ pub fn build_reference_content(
             out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
         }
     }
+
+    // ── Section 7: Self-Correction Workflow ──────────────────────────────────
+    out.push_str("## Self-Correction Workflow\n\n");
+    out.push_str(
+        "When a query returns an error, follow these steps:\n\n\
+         1. **E-QUERY-001 (parse error):** Check syntax against the BNF above. \
+            Common causes: missing quotes, wrong operator, unsupported interval format.\n\
+         2. **E-QUERY-037 (table not available):** Run `prism_describe(client_id)` to see \
+            registered tables. The error message includes available alternatives.\n\
+         3. **E-QUERY-038 (column not found):** Run `prism_describe(client_id, table)` to \
+            see available columns. The error message includes a did-you-mean suggestion.\n\
+         4. **E-QUERY-040 (FORBID-BOTH):** Remove either the SQL `LIMIT` clause or the \
+            pipe `| limit` stage — not both.\n\
+         5. **E-QUERY-002 (plan failed / type mismatch):** The operator may be incompatible \
+            with the column type. Check the column type via `prism_describe` and select a \
+            compatible operator.\n\n\
+         Always call `prism_describe` before writing queries against unfamiliar tables.\n\n",
+    );
 
     out
 }
