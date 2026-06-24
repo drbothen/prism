@@ -190,3 +190,35 @@ pub use filter_parser::PrismQlParser;
 pub use write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan};
 pub use write_result::{ConfirmationTokenPreview, SensorWriteError, WritePreview, WriteResult};
 pub use write_verb_registry::WriteVerbRegistry;
+
+// ── S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 stubs ─────────────────────────────
+// These public functions are test-writer stubs: they compile but panic via
+// todo!() until the implementer provides real bodies (Area A/B plan-time gates).
+
+/// Plan a parsed `SqlPipeQuery` AST: applies the FORBID-BOTH E-QUERY-040 check
+/// and any other plan-time validation (BC-2.11.020 postcondition 5, ADR-043 §C).
+///
+/// Returns `Ok(())` on a valid plan or `Err(PrismError::RedundantRowLimit)` when
+/// both the SQL head LIMIT and a pipe `| limit` stage are present.
+///
+/// Red Gate stub — body is `todo!()` until Area A implementation.
+pub fn plan_sqlpipe_query(_spq: &ast::SqlPipeQuery) -> Result<(), prism_core::error::PrismError> {
+    todo!(
+        "BC-2.11.020 AC-002: implement FORBID-BOTH plan-time check — \
+         return Err(PrismError::RedundantRowLimit) when both sql_limit and pipe | limit are set"
+    )
+}
+
+/// Parse a PrismQL string and apply plan-time constant injection (NOW() → timestamp literal).
+///
+/// Returns `Ok(Ast)` with all `Expr::Now` nodes replaced by `Expr::Literal(Literal::Timestamp)`
+/// for the current UTC instant (BC-2.11.021 postcondition — planning-time constant injection).
+///
+/// Red Gate stub — body is `todo!()` until Area B implementation.
+pub fn parse_and_plan(input: &str) -> Result<Ast, Vec<ParseError>> {
+    let _ = input;
+    todo!(
+        "BC-2.11.021 AC-004: implement parse_and_plan — call PrismQlParser::parse then \
+         replace Expr::Now with Literal::Timestamp(chrono::Utc::now()) at plan time"
+    )
+}

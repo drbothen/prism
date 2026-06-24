@@ -236,6 +236,18 @@ impl PrismServer {
         self
     }
 
+    /// Wire an `AuditWriter` into an existing `PrismServer` (test fixture helper).
+    ///
+    /// Intended for integration tests that exercise the `emit_tool_audit` call path
+    /// with a controlled `AuditWriter` (slow writer for timing tests, panicking writer
+    /// for guard-ordering tests per BC-2.10.017 AC-017/AC-018).
+    ///
+    /// `with_deps()` remains the production wiring path (boot step 9).
+    pub fn with_audit_writer(mut self, writer: Arc<dyn AuditWriter>) -> Self {
+        self.audit_writer = Some(writer);
+        self
+    }
+
     /// Construct a minimal PrismServer with NO domain dependencies wired.
     ///
     /// All domain tools return `PrismError::Internal` when called.

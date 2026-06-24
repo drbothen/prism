@@ -1885,6 +1885,33 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
 }
 
 // ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: map_prism_error_to_structured stub
+// ---------------------------------------------------------------------------
+
+/// Map a `PrismError` to `StructuredErrorFields`, including the `normalized_pql`
+/// field for D1 mode-bridge errors (BC-2.11.023 AC-010, ADR-046 §D1).
+///
+/// For `PrismError::QueryParseFailed` with a D1 mode-bridge error in the query string,
+/// the returned `StructuredErrorFields.normalized_pql` is `Some(rewrite)` where
+/// `rewrite` is the best-effort pipe-mode rewrite of the SQL query.
+///
+/// For all other errors, `normalized_pql` is `None`.
+///
+/// `original_query` is the query string as submitted to the parser.
+///
+/// Red Gate stub — body is `todo!()` until Area D implementation.
+pub fn map_prism_error_to_structured(
+    _err: &prism_core::error::PrismError,
+    _original_query: &str,
+) -> StructuredErrorFields {
+    todo!(
+        "BC-2.11.023 AC-010: implement map_prism_error_to_structured — \
+         populate normalized_pql on mode-bridge D1 errors by calling \
+         error_recovery::mode_bridge_normalized_pql(original_query)"
+    )
+}
+
+// ---------------------------------------------------------------------------
 // Unit tests for error_mapping
 // ---------------------------------------------------------------------------
 
