@@ -16,6 +16,7 @@
 
 use prism_mcp::resources::{build_reference_content, ExampleKind, REFERENCE_EXAMPLES};
 use prism_query::PrismQlParser;
+use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
 
 /// AC-006 / BC-2.11.022 postcondition — content completeness.
 ///
@@ -219,4 +220,109 @@ fn test_bc_2_11_022_none_registry_placeholder() {
          got content (first 200 chars): {:?}",
         &content[..content.len().min(200)]
     );
+}
+
+// ─── CRIT-003: registry-parity assertion ──────────────────────────────────────
+
+/// CRIT-003 / BC-2.11.022 — `build_reference_content(Some(&registry))` renders
+/// EXACTLY the enrichment names from the live registry.
+///
+/// A registry is constructed with two known infusion specs: `"geoip"` and `"threatintel"`.
+/// After calling `build_reference_content(Some(&registry))`:
+/// - Content must list `enrich geoip(col)` and `enrich threatintel(col)`.
+/// - Content must NOT contain the placeholder text (registry is present and non-empty).
+/// - Content must contain "Available enrichment functions:" (the populated header).
+/// - Content must NOT list any enrichment not in the registry (no phantom names).
+///
+/// This is a LOAD-BEARING production test: `build_reference_content` calls
+/// `registry.udf_descriptors()` and deduplicates by `infusion_id` — testing that
+/// the infusion_id values from the specs match what is rendered.
+///
+/// Red Gate (CRIT-003): build_reference_content used `include_str!` (static file)
+/// that ignored the registry entirely; the registry-controlled enrichment section
+/// always showed placeholder text regardless of the live registry.
+#[test]
+fn test_bc_2_11_022_registry_parity() {
+    // Build a known registry with two infusion specs.
+    let registry = InfusionRegistry::new();
+
+    let geoip_spec = InfusionSpec::new(
+        "geoip",
+        "GeoIP Lookup",
+        InfusionType::LocalLookup,
+        vec![InfusionField::new(
+            "geoip_country",
+            "src_ip",
+            "ip",
+            "string",
+        )],
+        "tests/geoip.toml",
+    );
+    let threatintel_spec = InfusionSpec::new(
+        "threatintel",
+        "ThreatIntel Lookup",
+        InfusionType::LocalLookup,
+        vec![InfusionField::new(
+            "threatintel_score",
+            "src_ip",
+            "ip",
+            "string",
+        )],
+        "tests/threatintel.toml",
+    );
+
+    registry
+        .load_spec(geoip_spec)
+        .expect("CRIT-003: geoip spec must load successfully");
+    registry
+        .load_spec(threatintel_spec)
+        .expect("CRIT-003: threatintel spec must load successfully");
+
+    // Call the production function.
+    let content = build_reference_content(Some(&registry));
+
+    // Both registered infusion names MUST appear as formatted lines.
+    let geoip_line = "- `enrich geoip(col)`";
+    let threatintel_line = "- `enrich threatintel(col)`";
+
+    assert!(
+        content.contains(geoip_line),
+        "CRIT-003 BC-2.11.022: content must contain '{geoip_line}' for registered infusion 'geoip'; \
+         content snippet: {:?}",
+        &content[..content.len().min(600)]
+    );
+    assert!(
+        content.contains(threatintel_line),
+        "CRIT-003 BC-2.11.022: content must contain '{threatintel_line}' for registered infusion 'threatintel'; \
+         content snippet: {:?}",
+        &content[..content.len().min(600)]
+    );
+
+    // Must contain the populated header (not empty registry message).
+    assert!(
+        content.contains("Available enrichment functions:"),
+        "CRIT-003 BC-2.11.022: content must contain 'Available enrichment functions:' header \
+         when registry has 2 infusions; got content snippet: {:?}",
+        &content[..content.len().min(600)]
+    );
+
+    // Must NOT contain the placeholder text (registry is wired and non-empty).
+    let placeholder =
+        "Call `list_infusions` to see available enrichment functions for your deployment.";
+    assert!(
+        !content.contains(placeholder),
+        "CRIT-003 BC-2.11.022: content must NOT contain placeholder text when a non-empty \
+         registry is wired; found placeholder in content"
+    );
+
+    // Must NOT list phantom enrichment names not in the registry.
+    let phantom_names = ["unknown_enrichment", "test_phantom", "not_registered"];
+    for phantom in &phantom_names {
+        let phantom_line = format!("- `enrich {phantom}(col)`");
+        assert!(
+            !content.contains(&phantom_line),
+            "CRIT-003 BC-2.11.022: content must NOT list phantom enrichment '{phantom}' \
+             that is not registered in the registry"
+        );
+    }
 }
