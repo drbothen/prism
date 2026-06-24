@@ -45,7 +45,7 @@ use crate::context::PrismContext;
 pub struct ClientInventoryEntry {
     /// The client identifier (OrgSlug).
     pub client_id: String,
-    /// Human-readable display name for the client (BC-2.10.008 v1.11).
+    /// Human-readable display name for the client (BC-2.10.008).
     ///
     /// Sourced from `[[orgs]].name` in `prism.toml` (`OrgEntry.name`).
     /// Serializes as JSON `null` when the org has no configured display name.
@@ -59,7 +59,7 @@ pub struct ClientInventoryEntry {
 /// Per-sensor config entry in `prism://config/clients/{client_id}/sensors`
 /// response (BC-2.10.008 postcondition 2).
 ///
-/// BC-2.10.008 v1.8: `api_base_url` MUST be present and contain only the
+/// BC-2.10.008: `api_base_url` MUST be present and contain only the
 /// scheme+host+port component (e.g., `"https://api.crowdstrike.com"`).
 /// Full URL paths, query strings, and credentials MUST NOT appear (VP-050, DI-002).
 #[non_exhaustive]
@@ -80,7 +80,7 @@ pub struct SensorConfigEntry {
 
 /// Health result for a single sensor — stored in the health cache (BC-2.08.005, BC-2.08.006).
 ///
-/// BC-2.08.005 v1.5 two-phase probe model:
+/// BC-2.08.005 two-phase probe model:
 /// - S-5.03 scope (`probe_level: "spec-only"`): `reachable` and `auth_valid` are `None`
 ///   (honest-unknown — no live probe has been performed). Hardcoding `true` is FORBIDDEN.
 /// - S-5.04 scope (`probe_level: "live"`): `reachable` and `auth_valid` are `Some(bool)`
@@ -109,10 +109,32 @@ pub struct SensorHealthResult {
     pub last_successful_query_at: Option<DateTime<Utc>>,
     /// Sanitised error text (prompt-injection-safe), if the health check failed.
     pub error: Option<String>,
+    /// Round-trip probe latency in milliseconds (F-S504-P1-MED-001 / AC-1).
+    ///
+    /// `Some(ms)` for live probes where the sensor responded (connectivity Up).
+    /// `None` when the sensor was unreachable (Down), not yet probed (spec-only),
+    /// or when latency could not be meaningfully measured.
+    pub latency_ms: Option<u64>,
+    /// Remediation guidance for unhealthy, auth-invalid, or rate-limited sensors.
+    ///
+    /// `None` for healthy sensors. Populated by `check_one` / `check_sensor_health` when
+    /// the sensor is not fully healthy (BC-2.08.007 postcondition — suggestion field).
+    ///
+    /// Examples (verbatim BC-2.08.007 text):
+    /// - Rate-limited:  `"Rate limit in effect — wait before retrying."`
+    /// - Auth-invalid:  `"Check credentials — sensor rejected authentication."`
+    /// - Degraded (5xx): `"Sensor returned a server error (5xx) — service may be temporarily unavailable."`
+    /// - Unreachable:   `"Sensor unreachable — verify network and endpoint configuration."`
+    ///
+    /// BC-2.08.001 EC-08-001 (F-S504-LP1P1-MED-001): Degraded (ConnectivityStatus::Degraded,
+    /// HTTP 5xx) and Down (connection error) produce distinct suggestions.  `check_one` sets
+    /// `result.error = Some("service_unavailable")` for Degraded probes; the suggestion ladder
+    /// in `check_sensor_health` uses this marker to dispatch the correct string.
+    pub suggestion: Option<String>,
 }
 
 impl SensorHealthResult {
-    /// Create a new `SensorHealthResult` in spec-only scope (BC-2.08.005 v1.5 S-5.03 contract).
+    /// Create a new `SensorHealthResult` in spec-only scope (BC-2.08.005 S-5.03 contract).
     ///
     /// `probe_level` is `"spec-only"`. `reachable`, `auth_valid`, and
     /// `last_successful_query_at` are all `None` (honest-unknown — no live probe).
@@ -126,13 +148,15 @@ impl SensorHealthResult {
             rate_limit: None,
             last_successful_query_at: None,
             error: None,
+            latency_ms: None,
+            suggestion: None,
         }
     }
 
     /// Builder: set `reachable` to `Some(bool)` (S-5.04 live-probe use only).
     ///
     /// NOTE: Do NOT call this in S-5.03 scope — `reachable` must remain `None` for
-    /// spec-only responses (BC-2.08.005 v1.5 postcondition, hardcoded-true prohibition).
+    /// spec-only responses (BC-2.08.005 postcondition, hardcoded-true prohibition).
     #[allow(dead_code)]
     pub fn with_reachable(mut self, reachable: bool) -> Self {
         self.reachable = Some(reachable);
@@ -159,6 +183,15 @@ impl SensorHealthResult {
         self.error = Some(error.into());
         self
     }
+
+    /// Builder: set remediation suggestion for unhealthy/rate-limited sensors.
+    ///
+    /// Called by `check_one` / `check_sensor_health` when the sensor is not fully
+    /// healthy (BC-2.08.007 postcondition — suggestion field).
+    pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
+        self.suggestion = Some(suggestion.into());
+        self
+    }
 }
 
 /// Rate limit state for a sensor (BC-2.08.005 postcondition field).
@@ -173,9 +206,23 @@ pub struct RateLimitInfo {
     pub reset_at: Option<DateTime<Utc>>,
 }
 
+impl RateLimitInfo {
+    /// Construct a `RateLimitInfo` with only the `reset_at` timestamp set.
+    ///
+    /// Used in tests and health-checker paths where only the retry deadline is known
+    /// (e.g., parsed from `Retry-After` header). `remaining` and `limit` are `None`.
+    pub fn new_with_reset_at(reset_at: DateTime<Utc>) -> Self {
+        Self {
+            remaining: None,
+            limit: None,
+            reset_at: Some(reset_at),
+        }
+    }
+}
+
 /// Resource pressure section in `check_sensor_health` response (BC-2.08.005 postcondition).
 ///
-/// BC-2.08.005 v1.6 two-phase resource_pressure behavior (RECONCILIATION-3 anchor):
+/// BC-2.08.005 two-phase resource_pressure behavior (RECONCILIATION-3 anchor):
 /// - S-5.03 scope: both counts are `None` — emitted as JSON `null` so the AI consumer can
 ///   distinguish "not yet wired" from a genuine zero (hardcoded `0` is FORBIDDEN in S-5.03).
 /// - S-5.04 scope: live counts wired via `QueryEngine::cursor_count()` / `::token_count()`.
@@ -203,7 +250,46 @@ impl ResourcePressure {
     }
 }
 
-/// Top-level structured content shape for `check_sensor_health` (BC-2.08.005).
+/// Summary counts object for `check_sensor_health` response (BC-2.08.007 postcondition).
+///
+/// Provides structured counts that enable AI consumers to quickly triage the health picture
+/// without scanning individual sensor entries. Serializes into `summary_counts` in the
+/// `SensorHealthStructuredContent` JSON response.
+#[non_exhaustive]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthSummary {
+    /// Number of sensors that are fully healthy (reachable + auth valid, not rate-limited).
+    pub healthy_count: usize,
+    /// Number of sensors that are NOT fully healthy (unreachable, auth-invalid, or rate-limited).
+    pub unhealthy_count: usize,
+    /// Total number of sensors probed.
+    pub total_count: usize,
+    /// Number of sensors that are rate-limited (subset of unhealthy_count).
+    pub rate_limited_count: usize,
+}
+
+impl HealthSummary {
+    /// Compute a `HealthSummary` from a slice of `SensorHealthResult` entries.
+    pub fn from_results(results: &[SensorHealthResult]) -> Self {
+        let total_count = results.len();
+        let healthy_count = results
+            .iter()
+            .filter(|r| {
+                r.reachable == Some(true) && r.auth_valid == Some(true) && r.rate_limit.is_none()
+            })
+            .count();
+        let rate_limited_count = results.iter().filter(|r| r.rate_limit.is_some()).count();
+        let unhealthy_count = total_count.saturating_sub(healthy_count);
+        Self {
+            healthy_count,
+            unhealthy_count,
+            total_count,
+            rate_limited_count,
+        }
+    }
+}
+
+/// Top-level structured content shape for `check_sensor_health` (BC-2.08.005, BC-2.08.007).
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorHealthStructuredContent {
@@ -215,23 +301,66 @@ pub struct SensorHealthStructuredContent {
     pub trust_level: String,
     /// Prose summary text (e.g., "2 of 3 sensors healthy for client 'acme'").
     pub summary: String,
+    /// Aggregate status string (BC-2.08.007 postcondition).
+    ///
+    /// Values (verbatim BC-2.08.007 postcondition):
+    /// - `"healthy"` — all sensors reachable, auth valid, not rate-limited
+    /// - `"partial"` — at least one sensor is unreachable or auth-invalid
+    /// - `"rate_limited"` — ALL sensors rate-limited, none unreachable/auth-invalid (EC-08-015)
+    /// - `"unhealthy"` — all sensors unreachable or auth-invalid
+    pub overall_status: String,
+    /// Structured summary counts (BC-2.08.007 postcondition).
+    ///
+    /// Contains `healthy_count`, `unhealthy_count`, `total_count`, `rate_limited_count`.
+    pub summary_counts: HealthSummary,
 }
 
 impl SensorHealthStructuredContent {
-    /// Construct a `SensorHealthStructuredContent` with the given sensors and summary.
+    /// Construct a `SensorHealthStructuredContent` with the given sensors, summary, and aggregate status.
     ///
     /// `trust_level` is always `"internal"` — it is set unconditionally here per
     /// BC-2.08.005 postcondition 7 (health data is Prism-generated, not sensor-sourced).
+    ///
+    /// `overall_status` is the serialized `OverallStatus` string (e.g., `"rate_limited"`).
+    /// `summary_counts` is computed from `sensors` via `HealthSummary::from_results`.
     pub fn new(
         sensors: Vec<SensorHealthResult>,
         resource_pressure: ResourcePressure,
         summary: impl Into<String>,
     ) -> Self {
+        let overall_status = "healthy".to_string(); // default; callers override via new_with_status
+        let summary_counts = HealthSummary::from_results(&sensors);
         Self {
             sensors,
             resource_pressure,
             trust_level: "internal".to_string(),
             summary: summary.into(),
+            overall_status,
+            summary_counts,
+        }
+    }
+
+    /// Construct a `SensorHealthStructuredContent` with an explicit `overall_status` string.
+    ///
+    /// Use this constructor in the live-probe path where `OverallStatus` is computed by
+    /// `HealthCheckResult::aggregate` and must be serialized into the response.
+    ///
+    /// `overall_status_str` MUST be one of `"healthy"`, `"partial"`, `"rate_limited"`,
+    /// or `"unhealthy"` (verbatim BC-2.08.007 postcondition classification table).
+    pub fn new_with_status(
+        sensors: Vec<SensorHealthResult>,
+        resource_pressure: ResourcePressure,
+        summary: impl Into<String>,
+        overall_status_str: impl Into<String>,
+    ) -> Self {
+        let summary_counts = HealthSummary::from_results(&sensors);
+        Self {
+            sensors,
+            resource_pressure,
+            trust_level: "internal".to_string(),
+            summary: summary.into(),
+            overall_status: overall_status_str.into(),
+            summary_counts,
         }
     }
 }
@@ -552,13 +681,13 @@ fn validate_resource_path_segment(segment: &str) -> Result<(), ()> {
 
 /// Handle `prism://config/clients` resource read (BC-2.10.008 postcondition 1).
 ///
-/// # Per-org scoping (IMP-8 / BC-2.10.008 v1.9)
+/// # Per-org scoping (IMP-8 / BC-2.10.008)
 ///
 /// When `org_registry` and `resolved_spec_map` are both wired (production multi-tenant
 /// mode), this function enumerates all registered org slugs via `org_registry.list_slugs()`
 /// and for each slug counts sensor entries from `resolved_spec_map`.  An org with zero
 /// overlay entries is listed with `sensor_count=0` and `enabled_sensors=[]`
-/// (BC-2.10.008 v1.9 Option B semantics: overlay = provisioned, not "customize a global
+/// (BC-2.10.008 Option B semantics: overlay = provisioned, not "customize a global
 /// default").
 ///
 /// When `org_registry` or `resolved_spec_map` is `None` (test / MVP mode without
@@ -584,11 +713,11 @@ pub async fn render_client_list_resource(
 ) -> Result<ReadResourceResult, ErrorData> {
     let entries: Vec<ClientInventoryEntry> =
         if let (Some(org_reg), Some(spec_map)) = (org_registry, resolved_spec_map) {
-            // ── Per-org path (IMP-8 / BC-2.10.008 v1.9) ──────────────────────────
+            // ── Per-org path (IMP-8 / BC-2.10.008) ──────────────────────────
             // Enumerate all registered org slugs. For each org, collect the sensor IDs
             // that have an overlay entry in resolved_spec_map.
             //
-            // BC-2.10.008 v1.11: source display_name from org_display_names in the snapshot.
+            // BC-2.10.008: source display_name from org_display_names in the snapshot.
             // Populated at boot step 4b.5 from [[orgs]].name in prism.toml (OrgEntry.name).
             // No new Arc plumbing — read from config_manager snapshot directly.
             let cm_guard = config_manager.load();
@@ -608,7 +737,7 @@ pub async fn render_client_list_resource(
                         .map(|(_org, sensor_id)| sensor_id.as_ref().to_string())
                         .collect();
                     let sensor_count = sensors_for_org.len();
-                    // BC-2.10.008 v1.11: look up display_name from org_display_names.
+                    // BC-2.10.008: look up display_name from org_display_names.
                     // None when the org has no name configured in prism.toml.
                     // SEC-003 / DI-006: sanitize before emitting to AI agent context —
                     // apply 128-char cap and control-char replacement at the read site.
@@ -684,7 +813,7 @@ pub async fn render_client_list_resource(
 /// Validates `client_id` via `OrgSlug::new()` (same guard as tool calls).
 /// Returns a 404-equivalent `ErrorData` on invalid `client_id`.
 ///
-/// # Per-org scoping (IMP-8 / BC-2.10.008 v1.8)
+/// # Per-org scoping (IMP-8 / BC-2.10.008)
 ///
 /// When `resolved_spec_map` is wired (production multi-tenant mode):
 /// - Filters `resolved_spec_map` by `OrgSlug == client_id` to return only that
@@ -692,7 +821,7 @@ pub async fn render_client_list_resource(
 /// - When `org_registry` is also wired, validates that `client_id` is a known org
 ///   and returns a 404 error for unregistered orgs (BC-2.10.008 error case).
 /// - An org registered in `OrgRegistry` with zero overlay entries returns an empty
-///   array (EC-10-017 / BC-2.10.008 v1.9 Option B semantics).
+///   array (EC-10-017 / BC-2.10.008 Option B semantics).
 /// - Removes the `sensor_id == client_id` stopgap (DI-008 fix).
 ///
 /// When `resolved_spec_map` is `None` (test / MVP mode without multi-tenant support):
@@ -727,7 +856,7 @@ pub async fn render_client_sensors_resource(
     }
 
     let entries: Vec<SensorConfigEntry> = if let Some(spec_map) = resolved_spec_map {
-        // ── Per-org path (IMP-8 / DI-008 / BC-2.10.008 v1.8+v1.9) ───────────────
+        // ── Per-org path (IMP-8 / DI-008 / BC-2.10.008) ───────────────────
         // Validate that the org is registered when org_registry is available.
         // An unregistered org returns a 404-equivalent error.
         if let Some(reg) = org_registry {
@@ -915,7 +1044,7 @@ pub fn render_sensors_health_resource(
     let clients_payload: std::collections::BTreeMap<String, serde_json::Value> = clients_map
         .iter()
         .map(|(client_id, entries)| {
-            // BC-2.08.006 v1.5 postcondition 2: `sensors` MUST be a JSON object keyed by
+            // BC-2.08.006 postcondition 2: `sensors` MUST be a JSON object keyed by
             // `sensor_id` — NOT a JSON array. AI consumers look up sensors directly by ID
             // without scanning an array.
             //

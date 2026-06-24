@@ -499,6 +499,20 @@ pub struct SensorSpec {
     /// DTU topology used for this sensor's data flow (BC-3.2.005).
     #[serde(default)]
     pub mode: crate::types::DtuMode,
+
+    /// Health-probe table name (BC-2.08.001 probe_table / probe-table-field-design.md §1).
+    ///
+    /// When `Some(name)`, `name` MUST case-sensitively match the `table_name` of a declared
+    /// `[[tables]]` block in this spec. Validated at parse time as Rule 8 (E-SPEC-026).
+    ///
+    /// When `None`, the connectivity probe falls back to the first declared table (if any),
+    /// or to the legacy `{sensor_id}_devices` no-op if no tables are declared (Section 3
+    /// of probe-table-field-design.md).
+    ///
+    /// `#[serde(default)]` ensures existing TOML files without this field parse without error.
+    ///
+    #[serde(default)]
+    pub probe_table: Option<String>,
 }
 
 impl Default for SensorSpec {
@@ -529,6 +543,7 @@ impl Default for SensorSpec {
             file_hash: String::new(),
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
+            probe_table: None,
         }
     }
 }
@@ -581,6 +596,7 @@ impl SensorSpec {
             file_hash: String::new(),
             source_path: String::new(),
             mode: crate::types::DtuMode::default(),
+            probe_table: None,
         }
     }
 }
@@ -998,6 +1014,37 @@ impl SpecLoader {
             }
         }
 
+        // Rule 8 (E-SPEC-026 / AC-8): if probe_table is declared, it MUST match a table_name
+        // in the spec's [[tables]] blocks. An empty tables list is also rejected — there is
+        // nothing to probe against.
+        //
+        // Validation: collect declared table names, check membership, build sorted list for
+        // the error message (BC-2.16.009 Rule 8 / probe-table-field-design.md §1).
+        if let Some(ref pt) = spec.probe_table {
+            let mut declared_names: Vec<String> =
+                spec.tables.iter().map(|t| t.table_name.clone()).collect();
+            declared_names.sort_unstable();
+
+            if !declared_names.iter().any(|name| name == pt) {
+                // F-S504-P2-003: empty tables renders as "[]" (the brackets come from the
+                // format string below), not "(none declared)".  Do not inject placeholder text
+                // between the brackets — the spec requires "Declared tables: []" for an empty list.
+                let tables_list = declared_names.join(", ");
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec026,
+                    message: format!(
+                        "sensor '{}' declares probe_table = '{}' but no [[tables]] block \
+                         has table_name = '{}'. Declared tables: [{}]. Remove probe_table \
+                         or add a matching [[tables]] block.",
+                        spec.sensor_id, pt, pt, tables_list,
+                    ),
+                    toml_path: Some("sensor.probe_table".to_string()),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+        }
+
         Ok(spec)
     }
 
@@ -1059,7 +1106,7 @@ impl SpecLoader {
 
             match Self::parse(&content) {
                 Ok(mut spec) => {
-                    // BC-2.16.001 v1.6 §Error Conditions E-SPEC-017:
+                    // BC-2.16.001 §Error Conditions E-SPEC-017:
                     // The filename stem must case-sensitively match the spec's sensor_id.
                     // E.g., `crowdstrike.sensor.toml` → stem = "crowdstrike" → must match
                     // sensor_id "crowdstrike". Generic check — no hardcoded sensor names
@@ -1324,7 +1371,7 @@ impl SpecLoader {
     ///   custom_via_plugin}`.
     /// - **Rule B / E-SPEC-013:** `credential_refs` cardinality must match the auth method's
     ///   schema: exactly 2 for `oauth2_client_credentials` (client_id + client_secret per
-    ///   BC-2.06.003 v1.3 / ADR-032), exactly 1 for all other auth types.
+    ///   BC-2.06.003 / ADR-032), exactly 1 for all other auth types.
     /// - **Rule C / E-SPEC-014:** Structural mismatch between resolved credential shape and
     ///   declared `auth_type`.
     ///
@@ -1359,9 +1406,9 @@ impl SpecLoader {
 
         // Rule B (E-SPEC-013): credential_ref cardinality must match the auth method's schema.
         //
-        // Per BC-2.06.003 v1.3 / ADR-032 (per-client credential convention):
+        // Per BC-2.06.003 / ADR-032 (per-client credential convention):
         //   - `oauth2_client_credentials` requires exactly 2 refs: client_id + client_secret
-        //     (BC-2.06.003 v1.3 §Per-Sensor credential_refs Declarations, CrowdStrike entry).
+        //     (BC-2.06.003 §Per-Sensor credential_refs Declarations, CrowdStrike entry).
         //   - All other auth types require exactly 1 ref.
         //
         // Note: Rule B fires only when credential_refs.len() > 1 (call site in SpecLoader::parse).

@@ -32,6 +32,8 @@
 #   Gap-CL-002: fixed audit_log path from /api/v1/audit_logs to /api/v1/audit_log/get
 
 sensor_id = "claroty"
+# probe_table: table routed to by LIMIT-0 health probe (BC-2.08.001 postcondition 5 / S-5.04 AC-10).
+probe_table = "devices"
 name = "Claroty xDome"
 auth_type = "bearer_static"
 base_url = "${env.CLAROTY_INSTANCE_URL}"

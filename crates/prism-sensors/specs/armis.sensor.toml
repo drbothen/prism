@@ -30,6 +30,8 @@
 # test test_f11_sns04_armis_devices_last_seen_fallback_engages (loads this file).
 
 sensor_id = "armis"
+# probe_table: table routed to by LIMIT-0 health probe (BC-2.08.001 postcondition 5 / S-5.04 AC-10).
+probe_table = "devices"
 name = "Armis Centrix"
 auth_type = "bearer_static"
 base_url = "${env.ARMIS_INSTANCE_URL}"
