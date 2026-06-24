@@ -551,7 +551,7 @@ pub struct StructuredErrorFields {
     /// `None` for all other error types (field absent from JSON via `skip_serializing_if`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub did_you_mean: Option<String>,
-    /// Canonical re-serialized PQL for three-mode bridge errors (ADR-046, BC-2.11.019 AC-001).
+    /// Canonical re-serialized PQL for three-mode bridge errors (ADR-046, BC-2.11.023 AC-010).
     ///
     /// When the mode-bridge produces a D1 error (wrong parsing mode selected), this field
     /// carries the normalized PQL string showing the correct form. The LLM agent uses this
@@ -560,7 +560,7 @@ pub struct StructuredErrorFields {
     /// ABSENT (key omitted from JSON via `skip_serializing_if`) for all non-mode-bridge errors.
     /// `None` for all error types that do not involve a mode mismatch.
     ///
-    /// Reference: ADR-046 §D1; BC-2.11.019 AC-001; S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001.
+    /// Reference: ADR-046 §D1; BC-2.11.023 AC-010; S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub normalized_pql: Option<String>,
 }
@@ -623,7 +623,7 @@ impl StructuredErrorFields {
             // Only set for ColumnNotFound via prism_error_to_structured_call_result.
             available_columns: None,
             did_you_mean: None,
-            // ADR-046 BC-2.11.019 AC-001: normalized_pql defaults to None.
+            // ADR-046 BC-2.11.023 AC-010: normalized_pql defaults to None.
             // Only set for mode-bridge D1 errors via prism_error_to_structured_call_result.
             normalized_pql: None,
         }
@@ -829,7 +829,7 @@ pub fn build_structured_error_response(
     if let Some(dym) = fields.did_you_mean {
         error_obj["did_you_mean"] = serde_json::Value::String(dym);
     }
-    // ADR-046 BC-2.11.019 AC-001: normalized_pql for mode-bridge D1 errors.
+    // ADR-046 BC-2.11.023 AC-010: normalized_pql for mode-bridge D1 errors.
     // Absent (key omitted) for all non-mode-bridge error types.
     if let Some(npql) = fields.normalized_pql {
         error_obj["normalized_pql"] = serde_json::Value::String(npql);
@@ -971,7 +971,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         /// Levenshtein spelling suggestion (E-QUERY-038 / BC-2.11.016 AC-001).
         /// Some(best_match) when distance ≤ 3; None (omitted from JSON) otherwise.
         did_you_mean: Option<String>,
-        /// Canonical normalized PQL for mode-bridge D1 errors (ADR-046 / BC-2.11.019 AC-001).
+        /// Canonical normalized PQL for mode-bridge D1 errors (ADR-046 / BC-2.11.023 AC-010).
         /// None for all non-mode-bridge error types.
         normalized_pql: Option<String>,
     }
@@ -1877,7 +1877,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         // Only Some for ColumnNotFound; None for all other variants (absent from JSON).
         available_columns: meta.available_columns,
         did_you_mean: meta.did_you_mean,
-        // ADR-046 BC-2.11.019 AC-001: normalized_pql comes from VariantMeta.
+        // ADR-046 BC-2.11.023 AC-010: normalized_pql comes from VariantMeta.
         // Only Some for mode-bridge D1 errors; None for all other variants (absent from JSON).
         normalized_pql: meta.normalized_pql,
     };
