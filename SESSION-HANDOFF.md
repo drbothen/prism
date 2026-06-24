@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.950"
+version: "7.951"
 status: current
-timestamp: 2026-06-24T14:00:00Z
+timestamp: 2026-06-24T15:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -30,13 +30,59 @@ timestamp: 2026-06-24T14:00:00Z
 >
 > **D-1321 (2026-06-24): SESSION WRAP — RESUME SNAPSHOT D-1321 authored. S-5.04 MERGED (develop@903c8fcb, T13 gate 2 CLEARED) + enrichment MERGED earlier (T13 gate 1). Mid-TDD on S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.2 (Group 1 GREEN @ b63aef87; Groups 2 & 3 pending). Non-exhaustive gate worktree=86, develop=84. §RESUME SNAPSHOT D-1321 authored (supersedes D-1310). STATE v7.949→v7.950.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1321** (authoritative zero-context restart protocol; supersedes D-1310). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1320 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1321 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `903c8fcb` (PR #202 S-5.04 sensor-health merged D-1319). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.950.
+> **D-1322 (2026-06-24): SESSION WRAP — RESUME SNAPSHOT D-1322 authored. Group 2 (prism-mcp) GREEN-WITH-1-CONFLICT @3b73cc08 (378/379; AC-010 test premise stale vs Group-1 composition). §RESUME SNAPSHOT D-1322 authored (supersedes D-1321). STATE v7.950→v7.951.**
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1322** (authoritative zero-context restart protocol; supersedes D-1321). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1321 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1322 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `903c8fcb` (PR #202 S-5.04 sensor-health merged D-1319). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.951.
 
 ---
 
-## §RESUME SNAPSHOT — D-1321 (2026-06-24 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.11; STORY-INDEX v2.471; ARCH-INDEX v2.145; STATE v7.950; worktree HEAD b63aef87 mid-TDD Group 1 GREEN) [SUPERSEDES D-1310]
+## §RESUME SNAPSHOT — D-1322 (2026-06-24 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.11; STORY-INDEX v2.471; ARCH-INDEX v2.145; STATE v7.951; worktree HEAD 3b73cc08 mid-TDD Groups 1&2 GREEN-WITH-1-CONFLICT) [SUPERSEDES D-1321]
+
+> **D-1322 burst (2026-06-24).** Session wrap. S-5.04 MERGED (PR #202 develop@903c8fcb, T13 gate 2 CLEARED, D-1319). Enrichment MERGED earlier (T13 gate 1). Mid-TDD on consolidated demo-readiness remediation story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.2 — Group 1 (prism-query grammar) GREEN @ b63aef87; Group 2 (prism-mcp) GREEN-WITH-1-CONFLICT @ 3b73cc08 (378/379; AC-010 test premise stale vs Group-1 SqlPipe composition); Group 3 PENDING. LOCAL develop ba1108d2 diverged from origin at 5504c152 — HUMAN DECISION PENDING. All prior D-1101..D-1321 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+S-5.04 MERGED (develop@903c8fcb, T13 gate 2) + enrichment MERGED (gate 1). Mid-TDD on S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (v1.2): Group 1 (prism-query grammar) GREEN, Group 2 (prism-mcp) GREEN-WITH-1-CONFLICT (378/379; AC-010 test premise stale vs Group-1 composition), Group 3 PENDING. NEXT (user directive): FULL FRESH-CONTEXT AUDIT of Group 2 (done under low context) + resolve the AC-010 conflict, THEN Group 3.
+
+### HEADS
+- origin/develop `903c8fcb`. local develop `ba1108d2` = unpushed `/wrap` skill commit, DIVERGED at 5504c152 — PENDING HUMAN DECISION (rework as PR vs rebase/drop); causes ADVISORY non-blocking SHA-currency hook FAIL on .factory bursts (precedent D-1319/1320/1321). New branches cut from origin/develop@903c8fcb.
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; this wrap commit is the current HEAD).
+- Agents in flight: NONE.
+
+### WORKSTREAM — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (ACTIVE — mid-TDD, Groups 1&2 green, Group 3 pending)
+- Branch `feature/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`; worktree `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`; HEAD `3b73cc08` (NOT pushed; cut from develop@903c8fcb incl merged S-5.04). Clean working tree.
+- Story v1.2 (D-1320); 26 ACs/19 Red-Gate; 6 areas A–F; 8 BCs. Both remove-uncertainty passes done.
+- **Group 1 (prism-query grammar) GREEN** @ b63aef87: SqlPipe composition (AC-001) + forbid-both/E-QUERY-040 (AC-002), NOW/INTERVAL plan-time injection (AC-004/005), filter-mode execute (AC-011), mode-bridge D1 diagnostic (AC-009). `just iter prism-query` 1085 pass/0 fail.
+- **Group 2 (prism-mcp) GREEN-WITH-1-CONFLICT** @ 3b73cc08 (commits d0316d49→3b73cc08): GREEN = build_reference_content + REFERENCE_EXAMPLES + 3-tier CI parity gate (AC-006/007/008, BC-2.11.022, resources.rs/schema.rs); list_capabilities→OrgRegistry via FeatureFlagEvaluator::client_exists (OrgRegistry::slug_exists, AC-013/014, BC-2.10.015 MAJOR-001 Path B); not-yet-available guard-precedes-audit reorder (AC-017/018, BC-2.10.017 BLOCKER-004); map_prism_error_to_structured implemented (error_mapping.rs). 378/379 prism-mcp tests pass. Non-exhaustive EXPECTED=86 UNCHANGED (no new pub types in Group 2).
+- **OPEN CONFLICT — AC-010** (`test_bc_2_11_023_normalized_pql_on_mode_bridge_error`, BLOCKED, the 1/379 failing): the test query `SELECT * FROM t WHERE severity = 'HIGH' | limit 10` was written expecting a mode-bridge D1 PARSE ERROR, but Group 1's SqlPipe composition now makes that EXACT query parse SUCCESSFULLY as `Ast::SqlPipe` — so the test's `PrismQlParser::parse(...).expect_err(...)` panics before `map_prism_error_to_structured` runs. The production mapping IS implemented and produces correct `normalized_pql` for genuine D1 errors. The TEST PREMISE is stale (the composition feature, BC-2.11.020, made the old "mode-mixing error" example a legitimate query). RESOLUTION (route on resume): test-writer updates the test query to one that STILL triggers a mode-bridge D1 error post-composition (a genuinely-invalid mode mix, e.g. a malformed pipe stage / unknown keyword after `|`), OR product-owner clarifies BC-2.11.023's mode-bridge scope now that SQL→pipe composition is real. Do NOT silently edit; adjudicate via source-of-truth precedence (composition BC-2.11.020 vs mode-bridge BC-2.11.023).
+- **Group 3 PENDING:** GRAMMAR-004 (E-QUERY-036 did_you_mean/available_tables), GRAMMAR-005/015 (enrich parse-error messages), BLOCKER-001 (CrowdStrike OAuth cross-session — force-reacquire via plugin acquire_token / KV evict; DTU routes/oauth.rs client_credentials-only), AC-003 additive-invariant, AC-012 D7 shared-predicate. Plus AC-020 = T13 runbook §5.5 pipe-syntax doc fix (a .factory edit via product-owner/state-manager, NOT code worktree).
+- 3-CLEAN streak: **0/3 — NOT STARTED** (TDD incomplete).
+- **RESUME NEXT-ACTION (explicit, user-directed audit-first):** (1) Dispatch a FULL FRESH-CONTEXT AUDIT of Group 2's prism-mcp work — `vsdd-factory:adversary` (and optionally `vsdd-factory:code-reviewer` for cognitive diversity) on the Group-2 diff `b63aef87..3b73cc08` against BC-2.11.022/023 + BC-2.10.015/017, with standing probes SAP-1/SAP-2/SID-1 + the project policy rubric. Scrutinize specifically: build_reference_content sections are REAL + the CI parity gate is not tautological (examples actually round-trip the parser; documented-error examples assert the right E-QUERY codes); the Arc<OrgRegistry> DI is real wiring not placeholder-construct + uses OrgSlug::new (NOT new_unchecked, AD-017); the not-yet-available guard genuinely precedes emit_tool_audit().await with no audit-skip regression for AVAILABLE tools; map_prism_error_to_structured normalized_pql logic. (2) Resolve the AC-010 conflict (route per above). (3) THEN Group 3 implementer. THEN `just check` workspace-green → LOCAL adversary 3-CLEAN cascade on the frozen HEAD → per-AC demo → push → PR (targets develop) → PR-LEVEL 3-CLEAN → CI → squash-merge → re-run the pre-flight demo audit (.factory/research/demo-pre-flight-audit-2026-06-24.md) to confirm all 4 blockers + grammar findings closed.
+
+### PENDING USER-APPROVED WORK / AUTONOMY
+- User granted: drive the remediation story AUTONOMOUSLY through remaining VSDD steps, BYPASSING human approval/ratification/PR-merge gates (objective gates — 3-CLEAN, CI, security — still enforced; --admin merge authorized for harness-blocked GH approvals, precedent PR #202).
+- User directive THIS session: on resume after clear, do a FULL AUDIT of Group 2 FIRST (low-context implementation) before Group 3 — encoded in RESUME NEXT-ACTION above.
+- HRG ratifications applied (D-1316): HRG-1 forbid-both/E-QUERY-040; HRG-3 hybrid reference gen; HRG-4 Path B OrgRegistry; D7 filter-is-sugar (ADR-046).
+
+### DEMO / RELEASE ROADMAP REMAINING
+T13 gate 1 (enrichment) + gate 2 (S-5.04) DONE. Remaining: remediation story green→audit→LOCAL 3-CLEAN→demo→PR→merge → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording. Day-2 follow-up: S-MCP-STREAMABLE-HTTP-TRANSPORT-001 (draft, depends_on T14, pending F1 delta-analysis).
+
+### WORKTREE INVENTORY
+- ACTIVE: `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001` (feature/...@3b73cc08 — mid-TDD, Groups 1&2 green).
+- STALE / leave-alone: `.worktrees/S-3.09` (FROZEN), `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded).
+- Main worktree develop @ba1108d2 (DIVERGED — pending /wrap reconciliation decision).
+
+### DECISION-LOG DELTA since D-1321
+D-1322 (this session wrap): Group 2 (prism-mcp) green-with-1-conflict @3b73cc08 — AC-006/007/008/013/014/017/018 green, AC-010 BLOCKED on Group1-composition-vs-test-premise conflict (routed to test-writer/PO on resume); EXPECTED=86 unchanged; audit-first directive recorded.
+
+### PENDING HUMAN DECISIONS
+1. local develop /wrap-commit reconciliation (ba1108d2 vs origin 903c8fcb) — advisory hook FAIL, non-blocking.
+2. EC-11 namespace collisions (older; separate burst).
+
+---
+
+## §RESUME SNAPSHOT — D-1321 (2026-06-24 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.11; STORY-INDEX v2.471; ARCH-INDEX v2.145; STATE v7.950; worktree HEAD b63aef87 mid-TDD Group 1 GREEN) [SUPERSEDES D-1310] [SUPERSEDED — see D-1322 above]
 
 > **D-1321 burst (2026-06-24).** Session wrap. S-5.04 MERGED (PR #202 develop@903c8fcb, T13 gate 2 CLEARED, D-1319). Enrichment MERGED earlier (T13 gate 1). Mid-TDD on consolidated demo-readiness remediation story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.2 — Group 1 (prism-query grammar) GREEN @ b63aef87; Groups 2 & 3 pending. LOCAL develop ba1108d2 diverged from origin at 5504c152 — HUMAN DECISION PENDING. All prior D-1101..D-1320 notes SUPERSEDED.
 
