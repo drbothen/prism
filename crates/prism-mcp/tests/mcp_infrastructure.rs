@@ -488,6 +488,160 @@ async fn test_bc_2_10_017_not_yet_available_guard_precedes_audit() {
     );
 }
 
+// ─── HIGH-002 sibling handler coverage ───────────────────────────────────────
+
+/// AC-017 BC-2.10.017 — sibling NOT_YET_AVAILABLE guard ordering: `list_plugins`,
+/// `reload_infusion`, `create_schedule`.
+///
+/// These are a representative sample of the 30+ NOT_YET_AVAILABLE handlers that were
+/// not individually exercised by the original test (which only called `list_infusions`,
+/// `plugin_status`, `infusion_status`).
+///
+/// PanickingAuditWriter proves the guard fires BEFORE any audit path — if any handler
+/// called emit_tool_audit or scan_inputs_audited before the not_yet_available_msg guard,
+/// the writer would panic and the test would FAIL.
+///
+/// All three handlers must:
+/// 1. Return Err(-32003) without panicking (PanickingAuditWriter never invoked).
+/// 2. Return within 1 second when wired with a 10-second SlowAuditWriter.
+#[tokio::test]
+async fn test_bc_2_10_017_sibling_handlers_guard_precedes_audit() {
+    use prism_mcp::server::{CreateScheduleParams, ListPluginsParams, ReloadInfusionParams};
+    use tokio::time::timeout;
+
+    // ── PanickingAuditWriter path ──────────────────────────────────────────
+    // Any handler that calls scan_inputs_audited / emit_tool_audit before
+    // not_yet_available_msg will invoke this writer and cause a process panic.
+    let panicking: Arc<dyn AuditWriter> = Arc::new(PanickingAuditWriter);
+    let server_p = PrismServer::new().with_audit_writer(Arc::clone(&panicking));
+
+    // list_plugins (no params)
+    let list_plugins_params: ListPluginsParams =
+        serde_json::from_value(serde_json::json!({})).expect("valid ListPluginsParams JSON");
+    let result = timeout(
+        Duration::from_secs(2),
+        server_p.list_plugins(Parameters(list_plugins_params)),
+    )
+    .await;
+    assert!(
+        result.is_ok(),
+        "BC-2.10.017 HIGH-002: list_plugins must return within 2s (no hang)"
+    );
+    let call_result = result.unwrap();
+    assert!(
+        call_result.is_err(),
+        "BC-2.10.017 HIGH-002: list_plugins must return Err; \
+         reaching here means PanickingAuditWriter never invoked → guard precedes audit"
+    );
+    assert_eq!(
+        call_result.unwrap_err().code,
+        rmcp::model::ErrorCode(-32003),
+        "BC-2.10.017 HIGH-002: list_plugins must return -32003"
+    );
+
+    // reload_infusion
+    let reload_infusion_params: ReloadInfusionParams =
+        serde_json::from_value(serde_json::json!({ "infusion_id": "test-infusion" }))
+            .expect("valid ReloadInfusionParams JSON");
+    let result = timeout(
+        Duration::from_secs(2),
+        server_p.reload_infusion(Parameters(reload_infusion_params)),
+    )
+    .await;
+    assert!(
+        result.is_ok(),
+        "BC-2.10.017 HIGH-002: reload_infusion must return within 2s (no hang)"
+    );
+    let call_result = result.unwrap();
+    assert!(
+        call_result.is_err(),
+        "BC-2.10.017 HIGH-002: reload_infusion must return Err; \
+         reaching here means PanickingAuditWriter never invoked → guard precedes audit"
+    );
+    assert_eq!(
+        call_result.unwrap_err().code,
+        rmcp::model::ErrorCode(-32003),
+        "BC-2.10.017 HIGH-002: reload_infusion must return -32003"
+    );
+
+    // create_schedule
+    let create_schedule_params: CreateScheduleParams =
+        serde_json::from_value(
+            serde_json::json!({ "query": "SELECT * FROM crowdstrike.detections LIMIT 10", "cron": "0 * * * *" }),
+        )
+        .expect("valid CreateScheduleParams JSON");
+    let result = timeout(
+        Duration::from_secs(2),
+        server_p.create_schedule(Parameters(create_schedule_params)),
+    )
+    .await;
+    assert!(
+        result.is_ok(),
+        "BC-2.10.017 HIGH-002: create_schedule must return within 2s (no hang)"
+    );
+    let call_result = result.unwrap();
+    assert!(
+        call_result.is_err(),
+        "BC-2.10.017 HIGH-002: create_schedule must return Err; \
+         PanickingAuditWriter never invoked → guard precedes audit"
+    );
+    assert_eq!(
+        call_result.unwrap_err().code,
+        rmcp::model::ErrorCode(-32003),
+        "BC-2.10.017 HIGH-002: create_schedule must return -32003"
+    );
+
+    // ── SlowAuditWriter path (fast-fail proof) ────────────────────────────
+    // All three handlers must return within 1s even with a 10s slow writer.
+    let slow: Arc<dyn AuditWriter> = Arc::new(SlowAuditWriter {
+        delay: Duration::from_secs(10),
+    });
+    let server_s = PrismServer::new().with_audit_writer(Arc::clone(&slow));
+
+    // list_plugins fast-fail
+    let list_plugins_params2: ListPluginsParams =
+        serde_json::from_value(serde_json::json!({})).expect("valid ListPluginsParams JSON");
+    let fast = timeout(
+        Duration::from_secs(1),
+        server_s.list_plugins(Parameters(list_plugins_params2)),
+    )
+    .await;
+    assert!(
+        fast.is_ok(),
+        "BC-2.10.017 HIGH-002: list_plugins must return within 1s with SlowAuditWriter"
+    );
+
+    // reload_infusion fast-fail
+    let reload_infusion_params2: ReloadInfusionParams =
+        serde_json::from_value(serde_json::json!({ "infusion_id": "test-infusion" }))
+            .expect("valid ReloadInfusionParams JSON");
+    let fast = timeout(
+        Duration::from_secs(1),
+        server_s.reload_infusion(Parameters(reload_infusion_params2)),
+    )
+    .await;
+    assert!(
+        fast.is_ok(),
+        "BC-2.10.017 HIGH-002: reload_infusion must return within 1s with SlowAuditWriter"
+    );
+
+    // create_schedule fast-fail
+    let create_schedule_params2: CreateScheduleParams =
+        serde_json::from_value(
+            serde_json::json!({ "query": "SELECT * FROM crowdstrike.detections LIMIT 10", "cron": "0 * * * *" }),
+        )
+        .expect("valid CreateScheduleParams JSON");
+    let fast = timeout(
+        Duration::from_secs(1),
+        server_s.create_schedule(Parameters(create_schedule_params2)),
+    )
+    .await;
+    assert!(
+        fast.is_ok(),
+        "BC-2.10.017 HIGH-002: create_schedule must return within 1s with SlowAuditWriter"
+    );
+}
+
 // ─── DONE_WITH_CONCERNS note ─────────────────────────────────────────────────
 //
 // BC-2.10.016 concern: the two prompt tests call `render_query_tutorial` and
