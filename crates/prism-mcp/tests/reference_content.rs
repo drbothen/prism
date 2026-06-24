@@ -15,7 +15,7 @@
 )]
 
 use prism_mcp::resources::{build_reference_content, ExampleKind, REFERENCE_EXAMPLES};
-use prism_query::PrismQlParser;
+use prism_query::{ast::Ast, plan_sqlpipe_query, PrismQlParser};
 use prism_spec_engine::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
 
 /// AC-006 / BC-2.11.022 postcondition — content completeness.
@@ -357,5 +357,85 @@ fn test_bc_2_11_022_registry_parity() {
             "CRIT-003 BC-2.11.022: content must NOT list phantom enrichment '{phantom}' \
              that is not registered in the registry"
         );
+    }
+}
+
+// ─── CRIT-003 residual: plan-rejection gate ───────────────────────────────────
+
+/// CRIT-003 residual / BC-2.11.022 AC-007 — every `NegativeE040` entry in
+/// `REFERENCE_EXAMPLES` must be proven to be the FORBID-BOTH pattern by asserting
+/// that `plan_sqlpipe_query` returns `Err(PrismError::RedundantRowLimit { .. })`.
+///
+/// The earlier closure of CRIT-003 proved the static content contains the E-QUERY-040
+/// error code. This test closes the residual gap: the EXAMPLE ITSELF must be the
+/// forbidden pattern, not merely an adjacent text string. Without this assertion a
+/// catalogued NegativeE040 snippet could be well-formed SqlPipe that is NOT actually
+/// dual-limited, making the CI gate vacuous (tautological gate = paper-fix per
+/// TD-VSDD-059).
+///
+/// Test protocol:
+/// 1. For each (NegativeE040, title, snippet) in REFERENCE_EXAMPLES:
+///    a. Parse via `PrismQlParser::parse` → must produce `Ok(Ast::SqlPipe(spq))`.
+///    b. Call `plan_sqlpipe_query(&spq)` → must produce `Err(PrismError::RedundantRowLimit { .. })`.
+///
+/// Load-bearing: drives the production `plan_sqlpipe_query` function in `prism-query`
+/// against real example data, proving the example is the forbidden pattern, not just
+/// that the example string contains "LIMIT" twice.
+#[test]
+fn test_bc_2_11_022_crit003_residual_negativee040_plan_rejected() {
+    use prism_core::error::PrismError;
+
+    let negative_e040_entries: Vec<(&str, &str)> = REFERENCE_EXAMPLES
+        .iter()
+        .filter_map(|(k, title, snippet)| {
+            if matches!(k, ExampleKind::NegativeE040) {
+                Some((*title, *snippet))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    assert!(
+        !negative_e040_entries.is_empty(),
+        "CRIT-003 residual: REFERENCE_EXAMPLES must contain at least one NegativeE040 entry \
+         (non-vacuous FORBID-BOTH gate)"
+    );
+
+    for (title, snippet) in &negative_e040_entries {
+        // Step 1: snippet must parse as a valid SqlPipe AST.
+        let parse_result = PrismQlParser::parse(snippet);
+        let ast = parse_result.unwrap_or_else(|errs| {
+            panic!(
+                "CRIT-003 residual: NegativeE040 example '{title}' must parse successfully \
+                 (E-QUERY-040 fires at plan time, not parse time); parse errors: {errs:?}"
+            )
+        });
+
+        let spq = match ast {
+            Ast::SqlPipe(spq) => spq,
+            other => panic!(
+                "CRIT-003 residual: NegativeE040 example '{title}' must parse as Ast::SqlPipe \
+                 (got {other:?}) — dual-limited queries are SqlPipe ASTs"
+            ),
+        };
+
+        // Step 2: plan must reject with RedundantRowLimit (E-QUERY-040).
+        let plan_result = plan_sqlpipe_query(&spq);
+        match &plan_result {
+            Err(PrismError::RedundantRowLimit { .. }) => {
+                // Expected: this is the FORBID-BOTH pattern.
+            }
+            Ok(()) => panic!(
+                "CRIT-003 residual: NegativeE040 example '{title}' must fail planning with \
+                 PrismError::RedundantRowLimit; got Ok(()) — the example is NOT actually the \
+                 FORBID-BOTH pattern, making the CI gate vacuous (tautological-gate = \
+                 paper-fix per TD-VSDD-059)"
+            ),
+            Err(other) => panic!(
+                "CRIT-003 residual: NegativeE040 example '{title}' must fail with \
+                 PrismError::RedundantRowLimit; got different error: {other:?}"
+            ),
+        }
     }
 }
