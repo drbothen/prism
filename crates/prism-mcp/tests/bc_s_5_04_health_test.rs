@@ -2560,11 +2560,18 @@ async fn test_BC_2_08_007_EC_007_response_shape_overall_status_summary_counts_su
         json_str
     );
 
-    // ── Assert prose summary matches BC wording ──────────────────────────────
-    // BC-2.08.007 EC-08-015: prose: "0 of N sensors healthy — all rate-limited"
+    // ── Assert prose summary matches AC-11 verbatim ─────────────────────────
+    // AC-11 (BC-2.08.007 EC-08-015): prose summary is
+    // "0 of N sensors healthy for client 'X' — all rate-limited"
+    // where N = sensor count, X = client identifier, — = U+2014 em-dash.
+    // OBS-1 fix: assert the FULL verbatim string (em-dash + "for client 'acme'" clause),
+    // not just fragment subsets that would miss a regression dropping the client-id clause
+    // or swapping the em-dash for an ASCII hyphen.
+    let expected_summary = "0 of 2 sensors healthy for client 'acme' \u{2014} all rate-limited";
     assert!(
-        json_str.contains("0 of 2 sensors healthy") && json_str.contains("all rate-limited"),
-        "F-S504-P5-002: prose summary MUST match '0 of N sensors healthy — all rate-limited'. \
+        json_str.contains(expected_summary),
+        "F-S504-P5-002 (OBS-1 tightened): prose summary MUST be verbatim AC-11 string: \
+         \"{expected_summary}\" (em-dash U+2014, 'for client X' clause). \
          Got JSON: {:.500}",
         json_str
     );
