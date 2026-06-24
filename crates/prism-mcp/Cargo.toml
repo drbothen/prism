@@ -83,6 +83,11 @@ secrecy = "0.8"
 # Transitive via prism-sensors/prism-query; explicit pin so the crate is available in
 # the test binary's direct dep list (prism-mcp does not list arrow as a direct dep).
 arrow = "58"
+# rmcp client feature: needed for DummyClientHandler + ClientHandler + duplex transport tests
+# (HIGH-001 closure: test_bc_2_10_016_get_prompt_full_transport_dispatch in mcp_infrastructure.rs).
+# The workspace dep enables "server" + "macros" + "transport-io"; "client" adds ClientHandler
+# and the peer client APIs needed to drive get_prompt via wire.
+rmcp = { workspace = true, features = ["client"] }
 
 [lints.clippy]
 # From workspace

@@ -642,16 +642,116 @@ async fn test_bc_2_10_017_sibling_handlers_guard_precedes_audit() {
     );
 }
 
-// ─── DONE_WITH_CONCERNS note ─────────────────────────────────────────────────
-//
-// BC-2.10.016 concern: the two prompt tests call `render_query_tutorial` and
-// `render_investigate_host` directly (not via the `#[prompt_handler]` macro-generated
-// `ServerHandler::get_prompt` dispatch). Both render functions are currently implemented.
-//
-// The BLOCKER-003 hang is in the `#[prompt_handler]` macro-generated dispatch layer —
-// hard to exercise as a unit test (requires `RequestContext<RoleServer>`, an rmcp-internal
-// type). Per ADR-046 D6, the implementer MUST use `cargo expand -p prism-mcp` to locate
-// and fix the hang in the macro expansion.
-//
-// The tests here serve as regression guards on the render path. Full BLOCKER-003 validation
-// requires the implementer to run the full `prompts/get` transport path manually after fix.
+// ─── HIGH-001: full-transport get_prompt dispatch ────────────────────────────
+
+/// HIGH-001 / BC-2.10.016 — `ServerHandler::get_prompt` via full MCP transport.
+///
+/// The macro-generated `ServerHandler::get_prompt` dispatches via:
+///   client.get_prompt(name, args) → JSON-RPC wire →
+///   #[prompt_handler] expand → PromptRouter::get_prompt →
+///   HashMap lookup → closure → render_query_tutorial(client_id, goal).
+///
+/// Prior gap: tests called `render_query_tutorial` directly (leaf renderer),
+/// completely bypassing the macro-generated dispatch. This test drives the REAL
+/// `ServerHandler::get_prompt` path via tokio::io::duplex + rmcp ClientHandler,
+/// proving the entire dispatch chain functions end-to-end.
+///
+/// cargo-expand analysis: the `#[prompt_handler(router = self.prompt_router)]`
+/// macro generates:
+///   async fn get_prompt(&self, request: GetPromptRequestParams, context: RequestContext<RoleServer>)
+///       -> Result<GetPromptResult, rmcp::ErrorData> {
+///       let prompt_context = PromptContext::new(self, request.name, request.arguments, context);
+///       self.prompt_router.get_prompt(prompt_context).await
+///   }
+/// There is no blocking point: the router does a HashMap lookup and calls a
+/// synchronous pure closure (render_query_tutorial). The Peer::new() constructor
+/// is pub(crate) in rmcp — RequestContext cannot be constructed from external
+/// crates. The only correct test pattern is the duplex + ClientHandler approach
+/// (mirroring rmcp's own test_prompt_macros.rs test_optional_i64_field_with_null_input).
+///
+/// Test protocol:
+/// 1. Spawn PrismServer on the server-side duplex stream.
+/// 2. DummyClientHandler.serve(client_stream) completes the MCP handshake.
+/// 3. client.get_prompt("query_tutorial", args) sends a real JSON-RPC request.
+/// 4. Assert the response contains PQL tutorial content (not an error).
+/// 5. Entire call completes within 5s (regression guard against future hang introduction).
+#[tokio::test]
+async fn test_bc_2_10_016_get_prompt_full_transport_dispatch() {
+    use rmcp::{
+        model::{ClientInfo, GetPromptRequestParams},
+        ClientHandler, ServiceExt,
+    };
+    use tokio::time::timeout;
+
+    // DummyClientHandler: minimal no-op client to complete MCP handshake.
+    #[derive(Debug, Clone, Default)]
+    struct DummyClientHandler;
+    impl ClientHandler for DummyClientHandler {
+        fn get_info(&self) -> ClientInfo {
+            ClientInfo::default()
+        }
+    }
+
+    // duplex transport — server side / client side.
+    let (server_transport, client_transport) = tokio::io::duplex(4096);
+
+    // Spawn the PrismServer on the server stream.
+    let server_handle = tokio::spawn(async move {
+        PrismServer::new()
+            .serve(server_transport)
+            .await
+            .expect("PrismServer::serve must complete MCP handshake")
+            .waiting()
+            .await
+            .expect("PrismServer waiting must not fail");
+    });
+
+    // Connect the dummy client — completes the handshake.
+    let client = DummyClientHandler::default()
+        .serve(client_transport)
+        .await
+        .expect("DummyClientHandler::serve must complete handshake");
+
+    // Invoke get_prompt("query_tutorial") via real JSON-RPC wire.
+    let args = serde_json::json!({
+        "client_id": "test-tenant",
+        "goal": "learn basic PQL filter syntax"
+    });
+    let params = GetPromptRequestParams::new("query_tutorial")
+        .with_arguments(args.as_object().unwrap().clone());
+
+    let result = timeout(Duration::from_secs(5), client.get_prompt(params))
+        .await
+        .expect("HIGH-001: get_prompt must return within 5s (no hang in dispatch chain)")
+        .expect("HIGH-001: get_prompt must return Ok (prompt found and rendered)");
+
+    // The response must carry at least one message.
+    assert!(
+        !result.messages.is_empty(),
+        "HIGH-001 BC-2.10.016: get_prompt(query_tutorial) must return at least one message; \
+         got empty messages vec"
+    );
+
+    // The rendered content must contain PQL tutorial content (not an error placeholder).
+    let full_text: String = result
+        .messages
+        .iter()
+        .filter_map(|m| match &m.content {
+            rmcp::model::PromptMessageContent::Text { text } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        full_text.contains("PQL") || full_text.contains("query") || full_text.contains("SELECT"),
+        "HIGH-001 BC-2.10.016: get_prompt(query_tutorial) rendered content must contain \
+         PQL tutorial text (\"PQL\" / \"query\" / \"SELECT\"); got first 200 chars: {:?}",
+        &full_text[..full_text.len().min(200)]
+    );
+
+    // Clean up: cancel the client and let the server task finish.
+    client.cancel().await.expect("client cancel must succeed");
+    // Server handle: we let it finish naturally (the cancel above closes the transport).
+    drop(server_handle);
+}
