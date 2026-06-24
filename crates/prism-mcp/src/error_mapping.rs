@@ -121,7 +121,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // MUST be explicit: #[non_exhaustive] fall-through would regress to opaque -32000.
         // Caller can fix by checking spelling or registering the sensor in prism.toml.
         // P6-02 adjudication 2026-06-11; error-taxonomy.md v1.73 E-QUERY-036.
-        PrismError::UnknownSourceTable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+        PrismError::UnknownSourceTable(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-038: Column not found → -32602 INVALID_PARAMS (caller-resolvable).
         //
@@ -1214,7 +1214,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
         | PrismError::McpToolNotFound { .. }
         | PrismError::InvalidCapabilityPath { .. }
         | PrismError::QueryLimitExceeded { .. }
-        | PrismError::UnknownSourceTable { .. }
+        | PrismError::UnknownSourceTable(..)
         // E-QUERY-040: SQL→Pipe redundant row limit (ADR-043). Both SQL LIMIT and
         // pipe | limit specified; caller must remove one. original_params_valid: false
         // (the combined query structure violates the FORBID-BOTH invariant).
@@ -2104,7 +2104,7 @@ fn find_first_unquoted_pipe(input: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use prism_core::PrismError;
+    use prism_core::{PrismError, UnknownSourceTableDetails};
 
     /// P6-02: UnknownSourceTable (E-QUERY-036) must map to -32602 INVALID_PARAMS.
     ///
@@ -2113,9 +2113,11 @@ mod tests {
     /// INTERNAL_ERROR, losing the caller-actionable E-QUERY-036 guidance.
     #[test]
     fn test_unknown_source_table_maps_to_invalid_params() {
-        let err = PrismError::UnknownSourceTable {
-            source_name: "ghost_sensor.table".to_string(),
-        };
+        let err = PrismError::UnknownSourceTable(Box::new(UnknownSourceTableDetails::new(
+            "ghost_sensor.table",
+            vec!["crowdstrike".to_string()],
+            Some("crowdstrike".to_string()),
+        )));
         let (code, message) = map_prism_error(err);
         assert_eq!(
             code,
@@ -2139,9 +2141,11 @@ mod tests {
     /// explicit arm is load-bearing (not just incidentally green via fall-through).
     #[test]
     fn test_unknown_source_table_does_not_map_to_internal_error() {
-        let err = PrismError::UnknownSourceTable {
-            source_name: "unknown.devices".to_string(),
-        };
+        let err = PrismError::UnknownSourceTable(Box::new(UnknownSourceTableDetails::new(
+            "unknown.devices",
+            vec![],
+            None,
+        )));
         let (code, _) = map_prism_error(err);
         assert_ne!(
             code,

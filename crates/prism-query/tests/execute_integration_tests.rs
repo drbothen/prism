@@ -2281,7 +2281,7 @@ async fn test_resolve_source_refs_unknown_table_returns_e_query_036() {
     );
     // Verify the error is the dedicated UnknownSourceTable variant (E-QUERY-036).
     assert!(
-        matches!(err, prism_core::PrismError::UnknownSourceTable { .. }),
+        matches!(err, prism_core::PrismError::UnknownSourceTable(..)),
         "F-LP1-CRITICAL-001: error must be PrismError::UnknownSourceTable (E-QUERY-036); got: {err:?}"
     );
     let detail = err.to_string();

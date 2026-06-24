@@ -40,7 +40,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
-use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
+use prism_core::{OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
 
@@ -979,9 +979,16 @@ pub(crate) async fn resolve_source_refs(
                 source_name,
                 "resolve_source_refs: unknown sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::UnknownSourceTable {
-                source_name: source_name.to_string(),
-            });
+            // Populate available_tables from the registry for actionable diagnostics (AC-021).
+            let available_tables: Vec<String> = adapter_registry
+                .registered_sensor_ids()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            // No valid sensor prefix — cannot compute did_you_mean (nothing to compare to).
+            return Err(PrismError::UnknownSourceTable(Box::new(
+                UnknownSourceTableDetails::new(source_name.to_string(), available_tables, None),
+            )));
         };
 
         // F-LP1-CRITICAL-001: after extracting the sensor prefix, verify that at least
@@ -1000,9 +1007,28 @@ pub(crate) async fn resolve_source_refs(
                 sensor_id = %sensor_id,
                 "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::UnknownSourceTable {
-                source_name: source_name.to_string(),
-            });
+            // Populate available_tables and did_you_mean for actionable diagnostics (AC-021).
+            let registered: Vec<String> = adapter_registry
+                .registered_sensor_ids()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            let sensor_str: &str = sensor_id.as_ref();
+            // Levenshtein ≤ 3 suggestion — matches E-QUERY-037 / E-QUERY-038 threshold (D-1163).
+            let did_you_mean = registered
+                .iter()
+                .map(|candidate| {
+                    (
+                        candidate.as_str(),
+                        strsim::levenshtein(sensor_str, candidate.as_str()),
+                    )
+                })
+                .filter(|(_, dist)| *dist <= 3)
+                .min_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(b.0)))
+                .map(|(candidate, _)| candidate.to_string());
+            return Err(PrismError::UnknownSourceTable(Box::new(
+                UnknownSourceTableDetails::new(source_name.to_string(), registered, did_you_mean),
+            )));
         }
 
         if clients.is_empty() {
@@ -2483,7 +2509,7 @@ mod unknown_source_table_tests {
             "resolve_source_refs must return Err for unregistered sensor prefix; got Ok",
         );
         assert!(
-            matches!(err, PrismError::UnknownSourceTable { .. }),
+            matches!(err, PrismError::UnknownSourceTable(..)),
             "error must be PrismError::UnknownSourceTable (E-QUERY-036); got: {err:?}"
         );
         let display = err.to_string();
@@ -2494,6 +2520,64 @@ mod unknown_source_table_tests {
         assert!(
             display.contains("ghost_sensor.devices"),
             "error display must include the source_name; got: {display}"
+        );
+    }
+
+    /// AC-021 / GRAMMAR-004 / E-QUERY-036: UnknownSourceTable error carries available_tables
+    /// and did_you_mean when the registry is non-empty.
+    ///
+    /// RED GATE: currently UnknownSourceTable { source_name: String } has no available_tables
+    /// or did_you_mean fields.  After the fix the variant becomes a boxed struct and this
+    /// test must pass.
+    ///
+    /// Mental-deletion proof: removing available_tables population at the emit site causes
+    /// the available_tables assertion to fail; removing did_you_mean computation causes the
+    /// did_you_mean assertion to fail.
+    #[tokio::test]
+    async fn test_BC_2_11_007_grammar004_unknown_source_table_carries_available_tables_and_did_you_mean(
+    ) {
+        let org_id = OrgId::new();
+        let mut registry = AdapterRegistry::new();
+        // Register "crowdstrike" — the user typo'd "crowdstrke" so did_you_mean should suggest it.
+        registry.register(
+            org_id,
+            Arc::new(StubAdapterForUnknownTest {
+                sensor_id: SensorId::new("crowdstrike"),
+            }),
+        );
+
+        // "crowdstrke" is 1 Levenshtein distance from "crowdstrike" — within the ≤3 threshold.
+        let source_names = vec!["crowdstrke_detections".to_string()];
+        let clients = vec![];
+        let org_registry = None;
+
+        let result =
+            super::resolve_source_refs(&source_names, &clients, &registry, &org_registry).await;
+
+        let err = result.expect_err(
+            "resolve_source_refs must return Err for unregistered 'crowdstrke'; got Ok",
+        );
+
+        // Must be the new boxed-struct variant.
+        let PrismError::UnknownSourceTable(ref details) = err else {
+            panic!(
+                "AC-021: error must be PrismError::UnknownSourceTable(Box<UnknownSourceTableDetails>); got: {err:?}"
+            );
+        };
+
+        // available_tables must list "crowdstrike" (the registered sensor prefix).
+        assert!(
+            details.available_tables.iter().any(|s| s == "crowdstrike"),
+            "AC-021: available_tables must contain 'crowdstrike'; got: {:?}",
+            details.available_tables
+        );
+
+        // did_you_mean must suggest "crowdstrike" (distance 1 ≤ 3).
+        assert_eq!(
+            details.did_you_mean.as_deref(),
+            Some("crowdstrike"),
+            "AC-021: did_you_mean must suggest 'crowdstrike' for 'crowdstrke'; got: {:?}",
+            details.did_you_mean
         );
     }
 
@@ -2527,7 +2611,7 @@ mod unknown_source_table_tests {
         let err = result
             .expect_err("resolve_source_refs must return Err for invalid table prefix; got Ok");
         assert!(
-            matches!(err, PrismError::UnknownSourceTable { .. }),
+            matches!(err, PrismError::UnknownSourceTable(..)),
             "error must be PrismError::UnknownSourceTable (E-QUERY-036) for invalid prefix; got: {err:?}"
         );
     }

@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-84, 86 (59 total E0639 in this file).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-59, 61-64, 66-72, 77-78, 80-84, 86-87 (60 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
 //! ci.yml EXPECTED=60 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
@@ -1367,4 +1367,34 @@ pub fn v86_sql_pipe_query() {
         stages: vec![],
     };
     let _ = _spq;
+}
+
+// ─── S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021: UnknownSourceTableDetails ──
+//
+// `UnknownSourceTableDetails` is the inner-boxed fields struct for
+// `PrismError::UnknownSourceTable` (E-QUERY-036). It carries `available_tables`
+// and `did_you_mean` for actionable diagnostics (AC-021 / GRAMMAR-004).
+// `#[non_exhaustive]` ensures future fields can be added without breaking
+// callers that construct or pattern-match. ci.yml EXPECTED bumped from 86 to 87.
+
+/// Violation 87: prism_core::error::UnknownSourceTableDetails struct literal (E0639).
+///
+/// `UnknownSourceTableDetails` carries the E-QUERY-036 error context: the
+/// source name, available sensor IDs, and an optional Levenshtein suggestion.
+/// `#[non_exhaustive]` ensures external callers cannot use struct-literal
+/// construction — callers MUST use `UnknownSourceTableDetails::new(...)`.
+/// Future fields (e.g., `available_prefixes`, `query_position`) can be added
+/// without breaking downstream callers.
+///
+/// Added: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021 (GRAMMAR-004 E-QUERY-036).
+#[allow(dead_code)]
+pub fn v87_unknown_source_table_details() {
+    use prism_core::error::UnknownSourceTableDetails;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _details = UnknownSourceTableDetails {
+        source_name: "ghost.table".to_string(),
+        available_tables: vec![],
+        did_you_mean: None,
+    };
+    let _ = _details;
 }

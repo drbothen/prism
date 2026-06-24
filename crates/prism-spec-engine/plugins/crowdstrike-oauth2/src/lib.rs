@@ -572,6 +572,29 @@ pub(crate) fn get_token(
     acquire_token(host, token_endpoint)
 }
 
+/// Evict the cached OAuth2 token from the KV store.
+///
+/// Writes `"0"` to `"expires_at_secs"` and `""` to `"token"` so that the next
+/// call to `get_token` always falls through to `acquire_token` (cache miss semantics
+/// per the `!cached_token.is_empty()` guard and the TTL check `now < 0` always false).
+///
+/// Call this at the start of each Prism query session to guarantee a fresh token is
+/// acquired even if a previous session left stale KV state behind (BLOCKER-001 fix).
+///
+/// KV write failures are silently ignored — the worst outcome is that the stale token
+/// is still in cache, which acquire_token's POST will refresh on first use anyway.
+///
+/// Story: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-019 (BLOCKER-001 cross-session token).
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn reset_token_cache(host: &impl HostInterface) {
+    // Writing "0" to expires_at_secs makes `now < 0` false for any valid Unix timestamp,
+    // causing get_token to always see the cache as expired → falls through to acquire_token.
+    let _ = host.kv_set("expires_at_secs", "0");
+    // Writing "" to token ensures the `!cached_token.is_empty()` guard treats it as a miss
+    // even if the TTL check were to pass (defense-in-depth).
+    let _ = host.kv_set("token", "");
+}
+
 // ---------------------------------------------------------------------------
 // WASM export entrypoints
 //
@@ -1230,6 +1253,59 @@ mod tests {
             host.http_call_count(),
             0,
             "EC-006c: NO HTTP call should be made when client_secret is absent"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // AC-019 / BLOCKER-001: Cross-session stale token eviction
+    // -------------------------------------------------------------------------
+
+    /// AC-019 / BLOCKER-001: `reset_token_cache(host)` evicts the cached token so
+    /// the next `get_token` call acquires a fresh one (cross-session KV stale fix).
+    ///
+    /// Scenario:
+    ///   1. A previous Prism session cached a bearer token and `expires_at_secs`.
+    ///   2. The KV store is populated with those stale values.
+    ///   3. `reset_token_cache(host)` is called at session start.
+    ///   4. `get_token` sees a cache miss / expired cache and calls acquire_token.
+    ///
+    /// RED GATE: `reset_token_cache` does not yet exist. The test fails to compile.
+    ///
+    /// Mental-deletion proof: removing the `reset_token_cache` call reverts KV to the
+    /// stale state, causing `get_token` to return the stale token (cache hit), making
+    /// the `http_call_count == 1` assertion fail.
+    #[test]
+    fn test_AC_019_BLOCKER_001_reset_token_cache_evicts_stale_token() {
+        let now: u64 = 2_000_000;
+        let mut host = MockHost::new(now);
+
+        // Simulate stale KV state from a previous session: token is present but expires_at
+        // is in the past (expired 1 hour ago).
+        let stale_expires_at = now - 3600; // already expired
+        host.set_kv("token", "stale-session-token");
+        host.set_kv("expires_at_secs", &stale_expires_at.to_string());
+
+        // Queue a fresh token response for the expected acquire_token call.
+        host.push_http_response(
+            200,
+            r#"{"access_token": "fresh-session-token", "expires_in": 3600}"#,
+        );
+
+        // Evict stale KV state at session start (BLOCKER-001 fix).
+        reset_token_cache(&host);
+
+        // get_token must see a cache miss and acquire a fresh token.
+        let result = get_token(&host, "https://example.com/oauth2/token");
+
+        assert!(
+            matches!(&result, Ok(tok) if tok == "fresh-session-token"),
+            "AC-019: after reset_token_cache, get_token MUST acquire a fresh token; got: {:?}",
+            result
+        );
+        assert_eq!(
+            host.http_call_count(),
+            1,
+            "AC-019: exactly ONE http_request call expected after reset_token_cache"
         );
     }
 

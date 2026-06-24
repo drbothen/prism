@@ -26,7 +26,7 @@ use crate::{
         PipeQuery, PipeStage, SortDirection, SortExpr, SourceRef, Span, StatFunction, StatsStage,
     },
     error::ParseError,
-    error_recovery::{pipe_boundary_chars, rich_to_parse_error},
+    error_recovery::{pipe_boundary_chars, rewrite_enrich_parse_errors, rich_to_parse_error},
     filter_parser::{build_predicate_parser, build_source_ref_parser},
     security,
     write_ast::{WriteArg, WriteNode},
@@ -98,6 +98,7 @@ pub(crate) fn parse_pipe_with_limits(
         }
     }
     let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
+    let parse_errors = rewrite_enrich_parse_errors(input, parse_errors);
     if parse_errors.is_empty() {
         Err(vec![ParseError::new(0, "E-QUERY-001: pipe parse failed")])
     } else {

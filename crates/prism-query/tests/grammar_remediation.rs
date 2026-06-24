@@ -332,6 +332,75 @@ fn test_bc_2_11_023_filter_mode_end_to_end_execution() {
     );
 }
 
+// ─── Area C: GRAMMAR-005/015 — Enrich parse-error guidance (AC-022 / AC-025) ──
+
+/// AC-022 / GRAMMAR-005 — `enrich` without column argument in a simple pipe.
+///
+/// `FROM t | enrich threat_score` — `threat_score` is the infusion name but the
+/// required `(<column>)` argument is absent.  The parse error MUST contain the
+/// actionable guidance:
+///   `enrich requires a column argument: | enrich <infusion>(<column>)`
+///
+/// RED GATE: currently Chumsky emits a raw token-expectation dump
+/// ("expected '('"). The substring assertion below fails RED.
+///
+/// Mental-deletion proof: removing the enrich-guidance rewrite in error_recovery.rs
+/// reverts to raw Chumsky output, causing the `enrich requires a column argument`
+/// assertion to fail.
+#[test]
+fn test_bc_2_11_grammar005_enrich_missing_column_arg_guidance() {
+    let query = "FROM t | enrich threat_score";
+    let errs = PrismQlParser::parse(query)
+        .expect_err("AC-022: 'FROM t | enrich threat_score' must be a parse error");
+
+    let combined = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    assert!(
+        combined.contains("enrich requires a column argument"),
+        "AC-022: error must contain 'enrich requires a column argument'; got: {combined}"
+    );
+    assert!(
+        combined.contains("| enrich <infusion>(<column>)"),
+        "AC-022: error must contain '| enrich <infusion>(<column>)' example; got: {combined}"
+    );
+}
+
+/// AC-025 / GRAMMAR-015 — `enrich` without column argument in a multi-stage pipeline.
+///
+/// `FROM t | where severity = 'HIGH' | enrich threat_score` — the `enrich` stage
+/// appears in position 2 (after a `where` stage).  The same actionable guidance
+/// MUST appear regardless of pipeline position.
+///
+/// RED GATE: same as AC-022 — raw Chumsky dump today, not guided message.
+///
+/// Mental-deletion proof: removing the enrich-guidance rewrite causes the substring
+/// assertion to fail for pipelines with a preceding where stage.
+#[test]
+fn test_bc_2_11_grammar015_enrich_missing_column_arg_multi_stage_guidance() {
+    let query = "FROM t | where severity = 'HIGH' | enrich threat_score";
+    let errs = PrismQlParser::parse(query)
+        .expect_err("AC-025: 'FROM t | where … | enrich threat_score' must be a parse error");
+
+    let combined = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    assert!(
+        combined.contains("enrich requires a column argument"),
+        "AC-025: error must contain 'enrich requires a column argument' in multi-stage pipeline; got: {combined}"
+    );
+    assert!(
+        combined.contains("| enrich <infusion>(<column>)"),
+        "AC-025: error must contain '| enrich <infusion>(<column>)' example in multi-stage pipeline; got: {combined}"
+    );
+}
+
 /// AC-012 / BC-2.11.023 invariant D7 — shared predicate grammar.
 ///
 /// Parse `severity = 'HIGH' AND risk_score > 50` in all three entry forms and assert
