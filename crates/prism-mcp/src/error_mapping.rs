@@ -1885,7 +1885,7 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
 }
 
 // ---------------------------------------------------------------------------
-// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: map_prism_error_to_structured stub
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: map_prism_error_to_structured
 // ---------------------------------------------------------------------------
 
 /// Map a `PrismError` to `StructuredErrorFields`, including the `normalized_pql`
@@ -1895,20 +1895,183 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
 /// the returned `StructuredErrorFields.normalized_pql` is `Some(rewrite)` where
 /// `rewrite` is the best-effort pipe-mode rewrite of the SQL query.
 ///
+/// **D1 detection and rewrite algorithm (ADR-046 §D1):**
+/// When the error detail contains the mode-bridge marker (E-QUERY-001 + pipe-stage
+/// diagnostic text), or when the original query starts with SELECT and contains an
+/// unquoted `|`, we attempt to produce a pipe-mode rewrite:
+///
+/// 1. Try to re-parse the original query via `PrismQlParser::parse`. If it now succeeds
+///    (e.g., as `Ast::SqlPipe` after the SqlPipe grammar landed in BC-2.11.020),
+///    call `prism_query::engine::normalize_pql` to get the canonical normalized form.
+/// 2. If re-parse fails (genuine D1 with non-stage keyword after `|`), attempt a
+///    best-effort string heuristic for simple `SELECT * FROM t WHERE … | …` patterns:
+///    - Extract: table from `FROM <table>`, predicate from `WHERE <predicate>`, stages after `|`
+///    - Reassemble as `FROM <table> | where <predicate> | <stages>`
+///    - Re-parse the reassembled string to verify round-trip; set `normalized_pql` to `None`
+///      if the rewrite itself fails to parse (BC-2.11.023 postcondition — must be valid PrismQL).
+///
 /// For all other errors, `normalized_pql` is `None`.
 ///
 /// `original_query` is the query string as submitted to the parser.
-///
-/// Red Gate stub — body is `todo!()` until Area D implementation.
 pub fn map_prism_error_to_structured(
-    _err: &prism_core::error::PrismError,
-    _original_query: &str,
+    err: &prism_core::error::PrismError,
+    original_query: &str,
 ) -> StructuredErrorFields {
-    todo!(
-        "BC-2.11.023 AC-010: implement map_prism_error_to_structured — \
-         populate normalized_pql on mode-bridge D1 errors by calling \
-         error_recovery::mode_bridge_normalized_pql(original_query)"
-    )
+    use prism_core::error::PrismError;
+    use prism_query::PrismQlParser;
+
+    // Compute normalized_pql for QueryParseFailed on mode-bridge errors.
+    let normalized_pql = if matches!(err, PrismError::QueryParseFailed { .. }) {
+        mode_bridge_normalized_pql(original_query)
+    } else {
+        None
+    };
+
+    // Build the StructuredErrorFields.
+    // Derive code and message directly from the error variant (no clone needed).
+    let (code, message) = match err {
+        PrismError::QueryParseFailed { detail, .. } => (
+            "E-QUERY-001".to_string(),
+            format!("PrismQL parse error: {detail}"),
+        ),
+        PrismError::QueryTimeout { .. } => (
+            "E-QUERY-004".to_string(),
+            "Query timeout exceeded".to_string(),
+        ),
+        _ => ("E-QUERY-001".to_string(), format!("{err}")),
+    };
+
+    let near_text = if matches!(err, PrismError::QueryParseFailed { .. }) {
+        // Compute near_text at offset 0 (conservative; the full offset computation
+        // is in prism_error_to_structured_call_result which is the production MCP path).
+        Some(prism_query::engine::extract_near_text(original_query, 0))
+    } else {
+        None
+    };
+
+    let reference_pointer = if matches!(err, PrismError::QueryParseFailed { .. }) {
+        Some("prismql://reference".to_string())
+    } else {
+        None
+    };
+
+    let mut fields = StructuredErrorFields::new(
+        code,
+        message,
+        "validation",
+        false,
+        None,
+        "Check the PrismQL reference at prismql://reference for the correct syntax.",
+        "prism_mcp",
+        false,
+        None,
+    );
+    // Inject the fields that StructuredErrorFields::new sets to None.
+    // These are `pub` fields on the `#[non_exhaustive]` struct; direct assignment
+    // is allowed within the same crate.
+    fields.near_text = near_text;
+    fields.reference_pointer = reference_pointer.map(|s| s.to_string());
+    fields.normalized_pql = normalized_pql;
+    fields
+}
+
+/// Attempt to produce a pipe-mode rewrite of `original_query` for D1 mode-bridge
+/// errors (ADR-046 §D1).
+///
+/// Returns `Some(pipe_query)` when a round-tripping Pipe-mode rewrite is derivable.
+/// Returns `None` when the rewrite is ambiguous or would not round-trip.
+///
+/// # Algorithm
+///
+/// 1. Re-parse the query. If it now parses as `Ast::SqlPipe` or `Ast::Pipe`, normalize
+///    via `normalize_pql` (handles the case where SqlPipe grammar was added after the
+///    error was originally generated).
+/// 2. If re-parse still fails, apply a string-based heuristic for the simple case:
+///    `SELECT * FROM <table> WHERE <predicate> | <stages>`
+///    → `FROM <table> | where <predicate> | <stages>`
+///    Verify the rewrite round-trips before returning.
+fn mode_bridge_normalized_pql(original_query: &str) -> Option<String> {
+    use prism_query::{ast::Ast, engine::normalize_pql, PrismQlParser};
+
+    let trimmed = original_query.trim();
+
+    // Only attempt rewrite for SELECT queries with an unquoted pipe.
+    if !trimmed
+        .get(..6)
+        .is_some_and(|h| h.eq_ignore_ascii_case("SELECT"))
+    {
+        return None;
+    }
+
+    // Step 1: Re-parse. If it now succeeds (SqlPipe grammar), normalize.
+    if let Ok(ast) = PrismQlParser::parse(trimmed) {
+        // For SqlPipe or Pipe ASTs, normalize into canonical pipe form.
+        // normalize_pql produces FROM <table> | <stages> for SqlPipe.
+        return normalize_pql(&ast);
+    }
+
+    // Step 2: String-based heuristic for simple SELECT * FROM t WHERE predicate | stages.
+    //
+    // Find the first unquoted | that is not part of an IN clause.
+    let pipe_offset = find_first_unquoted_pipe(trimmed)?;
+    let sql_head = trimmed[..pipe_offset].trim_end(); // "SELECT * FROM t WHERE predicate"
+    let stages_suffix = &trimmed[pipe_offset..]; // "| stages..."
+
+    // Extract table name from "SELECT ... FROM <table>" (only handles simple single-table).
+    let from_idx = sql_head.to_uppercase().find(" FROM ")?;
+    let after_from = sql_head[from_idx + 6..].trim(); // "<table> [WHERE ...]"
+
+    // Split at WHERE (case-insensitive).
+    let (table_part, predicate_part) =
+        if let Some(where_idx) = after_from.to_uppercase().find(" WHERE ") {
+            let table = after_from[..where_idx].trim();
+            let predicate = after_from[where_idx + 7..].trim();
+            (table, Some(predicate))
+        } else {
+            (after_from.trim(), None)
+        };
+
+    // Reject complex cases: JOINs, subqueries, aliases (dot in table name that looks
+    // like a qualified table is OK — e.g., crowdstrike.detections).
+    if table_part.contains(' ') || table_part.is_empty() {
+        return None;
+    }
+
+    // Assemble the pipe-mode rewrite.
+    let rewrite = if let Some(pred) = predicate_part {
+        if pred.is_empty() {
+            format!("FROM {table_part} {stages_suffix}")
+        } else {
+            format!("FROM {table_part} | where {pred} {stages_suffix}")
+        }
+    } else {
+        format!("FROM {table_part} {stages_suffix}")
+    };
+
+    // Verify the rewrite round-trips.
+    match PrismQlParser::parse(&rewrite) {
+        Ok(Ast::Pipe(_) | Ast::SqlPipe(_)) => Some(rewrite),
+        _ => None,
+    }
+}
+
+/// Find the byte offset of the first unquoted `|` in `input`.
+fn find_first_unquoted_pipe(input: &str) -> Option<usize> {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            b'\'' if !in_dq => in_sq = !in_sq,
+            b'"' if !in_sq => in_dq = !in_dq,
+            b'|' if !in_sq && !in_dq => return Some(i),
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------

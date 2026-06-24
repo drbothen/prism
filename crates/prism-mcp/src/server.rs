@@ -9476,10 +9476,21 @@ mod tests {
         let mut clients = BTreeMap::new();
         clients.insert(registered_client.to_owned(), caps);
 
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
-            clients,
-            std::sync::Arc::new(prism_core::OrgRegistry::new()),
-        ));
+        // BC-2.10.015: client_exists consults OrgRegistry (not client_capabilities map).
+        // Register the client in OrgRegistry so the "registered client" test scenario
+        // correctly reports client_registered=true. An empty OrgRegistry produces false
+        // per EC-10-015-005, which is correct for unregistered-client tests but NOT for
+        // this helper which models a fully wired registered-client scenario.
+        let org_registry = {
+            use prism_core::{OrgId, OrgSlug};
+            let reg = Arc::new(prism_core::OrgRegistry::new());
+            let slug = OrgSlug::new(registered_client);
+            if slug.is_ok() {
+                let _ = reg.register(slug, OrgId::new());
+            }
+            reg
+        };
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(clients, org_registry));
         let write_executor = Arc::new(WriteExecutor::new(
             feature_flags,
             Arc::new(ConfirmationTokenStore::new()),
