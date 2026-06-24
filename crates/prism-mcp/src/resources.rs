@@ -601,11 +601,10 @@ pub async fn dispatch_read_resource(
         }
     }
 
-    // Exact match: prismql://reference (BC-2.11.022, ADR-045 §A — runtime reference content)
-    // CRIT-001 fix: call build_reference_content with the live InfusionRegistry so the
-    // returned document reflects currently-loaded enrichment UDFs at query time.
-    // The static include_str! path (render_pql_reference_resource / PQL_REFERENCE_CONTENT)
-    // is no longer the live production path; build_reference_content replaces it.
+    // Exact match: prismql://reference (BC-2.11.022, ADR-045 §A — runtime reference content).
+    // build_reference_content generates the PQL grammar reference dynamically, incorporating
+    // live InfusionRegistry data so the returned document reflects currently-loaded enrichment
+    // UDFs at query time (CRIT-001, closed S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001).
     if uri == schema::URI_PQL_REFERENCE {
         let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());
         let content = build_reference_content(infusion_registry.as_deref());
@@ -1340,10 +1339,9 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
 
 /// Build the `prismql://reference` resource content at runtime (ADR-045 §A).
 ///
-/// Replaces the static `include_str!("../pql_reference.md")` approach with a
-/// runtime-assembled Markdown document so that infusion examples, sensor-specific
-/// tables, and the 3-tier example set can be injected at query time rather than
-/// baked in at compile time.
+/// Assembles the PQL grammar reference as a runtime Markdown document so that
+/// infusion examples, sensor-specific tables, and the 3-tier example set can
+/// be injected at query time rather than baked in at compile time.
 ///
 /// # Parameters
 /// - `infusion_registry`: optional live `InfusionRegistry` snapshot. When `Some`,
