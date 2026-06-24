@@ -222,6 +222,39 @@ fn test_bc_2_11_022_none_registry_placeholder() {
     );
 }
 
+// ─── LOW-002: exhaustive match coverage assertion ────────────────────────────
+
+/// LOW-002 / BC-2.11.022 — `build_reference_content` renders every entry from
+/// `REFERENCE_EXAMPLES` regardless of kind.
+///
+/// This is the load-bearing test proving the exhaustive `match kind { ... }` fix.
+/// With the OLD three-pass `matches!()` approach, a new ExampleKind variant would
+/// be silently dropped. With the new exhaustive match, the compiler would reject
+/// an unhandled variant — but this test ALSO catches silent drops at runtime.
+///
+/// For each (kind, title, snippet) in REFERENCE_EXAMPLES, the rendered content
+/// must contain the snippet. The snippet is unique enough to identify each entry.
+#[test]
+fn test_bc_2_11_022_low002_all_examples_rendered() {
+    let content = build_reference_content(None);
+
+    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
+        assert!(
+            content.contains(snippet),
+            "LOW-002 BC-2.11.022: build_reference_content must render snippet from \
+             '{title}' (kind={kind:?}); snippet not found in rendered content. \
+             This would fire if a new ExampleKind variant was added but not handled \
+             in the exhaustive match in build_reference_content."
+        );
+        // Also verify the title appears (section formatting).
+        assert!(
+            content.contains(title),
+            "LOW-002 BC-2.11.022: build_reference_content must render title '{title}' \
+             (kind={kind:?}); title not found in rendered content."
+        );
+    }
+}
+
 // ─── CRIT-003: registry-parity assertion ──────────────────────────────────────
 
 /// CRIT-003 / BC-2.11.022 — `build_reference_content(Some(&registry))` renders

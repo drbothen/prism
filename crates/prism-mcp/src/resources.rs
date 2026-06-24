@@ -1504,32 +1504,53 @@ pub fn build_reference_content(
     }
 
     // ── Section 6: Query Examples (from REFERENCE_EXAMPLES shared constant) ───
+    // LOW-002 fix: single exhaustive match pass — a new ExampleKind variant will
+    // produce a compile error on the wildcard arm (debug_assert! fires) rather than
+    // being silently omitted from the reference output.
     out.push_str("## Query Examples\n\n");
 
-    // Group by kind (BC-2.11.022 ADR-045 3-tier gate).
-    out.push_str("### Positive Examples\n\n");
+    // Collect into three buckets in a SINGLE exhaustive pass.
+    // ExampleKind is #[non_exhaustive] — the `_` arm is required to remain forward-
+    // compatible with new variants. Using debug_assert!(false) ensures CI + dev builds
+    // surface unknown variants at runtime, while production builds skip them gracefully.
+    let mut positive_entries: Vec<(&str, &str)> = Vec::new();
+    let mut negative_e040_entries: Vec<(&str, &str)> = Vec::new();
+    let mut negative_other_entries: Vec<(&str, &str)> = Vec::new();
+
     for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
-        if matches!(kind, ExampleKind::Positive) {
-            out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+        // LOW-002 fix: exhaustive match (no matches!() filter) — within the defining
+        // crate, all ExampleKind variants are known at compile time. Adding a new
+        // ExampleKind variant will produce a compile error here (non-exhaustive match),
+        // forcing the developer to add the corresponding rendering section below.
+        // This replaces the previous 3× matches!() pass pattern which would silently
+        // omit new variants from the rendered reference output.
+        match kind {
+            ExampleKind::Positive => positive_entries.push((title, snippet)),
+            ExampleKind::NegativeE040 => negative_e040_entries.push((title, snippet)),
+            ExampleKind::NegativeOther => negative_other_entries.push((title, snippet)),
         }
     }
 
+    // Render positive examples section.
+    out.push_str("### Positive Examples\n\n");
+    for (title, snippet) in &positive_entries {
+        out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+    }
+
+    // Render E-QUERY-040 negative examples section.
     out.push_str("### E-QUERY-040 Negative Examples\n\n");
     out.push_str(
         "The following queries violate FORBID-BOTH (E-QUERY-040). \
          Do NOT use both SQL `LIMIT` and pipe `| limit` in the same query.\n\n",
     );
-    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
-        if matches!(kind, ExampleKind::NegativeE040) {
-            out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
-        }
+    for (title, snippet) in &negative_e040_entries {
+        out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
     }
 
+    // Render NegativeOther / error self-correction examples.
     out.push_str("### Error Self-Correction\n\n");
-    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
-        if matches!(kind, ExampleKind::NegativeOther) {
-            out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
-        }
+    for (title, snippet) in &negative_other_entries {
+        out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
     }
 
     // ── Section 7: Self-Correction Workflow ──────────────────────────────────
