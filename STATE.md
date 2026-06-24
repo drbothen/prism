@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.953"
+version: "7.954"
 producer: state-manager
-timestamp: 2026-06-24T18:00:00Z
+timestamp: 2026-06-24T19:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1324 (2026-06-24). Group-2 audit-remediation COMPLETE + fresh-context VERIFIED. Fix-burst #1 (3b73cc08→75dd1c68): 7 findings closed; 5 residuals remained. Fix-burst #2 (75dd1c68→6c6d2e57): all 5 residuals closed (HIGH-001 full transport test, NEW-1 dead ref removed, CRIT-003 residual plan-rejection test, LOW-002 exhaustive match). adversary aa53b3f420d6af60c CLEAN(strict)=yes CLEAN(PR-merge)=yes on fix-burst diff. Group 1 GREEN, Group 2 GREEN+audit-remediated @ 6c6d2e57. Group 3 PENDING. 3-CLEAN streak 0/3. STATE v7.952→v7.953."
+current_step: "D-1325 (2026-06-24). LOCAL adversarial cascade Pass 1 (frozen HEAD 329fa519) COMPLETE — CLEAN(strict)=NO, CLEAN(PR-merge)=NO. Systemic implemented-but-unwired pattern: Group-1 SqlPipe execution arm + FORBID-BOTH E-QUERY-040 validator + NOW injection NEVER wired into QueryEngine::execute (CRIT-1/1b/2); CRIT-3 reset_token_cache unreachable; HIGH-1/2/3 (HIGH-3 pre-existing S-5.04) + OBS-1/2/3/4. 3-CLEAN streak RESET 0/3. Fix-burst routed to implementer (CRIT-1/1b/2/3, HIGH-1/2/3, OBS-1, OBS-4); OBS-2 to product-owner; OBS-3 to story-writer. HIGH-3 pre-existing fixed in-scope. NEXT: wiring fix-burst → re-freeze HEAD → Pass 1 re-run. STATE v7.953→v7.954."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-24 (D-1324 Group-2 audit-remediation COMPLETE + verified @ 6c6d2e57; Group-3 PENDING; STATE v7.953)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-24 (D-1325 LOCAL cascade Pass 1 CLEAN(strict)=NO — systemic implemented-but-unwired pattern; fix-burst routed; STATE v7.954)
 
 ## Active Objective (North Star)
 
@@ -218,6 +218,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1325 | state-manager | 2026-06-24 | **LOCAL ADVERSARIAL CASCADE PASS 1 — CLEAN(strict)=NO, CLEAN(PR-merge)=NO (TD-VSDD-053 single-commit; factory-only). Story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001. Frozen HEAD 329fa519 (diff 903c8fcb..329fa519). Adversary a21b900e798cac0ec. Systemic implemented-but-unwired pattern: Group-1 SqlPipe execution arm + FORBID-BOTH E-QUERY-040 validator (plan_sqlpipe_query, lib.rs:208) + NOW()/INTERVAL inject_now NEVER wired into QueryEngine::execute (CRIT-1/1b/2 — headline composition feature parses but returns empty at runtime); CRIT-3 reset_token_cache pub(crate)+#[cfg(test/wasm32)] unreachable in production (BLOCKER-001 root-cause re-derivation routed to implementer; architect consult if WIT change needed); HIGH-1 AC-015/016 dispatch-path gap (investigate_host + missing-arg not via PromptRouter); HIGH-2 AC-021 did_you_mean Some(…) strsim branch untested; HIGH-3 check_sensor_health in NOT_YET_AVAILABLE_TOOLS despite working (PRE-EXISTING S-5.04 — git diff 903c8fcb..329fa519 confirmed; in-scope fix: move to LIVE_TOOLS); OBS-1 stale todo!() doc comment; OBS-2 BC-2.11.023 prose drift (struct name/location; route PO); OBS-3 story §File-Structure path error (route story-writer); OBS-4/PG-1 weak partition test lets HIGH-3 class pass CI. Genuinely solid: MCP fast-fail 41-handler sweep, GRAMMAR-004 E-QUERY-036 wiring, non-exhaustive count 87. LESSON: prior Group-1 GREEN status was parse-level + isolated-fn-tests only; execution wiring never verified — fresh-context cascade caught it. 3-CLEAN streak RESET 0/3. Pass-1 report: cycles/wave-5-e-demo-fidelity/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001/adversarial-review/local-cascade-pass-1.md. Fix-burst routed: implementer (CRIT-1/1b/2/3, HIGH-1/2/3, OBS-1, OBS-4), PO (OBS-2), story-writer (OBS-3). After fix-burst: re-freeze HEAD, re-run Pass 1. STATE v7.953→v7.954.** | wave-5-e-demo-fidelity | 2026-06-24 |
 | D-1324 | state-manager | 2026-06-24 | **GROUP-2 AUDIT-REMEDIATION COMPLETE + FRESH-CONTEXT VERIFIED (TD-VSDD-053 single-commit; factory-only). Two fix-bursts (3b73cc08→75dd1c68→6c6d2e57) closed all 11 D-1323 audit findings. adversary a653b3f420d6af60c CLEAN(strict)=yes CLEAN(PR-merge)=yes on fix-burst diff. Group 2 GREEN+audit-remediated @ 6c6d2e57; 387/387 prism-mcp; Group 3 PENDING. OBS-DTU-REDGATE flagged (separate tracking). OBS-CONCURRENCY-MODEL: prior "sequential" framing inaccurate; T13 narration correction PENDING. STATE v7.952→v7.953.** | wave-5-e-demo-fidelity | 2026-06-24 |
 | D-1323 | state-manager | 2026-06-24 | **GROUP-2 FRESH-CONTEXT AUDIT COMPLETE — NOT production-grade (TD-VSDD-053 single-commit; factory-only). 3 CRIT + 3 HIGH + 2 MED + 3 LOW; both reviewers converged on HIGH-002/HIGH-003. AC-010 adjudicated: BC-2.11.020 supersedes stale test premise. Fix-burst routed: test-writer → implementer. Audit report committed. develop_head UNCHANGED 903c8fcb. STATE v7.951→7.952.** | wave-5-e-demo-fidelity | 2026-06-24 |
 | D-1322 | state-manager | 2026-06-24 | **SESSION WRAP — RESUME SNAPSHOT D-1322 (TD-VSDD-053 single-commit; factory-only). Group 2 (prism-mcp) GREEN-WITH-1-CONFLICT @ 3b73cc08 — AC-010 BLOCKED (stale test premise vs Group-1 SqlPipe composition). User-directed: full fresh-context audit Group 2 before Group 3. develop_head UNCHANGED 903c8fcb. STATE v7.950→v7.951.** | wave-5-e-demo-fidelity | 2026-06-24 |
@@ -412,9 +413,9 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1324 — 2026-06-24; STATE v7.953)
+## Session Resume Checkpoint (D-1325 — 2026-06-24; STATE v7.954)
 
-**STATE v7.953. CURRENT POSITION: D-1324 Group-2 audit-remediation COMPLETE + fresh-context VERIFIED. Two fix-bursts (3b73cc08→75dd1c68→6c6d2e57) closed all 11 D-1323 audit findings. adversary a653b3f420d6af60c CLEAN(strict)=yes CLEAN(PR-merge)=yes on fix-burst diff (NOT a formal BC-5.39.001 LOCAL 3-CLEAN cascade pass — these are fix-burst-diff verifications only). Group 1 (prism-query grammar) GREEN. Group 2 (prism-mcp) GREEN+audit-remediated @ 6c6d2e57; 387/387 prism-mcp tests pass. Group 3 PENDING. 3-CLEAN streak 0/3. NEXT: dispatch implementer for Group 3. SESSION-HANDOFF.md §RESUME SNAPSHOT D-1322 still authoritative (Group 3 in-flight; no new SESSION-HANDOFF written this burst).**
+**STATE v7.954. CURRENT POSITION: D-1325 LOCAL adversarial cascade Pass 1 COMPLETE — CLEAN(strict)=NO, CLEAN(PR-merge)=NO. Frozen HEAD 329fa519. Systemic implemented-but-unwired pattern: CRIT-1/1b/2 (SqlPipe execution arm + FORBID-BOTH validator + NOW injection not wired into QueryEngine::execute); CRIT-3 (reset_token_cache unreachable, BLOCKER-001 root-cause re-derivation); HIGH-1/2 (prompt dispatch + strsim gaps); HIGH-3 (check_sensor_health in NOT_YET_AVAILABLE_TOOLS — pre-existing S-5.04, fixed in-scope); OBS-1/2/3/4/PG-1. 3-CLEAN streak RESET 0/3. Fix-burst routed to implementer (CRIT-1/1b/2/3, HIGH-1/2/3, OBS-1, OBS-4), PO (OBS-2), story-writer (OBS-3). Pass-1 report: local-cascade-pass-1.md. SESSION-HANDOFF.md §RESUME SNAPSHOT D-1322 remains the zero-context restart authority (DO NOT update SESSION-HANDOFF — fix-burst in flight).**
 
 **WORKSTREAM 1 — ENRICHMENT (CLOSED — MERGED):** PR #200 squash-merged develop@acc6722c 2026-06-23. T13 gate 1 CLEARED. NO ACTIVE WS-1 ACTION.
 
@@ -424,17 +425,17 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 
 **WORKSTREAM 4 — PR #201 QUINN-PROTO (CLOSED — MERGED D-1311):** PR #201 SQUASH-MERGED develop@233cfc66 2026-06-24. RUSTSEC-2026-0185 CLOSED. Worktree .worktrees/maint-quinn-proto PENDING devops-engineer cleanup. NO ACTIVE WS-4 ACTION.
 
-**WORKSTREAM 5 — REMEDIATION TDD (ACTIVE — Group 3 PENDING):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.2 (26 ACs, 8 BCs). Worktree `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001` @ HEAD `6c6d2e57` (NOT pushed). Group 1 GREEN @ b63aef87: 7/7 prism-query; `just iter prism-query` 1085/0. Group 2 GREEN+audit-remediated @ 6c6d2e57: 387/387 prism-mcp; all 11 D-1323 audit findings closed + fresh-context verified. Group 3 PENDING (GRAMMAR-004/005/015, BLOCKER-001 OAuth, AC-003/012, AC-020 runbook .factory edit). NEXT: dispatch implementer for Group 3 → `just check` → LOCAL 3-CLEAN → per-AC demo → push → PR → PR-LEVEL 3-CLEAN → CI → squash-merge. OBS-DTU-REDGATE: separate tracking under S-DEMO-DTU-LIVE-SCENARIO-001-A, not this story. OBS-CONCURRENCY-MODEL: T13 narration "sequential" framing correction PENDING user confirmation.
+**WORKSTREAM 5 — REMEDIATION TDD (ACTIVE — CASCADE PASS 1 FIX-BURST IN FLIGHT):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.2 (26 ACs, 8 BCs). Worktree `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001` @ frozen HEAD `329fa519` (NOT pushed). LOCAL cascade Pass 1 (adversary a21b900e798cac0ec): CLEAN(strict)=NO — systemic implemented-but-unwired pattern (CRIT-1/1b/2: SqlPipe exec arm + E-QUERY-040 validator + inject_now not in QueryEngine::execute; CRIT-3: reset_token_cache unreachable; HIGH-1/2/3; OBS-1/2/3/4). 3-CLEAN streak 0/3. NEXT: implementer fix-burst (CRIT-1/1b/2/3, HIGH-1/2/3, OBS-1, OBS-4) → re-freeze HEAD → LOCAL cascade Pass 1 re-run → `just check` → 3-CLEAN → per-AC demo → push → PR → PR-LEVEL 3-CLEAN → CI → squash-merge. OBS-DTU-REDGATE: separate tracking under S-DEMO-DTU-LIVE-SCENARIO-001-A, not this story. OBS-CONCURRENCY-MODEL: T13 narration "sequential" framing correction PENDING user confirmation.
 
 **DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 903c8fcb at 5504c152. New branches must cut from origin/develop (903c8fcb). HUMAN DECISION PENDING: rebase wrap-skill commit onto 903c8fcb or rework as PR. Causes ADVISORY SHA-currency hook FAIL (non-blocking per D-1319/D-1320/D-1321 precedent).
 
-**STATE INDICES:** develop_head 903c8fcb (origin/develop) | local develop ba1108d2 (LOCAL-ONLY — diverged) | BC-INDEX v7.11 | VP-INDEX v1.80 | STORY-INDEX v2.471 | ARCH-INDEX v2.145 | error_taxonomy 1.97 | active_contracts 246 | draft_contracts 5 | bc_count_corrected 264 | total_stories 211 | CLAUDE.md non-exhaustive=84 on develop (worktree=86).
+**STATE INDICES:** develop_head 903c8fcb (origin/develop) | local develop ba1108d2 (LOCAL-ONLY — diverged) | BC-INDEX v7.11 | VP-INDEX v1.80 | STORY-INDEX v2.471 | ARCH-INDEX v2.145 | error_taxonomy 1.97 | active_contracts 246 | draft_contracts 5 | bc_count_corrected 264 | total_stories 211 | CLAUDE.md non-exhaustive=84 on develop (worktree=86). STATE v7.954.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1322 (authoritative zero-context restart; supersedes D-1321).
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1322 (authoritative zero-context restart; supersedes D-1321). STATE v7.954: LOCAL cascade Pass 1 CLEAN(strict)=NO; fix-burst for implementer in flight (see D-1325 for full finding list).
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `903c8fcb`.
 3. `gh pr list --state open --base develop` → expect NONE.
-4. `git worktree list` → expect .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (ACTIVE @ 6c6d2e57) + .worktrees/S-5.04 (STALE pending cleanup) + .worktrees/maint-quinn-proto (STALE pending cleanup) + .worktrees/S-3.09 (frozen) + .worktrees/W3-FIX-S307-001 (frozen).
+4. `git worktree list` → expect .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (ACTIVE @ 329fa519 frozen) + .worktrees/S-5.04 (STALE pending cleanup) + .worktrees/maint-quinn-proto (STALE pending cleanup) + .worktrees/S-3.09 (frozen) + .worktrees/W3-FIX-S307-001 (frozen).
 5. TWO HUMAN DECISIONS PENDING: (A) reconcile local develop ba1108d2 divergence; (B) EC-11 namespace collision decision. (C) OBS-CONCURRENCY-MODEL T13 narration correction — confirm before recording.
 6. Apply DO-NOT-REFLAG and convergence rules from SESSION-HANDOFF. Autonomy D-989+D-1090 active.

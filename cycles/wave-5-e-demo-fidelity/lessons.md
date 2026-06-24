@@ -1776,3 +1776,61 @@ During 001-A PR lifecycle, CI appeared to stall. The root cause was two concurre
 4. A PR is CI-green only when ALL entries in `statusCheckRollup` report SUCCESS (not just the first copy of each check).
 
 **Source:** S-DEMO-PRISMQL-ONBOARDING-001-A PR #197 CI monitoring; D-1278 codification.
+
+---
+
+### [process-gap] S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: Red-Gate tests calling pub fns directly do NOT prove production wiring — implemented-but-unwired is the dominant failure pattern
+
+**Date recorded:** 2026-06-24
+**D-NNN anchor:** D-1325 (LOCAL cascade Pass 1 CLEAN(strict)=NO)
+**Story:** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001
+**Tags:** [process-gap] [implemented-but-unwired] [red-gate-discipline] [execute-path-wiring] [recurrence]
+**Classification:** PROCESS-GAP — recurring "implemented-but-unwired" pattern caused 3 CRIT findings in Pass 1 despite Groups 1 and 2 being declared GREEN during TDD.
+
+**Description:**
+
+LOCAL adversarial cascade Pass 1 (frozen HEAD 329fa519, adversary a21b900e798cac0ec) found that the headline composition feature — SqlPipe execution, FORBID-BOTH E-QUERY-040 enforcement, and NOW()/INTERVAL plan-time injection — parsed correctly and had isolated function tests passing, but NONE were wired into `QueryEngine::execute` (the production execution path). Specifically:
+
+- **CRIT-1:** `plan_sqlpipe_query` (FORBID-BOTH / E-QUERY-040 validator, `lib.rs:208`) has ZERO production callers. Not wired into `execute`. Composed queries never receive E-QUERY-040 at runtime.
+- **CRIT-2:** `Ast::SqlPipe` has no execution arm in `execute_against_session` (`materialization.rs`). Falls to `_ => Ok(Vec::new())` → composed SQL→pipe queries silently return empty.
+- **CRIT-1b:** `parse_and_plan`/`inject_now` (NOW()/INTERVAL plan-time injection) also not applied on the production execute path. Un-substituted `Expr::Now` reaches DataFusion.
+
+These were all declared "GREEN" during TDD (Group 1 at b63aef87, Group 2 at 6c6d2e57) because:
+- The Red-Gate tests called the new `pub` functions **directly** (e.g., `plan_sqlpipe_query(...)` or `inject_now(...)`)
+- Tests asserted correct function output in isolation
+- **No test called `QueryEngine::execute(...)` with a composed query end-to-end and verified the execution result**
+
+The 3-CLEAN streak was reset to 0/3. This is the **dominant finding pattern across 3 fix-bursts this session**.
+
+**Root cause:**
+
+Red-Gate tests that call a new `pub fn` directly prove the function's logic, NOT that the function is reachable from the production call graph. "Function exists and returns correct output" ≠ "function is invoked by the engine at runtime." The distinction is:
+
+- **Isolated fn test (insufficient for wiring proof):** `assert_eq!(plan_sqlpipe_query(&ast, &mode), Err(E_QUERY_040))`
+- **Execution-path test (required for wiring proof):** `let result = engine.execute("SELECT ... | WHERE ...", session); assert_eq!(result, Err(E_QUERY_040))`
+
+Without an execution-path test, TDD can declare GREEN on a function that is completely dead in production.
+
+**Correct response (codified rule):**
+
+For every story AC that introduces a new behavioral gate, validator, or transformation:
+
+1. **The Red-Gate test MUST call `QueryEngine::execute` (or the equivalent top-level dispatch — `ServerHandler::call_tool`, `PromptRouter::get_prompt`, plugin host interface) with a realistic input that exercises the new path.** Calling the inner `pub fn` directly is NOT sufficient as the sole Red-Gate test.
+
+2. **Implementer self-check (before declaring AC done):** "If I grep `QueryEngine::execute` for this behavior, does the call chain reach my new function? Can I trace it from the execute entrypoint to my new code?"
+
+3. **Adversary standing probe (Pass 1 mandatory):** For stories touching `QueryEngine::execute`, `execute_against_session`, `materialization.rs`, or any MCP dispatch handler — grep for the story's new functions/arms and verify they appear in at least one call chain that originates from the production entrypoint, not only from test code.
+
+4. **Architect check:** New `Ast` variants require a corresponding match arm in `execute_against_session`. New validator functions require a call site in the execute or plan path. These are required structural wiring points — not optional improvements.
+
+**Recurrence count:** This is the dominant pattern across 3 fix-bursts this session (Group-1 declare GREEN at b63aef87, Group-2 declare GREEN at 6c6d2e57, both overturned by fresh-context cascade). Prior related instance: DRIFT-HOLLOW-FEATURE-INTEGRATION-001 (PIVOT-001, S-3.13, S-5.02 shipped TDD-green but unwired into production boot/engine; adversary caught each). This class recurs precisely because isolated-fn tests pass all CI gates.
+
+**Boundary:** This rule applies to behavioral-gate functions (validators, execution arms, transformations in the execute path). It does NOT require execute-path tests for pure utility functions (string formatters, struct constructors) that are not in the production dispatch chain.
+
+**Codification direction:**
+
+- Add an explicit "execution-path wiring proof" gate to the per-story TDD checklist: before LOCAL adversary dispatch, implementer MUST confirm at least one end-to-end test exercises the new path via the production entrypoint.
+- Session-reviewer: evaluate whether to add this as a formal extension to BC-5.38.001 (Red Gate discipline) or as a new standing implementer discipline (SID-2).
+- Adversary SAP extension: for stories touching `QueryEngine::execute` or `execute_against_session`, Pass 1 MUST include an execution-path wiring grep to confirm new `Ast` variants and validators appear in call chains reachable from the production entrypoint.
+
+**Source:** D-1325 (LOCAL cascade Pass 1); adversary a21b900e798cac0ec; frozen HEAD 329fa519.
