@@ -3429,25 +3429,14 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<GetDiagnosticsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS3-MED-1: sensor name is length-bounded before guard (256-byte cap).
         if let Some(ref sensor) = params.sensor {
-            // F-PR163-PASS3-MED-1: sensor name is length-bounded before injection scan (256-byte cap).
             validate_text_field("sensor", sensor.as_str(), 256)?;
-            self.scan_inputs_audited("get_diagnostics", &[("sensor", sensor.as_str())])
-                .await?;
         }
-
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "get_diagnostics",
-            None,
-            "invoked",
-        )
-        .await?;
-
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         // CRIT-4 fix: sensor diagnostics require live adapter queries (GAP-002-A).
         // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
         // PluginAuthProvider (ADR-028 §D10). Direct adapter wiring is in S-5.04.
-        // Return a structured not-yet-available response rather than Internal (architectural gap, not a wiring defect).
         Err(not_yet_available_msg(
             "sensor diagnostics — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
         ))
@@ -4447,26 +4436,11 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateScheduleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
-        validate_text_field("cron", params.cron.as_str(), 256)?;
-        let mut inputs = vec![
-            ("query", params.query.as_str()),
-            ("cron", params.cron.as_str()),
-        ];
+        // F-PR163-PASS3-MED-1: bound scope before guard (256-byte cap).
         if let Some(ref scope) = params.scope {
-            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
             validate_text_field("scope", scope.as_str(), 256)?;
-            inputs.push(("scope", scope.as_str()));
         }
-        self.scan_inputs_audited("create_schedule", &inputs).await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "create_schedule",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -4491,13 +4465,7 @@ is NOT an error — returns matrix with client_registered: false",
     pub async fn list_schedules(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_schedules",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -4521,18 +4489,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn delete_schedule(
         &self,
-        Parameters(params): Parameters<DeleteScheduleParams>,
+        Parameters(_params): Parameters<DeleteScheduleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("delete_schedule", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "delete_schedule",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -4556,18 +4515,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn get_diff_results(
         &self,
-        Parameters(params): Parameters<GetDiffResultsParams>,
+        Parameters(_params): Parameters<GetDiffResultsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("get_diff_results", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "get_diff_results",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -4593,20 +4543,11 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateRuleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        validate_text_field("name", params.name.as_str(), 256)?;
-        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
-        let mut inputs = vec![
-            ("name", params.name.as_str()),
-            ("query", params.query.as_str()),
-        ];
+        // F-PR163-PASS3-MED-1: bound scope before guard (256-byte cap).
         if let Some(ref scope) = params.scope {
-            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
             validate_text_field("scope", scope.as_str(), 256)?;
-            inputs.push(("scope", scope.as_str()));
         }
-        self.scan_inputs_audited("create_rule", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_rule", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -4629,7 +4570,7 @@ is NOT an error — returns matrix with client_registered: false",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_rules(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_rules", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -4655,11 +4596,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<DeleteRuleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        // F-PASS16-MED-1: validate id length before guard.
         validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("delete_rule", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_rule", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -4685,22 +4624,11 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        validate_text_field("title", params.title.as_str(), 4 * 1024)?;
-        if let Some(ref desc) = params.description {
-            validate_text_field("description", desc.as_str(), 4 * 1024)?;
-        }
-        let mut inputs = vec![("title", params.title.as_str())];
-        if let Some(ref desc) = params.description {
-            inputs.push(("description", desc.as_str()));
-        }
+        // F-PR163-PASS3-MED-1: bound scope before guard (256-byte cap).
         if let Some(ref scope) = params.scope {
-            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
             validate_text_field("scope", scope.as_str(), 256)?;
-            inputs.push(("scope", scope.as_str()));
         }
-        self.scan_inputs_audited("create_case", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_case", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4723,7 +4651,7 @@ is NOT an error — returns matrix with client_registered: false",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_cases(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_cases", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4749,11 +4677,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<GetCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        // F-PASS16-MED-1: validate id length before guard.
         validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("get_case", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_case", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4779,24 +4705,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<UpdateCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        // F-PASS16-MED-1: validate id length before guard.
         validate_id_field("id", params.id.as_str())?;
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        if let Some(ref title) = params.title {
-            validate_text_field("title", title.as_str(), 4 * 1024)?;
-        }
-        if let Some(ref desc) = params.description {
-            validate_text_field("description", desc.as_str(), 4 * 1024)?;
-        }
-        let mut inputs = vec![("id", params.id.as_str())];
-        if let Some(ref title) = params.title {
-            inputs.push(("title", title.as_str()));
-        }
-        if let Some(ref desc) = params.description {
-            inputs.push(("description", desc.as_str()));
-        }
-        self.scan_inputs_audited("update_case", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "update_case", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4821,7 +4732,7 @@ is NOT an error — returns matrix with client_registered: false",
     pub async fn case_metrics(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "case_metrics", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4847,23 +4758,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn list_credentials(
         &self,
-        Parameters(params): Parameters<ListCredentialsParams>,
+        Parameters(_params): Parameters<ListCredentialsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        self.scan_inputs_audited(
-            "list_credentials",
-            &[("client_id", params.client_id.as_str())],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_credentials",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -4887,23 +4784,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn credential_status(
         &self,
-        Parameters(params): Parameters<CredentialStatusParams>,
+        Parameters(_params): Parameters<CredentialStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        self.scan_inputs_audited(
-            "credential_status",
-            &[("client_id", params.client_id.as_str())],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "credential_status",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -4929,31 +4812,10 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<ConfigureCredentialSourceParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
-        validate_id_field("sensor_id", params.sensor_id.as_str())?;
-        // F-PR163-PASS2-IMP-2: bound name (256 B) and source (1 KiB) before injection scan.
+        // F-PR163-PASS2-IMP-2: bound name and source before guard.
         validate_text_field("name", params.name.as_str(), 256)?;
         validate_text_field("source", params.source.as_str(), 1024)?;
-        self.scan_inputs_audited(
-            "configure_credential_source",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("sensor_id", params.sensor_id.as_str()),
-                ("name", params.name.as_str()),
-                ("source", params.source.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "configure_credential_source",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -4979,29 +4841,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<DeleteCredentialParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
-        validate_id_field("sensor_id", params.sensor_id.as_str())?;
-        // F-PR163-PASS2-IMP-2: bound name before injection scan (256 B).
+        // F-PR163-PASS2-IMP-2: bound name before guard (256-byte cap).
         validate_text_field("name", params.name.as_str(), 256)?;
-        self.scan_inputs_audited(
-            "delete_credential",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("sensor_id", params.sensor_id.as_str()),
-                ("name", params.name.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "delete_credential",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -5029,13 +4871,7 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(_params): Parameters<WatchdogStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "watchdog_status",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("watchdog"))
     }
 
@@ -5061,9 +4897,7 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<ListAlertsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound filter strings before injection scan.
-        // severity, status are enum-like (short) — 256 B cap.
-        // since is ISO8601 timestamp — 256 B cap (ISO8601 is ~30 chars max).
+        // F-PR163-PASS2-IMP-2: bound filter strings before guard (all 256 B cap).
         if let Some(ref v) = params.severity {
             validate_text_field("severity", v.as_str(), 256)?;
         }
@@ -5073,49 +4907,7 @@ is NOT an error — returns matrix with client_registered: false",
         if let Some(ref v) = params.since {
             validate_text_field("since", v.as_str(), 256)?;
         }
-        let mut inputs: Vec<(&str, &str)> = Vec::new();
-        let client_id_storage;
-        let severity_storage;
-        let rule_id_storage;
-        let status_storage;
-        let since_storage;
-        if let Some(ref v) = params.client_id {
-            client_id_storage = v.as_str();
-            inputs.push(("client_id", client_id_storage));
-        }
-        if let Some(ref v) = params.severity {
-            severity_storage = v.as_str();
-            inputs.push(("severity", severity_storage));
-        }
-        if let Some(ref v) = params.rule_id {
-            rule_id_storage = v.as_str();
-            // F-PASS15-HIGH-1: validate rule_id length before injection scan.
-            validate_id_field("rule_id", rule_id_storage)?;
-            inputs.push(("rule_id", rule_id_storage));
-        }
-        if let Some(ref v) = params.status {
-            status_storage = v.as_str();
-            inputs.push(("status", status_storage));
-        }
-        if let Some(ref v) = params.since {
-            since_storage = v.as_str();
-            inputs.push(("since", since_storage));
-        }
-        if !inputs.is_empty() {
-            self.scan_inputs_audited("list_alerts", &inputs).await?;
-        }
-        if let Some(ref client_id) = params.client_id {
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_alerts",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("alerting"))
     }
 
@@ -5139,12 +4931,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn get_alert(
         &self,
-        Parameters(params): Parameters<GetAlertParams>,
+        Parameters(_params): Parameters<GetAlertParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("alert_id", params.alert_id.as_str())?;
-        self.scan_inputs_audited("get_alert", &[("alert_id", params.alert_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_alert", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("alerting"))
     }
 
@@ -5168,21 +4957,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn acknowledge_alert(
         &self,
-        Parameters(params): Parameters<AcknowledgeAlertParams>,
+        Parameters(_params): Parameters<AcknowledgeAlertParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("alert_id", params.alert_id.as_str())?;
-        self.scan_inputs_audited(
-            "acknowledge_alert",
-            &[("alert_id", params.alert_id.as_str())],
-        )
-        .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "acknowledge_alert",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("alerting"))
     }
 
@@ -5208,27 +4985,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn crowdstrike_contain_host(
         &self,
-        Parameters(params): Parameters<CrowdstrikeContainHostParams>,
+        Parameters(_params): Parameters<CrowdstrikeContainHostParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("device_id", params.device_id.as_str())?;
-        self.scan_inputs_audited(
-            "crowdstrike_contain_host",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("device_id", params.device_id.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "crowdstrike_contain_host",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("crowdstrike sensor actions"))
     }
 
@@ -5252,27 +5011,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn crowdstrike_lift_containment(
         &self,
-        Parameters(params): Parameters<CrowdstrikeLiftContainmentParams>,
+        Parameters(_params): Parameters<CrowdstrikeLiftContainmentParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("device_id", params.device_id.as_str())?;
-        self.scan_inputs_audited(
-            "crowdstrike_lift_containment",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("device_id", params.device_id.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "crowdstrike_lift_containment",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("crowdstrike sensor actions"))
     }
 
@@ -5300,7 +5041,7 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(_params): Parameters<ListPacksParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_packs", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -5326,25 +5067,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<ExplainPackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate pack_id length before injection scan.
+        // F-PASS15-HIGH-1: validate pack_id length before guard.
         validate_id_field("pack_id", params.pack_id.as_str())?;
-        let mut inputs = vec![("pack_id", params.pack_id.as_str())];
-        if let Some(ref client_id) = params.client_id {
-            inputs.push(("client_id", client_id.as_str()));
-        }
-        self.scan_inputs_audited("explain_pack", &inputs).await?;
-        if let Some(ref client_id) = params.client_id {
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "explain_pack",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -5370,7 +5095,7 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreatePackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound all free-text fields before injection scan.
+        // F-PR163-PASS2-IMP-2: bound all free-text fields before guard.
         validate_text_field("pack_name", params.pack_name.as_str(), 256)?;
         if let Some(ref queries) = params.queries {
             // queries: each is a PrismQL string — cap at 100 items × 64 KiB each.
@@ -5384,25 +5109,7 @@ is NOT an error — returns matrix with client_registered: false",
             // aliases: each is an alias name reference — cap at 100 items × 256 B each.
             validate_string_vec_field("aliases", aliases, 100, 256)?;
         }
-        let mut inputs = vec![("pack_name", params.pack_name.as_str())];
-        // HIGH-3 fix: scan queries, rules, AND aliases arrays for injection (all are user-controlled).
-        if let Some(ref queries) = params.queries {
-            for q in queries {
-                inputs.push(("query", q.as_str()));
-            }
-        }
-        if let Some(ref rules) = params.rules {
-            for r in rules {
-                inputs.push(("rule", r.as_str()));
-            }
-        }
-        if let Some(ref aliases) = params.aliases {
-            for a in aliases {
-                inputs.push(("alias", a.as_str()));
-            }
-        }
-        self.scan_inputs_audited("create_pack", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_pack", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -5426,13 +5133,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn delete_pack(
         &self,
-        Parameters(params): Parameters<DeletePackParams>,
+        Parameters(_params): Parameters<DeletePackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate pack_id length before injection scan.
-        validate_id_field("pack_id", params.pack_id.as_str())?;
-        self.scan_inputs_audited("delete_pack", &[("pack_id", params.pack_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_pack", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -5512,21 +5215,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn reload_infusion(
         &self,
-        Parameters(params): Parameters<ReloadInfusionParams>,
+        Parameters(_params): Parameters<ReloadInfusionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("infusion_id", params.infusion_id.as_str())?;
-        self.scan_inputs_audited(
-            "reload_infusion",
-            &[("infusion_id", params.infusion_id.as_str())],
-        )
-        .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "reload_infusion",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("infusion management"))
     }
 
@@ -5554,7 +5245,7 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(_params): Parameters<ListPluginsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_plugins", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("plugin management"))
     }
 
@@ -5604,12 +5295,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn reload_plugin(
         &self,
-        Parameters(params): Parameters<ReloadPluginParams>,
+        Parameters(_params): Parameters<ReloadPluginParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("plugin_id", params.plugin_id.as_str())?;
-        self.scan_inputs_audited("reload_plugin", &[("plugin_id", params.plugin_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "reload_plugin", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("plugin management"))
     }
 
@@ -5635,22 +5323,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn list_actions(
         &self,
-        Parameters(params): Parameters<ListActionsParams>,
+        Parameters(_params): Parameters<ListActionsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        if let Some(ref client_id) = params.client_id {
-            self.scan_inputs_audited("list_actions", &[("client_id", client_id.as_str())])
-                .await?;
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_actions",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
@@ -5674,12 +5349,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn action_status(
         &self,
-        Parameters(params): Parameters<ActionStatusParams>,
+        Parameters(_params): Parameters<ActionStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        self.scan_inputs_audited("action_status", &[("action_id", params.action_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "action_status", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
@@ -5705,17 +5377,11 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<FireActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        // F-PR163-PASS2-IMP-2: bound context before injection scan (4 KiB).
+        // F-PR163-PASS2-IMP-2: bound context before guard (4 KiB).
         if let Some(ref ctx) = params.context {
             validate_text_field("context", ctx.as_str(), 4 * 1024)?;
         }
-        let mut inputs = vec![("action_id", params.action_id.as_str())];
-        if let Some(ref ctx) = params.context {
-            inputs.push(("context", ctx.as_str()));
-        }
-        self.scan_inputs_audited("fire_action", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "fire_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
@@ -5739,12 +5405,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn test_action(
         &self,
-        Parameters(params): Parameters<TestActionParams>,
+        Parameters(_params): Parameters<TestActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        self.scan_inputs_audited("test_action", &[("action_id", params.action_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "test_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
@@ -5770,11 +5433,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound spec_toml before injection scan (256 KiB, matches add_sensor_spec).
+        // F-PR163-PASS2-IMP-2: bound spec_toml before guard (256 KiB, matches add_sensor_spec).
         validate_text_field("spec_toml", params.spec_toml.as_str(), 256 * 1024)?;
-        self.scan_inputs_audited("create_action", &[("spec_toml", params.spec_toml.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
@@ -5798,12 +5459,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn delete_action(
         &self,
-        Parameters(params): Parameters<DeleteActionParams>,
+        Parameters(_params): Parameters<DeleteActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        self.scan_inputs_audited("delete_action", &[("action_id", params.action_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
@@ -5831,11 +5489,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<GetHelpParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound topic before injection scan (256 B).
+        // F-PR163-PASS2-IMP-2: bound topic before guard (256 B).
         validate_text_field("topic", params.topic.as_str(), 256)?;
-        self.scan_inputs_audited("get_help", &[("topic", params.topic.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("help system"))
     }
 

@@ -2065,6 +2065,11 @@ fn mode_bridge_normalized_pql(original_query: &str) -> Option<String> {
 }
 
 /// Find the byte offset of the first unquoted `|` in `input`.
+///
+/// Correctly handles SQL `''` escaped quotes inside single-quoted strings (MED-002):
+/// when already inside a single-quoted string (`in_sq`), two consecutive `'` bytes
+/// are an escape sequence — skip both and remain in the string rather than toggling
+/// the `in_sq` flag.
 fn find_first_unquoted_pipe(input: &str) -> Option<usize> {
     let bytes = input.as_bytes();
     let len = bytes.len();
@@ -2072,11 +2077,20 @@ fn find_first_unquoted_pipe(input: &str) -> Option<usize> {
     let mut in_dq = false;
     let mut i = 0;
     while i < len {
-        match bytes[i] {
-            b'\'' if !in_dq => in_sq = !in_sq,
-            b'"' if !in_sq => in_dq = !in_dq,
-            b'|' if !in_sq && !in_dq => return Some(i),
-            _ => {}
+        let b = bytes[i];
+        if b == b'\'' && !in_dq {
+            if in_sq && i + 1 < len && bytes[i + 1] == b'\'' {
+                // SQL '' escape: two consecutive single-quotes inside a string.
+                // Skip both bytes and remain inside the string.
+                i += 2;
+                continue;
+            }
+            // Toggle: entering or exiting a single-quoted string.
+            in_sq = !in_sq;
+        } else if b == b'"' && !in_sq {
+            in_dq = !in_dq;
+        } else if b == b'|' && !in_sq && !in_dq {
+            return Some(i);
         }
         i += 1;
     }
@@ -3024,6 +3038,60 @@ mod tests {
         assert_eq!(
             nt_str, "beta",
             "near_text must be 'beta' (the preceding token); got '{nt_str}'"
+        );
+    }
+
+    // ── MED-002: find_first_unquoted_pipe SQL escaped-quote handling ───────
+
+    /// MED-002: `find_first_unquoted_pipe` must not treat `''` inside a SQL
+    /// single-quoted string as a string-terminator (it is an escape sequence).
+    ///
+    /// Without the fix, `WHERE name = 'it''s' | limit 5` would flip `in_sq` at
+    /// the second `'` of `''`, incorrectly exiting the string and then treating
+    /// the subsequent `|` as unquoted.
+    #[test]
+    fn test_find_first_unquoted_pipe_sql_escaped_quote() {
+        // The `''` inside `'it''s'` is a SQL escape — both quotes stay inside the string.
+        // The first genuinely-unquoted `|` is AFTER the closing `'`.
+        let input = "WHERE name = 'it''s' | limit 5";
+        let offset = find_first_unquoted_pipe(input);
+        // Expected: `|` at position 21 (after space following `'it''s'`)
+        let expected = input.find('|');
+        assert_eq!(
+            offset, expected,
+            "find_first_unquoted_pipe must skip SQL '' escape inside string; \
+             expected offset {:?}, got {:?}",
+            expected, offset
+        );
+    }
+
+    /// MED-002 complement: no false positives — a pipe inside a double-quoted string
+    /// is still invisible to find_first_unquoted_pipe.
+    #[test]
+    fn test_find_first_unquoted_pipe_double_quoted_pipe_invisible() {
+        let input = r#"WHERE col = "a|b" | limit 5"#;
+        let offset = find_first_unquoted_pipe(input);
+        // The FIRST `|` is inside double quotes; the second `|` after `"a|b"` is the target.
+        // Manually calculate expected offset.
+        let expected = input.rfind('|');
+        assert_eq!(
+            offset, expected,
+            "pipe inside double-quoted string must be ignored; \
+             expected offset {:?} (last |), got {:?}",
+            expected, offset
+        );
+    }
+
+    /// MED-002 complement: plain string with no quotes — finds the first `|`.
+    #[test]
+    fn test_find_first_unquoted_pipe_no_quotes() {
+        let input = "FROM t | where x = 1 | limit 5";
+        let offset = find_first_unquoted_pipe(input);
+        let expected = input.find('|');
+        assert_eq!(
+            offset, expected,
+            "no-quotes case must find first | at {:?}; got {:?}",
+            expected, offset
         );
     }
 }
