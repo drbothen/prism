@@ -245,7 +245,7 @@ impl std::fmt::Display for UnknownSourceTableDetails {
             f,
             "E-QUERY-036: unknown source table '{}': table is not a registered sensor \
              or internal table. Check spelling or register the sensor in prism.toml. \
-             Available sensors: [{}].{}",
+             Available tables: [{}].{}",
             self.source_name, available, did_you_mean_suffix
         )
     }
@@ -1842,6 +1842,49 @@ mod tests {
         assert_eq!(
             format!("{err}"),
             "E-QUERY-034: query execution error: DataFusion plan execution aborted"
+        );
+    }
+
+    /// E-QUERY-036 Display — no `did_you_mean` (error-taxonomy.md canonical format, OBS-1 fix).
+    ///
+    /// Asserts the verbatim message format byte-for-byte:
+    ///   `E-QUERY-036: unknown source table '{source_name}': table is not a registered
+    ///    sensor or internal table. Check spelling or register the sensor in prism.toml.
+    ///    Available tables: [{available_tables}].`
+    ///
+    /// The label must be "Available tables:" (not the retired "Available sensors:").
+    #[test]
+    fn test_unknown_source_table_display_no_did_you_mean() {
+        let detail = UnknownSourceTableDetails::new(
+            "ghost_sensor.devices",
+            vec!["armis".to_string(), "crowdstrike".to_string()],
+            None,
+        );
+        assert_eq!(
+            format!("{detail}"),
+            "E-QUERY-036: unknown source table 'ghost_sensor.devices': table is not a registered \
+             sensor or internal table. Check spelling or register the sensor in prism.toml. \
+             Available tables: [armis, crowdstrike]."
+        );
+    }
+
+    /// E-QUERY-036 Display — with `did_you_mean` (error-taxonomy.md canonical format, OBS-1 fix).
+    ///
+    /// Asserts the verbatim suffix `" Did you mean: '{candidate}'?"` — leading space, colon
+    /// after "mean", single-quoted candidate, trailing question mark — matching
+    /// E-QUERY-037 `TableNotAvailableDetails` convention (OBS-2 parity).
+    #[test]
+    fn test_unknown_source_table_display_with_did_you_mean() {
+        let detail = UnknownSourceTableDetails::new(
+            "crowdstrik",
+            vec!["crowdstrike".to_string()],
+            Some("crowdstrike".to_string()),
+        );
+        assert_eq!(
+            format!("{detail}"),
+            "E-QUERY-036: unknown source table 'crowdstrik': table is not a registered \
+             sensor or internal table. Check spelling or register the sensor in prism.toml. \
+             Available tables: [crowdstrike]. Did you mean: 'crowdstrike'?"
         );
     }
 }
