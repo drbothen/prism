@@ -49,8 +49,8 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.3"
-updated: "2026-06-24"
+version: "1.4"
+updated: "2026-06-25"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
 # emit_tool_audit guard-reorder not try_send; DTU routes/oauth.rs path; DataFusion plan-time
@@ -66,6 +66,9 @@ updated: "2026-06-24"
 # render_pql_reference_resource), NOT in resources.rs as v1.1 stated; (b) BLOCKER-001 — no dedicated
 # "force-refresh entrypoint" in the plugin; acquire_token is the unconditional fresh-acquire fn,
 # get_token re-acquires only on cache-miss/stale. No AC count / BC trace change. See Changelog v1.2 row.
+# v1.4: version-pin sync (MED-1 / POL-23) — BC-2.11.023 v1.1→v1.2 and BC-2.10.015 v1.0→v1.1
+# in Behavioral Contracts table. POL-25 sweep: no other live-narrative pins at old versions.
+# No AC/scope/code change.
 # v1.3: story-writer spec-sync burst (D-1326 adjudication) — 4 corrections: (1) AC-019 re-scoped:
 # BLOCKER-001 root cause is connect-timeout (not KV staleness — PluginKvStore is in-memory/fresh per
 # prism start); deferred to S-RESILIENCE-FEDERATED-001; demo unblocked via runbook DTU health-check
@@ -166,8 +169,8 @@ works end-to-end, temporal queries parse, and MCP tools/prompts respond within t
 | BC-2.11.020 | v1.0 | SQL→Pipe Composition — `SqlPipe` AST Variant and FORBID-BOTH Dual-Limit Rule |
 | BC-2.11.021 | v1.0 | Temporal Grammar — `NOW()` and `INTERVAL` Planning-Time Constant Injection |
 | BC-2.11.022 | v1.0 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
-| BC-2.11.023 | v1.1 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant |
-| BC-2.10.015 | v1.0 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check |
+| BC-2.11.023 | v1.2 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant |
+| BC-2.10.015 | v1.1 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check |
 | BC-2.10.016 | v1.0 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.017 | v1.0 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking |
 | BC-2.11.002 | v1.4 | PrismQL Filter Mode Parsing |
@@ -856,6 +859,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | version-pin-sync-MED-1 | 2026-06-25 | story-writer | Version-pin sync (MED-1 / POL-23 sibling-sweep gap closure). Behavioral Contracts table: BC-2.11.023 pin updated `v1.1 → v1.2` and BC-2.10.015 pin updated `v1.0 → v1.1` to match current BC frontmatter versions. POL-25 sweep confirmed no other live-narrative pins of these BCs at the old versions exist outside §Changelog historical rows (TD-VSDD-091-exempt). No AC/scope/code change. |
 | 1.3 | story-writer-spec-sync-D1326 | 2026-06-24 | story-writer | Spec-sync burst (D-1326 adjudication). 4 changes: (1) **AC-019 re-scoped** — BLOCKER-001 root cause adjudicated as connectivity connect-timeout (PluginKvStore is in-memory/fresh per `prism start`, making cross-session KV staleness impossible; dead `reset_token_cache` + test removed at code HEAD 3fa69207); runtime fix deferred to S-RESILIENCE-FEDERATED-001 (per-sensor TOML timeouts, boot-degraded, retry-with-backoff); demo unblocked via runbook DTU health-check Fix B; wrong BC citation corrected (BC-2.06.001 "TOML Config Loading" → BC-2.01.005 "CrowdStrike OAuth2 Authentication and Two-Step Fetch"). (2) **OBS-3** — File Structure `-32602 INVALID_PARAMS` arm path corrected from `crates/prism-core/src/error_mapping.rs` to `crates/prism-mcp/src/error_mapping.rs` (MCP error mapping lives in prism-mcp; confirmed by `map_prism_error` function location). (3) **BC-2.11.023 version** — v1.0 → v1.1 in Behavioral Contracts table (PO bumped in same burst). (4) **S-RESILIENCE-FEDERATED-001 stub** registered (day-2 resilience epic anchor). No AC count / BC list / Red Gate test count change. |
 | 1.0 | demo-readiness-remediation-2026-06-24 | 2026-06-24 | story-writer | Initial story. 26 ACs (19 BC-traced + 7 implementer/doc). 8 BCs. Explicit human directive: single consolidated story for all T13 demo-readiness findings. Size flag included per story-writer mandate (111k token estimate). |
 | 1.2 | remove-uncertainty-pass2-D1110 | 2026-06-24 | research-agent | `dclaude:remove-uncertainty` pass 2 (D-1110, pre-TDD-delivery) — re-validated against the post-S-5.04 develop tip (develop@903c8fcb, contains merged S-5.04). **Pass-1 corrections RE-CONFIRMED on 903c8fcb:** (1) `StructuredErrorFields` in `prism-mcp/src/error_mapping.rs` — `#[non_exhaustive]`, carries `near_text`/`reference_pointer`/`available_columns`/`did_you_mean` via `skip_serializing_if`; no `ParseErrorDetails` exists. (2) `OrgRegistry::slug_exists(&self, slug: &OrgSlug) -> bool` (org_registry.rs) — no `contains`. (3) `emit_tool_audit` (server.rs) is `async fn` calling `writer.write_tool_call(...).await` on `Arc<dyn AuditWriter>` returning `Result<Option<String>, ErrorData>` — NO mpsc/try_send; not-yet-available stubs (`create_schedule`, `list_schedules`, etc.) call `scan_inputs_audited().await? → emit_tool_audit().await? → Err(not_yet_available_msg(...))`; guard-reorder-before-audit-await fix is correct. (4) DTU `routes/oauth.rs` `pub async fn token` is `client_credentials`-only / static `"dtu-fake-cs-token"` / 401 only on `auth_mode=="reject"`; plugin caches `token`+`expires_at_secs` in KV. **NEW S-5.04 conflict check:** NONE — S-5.04 added `check_sensor_health` as a `LIVE_TOOLS` handler (line in `LIVE_TOOLS` const, not `NOT_YET_AVAILABLE_TOOLS`), and left `emit_tool_audit` + the not-yet-available handler structure unchanged; Area E guard-reorder scope does not intersect S-5.04 code. EXPECTED=84 (S-5.04 HealthSummary) already correctly reflected in Previous Story Intelligence + Phase 8. **2 NEW corrections applied (mechanical/code-grounded, no architect adjudication):** (A) Area C location — the `prismql://reference` `include_str!` is `PQL_REFERENCE_CONTENT = include_str!("../pql_reference.md")` in `crates/prism-mcp/src/resources/schema.rs` (served by `render_pql_reference_resource()`), NOT in `resources.rs` as v1.1 said; `resources.rs` only dispatches to `schema::render_pql_reference_resource()` from the `read_resource` `prismql://reference` arm. Corrected AC-006, Phase 4 step 4, Architecture Mapping, File Structure (added `resources/schema.rs` row), crates_touched. The `pql_reference.md` path itself was already correct. (B) BLOCKER-001 / AC-019 — the plugin has NO dedicated "FORCED-REFRESH entrypoint"; `acquire_token(host, token_endpoint)` is the unconditional fresh-acquire fn, and `get_token` re-acquires only on cache-miss/stale (`now >= expires_at_secs` or empty cached token). To force a refresh the plugin path calls `acquire_token` directly or evicts the KV `token`/`expires_at_secs` keys. Corrected AC-019 plugin-internals + fix-path bullets. No AC count / BC trace change. |
