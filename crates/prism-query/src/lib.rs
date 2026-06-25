@@ -328,11 +328,31 @@ fn inject_now_expr(expr: ast::Expr, now_literal: &ast::Expr) -> ast::Expr {
     use ast::Expr;
     match expr {
         Expr::Now => now_literal.clone(),
-        Expr::TimestampArithmetic { base, op, offset } => Expr::TimestampArithmetic {
-            base: Box::new(inject_now_expr(*base, now_literal)),
-            op,
-            offset,
-        },
+        Expr::TimestampArithmetic { base, op, offset } => {
+            let folded_base = inject_now_expr(*base, now_literal);
+            // BC-2.11.021 constant-fold: if the base resolved to a bare Timestamp literal,
+            // compute `t ± offset` immediately so `extract_time_bounds_from_predicate`
+            // can match the RHS as `Expr::Literal(Literal::Timestamp(_))` for push-down
+            // (ADR-033 T1). Without folding, the outer `TimestampArithmetic` wrapper
+            // blocks push-down extraction (pushdown.rs requires a bare Literal::Timestamp).
+            if let Expr::Literal(ast::Literal::Timestamp(ref ts)) = folded_base {
+                let computed = match op {
+                    ast::BinaryOp::Sub => ts.instant - offset,
+                    ast::BinaryOp::Add => ts.instant + offset,
+                };
+                let iso = computed.to_rfc3339();
+                Expr::Literal(ast::Literal::Timestamp(ast::TimestampLiteral {
+                    iso8601: iso,
+                    instant: computed,
+                }))
+            } else {
+                Expr::TimestampArithmetic {
+                    base: Box::new(folded_base),
+                    op,
+                    offset,
+                }
+            }
+        }
         Expr::Compare { lhs, op, rhs } => Expr::Compare {
             lhs: Box::new(inject_now_expr(*lhs, now_literal)),
             op,

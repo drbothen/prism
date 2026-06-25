@@ -499,14 +499,12 @@ pub async fn run_materialization_pipeline(
     //   - Filter-mode predicates: injected before push-down filter extraction.
     //   - SqlPipe pipe stages: same as Pipe-mode above.
     //
-    // NOTE: For SQL-mode and SqlPipe-HEAD SQL, DataFusion 53.1 has a built-in NOW()
-    // and maintains per-query consistency natively. inject_now on the SQL AST is
-    // still applied for spec compliance (BC-2.11.021 single-source-of-truth for the
-    // captured instant), but the SQL string passed to DataFusion is NOT re-emitted
-    // from the injected AST (PqlNormalizer would be needed for that, and its
-    // normalize_literal emits `'<iso>'` not `TIMESTAMP '<iso>'` — a separate
-    // follow-up story). The SQL-mode path is not broken by this: DataFusion's own
-    // NOW() is equivalent for query consistency. Pipe-mode IS fixed by this wiring.
+    // NOTE: For SQL-mode, the injected AST is re-emitted via PqlNormalizer::normalize
+    // (BC-2.11.021 / ADR-044 D4 / D-1333 Option A) so DataFusion receives the
+    // plan-pinned `'<iso>'` constant literal rather than a runtime NOW() call.
+    // For SqlPipe-head SQL, the head is normalized from the injected spq.head AST
+    // (see plan_pinned_head_sql below). For Pipe-mode, inject_now fires on stage
+    // expressions (Expr::Now replaced inline). All modes are covered.
     let ast = {
         use crate::ast::{Expr, Literal, TimestampLiteral};
         use chrono::Utc;
@@ -897,8 +895,24 @@ pub async fn execute_against_session(
             // budget-exceeded errors report the configured limit (engine
             // config `memory_pool_bytes`), not the 200MB default constant.
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
-            // Execute the SQL string via DataFusion.
-            let df = session_ctx.sql(query_str).await.map_err(|e| {
+            // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
+            // Re-emit the SQL from the inject_now-ed AST (which has folded all
+            // TimestampArithmetic nodes into bare Literal::Timestamp constants).
+            // DataFusion receives the plan-pinned `'<iso8601>'` literal rather than
+            // runtime `NOW()` or `NOW() - INTERVAL '...'`. This ensures:
+            //   1. The temporal bound used by DataFusion's post-filter is IDENTICAL
+            //      to the plan-time bound used for ADR-033 T1 push-down (QueryParams).
+            //   2. No PrismQL INTERVAL syntax (`'24h'`) reaches DataFusion (which uses
+            //      different syntax), eliminating the parsing ambiguity.
+            //   3. Cross-mode consistency: SQL/filter/pipe all see the same pinned instant.
+            //
+            // Fall back to `query_str` ONLY if normalization fails (e.g. the query
+            // contains AST variants not yet handled by PqlNormalizer). This should not
+            // occur in production for well-formed SQL-mode queries.
+            let plan_pinned_sql =
+                crate::ast::PqlNormalizer::normalize(ast).unwrap_or_else(|| query_str.to_string());
+            // Execute the plan-pinned SQL string via DataFusion.
+            let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
                 tracing::error!(error = %e, "DataFusion SQL planning error");
                 PrismError::QueryExecutionFailed {
                     detail: "SQL planning error: <redacted; see server logs>".to_string(),
@@ -977,8 +991,27 @@ pub async fn execute_against_session(
         // mapper — preserving all BC-2.11.006 invariants.
         Ast::SqlPipe(spq) => {
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
-            let sql =
-                crate::pipe_sql_emitter::sqlpipe_to_executable_sql(query_str, spq, &table_batches)?;
+            // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
+            // Compute the SqlPipe head SQL from the inject_now-ed AST (spq.head has
+            // the folded Literal::Timestamp) rather than the raw query_str[..split].
+            // This ensures DataFusion receives the plan-pinned constant for the head SQL.
+            let plan_pinned_head_sql = {
+                use crate::ast::{Ast as InnerAst, SqlStatement};
+                crate::ast::PqlNormalizer::normalize(&InnerAst::Sql(SqlStatement::Select(
+                    spq.head.clone(),
+                )))
+                .unwrap_or_else(|| {
+                    // Defensive fallback: re-derive from raw query_str (should not occur).
+                    crate::filter_parser::find_sqlpipe_split(query_str)
+                        .map(|off| query_str[..off].trim_end().to_string())
+                        .unwrap_or_else(|| query_str.to_string())
+                })
+            };
+            let sql = crate::pipe_sql_emitter::sqlpipe_to_executable_sql(
+                &plan_pinned_head_sql,
+                spq,
+                &table_batches,
+            )?;
             // SAP-1: reuse existing catalog event type `pipe.sql_lowering` (BC-2.16.002 row 178).
             // SqlPipe lowering is semantically identical to Pipe lowering — same execution path,
             // same diagnostic information. No new catalog row needed.

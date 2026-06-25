@@ -112,25 +112,23 @@ pub(crate) fn pipe_to_executable_sql(
 /// extracted from `query_str` (should not occur in practice — the parser
 /// already validated the split during `parse_sqlpipe_internal`).
 pub(crate) fn sqlpipe_to_executable_sql(
-    query_str: &str,
+    head_sql: &str,
     spq: &crate::ast::SqlPipeQuery,
     table_batches: &HashMap<String, Vec<RecordBatch>>,
 ) -> Result<String, PrismError> {
-    // Re-derive the head SQL boundary using the same split logic as the parser.
-    let split_offset = crate::filter_parser::find_sqlpipe_split(query_str).ok_or_else(|| {
-        PrismError::QueryExecutionFailed {
-            detail: "SqlPipe: could not locate pipe stage boundary in query string".to_string(),
-        }
-    })?;
-
-    let head_sql = query_str[..split_offset].trim_end();
+    // BC-2.11.021 / ADR-044 D4 / D-1333 Option A:
+    // `head_sql` is the plan-pinned head SQL (already computed by the caller
+    // from the inject_now-ed AST via PqlNormalizer::normalize). It must NOT
+    // be re-derived from the raw query_str (which would contain runtime NOW()
+    // or INTERVAL). The caller in execute_against_session passes the normalized
+    // plan-pinned form directly.
 
     // Wrap head SQL in a CTE so pipe stages can reference it by alias.
     // CTE alias `_sqlpipe_head` is an internal name that cannot collide with
     // user-defined table names (which must match sensor table naming conventions).
     let cte_alias = "_sqlpipe_head";
     let mut builder =
-        PipeQueryBuilder::new_with_cte(cte_alias.to_string(), head_sql, table_batches);
+        PipeQueryBuilder::new_with_cte(cte_alias.to_string(), head_sql.trim_end(), table_batches);
 
     // Apply pipe stages from the SqlPipeQuery.
     for stage in &spq.stages {
