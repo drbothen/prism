@@ -93,6 +93,52 @@ pub(crate) fn pipe_to_executable_sql(
     builder.build(pipe)
 }
 
+/// Lower a `SqlPipeQuery` to an executable DataFusion SQL string.
+///
+/// The head SQL SELECT is wrapped in a CTE (`_sqlpipe_head`), and pipe stages
+/// are applied on top of that CTE using the same `PipeQueryBuilder` pipeline
+/// as `pipe_to_executable_sql`.  The caller must have already run the
+/// FORBID-BOTH check (`plan_sqlpipe_query`) before calling this function.
+///
+/// # Arguments
+/// - `query_str` — the original PrismQL query string (used to extract the head
+///   SQL substring; the split point is re-derived using `find_sqlpipe_split`).
+/// - `spq` — the parsed `SqlPipeQuery` AST (stages list).
+/// - `table_batches` — fan-out result map; used ONLY for schema inspection in
+///   the `Fields(exclude)` case.
+///
+/// # Errors
+/// Returns `PrismError::QueryExecutionFailed` if the head SQL cannot be
+/// extracted from `query_str` (should not occur in practice — the parser
+/// already validated the split during `parse_sqlpipe_internal`).
+pub(crate) fn sqlpipe_to_executable_sql(
+    query_str: &str,
+    spq: &crate::ast::SqlPipeQuery,
+    table_batches: &HashMap<String, Vec<RecordBatch>>,
+) -> Result<String, PrismError> {
+    // Re-derive the head SQL boundary using the same split logic as the parser.
+    let split_offset = crate::filter_parser::find_sqlpipe_split(query_str).ok_or_else(|| {
+        PrismError::QueryExecutionFailed {
+            detail: "SqlPipe: could not locate pipe stage boundary in query string".to_string(),
+        }
+    })?;
+
+    let head_sql = query_str[..split_offset].trim_end();
+
+    // Wrap head SQL in a CTE so pipe stages can reference it by alias.
+    // CTE alias `_sqlpipe_head` is an internal name that cannot collide with
+    // user-defined table names (which must match sensor table naming conventions).
+    let cte_alias = "_sqlpipe_head";
+    let mut builder =
+        PipeQueryBuilder::new_with_cte(cte_alias.to_string(), head_sql, table_batches);
+
+    // Apply pipe stages from the SqlPipeQuery.
+    for stage in &spq.stages {
+        builder.apply_stage(stage)?;
+    }
+    Ok(builder.assemble())
+}
+
 // ---------------------------------------------------------------------------
 // Source table name resolution
 // ---------------------------------------------------------------------------
@@ -162,6 +208,37 @@ impl PipeQueryBuilder {
             distinct: false,
             ctes: Vec::new(),
             current_from,
+            schema,
+        }
+    }
+
+    /// Build a `PipeQueryBuilder` that wraps `head_sql` as a CTE under `cte_alias`.
+    ///
+    /// Used by `sqlpipe_to_executable_sql` for SQL→Pipe composition mode: the SQL
+    /// head is wrapped as `cte_alias AS (head_sql)` so subsequent pipe stages can
+    /// reference it as a named relation.
+    fn new_with_cte(
+        cte_alias: String,
+        head_sql: &str,
+        table_batches: &HashMap<String, Vec<RecordBatch>>,
+    ) -> Self {
+        // Schema cannot be statically inferred from the head SQL (it would require
+        // DataFusion planning to resolve the output schema). Fields-exclude after a
+        // SqlPipe head falls back to SELECT * (same as Fields-exclude after an Enrich CTE).
+        let schema = table_batches
+            .get(&cte_alias)
+            .and_then(|bs| bs.first())
+            .map(|b| b.schema());
+
+        Self {
+            select_items: vec!["*".to_string()],
+            where_clauses: Vec::new(),
+            group_by: Vec::new(),
+            order_by: Vec::new(),
+            limit: None,
+            distinct: false,
+            ctes: vec![(cte_alias.clone(), head_sql.to_string())],
+            current_from: cte_alias,
             schema,
         }
     }

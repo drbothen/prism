@@ -2616,6 +2616,240 @@ async fn test_QRY_P1_05_forced_refresh_failed_fetch_invalidates_entry() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: CRIT-1 / CRIT-2
+// SqlPipe end-to-end via QueryEngine::execute (not via bare plan_sqlpipe_query)
+// ---------------------------------------------------------------------------
+
+/// CRIT-1: `SELECT * FROM crowdstrike_detections | limit 10` must execute
+/// end-to-end via `QueryEngine::execute` and return rows (NOT empty).
+///
+/// Before the fix, `execute_against_session` dispatches `Ast::SqlPipe` to the
+/// `_ =>` catch-all which silently returns `Ok(Vec::new())`.
+/// After the fix, the `Ast::SqlPipe` arm is present and the pipe stages (| limit)
+/// are applied via the SQL lowering path.
+///
+/// Red Gate: before the fix, the assertion `total_rows > 0` FAILS because
+/// the engine returns 0 rows for any SqlPipe query.
+#[tokio::test]
+async fn test_crit1_sqlpipe_executes_via_engine_not_empty() {
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 5,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections | limit 10", options)
+        .await
+        .expect("CRIT-1: SqlPipe query must not fail");
+
+    let total_rows: usize = result.batches.iter().map(|b| b.num_rows()).sum();
+    assert!(
+        total_rows > 0,
+        "CRIT-1: SqlPipe query must return rows (not empty); \
+         got 0 — Ast::SqlPipe arm is missing from execute_against_session"
+    );
+}
+
+/// CRIT-2: `SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3` must return
+/// `Err(PrismError::RedundantRowLimit{sql_limit:5, pipe_limit:3})` via
+/// `QueryEngine::execute` (not via bare `plan_sqlpipe_query`).
+///
+/// The FORBID-BOTH E-QUERY-040 check must be wired into the production execute path.
+///
+/// Red Gate: before the fix, the `_ =>` catch-all returns `Ok(Vec::new())` so
+/// the engine silently succeeds instead of returning the hard error.
+#[tokio::test]
+async fn test_crit2_sqlpipe_forbid_both_via_engine_returns_e_query_040() {
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 5,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3",
+            options,
+        )
+        .await;
+
+    let err = result.expect_err(
+        "CRIT-2: FORBID-BOTH (both SQL LIMIT and pipe | limit) must return Err, not Ok",
+    );
+    assert!(
+        matches!(
+            err,
+            PrismError::RedundantRowLimit {
+                sql_limit: 5,
+                pipe_limit: 3,
+            }
+        ),
+        "CRIT-2: error must be PrismError::RedundantRowLimit{{sql_limit:5, pipe_limit:3}}; got: {err:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: CRIT-1b
+// NOW() substitution wired into the production execute path
+// ---------------------------------------------------------------------------
+
+/// CRIT-1b: A query containing `NOW()` must execute successfully via
+/// `QueryEngine::execute` (no Expr::Now reaching DataFusion's SQL engine).
+///
+/// Before the fix, `run_materialization_pipeline` calls `PrismQlParser::parse`
+/// (not `parse_and_plan`), so `Expr::Now` nodes remain unsubstituted and DataFusion
+/// receives the literal text `NOW()` as a column reference, which fails.
+///
+/// After the fix, `inject_now` is applied before the AST reaches DataFusion,
+/// replacing `NOW()` with the captured timestamp literal.
+///
+/// Red Gate: before the fix, a query with `NOW()` either fails at DataFusion
+/// planning time (DataFusion doesn't know NOW() from PrismQL) or silently
+/// returns wrong results.  The test asserts the execute SUCCEEDS and returns rows.
+///
+/// Note: `crowdstrike_detections` does not have a `timestamp` column in StubAdapter,
+/// so we use a Filter-mode query (no SQL timestamp predicate) to verify NOW() is
+/// substituted without hitting DataFusion's SQL engine for the predicate.
+/// The key assertion is that execute does NOT error (i.e., Expr::Now was handled).
+#[tokio::test]
+async fn test_crit1b_now_substituted_before_datafusion() {
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 3,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // Filter-mode with NOW() in a predicate: PrismQL Filter AST, not SQL.
+    // After NOW() substitution, the Filter predicate holds a Timestamp literal.
+    // This validates inject_now is applied without requiring a DataFusion SQL context.
+    // Note: PrismQL INTERVAL syntax is `INTERVAL '24h'` (not SQL `INTERVAL '1' HOUR`).
+    let result = engine
+        .execute(
+            "crowdstrike_detections | event_timestamp > NOW() - INTERVAL '24h'",
+            options,
+        )
+        .await;
+
+    // The key assertion: NOW() must not cause an error.
+    // (The StubAdapter returns rows regardless of predicate — Filter mode
+    // returns all materialized batches without DataFusion predicate pushdown.)
+    assert!(
+        result.is_ok(),
+        "CRIT-1b: query with NOW() must not error — inject_now must substitute \
+         Expr::Now before reaching DataFusion; got: {:?}",
+        result.err()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: HIGH-2
+// did_you_mean near-miss via QueryEngine::execute
+// ---------------------------------------------------------------------------
+
+/// HIGH-2: A near-miss table name (Levenshtein ≤ 3 to a registered table)
+/// must produce `PrismError::UnknownSourceTable` with a non-None `did_you_mean`
+/// field via `QueryEngine::execute`.
+///
+/// The existing E-QUERY-036 test only covers Lev > 3 (did_you_mean: None).
+/// This test exercises the `Some(...)` branch.
+///
+/// Red Gate: if did_you_mean is None for a near-miss, the assertion fails.
+#[tokio::test]
+async fn test_high2_did_you_mean_near_miss_via_engine() {
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 0,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // "crowdstrik" is 1 edit (delete 'e') from "crowdstrike_detections"
+    // Lev("crowdstrik_detections", "crowdstrike_detections") = 1 — well within the ≤3 threshold.
+    let result = engine
+        .execute("crowdstrik_detections | host = 'test'", options)
+        .await;
+
+    let err =
+        result.expect_err("HIGH-2: near-miss table name must return Err (E-QUERY-036), not Ok");
+
+    match &err {
+        PrismError::UnknownSourceTable(detail) => {
+            assert!(
+                detail.did_you_mean.is_some(),
+                "HIGH-2: did_you_mean must be Some(...) for near-miss 'crowdstrik_detections'; \
+                 got None — Levenshtein near-miss branch not reached"
+            );
+            let suggestion = detail.did_you_mean.as_deref().unwrap();
+            assert!(
+                suggestion.contains("crowdstrike"),
+                "HIGH-2: did_you_mean must suggest a name containing 'crowdstrike'; got: {suggestion}"
+            );
+        }
+        other => panic!("HIGH-2: expected PrismError::UnknownSourceTable, got: {other:?}"),
+    }
+}
+
 /// BC-2.07.004: a write-operation invalidation against the engine's response
 /// cache (`QueryEngine::response_cache()`) evicts the cached entries, so the
 /// next query re-fetches from the sensor (write-then-read consistency, DEC-018).

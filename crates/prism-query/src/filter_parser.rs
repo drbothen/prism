@@ -513,7 +513,7 @@ fn parse_sqlpipe_internal(
 /// (after optional ASCII whitespace) by a recognised pipe stage keyword.
 ///
 /// Returns `None` if no such `|` exists.
-fn find_sqlpipe_split(input: &str) -> Option<usize> {
+pub(crate) fn find_sqlpipe_split(input: &str) -> Option<usize> {
     let bytes = input.as_bytes();
     let len = bytes.len();
     let mut in_sq = false;

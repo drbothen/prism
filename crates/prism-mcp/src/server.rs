@@ -1435,13 +1435,16 @@ const LIVE_TOOLS: &[&str] = &[
     "validate_config",
     "list_capabilities",
     "prism_describe",
+    // HIGH-3: check_sensor_health has a genuine live handler (line ~3082) that validates
+    // client_id, calls scan_inputs_audited, emits audit events, and returns SensorHealthStructuredContent.
+    // It was incorrectly listed in NOT_YET_AVAILABLE_TOOLS; moved here per adversary pass 1.
+    "check_sensor_health",
 ];
 
 /// Tools registered in the catalog whose handlers return `-32003 not
 /// implemented` (`not_yet_available_msg`) — they cannot be invoked regardless
 /// of feature-flag state, so `list_capabilities` reports them as `false`.
 const NOT_YET_AVAILABLE_TOOLS: &[&str] = &[
-    "check_sensor_health",
     "get_diagnostics",
     "create_schedule",
     "list_schedules",
@@ -9095,6 +9098,54 @@ mod tests {
             phantom.is_empty(),
             "classified tools not present in the tool catalog: {phantom:?}"
         );
+    }
+
+    /// OBS-4/PG-1: positive-coverage assertions for the tool classification partition.
+    ///
+    /// Verifies:
+    /// - A NOT_YET_AVAILABLE tool (`get_diagnostics`) returns error code -32003
+    ///   (NOT_IMPLEMENTED) — proving it uses `not_yet_available_msg`.
+    /// - `check_sensor_health` (LIVE since HIGH-3 fix) does NOT return -32003 for a
+    ///   valid client_id — proving the handler is wired and not stubbed.
+    ///
+    /// This catches the case where a tool is moved to LIVE_TOOLS but its handler
+    /// still calls `not_yet_available_msg` (a paper-fix detection case).
+    #[tokio::test]
+    async fn test_MCP_01_partition_positive_coverage() {
+        use rmcp::handler::server::wrapper::Parameters;
+
+        let server = PrismServer::new();
+
+        // ── NOT_YET_AVAILABLE tool: must return -32003 (NOT_IMPLEMENTED) ──────
+        let diag_result = server
+            .get_diagnostics(Parameters(GetDiagnosticsParams { sensor: None }))
+            .await;
+        let diag_err =
+            diag_result.expect_err("get_diagnostics is NOT_YET_AVAILABLE → must return Err");
+        assert_eq!(
+            diag_err.code.0,
+            codes::NOT_IMPLEMENTED,
+            "OBS-4/PG-1: get_diagnostics (NOT_YET_AVAILABLE) must return -32003; \
+             got code {}",
+            diag_err.code.0
+        );
+
+        // ── LIVE tool (check_sensor_health): must NOT return -32003 ───────────
+        // Use a valid client_id so the handler proceeds past the empty-check guard.
+        // Expected: the handler returns Ok(...) or Err(-32000 internal) but NOT -32003.
+        let health_result = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client("acme")))
+            .await;
+        if let Err(ref health_err) = health_result {
+            assert_ne!(
+                health_err.code.0,
+                codes::NOT_IMPLEMENTED,
+                "OBS-4/PG-1: check_sensor_health is LIVE → must NOT return -32003; \
+                 but got code {} — handler is still using not_yet_available_msg",
+                health_err.code.0
+            );
+        }
+        // Ok(...) or any non-(-32003) error both satisfy the LIVE assertion.
     }
 
     /// Build a PrismServer with a WriteExecutor whose FeatureFlagEvaluator has

@@ -922,6 +922,49 @@ pub async fn execute_against_session(
                 .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
             collect_record_batch_stream(stream, pool_bytes).await
         }
+        // BC-2.11.020: SQL→Pipe composition mode.
+        //
+        // `plan_sqlpipe_query` enforces the FORBID-BOTH invariant (E-QUERY-040):
+        // if both the SQL head LIMIT and a pipe `| limit` stage are present,
+        // returns `Err(PrismError::RedundantRowLimit)` before any execution.
+        //
+        // For valid queries, the head SQL is wrapped in a CTE (`_sqlpipe_head`)
+        // and the pipe stages are applied on top via the same SQL lowering path
+        // as `Ast::Pipe` — same pool, same stream collection, same memory-error
+        // mapper — preserving all BC-2.11.006 invariants.
+        Ast::SqlPipe(spq) => {
+            // Plan-time FORBID-BOTH check (E-QUERY-040, ADR-043 §C §D4).
+            crate::plan_sqlpipe_query(spq)?;
+
+            let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+            let sql =
+                crate::pipe_sql_emitter::sqlpipe_to_executable_sql(query_str, spq, &table_batches)?;
+            // SAP-1: reuse existing catalog event type `pipe.sql_lowering` (BC-2.16.002 row 178).
+            // SqlPipe lowering is semantically identical to Pipe lowering — same execution path,
+            // same diagnostic information. No new catalog row needed.
+            tracing::debug!(
+                pipe_sql = %sql,
+                event_type = "pipe.sql_lowering",
+                "sqlpipe-to-SQL lowering complete"
+            );
+            let df = session_ctx.sql(&sql).await.map_err(|e| {
+                // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 row 179).
+                tracing::error!(
+                    error = %e,
+                    pipe_sql = %sql,
+                    event_type = "pipe.sql_planning_error",
+                    "sqlpipe-to-SQL DataFusion planning error"
+                );
+                PrismError::QueryExecutionFailed {
+                    detail: "sqlpipe SQL planning error: <redacted; see server logs>".to_string(),
+                }
+            })?;
+            let stream = df
+                .execute_stream()
+                .await
+                .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
+            collect_record_batch_stream(stream, pool_bytes).await
+        }
         _ => {
             // Other AST variants: return empty (no sensor data applicable).
             Ok(Vec::new())
@@ -1401,6 +1444,14 @@ fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
                 if let crate::ast::PipeStage::Join(js) = stage {
                     names.push(js.source.raw.clone());
                 }
+            }
+        }
+        // BC-2.11.020: SqlPipe mode — extract source table from the head SQL's FROM clause.
+        // The head SELECT drives the fan-out; pipe stages operate on the fetched rows.
+        Ast::SqlPipe(spq) => {
+            names.push(spq.head.from.source.raw.clone());
+            for join in &spq.head.joins {
+                names.push(join.source.raw.clone());
             }
         }
         // Non-exhaustive: ignore other variants

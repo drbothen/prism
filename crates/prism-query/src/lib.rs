@@ -191,9 +191,9 @@ pub use write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan};
 pub use write_result::{ConfirmationTokenPreview, SensorWriteError, WritePreview, WriteResult};
 pub use write_verb_registry::WriteVerbRegistry;
 
-// ── S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 stubs ─────────────────────────────
-// These public functions are test-writer stubs: they compile but panic via
-// todo!() until the implementer provides real bodies (Area A/B plan-time gates).
+// ── S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 plan-time gates ───────────────────
+// These public functions implement the plan-time gates for Areas A (SqlPipe) and
+// B (NOW() temporal injection) per the story acceptance criteria.
 
 /// Plan a parsed `SqlPipeQuery` AST: applies the FORBID-BOTH E-QUERY-040 check
 /// (BC-2.11.020 postcondition 5, ADR-043 §C §D4).

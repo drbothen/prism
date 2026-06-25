@@ -755,3 +755,147 @@ async fn test_bc_2_10_016_get_prompt_full_transport_dispatch() {
     // Server handle: we let it finish naturally (the cancel above closes the transport).
     drop(server_handle);
 }
+
+/// HIGH-1: `investigate_host` dispatched via full rmcp duplex transport, not by calling
+/// `render_investigate_host` directly.
+///
+/// Covers the dispatch path: client.get_prompt → JSON-RPC wire → PrismServer → PromptRouter
+/// → investigate_host route → render_investigate_host. Proves the route is registered and
+/// the handler executes through the full MCP stack.
+///
+/// Timeout of 5s guards against a future hang introduction in the dispatch chain.
+#[tokio::test]
+async fn test_high1_investigate_host_full_transport_dispatch() {
+    use rmcp::{
+        model::{ClientInfo, GetPromptRequestParams},
+        ClientHandler, ServiceExt,
+    };
+    use tokio::time::timeout;
+
+    #[derive(Debug, Clone, Default)]
+    struct DummyClientHandler;
+    impl ClientHandler for DummyClientHandler {
+        fn get_info(&self) -> ClientInfo {
+            ClientInfo::default()
+        }
+    }
+
+    let (server_transport, client_transport) = tokio::io::duplex(4096);
+
+    let server_handle = tokio::spawn(async move {
+        PrismServer::new()
+            .serve(server_transport)
+            .await
+            .expect("PrismServer::serve must complete MCP handshake")
+            .waiting()
+            .await
+            .expect("PrismServer waiting must not fail");
+    });
+
+    let client = DummyClientHandler::default()
+        .serve(client_transport)
+        .await
+        .expect("DummyClientHandler::serve must complete handshake");
+
+    let args = serde_json::json!({
+        "client_id": "test-tenant",
+        "hostname": "10.0.0.42"
+    });
+    let params = GetPromptRequestParams::new("investigate_host")
+        .with_arguments(args.as_object().unwrap().clone());
+
+    let result = timeout(Duration::from_secs(5), client.get_prompt(params))
+        .await
+        .expect(
+            "HIGH-1: investigate_host get_prompt must return within 5s (no hang in dispatch chain)",
+        )
+        .expect("HIGH-1: investigate_host get_prompt must return Ok (prompt found and rendered)");
+
+    assert!(
+        !result.messages.is_empty(),
+        "HIGH-1 BC-2.10.016: get_prompt(investigate_host) must return at least one message; \
+         got empty messages vec"
+    );
+
+    let full_text: String = result
+        .messages
+        .iter()
+        .filter_map(|m| match &m.content {
+            rmcp::model::PromptMessageContent::Text { text } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        full_text.contains("10.0.0.42")
+            || full_text.contains("host")
+            || full_text.contains("investigate"),
+        "HIGH-1 BC-2.10.016: get_prompt(investigate_host) rendered content must contain \
+         hostname or investigation-related text; got first 200 chars: {:?}",
+        &full_text[..full_text.len().min(200)]
+    );
+
+    client.cancel().await.expect("client cancel must succeed");
+    drop(server_handle);
+}
+
+/// HIGH-1: Missing required arg via full rmcp transport — calling `investigate_host`
+/// without the required `hostname` argument must return within 5s (not hang).
+///
+/// The rmcp router's handler falls back to `"(unknown)"` when `hostname` is absent,
+/// so this exercises the fallback path through the full dispatch stack (not a
+/// direct call to `render_investigate_host`).
+#[tokio::test]
+async fn test_high1_missing_required_arg_via_full_transport_no_hang() {
+    use rmcp::{
+        model::{ClientInfo, GetPromptRequestParams},
+        ClientHandler, ServiceExt,
+    };
+    use tokio::time::timeout;
+
+    #[derive(Debug, Clone, Default)]
+    struct DummyClientHandler;
+    impl ClientHandler for DummyClientHandler {
+        fn get_info(&self) -> ClientInfo {
+            ClientInfo::default()
+        }
+    }
+
+    let (server_transport, client_transport) = tokio::io::duplex(4096);
+
+    let server_handle = tokio::spawn(async move {
+        PrismServer::new()
+            .serve(server_transport)
+            .await
+            .expect("PrismServer::serve must complete MCP handshake")
+            .waiting()
+            .await
+            .expect("PrismServer waiting must not fail");
+    });
+
+    let client = DummyClientHandler::default()
+        .serve(client_transport)
+        .await
+        .expect("DummyClientHandler::serve must complete handshake");
+
+    // Only client_id provided; hostname (required) is absent.
+    // The router falls back to hostname = "(unknown)" — result is Ok, not a hard error.
+    let args = serde_json::json!({ "client_id": "test-tenant" });
+    let params = GetPromptRequestParams::new("investigate_host")
+        .with_arguments(args.as_object().unwrap().clone());
+
+    // The key assertion: the call must return within 5s (no hang) regardless of whether
+    // the result is Ok or Err.
+    let result = timeout(Duration::from_secs(5), client.get_prompt(params)).await;
+    assert!(
+        result.is_ok(),
+        "HIGH-1 BC-2.10.016 INV-PROMPT-REQUIRED-ARGS: investigate_host with missing hostname \
+         must return within 5s via full transport (no hang); timed out"
+    );
+    // Ok or Err both satisfy the no-hang contract.
+    let _ = result.unwrap();
+
+    client.cancel().await.expect("client cancel must succeed");
+    drop(server_handle);
+}
