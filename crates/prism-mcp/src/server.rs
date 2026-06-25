@@ -3425,12 +3425,12 @@ impl PrismServer {
     /// Retrieve diagnostic information for a specific sensor or all sensors.
     ///
     /// DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.
-    /// SECURITY NOTE: Sensor name parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Configured sensor adapters.
     #[tool(
         description = "Retrieve diagnostic information for a specific sensor or all sensors.\n\
         DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.\n\
-        SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Configured sensor adapters.\n\
         WHEN TO USE: when investigating sensor adapter behavior or performance issues\n\
         WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
@@ -4432,16 +4432,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a recurring PrismQL query schedule.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Query and cron parameters scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a recurring PrismQL query schedule.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Query and cron parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4471,7 +4471,7 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4487,16 +4487,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Delete a PrismQL query schedule by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Delete a PrismQL query schedule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4513,16 +4513,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Retrieve diff results from the most recent schedule run.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Retrieve diff results from the most recent schedule run.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4539,16 +4539,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a detection rule from a PrismQL query.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Name and query parameters scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a detection rule from a PrismQL query.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Name and query parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4578,7 +4578,7 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4592,16 +4592,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Delete a detection rule by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Delete a detection rule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4620,16 +4620,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a new security case.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Title and description scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a new security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Title and description scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4659,7 +4659,7 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4673,16 +4673,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Get a specific security case by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Get a specific security case by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4701,16 +4701,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Update fields on an existing security case.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID, title, and description scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Update fields on an existing security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID, title, and description scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4738,7 +4738,7 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4756,12 +4756,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// List credential references for the given client (names only, never raw values).
     ///
     /// DATA TRUST LEVEL: Internal — credential names are operator-managed references.
-    /// SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "List credential references for the given client (names only, never raw values per AD-017).\n\
         DATA TRUST LEVEL: Internal — credential names are operator-managed references.\n\
-        SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4782,12 +4782,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Check the status of a credential reference for the given client.
     ///
     /// DATA TRUST LEVEL: Internal — credential status is operator-managed.
-    /// SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Check the status of a credential reference for the given client.\n\
         DATA TRUST LEVEL: Internal — credential status is operator-managed.\n\
-        SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4808,12 +4808,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Configure a credential source for a sensor (env, file, vault, or keyring reference).
     ///
     /// DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled in MCP context.
-    /// SECURITY NOTE: All string fields scanned for prompt injection. Credential values NEVER stored (AD-017).
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER stored (AD-017).
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Configure a credential source for a sensor (env, file, vault, or keyring reference).\n\
         DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled.\n\
-        SECURITY NOTE: All string fields scanned for prompt injection. Credential values NEVER stored (AD-017).\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER stored (AD-017).\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4837,12 +4837,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Delete a credential reference for a sensor (removes the reference, not any external value).
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: All string fields scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Delete a credential reference for a sensor (removes the reference, not any external value).\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: All string fields scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4893,16 +4893,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// List alerts for the given client, with optional severity/rule/status filters.
     ///
     /// DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled in MCP context.
-    /// SECURITY NOTE: All string filter parameters scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations alert store (not yet wired).
     #[tool(
         description = "List alerts for the given client, with optional severity/rule/status filters.\n\
         DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled.\n\
-        SECURITY NOTE: All string filter parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations alert store (not yet wired).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4929,16 +4929,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Get a specific alert by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled in MCP context.
-    /// SECURITY NOTE: alert_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations alert store (not yet wired).
     #[tool(
         description = "Get a specific alert by ID.\n\
         DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
-        SECURITY NOTE: alert_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations alert store (not yet wired).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4955,16 +4955,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Acknowledge an alert to suppress repeat notifications.
     ///
     /// DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled in MCP context.
-    /// SECURITY NOTE: alert_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations alert store (not yet wired).
     #[tool(
         description = "Acknowledge an alert to suppress repeat notifications.\n\
         DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
-        SECURITY NOTE: alert_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations alert store (not yet wired).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4983,12 +4983,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Contain (network-isolate) a CrowdStrike-managed host.
     ///
     /// DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: client_id and device_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).
     #[tool(
         description = "Contain (network-isolate) a CrowdStrike-managed host.\n\
         DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
-        SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).\n\
         WHEN TO USE: when executing a confirmed sensor write action on a CrowdStrike device\n\
         WHEN NOT TO USE: do not execute without prior dry-run approval and confirmation token\n\
@@ -5009,12 +5009,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Lift network containment from a CrowdStrike-managed host.
     ///
     /// DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: client_id and device_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).
     #[tool(
         description = "Lift network containment from a CrowdStrike-managed host.\n\
         DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
-        SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).\n\
         WHEN TO USE: when executing a confirmed sensor write action on a CrowdStrike device\n\
         WHEN NOT TO USE: do not execute without prior dry-run approval and confirmation token\n\
@@ -5063,12 +5063,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Explain the contents and discovery status of a specific pack.
     ///
     /// DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: pack_id and client_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal pack registry (not yet wired).
     #[tool(
         description = "Explain the contents and discovery status of a specific pack.\n\
         DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
-        SECURITY NOTE: pack_id and client_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal pack registry (not yet wired).\n\
         WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
         WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
@@ -5091,12 +5091,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a new query pack from the given queries, rules, and aliases.
     ///
     /// DATA TRUST LEVEL: External/untrusted — pack_name and queries are attacker-controlled in MCP context.
-    /// SECURITY NOTE: pack_name and all query strings scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal pack registry (not yet wired).
     #[tool(
         description = "Create a new query pack from the given queries, rules, and aliases.\n\
         DATA TRUST LEVEL: External/untrusted — pack_name and queries are attacker-controlled.\n\
-        SECURITY NOTE: pack_name and all query strings scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal pack registry (not yet wired).\n\
         WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
         WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
@@ -5131,12 +5131,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Delete a query pack by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: pack_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal pack registry (not yet wired).
     #[tool(
         description = "Delete a query pack by ID.\n\
         DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
-        SECURITY NOTE: pack_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal pack registry (not yet wired).\n\
         WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
         WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
@@ -5159,12 +5159,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// List all configured infusions (data enrichment pipelines).
     ///
     /// DATA TRUST LEVEL: Internal — infusion metadata is operator-managed.
-    /// SECURITY NOTE: Optional client_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal infusion registry (not yet wired).
     #[tool(
         description = "List all configured infusions (data enrichment pipelines).\n\
         DATA TRUST LEVEL: Internal — infusion metadata is operator-managed.\n\
-        SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal infusion registry (not yet wired).\n\
         WHEN TO USE: when managing data enrichment pipeline configurations\n\
         WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
@@ -5187,12 +5187,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Retrieve the status of a specific infusion pipeline.
     ///
     /// DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: infusion_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal infusion registry (not yet wired).
     #[tool(
         description = "Retrieve the status of a specific infusion pipeline.\n\
         DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
-        SECURITY NOTE: infusion_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal infusion registry (not yet wired).\n\
         WHEN TO USE: when managing data enrichment pipeline configurations\n\
         WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
@@ -5213,12 +5213,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Hot-reload an infusion pipeline configuration without restarting Prism.
     ///
     /// DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: infusion_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal infusion registry (not yet wired).
     #[tool(
         description = "Hot-reload an infusion pipeline configuration without restarting Prism.\n\
         DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
-        SECURITY NOTE: infusion_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal infusion registry (not yet wired).\n\
         WHEN TO USE: when managing data enrichment pipeline configurations\n\
         WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
@@ -5267,12 +5267,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Retrieve the status and metrics of a specific WASM plugin.
     ///
     /// DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: plugin_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal WASM plugin runtime (not yet wired).
     #[tool(
         description = "Retrieve the status and metrics of a specific WASM plugin.\n\
         DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
-        SECURITY NOTE: plugin_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal WASM plugin runtime (not yet wired).\n\
         WHEN TO USE: when managing WASM plugin runtime state\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5293,12 +5293,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Hot-reload a WASM plugin without restarting Prism.
     ///
     /// DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: plugin_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal WASM plugin runtime (not yet wired).
     #[tool(
         description = "Hot-reload a WASM plugin without restarting Prism.\n\
         DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
-        SECURITY NOTE: plugin_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal WASM plugin runtime (not yet wired).\n\
         WHEN TO USE: when managing WASM plugin runtime state\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5321,12 +5321,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// List all configured actions (automated response playbooks).
     ///
     /// DATA TRUST LEVEL: Internal — action metadata is operator-managed.
-    /// SECURITY NOTE: Optional client_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired).
     #[tool(
         description = "List all configured actions (automated response playbooks).\n\
         DATA TRUST LEVEL: Internal — action metadata is operator-managed.\n\
-        SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5347,12 +5347,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Retrieve the status and last-run metadata of a specific action.
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired).
     #[tool(
         description = "Retrieve the status and last-run metadata of a specific action.\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
-        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5373,12 +5373,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Fire (execute) an action immediately with optional context.
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id and context are attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id and context scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).
     #[tool(
         description = "Fire (execute) an action immediately with optional context.\n\
         DATA TRUST LEVEL: External/untrusted — action_id and context are attacker-controlled.\n\
-        SECURITY NOTE: action_id and context scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5403,12 +5403,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Test an action in dry-run mode (no side effects).
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action runtime (not yet wired).
     #[tool(
         description = "Test an action in dry-run mode (no side effects).\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
-        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action runtime (not yet wired).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5429,12 +5429,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a new action from a TOML spec.
     ///
     /// DATA TRUST LEVEL: External/untrusted — TOML spec is attacker-controlled in MCP context.
-    /// SECURITY NOTE: spec_toml scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired — capability-gated write).
     #[tool(
         description = "Create a new action from a TOML spec.\n\
         DATA TRUST LEVEL: External/untrusted — TOML spec is attacker-controlled.\n\
-        SECURITY NOTE: spec_toml scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired — capability-gated write).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5457,12 +5457,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Delete an action by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired — capability-gated write).
     #[tool(
         description = "Delete an action by ID.\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
-        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired — capability-gated write).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5485,12 +5485,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Get structured help on a Prism topic (PrismQL, OCSF fields, detection rules, error codes).
     ///
     /// DATA TRUST LEVEL: External/untrusted — topic string is attacker-controlled in MCP context.
-    /// SECURITY NOTE: topic scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal documentation registry (not yet wired).
     #[tool(
         description = "Get structured help on a Prism topic (PrismQL, OCSF fields, detection rules, error codes).\n\
         DATA TRUST LEVEL: External/untrusted — topic string is attacker-controlled.\n\
-        SECURITY NOTE: topic scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal documentation registry (not yet wired).\n\
         WHEN TO USE: when you need documentation on PrismQL syntax, OCSF fields, or error codes\n\
         WHEN NOT TO USE: not for data retrieval — use query tool for sensor data\n\
