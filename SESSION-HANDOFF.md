@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.951"
+version: "7.960"
 status: current
-timestamp: 2026-06-24T15:00:00Z
+timestamp: 2026-06-25T00:30:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -32,13 +32,78 @@ timestamp: 2026-06-24T15:00:00Z
 >
 > **D-1322 (2026-06-24): SESSION WRAP — RESUME SNAPSHOT D-1322 authored. Group 2 (prism-mcp) GREEN-WITH-1-CONFLICT @3b73cc08 (378/379; AC-010 test premise stale vs Group-1 composition). §RESUME SNAPSHOT D-1322 authored (supersedes D-1321). STATE v7.950→v7.951.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1322** (authoritative zero-context restart protocol; supersedes D-1321). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1321 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1322 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `903c8fcb` (PR #202 S-5.04 sensor-health merged D-1319). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.951.
+> **D-1331 (2026-06-24): SESSION WRAP — Matured Vision & Day-2 Requirements doc committed (.factory/specs/matured-vision-day2-requirements.md, 828 lines, PO-authored, status=day-2-backlog, demo_target=FROZEN, brief_reframe=pending-human-signoff). SESSION-HANDOFF §RESUME SNAPSHOT D-1331 authored (two-track: demo-critical Track A + day-2 morph Track B). LOCAL cascade Pass 1 on 3fa69207 = NOT CLEAN (2 CRIT NOW-injection-unwired + paper-test, 1 HIGH FORBID-BOTH 0-row bypass); fix-burst ab4bc0e839a8469fa dispatched; 3-CLEAN streak 0/3. Demo target FROZEN; morph begins post-T14. STATE v7.959→v7.960.**
+>
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1331** (authoritative zero-context restart protocol; supersedes D-1322). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1330 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1331 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `903c8fcb` (PR #202 S-5.04 sensor-health merged D-1319). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.960.
 
 ---
 
-## §RESUME SNAPSHOT — D-1322 (2026-06-24 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.11; STORY-INDEX v2.471; ARCH-INDEX v2.145; STATE v7.951; worktree HEAD 3b73cc08 mid-TDD Groups 1&2 GREEN-WITH-1-CONFLICT) [SUPERSEDES D-1321]
+## §RESUME SNAPSHOT — D-1331 (2026-06-24 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.12; STORY-INDEX v2.472; ARCH-INDEX v2.145; STATE v7.960; TWO-TRACK: demo-critical Track A + day-2 morph Track B) [SUPERSEDES D-1322]
+
+> **D-1331 burst (2026-06-24).** Session wrap. Matured Vision & Day-2 Requirements doc committed (.factory/specs/matured-vision-day2-requirements.md, 828 lines). Two-track resume: TRACK A (demo-critical, frozen target) — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001; LOCAL cascade Pass 1 on 3fa69207 NOT CLEAN; fix-burst ab4bc0e839a8469fa dispatched. TRACK B (day-2 morph) — begins post-T14; source-of-truth matured-vision-day2-requirements.md. All prior D-1101..D-1330 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+Two tracks. TRACK A (do first): S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 — fix-burst ab4bc0e839a8469fa was dispatched to close LOCAL Pass-1 findings (CRIT-001 NOW/INTERVAL injection unwired in SQL-mode + SqlPipe head; CRIT-002 test_crit1b paper-test; HIGH-001 FORBID-BOTH bypassed on 0-row sensor return). On resume: get current worktree HEAD, confirm fix-burst landed, run `just check` workspace-green, re-freeze HEAD, LOCAL adversary Pass 1 re-run (3-CLEAN streak 0/3 on UNCHANGED HEAD; any push resets streak). Then per-AC demo → push → PR (targets develop) → PR-LEVEL 3-CLEAN → CI → squash-merge → pre-flight demo re-audit → T13 capstone → T14 recording. TRACK B (after T14): day-2 epics per matured-vision-day2-requirements.md; brief reframe GATED on human sign-off.
+
+### HEADS
+- origin/develop `903c8fcb`. local develop `ba1108d2` = unpushed `/wrap` skill commit, DIVERGED at 5504c152 — PENDING HUMAN DECISION (rework as PR vs rebase/drop); causes ADVISORY non-blocking SHA-currency hook FAIL on .factory bursts (precedent D-1319+).
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (do not hard-code; this wrap commit is the current HEAD).
+- Agents in flight at session wrap: fix-burst ab4bc0e839a8469fa (implementer, S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 CRIT-001/002 + HIGH-001). On resume: `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` to get current tip — do not hardcode.
+
+### TRACK A — DEMO-CRITICAL (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001; FROZEN DEMO TARGET)
+
+- Branch `feature/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`; worktree `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`. Code HEAD at LOCAL Pass 1 run = `3fa69207` (Groups 1+2+3 all green per D-1324+D-1325; Groups 1+2 audit-remediated @ 6c6d2e57; all groups green @ 3fa69207 with just check 4897/4897).
+- Story v1.3 (D-1329); 26 ACs / 19 Red-Gate; 6 areas A–F; 8 BCs. Both remove-uncertainty passes done (D-1110 satisfied).
+- **LOCAL cascade Pass 1 (BC-5.39.001, on frozen HEAD 3fa69207) = CLEAN(strict)=NO, CLEAN(PR-merge)=NO:**
+  - **CRIT-001:** NOW()/INTERVAL `inject_now` NOT wired into production `execute_against_session` — SQL-mode runs raw string without temporal substitution, SqlPipe head similarly unwired. Demo's headline temporal NOW()-INTERVAL examples (REFERENCE_EXAMPLES + `prism_describe`) parse but do not execute correctly.
+  - **CRIT-002:** `test_crit1b_now_substituted_before_datafusion` is a paper-test — asserts only filter-mode path (inert; does NOT exercise SQL-mode or SqlPipe head; the very paths CRIT-001 identifies as unwired).
+  - **HIGH-001:** FORBID-BOTH / E-QUERY-040 bypassed when sensor returns 0 rows — `plan_sqlpipe_query` after the table-registration early-return skips the FORBID-BOTH check (the check only fires for non-empty result sets; 0-row sensors silently succeed where they should fail).
+  - Verified clean (do NOT re-raise): SqlPipe exec happy-path (test_crit1_sqlpipe_executes_via_engine_not_empty), GRAMMAR-004 did_you_mean (HIGH-002 from Pass 0 now closed), normalized_pql mode-bridge mapping, mode-bridge D1 diagnostic (HIGH-003 closed), AC-019 reset_token_cache deferral to S-RESILIENCE-FEDERATED-001, reset_token_cache removal clean, SAP-1 (no unregistered event_types), AD-017 (no new_unchecked call sites), non-exhaustive gate at 87 in worktree (develop=84; remediation carries 84→87 at merge).
+  - 3-CLEAN streak: **0/3**. Fix-burst ab4bc0e839a8469fa dispatched to close CRIT-001/002 + HIGH-001.
+- **RESUME NEXT-ACTION:**
+  1. `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` → get current tip (fix-burst may have advanced from 3fa69207).
+  2. `just check` workspace-green (confirm fix-burst landed clean).
+  3. Re-freeze new HEAD (note: ANY push resets 3-CLEAN streak; frozen HEAD for streak must be UNCHANGED across all 3 passing passes — DRIFT-ORCH-PRLEVEL-PUSH-001).
+  4. Dispatch adversary LOCAL Pass 1 re-run against corrected specs (story v1.3, BC-2.11.x, ADRs). Streak starts 0/3.
+  5. For each non-CLEAN pass: fix-burst → re-freeze → re-run Pass N+1. Streak resets on any push.
+  6. On 3 consecutive CLEAN(strict) passes on UNCHANGED HEAD: per-AC demo evidence → push → PR (targets develop) → PR-LEVEL 3-CLEAN cascade → CI → squash-merge.
+  7. Post-merge: re-run pre-flight demo audit (`.factory/research/demo-pre-flight-audit-2026-06-24.md`) to confirm all 4 original blockers + grammar findings closed.
+  8. T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`).
+  9. T14 recording → TRACK B begins.
+
+### TRACK B — DAY-2 MORPH (BEGINS POST-T14; DEMO TARGET FROZEN/UNCHANGED)
+
+- Source-of-truth: `.factory/specs/matured-vision-day2-requirements.md` (828 lines, committed D-1331).
+- The DEMO TARGET IS FROZEN. Nothing in TRACK B changes the demo story or demo-story specs before T14.
+- Day-2 epics (all draft/backlog, post-T14):
+  - **E-CACHE-DEMAND-001** (demand-driven caching / SIEM-replacement-by-capability, D-1328): P1 detection-window retention (no PrismQL dep; prism-operations/prism-storage/prism-core), P2 PrismQL RETAIN + FROM cache. virtual table (gates on grammar stability), P3 config defaults, P4 cold-tier >7d deferred. ADR-047/048/049.
+  - **E-CENTRAL-TRANSPORT-001 + E-CENTRAL-AUTHZ-001 + E-CENTRAL-OPS-001** (central deployment; data-plane multi-tenant already wired, gap = access layer: authN/authZ, HTTP/streamable transport, per-connection identity, central credential custody, shared state). ADR-050..054.
+  - **S-RESILIENCE-FEDERATED-001** (stub registered D-1329; per-sensor TOML connect/request timeouts, boot-degraded, retry/backoff, skip_unavailable, availability cache, hot credential reload G2 human-authorized, recover-without-restart; DO NOT dispatch to implementer until BCs authored).
+  - **Prism-Satellite** (distributed/edge execution: central=coordinator/planner, satellites=remote executors outbound-only dial-home; satellite chaining multi-hop; use cases: OT/ICS Purdue-model, air-gapped, MSSP-nested, intermittent, fan-in/data-residency).
+  - **Lake-connector** (Amazon Security Lake first: OCSF-native Iceberg/Parquet on S3; replace-or-federate dual stance).
+  - **Vision-threading/spec-evolution** (thread matured vision through brief→stories + meta-docs; brief reframe REQUIRES HUMAN SIGN-OFF before authoring begins).
+- Research artifacts: `.factory/research/federated-search-architecture-2026-06-24.md` (39 sources) + `.factory/research/siem-securitylake-datalake-federation-2026-06-24.md` (73 sources).
+
+### PENDING HUMAN DECISIONS
+1. **Brief reframe sign-off** (day-2, TRACK B): federated-query + smart-caching SIEM/lake replace-or-federate + central deployment + AI-native agent platform. Current brief was per-analyst and is stale. Brief reframe is a foundational artifact — MUST NOT begin without human sign-off.
+2. **Local develop /wrap-commit reconciliation** (ba1108d2 vs origin 903c8fcb): rework as PR or rebase/drop. Causes advisory SHA-currency hook FAILs (non-blocking).
+
+### DEMO / RELEASE ROADMAP
+T13 gate 1 (enrichment) + gate 2 (S-5.04) DONE. Remaining: remediation story CRIT/HIGH fix-burst → `just check` green → LOCAL 3-CLEAN on frozen HEAD → per-AC demo → push → PR → PR-LEVEL 3-CLEAN → CI → squash-merge → pre-flight demo re-audit → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording → TRACK B day-2 epics begin.
+
+### WORKTREE INVENTORY
+- ACTIVE: `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001` (feature/...@HEAD; fix-burst ab4bc0e839a8469fa may have advanced; run `git -C ... rev-parse HEAD` to confirm).
+- STALE / leave-alone: `.worktrees/S-5.04` (PENDING devops-engineer cleanup), `.worktrees/maint-quinn-proto` (PENDING devops-engineer cleanup), `.worktrees/S-3.09` (FROZEN), `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded).
+- Main worktree develop @ba1108d2 (DIVERGED — pending /wrap reconciliation decision).
+
+### DECISION-LOG DELTA since D-1322
+D-1323 (Group-2 audit), D-1324 (Group-2 audit-remediation CLEAN), D-1325 (LOCAL Pass 1 NOT CLEAN), D-1326 (wiring fix-burst CRIT-3-escalated; all other Pass-1 findings closed), D-1327 (federated-search + resilience research committed), D-1328 (E-CACHE-DEMAND-001 epic scoped), D-1329 (Track A spec-sync complete; story v1.3; S-RESILIENCE-FEDERATED-001 stub registered), D-1330 (lake-research committed; day-2 vision backlog captured), **D-1331 (this session wrap — matured vision doc committed; two-track resume authored)**.
+
+---
+
+## §RESUME SNAPSHOT — D-1322 (2026-06-24 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.11; STORY-INDEX v2.471; ARCH-INDEX v2.145; STATE v7.951; worktree HEAD 3b73cc08 mid-TDD Groups 1&2 GREEN-WITH-1-CONFLICT) [SUPERSEDES D-1321] [SUPERSEDED — see D-1331 above]
 
 > **D-1322 burst (2026-06-24).** Session wrap. S-5.04 MERGED (PR #202 develop@903c8fcb, T13 gate 2 CLEARED, D-1319). Enrichment MERGED earlier (T13 gate 1). Mid-TDD on consolidated demo-readiness remediation story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.2 — Group 1 (prism-query grammar) GREEN @ b63aef87; Group 2 (prism-mcp) GREEN-WITH-1-CONFLICT @ 3b73cc08 (378/379; AC-010 test premise stale vs Group-1 SqlPipe composition); Group 3 PENDING. LOCAL develop ba1108d2 diverged from origin at 5504c152 — HUMAN DECISION PENDING. All prior D-1101..D-1321 notes SUPERSEDED.
 
