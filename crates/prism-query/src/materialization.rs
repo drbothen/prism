@@ -490,6 +490,48 @@ pub async fn run_materialization_pipeline(
         }
     })?;
 
+    // Step 1a: Inject NOW() constant (BC-2.11.021 / AC-004 / ADR-044).
+    //
+    // Capture Utc::now() ONCE per query so all NOW() occurrences resolve to the
+    // same instant (consistency invariant). The injected AST is used for:
+    //   - Pipe-mode stages: `pipe_to_executable_sql` → `expr_to_sql` must receive
+    //     `Literal::Timestamp(now)` not `Expr::Now` (TimestampArithmetic emission).
+    //   - Filter-mode predicates: injected before push-down filter extraction.
+    //   - SqlPipe pipe stages: same as Pipe-mode above.
+    //
+    // NOTE: For SQL-mode and SqlPipe-HEAD SQL, DataFusion 53.1 has a built-in NOW()
+    // and maintains per-query consistency natively. inject_now on the SQL AST is
+    // still applied for spec compliance (BC-2.11.021 single-source-of-truth for the
+    // captured instant), but the SQL string passed to DataFusion is NOT re-emitted
+    // from the injected AST (PqlNormalizer would be needed for that, and its
+    // normalize_literal emits `'<iso>'` not `TIMESTAMP '<iso>'` — a separate
+    // follow-up story). The SQL-mode path is not broken by this: DataFusion's own
+    // NOW() is equivalent for query consistency. Pipe-mode IS fixed by this wiring.
+    let ast = {
+        use crate::ast::{Expr, Literal, TimestampLiteral};
+        use chrono::Utc;
+        let now: chrono::DateTime<Utc> = Utc::now();
+        let now_iso = now.to_rfc3339();
+        let now_ts = TimestampLiteral {
+            iso8601: now_iso,
+            instant: now,
+        };
+        let now_literal_expr = Expr::Literal(Literal::Timestamp(now_ts));
+        crate::inject_now(ast, &now_literal_expr)
+    };
+
+    // Step 1b: Plan-time FORBID-BOTH check (BC-2.11.020 INV-FORBID-BOTH-PERMANENT /
+    // ADR-043 §C §D4): hoisted to BEFORE fan-out so it fires data-independently.
+    //
+    // Previously `plan_sqlpipe_query` was called inside `execute_against_session`
+    // (after fan-out). If the adapter returned Ok(vec![]) (no batches), the Step-6
+    // early-return guard `if !any_external_table_registered` fired first, bypassing
+    // FORBID-BOTH. By hoisting here — right after parse and inject_now — the check
+    // runs unconditionally regardless of adapter row count.
+    if let crate::ast::Ast::SqlPipe(ref spq) = ast {
+        crate::plan_sqlpipe_query(spq)?;
+    }
+
     let source_names = extract_source_names(&ast);
 
     // Build a flat FilterMap of equality predicates from the WHERE clause (BC-2.11.007).
@@ -924,18 +966,16 @@ pub async fn execute_against_session(
         }
         // BC-2.11.020: SQL→Pipe composition mode.
         //
-        // `plan_sqlpipe_query` enforces the FORBID-BOTH invariant (E-QUERY-040):
-        // if both the SQL head LIMIT and a pipe `| limit` stage are present,
-        // returns `Err(PrismError::RedundantRowLimit)` before any execution.
+        // FORBID-BOTH invariant (E-QUERY-040, BC-2.11.020 INV-FORBID-BOTH-PERMANENT,
+        // ADR-043 §C §D4) is now enforced by `run_materialization_pipeline` Step 1b
+        // (hoisted BEFORE fan-out and data-availability guard). Duplicate call removed
+        // here to avoid confusion — the check fires exactly once per query, at parse time.
         //
         // For valid queries, the head SQL is wrapped in a CTE (`_sqlpipe_head`)
         // and the pipe stages are applied on top via the same SQL lowering path
         // as `Ast::Pipe` — same pool, same stream collection, same memory-error
         // mapper — preserving all BC-2.11.006 invariants.
         Ast::SqlPipe(spq) => {
-            // Plan-time FORBID-BOTH check (E-QUERY-040, ADR-043 §C §D4).
-            crate::plan_sqlpipe_query(spq)?;
-
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
             let sql =
                 crate::pipe_sql_emitter::sqlpipe_to_executable_sql(query_str, spq, &table_batches)?;

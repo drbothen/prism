@@ -253,7 +253,9 @@ pub fn parse_and_plan(input: &str) -> Result<Ast, Vec<ParseError>> {
 ///
 /// Pure function (clone-based transformation). Returns a new `Ast` with all
 /// occurrences substituted.
-fn inject_now(ast: Ast, now_literal: &ast::Expr) -> Ast {
+///
+/// `pub(crate)` so `materialization.rs` can call it directly (BC-2.11.021 wiring).
+pub(crate) fn inject_now(ast: Ast, now_literal: &ast::Expr) -> Ast {
     use ast::{Ast as A, FilterExpr, PipeQuery, SqlPipeQuery, SqlStatement};
 
     match ast {

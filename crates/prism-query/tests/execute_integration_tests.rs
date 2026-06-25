@@ -2725,37 +2725,209 @@ async fn test_crit2_sqlpipe_forbid_both_via_engine_returns_e_query_040() {
 // NOW() substitution wired into the production execute path
 // ---------------------------------------------------------------------------
 
-/// CRIT-1b: A query containing `NOW()` must execute successfully via
-/// `QueryEngine::execute` (no Expr::Now reaching DataFusion's SQL engine).
+/// BC-2.11.021 AC-004 (coverage): SQL-mode temporal query executes end-to-end.
 ///
-/// Before the fix, `run_materialization_pipeline` calls `PrismQlParser::parse`
-/// (not `parse_and_plan`), so `Expr::Now` nodes remain unsubstituted and DataFusion
-/// receives the literal text `NOW()` as a column reference, which fails.
+/// IMPORTANT SCOPE NOTE: This test is NOT a negative control for inject_now wiring.
+/// DataFusion 53.1 has a built-in NOW() function that handles temporal arithmetic in
+/// SQL strings natively. `sqlpipe_to_executable_sql` extracts the head SQL from the
+/// RAW `query_str` (not the inject_now-processed AST), so DataFusion's own NOW()
+/// resolves the temporal expression. inject_now on the SQL AST is applied for spec
+/// compliance but the re-emitted string path is not used for SQL-mode execution.
 ///
-/// After the fix, `inject_now` is applied before the AST reaches DataFusion,
-/// replacing `NOW()` with the captured timestamp literal.
+/// The LOAD-BEARING test for inject_now wiring is `test_crit1_pipe_now_interval_executes_end_to_end`:
+/// pure pipe mode where `expr_to_sql` must handle `Expr::TimestampArithmetic` (DataFusion
+/// never sees the raw string; inject_now is strictly required).
 ///
-/// Red Gate: before the fix, a query with `NOW()` either fails at DataFusion
-/// planning time (DataFusion doesn't know NOW() from PrismQL) or silently
-/// returns wrong results.  The test asserts the execute SUCCEEDS and returns rows.
-///
-/// Note: `crowdstrike_detections` does not have a `timestamp` column in StubAdapter,
-/// so we use a Filter-mode query (no SQL timestamp predicate) to verify NOW() is
-/// substituted without hitting DataFusion's SQL engine for the predicate.
-/// The key assertion is that execute does NOT error (i.e., Expr::Now was handled).
+/// This test is retained as a smoke test confirming SQL-mode NOW() queries don't break
+/// (regression coverage for the SQL execution path).
 #[tokio::test]
-async fn test_crit1b_now_substituted_before_datafusion() {
+async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
+    use arrow::{
+        array::{StringArray, TimestampMicrosecondArray},
+        datatypes::{DataType, Field, Schema, TimeUnit},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
     use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// StubAdapter that returns rows with a real `timestamp` column (Utf8 ISO-8601).
+    /// DataFusion can CAST a Utf8 column to TIMESTAMP in the WHERE clause, so the
+    /// injected `TIMESTAMP '<iso8601>'` literal is type-compatible.
+    struct TimestampStubAdapter;
+
+    #[async_trait]
+    impl SensorAdapter for TimestampStubAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            // Return one row with a `timestamp` column as a recent ISO-8601 string.
+            // This is a recent timestamp so it falls within `NOW() - INTERVAL '7d'`.
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("timestamp", DataType::Utf8, false),
+            ]));
+            let ids = Arc::new(StringArray::from(vec!["det-001"])) as _;
+            // Use chrono to produce a UTC timestamp string.
+            let ts_str = chrono::Utc::now().to_rfc3339();
+            let ts_arr = Arc::new(StringArray::from(vec![ts_str.as_str()])) as _;
+            let batch =
+                RecordBatch::try_new(schema, vec![ids, ts_arr]).expect("timestamp stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(TimestampStubAdapter));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SQL-mode query with NOW() - INTERVAL. DataFusion 53.1 handles NOW() natively
+    // in SQL strings, so this passes whether or not inject_now is called.
+    // Retained as regression coverage for the SQL-mode execution path.
+    let result = engine
+        .execute(
+            "SELECT detection_id FROM crowdstrike_detections \
+             WHERE timestamp > NOW() - INTERVAL '7d'",
+            options,
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "CRIT-1b: SQL-mode query with NOW() must succeed (DataFusion handles NOW() \
+         natively in SQL strings); got: {:?}",
+        result.err()
+    );
+}
+
+/// BC-2.11.021 AC-004 (coverage): SqlPipe-head temporal query executes end-to-end.
+///
+/// IMPORTANT SCOPE NOTE: Same as test_crit1b_sql_mode — NOT a negative control for
+/// inject_now wiring. DataFusion 53.1 handles NOW() in SQL strings natively, and
+/// `sqlpipe_to_executable_sql` extracts the head SQL from the RAW `query_str`.
+/// Retained as regression coverage for the SqlPipe execution path.
+/// The load-bearing test is `test_crit1_pipe_now_interval_executes_end_to_end`.
+#[tokio::test]
+async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    struct TimestampStubAdapterSqlPipe;
+
+    #[async_trait]
+    impl SensorAdapter for TimestampStubAdapterSqlPipe {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("timestamp", DataType::Utf8, false),
+            ]));
+            let ts_str = chrono::Utc::now().to_rfc3339();
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec!["det-sqlpipe-001"])) as _,
+                    Arc::new(StringArray::from(vec![ts_str.as_str()])) as _,
+                ],
+            )
+            .expect("sqlpipe timestamp stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(TimestampStubAdapterSqlPipe));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SqlPipe: SQL head with NOW() followed by a pipe | limit stage.
+    // inject_now must fire for SqlPipe.head BEFORE sqlpipe_to_executable_sql.
+    let result = engine
+        .execute(
+            "SELECT detection_id FROM crowdstrike_detections \
+             WHERE timestamp > NOW() - INTERVAL '7d' | limit 10",
+            options,
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "CRIT-1b SqlPipe: SqlPipe temporal query with NOW() must succeed (DataFusion \
+         handles NOW() natively in the head SQL string); got: {:?}",
+        result.err()
+    );
+}
+
+/// BC-2.11.020 INV-FORBID-BOTH-PERMANENT (coverage): FORBID-BOTH fires with a 0-row batch.
+///
+/// SCOPE NOTE: `StubAdapter(row_count: 0)` returns `Ok(vec![0-row-batch])` — one batch
+/// with zero rows. That batch IS pushed to table_batches; the MemTable IS registered;
+/// the early-return guard does NOT fire. This test passes because the FORBID-BOTH hoist
+/// is now in run_materialization_pipeline Step 1b (before fan-out), but it would also
+/// have passed with the old code because execute_against_session was always reached.
+///
+/// The TRUE early-return bypass test (adapter returning Ok(vec![])) is:
+/// `test_high1_forbid_both_fires_with_empty_vec_sensor`.
+/// Retained as regression coverage for the zero-row-batch case.
+#[tokio::test]
+async fn test_forbid_both_fires_with_zero_row_sensor() {
+    use prism_core::{OrgId, PrismError, SensorId};
     use prism_query::engine::QueryOptions;
 
     let org_slug = helpers::org("acme");
-    let org_id = OrgId::new();
-    let mut registry = prism_sensors::AdapterRegistry::new();
+    let mut registry = AdapterRegistry::new();
+    // row_count: 0 → sensor returns Ok(vec![0-row-batch]) (one batch, zero rows).
+    // The batch IS pushed to table_batches; the early-return guard does NOT fire.
+    // This exercises FORBID-BOTH via the standard code path.
     registry.register(
-        org_id,
-        std::sync::Arc::new(helpers::StubAdapter {
+        OrgId::new(),
+        Arc::new(helpers::StubAdapter {
             sensor_id: SensorId::from("crowdstrike"),
-            row_count: 3,
+            row_count: 0,
             client_slug: "acme".to_string(),
         }),
     );
@@ -2766,25 +2938,21 @@ async fn test_crit1b_now_substituted_before_datafusion() {
         ..QueryOptions::default()
     };
 
-    // Filter-mode with NOW() in a predicate: PrismQL Filter AST, not SQL.
-    // After NOW() substitution, the Filter predicate holds a Timestamp literal.
-    // This validates inject_now is applied without requiring a DataFusion SQL context.
-    // Note: PrismQL INTERVAL syntax is `INTERVAL '24h'` (not SQL `INTERVAL '1' HOUR`).
+    // Query has BOTH SQL LIMIT 5 AND pipe | limit 3 — must be E-QUERY-040.
+    // FORBID-BOTH is enforced in run_materialization_pipeline Step 1b (after parse,
+    // before fan-out), so it fires regardless of row count.
     let result = engine
         .execute(
-            "crowdstrike_detections | event_timestamp > NOW() - INTERVAL '24h'",
+            "SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3",
             options,
         )
         .await;
 
-    // The key assertion: NOW() must not cause an error.
-    // (The StubAdapter returns rows regardless of predicate — Filter mode
-    // returns all materialized batches without DataFusion predicate pushdown.)
+    let err = result.expect_err("FORBID-BOTH (E-QUERY-040) must fire with 0-row-batch sensor");
+    let msg = err.to_string();
     assert!(
-        result.is_ok(),
-        "CRIT-1b: query with NOW() must not error — inject_now must substitute \
-         Expr::Now before reaching DataFusion; got: {:?}",
-        result.err()
+        msg.contains("E-QUERY-040"),
+        "error must contain 'E-QUERY-040' (FORBID-BOTH); got: {msg}"
     );
 }
 
@@ -2890,5 +3058,204 @@ async fn test_BC_2_07_004_write_invalidation_evicts_engine_response_cache() {
         2,
         "BC-2.07.004/DEC-018: a query after write invalidation must re-fetch \
          from the sensor API (cache entry evicted before write response)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: F-P1-CRIT-001 load-bearing tests
+// NOW()/INTERVAL injection wired into production execute path — PIPE mode
+// BC-2.11.021 / AC-004 / ADR-044
+// ---------------------------------------------------------------------------
+
+/// F-P1-CRIT-001 / BC-2.11.021 AC-004: Pipe mode temporal query via QueryEngine::execute.
+///
+/// Tests that `NOW() - INTERVAL '7d'` in a `| where` stage executes end-to-end.
+/// This is the LOAD-BEARING test: SQL mode and SqlPipe head bypass this because
+/// DataFusion 53 has a built-in NOW() function. Pipe mode stages go through
+/// `pipe_to_executable_sql` → `expr_to_sql`, which must handle
+/// `Expr::TimestampArithmetic` (and requires `inject_now` to have replaced
+/// `Expr::Now` with `Expr::Literal(Literal::Timestamp)` first).
+///
+/// Red Gate (two-part requirement, BOTH must be present):
+///   1. `inject_now` must be called in `run_materialization_pipeline` so
+///      `Expr::Now` is replaced with `Literal::Timestamp(now)` before
+///      `pipe_to_executable_sql` processes the pipe stages.
+///   2. `expr_to_sql` in `pipe_sql_emitter.rs` must handle `Expr::TimestampArithmetic`
+///      and emit it as `TIMESTAMP '<iso>' - INTERVAL '<n> seconds'`.
+///
+/// Without BOTH, execution returns `Err(QueryExecutionFailed)` with
+/// "Complex expression in pipe WHERE stage is not yet supported."
+///
+/// Negative control is structural: if `inject_now` is absent, `Expr::Now` reaches
+/// `expr_to_sql` which has no arm for it → `Err`. If `expr_to_sql` lacks the
+/// `TimestampArithmetic` arm, even after injection the outer wrapper errors → `Err`.
+#[tokio::test]
+async fn test_crit1_pipe_now_interval_executes_end_to_end() {
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// Pipe-mode stub: returns rows with `detection_id` and `event_timestamp` columns.
+    /// `event_timestamp` is a recent ISO-8601 string so DataFusion's CAST comparison
+    /// against the injected TIMESTAMP constant succeeds.
+    struct PipeTimestampStubAdapter;
+
+    #[async_trait]
+    impl SensorAdapter for PipeTimestampStubAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("event_timestamp", DataType::Utf8, false),
+            ]));
+            let ts_str = chrono::Utc::now().to_rfc3339();
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec!["pipe-det-001"])) as _,
+                    Arc::new(StringArray::from(vec![ts_str.as_str()])) as _,
+                ],
+            )
+            .expect("pipe timestamp stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(PipeTimestampStubAdapter));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // Pure pipe mode with NOW() - INTERVAL in a | where stage.
+    // This is the mode that CANNOT rely on DataFusion's built-in NOW():
+    // the pipe stage goes through expr_to_sql, which must handle
+    // Expr::TimestampArithmetic after inject_now replaces Expr::Now.
+    //
+    // If inject_now is not wired OR expr_to_sql lacks TimestampArithmetic support,
+    // this returns Err(QueryExecutionFailed) with
+    // "Complex expression in pipe WHERE stage is not yet supported."
+    let result = engine
+        .execute(
+            "crowdstrike_detections | where event_timestamp > NOW() - INTERVAL '1d'",
+            options,
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "F-P1-CRIT-001: Pipe-mode query with NOW() - INTERVAL '1d' must succeed. \
+         Requires inject_now wired in run_materialization_pipeline AND \
+         Expr::TimestampArithmetic handled in expr_to_sql. Got: {:?}",
+        result.err()
+    );
+}
+
+/// F-P1-HIGH-001 / BC-2.11.020 INV-FORBID-BOTH-PERMANENT: FORBID-BOTH fires even
+/// when the sensor adapter returns an EMPTY vec of batches (Ok(vec![])).
+///
+/// This tests the TRUE bypass scenario: an adapter returning `Ok(vec![])` puts
+/// NOTHING into `table_batches`, so the Step-5 MemTable registration loop registers
+/// no table, `any_external_table_registered` stays false, and the early-return at
+/// Step 6 fires BEFORE `execute_against_session` (which contains the FORBID-BOTH
+/// plan_sqlpipe_query call).
+///
+/// Red Gate: before the FORBID-BOTH hoist to AFTER parse (but BEFORE fan-out),
+/// a query with both SQL LIMIT and `| limit` against an adapter returning
+/// `Ok(vec![])` returns `Ok(empty)` instead of `Err(E-QUERY-040)`.
+///
+/// Note: the existing `test_forbid_both_fires_with_zero_row_sensor` uses a
+/// `StubAdapter(row_count: 0)` which returns `Ok(vec![0-row-batch])` — one batch
+/// with zero rows. That batch IS pushed to table_batches and the MemTable IS
+/// registered, so the early-return never fires. That test passes whether or not
+/// the hoist is implemented. THIS test uses an adapter returning `Ok(vec![])`,
+/// which triggers the actual bypass.
+#[tokio::test]
+async fn test_high1_forbid_both_fires_with_empty_vec_sensor() {
+    use async_trait::async_trait;
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// Adapter that returns Ok(vec![]) — completely empty, no batches at all.
+    /// This triggers the early-return guard in run_materialization_pipeline
+    /// (`if !any_external_table_registered { return Ok(empty) }`).
+    struct EmptyVecAdapter;
+
+    #[async_trait]
+    impl SensorAdapter for EmptyVecAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            // Return an empty vec — no batches at all.
+            // This is different from row_count:0 (which returns vec![0-row-batch]).
+            Ok(vec![])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(EmptyVecAdapter));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SqlPipe query with BOTH SQL LIMIT and pipe | limit — must be E-QUERY-040
+    // even though the adapter returns Ok(vec![]) (triggering the early-return).
+    // After the hoist, plan_sqlpipe_query fires RIGHT AFTER parse, before fan-out.
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3",
+            options,
+        )
+        .await;
+
+    let err = result.expect_err(
+        "F-P1-HIGH-001: FORBID-BOTH must fire even when adapter returns Ok(vec![]) \
+         (empty vec triggers early-return before execute_against_session). \
+         plan_sqlpipe_query must run before the data-availability guard.",
+    );
+    let msg = err.to_string();
+    assert!(
+        msg.contains("E-QUERY-040"),
+        "F-P1-HIGH-001: error must contain 'E-QUERY-040' (FORBID-BOTH); got: {msg}"
     );
 }

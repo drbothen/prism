@@ -754,6 +754,27 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
             Ok(format!("{lhs_sql} {op_str} {rhs_sql}"))
         }
         Expr::Star => Ok("*".to_string()),
+        // Temporal arithmetic: `TIMESTAMP '<iso>' ± INTERVAL '<n> seconds'`.
+        //
+        // After `inject_now` is called (BC-2.11.021), `Expr::Now` nodes have been
+        // replaced with `Expr::Literal(Literal::Timestamp(now))`. The outer
+        // `TimestampArithmetic` wrapper remains with a `chrono::Duration` offset.
+        //
+        // DataFusion SQL syntax: `TIMESTAMP '<iso>' - INTERVAL '<n> seconds'`.
+        // Using seconds as the canonical unit avoids ambiguity between calendar
+        // days and SI days. `chrono::Duration::num_seconds()` is exact for all
+        // sub-day durations; for whole-day durations it is `n * 86400`.
+        Expr::TimestampArithmetic { base, op, offset } => {
+            use crate::ast::BinaryOp;
+            let base_sql = expr_to_sql(base)?;
+            let op_str = match op {
+                BinaryOp::Sub => "-",
+                BinaryOp::Add => "+",
+                _ => "-", // non_exhaustive arm — Sub is the only grammar-producible op
+            };
+            let secs = offset.num_seconds();
+            Ok(format!("{base_sql} {op_str} INTERVAL '{secs} seconds'"))
+        }
         // Non-exhaustive: FuncCall, Logical, Not, In, InSubquery → simplified fallback.
         _ => Err(PrismError::QueryExecutionFailed {
             detail: "Complex expression in pipe WHERE stage is not yet supported. \
