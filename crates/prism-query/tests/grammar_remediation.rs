@@ -519,6 +519,92 @@ fn test_bc_2_11_grammar015_enrich_missing_column_arg_multi_stage_guidance() {
     );
 }
 
+// ─── OBS-1: SqlPipe pipe-stage errors must receive guided rewrites ────────────
+
+/// OBS-1 — `enrich` without column argument in a SqlPipe pipe-stage position.
+///
+/// `SELECT * FROM t | enrich threat_score` is routed as SqlPipe (the `SELECT`
+/// head is valid SQL; `| enrich threat_score` is the pipe-stage suffix).
+/// The missing `(<column>)` argument MUST produce the same guided message as
+/// the pure-pipe path (AC-022 / AC-025):
+///   `enrich requires a column argument: | enrich <infusion>(<column>)`
+///
+/// RED GATE: before OBS-1 fix, `parse_sqlpipe_internal` maps stage errors
+/// via `rich_to_parse_error` directly — no rewrite — so the error is a raw
+/// Chumsky token dump ("expected '('"), NOT the guided message.
+///
+/// Mental-deletion proof: removing the `rewrite_enrich_parse_errors` call
+/// added to `parse_sqlpipe_internal` in filter_parser.rs causes this test to
+/// fail because the raw Chumsky error does not contain the guided substring.
+///
+/// BC-2.11.023 AC-025: "in all pipeline positions" mandate requires SqlPipe
+/// pipe-stage errors to be covered by the same rewrite logic as pure-pipe.
+#[test]
+fn test_bc_2_11_obs1_sqlpipe_enrich_missing_column_arg_guided_error() {
+    // `enrich threat_score` is missing the required `(<column>)` argument.
+    // This query is SqlPipe-routed (SELECT head + | pipe-stage suffix).
+    let query = "SELECT * FROM t | enrich threat_score";
+    let errs = PrismQlParser::parse(query)
+        .expect_err("OBS-1: 'SELECT * FROM t | enrich threat_score' must be a parse error");
+
+    let combined = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // Positive control: guided message must be present.
+    assert!(
+        combined.contains("enrich requires a column argument"),
+        "OBS-1: SqlPipe-routed error must contain 'enrich requires a column argument'; got: {combined}"
+    );
+    assert!(
+        combined.contains("| enrich <infusion>(<column>)"),
+        "OBS-1: SqlPipe-routed error must contain '| enrich <infusion>(<column>)' example; got: {combined}"
+    );
+
+    // Negative control: raw Chumsky token dump must NOT appear in place of the guided message.
+    assert!(
+        !combined.contains("expected '('"),
+        "OBS-1: raw Chumsky token dump must NOT appear; expected guided message only. got: {combined}"
+    );
+}
+
+/// OBS-1 complement — D2 (`ORDER BY` in SqlPipe multi-stage pipe-stage position) also gets guided error.
+///
+/// `SELECT * FROM t | sort x | ORDER BY y` is SqlPipe-routed (because `sort` IS a
+/// recognized pipe stage keyword). The second stage `| ORDER BY y` contains a SQL
+/// clause keyword in pipe-stage position — D2 rewrite fires in the SqlPipe stage
+/// suffix parser and must produce the D2 message rather than a raw Chumsky dump.
+///
+/// Note: `SELECT * FROM t | ORDER BY x` does NOT route to SqlPipe because `ORDER BY`
+/// is not a pipe stage keyword; that input hits the SQL parser → D1 mode-bridge.
+/// This test exercises the SqlPipe-specific D2 path where a valid stage is followed
+/// by an invalid SQL clause.
+///
+/// Mental-deletion proof: removing `rewrite_d2_sql_keyword_in_pipe_position` from
+/// `parse_sqlpipe_internal` causes this test to fail with a raw Chumsky token dump.
+#[test]
+fn test_bc_2_11_obs1_sqlpipe_d2_order_by_in_stage_guided_error() {
+    // `sort x` routes to SqlPipe; `| ORDER BY y` is then an invalid pipe stage.
+    // D2 rewrite must fire in the SqlPipe stage-suffix error path.
+    let query = "SELECT * FROM t | sort x | ORDER BY y";
+    let errs = PrismQlParser::parse(query)
+        .expect_err("OBS-1 D2: 'SELECT * FROM t | sort x | ORDER BY y' must be a parse error");
+
+    let combined = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // The D2 message fragment (BC-2.11.023 §D2 / ADR-046).
+    assert!(
+        combined.contains("SQL clauses are not valid as pipe stages"),
+        "OBS-1 D2: SqlPipe-routed | ORDER BY must produce D2 guided message; got: {combined}"
+    );
+}
+
 /// AC-012 / BC-2.11.023 invariant D7 — shared predicate grammar.
 ///
 /// Parse `severity = 'HIGH' AND risk_score > 50` in all three entry forms and assert

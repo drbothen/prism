@@ -24,7 +24,9 @@ use crate::{
         StringOp, TimestampLiteral,
     },
     error::ParseError,
-    error_recovery::rich_to_parse_error,
+    error_recovery::{
+        rewrite_d2_sql_keyword_in_pipe_position, rewrite_enrich_parse_errors, rich_to_parse_error,
+    },
     pipe_parser::build_pipe_parser,
     security,
     write_verb_registry::WriteVerbRegistry,
@@ -497,6 +499,12 @@ fn parse_sqlpipe_internal(
     let (stage_result, stage_errs) = stage_parser.parse(stages_str).into_output_errors();
     if !stage_errs.is_empty() {
         let errs: Vec<ParseError> = stage_errs.iter().map(rich_to_parse_error).collect();
+        // AC-025: apply the same guided-error rewrites that parse_pipe_with_limits uses,
+        // so SqlPipe-routed pipe-stage errors receive the same actionable messages as
+        // pure-pipe errors (BC-2.11.023 §D2 and AC-022/AC-025 "in all pipeline positions").
+        // D2 rewrite takes precedence (applied first); enrich rewrite follows.
+        let errs = rewrite_d2_sql_keyword_in_pipe_position(stages_str, errs);
+        let errs = rewrite_enrich_parse_errors(stages_str, errs);
         return Err(errs);
     }
     let stages = stage_result.ok_or_else(|| {
