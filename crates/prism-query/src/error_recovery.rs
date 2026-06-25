@@ -180,3 +180,184 @@ mod tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// D1 mode-bridge rewrite helper (BC-2.11.023 AC-010 / ADR-046 §D1)
+// ---------------------------------------------------------------------------
+// Canonical location per BC-2.11.023 Architecture Anchors and the story File
+// Structure: this is a pure prism-query helper (uses only prism-query APIs).
+// prism-mcp delegates to this public function rather than duplicating the logic.
+// ---------------------------------------------------------------------------
+
+/// Attempt to produce a Pipe-mode rewrite of `original_query` for D1 mode-bridge
+/// errors (ADR-046 §D1).
+///
+/// Returns `Some(pipe_query)` when a round-tripping Pipe-mode rewrite is derivable.
+/// Returns `None` when the rewrite is ambiguous or would not round-trip.
+///
+/// # Algorithm
+///
+/// 1. Re-parse the query. If it now parses as `Ast::SqlPipe` or `Ast::Pipe`, normalize
+///    via `normalize_pql` (handles the case where SqlPipe grammar was added after the
+///    error was originally generated).
+/// 2. If re-parse still fails, apply a string-based heuristic for the simple case:
+///    `SELECT * FROM <table> WHERE <predicate> | <stages>`
+///    → `FROM <table> | where <predicate> | <stages>`
+///    Verify the rewrite round-trips before returning.
+///
+/// BC-2.11.023 AC-010 postcondition: `normalized_pql` must be valid PrismQL.
+/// This function returns `None` when the rewrite itself fails to round-trip.
+///
+/// Story: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (OBS-1 relocation).
+pub fn mode_bridge_normalized_pql(original_query: &str) -> Option<String> {
+    use crate::{ast::Ast, engine::normalize_pql, PrismQlParser};
+
+    let trimmed = original_query.trim();
+
+    // Only attempt rewrite for SELECT queries with an unquoted pipe.
+    if !trimmed
+        .get(..6)
+        .is_some_and(|h| h.eq_ignore_ascii_case("SELECT"))
+    {
+        return None;
+    }
+
+    // Step 1: Re-parse. If it now succeeds (Pipe/Sql grammar), normalize.
+    // normalize_pql returns Some for Ast::Pipe and Ast::Sql but currently returns
+    // None for Ast::SqlPipe (PqlNormalizer does not yet emit the canonical pipe form
+    // for SqlPipe). When normalize_pql returns None, fall through to step 2 heuristic.
+    if let Ok(ast) = PrismQlParser::parse(trimmed) {
+        if let Some(normalized) = normalize_pql(&ast) {
+            return Some(normalized);
+        }
+        // normalize_pql returned None (e.g., Ast::SqlPipe not yet handled by normalizer).
+        // Fall through to step 2 heuristic to attempt a string-based pipe rewrite.
+    }
+
+    // Step 2: String-based heuristic for simple SELECT * FROM t WHERE predicate | stages.
+    //
+    // Find the first unquoted | that is not part of an IN clause.
+    let pipe_offset = find_first_unquoted_pipe(trimmed)?;
+    let sql_head = trimmed[..pipe_offset].trim_end(); // "SELECT * FROM t WHERE predicate"
+    let stages_suffix = &trimmed[pipe_offset..]; // "| stages..."
+
+    // Extract table name from "SELECT ... FROM <table>" (only handles simple single-table).
+    let from_idx = sql_head.to_uppercase().find(" FROM ")?;
+    let after_from = sql_head[from_idx + 6..].trim(); // "<table> [WHERE ...]"
+
+    // Split at WHERE (case-insensitive).
+    let (table_part, predicate_part) =
+        if let Some(where_idx) = after_from.to_uppercase().find(" WHERE ") {
+            let table = after_from[..where_idx].trim();
+            let predicate = after_from[where_idx + 7..].trim();
+            (table, Some(predicate))
+        } else {
+            (after_from.trim(), None)
+        };
+
+    // Reject complex cases: JOINs, subqueries, aliases (dot in table name that looks
+    // like a qualified table is OK — e.g., crowdstrike.detections).
+    if table_part.contains(' ') || table_part.is_empty() {
+        return None;
+    }
+
+    // Assemble the pipe-mode rewrite.
+    let rewrite = if let Some(pred) = predicate_part {
+        if pred.is_empty() {
+            format!("FROM {table_part} {stages_suffix}")
+        } else {
+            format!("FROM {table_part} | where {pred} {stages_suffix}")
+        }
+    } else {
+        format!("FROM {table_part} {stages_suffix}")
+    };
+
+    // Verify the rewrite round-trips.
+    match PrismQlParser::parse(&rewrite) {
+        Ok(Ast::Pipe(_) | Ast::SqlPipe(_)) => Some(rewrite),
+        _ => None,
+    }
+}
+
+/// Find the byte offset of the first unquoted `|` in `input`.
+///
+/// Correctly handles SQL `''` escaped quotes inside single-quoted strings (MED-002):
+/// when already inside a single-quoted string (`in_sq`), two consecutive `'` bytes
+/// are an escape sequence — skip both and remain in the string rather than toggling
+/// the `in_sq` flag.
+pub fn find_first_unquoted_pipe(input: &str) -> Option<usize> {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
+    let mut i = 0;
+    while i < len {
+        let b = bytes[i];
+        if b == b'\'' && !in_dq {
+            if in_sq && i + 1 < len && bytes[i + 1] == b'\'' {
+                // SQL '' escape: two consecutive single-quotes inside a string.
+                // Skip both bytes and remain inside the string.
+                i += 2;
+                continue;
+            }
+            // Toggle: entering or exiting a single-quoted string.
+            in_sq = !in_sq;
+        } else if b == b'"' && !in_sq {
+            in_dq = !in_dq;
+        } else if b == b'|' && !in_sq && !in_dq {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
+#[cfg(test)]
+mod mode_bridge_tests {
+    use super::*;
+
+    // ── MED-002: find_first_unquoted_pipe SQL escaped-quote handling ───────
+
+    /// MED-002: `find_first_unquoted_pipe` must not treat `''` inside a SQL
+    /// single-quoted string as a string-terminator (it is an escape sequence).
+    #[test]
+    fn test_find_first_unquoted_pipe_sql_escaped_quote() {
+        let input = "WHERE name = 'it''s' | limit 5";
+        let offset = find_first_unquoted_pipe(input);
+        let expected = input.find('|');
+        assert_eq!(
+            offset, expected,
+            "find_first_unquoted_pipe must skip SQL '' escape inside string; \
+             expected offset {:?}, got {:?}",
+            expected, offset
+        );
+    }
+
+    /// MED-002 complement: no false positives — a pipe inside a double-quoted string
+    /// is invisible to find_first_unquoted_pipe.
+    #[test]
+    fn test_find_first_unquoted_pipe_double_quoted_pipe_invisible() {
+        let input = r#"WHERE col = "a|b" | limit 5"#;
+        let offset = find_first_unquoted_pipe(input);
+        let expected = input.rfind('|');
+        assert_eq!(
+            offset, expected,
+            "pipe inside double-quoted string must be ignored; \
+             expected offset {:?} (last |), got {:?}",
+            expected, offset
+        );
+    }
+
+    /// MED-002 complement: plain string with no quotes — finds the first `|`.
+    #[test]
+    fn test_find_first_unquoted_pipe_no_quotes() {
+        let input = "FROM t | where x = 1 | limit 5";
+        let offset = find_first_unquoted_pipe(input);
+        let expected = input.find('|');
+        assert_eq!(
+            offset, expected,
+            "no-quotes case must find first | at {:?}; got {:?}",
+            expected, offset
+        );
+    }
+}
