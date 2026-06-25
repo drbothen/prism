@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-005"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: null
+modified: "2026-06-25"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -97,7 +97,7 @@ The `list_capabilities` tool's `client_registered` field MUST reflect actual org
 
 - `crates/prism-security/src/feature_flag.rs` — `FeatureFlagEvaluator` (add `Arc<OrgRegistry>` field; change `client_exists` to consult `OrgRegistry`)
 - `crates/prism-mcp/src/tools/list_capabilities.rs` (or equivalent handler) — wires `Arc<OrgRegistry>` through to `FeatureFlagEvaluator` at construction
-- `crates/prism-core/src/org_registry.rs` (or equivalent) — `OrgRegistry::contains(client_id: &str) -> bool`
+- `crates/prism-core/src/org_registry.rs` (or equivalent) — `OrgRegistry::slug_exists(&OrgSlug) -> bool`
 - ADR-046 §Decision MAJOR-001 ruling (Path B ratified, Path A rejected)
 - ADR-022 §C Arc-DI wiring contract
 
@@ -124,4 +124,5 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | LOCAL-adversary-pass1-obs3-closure | 2026-06-25 | product-owner | OBS-3 stale Architecture Anchor (LOCAL pass-1). Corrected `OrgRegistry::contains(client_id: &str) -> bool` to `OrgRegistry::slug_exists(&OrgSlug) -> bool` per D-1110 (the method does not exist; the real API is `slug_exists`). The story spec and implementation already use `slug_exists` correctly; only this BC anchor text was stale. No behavioral semantics changed. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 MAJOR-001 Path B ratification (HRG-4). Closes MAJOR-001. |

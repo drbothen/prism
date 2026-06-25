@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: "2026-06-24"
+modified: "2026-06-25"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -53,7 +53,7 @@ To use pipe stages (enrich, where, limit, sort, stats, dedup, fields), use one o
 See prismql://reference for the complete grammar.
 ```
 
-The `normalized_pql` field in `ParseErrorDetails` is set to a best-effort pipe-mode rewrite when it is unambiguous (simple `FROM/WHERE/LIMIT` cases). If rewrite is not possible (JOINs, subqueries, complex projections), `normalized_pql` is `None`.
+The `normalized_pql` field in `StructuredErrorFields` is set to a best-effort pipe-mode rewrite when it is unambiguous (simple `FROM/WHERE/LIMIT` cases). If rewrite is not possible (JOINs, subqueries, complex projections), `normalized_pql` is `None`.
 
 ### Mode-bridge diagnostic (ADR-046 D2 — SQL clause keyword in pipe stage position)
 
@@ -175,5 +175,6 @@ VP-021 (fuzz)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | LOCAL-adversary-pass1-obs2-closure | 2026-06-25 | product-owner | OBS-2 residual propagation (LOCAL pass-1). Corrected one remaining `ParseErrorDetails` reference in Postconditions §D1 body prose to `StructuredErrorFields` (POL-25 multi-cite sweep). The v1.1 changelog correctly described the rename as applied "throughout" but §D1 retained one stale occurrence. No behavioral semantics changed. |
 | 1.1 | S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001-spec-sync | 2026-06-24 | product-owner | OBS-2 spec-drift correction (D-1110 ratified reality). Renamed `ParseErrorDetails` → `StructuredErrorFields` throughout; updated location from `prism-query/src/error.rs` to `prism-mcp/src/error_mapping.rs`. Added dependency-direction rationale (prism-query MUST NOT depend on prism-mcp — rewrite STRING computed in error_recovery.rs, FIELD carried on StructuredErrorFields). Clarified non-exhaustive EXPECTED count is unchanged (new field on existing type). Updated Description, Postconditions §D3, Invariants, and Architecture Anchors. Behavioral contract semantics (normalized_pql MUST appear in the structured MCP error response on D1 mode-bridge errors) are unchanged. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 v1.2. Closes GRAMMAR-014, GRAMMAR-016, ADR-046 D4/D7. |
