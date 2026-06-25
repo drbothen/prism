@@ -997,15 +997,20 @@ pub async fn execute_against_session(
             // This ensures DataFusion receives the plan-pinned constant for the head SQL.
             let plan_pinned_head_sql = {
                 use crate::ast::{Ast as InnerAst, SqlStatement};
+                // OBS-1 (BC-2.11.021 / ADR-044 D4): normalize MUST succeed for a
+                // well-formed SqlPipe head. If it returns None, the fallback would
+                // silently pass `query_str` (which may contain runtime NOW() or
+                // INTERVAL) to DataFusion, violating BC-2.11.021 plan-pinning.
+                // Return a structured error instead — the query can be retried.
                 crate::ast::PqlNormalizer::normalize(&InnerAst::Sql(SqlStatement::Select(
                     spq.head.clone(),
                 )))
-                .unwrap_or_else(|| {
-                    // Defensive fallback: re-derive from raw query_str (should not occur).
-                    crate::filter_parser::find_sqlpipe_split(query_str)
-                        .map(|off| query_str[..off].trim_end().to_string())
-                        .unwrap_or_else(|| query_str.to_string())
-                })
+                .ok_or_else(|| PrismError::QueryExecutionFailed {
+                    detail: "SqlPipe head SQL normalization failed: plan-pinned SQL could not be \
+                             derived. This is an internal error; retry the query or report to \
+                             support."
+                        .to_string(),
+                })?
             };
             let sql = crate::pipe_sql_emitter::sqlpipe_to_executable_sql(
                 &plan_pinned_head_sql,

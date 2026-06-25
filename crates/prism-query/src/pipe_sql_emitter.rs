@@ -752,13 +752,19 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
             Ok(format!("{lhs_sql} {op_str} {rhs_sql}"))
         }
         Expr::Star => Ok("*".to_string()),
-        // Temporal arithmetic: `TIMESTAMP '<iso>' ± INTERVAL '<n> seconds'`.
+        // Temporal arithmetic: `'<iso>' ± INTERVAL '<n> seconds'`.
         //
-        // After `inject_now` is called (BC-2.11.021), `Expr::Now` nodes have been
-        // replaced with `Expr::Literal(Literal::Timestamp(now))`. The outer
-        // `TimestampArithmetic` wrapper remains with a `chrono::Duration` offset.
+        // After `inject_now` is called (BC-2.11.021), `Expr::Now` nodes are
+        // replaced with `Expr::Literal(Literal::Timestamp(now))` and the outer
+        // `TimestampArithmetic` is constant-folded. This arm fires only if folding
+        // did not complete (defensive code path; should not occur in production).
         //
-        // DataFusion SQL syntax: `TIMESTAMP '<iso>' - INTERVAL '<n> seconds'`.
+        // The base expression emits as `'<iso>'` (plain ISO string, matching the
+        // DataType::Utf8 column type per ADR-044 D4 / F-HIGH-002). Arithmetic on
+        // a Utf8 string is not supported by DataFusion; this arm is an edge-case
+        // fallback for unfold-able expressions. If DataFusion rejects the emitted
+        // SQL, the query surfaces a QueryExecutionFailed error (acceptable — the
+        // spec requires inject_now to fold these before emission).
         // Using seconds as the canonical unit avoids ambiguity between calendar
         // days and SI days. `chrono::Duration::num_seconds()` is exact for all
         // sub-day durations; for whole-day durations it is `n * 86400`.
@@ -807,7 +813,13 @@ fn literal_to_sql(lit: &Literal) -> String {
         Literal::Cidr(c) => format!("'{}'", escape_sql_string(&c.cidr)),
         Literal::Regex(r) => format!("'{}'", escape_sql_string(&r.pattern)),
         Literal::IpAddr(ip) => format!("'{}'", ip.0 .0),
-        Literal::Timestamp(ts) => format!("TIMESTAMP '{}'", ts.iso8601),
+        // BC-2.11.021 / ADR-044 D4: The materialized Arrow column type for OCSF
+        // Datetime fields is DataType::Utf8 (ISO-8601 string) — see spec_driven_adapter
+        // `column_type_to_arrow`: `ColumnType::Datetime => DataType::Utf8`. DataFusion
+        // cannot compare a typed `TIMESTAMP '<iso>'` literal against a Utf8 column.
+        // Emit as plain single-quoted ISO string (matching PqlNormalizer::normalize_literal
+        // and BC-2.11.021/ADR-044 D4). (F-HIGH-002 fix)
+        Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
         _ => "NULL".to_string(), // non_exhaustive arm
     }
 }
