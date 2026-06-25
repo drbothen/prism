@@ -49,7 +49,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.4"
+version: "1.5"
 updated: "2026-06-25"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
@@ -100,10 +100,10 @@ cycle: "v1.0.0-greenfield"
 epic_id: "E-5"
 # Epic E-5 (MCP Interface / Query Engine). Remediation story targeting T13 capstone demo.
 phase: 2
-acceptance_criteria_count: 26
-# 26 ACs: 19 BC-traced ACs + 7 implementer/doc ACs with finding IDs.
-red_gate_tests: 19
-# 19 Red Gate tests corresponding to the 19 BC-traced ACs.
+acceptance_criteria_count: 27
+# 27 ACs: 20 BC-traced ACs + 7 implementer/doc ACs with finding IDs.
+red_gate_tests: 20
+# 20 Red Gate tests corresponding to the 20 BC-traced ACs.
 # Implementer/doc ACs (7) are verified by integration tests, timing assertions, or doc
 # inspection — not classic Red Gate unit tests.
 tdd_mode: strict
@@ -113,7 +113,7 @@ behavioral_contracts:
 # BC-2.11.020 — SQL→Pipe SqlPipe AST + FORBID-BOTH E-QUERY-040 (cited in AC-001, AC-002, AC-003)
 # BC-2.11.021 — NOW()/INTERVAL temporal grammar (cited in AC-004, AC-005)
 # BC-2.11.022 — auto-generated prismql://reference + CI 3-tier gate (cited in AC-006, AC-007, AC-008)
-# BC-2.11.023 — mode-bridge error + normalized_pql + D7 filter execution (cited in AC-009, AC-010, AC-011, AC-012)
+# BC-2.11.023 — mode-bridge error + normalized_pql + D7 filter execution (cited in AC-009, AC-010, AC-011, AC-012, AC-027)
 # BC-2.10.015 — list_capabilities OrgRegistry Arc-DI (cited in AC-013, AC-014)
 # BC-2.10.016 — MCP prompts fast-return (cited in AC-015, AC-016)
 # BC-2.10.017 — not-yet-available tools fast-fail (cited in AC-017, AC-018)
@@ -305,14 +305,26 @@ not panic.
 
 **AC-009** (traces to BC-2.11.023 postconditions — mode-bridge D1): When a SQL-mode parse
 fails at a `|` token that is NOT a valid SQL→Pipe composition trigger, the generic Chumsky
-expectation dump is replaced with the mode-bridge message:
-"E-QUERY-001: parse error near '|': pipe stages are not valid after a SQL SELECT query in
-SQL mode. To use pipe stages … (1) SQL+pipe composition … (2) Pipe mode only … See
-prismql://reference …"
+expectation dump is REPLACED with the verbatim mode-bridge message from BC-2.11.023 §D1:
+
+```
+E-QUERY-001: parse error near '|': pipe stages are not valid after a SQL SELECT query in SQL mode.
+To use pipe stages (enrich, where, limit, sort, stats, dedup, fields), use one of:
+  1. SQL+pipe composition:  SELECT <cols> FROM <table> | <pipe_stage> …
+  2. Pipe mode only:        FROM <table> | where <predicate> | <stage> …
+See prismql://reference for the complete grammar.
+```
+
+The test MUST assert ALL THREE of the following substrings are present in the error string:
+(a) `(enrich, where, limit, sort, stats, dedup, fields)` — the stage-keyword enumeration,
+(b) `1. SQL+pipe composition:` and `2. Pipe mode only:` — the numbered alternatives,
+(c) `See prismql://reference for the complete grammar.` — the reference pointer.
+A raw Chumsky token list (e.g. `expected one of ...`) MUST NOT appear in the error string (negative
+control).
 
 **Red Gate test:** `test_BC_2_11_023_mode_bridge_d1_sql_pipe_diagnostic` — trigger mode-bridge
-on a query like `SELECT * FROM t | INVALID_KEYWORD`; assert the error string contains the
-mode-bridge message (not a raw Chumsky token list).
+on a query like `SELECT * FROM t | INVALID_KEYWORD`; assert the error string contains all three
+required substrings listed above AND does NOT contain a raw Chumsky token-expectation dump.
 
 **AC-010** (traces to BC-2.11.023 postconditions — normalized_pql field): The
 **`StructuredErrorFields`** struct (in `crates/prism-mcp/src/error_mapping.rs`, the canonical
@@ -364,6 +376,34 @@ predicate grammar extensions. The graduation path works: `severity = 'HIGH'` (fi
 **Red Gate test:** `test_BC_2_11_023_d7_shared_predicate_grammar` — parse the predicate
 `severity = 'HIGH' AND risk_score > 50` in all three entry forms and assert each produces
 an AST with equivalent predicate semantics.
+
+**AC-027** (traces to BC-2.11.023 postconditions — mode-bridge D2 / ADR-046 D2): When a
+pipe-mode parse fails because an uppercase SQL clause keyword (`SELECT` or `ORDER BY`) appears
+in stage position (i.e., not preceded by a valid `|` introducing a pipe stage), the generic
+Chumsky expectation dump is REPLACED with the verbatim mode-bridge message from BC-2.11.023 §D2:
+
+```
+E-QUERY-001: parse error near '<keyword>': SQL clauses are not valid as pipe stages.
+In pipe mode, use lowercase stage keywords: 'where', 'sort', 'limit', 'stats'.
+Example: FROM <table> | where severity = 'HIGH' | sort time DESC | limit 10
+```
+
+The test MUST assert both a positive and a negative control:
+- **Positive control:** a pipe-mode query with an uppercase SQL clause keyword in stage position
+  (e.g. `FROM crowdstrike_detections | WHERE severity = 'HIGH'` or
+  `FROM crowdstrike_detections | ORDER BY time DESC`) returns `Err(E-QUERY-001)` and the error
+  string contains ALL of: `SQL clauses are not valid as pipe stages`, `'where', 'sort', 'limit',
+  'stats'`, and the example line `FROM <table> | where severity = 'HIGH' | sort time DESC | limit 10`.
+- **Negative control:** the error string MUST NOT contain a raw Chumsky token-expectation dump
+  (e.g. `expected one of ...`).
+
+Note per BC-2.11.023 §D2: `WHERE` and `LIMIT` (uppercase) already parse in pipe mode because
+keywords are case-insensitive; D2 fires specifically when `SELECT` or `ORDER BY` appears in
+pipe stage position.
+
+**Red Gate test:** `test_BC_2_11_023_mode_bridge_d2_sql_keyword_in_pipe_position` — trigger D2
+on `FROM crowdstrike_detections | WHERE severity = 'HIGH'` (or `| ORDER BY ...`); assert
+positive and negative controls above.
 
 ---
 
@@ -473,7 +513,7 @@ for each NOT_YET_AVAILABLE tool returns WITHOUT invoking the blocking audit `.aw
 
 > These ACs are correctness requirements with finding IDs from the audits. They are
 > verified by inspection, integration tests, or timing assertions rather than classic
-> Red Gate unit tests. They do NOT count toward the 19 Red Gate test total.
+> Red Gate unit tests. They do NOT count toward the 20 Red Gate test total.
 
 **AC-019** [BLOCKER-001 / implementer-AC — D-1326 adjudication]: CrowdStrike OAuth plugin
 does not hang on second Prism session start.
@@ -633,7 +673,7 @@ fan-out, DataFusion planning). All MCP handler changes are Effectful.
 | `resources.rs` + `server.rs` (MCP surface) | ~8,000 |
 | `feature_flag.rs` (prism-security) | ~3,000 |
 | `prompts.rs` (MCP prompts) | ~3,000 |
-| Test files to write (19 Red Gate tests) | ~10,000 |
+| Test files to write (20 Red Gate tests) | ~10,000 |
 | Tool outputs (cargo expand, cargo nextest) | ~5,000 |
 | **Total estimate** | **~111,000** |
 
@@ -656,13 +696,13 @@ Human authorization required before any split — this is flagged per story-writ
 
 ### Phase 1 — Red Gate Test Stubs (test-writer)
 
-Write failing tests for all 19 BC-traced ACs (Areas A–E). The test-writer MUST read all
+Write failing tests for all 20 BC-traced ACs (Areas A–E). The test-writer MUST read all
 8 BC files before writing tests. For each area:
 
 - **Area A:** `test_BC_2_11_020_sqlpipe_ast_round_trip`, `test_BC_2_11_020_forbid_both_dual_limit_e_query_040`, `test_BC_2_11_020_pure_modes_unchanged`
 - **Area B:** `test_BC_2_11_021_now_interval_parses_all_three_modes`, `test_BC_2_11_021_now_error_cases`
 - **Area C:** `test_BC_2_11_022_reference_content_completeness`, `test_BC_2_11_022_ci_3tier_gate`, `test_BC_2_11_022_none_registry_placeholder`
-- **Area D:** `test_BC_2_11_023_mode_bridge_d1_sql_pipe_diagnostic`, `test_BC_2_11_023_normalized_pql_on_mode_bridge_error`, `test_BC_2_11_023_filter_mode_end_to_end_execution`, `test_BC_2_11_023_d7_shared_predicate_grammar`
+- **Area D:** `test_BC_2_11_023_mode_bridge_d1_sql_pipe_diagnostic`, `test_BC_2_11_023_normalized_pql_on_mode_bridge_error`, `test_BC_2_11_023_filter_mode_end_to_end_execution`, `test_BC_2_11_023_d7_shared_predicate_grammar`, `test_BC_2_11_023_mode_bridge_d2_sql_keyword_in_pipe_position`
 - **Area E:** `test_BC_2_10_015_client_registered_true_from_org_registry`, `test_BC_2_10_015_demo_provisioned_org_registered`, `test_BC_2_10_016_prompts_fast_return_within_5s`, `test_BC_2_10_016_missing_required_arg_fast_error`, `test_BC_2_10_017_not_yet_available_fast_fail_under_1s`, `test_BC_2_10_017_not_yet_available_guard_precedes_audit` (D-1110: renamed from `..._emit_tool_audit_try_send_non_blocking` — no try_send path exists)
 
 All test bodies are `todo!()` stubs. `just iter prism-query` and `just iter prism-mcp`
@@ -711,11 +751,12 @@ must both fail (Red Gate requirement BC-5.38.001).
 
 ### Phase 5 — Area D Implementation (implementer)
 
-1. In `error_recovery.rs`, add a heuristic: if `rich_to_parse_error` detects a `|` token in SQL mode context, replace the Chumsky error with the mode-bridge message (D1).
-2. In `error_recovery.rs`, produce the best-effort `normalized_pql` rewrite STRING on D1 mode-bridge errors for simple cases: `SELECT * FROM t WHERE <pred> LIMIT N` → `FROM t | where <pred> | limit N`. Add the `normalized_pql: Option<String>` FIELD to `StructuredErrorFields` (`crates/prism-mcp/src/error_mapping.rs`, `#[serde(skip_serializing_if = "Option::is_none")]`, update `new`/builder) and populate it from the prism-query rewrite in the `QueryParseFailed` mapping arm. (D-1110: there is no `ParseErrorDetails` type; do NOT create one.)
-3. Implement or verify `test_filter_mode_simple_predicate` and `test_filter_mode_with_source` use `QueryEngine::execute` (not just parse).
-4. Verify shared predicate grammar invariant (D7) — no predicate extension in any mode's local grammar.
-5. Run `just iter prism-query` — AC-009/AC-010/AC-011/AC-012 tests must turn GREEN.
+1. In `error_recovery.rs`, add a heuristic: if `rich_to_parse_error` detects a `|` token in SQL mode context, replace the Chumsky error with the verbatim D1 mode-bridge message from BC-2.11.023 §D1 (all three required substrings: stage-keyword enumeration, numbered alternatives, reference pointer).
+2. In `error_recovery.rs`, add a second heuristic (D2): if `rich_to_parse_error` detects `SELECT` or `ORDER BY` in pipe-stage position, replace the Chumsky error with the verbatim D2 mode-bridge message from BC-2.11.023 §D2 (SQL-clauses-not-valid, lowercase-keywords guidance, and the example line).
+3. In `error_recovery.rs`, produce the best-effort `normalized_pql` rewrite STRING on D1 mode-bridge errors for simple cases: `SELECT * FROM t WHERE <pred> LIMIT N` → `FROM t | where <pred> | limit N`. Add the `normalized_pql: Option<String>` FIELD to `StructuredErrorFields` (`crates/prism-mcp/src/error_mapping.rs`, `#[serde(skip_serializing_if = "Option::is_none")]`, update `new`/builder) and populate it from the prism-query rewrite in the `QueryParseFailed` mapping arm. (D-1110: there is no `ParseErrorDetails` type; do NOT create one.)
+4. Implement or verify `test_filter_mode_simple_predicate` and `test_filter_mode_with_source` use `QueryEngine::execute` (not just parse).
+5. Verify shared predicate grammar invariant (D7) — no predicate extension in any mode's local grammar.
+6. Run `just iter prism-query` — AC-009/AC-010/AC-011/AC-012/AC-027 tests must turn GREEN.
 
 ### Phase 6 — Area E Implementation (implementer)
 
@@ -859,6 +900,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | bc-2.11.023-d1-d2-coverage-gap-closure | 2026-06-25 | story-writer | HIGH-1 + HIGH-2 adversary gap closure. HIGH-1: AC-009 (mode-bridge D1) tightened — now asserts all three verbatim BC-2.11.023 §D1 substrings: (a) stage-keyword enumeration `(enrich, where, limit, sort, stats, dedup, fields)`, (b) numbered alternatives `1. SQL+pipe composition: …` / `2. Pipe mode only: …`, (c) reference pointer `See prismql://reference for the complete grammar.`; negative control (no raw Chumsky token list) added. HIGH-2: AC-027 added (new) — D2 mode-bridge diagnostic: pipe-mode query with uppercase SQL clause keyword in stage position (e.g. `FROM t \| WHERE …` or `\| ORDER BY …`) produces verbatim BC-2.11.023 §D2 message; positive and negative controls specified; Red Gate test `test_BC_2_11_023_mode_bridge_d2_sql_keyword_in_pipe_position` added. Bookkeeping: `acceptance_criteria_count` 26→27, `red_gate_tests` 19→20, BC-2.11.023 frontmatter comment updated with AC-027, Tasks §Phase 1 Area D list extended, Phase 5 steps updated to include D2 heuristic, Token Budget table updated (19→20 Red Gate tests), Area F header note updated (19→20). Changelog row v1.0 historical count unchanged (records original state). |
 | 1.4 | version-pin-sync-MED-1 | 2026-06-25 | story-writer | Version-pin sync (MED-1 / POL-23 sibling-sweep gap closure). Behavioral Contracts table: BC-2.11.023 pin updated `v1.1 → v1.2` and BC-2.10.015 pin updated `v1.0 → v1.1` to match current BC frontmatter versions. POL-25 sweep confirmed no other live-narrative pins of these BCs at the old versions exist outside §Changelog historical rows (TD-VSDD-091-exempt). No AC/scope/code change. |
 | 1.3 | story-writer-spec-sync-D1326 | 2026-06-24 | story-writer | Spec-sync burst (D-1326 adjudication). 4 changes: (1) **AC-019 re-scoped** — BLOCKER-001 root cause adjudicated as connectivity connect-timeout (PluginKvStore is in-memory/fresh per `prism start`, making cross-session KV staleness impossible; dead `reset_token_cache` + test removed at code HEAD 3fa69207); runtime fix deferred to S-RESILIENCE-FEDERATED-001 (per-sensor TOML timeouts, boot-degraded, retry-with-backoff); demo unblocked via runbook DTU health-check Fix B; wrong BC citation corrected (BC-2.06.001 "TOML Config Loading" → BC-2.01.005 "CrowdStrike OAuth2 Authentication and Two-Step Fetch"). (2) **OBS-3** — File Structure `-32602 INVALID_PARAMS` arm path corrected from `crates/prism-core/src/error_mapping.rs` to `crates/prism-mcp/src/error_mapping.rs` (MCP error mapping lives in prism-mcp; confirmed by `map_prism_error` function location). (3) **BC-2.11.023 version** — v1.0 → v1.1 in Behavioral Contracts table (PO bumped in same burst). (4) **S-RESILIENCE-FEDERATED-001 stub** registered (day-2 resilience epic anchor). No AC count / BC list / Red Gate test count change. |
 | 1.0 | demo-readiness-remediation-2026-06-24 | 2026-06-24 | story-writer | Initial story. 26 ACs (19 BC-traced + 7 implementer/doc). 8 BCs. Explicit human directive: single consolidated story for all T13 demo-readiness findings. Size flag included per story-writer mandate (111k token estimate). |
