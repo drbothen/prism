@@ -49,7 +49,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.6"
+version: "1.7"
 updated: "2026-06-25"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
@@ -143,8 +143,8 @@ crates_touched:
   # include_str! lives in resources/schema.rs, NOT resources.rs),
   # error_mapping.rs (StructuredErrorFields.normalized_pql field — D-1110),
   # server.rs (NOT_YET_AVAILABLE guard reorder BEFORE emit_tool_audit await — D-1110: emit_tool_audit
-  # awaits AuditWriter::write_tool_call, it is NOT an mpsc try_send path), tools/ (list_capabilities
-  # wiring), prompts.rs / #[prompt_handler] macro expansion investigation
+  # awaits AuditWriter::write_tool_call, it is NOT an mpsc try_send path; list_capabilities handler
+  # wiring also in server.rs — no tools/list_capabilities.rs exists), prompts.rs / #[prompt_handler] macro expansion investigation
   - prism-core
   # error.rs (PrismError::RedundantRowLimit variant). NOTE (D-1110): org_registry.rs needs NO new
   # method — OrgRegistry::slug_exists(&OrgSlug) already covers the BC-2.10.015 existence check.
@@ -632,7 +632,7 @@ if it checks the aggregates section).
 | Retire `pql_reference.md` (remove `PQL_REFERENCE_CONTENT include_str!` in `resources/schema.rs`; repoint `read_resource` arm in `resources.rs`; D-1110 pass-2 — `include_str!` is in `resources/schema.rs`, NOT `resources.rs`) | `crates/prism-mcp/src/pql_reference.md` + `crates/prism-mcp/src/resources/schema.rs` + `resources.rs` | n/a |
 | `FeatureFlagEvaluator` — add `Arc<OrgRegistry>` field | `crates/prism-security/src/feature_flag.rs` | Pure |
 | `client_exists` — build `OrgSlug` from `&str` and consult `OrgRegistry::slug_exists(&OrgSlug)` (D-1110: `contains` does not exist) | `crates/prism-security/src/feature_flag.rs` | Pure |
-| `list_capabilities` handler — wire `Arc<OrgRegistry>` | `crates/prism-mcp/src/tools/list_capabilities.rs` | Effectful |
+| `list_capabilities` handler — wire `Arc<OrgRegistry>` (function `list_capabilities` in `server.rs`) | `crates/prism-mcp/src/server.rs` | Effectful |
 | `#[prompt_handler]` macro expansion investigation | `crates/prism-mcp/src/prompts.rs` + `server.rs` | Effectful |
 | `emit_tool_audit` — reorder NOT_YET_AVAILABLE guard BEFORE the audit `.await` (D-1110: it awaits `AuditWriter::write_tool_call`, NOT an mpsc try_send) | `crates/prism-mcp/src/server.rs` | Effectful |
 | Filter mode execution tests | `crates/prism-query/tests/filter_mode.rs` | Effectful |
@@ -888,7 +888,7 @@ From CLAUDE.md conventions:
 | `crates/prism-mcp/src/pql_reference.md` | Delete / retire | `include_str!` (in `resources/schema.rs`) removed; file may remain as documentation archive |
 | `crates/prism-mcp/src/server.rs` | Modify | NOT_YET_AVAILABLE guard reorder BEFORE `emit_tool_audit(...).await` (D-1110: emit_tool_audit awaits AuditWriter::write_tool_call — no mpsc try_send path exists) |
 | `crates/prism-mcp/src/prompts.rs` | Modify | Fix prompt hang (BLOCKER-003 root cause from `cargo expand` investigation) |
-| `crates/prism-mcp/src/tools/list_capabilities.rs` | Modify | Wire `Arc<OrgRegistry>` through to `FeatureFlagEvaluator` |
+| `crates/prism-mcp/src/server.rs` (`list_capabilities` handler) | Modify | Wire `Arc<OrgRegistry>` through to `FeatureFlagEvaluator` (no `tools/list_capabilities.rs` exists — handler is in `server.rs`) |
 | `crates/prism-security/src/feature_flag.rs` | Modify | `FeatureFlagEvaluator`: add `Arc<OrgRegistry>` field, change `client_exists` |
 | `crates/prism-dtu-crowdstrike/src/routes/oauth.rs` | No change | BLOCKER-001 deferred to S-RESILIENCE-FEDERATED-001 (D-1326 adjudication); no DTU token endpoint change needed for T13 demo |
 | `scripts/` (demo runbook §5.5) | Modify | BLOCKER-002: correct pipe syntax example |
@@ -904,6 +904,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | obs-3-stale-path-closure | 2026-06-25 | story-writer | OBS-3 closure (LOW, process-gap). Corrected three stale `tools/list_capabilities.rs` path hints that the v1.6 TD-VSDD-091 sweep missed. Actual handler `list_capabilities` (BC-2.10.015 Arc-DI wiring) lives in `crates/prism-mcp/src/server.rs`; no `tools/list_capabilities.rs` exists (tools/ contains `config.rs`, `mod.rs`, `operations.rs`, `prism_describe.rs`, `query.rs`, `sensor_health.rs`, `write.rs` — verified against worktree and main codebase). Changes: (1) `crates_touched` frontmatter prism-mcp comment — replaced `tools/ (list_capabilities wiring)` with `list_capabilities handler wiring also in server.rs — no tools/list_capabilities.rs exists`; (2) Architecture Mapping row — changed `crates/prism-mcp/src/tools/list_capabilities.rs` to `crates/prism-mcp/src/server.rs` with function-name anchor per TD-VSDD-091; (3) File Structure row — same correction plus clarifying note. No AC count / BC trace / scope change. |
 | 1.6 | td-vsdd-091-location-pin-remediation | 2026-06-25 | story-writer | TD-VSDD-091 anti-volatile-pin compliance. Replaced five stale `engine.rs` file-location hints that described FORBID-BOTH and NOW()-injection wiring. Verified against shipped code in worktree: `inject_now` lives in `lib.rs` (called from `run_materialization_pipeline` Step 1a in `materialization.rs`); `plan_sqlpipe_query` lives in `lib.rs` (called from Step 1b); `execute_against_session` `Ast::SqlPipe` arm lives in `materialization.rs`. Changed references: (1) `crates_touched` frontmatter comment — replaced `engine.rs (SqlPipe execution arm, plan-time NOW injection, FORBID-BOTH check)` with function-name anchors for `inject_now` / `plan_sqlpipe_query` / `run_materialization_pipeline` Step 1a/1b / `execute_against_session`; (2) Architecture Mapping rows — replaced three `engine.rs` rows with `materialization.rs::execute_against_session`, `lib.rs::inject_now`, `lib.rs::plan_sqlpipe_query`; (3) File Structure — replaced one `engine.rs` row with two rows for `materialization.rs` and `lib.rs`. Preserved: `engine.rs::normalize_pql` reference at AC-010 and Previous Story Intelligence (accurate — that function IS in engine.rs). No AC count / BC trace / scope change. |
 | 1.5 | bc-2.11.023-d1-d2-coverage-gap-closure | 2026-06-25 | story-writer | HIGH-1 + HIGH-2 adversary gap closure. HIGH-1: AC-009 (mode-bridge D1) tightened — now asserts all three verbatim BC-2.11.023 §D1 substrings: (a) stage-keyword enumeration `(enrich, where, limit, sort, stats, dedup, fields)`, (b) numbered alternatives `1. SQL+pipe composition: …` / `2. Pipe mode only: …`, (c) reference pointer `See prismql://reference for the complete grammar.`; negative control (no raw Chumsky token list) added. HIGH-2: AC-027 added (new) — D2 mode-bridge diagnostic: pipe-mode query with uppercase SQL clause keyword in stage position (e.g. `FROM t \| WHERE …` or `\| ORDER BY …`) produces verbatim BC-2.11.023 §D2 message; positive and negative controls specified; Red Gate test `test_BC_2_11_023_mode_bridge_d2_sql_keyword_in_pipe_position` added. Bookkeeping: `acceptance_criteria_count` 26→27, `red_gate_tests` 19→20, BC-2.11.023 frontmatter comment updated with AC-027, Tasks §Phase 1 Area D list extended, Phase 5 steps updated to include D2 heuristic, Token Budget table updated (19→20 Red Gate tests), Area F header note updated (19→20). Changelog row v1.0 historical count unchanged (records original state). |
 | 1.4 | version-pin-sync-MED-1 | 2026-06-25 | story-writer | Version-pin sync (MED-1 / POL-23 sibling-sweep gap closure). Behavioral Contracts table: BC-2.11.023 pin updated `v1.1 → v1.2` and BC-2.10.015 pin updated `v1.0 → v1.1` to match current BC frontmatter versions. POL-25 sweep confirmed no other live-narrative pins of these BCs at the old versions exist outside §Changelog historical rows (TD-VSDD-091-exempt). No AC/scope/code change. |
