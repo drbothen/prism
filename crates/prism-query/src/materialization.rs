@@ -1072,8 +1072,27 @@ pub async fn execute_against_session(
             }
 
             // Lower the predicate to a DataFusion-compatible SQL WHERE clause.
-            let where_clause =
-                crate::ast::PqlNormalizer::normalize_predicate_pub(&filter.predicate);
+            //
+            // OBS-1 fix (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR-LEVEL): use
+            // `predicate_to_datafusion_sql` (from `pipe_sql_emitter`) instead of
+            // `PqlNormalizer::normalize_predicate_pub`.
+            //
+            // `normalize_predicate_pub` emits double-quoted form (`"O'Brien"`) for string
+            // literals containing `'` — correct for PQL round-trips (BC-2.11.018) but WRONG
+            // for DataFusion SQL: DataFusion follows ANSI SQL and treats double-quoted tokens as
+            // IDENTIFIER references (column names), not string literals.  DataFusion would
+            // receive `WHERE name = "O'Brien"` and look for a column named `O'Brien` → no match /
+            // planning error instead of the expected string equality filter.
+            //
+            // `predicate_to_datafusion_sql` uses `escape_sql_string` which replaces `'` with
+            // `''` (standard SQL single-quote escaping) and always wraps in single quotes,
+            // producing `WHERE name = 'O''Brien'` — the correct DataFusion SQL form.
+            let where_clause = crate::pipe_sql_emitter::predicate_to_datafusion_sql(
+                &filter.predicate,
+            )
+            .map_err(|e| PrismError::QueryExecutionFailed {
+                detail: format!("filter SQL lowering failed: {e}. Retry or report to support."),
+            })?;
 
             // Determine the set of registered source tables to apply the predicate against.
             // Source-qualified: only the specified source. Bare: all registered tables.
