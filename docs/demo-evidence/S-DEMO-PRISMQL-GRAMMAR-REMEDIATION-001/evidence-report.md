@@ -2,9 +2,10 @@
 
 **Story:** PrismQL Grammar + MCP-Surface Remediation  
 **Branch:** `feature/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`  
-**HEAD at recording:** `71b196ad`  
+**HEAD at recording:** `c5833b9d` (AC-001-003, AC-002 re-recorded at this HEAD; all others recorded at `71b196ad` — output unchanged)  
 **Recording date:** 2026-06-25  
 **Tool:** VHS 0.11.0 (via tmux PTY) — all tapes in this directory  
+**Driver scripts:** All 11 driver scripts committed to `docs/demo-evidence/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001/` — all tapes reproducible from a fresh checkout (HIGH-1 fix)  
 
 ---
 

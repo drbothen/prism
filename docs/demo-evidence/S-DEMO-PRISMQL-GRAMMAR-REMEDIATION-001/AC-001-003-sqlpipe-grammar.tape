@@ -20,6 +20,6 @@ Hide
 Sleep 1s
 Show
 
-Type "bash /tmp/run_ac001_003.sh"
+Type "bash docs/demo-evidence/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001/run_ac001_003.sh"
 Enter
 Sleep 10s
