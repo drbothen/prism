@@ -94,7 +94,7 @@ fn test_bc_2_11_020_forbid_both_dual_limit_e_query_040() {
         }) => {
             assert_eq!(sql_limit, 5, "BC-2.11.020: sql_limit must be 5");
             assert_eq!(pipe_limit, 3, "BC-2.11.020: pipe_limit must be 3");
-            // Verify verbatim E-QUERY-040 message (POL-24 — full pedagogical text).
+            // Verify verbatim E-QUERY-040 message (POL-24 — error-taxonomy.md v2.00).
             let err = PrismError::RedundantRowLimit {
                 sql_limit,
                 pipe_limit,
@@ -103,6 +103,12 @@ fn test_bc_2_11_020_forbid_both_dual_limit_e_query_040() {
             assert!(
                 msg.contains("E-QUERY-040"),
                 "BC-2.11.020: error message must contain 'E-QUERY-040'; got: {msg}"
+            );
+            // Neutral pipe-stage wording (v2.00): covers both `| limit` and `| tail`.
+            assert!(
+                msg.contains("row-capping `| limit`/`| tail` pipe stage"),
+                "BC-2.11.020 POL-24 v2.00: error message must contain verbatim \
+                 'row-capping `| limit`/`| tail` pipe stage'; got: {msg}"
             );
             assert!(
                 msg.contains("PrismQL requires exactly one row cap"),
