@@ -1044,6 +1044,33 @@ pub async fn execute_against_session(
         // Memory budget: uses the same GreedyMemoryPool session as SQL/Pipe modes.
         Ast::Filter(filter) => {
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+
+            // LOW-1 fix — F-P1-MED-001 sibling parity (BC-2.11.021 / ADR-044):
+            // Guard against bare `Expr::Interval` (or other unfolded temporal expressions —
+            // `Expr::Now`, `Expr::TimestampArithmetic`) reaching `normalize_predicate_pub`.
+            //
+            // The SQL/SqlPipe arms are protected by `PqlNormalizer::normalize`'s
+            // `ast_has_unfolded_temporal_expr` pre-check (F-P1-MED-001). Without this
+            // guard, a bare `Expr::Interval` RHS (e.g. `timestamp > INTERVAL '24h'` —
+            // accepted by `build_temporal_rhs_parser`, NOT folded by `inject_now`) reaches
+            // `normalize_expr`'s catch-all → emits empty string → `WHERE timestamp > `
+            // (malformed) to DataFusion → generic redacted `QueryExecutionFailed` instead
+            // of a clear structured error.
+            //
+            // This guard makes the Filter arm consistent: any unfolded temporal expression
+            // returns the same E-QUERY-034 structured error the SQL/SqlPipe arms return.
+            if crate::ast::PqlNormalizer::predicate_has_unfolded_temporal_pub(&filter.predicate) {
+                return Err(PrismError::QueryExecutionFailed {
+                    detail: "filter SQL normalization failed: predicate contains unfolded \
+                             temporal expression (Expr::Now / Expr::Interval / \
+                             Expr::TimestampArithmetic). Bare interval comparisons such as \
+                             `timestamp > INTERVAL '24h'` are not supported in filter mode — \
+                             use `timestamp > NOW() - INTERVAL '24h'` which constant-folds at \
+                             plan time. Retry or report to support."
+                        .to_string(),
+                });
+            }
+
             // Lower the predicate to a DataFusion-compatible SQL WHERE clause.
             let where_clause =
                 crate::ast::PqlNormalizer::normalize_predicate_pub(&filter.predicate);

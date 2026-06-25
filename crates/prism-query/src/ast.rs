@@ -1413,6 +1413,17 @@ impl PqlNormalizer {
         Self::normalize_predicate(pred)
     }
 
+    /// Returns `true` if `pred` contains any unfolded temporal expression
+    /// (`Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`).
+    ///
+    /// Public wrapper over the private `predicate_has_unfolded_temporal` method.
+    /// Used by `execute_against_session` Filter-mode arm as a guard matching the
+    /// protection already in place for SQL/SqlPipe arms via `ast_has_unfolded_temporal_expr`
+    /// (LOW-1 fix — F-P1-MED-001 sibling parity, BC-2.11.021 / ADR-044).
+    pub fn predicate_has_unfolded_temporal_pub(pred: &Predicate) -> bool {
+        Self::predicate_has_unfolded_temporal(pred)
+    }
+
     /// SEC-001 helper: returns `true` if any string-**literal**-bearing node in `ast`
     /// contains BOTH `'` and `"`. Called as a pre-check before normalization; avoids
     /// changing the return types of every normalizer helper (low blast-radius approach).
