@@ -553,13 +553,56 @@ pub async fn run_materialization_pipeline(
     let all_clients: Vec<OrgSlug> = options.clients.clone().unwrap_or_default();
 
     // Step 3: Resolve source refs to fan-out targets.
-    let targets = resolve_source_refs(
+    let mut targets = resolve_source_refs(
         &source_names,
         &all_clients,
         &mat_ctx.adapter_registry,
         &mat_ctx.org_registry,
     )
     .await?;
+
+    // Step 3b: Bare-filter fan-out-to-all.
+    //
+    // BC-2.11.023 AC-011 / BC-2.11.002: A bare-predicate filter query (`severity = 'HIGH'`
+    // with no explicit source) fans out to ALL registered sensors. `resolve_source_refs`
+    // is called with empty `source_names` and returns empty targets — the bare-filter
+    // semantics require a separate path that enumerates the registry directly.
+    //
+    // This path synthesizes one FanOutTarget per (OrgId, SensorId) entry in the adapter
+    // registry. The `source_table` for each target is the sensor_id string (no explicit
+    // table qualifier), matching the bare-filter DataFusion enumeration in
+    // `execute_against_session::Ast::Filter` (which iterates session catalog tables and
+    // excludes `prism_*` internal tables).
+    if matches!(&ast, crate::ast::Ast::Filter(f) if f.source.raw.is_empty())
+        && targets.is_empty()
+        && !mat_ctx.adapter_registry.is_empty()
+    {
+        // Enumerate all (OrgId, SensorId) pairs registered in the adapter registry.
+        // For each pair, synthesize a FanOutTarget using sensor_id as source_table.
+        // client_id uses the same synthetic-slug fallback as resolve_source_refs lines
+        // 1284-1311 (no OrgRegistry available in bare-filter test path).
+        for sensor_id in mat_ctx.adapter_registry.registered_sensor_ids() {
+            let adapters = mat_ctx.adapter_registry.get_all_for_sensor(&sensor_id);
+            for (org_id, _adapter) in adapters {
+                let client_id = OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]));
+                let source_table = sensor_id.as_ref().to_string();
+                targets.push(FanOutTarget {
+                    sensor_id: sensor_id.clone(),
+                    client_id: client_id.clone(),
+                    org_id,
+                    sensor_spec: SensorSpec {
+                        source_table: source_table.clone(),
+                        #[allow(deprecated)]
+                        client_id: client_id.as_str().to_string(),
+                        org_id,
+                        sensor_config: serde_json::Value::Null,
+                    },
+                    source_table,
+                    push_down_plan: PushDownPlan::default(),
+                });
+            }
+        }
+    }
 
     // Step 4: Fan out to sensor adapters, collecting results per source table.
     // Group results by source table name for MemTable registration.
@@ -840,12 +883,45 @@ pub async fn run_materialization_pipeline(
         }
         let batches = table_batches.remove(source_name).unwrap_or_default();
         if !batches.is_empty() {
-            register_mem_table(session_ctx, source_name, batches)?;
+            // Normalize the table name for DataFusion registration: replace the first dot with
+            // underscore (e.g. "crowdstrike.detections" → "crowdstrike_detections").
+            // DataFusion's `register_table` treats dots as catalog/schema separators and rejects
+            // names like "crowdstrike.detections". Filter-mode source refs use dot notation
+            // (BC-2.11.023), so normalization is required here. SQL-mode queries already use
+            // underscore notation by convention (BC-2.11.002), so normalization is a no-op for them.
+            let normalized_name = datafusion_table_name(source_name);
+            register_mem_table(session_ctx, &normalized_name, batches)?;
             any_external_table_registered = true;
-            registered_tables.push(source_name.clone());
+            registered_tables.push(normalized_name);
         }
         // If batches is empty, the table is NOT registered — DataFusion can't plan for it.
         // This is the "no adapter" case. We skip SQL execution in this case.
+    }
+
+    // Step 5b: Bare-filter fallthrough — register any remaining `table_batches` entries.
+    //
+    // For bare-filter fan-out (BC-2.11.023 AC-011 / Step 3b above), `source_names` is empty
+    // so the step-5 loop above does nothing. After the fan-out in step 4, `table_batches`
+    // holds entries keyed by sensor_id string (e.g. "stub", "crowdstrike"). Register them
+    // here so `execute_against_session::Ast::Filter` can enumerate them via the DataFusion
+    // session catalog and apply the predicate.
+    //
+    // Only runs when `source_names` is empty (bare filter) AND there are remaining batches
+    // (non-empty fan-out produced data). Non-bare-filter queries fully drain `table_batches`
+    // in the step-5 loop above — this block is a no-op for those paths.
+    if source_names.is_empty() {
+        for (table_key, batches) in table_batches.drain() {
+            if table_key.starts_with("prism_") {
+                any_external_table_registered = true;
+                continue;
+            }
+            if !batches.is_empty() {
+                let normalized_name = datafusion_table_name(&table_key);
+                register_mem_table(session_ctx, &normalized_name, batches)?;
+                any_external_table_registered = true;
+                registered_tables.push(normalized_name);
+            }
+        }
     }
 
     // Step 6: Execute the DataFusion SQL plan and collect results.
@@ -947,14 +1023,93 @@ pub async fn execute_against_session(
                 .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
             collect_record_batch_stream(stream, pool_bytes).await
         }
-        // F-LP1-HIGH-1: For Filter mode, return the union of all materialized batches.
-        // The batches were already collected in the fan-out loop with virtual field injection.
-        // DataFusion MemTable registration has already happened for SQL query capability;
-        // for Filter mode we return the pre-collected annotated batches directly.
-        // (ENRICH-4-C: Filter-mode SQL execution is a follow-up story.)
-        Ast::Filter(_) => {
-            // Return the union of all table_batches values (unchanged from pre-ENRICH-4-B).
-            let all_batches: Vec<RecordBatch> = table_batches.into_values().flatten().collect();
+        // BC-2.11.023 AC-011 / ADR-046 D4: Filter mode predicate application via DataFusion.
+        //
+        // Filter mode lowers to `SELECT * FROM <table> WHERE <predicate>` and executes through
+        // DataFusion, applying the predicate to the materialized rows. This is the ENRICH-4-C
+        // implementation: filter predicates are now genuinely applied (not just pass-through).
+        //
+        // Source-qualified filter (`crowdstrike.detections | severity = 'HIGH'`):
+        //   → `SELECT * FROM crowdstrike_detections WHERE severity = 'HIGH'`
+        //
+        // Bare filter (`severity = 'HIGH'`, fan-out-to-all):
+        //   → `SELECT * FROM <table> WHERE severity = 'HIGH'` for each registered table,
+        //   results unioned. Each registered table gets its own SQL scan so DataFusion can
+        //   apply the predicate independently per schema.
+        //
+        // Returns empty Vec when no tables were registered (no-sensor engine: table_batches
+        // is empty because run_materialization_pipeline early-returned before this function
+        // for the no-adapter case; this arm handles only the with-data path).
+        //
+        // Memory budget: uses the same GreedyMemoryPool session as SQL/Pipe modes.
+        Ast::Filter(filter) => {
+            let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+            // Lower the predicate to a DataFusion-compatible SQL WHERE clause.
+            let where_clause =
+                crate::ast::PqlNormalizer::normalize_predicate_pub(&filter.predicate);
+
+            // Determine the set of registered source tables to apply the predicate against.
+            // Source-qualified: only the specified source. Bare: all registered tables.
+            //
+            // NOTE: `table_batches` is EMPTY at this point — run_materialization_pipeline step 5
+            // already consumed all entries via `table_batches.remove(source_name)` and registered
+            // them as DataFusion MemTables. For the bare-filter case we enumerate the session
+            // context's default catalog to find registered external tables (excluding prism_*
+            // internal tables, which are registered separately).
+            let table_names: Vec<String> = if filter.source.raw.is_empty() {
+                // Bare predicate: enumerate all tables registered in the DataFusion session.
+                // DataFusion registers MemTables into the default catalog ("datafusion") /
+                // default schema ("public"). Exclude prism_* tables (internal tables not
+                // relevant to sensor-data filter queries).
+                session_ctx
+                    .catalog("datafusion")
+                    .and_then(|cat| cat.schema("public"))
+                    .map(|schema| {
+                        schema
+                            .table_names()
+                            .into_iter()
+                            .filter(|n| !n.starts_with("prism_"))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                // Source-qualified: normalize the source ref using `datafusion_table_name`
+                // (dot→underscore) to match the normalized name used when registering the
+                // MemTable in step 5. The raw source ref "crowdstrike.detections" is
+                // registered as "crowdstrike_detections" — the SQL must use the same form.
+                vec![datafusion_table_name(&filter.source.raw)]
+            };
+
+            // Execute `SELECT * FROM <table> WHERE <predicate>` for each table and union.
+            let mut all_batches: Vec<RecordBatch> = Vec::new();
+            for table_name in &table_names {
+                // Table names are DataFusion-normalized (dots replaced with underscores)
+                // matching the normalization applied in step 5. Use plain identifier quoting.
+                let filter_sql = format!("SELECT * FROM {table_name} WHERE {where_clause}");
+                tracing::debug!(
+                    filter_sql = %filter_sql,
+                    event_type = "filter.sql_lowering",
+                    "filter-to-SQL lowering complete"
+                );
+                let df = session_ctx.sql(&filter_sql).await.map_err(|e| {
+                    tracing::error!(
+                        error = %e,
+                        filter_sql = %filter_sql,
+                        event_type = "filter.sql_planning_error",
+                        "filter-to-sql DataFusion planning error"
+                    );
+                    PrismError::QueryExecutionFailed {
+                        detail: "filter SQL planning error: <redacted; see server logs>"
+                            .to_string(),
+                    }
+                })?;
+                let stream = df
+                    .execute_stream()
+                    .await
+                    .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
+                let batches = collect_record_batch_stream(stream, pool_bytes).await?;
+                all_batches.extend(batches);
+            }
             Ok(all_batches)
         }
         // ENRICH-4-B: Pipe mode now routes through the SQL-lowering path.
@@ -1749,6 +1904,33 @@ fn walk_expr(expr: &crate::ast::Expr, names: &mut std::collections::HashSet<Stri
         },
         // Other Expr variants (Literal, Field, VirtualField, In, Star) have no subqueries.
         _ => {}
+    }
+}
+
+// ---------------------------------------------------------------------------
+// datafusion_table_name
+// ---------------------------------------------------------------------------
+
+/// Normalize a PrismQL source ref to a valid DataFusion table name.
+///
+/// DataFusion's `register_table` treats dots in table names as catalog/schema
+/// separators and rejects names like `"crowdstrike.detections"`. Filter-mode
+/// source refs use dot notation (BC-2.11.023 AC-011); SQL-mode queries use
+/// underscore notation by convention. This function replaces the first dot with
+/// an underscore so both forms resolve to the same registered MemTable name.
+///
+/// Examples:
+/// - `"crowdstrike.detections"` → `"crowdstrike_detections"`
+/// - `"crowdstrike_detections"` → `"crowdstrike_detections"` (no-op)
+/// - `"prism_audit"` → `"prism_audit"` (no-op; internal table prefix preserved)
+fn datafusion_table_name(source_name: &str) -> String {
+    match source_name.find('.') {
+        Some(pos) => {
+            let mut s = source_name.to_string();
+            s.replace_range(pos..=pos, "_");
+            s
+        }
+        None => source_name.to_string(),
     }
 }
 

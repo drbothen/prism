@@ -1405,6 +1405,14 @@ impl PqlNormalizer {
         }
     }
 
+    /// Normalize a `Predicate` to a DataFusion-compatible SQL WHERE-clause expression string.
+    ///
+    /// Public wrapper over the private `normalize_predicate` method, used by
+    /// `execute_against_session` for Filter-mode SQL lowering (BC-2.11.023 AC-011 / ADR-046 D4).
+    pub fn normalize_predicate_pub(pred: &Predicate) -> String {
+        Self::normalize_predicate(pred)
+    }
+
     /// SEC-001 helper: returns `true` if any string-**literal**-bearing node in `ast`
     /// contains BOTH `'` and `"`. Called as a pre-check before normalization; avoids
     /// changing the return types of every normalizer helper (low blast-radius approach).
