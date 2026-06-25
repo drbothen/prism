@@ -205,16 +205,16 @@ These ACs are implementer/doc ACs verified by inspection or existing test assert
 
 | GRAMMAR-013 Item | Teaching Surface |
 |-----------------|-----------------|
-| Infusion names | `prism_describe` → `list_infusions` → reference §Available Infusions |
-| Column argument form `fn(col)` | Error message (AC-022/025 enrich guidance) |
-| Pipe stage keywords | D1 mode-bridge message (AC-009) + reference §Pipe Stages |
-| SQL+pipe composition syntax | Reference §SQL+Pipe Mode + error D1 numbered alternatives |
-| Pipe-mode `FROM t | where` form | Reference §Pipe Mode + D2 mode-bridge (AC-027) |
-| Filter mode syntax | Reference §Filter Mode |
-| INTERVAL literal form | Reference §Temporal Expressions + E-QUERY-001 error (AC-005) |
-| NOW() semantics | Reference §Temporal Expressions |
-| IS NOT NULL on JSON lists | Reference §JSON Fields (AC-023) |
-| Aggregate syntax `stats agg [by field]` | Reference §Aggregates — `percentile`, `distinct_count` (AC-026) |
+| Infusion names | `prism_describe` → `list_infusions` → enrichment paragraph (plain text following `## Error Code Quick-Reference` in `prismql://reference`) |
+| Column argument form `fn(col)` | Error message (AC-022/025 enrich guidance) + enrichment paragraph: `\| enrich <fn>(<col>)` in `## Clause Grammar (BNF)` |
+| Pipe stage keywords | D1 mode-bridge message (AC-009) + `## Clause Grammar (BNF)` (Pipe Mode BNF block) |
+| SQL+pipe composition syntax | `## Clause Grammar (BNF)` (SqlPipe Mode block) + error D1 numbered alternatives |
+| Pipe-mode `FROM t \| where` form | `## Clause Grammar (BNF)` (Pipe Mode BNF block) + D2 mode-bridge (AC-027) |
+| Filter mode syntax | `## What is PrismQL` (mode summary table, Filter row) |
+| INTERVAL literal form | `## Datetime Arithmetic` + E-QUERY-001 error (AC-005) |
+| NOW() semantics | `## Datetime Arithmetic` |
+| IS NOT NULL on JSON lists | `## Operators and Types` (null semantics paragraph) (AC-023) |
+| Aggregate syntax `stats agg [by field]` | `## Operators and Types` (aggregate functions list) — `percentile`, `distinct_count` (AC-026) |
 
 ---
 
