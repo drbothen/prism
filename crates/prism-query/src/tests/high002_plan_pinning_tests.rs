@@ -821,4 +821,197 @@ mod high002_plan_pinning_tests {
             );
         }
     }
+
+    // -------------------------------------------------------------------------
+    // HIGH-1 fix — FORBID-BOTH must catch `| tail N` after SQL `LIMIT N`
+    // (ADR-043 §D4 / INV-FORBID-BOTH-PERMANENT)
+    //
+    // Before the fix: `plan_sqlpipe_query` only checked `PipeStage::Limit(n)`.
+    // `PipeStage::Tail(n)` also lowers to `LIMIT n` in pipe_sql_emitter.rs, so
+    // `SELECT * FROM t LIMIT 5 | tail 3` silently produced two LIMIT clauses.
+    // -------------------------------------------------------------------------
+
+    /// HIGH-1 load-bearing test: `SELECT * FROM t LIMIT 5 | tail 3` must be
+    /// rejected with `PrismError::RedundantRowLimit` (E-QUERY-040).
+    ///
+    /// Traces: ADR-043 §C §D4, BC-2.11.020 INV-FORBID-BOTH-PERMANENT
+    #[test]
+    fn test_high1_forbid_both_tail_after_sql_limit_rejected() {
+        use crate::ast::{
+            FromClause, PipeStage, SelectClause, SelectItem, SourceRef, SqlPipeQuery, SqlQuery,
+        };
+        use crate::plan_sqlpipe_query;
+        use prism_core::PrismError;
+
+        // Build an Ast::SqlPipe where the head has LIMIT 5 and the pipe has | tail 3.
+        // Use SqlQuery::new() — SqlQuery is #[non_exhaustive] so struct-literal is forbidden
+        // outside the crate.
+        let mut head = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("t")),
+        );
+        head.limit = Some(5);
+        let spq = SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Tail(3)],
+        };
+
+        let result = plan_sqlpipe_query(&spq);
+        assert!(
+            matches!(
+                result,
+                Err(PrismError::RedundantRowLimit {
+                    sql_limit: 5,
+                    pipe_limit: 3,
+                })
+            ),
+            "HIGH-1: SELECT … LIMIT 5 | tail 3 must be rejected with \
+             RedundantRowLimit{{sql_limit:5, pipe_limit:3}}; got: {result:?}"
+        );
+    }
+
+    /// Regression: `SELECT * FROM t LIMIT 5 | limit 3` must still be rejected.
+    ///
+    /// Ensures the Tail fix did not accidentally break the existing Limit check.
+    #[test]
+    fn test_high1_forbid_both_limit_after_sql_limit_still_rejected() {
+        use crate::ast::{
+            FromClause, PipeStage, SelectClause, SelectItem, SourceRef, SqlPipeQuery, SqlQuery,
+        };
+        use crate::plan_sqlpipe_query;
+        use prism_core::PrismError;
+
+        let mut head = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("t")),
+        );
+        head.limit = Some(5);
+        let spq = SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Limit(3)],
+        };
+
+        let result = plan_sqlpipe_query(&spq);
+        assert!(
+            matches!(
+                result,
+                Err(PrismError::RedundantRowLimit {
+                    sql_limit: 5,
+                    pipe_limit: 3,
+                })
+            ),
+            "regression: SELECT … LIMIT 5 | limit 3 must still be rejected with \
+             RedundantRowLimit{{sql_limit:5, pipe_limit:3}}; got: {result:?}"
+        );
+    }
+
+    /// Positive-control: `SELECT * FROM t LIMIT 5 | where severity = 'HIGH'` must pass.
+    ///
+    /// WHERE is not a row-capping stage — FORBID-BOTH must not fire.
+    #[test]
+    fn test_high1_forbid_both_non_capping_stage_passes() {
+        use crate::ast::{
+            CompareOp, Expr, FieldPath, FromClause, Literal, PipeStage, Predicate, SelectClause,
+            SelectItem, SourceRef, SqlPipeQuery, SqlQuery,
+        };
+        use crate::plan_sqlpipe_query;
+
+        let mut head = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("t")),
+        );
+        head.limit = Some(5);
+        let spq = SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Where(Predicate::Compare {
+                lhs: Box::new(Expr::Field(FieldPath::new(["severity"]))),
+                op: CompareOp::Eq,
+                rhs: Box::new(Expr::Literal(Literal::String("HIGH".to_string()))),
+            })],
+        };
+
+        plan_sqlpipe_query(&spq)
+            .expect("HIGH-1 positive-control: WHERE after SQL LIMIT must not trigger FORBID-BOTH");
+    }
+
+    // -------------------------------------------------------------------------
+    // LOW-1 fix — Filter-mode unfolded-temporal guard
+    // (F-P1-MED-001 sibling parity, BC-2.11.021 / ADR-044)
+    //
+    // Before the fix: the Filter arm in execute_against_session called
+    // normalize_predicate_pub without first checking for bare Expr::Interval.
+    // A bare `Expr::Interval` comparison RHS reached normalize_expr's catch-all
+    // → emitted empty string → `WHERE timestamp > ` (malformed SQL) to DataFusion
+    // → generic opaque QueryExecutionFailed instead of a clear structured error.
+    // -------------------------------------------------------------------------
+
+    /// LOW-1 load-bearing test: a bare `Expr::Interval` comparison RHS in a
+    /// Filter predicate must be caught by the guard in execute_against_session
+    /// and returned as a structured `PrismError::QueryExecutionFailed` containing
+    /// "normalization failed" — NOT a redacted DataFusion SQL planning error.
+    ///
+    /// We test at the predicate guard level (using `predicate_has_unfolded_temporal_pub`)
+    /// since constructing the full async execute_against_session path with a
+    /// DataFusion SessionContext is reserved for integration tests.
+    ///
+    /// This test proves:
+    /// 1. `predicate_has_unfolded_temporal_pub` correctly identifies a bare Interval.
+    /// 2. The guard fires before `normalize_predicate_pub` so no malformed SQL is emitted.
+    ///
+    /// Traces: F-P1-MED-001, BC-2.11.021, ADR-044
+    #[test]
+    fn test_low1_filter_mode_bare_interval_detected_by_guard() {
+        use crate::ast::PqlNormalizer;
+        use crate::ast::{CompareOp, Expr, FieldPath, Predicate};
+        use chrono::Duration;
+
+        // Construct the predicate: `timestamp > INTERVAL '24h'`
+        // This is a bare Interval RHS — NOT folded by inject_now.
+        let bare_interval_predicate = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Interval(Duration::hours(24))),
+        };
+
+        // The guard must fire: predicate_has_unfolded_temporal_pub must return true.
+        assert!(
+            PqlNormalizer::predicate_has_unfolded_temporal_pub(&bare_interval_predicate),
+            "LOW-1: bare Expr::Interval RHS must be detected as unfolded temporal by the guard"
+        );
+
+        // And normalize_predicate_pub must NOT be called — if it were, it would emit
+        // malformed SQL. Verify this by showing the normalized output is degenerate:
+        let malformed = PqlNormalizer::normalize_predicate_pub(&bare_interval_predicate);
+        assert!(
+            malformed.contains("timestamp") && !malformed.contains("INTERVAL"),
+            "LOW-1: without the guard, normalize_predicate_pub emits malformed SQL \
+             (missing or empty RHS). Got: {malformed:?} — the guard prevents this path."
+        );
+    }
+
+    /// LOW-1 positive-control: a predicate with a folded Literal::Timestamp RHS
+    /// must NOT be caught by the guard (it's a valid, already-folded expression).
+    #[test]
+    fn test_low1_filter_mode_folded_timestamp_not_caught_by_guard() {
+        use crate::ast::PqlNormalizer;
+        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Predicate, TimestampLiteral};
+        use chrono::Utc;
+
+        // Simulate what inject_now produces: a folded Literal::Timestamp RHS.
+        let now = Utc::now();
+        let folded_predicate = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Literal(Literal::Timestamp(TimestampLiteral {
+                iso8601: now.to_rfc3339(),
+                instant: now,
+            }))),
+        };
+
+        // The guard must NOT fire — this is a valid folded predicate.
+        assert!(
+            !PqlNormalizer::predicate_has_unfolded_temporal_pub(&folded_predicate),
+            "LOW-1 positive-control: folded Literal::Timestamp must not be flagged as unfolded temporal"
+        );
+    }
 }

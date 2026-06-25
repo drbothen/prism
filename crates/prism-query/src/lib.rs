@@ -210,12 +210,29 @@ pub fn plan_sqlpipe_query(spq: &ast::SqlPipeQuery) -> Result<(), prism_core::err
 
     // Find the SQL head LIMIT, if any.
     if let Some(sql_limit) = spq.head.limit {
-        // Find the first pipe `| limit N` stage.
+        // Find the first pipe stage that imposes a row cap (lowers to SQL LIMIT).
+        //
+        // Row-capping PipeStage variants (determined by pipe_sql_emitter.rs apply_stage):
+        //   - `Limit(n)` → `LIMIT n` (direct limit stage)
+        //   - `Tail(n)`  → `LIMIT n` (lowered via apply_limit; semantic gap §3.2)
+        //
+        // Non-capping variants (verified in pipe_sql_emitter.rs apply_stage):
+        //   - Where, Sort, Stats, Fields, Dedup, Enrich — none lower to LIMIT/OFFSET.
+        //   - Join — returns Err (unsupported); no row cap emitted.
+        //
+        // HIGH-1 fix: include Tail in addition to Limit so `SELECT … LIMIT n | tail m`
+        // is rejected with FORBID-BOTH (ADR-043 §D4 / INV-FORBID-BOTH-PERMANENT).
         for stage in &spq.stages {
-            if let PipeStage::Limit(pipe_limit) = stage {
+            let pipe_limit = match stage {
+                PipeStage::Limit(n) => Some(*n),
+                PipeStage::Tail(n) => Some(*n),
+                // All other variants do not lower to a SQL LIMIT — no row cap.
+                _ => None,
+            };
+            if let Some(pipe_limit) = pipe_limit {
                 return Err(prism_core::error::PrismError::RedundantRowLimit {
                     sql_limit,
-                    pipe_limit: *pipe_limit,
+                    pipe_limit,
                 });
             }
         }
