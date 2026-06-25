@@ -1325,8 +1325,10 @@ pub enum PrismError {
     /// row-limit.  Only one may be specified; the other must be removed.
     ///
     /// Raised at planning time by the FORBID-BOTH invariant (ADR-043 §C).
+    ///
+    /// Message template is verbatim from error-taxonomy.md (POL-24).
     #[error(
-        "E-QUERY-040: redundant row limit: SQL LIMIT {sql_limit} and pipe | limit {pipe_limit} both specified; use only one"
+        "E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT {sql_limit}` in the head and a `| limit {pipe_limit}` pipe stage. PrismQL requires exactly one row cap. Remove the SQL `LIMIT {sql_limit}` and place a single `| limit` at the end of the pipeline (recommended for composed queries), or use `LIMIT` only in pure SQL-mode queries."
     )]
     RedundantRowLimit {
         /// The `LIMIT n` value in the SQL SELECT head.
