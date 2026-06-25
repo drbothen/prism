@@ -671,4 +671,154 @@ mod high002_plan_pinning_tests {
         // If a future story needs to handle these, a dedicated SQL-mode operator translation layer
         // is required (out of scope for S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001).
     }
+
+    // -----------------------------------------------------------------------
+    // F-P1-MED-001: bare INTERVAL as SQL comparison RHS must produce a clear
+    //               E-QUERY error, NOT malformed SQL handed to DataFusion
+    // -----------------------------------------------------------------------
+
+    /// F-P1-MED-001: `WHERE timestamp > INTERVAL '24h'` (bare INTERVAL as comparison
+    /// RHS in SQL mode) must produce a structured `PrismError::QueryExecutionFailed`
+    /// (E-QUERY-034), NOT silently produce malformed SQL with an empty RHS that causes
+    /// an opaque DataFusion failure.
+    ///
+    /// Regression guard: `PqlNormalizer::normalize_expr` previously matched the catch-all
+    /// `_ => String::new()` arm for `Expr::Interval`, producing `""` as the RHS. The
+    /// surrounding `normalize_predicate` then emitted `"... WHERE timestamp > "` (empty
+    /// RHS) — a non-empty string — so `PqlNormalizer::normalize` returned
+    /// `Some(malformed_sql)`. DataFusion received malformed SQL and emitted an opaque
+    /// SQL planning error.
+    ///
+    /// The fix: `PqlNormalizer::normalize` returns `None` for ASTs containing unfolded
+    /// temporal expressions (`Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`).
+    /// The `Ast::Sql(Select)` arm in `execute_against_session` then converts `None` →
+    /// `Err(PrismError::QueryExecutionFailed{...})` (F-P1-MED-002).
+    ///
+    /// The test drives `execute_against_session` directly (same harness as the F-HIGH-001
+    /// discriminating tests) and asserts the error is a structured E-QUERY error, not
+    /// a DataFusion opaque failure from malformed SQL.
+    #[tokio::test]
+    async fn test_f_p1_med001_bare_interval_rhs_produces_structured_equery_error() {
+        use std::collections::HashMap;
+
+        use crate::filter_parser::PrismQlParser;
+        use crate::materialization::{execute_against_session, register_mem_table};
+        use crate::memory::build_session_context;
+        use prism_core::PrismError;
+
+        // Parse the bare-INTERVAL query. The parser accepts `INTERVAL '24h'` as a
+        // valid RHS expression (build_temporal_rhs_parser) — this is a parseable
+        // but semantically invalid use (INTERVAL is only meaningful as `NOW() - INTERVAL`).
+        let query = "SELECT * FROM crowdstrike_detections WHERE timestamp > INTERVAL '24h'";
+        let ast = PrismQlParser::parse(query).expect(
+            "F-P1-MED-001: bare INTERVAL SQL query must parse (parser accepts INTERVAL as RHS)",
+        );
+
+        // inject_now leaves Expr::Interval unchanged (only folds TimestampArithmetic{base:Now}).
+        // The AST now contains an unfolded Expr::Interval in the WHERE RHS.
+        let now = chrono::Utc::now();
+        let now_ts = crate::ast::TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = crate::ast::Expr::Literal(crate::ast::Literal::Timestamp(now_ts));
+        let ast = crate::inject_now(ast, &now_literal);
+
+        // Set up a minimal MemTable so materialization has a registered table.
+        let ctx = build_session_context(50 * 1024 * 1024)
+            .expect("F-P1-MED-001: session context must build");
+        use arrow::{
+            array::StringArray,
+            datatypes::{DataType, Field, Schema},
+        };
+        let schema = std::sync::Arc::new(Schema::new(vec![Field::new(
+            "timestamp",
+            DataType::Utf8,
+            true,
+        )]));
+        let col = std::sync::Arc::new(StringArray::from(vec!["2026-01-01T00:00:00Z"])) as _;
+        let batch =
+            arrow::record_batch::RecordBatch::try_new(schema, vec![col]).expect("batch builds");
+        register_mem_table(&ctx, "crowdstrike_detections", vec![batch])
+            .expect("F-P1-MED-001: mem table must register");
+
+        let table_batches: HashMap<String, Vec<arrow::record_batch::RecordBatch>> = HashMap::new();
+        let result = execute_against_session(&ctx, query, &ast, table_batches).await;
+
+        // Must return an error — a bare INTERVAL as comparison RHS is semantically invalid.
+        assert!(
+            result.is_err(),
+            "F-P1-MED-001: bare INTERVAL as SQL comparison RHS must return Err, not Ok. \
+             This proves the unfolded-temporal guard fires before malformed SQL reaches DataFusion."
+        );
+
+        let err = result.unwrap_err();
+        // The error must be a structured E-QUERY error, NOT an opaque DataFusion failure
+        // from malformed SQL (which would show "SQL planning error: <redacted>").
+        // The structured error comes from the normalize→None→ok_or_else path.
+        assert!(
+            matches!(err, PrismError::QueryExecutionFailed { .. }),
+            "F-P1-MED-001: error must be PrismError::QueryExecutionFailed (E-QUERY-034), \
+             not a different PrismError variant. Got: {err:?}"
+        );
+
+        // The error message must explicitly indicate normalization failure (not DataFusion planning),
+        // proving the guard fired BEFORE DataFusion received any SQL string.
+        let detail = err.to_string();
+        assert!(
+            detail.contains("normalization failed") || detail.contains("unfolded temporal"),
+            "F-P1-MED-001: error detail must mention normalization failure (not DataFusion). \
+             This proves the error originated from the normalize guard, not from DataFusion \
+             receiving malformed SQL. Detail: {detail:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // F-P1-MED-002: SQL-mode `Ast::Sql(Select)` arm must error on normalize=None,
+    //               not silently revert to `query_str` (sibling of OBS-1 SqlPipe guard)
+    // -----------------------------------------------------------------------
+
+    /// F-P1-MED-002: When `PqlNormalizer::normalize` returns `None` for a SQL-mode
+    /// query, `execute_against_session` MUST return a structured `PrismError` rather
+    /// than silently reverting to `query_str` via `unwrap_or_else`.
+    ///
+    /// This mirrors `test_obs1_sqlpipe_normalize_succeeds_for_valid_queries` for the
+    /// `Ast::Sql(Select)` arm. The fix replaces
+    /// `PqlNormalizer::normalize(ast).unwrap_or_else(|| query_str.to_string())` with
+    /// `.ok_or_else(|| PrismError::QueryExecutionFailed{...})?` — consistent with the
+    /// OBS-1 fix already applied to the `Ast::SqlPipe` sibling arm.
+    ///
+    /// Test approach: verify that `PqlNormalizer::normalize` returns `Some` for all
+    /// well-formed SQL queries (so the error path is unreachable in production for valid
+    /// input). The complementary proof that the fallback was removed (not just guarded)
+    /// is provided by `test_f_p1_med001_bare_interval_rhs_produces_structured_equery_error`
+    /// above: if the `unwrap_or_else(query_str)` fallback were still present, the
+    /// bare-INTERVAL query would produce an opaque DataFusion SQL error (malformed SQL
+    /// passed through) instead of the structured normalization error.
+    #[test]
+    fn test_f_p1_med002_sql_mode_normalize_succeeds_for_valid_queries() {
+        // PqlNormalizer::normalize MUST return Some for any well-formed SQL query
+        // (Ast::Sql variant). If it ever returns None for a well-formed query,
+        // the hardened ok_or_else path in execute_against_session would correctly
+        // error rather than silently revert to query_str.
+        let queries = [
+            "SELECT * FROM crowdstrike_detections WHERE timestamp > '2026-01-01T00:00:00Z'",
+            "SELECT timestamp, severity FROM crowdstrike_detections WHERE timestamp > '2026-06-01T00:00:00Z' AND severity = 'HIGH'",
+            "SELECT * FROM crowdstrike_detections ORDER BY timestamp LIMIT 100",
+            "SELECT * FROM crowdstrike_detections LIMIT 5",
+            "SELECT count(*) FROM crowdstrike_detections GROUP BY severity",
+        ];
+
+        for q in &queries {
+            let ast = parse_and_plan(q).expect("well-formed SQL must parse");
+            let normalized = PqlNormalizer::normalize(&ast);
+            assert!(
+                normalized.is_some(),
+                "F-P1-MED-002: PqlNormalizer::normalize must return Some for well-formed SQL AST. \
+                 Returning None would trigger the ok_or_else error path in execute_against_session \
+                 (which is the correct behavior for invalid ASTs, but must not fire for valid ones). \
+                 Query: {q:?}"
+            );
+        }
+    }
 }

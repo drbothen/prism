@@ -1380,6 +1380,18 @@ impl PqlNormalizer {
         if Self::ast_has_both_quote_string(ast) {
             return None;
         }
+        // F-P1-MED-001 pre-check: abort if the AST contains any unfolded temporal expression
+        // (`Expr::Now`, `Expr::Interval`, `Expr::TimestampArithmetic`). These variants are
+        // only valid BEFORE `inject_now` constant-folds them into bare `Literal::Timestamp`
+        // values. If they survive into normalization, `normalize_expr` would emit an empty
+        // string for the affected sub-expression (the catch-all `_ => String::new()` arm),
+        // producing malformed SQL (e.g., `WHERE timestamp > `) that DataFusion receives
+        // without error — a silent corruption (SOUL.md #4). Returning `None` here causes the
+        // callers (`execute_against_session` for `Ast::Sql(Select)` and `Ast::SqlPipe`) to
+        // return a structured `PrismError::QueryExecutionFailed` instead. (ADR-044, BC-2.11.021)
+        if Self::ast_has_unfolded_temporal_expr(ast) {
+            return None;
+        }
         let s = match ast {
             Ast::Sql(stmt) => Self::normalize_sql_statement(stmt),
             Ast::Filter(filter) => Self::normalize_filter(filter),
@@ -1524,6 +1536,108 @@ impl PqlNormalizer {
     fn pipe_stage_has_both_quote_string(stage: &PipeStage) -> bool {
         match stage {
             PipeStage::Where(pred) => Self::predicate_has_both_quote_string(pred),
+            _ => false,
+        }
+    }
+
+    // ---- F-P1-MED-001: unfolded temporal expression detection ----
+    //
+    // Returns `true` if the AST contains any `Expr::Now`, `Expr::Interval`, or
+    // `Expr::TimestampArithmetic` that was NOT constant-folded by `inject_now`.
+    // Follows the same low-blast-radius pre-check pattern as `ast_has_both_quote_string`
+    // (SEC-001): avoids changing `normalize_expr`'s return type across 13 call sites.
+    //
+    // Scope: SQL-mode WHERE/HAVING/SELECT/GROUP BY/ORDER BY/JOIN ON; Pipe WHERE stage.
+    // Bare Filter mode predicates also traverse through `predicate_has_unfolded_temporal`.
+
+    fn ast_has_unfolded_temporal_expr(ast: &Ast) -> bool {
+        match ast {
+            Ast::Filter(f) => Self::predicate_has_unfolded_temporal(&f.predicate),
+            Ast::Sql(stmt) => Self::sql_statement_has_unfolded_temporal(stmt),
+            Ast::Pipe(pipe) => pipe
+                .stages
+                .iter()
+                .any(Self::pipe_stage_has_unfolded_temporal),
+            _ => false,
+        }
+    }
+
+    fn expr_has_unfolded_temporal(expr: &Expr) -> bool {
+        match expr {
+            // These three variants are unfolded temporal expressions.
+            Expr::Now | Expr::Interval(_) | Expr::TimestampArithmetic { .. } => true,
+            // Recurse into compound expressions.
+            Expr::Compare { lhs, rhs, .. } => {
+                Self::expr_has_unfolded_temporal(lhs) || Self::expr_has_unfolded_temporal(rhs)
+            }
+            Expr::Logical { lhs, rhs, .. } => {
+                Self::expr_has_unfolded_temporal(lhs) || Self::expr_has_unfolded_temporal(rhs)
+            }
+            Expr::Not(inner) => Self::expr_has_unfolded_temporal(inner),
+            Expr::FuncCall(fc) => match fc {
+                FuncCall::Aggregate { args, .. } => {
+                    args.iter().any(Self::expr_has_unfolded_temporal)
+                }
+                FuncCall::Scalar { args, .. } => args.iter().any(Self::expr_has_unfolded_temporal),
+                FuncCall::Window { .. } => false,
+                _ => false,
+            },
+            // Literal, Field, VirtualField, In, InSubquery, Star — no temporal exprs.
+            _ => false,
+        }
+    }
+
+    fn predicate_has_unfolded_temporal(pred: &Predicate) -> bool {
+        match pred {
+            Predicate::Compare { lhs, rhs, .. } => {
+                Self::expr_has_unfolded_temporal(lhs) || Self::expr_has_unfolded_temporal(rhs)
+            }
+            Predicate::Logical { predicates, .. } => {
+                predicates.iter().any(Self::predicate_has_unfolded_temporal)
+            }
+            Predicate::Not(inner) => Self::predicate_has_unfolded_temporal(inner),
+            Predicate::InSubquery { subquery, .. } => {
+                Self::sql_query_has_unfolded_temporal(subquery)
+            }
+            _ => false,
+        }
+    }
+
+    fn sql_statement_has_unfolded_temporal(stmt: &SqlStatement) -> bool {
+        match stmt {
+            SqlStatement::Select(q) => Self::sql_query_has_unfolded_temporal(q),
+            _ => false,
+        }
+    }
+
+    fn sql_query_has_unfolded_temporal(q: &SqlQuery) -> bool {
+        let where_hit = q
+            .where_
+            .as_ref()
+            .is_some_and(Self::predicate_has_unfolded_temporal);
+        let having_hit = q
+            .having
+            .as_ref()
+            .is_some_and(Self::predicate_has_unfolded_temporal);
+        let select_hit = q.select.items.iter().any(|item| match item {
+            SelectItem::Expr { expr, .. } => Self::expr_has_unfolded_temporal(expr),
+            _ => false,
+        });
+        let group_hit = q.group_by.iter().any(Self::expr_has_unfolded_temporal);
+        let order_hit = q
+            .order_by
+            .iter()
+            .any(|oe| Self::expr_has_unfolded_temporal(&oe.expr));
+        let join_hit = q
+            .joins
+            .iter()
+            .any(|j| Self::expr_has_unfolded_temporal(&j.on));
+        where_hit || having_hit || select_hit || group_hit || order_hit || join_hit
+    }
+
+    fn pipe_stage_has_unfolded_temporal(stage: &PipeStage) -> bool {
+        match stage {
+            PipeStage::Where(pred) => Self::predicate_has_unfolded_temporal(pred),
             _ => false,
         }
     }

@@ -883,7 +883,11 @@ pub async fn run_materialization_pipeline(
 /// Production callers use `run_materialization_pipeline` which calls this internally.
 pub async fn execute_against_session(
     session_ctx: &SessionContext,
-    query_str: &str,
+    // F-P1-MED-002: `_query_str` was previously used by the `Ast::Sql(Select)` fallback
+    // `unwrap_or_else(|| query_str.to_string())`. That fallback is replaced by
+    // `ok_or_else(|| PrismError::QueryExecutionFailed{...})?` — consistent with the
+    // OBS-1 fix on the `Ast::SqlPipe` arm. The parameter is retained for API stability.
+    _query_str: &str,
     ast: &crate::ast::Ast,
     table_batches: std::collections::HashMap<String, Vec<RecordBatch>>,
 ) -> Result<Vec<RecordBatch>, PrismError> {
@@ -906,11 +910,25 @@ pub async fn execute_against_session(
             //      different syntax), eliminating the parsing ambiguity.
             //   3. Cross-mode consistency: SQL/filter/pipe all see the same pinned instant.
             //
-            // Fall back to `query_str` ONLY if normalization fails (e.g. the query
-            // contains AST variants not yet handled by PqlNormalizer). This should not
-            // occur in production for well-formed SQL-mode queries.
-            let plan_pinned_sql =
-                crate::ast::PqlNormalizer::normalize(ast).unwrap_or_else(|| query_str.to_string());
+            // F-P1-MED-002 / OBS-1 sibling hardening: replace the silent `unwrap_or_else`
+            // fallback with a structured `ok_or_else` error. `normalize` returns `None`
+            // when the AST contains unfolded temporal expressions (Expr::Now /
+            // Expr::Interval / Expr::TimestampArithmetic — detected by the
+            // `ast_has_unfolded_temporal_expr` pre-check added by F-P1-MED-001).
+            // The old `unwrap_or_else(|| query_str.to_string())` would silently hand
+            // malformed SQL to DataFusion; `ok_or_else` returns a structured
+            // PrismError::QueryExecutionFailed instead. Consistent with the OBS-1 fix
+            // already applied to the sibling `Ast::SqlPipe` arm. (BC-2.11.021, ADR-044)
+            let plan_pinned_sql = crate::ast::PqlNormalizer::normalize(ast).ok_or_else(|| {
+                PrismError::QueryExecutionFailed {
+                    detail: "SQL normalization failed: query contains unfolded temporal \
+                             expression (Expr::Now / Expr::Interval / \
+                             Expr::TimestampArithmetic). This indicates inject_now did not \
+                             fully constant-fold the AST before normalization. Retry the \
+                             query or report to support."
+                        .to_string(),
+                }
+            })?;
             // Execute the plan-pinned SQL string via DataFusion.
             let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
                 tracing::error!(error = %e, "DataFusion SQL planning error");
