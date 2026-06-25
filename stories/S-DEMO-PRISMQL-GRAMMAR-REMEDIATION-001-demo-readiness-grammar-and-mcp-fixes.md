@@ -49,7 +49,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.5"
+version: "1.6"
 updated: "2026-06-25"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
@@ -128,8 +128,11 @@ risk_mitigations: []
 crates_touched:
   - prism-query
   # Grammar: ast.rs (Ast::SqlPipe, Expr::Now/Interval/TimestampArithmetic), filter_parser.rs
-  # (mode detection tristate, expression parser extension), engine.rs (SqlPipe execution arm,
-  # plan-time NOW injection, FORBID-BOTH check), error_recovery.rs (mode-bridge diagnostic),
+  # (mode detection tristate, expression parser extension),
+  # lib.rs `inject_now` + `plan_sqlpipe_query` (plan-time NOW injection, FORBID-BOTH check),
+  # materialization.rs `run_materialization_pipeline` Step 1a/1b (wires both plan-time gates),
+  # execute_against_session `Ast::SqlPipe` arm in materialization.rs (execution lowering),
+  # error_recovery.rs (mode-bridge diagnostic),
   # error_recovery.rs (normalized_pql rewrite STRING producer); PrismError::RedundantRowLimit
   # NOTE (D-1110): the normalized_pql FIELD lives on StructuredErrorFields in prism-mcp, not on
   # a prism-query struct. There is no `ParseErrorDetails` type in the codebase.
@@ -619,9 +622,9 @@ if it checks the aggregates section).
 | Mode detection tristate (`SqlPipeMode`) | `crates/prism-query/src/filter_parser.rs` | Pure |
 | `build_expr_parser` — temporal grammar extension | `crates/prism-query/src/filter_parser.rs` | Pure |
 | SQL→Pipe composition combinator `parse_sql_pipe` | `crates/prism-query/src/filter_parser.rs` | Pure |
-| `QueryEngine::execute` — `Ast::SqlPipe` arm | `crates/prism-query/src/engine.rs` | Effectful |
-| `plan_query` — NOW() constant injection (in PrismQL's own AST→plan lowering) | `crates/prism-query/src/engine.rs` | Pure |
-| FORBID-BOTH plan-time validator | `crates/prism-query/src/engine.rs` | Pure |
+| `execute_against_session` — `Ast::SqlPipe` execution arm (CTE + pipe SQL lowering) | `crates/prism-query/src/materialization.rs` | Effectful |
+| `inject_now` — NOW() constant injection (replaces `Expr::Now` with `Literal::Timestamp`); called from `run_materialization_pipeline` Step 1a | `crates/prism-query/src/lib.rs` | Pure |
+| `plan_sqlpipe_query` — FORBID-BOTH E-QUERY-040 plan-time check; called from `run_materialization_pipeline` Step 1b | `crates/prism-query/src/lib.rs` | Pure |
 | `error_recovery.rs` — mode-bridge heuristic (D1/D2) + `normalized_pql` rewrite string | `crates/prism-query/src/error_recovery.rs` | Pure |
 | `StructuredErrorFields` — add `normalized_pql: Option<String>` (NOT `ParseErrorDetails`/prism-query; D-1110 correction) | `crates/prism-mcp/src/error_mapping.rs` | Pure |
 | `PrismError::RedundantRowLimit { sql_limit: u64, pipe_limit: u64 }` | `crates/prism-core/src/error.rs` | Pure |
@@ -873,7 +876,8 @@ From CLAUDE.md conventions:
 |------|--------|-------|
 | `crates/prism-query/src/ast.rs` | Modify | Add `Ast::SqlPipe(SqlPipeQuery)`, `Expr::Now`, `Expr::Interval(Duration)`, `Expr::TimestampArithmetic` |
 | `crates/prism-query/src/filter_parser.rs` | Modify | Mode detection tristate, `build_expr_parser` extension, `parse_sql_pipe` |
-| `crates/prism-query/src/engine.rs` | Modify | `Ast::SqlPipe` execution arm, FORBID-BOTH check, NOW() planning-time injection |
+| `crates/prism-query/src/materialization.rs` | Modify | `run_materialization_pipeline` Step 1a (`inject_now` call) + Step 1b (`plan_sqlpipe_query` call); `execute_against_session` `Ast::SqlPipe` execution arm (shipped — wiring sites for new grammar; no net-new logic in this file beyond Step 3b bare-filter for `Ast::Filter`) |
+| `crates/prism-query/src/lib.rs` | Modify | `inject_now` function (NOW() constant-folding traversal) + `plan_sqlpipe_query` function (FORBID-BOTH E-QUERY-040 check) + `parse_and_plan` (public planning API) |
 | `crates/prism-query/src/error_recovery.rs` | Modify | Mode-bridge D1/D2 heuristic, enrich-position error messages |
 | `crates/prism-query/src/error_recovery.rs` | Modify | Produce `normalized_pql` rewrite STRING on D1 mode-bridge (no struct named `ParseErrorDetails` exists — D-1110) |
 | `crates/prism-mcp/src/error_mapping.rs` | Modify | Add `normalized_pql: Option<String>` field to `StructuredErrorFields` + update `new`/builder; populate in `QueryParseFailed` arm |
@@ -900,6 +904,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | td-vsdd-091-location-pin-remediation | 2026-06-25 | story-writer | TD-VSDD-091 anti-volatile-pin compliance. Replaced five stale `engine.rs` file-location hints that described FORBID-BOTH and NOW()-injection wiring. Verified against shipped code in worktree: `inject_now` lives in `lib.rs` (called from `run_materialization_pipeline` Step 1a in `materialization.rs`); `plan_sqlpipe_query` lives in `lib.rs` (called from Step 1b); `execute_against_session` `Ast::SqlPipe` arm lives in `materialization.rs`. Changed references: (1) `crates_touched` frontmatter comment — replaced `engine.rs (SqlPipe execution arm, plan-time NOW injection, FORBID-BOTH check)` with function-name anchors for `inject_now` / `plan_sqlpipe_query` / `run_materialization_pipeline` Step 1a/1b / `execute_against_session`; (2) Architecture Mapping rows — replaced three `engine.rs` rows with `materialization.rs::execute_against_session`, `lib.rs::inject_now`, `lib.rs::plan_sqlpipe_query`; (3) File Structure — replaced one `engine.rs` row with two rows for `materialization.rs` and `lib.rs`. Preserved: `engine.rs::normalize_pql` reference at AC-010 and Previous Story Intelligence (accurate — that function IS in engine.rs). No AC count / BC trace / scope change. |
 | 1.5 | bc-2.11.023-d1-d2-coverage-gap-closure | 2026-06-25 | story-writer | HIGH-1 + HIGH-2 adversary gap closure. HIGH-1: AC-009 (mode-bridge D1) tightened — now asserts all three verbatim BC-2.11.023 §D1 substrings: (a) stage-keyword enumeration `(enrich, where, limit, sort, stats, dedup, fields)`, (b) numbered alternatives `1. SQL+pipe composition: …` / `2. Pipe mode only: …`, (c) reference pointer `See prismql://reference for the complete grammar.`; negative control (no raw Chumsky token list) added. HIGH-2: AC-027 added (new) — D2 mode-bridge diagnostic: pipe-mode query with uppercase SQL clause keyword in stage position (e.g. `FROM t \| WHERE …` or `\| ORDER BY …`) produces verbatim BC-2.11.023 §D2 message; positive and negative controls specified; Red Gate test `test_BC_2_11_023_mode_bridge_d2_sql_keyword_in_pipe_position` added. Bookkeeping: `acceptance_criteria_count` 26→27, `red_gate_tests` 19→20, BC-2.11.023 frontmatter comment updated with AC-027, Tasks §Phase 1 Area D list extended, Phase 5 steps updated to include D2 heuristic, Token Budget table updated (19→20 Red Gate tests), Area F header note updated (19→20). Changelog row v1.0 historical count unchanged (records original state). |
 | 1.4 | version-pin-sync-MED-1 | 2026-06-25 | story-writer | Version-pin sync (MED-1 / POL-23 sibling-sweep gap closure). Behavioral Contracts table: BC-2.11.023 pin updated `v1.1 → v1.2` and BC-2.10.015 pin updated `v1.0 → v1.1` to match current BC frontmatter versions. POL-25 sweep confirmed no other live-narrative pins of these BCs at the old versions exist outside §Changelog historical rows (TD-VSDD-091-exempt). No AC/scope/code change. |
 | 1.3 | story-writer-spec-sync-D1326 | 2026-06-24 | story-writer | Spec-sync burst (D-1326 adjudication). 4 changes: (1) **AC-019 re-scoped** — BLOCKER-001 root cause adjudicated as connectivity connect-timeout (PluginKvStore is in-memory/fresh per `prism start`, making cross-session KV staleness impossible; dead `reset_token_cache` + test removed at code HEAD 3fa69207); runtime fix deferred to S-RESILIENCE-FEDERATED-001 (per-sensor TOML timeouts, boot-degraded, retry-with-backoff); demo unblocked via runbook DTU health-check Fix B; wrong BC citation corrected (BC-2.06.001 "TOML Config Loading" → BC-2.01.005 "CrowdStrike OAuth2 Authentication and Two-Step Fetch"). (2) **OBS-3** — File Structure `-32602 INVALID_PARAMS` arm path corrected from `crates/prism-core/src/error_mapping.rs` to `crates/prism-mcp/src/error_mapping.rs` (MCP error mapping lives in prism-mcp; confirmed by `map_prism_error` function location). (3) **BC-2.11.023 version** — v1.0 → v1.1 in Behavioral Contracts table (PO bumped in same burst). (4) **S-RESILIENCE-FEDERATED-001 stub** registered (day-2 resilience epic anchor). No AC count / BC list / Red Gate test count change. |
