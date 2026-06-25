@@ -1423,6 +1423,9 @@ pub fn build_reference_content(
          | `MISSING` | Field is absent or null | `MISSING assigned_to` |\n\
          | `IS NULL` / `IS NOT NULL` | Null check | `resolved_at IS NULL` |\n\
          | `AND`, `OR`, `NOT` | Logical combinators | `severity = 'HIGH' AND NOT MISSING src_ip` |\n\n\
+         **Null semantics for JSON-list fields:** \
+         `IS NOT NULL` on a JSON-list field returns `true` if the field is present and non-null \
+         (empty list `[]` is NOT null; `null` value is null).\n\n\
          **Aggregate functions** (for `| stats` and SQL `SELECT`):\n\n\
          `count()`, `sum(field)`, `avg(field)`, `min(field)`, `max(field)`, \
          `percentile(field, p)`, `distinct_count(field)`.\n\n\

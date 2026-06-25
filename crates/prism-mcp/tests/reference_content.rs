@@ -360,6 +360,36 @@ fn test_bc_2_11_022_registry_parity() {
     }
 }
 
+// ─── AC-023: IS NOT NULL JSON-list semantics note ─────────────────────────────
+
+/// AC-023 / GRAMMAR-006 — `build_reference_content(None)` must include the
+/// verbatim JSON-list null-semantics note in the Operators section.
+///
+/// The note text is: "`IS NOT NULL` on a JSON-list field returns `true` if the
+/// field is present and non-null (empty list `[]` is NOT null; `null` value is null)."
+///
+/// This is a load-bearing test: the note describes actual DataFusion / Arrow
+/// runtime behavior (JSON columns are stored as Utf8; `Value::Null → Arrow null`,
+/// empty array `[]` → serialized as non-null string `"[]"`), so the note must be
+/// present and accurate. Verified against `spec_driven_adapter.rs`
+/// `build_column_array` (Null branch → None; Array branch → `Some("[]")`)
+/// and `column_type_to_arrow` (ColumnType::Json → DataType::Utf8).
+#[test]
+fn test_bc_2_11_022_ac023_json_list_is_not_null_note() {
+    let content = build_reference_content(None);
+
+    // AC-023 verbatim note substring — the note must appear in the reference content.
+    let note =
+        "`IS NOT NULL` on a JSON-list field returns `true` if the field is present and non-null \
+                (empty list `[]` is NOT null; `null` value is null).";
+    assert!(
+        content.contains(note),
+        "AC-023 GRAMMAR-006: build_reference_content must contain IS NOT NULL JSON-list \
+         semantics note; note not found in content (first 800 chars): {:?}",
+        &content[..content.len().min(800)]
+    );
+}
+
 // ─── CRIT-003 residual: plan-rejection gate ───────────────────────────────────
 
 /// CRIT-003 residual / BC-2.11.022 AC-007 — every `NegativeE040` entry in
