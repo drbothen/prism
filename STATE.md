@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.965"
+version: "7.966"
 producer: state-manager
-timestamp: 2026-06-25T07:00:00Z
+timestamp: 2026-06-25T08:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1336 (2026-06-25). LOCAL cascade Pass 1 (frozen HEAD 1394ce22) — CONVERGING; CLEAN(strict)=NO; 0 CRIT/0 HIGH/2 MED. Adversary agentId aa3b24a2bccf0ffa9. Severity trending DOWN: 2 CRIT → 3 HIGH → 3 HIGH → 0 CRIT/0 HIGH/2 MED. Both MED share one root (PqlNormalizer::normalize_expr incomplete temporal coverage): F-P1-MED-001 catch-all '_ => String::new()' silently drops Expr::Now/Interval/TimestampArithmetic → MALFORMED SQL → opaque DataFusion error (SOUL #4); fix: explicit temporal arms in normalize_expr → structured E-QUERY error. F-P1-MED-002 OBS-1 .ok_or_else hardening landed on Ast::SqlPipe arm NOT sibling Ast::Sql(Select) arm (materialization.rs) — TD-VSDD-060 partial-fix gap; fix: apply same .ok_or_else to SQL-mode arm. VERIFIED GREEN this pass: F-HIGH-002 plain-string emission all modes (BC-2.11.021/ADR-044); F-HIGH-001 discriminating + negative-control temporal tests; constant-fold + push-down; OBS-1 SqlPipe arm structured-error; FORBID-BOTH; GRAMMAR-004; SAP-1; AC-019/reset_token_cache removal; non-exhaustive 87; just check GREEN 1112 prism-query. Fix-burst dispatched (single burst, both MED, shared root). 3-CLEAN streak 0/3 (frozen-HEAD rule: fix push resets; re-gate on new HEAD). Demo target FROZEN. develop_head UNCHANGED 903c8fcb. STATE v7.964→v7.965. PRIOR: D-1335 (2026-06-25) SPEC-FIRST adjudication — cascade diagnosis INVERTED; code-aligns-to-spec fix-burst dispatched; STATE v7.963→v7.964."
+current_step: "D-1337 (2026-06-25). SESSION WRAP — RESUME SNAPSHOT D-1337 authored (supersedes D-1331). e518d96c fix-burst closed F-P1-MED-001 (unfolded-temporal guard → E-QUERY-034) + F-P1-MED-002 (Ast::Sql arm ok_or_else hardened, TD-VSDD-060 sibling). Temporal grammar fully fixed + SPEC-ALIGNED: plan-time pinning (D-1333 Option A); constant-fold inject_now; plain-string literal per BC-2.11.021/ADR-044 D4 (OCSF Datetime = Arrow Utf8); FORBID-BOTH plan-time data-independent; OBS-1 fallbacks on both AST arms; unfolded-temporal guard → E-QUERY-034. Groups 1/2/3 all GREEN. 3-CLEAN streak 0/3 on FROZEN HEAD e518d96c (none taken on this HEAD yet). just check GREEN at e518d96c (1114 prism-query; non-exhaustive 87/87). Agents in flight: NONE. NEXT: devops re-confirm just check + fmt-canonical on e518d96c → LOCAL adversary Pass 1. Demo target FROZEN. develop_head UNCHANGED 903c8fcb. Track B unchanged (begins post-T14). STATE v7.965→v7.966. PRIOR: D-1336 (2026-06-25) LOCAL cascade Pass 1 frozen HEAD 1394ce22 CONVERGING 0/0/2 MED; both MED closed in e518d96c fix-burst."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-25 (D-1336 LOCAL cascade Pass 1 frozen HEAD 1394ce22 CONVERGING — 0 CRIT/0 HIGH/2 MED; both MED share root PqlNormalizer::normalize_expr catch-all gap; fix-burst dispatched; 3-CLEAN streak 0/3; STATE v7.965)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-25 (D-1337 SESSION WRAP — RESUME SNAPSHOT D-1337; e518d96c fix-burst closed F-P1-MED-001/002; temporal grammar fully fixed + SPEC-ALIGNED; Groups 1/2/3 GREEN; 3-CLEAN streak 0/3 on FROZEN HEAD e518d96c; NEXT = re-confirm just check + LOCAL Pass 1; STATE v7.966)
 
 ## Active Objective (North Star)
 
@@ -423,11 +423,11 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1331 — 2026-06-24; STATE v7.960)
+## Session Resume Checkpoint (D-1337 — 2026-06-25; STATE v7.966)
 
-**STATE v7.960. CURRENT POSITION: D-1331 session wrap. Matured Vision & Day-2 Requirements doc committed (.factory/specs/matured-vision-day2-requirements.md, 828 lines). SESSION-HANDOFF §RESUME SNAPSHOT D-1331 two-track authored (supersedes D-1322). TRACK A: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.3; feature worktree HEAD = run `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` (fix-burst ab4bc0e839a8469fa in flight). LOCAL cascade Pass 1 on 3fa69207 NOT CLEAN — 2 CRIT + 1 HIGH. 3-CLEAN streak 0/3. Demo target FROZEN. TRACK B: day-2 morph begins post-T14; source-of-truth = matured-vision-day2-requirements.md. SESSION-HANDOFF.md §RESUME SNAPSHOT D-1331 is the zero-context restart authority.**
+**STATE v7.966. CURRENT POSITION: D-1337 session wrap. SESSION-HANDOFF §RESUME SNAPSHOT D-1337 authored (supersedes D-1331). FROZEN HEAD e518d96c. e518d96c fix-burst closed F-P1-MED-001/002 — temporal grammar fully fixed + SPEC-ALIGNED. Groups 1/2/3 GREEN. 3-CLEAN streak 0/3 on e518d96c (none taken yet on this HEAD). Agents in flight: NONE. SESSION-HANDOFF.md §RESUME SNAPSHOT D-1337 is the zero-context restart authority.**
 
-**TRACK A — DEMO-CRITICAL (ACTIVE):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.3 (26 ACs, 8 BCs). Worktree `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`. HEAD = run `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` (fix-burst ab4bc0e839a8469fa was in flight at session wrap). LOCAL cascade Pass 1 on 3fa69207 = NOT CLEAN: CRIT-001 NOW()/INTERVAL inject_now unwired (SQL-mode + SqlPipe head), CRIT-002 test_crit1b paper-test (filter-mode only), HIGH-001 FORBID-BOTH bypassed on 0-row sensor return. Verified clean: SqlPipe exec happy-path, GRAMMAR-004, normalized_pql, mode-bridge D1, AC-019 deferral, SAP-1/AD-017, non-exhaustive 87. 3-CLEAN streak 0/3. NEXT: await fix-burst → just check workspace-green → re-freeze new HEAD → LOCAL Pass 1 re-run → 3-CLEAN → per-AC demo → push → PR (targets develop) → PR-LEVEL 3-CLEAN → CI → squash-merge → re-run pre-flight demo audit → T13 capstone → T14 recording.
+**TRACK A — DEMO-CRITICAL (ACTIVE):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.3 (26 ACs, 8 BCs). Worktree `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001` at FROZEN HEAD `e518d96c`. Temporal grammar fully fixed: plan-time pinning (D-1333 Option A); constant-fold inject_now; plain-string per BC-2.11.021/ADR-044 D4; FORBID-BOTH plan-time; OBS-1 both AST arms; unfolded-temporal guard → E-QUERY-034. just check GREEN (1114 prism-query; non-exhaustive 87/87). 3-CLEAN streak 0/3. NEXT: (1) devops re-confirm just check + fmt-canonical on e518d96c; (2) LOCAL adversary Pass 1; (3) fix any findings; (4) 3-CLEAN → per-AC demo → push → PR → PR-LEVEL 3-CLEAN → CI → squash-merge → pre-flight demo re-audit → T13 capstone → T14 recording.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** source-of-truth = `.factory/specs/matured-vision-day2-requirements.md` (committed D-1331). Demo target FROZEN/UNCHANGED; morph begins post-T14. Epics: E-CACHE-DEMAND-001, E-CENTRAL-TRANSPORT-001, E-CENTRAL-AUTHZ-001, E-CENTRAL-OPS-001, S-RESILIENCE-FEDERATED-001 (stub registered D-1329; BCs not authored), Prism-Satellite, lake-connector. ADRs ADR-047..054. Brief reframe GATED on human sign-off.
 
@@ -435,15 +435,15 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 
 **DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 903c8fcb at 5504c152. New branches must cut from origin/develop (903c8fcb). ADVISORY SHA-currency hook FAIL (non-blocking per D-1319+).
 
-**PENDING HUMAN DECISIONS:** (1) brief reframe sign-off (day-2, federated-query + smart-caching SIEM/lake replace-or-federate + central + AI-native); (2) local develop /wrap-commit reconciliation.
+**PENDING HUMAN DECISIONS:** (1) local develop /wrap-commit reconciliation (ba1108d2 vs 903c8fcb); (2) brief reframe sign-off (day-2, federated-query + smart-caching SIEM/lake replace-or-federate + central + AI-native); (3) EC-11 namespace collisions (separate maintenance burst).
 
-**STATE INDICES:** develop_head 903c8fcb (origin/develop) | local develop ba1108d2 (LOCAL-ONLY — diverged) | BC-INDEX v7.12 | VP-INDEX v1.80 | STORY-INDEX v2.472 | ARCH-INDEX v2.145 | error_taxonomy 1.97 | active_contracts 246 | draft_contracts 5 | bc_count_corrected 264 | total_stories 212 | CLAUDE.md non-exhaustive=84 on develop (worktree=86). STATE v7.960.
+**STATE INDICES:** develop_head 903c8fcb (origin/develop) | local develop ba1108d2 (LOCAL-ONLY — diverged) | BC-INDEX v7.12 | VP-INDEX v1.80 | STORY-INDEX v2.472 | ARCH-INDEX v2.145 | error_taxonomy 1.97 | active_contracts 246 | draft_contracts 5 | bc_count_corrected 264 | total_stories 212 | CLAUDE.md non-exhaustive=84 on develop (worktree=87). STATE v7.966.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1331 (authoritative zero-context restart; supersedes D-1322). STATE v7.960.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1337 (authoritative zero-context restart; supersedes D-1331). STATE v7.966.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `903c8fcb`.
-3. `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` → get current HEAD (do not hardcode; fix-burst ab4bc0e839a8469fa may have advanced it).
-4. `gh pr list --state open --base develop` → expect NONE (or fix-burst PR if it pushed).
-5. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) reconcile local develop ba1108d2 divergence.
+3. `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` → expect `e518d96c` (FROZEN; no agents in flight).
+4. `gh pr list --state open --base develop` → expect NONE.
+5. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off.
 6. Apply DO-NOT-REFLAG and convergence rules from SESSION-HANDOFF. Autonomy D-989+D-1090 active.
