@@ -266,14 +266,17 @@ fn test_bc_2_11_021_now_error_cases() {
 
 // ─── Area D: BC-2.11.023 — Three-mode correctness + mode-bridge (ADR-046) ───
 
-/// AC-009 / BC-2.11.023 postcondition (ADR-046 §D1) — mode-bridge diagnostic.
+/// AC-009 / BC-2.11.023 postcondition (ADR-046 §D1) — mode-bridge diagnostic (tightened v1.5).
 ///
 /// `SELECT * FROM t | INVALID_KEYWORD` triggers the mode-bridge D1 heuristic.
-/// Assert error message contains "pipe stages are not valid after a SQL SELECT query in SQL mode"
-/// (BC-2.11.023 AC-009 verbatim substring).
+/// Asserts ALL THREE required substrings from BC-2.11.023 §D1 (verbatim, POL-24):
+///   (a) `(enrich, where, limit, sort, stats, dedup, fields)` — stage-keyword enumeration
+///   (b) `1. SQL+pipe composition:` and `2. Pipe mode only:` — numbered alternatives
+///   (c) `See prismql://reference for the complete grammar.` — reference pointer
+/// AND a negative control: no raw Chumsky token dump (`expected one of`).
 ///
-/// Red Gate: the SQL parser produces a raw Chumsky token-expectation dump today,
-/// not a mode-bridge message. The substring assertion fails RED.
+/// Red Gate: the previous message omitted (a), (b), and (c). Strengthened assertions
+/// fail RED until the verbatim BC §D1 message is in place.
 #[test]
 fn test_bc_2_11_023_mode_bridge_d1_sql_pipe_diagnostic() {
     let query = "SELECT * FROM t | INVALID_KEYWORD";
@@ -286,12 +289,31 @@ fn test_bc_2_11_023_mode_bridge_d1_sql_pipe_diagnostic() {
         .collect::<Vec<_>>()
         .join(" | ");
 
+    // (a) Stage-keyword enumeration must be present verbatim (BC-2.11.023 §D1, POL-24).
     assert!(
-        combined_message.contains("pipe stages are not valid after a SQL SELECT query"),
-        "BC-2.11.023: mode-bridge D1 message must contain \
-         'pipe stages are not valid after a SQL SELECT query'; got: {combined_message}"
+        combined_message.contains("(enrich, where, limit, sort, stats, dedup, fields)"),
+        "BC-2.11.023 AC-009(a): mode-bridge D1 message must contain \
+         '(enrich, where, limit, sort, stats, dedup, fields)'; got: {combined_message}"
     );
-    // Must NOT be a raw Chumsky token dump (these contain "expected one of").
+    // (b) Numbered alternatives — SQL+pipe composition option.
+    assert!(
+        combined_message.contains("1. SQL+pipe composition:"),
+        "BC-2.11.023 AC-009(b): mode-bridge D1 message must contain \
+         '1. SQL+pipe composition:'; got: {combined_message}"
+    );
+    // (b) Numbered alternatives — Pipe mode only option.
+    assert!(
+        combined_message.contains("2. Pipe mode only:"),
+        "BC-2.11.023 AC-009(b): mode-bridge D1 message must contain \
+         '2. Pipe mode only:'; got: {combined_message}"
+    );
+    // (c) Reference pointer.
+    assert!(
+        combined_message.contains("See prismql://reference for the complete grammar."),
+        "BC-2.11.023 AC-009(c): mode-bridge D1 message must contain \
+         'See prismql://reference for the complete grammar.'; got: {combined_message}"
+    );
+    // Negative control: Must NOT be a raw Chumsky token dump.
     assert!(
         !combined_message.contains("expected one of"),
         "BC-2.11.023: mode-bridge D1 must NOT produce a raw Chumsky dump; got: {combined_message}"

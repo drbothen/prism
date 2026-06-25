@@ -234,12 +234,17 @@ impl PrismQlParser {
             let sql_result = parse_sql_internal(input, limits);
             return match sql_result {
                 ok @ Ok(_) => ok,
-                Err(_errs) if contains_unquoted_pipe(trimmed) => Err(vec![ParseError::new(
-                    find_unquoted_pipe_offset(trimmed).unwrap_or(0),
-                    "E-QUERY-001: parse error near '|': pipe stages are not valid after \
-                         a SQL SELECT query in SQL mode. To use pipe stages, use SqlPipe mode \
-                         (SELECT … FROM t | stage …) or pure Pipe mode (FROM t | stage …).",
-                )]),
+                Err(_errs) if contains_unquoted_pipe(trimmed) => {
+                    // BC-2.11.023 §D1 — verbatim mode-bridge message (POL-24).
+                    Err(vec![ParseError::new(
+                        find_unquoted_pipe_offset(trimmed).unwrap_or(0),
+                        "E-QUERY-001: parse error near '|': pipe stages are not valid after a SQL SELECT query in SQL mode.\n\
+                         To use pipe stages (enrich, where, limit, sort, stats, dedup, fields), use one of:\n\
+                           1. SQL+pipe composition:  SELECT <cols> FROM <table> | <pipe_stage> \u{2026}\n\
+                           2. Pipe mode only:        FROM <table> | where <predicate> | <stage> \u{2026}\n\
+                         See prismql://reference for the complete grammar.",
+                    )])
+                }
                 err => err,
             };
         }
