@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.963"
+version: "7.964"
 producer: state-manager
-timestamp: 2026-06-25T05:00:00Z
+timestamp: 2026-06-25T05:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 4500
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1334 (2026-06-25). LOCAL cascade Pass 1 (frozen HEAD a1c06e38) — CLEAN(strict)=NO; 0 CRIT, 3 HIGH: F-HIGH-002 Option-A SQL-mode fix routed through PqlNormalizer (round-trip PrismQL emitter) NOT DataFusion-SQL emitter — emits bare string Literal::Timestamp, not TIMESTAMP '<iso>' — TYPE MISMATCH vs production OCSF Datetime (epoch-millis i64); F-HIGH-003 PqlNormalizer re-emission routes PrismQL-only operators (CONTAINS/=~/IN CIDR/HAS/Duration) into DataFusion-incompatible SQL; F-HIGH-001 plan-pinning tests NON-LOAD-BEARING (test_high002_e2e_wiring_covered_by_high003_integration_tests = no-op marker; unit tests use Arrow Utf8 columns — pass whether or not pinning happens; no negative control — TD-VSDD-059 paper-fix). VERIFIED CLEAN: FORBID-BOTH data-independence (EmptyVecAdapter), sqlpipe_to_executable_sql signature sweep (TD-VSDD-060), SAP-1 (pipe.sql_lowering/planning_error reuse BC-2.16.002 rows 178/179), AC-019 deferral + reset_token_cache removal clean, non-exhaustive 87, no prod unwrap/expect/println. OBS-1 SqlPipe defensive fallback silently reverts to runtime-NOW if normalize returns None. OBS-5 [process-gap]: no-op marker test deferring proof to non-discriminating tests = recurring paper-fix vector. FIX ROUTED: implementer in flight — investigate OCSF Datetime Arrow materialized type; targeted substitution of NOW()-INTERVAL sub-expression only (NOT whole-query PqlNormalizer); verify pipe path type-match (all current tests use Utf8 — may be latently broken against production columns); tests against production-shaped columns with discriminating + negative-control; OBS-1 fallback errors instead of silent revert; if temporal filtering fundamentally broken against production column type → implementer STOPS and reports for architecture decision. 3-CLEAN streak 0/3 (frozen-HEAD rule: fix push resets; re-gate on new HEAD). Demo target FROZEN. develop_head UNCHANGED 903c8fcb. STATE v7.962→v7.963. PRIOR: D-1333 (2026-06-25). PLAN-TIME PINNING AFFIRMED — HUMAN DECISION. BC-2.11.021/ADR-044 HELD; Option A accepted; constant-fold fix-burst (HEAD 92cbb9ce→a1c06e38; just check GREEN 4908+) implements Option A. STATE v7.961→v7.962."
+current_step: "D-1335 (2026-06-25). SPEC-FIRST adjudication — cascade diagnosis INVERTED; code-aligns-to-spec fix dispatched. Architect adjudication (agentId a5ecbe8d4d9af7fd2): (a) CANONICAL materialized column type for OCSF Datetime = Arrow DataType::Utf8 (ISO-8601 string) per spec_driven_adapter.rs::column_type_to_arrow — SPEC-COMPLIANT; i64 epoch-millis path in prism-ocsf/src/mappers/spec_driven.rs is UNUSED legacy OcsfNormalizer; (b) CANONICAL temporal-literal form per BC-2.11.021 §Postconditions + ADR-044 D4 = plain string '<iso>' — SPEC-COMPLIANT; (c) DEVIATION: pipe_sql_emitter.rs Timestamp arm emits TIMESTAMP '<iso>' = THE BUG (can't compare vs Utf8 column); (d) PqlNormalizer emits plain '<iso>' = SPEC-COMPLIANT; Pass 1 F-HIGH-002 root diagnosis ('production is i64; TIMESTAMP right') was INVERTED. Correct routing = code-aligns-to-spec: fix pipe_sql_emitter Timestamp arm TIMESTAMP '{}' → '{}' (one line); strengthen temporal tests (Utf8 columns kept, real assertions + negative-control added); OBS-1 SqlPipe fallback errors instead of silent revert; F-HIGH-003 SQL-mode PrismQL-only-operator limitation confirmed PRE-EXISTING/out-of-scope. Process win: SPEC-WINS discipline (CLAUDE.md rule 7) validated — prevented inverting spec-compliant SQL-mode path. Fix-burst dispatched to implementer (in flight). SUPERSEDES D-1334 fix routing. 3-CLEAN streak 0/3 (frozen-HEAD rule: fix push resets; re-gate on new HEAD). Demo target FROZEN. develop_head UNCHANGED 903c8fcb. STATE v7.963→v7.964. PRIOR: D-1334 (2026-06-25). LOCAL cascade Pass 1 (frozen HEAD a1c06e38) — CLEAN(strict)=NO; 0 CRIT, 3 HIGH: F-HIGH-002/003/001; implementer fix-burst in flight. STATE v7.962→v7.963."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-25 (D-1334 LOCAL cascade Pass 1 frozen HEAD a1c06e38 — CLEAN(strict)=NO; 0 CRIT, 3 HIGH; F-HIGH-001/002/003 wrong emitter + paper-fix tests; implementer fix-burst in flight; 3-CLEAN streak 0/3; STATE v7.963)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-25 (D-1335 SPEC-FIRST adjudication — cascade diagnosis INVERTED; pipe_sql_emitter Timestamp arm is THE BUG (TIMESTAMP vs Utf8); plain-string SQL-mode path is SPEC-COMPLIANT; code-aligns-to-spec fix-burst dispatched; 3-CLEAN streak 0/3; STATE v7.964)
 
 ## Active Objective (North Star)
 
