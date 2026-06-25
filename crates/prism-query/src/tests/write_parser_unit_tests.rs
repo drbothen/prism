@@ -1403,3 +1403,148 @@ fn test_BC_2_11_006_pipe_stage_count_32_read_1_write_rejected() {
         "32 read + 1 write = 33 total must be REJECTED"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BC-2.11.023 MED-1 — parse_with_registry entry-point parity tests
+//
+// parse_with_registry is a co-equal public entry point.  After the MED-1
+// fix-burst (parse_select_mode shared helper), parse_with_registry must apply
+// the same BC-2.11.023 §D1 mode-bridge diagnostic and the same D2/enrich
+// guided-error rewrites as parse_with_limits / PrismQlParser::parse.
+//
+// These tests mirror the assertions in:
+//   crates/prism-query/tests/grammar_remediation.rs
+//     test_bc_2_11_023_mode_bridge_d1_sql_pipe_diagnostic
+//     test_bc_2_11_023_mode_bridge_d2_sql_keyword_in_pipe_position
+// …but call parse_with_registry instead of parse.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.023 MED-1 parity — D1 mode-bridge via parse_with_registry.
+///
+/// `SELECT * FROM t | INVALID_KEYWORD` via parse_with_registry must produce
+/// the verbatim BC-2.11.023 §D1 mode-bridge message (POL-24), not a raw
+/// Chumsky token dump.  Mirrors test_bc_2_11_023_mode_bridge_d1_sql_pipe_diagnostic
+/// from grammar_remediation.rs.
+///
+/// Mental-deletion proof: removing the `parse_select_mode` delegation from
+/// parse_with_registry's SELECT arm (reverting to direct `parse_sql_internal`)
+/// causes this test to fail because the D1 message is never generated.
+#[test]
+fn test_BC_2_11_023_MED1_parse_with_registry_d1_mode_bridge_parity() {
+    use crate::filter_parser::PrismQlParser;
+
+    let registry = test_registry(&[]);
+    let query = "SELECT * FROM t | INVALID_KEYWORD";
+
+    let errs = PrismQlParser::parse_with_registry(query, &registry).expect_err(
+        "BC-2.11.023 MED-1: SQL query with bare | must be a parse error via parse_with_registry",
+    );
+
+    let combined = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    // (a) Stage-keyword enumeration must be present verbatim (BC-2.11.023 §D1, POL-24).
+    assert!(
+        combined.contains("(enrich, where, limit, sort, stats, dedup, fields)"),
+        "BC-2.11.023 MED-1 D1(a): parse_with_registry must contain stage enumeration; got: {combined}"
+    );
+    // (b) Numbered alternatives.
+    assert!(
+        combined.contains("1. SQL+pipe composition:"),
+        "BC-2.11.023 MED-1 D1(b): parse_with_registry must contain '1. SQL+pipe composition:'; got: {combined}"
+    );
+    assert!(
+        combined.contains("2. Pipe mode only:"),
+        "BC-2.11.023 MED-1 D1(b): parse_with_registry must contain '2. Pipe mode only:'; got: {combined}"
+    );
+    // (c) Reference pointer.
+    assert!(
+        combined.contains("See prismql://reference for the complete grammar."),
+        "BC-2.11.023 MED-1 D1(c): parse_with_registry must contain reference pointer; got: {combined}"
+    );
+    // Negative control: must NOT be a raw Chumsky token dump.
+    assert!(
+        !combined.contains("expected one of"),
+        "BC-2.11.023 MED-1: parse_with_registry must NOT produce raw Chumsky dump; got: {combined}"
+    );
+}
+
+/// BC-2.11.023 MED-1 parity — D2 (ORDER BY in SqlPipe pipe-stage) via parse_with_registry.
+///
+/// `SELECT * FROM t | sort x | ORDER BY y` is SqlPipe-routed (because `sort` IS a
+/// recognised pipe stage keyword). The second stage `| ORDER BY y` is a SQL clause
+/// keyword in pipe-stage position; D2 must fire in parse_sqlpipe_internal (which both
+/// parse and parse_with_registry now share via parse_select_mode).
+///
+/// This mirrors the OBS-1 D2 complement test in grammar_remediation.rs
+/// (test_bc_2_11_obs1_sqlpipe_d2_order_by_in_stage_guided_error) but calls
+/// parse_with_registry, confirming that the shared parse_select_mode helper carries
+/// the D2 rewrite to this entry point.
+///
+/// Mental-deletion proof: removing the `parse_select_mode` delegation from
+/// parse_with_registry's SELECT arm causes this test to fail because
+/// parse_sqlpipe_internal (with its D2 rewrite) is never reached.
+#[test]
+fn test_BC_2_11_023_MED1_parse_with_registry_d2_sqlpipe_stage_parity() {
+    use crate::filter_parser::PrismQlParser;
+
+    let registry = test_registry(&[]);
+    // `sort x` routes to SqlPipe; `| ORDER BY y` is then an invalid pipe stage position.
+    let query = "SELECT * FROM t | sort x | ORDER BY y";
+
+    let errs = PrismQlParser::parse_with_registry(query, &registry)
+        .expect_err("BC-2.11.023 MED-1 D2: SqlPipe '| ORDER BY ...' via parse_with_registry must be a parse error");
+
+    let combined = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    assert!(
+        combined.contains("SQL clauses are not valid as pipe stages"),
+        "BC-2.11.023 MED-1 D2: parse_with_registry SqlPipe must produce D2 guided message; got: {combined}"
+    );
+    assert!(
+        !combined.contains("expected one of"),
+        "BC-2.11.023 MED-1 D2: must NOT produce raw Chumsky dump via parse_with_registry; got: {combined}"
+    );
+}
+
+/// BC-2.11.023 MED-1 parity — enrich guided error via parse_with_registry.
+///
+/// `FROM t | enrich threat_score` (missing column arg) must produce the same
+/// actionable `enrich requires a column argument` message via parse_with_registry
+/// as it does via parse (AC-022).
+///
+/// Mental-deletion proof: removing the enrich-guidance rewrite from error_recovery.rs
+/// causes both this test and test_bc_2_11_grammar005_enrich_missing_column_arg_guidance
+/// to fail.
+#[test]
+fn test_BC_2_11_023_MED1_parse_with_registry_enrich_guided_error_parity() {
+    use crate::filter_parser::PrismQlParser;
+
+    let registry = test_registry(&[]);
+    let query = "FROM t | enrich threat_score";
+
+    let errs = PrismQlParser::parse_with_registry(query, &registry)
+        .expect_err("BC-2.11.023 MED-1 enrich: missing column arg must be a parse error via parse_with_registry");
+
+    let combined = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    assert!(
+        combined.contains("enrich requires a column argument"),
+        "BC-2.11.023 MED-1 enrich: parse_with_registry must produce guided enrich message; got: {combined}"
+    );
+    assert!(
+        combined.contains("| enrich <infusion>(<column>)"),
+        "BC-2.11.023 MED-1 enrich: parse_with_registry must contain example; got: {combined}"
+    );
+}

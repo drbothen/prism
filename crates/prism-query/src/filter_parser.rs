@@ -144,13 +144,13 @@ impl PrismQlParser {
             return parse_dml_internal(input, &limits);
         }
 
-        // SQL SELECT mode: delegate as-is; but route SqlPipe first.
+        // SQL SELECT mode: route through the shared mode-detection + D1/D2/enrich helper.
+        // BC-2.11.023 MED-1: parse_with_registry is a co-equal public entry point and MUST
+        // apply the same D1 mode-bridge diagnostic (and SqlPipe D2/enrich rewrites) as
+        // parse_with_limits.  Both entry points now delegate to parse_select_mode so there
+        // is only ONE implementation of the mode-bridge logic. (TD-VSDD-060 sibling-sweep)
         if first_token_upper == "SELECT" {
-            // BC-2.11.020: SqlPipe routing must happen in parse_with_registry too.
-            if is_sqlpipe_mode(trimmed) {
-                return parse_sqlpipe_internal(input, &limits);
-            }
-            return parse_sql_internal(input, &limits);
+            return parse_select_mode(input, trimmed, &limits);
         }
 
         // F-PR130-P1-HIGH-001: Apply the same SQL denylist enforced by parse_with_limits.
@@ -223,32 +223,10 @@ impl PrismQlParser {
         // `first_token_upper` is the uppercase of the first whitespace-separated
         // token; it is the same as `trimmed.to_uppercase().split_whitespace().next()`.
         if first_token_upper == "SELECT" {
-            // BC-2.11.020: If the input contains pipe stage keywords after an unquoted
-            // `|`, route to SqlPipe mode (SELECT … | stage | stage …).  Pure SELECT
-            // (no pipe stage `|`) falls through to the SQL parser unchanged.
-            if is_sqlpipe_mode(trimmed) {
-                return parse_sqlpipe_internal(input, limits);
-            }
-            // BC-2.11.023 / ADR-046 §D1 — mode-bridge diagnostic:
-            // If SQL parse fails AND the input contains an unquoted `|`, replace the
-            // raw Chumsky token-dump with an actionable message explaining that pipe
-            // stages are not valid after a SQL SELECT query in SQL mode.
-            let sql_result = parse_sql_internal(input, limits);
-            return match sql_result {
-                ok @ Ok(_) => ok,
-                Err(_errs) if contains_unquoted_pipe(trimmed) => {
-                    // BC-2.11.023 §D1 — verbatim mode-bridge message (POL-24).
-                    Err(vec![ParseError::new(
-                        find_unquoted_pipe_offset(trimmed).unwrap_or(0),
-                        "E-QUERY-001: parse error near '|': pipe stages are not valid after a SQL SELECT query in SQL mode.\n\
-                         To use pipe stages (enrich, where, limit, sort, stats, dedup, fields), use one of:\n\
-                           1. SQL+pipe composition:  SELECT <cols> FROM <table> | <pipe_stage> \u{2026}\n\
-                           2. Pipe mode only:        FROM <table> | where <predicate> | <stage> \u{2026}\n\
-                         See prismql://reference for the complete grammar.",
-                    )])
-                }
-                err => err,
-            };
+            // Delegate to the shared SELECT mode-detection + D1/D2/enrich helper so that
+            // parse_with_limits and parse_with_registry share ONE implementation of the
+            // mode-bridge diagnostics (BC-2.11.023 MED-1 / TD-VSDD-060 sibling-sweep).
+            return parse_select_mode(input, trimmed, limits);
         }
         if first_token_upper == "FROM" || trimmed.starts_with('|') {
             return parse_pipe_internal(input, limits);
@@ -643,6 +621,66 @@ fn parse_pipe_internal(
 #[allow(clippy::disallowed_methods)]
 fn parse_dml_internal(input: &str, limits: &security::ParseLimits) -> Result<Ast, Vec<ParseError>> {
     crate::sql_parser::parse_sql_dml_with_limits(input, limits)
+}
+
+/// Shared SELECT-mode routing for both `parse_with_limits` and `parse_with_registry`.
+///
+/// Both public entry points (`PrismQlParser::parse` and
+/// `PrismQlParser::parse_with_registry`) detect `SELECT` as the first token and
+/// must apply identical mode-detection and error-rewrite logic (BC-2.11.023 MED-1,
+/// TD-VSDD-060 sibling-sweep).  Centralising the logic here eliminates the
+/// divergence that caused MED-1.
+///
+/// Algorithm:
+/// 1. If the query is SqlPipe (SELECT … | stage …), route to `parse_sqlpipe_internal`
+///    which already applies the D2 and enrich rewrites on its stage-suffix errors.
+/// 2. Otherwise attempt pure-SQL parse.
+///    - On success: return the `Ast::Sql` result unchanged.
+///    - On failure + unquoted `|` present: replace raw Chumsky dump with the verbatim
+///      BC-2.11.023 §D1 mode-bridge message (POL-24).
+///    - On failure without `|`: return the raw SQL parse errors.
+///
+/// # Pre-conditions
+/// - `input` is the original (untrimmed) query string.
+/// - `trimmed` is `input.trim()` (caller must pre-compute to avoid duplicate allocations).
+/// - Pre-parse guards (size, depth) have already been applied by the caller.
+/// - `first_token_upper == "SELECT"` — caller is responsible for this check.
+///
+/// # Clippy exemption (OBS-002)
+/// Same rationale as `parse_filter_internal`.
+#[allow(clippy::disallowed_methods)]
+fn parse_select_mode(
+    input: &str,
+    trimmed: &str,
+    limits: &security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
+    // BC-2.11.020: If the input contains pipe stage keywords after an unquoted `|`,
+    // route to SqlPipe mode (SELECT … | stage | stage …).  Pure SELECT (no pipe
+    // stage `|`) falls through to the SQL parser unchanged.
+    if is_sqlpipe_mode(trimmed) {
+        return parse_sqlpipe_internal(input, limits);
+    }
+
+    // BC-2.11.023 / ADR-046 §D1 — mode-bridge diagnostic:
+    // If SQL parse fails AND the input contains an unquoted `|`, replace the raw
+    // Chumsky token-dump with an actionable message explaining that pipe stages are
+    // not valid after a SQL SELECT query in SQL mode.
+    let sql_result = parse_sql_internal(input, limits);
+    match sql_result {
+        ok @ Ok(_) => ok,
+        Err(_errs) if contains_unquoted_pipe(trimmed) => {
+            // BC-2.11.023 §D1 — verbatim mode-bridge message (POL-24).
+            Err(vec![ParseError::new(
+                find_unquoted_pipe_offset(trimmed).unwrap_or(0),
+                "E-QUERY-001: parse error near '|': pipe stages are not valid after a SQL SELECT query in SQL mode.\n\
+                 To use pipe stages (enrich, where, limit, sort, stats, dedup, fields), use one of:\n\
+                   1. SQL+pipe composition:  SELECT <cols> FROM <table> | <pipe_stage> \u{2026}\n\
+                   2. Pipe mode only:        FROM <table> | where <predicate> | <stage> \u{2026}\n\
+                 See prismql://reference for the complete grammar.",
+            )])
+        }
+        err => err,
+    }
 }
 
 // ── Security re-export for convenient use in tests ────────────────────────────
