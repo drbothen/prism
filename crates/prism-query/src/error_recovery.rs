@@ -134,6 +134,114 @@ fn is_enrich_missing_column_at(input: &str, offset: usize) -> bool {
     keyword.eq_ignore_ascii_case("enrich")
 }
 
+// ---------------------------------------------------------------------------
+// D2 mode-bridge rewrite (BC-2.11.023 AC-027 / ADR-046 §D2)
+// ---------------------------------------------------------------------------
+
+/// Rewrite pipe-mode parse errors that occur when an uppercase SQL clause keyword
+/// (`SELECT` or `ORDER BY`) appears in stage position (after `|`).
+///
+/// `WHERE` and `LIMIT` already parse in pipe mode because stage keywords are
+/// case-insensitive in PrismQL — D2 does NOT fire for those.
+///
+/// The verbatim D2 message (BC-2.11.023 §D2, POL-24):
+/// ```text
+/// E-QUERY-001: parse error near '<keyword>': SQL clauses are not valid as pipe stages.
+/// In pipe mode, use lowercase stage keywords: 'where', 'sort', 'limit', 'stats'.
+/// Example: FROM <table> | where severity = 'HIGH' | sort time DESC | limit 10
+/// ```
+///
+/// Story: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-027 (HIGH-2).
+pub fn rewrite_d2_sql_keyword_in_pipe_position(
+    input: &str,
+    errors: Vec<ParseError>,
+) -> Vec<ParseError> {
+    // Detect whether `input` contains `| SELECT ...` or `| ORDER BY ...` in stage position.
+    if let Some(keyword) = detect_sql_keyword_in_pipe_stage(input) {
+        // Replace ALL accumulated errors with the single verbatim D2 message.
+        // (Multiple Chumsky errors from the same root cause collapse into one diagnostic.)
+        let msg = format!(
+            "E-QUERY-001: parse error near '{keyword}': SQL clauses are not valid as pipe stages.\n\
+             In pipe mode, use lowercase stage keywords: 'where', 'sort', 'limit', 'stats'.\n\
+             Example: FROM <table> | where severity = 'HIGH' | sort time DESC | limit 10"
+        );
+        vec![ParseError::new(0, msg)]
+    } else {
+        errors
+    }
+}
+
+/// Scan `input` for a `| <SQL_CLAUSE_KEYWORD>` pattern in pipe stage position.
+///
+/// Returns `Some("SELECT")` or `Some("ORDER BY")` when found, `None` otherwise.
+///
+/// Only these two keywords trigger D2 per BC-2.11.023 §D2:
+/// - `SELECT` — not a valid pipe stage; distinct from `where`/`limit`/etc.
+/// - `ORDER BY` — SQL ordering clause; pipe mode uses `sort` instead.
+///
+/// `WHERE` and `LIMIT` are intentionally excluded: the pipe parser is case-insensitive
+/// so `| WHERE ...` and `| LIMIT ...` already parse as `| where` / `| limit`.
+fn detect_sql_keyword_in_pipe_stage(input: &str) -> Option<&'static str> {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            b'\'' if !in_dq => in_sq = !in_sq,
+            b'"' if !in_sq => in_dq = !in_dq,
+            b'|' if !in_sq && !in_dq => {
+                // Skip whitespace after `|`.
+                let mut j = i + 1;
+                while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
+                    j += 1;
+                }
+                if let Some(rest) = input.get(j..) {
+                    // Check for `SELECT` (6 chars).
+                    if let Some(candidate) = rest.get(..6) {
+                        if candidate.eq_ignore_ascii_case("select") {
+                            // Must be followed by whitespace or end of input to avoid
+                            // false-positives like `| selected_fields`.
+                            let after = rest.get(6..).unwrap_or("");
+                            if after
+                                .as_bytes()
+                                .first()
+                                .is_none_or(|b| b.is_ascii_whitespace())
+                            {
+                                return Some("SELECT");
+                            }
+                        }
+                    }
+                    // Check for `ORDER BY` (8 chars: "ORDER BY").
+                    if let Some(candidate) = rest.get(..8) {
+                        if candidate.eq_ignore_ascii_case("order by") {
+                            return Some("ORDER BY");
+                        }
+                    }
+                    // Also check `ORDER` alone (5 chars) — ORDER without BY is still
+                    // a SQL clause keyword in stage position that analysts mis-type.
+                    if let Some(candidate) = rest.get(..5) {
+                        if candidate.eq_ignore_ascii_case("order") {
+                            let after = rest.get(5..).unwrap_or("");
+                            if after
+                                .as_bytes()
+                                .first()
+                                .is_none_or(|b| b.is_ascii_whitespace())
+                            {
+                                return Some("ORDER BY");
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

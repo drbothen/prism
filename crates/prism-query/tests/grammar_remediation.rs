@@ -320,6 +320,92 @@ fn test_bc_2_11_023_mode_bridge_d1_sql_pipe_diagnostic() {
     );
 }
 
+/// AC-027 / BC-2.11.023 postcondition (ADR-046 §D2) — mode-bridge D2 SQL keyword in pipe position.
+///
+/// Positive control: `FROM crowdstrike_detections | ORDER BY time DESC` — `ORDER BY` in stage
+/// position is a SQL clause keyword, not a pipe stage. The error MUST contain ALL of:
+///   - `SQL clauses are not valid as pipe stages`
+///   - `'where', 'sort', 'limit', 'stats'` — lowercase stage keywords guidance
+///   - the example line: `FROM <table> | where severity = 'HIGH' | sort time DESC | limit 10`
+///
+/// Negative control: error MUST NOT contain raw Chumsky token dump (`expected one of`).
+///
+/// WHERE/LIMIT uppercase do NOT trigger D2 (they parse in pipe mode case-insensitively).
+///
+/// Red Gate: currently the pipe parser emits a raw Chumsky dump for `| ORDER BY ...`.
+/// The D2 rewrite in error_recovery.rs is not yet implemented — test fails RED.
+#[test]
+fn test_bc_2_11_023_mode_bridge_d2_sql_keyword_in_pipe_position() {
+    // ── Positive control 1: ORDER BY in pipe stage position ──────────────────
+    let query_order_by = "FROM crowdstrike_detections | ORDER BY time DESC";
+    let errs_ob = PrismQlParser::parse(query_order_by)
+        .expect_err("BC-2.11.023 AC-027: '| ORDER BY ...' must be a parse error");
+
+    let msg_ob = errs_ob
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    assert!(
+        msg_ob.contains("SQL clauses are not valid as pipe stages"),
+        "BC-2.11.023 AC-027: D2 message must contain 'SQL clauses are not valid as pipe stages'; got: {msg_ob}"
+    );
+    assert!(
+        msg_ob.contains("'where', 'sort', 'limit', 'stats'"),
+        "BC-2.11.023 AC-027: D2 message must contain \"'where', 'sort', 'limit', 'stats'\"; got: {msg_ob}"
+    );
+    assert!(
+        msg_ob.contains("FROM <table> | where severity = 'HIGH' | sort time DESC | limit 10"),
+        "BC-2.11.023 AC-027: D2 message must contain verbatim example line; got: {msg_ob}"
+    );
+    assert!(
+        !msg_ob.contains("expected one of"),
+        "BC-2.11.023 AC-027: D2 must NOT produce a raw Chumsky dump; got: {msg_ob}"
+    );
+
+    // ── Positive control 2: SELECT in pipe stage position ────────────────────
+    let query_select = "FROM crowdstrike_detections | SELECT severity, time";
+    let errs_sel = PrismQlParser::parse(query_select)
+        .expect_err("BC-2.11.023 AC-027: '| SELECT ...' must be a parse error");
+
+    let msg_sel = errs_sel
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    assert!(
+        msg_sel.contains("SQL clauses are not valid as pipe stages"),
+        "BC-2.11.023 AC-027: D2 message for SELECT must contain 'SQL clauses are not valid as pipe stages'; got: {msg_sel}"
+    );
+    assert!(
+        !msg_sel.contains("expected one of"),
+        "BC-2.11.023 AC-027: D2 must NOT produce raw Chumsky dump for SELECT; got: {msg_sel}"
+    );
+
+    // ── Negative controls: WHERE and LIMIT (uppercase) already parse ─────────
+    // BC-2.11.023 §D2 note: WHERE and LIMIT parse in pipe mode (case-insensitive).
+    // D2 MUST NOT fire for these.
+    let query_where_upper = "FROM t | WHERE severity = 'HIGH'";
+    let where_result = PrismQlParser::parse(query_where_upper);
+    assert!(
+        where_result.is_ok(),
+        "BC-2.11.023 AC-027: '| WHERE ...' (uppercase) must parse successfully \
+         (D2 must NOT fire for WHERE); got: {:?}",
+        where_result
+    );
+
+    let query_limit_upper = "FROM t | LIMIT 10";
+    let limit_result = PrismQlParser::parse(query_limit_upper);
+    assert!(
+        limit_result.is_ok(),
+        "BC-2.11.023 AC-027: '| LIMIT ...' (uppercase) must parse successfully \
+         (D2 must NOT fire for LIMIT); got: {:?}",
+        limit_result
+    );
+}
+
 // AC-010 test (test_bc_2_11_023_normalized_pql_on_mode_bridge_error) is in
 // crates/prism-mcp/tests/mcp_infrastructure.rs — it uses both prism_mcp::error_mapping
 // and prism_query::PrismQlParser, and prism_mcp is not a dependency of prism-query.
