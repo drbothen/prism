@@ -137,6 +137,17 @@ pub fn walk_ast<V: Visitor + ?Sized>(v: &mut V, ast: &Ast) {
         Ast::Filter(fe) => v.visit_filter_expr(fe),
         Ast::Sql(stmt) => v.visit_sql_statement(stmt),
         Ast::Pipe(pq) => v.visit_pipe_query(pq),
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe is structurally a SQL SELECT head
+        // followed by pipe stages. Walk the head SQL query so visitors see all inner nodes
+        // (field refs, predicates, subqueries). SqlPipe pipe stages are visit_pipe_query-style;
+        // we walk the head via visit_sql_query and individual stages via visit_pipe_stage.
+        Ast::SqlPipe(spq) => {
+            v.visit_sql_query(&spq.head);
+            for stage in &spq.stages {
+                v.visit_pipe_stage(stage);
+            }
+        }
+        #[allow(unreachable_patterns)]
         _ => {} // non_exhaustive catch-all
     }
 }

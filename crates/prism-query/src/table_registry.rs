@@ -729,6 +729,18 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
                 }
             }
         }
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe head drives the E-QUERY-037
+        // availability gate. A SqlPipe query whose head references an unregistered
+        // table must return E-QUERY-037 (with available_tables / did_you_mean)
+        // just like Ast::Sql(Select). Without this arm, the gate was a no-op for
+        // SqlPipe, silently skipping the fast-fail path and deferring the error to
+        // a later (less helpful) site. AC-8: gate is mode-agnostic. (TD-VSDD-060)
+        Ast::SqlPipe(spq) => {
+            push_dedup(&mut sources, &spq.head.from.source);
+            for join in &spq.head.joins {
+                push_dedup(&mut sources, &join.source);
+            }
+        }
         // #[non_exhaustive] catch-all for future AST variants.
         #[allow(unreachable_patterns)]
         _ => {}

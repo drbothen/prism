@@ -498,6 +498,20 @@ fn has_or_predicate(ast: &Ast) -> bool {
                 false
             }
         }),
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe — check head WHERE and pipe
+        // stage WHERE filters for OR predicates (used by EXPLAIN query hints).
+        Ast::SqlPipe(spq) => {
+            let head_has_or = spq.head.where_.as_ref().is_some_and(pred_has_or);
+            let stages_has_or = spq.stages.iter().any(|stage| {
+                if let crate::ast::PipeStage::Where(pred) = stage {
+                    pred_has_or(pred)
+                } else {
+                    false
+                }
+            });
+            head_has_or || stages_has_or
+        }
+        #[allow(unreachable_patterns)]
         _ => false,
     }
 }
@@ -557,6 +571,16 @@ fn extract_sources_from_ast(ast: &Ast) -> Vec<SourceRef> {
                 if let crate::ast::PipeStage::Join(js) = stage {
                     push_dedup(&mut sources, &js.source);
                 }
+            }
+        }
+        // BC-2.11.020 / HIGH-1 sibling sweep: EXPLAIN must include SqlPipe head sources
+        // in `sensors_to_query` so operators see the full query plan for SqlPipe queries.
+        // Without this arm the head's FROM/JOIN sources were silently dropped from EXPLAIN
+        // output, making it impossible to audit which sensors a SqlPipe query touches.
+        Ast::SqlPipe(spq) => {
+            push_dedup(&mut sources, &spq.head.from.source);
+            for join in &spq.head.joins {
+                push_dedup(&mut sources, &join.source);
             }
         }
         // SqlStatement and Ast are #[non_exhaustive]; wildcard required for future variants.
@@ -686,10 +710,66 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
                         // confirms at least one predicate is post_filter (not api_filters_pushed).
                         // Requires threading the classify_predicates plan result into this function.
         }
-        // ADR-043: SQL→Pipe composition — explain support is a TODO for the implementer.
-        // Post-fetch operations for SqlPipe are handled by the implementer in the
-        // S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 TDD implementation phase.
-        Ast::SqlPipe(_) => {}
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe post-fetch operations.
+        // The head SELECT may carry LIMIT/ORDER BY/GROUP BY; the pipe stages carry
+        // WHERE/SORT/LIMIT/TAIL/STATS/DEDUP/FIELDS/JOIN/ENRICH post-fetch ops.
+        // Mirror the Ast::Sql(Select) arm for head ops and Ast::Pipe arm for stage ops.
+        Ast::SqlPipe(spq) => {
+            // Head SQL post-fetch operations (mirrors Ast::Sql(Select) arm).
+            let head = &spq.head;
+            if !head.group_by.is_empty() {
+                ops.push(format!("GROUP BY {} column(s)", head.group_by.len()));
+            }
+            if !head.order_by.is_empty() {
+                ops.push(format!("SORT BY {} column(s)", head.order_by.len()));
+            }
+            if let Some(limit) = head.limit {
+                ops.push(format!("LIMIT {limit}"));
+            }
+            if head.where_.is_some() {
+                ops.push("WHERE filter (post-materialization)".to_string());
+            }
+            // Pipe stage post-fetch operations (mirrors Ast::Pipe arm).
+            for stage in &spq.stages {
+                use crate::ast::PipeStage;
+                match stage {
+                    PipeStage::Where(_) => {
+                        ops.push("WHERE filter (post-materialization)".to_string());
+                    }
+                    PipeStage::Sort(exprs) => {
+                        ops.push(format!("SORT BY {} column(s)", exprs.len()));
+                    }
+                    PipeStage::Limit(n) => {
+                        ops.push(format!("LIMIT {n}"));
+                    }
+                    PipeStage::Tail(n) => {
+                        ops.push(format!("TAIL {n}"));
+                    }
+                    PipeStage::Stats(ss) => {
+                        ops.push(format!(
+                            "GROUP BY {} column(s), {} aggregate(s)",
+                            ss.by_fields.len(),
+                            ss.aggregates.len()
+                        ));
+                    }
+                    PipeStage::Dedup(fields) => {
+                        ops.push(format!("DEDUP {} column(s)", fields.len()));
+                    }
+                    PipeStage::Fields(_) => {
+                        ops.push("FIELDS projection".to_string());
+                    }
+                    PipeStage::Join(_) => {
+                        ops.push("JOIN".to_string());
+                    }
+                    PipeStage::Enrich(_) => {
+                        ops.push("ENRICH".to_string());
+                    }
+                    // #[non_exhaustive] catch-all for future pipe stages.
+                    #[allow(unreachable_patterns)]
+                    _ => {}
+                }
+            }
+        }
     }
 
     ops
@@ -827,6 +907,22 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
             }
             out
         }
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe — collect filter expressions
+        // from head WHERE and pipe stage WHERE filters for EXPLAIN output.
+        Ast::SqlPipe(spq) => {
+            let mut out = Vec::new();
+            if let Some(w) = &spq.head.where_ {
+                out.extend(predicate_to_exprs(w));
+            }
+            for stage in &spq.stages {
+                use crate::ast::PipeStage;
+                if let PipeStage::Where(pred) = stage {
+                    out.extend(predicate_to_exprs(pred));
+                }
+            }
+            out
+        }
+        #[allow(unreachable_patterns)]
         _ => vec![],
     }
 }
@@ -840,6 +936,9 @@ fn query_mode_str(ast: &Ast) -> &'static str {
         Ast::Filter(_) => "filter",
         Ast::Sql(_) => "sql",
         Ast::Pipe(_) => "pipe",
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe mode label for EXPLAIN output.
+        // Without this arm, SqlPipe queries were labelled "unknown" in EXPLAIN.
+        Ast::SqlPipe(_) => "sql_pipe",
         // #[non_exhaustive] catch-all: future modes added by downstream stories.
         #[allow(unreachable_patterns)]
         _ => "unknown",

@@ -1577,9 +1577,16 @@ fn check_query_column_availability(
         Err(_) => return Ok(()),
     };
 
-    // Only handle SQL SELECT mode — filter/pipe have no explicit column projection.
+    // Handle SQL SELECT mode and SqlPipe head — both carry an explicit column
+    // projection in the SELECT clause and an optional WHERE that references columns.
+    // Filter and Pipe mode have no explicit column projection so they remain fail-open.
+    // BC-2.11.020 / HIGH-1 sibling sweep: without the SqlPipe arm, a SqlPipe query
+    // whose head projects a typo'd column (e.g. `SELECT sev FROM …`) would bypass
+    // the E-QUERY-038 pedagogical gate, getting a confusing DataFusion error at
+    // execution time instead of the clean "column not found" diagnostic. (TD-VSDD-060)
     let sql_query = match &ast {
         Ast::Sql(SqlStatement::Select(q)) => q,
+        Ast::SqlPipe(spq) => &spq.head,
         _ => return Ok(()),
     };
 
@@ -3845,5 +3852,305 @@ mod bc_2_11_016_did_you_mean_determinism_tests {
             "OBS-FRESH-1: available_columns must not contain duplicates. Got: {:?}",
             cols
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HIGH-1 sibling-sweep load-bearing tests (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001)
+// BC-2.11.020 — SqlPipe mode-agnostic gate coverage for E-QUERY-011 / E-QUERY-037 / E-QUERY-038
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod sqlpipe_gate_sweep_tests {
+    use super::*;
+    use std::sync::Arc;
+
+    struct NoopCs2;
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs2 {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    fn make_test_engine() -> QueryEngine {
+        QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()),
+            Arc::new(NoopCs2),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        )
+    }
+
+    // ── E-QUERY-011 / SqlPipe ─────────────────────────────────────────────────
+
+    /// HIGH-1 load-bearing (E-QUERY-011): A SqlPipe query whose head SELECT references
+    /// `prism_audit` must be denied with `PrismError::AuditTableAccessDenied` when
+    /// `Capability::AuditRead` is absent from the caller's capabilities.
+    ///
+    /// Before the HIGH-1 fix, `extract_source_names_recursive` had a `_ => {}` catch-all
+    /// for `Ast::SqlPipe`, so the E-QUERY-011 gate was a no-op for SqlPipe mode.
+    /// This test drives `check_internal_table_capabilities` via the parse-and-extract
+    /// path that was broken.
+    ///
+    /// BC-2.11.020 / BC-2.15.011 / F-LP2-CRIT-1
+    #[test]
+    fn test_high1_sqlpipe_head_prism_audit_denied_without_audit_read_capability_e_query_011() {
+        // A SqlPipe query whose head references prism_audit (internal table).
+        // With no AuditRead capability → must return AuditTableAccessDenied (E-QUERY-011).
+        let query = "SELECT * FROM prism_audit WHERE event_type = 'query.execute' | limit 10";
+
+        // Parse first to confirm this is an Ast::SqlPipe (belt-and-suspenders).
+        let ast = crate::filter_parser::PrismQlParser::parse(query)
+            .expect("SqlPipe audit-head query must parse");
+        assert!(
+            matches!(ast, crate::ast::Ast::SqlPipe(_)),
+            "HIGH-1 setup: query must parse as Ast::SqlPipe; got {ast:?}"
+        );
+
+        // Invoke gate directly with NO AuditRead capability.
+        let result = check_internal_table_capabilities(query, &[]);
+        assert!(
+            matches!(result, Err(PrismError::AuditTableAccessDenied)),
+            "HIGH-1 / E-QUERY-011: SqlPipe head referencing prism_audit WITHOUT \
+             Capability::AuditRead must return Err(PrismError::AuditTableAccessDenied); \
+             before the HIGH-1 fix this returned Ok(()), bypassing the gate. Got: {result:?}"
+        );
+    }
+
+    /// HIGH-1 gate pass (E-QUERY-011 inverse): Same SqlPipe query WITH AuditRead must pass.
+    #[test]
+    fn test_high1_sqlpipe_head_prism_audit_allowed_with_audit_read_capability() {
+        let query = "SELECT * FROM prism_audit WHERE event_type = 'query.execute' | limit 10";
+        let result = check_internal_table_capabilities(query, &[Capability::AuditRead]);
+        assert!(
+            result.is_ok(),
+            "HIGH-1 / E-QUERY-011 inverse: SqlPipe head referencing prism_audit WITH \
+             Capability::AuditRead must return Ok(()); got: {result:?}"
+        );
+    }
+
+    // ── E-QUERY-037 / SqlPipe ─────────────────────────────────────────────────
+
+    /// HIGH-1 load-bearing (E-QUERY-037): A SqlPipe query whose head references an
+    /// unregistered table must return `PrismError::TableNotAvailable` (E-QUERY-037) with
+    /// `available_tables` / `did_you_mean` populated — NOT succeed or return a different error.
+    ///
+    /// Before the HIGH-1 fix, `extract_sources_from_ast_for_gate` had `_ => {}` for
+    /// `Ast::SqlPipe`, so the E-QUERY-037 gate was a no-op for SqlPipe mode.
+    ///
+    /// BC-2.11.001 / AC-8 mode-agnostic / S-3.13 AC-2 / TD-VSDD-060
+    #[tokio::test]
+    async fn test_high1_sqlpipe_head_unregistered_table_returns_e_query_037() {
+        use crate::table_registry::TableRegistry;
+        use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
+
+        // Build a registry with only armis registered (no crowdstrike).
+        let registry = Arc::new(TableRegistry::new());
+        let armis_spec = SensorSpec::new(
+            "armis",
+            "Armis sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "network_activity",
+                vec![],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        registry
+            .register_sensor(&armis_spec)
+            .expect("register armis must not fail");
+
+        // Engine with registry wired — SqlPipe head references an unregistered table.
+        let engine = make_test_engine().with_table_registry(Arc::clone(&registry));
+
+        // Execute a SqlPipe query targeting crowdstrike.detections (unregistered).
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike.detections WHERE severity = 'HIGH' | limit 20",
+                QueryOptions::default(),
+            )
+            .await;
+
+        match result {
+            Err(PrismError::TableNotAvailable(ref details)) => {
+                let display = details.to_string();
+                assert!(
+                    display.starts_with("E-QUERY-037:"),
+                    "HIGH-1 / E-QUERY-037: SqlPipe head referencing unregistered table must \
+                     return E-QUERY-037; display was: {display}"
+                );
+                // available_sensors / available_tables must list armis (the registered sensor).
+                assert!(
+                    details.available_sensors.contains("armis"),
+                    "HIGH-1 / E-QUERY-037: available_sensors must contain 'armis'. \
+                     Got: '{}'",
+                    details.available_sensors
+                );
+            }
+            Ok(_) => panic!(
+                "HIGH-1 / E-QUERY-037: SqlPipe query targeting unregistered table must NOT succeed \
+                 (before fix the gate was bypassed for SqlPipe). E-QUERY-037 must fire."
+            ),
+            Err(other) => panic!(
+                "HIGH-1 / E-QUERY-037: expected PrismError::TableNotAvailable, got: {other:?}"
+            ),
+        }
+    }
+
+    // ── E-QUERY-038 / SqlPipe ─────────────────────────────────────────────────
+
+    /// HIGH-1 load-bearing (E-QUERY-038): A SqlPipe query whose head SELECT projects
+    /// a column name that does not exist in the resolved_spec_map must return
+    /// `PrismError::ColumnNotFound` (E-QUERY-038) at plan time.
+    ///
+    /// Before the HIGH-1 fix, `check_query_column_availability` had `_ => return Ok(())`
+    /// for `Ast::SqlPipe`, so the E-QUERY-038 pedagogical gate was bypassed for SqlPipe mode.
+    ///
+    /// BC-2.11.016 / S-DEMO-PRISMQL-ONBOARDING-001-B / TD-VSDD-060
+    #[tokio::test]
+    async fn test_high1_sqlpipe_head_typo_column_returns_e_query_038() {
+        use crate::table_registry::TableRegistry;
+        use prism_core::SensorId;
+        use prism_spec_engine::{
+            overlay::{OverlayLoader, SensorInstanceOverlay},
+            spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+            ResolvedSpecKey,
+        };
+        use std::collections::HashMap;
+        use std::sync::Arc as StdArc;
+
+        // Build TableRegistry with crowdstrike registered (one column: "severity").
+        // ColumnSpec is #[non_exhaustive] in an external crate — use Default then mutate.
+        let mut col_spec = ColumnSpec::default();
+        col_spec.name = "severity".to_string();
+        col_spec.column_type = prism_core::column::ColumnType::String;
+        let crowdstrike_spec = SensorSpec::new(
+            "crowdstrike",
+            "CrowdStrike sensor",
+            AuthType::ApiKey,
+            "https://example.com",
+            vec![TableSpec::new_point_in_time(
+                "detections",
+                "security_finding",
+                vec![col_spec],
+                vec![],
+            )],
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
+        let registry = Arc::new(TableRegistry::new());
+        registry
+            .register_sensor(&crowdstrike_spec)
+            .expect("register crowdstrike must not fail");
+
+        // Build resolved_spec_map using the canonical OverlayLoader factory
+        // (same pattern as `make_two_org_spec_map` in the multi-tenant gate tests).
+        let org = "testorg";
+        let overlay_toml = "extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@testorg\"";
+        let overlay: SensorInstanceOverlay = toml::from_str(overlay_toml)
+            .expect("E-QUERY-038 fixture: SensorInstanceOverlay TOML must parse");
+        let org_slug = OrgSlug::new(org);
+        let resolved = OverlayLoader::merge_overlay_onto_type_spec(
+            &crowdstrike_spec,
+            &overlay,
+            org_slug.clone(),
+        );
+        let key: ResolvedSpecKey = (org_slug, SensorId::new("crowdstrike"));
+        let mut spec_map = HashMap::new();
+        spec_map.insert(key, resolved);
+
+        // Wire the spec_map into the engine.
+        let mut engine = make_test_engine().with_table_registry(Arc::clone(&registry));
+        engine.resolved_spec_map = Some(Arc::new(arc_swap::ArcSwap::new(StdArc::new(spec_map))));
+
+        // SqlPipe query projecting a non-existent column "severit" (typo of "severity",
+        // Levenshtein distance = 1 which is within the ≤3 threshold).
+        // With org_scope matching "testorg", the column gate resolves "crowdstrike_detections"
+        // to the spec above, finds only "severity", and must deny "severit" with E-QUERY-038.
+        // Note: "sev" would be distance 5 from "severity" (>3 threshold) so would give
+        // did_you_mean=None. "severit" (missing trailing 'y') is the correct test typo.
+        let result = engine
+            .execute(
+                "SELECT severit FROM crowdstrike.detections | limit 5",
+                QueryOptions {
+                    clients: Some(vec![OrgSlug::new("testorg")]),
+                    ..Default::default()
+                },
+            )
+            .await;
+
+        match result {
+            Err(PrismError::ColumnNotFound(ref details)) => {
+                let display = details.to_string();
+                assert!(
+                    display.starts_with("E-QUERY-038:"),
+                    "HIGH-1 / E-QUERY-038: SqlPipe head with typo'd column must return \
+                     E-QUERY-038; display was: {display}"
+                );
+                assert_eq!(
+                    details.column, "severit",
+                    "HIGH-1 / E-QUERY-038: column field must be 'severit'"
+                );
+                // did_you_mean should suggest "severity" (Levenshtein distance = 1 from "severit").
+                assert!(
+                    details.did_you_mean.as_deref() == Some("severity"),
+                    "HIGH-1 / E-QUERY-038: did_you_mean should suggest 'severity'; got {:?}",
+                    details.did_you_mean
+                );
+            }
+            Ok(_) => panic!(
+                "HIGH-1 / E-QUERY-038: SqlPipe query with typo'd column 'sev' must NOT succeed \
+                 (before fix the gate was bypassed for SqlPipe). E-QUERY-038 must fire."
+            ),
+            Err(other) => {
+                panic!("HIGH-1 / E-QUERY-038: expected PrismError::ColumnNotFound, got: {other:?}")
+            }
+        }
     }
 }

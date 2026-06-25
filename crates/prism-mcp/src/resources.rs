@@ -1325,6 +1325,15 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
         "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe limit",
         "SELECT * FROM crowdstrike.detections LIMIT 10 | limit 5",
     ),
+    // OBS-1 fix: error-taxonomy.md v2.00 E-QUERY-040 CI-gate obligation (ADR-045 D3)
+    // mandates NegativeE040 examples for BOTH `| limit` AND `| tail`. The `| tail`
+    // variant combines SQL LIMIT in the head with a `| tail` stage — both consume
+    // the shared row-limit slot and thus violate the FORBID-BOTH invariant (ADR-043 §C).
+    (
+        ExampleKind::NegativeE040,
+        "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe tail",
+        "SELECT * FROM crowdstrike.detections LIMIT 10 | tail 5",
+    ),
     (
         ExampleKind::NegativeOther,
         "E-QUERY-001 self-correction",

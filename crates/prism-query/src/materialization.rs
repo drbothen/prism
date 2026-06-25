@@ -1655,9 +1655,17 @@ fn extract_time_window_from_ast_from_query(
 ) -> (Option<String>, Option<String>) {
     use crate::ast::{Ast, SqlStatement};
 
-    // Only SELECT queries have a WHERE clause with time predicates.
+    // Only SELECT queries (and the head of a SqlPipe) have a WHERE clause with
+    // time predicates. BC-2.11.020 / HIGH-1 sibling sweep: the SqlPipe head is a
+    // full SQL SELECT — its WHERE clause must be propagated to the adapter as
+    // ADR-033 T1 time-window bounds, exactly like a bare Ast::Sql(Select) query.
+    // Without this arm, a SqlPipe query like
+    //   `SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '24h' | enrich ...`
+    // would not push the time-window to the adapter, causing a full-table scan
+    // against the 200MB/query memory budget (ADR-033 over-fetch risk).
     let Some(pred) = (match ast {
         Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref(),
+        Ast::SqlPipe(spq) => spq.head.where_.as_ref(),
         _ => None,
     }) else {
         return (None, None);
@@ -1686,8 +1694,13 @@ fn extract_time_window_from_ast_from_query(
 fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::types::FilterMap {
     use crate::ast::{Ast, SqlStatement};
 
+    // BC-2.11.020 / HIGH-1 sibling sweep: the SqlPipe head carries the WHERE clause
+    // that drives push-down equality filters. Without this arm, equality predicates
+    // in a SqlPipe head's WHERE (e.g. `WHERE severity = 'HIGH'`) would not be pushed
+    // to the sensor adapter, causing a full-table scan + post-materialization filter.
     let where_pred = match ast {
         Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref(),
+        Ast::SqlPipe(spq) => spq.head.where_.as_ref(),
         _ => None,
     };
 
@@ -1823,6 +1836,15 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
                     names.insert(js.source.raw.clone());
                 }
             }
+        }
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe head drives the E-QUERY-011
+        // AuditRead capability gate. `check_internal_table_capabilities` calls
+        // `extract_source_names_recursive` — without this arm, a SqlPipe query with
+        // head `SELECT * FROM prism_audit …` would bypass the AuditRead gate entirely.
+        // Walk `walk_sql_query` on the head so that prism_* references in JOINs and
+        // WHERE subqueries are also collected (mirrors `Ast::Sql(Select)` arm above).
+        Ast::SqlPipe(spq) => {
+            walk_sql_query(&spq.head, &mut names);
         }
         // SqlStatement and Ast are #[non_exhaustive]; wildcard required for future variants.
         #[allow(unreachable_patterns)]
