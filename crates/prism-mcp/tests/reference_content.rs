@@ -108,8 +108,9 @@ fn test_bc_2_11_022_reference_content_completeness() {
 /// Additionally, every `ExampleKind::Positive` PQL snippet must round-trip through
 /// `PrismQlParser::parse` without error (positive round-trip gate).
 ///
-/// Every `ExampleKind::NegativeE040` PQL snippet must fail to parse OR must produce
-/// a `RedundantRowLimit` error when executed (negative E-QUERY-040 gate).
+/// Every `ExampleKind::NegativeE040` PQL snippet must parse as `Ast::SqlPipe` AND
+/// produce a `RedundantRowLimit` error from `plan_sqlpipe_query` (negative E-QUERY-040
+/// FORBID-BOTH plan-time gate — AC-007 literal semantics).
 ///
 /// Red Gate: The current `REFERENCE_EXAMPLES` constant uses the old `Basic/Advanced/Error`
 /// variant names — these are now renamed to `Positive/NegativeE040/NegativeOther` per
@@ -159,8 +160,9 @@ fn test_bc_2_11_022_ci_3tier_gate() {
         );
     }
 
-    // Negative E-QUERY-040 gate: every NegativeE040 example must fail the parser OR
-    // contain E-QUERY-040 / FORBID-BOTH content (parser rejects dual-limit at parse time).
+    // Negative E-QUERY-040 gate (AC-007 literal semantics): every NegativeE040 example
+    // must parse as Ast::SqlPipe AND be rejected by plan_sqlpipe_query with
+    // PrismError::RedundantRowLimit { .. } (FORBID-BOTH plan-time rejection).
     for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
         if !matches!(kind, ExampleKind::NegativeE040) {
             continue;
@@ -169,21 +171,40 @@ fn test_bc_2_11_022_ci_3tier_gate() {
         if snippet.trim_start().starts_with("--") {
             continue;
         }
-        // NegativeE040 snippets must either fail to parse (dual-limit detected by parser)
-        // or be valid SQL+pipe queries (parse succeeds; runtime rejects at execution time).
-        // At minimum: the snippet must NOT be parseable as a pure Pipe or Filter query
-        // (it contains both SQL LIMIT and pipe limit, which is the FORBID-BOTH pattern).
-        let result = PrismQlParser::parse(snippet);
-        // The E-QUERY-040 gate fires at execution time (PrismError::RedundantRowLimit),
-        // not necessarily at parse time (the SqlPipe grammar absorbs SQL+pipe combinations).
-        // We assert the example compiles (so it's a real PQL string) — runtime rejection
-        // is exercised by query-engine tests (BC-2.11.023 via run_query).
-        assert!(
-            result.is_ok(),
-            "BC-2.11.022 AC-007: NegativeE040 example '{title}' must be a valid PQL string \
-             (E-QUERY-040 fires at execution time, not parse time); got parse error: {:?}",
-            result
-        );
+        // Step 1: snippet must parse successfully (E-QUERY-040 fires at plan time, not parse time).
+        let parse_result = PrismQlParser::parse(snippet);
+        let ast = parse_result.unwrap_or_else(|errs| {
+            panic!(
+                "BC-2.11.022 AC-007: NegativeE040 example '{title}' must parse successfully \
+                 (E-QUERY-040 fires at plan time, not parse time); parse errors: {errs:?}"
+            )
+        });
+
+        // Step 2: snippet must be a SqlPipe AST (dual-limited queries are SqlPipe ASTs).
+        let spq = match ast {
+            prism_query::ast::Ast::SqlPipe(spq) => spq,
+            other => panic!(
+                "BC-2.11.022 AC-007: NegativeE040 example '{title}' must parse as \
+                 Ast::SqlPipe (got {other:?}) — dual-limited queries are SqlPipe ASTs"
+            ),
+        };
+
+        // Step 3: plan must reject with RedundantRowLimit (E-QUERY-040 FORBID-BOTH gate).
+        let plan_result = plan_sqlpipe_query(&spq);
+        match &plan_result {
+            Err(prism_core::error::PrismError::RedundantRowLimit { .. }) => {
+                // Expected: this is the FORBID-BOTH pattern.
+            }
+            Ok(()) => panic!(
+                "BC-2.11.022 AC-007: NegativeE040 example '{title}' must fail planning with \
+                 PrismError::RedundantRowLimit; got Ok(()) — the example is NOT the FORBID-BOTH \
+                 pattern, making the CI gate vacuous (tautological-gate = paper-fix per TD-VSDD-059)"
+            ),
+            Err(other) => panic!(
+                "BC-2.11.022 AC-007: NegativeE040 example '{title}' must fail with \
+                 PrismError::RedundantRowLimit; got different error: {other:?}"
+            ),
+        }
     }
 
     // Verify all three ExampleKind variants are constructable (compile-time check).
