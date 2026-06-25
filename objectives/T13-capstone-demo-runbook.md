@@ -2,9 +2,9 @@
 document_type: demo-runbook
 objective: T13-capstone
 level: ops
-version: "1.3"
+version: "1.4"
 producer: product-owner
-timestamp: 2026-06-23T00:00:00Z
+timestamp: 2026-06-24T00:00:00Z
 project: prism
 status: draft
 gates_on:
@@ -39,10 +39,21 @@ related:
 ### 1.1 What Prism Is (30-second framing for the recording)
 
 Prism runs as a **per-analyst MCP server** inside Claude Code. The analyst speaks
-PrismQL — a SQL-flavored query language — against named sensor tables. Prism fans out
-the query to the relevant vendor APIs for each client, normalizes every response to
-OCSF + protobuf format, and returns a unified result. The analyst never writes HTTP
-clients. The analyst never manages per-vendor auth by hand. Prism does it.
+PrismQL — a SQL-flavored query language — against named sensor tables. Prism is a
+**single process with a multi-threaded tokio runtime**: when a query executes, it fans
+out to all relevant vendor APIs **in parallel** (bounded by MAX_FANOUT_CONCURRENCY=10
+concurrent fan-out tasks, nested under HTTP_SEMAPHORE_PERMITS=200 global HTTP permits).
+Concurrent queries from the same analyst session are **not serialized by any lock** —
+`PrismServer::query` takes `&self` and config is read lock-free via ArcSwap. Prism
+normalizes every response to OCSF + protobuf format and returns a unified result.
+The analyst never writes HTTP clients. The analyst never manages per-vendor auth by hand.
+Prism does it.
+
+> **Concurrency note for demo presenters:** The only sequential aspect of query
+> execution is the stdio transport's message framing — one MCP client request is sent
+> at a time by Claude Code's stdio client. This is a transport/client characteristic,
+> not engine serialization, and it does not make sensor fan-out sequential. Within a
+> single query, sensors are fetched in parallel.
 
 In this demo: three client organizations, each with a different sensor combination,
 all under management from one analyst workstation. Every "vendor API" is a prism DTU
@@ -392,7 +403,8 @@ the same derivation, so both sensors surface the same logical device.
 
 **Talking point:** "One compromised endpoint — two sensors, two perspectives. CrowdStrike
 sees it as a detection. Armis sees it as an asset. Prism correlates them without any
-custom glue code. The analyst asks one question, prism fans out to both sensors."
+custom glue code. The analyst asks one question, prism fans out to both sensors in
+parallel — single process, async execution, no lock between them."
 
 ---
 
@@ -472,9 +484,9 @@ ENRICH-1 `source_path = "$.iocs[*].value"` extraction may not be working (check 
 
 ```sql
 FROM cyberint_alerts
-WHERE iocs_value IS NOT NULL
+| where iocs_value IS NOT NULL
 | enrich threat_score(iocs_value)
-LIMIT 10
+| limit 10
 client_id = "org-c"
 ```
 
@@ -511,8 +523,8 @@ that S-1.14-REDO + PIVOT-001/002 are merged. The registered UDF names are
 
 ```sql
 FROM crowdstrike_detections
-WHERE behaviors_ioc_type IS NOT NULL
-SELECT device_id, behaviors_ioc_type, behaviors_ioc_value, behaviors_ioc_description
+| where behaviors_ioc_type IS NOT NULL
+| fields device_id, behaviors_ioc_type, behaviors_ioc_value, behaviors_ioc_description
 client_id = "org-c"
 ```
 
@@ -533,9 +545,9 @@ different sensor perspectives."
 
 ```sql
 FROM crowdstrike_detections
-WHERE behaviors_ioc_type = 'hash_sha256'
+| where behaviors_ioc_type = 'hash_sha256'
 | enrich threat_score(behaviors_ioc_value)
-LIMIT 5
+| limit 5
 client_id = "org-c"
 ```
 
@@ -551,10 +563,10 @@ The same `| enrich threat_score(...)` UDF is sensor-agnostic.
 
 ```sql
 FROM armis_devices
-WHERE device_cves_first IS NOT NULL
+| where device_cves_first IS NOT NULL
 | enrich cvss_base_score(device_cves_first)
 | enrich cvss_severity(device_cves_first)
-LIMIT 5
+| limit 5
 client_id = "org-b"
 ```
 
@@ -702,7 +714,7 @@ introduced lateral devices; they remain visible at Stage 4). All device fields v
 
 ```sql
 FROM cyberint_alerts
-WHERE iocs_type IS NOT NULL
+| where iocs_type IS NOT NULL
 | enrich threat_score(iocs_value)
 client_id = "org-c"
 ```
@@ -932,7 +944,7 @@ Suggested presentation order for T14 demo-recorder:
 1. Open Claude Code with prism MCP server connected. Show the tool list.
 2. Block 1: `list_capabilities(org-c)` → `prism_describe(org-c)` → `prism_describe(org-a)` [schema diff]
 3. Block 2: CrowdStrike query org-c → Armis correlation → org-a isolation proof
-4. Block 3: Cyberint IOC query at Stage 3 (`WHERE iocs_value IS NOT NULL`) → `| enrich threat_score(iocs_value)` → `| enrich cvss_base_score(device_cves_first)`
+4. Block 3: Cyberint IOC query at Stage 3 (`| where iocs_value IS NOT NULL`) → `| enrich threat_score(iocs_value)` → `| enrich cvss_base_score(device_cves_first)`
 5. Block 4: E-QUERY-037 table-not-available for org-a → pedagogical error → Claude self-corrects
 6. Block 5 (PENDING S-5.04): `check_sensor_health(org-c)` → live probe confirmation
 7. Block 6: Stage 4 full blast radius query → Claroty audit log
@@ -950,6 +962,7 @@ context between queries but does not hand-hold Claude on syntax.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.4 | 2026-06-24 | AC-020/BLOCKER-002 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001): corrected pipe-mode query syntax in Steps 3.2, 3.4, 3.5, and 6.2. These queries mixed SQL-style `WHERE`/`LIMIT` (without `\|` prefix) with `\| enrich` pipe stages — invalid PrismQL. Corrected to valid pipe mode: `WHERE` → `\| where`, `LIMIT` → `\| limit` throughout all four steps. Updated §7 Block 3 reference (`WHERE` → `\| where`). Concurrent-execution clarification (Task 3): §1.1 framing updated to make explicit that prism is a SINGLE process with a multi-threaded tokio runtime; a query fans out to multiple sensors IN PARALLEL (bounded by MAX_FANOUT_CONCURRENCY=10, nested under HTTP_SEMAPHORE_PERMITS=200); concurrent queries are NOT serialized by any lock (`PrismServer::query` takes `&self`; ArcSwap lock-free config reads). The only sequential aspect is stdin message framing in the stdio transport — a transport/client characteristic, not engine serialization. Talking points updated to reflect "async fan-out" framing. |
 | 1.3 | 2026-06-23 | GAP-1: corrected enrichment UDF function names throughout. Actual registered UDF names are per-field from `[[infusion.fields]]`: ThreatIntel → `threat_score`, `threat_is_known_malicious`, `threat_sources`; NVD → `cvss_base_score`, `cvss_severity`, `cvss_vector`. Replaced all `\| enrich threat_intel(...)` with `\| enrich threat_score(...)` and all `\| enrich nvd(...)` with `\| enrich cvss_base_score(device_cves_first)`. Updated Step 3.2 expected output (no `threat_intel.threat_score` namespace prefix; column is `threat_score`), Step 3.5 to use Armis devices with `device_cves_first` (Ruling 1b) and `cvss_base_score`/`cvss_severity` column names, §4 Expected Outputs table, §5.5 dry-run checklist, §6 enrichment caveat, §7 recording sequence. GAP-3: corrected `prism_describe` JSON example key `"table_name"` → `"name"` in all four table entries (matches `TableDescriptor.name` field in `prism-mcp/src/tools/prism_describe.rs`). |
 | 1.2 | 2026-06-23 | ENRICH-1 clean-column-name amendment (S-DEMO-ENRICH-1). PIVOT-003 bracket-in-name column references (`iocs[].value`, `iocs[].type`) superseded by ENRICH-1 clean SQL identifiers: `iocs_value` (source_path `$.iocs[*].value`), `iocs_type` (source_path `$.iocs[*].type`). All queries, expected outputs, VERIFY IN DRY-RUN notes, checklist items, Expected Outputs table, and §6 caveat updated. prism_describe JSON example updated (`iocs[].value` → `iocs_value`, `iocs[].type` → `iocs_type`). §6 caveat rewritten: bracket-in-name forms NOT queryable as PrismQL column names; wildcard source_path means `iocs_value` returns JSON-list string (e.g., `["hash1","hash2"]`). Added diagnostic note: check `column_source_path_extraction_failed` warn events if `iocs_value` is unexpectedly null. `behaviors_ioc_type`/`behaviors_ioc_value` (CrowdStrike) were already correct clean names (set in PIVOT-003). |
 | 1.1 | 2026-06-23 | Corrected Cyberint IOC column names throughout: `ioc_value` → `iocs_value`, `ioc_type` → `iocs_type`, `ioc_severity` → `severity` (alert-level field; no separate IOC severity column exists). These short forms are serde aliases, not queryable PrismQL column names. Added §6 capability caveat documenting the `iocs[].` nested path requirement. BLOCKER 4 fix from dry-run. |

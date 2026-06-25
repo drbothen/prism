@@ -49,7 +49,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.2"
+version: "1.3"
 updated: "2026-06-24"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
@@ -66,6 +66,13 @@ updated: "2026-06-24"
 # render_pql_reference_resource), NOT in resources.rs as v1.1 stated; (b) BLOCKER-001 — no dedicated
 # "force-refresh entrypoint" in the plugin; acquire_token is the unconditional fresh-acquire fn,
 # get_token re-acquires only on cache-miss/stale. No AC count / BC trace change. See Changelog v1.2 row.
+# v1.3: story-writer spec-sync burst (D-1326 adjudication) — 4 corrections: (1) AC-019 re-scoped:
+# BLOCKER-001 root cause is connect-timeout (not KV staleness — PluginKvStore is in-memory/fresh per
+# prism start); deferred to S-RESILIENCE-FEDERATED-001; demo unblocked via runbook DTU health-check
+# Fix B; BC citation corrected BC-2.06.001→BC-2.01.005. (2) OBS-3: File Structure RowLimit MCP
+# mapping path corrected prism-core→prism-mcp/src/error_mapping.rs. (3) BC-2.11.023 v1.0→v1.1 in
+# Behavioral Contracts table. (4) S-RESILIENCE-FEDERATED-001 stub registered as deferral anchor.
+# No AC count / BC trace count change.
 producer: story-writer
 timestamp: "2026-06-24T00:00:00Z"
 input-hash: "TBD"
@@ -139,9 +146,8 @@ crates_touched:
   # feature_flag.rs (FeatureFlagEvaluator: add Arc<OrgRegistry> field + change client_exists(&str)
   # to build an OrgSlug from the &str and call OrgRegistry::slug_exists per BC-2.10.015 — D-1110)
   - prism-dtu-crowdstrike
-  # BLOCKER-001 investigative: may require src/routes/oauth.rs (NOT oauth2.rs — D-1110) token
-  # endpoint extension (grant_type=refresh_token) IF plugin-side full-reauth fix is insufficient.
-  # The DTU `fn token` handler is currently client_credentials-only / static token.
+  # BLOCKER-001 DEFERRED to S-RESILIENCE-FEDERATED-001 (D-1326): no changes to this crate
+  # in this story. Root cause is connect-timeout, not token cache. DTU routes/oauth.rs unchanged.
 ---
 
 # S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: Demo-Readiness Grammar & MCP Remediation
@@ -160,7 +166,7 @@ works end-to-end, temporal queries parse, and MCP tools/prompts respond within t
 | BC-2.11.020 | v1.0 | SQL→Pipe Composition — `SqlPipe` AST Variant and FORBID-BOTH Dual-Limit Rule |
 | BC-2.11.021 | v1.0 | Temporal Grammar — `NOW()` and `INTERVAL` Planning-Time Constant Injection |
 | BC-2.11.022 | v1.0 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
-| BC-2.11.023 | v1.0 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant |
+| BC-2.11.023 | v1.1 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant |
 | BC-2.10.015 | v1.0 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check |
 | BC-2.10.016 | v1.0 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.017 | v1.0 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking |
@@ -466,51 +472,34 @@ for each NOT_YET_AVAILABLE tool returns WITHOUT invoking the blocking audit `.aw
 > verified by inspection, integration tests, or timing assertions rather than classic
 > Red Gate unit tests. They do NOT count toward the 19 Red Gate test total.
 
-**AC-019** [BLOCKER-001 / implementer-AC]: CrowdStrike OAuth plugin does not hang on
-second Prism session start.
-- Implementer MUST investigate (a) `crowdstrike-oauth2.prx` token refresh flow (does it do
-  `grant_type=refresh_token` or `client_credentials` on cache miss?), and (b)
-  `crates/prism-dtu-crowdstrike/src/routes/oauth.rs` (which grant types are implemented).
-- **VERIFIED (remove-uncertainty pass, D-1110, 2026-06-24):** the DTU route file is
-  `crates/prism-dtu-crowdstrike/src/routes/oauth.rs` (NOT `oauth2.rs` as v1.0 stated). Its
-  `pub async fn token(...)` handler simulates ONLY the `client_credentials` grant and returns a
-  STATIC token (`"dtu-fake-cs-token"`) unless `auth_mode == "reject"`. It does NOT inspect the
-  posted `grant_type` and does NOT implement `grant_type=refresh_token`. So a plugin-side
-  `refresh_token` call against this DTU would hit an endpoint that ignores the grant param (it
-  always returns the same static token) — meaning the hang is more likely a plugin-side
-  token-cache / state-mismatch issue across sessions than a missing DTU endpoint. The implementer
-  should confirm against the plugin's actual on-cache-miss behavior before choosing a fix path.
-- **VERIFIED plugin internals (D-1110; RE-VERIFIED pass-2 against develop@903c8fcb):**
-  `crates/prism-spec-engine/plugins/crowdstrike-oauth2/src/lib.rs` caches `"token"` +
-  `"expires_at_secs"` in the plugin KV store (plugin_state CF) and returns the cached token while
-  `current_time_secs() < expires_at_secs` (the cache-hit branch of `get_token(host, token_endpoint)`).
-  **CORRECTION (pass-2):** there is NO dedicated "FORCED-REFRESH entrypoint." The unconditional
-  fresh-acquire function is `acquire_token(host, token_endpoint)` (it always issues a new
-  `grant_type=client_credentials` request and writes a new `expires_at_secs`); `get_token` is the
-  cache-aware wrapper that calls `acquire_token` ONLY on cache-miss/stale (`now >= expires_at_secs`
-  or empty cached token). To force a refresh, the plugin path must either call `acquire_token`
-  directly or invalidate the KV entry so `get_token` falls through. The cross-session hang is
-  consistent with a stale KV-cached token from a prior Prism session being presented to a
-  freshly-reset DTU session (DTU session state resets between Prism runs, but the plugin's
-  persisted KV token does not). Lower-risk fix: on the cross-session/cache-miss boundary, force a
-  fresh acquire (call `acquire_token` directly or evict the KV `token`/`expires_at_secs` keys so
-  `get_token` re-acquires) via `client_credentials` (which the DTU does honor) rather than relying
-  on a persisted token. Confirm the plugin_state CF persistence model in `prism-storage` before
-  finalizing.
-- Fix path: EITHER the plugin detects a stale token (different DTU session) and forces a
-  full re-auth via `client_credentials` (plugin-side fix, more robust — and aligns with the DTU
-  only supporting `client_credentials`; mechanically this means calling `acquire_token` directly
-  or evicting the KV cache keys so `get_token` re-acquires — there is no separate force-refresh
-  API) OR the DTU's `token` handler (`crates/prism-dtu-crowdstrike/src/routes/oauth.rs`,
-  `pub async fn token`) is extended to accept `grant_type=refresh_token` and return a fresh static
-  token (DTU-side fix). Both paths are acceptable; implementer chooses based on root-cause
-  investigation. Given the DTU only models `client_credentials`, the plugin-side full-reauth path
-  is the lower-risk default.
-- Existing BC-2.06.001 (CrowdStrike OAuth flow) governs the correct token acquisition
-  behavior. No new BC required.
-- Verification: start Prism, run a CrowdStrike query, restart Prism (new session), run
-  a CrowdStrike query again — the second session completes within the normal query timeout
-  (30s) without hanging for the full PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30s.
+**AC-019** [BLOCKER-001 / implementer-AC — D-1326 adjudication]: CrowdStrike OAuth plugin
+does not hang on second Prism session start.
+
+> **D-1326 ROOT-CAUSE ADJUDICATION:** The cross-session hang was architecturally misdiagnosed
+> in the original story draft. The investigation showed PluginKvStore is **in-memory** and fresh
+> per `prism start` — cross-session KV staleness is **impossible** by construction. The removed
+> `reset_token_cache` function and its test (found at code HEAD 3fa69207) confirmed this.
+>
+> The real root cause is a **connectivity connect-timeout** in the plugin HTTP client:
+> `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS=30` sets a total request timeout but there is no separate
+> `connect_timeout`. If the DTU is not yet up when Prism starts, the plugin waits the full 30s
+> before failing. The structural fix (per-sensor TOML-tuneable connect/request timeouts,
+> boot-degraded mode, connectivity diagnostic, retry-with-backoff) is a day-2 resilience
+> concern that requires new ADR/BC/TOML schema work.
+>
+> **DEFERRAL (D-1326 / CLAUDE.md Rule 3 feature-ordering):** The runtime connect-timeout fix is
+> **deferred to S-RESILIENCE-FEDERATED-001** (day-2 resilience epic). This is a legitimate
+> feature-ordering deferral: the scope (new TOML schema, ADRs, boot-degraded model) exceeds
+> T13 demo story budget, and a concrete anchor story exists. For the T13 demo, the hang is
+> avoided operationally via the **runbook DTU health-check** (demo-pre-flight runbook Fix B:
+> verify DTU is healthy before starting Prism). No code change is required in this story for
+> BLOCKER-001.
+
+- BC-2.01.005 (CrowdStrike OAuth2 Authentication and Two-Step Fetch) governs the correct
+  token acquisition behavior in the production path. No new BC required for this story.
+- Verification: the demo runbook DTU health-check step (Fix B) is confirmed present and
+  tested in the demo pre-flight sequence; no session-start hang occurs when the DTU is
+  healthy before `prism start`.
 
 **AC-020** [BLOCKER-002 / implementer-AC]: Demo runbook §5.5 pipe syntax is valid PrismQL.
 - The pipe syntax example in demo runbook §5.5 currently uses invalid syntax
@@ -750,7 +739,7 @@ must both fail (Red Gate requirement BC-5.38.001).
 
 ### Phase 7 — Area F Implementation (implementer)
 
-1. **BLOCKER-001:** Read `crowdstrike-oauth2.prx` token refresh flow. Read `crates/prism-dtu-crowdstrike/src/routes/oauth.rs` (NOT `oauth2.rs` — verified path, D-1110; the handler is `pub async fn token`, `client_credentials`-only, static token). Identify the hang cause. Implement the chosen fix path (plugin-side full-reauth is the lower-risk default — DTU models only `client_credentials`). Manually verify: start Prism, query CrowdStrike, restart Prism, query again — no 30s hang.
+1. **BLOCKER-001 — DEFERRED to S-RESILIENCE-FEDERATED-001 (D-1326):** No implementer action required. Root cause is a connectivity connect-timeout (not a KV staleness issue — PluginKvStore is in-memory + fresh per `prism start`). The runtime fix (per-sensor TOML connect/request timeouts, boot-degraded, retry) is out of T13 scope. The demo runbook DTU health-check (Fix B) operationally avoids the hang. See AC-019 for full adjudication.
 2. **BLOCKER-002:** Find demo runbook §5.5 pipe syntax line. Replace with valid pipe syntax. Verify by parsing the corrected example.
 3. **GRAMMAR-004 (AC-021):** Add `available_tables` + `did_you_mean` to E-QUERY-036 error struct.
 4. **GRAMMAR-005/015 (AC-022/AC-025):** Add `enrich`-position heuristic to `error_recovery.rs` for guided error message.
@@ -769,7 +758,7 @@ must both fail (Red Gate requirement BC-5.38.001).
    bump EXPECTED in BOTH `ci.yml` and CLAUDE.md in the same commit. Confirm by re-running the
    compile-fail gate at `tests/external/non-exhaustive-violation/`.
 3. Run SAP-1: grep `event_type =` across `crates/` — verify any new emission sites have corresponding BC-2.16.002 catalog rows.
-4. Run SAP-2: for any TOML spec touched (BLOCKER-001 fix), verify DTU↔TOML schema parity.
+4. Run SAP-2: for any TOML spec touched (BLOCKER-001 deferred per D-1326 — no TOML spec changes in this story), verify DTU↔TOML schema parity if other TOML specs are modified.
 5. Create PR targeting `develop`. Ensure PR description includes GRAMMAR-013 coverage table (AC-024).
 
 ---
@@ -845,7 +834,7 @@ From CLAUDE.md conventions:
 | `crates/prism-query/src/error_recovery.rs` | Modify | Produce `normalized_pql` rewrite STRING on D1 mode-bridge (no struct named `ParseErrorDetails` exists — D-1110) |
 | `crates/prism-mcp/src/error_mapping.rs` | Modify | Add `normalized_pql: Option<String>` field to `StructuredErrorFields` + update `new`/builder; populate in `QueryParseFailed` arm |
 | `crates/prism-core/src/error.rs` | Modify | `PrismError::RedundantRowLimit { sql_limit: u64, pipe_limit: u64 }` variant |
-| `crates/prism-core/src/error_mapping.rs` | Modify | Add `-32602 INVALID_PARAMS` arm for `RedundantRowLimit` |
+| `crates/prism-mcp/src/error_mapping.rs` | Modify | Add `-32602 INVALID_PARAMS` arm for `RedundantRowLimit` (OBS-3 correction: MCP error mapping lives in prism-mcp, not prism-core) |
 | `crates/prism-mcp/src/resources.rs` | Modify | `build_reference_content`, `REFERENCE_EXAMPLES`, `ExampleKind`; remove `include_str!` |
 | `crates/prism-mcp/src/resources/schema.rs` | Modify | Remove `PQL_REFERENCE_CONTENT = include_str!("../pql_reference.md")` + retire/repoint `render_pql_reference_resource()` (D-1110 pass-2: the `include_str!` lives HERE, not in `resources.rs`) |
 | `crates/prism-mcp/src/pql_reference.md` | Delete / retire | `include_str!` (in `resources/schema.rs`) removed; file may remain as documentation archive |
@@ -853,7 +842,7 @@ From CLAUDE.md conventions:
 | `crates/prism-mcp/src/prompts.rs` | Modify | Fix prompt hang (BLOCKER-003 root cause from `cargo expand` investigation) |
 | `crates/prism-mcp/src/tools/list_capabilities.rs` | Modify | Wire `Arc<OrgRegistry>` through to `FeatureFlagEvaluator` |
 | `crates/prism-security/src/feature_flag.rs` | Modify | `FeatureFlagEvaluator`: add `Arc<OrgRegistry>` field, change `client_exists` |
-| `crates/prism-dtu-crowdstrike/src/routes/oauth.rs` | Modify (maybe) | BLOCKER-001 DTU token endpoint (`fn token`, currently `client_credentials`-only / static token) — only if DTU-side `grant_type=refresh_token` fix is chosen; path corrected from `oauth2.rs` (D-1110) |
+| `crates/prism-dtu-crowdstrike/src/routes/oauth.rs` | No change | BLOCKER-001 deferred to S-RESILIENCE-FEDERATED-001 (D-1326 adjudication); no DTU token endpoint change needed for T13 demo |
 | `scripts/` (demo runbook §5.5) | Modify | BLOCKER-002: correct pipe syntax example |
 | `crates/prism-query/tests/filter_mode.rs` | New | Filter mode end-to-end execution tests (AC-011) |
 | `crates/prism-query/tests/grammar_remediation.rs` | New | Area A/B/D Red Gate tests |
@@ -867,6 +856,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | story-writer-spec-sync-D1326 | 2026-06-24 | story-writer | Spec-sync burst (D-1326 adjudication). 4 changes: (1) **AC-019 re-scoped** — BLOCKER-001 root cause adjudicated as connectivity connect-timeout (PluginKvStore is in-memory/fresh per `prism start`, making cross-session KV staleness impossible; dead `reset_token_cache` + test removed at code HEAD 3fa69207); runtime fix deferred to S-RESILIENCE-FEDERATED-001 (per-sensor TOML timeouts, boot-degraded, retry-with-backoff); demo unblocked via runbook DTU health-check Fix B; wrong BC citation corrected (BC-2.06.001 "TOML Config Loading" → BC-2.01.005 "CrowdStrike OAuth2 Authentication and Two-Step Fetch"). (2) **OBS-3** — File Structure `-32602 INVALID_PARAMS` arm path corrected from `crates/prism-core/src/error_mapping.rs` to `crates/prism-mcp/src/error_mapping.rs` (MCP error mapping lives in prism-mcp; confirmed by `map_prism_error` function location). (3) **BC-2.11.023 version** — v1.0 → v1.1 in Behavioral Contracts table (PO bumped in same burst). (4) **S-RESILIENCE-FEDERATED-001 stub** registered (day-2 resilience epic anchor). No AC count / BC list / Red Gate test count change. |
 | 1.0 | demo-readiness-remediation-2026-06-24 | 2026-06-24 | story-writer | Initial story. 26 ACs (19 BC-traced + 7 implementer/doc). 8 BCs. Explicit human directive: single consolidated story for all T13 demo-readiness findings. Size flag included per story-writer mandate (111k token estimate). |
 | 1.2 | remove-uncertainty-pass2-D1110 | 2026-06-24 | research-agent | `dclaude:remove-uncertainty` pass 2 (D-1110, pre-TDD-delivery) — re-validated against the post-S-5.04 develop tip (develop@903c8fcb, contains merged S-5.04). **Pass-1 corrections RE-CONFIRMED on 903c8fcb:** (1) `StructuredErrorFields` in `prism-mcp/src/error_mapping.rs` — `#[non_exhaustive]`, carries `near_text`/`reference_pointer`/`available_columns`/`did_you_mean` via `skip_serializing_if`; no `ParseErrorDetails` exists. (2) `OrgRegistry::slug_exists(&self, slug: &OrgSlug) -> bool` (org_registry.rs) — no `contains`. (3) `emit_tool_audit` (server.rs) is `async fn` calling `writer.write_tool_call(...).await` on `Arc<dyn AuditWriter>` returning `Result<Option<String>, ErrorData>` — NO mpsc/try_send; not-yet-available stubs (`create_schedule`, `list_schedules`, etc.) call `scan_inputs_audited().await? → emit_tool_audit().await? → Err(not_yet_available_msg(...))`; guard-reorder-before-audit-await fix is correct. (4) DTU `routes/oauth.rs` `pub async fn token` is `client_credentials`-only / static `"dtu-fake-cs-token"` / 401 only on `auth_mode=="reject"`; plugin caches `token`+`expires_at_secs` in KV. **NEW S-5.04 conflict check:** NONE — S-5.04 added `check_sensor_health` as a `LIVE_TOOLS` handler (line in `LIVE_TOOLS` const, not `NOT_YET_AVAILABLE_TOOLS`), and left `emit_tool_audit` + the not-yet-available handler structure unchanged; Area E guard-reorder scope does not intersect S-5.04 code. EXPECTED=84 (S-5.04 HealthSummary) already correctly reflected in Previous Story Intelligence + Phase 8. **2 NEW corrections applied (mechanical/code-grounded, no architect adjudication):** (A) Area C location — the `prismql://reference` `include_str!` is `PQL_REFERENCE_CONTENT = include_str!("../pql_reference.md")` in `crates/prism-mcp/src/resources/schema.rs` (served by `render_pql_reference_resource()`), NOT in `resources.rs` as v1.1 said; `resources.rs` only dispatches to `schema::render_pql_reference_resource()` from the `read_resource` `prismql://reference` arm. Corrected AC-006, Phase 4 step 4, Architecture Mapping, File Structure (added `resources/schema.rs` row), crates_touched. The `pql_reference.md` path itself was already correct. (B) BLOCKER-001 / AC-019 — the plugin has NO dedicated "FORCED-REFRESH entrypoint"; `acquire_token(host, token_endpoint)` is the unconditional fresh-acquire fn, and `get_token` re-acquires only on cache-miss/stale (`now >= expires_at_secs` or empty cached token). To force a refresh the plugin path calls `acquire_token` directly or evicts the KV `token`/`expires_at_secs` keys. Corrected AC-019 plugin-internals + fix-path bullets. No AC count / BC trace change. |
 | 1.1 | remove-uncertainty-pass-D1110 | 2026-06-24 | research-agent | `dclaude:remove-uncertainty` pass 1 (D-1110). Validated all version-sensitive tech assumptions against `Cargo.lock` (source of truth) + CURRENT (2026) authoritative docs (Perplexity sonar-deep-research + Context7-grade source verification). Corrections applied (no AC count / BC trace change): (1) **Pinned exact resolved versions** — rmcp 1.7.0, chumsky 0.12.0, datafusion 53.1.0 (arrow 58), strsim 0.11.1, tokio 1.52.1, chrono 0.4.44. (2) **`ParseErrorDetails` does not exist** — the `normalized_pql` field belongs on the existing `#[non_exhaustive]` `StructuredErrorFields` in `prism-mcp/src/error_mapping.rs`; rewrite STRING produced in `prism-query` error_recovery; corrected AC-010, Architecture Mapping, File Structure, crates_touched, Phase 5, Phase 8 EXPECTED note, Previous Story Intelligence. (3) **OrgRegistry API** — method is `slug_exists(&OrgSlug)` not `contains(&str)`; corrected AC-013 + Phase 6 + crates_touched; no new OrgRegistry method needed; `OrgSlug::new_unchecked` forbidden. (4) **BLOCKER-004 mechanism** — `emit_tool_audit` awaits `AuditWriter::write_tool_call`, it is NOT an mpsc `try_send` path; the fix is guard-reorder-before-audit-await, not try_send; corrected AC-017/AC-018 (test renamed `..._guard_precedes_audit`), EC-009, points note, Architecture Mapping, File Structure. (5) **BLOCKER-001 path** — DTU route is `routes/oauth.rs` (`fn token`, client_credentials-only, static token) not `routes/oauth2.rs`; plugin-side full-reauth is lower-risk default; corrected AC-019, Phase 7, File Structure, crates_touched. (6) **DataFusion 53 plan-time injection confirmed sound** — PrismQL substitutes its own `Expr::Now` before the plan reaches DataFusion, avoiding any collision with DataFusion's built-in `now()`; added soundness note to Phase 3. (7) **chrono 0.4 has no duration-string parser** — `INTERVAL` literals require custom `<int><unit>` parsing via chumsky `try_map`; added note to Library table + Phase 3. (8) **rmcp PromptRouter required-arg validation** — design-expected but NOT explicitly documented in rmcp 1.7 docs; reaffirmed `cargo expand` investigation mandate (ADR-046 D6) before any fix; routes use `new_dyn` closures with `.unwrap_or` so closures don't block — hang is in macro-dispatch/transport layer. No item required architect adjudication (all corrections mechanical/code-grounded per production-grade default). |

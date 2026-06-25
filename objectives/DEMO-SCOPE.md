@@ -2,8 +2,8 @@
 document_type: demo-scope
 level: ops
 producer: state-manager
-version: "1.5"
-timestamp: 2026-06-14T00:00:00Z
+version: "1.6"
+timestamp: 2026-06-24T00:00:00Z
 project: prism
 ---
 
@@ -27,7 +27,9 @@ project: prism
 
 ## The Frame
 
-Prism runs as a **per-analyst MCP server** inside Claude Code. The analyst works multiple client orgs, queries their security sensors in PrismQL; prism fans out to sensor APIs (DTU clones standing in for real vendors for the demo), normalizes to OCSF, returns a unified result.
+Prism runs as a **per-analyst MCP server** inside Claude Code. The analyst works multiple client orgs, queries their security sensors in PrismQL; prism fans out to sensor APIs **in parallel** (DTU clones standing in for real vendors for the demo), normalizes to OCSF, returns a unified result.
+
+**Execution model:** Prism is a single process with a multi-threaded tokio runtime. A query fans out to multiple sensors/clients IN PARALLEL (bounded by MAX_FANOUT_CONCURRENCY=10, nested under HTTP_SEMAPHORE_PERMITS=200). Concurrent queries are NOT serialized by any lock (`PrismServer::query` takes `&self`; ArcSwap lock-free config reads). The only sequential aspect is stdin message framing in the stdio transport — a transport/client characteristic, NOT engine serialization.
 
 **READ-ONLY.** Write-back / actions (TDE — Threat Detection Engineer workflow) is DEFERRED. Reason: requires the absent `prism-operations` crate + wiring the dead write path (E-SENSOR-070 / TODO W3-FIX-S307-001).
 

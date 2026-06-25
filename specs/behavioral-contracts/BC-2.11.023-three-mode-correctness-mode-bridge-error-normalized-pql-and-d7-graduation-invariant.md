@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: null
+modified: "2026-06-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -31,7 +31,7 @@ extracted_from: null
 
 ## Description
 
-PrismQL has three parse-entry modes (Filter, SQL, Pipe) that share a single underlying execution model (Pipe is canonical execution; Filter and SQL are syntactic sugar that lower into it). This BC governs: (1) the mode-bridge diagnostic emitted when a user mixes modes in an unsupported way (SQL mode hits `|`, SQL clause keyword in pipe position); (2) the `normalized_pql: Option<String>` field on `ParseErrorDetails` that carries a best-effort pipe-mode rewrite; (3) the D7 shared-predicate-grammar invariant (Filter mode predicate grammar is exactly the `WHERE`/`| where` predicate grammar); (4) Filter mode end-to-end execution validation.
+PrismQL has three parse-entry modes (Filter, SQL, Pipe) that share a single underlying execution model (Pipe is canonical execution; Filter and SQL are syntactic sugar that lower into it). This BC governs: (1) the mode-bridge diagnostic emitted when a user mixes modes in an unsupported way (SQL mode hits `|`, SQL clause keyword in pipe position); (2) the `normalized_pql: Option<String>` field on `StructuredErrorFields` (in `crates/prism-mcp/src/error_mapping.rs`) that carries a best-effort pipe-mode rewrite in the structured MCP error response; (3) the D7 shared-predicate-grammar invariant (Filter mode predicate grammar is exactly the `WHERE`/`| where` predicate grammar); (4) Filter mode end-to-end execution validation.
 
 ## Preconditions
 
@@ -67,13 +67,15 @@ Example: FROM <table> | where severity = 'HIGH' | sort time DESC | limit 10
 
 Note: `WHERE` and `LIMIT` (uppercase) already parse in pipe mode because keywords are case-insensitive. D2 fires specifically when `SELECT` appears in pipe stage position or `ORDER BY` appears in stage position.
 
-### `normalized_pql` field on `ParseErrorDetails` (ADR-046 D3)
+### `normalized_pql` field on `StructuredErrorFields` (ADR-046 D3)
 
-`ParseErrorDetails` gains a new optional field `normalized_pql: Option<String>`. This field:
+`StructuredErrorFields` (the `#[non_exhaustive]` structured MCP error payload in `crates/prism-mcp/src/error_mapping.rs`) gains a new optional field `normalized_pql: Option<String>`. The rewrite string is computed in `prism-query`'s error-recovery path (`crates/prism-query/src/error_recovery.rs`) and propagated to `StructuredErrorFields` when mapping `PrismError::QueryParseFailed` in `error_mapping.rs` — because `prism-query` MUST NOT depend on `prism-mcp` (dependency-direction rule). This field:
 - Is populated on mode-bridge errors (D1) when a best-effort pipe rewrite is available
 - Is populated on any `E-QUERY-001` parse error where a canonical rewrite is derivable from the query string
 - Is `None` when no rewrite is derivable or when the error is not a mode-bridge error
-- MUST appear in the structured MCP error response's `ParseErrorDetails` when set
+- MUST appear in the structured MCP error response's `StructuredErrorFields` JSON payload when set
+- Serializes via `#[serde(skip_serializing_if = "Option::is_none")]` — absent from JSON when `None`
+- Adding this field does NOT change the `ci.yml` non-exhaustive `EXPECTED` count because `StructuredErrorFields` is already `#[non_exhaustive]` (new field on existing type, not a new type)
 
 ### D7 shared-predicate-grammar invariant
 
@@ -92,7 +94,7 @@ These tests MUST use `QueryEngine::execute`, not just `PrismQlParser::parse`. Un
 
 ## Invariants
 
-- `ParseErrorDetails.normalized_pql` is ALWAYS `Option<String>` — never a required field; absent when not applicable (non-breaking addition)
+- `StructuredErrorFields.normalized_pql` is ALWAYS `Option<String>` — never a required field; absent from JSON when not applicable (non-breaking addition to existing `#[non_exhaustive]` struct)
 - Mode-bridge rewrites in `normalized_pql` are best-effort; the field is clearly labeled "suggested rewrite" in documentation
 - Three-way composition (filter + SQL + pipe simultaneously) is NOT supported; the plan-time rejection directs to the two supported forms (pure SQL, pure Pipe, or SQL→Pipe composition per BC-2.11.020)
 - Filter mode is bare-predicate sugar: its expressive power is a strict subset of SQL and Pipe modes — it adds no new capability
@@ -145,8 +147,8 @@ These tests MUST use `QueryEngine::execute`, not just `PrismQlParser::parse`. Un
 
 ## Architecture Anchors
 
-- `crates/prism-query/src/error_recovery.rs` — `rich_to_parse_error` (D1/D2 post-parse heuristic)
-- `crates/prism-query/src/error.rs` or equivalent — `ParseErrorDetails` struct (add `normalized_pql: Option<String>` field)
+- `crates/prism-query/src/error_recovery.rs` — `rich_to_parse_error` (D1/D2 post-parse heuristic); also produces the `normalized_pql` rewrite STRING for mode-bridge errors
+- `crates/prism-mcp/src/error_mapping.rs` — `StructuredErrorFields` struct (add `normalized_pql: Option<String>` field with `#[serde(skip_serializing_if = "Option::is_none")]`; populate from the `prism-query` rewrite string in the `QueryParseFailed` mapping arm). NOTE: there is NO `ParseErrorDetails` type in `prism-query/src/error.rs` — the MCP-facing structured error payload is `StructuredErrorFields` in `prism-mcp`. `prism-query` MUST NOT depend on `prism-mcp`. (D-1110 correction)
 - `crates/prism-query/src/engine.rs` — `Ast::Filter` execution match arm (D4 tests target this path)
 - ADR-046: Three-Mode Correctness
 
@@ -173,4 +175,5 @@ VP-021 (fuzz)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001-spec-sync | 2026-06-24 | product-owner | OBS-2 spec-drift correction (D-1110 ratified reality). Renamed `ParseErrorDetails` → `StructuredErrorFields` throughout; updated location from `prism-query/src/error.rs` to `prism-mcp/src/error_mapping.rs`. Added dependency-direction rationale (prism-query MUST NOT depend on prism-mcp — rewrite STRING computed in error_recovery.rs, FIELD carried on StructuredErrorFields). Clarified non-exhaustive EXPECTED count is unchanged (new field on existing type). Updated Description, Postconditions §D3, Invariants, and Architecture Anchors. Behavioral contract semantics (normalized_pql MUST appear in the structured MCP error response on D1 mode-bridge errors) are unchanged. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 v1.2. Closes GRAMMAR-014, GRAMMAR-016, ADR-046 D4/D7. |
