@@ -3425,12 +3425,16 @@ impl PrismServer {
     /// Retrieve diagnostic information for a specific sensor or all sensors.
     ///
     /// DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: Configured sensor adapters.
     #[tool(
         description = "Retrieve diagnostic information for a specific sensor or all sensors.\n\
         DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: Configured sensor adapters.\n\
         WHEN TO USE: when investigating sensor adapter behavior or performance issues\n\
         WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
@@ -4432,16 +4436,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a recurring PrismQL query schedule.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a recurring PrismQL query schedule.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
+        PARAMETERS: scope (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4539,16 +4547,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a detection rule from a PrismQL query.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a detection rule from a PrismQL query.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
+        PARAMETERS: scope (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4592,16 +4604,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// Delete a detection rule by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — validates the `id` field format (returns
+    /// INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Delete a detection rule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — validates the `id` field format (returns \
+INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
+        PARAMETERS: id (required) — format-validated; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4620,16 +4636,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a new security case.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a new security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
+        PARAMETERS: scope (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4673,16 +4693,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// Get a specific security case by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — validates the `id` field format (returns
+    /// INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Get a specific security case by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — validates the `id` field format (returns \
+INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
+        PARAMETERS: id (required) — format-validated; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4701,16 +4725,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// Update fields on an existing security case.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — validates the `id` field format (returns
+    /// INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Update fields on an existing security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — validates the `id` field format (returns \
+INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
+        PARAMETERS: id (required) — format-validated; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4808,12 +4836,17 @@ is NOT an error — returns matrix with client_registered: false",
     /// Configure a credential source for a sensor (env, file, vault, or keyring reference).
     ///
     /// DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled in MCP context.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER stored (AD-017).
+    /// SECURITY NOTE: Not yet available — length-bounds the `name` (256 B) and `source` (1 KB) text
+    /// parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns
+    /// E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs. Credential values
+    /// NEVER stored (AD-017).
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Configure a credential source for a sensor (env, file, vault, or keyring reference).\n\
         DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER stored (AD-017).\n\
+        SECURITY NOTE: Not yet available — length-bounds the `name` (256 B) and `source` (1 KB) \
+text parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns \
+E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs. Credential values NEVER stored (AD-017).\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4837,12 +4870,16 @@ is NOT an error — returns matrix with client_registered: false",
     /// Delete a credential reference for a sensor (removes the reference, not any external value).
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — length-bounds the `name` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Delete a credential reference for a sensor (removes the reference, not any external value).\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `name` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4893,16 +4930,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// List alerts for the given client, with optional severity/rule/status filters.
     ///
     /// DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled in MCP context.
-    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
+    /// SECURITY NOTE: Not yet available — length-bounds the `severity`, `status`, and `since` text
+    /// parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns
+    /// E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations alert store (not yet wired).
     #[tool(
         description = "List alerts for the given client, with optional severity/rule/status filters.\n\
         DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled.\n\
-        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `severity`, `status`, and `since` \
+text parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns \
+E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations alert store (not yet wired).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
+        PARAMETERS: severity/status/since (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
