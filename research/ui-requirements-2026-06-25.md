@@ -88,5 +88,5 @@ note: "Distilled synthesis of two 2026-06-25 deep-research passes (raw bodies co
 | UI-D2 | Trust-first AI UX (show query, evidence-link, case-wall log, human approval) | recommend-adopt (aligns with prism thesis) |
 | UI-D3 | Virtualized tables + streaming + per-source coverage + color-blind-safe severity | recommend-adopt |
 | UI-D4 | Fine-grained per-tenant RBAC + dangerous-action guards + audit | recommend-adopt (realizes G-12) |
-| UI-D5 | **Web-stack: TS SPA (React) vs Rust-native (Leptos)** | **OPEN — genuine judgment call (§6); web-stack ADR** |
+| UI-D5 | **Web-stack: TS SPA (React) vs Rust-native (Leptos)** | **RESOLVED 2026-06-25 (HUMAN DECISION): Option A — TS SPA (React) + Rust backend, OpenAPI→TS shared types. Feeds the web-stack ADR. See matured-vision §11.3 web-stack bullet.** |
 | UI-D6 | Federation/source-coverage + AI-narrative + UEBA-risk + graph + MITRE-heatmap as the differentiator set | recommend-adopt |

@@ -1143,13 +1143,18 @@ central service gains an LLM-agent orchestration layer (model routing, tool-call
 output hardening). This is a notable scope addition — flag for architect.
 
 **Cross-cutting UI requirements:**
-- **Web-stack ADR:** Prism is a Rust workspace with no frontend. Options: Rust-native (Leptos/Dioxus,
-  stays in-language) vs TS SPA (React/Svelte). Served over the E-CENTRAL-TRANSPORT-001 HTTP transport.
-  **UI research (2026-06-25, `research/ui-requirements-2026-06-25.md`) recommends TS SPA (React) +
-  Rust backend** for ecosystem reasons (AG Grid/TanStack, ECharts/visx, Cytoscape/sigma.js, Monaco for
-  the PrismQL editor — Monaco is an awkward JS island under Rust-WASM). BUT it flags that Rust-native
-  (Leptos) is "feasible" precisely for an all-Rust team like prism — so this remains a genuine OPEN
-  judgment call (UI-D5), not auto-decided. Shared types via OpenAPI→openapi-typescript codegen.
+- **Web-stack ADR — UI-D5 RESOLVED (HUMAN DECISION 2026-06-25 side-analysis): Option A — TypeScript
+  SPA (React) + Rust (Axum/Tokio/DataFusion) backend.** Prism is a Rust workspace with no frontend;
+  the choice was Rust-native (Leptos/Dioxus, in-language) vs TS SPA (React). The human selected the
+  TS SPA after the trade-off walkthrough: the data-dense SOC console depends on the JS ecosystem's
+  home turf — **AG Grid / TanStack Table+Virtual** (10k+ row grids), **ECharts/visx** (dashboards,
+  MITRE heatmaps), **Cytoscape.js / sigma.js** (relationship graphs), and **Monaco** (PrismQL editor:
+  highlight/autocomplete/lint, an awkward JS island under Rust-WASM). The all-Rust-shop pull toward
+  Leptos was weighed and set aside because the Monaco island claws back the unified-language win
+  exactly where the UI is most complex. **Shared types via OpenAPI→openapi-typescript codegen** from
+  the Rust backend neutralize the type-boundary cost. Served over the E-CENTRAL-TRANSPORT-001 HTTP
+  transport. Perf-critical client modules MAY be compiled to WASM. This decision is the input to the
+  forthcoming web-stack ADR (architect to allocate the ADR number at morph time).
 - **SSO (enhancement over Query):** OIDC/SAML from day one — research shows Query does *not* document
   SSO. Strong enterprise/MSSP differentiator.
 - **Multi-tenant web-UI security canon:** tenant-context propagation via signed tokens, per-tenant
@@ -1944,11 +1949,13 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
 
 - **UI (next up, was paused here):** UI-needs research DONE 2026-06-25 — see
   `research/ui-requirements-2026-06-25.md` (distilled) + `research/ui-investigations-console-ux-2026-06-25.md`
-  + `research/ui-webstack-admin-rbac-2026-06-25.md` (raw). Next: hand the distilled requirements to
-  ux-designer to draft S2 investigations-console screens + U1 admin-console inventory; resolve the
-  **web-stack ADR (UI-D5: TS SPA-React vs Rust-native Leptos — OPEN judgment call)**; SSO/OIDC-SAML;
-  S3 agent-runtime ADR. Table-stakes screen list, differentiators, trust-first AI UX, accessibility/
-  streaming, and fine-grained-RBAC admin patterns are all captured in the requirements doc. (§11.3, §11.3.1, §11.3.2)
+  + `research/ui-webstack-admin-rbac-2026-06-25.md` (raw). **UI-D5 RESOLVED 2026-06-25 (HUMAN
+  DECISION): Option A — TS SPA (React) + Rust backend, OpenAPI→TS shared types (§11.3 web-stack
+  bullet; UI-requirements UI-D5 row).** Next: hand the distilled requirements to ux-designer to draft
+  S2 investigations-console screens + U1 admin-console inventory; then SSO/OIDC-SAML + S3
+  agent-runtime ADRs (still open). Table-stakes screen list, differentiators, trust-first AI UX,
+  accessibility/streaming, and fine-grained-RBAC admin patterns are all captured in the requirements
+  doc. (§11.3, §11.3.1, §11.3.2)
 - **`SecretBackend` trait + per-tenant-DEK flow** concrete sketch (§11.1).
 - **Sequence-sugar ADR open questions** (§12.4): keyword finalization; overall-`WITHIN` semantics;
   cross-step running-semantics; **`NOT`/`WITHOUT` non-event desugaring** (exclusion vs timeout — hardest).
