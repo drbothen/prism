@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.995"
+version: "7.996"
 producer: state-manager
-timestamp: 2026-06-26T22:00:00Z
+timestamp: 2026-06-26T23:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,10 +20,10 @@ develop_head: "7e60df03"
 # NOTE: 7e60df03 is the squash-merge of PR #203 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001; --admin; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; 2026-06-26). origin/develop is now 7e60df03. LOCAL develop ba1108d2 (/wrap-skill commit) DIVERGED — HUMAN DECISION PENDING reconciliation. New branches must be cut from origin/develop (7e60df03).
 bc_index_version: "7.18"
 vp_index_version: "1.80"
-story_index_version: "v2.481"
+story_index_version: "v2.482"
 arch_index_version: "2.147"
 error_taxonomy_version: "2.00"
-total_stories: 212
+total_stories: 214
 active_contracts: 254
 draft_contracts: 0
 retired_contracts: 6
@@ -36,7 +36,7 @@ workspace_test_count: 4949
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1367 (2026-06-26). PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on frozen HEAD 356e0573). POL-14: all 8 BCs promoted draft→active (BC-2.11.020/021/022/023 + BC-2.11.002 + BC-2.10.015/016/017). POL-13: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 draft→merged. active_contracts 246→254. draft_contracts 5→0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails). BC-INDEX v7.17→v7.18. STORY-INDEX v2.480→v2.481. ARCH-INDEX UNCHANGED v2.147. STATE v7.994→v7.995."
+current_step: "D-1368 (2026-06-26). S-PERF-GATE-001 + S-PERF-GATE-002 registered. S-PERF-GATE-001 draft v1.0 (maintenance/P2; items 1/2/3/5/6 DONE; just check 248s/4974 tests; AC-006/007 item-4 DEFERRED → S-PERF-GATE-002). STORY-INDEX v2.481→v2.482. total_stories 212→214. STATE v7.995→v7.996."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1367 PR #203 MERGED develop@7e60df03 — POL-14 8 BCs draft→active; active_contracts 254; develop_head 7e60df03; non-exhaustive 87; BC-INDEX v7.18; STORY-INDEX v2.481; STATE v7.994→v7.995)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1368 S-PERF-GATE-001+S-PERF-GATE-002 registered; total_stories 214; STORY-INDEX v2.482; STATE v7.995→v7.996)
 
 ## Active Objective (North Star)
 
@@ -135,6 +135,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1368 | state-manager | 2026-06-26 | **S-PERF-GATE-001 + S-PERF-GATE-002 REGISTERED (TD-VSDD-053 single-commit). S-PERF-GATE-001 draft v1.0: nextest profile hardening + build_http_client timeout fix; maintenance/P2; 11 ACs; 5 pts; BC-5.39.001 (delivery convergence only); branch maintenance/perf-gate-001; worktree `.worktrees/S-PERF-GATE-001`. Implementation DONE — items 1/2/3/5/6: `[profile.prepush]` + `[profile.ci]` retries=1/terminate-after=2 (commit 3dfedbca); signal-test serial test-group; Justfile `--profile prepush`; sccache stanza; `build_http_client_with_custom_timeout` extraction + 1ms test (commit 24f846ca). `just check` EXIT 0 in 248s / 4974 passed. AC-006/AC-007 (item 4 — adv_p02 LazyLock shared DTU fixtures) DEFERRED per story's explicit safety gate: 4 of 8 adv_p02 tests call `clone.reset()` internally mid-test; sharing a LazyLock would let one test's internal reset destroy another's wire-log state → breaking `filter_strings` assertions (ADV-P02-CRIT-001); per-test DTU boot is the correct isolation boundary. Concrete future dependency: refactoring internal-reset pattern out of all 8 adv_p02 tests (anchored to S-PERF-GATE-002 per Canonical Principle Rule 3). S-PERF-GATE-002 draft stub v1.0: "adv_p02 shared DTU fixtures — extract internal-reset pattern then LazyLock-share clones"; P3; maintenance; blocked_by internal-reset refactor; depends_on S-PERF-GATE-001 (SOFT). NOTE: This story directly addresses the user-prioritized test-gate-slowness problem — pre-push gate was 50+ min under load, now projects to ~4-5 min warm via prepush profile + build_http_client timeout fix. STORY-INDEX v2.481→v2.482. total_stories 212→214. active_contracts / draft_contracts UNCHANGED (254/0). develop_head UNCHANGED 7e60df03. BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. STATE v7.995→v7.996.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1367 | state-manager | 2026-06-26 | **PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL cascade; 3 consecutive CLEAN(strict) passes on frozen HEAD 356e0573; security CLEAN). POL-14 BC auto-promotions (draft→active): BC-2.11.020 v1.1, BC-2.11.021 v1.0, BC-2.11.022 v1.0, BC-2.11.023 v1.2, BC-2.11.002 v1.4, BC-2.10.015 v1.2, BC-2.10.016 v1.1, BC-2.10.017 v1.1. POL-13: story status draft→merged. **Count changes: active_contracts 246→254 (+8), draft_contracts 5→0.** NOTE: BC-2.06.011 + BC-2.21.001 + BC-2.11.019 remain `status: draft` in BC files (pre-existing; not anchor-story BCs for PR #203; will promote at their own story merges). develop_head 903c8fcb→7e60df03. non-exhaustive 84→87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added). **PENDING HUMAN: CLAUDE.md has stale sentence "ci.yml EXPECTED=83/84" — now EXPECTED=87; state-manager cannot edit CLAUDE.md (human-mandated doc). Orchestrator to surface to human for manual update.** BC-INDEX v7.17→v7.18. STORY-INDEX v2.480→v2.481. ARCH-INDEX UNCHANGED v2.147. LOCAL develop ba1108d2 (/wrap-skill) still DIVERGED — HUMAN DECISION PENDING (carry forward). STATE v7.994→v7.995. | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1366 | state-manager | 2026-06-26 | **PR-LEVEL ROUND-8 COMMENT-ONLY FIX-BURST — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR #203 (TD-VSDD-053 single-commit). Re-gate on UNCHANGED code HEAD e6fe1b57 + round-7 spec fix. Pass 1 CLEAN(strict)=YES, CLEAN(PR-merge)=YES (streak 1/3 — RESET by push below). Pass 3 CLEAN(strict)=YES — code/runtime perimeter DECISIVELY CLOSED (second consecutive round with Pass1+Pass3 both CLEAN(strict)). Pass 2 CLEAN(strict)=NO: F-P2R2-LOW-002 (LOW — `crates/prism-mcp/src/resources.rs::build_reference_content` had two stale doc-comment blocks: (a) comment described a phantom wildcard/`_` match arm that does not exist in the shipped EXHAUSTIVE match; (b) `debug_assert!` comment said "skip gracefully" implying fallthrough — the shipped code uses exhaustive match with no fallthrough path; comment-only drift, zero behavioral impact). **Fix-burst-8:** implementer committed 356e0573 — comment-only fix + COMPREHENSIVE resources.rs doc-comment audit (35 comment blocks enumerated: 1 FIXED, 34 MATCHES REALITY, 0 additional drift found; doc-comment-drift class CLOSED for this file). No behavioral change; no spec/index update required. **[process-gap] DOC-COMMENT-DRIFT CLASS NOTE (S-7.02 candidate):** stale doc-comment-vs-reality drift in resources.rs recurred across rounds (round-5 OBS-1 and round-8 LOW-002 both described phantom match arms). Both now closed by the comprehensive 35-block file-level audit. The whole-file doc-comment audit (enumerate ALL comment blocks, verify each matches implementation, mark FIXED or MATCHES) is the reference method for closing this class — analogous to the exhaustive char-boundary sweep (D-1364) and the 25-site char-indices enumeration table. Candidate for codification in cycle-close lessons (S-7.02) as a standing probe for any PR touching match-arm-heavy modules. **3-CLEAN streak RESET 0/3 (new frozen PR HEAD = 356e0573 once pushed; DRIFT-ORCH-PRLEVEL-PUSH-001 applies). BC-INDEX UNCHANGED v7.17. STORY-INDEX UNCHANGED v2.480. ARCH-INDEX UNCHANGED v2.147. develop_head UNCHANGED 903c8fcb. active_contracts / draft_contracts UNCHANGED (246/5). STATE v7.993→v7.994.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1365 | state-manager | 2026-06-26 | **PR-LEVEL FIX-BURST-7 SPEC-ONLY STATE COMMIT — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR #203 (TD-VSDD-053 single-commit). Round-7 PR-LEVEL cascade on FROZEN PR HEAD e6fe1b57: Pass 1 CLEAN(strict)=YES, CLEAN(PR-merge)=YES (streak 1/3 — RESET by spec change). Pass 3 CLEAN(strict)=YES — runtime/security perimeter DECISIVELY CLOSED. Pass 2 CLEAN(strict)=NO: F-P2R2-P2-MED-001 (MED — BC-2.11.022 §CI-gate tuple description + story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-007 and Phase-4 Task step 1 both described REFERENCE_EXAMPLES const as a 2-tuple `(&'static str, ExampleKind)` — WRONG; the shipped and tested const uses a 3-tuple `(ExampleKind, &'static str, &'static str)` = `(kind, title, snippet)`; additionally, `NegativeOther(&'static str)` in the description was incorrect — the shipped variant is a unit variant; title field is load-bearing per LOW-002 render test; BC and story were over-specified implementation-detail DESCRIPTIONS that drifted from the actual shipped design). **ADJUDICATION (POL-29-class implementation-detail-description sync):** the REFERENCE_EXAMPLES tuple-arity correction is a description sync to match the shipped and tested `(ExampleKind, title, snippet)` 3-tuple design. This is NOT a code-weakening spec amendment — the behavioral contract is unchanged; only the implementation-detail description in §CI-gate + story task prose was wrong. Corrected IN PLACE per D-1360 POL-29-class precedent: no BC version bump, no STORY-INDEX version bump, no BC-INDEX or STORY-INDEX version change. Also: char-boundary class DECISIVELY CLOSED via exhaustive 25-site sweep (Pass 1 confirmation). Pass 2 char-boundary class confirmation: all 25 sites in e6fe1b57 exhaustive enumeration table verified SAFE or FIXED. **OBS typo fix:** STORY-INDEX v2.480 §Changelog table row (written in D-1364) had `ARCH-INDEX UNCHANGED v2.146` — factual error; ARCH-INDEX was bumped to v2.147 by D-1363 BEFORE D-1364 wrote the row; corrected to `v2.147` in both the §Changelog table row and the body Overview changelog row. **Research artifact:** `research/test-suite-performance-diagnosis-2026-06-26.md` committed — test-speed maintenance plan (post-#203-merge work; NOT in PR #203 scope). **3-CLEAN streak RESET 0/3 (spec changed → re-gate on UNCHANGED code HEAD e6fe1b57 + updated specs; DRIFT-ORCH-PRLEVEL-PUSH-001 applies: spec-only changes require fresh adversary pass before streak can advance).** ARCH-INDEX UNCHANGED v2.147. BC-INDEX UNCHANGED v7.17. STORY-INDEX UNCHANGED v2.480 (no version bump). develop_head UNCHANGED 903c8fcb. active_contracts / draft_contracts UNCHANGED (246/5). STATE v7.992→v7.993.** | wave-5-e-demo-fidelity | 2026-06-26 |
@@ -211,11 +212,13 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1367 — 2026-06-26; STATE v7.995)
+## Session Resume Checkpoint (D-1368 — 2026-06-26; STATE v7.996)
 
-**STATE v7.995. D-1367 PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on 356e0573; security CLEAN). POL-14 COMPLETE: 8 BCs draft→active. POL-13 COMPLETE: story status→merged. active_contracts 254. draft_contracts 0. develop_head 7e60df03. non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.481.**
+**STATE v7.996. D-1368 S-PERF-GATE-001 + S-PERF-GATE-002 registered. D-1367 PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on 356e0573; security CLEAN). active_contracts 254. draft_contracts 0. develop_head 7e60df03. non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.482. total_stories 214.**
 
-**TRACK A — DEMO-CRITICAL (COMPLETED):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.12 MERGED. PR #203 MERGED develop@7e60df03. All post-merge bookkeeping done (POL-13 + POL-14 + develop_head + non-exhaustive sync). **NEXT: pre-flight demo re-audit → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording.**
+**TRACK A — DEMO-CRITICAL (COMPLETED):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.12 MERGED. **NEXT: pre-flight demo re-audit → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording.**
+
+**MAINTENANCE REGISTERED:** S-PERF-GATE-001 (branch maintenance/perf-gate-001; items 1/2/3/5/6 DONE; `just check` 248s/4974 tests; AC-006/007 deferred → S-PERF-GATE-002). PR creation pending.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** source-of-truth = `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
@@ -224,7 +227,7 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 **PENDING HUMAN (CLAUDE.md stale):** CLAUDE.md has "ci.yml EXPECTED=83/84" — now EXPECTED=87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added; PR #203). state-manager cannot edit CLAUDE.md. Human must update manually.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (latest) for full context. STATE v7.995.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (latest) for full context. STATE v7.996.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `7e60df03`.
 3. S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 worktree MAY be cleaned up (PR merged). `vsdd-factory:worktree-manage cleanup S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`.
