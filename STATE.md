@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.996"
+version: "7.997"
 producer: state-manager
-timestamp: 2026-06-26T23:00:00Z
+timestamp: 2026-06-26T23:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -20,7 +20,7 @@ develop_head: "7e60df03"
 # NOTE: 7e60df03 is the squash-merge of PR #203 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001; --admin; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; 2026-06-26). origin/develop is now 7e60df03. LOCAL develop ba1108d2 (/wrap-skill commit) DIVERGED — HUMAN DECISION PENDING reconciliation. New branches must be cut from origin/develop (7e60df03).
 bc_index_version: "7.18"
 vp_index_version: "1.80"
-story_index_version: "v2.482"
+story_index_version: "v2.483"
 arch_index_version: "2.147"
 error_taxonomy_version: "2.00"
 total_stories: 214
@@ -36,7 +36,7 @@ workspace_test_count: 4949
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1368 (2026-06-26). S-PERF-GATE-001 + S-PERF-GATE-002 registered. S-PERF-GATE-001 draft v1.0 (maintenance/P2; items 1/2/3/5/6 DONE; just check 248s/4974 tests; AC-006/007 item-4 DEFERRED → S-PERF-GATE-002). STORY-INDEX v2.481→v2.482. total_stories 212→214. STATE v7.995→v7.996."
+current_step: "D-1369 (2026-06-26). S-PERF-GATE-001 v1.0→v1.1 reconciliation (PR #204 Pass-1 fix-burst: F-HIGH-1 inert-filter, F-HIGH-2 AC-010 comment, F-MED-1 pub(crate)+in-crate test — all closed; commits 7dbf7fc3+41aa58f1; FROZEN HEAD 41aa58f1; PR-LEVEL 3-CLEAN streak 0/3). STORY-INDEX v2.482→v2.483. STATE v7.996→v7.997."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -68,14 +68,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26)."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1369."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1368 S-PERF-GATE-001+S-PERF-GATE-002 registered; total_stories 214; STORY-INDEX v2.482; STATE v7.995→v7.996)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1369 S-PERF-GATE-001 v1.0→v1.1 reconciliation + PR #204 Pass-1 fix-burst; STORY-INDEX v2.483; STATE v7.996→v7.997)
 
 ## Active Objective (North Star)
 
@@ -135,6 +135,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1369 | state-manager | 2026-06-26 | **S-PERF-GATE-001 v1.0→v1.1 RECONCILIATION + PR #204 PASS-1 FIX-BURST (TD-VSDD-053 single-commit). story-writer bumped story to v1.1: AC-004 error type corrected to `Result<reqwest::Client, String>` + `pub(crate)` visibility note; AC-005/RG-PERF-001 updated to in-crate test `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration` in `spec_driven_adapter.rs` `#[cfg(test)] mod tests`; AC-011 confirmed `binary(signal_handlers)` filter + `serial-subprocess` group (code block corrected to profile-scoped overrides); §Changelog v1.1 row added. PR #204 PR-LEVEL Pass-1 findings (all CLOSED): F-HIGH-1 (nextest filter `test(/signal/)` was inert — matched nothing because subprocess test names do not contain the literal string "signal"; corrected to `binary(signal_handlers)` which targets the binary by name; commit 7dbf7fc3); F-HIGH-2 (AC-010 SIGSEGV/mmap/RocksDB root-cause comment added to nextest config; commit 41aa58f1); F-MED-1 (build_http_client_with_custom_timeout kept pub(crate) + construction test moved in-crate to `spec_driven_adapter.rs` `#[cfg(test)] mod tests`; commit 41aa58f1). `just check` EXIT 0 ~3:00 on fixed HEAD. PR #204 pre-push hook 181s. **[process-gap] nextest test-group filter semantics:** `test(/signal/)` is a name-substring filter — silently misses subprocess tests whose binary name contains "signal_handlers" but whose test names do not. Use `binary(signal_handlers)` to target a binary by executable name. Codified as cycle-close lesson: nextest test-group filters targeting subprocess tests should use `binary(...)`, not `test(...)`. **PR-LEVEL 3-CLEAN streak: 0/3 on FROZEN HEAD 41aa58f1 (DRIFT-ORCH-PRLEVEL-PUSH-001; fresh cascade pending).** STORY-INDEX v2.482→v2.483. BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. develop_head UNCHANGED 7e60df03. active_contracts / draft_contracts UNCHANGED (254/0). total_stories UNCHANGED 214. STATE v7.996→v7.997.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1368 | state-manager | 2026-06-26 | **S-PERF-GATE-001 + S-PERF-GATE-002 REGISTERED (TD-VSDD-053 single-commit). S-PERF-GATE-001 draft v1.0: nextest profile hardening + build_http_client timeout fix; maintenance/P2; 11 ACs; 5 pts; BC-5.39.001 (delivery convergence only); branch maintenance/perf-gate-001; worktree `.worktrees/S-PERF-GATE-001`. Implementation DONE — items 1/2/3/5/6: `[profile.prepush]` + `[profile.ci]` retries=1/terminate-after=2 (commit 3dfedbca); signal-test serial test-group; Justfile `--profile prepush`; sccache stanza; `build_http_client_with_custom_timeout` extraction + 1ms test (commit 24f846ca). `just check` EXIT 0 in 248s / 4974 passed. AC-006/AC-007 (item 4 — adv_p02 LazyLock shared DTU fixtures) DEFERRED per story's explicit safety gate: 4 of 8 adv_p02 tests call `clone.reset()` internally mid-test; sharing a LazyLock would let one test's internal reset destroy another's wire-log state → breaking `filter_strings` assertions (ADV-P02-CRIT-001); per-test DTU boot is the correct isolation boundary. Concrete future dependency: refactoring internal-reset pattern out of all 8 adv_p02 tests (anchored to S-PERF-GATE-002 per Canonical Principle Rule 3). S-PERF-GATE-002 draft stub v1.0: "adv_p02 shared DTU fixtures — extract internal-reset pattern then LazyLock-share clones"; P3; maintenance; blocked_by internal-reset refactor; depends_on S-PERF-GATE-001 (SOFT). NOTE: This story directly addresses the user-prioritized test-gate-slowness problem — pre-push gate was 50+ min under load, now projects to ~4-5 min warm via prepush profile + build_http_client timeout fix. STORY-INDEX v2.481→v2.482. total_stories 212→214. active_contracts / draft_contracts UNCHANGED (254/0). develop_head UNCHANGED 7e60df03. BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. STATE v7.995→v7.996.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1367 | state-manager | 2026-06-26 | **PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL cascade; 3 consecutive CLEAN(strict) passes on frozen HEAD 356e0573; security CLEAN). POL-14 BC auto-promotions (draft→active): BC-2.11.020 v1.1, BC-2.11.021 v1.0, BC-2.11.022 v1.0, BC-2.11.023 v1.2, BC-2.11.002 v1.4, BC-2.10.015 v1.2, BC-2.10.016 v1.1, BC-2.10.017 v1.1. POL-13: story status draft→merged. **Count changes: active_contracts 246→254 (+8), draft_contracts 5→0.** NOTE: BC-2.06.011 + BC-2.21.001 + BC-2.11.019 remain `status: draft` in BC files (pre-existing; not anchor-story BCs for PR #203; will promote at their own story merges). develop_head 903c8fcb→7e60df03. non-exhaustive 84→87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added). **PENDING HUMAN: CLAUDE.md has stale sentence "ci.yml EXPECTED=83/84" — now EXPECTED=87; state-manager cannot edit CLAUDE.md (human-mandated doc). Orchestrator to surface to human for manual update.** BC-INDEX v7.17→v7.18. STORY-INDEX v2.480→v2.481. ARCH-INDEX UNCHANGED v2.147. LOCAL develop ba1108d2 (/wrap-skill) still DIVERGED — HUMAN DECISION PENDING (carry forward). STATE v7.994→v7.995. | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1366 | state-manager | 2026-06-26 | **PR-LEVEL ROUND-8 COMMENT-ONLY FIX-BURST — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR #203 (TD-VSDD-053 single-commit). Re-gate on UNCHANGED code HEAD e6fe1b57 + round-7 spec fix. Pass 1 CLEAN(strict)=YES, CLEAN(PR-merge)=YES (streak 1/3 — RESET by push below). Pass 3 CLEAN(strict)=YES — code/runtime perimeter DECISIVELY CLOSED (second consecutive round with Pass1+Pass3 both CLEAN(strict)). Pass 2 CLEAN(strict)=NO: F-P2R2-LOW-002 (LOW — `crates/prism-mcp/src/resources.rs::build_reference_content` had two stale doc-comment blocks: (a) comment described a phantom wildcard/`_` match arm that does not exist in the shipped EXHAUSTIVE match; (b) `debug_assert!` comment said "skip gracefully" implying fallthrough — the shipped code uses exhaustive match with no fallthrough path; comment-only drift, zero behavioral impact). **Fix-burst-8:** implementer committed 356e0573 — comment-only fix + COMPREHENSIVE resources.rs doc-comment audit (35 comment blocks enumerated: 1 FIXED, 34 MATCHES REALITY, 0 additional drift found; doc-comment-drift class CLOSED for this file). No behavioral change; no spec/index update required. **[process-gap] DOC-COMMENT-DRIFT CLASS NOTE (S-7.02 candidate):** stale doc-comment-vs-reality drift in resources.rs recurred across rounds (round-5 OBS-1 and round-8 LOW-002 both described phantom match arms). Both now closed by the comprehensive 35-block file-level audit. The whole-file doc-comment audit (enumerate ALL comment blocks, verify each matches implementation, mark FIXED or MATCHES) is the reference method for closing this class — analogous to the exhaustive char-boundary sweep (D-1364) and the 25-site char-indices enumeration table. Candidate for codification in cycle-close lessons (S-7.02) as a standing probe for any PR touching match-arm-heavy modules. **3-CLEAN streak RESET 0/3 (new frozen PR HEAD = 356e0573 once pushed; DRIFT-ORCH-PRLEVEL-PUSH-001 applies). BC-INDEX UNCHANGED v7.17. STORY-INDEX UNCHANGED v2.480. ARCH-INDEX UNCHANGED v2.147. develop_head UNCHANGED 903c8fcb. active_contracts / draft_contracts UNCHANGED (246/5). STATE v7.993→v7.994.** | wave-5-e-demo-fidelity | 2026-06-26 |
@@ -212,13 +213,13 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1368 — 2026-06-26; STATE v7.996)
+## Session Resume Checkpoint (D-1369 — 2026-06-26; STATE v7.997)
 
-**STATE v7.996. D-1368 S-PERF-GATE-001 + S-PERF-GATE-002 registered. D-1367 PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on 356e0573; security CLEAN). active_contracts 254. draft_contracts 0. develop_head 7e60df03. non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.482. total_stories 214.**
+**STATE v7.997. D-1369 S-PERF-GATE-001 v1.0→v1.1 reconciliation + PR #204 Pass-1 fix-burst. D-1368 S-PERF-GATE-001+S-PERF-GATE-002 registered. D-1367 PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green). active_contracts 254. draft_contracts 0. develop_head 7e60df03. non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.483. total_stories 214.**
 
 **TRACK A — DEMO-CRITICAL (COMPLETED):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.12 MERGED. **NEXT: pre-flight demo re-audit → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording.**
 
-**MAINTENANCE REGISTERED:** S-PERF-GATE-001 (branch maintenance/perf-gate-001; items 1/2/3/5/6 DONE; `just check` 248s/4974 tests; AC-006/007 deferred → S-PERF-GATE-002). PR creation pending.
+**MAINTENANCE IN PROGRESS:** S-PERF-GATE-001 v1.1 (branch maintenance/perf-gate-001; PR #204 OPEN; FROZEN HEAD 41aa58f1; PR-LEVEL 3-CLEAN streak 0/3; `just check` EXIT 0 ~3:00 on 41aa58f1; AC-006/007 deferred → S-PERF-GATE-002).
 
 **TRACK B — DAY-2 MORPH (POST-T14):** source-of-truth = `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
@@ -227,9 +228,9 @@ _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c
 **PENDING HUMAN (CLAUDE.md stale):** CLAUDE.md has "ci.yml EXPECTED=83/84" — now EXPECTED=87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added; PR #203). state-manager cannot edit CLAUDE.md. Human must update manually.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (latest) for full context. STATE v7.996.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (latest) for full context. STATE v7.997.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `7e60df03`.
 3. S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 worktree MAY be cleaned up (PR merged). `vsdd-factory:worktree-manage cleanup S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`.
 4. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off; (C) CLAUDE.md EXPECTED count update.
-5. Next: pre-flight demo re-audit → T13 capstone → T14 recording. Autonomy D-989 active.
+5. Next: PR #204 S-PERF-GATE-001 — adversary PR-LEVEL Pass-2 on FROZEN HEAD 41aa58f1 → 3× CLEAN(strict) → merge. Then: pre-flight demo re-audit → T13 capstone → T14 recording. Autonomy D-989 active.

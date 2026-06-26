@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.0"
-spec_version: "v1.0"
+version: "1.1"
+spec_version: "v1.1"
 level: ops
 producer: story-writer
 timestamp: "2026-06-26"
@@ -170,16 +170,32 @@ The `check-fast` recipe is NOT modified (it does not run nextest).
 ```rust
 pub(crate) fn build_http_client_with_custom_timeout(
     timeout: Duration,
-) -> Result<reqwest::Client, reqwest::Error> {
-    reqwest::Client::builder().timeout(timeout).build()
+) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(timeout)
+        .build()
+        .map_err(|e| format!("failed to build reqwest::Client with timeout {:?}: {e}", timeout))
 }
 ```
+
+**Return type note:** The return type is `Result<reqwest::Client, String>` — NOT
+`Result<reqwest::Client, reqwest::Error>`. `reqwest::Client::builder().build()` returns
+`Result<Client, reqwest::Error>`, but `build_http_client_with_custom_timeout` maps the
+error via `.map_err(|e| format!(...))` to `String`. This matches the pre-existing
+`build_http_client_with_timeout` contract and keeps the error type uniform across both
+functions.
+
+**Visibility note:** The function is `pub(crate)` — NOT `pub`. It must not expand the
+public API surface of `prism-bin`. The construction test lives in the in-crate
+`#[cfg(test)] mod tests` block (see AC-005 / RG-PERF-001) and accesses it via
+`super::build_http_client_with_custom_timeout` — no cross-crate `pub` promotion is
+required or permitted (Architecture Compliance Rule 2).
 
 The existing public `build_http_client_with_timeout()` is unchanged in signature and
 in behavior — it delegates to `build_http_client_with_custom_timeout(Duration::from_secs(30))`:
 
 ```rust
-pub fn build_http_client_with_timeout() -> Result<reqwest::Client, reqwest::Error> {
+pub fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
     build_http_client_with_custom_timeout(Duration::from_secs(30))
 }
 ```
@@ -190,22 +206,35 @@ returns at least 2 hits (definition + delegation call).
 No other call sites for `build_http_client_with_timeout()` are modified — production
 behavior is unchanged.
 
-### AC-005: `test_BC_2_01_013_build_http_client_with_timeout_succeeds` passes in ≤5 s on a loaded machine (traces to BC-5.39.001 §Delivery process — single-test gate contribution bounded)
+### AC-005: `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration` passes in ≤5 s on a loaded machine (traces to BC-5.39.001 §Delivery process — single-test gate contribution bounded)
 
-The test in `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` is updated
-to call `build_http_client_with_custom_timeout(Duration::from_millis(1))` instead of
-`build_http_client_with_timeout()`.
+The construction test is implemented as an IN-CRATE test in
+`crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests`:
 
-Rationale: the test verifies that `reqwest::ClientBuilder::build()` returns `Ok(_)`
-— that the builder chain is correctly configured. Passing `1ms` avoids exercising the
+```
+test name:  test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration
+file:       crates/prism-bin/src/spec_driven_adapter.rs  (#[cfg(test)] mod tests)
+```
+
+The test calls `build_http_client_with_custom_timeout(Duration::from_millis(1))` and
+asserts `result.is_ok()`. Because `build_http_client_with_custom_timeout` is `pub(crate)`,
+it is only accessible from in-crate test code via `super::build_http_client_with_custom_timeout`;
+no cross-crate `pub` surface expansion is needed.
+
+Rationale: the test verifies that `reqwest::ClientBuilder::build()` returns `Ok(_)` —
+that the builder chain is correctly configured. Passing `1ms` avoids exercising the
 networking subsystem's 30-second initialization path under load. The production 30-second
 timeout is still exercised by the adv_p02 integration tests which run real pipeline
 queries end-to-end.
 
+The pre-existing cross-crate test `test_BC_2_01_013_build_http_client_with_timeout_succeeds`
+in `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` was the 324-second hang
+victim. It was migrated to the in-crate test above; no coverage was lost.
+
 Verified by:
 
 ```bash
-cargo nextest run -p prism-bin -E 'test(build_http_client_with_timeout_succeeds)' --no-fail-fast
+cargo nextest run -p prism-bin -E 'test(build_http_client_with_custom_timeout_accepts_duration)' --no-fail-fast
 ```
 
 Must exit 0 in < 5 s (measured wall-clock, not bounded by the test framework — the
@@ -330,24 +359,35 @@ finding for the next maintenance sweep.
 Running `grep -A5 'mmap\|SIGSEGV\|RocksDB.*signal' crates/prism-bin/tests/signal_handlers.rs`
 returns hits in the comment block above `test_BC_2_10_010_sigterm_causes_graceful_exit_zero`.
 
-### AC-011: `signal_handlers` subprocess tests serialized via nextest `[test-group]` `--test-threads 1` (traces to BC-5.39.001 §Delivery process — structural SIGTERM flake fix implemented)
+### AC-011: `signal_handlers` subprocess tests serialized via nextest `[test-groups]` `max-threads = 1` (traces to BC-5.39.001 §Delivery process — structural SIGTERM flake fix implemented)
 
-`.config/nextest.toml` gains a `[[test-groups]]` entry that serializes the
-subprocess-spawning tests in `signal_handlers.rs` to `--test-threads 1`:
+`.config/nextest.toml` gains a `[test-groups]` inline table and per-profile override
+entries that serialize the subprocess-spawning tests in `signal_handlers.rs`:
 
 ```toml
-[[test-groups]]
-name = "signal-handlers-serial"
-max-threads = 1
+[test-groups]
+serial-subprocess = { max-threads = 1 }
 
-[[profile.default.overrides]]
-filter = "binary(signal_handlers)"
-test-group = "signal-handlers-serial"
+[[profile.prepush.overrides]]
+filter = 'binary(signal_handlers)'
+test-group = 'serial-subprocess'
+
+[[profile.ci.overrides]]
+filter = 'binary(signal_handlers)'
+test-group = 'serial-subprocess'
 ```
 
+**Group name:** `serial-subprocess` (NOT `signal-handlers-serial`).
+**Filter:** `binary(signal_handlers)` — captures all tests in the `signal_handlers`
+test binary (3 tests including the SIGTERM subprocess test). The earlier draft used
+`test(/signal/)` (a test-name regex filter) which was inert; `binary(signal_handlers)`
+correctly matches by binary name and is the implemented filter.
+**Profiles covered:** `prepush` and `ci` (both corrected). The override is NOT applied
+via `[profile.default.overrides]`; it is applied directly to the two profiles that
+run the subprocess tests.
+
 This prevents parallel RocksDB init collisions between concurrent `prism start`
-subprocess invocations. The override must apply to all profiles (via
-`[profile.default.overrides]` or equivalent nextest `[[overrides]]` syntax).
+subprocess invocations.
 
 After this change:
 
@@ -392,16 +432,25 @@ The following items are explicitly OUT OF SCOPE for this story:
 
 ### RG-PERF-001: `build_http_client_with_custom_timeout` exists and accepts `Duration`
 
-**File:** `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs`
+**File:** `crates/prism-bin/src/spec_driven_adapter.rs` (`#[cfg(test)] mod tests`)
 
 **Test name:** `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`
 
 **Behavior:** Call `build_http_client_with_custom_timeout(Duration::from_millis(1))`
+via `super::build_http_client_with_custom_timeout` (in-crate access, `pub(crate)`)
 and assert the result is `Ok(_)`. This test fails before AC-004 is implemented (the
 function does not yet exist). It passes after the extraction.
 
 **Fails before:** `build_http_client_with_custom_timeout` is not defined.
 **Passes after:** Function is extracted per AC-004.
+
+**Location rationale:** Because `build_http_client_with_custom_timeout` is `pub(crate)`
+(Architecture Compliance Rule 2 — no public API surface expansion), the Red Gate test
+lives in the IN-CRATE `#[cfg(test)] mod tests` block of `spec_driven_adapter.rs`, NOT
+in `crates/prism-bin/tests/` (which would require `pub` visibility). The old cross-crate
+test `test_BC_2_01_013_build_http_client_with_timeout_succeeds` in
+`crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` was the 324-second hang
+victim and was migrated to this in-crate test; no coverage was lost.
 
 This is the sole formal Red Gate for this story. The other ACs are configuration and
 refactoring changes where the existing test suite (all 8 adv_p02 tests must still
@@ -420,11 +469,14 @@ pass) acts as the correctness gate.
    cargo nextest run -p prism-bin -E 'test(build_http_client_with_custom_timeout)' --no-fail-fast
    ```
 
-3. **Update `test_BC_2_01_013_build_http_client_with_timeout_succeeds`** to call
-   `build_http_client_with_custom_timeout(Duration::from_millis(1))` per AC-005. Verify
-   it passes in < 5 s:
+3. **The in-crate construction test `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`**
+   lives in `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` (written
+   as part of the RG-PERF-001 red gate, Task 1 above). The old cross-crate test
+   `test_BC_2_01_013_build_http_client_with_timeout_succeeds` was the 324-second hang
+   victim; its construction-only assertion is now covered by the in-crate test. Verify
+   the in-crate test passes in < 5 s per AC-005:
    ```bash
-   cargo nextest run -p prism-bin -E 'test(build_http_client_with_timeout_succeeds)' --no-fail-fast
+   cargo nextest run -p prism-bin -E 'test(build_http_client_with_custom_timeout_accepts_duration)' --no-fail-fast
    ```
 
 4. **Pre-implementation check for DTU reset endpoints** per AC-006:
@@ -446,7 +498,7 @@ pass) acts as the correctness gate.
    - Add `[profile.prepush]` with `retries = 1`, `slow-timeout = { period = "90s", terminate-after = 2 }`.
    - Amend `[profile.ci]` to add `retries = 1` and `terminate-after = 2` to `slow-timeout`.
    - Update the `[profile.ci]` comment to document why `terminate-after = 2` is now safe.
-   - Add `[[test-groups]]` and `[[profile.default.overrides]]` for signal_handlers serialization.
+   - Add `[test-groups]` inline table `serial-subprocess = { max-threads = 1 }` and per-profile overrides `[[profile.prepush.overrides]]` + `[[profile.ci.overrides]]` with `filter = 'binary(signal_handlers)'` for signal_handlers serialization.
 
 7. **Update `Justfile` check recipe** per AC-003 to add `--profile prepush`.
 
@@ -551,7 +603,7 @@ Rust source files.
 | `Justfile` | Modify | Add `--profile prepush` to `check` recipe's `cargo nextest run` invocation (AC-003) |
 | `.cargo/config.toml` | Modify | Add commented-out sccache opt-in stanza (AC-008) |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | Modify | Extract `pub(crate) build_http_client_with_custom_timeout(Duration)` + delegate from `build_http_client_with_timeout()` (AC-004) |
-| `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` | Modify | Add RG-PERF-001 Red Gate; update `test_BC_2_01_013_build_http_client_with_timeout_succeeds` to use 1ms variant (AC-005) |
+| `crates/prism-bin/src/spec_driven_adapter.rs` (`#[cfg(test)] mod tests`) | Modify | Add RG-PERF-001 Red Gate `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration` (in-crate, `pub(crate)` access); extraction of `build_http_client_with_custom_timeout` also in this file (AC-004, AC-005) |
 | `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs` | Modify | Introduce `LazyLock` shared DTU handles for CrowdStrike and Armis (AC-006, AC-007) |
 | `crates/prism-bin/tests/signal_handlers.rs` | Modify | Add SIGTERM flake root-cause comment above `test_BC_2_10_010_sigterm_causes_graceful_exit_zero` (AC-010) |
 
@@ -575,14 +627,15 @@ not product subsystems. `subsystems: []` is correct.
 | EC-004 | `terminate-after = 2` kills the proptest suite at ~80 s (just above the 75 s documented max) on a slow CI runner | If proptest takes > 90 s on a slow runner, the first "slow" marker fires at 90 s; the second fires at 180 s (second pass after retry); at 180 s the test is terminated. At 1000 cases, proptest typically finishes in 75 s. If slow CI runners regularly hit 90 s+, raise `period` to `120s` as a follow-on tweak. Document in the `.config/nextest.toml` comment. |
 | EC-005 | The `just check` time measurement (AC-009) exceeds 600 s even after all changes, on a warm idle machine | Record the measurement and open a new P2 performance finding for the next maintenance sweep. Do NOT block this story's merge — AC-009 is a regression benchmark, not a hard gate. |
 | EC-006 | `adv_p02` shared fixture startup fails (Axum/Tokio port bind error) due to port exhaustion in `LazyLock::new` | Use `127.0.0.1:0` (OS-assigned ephemeral port) for DTU bind address, same as the existing per-test pattern. The `LazyLock` initialization is infallible at the Rust type level — use `expect("adv_p02 DTU startup failed")` with a descriptive message; this is acceptable in test code per CLAUDE.md test exemptions. |
-| EC-007 | The `[[test-groups]] signal-handlers-serial` override causes an unexpected interaction with the `[profile.e2e]` or `[profile.e2e-multi-org]` profiles | nextest test-group overrides apply globally by default. Verify that the signal_handlers serialization does not interfere with `--profile e2e` runs (those tests are `#[ignore]`'d in the e2e profile; the serialization constraint is harmless). |
+| EC-007 | The `serial-subprocess` test-group `binary(signal_handlers)` override causes an unexpected interaction with the `[profile.e2e]` or `[profile.e2e-multi-org]` profiles | The override is applied to `prepush` and `ci` profiles only (not `default`). Other profile runs are unaffected. Verify that the signal_handlers serialization does not interfere with `--profile e2e` runs (those tests are `#[ignore]`'d in the e2e profile; the serialization constraint is harmless for that profile). |
 
 ## Architecture Mapping
 
 | Component | Module | File | Pure/Effectful |
 |-----------|--------|------|----------------|
-| `build_http_client_with_custom_timeout` (new) | prism-bin | `crates/prism-bin/src/spec_driven_adapter.rs` | Pure (no I/O, no network in the builder path) |
-| `build_http_client_with_timeout` (delegate) | prism-bin | `crates/prism-bin/src/spec_driven_adapter.rs` | Pure (constructor; no network call in builder) |
+| `build_http_client_with_custom_timeout` (new, `pub(crate)`) | prism-bin | `crates/prism-bin/src/spec_driven_adapter.rs` | Pure (no I/O, no network in the builder path) |
+| `build_http_client_with_timeout` (delegate, `pub`) | prism-bin | `crates/prism-bin/src/spec_driven_adapter.rs` | Pure (constructor; no network call in builder) |
+| `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration` (RG-PERF-001) | prism-bin (in-crate tests) | `crates/prism-bin/src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` | Pure (in-crate, `pub(crate)` access) |
 | `LazyLock<Arc<TestDtuHandle>>` shared fixtures | prism-bin tests | `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs` | Effectful (Axum HTTP server + Tokio runtime) |
 | nextest profiles (`prepush`, `ci` amendment) | build config | `.config/nextest.toml` | N/A — configuration |
 | sccache opt-in stanza (commented-out) | build config | `.cargo/config.toml` | N/A — configuration |
@@ -624,3 +677,4 @@ Per POL-7 (verbatim BC H1 titles):
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-26 | story-writer | Initial materialization from performance diagnosis §10 skeleton + §6/§7 detail |
+| 1.1 | 2026-06-26 | story-writer | AC-text-accuracy sync to shipped code: (1) AC-004 error type corrected from `reqwest::Error` to `String` for both functions; (2) AC-004 visibility note expanded — `pub(crate)` confirmed, in-crate test access documented; (3) AC-005/RG-PERF-001 test name updated to `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`, file location corrected to `src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` (in-crate); (4) AC-011 nextest group name corrected to `serial-subprocess`, filter confirmed as `binary(signal_handlers)`, profile-scoped overrides (`prepush` + `ci`) documented instead of `[profile.default.overrides]`. |
