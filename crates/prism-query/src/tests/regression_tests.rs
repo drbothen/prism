@@ -1625,6 +1625,210 @@ fn test_f_p3_crit_new_001c_interval_trailing_3byte_multibyte_no_panic() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// F-P3-FRESH-CRIT-001 regression tests — numeric-magnitude overflow panics in
+// `parse_interval_duration_str` (Site 1) and `inject_now_expr` (Site 2).
+//
+// VP-021 ("PrismQL parser: never panics on arbitrary input") is violated by:
+//   Site 1: `value as i64` silently wraps when value > i64::MAX; then
+//            `chrono::Duration::{seconds,minutes,hours,days}(wrapped_i64)` panics
+//            when the resulting milliseconds representation overflows i64.
+//   Site 2: `ts.instant - offset` / `ts.instant + offset` in `inject_now_expr`
+//            panic on DateTime range overflow even when the Duration itself is
+//            in-bounds (e.g. huge-but-representable seconds → underflows DateTime).
+//
+// chrono 0.4.44 bounds (verified from source + Cargo.lock):
+//   max days  = 106_751_991_167       (overflow: 106_751_991_168)
+//   max hours = 2_562_047_788_015     (overflow: 2_562_047_788_016)
+//   max mins  = 153_722_867_280_912   (overflow: 153_722_867_280_913)
+//   max secs  = 9_223_372_036_854_775 (overflow: 9_223_372_036_854_776)
+//
+// i64 cast-wrap: any u64 value > i64::MAX (9_223_372_036_854_775_807)
+// wraps on `as i64` to a NEGATIVE value, which also violates Duration invariants.
+//
+// Each test calls `std::panic::catch_unwind` so that a panic does not abort the
+// test binary — it shows up as Err from catch_unwind, which the test then fails
+// with a descriptive assertion message (instead of a SIGABRT / test crash).
+// ---------------------------------------------------------------------------
+
+/// F-P3-FRESH-CRIT-001a: INTERVAL '106751991168d' — days magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001a_interval_days_overflow_no_panic() {
+    // 106_751_991_168 days = max_days + 1; Duration::days panics on this.
+    let query = "event_time > INTERVAL '106751991168d'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001a: PrismQlParser::parse panicked on INTERVAL days magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001a: expected Err for overflowing INTERVAL days, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001a: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001b: INTERVAL '2562047788016h' — hours magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001b_interval_hours_overflow_no_panic() {
+    // 2_562_047_788_016 hours = max_hours + 1
+    let query = "event_time > INTERVAL '2562047788016h'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001b: PrismQlParser::parse panicked on INTERVAL hours magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001b: expected Err for overflowing INTERVAL hours, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001b: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001c: INTERVAL '153722867280913m' — minutes magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001c_interval_minutes_overflow_no_panic() {
+    // 153_722_867_280_913 minutes = max_minutes + 1
+    let query = "event_time > INTERVAL '153722867280913m'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001c: PrismQlParser::parse panicked on INTERVAL minutes magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001c: expected Err for overflowing INTERVAL minutes, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001c: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001d: INTERVAL '9223372036854776s' — seconds magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001d_interval_seconds_overflow_no_panic() {
+    // 9_223_372_036_854_776s = max_secs + 1; still fits in u64 and i64
+    let query = "event_time > INTERVAL '9223372036854776s'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001d: PrismQlParser::parse panicked on INTERVAL seconds magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001d: expected Err for overflowing INTERVAL seconds, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001d: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001e: INTERVAL with value > i64::MAX (u64 overflow cast-wrap).
+///
+/// A u64 value of i64::MAX + 1 (= 9_223_372_036_854_775_808) cast to i64 wraps to
+/// -9_223_372_036_854_775_808, which makes Duration::seconds(-i64::MAX-1) panic.
+/// Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001e_interval_value_exceeds_i64_max_no_panic() {
+    // 9_223_372_036_854_775_808 = i64::MAX + 1: wraps to i64::MIN when cast via `as i64`
+    let query = "event_time > INTERVAL '9223372036854775808s'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001e: PrismQlParser::parse panicked on INTERVAL value > i64::MAX"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001e: expected Err for INTERVAL value > i64::MAX, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001e: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001f: plan-time DateTime underflow via `inject_now_expr`.
+///
+/// `NOW() - INTERVAL '9223372036854775s'` (max representable Duration in seconds)
+/// produces a valid Duration but when subtracted from the current DateTime (near
+/// Unix epoch + some years) will underflow the DateTime range.
+/// Must propagate a structured Err from `parse_and_plan`, never panic.
+#[test]
+fn test_f_p3_fresh_crit_001f_plan_time_datetime_underflow_no_panic() {
+    // max_secs = 9_223_372_036_854_775s is within chrono::Duration bounds.
+    // Subtracting this from a DateTime near "now" (year ~2026) will underflow the
+    // DateTime representable range (min ~year -262,000), causing a panic in the
+    // non-checked `ts.instant - offset` path.
+    let query = "event_time > NOW() - INTERVAL '9223372036854775s'";
+    let result = std::panic::catch_unwind(|| crate::parse_and_plan(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001f: parse_and_plan panicked on DateTime underflow from max-Duration seconds"
+    );
+    let plan_result = result.unwrap();
+    assert!(
+        plan_result.is_err(),
+        "F-P3-FRESH-CRIT-001f: expected Err for DateTime underflow, got Ok"
+    );
+    let errs = plan_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001f: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
 /// F-P3-CRIT-NEW-001d: Existing ASCII INTERVAL behavior must be preserved after fix.
 ///
 /// `'24h'`, `'7d'`, `'1h'` are valid; `'bogus'` must be Err; `'999s'` must succeed.

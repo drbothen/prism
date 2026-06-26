@@ -1400,11 +1400,32 @@ fn parse_interval_duration_str(s: &str) -> Result<chrono::Duration, String> {
         )
     })?;
 
+    // F-P3-FRESH-CRIT-001 fix: guard against TWO distinct overflow classes BEFORE
+    // calling any chrono constructor:
+    //
+    // Class A — i64 cast-wrap: `value as i64` silently wraps for value > i64::MAX,
+    //   producing a large NEGATIVE i64 that violates Duration's non-negative
+    //   invariant and causes a panic inside Duration::{seconds,minutes,hours,days}.
+    //   Fix: use `i64::try_from(value)` which returns Err for value > i64::MAX.
+    //
+    // Class B — TimeDelta bounds: chrono stores Duration internally as milliseconds
+    //   in an i64, so even values ≤ i64::MAX can overflow when multiplied by the
+    //   unit's ms factor (e.g. 106_751_991_168 days * 86_400_000 ms/day > i64::MAX).
+    //   `Duration::{seconds,minutes,hours,days}` calls the checked `try_*` variant
+    //   internally and panics on None. Fix: call `chrono::Duration::try_{unit}`
+    //   directly and map None → structured Err.
+    let value_i64 = i64::try_from(value).map_err(|_| {
+        format!(
+            "E-QUERY-001: INTERVAL duration '{s}' is too large \
+             (value {value} exceeds representable range)"
+        )
+    })?;
+
     let duration = match last_char {
-        's' => chrono::Duration::seconds(value as i64),
-        'm' => chrono::Duration::minutes(value as i64),
-        'h' => chrono::Duration::hours(value as i64),
-        'd' => chrono::Duration::days(value as i64),
+        's' => chrono::Duration::try_seconds(value_i64),
+        'm' => chrono::Duration::try_minutes(value_i64),
+        'h' => chrono::Duration::try_hours(value_i64),
+        'd' => chrono::Duration::try_days(value_i64),
         other => {
             return Err(format!(
                 "E-QUERY-001: INTERVAL duration '{s}' has unknown unit '{other}' \
@@ -1412,7 +1433,12 @@ fn parse_interval_duration_str(s: &str) -> Result<chrono::Duration, String> {
             ));
         }
     };
-    Ok(duration)
+    duration.ok_or_else(|| {
+        format!(
+            "E-QUERY-001: INTERVAL duration '{s}' is too large \
+             (exceeds representable range)"
+        )
+    })
 }
 
 /// Build a parser for temporal RHS expressions used in predicate comparisons.

@@ -55,7 +55,8 @@ mod high002_plan_pinning_tests {
             instant: now,
         };
         let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
-        let injected = inject_now(ast, &now_literal);
+        let injected =
+            inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
         PqlNormalizer::normalize(&injected)
             .expect("PqlNormalizer::normalize must return Some for injected SQL AST")
     }
@@ -121,7 +122,8 @@ mod high002_plan_pinning_tests {
             instant: now,
         };
         let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
-        let injected = inject_now(ast, &now_literal);
+        let injected =
+            inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // Extract and normalize the SqlPipe head from the injected AST.
         let head_normalized = match &injected {
@@ -243,7 +245,7 @@ mod high002_plan_pinning_tests {
             format!("SELECT timestamp FROM crowdstrike_detections WHERE timestamp > '{boundary}'");
 
         let ast = PrismQlParser::parse(&sql).expect("SQL temporal query must parse");
-        let ast = inject_now(ast, &now_literal);
+        let ast = inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // Negative-control: inspect the normalized SQL — must be plain `'<iso>'` form.
         let normalized = PqlNormalizer::normalize(&ast)
@@ -344,7 +346,7 @@ mod high002_plan_pinning_tests {
             instant: now,
         };
         let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
-        let ast = inject_now(ast, &now_literal);
+        let ast = inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // Negative-control: inspect pipe emitter SQL before execution.
         let batch = make_timestamp_batch(&in_window_ts, &out_window_ts);
@@ -449,7 +451,7 @@ mod high002_plan_pinning_tests {
             instant: now,
         };
         let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
-        let ast = inject_now(ast, &now_literal);
+        let ast = inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // Run FORBID-BOTH check (required before execute_against_session for SqlPipe).
         if let Ast::SqlPipe(ref spq) = ast {
@@ -722,7 +724,8 @@ mod high002_plan_pinning_tests {
             instant: now,
         };
         let now_literal = crate::ast::Expr::Literal(crate::ast::Literal::Timestamp(now_ts));
-        let ast = crate::inject_now(ast, &now_literal);
+        let ast =
+            crate::inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // Set up a minimal MemTable so materialization has a registered table.
         let ctx = build_session_context(50 * 1024 * 1024)
@@ -875,7 +878,8 @@ mod high002_plan_pinning_tests {
         };
         let now_literal = crate::ast::Expr::Literal(crate::ast::Literal::Timestamp(now_ts));
 
-        let injected = inject_now(ast, &now_literal);
+        let injected =
+            inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // After inject_now, the AST must NOT contain any unfolded temporal expr.
         // PqlNormalizer::normalize must return Some (not None) — if it returns None
@@ -1002,7 +1006,8 @@ mod high002_plan_pinning_tests {
             "MED-1 ORDER BY: unfolded temporal in ORDER BY must be detectable"
         );
 
-        let injected = inject_now(ast, &now_literal);
+        let injected =
+            inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // After inject_now, normalize must return Some.
         let normalized = PqlNormalizer::normalize(&injected);
@@ -1072,7 +1077,8 @@ mod high002_plan_pinning_tests {
         };
         let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
 
-        let injected = inject_now(ast, &now_literal);
+        let injected =
+            inject_now(ast, &now_literal).expect("inject_now must succeed in test context");
 
         // After inject_now, the FuncCall arg must be folded — normalize must return Some.
         let normalized = PqlNormalizer::normalize(&injected);

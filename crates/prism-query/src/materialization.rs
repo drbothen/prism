@@ -515,7 +515,17 @@ pub async fn run_materialization_pipeline(
             instant: now,
         };
         let now_literal_expr = Expr::Literal(Literal::Timestamp(now_ts));
-        crate::inject_now(ast, &now_literal_expr)
+        // F-P3-FRESH-CRIT-001 (Site 2): inject_now is now fallible — DateTime range
+        // overflow in the constant-fold arm produces E-QUERY-001 instead of panicking.
+        crate::inject_now(ast, &now_literal_expr).map_err(|errs| PrismError::QueryParseFailed {
+            offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            detail: errs
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("; "),
+            query: query_str.to_string(),
+        })?
     };
 
     // Step 1b: Plan-time FORBID-BOTH check (BC-2.11.020 INV-FORBID-BOTH-PERMANENT /

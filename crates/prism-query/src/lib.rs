@@ -263,128 +263,156 @@ pub fn parse_and_plan(input: &str) -> Result<Ast, Vec<ParseError>> {
     };
     let now_literal_expr = Expr::Literal(Literal::Timestamp(now_ts));
 
-    Ok(inject_now(parsed, &now_literal_expr))
+    inject_now(parsed, &now_literal_expr)
 }
 
 /// Recursively replace all `Expr::Now` nodes in `ast` with `now_literal`.
 ///
-/// Pure function (clone-based transformation). Returns a new `Ast` with all
-/// occurrences substituted.
+/// Returns `Ok(Ast)` with all `Expr::Now` nodes replaced on success.
+/// Returns `Err(Vec<ParseError>)` when the constant-fold of a
+/// `TimestampArithmetic` node overflows the `DateTime<Utc>` representable range
+/// (F-P3-FRESH-CRIT-001 — VP-021 compliance, BC-2.11.021).
 ///
 /// `pub(crate)` so `materialization.rs` can call it directly (BC-2.11.021 wiring).
-pub(crate) fn inject_now(ast: Ast, now_literal: &ast::Expr) -> Ast {
+pub(crate) fn inject_now(ast: Ast, now_literal: &ast::Expr) -> Result<Ast, Vec<error::ParseError>> {
     use ast::{Ast as A, FilterExpr, PipeQuery, SqlPipeQuery, SqlStatement};
 
-    match ast {
+    // Internal helpers return `Result<T, error::ParseError>` (single error).
+    // The public API returns `Result<Ast, Vec<error::ParseError>>`.
+    // Convert single → vec with `.map_err(|e| vec![e])?`.
+    let result = match ast {
         A::Filter(fe) => A::Filter(FilterExpr {
             source: fe.source,
-            predicate: inject_now_predicate(fe.predicate, now_literal),
+            predicate: inject_now_predicate(fe.predicate, now_literal).map_err(|e| vec![e])?,
         }),
-        A::Sql(SqlStatement::Select(sq)) => {
-            A::Sql(SqlStatement::Select(inject_now_sql_query(sq, now_literal)))
-        }
+        A::Sql(SqlStatement::Select(sq)) => A::Sql(SqlStatement::Select(
+            inject_now_sql_query(sq, now_literal).map_err(|e| vec![e])?,
+        )),
         A::Sql(other) => A::Sql(other), // DML — no NOW() injection needed
-        A::Pipe(pq) => A::Pipe(PipeQuery {
-            source: pq.source,
-            stages: pq
-                .stages
-                .into_iter()
-                .map(|s| inject_now_pipe_stage(s, now_literal))
-                .collect(),
-            write: pq.write,
-        }),
-        A::SqlPipe(spq) => A::SqlPipe(SqlPipeQuery {
-            head: inject_now_sql_query(spq.head, now_literal),
-            stages: spq
-                .stages
-                .into_iter()
-                .map(|s| inject_now_pipe_stage(s, now_literal))
-                .collect(),
-        }),
-    }
+        A::Pipe(pq) => {
+            let mut folded_stages = Vec::with_capacity(pq.stages.len());
+            for s in pq.stages {
+                folded_stages.push(inject_now_pipe_stage(s, now_literal).map_err(|e| vec![e])?);
+            }
+            A::Pipe(PipeQuery {
+                source: pq.source,
+                stages: folded_stages,
+                write: pq.write,
+            })
+        }
+        A::SqlPipe(spq) => {
+            let mut folded_stages = Vec::with_capacity(spq.stages.len());
+            for s in spq.stages {
+                folded_stages.push(inject_now_pipe_stage(s, now_literal).map_err(|e| vec![e])?);
+            }
+            A::SqlPipe(SqlPipeQuery {
+                head: inject_now_sql_query(spq.head, now_literal).map_err(|e| vec![e])?,
+                stages: folded_stages,
+            })
+        }
+    };
+    Ok(result)
 }
 
-fn inject_now_sql_query(mut sq: ast::SqlQuery, now_literal: &ast::Expr) -> ast::SqlQuery {
+fn inject_now_sql_query(
+    mut sq: ast::SqlQuery,
+    now_literal: &ast::Expr,
+) -> Result<ast::SqlQuery, error::ParseError> {
     // Fold NOW() in WHERE and HAVING predicates.
-    sq.where_ = sq.where_.map(|p| inject_now_predicate(p, now_literal));
-    sq.having = sq.having.map(|p| inject_now_predicate(p, now_literal));
+    sq.where_ = sq
+        .where_
+        .map(|p| inject_now_predicate(p, now_literal))
+        .transpose()?;
+    sq.having = sq
+        .having
+        .map(|p| inject_now_predicate(p, now_literal))
+        .transpose()?;
 
     // Fold NOW() in SELECT projection expressions.
     // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
-    sq.select.items = sq
-        .select
-        .items
-        .into_iter()
-        .map(|item| match item {
+    let mut new_items = Vec::with_capacity(sq.select.items.len());
+    for item in sq.select.items {
+        new_items.push(match item {
             ast::SelectItem::Expr { expr, alias } => ast::SelectItem::Expr {
-                expr: inject_now_expr(expr, now_literal),
+                expr: inject_now_expr(expr, now_literal)?,
                 alias,
             },
             other => other,
-        })
-        .collect();
+        });
+    }
+    sq.select.items = new_items;
 
     // Fold NOW() in GROUP BY expressions.
     // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
-    sq.group_by = sq
-        .group_by
-        .into_iter()
-        .map(|e| inject_now_expr(e, now_literal))
-        .collect();
+    let mut new_group_by = Vec::with_capacity(sq.group_by.len());
+    for e in sq.group_by {
+        new_group_by.push(inject_now_expr(e, now_literal)?);
+    }
+    sq.group_by = new_group_by;
 
     // Fold NOW() in ORDER BY expressions.
     // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
-    sq.order_by = sq
-        .order_by
-        .into_iter()
-        .map(|oe| ast::OrderExpr {
-            expr: inject_now_expr(oe.expr, now_literal),
+    let mut new_order_by = Vec::with_capacity(sq.order_by.len());
+    for oe in sq.order_by {
+        new_order_by.push(ast::OrderExpr {
+            expr: inject_now_expr(oe.expr, now_literal)?,
             direction: oe.direction,
-        })
-        .collect();
+        });
+    }
+    sq.order_by = new_order_by;
 
     // Fold NOW() in JOIN ON expressions.
     // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
-    sq.joins = sq
-        .joins
-        .into_iter()
-        .map(|j| ast::Join {
+    let mut new_joins = Vec::with_capacity(sq.joins.len());
+    for j in sq.joins {
+        new_joins.push(ast::Join {
             kind: j.kind,
             source: j.source,
             alias: j.alias,
-            on: inject_now_expr(j.on, now_literal),
-        })
-        .collect();
+            on: inject_now_expr(j.on, now_literal)?,
+        });
+    }
+    sq.joins = new_joins;
 
-    sq
+    Ok(sq)
 }
 
-fn inject_now_pipe_stage(stage: ast::PipeStage, now_literal: &ast::Expr) -> ast::PipeStage {
+fn inject_now_pipe_stage(
+    stage: ast::PipeStage,
+    now_literal: &ast::Expr,
+) -> Result<ast::PipeStage, error::ParseError> {
     use ast::PipeStage;
     match stage {
-        PipeStage::Where(pred) => PipeStage::Where(inject_now_predicate(pred, now_literal)),
-        other => other,
+        PipeStage::Where(pred) => Ok(PipeStage::Where(inject_now_predicate(pred, now_literal)?)),
+        other => Ok(other),
     }
 }
 
-fn inject_now_predicate(pred: ast::Predicate, now_literal: &ast::Expr) -> ast::Predicate {
+fn inject_now_predicate(
+    pred: ast::Predicate,
+    now_literal: &ast::Expr,
+) -> Result<ast::Predicate, error::ParseError> {
     use ast::Predicate;
     match pred {
-        Predicate::Compare { lhs, op, rhs } => Predicate::Compare {
-            lhs: Box::new(inject_now_expr(*lhs, now_literal)),
+        Predicate::Compare { lhs, op, rhs } => Ok(Predicate::Compare {
+            lhs: Box::new(inject_now_expr(*lhs, now_literal)?),
             op,
-            rhs: Box::new(inject_now_expr(*rhs, now_literal)),
-        },
-        Predicate::Logical { op, predicates } => Predicate::Logical {
-            op,
-            predicates: predicates
-                .into_iter()
-                .map(|p| inject_now_predicate(p, now_literal))
-                .collect(),
-        },
-        Predicate::Not(inner) => {
-            Predicate::Not(Box::new(inject_now_predicate(*inner, now_literal)))
+            rhs: Box::new(inject_now_expr(*rhs, now_literal)?),
+        }),
+        Predicate::Logical { op, predicates } => {
+            let mut folded = Vec::with_capacity(predicates.len());
+            for p in predicates {
+                folded.push(inject_now_predicate(p, now_literal)?);
+            }
+            Ok(Predicate::Logical {
+                op,
+                predicates: folded,
+            })
         }
+        Predicate::Not(inner) => Ok(Predicate::Not(Box::new(inject_now_predicate(
+            *inner,
+            now_literal,
+        )?))),
         // F-P2-MED-001: InSubquery — fold NOW() inside the nested subquery's
         // WHERE and HAVING clauses.  The detection side (`predicate_has_unfolded_temporal`)
         // recurses into `InSubquery { subquery }` via `sql_query_has_unfolded_temporal`.
@@ -394,56 +422,81 @@ fn inject_now_predicate(pred: ast::Predicate, now_literal: &ast::Expr) -> ast::P
             field,
             subquery,
             negated,
-        } => Predicate::InSubquery {
+        } => Ok(Predicate::InSubquery {
             field,
-            subquery: Box::new(inject_now_sql_query(*subquery, now_literal)),
+            subquery: Box::new(inject_now_sql_query(*subquery, now_literal)?),
             negated,
-        },
+        }),
         // All other predicate variants do not contain Expr::Now.
-        other => other,
+        other => Ok(other),
     }
 }
 
-fn inject_now_expr(expr: ast::Expr, now_literal: &ast::Expr) -> ast::Expr {
+fn inject_now_expr(
+    expr: ast::Expr,
+    now_literal: &ast::Expr,
+) -> Result<ast::Expr, error::ParseError> {
     use ast::Expr;
     match expr {
-        Expr::Now => now_literal.clone(),
+        Expr::Now => Ok(now_literal.clone()),
         Expr::TimestampArithmetic { base, op, offset } => {
-            let folded_base = inject_now_expr(*base, now_literal);
+            let folded_base = inject_now_expr(*base, now_literal)?;
             // BC-2.11.021 constant-fold: if the base resolved to a bare Timestamp literal,
             // compute `t ± offset` immediately so `extract_time_bounds_from_predicate`
             // can match the RHS as `Expr::Literal(Literal::Timestamp(_))` for push-down
             // (ADR-033 T1). Without folding, the outer `TimestampArithmetic` wrapper
             // blocks push-down extraction (pushdown.rs requires a bare Literal::Timestamp).
             if let Expr::Literal(ast::Literal::Timestamp(ref ts)) = folded_base {
-                let computed = match op {
-                    ast::BinaryOp::Sub => ts.instant - offset,
-                    ast::BinaryOp::Add => ts.instant + offset,
+                // F-P3-FRESH-CRIT-001 fix (Site 2): replace the panicking `ts.instant - offset`
+                // / `ts.instant + offset` operators with `checked_sub_signed` /
+                // `checked_add_signed`. These return `None` when the resulting DateTime
+                // falls outside the representable range (e.g. subtracting a max-magnitude
+                // Duration from a near-epoch timestamp underflows to before year -262,000).
+                // Map `None` → structured `E-QUERY-001` parse error (VP-021 compliance).
+                let computed_opt = match op {
+                    ast::BinaryOp::Sub => ts.instant.checked_sub_signed(offset),
+                    ast::BinaryOp::Add => ts.instant.checked_add_signed(offset),
                 };
+                let computed = computed_opt.ok_or_else(|| {
+                    error::ParseError::new(
+                        0,
+                        format!(
+                            "E-QUERY-001: timestamp arithmetic overflow: \
+                             NOW() {} INTERVAL results in a DateTime outside \
+                             the representable range",
+                            match op {
+                                ast::BinaryOp::Sub => "-",
+                                ast::BinaryOp::Add => "+",
+                            }
+                        ),
+                    )
+                })?;
                 let iso = computed.to_rfc3339();
-                Expr::Literal(ast::Literal::Timestamp(ast::TimestampLiteral {
-                    iso8601: iso,
-                    instant: computed,
-                }))
+                Ok(Expr::Literal(ast::Literal::Timestamp(
+                    ast::TimestampLiteral {
+                        iso8601: iso,
+                        instant: computed,
+                    },
+                )))
             } else {
-                Expr::TimestampArithmetic {
+                Ok(Expr::TimestampArithmetic {
                     base: Box::new(folded_base),
                     op,
                     offset,
-                }
+                })
             }
         }
-        Expr::Compare { lhs, op, rhs } => Expr::Compare {
-            lhs: Box::new(inject_now_expr(*lhs, now_literal)),
+        Expr::Compare { lhs, op, rhs } => Ok(Expr::Compare {
+            lhs: Box::new(inject_now_expr(*lhs, now_literal)?),
             op,
-            rhs: Box::new(inject_now_expr(*rhs, now_literal)),
-        },
-        Expr::Logical { lhs, op, rhs } => Expr::Logical {
-            lhs: Box::new(inject_now_expr(*lhs, now_literal)),
+            rhs: Box::new(inject_now_expr(*rhs, now_literal)?),
+        }),
+        Expr::Logical { lhs, op, rhs } => Ok(Expr::Logical {
+            lhs: Box::new(inject_now_expr(*lhs, now_literal)?),
             op,
-            rhs: Box::new(inject_now_expr(*rhs, now_literal)),
-        },
-        Expr::Not(inner) => Expr::Not(Box::new(inject_now_expr(*inner, now_literal))),
+            rhs: Box::new(inject_now_expr(*rhs, now_literal)?),
+        }),
+        Expr::Not(inner) => Ok(Expr::Not(Box::new(inject_now_expr(*inner, now_literal)?))),
         // FuncCall (aggregate / scalar): fold NOW() inside argument expressions.
         // `expr_has_unfolded_temporal` recurses into FuncCall args — fold must mirror detect.
         Expr::FuncCall(fc) => {
@@ -453,36 +506,42 @@ fn inject_now_expr(expr: ast::Expr, now_literal: &ast::Expr) -> ast::Expr {
                     func,
                     args,
                     distinct,
-                } => FuncCall::Aggregate {
-                    func,
-                    args: args
-                        .into_iter()
-                        .map(|a| inject_now_expr(a, now_literal))
-                        .collect(),
-                    distinct,
-                },
-                FuncCall::Scalar { func, args } => FuncCall::Scalar {
-                    func,
-                    args: args
-                        .into_iter()
-                        .map(|a| inject_now_expr(a, now_literal))
-                        .collect(),
-                },
+                } => {
+                    let mut folded_args = Vec::with_capacity(args.len());
+                    for a in args {
+                        folded_args.push(inject_now_expr(a, now_literal)?);
+                    }
+                    FuncCall::Aggregate {
+                        func,
+                        args: folded_args,
+                        distinct,
+                    }
+                }
+                FuncCall::Scalar { func, args } => {
+                    let mut folded_args = Vec::with_capacity(args.len());
+                    for a in args {
+                        folded_args.push(inject_now_expr(a, now_literal)?);
+                    }
+                    FuncCall::Scalar {
+                        func,
+                        args: folded_args,
+                    }
+                }
                 // Window functions carry no expression args today; pass through.
                 other => other,
             };
-            Expr::FuncCall(folded_fc)
+            Ok(Expr::FuncCall(folded_fc))
         }
         // Expr::InSubquery (value context): fold NOW() inside the subquery's clauses.
         // `expr_has_unfolded_temporal` now recurses into Expr::InSubquery via
         // `sql_query_has_unfolded_temporal` — fold must mirror detect.
         // (The prior comment claiming "symmetric mutual-omission" was incorrect;
         // a subquery in value context can have temporal WHERE/HAVING/SELECT/etc.)
-        Expr::InSubquery { field, subquery } => Expr::InSubquery {
+        Expr::InSubquery { field, subquery } => Ok(Expr::InSubquery {
             field,
-            subquery: Box::new(inject_now_sql_query(*subquery, now_literal)),
-        },
+            subquery: Box::new(inject_now_sql_query(*subquery, now_literal)?),
+        }),
         // Literal, Field, VirtualField, In, Star, Interval — no NOW() to inject.
-        other => other,
+        other => Ok(other),
     }
 }
