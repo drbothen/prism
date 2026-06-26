@@ -1428,7 +1428,13 @@ impl PqlNormalizer {
     /// contains BOTH `'` and `"`. Called as a pre-check before normalization; avoids
     /// changing the return types of every normalizer helper (low blast-radius approach).
     ///
-    /// **Scope:** covers quoted string literals (`Literal::String`, `Literal::Regex`
+    /// **Scope:** covers `Ast::Filter`, `Ast::Sql`, `Ast::Pipe`, and `Ast::SqlPipe`.
+    /// For `Ast::SqlPipe(spq)`: checks the SQL head (`spq.head` via
+    /// `sql_query_has_both_quote_string`) AND all pipe stages (`spq.stages` via
+    /// `pipe_stage_has_both_quote_string`) — mirroring the parity already present for
+    /// `Ast::Sql` (SQL head) and `Ast::Pipe` (stage iteration).
+    ///
+    /// Covers quoted string literals (`Literal::String`, `Literal::Regex`
     /// patterns, `Predicate::StringOp`/`Wildcard` patterns) and recursively their
     /// containing expressions and function-call argument lists. Bare identifiers — function
     /// names (`ScalarFunc::Unknown(name)`) and column/field path segments — are intentionally
@@ -1448,6 +1454,14 @@ impl PqlNormalizer {
                 .stages
                 .iter()
                 .any(Self::pipe_stage_has_both_quote_string),
+            // SqlPipe: check both the SQL head AND the pipe stages (OBS-1 parity fix).
+            Ast::SqlPipe(spq) => {
+                Self::sql_query_has_both_quote_string(&spq.head)
+                    || spq
+                        .stages
+                        .iter()
+                        .any(Self::pipe_stage_has_both_quote_string)
+            }
             _ => false,
         }
     }
@@ -1566,8 +1580,8 @@ impl PqlNormalizer {
     // Follows the same low-blast-radius pre-check pattern as `ast_has_both_quote_string`
     // (SEC-001): avoids changing `normalize_expr`'s return type across 13 call sites.
     //
-    // Scope: SQL-mode WHERE/HAVING/SELECT/GROUP BY/ORDER BY/JOIN ON; Pipe WHERE stage.
-    // Bare Filter mode predicates also traverse through `predicate_has_unfolded_temporal`.
+    // Scope: Filter predicates; SQL-mode WHERE/HAVING/SELECT/GROUP BY/ORDER BY/JOIN ON;
+    // Pipe WHERE stages; SqlPipe SQL head AND pipe stages (OBS-1 parity fix).
 
     fn ast_has_unfolded_temporal_expr(ast: &Ast) -> bool {
         match ast {
@@ -1577,6 +1591,14 @@ impl PqlNormalizer {
                 .stages
                 .iter()
                 .any(Self::pipe_stage_has_unfolded_temporal),
+            // SqlPipe: check both the SQL head AND the pipe stages (OBS-1 parity fix).
+            Ast::SqlPipe(spq) => {
+                Self::sql_query_has_unfolded_temporal(&spq.head)
+                    || spq
+                        .stages
+                        .iter()
+                        .any(Self::pipe_stage_has_unfolded_temporal)
+            }
             _ => false,
         }
     }
@@ -2845,6 +2867,150 @@ mod bc_2_11_018_normalizer_roundtrip_tests {
         assert_eq!(
             normalized, reparsed_normalized,
             "BC-2.11.018: Float whole-number normalized form must be idempotent"
+        );
+    }
+}
+
+/// OBS-1 — `Ast::SqlPipe` pre-check parity tests.
+///
+/// Verifies that `ast_has_both_quote_string` and `ast_has_unfolded_temporal_expr` fire for
+/// `Ast::SqlPipe` nodes, both when the trigger is in the SQL head and when it is in a pipe stage.
+/// Prior to the OBS-1 fix, both functions fell through to `_ => false` for `Ast::SqlPipe`, making
+/// them latent silent-corruption vectors for direct AST construction.
+///
+/// All tests construct ASTs directly (bypassing the parser) because:
+/// (a) both-quote strings are parser-unreachable (grammar uses `none_of`), and
+/// (b) unfolded temporal expressions in SqlPipe would normally be folded by `inject_now` before
+///     reaching `normalize()` — these tests exercise the defense-in-depth guard directly.
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod obs_1_sqlpipe_prechek_parity_tests {
+    use super::*;
+
+    // ─── Helper: minimal SqlQuery (SELECT * FROM t) with no WHERE ───────────────
+
+    fn minimal_sql_head(table: &str) -> SqlQuery {
+        SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw(table)),
+        )
+    }
+
+    // ─── OBS-1: ast_has_both_quote_string on Ast::SqlPipe ───────────────────────
+
+    /// OBS-1 parity: `ast_has_both_quote_string` returns `true` when a WHERE predicate in the
+    /// SqlPipe SQL HEAD contains a string literal with both `'` and `"`.
+    ///
+    /// Before the fix, this returned `false` (fell through to `_ => false`).
+    /// After the fix, it returns `true` — and consequently `PqlNormalizer::normalize` returns
+    /// `None` (safe abort) rather than silently emitting malformed SQL.
+    #[test]
+    fn test_obs1_sqlpipe_head_both_quote_string_prechek_fires() {
+        // Construct an Ast::SqlPipe whose SQL head has a WHERE predicate
+        // containing a string literal with BOTH ' and ".
+        let head = minimal_sql_head("sensors").with_where(Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["hostname"]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String(
+                "it's a \"test\"".to_string(), // contains BOTH ' and "
+            ))),
+        });
+        let ast = Ast::SqlPipe(SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Limit(10)],
+        });
+
+        // The pre-check MUST fire: normalize returns None (safe abort).
+        let result = PqlNormalizer::normalize(&ast);
+        assert!(
+            result.is_none(),
+            "OBS-1: ast_has_both_quote_string must detect both-quote string in SqlPipe SQL head \
+             and cause normalize to return None; got: {:?}",
+            result
+        );
+    }
+
+    /// OBS-1 parity: `ast_has_both_quote_string` returns `true` when a WHERE pipe stage in the
+    /// SqlPipe STAGES contains a string literal with both `'` and `"`.
+    #[test]
+    fn test_obs1_sqlpipe_stage_both_quote_string_prechek_fires() {
+        // SQL head is clean — the trigger is in a pipe WHERE stage.
+        let head = minimal_sql_head("sensors");
+        let both_quote_pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["description"]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String(
+                "it's a \"stage\"".to_string(), // contains BOTH ' and "
+            ))),
+        };
+        let ast = Ast::SqlPipe(SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Where(both_quote_pred)],
+        });
+
+        let result = PqlNormalizer::normalize(&ast);
+        assert!(
+            result.is_none(),
+            "OBS-1: ast_has_both_quote_string must detect both-quote string in SqlPipe pipe \
+             stage and cause normalize to return None; got: {:?}",
+            result
+        );
+    }
+
+    // ─── OBS-1: ast_has_unfolded_temporal_expr on Ast::SqlPipe ──────────────────
+
+    /// OBS-1 parity: `ast_has_unfolded_temporal_expr` returns `true` when the SqlPipe SQL
+    /// HEAD contains an unfolded `Expr::Now` in the WHERE predicate.
+    ///
+    /// Before the fix, this returned `false` (fell through to `_ => false`). After the fix,
+    /// `normalize` returns `None` instead of silently emitting malformed SQL like
+    /// `WHERE timestamp >  ` (empty right-hand side from the catch-all `_ => String::new()` arm).
+    #[test]
+    fn test_obs1_sqlpipe_head_unfolded_temporal_prechek_fires() {
+        // Unfolded Expr::Now in the SqlPipe SQL head's WHERE clause.
+        // In production, inject_now folds this before normalize() is called.
+        // This test exercises the defense-in-depth pre-check for the case where it isn't folded.
+        let head = minimal_sql_head("sensors").with_where(Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["timestamp"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Now), // unfolded temporal — NOT yet constant-folded
+        });
+        let ast = Ast::SqlPipe(SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Limit(100)],
+        });
+
+        let result = PqlNormalizer::normalize(&ast);
+        assert!(
+            result.is_none(),
+            "OBS-1: ast_has_unfolded_temporal_expr must detect Expr::Now in SqlPipe SQL head \
+             and cause normalize to return None (prevents malformed SQL); got: {:?}",
+            result
+        );
+    }
+
+    /// OBS-1 parity: `ast_has_unfolded_temporal_expr` returns `true` when an unfolded
+    /// `Expr::Now` appears in a SqlPipe PIPE STAGE WHERE predicate.
+    #[test]
+    fn test_obs1_sqlpipe_stage_unfolded_temporal_prechek_fires() {
+        // SQL head is temporally clean; the unfolded temporal is in a pipe WHERE stage.
+        let head = minimal_sql_head("sensors");
+        let temporal_pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["event_time"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Now), // unfolded — defense-in-depth target
+        };
+        let ast = Ast::SqlPipe(SqlPipeQuery {
+            head,
+            stages: vec![PipeStage::Where(temporal_pred)],
+        });
+
+        let result = PqlNormalizer::normalize(&ast);
+        assert!(
+            result.is_none(),
+            "OBS-1: ast_has_unfolded_temporal_expr must detect Expr::Now in SqlPipe pipe stage \
+             and cause normalize to return None; got: {:?}",
+            result
         );
     }
 }
