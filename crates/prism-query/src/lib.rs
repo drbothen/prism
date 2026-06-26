@@ -305,8 +305,57 @@ pub(crate) fn inject_now(ast: Ast, now_literal: &ast::Expr) -> Ast {
 }
 
 fn inject_now_sql_query(mut sq: ast::SqlQuery, now_literal: &ast::Expr) -> ast::SqlQuery {
+    // Fold NOW() in WHERE and HAVING predicates.
     sq.where_ = sq.where_.map(|p| inject_now_predicate(p, now_literal));
     sq.having = sq.having.map(|p| inject_now_predicate(p, now_literal));
+
+    // Fold NOW() in SELECT projection expressions.
+    // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
+    sq.select.items = sq
+        .select
+        .items
+        .into_iter()
+        .map(|item| match item {
+            ast::SelectItem::Expr { expr, alias } => ast::SelectItem::Expr {
+                expr: inject_now_expr(expr, now_literal),
+                alias,
+            },
+            other => other,
+        })
+        .collect();
+
+    // Fold NOW() in GROUP BY expressions.
+    // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
+    sq.group_by = sq
+        .group_by
+        .into_iter()
+        .map(|e| inject_now_expr(e, now_literal))
+        .collect();
+
+    // Fold NOW() in ORDER BY expressions.
+    // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
+    sq.order_by = sq
+        .order_by
+        .into_iter()
+        .map(|oe| ast::OrderExpr {
+            expr: inject_now_expr(oe.expr, now_literal),
+            direction: oe.direction,
+        })
+        .collect();
+
+    // Fold NOW() in JOIN ON expressions.
+    // `sql_query_has_unfolded_temporal` detects these — fold must mirror detect.
+    sq.joins = sq
+        .joins
+        .into_iter()
+        .map(|j| ast::Join {
+            kind: j.kind,
+            source: j.source,
+            alias: j.alias,
+            on: inject_now_expr(j.on, now_literal),
+        })
+        .collect();
+
     sq
 }
 
@@ -395,11 +444,45 @@ fn inject_now_expr(expr: ast::Expr, now_literal: &ast::Expr) -> ast::Expr {
             rhs: Box::new(inject_now_expr(*rhs, now_literal)),
         },
         Expr::Not(inner) => Expr::Not(Box::new(inject_now_expr(*inner, now_literal))),
-        // Literal, Field, VirtualField, In, FuncCall, Star, Interval — no NOW() to inject.
-        // Expr::InSubquery: temporal expressions inside the subquery's WHERE/HAVING are
-        // folded when the subquery is processed as a Predicate::InSubquery (predicate
-        // context), not here (value context).  expr_has_unfolded_temporal intentionally
-        // does not recurse into Expr::InSubquery, so this catch-all is symmetric.
+        // FuncCall (aggregate / scalar): fold NOW() inside argument expressions.
+        // `expr_has_unfolded_temporal` recurses into FuncCall args — fold must mirror detect.
+        Expr::FuncCall(fc) => {
+            use ast::FuncCall;
+            let folded_fc = match fc {
+                FuncCall::Aggregate {
+                    func,
+                    args,
+                    distinct,
+                } => FuncCall::Aggregate {
+                    func,
+                    args: args
+                        .into_iter()
+                        .map(|a| inject_now_expr(a, now_literal))
+                        .collect(),
+                    distinct,
+                },
+                FuncCall::Scalar { func, args } => FuncCall::Scalar {
+                    func,
+                    args: args
+                        .into_iter()
+                        .map(|a| inject_now_expr(a, now_literal))
+                        .collect(),
+                },
+                // Window functions carry no expression args today; pass through.
+                other => other,
+            };
+            Expr::FuncCall(folded_fc)
+        }
+        // Expr::InSubquery (value context): fold NOW() inside the subquery's clauses.
+        // `expr_has_unfolded_temporal` now recurses into Expr::InSubquery via
+        // `sql_query_has_unfolded_temporal` — fold must mirror detect.
+        // (The prior comment claiming "symmetric mutual-omission" was incorrect;
+        // a subquery in value context can have temporal WHERE/HAVING/SELECT/etc.)
+        Expr::InSubquery { field, subquery } => Expr::InSubquery {
+            field,
+            subquery: Box::new(inject_now_sql_query(*subquery, now_literal)),
+        },
+        // Literal, Field, VirtualField, In, Star, Interval — no NOW() to inject.
         other => other,
     }
 }

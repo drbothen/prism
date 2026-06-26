@@ -1424,6 +1424,14 @@ impl PqlNormalizer {
         Self::predicate_has_unfolded_temporal(pred)
     }
 
+    /// Public wrapper over the private `expr_has_unfolded_temporal` method.
+    /// Exposed for tests that need to verify the detect-side behaviour of
+    /// `Expr::InSubquery` (value context) and `FuncCall` arg lists
+    /// (MED-1 / OBS-1 fix — fold↔detect exhaustive symmetry sweep).
+    pub fn expr_has_unfolded_temporal_pub(expr: &Expr) -> bool {
+        Self::expr_has_unfolded_temporal(expr)
+    }
+
     /// SEC-001 helper: returns `true` if any string-**literal**-bearing node in `ast`
     /// contains BOTH `'` and `"`. Called as a pre-check before normalization; avoids
     /// changing the return types of every normalizer helper (low blast-radius approach).
@@ -1623,7 +1631,12 @@ impl PqlNormalizer {
                 FuncCall::Window { .. } => false,
                 _ => false,
             },
-            // Literal, Field, VirtualField, In, InSubquery, Star — no temporal exprs.
+            // Expr::InSubquery (value context): the subquery may contain temporal
+            // expressions in its WHERE, HAVING, SELECT, etc.  Recurse via
+            // `sql_query_has_unfolded_temporal` so detect mirrors fold.
+            // (The prior code silently skipped this variant — MED-1 / OBS-1 fix.)
+            Expr::InSubquery { subquery, .. } => Self::sql_query_has_unfolded_temporal(subquery),
+            // Literal, Field, VirtualField, In, Star — no temporal exprs.
             _ => false,
         }
     }

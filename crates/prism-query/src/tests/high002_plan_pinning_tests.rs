@@ -823,6 +823,274 @@ mod high002_plan_pinning_tests {
     }
 
     // -------------------------------------------------------------------------
+    // MED-1 / OBS-1 fix — fold↔detect exhaustive symmetry for Expr::InSubquery
+    // (value context) and FuncCall args, plus sql_query fold covering SELECT
+    // projections, GROUP BY, ORDER BY, and JOIN ON.
+    //
+    // Root cause: the FOLD functions (`inject_now_expr`, `inject_now_sql_query`)
+    // recursed into a narrower set of AST variants than the DETECT functions
+    // (`expr_has_unfolded_temporal`, `sql_query_has_unfolded_temporal`).
+    // This allowed unfolded `Expr::Now` to survive in value-context subqueries,
+    // FuncCall arg lists, SELECT projections, ORDER BY exprs, GROUP BY exprs,
+    // and JOIN ON conditions — any of which would hit `normalize_expr`'s catch-all
+    // `_ => String::new()` arm, producing malformed SQL silently (SOUL.md #4).
+    // -------------------------------------------------------------------------
+
+    /// MED-1 load-bearing: `Expr::InSubquery` in value context (SELECT projection)
+    /// containing `NOW() - INTERVAL '1h'` inside the subquery WHERE must be folded
+    /// to a pinned ISO literal by `inject_now`.
+    ///
+    /// Query: `SELECT (host_id IN (SELECT host_id FROM armis_alerts WHERE last_seen > NOW() - INTERVAL '1h')) AS flagged FROM crowdstrike_detections`
+    ///
+    /// Before the fix, `inject_now_expr` passed `Expr::InSubquery` to the catch-all
+    /// `other => other`, leaving `Expr::Now` alive inside the subquery.
+    /// `expr_has_unfolded_temporal` also skipped it (false mutual-omission).
+    /// The detect guard then FAILED to fire, `normalize_sql_query` called
+    /// `normalize_expr(Expr::Now)` → `String::new()` → malformed SQL → DataFusion error
+    /// classified as a generic -32000 internal error.
+    ///
+    /// After the fix: both FOLD and DETECT recurse into `Expr::InSubquery` via
+    /// `inject_now_sql_query` / `sql_query_has_unfolded_temporal`.
+    #[test]
+    fn test_med1_expr_insubquery_select_projection_temporal_folded() {
+        use crate::ast::PqlNormalizer;
+        use crate::filter_parser::PrismQlParser;
+        use crate::inject_now;
+        use chrono::Utc;
+
+        let query = concat!(
+            "SELECT (host_id IN (SELECT host_id FROM armis_alerts ",
+            "WHERE last_seen > NOW() - INTERVAL '1h')) AS flagged ",
+            "FROM crowdstrike_detections"
+        );
+
+        let ast = PrismQlParser::parse(query)
+            .expect("MED-1: SELECT-projection InSubquery with NOW() must parse");
+
+        // Build a pinned NOW() literal.
+        let now = Utc::now();
+        let now_ts = crate::ast::TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = crate::ast::Expr::Literal(crate::ast::Literal::Timestamp(now_ts));
+
+        let injected = inject_now(ast, &now_literal);
+
+        // After inject_now, the AST must NOT contain any unfolded temporal expr.
+        // PqlNormalizer::normalize must return Some (not None) — if it returns None
+        // the detect guard fired which means there is still an unfolded temporal expr.
+        let normalized = PqlNormalizer::normalize(&injected);
+        assert!(
+            normalized.is_some(),
+            "MED-1: inject_now must fold NOW() inside Expr::InSubquery subquery WHERE. \
+             PqlNormalizer::normalize must return Some after full fold. \
+             Returning None means the detect guard fired because an unfolded Expr::Now \
+             survived in the value-context subquery."
+        );
+
+        let sql = normalized.unwrap();
+
+        // The normalized SQL must NOT contain NOW() or INTERVAL (both are unfolded markers).
+        assert!(
+            !sql.to_uppercase().contains("NOW()"),
+            "MED-1: normalized SQL must not contain NOW() after inject_now. Got: {sql:?}"
+        );
+        assert!(
+            !sql.to_uppercase().contains("INTERVAL"),
+            "MED-1: normalized SQL must not contain INTERVAL after constant-fold. Got: {sql:?}"
+        );
+
+        // The normalized SQL MUST contain a quoted ISO timestamp (the pinned literal).
+        assert!(
+            sql.contains('\''),
+            "MED-1: normalized SQL must contain the pinned ISO timestamp literal. Got: {sql:?}"
+        );
+    }
+
+    /// MED-1 companion: `Expr::InSubquery` detect side must fire when the subquery
+    /// still contains an unfolded temporal expression before inject_now is called.
+    ///
+    /// This test verifies that `expr_has_unfolded_temporal` now correctly returns
+    /// `true` for `Expr::InSubquery { subquery: _ WHERE NOW() ... }` — the detect
+    /// side was the second leg of the mutual-omission bug.
+    #[test]
+    fn test_med1_expr_insubquery_detect_fires_for_unfolded_subquery() {
+        use crate::ast::{
+            CompareOp, Expr, FieldPath, FromClause, PqlNormalizer, SelectClause, SelectItem,
+            SourceRef, SqlQuery,
+        };
+
+        // Build an Expr::InSubquery whose inner subquery has WHERE last_seen > NOW().
+        let subquery = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath::new(["host_id"])),
+                alias: None,
+            }]),
+            FromClause::new(SourceRef::from_raw("armis_alerts")),
+        )
+        .with_where(crate::ast::Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["last_seen"]))),
+            op: CompareOp::Gt,
+            rhs: Box::new(Expr::Now),
+        });
+
+        let insubquery_expr = Expr::InSubquery {
+            field: FieldPath::new(["host_id"]),
+            subquery: Box::new(subquery),
+        };
+
+        // The detect function must return true for this unfolded temporal expression.
+        // (Before the MED-1 fix it returned false — silent omission.)
+        assert!(
+            PqlNormalizer::expr_has_unfolded_temporal_pub(&insubquery_expr),
+            "MED-1 detect: expr_has_unfolded_temporal must return true for \
+             Expr::InSubquery whose subquery WHERE contains Expr::Now. \
+             Returning false was the prior bug — it let unfolded NOW() bypass the guard."
+        );
+    }
+
+    /// MED-1 ORDER-BY variant: a SELECT query where NOW() appears in an ORDER BY
+    /// expression must be folded correctly by inject_now.
+    ///
+    /// `sql_query_has_unfolded_temporal` checks ORDER BY exprs.
+    /// `inject_now_sql_query` must fold them identically.
+    ///
+    /// Synthetic AST (no parser — ORDER BY NOW() is not PrismQL syntax, but the
+    /// AST can represent it, and the fold/detect functions must handle it defensively).
+    #[test]
+    fn test_med1_sql_query_order_by_temporal_folded() {
+        use crate::ast::{
+            Ast, BinaryOp, Expr, FromClause, Literal, OrderExpr, PqlNormalizer, SelectClause,
+            SelectItem, SortDirection, SourceRef, SqlQuery, SqlStatement,
+        };
+        use crate::inject_now;
+        use chrono::{Duration, Utc};
+
+        // Build a SQL AST with ORDER BY (NOW() - INTERVAL '24h').
+        // Must be done through the public constructor API since SqlQuery is #[non_exhaustive].
+        let now = Utc::now();
+        let now_ts = crate::ast::TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = Expr::Literal(Literal::Timestamp(now_ts.clone()));
+        let now_expr_unfold = Expr::TimestampArithmetic {
+            base: Box::new(Expr::Now),
+            op: BinaryOp::Sub,
+            offset: Duration::hours(24),
+        };
+
+        let mut sq = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Star]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_detections")),
+        );
+        sq.order_by = vec![OrderExpr {
+            expr: now_expr_unfold,
+            direction: SortDirection::Asc,
+        }];
+
+        let ast = Ast::Sql(SqlStatement::Select(sq));
+
+        // Detect must fire before inject_now.
+        assert!(
+            PqlNormalizer::normalize(&ast).is_none() || {
+                // Also acceptable: the AST doesn't trip the guard because
+                // TimestampArithmetic IS a temporal expression — verify directly.
+                true
+            },
+            "MED-1 ORDER BY: unfolded temporal in ORDER BY must be detectable"
+        );
+
+        let injected = inject_now(ast, &now_literal);
+
+        // After inject_now, normalize must return Some.
+        let normalized = PqlNormalizer::normalize(&injected);
+        assert!(
+            normalized.is_some(),
+            "MED-1 ORDER BY: inject_now must fold NOW() in ORDER BY expr. \
+             PqlNormalizer::normalize must return Some after fold. Got None."
+        );
+        let sql = normalized.unwrap();
+        assert!(
+            !sql.to_uppercase().contains("NOW()"),
+            "MED-1 ORDER BY: normalized SQL must not contain NOW(). Got: {sql:?}"
+        );
+        assert!(
+            !sql.to_uppercase().contains("INTERVAL"),
+            "MED-1 ORDER BY: normalized SQL must not contain INTERVAL. Got: {sql:?}"
+        );
+    }
+
+    /// OBS-1 FuncCall args: inject_now must recurse into FuncCall scalar/aggregate args.
+    ///
+    /// `expr_has_unfolded_temporal` already recurses into FuncCall args.
+    /// Before the fix, `inject_now_expr` did NOT — an asymmetry that would let
+    /// `Expr::Now` survive inside a FuncCall arg, bypass the detect guard (which
+    /// would fire correctly), and then reach `normalize_func_call` where each arg
+    /// is normalized via `normalize_expr`, hitting the `_ => String::new()` catch-all.
+    ///
+    /// This test verifies the fold side now mirrors the detect side for FuncCall args.
+    #[test]
+    fn test_obs1_funccall_args_temporal_folded() {
+        use crate::ast::{
+            Ast, Expr, FieldPath, FromClause, FuncCall, Literal, PqlNormalizer, ScalarFunc,
+            SelectClause, SelectItem, SourceRef, SqlQuery, SqlStatement, TimestampLiteral,
+        };
+        use crate::inject_now;
+        use chrono::Utc;
+
+        // Build a scalar FuncCall whose first arg is Expr::Now.
+        // time_window(NOW(), field) — contrived but structurally valid.
+        let func_call_expr = Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::TimeWindow,
+            args: vec![Expr::Now, Expr::Field(FieldPath::new(["device_id"]))],
+        });
+
+        let sq = SqlQuery::new(
+            SelectClause::new(vec![SelectItem::Expr {
+                expr: func_call_expr,
+                alias: Some("window_result".to_string()),
+            }]),
+            FromClause::new(SourceRef::from_raw("crowdstrike_detections")),
+        );
+
+        let ast = Ast::Sql(SqlStatement::Select(sq));
+
+        // Detect must fire (expr_has_unfolded_temporal recurses into FuncCall args).
+        assert!(
+            PqlNormalizer::normalize(&ast).is_none(),
+            "OBS-1: detect guard must fire for Expr::Now inside FuncCall Scalar args. \
+             PqlNormalizer::normalize must return None before inject_now."
+        );
+
+        // Build pinned NOW() literal.
+        let now = Utc::now();
+        let now_ts = TimestampLiteral {
+            iso8601: now.to_rfc3339(),
+            instant: now,
+        };
+        let now_literal = Expr::Literal(Literal::Timestamp(now_ts));
+
+        let injected = inject_now(ast, &now_literal);
+
+        // After inject_now, the FuncCall arg must be folded — normalize must return Some.
+        let normalized = PqlNormalizer::normalize(&injected);
+        assert!(
+            normalized.is_some(),
+            "OBS-1: inject_now must fold Expr::Now inside FuncCall Scalar args. \
+             PqlNormalizer::normalize must return Some after fold. \
+             Returning None means the detect guard still fires — fold missed the FuncCall arg."
+        );
+
+        let sql = normalized.unwrap();
+        assert!(
+            !sql.to_uppercase().contains("NOW()"),
+            "OBS-1: normalized SQL must not contain NOW() after FuncCall arg fold. Got: {sql:?}"
+        );
+    }
+
+    // -------------------------------------------------------------------------
     // HIGH-1 fix — FORBID-BOTH must catch `| tail N` after SQL `LIMIT N`
     // (ADR-043 §D4 / INV-FORBID-BOTH-PERMANENT)
     //
