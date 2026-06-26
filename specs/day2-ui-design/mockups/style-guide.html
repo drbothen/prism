@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<!--
+  style-guide.html — Prism Design System Style Guide
+  2026-06-25 day-2 side-analysis — UI mockups, do_not_execute, separate from live factory pipeline.
+
+  Open via file:// in any modern browser. No build step required.
+  Use the theme toggle (top-right) to switch between light and dark modes.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism Design System — Style Guide</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    /* ── Page layout ─────────────────────────────────────────────── */
+    .sg-page {
+      min-height: 100vh;
+      background: var(--color-bg);
+    }
+
+    .sg-header {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-topbar);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      padding: 0 var(--space-6);
+      height: var(--topbar-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+
+    .sg-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      color: var(--color-text);
+      text-transform: uppercase;
+    }
+
+    .sg-logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-full);
+      background: var(--color-accent);
+      flex-shrink: 0;
+    }
+
+    .sg-nav-pills {
+      display: flex;
+      gap: var(--space-1);
+      list-style: none;
+    }
+
+    .sg-nav-pills a {
+      display: inline-flex;
+      align-items: center;
+      height: 30px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+      transition: background var(--transition-fast), color var(--transition-fast);
+      text-decoration: none;
+    }
+
+    .sg-nav-pills a:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-full);
+      padding: 3px;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .theme-toggle:hover {
+      background: var(--color-surface-3);
+    }
+
+    .theme-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--color-text-muted);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .theme-btn.active {
+      background: var(--color-bg);
+      color: var(--color-text);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .sg-body {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: var(--space-10) var(--space-6) var(--space-20);
+    }
+
+    /* ── Section structure ───────────────────────────────────────── */
+    .sg-section {
+      margin-bottom: var(--space-16);
+    }
+
+    .sg-section-title {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-bottom: var(--space-1);
+    }
+
+    .sg-section-desc {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-6);
+    }
+
+    .sg-divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: var(--space-8) 0;
+    }
+
+    /* ── Type scale ──────────────────────────────────────────────── */
+    .type-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-6);
+      padding: var(--space-3) 0;
+      border-bottom: var(--border);
+    }
+
+    .type-row:last-child { border-bottom: none; }
+
+    .type-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      min-width: 120px;
+      flex-shrink: 0;
+    }
+
+    .type-sample { color: var(--color-text); }
+
+    /* ── Color swatches ──────────────────────────────────────────── */
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: var(--space-3);
+    }
+
+    .swatch {
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: var(--border);
+    }
+
+    .swatch-color {
+      height: 64px;
+    }
+
+    .swatch-info {
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-bg-card);
+    }
+
+    .swatch-name {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    .swatch-hex {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Severity badges ─────────────────────────────────────────── */
+    .severity-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      height: 22px;
+      padding: var(--badge-padding);
+      border-radius: var(--badge-radius);
+      font-size: var(--badge-font-size);
+      font-weight: var(--badge-font-weight);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-icon {
+      width: 10px;
+      height: 10px;
+      flex-shrink: 0;
+    }
+
+    .badge-critical {
+      background: var(--color-sev-critical-bg);
+      color: var(--color-sev-critical-text);
+      border: 1px solid var(--color-sev-critical-border);
+    }
+
+    .badge-high {
+      background: var(--color-sev-high-bg);
+      color: var(--color-sev-high-text);
+      border: 1px solid var(--color-sev-high-border);
+    }
+
+    .badge-medium {
+      background: var(--color-sev-medium-bg);
+      color: var(--color-sev-medium-text);
+      border: 1px solid var(--color-sev-medium-border);
+    }
+
+    .badge-low {
+      background: var(--color-sev-low-bg);
+      color: var(--color-sev-low-text);
+      border: 1px solid var(--color-sev-low-border);
+    }
+
+    .badge-info {
+      background: var(--color-sev-info-bg);
+      color: var(--color-sev-info-text);
+      border: 1px solid var(--color-sev-info-border);
+    }
+
+    /* Coverage pills */
+    .pill-answered {
+      background: var(--color-cov-answered-bg);
+      color: var(--color-cov-answered-text);
+      border: 1px solid var(--color-cov-answered-border);
+    }
+
+    .pill-degraded {
+      background: var(--color-cov-degraded-bg);
+      color: var(--color-cov-degraded-text);
+      border: 1px solid var(--color-cov-degraded-border);
+    }
+
+    .pill-timeout {
+      background: var(--color-cov-timeout-bg);
+      color: var(--color-cov-timeout-text);
+      border: 1px solid var(--color-cov-timeout-border);
+    }
+
+    .pill-nodata {
+      background: var(--color-cov-nodata-bg);
+      color: var(--color-cov-nodata-text);
+      border: 1px solid var(--color-cov-nodata-border);
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-1-5);
+      height: var(--btn-height-md);
+      padding: var(--btn-padding-md);
+      border-radius: var(--btn-radius);
+      font-family: var(--font-sans);
+      font-size: var(--btn-font-size);
+      font-weight: var(--btn-font-weight);
+      letter-spacing: var(--tracking-normal);
+      cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast),
+                  box-shadow var(--transition-fast), color var(--transition-fast);
+      white-space: nowrap;
+      text-decoration: none;
+      border: 1px solid transparent;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .btn:focus-visible {
+      box-shadow: var(--shadow-focus);
+    }
+
+    .btn-primary {
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
+      border-color: var(--btn-primary-border);
+    }
+
+    .btn-primary:hover {
+      background: var(--btn-primary-bg-hover);
+      text-decoration: none;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: var(--btn-secondary-bg);
+      color: var(--btn-secondary-text);
+      border-color: var(--btn-secondary-border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--btn-secondary-bg-hover);
+      text-decoration: none;
+    }
+
+    .btn-ghost {
+      background: var(--btn-ghost-bg);
+      color: var(--btn-ghost-text);
+      border-color: var(--btn-ghost-border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--btn-ghost-bg-hover);
+      text-decoration: none;
+    }
+
+    .btn-danger {
+      background: var(--btn-danger-bg);
+      color: var(--btn-danger-text);
+      border-color: var(--btn-danger-border);
+    }
+
+    .btn-danger:hover {
+      background: var(--btn-danger-bg-hover);
+      text-decoration: none;
+      color: #fff;
+    }
+
+    .btn-sm {
+      height: var(--btn-height-sm);
+      padding: var(--btn-padding-sm);
+      font-size: var(--text-xs);
+    }
+
+    .btn-lg {
+      height: var(--btn-height-lg);
+      padding: var(--btn-padding-lg);
+      font-size: var(--text-md);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--btn-height-md);
+      height: var(--btn-height-md);
+      padding: 0;
+      border-radius: var(--radius-md);
+    }
+
+    /* ── Inputs ──────────────────────────────────────────────────── */
+    .input-row {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      max-width: 480px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1-5);
+    }
+
+    .form-label {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    .form-hint {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    .form-error {
+      font-size: var(--text-xs);
+      color: var(--color-sev-critical-icon);
+    }
+
+    .input {
+      height: var(--input-height);
+      padding: var(--input-padding);
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--input-radius);
+      font-family: var(--font-sans);
+      font-size: var(--input-font-size);
+      color: var(--input-text);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      width: 100%;
+    }
+
+    .input::placeholder { color: var(--input-placeholder); }
+
+    .input:hover { border-color: var(--color-border-strong); }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--input-border-focus);
+      box-shadow: 0 0 0 3px rgba(64, 153, 255, 0.20);
+    }
+
+    .input.error {
+      border-color: var(--input-border-error);
+    }
+
+    .input.error:focus {
+      box-shadow: 0 0 0 3px rgba(200, 15, 46, 0.20);
+    }
+
+    .input-search {
+      position: relative;
+    }
+
+    .input-search .input {
+      padding-left: 32px;
+    }
+
+    .input-search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--color-icon-default);
+      pointer-events: none;
+    }
+
+    /* ── Tabs ────────────────────────────────────────────────────── */
+    .tab-list {
+      display: flex;
+      gap: 0;
+      border-bottom: var(--border);
+      list-style: none;
+    }
+
+    .tab-item {
+      position: relative;
+    }
+
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      height: 40px;
+      padding: 0 var(--space-4);
+      border: none;
+      background: transparent;
+      font-family: var(--font-sans);
+      font-size: var(--tab-font-size);
+      font-weight: var(--weight-medium);
+      color: var(--tab-text);
+      cursor: pointer;
+      transition: color var(--transition-fast), background var(--transition-fast);
+      white-space: nowrap;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+
+    .tab-btn:hover {
+      background: var(--tab-bg-hover);
+      color: var(--color-text);
+    }
+
+    .tab-btn.active {
+      color: var(--tab-text-active);
+      font-weight: var(--tab-font-weight-active);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--tab-border-active);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .tab-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      background: var(--color-surface-3);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: var(--space-4);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      padding: var(--card-padding);
+      transition: background var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .card:hover {
+      background: var(--card-bg-hover);
+      box-shadow: var(--card-shadow);
+    }
+
+    .card-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      margin-bottom: var(--space-1);
+    }
+
+    .card-desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: var(--leading-relaxed);
+    }
+
+    .card-metric {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-tight);
+      color: var(--color-text);
+      margin: var(--space-2) 0 var(--space-1);
+    }
+
+    .card-delta {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+    }
+
+    .delta-up { color: var(--color-sev-critical-icon); }
+    .delta-down { color: var(--color-cov-answered-icon); }
+
+    /* ── Data table ──────────────────────────────────────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+
+    .data-table th {
+      background: var(--table-header-bg);
+      color: var(--table-header-text);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      padding: var(--space-2) var(--space-3);
+      border-bottom: var(--border-strong);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: var(--table-cell-padding);
+      border-bottom: 1px solid var(--table-border);
+      color: var(--color-text);
+      vertical-align: middle;
+    }
+
+    .data-table tr:nth-child(even) td {
+      background: var(--table-row-bg-alt);
+    }
+
+    .data-table tr:hover td {
+      background: var(--table-row-bg-hover);
+    }
+
+    .data-table .cell-mono {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    /* ── PrismQL editor chrome ───────────────────────────────────── */
+    .editor-chrome {
+      background: var(--editor-bg);
+      border: 1px solid var(--editor-border);
+      border-radius: var(--editor-radius);
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: var(--editor-font-size);
+      line-height: var(--editor-line-height);
+    }
+
+    .editor-titlebar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      background: var(--editor-gutter-bg);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .editor-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .editor-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .editor-dot-r { background: #ff5f57; }
+    .editor-dot-y { background: #ffbd2e; }
+    .editor-dot-g { background: #28c840; }
+
+    .editor-tab-label {
+      font-size: 11px;
+      color: #6c7086;
+      padding: 2px 10px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 4px 4px 0 0;
+    }
+
+    .editor-tab-label.active-tab {
+      background: var(--editor-bg);
+      color: #cdd6f4;
+    }
+
+    .editor-body {
+      display: flex;
+    }
+
+    .editor-gutter {
+      padding: var(--space-3) var(--space-2);
+      background: var(--editor-gutter-bg);
+      color: var(--editor-gutter-text);
+      text-align: right;
+      min-width: 40px;
+      user-select: none;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .editor-gutter div {
+      line-height: var(--editor-line-height);
+      font-size: var(--editor-font-size);
+    }
+
+    .editor-code {
+      padding: var(--space-3) var(--space-4);
+      color: var(--editor-text);
+      flex: 1;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .editor-code .kw { color: var(--editor-keyword); }
+    .editor-code .fn { color: var(--editor-function); }
+    .editor-code .str { color: var(--editor-string); }
+    .editor-code .num { color: var(--editor-number); }
+    .editor-code .cm { color: var(--editor-comment); font-style: italic; }
+    .editor-code .op { color: var(--editor-operator); }
+    .editor-code .ty { color: var(--editor-type); }
+
+    .editor-statusbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-1) var(--space-3);
+      background: var(--editor-gutter-bg);
+      border-top: 1px solid rgba(255,255,255,0.04);
+      font-size: 11px;
+      color: #6c7086;
+    }
+
+    .editor-statusbar span { font-size: 11px; color: #6c7086; }
+
+    /* ── AI callout ──────────────────────────────────────────────── */
+    .ai-callout {
+      background: var(--color-ai-bg);
+      border: 1px solid var(--color-ai-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+    }
+
+    .ai-callout-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+
+    .ai-label {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      height: 20px;
+      padding: 0 var(--space-2);
+      background: var(--color-ai-label);
+      color: #fff;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      border-radius: var(--radius-sm);
+    }
+
+    .ai-callout-body {
+      font-size: var(--text-sm);
+      color: var(--color-ai-text);
+      line-height: var(--leading-relaxed);
+      margin-bottom: var(--space-3);
+    }
+
+    .ai-callout-footer {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .ai-evidence-link {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-ai-label);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    .ai-evidence-link:hover { text-decoration: underline; color: var(--color-ai-label); }
+
+    /* ── Coverage banner ─────────────────────────────────────────── */
+    .coverage-banner {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+      padding: var(--space-2) var(--space-4);
+      background: var(--color-bg-card);
+      border: var(--border);
+      border-radius: var(--radius-lg);
+    }
+
+    .coverage-banner-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      margin-right: var(--space-1);
+    }
+
+    /* ── Toast ───────────────────────────────────────────────────── */
+    .toast-demo {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      max-width: 380px;
+    }
+
+    .toast {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--toast-bg);
+      color: var(--toast-text);
+      border-radius: var(--toast-radius);
+      font-size: var(--text-sm);
+      box-shadow: var(--toast-shadow);
+    }
+
+    .toast-icon {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .toast-content { flex: 1; }
+
+    .toast-title {
+      font-weight: var(--weight-semibold);
+      margin-bottom: 2px;
+    }
+
+    .toast-body {
+      font-size: var(--text-xs);
+      opacity: 0.8;
+    }
+
+    .toast-success { border-left: 3px solid var(--color-cov-answered-icon); }
+    .toast-error   { border-left: 3px solid var(--color-sev-critical-icon); }
+    .toast-warning { border-left: 3px solid var(--color-cov-degraded-icon); }
+    .toast-info    { border-left: 3px solid var(--color-sev-info-icon); }
+
+    /* ── App shell preview ───────────────────────────────────────── */
+    .shell-preview {
+      border: var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .shell-topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-4);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+    }
+
+    .shell-logo {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-right: var(--space-2);
+    }
+
+    .shell-topnav {
+      display: flex;
+      gap: var(--space-1);
+      list-style: none;
+      flex: 1;
+    }
+
+    .shell-topnav-item {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .shell-topnav-item:hover, .shell-topnav-item.active {
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+    }
+
+    .shell-topnav-item.active {
+      color: var(--color-text);
+      font-weight: var(--weight-semibold);
+    }
+
+    .shell-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .shell-search-trigger {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      height: 30px;
+      padding: 0 var(--space-3);
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      min-width: 180px;
+      transition: background var(--transition-fast);
+    }
+
+    .shell-search-trigger:hover { background: var(--color-surface-3); }
+
+    .shell-kbd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: var(--color-border);
+      border-radius: 3px;
+      padding: 1px 4px;
+      margin-left: auto;
+      color: var(--color-text-muted);
+    }
+
+    .shell-icon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: transparent;
+      color: var(--color-icon-default);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      position: relative;
+    }
+
+    .shell-icon-btn:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+    }
+
+    .shell-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      background: var(--color-accent);
+      border-radius: 50%;
+      border: 2px solid var(--topbar-bg);
+    }
+
+    .shell-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .shell-nav {
+      width: var(--nav-rail-width);
+      background: var(--nav-bg);
+      border-right: var(--border);
+      padding: var(--space-3) var(--space-2);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-0-5);
+      flex-shrink: 0;
+    }
+
+    .shell-nav-group-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      padding: var(--space-2) var(--space-2) var(--space-1);
+      margin-top: var(--space-2);
+    }
+
+    .shell-nav-group-label:first-child { margin-top: 0; }
+
+    .shell-nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      height: 34px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--nav-item-text);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .shell-nav-item:hover {
+      background: var(--nav-item-bg-hover);
+      color: var(--nav-item-text-active);
+    }
+
+    .shell-nav-item.active {
+      background: var(--nav-item-bg-active);
+      color: var(--nav-item-text-active);
+      font-weight: var(--weight-semibold);
+    }
+
+    .shell-nav-item.active .nav-dot {
+      background: var(--nav-item-accent);
+    }
+
+    .nav-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-border-strong);
+      flex-shrink: 0;
+    }
+
+    .shell-content {
+      flex: 1;
+      background: var(--color-bg);
+      padding: var(--space-4);
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shell-content-msg {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    .shell-sidecar {
+      width: var(--sidecar-width);
+      background: var(--nav-bg);
+      border-left: var(--border);
+      padding: var(--space-3);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .sidecar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidecar-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+    }
+
+    .sidecar-beta {
+      font-size: var(--text-xs);
+      background: var(--color-ai-bg);
+      color: var(--color-ai-label);
+      border: 1px solid var(--color-ai-border);
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+    }
+
+    .sidecar-msg {
+      background: var(--color-surface-2);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      line-height: var(--leading-relaxed);
+    }
+
+    .sidecar-msg-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-top: var(--space-2);
+    }
+
+    .sidecar-query-link {
+      font-size: var(--text-xs);
+      color: var(--color-text-link);
+      cursor: pointer;
+    }
+
+    .sidecar-input {
+      margin-top: auto;
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    .sidecar-input .input {
+      flex: 1;
+      font-size: var(--text-sm);
+    }
+
+    /* ── Loading / streaming states ──────────────────────────────── */
+    .state-demos {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .state-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-2);
+    }
+
+    .skeleton-row {
+      display: flex;
+      gap: var(--space-3);
+      align-items: center;
+      padding: var(--space-2) 0;
+    }
+
+    .skel-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .skel-lines {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1-5);
+    }
+
+    .skel-line { height: 12px; }
+
+    .empty-state {
+      text-align: center;
+      padding: var(--space-10) var(--space-6);
+      border: var(--border);
+      border-radius: var(--radius-lg);
+      border-style: dashed;
+    }
+
+    .empty-icon {
+      font-size: 28px;
+      margin-bottom: var(--space-2);
+    }
+
+    .empty-title {
+      font-size: var(--text-base);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      margin-bottom: var(--space-1);
+    }
+
+    .empty-desc {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      max-width: 300px;
+      margin: 0 auto var(--space-4);
+    }
+
+    @keyframes streaming-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .streaming-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-cov-answered-icon);
+    }
+
+    .streaming-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: streaming-pulse 1s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="sg-page">
+
+    <!-- ── Header ─────────────────────────────────────────────────── -->
+    <header class="sg-header">
+      <div class="sg-logo">
+        <span class="sg-logo-dot"></span>
+        Prism
+        <span style="font-size: var(--text-sm); font-weight: var(--weight-regular); opacity: 0.5; font-family: var(--font-sans);">Design System</span>
+      </div>
+
+      <nav>
+        <ul class="sg-nav-pills">
+          <li><a href="#typography">Type</a></li>
+          <li><a href="#colors">Colors</a></li>
+          <li><a href="#severity">Severity</a></li>
+          <li><a href="#buttons">Buttons</a></li>
+          <li><a href="#inputs">Inputs</a></li>
+          <li><a href="#editor">Editor</a></li>
+          <li><a href="#ai">AI</a></li>
+          <li><a href="#shell">Shell</a></li>
+          <li><a href="#states">States</a></li>
+        </ul>
+      </nav>
+
+      <div class="theme-toggle" role="group" aria-label="Theme selector">
+        <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme" title="Light theme">☀️</button>
+        <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme" title="Dark theme">🌙</button>
+      </div>
+    </header>
+
+    <main class="sg-body">
+
+      <!-- ── Typography ──────────────────────────────────────────── -->
+      <section class="sg-section" id="typography">
+        <h2 class="sg-section-title">Typography</h2>
+        <p class="sg-section-desc">Manrope for body/UI. acumin-pro-extra-condensed (Adobe, with Archivo fallback) for display. IBM Plex Mono for code.</p>
+
+        <div class="type-row">
+          <span class="type-label">Display / 40px</span>
+          <span class="type-sample" style="font-family: var(--font-display); font-size: var(--text-display); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: var(--tracking-wide);">Attack Narrative</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">H1 / 30px</span>
+          <span class="type-sample" style="font-size: var(--text-3xl); font-weight: var(--weight-bold); letter-spacing: var(--tracking-tight);">Triage Queue — 14 Open Cases</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">H2 / 24px</span>
+          <span class="type-sample" style="font-size: var(--text-2xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight);">CVE-2026-1234 Exploit — acme-dc-01</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">H3 / 20px</span>
+          <span class="type-sample" style="font-size: var(--text-xl); font-weight: var(--weight-semibold);">Risk Score Breakdown</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">H4 / 17px</span>
+          <span class="type-sample" style="font-size: var(--text-lg); font-weight: var(--weight-semibold);">Source Coverage Status</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">Body MD / 15px</span>
+          <span class="type-sample" style="font-size: var(--text-md); line-height: var(--leading-relaxed);">acme-dc-01 was accessed by a process matching CVE-2026-1234 exploit signatures at 14:22 UTC. Lateral movement detected toward 10.0.1.5.</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">Body / 14px</span>
+          <span class="type-sample" style="font-size: var(--text-base); line-height: var(--leading-relaxed);">The query ran against 3 federated sources. CrowdStrike returned 186 rows; Claroty returned 100 rows; Armis timed out after 5 seconds.</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">Small / 12px</span>
+          <span class="type-sample" style="font-size: var(--text-sm); color: var(--color-text-muted);">Last seen: 2026-06-25 16:18 UTC · Owner: jsmith · 3 sources</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">XS Label / 11px</span>
+          <span class="type-sample" style="font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-muted);">Source Coverage · Event Type · Severity</span>
+        </div>
+        <div class="type-row">
+          <span class="type-label">Mono / 13px</span>
+          <span class="type-sample" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-text-muted);">SELECT * FROM federated WHERE entity('ip', '10.0.1.5') SINCE 24h</span>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── Colors ──────────────────────────────────────────────── -->
+      <section class="sg-section" id="colors">
+        <h2 class="sg-section-title">Brand Palette + Neutrals</h2>
+        <p class="sg-section-desc">Light-theme values sourced verbatim from 1898andco.burnsmcd.com CSS. Dark values derived for WCAG AA contrast.</p>
+
+        <div class="swatch-grid">
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-accent);"></div>
+            <div class="swatch-info"><div class="swatch-name">Accent / Orange</div><div class="swatch-hex">--color-accent · #ff6a39</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-accent-hover);"></div>
+            <div class="swatch-info"><div class="swatch-name">Accent Hover</div><div class="swatch-hex">--color-accent-hover</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-blue);"></div>
+            <div class="swatch-info"><div class="swatch-name">Brand Blue</div><div class="swatch-hex">--color-blue · #0057b8</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-blue-lighter);"></div>
+            <div class="swatch-info"><div class="swatch-name">Blue Lighter</div><div class="swatch-hex">--color-blue-lighter</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-cyan);"></div>
+            <div class="swatch-info"><div class="swatch-name">Sky Cyan</div><div class="swatch-hex">--color-cyan · #71c5e7</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-red);"></div>
+            <div class="swatch-info"><div class="swatch-name">Brand Red</div><div class="swatch-hex">--color-red · #c80f2e</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-yellow);"></div>
+            <div class="swatch-info"><div class="swatch-name">Highlight Yellow</div><div class="swatch-hex">--color-yellow · #f6eb62</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-surface-0); border: 1px solid var(--color-border);"></div>
+            <div class="swatch-info"><div class="swatch-name">Surface 0 (Page bg)</div><div class="swatch-hex">--color-surface-0</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-surface-1);"></div>
+            <div class="swatch-info"><div class="swatch-name">Surface 1 (Card)</div><div class="swatch-hex">--color-surface-1</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-surface-2);"></div>
+            <div class="swatch-info"><div class="swatch-name">Surface 2 (Hover)</div><div class="swatch-hex">--color-surface-2</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-text-primary);"></div>
+            <div class="swatch-info"><div class="swatch-name">Text Primary</div><div class="swatch-hex">--color-text-primary</div></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch-color" style="background: var(--color-text-secondary);"></div>
+            <div class="swatch-info"><div class="swatch-name">Text Secondary</div><div class="swatch-hex">--color-text-secondary</div></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── Severity & Coverage ─────────────────────────────────── -->
+      <section class="sg-section" id="severity">
+        <h2 class="sg-section-title">Severity Badges + Coverage Pills</h2>
+        <p class="sg-section-desc">Color-blind-safe: every badge pairs color with icon + text label. Never color alone (UI-D3).</p>
+
+        <div style="margin-bottom: var(--space-4);">
+          <div class="state-label">Severity ramp (icon + text label, WCAG AA)</div>
+          <div class="severity-row">
+            <span class="badge badge-critical">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/></svg>
+              Critical
+            </span>
+            <span class="badge badge-high">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>
+              High
+            </span>
+            <span class="badge badge-medium">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.9"/></svg>
+              Medium
+            </span>
+            <span class="badge badge-low">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 9L9 1H1L5 9Z" fill="currentColor" opacity="0.9"/></svg>
+              Low
+            </span>
+            <span class="badge badge-info">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2 A1 1 0 1 1 5.001 2M4.5 4.5h1v3h-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
+              Info
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <div class="state-label">Per-source coverage states</div>
+          <div class="severity-row">
+            <span class="badge pill-answered">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Answered
+            </span>
+            <span class="badge pill-degraded">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2L8.5 8H1.5L5 2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.5" y="4.5" width="1" height="2.2" fill="currentColor"/><rect x="4.5" y="7.2" width="1" height="1" fill="currentColor"/></svg>
+              Degraded
+            </span>
+            <span class="badge pill-timeout">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M5 3v2.5l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Timed out
+            </span>
+            <span class="badge pill-nodata">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 1.5"/></svg>
+              No data
+            </span>
+          </div>
+        </div>
+
+        <div style="margin-top: var(--space-5);">
+          <div class="state-label">Coverage banner (full component)</div>
+          <div class="coverage-banner" role="status" aria-label="Source coverage status">
+            <span class="coverage-banner-label">Sources</span>
+            <span class="badge pill-answered">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              CrowdStrike
+            </span>
+            <span class="badge pill-answered">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Cyberint
+            </span>
+            <span class="badge pill-degraded">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2L8.5 8H1.5L5 2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.5" y="4.5" width="1" height="2.2" fill="currentColor"/><rect x="4.5" y="7.2" width="1" height="1" fill="currentColor"/></svg>
+              Armis — Degraded
+            </span>
+            <span class="badge pill-answered">
+              <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Claroty
+            </span>
+            <button class="btn btn-ghost btn-sm" style="margin-left: auto;">View details</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── Buttons ─────────────────────────────────────────────── -->
+      <section class="sg-section" id="buttons">
+        <h2 class="sg-section-title">Buttons</h2>
+        <p class="sg-section-desc">Orange accent used only for primary CTA. Secondary/ghost for supporting actions.</p>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+          <div>
+            <div class="state-label">Variants</div>
+            <div class="btn-row">
+              <button class="btn btn-primary">Run Query</button>
+              <button class="btn btn-secondary">Save Query</button>
+              <button class="btn btn-ghost">Cancel</button>
+              <button class="btn btn-danger">Delete Case</button>
+            </div>
+          </div>
+          <div>
+            <div class="state-label">Sizes</div>
+            <div class="btn-row" style="align-items: center;">
+              <button class="btn btn-primary btn-sm">Small</button>
+              <button class="btn btn-primary">Medium (default)</button>
+              <button class="btn btn-primary btn-lg">Large</button>
+            </div>
+          </div>
+          <div>
+            <div class="state-label">Disabled</div>
+            <div class="btn-row">
+              <button class="btn btn-primary" disabled>Run Query</button>
+              <button class="btn btn-secondary" disabled>Save Query</button>
+              <button class="btn btn-ghost" disabled>Cancel</button>
+            </div>
+          </div>
+          <div>
+            <div class="state-label">With icon</div>
+            <div class="btn-row">
+              <button class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v6m0 0l-2.5-2.5M7 7l2.5-2.5M2 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Export CSV
+              </button>
+              <button class="btn btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 7h5M7 4.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                New Case
+              </button>
+              <button class="btn btn-ghost">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M11.5 11.5L8.5 8.5M8.5 8.5A4 4 0 1 0 2.5 2.5a4 4 0 0 0 6 6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Search
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── Inputs ──────────────────────────────────────────────── -->
+      <section class="sg-section" id="inputs">
+        <h2 class="sg-section-title">Inputs + Search</h2>
+        <div class="input-row">
+          <div class="form-field">
+            <label class="form-label" for="inp-default">Case Title</label>
+            <input class="input" id="inp-default" type="text" placeholder="e.g. CVE-2026-1234 Exploit — acme-dc-01">
+            <span class="form-hint">Max 200 characters</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="inp-error">Hostname</label>
+            <input class="input error" id="inp-error" type="text" value="invalid_host!">
+            <span class="form-error">Invalid hostname — alphanumeric and hyphens only</span>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="inp-search">Search / Filter</label>
+            <div class="input-search">
+              <svg class="input-search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M11.5 11.5L8.5 8.5M8.5 8.5A4 4 0 1 0 2.5 2.5a4 4 0 0 0 6 6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <input class="input" id="inp-search" type="search" placeholder="Filter by entity, IP, rule name…">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── Tabs ────────────────────────────────────────────────── -->
+      <section class="sg-section" id="tabs">
+        <h2 class="sg-section-title">Tabs</h2>
+        <ul class="tab-list" role="tablist">
+          <li class="tab-item" role="presentation">
+            <button class="tab-btn active" role="tab" aria-selected="true">Overview</button>
+          </li>
+          <li class="tab-item" role="presentation">
+            <button class="tab-btn" role="tab" aria-selected="false">
+              Evidence
+              <span class="tab-badge">12</span>
+            </button>
+          </li>
+          <li class="tab-item" role="presentation">
+            <button class="tab-btn" role="tab" aria-selected="false">Entities</button>
+          </li>
+          <li class="tab-item" role="presentation">
+            <button class="tab-btn" role="tab" aria-selected="false">Timeline</button>
+          </li>
+          <li class="tab-item" role="presentation">
+            <button class="tab-btn" role="tab" aria-selected="false">AI Insights</button>
+          </li>
+        </ul>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── Cards + Data Table ──────────────────────────────────── -->
+      <section class="sg-section" id="cards">
+        <h2 class="sg-section-title">Cards + Data Table</h2>
+
+        <div class="card-grid" style="margin-bottom: var(--space-6);">
+          <div class="card">
+            <div class="card-title">Open Cases</div>
+            <div class="card-metric">8</div>
+            <div class="card-delta delta-up">▲ +2 since yesterday</div>
+          </div>
+          <div class="card">
+            <div class="card-title">New Alerts (7d)</div>
+            <div class="card-metric">247</div>
+            <div class="card-delta delta-down">▼ −18% vs prior week</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Avg MTTD</div>
+            <div class="card-metric">4.2h</div>
+            <div class="card-delta delta-down">▼ Improving</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Source Coverage</div>
+            <div class="card-metric" style="font-size: var(--text-2xl);">3/4</div>
+            <div class="card-delta" style="color: var(--color-cov-degraded-icon);">△ Armis degraded (2h)</div>
+          </div>
+        </div>
+
+        <div style="border: var(--border); border-radius: var(--radius-lg); overflow: hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Case</th>
+                <th>Entity</th>
+                <th>Sources</th>
+                <th>Risk</th>
+                <th>Owner</th>
+                <th>Age</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-critical"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/></svg>Critical</span></td>
+                <td>CVE-2026-1234 Exploit</td>
+                <td class="cell-mono">acme-dc-01</td>
+                <td>3</td>
+                <td style="font-weight: var(--weight-semibold); color: var(--color-sev-critical-icon);">94</td>
+                <td>Unassigned</td>
+                <td style="color: var(--color-text-muted); font-size: var(--text-xs);">2h ago</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-high"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>High</span></td>
+                <td>Lateral movement — user alice</td>
+                <td class="cell-mono">alice@acme.corp</td>
+                <td>2</td>
+                <td style="font-weight: var(--weight-semibold); color: var(--color-sev-high-icon);">78</td>
+                <td>jsmith</td>
+                <td style="color: var(--color-text-muted); font-size: var(--text-xs);">45m ago</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-high"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>High</span></td>
+                <td>Brute force — internal host</td>
+                <td class="cell-mono">10.0.5.22</td>
+                <td>
+                  1
+                  <span class="badge pill-degraded" style="margin-left: var(--space-1-5);">
+                    <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2L8.5 8H1.5L5 2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                    Partial
+                  </span>
+                </td>
+                <td style="font-weight: var(--weight-semibold); color: var(--color-sev-high-icon);">61</td>
+                <td>Unassigned</td>
+                <td style="color: var(--color-text-muted); font-size: var(--text-xs);">1h ago</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-medium"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.9"/></svg>Medium</span></td>
+                <td>Port scan from internal subnet</td>
+                <td class="cell-mono">10.0.3.0/24</td>
+                <td>2</td>
+                <td style="font-weight: var(--weight-semibold); color: var(--color-sev-medium-icon);">42</td>
+                <td>jdoe</td>
+                <td style="color: var(--color-text-muted); font-size: var(--text-xs);">3h ago</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── PrismQL Editor ──────────────────────────────────────── -->
+      <section class="sg-section" id="editor">
+        <h2 class="sg-section-title">PrismQL Editor Chrome</h2>
+        <p class="sg-section-desc">Monaco-style; IBM Plex Mono; always-dark regardless of page theme. Gutter, syntax highlighting, status bar.</p>
+
+        <div class="editor-chrome">
+          <div class="editor-titlebar">
+            <div class="editor-dots">
+              <div class="editor-dot editor-dot-r"></div>
+              <div class="editor-dot editor-dot-y"></div>
+              <div class="editor-dot editor-dot-g"></div>
+            </div>
+            <div class="editor-tab-label active-tab">query.pql</div>
+            <div class="editor-tab-label">history</div>
+          </div>
+          <div class="editor-body">
+            <div class="editor-gutter">
+              <div>1</div>
+              <div>2</div>
+              <div>3</div>
+              <div>4</div>
+              <div>5</div>
+              <div>6</div>
+              <div>7</div>
+              <div>8</div>
+            </div>
+            <div class="editor-code"><span class="cm">-- Investigation: lateral movement from acme-dc-01</span>
+<span class="kw">SELECT</span> <span class="op">*</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="fn">entity</span><span class="op">(</span><span class="str">'ip'</span><span class="op">,</span> <span class="str">'10.0.1.5'</span><span class="op">)</span>
+  <span class="kw">AND</span>  <span class="fn">severity</span> <span class="op">&gt;=</span> <span class="str">'high'</span>
+<span class="kw">SINCE</span>  <span class="num">24h</span>
+<span class="kw">ORDER</span> <span class="kw">BY</span> <span class="ty">time</span> <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">1000</span></div>
+          </div>
+          <div class="editor-statusbar">
+            <span>Ln 8, Col 12</span>
+            <span>PrismQL</span>
+            <span>OCSF v1.3</span>
+            <span style="color: var(--color-cov-answered-icon);">✓ CrowdStrike</span>
+            <span style="color: var(--color-cov-answered-icon);">✓ Claroty</span>
+            <span style="color: var(--color-cov-degraded-icon);">△ Armis</span>
+            <span style="margin-left: auto;">⌘↵ to run</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── AI Trust-First ──────────────────────────────────────── -->
+      <section class="sg-section" id="ai">
+        <h2 class="sg-section-title">AI Trust-First Callout</h2>
+        <p class="sg-section-desc">Every AI output is machine-labeled, evidence-linked, and non-blocking. Human approval required before any action.</p>
+
+        <div class="ai-callout">
+          <div class="ai-callout-header">
+            <span class="ai-label">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 3v2l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              AI Summary
+            </span>
+            <span style="font-size: var(--text-xs); color: var(--color-text-muted);">Prism AI (Beta) · Generated 14:32 UTC</span>
+          </div>
+          <div class="ai-callout-body">
+            acme-dc-01 was accessed by a process matching CVE-2026-1234 exploit signatures at 14:22 UTC.
+            Cross-source correlation (CrowdStrike + Claroty) shows lateral movement toward the OT segment
+            (PLC-Zone-A) 3 minutes later. The user context is <strong>alice@acme.corp</strong>,
+            who authenticated 8 minutes before the first exploit event.
+          </div>
+          <div class="ai-callout-footer">
+            <a href="#" class="ai-evidence-link" aria-label="View the PrismQL query that generated this summary">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 4h6M3 6h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              View PrismQL query
+            </a>
+            <a href="#" class="ai-evidence-link" aria-label="View source events used to generate this summary">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2L10 6 6 10M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              View source events
+            </a>
+            <button class="btn btn-ghost btn-sm" style="margin-left: auto; font-size: var(--text-xs);">Edit / Override</button>
+          </div>
+        </div>
+
+        <div style="margin-top: var(--space-4);">
+          <div class="state-label">AI suggested action (requires approval)</div>
+          <div style="background: var(--color-bg-card); border: var(--border); border-radius: var(--radius-lg); padding: var(--space-4);">
+            <div style="font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text); margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
+              <span class="ai-label">AI</span>
+              Suggested Actions
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+              <div style="display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--color-surface-2); border-radius: var(--radius-md);">
+                <input type="checkbox" id="action-1" style="accent-color: var(--color-accent);" aria-label="Review before executing">
+                <label for="action-1" style="font-size: var(--text-sm); flex: 1; cursor: pointer;">Isolate acme-dc-01 from network segment</label>
+                <button class="btn btn-secondary btn-sm">Review &amp; Approve</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--color-surface-2); border-radius: var(--radius-md);">
+                <input type="checkbox" id="action-2" style="accent-color: var(--color-accent);" aria-label="Review before executing">
+                <label for="action-2" style="font-size: var(--text-sm); flex: 1; cursor: pointer;">Search related activity on 10.0.1.5 in PrismQL</label>
+                <button class="btn btn-secondary btn-sm">Run in Query</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── App Shell ───────────────────────────────────────────── -->
+      <section class="sg-section" id="shell">
+        <h2 class="sg-section-title">Global App Shell</h2>
+        <p class="sg-section-desc">Top bar + left nav rail + right AI chat sidecar. This shell wraps all screen panels.</p>
+
+        <div class="shell-preview" aria-label="App shell preview">
+          <!-- Topbar -->
+          <div class="shell-topbar">
+            <div class="shell-logo">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0;"></span>
+              Prism
+            </div>
+            <ul class="shell-topnav" role="navigation" aria-label="Main navigation">
+              <li class="shell-topnav-item active" role="listitem">Investigations</li>
+              <li class="shell-topnav-item" role="listitem">Query</li>
+              <li class="shell-topnav-item" role="listitem">Detections</li>
+              <li class="shell-topnav-item" role="listitem">Dashboards</li>
+              <li class="shell-topnav-item" role="listitem">Data</li>
+            </ul>
+            <div class="shell-actions">
+              <div class="shell-search-trigger" role="button" aria-label="Open command palette — Ctrl+K">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <span>Search&hellip;</span>
+                <span class="shell-kbd">⌘K</span>
+              </div>
+              <button class="shell-icon-btn" aria-label="Toggle AI chat sidecar" title="Prism AI (Beta)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2.5-2.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="12.5" r="0.7" fill="currentColor"/></svg>
+                <span class="shell-badge" aria-hidden="true"></span>
+              </button>
+              <button class="shell-icon-btn" aria-label="Notifications (3 unread)">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 2.5C5 2.5 3.5 4 3.5 6.5V10H2v1.5h11V10h-1.5V6.5C11.5 4 10 2.5 7.5 2.5Z" stroke="currentColor" stroke-width="1.2"/><path d="M6 12c0 .8.7 1.5 1.5 1.5S9 12.8 9 12" stroke="currentColor" stroke-width="1.2"/></svg>
+                <span class="shell-badge" aria-hidden="true"></span>
+              </button>
+              <button class="shell-icon-btn" aria-label="User menu">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Body: nav + content + sidecar -->
+          <div class="shell-body">
+            <!-- Left nav -->
+            <nav class="shell-nav" aria-label="Section navigation">
+              <div class="shell-nav-group-label">Investigations</div>
+              <div class="shell-nav-item active">
+                <span class="nav-dot"></span>
+                Triage Queue
+              </div>
+              <div class="shell-nav-item">
+                <span class="nav-dot"></span>
+                Cases
+              </div>
+              <div class="shell-nav-group-label">Query</div>
+              <div class="shell-nav-item">
+                <span class="nav-dot"></span>
+                Workspace
+              </div>
+              <div class="shell-nav-item">
+                <span class="nav-dot"></span>
+                Results Explorer
+              </div>
+              <div class="shell-nav-item">
+                <span class="nav-dot"></span>
+                Saved Queries
+              </div>
+              <div class="shell-nav-group-label">Detections</div>
+              <div class="shell-nav-item">
+                <span class="nav-dot"></span>
+                Rules
+              </div>
+              <div class="shell-nav-item">
+                <span class="nav-dot"></span>
+                Findings
+              </div>
+            </nav>
+
+            <!-- Main content placeholder -->
+            <main class="shell-content" aria-label="Main content area">
+              <div class="shell-content-msg">
+                <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">📋</div>
+                <div style="font-weight: var(--weight-semibold); margin-bottom: var(--space-1);">Main content area</div>
+                <div>Screen panels render here</div>
+              </div>
+            </main>
+
+            <!-- AI sidecar -->
+            <aside class="shell-sidecar" aria-label="Prism AI assistant">
+              <div class="sidecar-header">
+                <div class="sidecar-title">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 6.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2-2.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="10.5" r="0.6" fill="currentColor"/></svg>
+                  Prism AI
+                  <span class="sidecar-beta">Beta</span>
+                </div>
+                <button class="btn btn-ghost btn-sm" aria-label="Close AI sidecar">✕</button>
+              </div>
+              <div class="sidecar-msg">
+                <span class="ai-label" style="display: inline-flex; margin-bottom: var(--space-2);">AI</span>
+                <p>Based on the current case, I found a related lateral movement pattern involving <strong>acme-dc-01</strong> and <strong>PLC-Zone-A</strong> across 2 sources.</p>
+                <div class="sidecar-msg-meta">
+                  <span class="sidecar-query-link">View PrismQL →</span>
+                  <span class="sidecar-query-link">View 14 events →</span>
+                </div>
+              </div>
+              <div class="sidecar-input">
+                <input class="input" type="text" placeholder="Ask about this case…" aria-label="Ask AI about this case">
+                <button class="btn btn-primary btn-sm" aria-label="Send message">→</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <div class="sg-divider"></div>
+
+      <!-- ── States ──────────────────────────────────────────────── -->
+      <section class="sg-section" id="states">
+        <h2 class="sg-section-title">Loading / Streaming / Empty States</h2>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-6);">
+          <!-- Skeleton -->
+          <div>
+            <div class="state-label">Loading — Skeleton</div>
+            <div class="skeleton-row">
+              <div class="skeleton skel-circle"></div>
+              <div class="skel-lines">
+                <div class="skeleton skel-line" style="width: 70%;"></div>
+                <div class="skeleton skel-line" style="width: 45%;"></div>
+              </div>
+            </div>
+            <div class="skeleton-row">
+              <div class="skeleton skel-circle"></div>
+              <div class="skel-lines">
+                <div class="skeleton skel-line" style="width: 85%;"></div>
+                <div class="skeleton skel-line" style="width: 55%;"></div>
+              </div>
+            </div>
+            <div class="skeleton-row">
+              <div class="skeleton skel-circle"></div>
+              <div class="skel-lines">
+                <div class="skeleton skel-line" style="width: 60%;"></div>
+                <div class="skeleton skel-line" style="width: 40%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div>
+            <div class="state-label">Empty state</div>
+            <div class="empty-state">
+              <div class="empty-icon" aria-hidden="true">🔍</div>
+              <div class="empty-title">No cases match your filters</div>
+              <div class="empty-desc">Try broadening your filter criteria or adjusting the time range.</div>
+              <button class="btn btn-secondary btn-sm">Clear filters</button>
+            </div>
+          </div>
+
+          <!-- Streaming -->
+          <div>
+            <div class="state-label">Streaming results</div>
+            <div style="background: var(--color-bg-card); border: var(--border); border-radius: var(--radius-lg); padding: var(--space-4);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3);">
+                <span style="font-size: var(--text-sm); font-weight: var(--weight-semibold);">Results Explorer</span>
+                <span class="streaming-indicator">
+                  <span class="streaming-dot" aria-hidden="true"></span>
+                  Streaming&hellip; 142 / 286
+                </span>
+              </div>
+              <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+                <span class="badge pill-answered"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>CrowdStrike · streaming</span>
+                <span class="badge pill-answered"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Claroty · complete</span>
+                <span class="badge pill-timeout"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M5 3v2.5l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Armis · timed out</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toasts -->
+        <div style="margin-top: var(--space-6);">
+          <div class="state-label">Toast notifications</div>
+          <div class="toast-demo">
+            <div class="toast toast-success" role="alert">
+              <span class="toast-icon">✓</span>
+              <div class="toast-content">
+                <div class="toast-title">Case assigned</div>
+                <div class="toast-body">CVE-2026-1234 Exploit assigned to jsmith</div>
+              </div>
+            </div>
+            <div class="toast toast-error" role="alert">
+              <span class="toast-icon">✕</span>
+              <div class="toast-content">
+                <div class="toast-title">Query failed (E-QUERY-042)</div>
+                <div class="toast-body">Cross-source join requires a selective key predicate</div>
+              </div>
+            </div>
+            <div class="toast toast-warning" role="alert">
+              <span class="toast-icon">△</span>
+              <div class="toast-content">
+                <div class="toast-title">Armis source degraded</div>
+                <div class="toast-body">Results from Armis may be incomplete or missing</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function setTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      document.getElementById('btn-light').classList.toggle('active', theme === 'light');
+      document.getElementById('btn-dark').classList.toggle('active', theme === 'dark');
+      localStorage.setItem('prism-theme', theme);
+    }
+
+    // Restore persisted theme on load
+    (function() {
+      const saved = localStorage.getItem('prism-theme');
+      if (saved === 'dark') setTheme('dark');
+    })();
+  </script>
+</body>
+</html>
