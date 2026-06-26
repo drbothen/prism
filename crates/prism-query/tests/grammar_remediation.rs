@@ -710,3 +710,80 @@ fn test_bc_2_11_023_d7_shared_predicate_grammar() {
         "BC-2.11.023 D7: filter-mode predicate must equal Pipe | where predicate (shared grammar)"
     );
 }
+
+// ─── F-P2-MED-001: inject_now_predicate must fold NOW() inside InSubquery ────
+
+/// F-P2-MED-001 / BC-2.11.021 postcondition — `inject_now_predicate` must
+/// recurse into `Predicate::InSubquery` and fold `NOW()` inside the nested
+/// subquery's WHERE/HAVING clauses.
+///
+/// Without the fix, `predicate_has_unfolded_temporal` detects an unfolded
+/// `Expr::Now` inside the subquery (via `sql_query_has_unfolded_temporal`),
+/// causing `PqlNormalizer::normalize` to return `None`.  `normalize` returning
+/// `None` means `execute_against_session` falls back to the raw `query_str`
+/// which contains a runtime `NOW()` call, and DataFusion rejects it or folds
+/// it incorrectly — the query is wrongly rejected with a generic
+/// `QueryExecutionFailed` / E-QUERY-034 internal error.
+///
+/// After the fix, `inject_now_predicate` handles `Predicate::InSubquery` by
+/// calling `inject_now_sql_query` on the nested subquery, mirroring the
+/// detection-side recursion.  `PqlNormalizer::normalize` then succeeds and the
+/// folded SQL contains a pinned ISO literal inside the subquery WHERE, not NOW().
+///
+/// Mental-deletion proof: reverting the `Predicate::InSubquery` arm in
+/// `inject_now_predicate` back to `other => other` causes `PqlNormalizer::normalize`
+/// to return `None` for this query, which makes the `expect` panic (test fails RED).
+#[test]
+fn test_f_p2_med_001_inject_now_folds_inside_in_subquery() {
+    use chrono::Utc;
+    use prism_query::ast::PqlNormalizer;
+
+    // SQL query with NOW()-INTERVAL inside an IN-subquery WHERE clause.
+    // `crowdstrike_detections` is used as the outer table; `claroty.alerts` as the
+    // inner subquery source — both are arbitrary sensor names for parsing/folding tests
+    // (no live DTU registration needed for a unit-level fold+normalize test).
+    let query = "SELECT id FROM crowdstrike_detections \
+                 WHERE id IN (SELECT id FROM claroty.alerts \
+                              WHERE created_timestamp > NOW() - INTERVAL '1h')";
+
+    // parse_and_plan runs inject_now internally (captures NOW() at planning time).
+    let planned_ast = prism_query::parse_and_plan(query).expect(
+        "F-P2-MED-001: query with NOW() inside IN-subquery WHERE must parse and plan \
+                 without error; if this fails, the temporal grammar did not parse the subquery",
+    );
+
+    // PqlNormalizer::normalize must return Some — not None — after inject_now.
+    // Before the fix, normalize returned None because predicate_has_unfolded_temporal
+    // detected the residual Expr::Now in the subquery but inject_now_predicate had not
+    // folded it (the InSubquery arm fell through to `other => other`).
+    let normalized = PqlNormalizer::normalize(&planned_ast).expect(
+        "F-P2-MED-001: PqlNormalizer::normalize must return Some after inject_now folds NOW() \
+         inside the IN-subquery WHERE clause.  If this fails with None, inject_now_predicate \
+         is not recursing into Predicate::InSubquery — the F-P2-MED-001 fix is missing.",
+    );
+
+    // The normalized SQL must NOT contain NOW() — it must have been replaced by a
+    // plan-pinned ISO literal.
+    assert!(
+        !normalized.to_uppercase().contains("NOW()"),
+        "F-P2-MED-001: normalized SQL must NOT contain NOW() after inject_now folds the \
+         IN-subquery WHERE.  Got: {normalized:?}"
+    );
+
+    // The normalized SQL must NOT contain INTERVAL — the TimestampArithmetic must have
+    // been constant-folded into a bare Literal::Timestamp.
+    assert!(
+        !normalized.to_uppercase().contains("INTERVAL"),
+        "F-P2-MED-001: normalized SQL must NOT contain INTERVAL after constant-fold inside \
+         the IN-subquery WHERE.  Got: {normalized:?}"
+    );
+
+    // The normalized SQL MUST contain a quoted ISO8601 timestamp literal inside the
+    // subquery — proof that the pinned constant was injected.
+    let year_prefix = format!("'{}", Utc::now().format("%Y"));
+    assert!(
+        normalized.contains(&year_prefix),
+        "F-P2-MED-001: normalized SQL must contain a quoted ISO8601 timestamp inside the \
+         IN-subquery (plan-pinned constant).  Got: {normalized:?}"
+    );
+}

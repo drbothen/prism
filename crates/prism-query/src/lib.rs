@@ -336,6 +336,20 @@ fn inject_now_predicate(pred: ast::Predicate, now_literal: &ast::Expr) -> ast::P
         Predicate::Not(inner) => {
             Predicate::Not(Box::new(inject_now_predicate(*inner, now_literal)))
         }
+        // F-P2-MED-001: InSubquery — fold NOW() inside the nested subquery's
+        // WHERE and HAVING clauses.  The detection side (`predicate_has_unfolded_temporal`)
+        // recurses into `InSubquery { subquery }` via `sql_query_has_unfolded_temporal`.
+        // The fold side must mirror that recursion or `normalize` returns None and the
+        // query is wrongly rejected with a generic E-QUERY-034 internal error.
+        Predicate::InSubquery {
+            field,
+            subquery,
+            negated,
+        } => Predicate::InSubquery {
+            field,
+            subquery: Box::new(inject_now_sql_query(*subquery, now_literal)),
+            negated,
+        },
         // All other predicate variants do not contain Expr::Now.
         other => other,
     }
@@ -381,7 +395,11 @@ fn inject_now_expr(expr: ast::Expr, now_literal: &ast::Expr) -> ast::Expr {
             rhs: Box::new(inject_now_expr(*rhs, now_literal)),
         },
         Expr::Not(inner) => Expr::Not(Box::new(inject_now_expr(*inner, now_literal))),
-        // Literal, Field, VirtualField, In, InSubquery, FuncCall, Star, Interval — no NOW() to inject.
+        // Literal, Field, VirtualField, In, FuncCall, Star, Interval — no NOW() to inject.
+        // Expr::InSubquery: temporal expressions inside the subquery's WHERE/HAVING are
+        // folded when the subquery is processed as a Predicate::InSubquery (predicate
+        // context), not here (value context).  expr_has_unfolded_temporal intentionally
+        // does not recurse into Expr::InSubquery, so this catch-all is symmetric.
         other => other,
     }
 }
