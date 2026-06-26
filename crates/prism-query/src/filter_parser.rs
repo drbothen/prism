@@ -1365,8 +1365,28 @@ fn parse_interval_duration_str(s: &str) -> Result<chrono::Duration, String> {
         return Err("E-QUERY-001: INTERVAL duration string must not be empty".to_string());
     }
 
-    // Split at the last character which should be the unit.
-    let (digits_part, unit_char) = s.split_at(s.len() - 1);
+    // Extract the last *character* (not the last byte) as the unit.
+    //
+    // F-P3-CRIT-NEW-001 fix: the previous code did `s.split_at(s.len() - 1)`,
+    // which is a byte-index split.  When the last character is a multi-byte
+    // UTF-8 sequence (e.g. `é` = 2 bytes, `€` = 3 bytes), `s.len() - 1` lands
+    // inside the sequence — a non-char-boundary index — causing an unconditional
+    // panic.  The fix uses `s.chars().next_back()` (char-aware) and computes the
+    // digits slice via `s.len() - last_char.len_utf8()`, which is always a valid
+    // char boundary regardless of the unit char's encoding.
+    //
+    // Correctness: valid unit chars (s/m/h/d) are ASCII (1 byte each), so for
+    // valid INTERVAL strings the behaviour is identical to the previous code.
+    // For invalid input containing non-ASCII trailing chars the new code returns
+    // a structured `E-QUERY-001` error instead of panicking.
+    let last_char = match s.chars().next_back() {
+        Some(c) => c,
+        // Already guarded above, but make the type system happy.
+        None => return Err("E-QUERY-001: INTERVAL duration string must not be empty".to_string()),
+    };
+
+    let unit_split = s.len() - last_char.len_utf8();
+    let digits_part = &s[..unit_split];
 
     if digits_part.is_empty() {
         return Err(format!(
@@ -1380,14 +1400,14 @@ fn parse_interval_duration_str(s: &str) -> Result<chrono::Duration, String> {
         )
     })?;
 
-    let duration = match unit_char {
-        "s" => chrono::Duration::seconds(value as i64),
-        "m" => chrono::Duration::minutes(value as i64),
-        "h" => chrono::Duration::hours(value as i64),
-        "d" => chrono::Duration::days(value as i64),
-        _ => {
+    let duration = match last_char {
+        's' => chrono::Duration::seconds(value as i64),
+        'm' => chrono::Duration::minutes(value as i64),
+        'h' => chrono::Duration::hours(value as i64),
+        'd' => chrono::Duration::days(value as i64),
+        other => {
             return Err(format!(
-                "E-QUERY-001: INTERVAL duration '{s}' has unknown unit '{unit_char}' \
+                "E-QUERY-001: INTERVAL duration '{s}' has unknown unit '{other}' \
                  (expected s=seconds, m=minutes, h=hours, d=days)"
             ));
         }
