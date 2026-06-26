@@ -1110,14 +1110,27 @@ pub fn prism_error_to_structured_call_result(err: PrismError) -> rmcp::model::Ca
                     .rfind(|c: char| !c.is_whitespace())
                     .unwrap_or(0); // all whitespace or empty → use 0
                 // Find the start of the word ending at last_non_ws.
-                // SAFETY: `pos` from `rfind(char::is_whitespace)` is the first byte of the
-                // whitespace character. For multibyte WS (e.g. U+00A0=2 bytes, U+3000=3 bytes),
-                // `pos + 1` is mid-char and `&input[pos+1..]` would panic. Advance by the full
-                // char width instead. (F-001B-PASS-CRIT-001 / BC-2.11.017 AC-003)
-                let preceding_word_start = before_offset.get(..=last_non_ws)
+                //
+                // SAFETY (F-001B-PASS-CRIT-001): `rfind(char::is_whitespace)` returns the first
+                // byte of the whitespace char. For multibyte WS (e.g. U+00A0=2 bytes,
+                // U+3000=3 bytes), `pos + 1` is mid-char; advance by the full char width.
+                //
+                // OBS-1 (symmetric fix): `rfind(!c.is_whitespace())` also returns the FIRST
+                // byte of the last non-whitespace char. `get(..=last_non_ws)` is equivalent to
+                // `get(..last_non_ws+1)` — mid-codepoint for multibyte non-WS chars (e.g. `é`
+                // U+00E9 = 0xC3 0xA9). That causes `get` to return `None`, which collapses
+                // `preceding_word_start` to 0 and produces the wrong start-of-query near_text.
+                // Fix: advance `last_non_ws` by the full char width before slicing.
+                let non_ws_char_end = last_non_ws
+                    + before_offset[last_non_ws..]
+                        .chars()
+                        .next()
+                        .map_or(1, |c| c.len_utf8());
+                let preceding_word_start = before_offset.get(..non_ws_char_end)
                     .and_then(|s| {
                         s.rfind(|c: char| c.is_whitespace()).map(|pos| {
-                            // Advance past the full whitespace char (char-boundary safe).
+                            // Advance past the full whitespace char (char-boundary safe,
+                            // F-001B-PASS-CRIT-001).
                             let ws_char = s[pos..].chars().next().map_or(1, |c| c.len_utf8());
                             pos + ws_char
                         })
@@ -2936,4 +2949,183 @@ mod tests {
 
     // MED-002 find_first_unquoted_pipe tests have been relocated to
     // prism_query::error_recovery::mode_bridge_tests (OBS-1 relocation).
+
+    // ── OBS-1 — multibyte non-whitespace trailing char in near_text path ──
+
+    /// OBS-1 regression (é case): `prism_error_to_structured_call_result` must return the
+    /// PRECEDING TOKEN as `near_text` when that token ends in a multibyte non-whitespace
+    /// character (e.g. `é` = U+00E9, 2 bytes: 0xC3 0xA9).
+    ///
+    /// # Defect description
+    ///
+    /// The `preceding_word_start` computation in the `QueryParseFailed` arm does:
+    ///   1. `last_non_ws = before_offset.rfind(|c: char| !c.is_whitespace())`
+    ///      — returns the FIRST BYTE index of the last non-whitespace char.
+    ///   2. `before_offset.get(..=last_non_ws)` → inclusive range equivalent to `..last_non_ws+1`.
+    ///      When `last_non_ws` is the first byte of a multibyte char (e.g. `é` = 0xC3 0xA9),
+    ///      `last_non_ws+1` is mid-codepoint, so `str::get` returns `None`.
+    ///   3. `.and_then(...)` short-circuits to `None`, `preceding_word_start` falls back to 0.
+    ///   4. `effective_offset = 0` → `extract_near_text(query, 0)` returns the start of the
+    ///      query instead of the preceding token.
+    ///
+    /// # Test case
+    ///
+    /// query = "hello café bad"
+    /// bytes: h(0)e(1)l(2)l(3)o(4) SP(5) c(6)a(7)f(8) é(9,10: 0xC3 0xA9) SP(11) b(12)a(13)d(14)
+    /// offset = 12 (start of "bad", the error token)
+    ///
+    /// Before fix:
+    ///   before_offset = "hello café " (bytes 0..12)
+    ///   last_non_ws = byte 9 (first byte of é)
+    ///   get(..=9) = get(..10) → byte 10 = 0xA9 (mid-codepoint) → None
+    ///   preceding_word_start = 0 (fallback)
+    ///   near_text = extract_near_text("hello café bad", 0) = "hello" (WRONG — start of query)
+    ///
+    /// After fix:
+    ///   before_offset = "hello café " (bytes 0..12)
+    ///   last_non_ws = byte 9 (first byte of é)
+    ///   compute char-end: é.len_utf8() = 2, so char_end = 9 + 2 = 11
+    ///   get(..11) = "hello café" → Ok (byte 11 is a char boundary — it's the space)
+    ///   rfind(whitespace) on "hello café" = byte 5 (the space after "hello")
+    ///   ws_char = SP.len_utf8() = 1, preceding_word_start = 5 + 1 = 6
+    ///   near_text = extract_near_text("hello café bad", 6) = "café" (CORRECT)
+    ///
+    /// This is the SYMMETRIC counterpart to F-001B-PASS-CRIT-001 (multibyte-WHITESPACE case).
+    ///
+    /// RED GATE: currently returns near_text = "hello" (offset 0) instead of "café".
+    #[test]
+    fn test_BC_2_11_017_near_text_correct_when_preceding_token_ends_in_multibyte_nonws_char() {
+        // query = "hello café bad"
+        // é = U+00E9 = 0xC3 0xA9 (2 bytes)
+        let query = "hello caf\u{00E9} bad".to_string();
+        // Verify byte layout
+        let bytes = query.as_bytes();
+        assert_eq!(
+            bytes[9], 0xC3,
+            "byte 9 must be 0xC3 (first byte of é U+00E9)"
+        );
+        assert_eq!(
+            bytes[10], 0xA9,
+            "byte 10 must be 0xA9 (second byte of é U+00E9)"
+        );
+        assert_eq!(bytes[11], b' ', "byte 11 must be space");
+        assert_eq!(&query[12..], "bad", "byte 12 must be start of 'bad'");
+
+        let offset = 12usize; // error at "bad"
+
+        let err = PrismError::QueryParseFailed {
+            offset,
+            detail: "unexpected token 'bad'".to_string(),
+            query: query.clone(),
+        };
+
+        let result = prism_error_to_structured_call_result(err);
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present (BC-2.11.017)");
+        let error_obj = sc
+            .get("error")
+            .expect("structuredContent.error must be present");
+        let near_text = error_obj
+            .get("near_text")
+            .expect("near_text must be present for QueryParseFailed (BC-2.11.017 AC-003)");
+
+        assert!(
+            near_text.is_string(),
+            "near_text must be a valid UTF-8 string; got: {near_text:?}"
+        );
+
+        let nt_str = near_text.as_str().unwrap();
+
+        // OBS-1 LOAD-BEARING: near_text must be "café" (the preceding token), NOT "hello"
+        // (which is what the offset-0 fallback returns) and NOT "" (absent/empty).
+        //
+        // Current (broken) behavior: get(..=9) returns None because byte 10 is mid-codepoint,
+        // so preceding_word_start falls back to 0, and extract_near_text returns "hello".
+        //
+        // Correct behavior after fix: compute char_end = 9 + é.len_utf8() = 11,
+        // get(..11) succeeds, rfind(ws) finds byte 5, preceding_word_start = 6,
+        // extract_near_text("hello café bad", 6) = "café".
+        assert_eq!(
+            nt_str,
+            "caf\u{00E9}",
+            "OBS-1 regression: near_text must be 'café' (the preceding token); \
+             got '{nt_str}'. \
+             If 'hello' is returned, the offset-0 fallback is active — \
+             fix: replace `get(..=last_non_ws)` with `get(..last_non_ws + char_len)` \
+             where char_len = before_offset[last_non_ws..].chars().next().map_or(1, |c| c.len_utf8()). \
+             Symmetric counterpart to F-001B-PASS-CRIT-001 (multibyte-WS case)."
+        );
+
+        // DI-006: ≤50 chars
+        assert!(
+            nt_str.len() <= 50,
+            "near_text must be ≤50 chars (DI-006); got {} chars: '{nt_str}'",
+            nt_str.len()
+        );
+    }
+
+    /// OBS-1 regression (em dash case): preceding token ending in U+2014 EM DASH (3 bytes: 0xE2 0x80 0x94).
+    ///
+    /// query = "field— bad" where `—` is U+2014 (3 bytes).
+    /// bytes: f(0)i(1)e(2)l(3)d(4) —(5,6,7: 0xE2 0x80 0x94) SP(8) b(9)a(10)d(11)
+    /// offset = 9 (start of "bad")
+    ///
+    /// Before fix:
+    ///   last_non_ws = byte 5 (first byte of —)
+    ///   get(..=5) = get(..6) → byte 6 = 0x80 (mid-codepoint of 3-byte U+2014) → None
+    ///   preceding_word_start = 0 (fallback) → near_text = "field—" (offset-0, includes em dash)
+    ///
+    /// After fix:
+    ///   char_end = 5 + 3 = 8, get(..8) = "field—"
+    ///   rfind(whitespace) on "field—" → None (no whitespace before field—)
+    ///   preceding_word_start = 0 (correct: the preceding token starts at 0)
+    ///   near_text = extract_near_text(query, 0) = "field—" (correct: the whole preceding token)
+    ///
+    /// Both before and after fix return "field—" in this particular case (since there's no
+    /// whitespace before it), but the before-fix path gets there via a WRONG route (None → 0
+    /// fallback) while the after-fix path gets there via the CORRECT route (no ws found → 0).
+    /// This test validates the em-dash case does NOT regress when the fix is applied.
+    #[test]
+    fn test_BC_2_11_017_near_text_correct_when_preceding_token_ends_in_em_dash() {
+        // "field\u{2014} bad" — em dash is 3 bytes 0xE2 0x80 0x94
+        let query = "field\u{2014} bad".to_string();
+        let bytes = query.as_bytes();
+        // "field" = 5 bytes, em dash at 5-7
+        assert_eq!(bytes[5], 0xE2, "byte 5 must be 0xE2 (first byte of U+2014)");
+        assert_eq!(
+            bytes[6], 0x80,
+            "byte 6 must be 0x80 (second byte of U+2014)"
+        );
+        assert_eq!(bytes[7], 0x94, "byte 7 must be 0x94 (third byte of U+2014)");
+        assert_eq!(bytes[8], b' ', "byte 8 must be space");
+        assert_eq!(&query[9..], "bad", "byte 9 must be start of 'bad'");
+
+        let err = PrismError::QueryParseFailed {
+            offset: 9,
+            detail: "unexpected token 'bad'".to_string(),
+            query: query.clone(),
+        };
+
+        let result = prism_error_to_structured_call_result(err);
+
+        let sc = result
+            .structured_content
+            .as_ref()
+            .expect("structuredContent must be present");
+        let error_obj = sc.get("error").expect("error must be present");
+        let near_text = error_obj
+            .get("near_text")
+            .expect("near_text must be present");
+
+        assert!(near_text.is_string(), "near_text must be a string");
+        let nt_str = near_text.as_str().unwrap();
+        // "field—" starts at offset 0 (no whitespace before it), so near_text = "field—"
+        assert_eq!(
+            nt_str, "field\u{2014}",
+            "near_text must be 'field\u{2014}' (the whole preceding token); got '{nt_str}'"
+        );
+    }
 }
