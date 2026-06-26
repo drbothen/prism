@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.2"
-spec_version: "v1.2"
+version: "1.3"
+spec_version: "v1.3"
 level: ops
 producer: story-writer
 timestamp: "2026-06-26"
@@ -322,7 +322,10 @@ reset.
 #   Requires: cargo install sccache
 #   Do NOT enable unconditionally — sccache must be installed first.
 #   Docs: https://github.com/mozilla/sccache
-#   Estimated speedup: 40-70% on cold builds after prism-query changes.
+#   Measured speedup (research §7d):
+#     Cold first build: no benefit (cache must be populated first).
+#     Warm incremental (same machine, different worktrees): ~25-40% build-time
+#     reduction for the crypto/datafusion dependency tree which changes rarely.
 #   Note: CI uses Swatinem/rust-cache (not sccache); this stanza is local-dev only.
 # -----------------------------------------------------------------------------
 # [build]
@@ -685,3 +688,4 @@ Per POL-7 (verbatim BC H1 titles):
 | 1.0 | 2026-06-26 | story-writer | Initial materialization from performance diagnosis §10 skeleton + §6/§7 detail |
 | 1.1 | 2026-06-26 | story-writer | AC-text-accuracy sync to shipped code: (1) AC-004 error type corrected from `reqwest::Error` to `String` for both functions; (2) AC-004 visibility note expanded — `pub(crate)` confirmed, in-crate test access documented; (3) AC-005/RG-PERF-001 test name updated to `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`, file location corrected to `src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` (in-crate); (4) AC-011 nextest group name corrected to `serial-subprocess`, filter confirmed as `binary(signal_handlers)`, profile-scoped overrides (`prepush` + `ci`) documented instead of `[profile.default.overrides]`. |
 | 1.2 | 2026-06-26 | story-writer | F-LOW-1 fix (AC-003 codeblock drift): corrected `cargo nextest run` invocation to match shipped Justfile line 26 exactly — added `RUSTFLAGS=""` prefix, removed stale `--no-fail-fast` flag (superseded by `fail-fast = false` in `[profile.prepush]`), added explanatory note for both changes. Comprehensive AC↔code text audit performed; all other AC verification commands, file paths, function names, test names, nextest filter/group names, and profile settings confirmed MATCHES against shipped worktree. |
+| 1.3 | 2026-06-26 | story-writer | F-P2-MED-001 fix (AC-008 sccache codeblock advisory prose): replaced technically-wrong "40-70% on cold builds" with accurate wording matching shipped `.cargo/config.toml` (research §7d) — cold first build: no benefit; warm incremental/cross-worktree: ~25-40% reduction for the crypto/datafusion dependency tree. Definitive codeblock-prose sweep performed: every numeric/percentage/advisory claim in all codeblocks audited against shipped code; all other claims confirmed MATCHES. |
