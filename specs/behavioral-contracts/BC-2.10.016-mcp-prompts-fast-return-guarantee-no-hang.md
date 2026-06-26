@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-10"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: null
+modified: 2026-06-25
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -49,14 +49,14 @@ All registered MCP prompts (`triage_alerts`, `investigate_host`, `client_overvie
 - Prompt render functions (`render_*` in `prompts.rs`) are and remain **synchronous pure functions** — they take parameter values and return `String` or `GetPromptResult`; they do NOT await, lock, or block
 - The `PromptRouter` dispatch infrastructure MUST NOT hold any lock that is also held by the tool router or any other MCP server handler during prompt resolution
 - **INV-PROMPT-NO-SHARED-LOCK:** There is no shared mutex between prompt dispatch and tool dispatch. The rmcp 1.7 `PromptRoute::new_dyn` closure MUST NOT capture any `Arc<Mutex<…>>` that is also held during tool execution.
-- **INV-PROMPT-REQUIRED-ARGS:** For prompts with required arguments (`investigate_host.hostname`), the dispatch machinery MUST either: (a) return the prompt with the argument value substituted, OR (b) return a structured MCP error indicating the missing argument — it MUST NOT hang while waiting for the argument to arrive.
+- **INV-PROMPT-REQUIRED-ARGS:** For prompts with required arguments (`investigate_host.hostname`), the dispatch machinery MUST NOT hang while waiting for the argument to arrive. The shipped implementation satisfies this via option (a): substitute the literal string `(unknown)` for each missing required argument value and return the rendered prompt as Ok within 5 seconds. Option (b) (returning a structured MCP error) is a valid alternative permitted by this invariant but is NOT what is implemented.
 
 ## Error Cases
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | Standard MCP error | Prompt name is unknown | Standard MCP error per BC-2.10.009 — returns within 5 seconds |
-| Standard MCP error | Required argument missing from `prompts/get` request | Returns structured MCP error within 5 seconds; does NOT hang |
+| Placeholder substitution (Ok) | Required argument missing from `prompts/get` request | Substitutes the literal string `(unknown)` for each missing required argument value, renders the prompt with the substituted value, and returns Ok within 5 seconds; does NOT hang. No structured MCP error is returned. |
 
 ## Edge Cases
 
@@ -64,7 +64,7 @@ All registered MCP prompts (`triage_alerts`, `investigate_host`, `client_overvie
 |----|-------------|-------------------|
 | EC-10-016-001 | `prompts/get query_tutorial` with `client_id` provided but `goal` absent (optional arg) | Returns prompt without goal context within 5 seconds; `goal` substituted with empty/default |
 | EC-10-016-002 | `prompts/get investigate_host` with `client_id` and `hostname` provided | Returns prompt within 5 seconds |
-| EC-10-016-003 | `prompts/get investigate_host` with `hostname` argument MISSING | Returns structured MCP error within 5 seconds; MUST NOT hang |
+| EC-10-016-003 | `prompts/get investigate_host` with `hostname` argument MISSING | Substitutes `(unknown)` for `hostname`, renders the prompt, and returns Ok within 5 seconds; MUST NOT hang. No structured MCP error is returned (option (a) of INV-PROMPT-REQUIRED-ARGS). |
 | EC-10-016-004 | Prompt dispatch concurrent with a long-running `query` tool execution | Prompt returns within 5 seconds regardless of in-flight query state |
 
 ## Canonical Test Vectors
@@ -118,3 +118,4 @@ TBD
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 D6. Closes BLOCKER-003. Implementer must investigate `#[prompt_handler]` macro expansion + `PromptRoute::new_dyn` closure before fixing. |
+| 1.1 | S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 | 2026-06-25 | product-owner | Spec-internal-consistency reconciliation (OBS-2b from PR-LEVEL adversary). INV-PROMPT-REQUIRED-ARGS already sanctioned option (a) placeholder substitution; §Error Cases row and EC-10-016-003 incorrectly stated "Returns structured MCP error" for a missing required arg, contradicting the invariant. Updated §Error Cases, EC-10-016-003, and INV-PROMPT-REQUIRED-ARGS prose to reflect the shipped option-(a) behavior (`(unknown)` substitution, returns Ok within 5s). The no-hang / within-5s guarantee is unchanged. No code change. |
