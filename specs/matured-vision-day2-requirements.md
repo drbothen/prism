@@ -1225,6 +1225,24 @@ Browser console (S2) ──► Agent Orchestrator (server-side, per-tenant sessi
   local/on-prem model. Air-gapped and regulated deployments may run S1-only (BYO agent) with S3 off,
   or S3 against a self-hosted model. The federated-query core never depends on S3 being present.
 
+> **Day-2 addendum (2026-06-26 side analysis — HUMAN-DECIDED ADOPT).** S3 adopts the **conversational-canvas**
+> paradigm evaluated from the `aletheon_2` generative-UI spike (`/Users/jmagady/Dev/aletheon_2/spike`):
+> the chat IS the interface; the embedded AI fetches via PrismQL over federated OCSF sources and
+> **generates result widgets on the fly** (Vercel AI SDK `streamText`/`useChat` + Zod tool definitions
+> that map to prism's MCP tool surface — the same "single tool contract, two consumers" S1+S3 idea above).
+> The spike's widget-generation DSL (54 primitives) is a **UI-generation language ORTHOGONAL to PrismQL**
+> (PrismQL fetches; the DSL renders) — no competition. Disposition: **ADOPT as S3 (enhanced + hardened)** —
+> a distinct AI-native MODE complementing (not replacing) the structured S2 screens. **ENHANCE:** OCSF-aware
+> primitives, multiple-option viz, and a **sandboxed/grammar-parsed expression evaluator (no `eval`/`Function()`)**.
+> **DROP:** the spike's PostgreSQL+Kafka lake data layer (prism is ephemeral/federated; canvas state is
+> session/local, never server-DB-persisted), OT-specific bits, and ui-tars (defer). **Security (prism-critical):**
+> generative UI over attacker-influenceable OCSF data is a new prompt-injection surface — S3 MUST validate
+> every widget schema against an allowlist, sandbox expression evaluation (the reason to revive an ANTLR4-style
+> safe parser), keep credentials AI-opaque (broker-injected, AD-017), and apply prism output-hardening on both
+> S1 and S3 paths; the widget-render layer sits AFTER the Output Hardener. Full disposition + phased adoption
+> plan + candidate ADRs: `day2-ui-design/S3-conversational-canvas-disposition.md`. S3 canvas mockups (light+dark):
+> `day2-ui-design/mockups/S3-01-ai-canvas.html`, `S3-02-ai-canvas-multioption.html`.
+
 ### 11.4 Deeper Query findings (from direct docs read, 2026-06-25)
 
 - **Deployment is multi-tenant SaaS** organized as Organization → tenant → team; sign-up generates a
@@ -1947,15 +1965,21 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
 
 ### 16.4 Open items / NEXT STEPS (for the resumed session)
 
-- **UI (next up, was paused here):** UI-needs research DONE 2026-06-25 — see
-  `research/ui-requirements-2026-06-25.md` (distilled) + `research/ui-investigations-console-ux-2026-06-25.md`
-  + `research/ui-webstack-admin-rbac-2026-06-25.md` (raw). **UI-D5 RESOLVED 2026-06-25 (HUMAN
-  DECISION): Option A — TS SPA (React) + Rust backend, OpenAPI→TS shared types (§11.3 web-stack
-  bullet; UI-requirements UI-D5 row).** Next: hand the distilled requirements to ux-designer to draft
-  S2 investigations-console screens + U1 admin-console inventory; then SSO/OIDC-SAML + S3
-  agent-runtime ADRs (still open). Table-stakes screen list, differentiators, trust-first AI UX,
-  accessibility/streaming, and fine-grained-RBAC admin patterns are all captured in the requirements
-  doc. (§11.3, §11.3.1, §11.3.2)
+- **UI (substantially built out 2026-06-25/26 side-analysis):** UI-needs research DONE — see
+  `research/ui-requirements-2026-06-25.md` (distilled) + the two raw passes. **UI-D5 RESOLVED: Option A —
+  TS SPA (React) + Rust backend, OpenAPI→TS shared types** (§11.3 web-stack bullet).
+  - **Design system + mockups COMPLETE:** `day2-ui-design/mockups/` holds brand-derived `tokens.css`
+    (light = 1898 & Co palette parsed from live CSS; dark = derived), a `style-guide.html` component kit,
+    and **21 panel mockups (13 S2 + 8 U1), each light+dark** with 44 screenshots. ux-designer S2/U1 specs
+    are in `day2-ui-design/S2-investigations-console.md` + `U1-admin-console-inventory.md`.
+  - **Conversational canvas EVALUATED → HUMAN-DECIDED ADOPT as S3** (enhanced + hardened) from the
+    `aletheon_2` generative-UI spike. Full verdict: `day2-ui-design/S3-conversational-canvas-disposition.md`
+    + §11.3.2 addendum. S3 canvas mockups: `mockups/S3-01-ai-canvas.html`, `S3-02-ai-canvas-multioption.html`.
+  - **Additional surfaces built (light+dark):** S4 browser extension (`mockups/S4-01-extension.html`),
+    responsive breakpoints for key S2 panels (`mockups/responsive-S2-*.html`), and a canonical state-coverage
+    gallery (`mockups/states-gallery.html`).
+  - **Still OPEN (UI):** SSO/OIDC-SAML ADR; S3 server-hosted agent-runtime ADR + widget-DSL render/schema-validation
+    ADR + sandboxed-expression-evaluator (ANTLR4) ADR; web-stack ADR formalization. (§11.3, §11.3.1, §11.3.2)
 - **`SecretBackend` trait + per-tenant-DEK flow** concrete sketch (§11.1).
 - **Sequence-sugar ADR open questions** (§12.4): keyword finalization; overall-`WITHIN` semantics;
   cross-step running-semantics; **`NOT`/`WITHOUT` non-event desugaring** (exclusion vs timeout — hardest).
