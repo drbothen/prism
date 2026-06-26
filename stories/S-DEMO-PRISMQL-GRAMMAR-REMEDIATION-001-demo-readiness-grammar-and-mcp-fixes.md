@@ -49,7 +49,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.9"
+version: "1.10"
 updated: "2026-06-26"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
@@ -460,13 +460,15 @@ server instance; send `prompts/get query_tutorial` with `client_id: "test-org"` 
 `prompts/get investigate_host` with `client_id: "test-org"` + `hostname: "host-001"`;
 assert both return within 5 seconds (use `tokio::time::timeout`).
 
-**AC-016** (traces to BC-2.10.016 invariants — INV-PROMPT-REQUIRED-ARGS): For a prompt
-with a required argument (`investigate_host.hostname`), the dispatch machinery MUST NOT
-hang when the argument is missing — it returns a structured MCP error within 5 seconds.
+**AC-016** (traces to BC-2.10.016 invariants — INV-PROMPT-REQUIRED-ARGS option (a)): For a
+prompt with a required argument (`investigate_host.hostname`), when that argument is missing,
+the dispatch machinery MUST NOT hang — it substitutes the literal string `(unknown)` for the
+missing argument and returns **Ok** within 5 seconds. No structured MCP error is returned;
+the key contract is the no-hang fast-return guarantee.
 
 **Red Gate test:** `test_BC_2_10_016_missing_required_arg_fast_error` — send
-`prompts/get investigate_host` with `client_id` but no `hostname`; assert a structured
-MCP error is returned within 5 seconds (not a hang).
+`prompts/get investigate_host` with `client_id` but no `hostname`; assert `result.is_ok()`
+and that the response is returned within 5 seconds (no hang; no structured MCP error).
 
 **AC-017** (traces to BC-2.10.017 postconditions — fast-fail guard order): For tools in
 `NOT_YET_AVAILABLE_TOOLS` (`list_infusions`, `plugin_status`, `infusion_status`), the
@@ -657,7 +659,7 @@ fan-out, DataFusion planning). All MCP handler changes are Effectful.
 | EC-005 | `NOW() + INTERVAL '1h'` | E-QUERY-001: subtraction-only in v1 |
 | EC-006 | `build_reference_content(None)` called before WASM plugins load | Enrichment section shows placeholder; all other sections accurate |
 | EC-007 | `list_capabilities("org-c")` after demo-setup.sh (no prism.toml [clients.*]) | `client_registered: true` from OrgRegistry |
-| EC-008 | `prompts/get investigate_host` with `hostname` argument MISSING | Structured MCP error within 5s; MUST NOT hang |
+| EC-008 | `prompts/get investigate_host` with `hostname` argument MISSING | Substitutes `(unknown)` for missing arg, returns Ok within 5s; MUST NOT hang (no structured MCP error per BC-2.10.016 v1.1 INV-PROMPT-REQUIRED-ARGS option (a)) |
 | EC-009 | `list_infusions` invoked while the durable audit write (`AuditWriter::write_tool_call`) is slow/blocking (D-1110: not a "saturated channel" — emit_tool_audit awaits the writer directly) | JSON-RPC -32003 within 1s; guard short-circuits BEFORE the audit await |
 | EC-010 | CrowdStrike OAuth: second Prism session (DTU state reset between sessions) | Query completes without 30s hang |
 | EC-011 | `IS NOT NULL` on JSON-list column | Returns true if field present and non-null; documented in reference |
@@ -906,6 +908,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | f-p2r2-med-001-ac016-ec008-bc-traceability-sync | 2026-06-26 | story-writer | F-P2R2-MED-001 closure: AC↔BC traceability desync. BC-2.10.016 v1.1 RETRACTED the "structured MCP error" behavior for the missing-required-arg case (INV-PROMPT-REQUIRED-ARGS option (a)); story prose was stale. (1) AC-016 prose updated: missing required arg → substitutes literal `(unknown)`, returns **Ok** within 5 seconds — no structured MCP error; the no-hang fast-return guarantee is the contract. (2) AC-016 Red Gate test description updated to match shipped test (`result.is_ok()`, not "assert structured MCP error"). (3) EC-008 expected-behavior updated to "substitutes `(unknown)`, returns Ok within 5s; MUST NOT hang (no structured MCP error)". No code change (shipped test `test_BC_2_10_016_missing_required_arg_fast_error` already asserts `result.is_ok()` — correct). No AC count / Red Gate count / BC-trace change. |
 | 1.9 | bc-2.11.020-v1.1-propagation-F-P2-HIGH-001-F-P2-MED-001 | 2026-06-26 | story-writer | BC-2.11.020 v1.0→v1.1 propagation (F-P2-HIGH-001 / POL-8 bc_array_changes_propagate_to_body_and_acs): (1) Behavioral Contracts table pin `v1.0 → v1.1` (POL-27 version-pin-sync); (2) AC-002 condition updated: "AND a row-capping `\| limit M` or `\| tail M` pipe stage" to match BC-2.11.020 v1.1 FAMILY rule / error-taxonomy E-QUERY-040 wording; (3) Phase 2 step 5 updated to reflect `PipeStage::Limit(_) \| PipeStage::Tail(_)` two-arm check per shipped code; (4) EC-002 description clarified + EC-002b sibling row added for `\| tail 3` form (BC-2.11.020 v1.1 EC-11-020-008). F-P2-MED-001 closure: §Changelog rows reordered to strict monotonic descending (1.9→1.0); no rows deleted; no duplicates. |
 | 1.8 | pol-23-bc-2.10.016-version-pin-sync | 2026-06-25 | story-writer | POL-23 sibling-sweep. BC-2.10.016 version pin updated `v1.0 → v1.1` in Behavioral Contracts table to match current BC frontmatter (product-owner bumped BC-2.10.016 v1.0→v1.1 for Error-Cases/EC reconciliation). POL-25 sweep confirmed no other live-narrative pins of BC-2.10.016 at v1.0 exist outside §Changelog historical rows (TD-VSDD-091-exempt). Frontmatter `behavioral_contracts:` array carries no version suffixes; no frontmatter change required. No AC/scope/code/BC-trace change. |
 | 1.7 | obs-3-stale-path-closure | 2026-06-25 | story-writer | OBS-3 closure (LOW, process-gap). Corrected three stale `tools/list_capabilities.rs` path hints that the v1.6 TD-VSDD-091 sweep missed. Actual handler `list_capabilities` (BC-2.10.015 Arc-DI wiring) lives in `crates/prism-mcp/src/server.rs`; no `tools/list_capabilities.rs` exists (tools/ contains `config.rs`, `mod.rs`, `operations.rs`, `prism_describe.rs`, `query.rs`, `sensor_health.rs`, `write.rs` — verified against worktree and main codebase). Changes: (1) `crates_touched` frontmatter prism-mcp comment — replaced `tools/ (list_capabilities wiring)` with `list_capabilities handler wiring also in server.rs — no tools/list_capabilities.rs exists`; (2) Architecture Mapping row — changed `crates/prism-mcp/src/tools/list_capabilities.rs` to `crates/prism-mcp/src/server.rs` with function-name anchor per TD-VSDD-091; (3) File Structure row — same correction plus clarifying note. No AC count / BC trace / scope change. |
