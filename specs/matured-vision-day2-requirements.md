@@ -1394,6 +1394,92 @@ affordance while keeping a real SQL foundation (DataFusion planner + Chumsky gra
 i.e. Prism matches Query's usability without inheriting FSQL's lack of a formal grammar/type-system/
 join semantics (§10.1).
 
+### 12.4 PrismQL `SEQUENCE…THEN` sugar — grammar + desugaring to `MATCH_RECOGNIZE` (DRAFT)
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum, in response to the "draft the sugar grammar"
+> request. Makes §14.2.1 concrete. The readable surface most analysts write; desugars to the full
+> SQL:2016 `MATCH_RECOGNIZE` operator (Phase A, in scope per HUMAN decision 2026-06-25). DRAFT for the
+> sequence-sugar ADR.
+
+**Design goal:** axiathon-grade readability on the surface; full RPR power underneath. Raw
+`MATCH_RECOGNIZE` remains available as a power-user escape hatch for the long tail.
+
+**Grammar (EBNF, DRAFT):**
+```
+detection      ::= "DETECT" ident sequence_block emit_clause? overlap_clause?
+                 | sequence_block                          -- ad-hoc, no rule wrapper
+sequence_block ::= "SEQUENCE" "BY" field_list within_clause? step then_step+
+within_clause  ::= "WITHIN" duration                       -- overall maxspan
+step           ::= "STEP" quant_var ":" predicate
+then_step      ::= "THEN" gap_clause? negation? quant_var ":" predicate
+               |   "THEN" gap_clause? "ANY" "OF" "[" alt_step ("," alt_step)* "]"
+gap_clause     ::= "WITHIN" duration                       -- max gap from previous matched row
+negation       ::= "NOT" | "WITHOUT"                       -- absence / non-event
+quant_var      ::= pattern_var quantifier?
+quantifier     ::= "+" | "*" | "?" | "{" int ("," int?)? "}"
+alt_step       ::= pattern_var ":" predicate
+emit_clause    ::= "EMIT" emit_item ("," emit_item)*
+emit_item      ::= expr ("AS" ident)?
+overlap_clause ::= "OVERLAP" ("ALLOWED" | "NONE")
+predicate      ::= <PrismQL boolean expr over OCSF/native fields; MAY reference earlier
+                    pattern vars, e.g.  host = b.host>
+duration       ::= int ("s"|"m"|"h"|"d"|"w"|"mo")          -- shared with SINCE (§12.3 E1)
+pattern_var    ::= ident                                    -- a, b, c, …
+field_list     ::= field ("," field)*
+```
+
+**Desugaring rules:**
+
+| `SEQUENCE…THEN` sugar | `MATCH_RECOGNIZE` target |
+|---|---|
+| `SEQUENCE BY k1, k2` | `PARTITION BY k1, k2` + implicit `ORDER BY <time-attr>` |
+| `STEP a: P` / `THEN b: Q` … | `PATTERN (A B …)` + `DEFINE A AS P, B AS Q, …` |
+| `a+` / `a*` / `a?` / `a{n,m}` | `PATTERN` quantifier on the variable |
+| `ANY OF [b:…, c:…]` | `PATTERN ( … (B \| C) … )` + `DEFINE B…, C…` (alternation) |
+| `THEN WITHIN 10m b: Q` | `DEFINE B AS Q AND B.<t> <= PREV(<t>) + 10m` (per-step gap) |
+| `WITHIN 30m` (overall) | trailing constraint `LAST(<t>) - FIRST(<t>) <= 30m` (no standard `WITHIN`; expressed as a `DEFINE`/match predicate, per RPR research §1.3) |
+| `NOT` / `WITHOUT b WITHIN W` | pattern exclusion `{- B -}` / non-event timeout — **Phase-A operator feature** (hardest case) |
+| cross-step ref (`host = b.host`) | preserved verbatim as a `DEFINE` predicate referencing pattern var `B` (running semantics) |
+| `EMIT x AS y` | `MEASURES x AS y` + `ONE ROW PER MATCH` |
+| `OVERLAP NONE` / `ALLOWED` | `AFTER MATCH SKIP PAST LAST ROW` / `SKIP TO NEXT ROW` |
+
+**Time-attribute resolution (multi-schema, §13.6):** the implicit `ORDER BY` binds to the source's
+mapped time attribute — OCSF `time`/`event_time` for OCSF schemas, the configured timestamp column for
+native schema-on-read sources. The sugar never hard-codes a field name.
+
+**Worked examples:**
+
+*(1) Fixed-step kill-chain* — the §14.2.1 `credential_theft` example (`STEP a THEN b THEN c`) →
+`PATTERN (A B C)`.
+
+*(2) Quantified + capture* — brute force (one-or-more failures) then success, same user+IP:
+```
+DETECT brute_then_success
+  SEQUENCE BY user.name, src.ip WITHIN 5m
+    STEP f+: auth.outcome = 'failure'
+    THEN s:  auth.outcome = 'success'
+  EMIT user.name, src.ip, count(f) AS failures, s.time AS broke_in
+```
+→ `PATTERN (F+ S)`, `DEFINE F AS outcome='failure', S AS outcome='success'`,
+`MEASURES COUNT(F) AS failures, S.time AS broke_in`, `PARTITION BY user_name, src_ip`,
+trailing `LAST(t)-FIRST(t) <= 5m`.
+
+*(3) Non-event (absence)* — account created but NOT approved within 1h:
+```
+DETECT unapproved_account
+  SEQUENCE BY account.uid WITHIN 1h
+    STEP c:   activity = 'account.create'
+    THEN NOT a: activity = 'account.approve'
+  EMIT account.uid, c.time AS created
+```
+→ pattern exclusion / non-event timeout (Phase-A; the hardest desugaring — see open questions).
+
+**Open questions (sequence-sugar ADR):** final keyword choices (`DETECT`/`SEQUENCE`/`STEP`/`THEN`/
+`EMIT`/`OVERLAP`); overall-`WITHIN` as a hard match filter vs a `MEASURES`-surfaced value; exact
+running-semantics for cross-step variable references; the `NOT`/`WITHOUT` non-event desugaring
+(exclusion `{- … -}` vs timeout) — the single hardest piece; and confirming raw `MATCH_RECOGNIZE` is
+exposed as the power-user escape hatch (recommended: yes).
+
 ---
 
 ## Section 13 — Static & Dynamic Connector Model — Scope
@@ -1540,7 +1626,7 @@ condition language.
 | Threshold (`count > N within W group_by k`) | `GROUP BY … HAVING COUNT(*) > N` + time predicate | now |
 | Distinct-count (spray / lateral across N) | `COUNT(DISTINCT …) HAVING > N` | now |
 | Cross-source correlation | federated joins + **join-guard (§12.2)** | now |
-| Statistical / baseline anomaly | window functions + `stddev`; long baseline → Iceberg cold tier (§3.3) | now (in-window) / later (long baseline) |
+| Statistical / baseline anomaly | window functions + `stddev`; long baseline → Iceberg cold tier (§3.3) or online-learned model (§15) | now (in-window) / later (on-demand ML, §15) |
 | **Sequence / kill-chain** (`A then B then C`, `maxspan`, `$var` capture, Kleene `B+`, alternation, non-event) | **Phase A pulled forward (HUMAN-CONFIRMED 2026-06-25):** build the full NFA `MATCH_RECOGNIZE` operator from the start (full richness ≥ axiathon). Phase B (join/window rewrite) is retained only as an optimizer fast-path for simple fixed-step cases. Human surface is a **readable `SEQUENCE…THEN…WITHIN` sugar** that desugars to `MATCH_RECOGNIZE` (§14.2.1) | A now |
 | Multi-stage DAG (alert-as-input) | rules consume prior findings within a run | adopt |
 | Entity pivot | `FIND` / `entity()` (§12.1) | adopt |
@@ -1587,7 +1673,8 @@ power users and for the long tail (Kleene quantifiers, alternation, overlap cont
 **NL→PrismQL via the embedded agent (S3)**, a **visual sequence builder in the S2 console** (adopt
 axiathon's builder UX), autocomplete, and the **recipe library** (§14.7). Net: most analysts never
 write raw RPR — the sugar + agent + recipes cover the common cases; the formal operator guarantees the
-ceiling. This is an explicit ADR item (sequence-sugar grammar + desugaring).
+ceiling. **The full sugar grammar (EBNF) + desugaring rules to `MATCH_RECOGNIZE` are specified in
+§12.4** (sequence-sugar ADR).
 
 ### 14.3 Federated/ephemeral adaptation — correlation over the cache
 
@@ -1668,3 +1755,208 @@ layer; partial-result + degraded-subtree semantics (§3.2/§3.6) apply.
 | G-19 | **Backtesting over federated/cold-tier sources** (not local-lake replay) | E-DETECT-ENGINE-001 |
 | G-20 | **Ticketing/SOAR destinations** (ServiceNow/Jira/Tines) beyond notifications | E-ALERT-ROUTING-001 |
 | G-21 | **Prebuilt agent personas** library | E-DETECT-RECIPES-001 |
+
+---
+
+## Section 15 — On-Demand ML & Behavior Analytics (HUMAN-CONFIRMED 2026-06-25)
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum, human-confirmed (both the on-demand ML framing
+> and the online-learning tier). Ties into §2.4 (tradeoff), §3.3 (retention tiers), §13.6 (multi-schema),
+> §14.2 (statistical-anomaly row). DRAFT for architect/PO review.
+
+### 15.0 Core principle — ML obeys the Prism law
+
+**On-demand/ephemeral ML : always-on/store-everything UEBA :: federated query : data lake.**
+ML follows the same demand-driven, query-in-place, cache-by-demand law as the rest of Prism.
+Anomaly/behavior detection is computed **on demand** over data Prism already fetches or has
+demand-cached — NOT as an always-on ingestion-time pipeline over a permanent store-everything corpus.
+
+### 15.1 On-demand computation model
+
+- Anomaly/behavior scoring runs when a **query, detection, or investigation asks for it** — same
+  trigger model as everything else in Prism.
+- It computes over the **federated pull** (live source data) and/or the **RetentionCache window**
+  (§3.3 hot tier).
+- Cost-bounded: on-demand baseline pulls obey the mandatory time-bound + join-guard NFRs (§5.3, §12.2)
+  — a baseline computation cannot trigger a runaway fetch.
+
+### 15.2 Baselines from the demand-driven cache + scoped federated pull
+
+"Is this anomalous vs. normal?" needs history. History comes from either:
+- (a) the **RetentionCache cold tier (Iceberg, §3.3)** — now the natural home for multi-year,
+  per-entity baseline data under a `RETAIN` policy; OR
+- (b) an **on-demand scoped federated pull** of historical data from the source.
+Baselines are **scoped to the entity/time-window the detection needs**, not a global model over all
+data. Synthesis: *the cold Iceberg tier IS the baseline store; on-demand ML is its consumer.*
+
+### 15.3 Three retention tiers — the model is a first-class tier (HUMAN-CONFIRMED)
+
+Prism now has three demand-driven retention fidelities, each at a different cost/horizon/fidelity point:
+
+| Tier | Store | Horizon | Fidelity | Replayable? |
+|------|-------|---------|----------|-------------|
+| Raw hot | RocksDB CF (§3.3) | seconds–hours/days | exact rows | yes |
+| Raw cold | Iceberg/Parquet (§3.3) | days–years | exact rows | yes |
+| **Model state** | learned model artifact | **longest** | **lossy summary** | **no** |
+
+The **model is a bounded, per-tenant, policy-governed, OCSF/schema-scoped retention artifact** —
+persisted like the cache, just far more compact and summarizing a longer horizon than the raw window.
+
+### 15.4 Online / continuous learning — "the model is the memory" (HUMAN-CONFIRMED)
+
+**If Prism supports online (incremental/streaming) learning, the model itself becomes the durable,
+compact memory of everything it has ever seen — even though Prism never retained the raw data.**
+Every on-demand data touch (query, detection window, federated pull) updates the model incrementally;
+its parameters are a lossy, compressed summary of the whole exposed history. **The model retains what
+the storage didn't** → long-horizon behavioral baselines at *model-sized* cost, not *data-sized* cost.
+This **softens the §2.4 tradeoff**: long-memory baselines no longer require store-everything.
+
+- **Single-pass / streaming algorithms only** (see-once, update, drop raw): streaming mean/variance,
+  EWMA, online z-score, t-digest (quantiles), count-min / HyperLogLog (frequency/cardinality),
+  reservoir sampling, online isolation-forest / half-space-trees, streaming clustering.
+- **Coverage = what Prism touches**, broadenable via optional **scheduled baseline-refresh sampling
+  pulls** (HUMAN-CONFIRMED: support both learn-from-what-we-touch AND scheduled sampling).
+
+### 15.5 Honest limits + controls — IN SCOPE (HUMAN-CONFIRMED, not afterthoughts)
+
+The online-learning advantage comes with limits that MUST be engineered for (production-grade):
+
+| Limit | Control (in scope) |
+|-------|--------------------|
+| **Coverage gaps** — learns only what Prism surfaces | optional scheduled sampling pulls (§15.4) |
+| **No replay / no re-derivation** once raw is gone | keep cold Iceberg tier for scopes needing exact replay; model + raw-retention are complementary |
+| **Concept drift** — old normal must decay | EWMA/sliding decay; drift detection |
+| **Adversarial poisoning** — slow "boiling-frog" retraining of malicious-as-normal | poisoning-resistance (bounded update rates, robust estimators, anomaly-gated learning) |
+| **Explainability / audit** — detections fire off model *state* | **model versioning/snapshots**; a finding's replay link (§14.5) points at model state *as of* the decision |
+| **Deliberate statefulness** — model is persistent (exception to ephemeral-by-default) | framed as demand-driven retention: bounded, per-tenant, policy-governed (same discipline as §3.3 cache) |
+| **Verification** — online updates are order-dependent/stateful | bound + spec the update function; candidate VP/Kani targets for update-invariants |
+
+### 15.6 Expressed as detection-as-query primitives
+
+ML is exposed as **PrismQL functions/constructs**, not a separate subsystem the analyst sees — extends
+the §14.2 statistical-anomaly row. Candidate primitives: `ANOMALY_SCORE(...)`, `RARITY(...)`,
+`FIRST_SEEN(...)`, `BASELINE_DEVIATION(...)`, `PEER_OUTLIER(...)`, and a `PROFILE <entity> OVER <window>`
+construct usable inside a `DETECT` (§14.1). Behavior/anomaly detection is just a richer PrismQL query.
+
+### 15.7 Two model tiers + pluggable backends
+
+- **Lightweight statistical** (z-score, EWMA, MAD, percentile, rarity, first-seen, peer-group) —
+  cheap, in-window, **day-2 first** (largely already implied by §14.2).
+- **Heavier learned models** (isolation forest, clustering, autoencoders, sequence models) — trained
+  **on demand** over cache/federated pull, ephemeral/scoped, online-updated, cached as artifacts —
+  **later tier**.
+- **Pluggable model backends (built-in + external)** — mirror the §11.1 secret-store stance: ship
+  first-party built-in models AND allow bring-your-own/external models. AI-opaque + per-tenant isolated.
+
+### 15.8 Cross-cutting guarantees
+
+Multi-schema (OCSF + native, §13.6; models per entity-class+schema) · OT-aware (behavior baselining at
+the satellite/Purdue edge, §3.2) · AI-opaque (models never see raw creds) · prompt-injection-hardened ·
+agent-native (S3 agent drives ML-assisted triage) · resilient/partial-result (scoring degrades when
+sources down) · multi-tenant isolated.
+
+### 15.9 Tradeoff softening (§2.4 refinement)
+
+Long-horizon behavioral baselines are now available **three** ways — choose per use case:
+1. `RETAIN` raw to the cold tier (exact, replayable, costlier);
+2. **online-learn a model** (compact, long-memory, lossy, not replayable);
+3. **federate into a lake** (someone else stored it, §3.5).
+Online learning is the move that lets Prism claim long-memory UEBA **without** betraying the
+ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO to reflect this.)
+
+### 15.10 Epics / ADRs / gaps
+
+- **E-ML-ONDEMAND-001** — on-demand anomaly/behavior scoring over federated pull + cache; baseline
+  sourcing (cold tier / scoped pull); lightweight statistical tier.
+- **E-ML-ONLINE-001** — online/incremental learning; model-as-retention-tier; drift/decay +
+  poisoning-resistance + model snapshots/versioning; optional scheduled sampling.
+- **E-ML-PRIMITIVES-001** — PrismQL ML functions/constructs (`ANOMALY_SCORE`, `PROFILE … OVER …`, etc.).
+- **ADRs:** model-as-retention-tier; online-learning update semantics (drift/decay, poisoning
+  resistance); model snapshot/versioning for replay/explainability; pluggable model backend
+  (built-in + external); ML cost-bounding.
+
+| Gap | Description | Disposition |
+|-----|-------------|-------------|
+| G-22 | **On-demand scoring engine** over federated pull + cache (lightweight statistical first) | E-ML-ONDEMAND-001 |
+| G-23 | **Online-learning + model-as-retention-tier** (streaming algos, drift, poisoning, snapshots) | E-ML-ONLINE-001 |
+| G-24 | **PrismQL ML primitives** (`ANOMALY_SCORE`/`PROFILE`/…) | E-ML-PRIMITIVES-001 |
+| G-25 | **Pluggable model backends** (built-in + external, AI-opaque) | E-ML-ONLINE-001 |
+| G-26 | **§2.4 tradeoff text update** (three-ways-to-long-baseline) | PO at brief-reframe |
+
+---
+
+## Section 16 — Session Continuity & Resume Notes (2026-06-25 side-analysis session)
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum. Written as a ZERO-CONTEXT RESUME aid before a
+> context clear: a fresh session can read this doc alone and continue with no loss. This is SIDE work
+> (the live factory continues independently); it does NOT touch STATE.md / SESSION-HANDOFF.md.
+
+### 16.1 What this session produced (all on disk / committed)
+
+- **Sections 10–15** of this doc: Query.io competitive analysis (§10), server pillars — credentials/
+  config/multi-surface UI (§11), PrismQL deliverables — entity-pivot grammar / join-guard NFR /
+  ergonomics ledger / SEQUENCE-sugar grammar (§12), static-vs-dynamic connectors + multi-schema
+  authority (§13), detection engine & rule editor — detection-as-query (§14), on-demand ML + online
+  learning (§15).
+- **Research artifacts** under `.factory/research/` (committed `0df60da9`): `queryio-federated-search-`,
+  `federated-query-language-patterns-`, `queryio-deployment-credentials-ui-`, `match-recognize-rpr-
+  feasibility-2026-06-25.md`; plus `axiathon-detection-engine-analysis-2026-06-25.md`.
+
+### 16.2 Decisions CONFIRMED this session (settled — do not re-litigate)
+
+1. UI is **multi-surface, multi-persona** (HUMAN DIRECTIVE): S1 MCP/BYO-agent · S2 full browser
+   console · S3 server-hosted embedded AI · S4 browser extension · U1 admin console (§11.3). Value-prop
+   #5 to be softened (drafted replacement in §11.3; PO to ratify).
+2. Secret storage = **hybrid: built-in encrypted store AND external vault backends** (§11.1).
+3. Detection model = **detection-as-query** (PrismQL + YAML metadata), NOT a separate DSL (§14.1).
+4. Sequence detection = **full `MATCH_RECOGNIZE` operator pulled forward (Phase A in scope now)**, with
+   a readable `SEQUENCE…THEN…WITHIN` sugar on top (§12.4, §14.2.1). Phase-B join-rewrite = optimizer
+   fast-path only.
+5. Correlation/detection state = **RocksDB / RetentionCache (Prism-native)** — NOT PostgreSQL (§14.3).
+6. RetentionCache = **tiered: RocksDB hot + Iceberg cold**, multi-schema, shared read path with the
+   Security Lake connector (§3.3 addendum).
+7. **Multi-schema** engine confirmed: OCSF (versioned) + native schema-on-read + source-native dialects
+   + protobuf; PrismQL type system + Iceberg tier both multi-schema-aware (§13.6).
+8. Rule editor surfaces = **S2 + MCP + CLI; NO TUI** (§14.4).
+9. **OT detection IN SCOPE** (Claroty/Armis + Purdue satellite mesh) (§14.6).
+10. **On-demand ML** confirmed (§15.0–15.3) and **online/continuous learning** confirmed — "the model
+    is the memory," model as a third retention tier, honest-limit controls in scope, learn-from-touch
+    + optional scheduled sampling (§15.4–15.5).
+
+### 16.3 Residual Query-doc (llms.txt) verdicts — captured here so they're not lost
+
+| Item | Verdict |
+|------|---------|
+| **Query App for Splunk** (run federated search inside Splunk) | **DEFER** — GTM embedding, not core; candidate post-day-2 "PrismQL app for Splunk" |
+| **Security & Privacy posture page** | **ADOPT (docs)** — publish a security/privacy/compliance doc (AI-opacity, residency, SOC2); supports MSSP/regulated positioning; ties to §11.1 |
+| **Full OCSF QDM breadth** (70+ event classes, 150+ objects, Data Types) | **ADOPT (raise the bar)** — target comprehensive OCSF coverage, not a 4-sensor subset; feeds dynamic-connector mapping (§13) and multi-version OCSF (§13.6) |
+| **Search Progress & Results** streaming UI | **ADOPT** — already folded into S2 results-explorer (per-source coverage banner + streaming, §11.3.1) |
+| **Recipes** (200+ FSQL detections/hunts) | **ADOPT as executable, backtested, version-controlled PrismQL recipe + hunt library** (§14.7, E-DETECT-RECIPES-001); includes Sigma→PrismQL examples |
+| **CoPilot** (AI schema mapping + assistant) | **ADOPT** — S3 embedded agent drives configure-schema mapping (§13.2) |
+| **FAQL** | CORRECTION applied (§10.1): it is an FSQL FAQ page, not a language |
+
+### 16.4 Open items / NEXT STEPS (for the resumed session)
+
+- **UI (next up, was paused here):** draft S2 investigations-console screens in depth + U1 admin-console
+  screen inventory; web-stack ADR (Rust-native Leptos/Dioxus vs TS SPA); SSO/OIDC-SAML; S3 agent-runtime
+  ADR. (§11.3, §11.3.1, §11.3.2)
+- **`SecretBackend` trait + per-tenant-DEK flow** concrete sketch (§11.1).
+- **Sequence-sugar ADR open questions** (§12.4): keyword finalization; overall-`WITHIN` semantics;
+  cross-step running-semantics; **`NOT`/`WITHOUT` non-event desugaring** (exclusion vs timeout — hardest).
+- **PO ratifications at brief-reframe:** value-prop #5 rewrite (§11.3); §2.4 tradeoff softening
+  (§15.9, three-ways-to-long-baseline); §1.x framing.
+- **ML depth phasing** (§15.7): lightweight statistical first; heavier learned models + pluggable
+  backends later.
+- All Section 5.x day-2 execution-checklist items remain pending the brief-reframe HUMAN GATE.
+
+### 16.5 Status & boundaries reminder
+
+- This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
+  BC/architecture/stories. Day-2 morph begins post-demo, post-T14, gated on brief-reframe sign-off
+  (§5.1).
+- The live factory (Phase 3 grammar-remediation cascade) ran **independently** throughout this side
+  session and continues; its branch advanced past our commits with no collision. Do NOT confuse §10–§16
+  day-2 vision work with the active demo/cascade workstream.
+- Epic IDs introduced in §10–§15 (E-CACHE-DEMAND, E-CENTRAL-*, E-SATELLITE-MESH, E-LAKE-CONNECTOR,
+  E-UI-*, E-CONNECTOR-DYNAMIC, E-DETECT-*, E-ALERT-ROUTING, E-RULE-XLATE, E-ML-*) are PROPOSED, not yet
+  registered in STORY-INDEX; gaps G-1…G-26 track the new findings.
