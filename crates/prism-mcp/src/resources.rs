@@ -8,7 +8,7 @@
 //!
 //! S-DEMO-PRISMQL-ONBOARDING-001-A adds (BC-2.10.013, BC-2.10.014):
 //! - `prismql://schema/{client_id}` — per-client PQL table/column/type schema catalog
-//! - `prismql://reference` — static PQL grammar reference (build-time embedded)
+//! - `prismql://reference` — runtime-assembled PQL grammar reference (built via `build_reference_content()`)
 //!
 //! Resources are served by overriding `list_resources`, `list_resource_templates`,
 //! and `read_resource` on `impl ServerHandler for PrismServer` in `server.rs`.
@@ -19,11 +19,11 @@
 //! All resource response serialization MUST redact API keys and full URL paths.
 //! Only host+port components are emitted for URL fields (VP-050, BC-2.10.008 postcondition).
 
-/// `prismql://schema/{client_id}` resource template and `prismql://reference` static resource.
+/// `prismql://schema/{client_id}` resource template and `prismql://reference` runtime resource.
 ///
 /// `prismql://schema/{client_id}` (BC-2.10.013) returns the full PQL table/column/type
 /// catalog for a given client as structured JSON. `prismql://reference` (BC-2.10.014)
-/// serves the static PQL grammar reference embedded at build time.
+/// serves the PQL grammar reference assembled at runtime by `build_reference_content()`.
 pub mod schema;
 
 use std::{collections::BTreeSet, sync::Arc};
