@@ -1514,15 +1514,10 @@ pub fn build_reference_content(
     }
 
     // ── Section 6: Query Examples (from REFERENCE_EXAMPLES shared constant) ───
-    // LOW-002 fix: single exhaustive match pass — a new ExampleKind variant will
-    // produce a compile error on the wildcard arm (debug_assert! fires) rather than
-    // being silently omitted from the reference output.
+    // Collect into three buckets in a SINGLE exhaustive match pass over REFERENCE_EXAMPLES.
+    // See the in-loop comment for the exhaustive-match rationale.
     out.push_str("## Query Examples\n\n");
 
-    // Collect into three buckets in a SINGLE exhaustive pass.
-    // ExampleKind is #[non_exhaustive] — the `_` arm is required to remain forward-
-    // compatible with new variants. Using debug_assert!(false) ensures CI + dev builds
-    // surface unknown variants at runtime, while production builds skip them gracefully.
     let mut positive_entries: Vec<(&str, &str)> = Vec::new();
     let mut negative_e040_entries: Vec<(&str, &str)> = Vec::new();
     let mut negative_other_entries: Vec<(&str, &str)> = Vec::new();
