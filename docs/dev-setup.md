@@ -132,6 +132,12 @@ It implements the validated recommendations from `.factory/research/build-optimi
 `just iter` targets <60s for a single-crate incremental run. **Do not use `just check` during
 the TDD inner loop** — it runs the full 24-crate workspace and is reserved for pre-push.
 
+### sccache (optional compilation cache)
+
+[sccache](https://github.com/mozilla/sccache) caches compiled Rust artifacts by input hash and shares them across all `.worktrees/<story>/` directories. Measured ~25-40% build-time reduction for the warm-incremental case on the crypto/datafusion dependency tree. To enable, install sccache and uncomment the `[build] rustc-wrapper = "sccache"` stanza in `.cargo/config.toml` (the full setup instructions are inline in that file). Do not enable on CI runners — CI has no sccache daemon.
+
+---
+
 ### XProtect exemption (manual opt-in)
 
 > **macOS version caveat:** This optimization works on macOS 15.x (Sequoia) and earlier. macOS 26.x (Tahoe, 2025+) removed the Developer Tools exemption mechanism — Apple's `xprotectd` no longer respects parent-process exemptions. If your machine is on macOS 26+, this section is informational only; the optimization is unavailable. See `.factory/research/build-optimization-2026.md` §3.1.1 for the underlying research and Objective-See's reverse-engineering details.

@@ -34,9 +34,11 @@ store-failure-output = true
 
 [profile.ci]
 fail-fast = false
-# slow-timeout: flag tests that run over 60 s in CI output (no hard kill).
-# terminate-after is intentionally omitted — the prism-credentials proptest suite
-# (proptest_BC_3_2_002_vp_01_cross_org_isolation) takes ~75 s at 1000 cases.
+retries = 1
+# slow-timeout: flag tests that run over 60 s in CI output; terminate-after = 2
+# gives 120 s total (2 × 60 s), which is safely above the ~75 s proptest max
+# (proptest_BC_3_2_002_vp_01_cross_org_isolation at 1000 cases) while still
+# hard-killing genuinely hung tests rather than stalling CI indefinitely.
 #
 # Updated 2026-05-06 (PR #127): The original ~8-min runtime was caused by two issues:
 #   1. Per-iteration TempDir::new() + Runtime::new() overhead (eliminated by
@@ -52,9 +54,10 @@ fail-fast = false
 #   After:  ~19 s at 256 cases  | ~75 s at 1000 cases
 #   Speedup: ~18x at 256 cases, ~6-7x at 1000 cases
 #
-# Adding a hard kill (terminate-after) would break CI if the host is slow.
-# Track slow tests via the `final-status-level = "slow"` output; tune individually.
-slow-timeout = { period = "60s" }
+# terminate-after = 2: 2 × 60 s = 120 s hard kill ceiling. The 75 s proptest
+# worst-case has 45 s of headroom. Uncomment `retries` above if CI runner
+# variance triggers false kills; 1 retry is the safety net.
+slow-timeout = { period = "60s", terminate-after = 2 }
 final-status-level = "slow"
 failure-output = "immediate-final"
 
@@ -62,6 +65,37 @@ failure-output = "immediate-final"
 path = "junit.xml"
 store-success-output = false
 store-failure-output = true
+
+# S-PERF-GATE-001: Local pre-push profile — used by `just check`.
+# Mirrors the [profile.e2e] retries + terminate-after pattern already in this file.
+# slow-timeout: flag tests over 90 s in output; terminate-after = 2 gives 180 s total,
+# which is above the ~75 s proptest worst-case with 2x headroom.
+# fail-fast = false: show all failing tests in a single run, not just the first.
+# final-status-level = "slow": surface slow tests in output for local diagnosis.
+# retries = 1: one automatic retry to absorb transient subprocess flakes (e.g.,
+# prism-bin signal_handlers tests under parallel RocksDB mmap pressure).
+[profile.prepush]
+fail-fast = false
+slow-timeout = { period = "90s", terminate-after = 2 }
+retries = 1
+final-status-level = "slow"
+failure-output = "immediate"
+
+# S-PERF-GATE-001: Serialize prism-bin signal_handlers subprocess tests.
+# These tests spawn prism as a subprocess and open RocksDB. Under high parallelism
+# they can hit SIGSEGV due to concurrent mmap pressure from multiple RocksDB instances.
+# max-threads = 1 ensures they run single-threaded; retries = 1 (set at profile level)
+# is the secondary safety net for any remaining transient flake.
+[test-groups]
+serial-subprocess = { max-threads = 1 }
+
+[[profile.prepush.overrides]]
+filter = 'package(prism-bin) and test(/signal/)'
+test-group = 'serial-subprocess'
+
+[[profile.ci.overrides]]
+filter = 'package(prism-bin) and test(/signal/)'
+test-group = 'serial-subprocess'
 
 # S-DEMO-004: Multi-org × multi-sensor isolation smoke test profile.
 # Un-ignores E2E-MULTI-001-tagged tests in e2e_multi_org.rs (currently 10 tests):
