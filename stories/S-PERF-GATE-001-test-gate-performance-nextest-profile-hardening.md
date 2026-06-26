@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.1"
-spec_version: "v1.1"
+version: "1.2"
+spec_version: "v1.2"
 level: ops
 producer: story-writer
 timestamp: "2026-06-26"
@@ -155,8 +155,14 @@ exactly one hit showing `retries = 1`.
 The `Justfile` `check` recipe's `cargo nextest run` invocation gains `--profile prepush`:
 
 ```
-PROPTEST_CASES=100 cargo nextest run --workspace --all-features --no-fail-fast --profile prepush
+RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
 ```
+
+Note: `--no-fail-fast` is NOT present in the shipped recipe — it is superseded by
+`fail-fast = false` set in the `[profile.prepush]` section of `.config/nextest.toml`.
+`RUSTFLAGS=""` is set explicitly (alongside the matching doctest step below it) so
+both steps share the same incremental fingerprint cache; a shell `RUSTFLAGS` export
+would otherwise force a full doctest recompile.
 
 Running `grep 'profile prepush' Justfile` returns exactly one hit in the `check`
 recipe.
@@ -678,3 +684,4 @@ Per POL-7 (verbatim BC H1 titles):
 |---------|------|--------|--------|
 | 1.0 | 2026-06-26 | story-writer | Initial materialization from performance diagnosis §10 skeleton + §6/§7 detail |
 | 1.1 | 2026-06-26 | story-writer | AC-text-accuracy sync to shipped code: (1) AC-004 error type corrected from `reqwest::Error` to `String` for both functions; (2) AC-004 visibility note expanded — `pub(crate)` confirmed, in-crate test access documented; (3) AC-005/RG-PERF-001 test name updated to `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`, file location corrected to `src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` (in-crate); (4) AC-011 nextest group name corrected to `serial-subprocess`, filter confirmed as `binary(signal_handlers)`, profile-scoped overrides (`prepush` + `ci`) documented instead of `[profile.default.overrides]`. |
+| 1.2 | 2026-06-26 | story-writer | F-LOW-1 fix (AC-003 codeblock drift): corrected `cargo nextest run` invocation to match shipped Justfile line 26 exactly — added `RUSTFLAGS=""` prefix, removed stale `--no-fail-fast` flag (superseded by `fail-fast = false` in `[profile.prepush]`), added explanatory note for both changes. Comprehensive AC↔code text audit performed; all other AC verification commands, file paths, function names, test names, nextest filter/group names, and profile settings confirmed MATCHES against shipped worktree. |
