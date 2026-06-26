@@ -80,7 +80,7 @@ The shared example array MUST be a `const &'static [(&'static str, ExampleKind)]
 
 ## Invariants
 
-- `pql_reference.md` (the static file) is RETIRED — `include_str!("pql_reference.md")` is removed from `resources.rs`
+- `pql_reference.md` (the static file) is RETIRED — `include_str!("pql_reference.md")`, `PQL_REFERENCE_CONTENT`, and `render_pql_reference_resource` are removed from `crates/prism-mcp/src/resources/schema.rs`
 - All static section content lives as Rust `&'static str` constants in `resources.rs` — reviewed in PRs as code, not as documentation
 - The `InfusionRegistry` reference in `build_reference_content` comes from `Arc<ArcSwap<InfusionRegistry>>` loaded at the time of the `read_resource` call (reload-aware per ADR-042)
 - No caching of the assembled reference string — assembled on each `read_resource` call (`prismql://reference` is a cold-path resource fetched once per session)
