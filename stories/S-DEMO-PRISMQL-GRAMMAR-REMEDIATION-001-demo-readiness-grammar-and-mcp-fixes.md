@@ -49,7 +49,7 @@ level: "L4"
 status: draft
 # BC status: behavioral_contracts is non-empty (8 BCs). Status remains draft; all BCs cited
 # in at least one AC body trace (bidirectional trace satisfied — Spec-First Gate S-7.01 met).
-version: "1.10"
+version: "1.11"
 updated: "2026-06-26"
 # v1.1: dclaude:remove-uncertainty pass 1 (D-1110) — 8 tech-assumption corrections applied
 # (versions pinned to Cargo.lock; ParseErrorDetails→StructuredErrorFields; OrgRegistry::slug_exists;
@@ -173,9 +173,9 @@ works end-to-end, temporal queries parse, and MCP tools/prompts respond within t
 | BC-2.11.021 | v1.0 | Temporal Grammar — `NOW()` and `INTERVAL` Planning-Time Constant Injection |
 | BC-2.11.022 | v1.0 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
 | BC-2.11.023 | v1.2 | Three-Mode Correctness — Mode-Bridge Error, `normalized_pql`, and D7 Graduation Invariant |
-| BC-2.10.015 | v1.1 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check |
+| BC-2.10.015 | v1.2 | `list_capabilities` Consults `OrgRegistry` for `client_registered` Check |
 | BC-2.10.016 | v1.1 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
-| BC-2.10.017 | v1.0 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking |
+| BC-2.10.017 | v1.1 | Not-Yet-Available Tools Fast-Fail — Audit Channel Non-Blocking |
 | BC-2.11.002 | v1.4 | PrismQL Filter Mode Parsing |
 
 ---
@@ -908,6 +908,7 @@ From CLAUDE.md conventions:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | bc-pin-propagation-F-P2R2-HIGH-001-F-P2R2-LOW-001 | 2026-06-26 | story-writer | BC version-pin propagation (POL-8 bc_array_changes_propagate). F-P2R2-HIGH-001: BC-2.10.017 Behavioral Contracts table pin `v1.0 → v1.1` (product-owner bumped v1.0→v1.1: try_send/mpsc framing replaced by guard-reorder reality per D-1110). F-P2R2-LOW-001: BC-2.10.015 Behavioral Contracts table pin `v1.1 → v1.2` (product-owner bumped v1.1→v1.2: phantom `tools/list_capabilities.rs` anchor replaced by `server.rs::list_capabilities`). AC-017/AC-018/EC-009 prose verified unchanged (D-1110 guard-reorder/no-structured-error reality already correct — adversary confirmed). Frontmatter `behavioral_contracts:` array carries no version suffixes; no frontmatter array change required. No AC/scope/code/BC-trace change. |
 | 1.10 | f-p2r2-med-001-ac016-ec008-bc-traceability-sync | 2026-06-26 | story-writer | F-P2R2-MED-001 closure: AC↔BC traceability desync. BC-2.10.016 v1.1 RETRACTED the "structured MCP error" behavior for the missing-required-arg case (INV-PROMPT-REQUIRED-ARGS option (a)); story prose was stale. (1) AC-016 prose updated: missing required arg → substitutes literal `(unknown)`, returns **Ok** within 5 seconds — no structured MCP error; the no-hang fast-return guarantee is the contract. (2) AC-016 Red Gate test description updated to match shipped test (`result.is_ok()`, not "assert structured MCP error"). (3) EC-008 expected-behavior updated to "substitutes `(unknown)`, returns Ok within 5s; MUST NOT hang (no structured MCP error)". No code change (shipped test `test_BC_2_10_016_missing_required_arg_fast_error` already asserts `result.is_ok()` — correct). No AC count / Red Gate count / BC-trace change. |
 | 1.9 | bc-2.11.020-v1.1-propagation-F-P2-HIGH-001-F-P2-MED-001 | 2026-06-26 | story-writer | BC-2.11.020 v1.0→v1.1 propagation (F-P2-HIGH-001 / POL-8 bc_array_changes_propagate_to_body_and_acs): (1) Behavioral Contracts table pin `v1.0 → v1.1` (POL-27 version-pin-sync); (2) AC-002 condition updated: "AND a row-capping `\| limit M` or `\| tail M` pipe stage" to match BC-2.11.020 v1.1 FAMILY rule / error-taxonomy E-QUERY-040 wording; (3) Phase 2 step 5 updated to reflect `PipeStage::Limit(_) \| PipeStage::Tail(_)` two-arm check per shipped code; (4) EC-002 description clarified + EC-002b sibling row added for `\| tail 3` form (BC-2.11.020 v1.1 EC-11-020-008). F-P2-MED-001 closure: §Changelog rows reordered to strict monotonic descending (1.9→1.0); no rows deleted; no duplicates. |
 | 1.8 | pol-23-bc-2.10.016-version-pin-sync | 2026-06-25 | story-writer | POL-23 sibling-sweep. BC-2.10.016 version pin updated `v1.0 → v1.1` in Behavioral Contracts table to match current BC frontmatter (product-owner bumped BC-2.10.016 v1.0→v1.1 for Error-Cases/EC reconciliation). POL-25 sweep confirmed no other live-narrative pins of BC-2.10.016 at v1.0 exist outside §Changelog historical rows (TD-VSDD-091-exempt). Frontmatter `behavioral_contracts:` array carries no version suffixes; no frontmatter change required. No AC/scope/code/BC-trace change. |
