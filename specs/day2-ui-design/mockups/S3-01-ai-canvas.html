@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<!--
+  S3-01-ai-canvas.html — Prism AI Canvas: Conversational Canvas (Screen S3-01)
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  Shows the Prism AI Canvas in steady-state (after the user has already gotten responses).
+  Split view: left ~340px chat thread + composer; right scrollable canvas/widget feed.
+  4 AI-generated widgets: OCSF Alert Table, Entity Summary Card, Bar Chart, Event Timeline.
+  Trust-first: every widget shows purple AI label + inspectable PrismQL + source coverage chips.
+  Credentials are broker-injected and never AI-visible (AD-017).
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — AI Canvas</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar (exact copy from S2-05) ─────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-3);
+    }
+
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+
+    .topbar-nav { display: flex; gap: 2px; list-style: none; flex: 1; }
+
+    .topbar-nav-item {
+      display: flex; align-items: center; height: 32px; padding: 0 var(--space-3);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast); white-space: nowrap;
+    }
+
+    .topbar-nav-item:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .topbar-nav-item.active { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);
+      cursor: pointer; min-width: 200px;
+    }
+
+    .kbd { font-family: var(--font-mono); font-size: 10px; background: var(--color-border); border-radius: 3px; padding: 1px 4px; margin-left: auto; color: var(--color-text-muted); }
+
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: var(--radius-md); border: none; background: transparent; color: var(--color-icon-default);
+      cursor: pointer; transition: background var(--transition-fast); position: relative;
+    }
+
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    .notif-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%; border: 2px solid var(--topbar-bg); }
+
+    /* ── Body layout ─────────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav (exact copy from S2-05) ─────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg); border-right: var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+    .leftnav-main { flex: 1; }
+    .leftnav-footer {
+      border-top: var(--border);
+      padding-top: var(--space-2);
+      margin-top: var(--space-2);
+    }
+
+    .nav-group-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps);
+      text-transform: uppercase; color: var(--color-text-muted);
+      padding: var(--space-3) var(--space-2) var(--space-1);
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active { background: var(--nav-item-bg-active); color: var(--nav-item-text-active); font-weight: var(--weight-semibold); }
+
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); flex-shrink: 0; }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Main area: chat + canvas ───────────────────────────────────── */
+    .main {
+      flex: 1; display: flex; overflow: hidden; background: var(--color-bg);
+    }
+
+    /* ── Chat column ─────────────────────────────────────────────────── */
+    .chat-col {
+      width: 340px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: var(--border);
+      background: var(--color-bg-card);
+    }
+
+    .chat-col-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+    }
+
+    .chat-col-title {
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text);
+      flex: 1;
+    }
+
+    /* Chat thread (scrollable) */
+    .chat-thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-4) var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    /* Individual turn */
+    .chat-turn { display: flex; flex-direction: column; gap: var(--space-2); }
+
+    /* User bubble */
+    .chat-user-bubble {
+      align-self: flex-end;
+      background: var(--color-blue-subtle);
+      border: 1px solid var(--color-blue-lighter);
+      color: var(--color-text);
+      font-size: var(--text-sm);
+      line-height: var(--leading-snug);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+      max-width: 90%;
+    }
+
+    /* AI response */
+    .chat-ai-response {
+      display: flex;
+      gap: var(--space-2);
+      align-items: flex-start;
+    }
+
+    .chat-ai-avatar {
+      width: 24px; height: 24px; border-radius: var(--radius-sm);
+      background: var(--color-ai-label); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: var(--weight-bold);
+      flex-shrink: 0; margin-top: 2px;
+      letter-spacing: var(--tracking-caps);
+    }
+
+    .chat-ai-body {
+      flex: 1; min-width: 0;
+    }
+
+    .chat-ai-text {
+      font-size: var(--text-sm);
+      line-height: var(--leading-snug);
+      color: var(--color-text);
+      margin-bottom: var(--space-1-5);
+    }
+
+    .chat-ai-meta {
+      display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+    }
+
+    .ai-label-badge {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 6px;
+      background: var(--color-ai-label); color: #fff;
+      font-size: 10px; font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      border-radius: 3px;
+    }
+
+    .chat-gen-note {
+      font-size: var(--text-xs); color: var(--color-ai-label); font-weight: var(--weight-semibold);
+    }
+
+    /* Inline PrismQL snippet in chat */
+    .chat-pql-wrap { margin-top: var(--space-1-5); }
+
+    .chat-pql-toggle {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--text-xs); color: var(--color-text-link); cursor: pointer;
+      background: none; border: none; padding: 0; font-family: var(--font-sans);
+      font-weight: var(--weight-semibold);
+    }
+
+    .chat-pql-toggle:hover { text-decoration: underline; }
+
+    .chat-pql-block {
+      display: none;
+      background: var(--editor-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-3);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--editor-text);
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-top: var(--space-1);
+      overflow-x: auto;
+    }
+
+    .chat-pql-block.open { display: block; }
+    .chat-pql-block .kw  { color: var(--editor-keyword); }
+    .chat-pql-block .fn  { color: var(--editor-function); }
+    .chat-pql-block .str { color: var(--editor-string); }
+    .chat-pql-block .ty  { color: var(--editor-type); }
+    .chat-pql-block .op  { color: var(--editor-operator); }
+
+    /* ── Chat composer ───────────────────────────────────────────────── */
+    .chat-composer {
+      flex-shrink: 0;
+      border-top: var(--border);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-bg-card);
+    }
+
+    .composer-textarea {
+      width: 100%;
+      min-height: 64px;
+      max-height: 120px;
+      resize: none;
+      background: var(--input-bg);
+      border: var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: var(--space-2) var(--space-3);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: var(--leading-normal);
+      color: var(--input-text);
+      transition: border-color var(--transition-fast);
+    }
+
+    .composer-textarea::placeholder { color: var(--input-placeholder); }
+    .composer-textarea:focus { outline: none; border-color: var(--input-border-focus); box-shadow: var(--shadow-focus); }
+
+    .composer-row {
+      display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .pql-mode-toggle {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      font-size: var(--text-xs); color: var(--color-text-muted); cursor: pointer;
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); padding: 3px var(--space-2);
+      white-space: nowrap;
+    }
+
+    .pql-mode-toggle input { accent-color: var(--color-ai-label); cursor: pointer; }
+
+    .source-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--text-xs); font-weight: var(--weight-medium);
+      height: 22px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full);
+      border: var(--border); background: var(--color-surface-2);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .source-chip.active { background: var(--color-bg); border-color: var(--color-border-strong); color: var(--color-text); }
+    .source-chip input { display: none; }
+
+    .src-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .src-cs { background: #1a6fc4; }
+    .src-cy { background: #5b21b6; }
+    .src-cl { background: #0d7c66; }
+    .src-ar { background: #b45309; }
+
+    .send-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: 30px; padding: 0 var(--space-4);
+      background: var(--btn-primary-bg); color: #fff;
+      border: none; border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--text-sm); font-weight: var(--weight-semibold);
+      cursor: pointer; transition: background var(--transition-fast);
+      margin-left: auto;
+    }
+
+    .send-btn:hover { background: var(--btn-primary-bg-hover); }
+
+    .trust-note {
+      display: flex; align-items: center; gap: var(--space-1);
+      font-size: 10px; color: var(--color-text-muted); margin-top: var(--space-1-5);
+    }
+
+    /* ── Canvas area ─────────────────────────────────────────────────── */
+    .canvas-area {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg);
+    }
+
+    /* Trust banner across top of canvas */
+    .canvas-trust-banner {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-ai-bg); border-bottom: 1px solid var(--color-ai-border);
+      flex-shrink: 0;
+    }
+
+    .canvas-trust-text {
+      font-size: var(--text-xs); color: var(--color-ai-text); flex: 1;
+    }
+
+    .canvas-trust-text strong { font-weight: var(--weight-semibold); }
+
+    /* Canvas feed (scrollable) */
+    .canvas-feed {
+      flex: 1; overflow-y: auto;
+      padding: var(--space-5) var(--space-5) var(--space-8);
+      display: flex; flex-direction: column; gap: var(--space-4);
+    }
+
+    /* Widget card */
+    .widget-card {
+      background: var(--color-bg-card);
+      border: var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .widget-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      border-bottom: var(--border);
+      background: var(--color-bg-card);
+    }
+
+    .widget-title {
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text);
+      flex: 1;
+    }
+
+    .widget-pql-link {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--text-xs); color: var(--color-text-link); cursor: pointer;
+      background: none; border: none; padding: 0; font-family: var(--font-sans);
+      font-weight: var(--weight-semibold);
+    }
+
+    .widget-pql-link:hover { text-decoration: underline; }
+
+    /* PrismQL block inside widget */
+    .widget-pql-block {
+      display: none;
+      background: var(--editor-bg);
+      border-top: 1px solid var(--color-border);
+      padding: var(--space-3) var(--space-4);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--editor-text);
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .widget-pql-block.open { display: block; }
+    .widget-pql-block .kw  { color: var(--editor-keyword); }
+    .widget-pql-block .fn  { color: var(--editor-function); }
+    .widget-pql-block .str { color: var(--editor-string); }
+    .widget-pql-block .ty  { color: var(--editor-type); }
+    .widget-pql-block .op  { color: var(--editor-operator); }
+    .widget-pql-block .cm  { color: var(--editor-comment); font-style: italic; }
+
+    /* Widget body */
+    .widget-body { padding: var(--space-4); }
+
+    /* Widget action bar */
+    .widget-actions {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-top: var(--border);
+      background: var(--color-bg-card);
+      flex-wrap: wrap;
+    }
+
+    /* Results table inside widget */
+    .widget-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+
+    .widget-table th {
+      background: var(--table-header-bg);
+      color: var(--table-header-text);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      padding: var(--space-1-5) var(--space-3);
+      border-bottom: 1px solid var(--color-border-strong);
+      text-align: left; white-space: nowrap;
+    }
+
+    .widget-table td {
+      padding: var(--space-1-5) var(--space-3);
+      border-bottom: 1px solid var(--table-border);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .widget-table tr:last-child td { border-bottom: none; }
+    .widget-table tr:hover td { background: var(--table-row-bg-hover); }
+
+    .cell-mono { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+    .cell-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-link); cursor: pointer; }
+    .cell-link:hover { text-decoration: underline; }
+
+    /* Source tag in table */
+    .src-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 18px; padding: 0 6px;
+      border-radius: var(--radius-full); font-size: 10px; font-weight: var(--weight-semibold);
+      border: var(--border); background: var(--color-surface-2); color: var(--color-text-muted);
+    }
+
+    /* Widget footer / coverage row */
+    .widget-footer {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-4);
+      border-top: var(--border);
+      background: var(--color-bg-card);
+      flex-wrap: wrap;
+    }
+
+    .widget-count {
+      font-size: var(--text-xs); color: var(--color-text-muted);
+    }
+
+    .widget-count strong { color: var(--color-text); }
+
+    /* Coverage chips (compact inline) */
+    .cov-chips { display: flex; align-items: center; gap: var(--space-1-5); flex-wrap: wrap; }
+
+    .cov-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 20px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: 10px; font-weight: var(--weight-semibold);
+      white-space: nowrap;
+    }
+
+    .cov-chip-icon { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .cov-answered { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); border: 1px solid var(--color-cov-answered-border); }
+    .cov-degraded { background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); border: 1px solid var(--color-cov-degraded-border); }
+    .cov-timeout  { background: var(--color-cov-timeout-bg);  color: var(--color-cov-timeout-text);  border: 1px solid var(--color-cov-timeout-border); }
+    .cov-nodata   { background: var(--color-cov-nodata-bg);   color: var(--color-cov-nodata-text);   border: 1px solid var(--color-cov-nodata-border); }
+
+    /* Severity badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 20px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap;
+    }
+
+    .badge-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical-text); border: 1px solid var(--color-sev-critical-border); }
+    .badge-high     { background: var(--color-sev-high-bg);     color: var(--color-sev-high-text);     border: 1px solid var(--color-sev-high-border); }
+    .badge-medium   { background: var(--color-sev-medium-bg);   color: var(--color-sev-medium-text);   border: 1px solid var(--color-sev-medium-border); }
+    .badge-low      { background: var(--color-sev-low-bg);      color: var(--color-sev-low-text);      border: 1px solid var(--color-sev-low-border); }
+    .badge-info     { background: var(--color-sev-info-bg);     color: var(--color-sev-info-text);     border: 1px solid var(--color-sev-info-border); }
+
+    /* Shared button styles */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md); border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap; line-height: 1;
+      transition: background var(--transition-fast);
+    }
+
+    .btn-ghost { background: transparent; color: var(--color-text-muted); border-color: var(--color-border); }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .btn-sm { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+
+    /* MITRE technique badges */
+    .mitre-tag {
+      display: inline-flex; align-items: center;
+      height: 22px; padding: 0 var(--space-2);
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono); font-size: 10px; font-weight: var(--weight-semibold);
+      color: var(--color-text-muted); white-space: nowrap;
+    }
+
+    /* Entity summary card specifics */
+    .entity-summary-entity {
+      display: flex; align-items: flex-start; gap: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+
+    .entity-icon-block {
+      width: 40px; height: 40px; border-radius: var(--radius-lg);
+      background: var(--color-surface-2); border: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+
+    .entity-name {
+      font-family: var(--font-mono); font-size: var(--text-md); font-weight: var(--weight-semibold);
+      color: var(--color-text); margin-bottom: 2px;
+    }
+
+    .entity-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+    .entity-stats-row {
+      display: flex; gap: var(--space-4);
+      margin-bottom: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .entity-stat {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+
+    .entity-stat-val {
+      font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--color-text);
+      line-height: 1;
+    }
+
+    .entity-stat-val.critical-val { color: var(--color-sev-critical-text); }
+
+    .entity-stat-label {
+      font-size: var(--text-xs); color: var(--color-text-muted);
+    }
+
+    .mitre-tags { display: flex; gap: var(--space-1-5); flex-wrap: wrap; margin-bottom: var(--space-3); }
+
+    /* Streaming indicator */
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .stream-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--color-cov-answered-icon);
+      animation: pulse-dot 1s ease-in-out infinite;
+      display: inline-block;
+    }
+
+    .streaming-badge {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      height: 20px; padding: 0 var(--space-2);
+      background: var(--color-cov-answered-bg); border: 1px solid var(--color-cov-answered-border);
+      border-radius: var(--radius-full); font-size: 10px; font-weight: var(--weight-semibold);
+      color: var(--color-cov-answered-text);
+    }
+
+    /* Per-source streaming status in timeline widget */
+    .stream-source-row {
+      display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1-5);
+      font-size: var(--text-xs);
+    }
+
+    .stream-source-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .stream-source-dot.answered { background: var(--color-cov-answered-icon); }
+    .stream-source-dot.streaming { background: var(--color-cov-answered-icon); animation: pulse-dot 1s ease-in-out infinite; }
+    .stream-source-dot.timeout { background: var(--color-cov-timeout-icon); }
+
+    .stream-source-name { color: var(--color-text); font-weight: var(--weight-medium); min-width: 90px; }
+    .stream-source-note { color: var(--color-text-muted); }
+
+    /* Skeleton shimmer for partial timeline */
+    @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+
+    .skeleton-segment {
+      background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 50%, var(--skeleton-base) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.5s infinite linear;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Theme toggle (exact pattern from S2-05) */
+    .theme-toggle-fixed {
+      position: fixed; top: calc(var(--topbar-height) + var(--space-3)); right: var(--space-4);
+      z-index: var(--z-toast);
+      display: flex; background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); padding: 3px; gap: 2px; box-shadow: var(--shadow-md);
+    }
+
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+      border-radius: var(--radius-full); border: none; background: transparent; cursor: pointer;
+      font-size: 14px; color: var(--color-text-muted);
+    }
+
+    .theme-btn.active { background: var(--color-bg); box-shadow: var(--shadow-xs); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ────────────────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar-logo" aria-label="Prism home">
+      <span class="logo-dot" aria-hidden="true"></span>
+      Prism
+    </div>
+    <nav aria-label="Main navigation">
+      <ul class="topbar-nav" role="list">
+        <li class="topbar-nav-item" role="listitem">Investigations</li>
+        <li class="topbar-nav-item" role="listitem">Query</li>
+        <li class="topbar-nav-item" role="listitem">Detections</li>
+        <li class="topbar-nav-item active" role="listitem" aria-current="page">AI Canvas</li>
+        <li class="topbar-nav-item" role="listitem">Dashboards</li>
+        <li class="topbar-nav-item" role="listitem">Data</li>
+        <li class="topbar-nav-item" role="listitem">Admin</li>
+      </ul>
+    </nav>
+    <div class="topbar-actions">
+      <div class="search-trigger" role="button" aria-label="Open command palette (Ctrl+K)">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Search…</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="icon-btn" aria-label="Toggle Prism AI chat sidecar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2.5-2.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="12.5" r="0.7" fill="currentColor"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 2.5C5 2.5 3.5 4 3.5 6.5V10H2v1.5h11V10h-1.5V6.5C11.5 4 10 2.5 7.5 2.5Z" stroke="currentColor" stroke-width="1.2"/><path d="M6 12c0 .8.7 1.5 1.5 1.5S9 12.8 9 12" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="User menu">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ── Left nav ───────────────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Section navigation">
+      <div class="leftnav-main">
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Triage Queue
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cases
+        </div>
+        <div class="nav-group-label">Query</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Workspace
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Results Explorer
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Saved Queries
+        </div>
+        <div class="nav-group-label">Detections</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Rules
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Findings
+        </div>
+        <div class="nav-group-label">AI</div>
+        <div class="nav-item active" role="link" aria-current="page">
+          <span class="nav-dot" aria-hidden="true"></span>AI Canvas
+        </div>
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Summary Insights
+        </div>
+        <div class="nav-group-label">Data</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Sources
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cache Browser
+        </div>
+      </div>
+
+      <!-- Admin pinned to footer -->
+      <div class="leftnav-footer" role="group" aria-label="Administration">
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zm0 1.5a5 5 0 110 10 5 5 0 010-10zm0 2a.75.75 0 100 1.5.75.75 0 000-1.5zm0 2.5a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 007.5 7z" fill="currentColor"/></svg>
+          Help
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.5a6 6 0 100 12 6 6 0 000-12zm-1 3h2v4h-2V4.5zm0 5h2v2h-2v-2z" fill="currentColor"/></svg>
+          Org Settings
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a2 2 0 100 4 2 2 0 000-4zM4.5 7.5A3 3 0 017.5 6h0a3 3 0 013 1.5M2 13a5.5 5.5 0 0111 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Admin
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Main: chat thread + canvas ────────────────────────────────── -->
+    <main class="main" aria-label="AI Canvas">
+
+      <!-- ── Chat column ──────────────────────────────────────────────── -->
+      <section class="chat-col" aria-label="Conversation thread">
+
+        <!-- Chat header -->
+        <div class="chat-col-header">
+          <span class="ai-label-badge" aria-hidden="true">AI</span>
+          <span class="chat-col-title">Conversation</span>
+          <button class="btn btn-ghost btn-sm" aria-label="New conversation" style="border: none;">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <path d="M6.5 2v9M2 6.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            New
+          </button>
+        </div>
+
+        <!-- Chat thread (scrollable) -->
+        <div class="chat-thread" role="log" aria-live="polite" aria-label="Conversation history">
+
+          <!-- ── Turn 1 ──────────────────────────────────────────────── -->
+          <div class="chat-turn">
+            <div class="chat-user-bubble" role="article" aria-label="User message">
+              Show me all critical alerts from the last 24h across all sources
+            </div>
+            <div class="chat-ai-response" role="article" aria-label="AI response">
+              <div class="chat-ai-avatar" aria-hidden="true">AI</div>
+              <div class="chat-ai-body">
+                <div class="chat-ai-text">
+                  Found <strong>42 critical alerts</strong> in the last 24 hours across your connected sources. Generating 3 widgets to show the results, top entity, and source breakdown.
+                </div>
+                <div class="chat-ai-meta">
+                  <span class="ai-label-badge">AI</span>
+                  <span class="chat-gen-note">Generating 3 widgets…</span>
+                </div>
+                <div class="chat-pql-wrap">
+                  <button class="chat-pql-toggle" onclick="toggleChatPql('pql-t1')" aria-expanded="false" aria-controls="pql-t1">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    View PrismQL
+                  </button>
+                  <div id="pql-t1" class="chat-pql-block" role="region" aria-label="PrismQL query for this response">
+<span class="kw">SELECT</span> <span class="ty">time</span><span class="op">,</span> <span class="ty">src_endpoint.ip</span><span class="op">,</span>
+       <span class="ty">actor.user.name</span><span class="op">,</span> <span class="ty">activity_name</span><span class="op">,</span>
+       <span class="ty">severity_id</span><span class="op">,</span> <span class="fn">source</span><span class="op">()</span> <span class="kw">AS</span> <span class="ty">_source</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="ty">severity_id</span> <span class="op">=</span> <span class="op">5</span>
+<span class="kw">SINCE</span>  <span class="op">24h</span>
+<span class="kw">ORDER</span> <span class="kw">BY</span> <span class="ty">time</span> <span class="kw">DESC</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Turn 2 ──────────────────────────────────────────────── -->
+          <div class="chat-turn">
+            <div class="chat-user-bubble" role="article" aria-label="User message">
+              Which endpoint triggered the most alerts?
+            </div>
+            <div class="chat-ai-response" role="article" aria-label="AI response">
+              <div class="chat-ai-avatar" aria-hidden="true">AI</div>
+              <div class="chat-ai-body">
+                <div class="chat-ai-text">
+                  <strong>10.0.1.45</strong> (ACME-WS-045) had the highest alert volume — 14 alerts across CrowdStrike and Armis, including 2 distinct MITRE ATT&amp;CK techniques.
+                </div>
+                <div class="chat-ai-meta">
+                  <span class="ai-label-badge">AI</span>
+                  <span class="chat-gen-note">Generated entity summary card.</span>
+                </div>
+                <div class="chat-pql-wrap">
+                  <button class="chat-pql-toggle" onclick="toggleChatPql('pql-t2')" aria-expanded="false" aria-controls="pql-t2">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    View PrismQL
+                  </button>
+                  <div id="pql-t2" class="chat-pql-block" role="region" aria-label="PrismQL query for entity summary">
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="fn">entity</span><span class="op">(</span><span class="str">'ip'</span><span class="op">,</span> <span class="str">'10.0.1.45'</span><span class="op">)</span>
+<span class="kw">SINCE</span>  <span class="op">24h</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Turn 3 ──────────────────────────────────────────────── -->
+          <div class="chat-turn">
+            <div class="chat-user-bubble" role="article" aria-label="User message">
+              Show timeline of events for 10.0.1.45
+            </div>
+            <div class="chat-ai-response" role="article" aria-label="AI response">
+              <div class="chat-ai-avatar" aria-hidden="true">AI</div>
+              <div class="chat-ai-body">
+                <div class="chat-ai-text">
+                  Fetching event timeline for <strong>10.0.1.45</strong> from all 4 sources. CrowdStrike and Cyberint have responded; still streaming from Claroty. Armis timed out.
+                </div>
+                <div class="chat-ai-meta">
+                  <span class="ai-label-badge">AI</span>
+                  <span class="chat-gen-note">Generated event timeline.</span>
+                </div>
+                <div class="chat-pql-wrap">
+                  <button class="chat-pql-toggle" onclick="toggleChatPql('pql-t3')" aria-expanded="false" aria-controls="pql-t3">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    View PrismQL
+                  </button>
+                  <div id="pql-t3" class="chat-pql-block" role="region" aria-label="PrismQL query for event timeline">
+<span class="kw">SELECT</span> <span class="ty">time</span><span class="op">,</span> <span class="ty">activity_name</span><span class="op">,</span>
+       <span class="ty">severity_id</span><span class="op">,</span> <span class="fn">source</span><span class="op">()</span> <span class="kw">AS</span> <span class="ty">_source</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="fn">entity</span><span class="op">(</span><span class="str">'ip'</span><span class="op">,</span> <span class="str">'10.0.1.45'</span><span class="op">)</span>
+<span class="kw">SINCE</span>  <span class="op">24h</span>
+<span class="kw">ORDER</span> <span class="kw">BY</span> <span class="ty">time</span> <span class="kw">ASC</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /chat-thread -->
+
+        <!-- ── Chat composer ─────────────────────────────────────────── -->
+        <div class="chat-composer">
+          <textarea
+            class="composer-textarea"
+            placeholder="Ask anything about your security data…"
+            aria-label="Ask a question about your security data"
+            rows="3"
+          ></textarea>
+          <div class="composer-row">
+            <label class="pql-mode-toggle" aria-label="Toggle PrismQL direct mode (off by default — natural language is default)">
+              <input type="checkbox" role="switch" aria-checked="false">
+              PrismQL mode
+            </label>
+            <!-- Source chips -->
+            <label class="source-chip active" aria-label="Include CrowdStrike">
+              <input type="checkbox" checked aria-label="CrowdStrike">
+              <span class="src-dot src-cs" aria-hidden="true"></span>CrowdStrike
+            </label>
+            <label class="source-chip active" aria-label="Include Cyberint">
+              <input type="checkbox" checked aria-label="Cyberint">
+              <span class="src-dot src-cy" aria-hidden="true"></span>Cyberint
+            </label>
+            <label class="source-chip active" aria-label="Include Claroty">
+              <input type="checkbox" checked aria-label="Claroty">
+              <span class="src-dot src-cl" aria-hidden="true"></span>Claroty
+            </label>
+            <label class="source-chip active" aria-label="Include Armis">
+              <input type="checkbox" checked aria-label="Armis">
+              <span class="src-dot src-ar" aria-hidden="true"></span>Armis
+            </label>
+            <button class="send-btn" aria-label="Send message">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 11L11 6.5 2 2v3.5l6 1-6 1V11Z" fill="currentColor"/></svg>
+              Send
+            </button>
+          </div>
+          <div class="trust-note" role="note" aria-label="Privacy note: credentials are never sent to AI">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><rect x="2" y="4.5" width="7" height="5.5" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M3.5 4.5V3a2 2 0 0 1 4 0v1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+            AI never sees credentials — broker-injected
+          </div>
+        </div>
+
+      </section><!-- /chat-col -->
+
+      <!-- ── Canvas area ───────────────────────────────────────────────── -->
+      <section class="canvas-area" aria-label="AI-generated widget canvas">
+
+        <!-- Trust banner across top of canvas -->
+        <div class="canvas-trust-banner" role="note" aria-label="AI canvas trust information">
+          <span class="ai-label-badge" aria-hidden="true">AI</span>
+          <span class="canvas-trust-text">
+            <strong>Widgets generated by Prism AI</strong> · NL→PrismQL is always inspectable · Credentials are broker-injected and never AI-visible
+          </span>
+          <button class="btn btn-ghost btn-sm" style="border: none; font-size: var(--text-xs);" aria-label="Learn about Prism AI trust model">
+            Learn more
+          </button>
+        </div>
+
+        <!-- Widget feed (scrollable) -->
+        <div class="canvas-feed" aria-label="Generated widgets">
+
+          <!-- ── Widget 1: OCSF Alert Table ───────────────────────────── -->
+          <article class="widget-card" aria-label="Widget 1: Critical Alerts table">
+
+            <div class="widget-header">
+              <span class="widget-title">Critical Alerts — Last 24h</span>
+              <span class="ai-label-badge" aria-hidden="true">AI</span>
+              <button class="widget-pql-link" onclick="toggleWidgetPql('wpql-1')" aria-expanded="false" aria-controls="wpql-1" aria-label="Toggle PrismQL for this widget">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PrismQL
+              </button>
+            </div>
+
+            <!-- Collapsible PrismQL -->
+            <div id="wpql-1" class="widget-pql-block" role="region" aria-label="PrismQL for Critical Alerts widget">
+<span class="kw">SELECT</span> <span class="ty">time</span><span class="op">,</span> <span class="ty">src_endpoint.ip</span><span class="op">,</span> <span class="ty">actor.user.name</span><span class="op">,</span>
+       <span class="ty">activity_name</span><span class="op">,</span> <span class="ty">severity_id</span><span class="op">,</span> <span class="fn">source</span><span class="op">()</span> <span class="kw">AS</span> <span class="ty">_source</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="ty">severity_id</span> <span class="op">=</span> <span class="op">5</span>
+<span class="kw">SINCE</span>  <span class="op">24h</span>
+<span class="kw">ORDER</span> <span class="kw">BY</span> <span class="ty">time</span> <span class="kw">DESC</span></div>
+
+            <!-- Table -->
+            <div style="overflow-x: auto;">
+              <table class="widget-table" role="grid" aria-label="Critical alerts from the last 24 hours">
+                <thead>
+                  <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Source</th>
+                    <th scope="col">Actor</th>
+                    <th scope="col">Activity</th>
+                    <th scope="col">IP</th>
+                    <th scope="col">Severity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="cell-mono">09:14:22</td>
+                    <td>
+                      <span class="src-tag" aria-label="Source: CrowdStrike">
+                        <span class="src-dot src-cs" aria-hidden="true"></span>CrowdStrike
+                      </span>
+                    </td>
+                    <td class="cell-link" role="link" aria-label="Actor: jsmith">jsmith@acme.com</td>
+                    <td>Process Injection</td>
+                    <td class="cell-link" role="link" aria-label="IP 10.0.1.45">10.0.1.45</td>
+                    <td><span class="badge badge-critical" aria-label="Severity: Critical">Critical</span></td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">09:12:41</td>
+                    <td>
+                      <span class="src-tag" aria-label="Source: Claroty">
+                        <span class="src-dot src-cl" aria-hidden="true"></span>Claroty
+                      </span>
+                    </td>
+                    <td class="cell-link" role="link" aria-label="Actor: OT-CTRL-07">OT-CTRL-07</td>
+                    <td>Unauthorized PLC Write</td>
+                    <td class="cell-link" role="link" aria-label="IP 192.168.10.7">192.168.10.7</td>
+                    <td><span class="badge badge-critical" aria-label="Severity: Critical">Critical</span></td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">08:59:17</td>
+                    <td>
+                      <span class="src-tag" aria-label="Source: Cyberint">
+                        <span class="src-dot src-cy" aria-hidden="true"></span>Cyberint
+                      </span>
+                    </td>
+                    <td class="cell-link" role="link" aria-label="Actor: threat-intel">threat-intel</td>
+                    <td>APT28 C2 Match</td>
+                    <td class="cell-link" role="link" aria-label="External IP 185.220.101.35">185.220.101.35</td>
+                    <td><span class="badge badge-critical" aria-label="Severity: Critical">Critical</span></td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">08:47:03</td>
+                    <td>
+                      <span class="src-tag" aria-label="Source: CrowdStrike">
+                        <span class="src-dot src-cs" aria-hidden="true"></span>CrowdStrike
+                      </span>
+                    </td>
+                    <td class="cell-link" role="link" aria-label="Actor: asmith">asmith@acme.com</td>
+                    <td>Credential Dump</td>
+                    <td class="cell-link" role="link" aria-label="IP 10.0.2.18">10.0.2.18</td>
+                    <td><span class="badge badge-critical" aria-label="Severity: Critical">Critical</span></td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">08:31:55</td>
+                    <td>
+                      <span class="src-tag" aria-label="Source: Armis">
+                        <span class="src-dot src-ar" aria-hidden="true"></span>Armis
+                      </span>
+                    </td>
+                    <td class="cell-link" role="link" aria-label="Actor: IoT-SENS-03">IoT-SENS-03</td>
+                    <td>Unexpected Outbound</td>
+                    <td class="cell-link" role="link" aria-label="IP 10.0.4.99">10.0.4.99</td>
+                    <td><span class="badge badge-high" aria-label="Severity: High">High</span></td>
+                  </tr>
+                  <tr>
+                    <td class="cell-mono">08:18:44</td>
+                    <td>
+                      <span class="src-tag" aria-label="Source: Claroty">
+                        <span class="src-dot src-cl" aria-hidden="true"></span>Claroty
+                      </span>
+                    </td>
+                    <td class="cell-link" role="link" aria-label="Actor: OT-HMI-01">OT-HMI-01</td>
+                    <td>Protocol Anomaly</td>
+                    <td class="cell-link" role="link" aria-label="IP 192.168.10.15">192.168.10.15</td>
+                    <td><span class="badge badge-high" aria-label="Severity: High">High</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Widget footer: count + coverage chips -->
+            <div class="widget-footer">
+              <span class="widget-count"><strong>6</strong> results shown · <strong>42</strong> total</span>
+              <div class="cov-chips" aria-label="Source coverage for this widget">
+                <span class="cov-chip cov-answered" aria-label="CrowdStrike: answered">
+                  <span class="cov-chip-icon" style="background: var(--color-cov-answered-icon);" aria-hidden="true"></span>
+                  CrowdStrike
+                </span>
+                <span class="cov-chip cov-answered" aria-label="Claroty: answered">
+                  <span class="cov-chip-icon" style="background: var(--color-cov-answered-icon);" aria-hidden="true"></span>
+                  Claroty
+                </span>
+                <span class="cov-chip cov-answered" aria-label="Armis: answered">
+                  <span class="cov-chip-icon" style="background: var(--color-cov-answered-icon);" aria-hidden="true"></span>
+                  Armis
+                </span>
+                <span class="cov-chip cov-degraded" aria-label="Cyberint: degraded — partial results">
+                  <span class="cov-chip-icon" style="background: var(--color-cov-degraded-icon);" aria-hidden="true"></span>
+                  Cyberint ⚠
+                </span>
+              </div>
+            </div>
+
+            <!-- Widget action bar -->
+            <div class="widget-actions">
+              <button class="btn btn-ghost btn-sm" aria-label="Pin this widget to a case">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1L7 4h3l-2.5 2 1 3L5.5 7.5 3 9l1-3L1.5 4H4.5Z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                Pin to Case
+              </button>
+              <button class="btn btn-ghost btn-sm" aria-label="Pin this widget to a dashboard">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><rect x="1" y="1" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/><rect x="6" y="1" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/><rect x="1" y="6" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/><rect x="6" y="6" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/></svg>
+                Pin to Dashboard
+              </button>
+              <button class="btn btn-ghost btn-sm" aria-label="Edit the PrismQL query in the Results Explorer">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M7.5 2L9 3.5 4 8.5H2.5V7L7.5 2Z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                Edit Query
+              </button>
+              <button class="btn btn-ghost btn-sm" aria-label="Export this widget's data">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1.5v5.5M3.5 5l2 2 2-2M1.5 9h8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+                Export
+              </button>
+            </div>
+
+          </article><!-- /widget 1 -->
+
+          <!-- ── Widget 2: Entity Summary Card ─────────────────────────── -->
+          <article class="widget-card" aria-label="Widget 2: Top Alert Entity summary">
+
+            <div class="widget-header">
+              <span class="widget-title">Top Alert Entity</span>
+              <span class="ai-label-badge" aria-hidden="true">AI</span>
+              <button class="widget-pql-link" onclick="toggleWidgetPql('wpql-2')" aria-expanded="false" aria-controls="wpql-2" aria-label="Toggle PrismQL for entity summary widget">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PrismQL
+              </button>
+            </div>
+
+            <div id="wpql-2" class="widget-pql-block" role="region" aria-label="PrismQL for entity summary widget">
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="fn">entity</span><span class="op">(</span><span class="str">'ip'</span><span class="op">,</span> <span class="str">'10.0.1.45'</span><span class="op">)</span>
+<span class="kw">SINCE</span>  <span class="op">24h</span></div>
+
+            <div class="widget-body">
+              <!-- Entity info block -->
+              <div class="entity-summary-entity">
+                <div class="entity-icon-block" aria-hidden="true">💻</div>
+                <div>
+                  <div class="entity-name" aria-label="Entity IP address">10.0.1.45</div>
+                  <div class="entity-sub">Windows workstation · Hostname: ACME-WS-045</div>
+                </div>
+              </div>
+
+              <!-- Stats row -->
+              <div class="entity-stats-row" aria-label="Entity alert statistics">
+                <div class="entity-stat">
+                  <div class="entity-stat-val critical-val" aria-label="14 critical alerts">14</div>
+                  <div class="entity-stat-label">Alerts (Critical)</div>
+                </div>
+                <div class="entity-stat">
+                  <div class="entity-stat-val" aria-label="3 unique actors">3</div>
+                  <div class="entity-stat-label">Unique Actors</div>
+                </div>
+                <div class="entity-stat">
+                  <div class="entity-stat-val" aria-label="2 MITRE techniques">2</div>
+                  <div class="entity-stat-label">MITRE Techniques</div>
+                </div>
+              </div>
+
+              <!-- MITRE tags -->
+              <div class="mitre-tags" aria-label="MITRE ATT&CK techniques detected">
+                <span class="mitre-tag" aria-label="MITRE T1055: Process Injection">T1055 · Process Injection</span>
+                <span class="mitre-tag" aria-label="MITRE T1003: Credential Access">T1003 · Credential Access</span>
+              </div>
+
+              <!-- Coverage chips -->
+              <div class="cov-chips" aria-label="Source coverage for this entity">
+                <span class="cov-chip cov-answered" aria-label="CrowdStrike: answered, 11 events">
+                  <span class="cov-chip-icon" style="background: var(--color-cov-answered-icon);" aria-hidden="true"></span>
+                  CrowdStrike · 11 events
+                </span>
+                <span class="cov-chip cov-answered" aria-label="Armis: answered, 3 events">
+                  <span class="cov-chip-icon" style="background: var(--color-cov-answered-icon);" aria-hidden="true"></span>
+                  Armis · 3 events
+                </span>
+                <span class="cov-chip cov-nodata" aria-label="Claroty: no data for this entity">
+                  <span class="cov-chip-icon" style="background: var(--color-cov-nodata-icon);" aria-hidden="true"></span>
+                  Claroty · no data
+                </span>
+              </div>
+            </div>
+
+            <div class="widget-actions">
+              <button class="btn btn-ghost btn-sm" aria-label="Open full Entity 360 view for 10.0.1.45" style="font-weight: var(--weight-semibold);">
+                Investigate Entity →
+              </button>
+              <button class="btn btn-ghost btn-sm" aria-label="Pin entity summary to a case">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1L7 4h3l-2.5 2 1 3L5.5 7.5 3 9l1-3L1.5 4H4.5Z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                Pin to Case
+              </button>
+              <button class="btn btn-ghost btn-sm" aria-label="Edit query in Results Explorer">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M7.5 2L9 3.5 4 8.5H2.5V7L7.5 2Z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                Edit Query
+              </button>
+            </div>
+
+          </article><!-- /widget 2 -->
+
+          <!-- ── Widget 3: Bar Chart ────────────────────────────────────── -->
+          <article class="widget-card" aria-label="Widget 3: Alerts by source bar chart">
+
+            <div class="widget-header">
+              <span class="widget-title">Alerts by Source — Last 24h</span>
+              <span class="ai-label-badge" aria-hidden="true">AI</span>
+              <button class="widget-pql-link" onclick="toggleWidgetPql('wpql-3')" aria-expanded="false" aria-controls="wpql-3" aria-label="Toggle PrismQL for bar chart widget">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PrismQL
+              </button>
+            </div>
+
+            <div id="wpql-3" class="widget-pql-block" role="region" aria-label="PrismQL for alert count by source">
+<span class="kw">SELECT</span> <span class="fn">source</span><span class="op">()</span> <span class="kw">AS</span> <span class="ty">_source</span><span class="op">,</span>
+       <span class="fn">COUNT</span><span class="op">(</span><span class="op">*</span><span class="op">)</span> <span class="kw">AS</span> <span class="ty">alert_count</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="ty">severity_id</span> <span class="op">&gt;=</span> <span class="op">4</span>
+<span class="kw">SINCE</span>  <span class="op">24h</span>
+<span class="kw">GROUP</span> <span class="kw">BY</span> <span class="fn">source</span><span class="op">()</span>
+<span class="kw">ORDER</span> <span class="kw">BY</span> <span class="ty">alert_count</span> <span class="kw">DESC</span></div>
+
+            <div class="widget-body">
+              <!-- Horizontal bar chart SVG -->
+              <svg
+                viewBox="0 0 420 130"
+                aria-label="Horizontal bar chart: CrowdStrike 19, Cyberint 11, Claroty 8, Armis 4 alerts in last 24h"
+                role="img"
+                style="width: 100%; max-width: 420px; display: block;"
+              >
+                <!-- Y labels (source names) -->
+                <text x="0" y="22" font-family="'IBM Plex Mono', monospace" font-size="11" fill="currentColor" style="fill: var(--color-text-muted);" aria-hidden="true">CrowdStrike</text>
+                <text x="0" y="55" font-family="'IBM Plex Mono', monospace" font-size="11" fill="currentColor" style="fill: var(--color-text-muted);" aria-hidden="true">Cyberint</text>
+                <text x="0" y="88" font-family="'IBM Plex Mono', monospace" font-size="11" fill="currentColor" style="fill: var(--color-text-muted);" aria-hidden="true">Claroty</text>
+                <text x="0" y="121" font-family="'IBM Plex Mono', monospace" font-size="11" fill="currentColor" style="fill: var(--color-text-muted);" aria-hidden="true">Armis</text>
+
+                <!-- Bars — max value 19, bar area starts at x=92, max width=280 -->
+                <!-- CrowdStrike: 19/19 = 100% → 280px -->
+                <rect x="92" y="8" width="280" height="18" rx="3" fill="#1a6fc4" aria-label="CrowdStrike: 19 alerts"/>
+                <!-- Cyberint: 11/19 ≈ 58% → 162px -->
+                <rect x="92" y="41" width="162" height="18" rx="3" fill="#5b21b6" aria-label="Cyberint: 11 alerts"/>
+                <!-- Claroty: 8/19 ≈ 42% → 118px -->
+                <rect x="92" y="74" width="118" height="18" rx="3" fill="#0d7c66" aria-label="Claroty: 8 alerts"/>
+                <!-- Armis: 4/19 ≈ 21% → 59px -->
+                <rect x="92" y="107" width="59" height="18" rx="3" fill="#b45309" aria-label="Armis: 4 alerts"/>
+
+                <!-- Count labels (right of bars) -->
+                <text x="378" y="22" font-family="'IBM Plex Mono', monospace" font-size="11" font-weight="600" style="fill: var(--color-text);" aria-hidden="true">19</text>
+                <text x="260" y="55" font-family="'IBM Plex Mono', monospace" font-size="11" font-weight="600" style="fill: var(--color-text);" aria-hidden="true">11</text>
+                <text x="216" y="88" font-family="'IBM Plex Mono', monospace" font-size="11" font-weight="600" style="fill: var(--color-text);" aria-hidden="true">8</text>
+                <text x="157" y="121" font-family="'IBM Plex Mono', monospace" font-size="11" font-weight="600" style="fill: var(--color-text);" aria-hidden="true">4</text>
+              </svg>
+            </div>
+
+            <div class="widget-actions">
+              <button class="btn btn-ghost btn-sm" aria-label="Pin chart to a dashboard">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><rect x="1" y="1" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/><rect x="6" y="1" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/><rect x="1" y="6" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/><rect x="6" y="6" width="4" height="4" rx="0.8" stroke="currentColor" stroke-width="1.1"/></svg>
+                Pin to Dashboard
+              </button>
+              <button class="btn btn-ghost btn-sm" aria-label="Edit query in Results Explorer">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M7.5 2L9 3.5 4 8.5H2.5V7L7.5 2Z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                Edit Query
+              </button>
+            </div>
+
+          </article><!-- /widget 3 -->
+
+          <!-- ── Widget 4: Event Timeline Card ─────────────────────────── -->
+          <article class="widget-card" aria-label="Widget 4: Event Timeline for 10.0.1.45">
+
+            <div class="widget-header">
+              <span class="widget-title">Event Timeline: 10.0.1.45</span>
+              <span class="ai-label-badge" aria-hidden="true">AI</span>
+              <!-- Streaming indicator -->
+              <span class="streaming-badge" aria-live="polite" aria-label="Streaming: fetching from 4 sources">
+                <span class="stream-dot" aria-hidden="true"></span>
+                Streaming…
+              </span>
+              <button class="widget-pql-link" onclick="toggleWidgetPql('wpql-4')" aria-expanded="false" aria-controls="wpql-4" aria-label="Toggle PrismQL for timeline widget">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PrismQL
+              </button>
+            </div>
+
+            <div id="wpql-4" class="widget-pql-block" role="region" aria-label="PrismQL for timeline widget">
+<span class="kw">SELECT</span> <span class="ty">time</span><span class="op">,</span> <span class="ty">activity_name</span><span class="op">,</span>
+       <span class="ty">severity_id</span><span class="op">,</span> <span class="fn">source</span><span class="op">()</span> <span class="kw">AS</span> <span class="ty">_source</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="fn">entity</span><span class="op">(</span><span class="str">'ip'</span><span class="op">,</span> <span class="str">'10.0.1.45'</span><span class="op">)</span>
+<span class="kw">SINCE</span>  <span class="op">24h</span>
+<span class="kw">ORDER</span> <span class="kw">BY</span> <span class="ty">time</span> <span class="kw">ASC</span></div>
+
+            <div class="widget-body">
+              <!-- Per-source streaming status -->
+              <div style="margin-bottom: var(--space-4);" aria-label="Per-source fetch status" role="status">
+                <div style="font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-text-muted); margin-bottom: var(--space-2); text-transform: uppercase; letter-spacing: var(--tracking-caps);">Fetching from 4 sources…</div>
+                <div class="stream-source-row">
+                  <span class="stream-source-dot answered" aria-hidden="true"></span>
+                  <span class="src-dot src-cs" aria-hidden="true" style="margin-left: 2px;"></span>
+                  <span class="stream-source-name">CrowdStrike</span>
+                  <span class="stream-source-note" aria-label="CrowdStrike: 18 events received">18 events</span>
+                </div>
+                <div class="stream-source-row">
+                  <span class="stream-source-dot answered" aria-hidden="true"></span>
+                  <span class="src-dot src-cy" aria-hidden="true" style="margin-left: 2px;"></span>
+                  <span class="stream-source-name">Cyberint</span>
+                  <span class="stream-source-note" aria-label="Cyberint: 8 events received">8 events</span>
+                </div>
+                <div class="stream-source-row">
+                  <span class="stream-source-dot streaming" aria-label="Streaming" aria-hidden="true"></span>
+                  <span class="src-dot src-cl" aria-hidden="true" style="margin-left: 2px;"></span>
+                  <span class="stream-source-name">Claroty</span>
+                  <span class="stream-source-note" aria-label="Claroty: still streaming">…</span>
+                </div>
+                <div class="stream-source-row">
+                  <span class="stream-source-dot timeout" aria-hidden="true"></span>
+                  <span class="src-dot src-ar" aria-hidden="true" style="margin-left: 2px;"></span>
+                  <span class="stream-source-name">Armis</span>
+                  <span class="stream-source-note" style="color: var(--color-cov-timeout-text);" aria-label="Armis: timed out">timeout</span>
+                </div>
+              </div>
+
+              <!-- SVG timeline chart (partially loaded) -->
+              <svg
+                viewBox="0 0 400 80"
+                aria-label="Event timeline for 10.0.1.45: dots show events across the last 24 hours. Left portion loaded, right portion still streaming."
+                role="img"
+                style="width: 100%; display: block;"
+              >
+                <!-- Time axis -->
+                <line x1="20" y1="55" x2="380" y2="55" stroke="var(--color-border-strong)" stroke-width="1"/>
+
+                <!-- Hour tick marks and labels -->
+                <text x="20"  y="70" font-size="9" text-anchor="middle" style="fill: var(--color-text-muted);" aria-hidden="true">-24h</text>
+                <text x="110" y="70" font-size="9" text-anchor="middle" style="fill: var(--color-text-muted);" aria-hidden="true">-18h</text>
+                <text x="200" y="70" font-size="9" text-anchor="middle" style="fill: var(--color-text-muted);" aria-hidden="true">-12h</text>
+                <text x="290" y="70" font-size="9" text-anchor="middle" style="fill: var(--color-text-muted);" aria-hidden="true">-6h</text>
+                <text x="380" y="70" font-size="9" text-anchor="middle" style="fill: var(--color-text-muted);" aria-hidden="true">now</text>
+
+                <line x1="110" y1="52" x2="110" y2="58" stroke="var(--color-border)" stroke-width="1" aria-hidden="true"/>
+                <line x1="200" y1="52" x2="200" y2="58" stroke="var(--color-border)" stroke-width="1" aria-hidden="true"/>
+                <line x1="290" y1="52" x2="290" y2="58" stroke="var(--color-border)" stroke-width="1" aria-hidden="true"/>
+
+                <!-- Event dots (left 3/4 — loaded portion x=20 to x=300) -->
+                <!-- Critical dots (red) -->
+                <circle cx="38"  cy="40" r="4.5" fill="var(--color-sev-critical-solid)" aria-label="Critical alert at -23h"/>
+                <circle cx="55"  cy="35" r="4.5" fill="var(--color-sev-critical-solid)" aria-label="Critical alert at -22h"/>
+                <circle cx="78"  cy="44" r="3.5" fill="var(--color-sev-high-solid)"     aria-label="High alert at -21h"/>
+                <circle cx="102" cy="38" r="4.5" fill="var(--color-sev-critical-solid)" aria-label="Critical alert at -18h"/>
+                <circle cx="130" cy="48" r="3"   fill="var(--color-sev-medium-solid)"   aria-label="Medium alert at -17h"/>
+                <circle cx="148" cy="40" r="3.5" fill="var(--color-sev-high-solid)"     aria-label="High alert at -16h"/>
+                <circle cx="167" cy="46" r="3"   fill="var(--color-sev-medium-solid)"   aria-label="Medium alert at -15h"/>
+                <circle cx="190" cy="36" r="4.5" fill="var(--color-sev-critical-solid)" aria-label="Critical alert at -12h"/>
+                <circle cx="212" cy="42" r="3.5" fill="var(--color-sev-high-solid)"     aria-label="High alert at -11h"/>
+                <circle cx="235" cy="44" r="3"   fill="var(--color-sev-medium-solid)"   aria-label="Medium alert at -10h"/>
+                <circle cx="248" cy="38" r="4.5" fill="var(--color-sev-critical-solid)" aria-label="Critical alert at -9h"/>
+                <circle cx="267" cy="46" r="3"   fill="var(--color-sev-low-solid)"      aria-label="Low alert at -8h"/>
+                <circle cx="280" cy="35" r="4.5" fill="var(--color-sev-critical-solid)" aria-label="Critical alert at -7h"/>
+                <circle cx="297" cy="42" r="3.5" fill="var(--color-sev-high-solid)"     aria-label="High alert at -6h"/>
+
+                <!-- Skeleton/shimmer area (right quarter: x=305 to x=380) — streaming -->
+                <rect x="305" y="28" width="75" height="22" rx="3" fill="var(--skeleton-base)" opacity="0.6" aria-label="Streaming — data not yet loaded"/>
+                <!-- Animated shimmer overlay via CSS class isn't possible inside SVG; use pattern suggestion -->
+                <rect x="305" y="28" width="75" height="22" rx="3" fill="url(#shimmerGrad)" opacity="0.5" aria-hidden="true"/>
+                <defs>
+                  <linearGradient id="shimmerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%"   stop-color="var(--skeleton-base)"/>
+                    <stop offset="50%"  stop-color="var(--skeleton-shine)" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="var(--skeleton-base)"/>
+                  </linearGradient>
+                </defs>
+                <text x="343" y="41" font-size="9" text-anchor="middle" style="fill: var(--color-text-muted); font-family: var(--font-mono);" aria-hidden="true">streaming</text>
+              </svg>
+
+              <p style="font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-1-5);" aria-live="polite">
+                26 events loaded (CrowdStrike + Cyberint) · Awaiting Claroty · Armis timed out
+              </p>
+            </div>
+
+            <div class="widget-actions">
+              <button class="btn btn-ghost btn-sm" aria-label="Pin timeline to a case">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1L7 4h3l-2.5 2 1 3L5.5 7.5 3 9l1-3L1.5 4H4.5Z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                Pin to Case
+              </button>
+              <button class="btn btn-ghost btn-sm" aria-label="Edit timeline query in Results Explorer">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M7.5 2L9 3.5 4 8.5H2.5V7L7.5 2Z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+                Edit Query
+              </button>
+              <span class="streaming-badge" aria-label="Streaming in progress" aria-live="polite" style="margin-left: auto;">
+                <span class="stream-dot" aria-hidden="true"></span>
+                Streaming…
+              </span>
+            </div>
+
+          </article><!-- /widget 4 -->
+
+        </div><!-- /canvas-feed -->
+      </section><!-- /canvas-area -->
+
+    </main>
+  </div>
+</div><!-- /app -->
+
+<!-- Theme toggle (fixed top-right, exact pattern from S2-05) -->
+<div class="theme-toggle-fixed" role="group" aria-label="Theme selector">
+  <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme">☀️</button>
+  <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme">🌙</button>
+</div>
+
+<script>
+  // ── Theme toggle ─────────────────────────────────────────────────
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById('btn-light').classList.toggle('active', t === 'light');
+    document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+    localStorage.setItem('prism-theme', t);
+  }
+  (function () {
+    const s = localStorage.getItem('prism-theme');
+    if (s === 'dark') setTheme('dark');
+  })();
+
+  // ── Chat PrismQL expand/collapse ─────────────────────────────────
+  function toggleChatPql(id) {
+    const block = document.getElementById(id);
+    const btn = block.previousElementSibling;
+    const isOpen = block.classList.contains('open');
+    block.classList.toggle('open', !isOpen);
+    btn.setAttribute('aria-expanded', String(!isOpen));
+    // Update the chevron rotation via text swap
+    const svg = btn.querySelector('svg');
+    if (svg) svg.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
+
+  // ── Widget PrismQL expand/collapse ───────────────────────────────
+  function toggleWidgetPql(id) {
+    const block = document.getElementById(id);
+    const btn = block.previousElementSibling;
+    const isOpen = block.classList.contains('open');
+    block.classList.toggle('open', !isOpen);
+    btn.setAttribute('aria-expanded', String(!isOpen));
+    const svg = btn.querySelector('svg');
+    if (svg) svg.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
+
+  // ── Source chip active toggle in composer ─────────────────────────
+  document.querySelectorAll('.source-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      const cb = chip.querySelector('input[type="checkbox"]');
+      // checkbox state is toggled by the label click already; sync active class
+      chip.classList.toggle('active', cb.checked);
+    });
+  });
+
+  // ── PrismQL mode toggle in composer ──────────────────────────────
+  const pqlToggle = document.querySelector('.pql-mode-toggle input');
+  if (pqlToggle) {
+    pqlToggle.addEventListener('change', function () {
+      pqlToggle.setAttribute('aria-checked', String(pqlToggle.checked));
+      const textarea = document.querySelector('.composer-textarea');
+      if (textarea) {
+        textarea.placeholder = pqlToggle.checked
+          ? 'Write PrismQL directly…'
+          : 'Ask anything about your security data…';
+      }
+    });
+  }
+</script>
+</body>
+</html>

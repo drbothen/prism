@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<!--
+  S4-01-extension.html — Prism Browser Extension: IOC Pivot Popup + Injected Card
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  Covers S4 §11.3 (browser-extension IOC right-click pivot) and §11.4 (injected result card).
+  Three artboards on one page, top to bottom:
+    1. Faux web page with a right-click context menu moment ("Search in Prism")
+    2. Extension popup — IOC pivot result preview (in a faux browser chrome / frame)
+    3. Inline injected result card — the extension annotating an IOC inline on a third-party page
+
+  Design notes / decisions:
+  - Extension popup rendered at realistic 400×600px inside a macOS-ish browser chrome frame,
+    top-right anchored (same position as a real Chrome/Firefox extension popup).
+  - Popup is intentionally compact: no full nav rail, no topbar chrome — extension surface only.
+  - Purple (--color-ai-*) used for AI summary callout and machine-labeled confidence.
+  - Orange primary CTA: "Open in Console" deep link to S2.
+  - Trust-first: AI-opaque-credentials badge (lock icon + "Prism Central · Signed in") shown
+    at popup footer; PrismQL shown inline so analyst can audit what ran.
+  - Injected card is a lightweight floating overlay (~320px wide) attached below the selected IOC.
+  - Both themes (light/dark) via the fixed theme toggle.
+  - No stale-session footgun: signed-in state shown with token freshness indicator.
+  - Color/icon/text severity triples (never color alone, per UI-D3).
+  - WCAG AA both themes: all text/bg pairs verified ≥4.5:1.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — S4 Browser Extension Mockup</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    /* ── Page scaffold ─────────────────────────────────────────── */
+    .page {
+      min-height: 100vh;
+      background: var(--color-bg);
+      padding: var(--space-8) var(--space-8);
+      display: flex;
+      flex-direction: column;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .section-label {
+      font-family: var(--font-display);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wider);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      text-align: center;
+      margin-bottom: var(--space-3);
+    }
+
+    /* ── Shared button / badge patterns (matching S2-05) ───────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md); border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap; line-height: 1;
+      transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+    }
+    .btn-primary   { background: var(--btn-primary-bg); color: #fff; }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border-color: var(--btn-secondary-border); }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-ghost     { background: transparent; color: var(--color-text-muted); }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .btn-sm        { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+    .btn-xs        { height: 22px; padding: 0 var(--space-2); font-size: var(--text-xs); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap;
+    }
+    .badge-icon    { width: 9px; height: 9px; flex-shrink: 0; }
+    .badge-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical-text); border: 1px solid var(--color-sev-critical-border); }
+    .badge-high    { background: var(--color-sev-high-bg);     color: var(--color-sev-high-text);     border: 1px solid var(--color-sev-high-border); }
+    .badge-medium  { background: var(--color-sev-medium-bg);   color: var(--color-sev-medium-text);   border: 1px solid var(--color-sev-medium-border); }
+    .badge-low     { background: var(--color-sev-low-bg);      color: var(--color-sev-low-text);      border: 1px solid var(--color-sev-low-border); }
+    .badge-info    { background: var(--color-sev-info-bg);     color: var(--color-sev-info-text);     border: 1px solid var(--color-sev-info-border); }
+
+    .ai-tag {
+      display: inline-flex; align-items: center; height: 16px; padding: 0 var(--space-1-5);
+      background: var(--color-ai-label); color: #fff; font-size: 10px; font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase; border-radius: 3px;
+    }
+
+    .source-dot  { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+    .src-cs      { background: #1a6fc4; }
+    .src-cy      { background: #7c3aed; }
+    .src-cl      { background: #0d7c66; }
+    .src-ar      { background: #b45309; }
+
+    /* ── Theme toggle (fixed top-right, matches S2-05) ─────────── */
+    .theme-toggle-fixed {
+      position: fixed; top: var(--space-4); right: var(--space-4); z-index: var(--z-toast);
+      display: flex; background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); padding: 3px; gap: 2px; box-shadow: var(--shadow-md);
+    }
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+      border-radius: var(--radius-full); border: none; background: transparent; cursor: pointer;
+      font-size: 14px; color: var(--color-text-muted);
+    }
+    .theme-btn.active { background: var(--color-bg); box-shadow: var(--shadow-xs); }
+
+    /* ══════════════════════════════════════════════════════════════
+       ARTBOARD 1 — FAUX WEB PAGE + RIGHT-CLICK CONTEXT MENU
+       ══════════════════════════════════════════════════════════════ */
+
+    .artboard-web-page {
+      width: 860px;
+      max-width: 100%;
+      border-radius: var(--radius-xl);
+      border: var(--border);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Minimal browser chrome for the faux web page */
+    .web-chrome-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      height: 40px; padding: 0 var(--space-4);
+      background: var(--color-surface-2); border-bottom: var(--border);
+    }
+    .chrome-traffic-lights { display: flex; gap: 6px; }
+    .chrome-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .chrome-close  { background: #ff5f57; }
+    .chrome-min    { background: #febc2e; }
+    .chrome-max    { background: #28c840; }
+
+    .chrome-addressbar {
+      flex: 1; height: 24px; padding: 0 var(--space-3);
+      background: var(--color-bg); border: var(--border); border-radius: var(--radius-full);
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted);
+      display: flex; align-items: center; gap: var(--space-1-5); max-width: 420px; margin: 0 auto;
+    }
+
+    /* Faux external news/intel page content */
+    .web-page-body {
+      background: var(--color-bg-elevated);
+      padding: var(--space-8) var(--space-10);
+      font-family: Georgia, serif;
+      min-height: 220px;
+    }
+
+    .web-page-title {
+      font-size: 22px; font-weight: 700; color: var(--color-text); margin-bottom: var(--space-3);
+      line-height: var(--leading-snug);
+    }
+
+    .web-page-body p {
+      font-size: 15px; line-height: var(--leading-relaxed); color: var(--color-text-secondary);
+      margin-bottom: var(--space-3); font-family: Georgia, serif;
+    }
+
+    /* The "selected" IOC text that analyst right-clicked on */
+    .ioc-selection {
+      background: #4099ff44;
+      border-bottom: 2px solid var(--color-blue);
+      cursor: context-menu;
+      font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+      color: var(--color-text); padding: 0 2px;
+      border-radius: 2px;
+      position: relative;
+    }
+
+    /* Right-click context menu */
+    .context-menu {
+      position: absolute; top: 152px; left: 340px;
+      width: 230px;
+      background: var(--color-bg-elevated);
+      border: var(--border); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      padding: var(--space-1) 0;
+      z-index: 10;
+    }
+
+    .context-menu-item {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-1-5) var(--space-3);
+      font-family: var(--font-sans); font-size: var(--text-sm);
+      color: var(--color-text); cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .context-menu-item:hover { background: var(--color-bg-hover); }
+    .context-menu-item.prism-item {
+      background: var(--color-accent-subtle);
+      border-left: 3px solid var(--color-accent);
+      padding-left: calc(var(--space-3) - 3px);
+      font-weight: var(--weight-semibold);
+    }
+    .context-menu-item.prism-item:hover { background: var(--color-accent-subtle); filter: brightness(0.97); }
+
+    .context-menu-divider { height: 1px; background: var(--color-border); margin: var(--space-1) 0; }
+
+    .context-menu-icon { width: 14px; height: 14px; flex-shrink: 0; color: var(--color-icon-default); }
+    .prism-item .context-menu-icon { color: var(--color-accent); }
+
+    .context-menu-shortcut {
+      margin-left: auto; font-size: var(--text-xs); font-family: var(--font-mono);
+      color: var(--color-text-muted); background: var(--color-surface-2);
+      border-radius: var(--radius-sm); padding: 1px 4px;
+    }
+
+    /* IOC selection label (small tooltip above) */
+    .ioc-tooltip {
+      position: absolute; top: 125px; left: 336px;
+      background: var(--color-text-primary); color: #fff;
+      font-family: var(--font-sans); font-size: 11px; font-weight: 500;
+      padding: 3px 8px; border-radius: var(--radius-md);
+      white-space: nowrap; pointer-events: none;
+    }
+    .ioc-tooltip::after {
+      content: '';
+      position: absolute; top: 100%; left: 12px;
+      border: 5px solid transparent;
+      border-top-color: var(--color-text-primary);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       ARTBOARD 2 — FAUX BROWSER CHROME + EXTENSION POPUP
+       ══════════════════════════════════════════════════════════════ */
+
+    .browser-chrome-frame {
+      width: 860px; max-width: 100%;
+      border-radius: var(--radius-xl);
+      border: var(--border);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      background: var(--color-surface-2);
+    }
+
+    /* Browser toolbar */
+    .browser-toolbar {
+      display: flex; align-items: center; gap: var(--space-2);
+      height: 44px; padding: 0 var(--space-4);
+      background: var(--color-surface-2); border-bottom: var(--border);
+    }
+
+    .browser-nav-btns { display: flex; gap: var(--space-1-5); }
+    .browser-nav-btn {
+      width: 26px; height: 26px; border-radius: var(--radius-full);
+      border: none; background: transparent; color: var(--color-text-muted);
+      display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px;
+    }
+    .browser-nav-btn:hover { background: var(--color-border); }
+
+    .browser-omnibar {
+      flex: 1; height: 28px; padding: 0 var(--space-3);
+      background: var(--color-bg); border: var(--border); border-radius: var(--radius-full);
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted);
+      display: flex; align-items: center; gap: var(--space-1-5);
+    }
+    .browser-omnibar-icon { color: var(--color-cov-answered-icon); flex-shrink: 0; }
+
+    .browser-ext-icons {
+      display: flex; align-items: center; gap: var(--space-1-5); margin-left: var(--space-2);
+    }
+    .browser-ext-icon-btn {
+      width: 28px; height: 28px; border-radius: var(--radius-md); border: none;
+      background: transparent; color: var(--color-icon-default);
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      position: relative; font-size: 16px;
+      transition: background var(--transition-fast);
+    }
+    .browser-ext-icon-btn:hover { background: var(--color-border); }
+    .browser-ext-icon-btn.active-popup {
+      background: var(--color-surface-3);
+      box-shadow: 0 2px 0 var(--color-accent);
+    }
+
+    /* The page area inside the browser frame — dimmed to focus on popup */
+    .browser-page-area {
+      height: 240px; background: var(--color-surface-1);
+      display: flex; align-items: flex-start; justify-content: flex-end;
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Ghost page content behind popup */
+    .browser-page-ghost {
+      position: absolute; inset: 0;
+      padding: var(--space-6) var(--space-8);
+      opacity: 0.35;
+    }
+    .ghost-line {
+      height: 10px; border-radius: var(--radius-sm);
+      background: var(--color-border-strong); margin-bottom: var(--space-3);
+    }
+
+    /* ── Extension popup itself ─────────────────────────────────── */
+    .ext-popup {
+      position: absolute;
+      top: 0;
+      right: 0px;
+      width: 400px;
+      background: var(--color-bg-elevated);
+      border: var(--border);
+      border-top: none; /* attached to browser toolbar edge */
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      /* Realistic popup dimensions — Chrome max-height is ~600px */
+      max-height: 570px;
+    }
+
+    /* Popup header */
+    .popup-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-bg-card);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+    }
+
+    .popup-logo {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      font-family: var(--font-display); font-size: var(--text-md);
+      font-weight: var(--weight-bold); letter-spacing: var(--tracking-wide);
+      text-transform: uppercase; color: var(--color-text);
+    }
+    .popup-logo-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); }
+
+    .popup-header-ioc {
+      flex: 1; min-width: 0;
+    }
+    .popup-ioc-label {
+      font-size: var(--text-xs); color: var(--color-text-muted);
+      font-weight: var(--weight-medium); text-transform: uppercase;
+      letter-spacing: var(--tracking-caps); margin-bottom: 2px;
+    }
+    .popup-ioc-value {
+      font-family: var(--font-mono); font-size: 13px;
+      font-weight: var(--weight-semibold); color: var(--color-text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .popup-ioc-type-badge {
+      display: inline-flex; align-items: center; gap: 3px; height: 18px;
+      padding: 0 var(--space-1-5); border-radius: var(--radius-full);
+      font-size: 10px; font-weight: var(--weight-bold);
+      background: var(--color-blue-subtle); color: var(--color-blue);
+      border: 1px solid var(--color-blue-subtle); white-space: nowrap;
+    }
+
+    /* Popup loading/status state */
+    .popup-status-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      background: var(--color-cov-answered-bg);
+      border-bottom: 1px solid var(--color-cov-answered-border);
+      flex-shrink: 0;
+    }
+    .popup-status-bar.done {
+      background: var(--color-cov-answered-bg);
+      border-color: var(--color-cov-answered-border);
+    }
+    .popup-status-icon { width: 13px; height: 13px; color: var(--color-cov-answered-icon); flex-shrink: 0; }
+    .popup-status-text { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-cov-answered-text); }
+    .popup-elapsed { margin-left: auto; font-size: var(--text-xs); color: var(--color-cov-answered-text); font-family: var(--font-mono); }
+
+    /* ── Popup scrollable content ──────────────────────────────── */
+    .popup-content {
+      flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+    }
+
+    /* ── Summary section ────────────────────────────────────────── */
+    .popup-section {
+      padding: var(--space-3) var(--space-4);
+      border-bottom: var(--border);
+    }
+    .popup-section:last-child { border-bottom: none; }
+
+    .popup-section-title {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); margin-bottom: var(--space-2);
+    }
+
+    /* Risk / severity indicator — large, scannable */
+    .risk-indicator {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-3);
+      background: var(--color-sev-high-bg);
+      border: 1px solid var(--color-sev-high-border);
+      border-radius: var(--radius-lg); margin-bottom: var(--space-2);
+    }
+
+    .risk-icon-wrap {
+      width: 40px; height: 40px; border-radius: var(--radius-md); flex-shrink: 0;
+      background: var(--color-sev-high-solid);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .risk-body { flex: 1; min-width: 0; }
+    .risk-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-sev-high-text); margin-bottom: 2px; }
+    .risk-value { font-family: var(--font-display); font-size: 22px; font-weight: var(--weight-extrabold); color: var(--color-sev-high-text); letter-spacing: var(--tracking-tight); line-height: 1; }
+    .risk-sub   { font-size: var(--text-xs); color: var(--color-sev-high-text); margin-top: 2px; }
+
+    .risk-score-ring {
+      display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0;
+    }
+    .risk-score-num { font-family: var(--font-display); font-size: 26px; font-weight: var(--weight-extrabold); line-height: 1; color: var(--color-sev-high-text); }
+    .risk-score-den { font-size: var(--text-xs); color: var(--color-sev-high-text); }
+
+    /* ── Coverage compact bar ───────────────────────────────────── */
+    .coverage-row {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-xs);
+    }
+    .coverage-row-label { color: var(--color-text-muted); font-weight: var(--weight-medium); white-space: nowrap; }
+
+    .coverage-pips { display: flex; gap: 3px; align-items: center; }
+    .cov-pip {
+      width: 14px; height: 14px; border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px;
+    }
+    .cov-pip-hit    { background: var(--color-cov-answered-bg); border: 1px solid var(--color-cov-answered-border); color: var(--color-cov-answered-icon); }
+    .cov-pip-miss   { background: var(--color-cov-nodata-bg); border: 1px solid var(--color-cov-nodata-border); color: var(--color-icon-default); opacity: 0.5; }
+    .cov-pip-warn   { background: var(--color-cov-degraded-bg); border: 1px solid var(--color-cov-degraded-border); color: var(--color-cov-degraded-icon); }
+
+    .coverage-count { font-weight: var(--weight-bold); color: var(--color-text); }
+
+    /* Expand/collapse coverage detail toggle */
+    .coverage-detail-toggle {
+      background: none; border: none; cursor: pointer;
+      font-size: var(--text-xs); color: var(--color-text-link);
+      font-weight: var(--weight-medium); padding: 0; margin-left: auto;
+    }
+    .coverage-detail-toggle:hover { text-decoration: underline; }
+
+    .coverage-detail-panel {
+      display: none; flex-direction: column; gap: var(--space-1-5);
+      margin-top: var(--space-2);
+    }
+    .coverage-detail-panel.open { display: flex; }
+
+    .cov-source-row {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-xs); padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius-md);
+    }
+    .cov-source-row.hit  { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); }
+    .cov-source-row.miss { background: var(--color-cov-nodata-bg); color: var(--color-text-muted); }
+    .cov-source-row.warn { background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); }
+
+    .cov-source-name { font-weight: var(--weight-semibold); flex: 1; }
+    .cov-source-count { font-family: var(--font-mono); font-weight: var(--weight-bold); }
+    .cov-source-latency { color: inherit; opacity: 0.7; }
+
+    /* ── AI summary callout ─────────────────────────────────────── */
+    .ai-summary-block {
+      background: var(--color-ai-bg);
+      border: 1px solid var(--color-ai-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-3);
+    }
+
+    .ai-summary-header {
+      display: flex; align-items: center; gap: var(--space-1-5); margin-bottom: var(--space-2);
+    }
+    .ai-summary-text {
+      font-size: var(--text-xs); line-height: var(--leading-relaxed);
+      color: var(--color-ai-text);
+    }
+    .ai-confidence {
+      margin-left: auto; font-size: 10px; font-weight: var(--weight-semibold);
+      color: var(--color-ai-label); background: var(--color-ai-border);
+      border-radius: var(--radius-full); padding: 2px 6px;
+    }
+
+    /* ── PrismQL transparency block ─────────────────────────────── */
+    .pql-block {
+      background: var(--editor-bg);
+      border: 1px solid var(--editor-border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono); font-size: 11px;
+      line-height: 1.55; color: var(--editor-text);
+      padding: var(--space-2) var(--space-3);
+      white-space: pre; overflow-x: auto;
+    }
+    .pql-block .kw  { color: var(--editor-keyword); }
+    .pql-block .fn  { color: var(--editor-function); }
+    .pql-block .str { color: var(--editor-string); }
+    .pql-block .num { color: var(--editor-number); }
+    .pql-block .op  { color: var(--editor-operator); }
+    .pql-block .ty  { color: var(--editor-type); }
+    .pql-block .cm  { color: var(--editor-comment); font-style: italic; }
+
+    .pql-block-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--space-1);
+    }
+    .pql-block-label {
+      font-family: var(--font-sans); font-size: var(--text-xs);
+      font-weight: var(--weight-semibold); color: var(--color-text-muted);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+    }
+    .pql-open-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: var(--text-xs); color: var(--color-text-link);
+      font-weight: var(--weight-medium); padding: 0;
+      font-family: var(--font-sans);
+    }
+    .pql-open-btn:hover { text-decoration: underline; }
+
+    /* ── Top hits list ──────────────────────────────────────────── */
+    .hits-list { display: flex; flex-direction: column; gap: var(--space-1-5); }
+
+    .hit-row {
+      display: flex; align-items: flex-start; gap: var(--space-2);
+      padding: var(--space-2) var(--space-2);
+      border-radius: var(--radius-md);
+      border: var(--border);
+      background: var(--color-bg);
+      cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+    .hit-row:hover { background: var(--color-bg-hover); border-color: var(--color-border-strong); }
+
+    .hit-source-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+
+    .hit-body { flex: 1; min-width: 0; }
+    .hit-title { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hit-meta  { font-size: 11px; color: var(--color-text-muted); font-family: var(--font-mono); }
+
+    .hit-actions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+
+    /* ── Popup CTA footer ───────────────────────────────────────── */
+    .popup-footer {
+      display: flex; flex-direction: column; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      border-top: var(--border);
+      background: var(--color-bg-card);
+      flex-shrink: 0;
+    }
+
+    .popup-cta-row { display: flex; gap: var(--space-2); }
+
+    /* Trust indicator */
+    .trust-badge {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      font-size: 11px; color: var(--color-text-muted);
+      padding: var(--space-1) var(--space-2);
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); width: fit-content;
+    }
+    .trust-icon { width: 11px; height: 11px; color: var(--color-cov-answered-icon); flex-shrink: 0; }
+    .trust-badge strong { color: var(--color-text); font-weight: var(--weight-semibold); }
+    .trust-freshness { margin-left: auto; font-size: 10px; font-family: var(--font-mono); color: var(--color-text-muted); }
+
+    /* ══════════════════════════════════════════════════════════════
+       ARTBOARD 3 — INJECTED RESULT CARD (inline on a 3rd-party page)
+       ══════════════════════════════════════════════════════════════ */
+
+    .injected-page-wrap {
+      width: 860px; max-width: 100%;
+      border-radius: var(--radius-xl); border: var(--border);
+      box-shadow: var(--shadow-xl); overflow: hidden;
+    }
+
+    /* The "third-party page" — a SIEM/intel platform page */
+    .third-party-page {
+      background: #f5f5f5; /* intentionally NOT using design tokens — it's a 3rd-party surface */
+      font-family: Arial, Helvetica, sans-serif;
+      padding: var(--space-6) var(--space-8);
+      min-height: 240px; position: relative;
+    }
+    [data-theme="dark"] .third-party-page {
+      background: #1a1a2e;
+    }
+
+    .third-party-title {
+      font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;
+      color: #555; margin-bottom: var(--space-4);
+    }
+    [data-theme="dark"] .third-party-title { color: #888; }
+
+    .third-party-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    .third-party-table th, .third-party-table td {
+      text-align: left; padding: 6px 10px;
+      border-bottom: 1px solid #ddd; color: #333;
+    }
+    [data-theme="dark"] .third-party-table th,
+    [data-theme="dark"] .third-party-table td { border-color: #333; color: #ccc; }
+
+    .third-party-table th { background: #ebebeb; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+    [data-theme="dark"] .third-party-table th { background: #222; }
+
+    .third-party-table tr.highlighted td { background: #e8f0fb; }
+    [data-theme="dark"] .third-party-table tr.highlighted td { background: #0f2040; }
+
+    /* The IOC value as a link (highlighted = selected for pivot) */
+    .third-party-ioc-link {
+      font-family: monospace; font-size: 13px; font-weight: 600;
+      color: #1a6fc4; text-decoration: underline; cursor: context-menu;
+      background: #cce0ff44; padding: 1px 3px; border-radius: 2px;
+    }
+    [data-theme="dark"] .third-party-ioc-link { color: #6db3ff; background: #0f204080; }
+
+    /* ── Injected card (the extension overlay) ──────────────────── */
+    .injected-card {
+      position: absolute; top: 112px; left: 340px; /* anchored below the selected IOC row */
+      width: 320px;
+      background: var(--color-bg-elevated);
+      border: 2px solid var(--color-accent);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      z-index: 50;
+    }
+
+    .injected-card-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-bg-card); border-bottom: var(--border);
+    }
+
+    .injected-logo {
+      display: flex; align-items: center; gap: var(--space-1);
+      font-family: var(--font-display); font-size: var(--text-sm);
+      font-weight: var(--weight-bold); letter-spacing: var(--tracking-wide);
+      text-transform: uppercase; color: var(--color-text);
+    }
+    .injected-logo-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-accent); }
+
+    .injected-ioc {
+      font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+      color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 130px;
+    }
+
+    .injected-dismiss {
+      margin-left: auto; background: none; border: none; cursor: pointer;
+      color: var(--color-text-muted); font-size: 14px; line-height: 1;
+      width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+      border-radius: var(--radius-sm); transition: background var(--transition-fast);
+    }
+    .injected-dismiss:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    .injected-body { padding: var(--space-2) var(--space-3); }
+
+    /* Mini severity + coverage row */
+    .injected-summary-row {
+      display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);
+    }
+
+    /* Mini ai summary */
+    .injected-ai-block {
+      background: var(--color-ai-bg); border: 1px solid var(--color-ai-border);
+      border-radius: var(--radius-md); padding: var(--space-2) var(--space-2-5, var(--space-2));
+      margin-bottom: var(--space-2); font-size: 11px; color: var(--color-ai-text);
+      line-height: var(--leading-relaxed);
+      --space-2-5: 10px;
+    }
+    .injected-ai-label { display: flex; align-items: center; gap: var(--space-1); margin-bottom: 3px; }
+
+    /* Mini hit row */
+    .injected-hit-row {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      padding: var(--space-1) 0;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 11px;
+    }
+    .injected-hit-row:last-child { border-bottom: none; }
+    .injected-hit-src { font-weight: var(--weight-semibold); color: var(--color-text-muted); min-width: 80px; }
+    .injected-hit-count { font-family: var(--font-mono); font-weight: var(--weight-bold); color: var(--color-text); }
+    .injected-hit-sev { margin-left: auto; }
+
+    .injected-footer {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-top: var(--border); background: var(--color-bg-card);
+    }
+
+    /* Arrow pointer from card to IOC row */
+    .injected-card-arrow {
+      position: absolute; top: -9px; left: 40px;
+      width: 0; height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 9px solid var(--color-accent);
+    }
+    .injected-card-arrow::after {
+      content: '';
+      position: absolute; top: 2px; left: -7px;
+      width: 0; height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 8px solid var(--color-bg-elevated);
+    }
+
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════════════════════════════════════
+       ARTBOARD 1 — FAUX WEB PAGE + RIGHT-CLICK MOMENT
+       ══════════════════════════════════════════════════════ -->
+  <div>
+    <div class="section-label">1 of 3 — Right-click pivot: analyst selects an IOC on any web page</div>
+    <div class="artboard-web-page" role="img" aria-label="Mockup: analyst selecting an IP IOC on a third-party threat intelligence page and using the Prism right-click context menu option">
+
+      <!-- Minimal browser chrome -->
+      <div class="web-chrome-bar" aria-hidden="true">
+        <div class="chrome-traffic-lights">
+          <div class="chrome-dot chrome-close"></div>
+          <div class="chrome-dot chrome-min"></div>
+          <div class="chrome-dot chrome-max"></div>
+        </div>
+        <div class="chrome-addressbar">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm0 1a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7z" fill="currentColor" style="color:var(--color-cov-answered-icon)"/></svg>
+          https://intel.threatfeed.example/ioc/report/2026-06-25
+        </div>
+      </div>
+
+      <!-- Faux threat intel page body -->
+      <div class="web-page-body" style="position: relative;">
+        <h1 class="web-page-title">Threat Intel Report: Campaign APT-2026-004</h1>
+        <p>
+          Analysis of the adversary infrastructure associated with campaign APT-2026-004. Multiple
+          indicators observed across client environments. Observed C2 communications from
+          <span class="ioc-selection" role="note" aria-label="Selected IOC: IP address 198.51.100.42, analyst has right-clicked to pivot in Prism">198.51.100.42</span>
+          between 2026-06-20 and 2026-06-25. Additional staging domains and hashes listed below.
+        </p>
+        <p style="color: var(--color-text-tertiary); font-size: 13px;">
+          Tags: lateral-movement, credential-harvesting, OT-targeting · Confidence: High · TLP: AMBER
+        </p>
+
+        <!-- Tooltip above the selected text -->
+        <div class="ioc-tooltip" aria-hidden="true">IP · 198.51.100.42</div>
+
+        <!-- Right-click context menu -->
+        <nav class="context-menu" role="menu" aria-label="Browser context menu with Prism option">
+          <div class="context-menu-item prism-item" role="menuitem" aria-label="Search 198.51.100.42 in Prism — federated IOC pivot">
+            <!-- Prism logo mark -->
+            <svg class="context-menu-icon" viewBox="0 0 14 14" fill="none" aria-hidden="true" style="color: var(--color-accent);">
+              <circle cx="7" cy="7" r="2.5" fill="currentColor"/>
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+            Search in Prism
+            <span class="context-menu-shortcut">⌥P</span>
+          </div>
+          <div class="context-menu-divider" role="separator"></div>
+          <div class="context-menu-item" role="menuitem">
+            <svg class="context-menu-icon" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="2" y="3" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 3V2.5a2 2 0 0 1 4 0V3" stroke="currentColor" stroke-width="1.2"/></svg>
+            Copy
+          </div>
+          <div class="context-menu-item" role="menuitem">
+            <svg class="context-menu-icon" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 9L6.5 6.5M6.5 6.5A3.5 3.5 0 1 0 2 2a3.5 3.5 0 0 0 4.5 4.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Search with Google
+          </div>
+          <div class="context-menu-item" role="menuitem">
+            <svg class="context-menu-icon" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 7h4M7 5v4M7 1.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Open in new tab
+          </div>
+          <div class="context-menu-divider" role="separator"></div>
+          <div class="context-menu-item" role="menuitem">
+            <svg class="context-menu-icon" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 4h10M4 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M5 7v4M9 7v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Inspect element
+          </div>
+        </nav>
+      </div><!-- /web-page-body -->
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       ARTBOARD 2 — BROWSER CHROME + EXTENSION POPUP
+       ══════════════════════════════════════════════════════ -->
+  <div>
+    <div class="section-label">2 of 3 — Extension popup: federated IOC pivot result preview</div>
+    <div class="browser-chrome-frame" role="img" aria-label="Mockup: Prism browser extension popup showing IOC pivot results for IP 198.51.100.42, with federated coverage, AI summary, and top hits">
+
+      <!-- Browser toolbar -->
+      <div class="browser-toolbar" aria-hidden="true">
+        <div class="browser-nav-btns">
+          <button class="browser-nav-btn" aria-label="Back">‹</button>
+          <button class="browser-nav-btn" aria-label="Forward" style="opacity:0.4;">›</button>
+          <button class="browser-nav-btn" aria-label="Reload">↻</button>
+        </div>
+        <div class="browser-omnibar">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" class="browser-omnibar-icon"><path d="M5 1a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 1a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" fill="currentColor"/></svg>
+          intel.threatfeed.example/ioc/report/2026-06-25
+        </div>
+        <!-- Extension icons in browser toolbar -->
+        <div class="browser-ext-icons">
+          <!-- Generic ext icons (greyed) -->
+          <button class="browser-ext-icon-btn" aria-label="Extension: Password Manager" style="opacity:0.35;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.2"/></svg>
+          </button>
+          <button class="browser-ext-icon-btn" aria-label="Extension: Ad Blocker" style="opacity:0.35;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 5l6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+          <!-- Prism extension icon — active/open state -->
+          <button class="browser-ext-icon-btn active-popup" aria-label="Prism Extension — popup open" aria-expanded="true">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <circle cx="9" cy="9" r="3.2" fill="var(--color-accent)"/>
+              <circle cx="9" cy="9" r="7" stroke="var(--color-accent)" stroke-width="1.5"/>
+            </svg>
+          </button>
+        </div>
+      </div><!-- /browser-toolbar -->
+
+      <!-- Browser page area with extension popup overlay -->
+      <div class="browser-page-area" aria-hidden="true">
+        <!-- Ghost page content (dimmed) -->
+        <div class="browser-page-ghost">
+          <div class="ghost-line" style="width: 60%; height: 16px; margin-bottom: var(--space-4);"></div>
+          <div class="ghost-line" style="width: 100%;"></div>
+          <div class="ghost-line" style="width: 95%;"></div>
+          <div class="ghost-line" style="width: 80%;"></div>
+          <div class="ghost-line" style="width: 40%; margin-top: var(--space-4);"></div>
+        </div>
+
+        <!-- ── EXTENSION POPUP ──────────────────────────────────── -->
+        <aside class="ext-popup" role="complementary" aria-label="Prism IOC pivot results for 198.51.100.42">
+
+          <!-- Popup header: logo + IOC identity -->
+          <div class="popup-header">
+            <div class="popup-logo" aria-hidden="true">
+              <span class="popup-logo-dot"></span>
+              Prism
+            </div>
+            <div class="popup-header-ioc">
+              <div class="popup-ioc-label">Searching</div>
+              <div class="popup-ioc-value" title="198.51.100.42">198.51.100.42</div>
+            </div>
+            <span class="popup-ioc-type-badge" aria-label="IOC type: IPv4">
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1.1"/><circle cx="4.5" cy="4.5" r="1.5" fill="currentColor"/></svg>
+              IPv4
+            </span>
+          </div>
+
+          <!-- Query complete status bar -->
+          <div class="popup-status-bar done" role="status" aria-live="polite">
+            <svg class="popup-status-icon" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2.5 6.5l2.5 2.5 5.5-5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="popup-status-text">Federated search complete — 3/4 sources answered</span>
+            <span class="popup-elapsed">1.4s</span>
+          </div>
+
+          <!-- ── Scrollable popup content ───────────────────────── -->
+          <div class="popup-content">
+
+            <!-- Risk indicator section -->
+            <div class="popup-section" aria-label="Risk assessment">
+              <div class="risk-indicator" role="note" aria-label="Risk level: High — 7 out of 10">
+                <div class="risk-icon-wrap" aria-hidden="true">
+                  <!-- High severity icon: triangle -->
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                    <path d="M11 3L20 19H2L11 3Z" fill="white" opacity="0.9"/>
+                  </svg>
+                </div>
+                <div class="risk-body">
+                  <div class="risk-label">Risk Level</div>
+                  <div class="risk-value">HIGH</div>
+                  <div class="risk-sub">Active C2 infrastructure · APT-2026-004</div>
+                </div>
+                <div class="risk-score-ring" aria-label="Risk score: 7 out of 10">
+                  <div class="risk-score-num">7</div>
+                  <div class="risk-score-den">/ 10</div>
+                </div>
+              </div>
+
+              <!-- Coverage compact summary -->
+              <div class="coverage-row" aria-label="Source coverage: 3 of 4 sensors answered">
+                <span class="coverage-row-label">Sources</span>
+                <div class="coverage-pips" aria-hidden="true">
+                  <!-- CrowdStrike: hit -->
+                  <div class="cov-pip cov-pip-hit" title="CrowdStrike: 12 hits">
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                  <!-- Cyberint: hit -->
+                  <div class="cov-pip cov-pip-hit" title="Cyberint: 4 hits">
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                  <!-- Claroty: hit -->
+                  <div class="cov-pip cov-pip-hit" title="Claroty: 3 hits">
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                  <!-- Armis: degraded -->
+                  <div class="cov-pip cov-pip-warn" title="Armis: degraded (partial)">
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 1.5v2.5M4 5.5v.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                  </div>
+                </div>
+                <span class="coverage-count" aria-label="3 of 4 sources answered">3/4</span>
+                <button class="coverage-detail-toggle" id="popup-cov-toggle"
+                  onclick="togglePopupCoverage()" aria-expanded="false" aria-controls="popup-cov-detail"
+                  aria-label="Expand per-source coverage detail">
+                  Details ▾
+                </button>
+              </div>
+
+              <!-- Expandable per-source coverage detail -->
+              <div class="coverage-detail-panel" id="popup-cov-detail" role="region" aria-label="Per-source coverage detail">
+                <div class="cov-source-row hit" aria-label="CrowdStrike: 12 hits, 0.6 seconds">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color:var(--color-cov-answered-icon)"><path d="M2 5l2 2 4-4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span class="source-dot src-cs" aria-hidden="true"></span>
+                  <span class="cov-source-name">CrowdStrike</span>
+                  <span class="cov-source-count">12 hits</span>
+                  <span class="cov-source-latency">0.6s</span>
+                </div>
+                <div class="cov-source-row hit" aria-label="Cyberint: 4 hits, 0.9 seconds">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color:var(--color-cov-answered-icon)"><path d="M2 5l2 2 4-4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span class="source-dot src-cy" aria-hidden="true"></span>
+                  <span class="cov-source-name">Cyberint</span>
+                  <span class="cov-source-count">4 hits</span>
+                  <span class="cov-source-latency">0.9s</span>
+                </div>
+                <div class="cov-source-row hit" aria-label="Claroty: 3 hits, 1.2 seconds">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color:var(--color-cov-answered-icon)"><path d="M2 5l2 2 4-4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span class="source-dot src-cl" aria-hidden="true"></span>
+                  <span class="cov-source-name">Claroty</span>
+                  <span class="cov-source-count">3 hits</span>
+                  <span class="cov-source-latency">1.2s</span>
+                </div>
+                <div class="cov-source-row warn" aria-label="Armis: degraded — partial results only">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color:var(--color-cov-degraded-icon)"><path d="M5 2L9 8H1L5 2Z" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M5 4.5v1.5M5 7v.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                  <span class="source-dot src-ar" aria-hidden="true"></span>
+                  <span class="cov-source-name">Armis</span>
+                  <span class="cov-source-count">degraded</span>
+                  <span class="cov-source-latency" style="font-size:10px;">partial</span>
+                </div>
+              </div>
+            </div><!-- /risk section -->
+
+            <!-- AI summary section -->
+            <div class="popup-section" aria-label="AI-generated threat summary">
+              <div class="popup-section-title">Threat Summary</div>
+              <div class="ai-summary-block" role="note" aria-label="Machine-generated AI summary — verify before acting">
+                <div class="ai-summary-header">
+                  <span class="ai-tag" aria-label="AI-generated content">AI</span>
+                  <span style="font-size: 11px; font-weight: var(--weight-semibold); color: var(--color-ai-text);">Machine-generated · verify before acting</span>
+                  <span class="ai-confidence" aria-label="AI confidence: 87%">87%</span>
+                </div>
+                <p class="ai-summary-text">
+                  IP <strong>198.51.100.42</strong> is associated with APT-2026-004 command-and-control
+                  infrastructure. CrowdStrike Falcon identified 12 outbound connections from hosts
+                  <code style="font-family:var(--font-mono); background: var(--color-ai-border); padding: 1px 3px; border-radius:2px;">acme-dc-01</code> and
+                  <code style="font-family:var(--font-mono); background: var(--color-ai-border); padding: 1px 3px; border-radius:2px;">acme-ws-14</code>.
+                  Cyberint threat feed confirms active C2 beacon activity. OT exposure via Claroty (3 alerts,
+                  Zone A). Armis coverage degraded — OT asset visibility may be incomplete.
+                </p>
+              </div>
+            </div>
+
+            <!-- PrismQL transparency section -->
+            <div class="popup-section" aria-label="PrismQL query that was executed — for analyst review">
+              <div class="pql-block-header">
+                <span class="pql-block-label">PrismQL Executed</span>
+                <button class="pql-open-btn" aria-label="Open this query in the Prism console">Open in Console ↗</button>
+              </div>
+              <div class="pql-block" role="code" aria-label="PrismQL query: SELECT from federated WHERE entity ip 198.51.100.42 SINCE 7d"><span class="kw">SELECT</span> <span class="ty">time</span><span class="op">,</span> <span class="ty">event_type</span><span class="op">,</span> <span class="ty">severity_id</span><span class="op">,</span> <span class="fn">source</span><span class="op">()</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="fn">entity</span><span class="op">(</span><span class="str">'ip'</span><span class="op">,</span> <span class="str">'198.51.100.42'</span><span class="op">)</span>
+<span class="kw">SINCE</span>  <span class="num">7d</span>
+<span class="kw">ORDER BY</span> <span class="ty">time</span> <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">50</span></div>
+            </div>
+
+            <!-- Top hits section -->
+            <div class="popup-section" aria-label="Top matching events from federated sources">
+              <div class="popup-section-title">Top Hits</div>
+              <div class="hits-list" role="list">
+
+                <!-- Hit 1: CrowdStrike critical -->
+                <div class="hit-row" role="listitem" tabindex="0" aria-label="CrowdStrike Falcon: critical process injection, 14:22 UTC, expand for details">
+                  <span class="hit-source-dot src-cs" aria-hidden="true"></span>
+                  <div class="hit-body">
+                    <div class="hit-title">ProcessInjection · acme-dc-01 → powershell.exe</div>
+                    <div class="hit-meta">CrowdStrike Falcon · 14:22 UTC · 2026-06-25</div>
+                  </div>
+                  <div class="hit-actions">
+                    <span class="badge badge-critical" aria-label="Critical severity">
+                      <svg class="badge-icon" viewBox="0 0 9 9" fill="none" aria-hidden="true"><circle cx="4.5" cy="4.5" r="4" fill="currentColor" opacity="0.85"/></svg>
+                      Crit
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Hit 2: Cyberint high -->
+                <div class="hit-row" role="listitem" tabindex="0" aria-label="Cyberint Argos: active C2 beacon indicator, high severity">
+                  <span class="hit-source-dot src-cy" aria-hidden="true"></span>
+                  <div class="hit-body">
+                    <div class="hit-title">ThreatIntel: Active C2 beacon indicator</div>
+                    <div class="hit-meta">Cyberint Argos · 13:55 UTC · 2026-06-25</div>
+                  </div>
+                  <div class="hit-actions">
+                    <span class="badge badge-high" aria-label="High severity">
+                      <svg class="badge-icon" viewBox="0 0 9 9" fill="none" aria-hidden="true"><path d="M4.5 1L8.5 8H.5L4.5 1Z" fill="currentColor" opacity="0.85"/></svg>
+                      High
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Hit 3: Claroty medium -->
+                <div class="hit-row" role="listitem" tabindex="0" aria-label="Claroty xDome: OT anomaly detected in Zone A, medium severity">
+                  <span class="hit-source-dot src-cl" aria-hidden="true"></span>
+                  <div class="hit-body">
+                    <div class="hit-title">OT Comm Anomaly · PLC-Zone-A outbound</div>
+                    <div class="hit-meta">Claroty xDome · 13:41 UTC · 2026-06-25</div>
+                  </div>
+                  <div class="hit-actions">
+                    <span class="badge badge-medium" aria-label="Medium severity">
+                      <svg class="badge-icon" viewBox="0 0 9 9" fill="none" aria-hidden="true"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.85"/></svg>
+                      Med
+                    </span>
+                  </div>
+                </div>
+
+              </div><!-- /hits-list -->
+            </div>
+
+          </div><!-- /popup-content -->
+
+          <!-- ── Popup footer: CTA + trust indicator ────────────── -->
+          <div class="popup-footer">
+            <div class="popup-cta-row">
+              <!-- Primary CTA: deep link into S2 console -->
+              <button class="btn btn-primary" style="flex:1;" aria-label="Open full investigation in Prism console — opens S2 Results Explorer with this IOC pivot">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M7 2h4v4M11 2L6 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 8v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                Open in Console
+              </button>
+              <!-- Secondary: Entity 360 -->
+              <button class="btn btn-secondary" aria-label="Open Entity 360 view for this IP address">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.2"/><circle cx="6.5" cy="6.5" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
+                Entity 360
+              </button>
+            </div>
+
+            <!-- Trust / auth indicator -->
+            <div class="trust-badge" role="status" aria-label="Signed in to Prism Central — authentication verified, no stale session">
+              <svg class="trust-icon" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1L1.5 3v3c0 2.2 1.7 4.1 4 4.5C8.8 10.1 9.5 8.2 9.5 6V3L5.5 1Z" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M3.5 5.5l1.5 1.5 2.5-2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span><strong>Prism Central</strong> · Signed in</span>
+              <span class="trust-freshness" aria-label="Token refreshed 2 minutes ago" title="OAuth token last refreshed 2 minutes ago — no stale session risk">↻ 2m ago</span>
+            </div>
+          </div>
+
+        </aside><!-- /ext-popup -->
+      </div><!-- /browser-page-area -->
+    </div><!-- /browser-chrome-frame -->
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       ARTBOARD 3 — INJECTED RESULT CARD (inline on 3rd-party page)
+       ══════════════════════════════════════════════════════ -->
+  <div>
+    <div class="section-label">3 of 3 — Injected result card: extension annotates an IOC inline on a third-party SIEM page</div>
+    <div class="injected-page-wrap" role="img" aria-label="Mockup: Prism browser extension injecting a compact result card inline on a third-party SIEM alert page, anchored to an IOC value in the alert table">
+
+      <!-- Third-party SIEM page (not Prism-styled — intentionally uses generic CSS) -->
+      <div class="third-party-page">
+        <div class="third-party-title">SIEM · Alert Detail · AID-20260625-0042</div>
+
+        <table class="third-party-table" aria-label="SIEM alert detail fields">
+          <thead>
+            <tr>
+              <th scope="col">Field</th>
+              <th scope="col">Value</th>
+              <th scope="col">Type</th>
+              <th scope="col">First Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>src_ip</td>
+              <td>10.0.1.5</td>
+              <td>Internal IPv4</td>
+              <td>2026-06-20</td>
+            </tr>
+            <tr class="highlighted">
+              <td>dst_ip</td>
+              <td>
+                <!-- The IOC that has the injected card attached to it -->
+                <a class="third-party-ioc-link" href="#" aria-label="IOC: 198.51.100.42 — Prism has enrichment data for this IP" title="Prism has results for this IOC — click card below">198.51.100.42</a>
+                <!-- Small Prism enrichment indicator pill attached to the IOC link -->
+                <span style="display:inline-flex; align-items:center; gap:3px; margin-left:6px; height:16px; padding:0 5px; background:var(--color-sev-high-bg); border:1px solid var(--color-sev-high-border); border-radius:20px; font-family:var(--font-sans); font-size:10px; font-weight:700; color:var(--color-sev-high-text); vertical-align:middle;" aria-label="Prism enrichment: High severity — 19 hits across 3 sources">
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true"><path d="M4 1L7.5 7H.5L4 1Z" fill="currentColor" opacity="0.8"/></svg>
+                  HIGH · 19 hits
+                </span>
+              </td>
+              <td>External IPv4</td>
+              <td>2026-06-24</td>
+            </tr>
+            <tr>
+              <td>rule_name</td>
+              <td>Beaconing-C2-Known-Bad</td>
+              <td>Detection Rule</td>
+              <td>2026-06-25</td>
+            </tr>
+            <tr>
+              <td>actor_user</td>
+              <td>alice@acme.corp</td>
+              <td>User Principal</td>
+              <td>2026-06-25</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- ── INJECTED CARD ─────────────────────────────────────── -->
+        <div class="injected-card" role="complementary" aria-label="Prism enrichment card for 198.51.100.42 — inline annotation injected by browser extension">
+          <!-- Arrow pointer toward the IOC row -->
+          <div class="injected-card-arrow" aria-hidden="true"></div>
+
+          <!-- Card header -->
+          <div class="injected-card-header">
+            <div class="injected-logo" aria-hidden="true">
+              <span class="injected-logo-dot"></span>
+              Prism
+            </div>
+            <span class="popup-ioc-type-badge" aria-label="IOC type: IPv4" style="font-size:10px; height:16px;">IPv4</span>
+            <code class="injected-ioc" aria-label="IOC: 198.51.100.42" title="198.51.100.42">198.51.100.42</code>
+            <button class="injected-dismiss" aria-label="Dismiss Prism enrichment card">×</button>
+          </div>
+
+          <!-- Card body -->
+          <div class="injected-body">
+
+            <!-- Mini summary row: severity badge + coverage -->
+            <div class="injected-summary-row" aria-label="Summary: High risk, 3 of 4 sources answered">
+              <span class="badge badge-high" aria-label="High severity risk">
+                <svg class="badge-icon" viewBox="0 0 9 9" fill="none" aria-hidden="true"><path d="M4.5 1L8.5 8H.5L4.5 1Z" fill="currentColor" opacity="0.85"/></svg>
+                High Risk
+              </span>
+              <span style="display:flex; align-items:center; gap: 3px; font-size: 11px; color: var(--color-text-muted);">
+                <div class="coverage-pips" aria-hidden="true" style="gap:2px;">
+                  <div class="cov-pip cov-pip-hit" style="width:12px;height:12px;" title="CrowdStrike: hit"><svg width="7" height="7" viewBox="0 0 7 7" fill="none"><path d="M1 3.5l2 2 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <div class="cov-pip cov-pip-hit" style="width:12px;height:12px;" title="Cyberint: hit"><svg width="7" height="7" viewBox="0 0 7 7" fill="none"><path d="M1 3.5l2 2 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <div class="cov-pip cov-pip-hit" style="width:12px;height:12px;" title="Claroty: hit"><svg width="7" height="7" viewBox="0 0 7 7" fill="none"><path d="M1 3.5l2 2 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <div class="cov-pip cov-pip-warn" style="width:12px;height:12px;" title="Armis: degraded"><svg width="7" height="7" viewBox="0 0 7 7" fill="none"><path d="M3.5 1.5v2M3.5 4.5v.3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+                </div>
+                <span aria-label="3 of 4 sources answered">3/4 sources</span>
+              </span>
+            </div>
+
+            <!-- Mini AI summary -->
+            <div class="injected-ai-block" role="note" aria-label="AI-generated enrichment — machine-labeled">
+              <div class="injected-ai-label">
+                <span class="ai-tag" style="height:14px; font-size:9px; padding: 0 4px;" aria-label="AI-generated content">AI</span>
+                <span style="font-size:10px; font-weight:600; color:var(--color-ai-text);">Machine-labeled enrichment</span>
+              </div>
+              Known C2 node for APT-2026-004. 19 hits across CrowdStrike, Cyberint, Claroty.
+              Last active beacon: <strong>14:22 UTC today</strong>. OT exposure confirmed (Claroty).
+            </div>
+
+            <!-- Mini per-source hit counts -->
+            <div role="list" aria-label="Hit counts by source">
+              <div class="injected-hit-row" role="listitem">
+                <span class="source-dot src-cs" aria-hidden="true"></span>
+                <span class="injected-hit-src">CrowdStrike</span>
+                <span class="injected-hit-count" aria-label="12 hits">12</span>
+                <span class="injected-hit-sev">
+                  <span class="badge badge-critical" style="height:16px; padding:0 5px; font-size:10px;" aria-label="Critical severity">
+                    <svg style="width:8px;height:8px;" viewBox="0 0 8 8" fill="none" aria-hidden="true"><circle cx="4" cy="4" r="3.5" fill="currentColor" opacity="0.85"/></svg>
+                    Crit
+                  </span>
+                </span>
+              </div>
+              <div class="injected-hit-row" role="listitem">
+                <span class="source-dot src-cy" aria-hidden="true"></span>
+                <span class="injected-hit-src">Cyberint</span>
+                <span class="injected-hit-count" aria-label="4 hits">4</span>
+                <span class="injected-hit-sev">
+                  <span class="badge badge-high" style="height:16px; padding:0 5px; font-size:10px;" aria-label="High severity">
+                    <svg style="width:8px;height:8px;" viewBox="0 0 8 8" fill="none" aria-hidden="true"><path d="M4 1L7.5 7H.5L4 1Z" fill="currentColor" opacity="0.85"/></svg>
+                    High
+                  </span>
+                </span>
+              </div>
+              <div class="injected-hit-row" role="listitem">
+                <span class="source-dot src-cl" aria-hidden="true"></span>
+                <span class="injected-hit-src">Claroty</span>
+                <span class="injected-hit-count" aria-label="3 hits">3</span>
+                <span class="injected-hit-sev">
+                  <span class="badge badge-medium" style="height:16px; padding:0 5px; font-size:10px;" aria-label="Medium severity">
+                    <svg style="width:8px;height:8px;" viewBox="0 0 8 8" fill="none" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1.2" fill="currentColor" opacity="0.85"/></svg>
+                    Med
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card footer: CTAs -->
+          <div class="injected-footer">
+            <button class="btn btn-primary btn-sm" style="flex:1;" aria-label="Open full console investigation for this IOC — deep link to S2">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M6 2h3v3M9 2L5 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Open in Console
+            </button>
+            <button class="btn btn-secondary btn-sm" aria-label="Open Entity 360 for this IP address">
+              360
+            </button>
+            <button class="btn btn-ghost btn-sm" aria-label="Copy PrismQL query for this IOC to clipboard" title="Copy PrismQL to clipboard">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 3.5V2.5a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h1" stroke="currentColor" stroke-width="1.2"/></svg>
+              PQL
+            </button>
+          </div>
+        </div><!-- /injected-card -->
+      </div><!-- /third-party-page -->
+    </div><!-- /injected-page-wrap -->
+  </div>
+
+</div><!-- /page -->
+
+<!-- Theme toggle -->
+<div class="theme-toggle-fixed" role="group" aria-label="Theme selector">
+  <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme">☀️</button>
+  <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme">🌙</button>
+</div>
+
+<script>
+  // ── Theme ────────────────────────────────────────────────────────
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById('btn-light').classList.toggle('active', t === 'light');
+    document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+    localStorage.setItem('prism-theme', t);
+  }
+  (function() {
+    const s = localStorage.getItem('prism-theme');
+    if (s === 'dark') setTheme('dark');
+  })();
+
+  // ── Popup coverage detail toggle ────────────────────────────────
+  function togglePopupCoverage() {
+    const panel = document.getElementById('popup-cov-detail');
+    const toggle = document.getElementById('popup-cov-toggle');
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    toggle.setAttribute('aria-expanded', String(!isOpen));
+    toggle.textContent = isOpen ? 'Details ▾' : 'Details ▴';
+  }
+</script>
+</body>
+</html>

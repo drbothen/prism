@@ -5,30 +5,121 @@
 
 # Prism Day-2 UI Mockups
 
-**Status:** Proposed/Draft — Side-analysis work, do_not_execute.
+**Status:** Complete — side-analysis work, do_not_execute.
 Separate from the live VSDD factory pipeline. Pending human review and PO/architect adjudication at day-2 morph time.
+
+---
+
+## How to View
+
+Open any `.html` file directly via `file://` in any modern browser (Chrome, Firefox, Safari, Edge).
+No build step, no server, no npm required.
+
+Use the **theme toggle** (top-right of every panel) to switch between light and dark.
+The toggle sets `document.documentElement.dataset.theme`; default is light.
 
 ---
 
 ## Files
 
+### Foundation
+
 | File | Description |
 |------|-------------|
-| `tokens.css` | Shared design token stylesheet. Single source of truth for both themes. |
+| `tokens.css` | Shared design token stylesheet — single source of truth for both themes. |
 | `style-guide.html` | Full component kit: typography, colors, severity badges, buttons, inputs, tabs, editor chrome, AI callout, app shell, states. |
-| `S2-01-triage-queue.html` | Flagship panel 1 — Triage Queue (Screen 1). Full app shell, real seeded data, theme toggle. |
-| `S2-05-results-explorer.html` | Flagship panel 2 — Results Explorer (Screen 5). PrismQL editor + coverage banner + OCSF grid + entity mode. |
-| `screenshots/` | Playwright-captured PNGs (see below). |
+
+### S2 — Investigations Console (13 panels)
+
+| File | Screen |
+|------|--------|
+| `S2-01-triage-queue.html` | Triage Queue |
+| `S2-02-case-detail.html` | Case / Incident Detail |
+| `S2-03-entity-360.html` | Entity 360 / Observable Profile |
+| `S2-04-investigation-workspace.html` | Investigation Workspace |
+| `S2-05-results-explorer.html` | Results Explorer (PrismQL editor + coverage banner + OCSF grid) |
+| `S2-06-detection-rules.html` | Detection Rule Editor |
+| `S2-07-findings.html` | Findings / Alert Queue |
+| `S2-08-dashboards.html` | Posture Dashboards |
+| `S2-09-reporting.html` | Reporting |
+| `S2-10-saved-queries.html` | Saved Queries / Library |
+| `S2-11-cache-browser.html` | Cache / Retention Browser |
+| `S2-12-sources-connectors.html` | Sources / Connectors |
+| `S2-13-satellite-topology.html` | Satellite / Topology |
+
+### U1 — Admin Console (8 panels)
+
+| File | Screen |
+|------|--------|
+| `U1-01-tenant-management.html` | Tenant Management |
+| `U1-02-users-roles.html` | Users & RBAC |
+| `U1-03-connector-config.html` | Connector Config |
+| `U1-04-credential-rotation.html` | Credential Rotation |
+| `U1-05-audit-log.html` | Audit Log |
+| `U1-06-health-observability.html` | Health & Observability |
+| `U1-07-sso-wizard.html` | SSO Wizard |
+| `U1-08-policy-store.html` | Policy Store |
 
 ---
 
-## How to Open
+## Status: Complete
 
-Open any `.html` file directly via `file://` in any modern browser (Chrome, Firefox, Safari, Edge).
-No build step, no server, no npm required.
+21 panels x light/dark — all HTML files exist and screenshots are captured.
+No panels are pending rollout.
 
-Use the **☀️ / 🌙 toggle** (top-right) to switch between light and dark modes.
-The theme is persisted in `localStorage` so it survives page refresh.
+---
+
+## Screenshots
+
+Screenshots were captured by Playwright at 1440px viewport in both themes (44 PNGs total).
+They live under `screenshots/`. If absent, the `.html` files are the primary deliverable.
+
+| File | Description |
+|------|-------------|
+| `screenshots/style-guide-light.png` | Style guide — light |
+| `screenshots/style-guide-dark.png` | Style guide — dark |
+| `screenshots/triage-queue-light.png` | S2-01 Triage Queue — light |
+| `screenshots/triage-queue-dark.png` | S2-01 Triage Queue — dark |
+| `screenshots/S2-02-case-detail-light.png` | S2-02 Case Detail — light |
+| `screenshots/S2-02-case-detail-dark.png` | S2-02 Case Detail — dark |
+| `screenshots/S2-03-entity-360-light.png` | S2-03 Entity 360 — light |
+| `screenshots/S2-03-entity-360-dark.png` | S2-03 Entity 360 — dark |
+| `screenshots/S2-04-investigation-workspace-light.png` | S2-04 Investigation Workspace — light |
+| `screenshots/S2-04-investigation-workspace-dark.png` | S2-04 Investigation Workspace — dark |
+| `screenshots/results-explorer-light.png` | S2-05 Results Explorer — light |
+| `screenshots/results-explorer-dark.png` | S2-05 Results Explorer — dark |
+| `screenshots/S2-06-detection-rules-light.png` | S2-06 Detection Rules — light |
+| `screenshots/S2-06-detection-rules-dark.png` | S2-06 Detection Rules — dark |
+| `screenshots/S2-07-findings-light.png` | S2-07 Findings — light |
+| `screenshots/S2-07-findings-dark.png` | S2-07 Findings — dark |
+| `screenshots/S2-08-dashboards-light.png` | S2-08 Dashboards — light |
+| `screenshots/S2-08-dashboards-dark.png` | S2-08 Dashboards — dark |
+| `screenshots/S2-09-reporting-light.png` | S2-09 Reporting — light |
+| `screenshots/S2-09-reporting-dark.png` | S2-09 Reporting — dark |
+| `screenshots/S2-10-saved-queries-light.png` | S2-10 Saved Queries — light |
+| `screenshots/S2-10-saved-queries-dark.png` | S2-10 Saved Queries — dark |
+| `screenshots/S2-11-cache-browser-light.png` | S2-11 Cache Browser — light |
+| `screenshots/S2-11-cache-browser-dark.png` | S2-11 Cache Browser — dark |
+| `screenshots/S2-12-sources-connectors-light.png` | S2-12 Sources / Connectors — light |
+| `screenshots/S2-12-sources-connectors-dark.png` | S2-12 Sources / Connectors — dark |
+| `screenshots/S2-13-satellite-topology-light.png` | S2-13 Satellite / Topology — light |
+| `screenshots/S2-13-satellite-topology-dark.png` | S2-13 Satellite / Topology — dark |
+| `screenshots/U1-01-tenant-management-light.png` | U1-01 Tenant Management — light |
+| `screenshots/U1-01-tenant-management-dark.png` | U1-01 Tenant Management — dark |
+| `screenshots/U1-02-users-roles-light.png` | U1-02 Users & Roles — light |
+| `screenshots/U1-02-users-roles-dark.png` | U1-02 Users & Roles — dark |
+| `screenshots/U1-03-connector-config-light.png` | U1-03 Connector Config — light |
+| `screenshots/U1-03-connector-config-dark.png` | U1-03 Connector Config — dark |
+| `screenshots/U1-04-credential-rotation-light.png` | U1-04 Credential Rotation — light |
+| `screenshots/U1-04-credential-rotation-dark.png` | U1-04 Credential Rotation — dark |
+| `screenshots/U1-05-audit-log-light.png` | U1-05 Audit Log — light |
+| `screenshots/U1-05-audit-log-dark.png` | U1-05 Audit Log — dark |
+| `screenshots/U1-06-health-observability-light.png` | U1-06 Health & Observability — light |
+| `screenshots/U1-06-health-observability-dark.png` | U1-06 Health & Observability — dark |
+| `screenshots/U1-07-sso-wizard-light.png` | U1-07 SSO Wizard — light |
+| `screenshots/U1-07-sso-wizard-dark.png` | U1-07 SSO Wizard — dark |
+| `screenshots/U1-08-policy-store-light.png` | U1-08 Policy Store — light |
+| `screenshots/U1-08-policy-store-dark.png` | U1-08 Policy Store — dark |
 
 ---
 
@@ -37,12 +128,14 @@ The theme is persisted in `localStorage` so it survives page refresh.
 ### Architecture
 
 `tokens.css` declares all tokens as CSS custom properties on `:root` / `[data-theme="light"]`
-(which produce the same values) and `[data-theme="dark"]`.
+and `[data-theme="dark"]`. Every color, spacing, radius, shadow, transition, and
+component-level value is a token. No hardcoded colors appear in the HTML files outside
+of `tokens.css`, with the following documented exceptions:
 
-Every color, spacing, radius, shadow, transition, and component-level value is a token.
-No hardcoded colors appear in the HTML files outside of `tokens.css`.
+- **SVG chart fills** use literal hex values for cross-browser SVG reliability.
+- **Reporting PDF-preview surface** is hardcoded white in both themes to simulate paper.
 
-### Light Mode → 1898 & Co Brand Mapping
+### Light Mode — 1898 & Co Brand Mapping
 
 | Token | Value | Source |
 |-------|-------|--------|
@@ -73,7 +166,7 @@ Dark mode was derived from the same brand hues with the following rules:
 6. **Coverage state ramp recalibrated:** `#4ade80` (answered), `#fcd34d` (degraded), `#ff5a6e` (timeout) — all WCAG AA on dark surfaces.
 7. **Text targets:** primary `#eef0f2` ≥ 14:1 on `#16181c`; secondary `#b1b3b3` ≥ 7:1.
 
-Final dark token values (key entries):
+Key dark token values:
 
 ```
 Page bg:          #16181c
@@ -82,8 +175,8 @@ Elevated:         #2a2e35
 Borders:          #2a2e35 / #34383f
 Text primary:     #eef0f2
 Text secondary:   #b1b3b3
-Accent orange:    #ff6a39 (same)
-Brand blue:       #4099ff (brightened)
+Accent orange:    #ff6a39 (same as light)
+Brand blue:       #4099ff (brightened from #0057b8)
 Sev critical:     #ff5a6e  (bg: #2a0e12)
 Sev high:         #ff7a4d  (bg: #2a1509)
 Sev medium:       #ffc94d  (bg: #2a2200)
@@ -95,75 +188,55 @@ Cov timeout:      #ff5a6e
 
 ---
 
-## Font Licensing
+## Design Conventions
 
-| Family | Usage | License |
-|--------|-------|---------|
+### Color semantics
+
+- **Orange (`#ff6a39`)** — primary actions (CTA buttons), active nav indicator, critical/high severity badge accents, streaming state indicator. Orange is NOT used on tab underlines.
+- **Blue (`#0057b8` light / `#4099ff` dark)** — navigation, links, secondary actions.
+- **Purple (`#6d28d9` label, `#f3f0ff` bg in light)** — AI/agent content, machine-labeled data, trust-first indicators. Purple is the exclusive marker for AI-generated content; it is distinct from the brand orange (human actions) and brand blue (navigation).
+
+### Severity and coverage badges
+
+All severity badges and coverage indicators pair color + icon + text for color-blind safety. Color alone is never the sole signal.
+
+### Per-source coverage control
+
+Per-source coverage is rendered as a compact control that expands on demand, showing answered / degraded / timeout state per sensor source.
+
+### PrismQL editor theming
+
+The PrismQL / code editor re-themes with the page (light editor in light mode, dark editor in dark mode). This differs from the VS Code/Monaco convention of always-dark; it was a deliberate decision to maintain visual coherence with the rest of the surface.
+
+### Admin nav placement
+
+Admin is pinned to the bottom of the nav rail with a visual divider, following the conventional pattern for settings/admin sections.
+
+---
+
+## Typography
+
+| Family | Role | License |
+|--------|------|---------|
+| **Archivo** | Display headers, section titles, uppercase labels, large metrics | Google Fonts — OFL, free |
 | **Manrope** | Body text, UI labels, buttons, inputs | Google Fonts — OFL, free |
-| **acumin-pro-extra-condensed** | Display headers (section titles, large metrics) | **Adobe Fonts — requires active Adobe Creative Cloud or Adobe Fonts kit license**. The mockups use a fallback stack (`'Archivo', 'Saira Condensed', sans-serif`) so they render without the kit. |
-| **IBM Plex Mono** | PrismQL editor, code/mono cells | Google Fonts — OFL, free |
+| **IBM Plex Mono** | PrismQL editor, code cells, mono values | Google Fonts — OFL, free |
 
-For production deployment, obtain the Adobe kit license and embed the `acumin-pro-extra-condensed` kit URL in the `<head>`.
-
----
-
-## Screenshots
-
-Screenshots were captured by Playwright at 1440×900px viewport in both themes.
-
-| File | Description |
-|------|-------------|
-| `screenshots/style-guide-light.png` | Style guide — light mode |
-| `screenshots/style-guide-dark.png` | Style guide — dark mode |
-| `screenshots/triage-queue-light.png` | Triage Queue — light mode |
-| `screenshots/triage-queue-dark.png` | Triage Queue — dark mode |
-| `screenshots/results-explorer-light.png` | Results Explorer — light mode |
-| `screenshots/results-explorer-dark.png` | Results Explorer — dark mode |
-
-If screenshots are absent, open the HTML files directly in a browser — they are the primary deliverable.
+All three families load from Google Fonts. No Adobe Fonts kit is required. The previous iteration of these mockups included a fallback stack referencing `acumin-pro-extra-condensed` (Adobe Fonts); that dependency has been replaced by Archivo, which is available without a kit license.
 
 ---
 
-## Remaining Panels (Pass 2)
+## Not Yet Built
 
-The following ~19 panels are ready to roll out once this visual foundation is approved:
+The following surfaces are outside the current mockup scope. They are listed here so reviewers can distinguish "not in these mockups" from "omitted by mistake":
 
-| # | Screen | Notes |
-|---|--------|-------|
-| SCR-02 | Case / Incident Detail | Tabs: Overview, Evidence, Entities, Timeline, Actions, AI Insights |
-| SCR-03 | Entity 360 / Observable Profile | Three-pane; Cytoscape relationship graph |
-| SCR-04 | Investigation Workspace | Monaco editor; NL toggle; time/source selectors |
-| SCR-06 | Detection Rule Editor | Split-pane; lifecycle stepper; backtest panel |
-| SCR-07 | Findings / Alert Queue | Source coverage per finding; replay link |
-| SCR-08 | Posture Dashboards | ECharts: trend, pie, MITRE heatmap |
-| SCR-09 | Reporting | Report builder; PDF export |
-| SCR-10 | Saved Queries / Library | Recipes tab; parameterized queries |
-| SCR-11 | Cache / Retention Browser | Hot/cold tier; policy source transparency |
-| SCR-12 | Sources / Connectors | Connector health; configure-schema wizard |
-| SCR-13 | Satellite / Topology | Tree view; degraded-subtree propagation |
-| U1-01 | Admin: Tenant Management | Multi-tenant; per-tenant DEK summary |
-| U1-02 | Admin: Users & RBAC | Role assignment; custom roles |
-| U1-03 | Admin: Credentials | Write-only/masked; rotation workflow |
-| U1-04 | Admin: Audit Log | Immutable log; search/filter |
-| U1-05 | Admin: SSO Wizard | SAML/OIDC; test-connection flow |
-| U1-06 | Admin: Platform Health | Connector up/down; ingestion metrics |
-| U1-07 | Admin: Connector Config | Dynamic connector schema wizard |
-| Mobile | Responsive adaptations | Read-only triage on SM (<768px) |
+- **S3 — Embedded AI Conversation surface** — inline AI analyst pane / chat-over-data interface.
+- **S4 — Browser Extension** — lightweight triage / entity-lookup surface.
+- **Responsive / mobile breakpoints** — read-only triage at < 768px viewport width.
+- **Per-panel state sheets** — dedicated empty-state, error-state, and loading-state variants for each panel (currently handled inline in the panel HTML but not as standalone sheets).
 
 ---
 
-## Design Decisions for Human Confirmation
+## Provenance
 
-Before rolling out the remaining panels, please confirm:
-
-1. **Accent sparsity:** Orange `#ff6a39` currently appears only on: primary CTA buttons, active nav indicator dot, severity badge left-border (critical/high), new-case banner, and streaming state indicator. Is this sparsity level correct, or should the brand orange appear in more places (e.g., active tab underline)?
-
-2. **Coverage banner prominence:** The per-source coverage banner is rendered as a full-width colored band above the results grid. This is intentional — it is prism's signature differentiator and should be impossible to miss. Confirm this level of visual weight is right, or should it be more subtle (collapsed by default, expandable)?
-
-3. **Editor theme:** The PrismQL editor uses an always-dark catppuccin-style palette regardless of the page theme. This follows the VS Code / Monaco convention. Confirm this is the right call, or should the editor also re-theme to light?
-
-4. **AI callout color:** AI-generated content uses a purple/violet accent (`#6d28d9` label, `#f3f0ff` bg in light). This distinguishes AI from the brand orange (human actions) and brand blue (navigation). Confirm this distinction is intentional — or prefer a different color for AI content.
-
-5. **Typography display font:** Without an Adobe Fonts kit, `Archivo` renders for all display/uppercase headings. The final product needs the Adobe kit for `acumin-pro-extra-condensed`. Confirm the kit will be available, or select an alternative free condensed font (options: Barlow Condensed, Saira Condensed, Bebas Neue).
-
-6. **Left nav grouping:** Nav currently uses labeled groups (Investigations / Query / Detections / Dashboards / Data / Admin). Should Admin be separated at the bottom of the nav rail with a visual divider, as is conventional for settings/admin sections?
+Side-analysis capture, 2026-06-25. `do_not_execute`. Does not modify any live factory specs, behavioral contracts, or architectural decision records. Pending PO/architect adjudication before any day-2 morph work begins.

@@ -1,0 +1,2204 @@
+<!DOCTYPE html>
+<!--
+  states-gallery.html — Prism Design System: Canonical State-Coverage Gallery
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  Documents every canonical UI state for Prism's three data surfaces:
+    (a) Results Explorer / query results
+    (b) Findings / Alerts Queue
+    (c) Triage Queue
+
+  State matrix per surface:
+    EMPTY          — no data / no matches; helpful next action
+    LOADING        — skeleton shimmer
+    STREAMING      — partial coverage; some sources answered, some degraded/timed-out
+    ERROR          — query/parse/source error with code + message + retry
+    NO-PERMISSION  — RBAC-gated; explain + request-access affordance
+
+  Also includes generic component states: empty card, toast variants, degraded banner.
+
+  Themes: light (default) / dark via toggle.
+  Stack: vanilla HTML + CSS (tokens.css) + tiny vanilla JS. No build step.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — State-Coverage Gallery</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    /* ── Gallery page layout ──────────────────────────────────────── */
+    .gallery-page {
+      min-height: 100vh;
+      background: var(--color-bg);
+    }
+
+    /* ── Sticky header ────────────────────────────────────────────── */
+    .gallery-header {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-topbar);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      padding: 0 var(--space-6);
+      height: var(--topbar-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+
+    .gallery-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      color: var(--color-text);
+      text-transform: uppercase;
+    }
+
+    .gallery-logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-full);
+      background: var(--color-accent);
+      flex-shrink: 0;
+    }
+
+    .gallery-title-suffix {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-regular);
+      opacity: 0.45;
+      margin-left: var(--space-1);
+    }
+
+    .gallery-header-nav {
+      display: flex;
+      gap: var(--space-1);
+      list-style: none;
+    }
+
+    .gallery-header-nav a {
+      display: inline-flex;
+      align-items: center;
+      height: 30px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+      text-decoration: none;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .gallery-header-nav a:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    /* ── Theme toggle ─────────────────────────────────────────────── */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-full);
+      padding: 3px;
+      cursor: pointer;
+    }
+
+    .theme-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--color-text-muted);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .theme-btn.active {
+      background: var(--color-bg);
+      color: var(--color-text);
+      box-shadow: var(--shadow-xs);
+    }
+
+    /* ── Gallery body ─────────────────────────────────────────────── */
+    .gallery-body {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: var(--space-10) var(--space-6) var(--space-20);
+    }
+
+    /* ── Surface section ──────────────────────────────────────────── */
+    .surface-section {
+      margin-bottom: var(--space-16);
+    }
+
+    .surface-header {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-3);
+      margin-bottom: var(--space-6);
+      padding-bottom: var(--space-4);
+      border-bottom: 2px solid var(--color-border);
+    }
+
+    .surface-eyebrow {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-accent);
+    }
+
+    .surface-title {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+    }
+
+    .surface-desc {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+    }
+
+    /* ── State matrix grid ────────────────────────────────────────── */
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      gap: var(--space-6);
+    }
+
+    .state-grid.full-width {
+      grid-template-columns: 1fr;
+    }
+
+    /* ── State tile ───────────────────────────────────────────────── */
+    .state-tile {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .state-tile-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-surface-2);
+      border-bottom: var(--border);
+    }
+
+    .state-tile-label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .state-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      height: 22px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+    }
+
+    .state-chip-empty    { background: var(--color-surface-3); color: var(--color-text-muted); }
+    .state-chip-loading  { background: var(--color-blue-subtle); color: var(--color-blue); }
+    .state-chip-streaming { background: #f0fdf4; color: var(--color-cov-answered-text); }
+    [data-theme="dark"] .state-chip-streaming { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); }
+    .state-chip-error    { background: var(--color-sev-critical-bg); color: var(--color-sev-critical-text); }
+    .state-chip-noperm   { background: var(--color-sev-medium-bg); color: var(--color-sev-medium-text); }
+
+    .state-tile-name {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    .state-tile-desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    .state-tile-body {
+      padding: var(--space-4);
+    }
+
+    .state-tile-body.no-pad {
+      padding: 0;
+    }
+
+    /* ── Shared component pieces ──────────────────────────────────── */
+
+    /* Mini topbar (for in-tile context) */
+    .mini-topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-4);
+      height: 40px;
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+    }
+
+    .mini-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      font-family: var(--font-display);
+      font-size: var(--text-base);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+    }
+
+    .mini-logo-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); }
+
+    /* Page heading row inside tile */
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3) var(--space-4);
+      border-bottom: var(--border);
+    }
+
+    .panel-title {
+      font-size: var(--text-base);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    .panel-subtitle {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Severity badges (inlined from style-guide) ───────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      height: 22px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: var(--badge-font-size);
+      font-weight: var(--badge-font-weight);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-icon { width: 10px; height: 10px; flex-shrink: 0; }
+
+    .badge-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical-text); border: 1px solid var(--color-sev-critical-border); }
+    .badge-high     { background: var(--color-sev-high-bg);     color: var(--color-sev-high-text);     border: 1px solid var(--color-sev-high-border); }
+    .badge-medium   { background: var(--color-sev-medium-bg);   color: var(--color-sev-medium-text);   border: 1px solid var(--color-sev-medium-border); }
+    .badge-low      { background: var(--color-sev-low-bg);      color: var(--color-sev-low-text);      border: 1px solid var(--color-sev-low-border); }
+    .badge-info     { background: var(--color-sev-info-bg);     color: var(--color-sev-info-text);     border: 1px solid var(--color-sev-info-border); }
+
+    .pill-answered  { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); border: 1px solid var(--color-cov-answered-border); }
+    .pill-degraded  { background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); border: 1px solid var(--color-cov-degraded-border); }
+    .pill-timeout   { background: var(--color-cov-timeout-bg);  color: var(--color-cov-timeout-text);  border: 1px solid var(--color-cov-timeout-border); }
+    .pill-nodata    { background: var(--color-cov-nodata-bg);   color: var(--color-cov-nodata-text);   border: 1px solid var(--color-cov-nodata-border); }
+
+    /* ── Buttons ──────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-1-5);
+      height: var(--btn-height-md);
+      padding: var(--btn-padding-md);
+      border-radius: var(--btn-radius);
+      font-family: var(--font-sans);
+      font-size: var(--btn-font-size);
+      font-weight: var(--btn-font-weight);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background var(--transition-fast);
+      text-decoration: none;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .btn-primary  { background: var(--btn-primary-bg);   color: var(--btn-primary-text); }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); color: #fff; text-decoration: none; }
+    .btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border-color: var(--btn-secondary-border); }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); text-decoration: none; }
+    .btn-ghost    { background: transparent; color: var(--btn-ghost-text); }
+    .btn-ghost:hover { background: var(--btn-ghost-bg-hover); text-decoration: none; }
+
+    .btn-sm {
+      height: var(--btn-height-sm);
+      padding: var(--btn-padding-sm);
+      font-size: var(--text-xs);
+    }
+
+    /* ── Table skeleton ───────────────────────────────────────────── */
+    .table-shell {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+
+    .table-shell th {
+      background: var(--table-header-bg);
+      color: var(--table-header-text);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--color-border-strong);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .table-shell td {
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--table-border);
+      color: var(--color-text);
+      vertical-align: middle;
+    }
+
+    .table-shell tr:nth-child(even) td { background: var(--table-row-bg-alt); }
+    .table-shell tr:hover td { background: var(--table-row-bg-hover); }
+
+    /* ── Skeleton shimmer (reuse tokens.css @keyframes shimmer) ───── */
+    .skel {
+      display: block;
+      background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 50%, var(--skeleton-base) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.5s infinite linear;
+      border-radius: var(--radius-sm);
+    }
+
+    .skel-h12 { height: 12px; }
+    .skel-h14 { height: 14px; }
+    .skel-h20 { height: 20px; }
+    .skel-w30 { width: 30%; }
+    .skel-w40 { width: 40%; }
+    .skel-w50 { width: 50%; }
+    .skel-w60 { width: 60%; }
+    .skel-w70 { width: 70%; }
+    .skel-w80 { width: 80%; }
+    .skel-w90 { width: 90%; }
+    .skel-full { width: 100%; }
+    .skel-chip { width: 60px; height: 20px; border-radius: var(--radius-full); }
+    .skel-circle { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Empty state ──────────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: var(--space-12) var(--space-8);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-lg);
+      min-height: 220px;
+    }
+
+    .empty-icon-wrap {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-xl);
+      background: var(--color-surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--space-4);
+      color: var(--color-icon-default);
+    }
+
+    .empty-title {
+      font-size: var(--text-base);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      margin-bottom: var(--space-1-5);
+    }
+
+    .empty-body {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      max-width: 340px;
+      margin: 0 auto var(--space-4);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* ── Error state ──────────────────────────────────────────────── */
+    .error-banner {
+      background: var(--color-sev-critical-bg);
+      border: 1px solid var(--color-sev-critical-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+    }
+
+    .error-banner-head {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+
+    .error-icon-wrap {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      background: var(--color-sev-critical-solid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #fff;
+    }
+
+    .error-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-sev-critical-text);
+      margin-bottom: 2px;
+    }
+
+    .error-code {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    .error-msg {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-sev-critical-text);
+      background: var(--color-sev-critical-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      margin-bottom: var(--space-3);
+      line-height: var(--leading-relaxed);
+      word-break: break-word;
+    }
+
+    .error-actions {
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    /* ── No-permission state ──────────────────────────────────────── */
+    .noperm-banner {
+      background: var(--color-sev-medium-bg);
+      border: 1px solid var(--color-sev-medium-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5) var(--space-6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      min-height: 220px;
+      justify-content: center;
+      gap: var(--space-3);
+    }
+
+    .noperm-icon-wrap {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-xl);
+      background: var(--color-sev-medium-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-sev-medium-icon);
+    }
+
+    .noperm-title {
+      font-size: var(--text-base);
+      font-weight: var(--weight-semibold);
+      color: var(--color-sev-medium-text);
+    }
+
+    .noperm-body {
+      font-size: var(--text-sm);
+      color: var(--color-sev-medium-text);
+      opacity: 0.85;
+      max-width: 360px;
+      line-height: var(--leading-relaxed);
+    }
+
+    .noperm-details {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      background: var(--color-surface-1);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-3);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    /* ── Coverage banner (compact) ────────────────────────────────── */
+    .coverage-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      padding: var(--space-2) var(--space-4);
+      background: var(--color-bg-card);
+      border-bottom: var(--border);
+    }
+
+    .coverage-bar-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      margin-right: var(--space-1);
+      flex-shrink: 0;
+    }
+
+    /* ── Streaming indicator ──────────────────────────────────────── */
+    @keyframes streaming-pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .streaming-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-cov-answered-icon);
+    }
+
+    .streaming-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: streaming-pulse 1s ease-in-out infinite;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* ── Degraded notice bar ──────────────────────────────────────── */
+    .degraded-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      background: var(--color-cov-degraded-bg);
+      border-bottom: 1px solid var(--color-cov-degraded-border);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      color: var(--color-cov-degraded-text);
+    }
+
+    /* ── Result row (compact) ─────────────────────────────────────── */
+    .result-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-4);
+      border-bottom: 1px solid var(--table-border);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .result-row:hover { background: var(--table-row-bg-hover); }
+    .result-row:last-child { border-bottom: none; }
+
+    .result-row-faded {
+      opacity: 0.45;
+    }
+
+    .result-col-sev  { width: 80px; flex-shrink: 0; }
+    .result-col-main { flex: 1; min-width: 0; }
+    .result-col-time { width: 100px; flex-shrink: 0; font-size: var(--text-xs); color: var(--color-text-muted); text-align: right; }
+    .result-col-src  { width: 90px; flex-shrink: 0; }
+
+    .result-name {
+      font-weight: var(--weight-medium);
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-meta {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── AI callout (compact) ─────────────────────────────────────── */
+    .ai-callout {
+      background: var(--color-ai-bg);
+      border: 1px solid var(--color-ai-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+    }
+
+    .ai-label-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 18px;
+      padding: 0 var(--space-2);
+      background: var(--color-ai-label);
+      color: #fff;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--space-2);
+    }
+
+    .ai-body {
+      font-size: var(--text-sm);
+      color: var(--color-ai-text);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* ── Toast demo ───────────────────────────────────────────────── */
+    .toast {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--toast-bg);
+      color: var(--toast-text);
+      border-radius: var(--toast-radius);
+      font-size: var(--text-sm);
+      box-shadow: var(--toast-shadow);
+    }
+
+    .toast-content { flex: 1; }
+    .toast-title { font-weight: var(--weight-semibold); margin-bottom: 2px; }
+    .toast-body { font-size: var(--text-xs); opacity: 0.8; }
+
+    .toast-success { border-left: 3px solid var(--color-cov-answered-icon); }
+    .toast-error   { border-left: 3px solid var(--color-sev-critical-icon); }
+    .toast-warning { border-left: 3px solid var(--color-cov-degraded-icon); }
+    .toast-info    { border-left: 3px solid var(--color-sev-info-icon); }
+
+    /* ── Section divider ──────────────────────────────────────────── */
+    .gallery-divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: var(--space-10) 0;
+    }
+
+    /* ── Component states section ─────────────────────────────────── */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-4);
+    }
+
+    .component-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      padding: var(--card-padding);
+    }
+
+    .component-card-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-3);
+    }
+
+    /* ── Editor chrome (PrismQL, mini) ───────────────────────────── */
+    .editor-chrome {
+      background: var(--editor-bg);
+      border: 1px solid var(--editor-border);
+      border-radius: var(--editor-radius);
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: var(--editor-font-size);
+    }
+
+    .editor-titlebar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-1-5) var(--space-3);
+      background: var(--editor-gutter-bg);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .editor-dots { display: flex; gap: 5px; }
+    .editor-dot  { width: 10px; height: 10px; border-radius: 50%; }
+    .editor-dot-r { background: #ff5f57; }
+    .editor-dot-y { background: #ffbd2e; }
+    .editor-dot-g { background: #28c840; }
+
+    .editor-tab {
+      font-size: 11px; color: var(--editor-gutter-text);
+      padding: 2px 8px; background: rgba(255,255,255,0.05);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .editor-body { display: flex; }
+
+    .editor-gutter {
+      padding: var(--space-2) var(--space-2);
+      background: var(--editor-gutter-bg);
+      color: var(--editor-gutter-text);
+      text-align: right;
+      min-width: 36px;
+      user-select: none;
+      border-right: 1px solid rgba(255,255,255,0.05);
+      line-height: var(--editor-line-height);
+      font-size: var(--editor-font-size);
+    }
+
+    .editor-code {
+      padding: var(--space-2) var(--space-3);
+      color: var(--editor-text);
+      flex: 1;
+      white-space: pre;
+      line-height: var(--editor-line-height);
+    }
+
+    .editor-code .kw  { color: var(--editor-keyword); }
+    .editor-code .fn  { color: var(--editor-function); }
+    .editor-code .str { color: var(--editor-string); }
+    .editor-code .num { color: var(--editor-number); }
+    .editor-code .cm  { color: var(--editor-comment); font-style: italic; }
+    .editor-code .op  { color: var(--editor-operator); }
+    .editor-code .ty  { color: var(--editor-type); }
+
+    .editor-error-underline {
+      text-decoration: underline wavy var(--color-sev-critical-icon);
+    }
+
+    /* ── Mono-spaced error code display ───────────────────────────── */
+    .mono-code {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    /* Partial row — partially faded to show data still loading */
+    .partial-row td {
+      opacity: 0.45;
+    }
+
+    /* Source tag */
+    .src-tag {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-2);
+      color: var(--color-text-muted);
+      border: 1px solid var(--color-border);
+      white-space: nowrap;
+    }
+
+    /* ── Triage queue row ─────────────────────────────────────────── */
+    .tq-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2-5, 10px) var(--space-4);
+      border-bottom: 1px solid var(--table-border);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .tq-row:hover { background: var(--table-row-bg-hover); }
+    .tq-row:last-child { border-bottom: none; }
+
+    .tq-sev { width: 76px; flex-shrink: 0; }
+    .tq-name { flex: 1; min-width: 0; }
+    .tq-entity { width: 120px; flex-shrink: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+    .tq-time { width: 88px; flex-shrink: 0; font-size: var(--text-xs); color: var(--color-text-muted); text-align: right; }
+
+    /* ── Inline tab bar ───────────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: var(--border);
+      padding: 0 var(--space-4);
+    }
+
+    .tab-item {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      height: 38px;
+      padding: 0 var(--space-3);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--tab-text);
+      cursor: pointer;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+
+    .tab-item:hover { background: var(--tab-bg-hover); color: var(--color-text); }
+
+    .tab-item.active {
+      color: var(--tab-text-active);
+      font-weight: var(--weight-semibold);
+    }
+
+    .tab-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0; right: 0;
+      height: 2px;
+      background: var(--tab-border-active);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      background: var(--color-surface-3);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+    }
+
+    /* ── Filter bar ───────────────────────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-bottom: var(--border);
+    }
+
+    .input {
+      height: var(--input-height);
+      padding: var(--input-padding);
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--input-radius);
+      font-family: var(--font-sans);
+      font-size: var(--input-font-size);
+      color: var(--input-text);
+      transition: border-color var(--transition-fast);
+      width: 100%;
+    }
+
+    .input::placeholder { color: var(--input-placeholder); }
+    .input:focus { outline: none; border-color: var(--input-border-focus); }
+
+    .input-search-wrap {
+      position: relative;
+      flex: 1;
+    }
+
+    .input-search-wrap .input { padding-left: 30px; }
+
+    .input-search-icon {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--color-icon-default);
+      pointer-events: none;
+    }
+
+    /* ── Count badge ──────────────────────────────────────────────── */
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      background: var(--color-sev-critical-bg);
+      color: var(--color-sev-critical-text);
+      border: 1px solid var(--color-sev-critical-border);
+    }
+
+    /* ── Streaming progress row (fills in as results arrive) ─────── */
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-blue-subtle);
+      border-bottom: var(--border);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      color: var(--color-blue);
+    }
+
+    /* ── Permission request affordance ───────────────────────────── */
+    .request-access-form {
+      background: var(--color-bg-card);
+      border: var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      max-width: 360px;
+      margin: 0 auto;
+    }
+
+    .request-access-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      margin-bottom: var(--space-2);
+    }
+
+    .textarea {
+      width: 100%;
+      padding: var(--space-2) var(--space-3);
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--input-radius);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--input-text);
+      resize: none;
+      line-height: var(--leading-relaxed);
+    }
+
+    .textarea::placeholder { color: var(--input-placeholder); }
+    .textarea:focus { outline: none; border-color: var(--input-border-focus); }
+
+    /* ── State summary matrix table at top ───────────────────────── */
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+      margin-bottom: var(--space-8);
+    }
+
+    .matrix-table th {
+      background: var(--table-header-bg);
+      color: var(--table-header-text);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--color-border-strong);
+      text-align: left;
+    }
+
+    .matrix-table td {
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--table-border);
+      vertical-align: middle;
+    }
+
+    .matrix-table tr:hover td { background: var(--table-row-bg-hover); }
+
+    .check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--color-cov-answered-bg);
+      border: 1px solid var(--color-cov-answered-border);
+      color: var(--color-cov-answered-icon);
+      font-size: 10px;
+      font-weight: var(--weight-bold);
+    }
+
+    .intro-section {
+      margin-bottom: var(--space-10);
+    }
+
+    .intro-title {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-tight);
+      color: var(--color-text);
+      margin-bottom: var(--space-2);
+    }
+
+    .intro-body {
+      font-size: var(--text-base);
+      color: var(--color-text-muted);
+      line-height: var(--leading-relaxed);
+      max-width: 680px;
+    }
+  </style>
+</head>
+
+<body>
+<div class="gallery-page">
+
+  <!-- ── Header ───────────────────────────────────────────────────── -->
+  <header class="gallery-header">
+    <div class="gallery-logo">
+      <span class="gallery-logo-dot"></span>
+      Prism
+      <span class="gallery-title-suffix">State-Coverage Gallery</span>
+    </div>
+
+    <nav>
+      <ul class="gallery-header-nav">
+        <li><a href="#results-explorer">Results Explorer</a></li>
+        <li><a href="#findings-queue">Findings Queue</a></li>
+        <li><a href="#triage-queue">Triage Queue</a></li>
+        <li><a href="#components">Components</a></li>
+      </ul>
+    </nav>
+
+    <div class="theme-toggle" role="group" aria-label="Theme selector">
+      <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme" title="Light theme">&#9728;&#65039;</button>
+      <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme" title="Dark theme">&#127769;</button>
+    </div>
+  </header>
+
+  <!-- ── Body ─────────────────────────────────────────────────────── -->
+  <main class="gallery-body">
+
+    <!-- ── Intro ─────────────────────────────────────────────────── -->
+    <section class="intro-section">
+      <h1 class="intro-title">State-Coverage Reference</h1>
+      <p class="intro-body">
+        Canonical UI states for Prism's three data-heavy surfaces. Each tile shows a realistic
+        rendered mockup with SOC-representative data. Organized by surface, then state.
+        Toggle light / dark to verify both themes.
+      </p>
+    </section>
+
+    <!-- ── State matrix summary ──────────────────────────────────── -->
+    <table class="matrix-table" aria-label="State coverage matrix">
+      <thead>
+        <tr>
+          <th>Surface</th>
+          <th>Empty</th>
+          <th>Loading</th>
+          <th>Streaming + Partial Coverage</th>
+          <th>Error</th>
+          <th>No Permission</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Results Explorer</strong></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+        </tr>
+        <tr>
+          <td><strong>Findings Queue</strong></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+        </tr>
+        <tr>
+          <td><strong>Triage Queue</strong></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+          <td><span class="check" aria-label="covered">&#10003;</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="gallery-divider"></div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════
+         SURFACE A: RESULTS EXPLORER
+         ════════════════════════════════════════════════════════════ -->
+    <section class="surface-section" id="results-explorer">
+      <div class="surface-header">
+        <div>
+          <div class="surface-eyebrow">Surface A</div>
+          <h2 class="surface-title">Results Explorer — Query Results</h2>
+          <p class="surface-desc">PrismQL federated query result grid with per-source coverage bar. Shows OCSF-normalized rows from CrowdStrike, Cyberint, Claroty, and Armis.</p>
+        </div>
+      </div>
+
+      <div class="state-grid">
+
+        <!-- A-1: EMPTY -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-empty">&#8709; Empty</span>
+              <span class="state-tile-name">No query / no results</span>
+            </div>
+            <span class="state-tile-desc">User has not run a query yet, or query returned 0 rows</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <!-- Mini editor -->
+            <div class="editor-chrome" style="border-radius:0; border:none; border-bottom: 1px solid var(--color-border);">
+              <div class="editor-titlebar">
+                <div class="editor-dots">
+                  <div class="editor-dot editor-dot-r"></div>
+                  <div class="editor-dot editor-dot-y"></div>
+                  <div class="editor-dot editor-dot-g"></div>
+                </div>
+                <span class="editor-tab">query.pql</span>
+              </div>
+              <div class="editor-body">
+                <div class="editor-gutter">1<br>2<br>3</div>
+                <div class="editor-code"><!-- placeholder cursor --><span class="cm">-- Write a PrismQL query to begin</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="fn">federated</span>
+<span class="kw">WHERE</span> entity(<span class="str">'ip'</span>, <span class="str">'…'</span>) <span class="kw">SINCE</span> <span class="num">24h</span></div>
+              </div>
+            </div>
+            <!-- Empty state body -->
+            <div style="padding: var(--space-4);">
+              <div class="empty-state">
+                <div class="empty-icon-wrap" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                </div>
+                <div class="empty-title">No results yet</div>
+                <div class="empty-body">Run a PrismQL query to federate data across all connected sources. Results appear here in OCSF-normalized format.</div>
+                <div style="display:flex;gap:var(--space-2);">
+                  <button class="btn btn-primary btn-sm">Run example query</button>
+                  <button class="btn btn-ghost btn-sm">Browse saved queries</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- A-2: LOADING -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-loading">&#9672; Loading</span>
+              <span class="state-tile-name">Query dispatched — awaiting first results</span>
+            </div>
+            <span class="state-tile-desc">Skeleton shimmer while all sources are contacted</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <!-- Coverage bar loading -->
+            <div class="coverage-bar" role="status" aria-label="Querying sources…">
+              <span class="coverage-bar-label">Sources</span>
+              <span class="skel skel-chip" style="width:80px;"></span>
+              <span class="skel skel-chip" style="width:72px;"></span>
+              <span class="skel skel-chip" style="width:68px;"></span>
+              <span class="skel skel-chip" style="width:64px;"></span>
+              <span style="margin-left:auto; display:flex; align-items:center; gap:var(--space-2); font-size:var(--text-xs); color:var(--color-text-muted);">
+                <div class="spinner" role="img" aria-label="Loading"></div>
+                Querying…
+              </span>
+            </div>
+            <!-- Table skeleton -->
+            <table class="table-shell" style="width:100%;" aria-busy="true" aria-label="Loading results">
+              <thead>
+                <tr>
+                  <th>Severity</th><th>Event type</th><th>Entity</th><th>Source</th><th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><span class="skel skel-h14 skel-w80" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w90" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w70" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w60" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w50" style="display:block;"></span></td></tr>
+                <tr><td><span class="skel skel-h14 skel-w60" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w80" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w90" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w50" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w40" style="display:block;"></span></td></tr>
+                <tr><td><span class="skel skel-h14 skel-w70" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w60" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w80" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w60" style="display:block;"></span></td><td><span class="skel skel-h12 skel-w50" style="display:block;"></span></td></tr>
+                <tr class="partial-row"><td colspan="5"><span class="skel skel-h12 skel-full" style="display:block;opacity:0.5;"></span></td></tr>
+                <tr class="partial-row"><td colspan="5"><span class="skel skel-h12 skel-w80" style="display:block;opacity:0.35;"></span></td></tr>
+              </tbody>
+            </table>
+            <div style="padding: var(--space-3) var(--space-4); font-size: var(--text-xs); color: var(--color-text-muted);">
+              Dispatching query to 4 sources…
+            </div>
+          </div>
+        </div>
+
+        <!-- A-3: STREAMING + PARTIAL COVERAGE -->
+        <div class="state-tile" style="grid-column: span 2;" aria-label="Streaming — partial coverage">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-streaming">&#9654; Streaming</span>
+              <span class="state-tile-name">Results populating — partial coverage</span>
+            </div>
+            <span class="state-tile-desc">CrowdStrike + Cyberint answered; Armis degraded; Claroty timed out. §3.6 compact-expandable coverage bar.</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <!-- Streaming progress row -->
+            <div class="progress-row" role="status">
+              <div class="streaming-dot" aria-hidden="true"></div>
+              <span>Streaming — 186 rows received · 2 of 4 sources complete</span>
+              <span style="margin-left:auto; color:var(--color-text-muted);">Elapsed: 2.4s</span>
+            </div>
+            <!-- Coverage bar: mixed states -->
+            <div class="coverage-bar" role="status" aria-label="Source coverage: CrowdStrike answered, Cyberint answered, Armis degraded, Claroty timed out">
+              <span class="coverage-bar-label">Sources</span>
+              <span class="badge pill-answered">
+                <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                CrowdStrike
+              </span>
+              <span class="badge pill-answered">
+                <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Cyberint
+              </span>
+              <span class="badge pill-degraded">
+                <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2L8.5 8H1.5L5 2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.5" y="4.5" width="1" height="2.2" fill="currentColor"/><rect x="4.5" y="7.2" width="1" height="1" fill="currentColor"/></svg>
+                Armis — partial (38 rows, degraded)
+              </span>
+              <span class="badge pill-timeout">
+                <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M5 3v2.5l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                Claroty — timed out (5s)
+              </span>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;" aria-expanded="false" aria-label="Expand source coverage details">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg>
+                Details
+              </button>
+            </div>
+            <!-- Results table — populated + faded partial rows -->
+            <table class="table-shell" aria-label="Query results — streaming">
+              <thead>
+                <tr>
+                  <th>Severity</th><th>Event type</th><th>Entity / Host</th><th>Source</th><th>Time (UTC)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge badge-critical"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/></svg>Critical</span></td>
+                  <td><span class="mono-code">process_injection</span></td>
+                  <td>acme-dc-01 <span style="color:var(--color-text-muted);">· 10.0.1.10</span></td>
+                  <td><span class="src-tag">CrowdStrike</span></td>
+                  <td class="mono-code">14:22:07</td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-high"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>High</span></td>
+                  <td><span class="mono-code">lateral_movement</span></td>
+                  <td>acme-app-03 <span style="color:var(--color-text-muted);">· 10.0.1.5</span></td>
+                  <td><span class="src-tag">CrowdStrike</span></td>
+                  <td class="mono-code">14:21:44</td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-high"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>High</span></td>
+                  <td><span class="mono-code">threat_intel_match</span></td>
+                  <td>185.220.101.47 <span style="color:var(--color-text-muted);">· external</span></td>
+                  <td><span class="src-tag">Cyberint</span></td>
+                  <td class="mono-code">14:20:13</td>
+                </tr>
+                <tr>
+                  <td><span class="badge badge-medium"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.9"/></svg>Medium</span></td>
+                  <td><span class="mono-code">ot_anomaly</span></td>
+                  <td>plc-floor-04 <span style="color:var(--color-text-muted);">· 192.168.50.4</span></td>
+                  <td><span class="src-tag" style="opacity:0.7;">Armis</span></td>
+                  <td class="mono-code" style="opacity:0.6;">14:19:58</td>
+                </tr>
+                <tr class="partial-row">
+                  <td><span class="skel skel-h14 skel-w80" style="display:block;"></span></td>
+                  <td><span class="skel skel-h12 skel-full" style="display:block;"></span></td>
+                  <td><span class="skel skel-h12 skel-w70" style="display:block;"></span></td>
+                  <td><span class="skel skel-chip" style="display:block;width:70px;"></span></td>
+                  <td><span class="skel skel-h12 skel-w60" style="display:block;"></span></td>
+                </tr>
+                <tr class="partial-row">
+                  <td><span class="skel skel-h14 skel-w60" style="display:block;"></span></td>
+                  <td><span class="skel skel-h12 skel-w90" style="display:block;"></span></td>
+                  <td><span class="skel skel-h12 skel-w80" style="display:block;"></span></td>
+                  <td><span class="skel skel-chip" style="display:block;width:60px;"></span></td>
+                  <td><span class="skel skel-h12 skel-w50" style="display:block;"></span></td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- AI partial-coverage callout -->
+            <div style="padding: var(--space-3) var(--space-4);">
+              <div class="ai-callout">
+                <span class="ai-label-chip">
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true"><circle cx="4" cy="4" r="3.5" fill="white"/></svg>
+                  AI
+                </span>
+                <div class="ai-body">2 of 4 sources still responding. Claroty timeout may indicate OT network latency. Armis data is partial — results may undercount ICS asset exposure.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- A-4: ERROR -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-error">&#9888; Error</span>
+              <span class="state-tile-name">Query / parse / source error</span>
+            </div>
+            <span class="state-tile-desc">Syntax error in PrismQL — highlighted in editor with error panel below</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <!-- Editor with error -->
+            <div class="editor-chrome" style="border-radius:0; border:none; border-bottom: 1px solid var(--color-border);">
+              <div class="editor-titlebar">
+                <div class="editor-dots">
+                  <div class="editor-dot editor-dot-r"></div>
+                  <div class="editor-dot editor-dot-y"></div>
+                  <div class="editor-dot editor-dot-g"></div>
+                </div>
+                <span class="editor-tab">query.pql</span>
+              </div>
+              <div class="editor-body">
+                <div class="editor-gutter">1<br>2<br>3<br>4</div>
+                <div class="editor-code"><span class="kw">SELECT</span> event_type, entity_name, severity
+<span class="kw">FROM</span> <span class="fn">federated</span>
+<span class="kw">WHERE</span> entity(<span class="str">'ip'</span>, <span class="str">'10.0.1.0/24'</span>) <span class="kw">SINCE</span> <span class="num">24h</span>
+<span class="kw">ORDER BY</span> <span class="editor-error-underline">severtiy</span> <span class="kw">DESC</span></div>
+              </div>
+            </div>
+            <!-- Error panel -->
+            <div style="padding: var(--space-4);">
+              <div class="error-banner" role="alert" aria-live="assertive">
+                <div class="error-banner-head">
+                  <div class="error-icon-wrap" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="7"/><line x1="8" y1="5" x2="8" y2="8"/><circle cx="8" cy="11" r="0.5" fill="currentColor"/></svg>
+                  </div>
+                  <div>
+                    <div class="error-title">Query parse error</div>
+                    <div class="error-code">E-QUERY-012 · PrismQL syntax · line 4, col 10</div>
+                  </div>
+                </div>
+                <div class="error-msg" role="note">Unknown column reference: <strong>severtiy</strong>
+Did you mean: <strong>severity</strong>?
+
+Available columns: event_type, severity, entity_name, entity_ip, source, timestamp</div>
+                <div class="error-actions">
+                  <button class="btn btn-primary btn-sm">Auto-correct</button>
+                  <button class="btn btn-ghost btn-sm">View schema</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- A-5: NO PERMISSION -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-noperm">&#128274; No Permission</span>
+              <span class="state-tile-name">RBAC gate — source not accessible</span>
+            </div>
+            <span class="state-tile-desc">User has query access but not to the requested source</span>
+          </div>
+          <div class="state-tile-body" style="padding: var(--space-4);">
+            <div class="noperm-banner" role="alert">
+              <div class="noperm-icon-wrap" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <div class="noperm-title">Access restricted</div>
+              <div class="noperm-body">Your role (SOC Analyst L1) does not have permission to query the <strong>Claroty ICS</strong> source. This source contains OT/ICS sensor data and requires the <em>ics-query</em> permission.</div>
+              <div class="noperm-details">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/><path d="M6 5v4M6 3.5h.01"/></svg>
+                <span>Required: <code>ics-query</code> · Your role: <code>soc-analyst-l1</code></span>
+              </div>
+              <div style="display:flex; gap: var(--space-2);">
+                <button class="btn btn-primary btn-sm">Request access</button>
+                <button class="btn btn-ghost btn-sm">Query without Claroty</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /state-grid -->
+    </section>
+
+    <div class="gallery-divider"></div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════
+         SURFACE B: FINDINGS / ALERTS QUEUE
+         ════════════════════════════════════════════════════════════ -->
+    <section class="surface-section" id="findings-queue">
+      <div class="surface-header">
+        <div>
+          <div class="surface-eyebrow">Surface B</div>
+          <h2 class="surface-title">Findings / Alerts Queue</h2>
+          <p class="surface-desc">Severity-sorted list of correlated detections with AI triage card, source coverage record, and disposition actions.</p>
+        </div>
+      </div>
+
+      <div class="state-grid">
+
+        <!-- B-1: EMPTY -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-empty">&#8709; Empty</span>
+              <span class="state-tile-name">No findings — clean queue</span>
+            </div>
+            <span class="state-tile-desc">All findings triaged or none generated in current window</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Findings</div>
+                <div class="panel-subtitle">Last 24 hours · All tenants</div>
+              </div>
+              <div style="display:flex;gap:var(--space-2);">
+                <button class="btn btn-ghost btn-sm">Filter</button>
+              </div>
+            </div>
+            <div class="tab-bar">
+              <div class="tab-item active">Open <span class="tab-count">0</span></div>
+              <div class="tab-item">Suppressed</div>
+              <div class="tab-item">Closed</div>
+            </div>
+            <div style="padding: var(--space-4);">
+              <div class="empty-state">
+                <div class="empty-icon-wrap" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </div>
+                <div class="empty-title">Queue is clear</div>
+                <div class="empty-body">No open findings in the last 24 hours for your assigned tenants. Prism monitors all connected sources continuously.</div>
+                <button class="btn btn-ghost btn-sm">View closed findings</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- B-2: LOADING -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-loading">&#9672; Loading</span>
+              <span class="state-tile-name">Fetching findings from all sources</span>
+            </div>
+            <span class="state-tile-desc">Skeleton rows while detections are aggregated</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Findings</div>
+                <div class="panel-subtitle" style="display:flex;align-items:center;gap:var(--space-2);">
+                  <div class="spinner" role="img" aria-label="Loading"></div>
+                  Aggregating sources…
+                </div>
+              </div>
+            </div>
+            <div class="tab-bar">
+              <div class="tab-item active">Open <span class="skel skel-chip" style="width:22px;height:18px;display:inline-block;"></span></div>
+              <div class="tab-item">Suppressed</div>
+              <div class="tab-item">Closed</div>
+            </div>
+            <!-- Skeleton rows -->
+            <div aria-busy="true" aria-label="Loading findings">
+              <div style="padding: var(--space-3) var(--space-4); display:flex; align-items:center; gap:var(--space-3); border-bottom: 1px solid var(--table-border);">
+                <span class="skel skel-chip" style="width:72px;"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-1-5);">
+                  <span class="skel skel-h14 skel-w80" style="display:block;"></span>
+                  <span class="skel skel-h12 skel-w50" style="display:block;"></span>
+                </div>
+                <span class="skel skel-h12" style="display:block;width:60px;"></span>
+              </div>
+              <div style="padding: var(--space-3) var(--space-4); display:flex; align-items:center; gap:var(--space-3); border-bottom: 1px solid var(--table-border);">
+                <span class="skel skel-chip" style="width:64px;"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-1-5);">
+                  <span class="skel skel-h14 skel-w60" style="display:block;"></span>
+                  <span class="skel skel-h12 skel-w70" style="display:block;"></span>
+                </div>
+                <span class="skel skel-h12" style="display:block;width:54px;"></span>
+              </div>
+              <div style="padding: var(--space-3) var(--space-4); display:flex; align-items:center; gap:var(--space-3); border-bottom: 1px solid var(--table-border); opacity:0.6;">
+                <span class="skel skel-chip" style="width:56px;"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-1-5);">
+                  <span class="skel skel-h14 skel-w70" style="display:block;"></span>
+                  <span class="skel skel-h12 skel-w40" style="display:block;"></span>
+                </div>
+                <span class="skel skel-h12" style="display:block;width:48px;opacity:0.5;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- B-3: STREAMING + PARTIAL COVERAGE -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-streaming">&#9654; Streaming</span>
+              <span class="state-tile-name">New findings arriving — Armis degraded</span>
+            </div>
+            <span class="state-tile-desc">Real-time feed with degraded source indicator; rows populate as they stream in</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <!-- Degraded bar -->
+            <div class="degraded-bar" role="status" aria-live="polite">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2L12.5 11.5H1.5L7 2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><rect x="6.5" y="5.5" width="1" height="3" fill="currentColor"/><rect x="6.5" y="9.5" width="1" height="1" fill="currentColor"/></svg>
+              <strong>Armis sensor feed degraded</strong> — findings may be incomplete. Last successful sync: 4 min ago.
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;height:22px;padding:0 8px;font-size:var(--text-xs);">Retry</button>
+            </div>
+            <!-- Live rows -->
+            <div>
+              <div class="result-row" tabindex="0" role="row" aria-label="Critical: Credential theft detected on acme-dc-01">
+                <div class="result-col-sev"><span class="badge badge-critical"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/></svg>Crit</span></div>
+                <div class="result-col-main">
+                  <div class="result-name">credential_theft</div>
+                  <div class="result-meta">acme-dc-01 · CrowdStrike · 14:22 UTC</div>
+                </div>
+                <div class="result-col-src"><span class="src-tag">CS</span></div>
+                <div class="result-col-time">just now</div>
+              </div>
+              <div class="result-row" tabindex="0" role="row">
+                <div class="result-col-sev"><span class="badge badge-high"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>High</span></div>
+                <div class="result-col-main">
+                  <div class="result-name">dns_c2_beaconing</div>
+                  <div class="result-meta">acme-workstation-22 · Cyberint · 14:18 UTC</div>
+                </div>
+                <div class="result-col-src"><span class="src-tag">CI</span></div>
+                <div class="result-col-time">4 min ago</div>
+              </div>
+              <div class="result-row result-row-faded" tabindex="0" role="row" aria-label="Medium: OT anomaly — source degraded">
+                <div class="result-col-sev"><span class="badge badge-medium"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.9"/></svg>Med</span></div>
+                <div class="result-col-main">
+                  <div class="result-name">ot_anomaly <span style="font-size:var(--text-xs);color:var(--color-cov-degraded-text);">(source degraded)</span></div>
+                  <div class="result-meta">plc-floor-02 · Armis · partial</div>
+                </div>
+                <div class="result-col-src"><span class="src-tag" style="opacity:0.6;">AR?</span></div>
+                <div class="result-col-time" style="opacity:0.5;">~9 min ago</div>
+              </div>
+              <!-- Still loading row -->
+              <div style="padding: var(--space-2) var(--space-4); display:flex; align-items:center; gap:var(--space-3);">
+                <span class="streaming-row"><span class="streaming-dot" aria-hidden="true"></span>Fetching from Claroty…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- B-4: ERROR -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-error">&#9888; Error</span>
+              <span class="state-tile-name">Source connector error</span>
+            </div>
+            <span class="state-tile-desc">CrowdStrike API authentication failed — partial findings only</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Findings</div>
+                <div class="panel-subtitle" style="color:var(--color-sev-critical-text);">
+                  &#9888; Connector error — findings may be incomplete
+                </div>
+              </div>
+            </div>
+            <div style="padding: var(--space-4);">
+              <div class="error-banner" role="alert">
+                <div class="error-banner-head">
+                  <div class="error-icon-wrap" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="7"/><line x1="8" y1="5" x2="8" y2="8"/><circle cx="8" cy="11" r="0.5" fill="currentColor"/></svg>
+                  </div>
+                  <div>
+                    <div class="error-title">CrowdStrike connector error</div>
+                    <div class="error-code">E-SENSOR-041 · OAuth token expired · source: crowdstrike-prod</div>
+                  </div>
+                </div>
+                <div class="error-msg" role="note">{"error": "invalid_token", "status": 401, "message": "Access token has expired. Re-authenticate via /oauth2/token."}
+
+Last successful sync: 2026-06-26 13:47 UTC (38 min ago)</div>
+                <div class="error-actions">
+                  <button class="btn btn-primary btn-sm">Rotate credential</button>
+                  <button class="btn btn-ghost btn-sm">Retry connection</button>
+                  <button class="btn btn-ghost btn-sm">View findings from other sources</button>
+                </div>
+              </div>
+            </div>
+            <!-- Show partial results from other sources -->
+            <div style="padding: 0 var(--space-4) var(--space-3);">
+              <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-2);">Findings from Cyberint, Claroty, Armis (CrowdStrike unavailable):</div>
+              <div class="result-row" style="border:1px solid var(--table-border);border-radius:var(--radius-md);margin-bottom:var(--space-1);">
+                <div class="result-col-sev"><span class="badge badge-high"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>High</span></div>
+                <div class="result-col-main">
+                  <div class="result-name">threat_intel_match</div>
+                  <div class="result-meta">185.220.101.47 · Cyberint · 14:12 UTC</div>
+                </div>
+                <div class="result-col-time">20 min ago</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- B-5: NO PERMISSION -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-noperm">&#128274; No Permission</span>
+              <span class="state-tile-name">Findings queue — read access required</span>
+            </div>
+            <span class="state-tile-desc">User can see the nav item but lacks findings:read permission</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Findings</div>
+                <div class="panel-subtitle">Last 24 hours</div>
+              </div>
+            </div>
+            <div style="padding: var(--space-6);">
+              <div class="noperm-banner">
+                <div class="noperm-icon-wrap" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <div class="noperm-title">Findings access required</div>
+                <div class="noperm-body">You do not have permission to view the Findings queue. Contact your MSSP administrator to request <strong>findings:read</strong> for your tenant.</div>
+                <div class="noperm-details">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/><path d="M6 5v4M6 3.5h.01"/></svg>
+                  <span>Role: <code>viewer</code> · Needs: <code>findings:read</code></span>
+                </div>
+                <div style="width:100%;">
+                  <div class="request-access-form">
+                    <div class="request-access-label">Request access</div>
+                    <textarea class="textarea" rows="2" placeholder="Briefly describe why you need access to the Findings queue…" aria-label="Access request reason"></textarea>
+                    <div style="display:flex;justify-content:flex-end;margin-top:var(--space-2);gap:var(--space-2);">
+                      <button class="btn btn-primary btn-sm">Send request</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /state-grid -->
+    </section>
+
+    <div class="gallery-divider"></div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════
+         SURFACE C: TRIAGE QUEUE
+         ════════════════════════════════════════════════════════════ -->
+    <section class="surface-section" id="triage-queue">
+      <div class="surface-header">
+        <div>
+          <div class="surface-eyebrow">Surface C</div>
+          <h2 class="surface-title">Triage Queue</h2>
+          <p class="surface-desc">Analyst-facing work queue of actionable cases awaiting investigation. Sortable by severity, assigned analyst, and SLA countdown.</p>
+        </div>
+      </div>
+
+      <div class="state-grid">
+
+        <!-- C-1: EMPTY -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-empty">&#8709; Empty</span>
+              <span class="state-tile-name">No cases in queue</span>
+            </div>
+            <span class="state-tile-desc">Either all cases resolved, or queue filtered to zero matches</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Triage Queue</div>
+                <div class="panel-subtitle">Assigned to you · All tenants</div>
+              </div>
+              <button class="btn btn-ghost btn-sm">New case</button>
+            </div>
+            <div class="filter-bar">
+              <div class="input-search-wrap" style="max-width:260px;">
+                <svg class="input-search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/><line x1="10.5" y1="10.5" x2="13" y2="13"/></svg>
+                <input class="input" type="search" placeholder="Search cases…" aria-label="Search triage cases" value="sev:critical assigned:me">
+              </div>
+            </div>
+            <div style="padding: var(--space-4);">
+              <div class="empty-state">
+                <div class="empty-icon-wrap" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 11 12 14 22 4"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  </svg>
+                </div>
+                <div class="empty-title">No cases match your filters</div>
+                <div class="empty-body">No critical cases assigned to you right now. Broaden your filters or check the full queue for your team.</div>
+                <div style="display:flex;gap:var(--space-2);">
+                  <button class="btn btn-secondary btn-sm">Clear filters</button>
+                  <button class="btn btn-ghost btn-sm">View all cases</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- C-2: LOADING -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-loading">&#9672; Loading</span>
+              <span class="state-tile-name">Fetching triage queue</span>
+            </div>
+            <span class="state-tile-desc">Initial page load skeleton with severity and SLA placeholders</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Triage Queue</div>
+                <div class="panel-subtitle" style="display:flex;align-items:center;gap:var(--space-2);">
+                  <div class="spinner" role="img" aria-label="Loading"></div>
+                  Loading cases…
+                </div>
+              </div>
+            </div>
+            <div aria-busy="true" aria-label="Loading triage queue">
+              <div class="tq-row">
+                <div class="tq-sev"><span class="skel skel-chip" style="width:72px;"></span></div>
+                <div class="tq-name">
+                  <span class="skel skel-h14 skel-w80" style="display:block;margin-bottom:var(--space-1);"></span>
+                  <span class="skel skel-h12 skel-w50" style="display:block;"></span>
+                </div>
+                <div class="tq-entity"><span class="skel skel-h12 skel-w80" style="display:block;"></span></div>
+                <div class="tq-time"><span class="skel skel-h12 skel-full" style="display:block;"></span></div>
+              </div>
+              <div class="tq-row">
+                <div class="tq-sev"><span class="skel skel-chip" style="width:64px;"></span></div>
+                <div class="tq-name">
+                  <span class="skel skel-h14 skel-w70" style="display:block;margin-bottom:var(--space-1);"></span>
+                  <span class="skel skel-h12 skel-w60" style="display:block;"></span>
+                </div>
+                <div class="tq-entity"><span class="skel skel-h12 skel-w70" style="display:block;"></span></div>
+                <div class="tq-time"><span class="skel skel-h12 skel-full" style="display:block;"></span></div>
+              </div>
+              <div class="tq-row" style="opacity:0.55;">
+                <div class="tq-sev"><span class="skel skel-chip" style="width:56px;"></span></div>
+                <div class="tq-name">
+                  <span class="skel skel-h14 skel-w60" style="display:block;margin-bottom:var(--space-1);"></span>
+                  <span class="skel skel-h12 skel-w40" style="display:block;"></span>
+                </div>
+                <div class="tq-entity"><span class="skel skel-h12 skel-w60" style="display:block;"></span></div>
+                <div class="tq-time"><span class="skel skel-h12 skel-full" style="display:block;opacity:0.4;"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- C-3: STREAMING + PARTIAL COVERAGE -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-streaming">&#9654; Streaming</span>
+              <span class="state-tile-name">New cases arriving — real-time feed</span>
+            </div>
+            <span class="state-tile-desc">Cases streaming in from multi-tenant aggregation; Cyberint feed slow</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <!-- Progress indicator -->
+            <div class="progress-row" role="status" aria-live="polite">
+              <div class="streaming-dot" aria-hidden="true"></div>
+              <span>4 new cases since last refresh · Cyberint feed 6s latency</span>
+              <span style="margin-left:auto; font-weight:var(--weight-bold); color:var(--color-sev-critical-text);">
+                <span class="count-badge" aria-label="4 new critical cases">4</span> new critical
+              </span>
+            </div>
+            <!-- Coverage -->
+            <div class="coverage-bar">
+              <span class="coverage-bar-label">Sources</span>
+              <span class="badge pill-answered">
+                <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                CrowdStrike
+              </span>
+              <span class="badge pill-degraded">
+                <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2L8.5 8H1.5L5 2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.5" y="4.5" width="1" height="2.2" fill="currentColor"/><rect x="4.5" y="7.2" width="1" height="1" fill="currentColor"/></svg>
+                Cyberint — slow (6s)
+              </span>
+              <span class="badge pill-answered">
+                <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Armis
+              </span>
+            </div>
+            <!-- Cases -->
+            <div>
+              <div class="tq-row" tabindex="0" role="row" style="border-left:3px solid var(--color-sev-critical-solid);">
+                <div class="tq-sev"><span class="badge badge-critical"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/></svg>Crit</span></div>
+                <div class="tq-name">
+                  <div style="font-weight:var(--weight-medium);font-size:var(--text-sm);">Credential theft + lateral movement</div>
+                  <div style="font-size:var(--text-xs);color:var(--color-text-muted);">acme-corp · CASE-2847</div>
+                </div>
+                <div class="tq-entity">acme-dc-01</div>
+                <div class="tq-time" style="color:var(--color-sev-critical-text);font-weight:var(--weight-semibold);">SLA 28m</div>
+              </div>
+              <div class="tq-row" tabindex="0" role="row">
+                <div class="tq-sev"><span class="badge badge-high"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/></svg>High</span></div>
+                <div class="tq-name">
+                  <div style="font-weight:var(--weight-medium);font-size:var(--text-sm);">DNS C2 beaconing</div>
+                  <div style="font-size:var(--text-xs);color:var(--color-text-muted);">acme-corp · CASE-2846</div>
+                </div>
+                <div class="tq-entity">acme-workstation-22</div>
+                <div class="tq-time">SLA 1h 14m</div>
+              </div>
+              <div class="tq-row result-row-faded" tabindex="0" role="row" aria-label="Streaming: Cyberint cases loading">
+                <div class="tq-sev"><span class="skel skel-chip" style="width:60px;"></span></div>
+                <div class="tq-name">
+                  <span class="streaming-row"><span class="streaming-dot" aria-hidden="true"></span>Cyberint cases loading…</span>
+                </div>
+                <div class="tq-entity"></div>
+                <div class="tq-time"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- C-4: ERROR -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-error">&#9888; Error</span>
+              <span class="state-tile-name">Queue load failed</span>
+            </div>
+            <span class="state-tile-desc">Prism backend unreachable — cannot load triage queue</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Triage Queue</div>
+                <div class="panel-subtitle" style="color:var(--color-sev-critical-text);">&#9888; Could not load cases</div>
+              </div>
+            </div>
+            <div style="padding: var(--space-4);">
+              <div class="error-banner" role="alert" aria-live="assertive">
+                <div class="error-banner-head">
+                  <div class="error-icon-wrap" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3H2l2 4.5L2 13h8.29M14 6l-4 4M14 10l-4-4"/></svg>
+                  </div>
+                  <div>
+                    <div class="error-title">Triage queue unavailable</div>
+                    <div class="error-code">E-QUERY-050 · RPC timeout · prism-ops:triage-svc</div>
+                  </div>
+                </div>
+                <div class="error-msg" role="note">Connection to triage service timed out after 10s.
+Service: prism-ops:triage-svc · Pod: triage-6d9f8b-xkz2p
+Last healthy: 2026-06-26 14:08 UTC (18 min ago)
+
+This may be a transient failure. Retry or contact your MSSP admin.</div>
+                <div class="error-actions">
+                  <button class="btn btn-primary btn-sm">Retry now</button>
+                  <button class="btn btn-ghost btn-sm">Check service status</button>
+                  <button class="btn btn-ghost btn-sm">Contact support</button>
+                </div>
+              </div>
+              <!-- Cached stale data notice -->
+              <div class="ai-callout" style="margin-top:var(--space-3);">
+                <span class="ai-label-chip" style="background:var(--color-cov-degraded-icon);">Cached</span>
+                <div class="ai-body" style="color:var(--color-text-muted);">Showing stale queue from 14:08 UTC (18 min old). Data may not reflect recent case changes.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- C-5: NO PERMISSION -->
+        <div class="state-tile">
+          <div class="state-tile-header">
+            <div class="state-tile-label">
+              <span class="state-chip state-chip-noperm">&#128274; No Permission</span>
+              <span class="state-tile-name">Triage access — tenant scope restricted</span>
+            </div>
+            <span class="state-tile-desc">Analyst assigned to a different tenant — no cases in scope</span>
+          </div>
+          <div class="state-tile-body no-pad">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Triage Queue</div>
+                <div class="panel-subtitle">Tenant: beta-corp</div>
+              </div>
+            </div>
+            <div style="padding: var(--space-6);">
+              <div class="noperm-banner">
+                <div class="noperm-icon-wrap" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                </div>
+                <div class="noperm-title">No access to this tenant</div>
+                <div class="noperm-body">You are not assigned to <strong>beta-corp</strong>. Your current assignments are: <em>acme-corp</em>, <em>delta-industries</em>. Switch to an assigned tenant or request access.</div>
+                <div class="noperm-details">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="6" r="5"/><path d="M6 5v4M6 3.5h.01"/></svg>
+                  <span>Current tenant: <code>beta-corp</code> · Not in your assignment list</span>
+                </div>
+                <div style="display:flex;gap:var(--space-2);">
+                  <button class="btn btn-primary btn-sm">Switch to acme-corp</button>
+                  <button class="btn btn-ghost btn-sm">Request beta-corp access</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /state-grid -->
+    </section>
+
+    <div class="gallery-divider"></div>
+
+
+    <!-- ══════════════════════════════════════════════════════════════
+         GENERIC COMPONENT STATES
+         ════════════════════════════════════════════════════════════ -->
+    <section class="surface-section" id="components">
+      <div class="surface-header">
+        <div>
+          <div class="surface-eyebrow">Generic</div>
+          <h2 class="surface-title">Component States Reference</h2>
+          <p class="surface-desc">Reusable components in their canonical states. These appear across all three data surfaces.</p>
+        </div>
+      </div>
+
+      <div class="component-grid">
+
+        <!-- Toast variants -->
+        <div class="component-card">
+          <div class="component-card-label">Toasts — all variants</div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <div class="toast toast-success" role="status" aria-live="polite">
+              <span style="color:var(--color-cov-answered-icon);font-size:16px;" aria-hidden="true">&#10003;</span>
+              <div class="toast-content">
+                <div class="toast-title">Query complete</div>
+                <div class="toast-body">186 rows from 3 sources · 2.1s</div>
+              </div>
+            </div>
+            <div class="toast toast-error" role="alert" aria-live="assertive">
+              <span style="color:var(--color-sev-critical-icon);font-size:16px;" aria-hidden="true">&#9888;</span>
+              <div class="toast-content">
+                <div class="toast-title">Source error</div>
+                <div class="toast-body">CrowdStrike: E-SENSOR-041 · token expired</div>
+              </div>
+            </div>
+            <div class="toast toast-warning" role="status">
+              <span style="color:var(--color-cov-degraded-icon);font-size:16px;" aria-hidden="true">&#9651;</span>
+              <div class="toast-content">
+                <div class="toast-title">Partial results</div>
+                <div class="toast-body">Armis returned 38/100 rows — degraded</div>
+              </div>
+            </div>
+            <div class="toast toast-info" role="status">
+              <span style="color:var(--color-sev-info-icon);font-size:16px;" aria-hidden="true">&#8505;</span>
+              <div class="toast-content">
+                <div class="toast-title">Claroty slow</div>
+                <div class="toast-body">ICS source responding above 3s threshold</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty card -->
+        <div class="component-card">
+          <div class="component-card-label">Empty card — generic</div>
+          <div class="empty-state" style="padding: var(--space-8) var(--space-4); min-height:160px;">
+            <div class="empty-icon-wrap" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="14" height="14" rx="2"/>
+                <path d="M7 10h6M10 7v6"/>
+              </svg>
+            </div>
+            <div class="empty-title">Nothing here yet</div>
+            <div class="empty-body" style="font-size:var(--text-xs);">No items to display. Add one to get started.</div>
+            <button class="btn btn-primary btn-sm">Add item</button>
+          </div>
+        </div>
+
+        <!-- Degraded source banner (standalone) -->
+        <div class="component-card">
+          <div class="component-card-label">Degraded source banner</div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <div class="degraded-bar" style="border-radius:var(--radius-md);border:1px solid var(--color-cov-degraded-border);" role="status">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2L12.5 11.5H1.5L7 2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><rect x="6.5" y="5.5" width="1" height="3" fill="currentColor"/><rect x="6.5" y="9.5" width="1" height="1" fill="currentColor"/></svg>
+              <strong>Armis degraded</strong> — partial data returned
+            </div>
+            <div style="background:var(--color-cov-timeout-bg);border:1px solid var(--color-cov-timeout-border);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-xs);color:var(--color-cov-timeout-text);" role="status">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v3l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <strong>Claroty timed out</strong> — 5s limit exceeded. Results exclude ICS data.
+            </div>
+          </div>
+        </div>
+
+        <!-- Coverage bar — expanded detail -->
+        <div class="component-card">
+          <div class="component-card-label">Coverage bar — expanded detail</div>
+          <div style="background:var(--color-bg-card);border:var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+            <div class="coverage-bar">
+              <span class="coverage-bar-label">Sources</span>
+              <span class="badge pill-answered" style="font-size:var(--text-xs);"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>CrowdStrike</span>
+              <span class="badge pill-answered" style="font-size:var(--text-xs);"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Cyberint</span>
+              <span class="badge pill-degraded" style="font-size:var(--text-xs);"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2L8.5 8H1.5L5 2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.5" y="4.5" width="1" height="2.2" fill="currentColor"/><rect x="4.5" y="7.2" width="1" height="1" fill="currentColor"/></svg>Armis</span>
+              <span class="badge pill-timeout" style="font-size:var(--text-xs);"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M5 3v2.5l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Claroty</span>
+            </div>
+            <!-- Expanded detail rows -->
+            <div style="padding:var(--space-2) var(--space-3);border-top:var(--border);">
+              <table style="width:100%;font-size:var(--text-xs);border-collapse:collapse;">
+                <tr style="color:var(--color-text-muted);">
+                  <td style="padding:3px 6px;font-weight:var(--weight-semibold);">Source</td>
+                  <td style="padding:3px 6px;">Status</td>
+                  <td style="padding:3px 6px;text-align:right;">Rows</td>
+                  <td style="padding:3px 6px;text-align:right;">Latency</td>
+                </tr>
+                <tr style="border-top:1px solid var(--table-border);">
+                  <td style="padding:4px 6px;font-family:var(--font-mono);">CrowdStrike</td>
+                  <td style="padding:4px 6px;color:var(--color-cov-answered-text);">&#10003; Answered</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);">186</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);">0.8s</td>
+                </tr>
+                <tr style="border-top:1px solid var(--table-border);">
+                  <td style="padding:4px 6px;font-family:var(--font-mono);">Cyberint</td>
+                  <td style="padding:4px 6px;color:var(--color-cov-answered-text);">&#10003; Answered</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);">43</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);">1.2s</td>
+                </tr>
+                <tr style="border-top:1px solid var(--table-border);">
+                  <td style="padding:4px 6px;font-family:var(--font-mono);">Armis</td>
+                  <td style="padding:4px 6px;color:var(--color-cov-degraded-text);">&#9651; Degraded (38/100)</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);color:var(--color-cov-degraded-text);">38</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);">3.7s</td>
+                </tr>
+                <tr style="border-top:1px solid var(--table-border);">
+                  <td style="padding:4px 6px;font-family:var(--font-mono);">Claroty</td>
+                  <td style="padding:4px 6px;color:var(--color-cov-timeout-text);">&#9201; Timed out</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);color:var(--color-cov-timeout-text);">—</td>
+                  <td style="padding:4px 6px;text-align:right;font-family:var(--font-mono);">&gt;5s</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI callout — full -->
+        <div class="component-card">
+          <div class="component-card-label">AI callout — trust-first</div>
+          <div class="ai-callout">
+            <span class="ai-label-chip">
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true"><circle cx="4" cy="4" r="3.5" fill="white"/></svg>
+              AI
+            </span>
+            <div class="ai-body" style="margin-top:var(--space-1);">
+              Process injection on <strong>acme-dc-01</strong> matches MITRE T1055.001.
+              Lateral movement to <strong>10.0.1.5</strong> was observed 38 seconds later.
+              Confidence: <strong>High (94%)</strong>. Recommend immediate isolation.
+            </div>
+            <div style="margin-top:var(--space-3);display:flex;align-items:center;gap:var(--space-3);">
+              <a href="#" style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--color-ai-label);display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M1 9L9 1M9 1H4M9 1v5"/></svg>
+                View evidence (12 events)
+              </a>
+              <a href="#" style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--color-ai-label);text-decoration:none;">Show query</a>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted);margin-left:auto;">14:22:07 UTC</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skeleton — table row set -->
+        <div class="component-card">
+          <div class="component-card-label">Skeleton — table row set</div>
+          <div>
+            <div style="display:flex;gap:var(--space-3);align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--table-border);">
+              <span class="skel skel-circle"></span>
+              <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-1-5);">
+                <span class="skel skel-h14 skel-w80" style="display:block;"></span>
+                <span class="skel skel-h12 skel-w50" style="display:block;"></span>
+              </div>
+              <span class="skel skel-chip"></span>
+            </div>
+            <div style="display:flex;gap:var(--space-3);align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--table-border);">
+              <span class="skel skel-circle"></span>
+              <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-1-5);">
+                <span class="skel skel-h14 skel-w60" style="display:block;"></span>
+                <span class="skel skel-h12 skel-w70" style="display:block;"></span>
+              </div>
+              <span class="skel skel-chip"></span>
+            </div>
+            <div style="display:flex;gap:var(--space-3);align-items:center;padding:var(--space-2) 0;opacity:0.5;">
+              <span class="skel skel-circle"></span>
+              <div style="flex:1;display:flex;flex-direction:column;gap:var(--space-1-5);">
+                <span class="skel skel-h14 skel-w70" style="display:block;"></span>
+                <span class="skel skel-h12 skel-w40" style="display:block;"></span>
+              </div>
+              <span class="skel skel-chip"></span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /component-grid -->
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Theme toggle JS ─────────────────────────────────────────────── -->
+<script>
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.getElementById('btn-light').classList.toggle('active', t === 'light');
+    document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+    try { localStorage.setItem('prism-theme', t); } catch(e){}
+  }
+
+  (function() {
+    try {
+      var saved = localStorage.getItem('prism-theme');
+      if (saved === 'dark') setTheme('dark');
+    } catch(e){}
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<!--
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  S3-02-ai-canvas-multioption.html — Prism AI Canvas: Multi-Option Generation + Streaming State
+  Shows two focus moments:
+    1. Multi-option generation moment — user chose "Timeline Heatmap" (Option B selected)
+    2. Streaming/partial-results widget — heatmap live-building with Claroty + Armis still in-flight
+  Shares app shell (topbar + leftnav) from S2-05-results-explorer.html pattern verbatim.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — AI Canvas · Multi-Option Generation</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-3);
+    }
+
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+
+    .topbar-nav { display: flex; gap: 2px; list-style: none; flex: 1; }
+
+    .topbar-nav-item {
+      display: flex; align-items: center; height: 32px; padding: 0 var(--space-3);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast); white-space: nowrap;
+    }
+
+    .topbar-nav-item:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .topbar-nav-item.active { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);
+      cursor: pointer; min-width: 200px;
+    }
+
+    .kbd { font-family: var(--font-mono); font-size: 10px; background: var(--color-border); border-radius: 3px; padding: 1px 4px; margin-left: auto; color: var(--color-text-muted); }
+
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: var(--radius-md); border: none; background: transparent; color: var(--color-icon-default);
+      cursor: pointer; transition: background var(--transition-fast); position: relative;
+    }
+
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    .notif-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%; border: 2px solid var(--topbar-bg); }
+
+    /* ── Body ───────────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav ───────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg); border-right: var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+    .leftnav-main { flex: 1; }
+    .leftnav-footer {
+      border-top: var(--border);
+      padding-top: var(--space-2);
+      margin-top: var(--space-2);
+    }
+
+    .nav-group-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-muted); padding: var(--space-3) var(--space-2) var(--space-1); }
+
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active { background: var(--nav-item-bg-active); color: var(--nav-item-text-active); font-weight: var(--weight-semibold); }
+
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); flex-shrink: 0; }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Canvas layout ─────────────────────────────────────────── */
+    .canvas-root {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--color-bg);
+    }
+
+    /* Trust banner across full width */
+    .trust-banner {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-ai-bg);
+      border-bottom: 1px solid var(--color-ai-border);
+      flex-shrink: 0;
+    }
+
+    .trust-banner-text {
+      font-size: var(--text-xs);
+      color: var(--color-ai-text);
+    }
+
+    .trust-sep {
+      color: var(--color-ai-border);
+      font-size: var(--text-xs);
+    }
+
+    /* Main split: chat column + canvas area */
+    .canvas-split {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Chat column ───────────────────────────────────────────── */
+    .chat-col {
+      width: 340px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: var(--border);
+      background: var(--color-bg-card);
+      overflow: hidden;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+    }
+
+    .chat-header-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      flex: 1;
+    }
+
+    .chat-thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    /* Turn container */
+    .chat-turn { display: flex; flex-direction: column; gap: var(--space-2); }
+
+    /* User bubble */
+    .chat-bubble-user {
+      align-self: flex-end;
+      max-width: 90%;
+      background: var(--color-accent);
+      color: #fff;
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+      font-size: var(--text-sm);
+      line-height: var(--leading-snug);
+    }
+
+    /* AI bubble */
+    .chat-bubble-ai {
+      align-self: flex-start;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .chat-bubble-ai-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    .chat-bubble-ai-body {
+      background: var(--color-bg);
+      border: var(--border);
+      border-radius: var(--radius-sm) var(--radius-xl) var(--radius-xl) var(--radius-xl);
+      padding: var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      line-height: var(--leading-snug);
+    }
+
+    /* System bubble (status message) */
+    .chat-bubble-system {
+      align-self: center;
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      font-style: italic;
+    }
+
+    /* Multi-option picker in chat */
+    .option-picker {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      margin-top: var(--space-1);
+    }
+
+    .option-card {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      cursor: pointer;
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .option-card:hover {
+      border-color: var(--color-ai-border);
+      background: var(--color-ai-bg);
+    }
+
+    .option-card.selected {
+      border-color: var(--color-ai-border);
+      background: var(--color-ai-bg);
+    }
+
+    .option-radio {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid var(--color-border-strong);
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color var(--transition-fast);
+    }
+
+    .option-card.selected .option-radio {
+      border-color: var(--color-ai-label);
+    }
+
+    .option-radio-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-ai-label);
+      display: none;
+    }
+
+    .option-card.selected .option-radio-dot { display: block; }
+
+    .option-card-content { flex: 1; min-width: 0; }
+
+    .option-card-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      margin-bottom: 2px;
+    }
+
+    .option-card-desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: var(--leading-snug);
+    }
+
+    /* Option picker actions */
+    .option-actions {
+      display: flex;
+      gap: var(--space-2);
+      margin-top: var(--space-2);
+    }
+
+    /* Chat composer */
+    .chat-composer {
+      flex-shrink: 0;
+      border-top: var(--border);
+      padding: var(--space-3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      background: var(--color-bg-card);
+    }
+
+    .composer-input-row {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-2);
+      background: var(--color-bg);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-lg);
+      padding: var(--space-2) var(--space-3);
+    }
+
+    .composer-textarea {
+      flex: 1;
+      border: none;
+      background: transparent;
+      resize: none;
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      line-height: var(--leading-snug);
+      outline: none;
+      min-height: 36px;
+      max-height: 80px;
+    }
+
+    .composer-textarea::placeholder { color: var(--color-text-muted); }
+
+    .composer-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+    }
+
+    .composer-hint {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    /* ── Canvas area ───────────────────────────────────────────── */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--color-bg);
+    }
+
+    .canvas-area-inner {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-5);
+    }
+
+    /* Canvas widget card */
+    .widget-card {
+      background: var(--color-bg-card);
+      border: var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .widget-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border-bottom: var(--border);
+      background: var(--color-bg-card);
+    }
+
+    .widget-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      flex: 1;
+    }
+
+    .widget-subtitle {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    .widget-body {
+      padding: var(--space-4);
+    }
+
+    /* AI tag */
+    .ai-tag {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-1-5);
+      background: var(--color-ai-label); color: #fff; font-size: 10px; font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase; border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* Streaming indicator */
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .streaming-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-cov-answered-icon);
+      animation: pulse 1s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    .streaming-label {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-cov-answered-icon);
+    }
+
+    /* ── Multi-option card grid ─────────────────────────────────── */
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-3);
+    }
+
+    .vis-option-card {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-bg);
+      cursor: pointer;
+      transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .vis-option-card:hover {
+      border-color: var(--color-ai-border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .vis-option-card.selected {
+      border-color: var(--color-ai-border);
+      background: var(--color-ai-bg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .vis-option-preview {
+      width: 100%;
+      height: 80px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--color-surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vis-option-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+    }
+
+    .selected-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 6px;
+      background: var(--color-ai-label);
+      color: #fff;
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: var(--weight-bold);
+    }
+
+    .vis-option-desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: var(--leading-snug);
+    }
+
+    .vis-option-pql {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--color-text-muted);
+      background: var(--color-surface-2);
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .vis-option-footer {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .option-widget-footer {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border-top: var(--border);
+      background: var(--color-bg-card);
+      flex-wrap: wrap;
+    }
+
+    .trust-note {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      font-style: italic;
+    }
+
+    /* ── Source progress rows ──────────────────────────────────── */
+    .source-progress-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      margin-bottom: var(--space-4);
+    }
+
+    .source-progress-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .source-name {
+      width: 88px;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      flex-shrink: 0;
+    }
+
+    .source-status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: var(--weight-semibold);
+      white-space: nowrap;
+      flex-shrink: 0;
+      width: 168px;
+    }
+
+    .cov-answered { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); border: 1px solid var(--color-cov-answered-border); }
+    .cov-streaming { background: var(--color-ai-bg); color: var(--color-ai-text); border: 1px solid var(--color-ai-border); }
+    .cov-degraded  { background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); border: 1px solid var(--color-cov-degraded-border); }
+
+    .progress-bar-track {
+      flex: 1;
+      height: 5px;
+      background: var(--color-surface-2);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 1s ease;
+    }
+
+    .progress-fill-answered { background: var(--color-cov-answered-icon); }
+    .progress-fill-streaming { background: var(--color-ai-label); }
+    .progress-fill-degraded  { background: var(--color-cov-degraded-icon); }
+
+    /* ── Heatmap container ─────────────────────────────────────── */
+    .heatmap-container {
+      position: relative;
+    }
+
+    .heatmap-svg-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    /* Tooltip callout */
+    .heatmap-tooltip {
+      position: absolute;
+      top: 12px;
+      left: 460px;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-ai-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-2) var(--space-3);
+      box-shadow: var(--shadow-md);
+      z-index: var(--z-raised);
+      max-width: 220px;
+    }
+
+    .tooltip-header {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      margin-bottom: var(--space-1);
+    }
+
+    .tooltip-detail {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: var(--leading-snug);
+    }
+
+    .tooltip-sources {
+      margin-top: var(--space-1);
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--color-ai-text);
+    }
+
+    /* Widget action bar */
+    .widget-action-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-top: var(--border);
+      background: var(--color-bg-card);
+      flex-wrap: wrap;
+    }
+
+    .still-streaming-note {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-left: auto;
+    }
+
+    /* Shared buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md); border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap; line-height: 1;
+      transition: background var(--transition-fast);
+    }
+
+    .btn-primary { background: var(--btn-primary-bg); color: #fff; border-color: transparent; }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border-color: var(--btn-secondary-border); }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); border-color: var(--color-border); }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .btn-sm { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+
+    /* Theme toggle */
+    .theme-toggle-fixed {
+      position: fixed; top: calc(var(--topbar-height) + var(--space-3)); right: var(--space-4);
+      z-index: var(--z-toast);
+      display: flex; background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); padding: 3px; gap: 2px; box-shadow: var(--shadow-md);
+    }
+
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+      border-radius: var(--radius-full); border: none; background: transparent; cursor: pointer;
+      font-size: 14px; color: var(--color-text-muted);
+    }
+
+    .theme-btn.active { background: var(--color-bg); box-shadow: var(--shadow-xs); }
+
+    /* Source dot colors */
+    .src-cs { background: #1a6fc4; }
+    .src-cy { background: #7c3aed; }
+    .src-cl { background: #0d7c66; }
+    .src-ar { background: #b45309; }
+
+    /* Focus accessible */
+    button:focus-visible, a:focus-visible {
+      outline: 2px solid var(--color-focus-ring);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ─────────────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar-logo" aria-label="Prism home">
+      <span class="logo-dot" aria-hidden="true"></span>
+      Prism
+    </div>
+    <nav aria-label="Main navigation">
+      <ul class="topbar-nav" role="list">
+        <li class="topbar-nav-item" role="listitem">Investigations</li>
+        <li class="topbar-nav-item" role="listitem">Query</li>
+        <li class="topbar-nav-item" role="listitem">Detections</li>
+        <li class="topbar-nav-item active" role="listitem" aria-current="page">AI Canvas</li>
+        <li class="topbar-nav-item" role="listitem">Dashboards</li>
+        <li class="topbar-nav-item" role="listitem">Data</li>
+        <li class="topbar-nav-item" role="listitem">Admin</li>
+      </ul>
+    </nav>
+    <div class="topbar-actions">
+      <div class="search-trigger" role="button" aria-label="Open command palette (Ctrl+K)">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Search…</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="icon-btn" aria-label="Toggle Prism AI chat sidecar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2.5-2.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="12.5" r="0.7" fill="currentColor"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 2.5C5 2.5 3.5 4 3.5 6.5V10H2v1.5h11V10h-1.5V6.5C11.5 4 10 2.5 7.5 2.5Z" stroke="currentColor" stroke-width="1.2"/><path d="M6 12c0 .8.7 1.5 1.5 1.5S9 12.8 9 12" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="User menu">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ── Left nav ──────────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Section navigation">
+      <div class="leftnav-main">
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Triage Queue
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cases
+        </div>
+        <div class="nav-group-label">AI</div>
+        <div class="nav-item active" role="link" aria-current="page">
+          <span class="nav-dot" aria-hidden="true"></span>AI Canvas
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Saved Canvases
+        </div>
+        <div class="nav-group-label">Query</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Workspace
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Results Explorer
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Saved Queries
+        </div>
+        <div class="nav-group-label">Detections</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Rules
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Findings
+        </div>
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Summary Insights
+        </div>
+        <div class="nav-group-label">Data</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Sources
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cache Browser
+        </div>
+      </div>
+
+      <!-- Admin pinned to footer -->
+      <div class="leftnav-footer" role="group" aria-label="Administration">
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zm0 1.5a5 5 0 110 10 5 5 0 010-10zm0 2a.75.75 0 100 1.5.75.75 0 000-1.5zm0 2.5a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 007.5 7z" fill="currentColor"/></svg>
+          Help
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.5a6 6 0 100 12 6 6 0 000-12zm-1 3h2v4h-2V4.5zm0 5h2v2h-2v-2z" fill="currentColor"/></svg>
+          Org Settings
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a2 2 0 100 4 2 2 0 000-4zM4.5 7.5A3 3 0 017.5 6h0a3 3 0 013 1.5M2 13a5.5 5.5 0 0111 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          User Management
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Canvas root ────────────────────────────────────────────── -->
+    <main class="canvas-root" aria-label="AI Canvas">
+
+      <!-- Trust banner -->
+      <div class="trust-banner" role="note" aria-label="AI Canvas trust information">
+        <span class="ai-tag">AI</span>
+        <span class="trust-banner-text">
+          <strong>AI Canvas</strong>
+        </span>
+        <span class="trust-sep">·</span>
+        <span class="trust-banner-text">NL → PrismQL inspectable</span>
+        <span class="trust-sep">·</span>
+        <span class="trust-banner-text">Broker-injected credentials</span>
+        <span class="trust-sep">·</span>
+        <span class="trust-banner-text">Every query editable before execution</span>
+      </div>
+
+      <!-- Split: chat + canvas -->
+      <div class="canvas-split">
+
+        <!-- ── Chat column ───────────────────────────────────────── -->
+        <aside class="chat-col" aria-label="Conversational chat thread">
+
+          <div class="chat-header">
+            <span class="ai-tag" aria-hidden="true">AI</span>
+            <span class="chat-header-title">Lateral Movement Analysis</span>
+            <button class="btn btn-ghost btn-sm" aria-label="New canvas session" style="padding: 0 var(--space-2);">+</button>
+          </div>
+
+          <div class="chat-thread" role="log" aria-live="polite" aria-label="Conversation history">
+
+            <!-- ── Turn 1 ─────────────────────────────────────── -->
+            <div class="chat-turn">
+              <div class="chat-bubble-user" role="article" aria-label="Your message">
+                Visualize lateral movement patterns in the last 12 hours
+              </div>
+            </div>
+
+            <!-- ── AI response 1 ──────────────────────────────── -->
+            <div class="chat-turn">
+              <div class="chat-bubble-ai">
+                <div class="chat-bubble-ai-header" aria-label="Prism AI response">
+                  <span class="ai-tag" style="height: 16px; font-size: 9px;">AI</span>
+                  <span>Prism AI</span>
+                </div>
+                <div class="chat-bubble-ai-body">
+                  <p style="margin-bottom: var(--space-2);">This request is ambiguous — lateral movement can be visualized several ways. Here are 3 options:</p>
+
+                  <!-- Multi-option picker -->
+                  <div class="option-picker" role="radiogroup" aria-label="Choose visualization type">
+
+                    <div class="option-card" id="opt-a" role="radio" aria-checked="false" tabindex="0" onclick="selectOption('a')" onkeydown="if(event.key==='Enter'||event.key===' ')selectOption('a')">
+                      <div class="option-radio" aria-hidden="true">
+                        <div class="option-radio-dot"></div>
+                      </div>
+                      <div class="option-card-content">
+                        <div class="option-card-title">A — Network Connection Graph</div>
+                        <div class="option-card-desc">Entity relationship map showing east-west movement</div>
+                      </div>
+                    </div>
+
+                    <div class="option-card selected" id="opt-b" role="radio" aria-checked="true" tabindex="0" onclick="selectOption('b')" onkeydown="if(event.key==='Enter'||event.key===' ')selectOption('b')">
+                      <div class="option-radio" aria-hidden="true">
+                        <div class="option-radio-dot"></div>
+                      </div>
+                      <div class="option-card-content">
+                        <div class="option-card-title">B — Timeline Heatmap</div>
+                        <div class="option-card-desc">Events grouped by source IP and time slot</div>
+                      </div>
+                    </div>
+
+                    <div class="option-card" id="opt-c" role="radio" aria-checked="false" tabindex="0" onclick="selectOption('c')" onkeydown="if(event.key==='Enter'||event.key===' ')selectOption('c')">
+                      <div class="option-radio" aria-hidden="true">
+                        <div class="option-radio-dot"></div>
+                      </div>
+                      <div class="option-card-content">
+                        <div class="option-card-title">C — Tabular Hop Chain</div>
+                        <div class="option-card-desc">Step-by-step authentication path chain</div>
+                      </div>
+                    </div>
+
+                  </div><!-- /option-picker -->
+
+                  <div class="option-actions" style="margin-top: var(--space-3);">
+                    <button class="btn btn-primary btn-sm" id="use-selected-btn" aria-label="Use selected visualization (Timeline Heatmap)" onclick="useSelected()" style="flex: 1;">
+                      Use Selected Visualization
+                    </button>
+                    <button class="btn btn-secondary btn-sm" aria-label="Generate all 3 visualizations" onclick="generateAll()">
+                      Generate All 3
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Turn 2: system bubble ──────────────────────── -->
+            <div class="chat-turn">
+              <div class="chat-bubble-system" role="status" aria-label="System: selection confirmed">
+                Selected: Timeline heatmap
+              </div>
+            </div>
+
+            <!-- ── AI response 2 ──────────────────────────────── -->
+            <div class="chat-turn">
+              <div class="chat-bubble-ai">
+                <div class="chat-bubble-ai-header" aria-label="Prism AI response">
+                  <span class="ai-tag" style="height: 16px; font-size: 9px;">AI</span>
+                  <span>Prism AI</span>
+                </div>
+                <div class="chat-bubble-ai-body" style="display: flex; align-items: center; gap: var(--space-2);">
+                  <div class="streaming-dot" aria-hidden="true"></div>
+                  <span>Generating timeline heatmap for lateral movement… Fetching from 4 sources.</span>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /chat-thread -->
+
+          <!-- Composer -->
+          <div class="chat-composer" aria-label="Message composer">
+            <div class="composer-input-row">
+              <textarea
+                class="composer-textarea"
+                placeholder="Ask a follow-up or refine the visualization…"
+                rows="1"
+                aria-label="Type a message"
+              ></textarea>
+              <div class="composer-actions">
+                <button class="icon-btn" aria-label="Attach context">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M12 7l-5 5a3.5 3.5 0 01-5-5l5-5a2 2 0 013 3L5 10a.5.5 0 01-1-1l5-4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button class="btn btn-primary btn-sm" aria-label="Send message" style="height: 28px; padding: 0 var(--space-2);">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M1 6l10-4-4 10-2-4-4-2z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="composer-hint">
+              PrismQL is generated and inspectable · credentials broker-injected
+            </div>
+          </div>
+
+        </aside><!-- /chat-col -->
+
+        <!-- ── Canvas area ─────────────────────────────────────────── -->
+        <section class="canvas-area" aria-label="Canvas visualization area">
+          <div class="canvas-area-inner">
+
+            <!-- ═══════════════════════════════════════════════════════
+                 SECTION 1 — MULTI-OPTION GENERATION CARD
+                 ═══════════════════════════════════════════════════════ -->
+            <div class="widget-card" role="region" aria-label="Choose a visualization — 3 options generated">
+
+              <div class="widget-header">
+                <span class="widget-title">Choose a Visualization</span>
+                <span class="ai-tag" aria-label="AI-generated options">AI</span>
+                <span class="widget-subtitle">3 options generated for: "lateral movement patterns"</span>
+              </div>
+
+              <div class="widget-body">
+                <div class="option-grid" role="radiogroup" aria-label="Visualization options">
+
+                  <!-- Option A: Network Connection Graph -->
+                  <div class="vis-option-card" id="canvas-opt-a" role="radio" aria-checked="false" tabindex="0"
+                       onclick="canvasSelect('a')" onkeydown="if(event.key==='Enter'||event.key===' ')canvasSelect('a')"
+                       aria-label="Option A: Network Connection Graph — Entity relationship map">
+                    <div class="vis-option-preview" aria-hidden="true">
+                      <!-- SVG node-link graph preview -->
+                      <svg width="120" height="72" viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Edges -->
+                        <line x1="30" y1="36" x2="60" y2="20" stroke="var(--color-border-strong)" stroke-width="1.2"/>
+                        <line x1="30" y1="36" x2="60" y2="52" stroke="var(--color-sev-high-solid)" stroke-width="1.5" opacity="0.8"/>
+                        <line x1="60" y1="20" x2="90" y2="20" stroke="var(--color-border-strong)" stroke-width="1.2"/>
+                        <line x1="60" y1="52" x2="90" y2="52" stroke="var(--color-sev-critical-solid)" stroke-width="1.8" opacity="0.9"/>
+                        <line x1="60" y1="20" x2="60" y2="52" stroke="var(--color-sev-medium-solid)" stroke-width="1.2" opacity="0.7"/>
+                        <!-- Nodes -->
+                        <circle cx="30" cy="36" r="8" fill="var(--color-blue)" opacity="0.85"/>
+                        <circle cx="60" cy="20" r="7" fill="var(--color-icon-default)" opacity="0.75"/>
+                        <circle cx="60" cy="52" r="7" fill="var(--color-sev-high-solid)" opacity="0.85"/>
+                        <circle cx="90" cy="20" r="6" fill="var(--color-icon-default)" opacity="0.6"/>
+                        <circle cx="90" cy="52" r="9" fill="var(--color-sev-critical-solid)" opacity="0.9"/>
+                        <!-- Attack path arrow -->
+                        <path d="M68 52 L82 52" stroke="var(--color-sev-critical-solid)" stroke-width="2" stroke-linecap="round" marker-end="url(#arrow)"/>
+                        <defs>
+                          <marker id="arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
+                            <path d="M0,0 L5,2.5 L0,5 Z" fill="var(--color-sev-critical-solid)"/>
+                          </marker>
+                        </defs>
+                      </svg>
+                    </div>
+                    <div class="vis-option-title">Entity Relationship Map</div>
+                    <div class="vis-option-desc">Shows east-west movement as a graph. Good for spotting pivot points.</div>
+                    <div class="vis-option-pql" title="Full query available on select">
+                      SELECT src_ip, dst_ip, count(*) FROM federated…
+                    </div>
+                    <div class="vis-option-footer">
+                      <button class="btn btn-secondary btn-sm" aria-label="Select network connection graph" onclick="canvasSelect('a');event.stopPropagation();">
+                        Select
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Option B: Timeline Heatmap (SELECTED) -->
+                  <div class="vis-option-card selected" id="canvas-opt-b" role="radio" aria-checked="true" tabindex="0"
+                       onclick="canvasSelect('b')" onkeydown="if(event.key==='Enter'||event.key===' ')canvasSelect('b')"
+                       aria-label="Option B: Timeline Heatmap — currently selected">
+                    <div class="vis-option-preview" aria-hidden="true" style="background: var(--color-ai-bg);">
+                      <!-- SVG heatmap grid preview -->
+                      <svg width="120" height="72" viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- 6 cols x 4 rows -->
+                        <!-- Row 1 -->
+                        <rect x="8"  y="8"  width="16" height="12" rx="2" fill="var(--color-blue-subtle)" opacity="0.9"/>
+                        <rect x="27" y="8"  width="16" height="12" rx="2" fill="var(--color-cyan)"        opacity="0.6"/>
+                        <rect x="46" y="8"  width="16" height="12" rx="2" fill="var(--color-accent)"      opacity="0.7"/>
+                        <rect x="65" y="8"  width="16" height="12" rx="2" fill="var(--color-accent)"      opacity="0.9"/>
+                        <rect x="84" y="8"  width="16" height="12" rx="2" fill="var(--color-cyan)"        opacity="0.5"/>
+                        <rect x="103" y="8" width="12" height="12" rx="2" fill="var(--color-blue-subtle)" opacity="0.7"/>
+                        <!-- Row 2 -->
+                        <rect x="8"  y="23" width="16" height="12" rx="2" fill="var(--color-blue-subtle)" opacity="0.6"/>
+                        <rect x="27" y="23" width="16" height="12" rx="2" fill="var(--color-cyan)"        opacity="0.45"/>
+                        <rect x="46" y="23" width="16" height="12" rx="2" fill="var(--color-accent)"      opacity="0.85"/>
+                        <rect x="65" y="23" width="16" height="12" rx="2" fill="var(--color-accent)"      opacity="1"/>
+                        <rect x="84" y="23" width="16" height="12" rx="2" fill="var(--color-cyan)"        opacity="0.4"/>
+                        <rect x="103" y="23" width="12" height="12" rx="2" fill="var(--color-surface-2)" opacity="0.9"/>
+                        <!-- Row 3 -->
+                        <rect x="8"  y="38" width="16" height="12" rx="2" fill="var(--color-surface-2)"  opacity="0.8"/>
+                        <rect x="27" y="38" width="16" height="12" rx="2" fill="var(--color-blue-subtle)" opacity="0.7"/>
+                        <rect x="46" y="38" width="16" height="12" rx="2" fill="var(--color-cyan)"        opacity="0.5"/>
+                        <rect x="65" y="38" width="16" height="12" rx="2" fill="var(--color-cyan)"        opacity="0.4"/>
+                        <rect x="84" y="38" width="16" height="12" rx="2" fill="var(--color-surface-2)"  opacity="0.8"/>
+                        <rect x="103" y="38" width="12" height="12" rx="2" fill="var(--color-surface-2)" opacity="0.8"/>
+                        <!-- Row 4 -->
+                        <rect x="8"  y="53" width="16" height="12" rx="2" fill="var(--color-surface-2)"  opacity="0.8"/>
+                        <rect x="27" y="53" width="16" height="12" rx="2" fill="var(--color-surface-2)"  opacity="0.8"/>
+                        <rect x="46" y="53" width="16" height="12" rx="2" fill="var(--color-blue-subtle)" opacity="0.6"/>
+                        <rect x="65" y="53" width="16" height="12" rx="2" fill="var(--color-cyan)"        opacity="0.35"/>
+                        <rect x="84" y="53" width="16" height="12" rx="2" fill="var(--color-surface-2)"  opacity="0.8"/>
+                        <rect x="103" y="53" width="12" height="12" rx="2" fill="var(--color-surface-2)" opacity="0.8"/>
+                        <!-- Selected highlight outline -->
+                        <rect x="62" y="5" width="22" height="18" rx="2" fill="none" stroke="var(--color-ai-label)" stroke-width="1.5"/>
+                      </svg>
+                    </div>
+                    <div class="vis-option-title">
+                      Event Timeline Heatmap
+                      <span class="selected-indicator" aria-label="Currently selected">✓ Selected</span>
+                    </div>
+                    <div class="vis-option-desc">Events by source IP × time slot. Best for spotting burst patterns.</div>
+                    <div class="vis-option-pql" title="Full query available on select">
+                      SELECT src_endpoint.ip, time_bucket('1h', time), count(*)…
+                    </div>
+                    <div class="vis-option-footer">
+                      <button class="btn btn-primary btn-sm" aria-label="Timeline heatmap is selected" onclick="event.stopPropagation();" style="min-width: 88px;">
+                        ✓ Selected
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Option C: Hop Chain Table -->
+                  <div class="vis-option-card" id="canvas-opt-c" role="radio" aria-checked="false" tabindex="0"
+                       onclick="canvasSelect('c')" onkeydown="if(event.key==='Enter'||event.key===' ')canvasSelect('c')"
+                       aria-label="Option C: Authentication Hop Chain — step-by-step path">
+                    <div class="vis-option-preview" aria-hidden="true">
+                      <!-- SVG simplified table with arrows -->
+                      <svg width="120" height="72" viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Table rows -->
+                        <rect x="6" y="10" width="108" height="14" rx="2" fill="var(--color-surface-2)"/>
+                        <rect x="6" y="28" width="108" height="14" rx="2" fill="var(--color-sev-high-bg)" opacity="0.8"/>
+                        <rect x="6" y="46" width="108" height="14" rx="2" fill="var(--color-surface-2)"/>
+                        <!-- Column dividers -->
+                        <line x1="42" y1="10" x2="42" y2="60" stroke="var(--color-border)" stroke-width="1"/>
+                        <line x1="78" y1="10" x2="78" y2="60" stroke="var(--color-border)" stroke-width="1"/>
+                        <!-- Arrows between rows -->
+                        <path d="M60 24 L60 28" stroke="var(--color-sev-high-solid)" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M60 42 L60 46" stroke="var(--color-icon-default)" stroke-width="1.2" stroke-linecap="round"/>
+                        <!-- Text mock lines -->
+                        <rect x="10" y="15" width="24" height="4" rx="1" fill="var(--color-border-strong)" opacity="0.6"/>
+                        <rect x="46" y="15" width="24" height="4" rx="1" fill="var(--color-border-strong)" opacity="0.6"/>
+                        <rect x="82" y="15" width="22" height="4" rx="1" fill="var(--color-border-strong)" opacity="0.6"/>
+                        <rect x="10" y="33" width="24" height="4" rx="1" fill="var(--color-sev-high-solid)" opacity="0.5"/>
+                        <rect x="46" y="33" width="24" height="4" rx="1" fill="var(--color-sev-high-solid)" opacity="0.5"/>
+                        <rect x="82" y="33" width="22" height="4" rx="1" fill="var(--color-sev-high-solid)" opacity="0.5"/>
+                        <rect x="10" y="51" width="24" height="4" rx="1" fill="var(--color-border-strong)" opacity="0.5"/>
+                        <rect x="46" y="51" width="24" height="4" rx="1" fill="var(--color-border-strong)" opacity="0.5"/>
+                        <rect x="82" y="51" width="22" height="4" rx="1" fill="var(--color-border-strong)" opacity="0.5"/>
+                      </svg>
+                    </div>
+                    <div class="vis-option-title">Authentication Hop Chain</div>
+                    <div class="vis-option-desc">Step-by-step auth chain. Best for tracing exact user path.</div>
+                    <div class="vis-option-pql" title="Full query available on select">
+                      SELECT actor.user.name, src_endpoint.ip, dst_endpoint.ip…
+                    </div>
+                    <div class="vis-option-footer">
+                      <button class="btn btn-secondary btn-sm" aria-label="Select authentication hop chain" onclick="canvasSelect('c');event.stopPropagation();">
+                        Select
+                      </button>
+                    </div>
+                  </div>
+
+                </div><!-- /option-grid -->
+              </div><!-- /widget-body -->
+
+              <div class="option-widget-footer">
+                <button class="btn btn-secondary btn-sm" aria-label="Generate all 3 visualization variants">
+                  Generate All 3 Variants
+                </button>
+                <button class="btn btn-primary btn-sm" id="canvas-generate-btn" aria-label="Generate selected visualization (Timeline Heatmap)" onclick="generateSelected()">
+                  Generate Selected
+                </button>
+                <span class="trust-note" style="margin-left: auto;">
+                  Each visualization runs a distinct PrismQL query · You can inspect and edit any query before executing
+                </span>
+              </div>
+
+            </div><!-- /widget-card: multi-option -->
+
+
+            <!-- ═══════════════════════════════════════════════════════
+                 SECTION 2 — STREAMING HEATMAP WIDGET
+                 ═══════════════════════════════════════════════════════ -->
+            <div class="widget-card" role="region" aria-label="Event Timeline Heatmap — streaming in progress">
+
+              <div class="widget-header">
+                <span class="widget-title">Event Timeline Heatmap — Lateral Movement</span>
+                <span class="ai-tag" aria-label="AI-generated visualization">AI</span>
+                <div class="streaming-label" aria-live="polite" aria-label="Streaming data from sources">
+                  <span class="streaming-dot" aria-hidden="true"></span>
+                  Streaming…
+                </div>
+              </div>
+
+              <div class="widget-body">
+
+                <!-- Per-source progress -->
+                <div class="source-progress-list" aria-label="Per-source data status">
+
+                  <!-- CrowdStrike: answered -->
+                  <div class="source-progress-row">
+                    <span class="source-name">
+                      <span class="src-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#1a6fc4;margin-right:4px;vertical-align:middle;" aria-hidden="true"></span>
+                      CrowdStrike
+                    </span>
+                    <span class="source-status-chip cov-answered" aria-label="CrowdStrike: answered, 247 events over 12 hours">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1.5 5l2.5 2.5L8.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      247 events / 12h
+                    </span>
+                    <div class="progress-bar-track" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="CrowdStrike progress: complete">
+                      <div class="progress-bar-fill progress-fill-answered" style="width: 100%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Cyberint: answered -->
+                  <div class="source-progress-row">
+                    <span class="source-name">
+                      <span class="src-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#7c3aed;margin-right:4px;vertical-align:middle;" aria-hidden="true"></span>
+                      Cyberint
+                    </span>
+                    <span class="source-status-chip cov-answered" aria-label="Cyberint: answered, 89 events over 12 hours">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1.5 5l2.5 2.5L8.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      89 events / 12h
+                    </span>
+                    <div class="progress-bar-track" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Cyberint progress: complete">
+                      <div class="progress-bar-fill progress-fill-answered" style="width: 100%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Claroty: streaming -->
+                  <div class="source-progress-row">
+                    <span class="source-name">
+                      <span class="src-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#0d7c66;margin-right:4px;vertical-align:middle;" aria-hidden="true"></span>
+                      Claroty
+                    </span>
+                    <span class="source-status-chip cov-streaming" aria-label="Claroty: streaming, 34 events so far">
+                      <span class="streaming-dot" style="width:6px;height:6px;" aria-hidden="true"></span>
+                      Streaming… 34 events
+                    </span>
+                    <div class="progress-bar-track" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" aria-label="Claroty progress: approximately 60 percent">
+                      <div class="progress-bar-fill progress-fill-streaming" style="width: 60%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Armis: degraded -->
+                  <div class="source-progress-row">
+                    <span class="source-name">
+                      <span class="src-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#b45309;margin-right:4px;vertical-align:middle;" aria-hidden="true"></span>
+                      Armis
+                    </span>
+                    <span class="source-status-chip cov-degraded" aria-label="Armis: degraded, partial results with 18 events">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1.5L9 8.5H1L5 1.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><line x1="5" y1="4.5" x2="5" y2="6.5" stroke="currentColor" stroke-width="1.2"/><circle cx="5" cy="7.5" r="0.5" fill="currentColor"/></svg>
+                      Degraded — 18 events
+                    </span>
+                    <div class="progress-bar-track" role="progressbar" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100" aria-label="Armis progress: approximately 40 percent, degraded">
+                      <div class="progress-bar-fill progress-fill-degraded" style="width: 40%;"></div>
+                    </div>
+                  </div>
+
+                </div><!-- /source-progress-list -->
+
+                <!-- Heatmap visualization -->
+                <div class="heatmap-container" aria-label="Heatmap: source IPs versus time slots, last 12 hours">
+
+                  <div class="heatmap-svg-wrap">
+                    <svg id="heatmap-svg" width="760" height="210" viewBox="0 0 760 210" xmlns="http://www.w3.org/2000/svg" aria-label="Event timeline heatmap grid" role="img">
+
+                      <!-- ── Axis labels ── -->
+                      <!-- Y axis (IP labels) -->
+                      <text x="72" y="62"  font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.0.1.45</text>
+                      <text x="72" y="82"  font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.0.2.18</text>
+                      <text x="72" y="102" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.0.3.7</text>
+                      <text x="72" y="122" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.0.4.22</text>
+                      <text x="72" y="142" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.0.5.9</text>
+                      <text x="72" y="162" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.100.5.3</text>
+                      <text x="72" y="182" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.100.6.14</text>
+                      <text x="72" y="202" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--color-text-muted)" text-anchor="end">10.100.7.2</text>
+
+                      <!-- X axis hour labels (every 2h) -->
+                      <text x="80"  y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">00:00</text>
+                      <text x="138" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">01:00</text>
+                      <text x="196" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">02:00</text>
+                      <text x="254" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">03:00</text>
+                      <text x="312" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">04:00</text>
+                      <text x="370" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">05:00</text>
+                      <text x="428" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">06:00</text>
+                      <text x="486" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">07:00</text>
+                      <text x="544" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">08:00</text>
+                      <text x="602" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">09:00</text>
+                      <text x="660" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">10:00</text>
+                      <text x="718" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--color-text-muted)" text-anchor="middle">11:00</text>
+
+                      <!-- ══ Heatmap cells (12 cols × 8 rows) ══ -->
+                      <!-- Color legend:
+                           empty/no-data:  --color-surface-2
+                           low 1-3:        #e8f0fb  (--color-blue-subtle)
+                           medium 4-10:    #71c5e7  (--color-cyan)
+                           high 11-20:     #ff6a39  (--color-accent) @ 0.7 opacity
+                           critical >20:   #ff6a39  (--color-accent) solid
+                           skeleton:       .skeleton shimmer class
+                           Claroty rows 6-7, cols 9-12 → skeleton
+                           Armis row 8, cols 9-12 → skeleton
+                      -->
+
+                      <!-- ROW 1: 10.0.1.45 (hottest row) -->
+                      <rect x="76"  y="51" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="132" y="51" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="188" y="51" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.5"/>
+                      <rect x="244" y="51" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.6"/>
+                      <rect x="300" y="51" width="52" height="16" rx="2" fill="#71c5e7"/>
+                      <rect x="356" y="51" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.5"/>
+                      <!-- 06:00 — hot -->
+                      <rect x="412" y="51" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.75"/>
+                      <!-- 07:00 — critical hotspot (>20 events) -->
+                      <rect x="468" y="51" width="52" height="16" rx="2" fill="#ff6a39"/>
+                      <!-- 08:00 onward — skeleton for Claroty/Armis overlap; shown as answered here -->
+                      <rect x="524" y="51" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.6"/>
+                      <rect x="580" y="51" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.4"/>
+                      <rect x="636" y="51" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.5"/>
+                      <rect x="692" y="51" width="52" height="16" rx="2" fill="#e8f0fb"/>
+
+                      <!-- ROW 2: 10.0.2.18 (second hotspot) -->
+                      <rect x="76"  y="71" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="132" y="71" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="188" y="71" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="244" y="71" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.4"/>
+                      <rect x="300" y="71" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.6"/>
+                      <rect x="356" y="71" width="52" height="16" rx="2" fill="#71c5e7"/>
+                      <!-- 06:00 -->
+                      <rect x="412" y="71" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.6"/>
+                      <!-- 07:00 hot -->
+                      <rect x="468" y="71" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.85"/>
+                      <!-- 08:00+ skeleton (still streaming for some sources) -->
+                      <rect x="524" y="71" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.4"/>
+                      <rect x="580" y="71" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.5"/>
+                      <rect x="636" y="71" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="692" y="71" width="52" height="16" rx="2" fill="#e8f0fb"/>
+
+                      <!-- ROW 3: 10.0.3.7 -->
+                      <rect x="76"  y="91" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="132" y="91" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="188" y="91" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="244" y="91" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="300" y="91" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.35"/>
+                      <rect x="356" y="91" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.45"/>
+                      <rect x="412" y="91" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.6"/>
+                      <rect x="468" y="91" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.5"/>
+                      <rect x="524" y="91" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="580" y="91" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="636" y="91" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="692" y="91" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+
+                      <!-- ROW 4: 10.0.4.22 -->
+                      <rect x="76"  y="111" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="132" y="111" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="188" y="111" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="244" y="111" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.3"/>
+                      <rect x="300" y="111" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.4"/>
+                      <rect x="356" y="111" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.35"/>
+                      <rect x="412" y="111" width="52" height="16" rx="2" fill="#ff6a39" opacity="0.5"/>
+                      <rect x="468" y="111" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.5"/>
+                      <rect x="524" y="111" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="580" y="111" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="636" y="111" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="692" y="111" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+
+                      <!-- ROW 5: 10.0.5.9 -->
+                      <rect x="76"  y="131" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="132" y="131" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="188" y="131" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="244" y="131" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="300" y="131" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.3"/>
+                      <rect x="356" y="131" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.4"/>
+                      <rect x="412" y="131" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.5"/>
+                      <rect x="468" y="131" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.4"/>
+                      <rect x="524" y="131" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="580" y="131" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="636" y="131" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="692" y="131" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+
+                      <!-- ROW 6: 10.100.5.3 (Claroty) — cols 9-12 skeleton -->
+                      <rect x="76"  y="151" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="132" y="151" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="188" y="151" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.3"/>
+                      <rect x="244" y="151" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.4"/>
+                      <rect x="300" y="151" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.5"/>
+                      <rect x="356" y="151" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.4"/>
+                      <rect x="412" y="151" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.3"/>
+                      <rect x="468" y="151" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <!-- Skeleton cells (08:00–11:00) for Claroty -->
+                      <rect x="524" y="151" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="580" y="151" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="636" y="151" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="692" y="151" width="52" height="16" rx="2" class="skeleton"/>
+
+                      <!-- ROW 7: 10.100.6.14 (Claroty) — cols 9-12 skeleton -->
+                      <rect x="76"  y="171" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="132" y="171" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="188" y="171" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="244" y="171" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="300" y="171" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.3"/>
+                      <rect x="356" y="171" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.35"/>
+                      <rect x="412" y="171" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="468" y="171" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <!-- Skeleton cells -->
+                      <rect x="524" y="171" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="580" y="171" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="636" y="171" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="692" y="171" width="52" height="16" rx="2" class="skeleton"/>
+
+                      <!-- ROW 8: 10.100.7.2 (Armis) — cols 9-12 skeleton -->
+                      <rect x="76"  y="191" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="132" y="191" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="188" y="191" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <rect x="244" y="191" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="300" y="191" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="356" y="191" width="52" height="16" rx="2" fill="#71c5e7" opacity="0.3"/>
+                      <rect x="412" y="191" width="52" height="16" rx="2" fill="#e8f0fb"/>
+                      <rect x="468" y="191" width="52" height="16" rx="2" fill="var(--color-surface-2)"/>
+                      <!-- Skeleton cells (Armis degraded) -->
+                      <rect x="524" y="191" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="580" y="191" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="636" y="191" width="52" height="16" rx="2" class="skeleton"/>
+                      <rect x="692" y="191" width="52" height="16" rx="2" class="skeleton"/>
+
+                      <!-- Hotspot cursor highlight: 10.0.1.45 @ 07:00 -->
+                      <rect x="466" y="49" width="56" height="20" rx="3" fill="none" stroke="var(--color-ai-label)" stroke-width="2" opacity="0.9"/>
+                      <!-- Small corner notch on tooltip side -->
+                      <path d="M494 49 L498 43 L502 49" fill="var(--color-ai-label)" opacity="0.8"/>
+
+                    </svg>
+                  </div>
+
+                  <!-- Tooltip callout near hottest cell -->
+                  <div class="heatmap-tooltip" role="tooltip" aria-label="Hotspot detail: 10.0.1.45 at 07:00">
+                    <div class="tooltip-header">10.0.1.45 · 07:00–08:00</div>
+                    <div class="tooltip-detail" style="font-weight: var(--weight-semibold); color: var(--color-accent); margin-bottom: 2px;">31 events</div>
+                    <div class="tooltip-detail">T1021 Remote Services</div>
+                    <div class="tooltip-detail">T1078 Valid Accounts</div>
+                    <div class="tooltip-sources">
+                      CrowdStrike (19) · Armis (12)
+                    </div>
+                  </div>
+
+                </div><!-- /heatmap-container -->
+
+              </div><!-- /widget-body -->
+
+              <!-- Action bar -->
+              <div class="widget-action-bar">
+                <button class="btn btn-ghost btn-sm" aria-label="Pin this widget to a case">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8 2L10 4L7 7L8 10L4 8L2 10L4 7L1 4L4 5L7 2L8 2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                  Pin to Case
+                </button>
+                <button class="btn btn-ghost btn-sm" aria-label="Pin this widget to a dashboard">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="1.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1.5" y="6.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="6.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+                  Pin to Dashboard
+                </button>
+                <button class="btn btn-ghost btn-sm" aria-label="Edit the PrismQL query behind this widget">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 9.5h8M8.5 2.5l1 1-6 6H2.5v-1.5l6-5.5Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Edit PrismQL
+                </button>
+                <button class="btn btn-ghost btn-sm" aria-label="Expand widget to full view">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M7.5 1.5h3v3M4.5 10.5h-3v-3M10.5 1.5L7 5M1.5 10.5L5 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Expand
+                </button>
+
+                <div class="still-streaming-note" aria-live="polite">
+                  <span class="streaming-dot" aria-hidden="true"></span>
+                  Still streaming (Claroty, Armis)…
+                </div>
+              </div>
+
+            </div><!-- /widget-card: streaming heatmap -->
+
+          </div><!-- /canvas-area-inner -->
+        </section><!-- /canvas-area -->
+
+      </div><!-- /canvas-split -->
+
+    </main>
+  </div>
+</div><!-- /app -->
+
+<!-- Theme toggle -->
+<div class="theme-toggle-fixed" role="group" aria-label="Theme selector">
+  <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme">☀️</button>
+  <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme">🌙</button>
+</div>
+
+<script>
+  // ── Theme ─────────────────────────────────────────────────────────
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById('btn-light').classList.toggle('active', t === 'light');
+    document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+    localStorage.setItem('prism-theme', t);
+  }
+  (function () {
+    const s = localStorage.getItem('prism-theme');
+    if (s === 'dark') setTheme('dark');
+  })();
+
+  // ── Chat option picker (left column) ──────────────────────────────
+  let currentChatOpt = 'b';
+
+  function selectOption(opt) {
+    ['a', 'b', 'c'].forEach(o => {
+      const el = document.getElementById('opt-' + o);
+      if (!el) return;
+      const isSelected = o === opt;
+      el.classList.toggle('selected', isSelected);
+      el.setAttribute('aria-checked', String(isSelected));
+    });
+    currentChatOpt = opt;
+    // Keep canvas in sync
+    canvasSelect(opt);
+  }
+
+  // ── Canvas option selection ────────────────────────────────────────
+  const optionLabels = {
+    a: 'Network Connection Graph',
+    b: 'Timeline Heatmap',
+    c: 'Hop Chain Table'
+  };
+
+  let currentCanvasOpt = 'b';
+
+  function canvasSelect(opt) {
+    ['a', 'b', 'c'].forEach(o => {
+      const el = document.getElementById('canvas-opt-' + o);
+      if (!el) return;
+      const isSelected = o === opt;
+      el.classList.toggle('selected', isSelected);
+      el.setAttribute('aria-checked', String(isSelected));
+
+      // Update the select/selected button text inside the card
+      const footer = el.querySelector('.vis-option-footer');
+      if (!footer) return;
+      const btn = footer.querySelector('button');
+      if (!btn) return;
+      if (isSelected) {
+        btn.textContent = '✓ Selected';
+        btn.className = 'btn btn-primary btn-sm';
+        btn.setAttribute('aria-label', optionLabels[o] + ' is selected');
+
+        // Update title selected indicator
+        const title = el.querySelector('.vis-option-title');
+        if (title && !title.querySelector('.selected-indicator')) {
+          const ind = document.createElement('span');
+          ind.className = 'selected-indicator';
+          ind.setAttribute('aria-label', 'Currently selected');
+          ind.textContent = '✓ Selected';
+          title.appendChild(ind);
+        }
+      } else {
+        btn.textContent = 'Select';
+        btn.className = 'btn btn-secondary btn-sm';
+        btn.setAttribute('aria-label', 'Select ' + optionLabels[o]);
+        btn.onclick = function(e) { canvasSelect(o); e.stopPropagation(); };
+
+        // Remove selected indicator from title
+        const ind = el.querySelector('.selected-indicator');
+        if (ind) ind.remove();
+      }
+    });
+    currentCanvasOpt = opt;
+    // Keep chat in sync
+    selectOption(opt);
+
+    // Update generate button
+    const genBtn = document.getElementById('canvas-generate-btn');
+    if (genBtn) {
+      genBtn.setAttribute('aria-label', 'Generate selected visualization (' + optionLabels[opt] + ')');
+    }
+  }
+
+  function useSelected() {
+    // Simulate the "Use Selected Visualization" click triggering Turn 2 system message
+    // (already shown in the static mockup)
+    const btn = document.getElementById('use-selected-btn');
+    if (btn) {
+      btn.textContent = '✓ Generating…';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = 'Use Selected Visualization';
+        btn.disabled = false;
+      }, 2000);
+    }
+  }
+
+  function generateAll() {
+    // No-op in mockup — would fan out 3 queries
+  }
+
+  function generateSelected() {
+    // No-op in mockup — would kick off the streaming widget below
+  }
+
+  // ── Textarea auto-grow ────────────────────────────────────────────
+  document.querySelectorAll('.composer-textarea').forEach(ta => {
+    ta.addEventListener('input', () => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 80) + 'px';
+    });
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        // No-op in mockup
+      }
+    });
+  });
+</script>
+</body>
+</html>
