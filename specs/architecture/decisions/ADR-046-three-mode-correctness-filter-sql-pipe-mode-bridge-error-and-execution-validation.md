@@ -4,7 +4,8 @@ adr_id: "ADR-046"
 title: "Three-Mode Correctness — Filter / SQL / Pipe Mode-Bridge Error and Execution Validation"
 status: accepted
 date: "2026-06-24"
-version: "1.0"
+version: "1.3"
+modified: "2026-06-26"
 producer: architect
 subsystems_affected: [SS-11, SS-10]
 supersedes: null
@@ -124,7 +125,9 @@ pipe stage keyword and causes a genuine parse error).
 ADR-041 §L4 and GRAMMAR-016 note that `normalized_pql` is documented as an error field
 but is absent in practice. This ADR mandates: the mode-bridge error (D1) MUST include
 `normalized_pql` when a rewrite is possible. The existing E-QUERY-001 structured error
-type (`ParseErrorDetails`) is extended with an `Option<String> normalized_pql` field.
+type (`StructuredErrorFields`) is extended with an `Option<String> normalized_pql` field
+(D-1110: the field lives on `StructuredErrorFields.normalized_pql`, not on a phantom
+`ParseErrorDetails` type which does not exist).
 The error-taxonomy row for E-QUERY-001 must be updated by the product-owner to document
 this field.
 
@@ -257,8 +260,10 @@ adding the `OrgRegistry` dependency follows the Arc-DI wiring contract (ADR-022 
 
 ### Negative / Trade-offs
 
-- `ParseErrorDetails` gains a new optional field `normalized_pql`; any consumers of the
-  structured error response must handle it gracefully (additive, non-breaking).
+- `StructuredErrorFields` gains a new optional field `normalized_pql` (D-1110: field
+  lives on `StructuredErrorFields`, not on the phantom `ParseErrorDetails` type); any
+  consumers of the structured error response must handle it gracefully (additive,
+  non-breaking).
 - The mode-bridge rewrite (D1 `normalized_pql`) is best-effort and may produce incorrect
   rewrites for complex queries (JOINs, subqueries). The implementation must be conservative:
   only emit `normalized_pql` when the rewrite is unambiguous (simple `FROM/WHERE/LIMIT`
@@ -295,6 +300,7 @@ implementable immediately.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.3 | 2026-06-26 | architect | F-P2-LOW-001 sibling sweep (POL-25 multi-cite propagation). Replaced phantom `ParseErrorDetails` type citations in §D3 and §Consequences with correct `StructuredErrorFields` / `StructuredErrorFields.normalized_pql` per D-1110. There is no `ParseErrorDetails` type; `normalized_pql` lives on `StructuredErrorFields` in `prism-mcp::error_mapping` (verified against worktree source). |
 | v1.2 | 2026-06-24 | architect | D7 mode composition boundary ruling added: Filter is bare-predicate sugar (strict subset of SQL/Pipe); only SQL→Pipe syntactic composition is supported (ADR-043); pipe is the canonical execution model; SQL and Filter are sugar entry syntaxes that lower into it; shared predicate grammar across all three modes; three-way composition rejected; graduation path Filter→Pipe documented. |
 | v1.1 | 2026-06-24 | architect | HRG ratification burst. HRG-4/MAJOR-001: Path B ratified; MAJOR-001 ruling section added to §Decision (list_capabilities consults OrgRegistry via Arc-DI wiring; Path A rejected). Status PROPOSED→ACCEPTED. |
 | v1.0 | 2026-06-24 | architect | Initial draft. PROPOSED. No human ratification gate (all decisions within established spec), but MAJOR-001 fix path choice deferred for human selection. |

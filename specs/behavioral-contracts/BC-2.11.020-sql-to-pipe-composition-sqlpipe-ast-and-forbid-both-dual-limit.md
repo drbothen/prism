@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: demo-readiness-2026-06-24
-modified: null
+modified: 2026-06-25
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -31,7 +31,7 @@ extracted_from: null
 
 ## Description
 
-When a PrismQL query begins with `SELECT … FROM <table>` and contains at least one `| <pipe_stage>` suffix (outside string literals), the parser dispatches to a new `parse_sql_pipe` combinator that produces an `Ast::SqlPipe(SqlPipeQuery)` node. Execution lowers the SQL head to a virtual pipe source, then applies the pipe stage sequence. A composed query MUST NOT specify both a SQL `LIMIT N` clause in the head and a `| limit M` pipe stage in the tail; doing so is a plan-time rejection with E-QUERY-040.
+When a PrismQL query begins with `SELECT … FROM <table>` and contains at least one `| <pipe_stage>` suffix (outside string literals), the parser dispatches to a new `parse_sql_pipe` combinator that produces an `Ast::SqlPipe(SqlPipeQuery)` node. Execution lowers the SQL head to a virtual pipe source, then applies the pipe stage sequence. A composed query MUST NOT specify both a SQL `LIMIT N` clause in the head and a row-capping pipe stage (`| limit M` OR `| tail M`) in the tail; doing so is a plan-time rejection with E-QUERY-040.
 
 ## Preconditions
 
@@ -45,7 +45,7 @@ When a PrismQL query begins with `SELECT … FROM <table>` and contains at least
 - `head` is the SQL preamble parsed as a standard `SqlQuery` (BC-2.11.003); `stages` is the ordered pipe stage sequence (BC-2.11.004)
 - Execution: the executor's `Ast` match arm handles `Ast::SqlPipe(sq)` by (a) executing `sq.head` as a normal SQL query producing an Arrow `RecordBatch`, then (b) passing that result through `sq.stages` via the existing pipe stage execution path — zero new execution infrastructure
 - Security: `parse_sql_pipe` applies the same `scan_inputs_audited` injection-defense pass, query-size check, and nesting-depth limit as `parse_sql` and `parse_pipe` (DI-019)
-- **FORBID-BOTH rule (ADR-043 D4 / HRG-1):** If `sq.head.limit` is `Some(N)` AND `sq.stages` contains a `| limit M` stage, the planner returns `Err(PrismError::RedundantRowLimit { sql_limit: N, pipe_limit: M })` before any DataFusion execution. Message format: see E-QUERY-040 in error-taxonomy.
+- **FORBID-BOTH rule (ADR-043 D4 / HRG-1):** If `sq.head.limit` is `Some(N)` AND `sq.stages` contains a row-capping pipe stage (`| limit M` OR `| tail M`), the planner returns `Err(PrismError::RedundantRowLimit { sql_limit: N, pipe_limit: M })` before any DataFusion execution. The check fires for `PipeStage::Limit(_) | PipeStage::Tail(_)` — both are row-capping operators. Message format: see E-QUERY-040 in error-taxonomy.
 - When `normalized_pql` echo is present (BC-2.11.018), the `normalized_pql` field in the response carries the canonicalized pipe form of the composed query
 
 ## Invariants
@@ -61,7 +61,7 @@ When a PrismQL query begins with `SELECT … FROM <table>` and contains at least
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-040` | `SELECT … LIMIT N … FROM t | limit M` — both SQL head `LIMIT` and pipe `| limit` present | Plan-time pedagogical error: "E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT {sql_limit}` in the head and a `| limit {pipe_limit}` pipe stage. PrismQL requires exactly one row cap. Remove the SQL `LIMIT {sql_limit}` and place a single `| limit` at the end of the pipeline, or use `LIMIT` only in pure SQL-mode queries." MCP mapping: `-32602 INVALID_PARAMS` (caller-resolvable). |
+| `E-QUERY-040` | SQL head `LIMIT N` AND a row-capping `| limit M` or `| tail M` pipe stage both present (e.g. `SELECT … LIMIT N … FROM t | limit M` or `SELECT … LIMIT N … FROM t | tail M`) | Plan-time pedagogical error: "E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT {sql_limit}` in the head and a row-capping `| limit`/`| tail` pipe stage (cap: {pipe_limit}). PrismQL requires exactly one row cap. Remove the SQL `LIMIT {sql_limit}` and place a single `| limit` at the end of the pipeline (recommended for composed queries), or use `LIMIT` only in pure SQL-mode queries." MCP mapping: `-32602 INVALID_PARAMS` (caller-resolvable). `{pipe_limit}` is the integer M from the `| limit M` or `| tail M` pipe stage (whichever is present). |
 | `E-QUERY-001` | SQL head has a syntax error (standard SQL parse error) | Delegates to BC-2.11.003 SQL mode parse error handling |
 | `E-QUERY-001` | Unknown pipe stage keyword after `|` | Delegates to BC-2.11.004 pipe mode error handling |
 | `E-QUERY-003` | Composed query exceeds 32 pipe stages in the tail | `"E-QUERY-003: pipe stage count {n} exceeds maximum allowed 32"` |
@@ -77,6 +77,8 @@ When a PrismQL query begins with `SELECT … FROM <table>` and contains at least
 | EC-11-020-005 | `SELECT * FROM t \| where severity = 'HIGH' \| sort time DESC \| limit 25` | Valid multi-stage composed query; no LIMIT conflict |
 | EC-11-020-006 | `SELECT * FROM t` with no `|` following | Pure SQL mode — parses as `Ast::Sql` (BC-2.11.003), NOT as `Ast::SqlPipe` |
 | EC-11-020-007 | `SELECT * FROM t \|` with `|` at end of input (no stage keyword) | Mode detection sees `|` but no pipe-stage keyword after it; falls through to mode-bridge error (BC-2.11.023) |
+| EC-11-020-008 | `SELECT * FROM t LIMIT 10 \| enrich threat_score(ip) \| tail 5` — SQL LIMIT, `| tail` pipe stage | `Err(E-QUERY-040)` — FORBID-BOTH rule fires; sql_limit=10, pipe_limit=5 |
+| EC-11-020-009 | `SELECT * FROM t \| enrich threat_score(ip) \| tail 5` — no SQL LIMIT, pipe `\| tail` | Valid; pipe `\| tail 5` applies as the single row cap |
 
 ## Canonical Test Vectors
 
@@ -87,6 +89,7 @@ When a PrismQL query begins with `SELECT … FROM <table>` and contains at least
 | `SELECT * FROM crowdstrike_detections \| enrich threat_score(src_ip) \| limit 10` | `Ast::SqlPipe` — executes SQL head then enrich+limit stages; returns enriched rows | happy-path |
 | `SELECT severity, count(*) FROM crowdstrike_detections GROUP BY severity \| sort count DESC \| head 5` | `Ast::SqlPipe` — aggregate in SQL head, then sort+head stages | happy-path |
 | `SELECT * FROM t LIMIT 5 \| enrich fn(x) \| limit 3` | `Err(E-QUERY-040)` with sql_limit=5 and pipe_limit=3 | error |
+| `SELECT * FROM t LIMIT 5 \| enrich fn(x) \| tail 3` | `Err(E-QUERY-040)` with sql_limit=5 and pipe_limit=3 | error |
 | `SELECT * FROM t` | `Ast::Sql` (not SqlPipe — no `\|`) | boundary |
 | `FROM t \| enrich fn(x) \| limit 10` | `Ast::Pipe` (not SqlPipe — does not start with SELECT) | boundary |
 
@@ -133,4 +136,5 @@ VP-021 (fuzz), VP-014 (size limit)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | F-P2-HIGH-001-bc-sweep | 2026-06-25 | product-owner | **F-P2-HIGH-001 closure (POL-25 multi-cite propagation gap).** FORBID-BOTH rule extended from `\| limit M`-only to the full row-capping pipe-stage family (`\| limit M` OR `\| tail M`), matching error-taxonomy.md v2.00 E-QUERY-040 row (updated by S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 HIGH-1 fix-burst). Changes: (1) §Description updated to reference row-capping pipe stage family; (2) §Postconditions FORBID-BOTH bullet updated — condition now reads `PipeStage::Limit(_) \| PipeStage::Tail(_)`, neutral wording "a row-capping pipe stage (`\| limit M` OR `\| tail M`)"; (3) §Error Cases E-QUERY-040 row updated — condition covers both forms; message format updated to verbatim error-taxonomy v2.00 neutral wording "a row-capping `\| limit`/`\| tail` pipe stage (cap: {pipe_limit})"; `{pipe_limit}` field definition clarified; (4) EC-11-020-008 + EC-11-020-009 added (`\| tail` FORBID-BOTH and valid-`\| tail` edge cases); (5) `\| tail` E-QUERY-040 error test vector added to Canonical Test Vectors. Frontmatter: version 1.0→1.1, modified: 2026-06-25. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-043 v1.1 (FORBID-BOTH ratified). Closes GRAMMAR-001, GRAMMAR-009. Allocates E-QUERY-040 plan-time dual-limit rejection (error-taxonomy row authored in same burst). |
