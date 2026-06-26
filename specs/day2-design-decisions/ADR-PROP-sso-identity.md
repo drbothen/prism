@@ -18,7 +18,7 @@ binds_to_epics:
   - E-CENTRAL-AUTHZ-001
   - E-UI-ADMIN-001
   - E-CENTRAL-TRANSPORT-001
-scim_status: OPEN_HUMAN_DECISION
+scim_status: RESOLVED_IN_SCOPE_2026-06-26
 ---
 
 # ADR-PROP: Enterprise SSO Identity — Per-Tenant OIDC + SAML 2.0 + Fine-Grained RBAC
@@ -27,7 +27,8 @@ scim_status: OPEN_HUMAN_DECISION
 
 **CAPTURE** — the core decision (support BOTH OIDC and SAML 2.0 from day one; per-tenant IdP config;
 fine-grained RBAC beyond the 2-role Query.io model) is the architect's recommendation with supporting
-rationale. SCIM provisioning is flagged for explicit human resolution (see Open Decisions).
+rationale. SCIM 2.0 auto-provisioning/deprovisioning is **IN day-2 scope** per human decision
+2026-06-26 (see SCIM section and OD-1 below).
 This ADR is PROPOSED until morphed into the live ADR registry at morph time.
 
 ---
@@ -199,42 +200,38 @@ Both OIDC (JWK key sets) and SAML 2.0 (IdP signing cert) require certificate rot
 
 ---
 
-## SCIM Provisioning — Recommendation (Flagged for Human Decision)
+## SCIM 2.0 Provisioning — DECIDED IN DAY-2 SCOPE (2026-06-26)
+
+**DECIDED 2026-06-26 (human): SCIM 2.0 auto-provisioning and deprovisioning is IN day-2 scope.**
+This is a committed deliverable in E-CENTRAL-AUTHZ-001 (or a new E-CENTRAL-AUTHZ-002 as a
+tightly-scoped SCIM sub-epic). It is NOT deferred to a vague future cycle.
 
 **What SCIM does:** SCIM 2.0 (System for Cross-domain Identity Management, RFC 7643/7644) is a
 standard API for automated user provisioning and deprovisioning. When SCIM is enabled between an
 enterprise IdP (Okta, Entra ID) and Prism, the IdP automatically:
 - Creates a Prism user record when an employee joins the group authorized for Prism access.
 - Updates the record when the employee's groups or attributes change.
-- Deprovisions (disables or deletes) the Prism user when they leave the authorized group (or the company).
+- **Deprovisions (disables or deletes) the Prism user when they leave the authorized group (or the
+  company).** Automated deprovisioning is a security control: it closes the stale-account window
+  that would otherwise require manual admin action and creates audit risk.
 
-**Why it matters for MSSP/enterprise buyers:**
-- Without SCIM, user management is manual: when an analyst leaves, an admin must manually revoke
-  their Prism access. This is an audit and security risk (stale accounts).
-- With SCIM, deprovisioning happens automatically within minutes of the IdP removing the user from
-  the Prism-access group. This is a hard requirement in many enterprise procurement checklists and
-  SOC 2 / ISO 27001 audits.
-- Large MSSP teams turn over analysts. SCIM at scale is not optional for large MSSP customers.
+**Why it is in day-2 scope:**
 
-**Architect recommendation: INCLUDE SCIM 2.0 in day-2 scope.** Rationale:
+1. **Security posture.** Timely deprovisioning is a genuine security control, not a convenience
+   feature. Manual deprovisioning is an account-lifecycle risk that enterprise buyers flag as a
+   security gap in SOC 2, ISO 27001, and procurement checklists.
+2. **Procurement friction.** Many enterprise and regulated-industry procurement checklists have a
+   SCIM checkbox. Absence is a deal-blocker, not a "nice to have."
+3. **Implementation cost is bounded.** SCIM 2.0 is a REST API with defined endpoints (`/Users`,
+   `/Groups`, per RFC 7644). It is not a complex integration; it is a CRUD API with filter
+   semantics. The backend already has user record management for U1; SCIM is an additional
+   delivery mechanism for the same operations. Estimated: 3-5 implementation stories.
+4. **Timing advantage.** Query.io does not document SCIM; shipping it at day-2 launch is a
+   differentiator for large MSSP customers with analyst churn.
 
-1. **Security posture.** Timely deprovisioning is a genuine security control. Manual-deprovisioning
-   is an account-lifecycle risk that enterprise buyers flag as a security gap.
-2. **Procurement friction.** Many enterprise and regulated-industry procurement checklists have
-   a SCIM checkbox. Absence is a deal-blocker, not a "nice to have."
-3. **Implementation cost is bounded.** SCIM 2.0 is a REST API with defined endpoints
-   (`/Users`, `/Groups`). It is not a complex integration; it is a CRUD API with some filter semantics.
-   The backend already has user record management (U1 admin console); SCIM is an additional
-   delivery mechanism for the same operations. Estimated: 3-5 implementation stories, not an epic.
-4. **Timing advantage.** Competitors that lack SCIM (or document it poorly) create a window.
-   Query.io does not document SCIM.
-
-**However, this is flagged for human decision (OD-2 below).** The rationale against including it
-is that it adds implementation scope to the already-large day-2 authZ epic (E-CENTRAL-AUTHZ-001).
-If the human determines that SCIM is not blocking for the target early customers, deferring it to
-a follow-on epic (E-CENTRAL-AUTHZ-002) is architecturally safe — SCIM touches only the user record
-layer, not the core authN/authZ flows. But SCIM must be a concrete planned epic with a delivery
-date, not a vague "later."
+**Scope commitment:** SCIM 2.0 stories are attached to E-CENTRAL-AUTHZ-001 or a companion
+E-CENTRAL-AUTHZ-002 epic (architect to decide at morph time based on E-CENTRAL-AUTHZ-001 total
+story count). The epic must be scoped and dated; it is not a vague backlog item.
 
 ---
 
@@ -261,8 +258,9 @@ date, not a vague "later."
   configure time (cert pinning option); (c) `org_id` scoping ensures cross-tenant impersonation is
   architecturally impossible even with a rogue IdP (one tenant's IdP cannot issue tokens scoped to
   another tenant's `org_id`).
-- **SCIM scope.** If included in day-2 scope, adds 3-5 implementation stories to E-CENTRAL-AUTHZ-001
-  or a follow-on epic. Manageable but must be explicitly committed.
+- **SCIM scope.** DECIDED in day-2 scope (2026-06-26). Adds 3-5 implementation stories to
+  E-CENTRAL-AUTHZ-001 or companion E-CENTRAL-AUTHZ-002. Scope is manageable and explicitly
+  committed; automated deprovisioning is a security control that justifies the stories.
 - **Break-glass account security.** The break-glass account (Tenant-Admin local fallback during IdP
   outage) must be tightly controlled: long random password, stored in the §11.1 built-in encrypted
   secret store, accessible only to the Tenant-Admin, with a separate audit stream. If compromised,
@@ -304,7 +302,7 @@ air-gapped.
 
 | # | Question | Stakes | Recommendation |
 |---|----------|--------|----------------|
-| OD-1 | **SCIM 2.0 in day-2 scope or deferred?** See SCIM section above for full rationale. In scope = 3-5 additional stories in E-CENTRAL-AUTHZ-001 or a new E-CENTRAL-AUTHZ-002. Deferred = concrete epic with a delivery date (not vague "later"). | Security posture, enterprise procurement, MSSPs with analyst churn | **Recommend: INCLUDE in day-2.** Deprovisioning is a genuine security control, not cosmetic. If scope pressure requires deferral, the architect recommends E-CENTRAL-AUTHZ-002 as a follow-on epic, scoped and dated, NOT a vague backlog item. |
+| OD-1 | **SCIM 2.0 in day-2 scope or deferred?** | Security posture, enterprise procurement, MSSPs with analyst churn | **RESOLVED 2026-06-26 (human): SCIM 2.0 is IN day-2 scope.** Automated deprovisioning is a security control. 3-5 stories in E-CENTRAL-AUTHZ-001 or companion E-CENTRAL-AUTHZ-002 (architect decides at morph time). Scope is committed and dated, not deferred to a vague future cycle. See SCIM section above. |
 | OD-2 | **SAML 2.0 implementation path: native Rust vs sidecar proxy (Dex)?** The `samael` crate is the most maintained Rust SAML 2.0 implementation as of 2026 but is less battle-tested than Go/Java SAML libraries. Human: acceptable to use `samael` in production with adversarial review, or prefer the Dex sidecar? | Implementation risk vs deployment simplicity | **Recommend: attempt native Rust (`samael`) with adversarial review; fall back to Dex if adversary finds critical gaps.** Dex adds a Go binary deployment dependency, which is architecturally cleaner than the implementation risk it avoids — but native Rust is preferable if the library passes review. Architect to evaluate at implementation time. |
 | OD-3 | **JIT (just-in-time) user provisioning vs SCIM-only?** JIT provisioning: the first time an analyst authenticates via SSO, Prism automatically creates their user record if their IdP group maps to a Prism role (no manual admin action required; no SCIM needed for basic user creation). SCIM adds automated deprovisioning and attribute sync. These are complementary. Scope JIT-provisioning in the core authN flow (low effort, high UX value) and SCIM separately? | Onboarding friction, deprovisioning security | **Recommend: JIT provisioning IN E-CENTRAL-AUTHZ-001 (it is trivial once group→role mapping is implemented). SCIM deprovisioning as the human-decision OD-1 item above.** JIT and SCIM are not either/or; JIT handles creation, SCIM handles lifecycle updates and deprovisioning. |
 | OD-4 | **MFA enforcement at Prism level vs IdP level?** Enterprise SSO delegates MFA to the IdP (the IdP asserts the authentication strength in the token; Prism trusts the assertion). For customers with Prism-local auth (no IdP), Prism must enforce MFA itself (TOTP at minimum). Scope: is Prism-level TOTP required in day-2, or is "Prism-local auth is fallback/break-glass only; MFA enforced at IdP for SSO users" acceptable? | Security posture, compliance (SOC 2) | **Recommend: TOTP for Prism-local (break-glass) accounts in day-2 scope. SSO users rely on IdP-enforced MFA (Prism cannot and should not override IdP MFA). This satisfies SOC 2 requirements without duplicating MFA for SSO users.** |

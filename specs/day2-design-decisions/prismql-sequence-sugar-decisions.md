@@ -13,7 +13,7 @@ related_bcs:
   - BC-2.13.004
 related_adrs: []
 human_decisions_required:
-  - HD-1: NOT/WITHOUT primary semantics (exclusion vs timeout — see §4)
+  - HD-1: NOT/WITHOUT primary semantics (exclusion vs timeout — see §4) — RESOLVED 2026-06-26 (human): BOTH in Phase A
 ---
 
 # PrismQL SEQUENCE Sugar — Design Decisions (PROPOSED)
@@ -300,7 +300,9 @@ attribute from the schema registry at plan time.
 
 ## Decision 4 — NOT / WITHOUT Non-Event Desugaring
 
-> **THIS IS THE KEY HUMAN DECISION.** See "Open Decisions for Human" section below.
+> **DECIDED 2026-06-26 (human): BOTH forms are Phase A in-scope.**
+> Exclusion-between-anchors (`THEN NOT / WITHOUT`) AND timeout/absence (`WATCH … UNLESS`)
+> are both Phase A deliverables. See the full specification below.
 
 ### Context
 
@@ -318,7 +320,7 @@ A ----[B occurs]---------- → NO MATCH (B intervened, sequence fails)
 A ----------------------------------------> timeout, no C → NO MATCH (C never came)
 ```
 
-**Interpretation B — Timeout (absence-within-window):**
+**Interpretation B — Timeout / absence-within-window (`WATCH … UNLESS`):**
 "If B does not occur within time t after A, fire immediately." The sequence fires based
 on A alone if no B arrives within the window; C is not required.
 
@@ -327,46 +329,42 @@ A ----t expires, no B seen → FIRE ALERT
 A ----B occurs before t   → no alert
 ```
 
-### Recommendation: ADOPT Interpretation A (exclusion-between-anchors) as primary
+### Decision: BOTH forms are in Phase A scope
+
+The human directed that both non-event semantics ship in Phase A:
+
+1. **Exclusion (`THEN NOT / WITHOUT`)** — absence-between-two-anchors via SQL:2016
+   `MATCH_RECOGNIZE` `{- B -}` exclusion syntax. The analyst writes this inside a
+   `SEQUENCE…THEN` block.
+2. **Timeout / absence (`WATCH … UNLESS`)** — fired by a wall-clock window expiry when an
+   expected event is absent. This is a syntactically distinct, named construct, NOT an
+   extension of `SEQUENCE…THEN NOT`. Previously proposed as Phase-B; **promoted to Phase A
+   by human decision 2026-06-26.**
+
+The two forms are kept strictly syntactically separate so `NOT` / `WITHOUT` inside
+`SEQUENCE…THEN` **always** means exclusion-between-anchors. An analyst who wants timeout
+semantics uses `WATCH … UNLESS`. There is no overloading.
+
+---
+
+### Form 1: Exclusion — `THEN NOT b: P THEN c: Q`
 
 **Rationale:**
 
 1. **Analyst mental model alignment.** The most common SOC use case for negation in a
    sequence is "A happened, then C happened, but B (the expected approval / containment /
-   rollback) was absent between them." This is an exclusion pattern, not a timer. Analysts
-   writing `DETECT unapproved_account: STEP c: create THEN NOT a: approve` expect the
-   alert to fire when an account is subsequently observed in a state consistent with
-   missing approval — i.e., when some downstream activity C occurs without A having
-   intervened. Pure timeout ("fire if approve never comes") requires different syntax.
-
-2. **SQL:2016 `MATCH_RECOGNIZE` exclusion pattern exists.** The standard defines the
-   `{- B -}` exclusion syntax ("match B but do not include it in the matched sequence").
-   Combined with a final anchor, this expresses "A appears, then C appears, with no B
-   between them." This is the idiomatic RPR lowering.
-
-3. **Timeout is a distinct construct.** Pure event-absence-with-timeout ("alert if B does
-   not arrive within t seconds of A") is semantically a **standing alert**, not a sequence.
-   It requires persistent per-key state tracking with a wall-clock timer. This is:
-   - Hard to implement correctly over a federated/ephemeral cache (RetentionCache does
-     not guarantee flush on window expiry).
-   - Semantically a different primitive (watchdog/alerter, not pattern matcher).
-   - Already expressible via the threshold correlation type (`GROUP BY key HAVING
-     COUNT(*) = 0 within_window(t)` over the approval event stream).
-   Mixing timeout semantics into the `NOT` keyword would make the same syntax mean two
-   different things depending on whether a trailing anchor is present.
-
+   rollback) was absent between them." This is an exclusion pattern, not a timer.
+2. **SQL:2016 `MATCH_RECOGNIZE` exclusion pattern exists.** The `{- B -}` exclusion
+   syntax ("match B but do not include it in the matched sequence") maps directly.
+3. **No ambiguity.** `NOT` / `WITHOUT` inside `SEQUENCE…THEN` is defined as exclusion
+   with no trailing-anchor-optional semantics.
 4. **FSQL's precedent.** Query.io (FSQL) uses exclusion semantics for negation in
-   sequence-like constructs; their recipe library examples use the "B absent between A
-   and C" model.
+   sequence-like constructs.
 
-### Lowering: Exclusion (Interpretation A)
-
-**Without a trailing anchor (degenerate: `THEN NOT b: P` as final step):**
-
-This is only meaningful if another `THEN` follows. A bare terminal `NOT` step with no
-anchor has undefined semantics — the grammar SHOULD NOT allow `NOT` as the last step.
-Validation: parser rejects `NOT` on the final `THEN` with a syntax error pointing to
-the missing trailing anchor.
+**Grammar constraint:** A `NOT` / `WITHOUT` step is only valid when at least one
+non-negated `THEN` step follows it. A bare terminal `NOT` step with no trailing anchor
+is a parse error with a diagnostic message: `"NOT/WITHOUT step requires a subsequent
+THEN anchor step"`.
 
 **With a trailing anchor (`THEN NOT b: P THEN c: Q`):**
 
@@ -384,13 +382,13 @@ MATCH_RECOGNIZE (
 The `{- B -}` exclusion operator in SQL:2016 means: match the pattern `A … C` only if
 no row between A and C satisfies `B`. Rows matching B disqualify the match.
 
-**Sugar → lowering table:**
+**Sugar → lowering table (exclusion):**
 
 | Sugar | MATCH_RECOGNIZE target | Semantics |
 |---|---|---|
 | `THEN NOT b: P THEN c: Q` | `PATTERN (A {- B -} C)` + `DEFINE B AS P, C AS Q` | C must occur with no B between A and C |
 | `THEN WITHOUT b: P THEN c: Q` | Same as NOT | `WITHOUT` is an alias; identical lowering |
-| `THEN NOT b: P THEN c: Q WITHIN 10m` (per-step) | `PATTERN (A {- B -} C)` + `DEFINE C AS C.t <= PREV(C.t) + 10m` | C within 10m of A's end; no B allowed |
+| `THEN NOT b: P THEN c: Q WITHIN 10m` (per-step) | `PATTERN (A {- B -} C)` + post-match filter on span | C within 10m of A's end; no B allowed |
 
 **Worked Example 4 — Unapproved account creation (the §12.4 example):**
 
@@ -427,10 +425,51 @@ This fires when an account is created, then logs in, and no approval event occur
 between creation and first login — within a 1-hour window. The approval-absence is a
 condition on the match, not a timer.
 
-### Timeout construct (Interpretation B) — proposed separate syntax
+---
 
-If pure timeout semantics are needed (fire if event B does NOT arrive within t of A),
-the proposed surface is a distinct `WATCH` construct, not `SEQUENCE…THEN NOT`:
+### Form 2: Timeout / Absence — `WATCH … UNLESS` (Phase A, promoted 2026-06-26)
+
+**DECIDED 2026-06-26 (human): the `WATCH … UNLESS` timeout/absence construct is IN Phase A scope.**
+
+This construct fires when an expected event **does not arrive** within a time window
+after a trigger event. It is semantically a standing watchdog / absence alert, not a
+sequence pattern matcher.
+
+#### Surface Syntax
+
+```ebnf
+watch_block    ::= "DETECT" ident watch_stmt emit_clause?
+               |   watch_stmt                        (* ad-hoc, no rule name *)
+
+watch_stmt     ::= "WATCH" field_list "FOR" duration "AFTER" anchor_step
+                   "UNLESS" suppress_step
+
+anchor_step    ::= pattern_var ":" predicate         (* trigger event: starts the clock *)
+
+suppress_step  ::= pattern_var ":" predicate         (* suppression event: cancels the alert *)
+
+field_list     ::= field ("," field)*                (* partition key(s) *)
+
+duration       ::= int ("s"|"m"|"h"|"d"|"w"|"mo")   (* shared with WITHIN *)
+
+emit_clause    ::= "EMIT" emit_item ("," emit_item)* (* optional; defaults to partition key + anchor time *)
+```
+
+**Semantics:**
+
+1. When an event matching `anchor_step` is observed for a given partition key value,
+   a per-key timer is started with duration `FOR t`.
+2. If a suppression event matching `suppress_step` arrives before the timer expires,
+   the alert is **cancelled** (no output).
+3. If the timer expires with no suppression event observed, the alert **fires**
+   (the `EMIT` clause is evaluated using the anchor event's fields).
+4. Multiple overlapping anchor events for the same partition key: each starts an
+   independent timer. A suppression event cancels **all** active timers for that key.
+5. The timer is a logical window, not a wall-clock alarm — it is evaluated against
+   the RetentionCache's event stream. If no event arrives to drive evaluation, the
+   window expires on the next query execution that reaches the expiry point in event time.
+
+**Worked Example 5 — Missing approval timer:**
 
 ```
 DETECT missing_approval_timer
@@ -439,40 +478,102 @@ DETECT missing_approval_timer
   EMIT account.uid, c.time AS created
 ```
 
-This is NOT defined here — it is flagged as a potential Phase-B construct and
-a follow-up ADR. The key decision is: `NOT`/`WITHOUT` in `SEQUENCE…THEN` means
-**exclusion-between-anchors only**.
+**Natural language:** "For each account.uid, if an `account.create` event occurs and
+no `account.approve` event for the same uid is seen within 1 hour, fire an alert."
+
+#### Lowering: `WATCH … UNLESS`
+
+The `WATCH … UNLESS` construct does NOT desugar to SQL:2016 `MATCH_RECOGNIZE`. It
+requires a separate engine primitive because:
+
+1. `MATCH_RECOGNIZE` requires an anchor row at both ends; absence-only requires only
+   the trigger row.
+2. The timer must persist across query executions (the window may span multiple
+   RetentionCache refresh cycles).
+
+**Recommended lowering — negative anti-join over a keyed window:**
+
+```sql
+-- Conceptual lowering (the physical operator is a custom DataFusion logical node):
+SELECT anchor.partition_key, anchor.event_time AS anchor_time
+FROM events AS anchor
+WHERE anchor.<anchor_predicate>
+  AND NOT EXISTS (
+    SELECT 1
+    FROM events AS suppress
+    WHERE suppress.<suppress_predicate>
+      AND suppress.partition_key = anchor.partition_key
+      AND suppress.event_time > anchor.event_time
+      AND suppress.event_time <= anchor.event_time + INTERVAL '<t>'
+  )
+  AND <now_or_latest_event_time> > anchor.event_time + INTERVAL '<t>'
+-- The final condition: only emit when the window has fully elapsed.
+-- "Now" is defined as the latest event time in the RetentionCache for this
+-- partition key, or the query execution timestamp if using event-time processing.
+```
+
+**DataFusion implementation notes:**
+
+- The `WATCH … UNLESS` desugarer emits a custom `AbsenceWindowNode` logical plan node
+  (distinct from `MatchRecognizeNode`).
+- State management: per-partition-key timer state is held in RocksDB under the
+  detection rule's namespace (analogous to how MATCH_RECOGNIZE partial-match state
+  is held). On each RetentionCache refresh, the timer evaluator is invoked for active
+  rules.
+- The negative anti-join is a standard DataFusion `HashJoin` with `NOT IN` semantics
+  — this is well-supported and avoids custom CBMC machinery.
+- **Event-time vs processing-time:** The window boundary is evaluated in event time
+  (the timestamp of the latest event processed for the partition key), not wall-clock
+  time. This preserves deterministic replay behavior. A separate "liveness check"
+  mechanism (outside the scope of this ADR) is needed for real-time alerting where no
+  new events may arrive to trigger evaluation.
+
+**Operator summary:**
+
+| Property | `THEN NOT / WITHOUT` (exclusion) | `WATCH … UNLESS` (timeout) |
+|----------|----------------------------------|---------------------------|
+| Construct | `SEQUENCE … THEN NOT / WITHOUT` | `WATCH … FOR … AFTER … UNLESS` |
+| Requires trailing anchor | YES (mandatory) | NO |
+| Output trigger | Downstream anchor event arrives with no B between | Timer expires with no suppression event |
+| SQL:2016 lowering | `MATCH_RECOGNIZE` `{- B -}` | `AbsenceWindowNode` (custom, negative anti-join) |
+| RocksDB state | MATCH_RECOGNIZE partial-match state | Per-key timer state |
+| Phase A | YES | YES (promoted 2026-06-26) |
+
+#### Phase-A scope / effort impact
+
+Promoting `WATCH … UNLESS` from Phase-B to Phase-A increases Phase-A scope. The
+estimated additional effort beyond the MATCH_RECOGNIZE engine work:
+
+- `AbsenceWindowNode` DataFusion logical plan node: 1 implementation story
+- Parser support for `WATCH … FOR … AFTER … UNLESS` syntax (Chumsky grammar extension): 0.5 stories
+- RocksDB per-key timer state schema + TTL eviction: 0.5 stories (likely shared with
+  MATCH_RECOGNIZE state management; co-locate in the same story)
+- Integration tests: co-located with the MATCH_RECOGNIZE integration test story
+
+Total additional Phase-A scope estimate: ~2 stories added to the SEQUENCE/MATCH_RECOGNIZE epic.
+
+The Phase-A scope reconciliation in §16.2 #4 (MATCH_RECOGNIZE in scope) should be
+updated at morph time to include `WATCH … UNLESS` as an in-scope deliverable alongside
+the sugar and raw `MATCH_RECOGNIZE`.
 
 ---
 
 ## Open Decisions for Human
 
-### HD-1 (REQUIRED before ADR is authored) — NOT/WITHOUT primary semantics
+### HD-1 — NOT/WITHOUT primary semantics — RESOLVED 2026-06-26 (human): BOTH in Phase A
 
-**The question:** Should `THEN NOT b: P THEN c: Q` mean:
-- **(A — RECOMMENDED)** "C occurred AND B was absent between the two anchors" (exclusion),
-  or
-- **(B)** "B did not occur within the window" (pure timeout, no anchor required)?
+**Decision:** BOTH forms ship in Phase A:
+- `THEN NOT / WITHOUT` in `SEQUENCE … THEN` = **exclusion-between-anchors** (SQL:2016
+  `{- B -}`). Trailing anchor is mandatory. See Decision 4 Form 1 above.
+- `WATCH … UNLESS` = **timeout/absence** (custom `AbsenceWindowNode`, negative anti-join).
+  No trailing anchor required. Promoted from Phase-B to Phase A. See Decision 4 Form 2 above.
 
-**Why this is hard:**
-- Exclusion (A) is safer, maps cleanly to SQL:2016 `{- B -}`, and keeps the `SEQUENCE`
-  surface deterministic over a federated cache. Its UX limitation: analysts who want a
-  "fire after N minutes of silence" pattern cannot use `NOT` — they need the separate
-  `WATCH … UNLESS` construct (Phase-B).
-- Timeout (B) is more intuitive for some SOC use cases (e.g., "alert if a host does not
-  check in within 24h") but requires persistent wall-clock state that is architecturally
-  at odds with the ephemeral/federated model. It also introduces ambiguity: what does
-  `THEN NOT b: P THEN c: Q` mean when B is absent — did C occur first, or did the timer
-  fire?
+The two forms are syntactically distinct: `NOT`/`WITHOUT` inside `SEQUENCE…THEN` is
+always and only exclusion. Analysts who need timeout semantics use `WATCH … UNLESS`.
+No overloading of the `NOT` keyword occurs.
 
-**Recommended resolution:** Adopt A (exclusion) for the `NOT`/`WITHOUT` keyword in
-Phase A. Define `WATCH … UNLESS` as a distinct Phase-B construct. Flag in the ADR that
-pure-timeout absence detection is planned but syntactically distinct.
-
-**What happens if you choose B:** The engine requires a wall-clock alarm subsystem
-(outside the NFA match loop), additional RocksDB state per watch rule, and a more complex
-interaction with the RetentionCache eviction policy. The Phase-A MATCH_RECOGNIZE
-implementation budget should be scoped assuming A.
+**Phase-A scope impact:** ~2 additional stories for `WATCH … UNLESS` (AbsenceWindowNode +
+parser + RocksDB timer state). Reconcile with §16.2 #4 at morph time.
 
 ### HD-2 (lower urgency) — Raw MATCH_RECOGNIZE as power-user escape hatch
 
@@ -493,10 +594,10 @@ acceptable at Phase A.
 
 ## Summary of Decisions
 
-| # | Question | Recommendation | Status |
-|---|----------|----------------|--------|
-| 1 | Keyword finalization | Adopt DETECT / SEQUENCE BY / STEP / THEN / NOT|WITHOUT / ANY OF / EMIT / OVERLAP as specified; case-insensitive; WITHIN reused at two levels by position | PROPOSED |
+| # | Question | Decision | Status |
+|---|----------|----------|--------|
+| 1 | Keyword finalization | Adopt DETECT / SEQUENCE BY / STEP / THEN / NOT\|WITHOUT / ANY OF / EMIT / OVERLAP as specified; case-insensitive; WITHIN reused at two levels by position | PROPOSED |
 | 2 | Overall-WITHIN semantics | Bounds first-to-last span of matched sequence; expressed as post-match WHERE predicate; NOT a hard row filter | PROPOSED |
 | 3 | Cross-step running semantics | Pattern var references read the last matched row for that var; aggregates (`count(f)`) available for quantified Kleene vars; OCSF dot-notation flattened at desugar time | PROPOSED |
-| 4 | NOT/WITHOUT desugaring | Exclusion-between-anchors (SQL:2016 `{- B -}`) as primary; bare terminal NOT forbidden; pure timeout is a distinct Phase-B `WATCH…UNLESS` construct | PROPOSED — **HD-1 required from human** |
+| 4 | NOT/WITHOUT desugaring — BOTH forms Phase A | (a) `THEN NOT/WITHOUT … THEN` = exclusion-between-anchors via SQL:2016 `{- B -}`; bare terminal NOT forbidden. (b) `WATCH … FOR … AFTER … UNLESS` = timeout/absence via `AbsenceWindowNode` (negative anti-join); promoted from Phase-B to Phase A 2026-06-26. Two syntactically distinct constructs; no overloading. Phase-A scope +~2 stories. | **DECIDED 2026-06-26 (human): BOTH** |
 | 5 | Raw MATCH_RECOGNIZE escape hatch | YES — expose as documented advanced syntax | PROPOSED — **HD-2 lower urgency** |

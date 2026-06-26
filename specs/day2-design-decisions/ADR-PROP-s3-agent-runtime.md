@@ -20,6 +20,8 @@ related_specs:
 
 PROPOSED — capture artifact. Gated on brief-reframe sign-off per disposition §9.
 
+**Human decision applied 2026-06-26:** S3 opt-in flag default resolved — `s3_agent_runtime_enabled = false` by default (see Deployment Gating section).
+
 ## Context
 
 Prism is currently MCP-native only: the central service acts as an MCP server for BYO agents
@@ -120,15 +122,26 @@ Browser console (S2) ──► Agent Orchestrator (server-side, per-tenant sessi
 
 ### Deployment Gating
 
+**DECIDED 2026-06-26 (human): S3 is OPT-IN by default across all deployment types.**
+
 S3 is an **opt-in, deployment-gated capability**:
 
 - A deployment-level configuration flag (`s3_agent_runtime_enabled: bool`) controls whether
-  the runtime is active. Default: enabled for cloud deployments, disabled for satellite/edge.
+  the runtime is active. **Default: `false` (disabled).** A tenant administrator or platform
+  operator must explicitly set `s3_agent_runtime_enabled = true` to activate S3 for a
+  deployment. This applies to cloud, satellite/edge, and air-gapped deployments alike.
+- S1 BYO-agent access (the existing MCP server) is always available regardless of this flag.
+  Analysts can bring their own MCP client at any time without S3 being enabled.
+- Air-gap and OT-regulated deployments are safe by default: S3 never activates unless
+  explicitly opted in and a compatible model backend is configured.
 - When disabled, the browser console degrades gracefully to S2 only. No S3 UI controls are
   rendered.
-- Air-gapped deployments: S3 can be enabled with a self-hosted model endpoint; the model
-  routing configuration points to the local model. No outbound internet traffic is required
-  when `model_backend: local` is configured.
+- Air-gapped deployments that opt in: configure `model_backend: local` (vLLM, Ollama, or
+  compatible endpoint). No outbound internet traffic is required when a local model backend
+  is active.
+- Conversation state is browser-local in v1 (Zustand/localStorage). No server-side
+  conversation database is included in v1; persistence is a named future story requiring
+  explicit human authorization.
 - The federated query core (PrismQL, sensor adapters, MCP server) has ZERO dependency on S3
   being present. S3 is an additive layer.
 
@@ -185,6 +198,8 @@ conversation storage requires explicit human authorization.
    estimator? hard cutoff vs soft warning?). This needs a concrete design before story
    decomposition.
 
-3. **S3 default enabled/disabled.** The decision above defaults S3 to *enabled* for cloud
-   and *disabled* for satellite/edge. Is this the right default, or should S3 require explicit
-   opt-in even for cloud deployments until it exits beta?
+3. **S3 default enabled/disabled.** — **RESOLVED 2026-06-26 (human).** S3 is
+   `s3_agent_runtime_enabled = false` by default across ALL deployment types (cloud,
+   satellite/edge, air-gapped). Tenant/admin opts in per deployment. S1 BYO-agent is
+   always available. Air-gap and OT-regulated deployments are safe by default. Conversation
+   state is browser-local in v1. See Deployment Gating section for full specification.

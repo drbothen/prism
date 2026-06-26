@@ -303,8 +303,11 @@ human-approved content (§11.3 drafted replacement, §15.9 three-ways direction,
 corrected framing, DC-004/DC-005/DC-006). The single required gate is the §5.1
 brief-reframe sign-off, which the human grants separately.
 
-The only open question the PO flags for the human: Edit 3 (multi-surface UI in §1.x
-In Scope) scopes S2+S3+S4 at the brief level. If the human prefers to scope only S1
-(MCP-native) as day-1 in-scope and list S2–S4 as day-2 roadmap items, the edit should
-be moved to a §1.x Roadmap or Day-2 section rather than the In Scope list. This is a
-framing/positioning preference, not a technical question.
+~~The only open question the PO flags for the human: Edit 3 (multi-surface UI in §1.x
+In Scope) scopes S2+S3+S4 at the brief level.~~
+
+**RESOLVED 2026-06-26 (human): multi-surface UI (S2 console + S3 embedded AI + S4 extension
++ U1 admin) IS listed in the brief's §1.x In Scope** — the surfaces are committed v1-scope per
+the multi-surface/multi-persona directive (§16.2 #1), NOT relegated to a day-2 roadmap section.
+Edit 3 stands as written (add the multi-surface UI item to the §1.x In Scope list). The only
+remaining gate is the §5.1 brief-reframe sign-off.

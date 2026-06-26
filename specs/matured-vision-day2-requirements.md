@@ -1991,9 +1991,14 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   - `prismql-sequence-sugar-decisions.md` — keyword set + `WITHIN` + cross-step + NOT/WITHOUT desugaring (§12.4).
   - `ml-depth-phasing.md` — P1 statistical → P2 online (`ModelState` CF) → P3 pluggable `ModelBackend` (§15.7).
   - `po-ratifications.md` — value-prop #5 + §2.4 softening + §1.x framing (PO-ratified-ready, gated on §5.1).
-  - **Residual HUMAN decisions flagged across these** (to settle at morph): NOT/WITHOUT exclusion-vs-timeout
-    (PrismQL — the key one); ML v1 starting scope; SCIM in-scope vs follow-on; secret-store KMS/cipher/DEK-granularity
-    defaults; S3 default-enabled vs opt-in; S2–S4 in §1 In-Scope vs roadmap.
+  - **HUMAN decisions RESOLVED 2026-06-26:** (1) PrismQL NOT/WITHOUT = **BOTH** exclusion-between-anchors
+    (`{- B -}`) AND timeout/absence (`WATCH…UNLESS` → `AbsenceWindowNode` anti-join), both promoted into
+    Phase A; (2) S3 agent runtime = **opt-in** (`s3_agent_runtime_enabled=false` default, air-gap-safe);
+    (3) SCIM 2.0 = **in day-2 scope** (with OIDC+SAML+JIT); (4) multi-surface UI (S2–S4 + U1) = **§1 In-Scope**
+    (committed v1, not roadmap).
+  - **Still deferred to morph (recommended defaults recorded):** ML v1 starting scope; secret-store
+    KMS-provider/cipher/DEK-granularity/rotation/satellite-custody defaults; and the lower-impact
+    implementation flags (Monaco host, bundler, state-mgmt, MFA level, session durations, etc.).
 - **Still OPEN (not yet captured):** SSO↔transport binding detail; the §5.x execution-checklist items all remain
   pending the brief-reframe HUMAN GATE.
 
