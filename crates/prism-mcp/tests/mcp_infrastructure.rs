@@ -11,10 +11,11 @@
 //!   `OrgRegistry`. Red Gate: `client_exists` body is `todo!()` → panics RED.
 //!
 //! BC-2.10.016 (AC-015, AC-016):
-//!   Call `render_query_tutorial` / `render_investigate_host` under timeout.
-//!   Note: these render functions are already implemented (not todo!()). These tests
-//!   serve as regression guards — they will catch regressions introduced during the
-//!   BLOCKER-003 fix. See DONE_WITH_CONCERNS at bottom.
+//!   AC-015: Call `render_query_tutorial` under timeout (pure fn regression guard).
+//!   AC-016: Dispatch `investigate_host` with missing required arg via full rmcp
+//!     transport — proves the dispatch machinery does not hang (BLOCKER-003 contract).
+//!     OBS-2a fix: prior version called render_investigate_host() directly (a pure fn
+//!     that trivially can't hang); rewritten to exercise the real dispatch path.
 //!
 //! BC-2.10.017 (AC-017, AC-018):
 //!   Inject a SLOW or PANICKING AuditWriter via `PrismServer::new().with_audit_writer(w)`,
@@ -32,7 +33,7 @@ use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use prism_core::{OrgId, OrgRegistry, OrgSlug};
-use prism_mcp::{render_investigate_host, render_query_tutorial, PrismServer};
+use prism_mcp::{render_query_tutorial, PrismServer};
 use prism_query::{
     write_dispatch::AuditWriter,
     write_pipeline::{QueryContext, WritePlan},
@@ -261,28 +262,70 @@ async fn test_bc_2_10_016_prompts_fast_return_within_5s() {
 
 /// AC-016 / BC-2.10.016 invariant INV-PROMPT-REQUIRED-ARGS.
 ///
-/// `render_investigate_host("test-org", "(unknown)")` (missing hostname default) must
-/// return within 5 seconds — must NOT hang on missing required arg.
+/// Calling `investigate_host` via the full rmcp transport WITHOUT the required `hostname`
+/// argument must return within 5 seconds — MUST NOT hang (BLOCKER-003).
 ///
-/// HIGH-001 fix: use `async { render_investigate_host(...) }` instead of
-/// `std::future::ready(render_investigate_host(...))` so the timeout can actually race
-/// against the function execution (see AC-015 doc comment for full rationale).
+/// This is the canonical Red Gate test for AC-016. It exercises the real MCP dispatch
+/// path: JSON-RPC wire → PrismServer → PromptRouter → investigate_host handler →
+/// hostname fallback to "(unknown)" → render_investigate_host. The handler supplies
+/// "(unknown)" when hostname is absent, so the call completes (Ok or Err) rather than
+/// hanging. The key contract is NO HANG — either result satisfies AC-016.
+///
+/// OBS-2a fix: the prior version called render_investigate_host() directly (a pure sync
+/// fn that trivially can't hang), proving nothing about the dispatch machinery.
+/// This rewrite exercises the actual dispatch path that BLOCKER-003 targeted.
 #[tokio::test]
 async fn test_bc_2_10_016_missing_required_arg_fast_error() {
+    use rmcp::{
+        model::{ClientInfo, GetPromptRequestParams},
+        ClientHandler, ServiceExt,
+    };
     use tokio::time::timeout;
 
-    let result = timeout(Duration::from_secs(5), async {
-        render_investigate_host("test-org", "(unknown)")
-    })
-    .await;
+    #[derive(Debug, Clone, Default)]
+    struct DummyClientHandler;
+    impl ClientHandler for DummyClientHandler {
+        fn get_info(&self) -> ClientInfo {
+            ClientInfo::default()
+        }
+    }
 
+    let (server_transport, client_transport) = tokio::io::duplex(4096);
+
+    let server_handle = tokio::spawn(async move {
+        PrismServer::new()
+            .serve(server_transport)
+            .await
+            .expect("PrismServer::serve must complete MCP handshake")
+            .waiting()
+            .await
+            .expect("PrismServer waiting must not fail");
+    });
+
+    let client = DummyClientHandler::default()
+        .serve(client_transport)
+        .await
+        .expect("DummyClientHandler::serve must complete handshake");
+
+    // Only client_id provided; hostname (required) is absent.
+    // The router falls back to hostname = "(unknown)" — result is Ok, not a hard error.
+    let args = serde_json::json!({ "client_id": "test-tenant" });
+    let params = GetPromptRequestParams::new("investigate_host")
+        .with_arguments(args.as_object().unwrap().clone());
+
+    // The key assertion: the call must return within 5s (no hang) regardless of whether
+    // the result is Ok or Err. This is what BLOCKER-003 required — no dispatch hang.
+    let result = timeout(Duration::from_secs(5), client.get_prompt(params)).await;
     assert!(
         result.is_ok(),
-        "BC-2.10.016 AC-016: render_investigate_host with placeholder hostname must \
-         return within 5 seconds; MUST NOT hang (BLOCKER-003)"
+        "BC-2.10.016 AC-016 INV-PROMPT-REQUIRED-ARGS: investigate_host with missing hostname \
+         must return within 5s via full rmcp transport (no hang); BLOCKER-003"
     );
-    // Either Ok or Err is acceptable — the contract is that it RETURNS (does not hang).
+    // Ok or Err both satisfy the no-hang contract.
     let _ = result.unwrap();
+
+    client.cancel().await.expect("client cancel must succeed");
+    drop(server_handle);
 }
 
 // ─── Area E: BC-2.10.017 — Not-yet-available tools fast-fail guard ordering ──
