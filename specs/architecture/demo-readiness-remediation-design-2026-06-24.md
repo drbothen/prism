@@ -3,7 +3,7 @@ document_type: architecture-scoping
 title: "Demo-Readiness Remediation Design — T13 Capstone Demo (2026-06-24)"
 producer: architect
 date: "2026-06-24"
-version: "1.1"
+version: "1.2"
 modified: "2026-06-26"
 status: approved
 traces_to: ARCH-INDEX.md
@@ -24,6 +24,12 @@ subsystems: [SS-10, SS-11]
 > field lives on `prism_mcp::error_mapping::StructuredErrorFields`. Source: F-P2-LOW-001
 > POL-25 sibling sweep; verified against worktree source at
 > `crates/prism-mcp/src/error_mapping.rs`.
+>
+> **Editorial correction — v1.2 (2026-06-26):** The §BLOCKER-004 hypothesis body contained
+> a retracted mechanism (`mpsc::Sender` / `send()` / `try_send` channel saturation) that was
+> superseded by D-1110 before this document was published. The hypothesis has been marked
+> superseded and replaced with the ratified D-1110 reality. Source: F-001 fresh-context
+> consistency audit (PR #203 cascade).
 
 ## Purpose
 
@@ -192,19 +198,36 @@ blocking point from the expanded async closure.
 
 ### BLOCKER-004: list_infusions / plugin_status / infusion_status hang
 
-**Hypothesis (HIGH CONFIDENCE):** All three tools call `emit_tool_audit(...)` before
-reaching the `Err(not_yet_available_msg(...))` return. If `emit_tool_audit` writes to an
-`audit_writer: mpsc::Sender` and that channel's buffer is full (or the receiver has been
-dropped), the `send()` call will block. Since `NOT_YET_AVAILABLE_TOOLS` routes go through
-the same server handler infrastructure as normal tools, the audit call happens before the
-fast-fail guard.
+> **D-1110 supersedes this hypothesis (v1.2 correction):** The original hypothesis below
+> proposed that `emit_tool_audit` writes to an `mpsc::Sender` and that channel saturation
+> causes blocking. This mechanism does NOT exist. D-1110 established the actual reality:
+> `emit_tool_audit` is an `async fn` that calls `writer.write_tool_call(...).await` on an
+> `Option<Arc<dyn AuditWriter>>` — no `mpsc::Sender`, no `send()`, no `try_send`. The fix
+> that shipped is **Option A: the NOT_YET_AVAILABLE guard fires before `emit_tool_audit`**
+> (guard-reorder). The `mpsc`/`try_send` path does not exist and must not be implemented.
+> The hypothesis text below is preserved for historical traceability only.
 
-**Implementer action:** Check `crates/prism-mcp/src/server.rs` `emit_tool_audit` —
-determine whether it uses `try_send` (non-blocking) or `send` (blocking). If `send`, the
-audit channel is the hang source. Fix: use `try_send` with a log-warn on `Err(Full)` (the
-audit buffer full condition should not block the fast-fail path). Alternatively, re-order
-the `not_yet_available_msg` check BEFORE the `emit_tool_audit` call — if the tool is
-not-yet-available, there is no audit event to emit (no tool execution happened).
+~~**Hypothesis (HIGH CONFIDENCE — RETRACTED, superseded by D-1110):** All three tools call
+`emit_tool_audit(...)` before reaching the `Err(not_yet_available_msg(...))` return. If
+`emit_tool_audit` writes to an `audit_writer: mpsc::Sender` and that channel's buffer is
+full (or the receiver has been dropped), the `send()` call will block. Since
+`NOT_YET_AVAILABLE_TOOLS` routes go through the same server handler infrastructure as normal
+tools, the audit call happens before the fast-fail guard.~~
+
+~~**Implementer action (RETRACTED):** Check `crates/prism-mcp/src/server.rs`
+`emit_tool_audit` — determine whether it uses `try_send` (non-blocking) or `send`
+(blocking). If `send`, the audit channel is the hang source. Fix: use `try_send` with a
+log-warn on `Err(Full)` (the audit buffer full condition should not block the fast-fail
+path). Alternatively, re-order the `not_yet_available_msg` check BEFORE the
+`emit_tool_audit` call — if the tool is not-yet-available, there is no audit event to emit
+(no tool execution happened).~~
+
+**Ratified reality (D-1110):** `emit_tool_audit` is `async fn emit_tool_audit(writer:
+&Option<Arc<dyn AuditWriter>>, ...)` — it calls `writer.write_tool_call(...).await` on an
+`Option`. There is no channel, no `mpsc::Sender`, no `send()`/`try_send()`. The hang was
+caused by the NOT_YET_AVAILABLE guard executing after `emit_tool_audit`. The shipped fix
+(Option A) reorders the guard to fire before `emit_tool_audit` — if the tool is
+not-yet-available, `emit_tool_audit` is never called.
 
 ### MAJOR-001: list_capabilities returns client_registered: False
 
@@ -263,3 +286,13 @@ the downstream BCs and story-writer can decompose:
 - `/Users/jmagady/Dev/prism/.factory/specs/architecture/decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md`
 - `/Users/jmagady/Dev/prism/.factory/specs/architecture/demo-readiness-remediation-design-2026-06-24.md` (this file)
 - `/Users/jmagady/Dev/prism/.factory/specs/architecture/ARCH-INDEX.md` (v2.143→v2.144; ADR-043..046 rows added)
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.2 | 2026-06-26 | architect | F-001: Supersede BLOCKER-004 hypothesis with D-1110 ratified guard-reorder reality. The `mpsc::Sender`/`try_send` mechanism does not exist; `emit_tool_audit` is `async fn` on `Option<Arc<dyn AuditWriter>>`. Retracted hypothesis preserved for historical traceability. Extended editorial-correction notice. |
+| 1.1 | 2026-06-26 | architect | F-P2-LOW-001: Corrected five citations of phantom `ParseErrorDetails` type to `StructuredErrorFields` / `StructuredErrorFields.normalized_pql` (D-1110; verified against `crates/prism-mcp/src/error_mapping.rs`). |
+| 1.0 | 2026-06-24 | architect | Initial design burst: GRAMMAR/BLOCKER/AUDIT/MAJOR finding catalog, ADR-043..046, HRG-1..4 gates, BLOCKER-003/004 hypotheses. |

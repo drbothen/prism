@@ -37,14 +37,14 @@ extracted_from: null
 
 - A query string (in any mode — SQL, Pipe, or Filter) contains a temporal expression using `NOW()` and optionally `INTERVAL`
 - The query string has passed the 64KB length check (BC-2.11.006)
-- The executor's `plan_query` step has access to the current UTC timestamp (injected as query context)
+- The executor's planning step has access to the current UTC timestamp (injected as query context)
 
 ## Postconditions
 
 - **`Expr::Now` parsing:** The token sequence `NOW` `(` `)` (case-insensitive) in any expression position produces `Expr::Now`. Any argument to `NOW()` (e.g., `NOW(1)`) produces `Err(E-QUERY-001)`: "NOW() takes no arguments".
 - **`Expr::Interval` parsing:** The token sequence `INTERVAL` followed by a quoted duration string (`'24h'`, `'7d'`, `'30s'`) OR a bare duration literal (`24h`, `7d`, `30s`) produces `Expr::Interval(Duration)`. The inner `Duration` type reuses the existing `ast::Literal::Duration` representation.
 - **`Expr::TimestampArithmetic` parsing:** The expression `NOW() - <duration_expr>` where `<duration_expr>` is either `Expr::Interval` or a bare `Duration` literal produces `Expr::TimestampArithmetic { base: Box<Expr::Now>, op: Sub, offset: Duration }`. `NOW() + <duration>` is NOT supported in v1 and produces `Err(E-QUERY-001)`: "timestamp arithmetic only supports subtraction: use `NOW() - INTERVAL 'Nh'`".
-- **Planning-time constant injection:** At `plan_query` time, `Expr::Now` (and any `TimestampArithmetic` whose `base` is `Expr::Now`) is evaluated using the query's execution timestamp (`DateTime<Utc>`) and replaced with a `Literal::Timestamp` constant before the logical plan is handed to DataFusion. DataFusion sees a concrete `WHERE timestamp > '2026-06-24T00:00:00Z'` comparison.
+- **Planning-time constant injection:** At planning time, `Expr::Now` (and any `TimestampArithmetic` whose `base` is `Expr::Now`) is evaluated using the query's execution timestamp (`DateTime<Utc>`) and replaced with a `Literal::Timestamp` constant before the logical plan is handed to DataFusion. DataFusion sees a concrete `WHERE timestamp > '2026-06-24T00:00:00Z'` comparison.
 - **ADR-033 push-down benefit:** Once lowered to a `Literal::Timestamp`, the timestamp predicate is automatically recognized by ADR-033's T1 push-down heuristic in `pushdown.rs` and passed as `start_time`/`end_time` range hints to sensor adapters — no changes to `pushdown.rs` required.
 - **`build_example_query` validity:** After this BC is implemented, `prism_describe.rs`'s `build_example_query` function generates `WHERE timestamp > NOW() - INTERVAL '1h'` and this query parses and plans successfully. No change to `build_example_query` is needed.
 
@@ -107,7 +107,7 @@ extracted_from: null
 
 - `crates/prism-query/src/ast.rs` — `Expr` enum (add `Now`, `Interval(Duration)`, `TimestampArithmetic` variants)
 - `crates/prism-query/src/filter_parser.rs` or equivalent expression parser — `build_expr_parser` (shared by SQL, Pipe, Filter modes)
-- `crates/prism-query/src/engine.rs` or equivalent planner — `plan_query` (inject `now` constant at planning time)
+- `crates/prism-query/src/lib.rs` — `inject_now` / `inject_now_sql_query` / `inject_now_pipe_stage` / `inject_now_predicate` / `inject_now_expr` (planning-time `now` constant injection; no `plan_query` function exists)
 - ADR-044: Temporal Grammar — `NOW()` and `INTERVAL`/Relative-Duration Literals
 
 ## Story Anchor

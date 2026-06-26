@@ -110,7 +110,7 @@ When a PrismQL query begins with `SELECT … FROM <table>` and contains at least
 
 - `crates/prism-query/src/filter_parser.rs` — `is_pipe_mode` / `parse_with_limits` (mode detection + dispatch)
 - `crates/prism-query/src/ast.rs` — `Ast` enum (add `SqlPipe(SqlPipeQuery)` variant)
-- `crates/prism-query/src/engine.rs` — `Ast` match arm (add `SqlPipe` execution branch)
+- `crates/prism-query/src/materialization.rs` — `execute_against_session` `Ast::SqlPipe` arm
 - ADR-043: True SQL→Pipe Composition
 
 ## Story Anchor

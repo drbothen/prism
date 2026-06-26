@@ -149,7 +149,7 @@ These tests MUST use `QueryEngine::execute`, not just `PrismQlParser::parse`. Un
 
 - `crates/prism-query/src/error_recovery.rs` — `rich_to_parse_error` (D1/D2 post-parse heuristic); also produces the `normalized_pql` rewrite STRING for mode-bridge errors
 - `crates/prism-mcp/src/error_mapping.rs` — `StructuredErrorFields` struct (add `normalized_pql: Option<String>` field with `#[serde(skip_serializing_if = "Option::is_none")]`; populate from the `prism-query` rewrite string in the `QueryParseFailed` mapping arm). NOTE: there is NO `ParseErrorDetails` type in `prism-query/src/error.rs` — the MCP-facing structured error payload is `StructuredErrorFields` in `prism-mcp`. `prism-query` MUST NOT depend on `prism-mcp`. (D-1110 correction)
-- `crates/prism-query/src/engine.rs` — `Ast::Filter` execution match arm (D4 tests target this path)
+- `crates/prism-query/src/materialization.rs` — `execute_against_session` `Ast::Filter` arm (D4 tests target this path)
 - ADR-046: Three-Mode Correctness
 
 ## Story Anchor
