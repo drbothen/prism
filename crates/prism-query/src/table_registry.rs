@@ -704,6 +704,14 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
             for join in &sq.joins {
                 push_dedup(&mut sources, &join.source);
             }
+            // OBS-1: also walk sq.where_ for InSubquery predicates
+            // (e.g. SELECT … WHERE id IN (SELECT … FROM <unregistered_sensor>)).
+            // Without this walk, a WHERE-IN-subquery referencing an unregistered
+            // external sensor bypasses the E-QUERY-037 gate and fails later with a
+            // less helpful error.  Mirrors the Dml filter arm above.
+            if let Some(ref where_pred) = sq.where_ {
+                collect_predicate_sources_into_gate(where_pred, &mut sources);
+            }
         }
         Ast::Sql(SqlStatement::Dml(dml)) => {
             if let Some(ref source_select) = dml.source_select {
@@ -742,6 +750,13 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
             push_dedup(&mut sources, &spq.head.from.source);
             for join in &spq.head.joins {
                 push_dedup(&mut sources, &join.source);
+            }
+            // OBS-1: walk spq.head.where_ for InSubquery predicates, mirroring the
+            // Ast::Sql(Select) arm above.  A SqlPipe query whose SQL head references an
+            // unregistered sensor inside a WHERE…IN(SELECT…FROM <sensor>) must also
+            // reach the E-QUERY-037 gate.
+            if let Some(ref where_pred) = spq.head.where_ {
+                collect_predicate_sources_into_gate(where_pred, &mut sources);
             }
             for stage in &spq.stages {
                 if let crate::ast::PipeStage::Join(js) = stage {

@@ -1160,6 +1160,219 @@ fn test_OBS_1_sql_pipe_join_stage_source_discovered_by_availability_gate() {
     );
 }
 
+/// OBS-1 (new): `extract_sources_from_ast_for_gate` must collect InSubquery sources
+/// from the WHERE clause of an `Ast::Sql(Select)` query, so that a SELECT whose
+/// WHERE clause contains `field IN (SELECT … FROM <unregistered_sensor>)` reaches
+/// the E-QUERY-037 availability gate.
+///
+/// Prior to this fix the `Ast::Sql(Select)` arm only walked `sq.from.source` and
+/// `sq.joins`, missing any InSubquery sources in `sq.where_`.  The E-QUERY-037 gate
+/// therefore never saw the subquery sensor — the query would fail later with a less
+/// helpful internal error rather than the fast-fail E-QUERY-037 with `did_you_mean`.
+///
+/// Test strategy: construct the AST directly (bypassing the parser) to prove
+/// that `extract_sources_from_ast_for_gate` discovers the InSubquery source from
+/// `sq.where_` for an `Ast::Sql(Select)`.
+#[test]
+#[allow(non_snake_case)]
+fn test_OBS_1_sql_select_where_in_subquery_source_discovered_by_availability_gate() {
+    use crate::{
+        ast::{
+            Ast, Expr, FieldPath, FromClause, Predicate, SelectClause, SelectItem, SourceRef,
+            SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Build: SELECT id FROM crowdstrike_detections
+    //        WHERE host_id IN (SELECT host_id FROM armis_devices)
+    //
+    // `armis_devices` is in the subquery — it must reach the gate.
+    let subquery = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath {
+                    segments: vec!["host_id".to_string()],
+                    span: Span::ZERO,
+                }),
+                alias: None,
+            }],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "armis_devices".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let where_pred = Predicate::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+        negated: false,
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath {
+                    segments: vec!["id".to_string()],
+                    span: Span::ZERO,
+                }),
+                alias: None,
+            }],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: Some(where_pred),
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    // The outer FROM source must be present.
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "OBS-1 SQL Select: extract_sources_from_ast_for_gate must include \
+         'crowdstrike_detections' (outer FROM source); got sources: {sources:?}"
+    );
+
+    // The subquery WHERE source must now also be present (OBS-1 fix).
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "OBS-1 SQL Select: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from sq.where_ InSubquery predicate after OBS-1 fix. \
+         Got sources: {sources:?}"
+    );
+}
+
+/// OBS-1 (new): `extract_sources_from_ast_for_gate` must collect InSubquery sources
+/// from the WHERE clause of a `SqlPipe` head, so that a SqlPipe query whose SQL head
+/// WHERE clause contains `field IN (SELECT … FROM <unregistered_sensor>)` reaches
+/// the E-QUERY-037 availability gate.
+///
+/// Prior to this fix the `Ast::SqlPipe` arm did not walk `spq.head.where_`.
+/// Mirrors the new `Ast::Sql(Select)` fix above.
+#[test]
+#[allow(non_snake_case)]
+fn test_OBS_1_sqlpipe_head_where_in_subquery_source_discovered_by_availability_gate() {
+    use crate::{
+        ast::{
+            Ast, Expr, FieldPath, FromClause, Predicate, SelectClause, SelectItem, SourceRef,
+            SourceRefKind, Span, SqlPipeQuery, SqlQuery,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Build: SELECT id FROM crowdstrike_detections
+    //        WHERE host_id IN (SELECT host_id FROM armis_devices)
+    //        | limit 10
+    //
+    // SqlPipe head WHERE contains an InSubquery referencing `armis_devices`.
+    let subquery = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath {
+                    segments: vec!["host_id".to_string()],
+                    span: Span::ZERO,
+                }),
+                alias: None,
+            }],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "armis_devices".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let where_pred = Predicate::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+        negated: false,
+    };
+
+    let ast = Ast::SqlPipe(SqlPipeQuery {
+        head: SqlQuery {
+            select: SelectClause {
+                distinct: false,
+                items: vec![SelectItem::Expr {
+                    expr: Expr::Field(FieldPath {
+                        segments: vec!["id".to_string()],
+                        span: Span::ZERO,
+                    }),
+                    alias: None,
+                }],
+            },
+            from: FromClause {
+                source: SourceRef {
+                    raw: "crowdstrike_detections".to_string(),
+                    kind: SourceRefKind::Custom,
+                },
+                alias: None,
+            },
+            joins: vec![],
+            where_: Some(where_pred),
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        },
+        stages: vec![crate::ast::PipeStage::Limit(10)],
+    });
+
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    // The outer FROM source must be present.
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "OBS-1 SqlPipe: extract_sources_from_ast_for_gate must include \
+         'crowdstrike_detections' (SqlPipe head FROM source); got sources: {sources:?}"
+    );
+
+    // The subquery WHERE source must now also be present (OBS-1 fix).
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "OBS-1 SqlPipe: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from spq.head.where_ InSubquery predicate after OBS-1 fix. \
+         Got sources: {sources:?}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // NB-1: RwLock poison path emits tracing WARN (BC-2.16.002 row `table_registry.rwlock_poisoned`)
 // ---------------------------------------------------------------------------
