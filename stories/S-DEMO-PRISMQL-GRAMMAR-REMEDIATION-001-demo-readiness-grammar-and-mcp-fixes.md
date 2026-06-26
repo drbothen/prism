@@ -281,7 +281,7 @@ file is RETIRED.
 each required section (mode names, operator names, NOW(), virtual field names, error codes).
 
 **AC-007** (traces to BC-2.11.022 postconditions — CI 3-tier gate): A shared
-`const REFERENCE_EXAMPLES: &[(&'static str, ExampleKind)]` in `resources.rs` drives three
+`const REFERENCE_EXAMPLES: &[(ExampleKind, &'static str, &'static str)]` (i.e., `(kind, title, snippet)`) in `resources.rs` drives three
 CI gate test assertions: (1) **positive round-trip gate** — every `ExampleKind::Positive`
 example parses to `Ok(_)` via `PrismQlParser::parse`; (2) **negative E-QUERY-040 gate** —
 every `ExampleKind::NegativeE040` example returns
@@ -745,7 +745,7 @@ must both fail (Red Gate requirement BC-5.38.001).
 
 ### Phase 4 — Area C Implementation (implementer)
 
-1. In `crates/prism-mcp/src/resources.rs`, add `pub const REFERENCE_EXAMPLES: &[(&'static str, ExampleKind)] = &[…]` with positive and negative examples covering all required sections.
+1. In `crates/prism-mcp/src/resources.rs`, add `pub const REFERENCE_EXAMPLES: &[(ExampleKind, &'static str, &'static str)] = &[…]` (i.e., `(kind, title, snippet)`) with positive and negative examples covering all required sections.
 2. Add `ExampleKind` enum: `Positive`, `NegativeE040`, `NegativeOther(&'static str)`.
 3. Implement `build_reference_content(infusion_registry: Option<&InfusionRegistry>) -> String`. Write each section as a `&'static str` constant. Assemble the enrichment section from the live registry (or placeholder if `None`).
 4. Remove the `PQL_REFERENCE_CONTENT = include_str!("../pql_reference.md")` constant from

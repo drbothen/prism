@@ -76,7 +76,7 @@ The CI gate has three complementary assertions driven by a **shared `&'static st
 
 3. **Registry-parity gate:** A test builds the enrichment section using a known test `InfusionRegistry` and asserts the rendered infusion names and call signatures exactly match the registry's enumerated capabilities (no additions, no omissions).
 
-The shared example array MUST be a `const &'static [(&'static str, ExampleKind)]` in `crates/prism-mcp/src/resources.rs` where `ExampleKind` is an enum (`Positive`, `NegativeE040`, `NegativeOther(&'static str)`) — the doc and the test both reference this const.
+The shared example array MUST be a `const REFERENCE_EXAMPLES: &[(ExampleKind, &'static str, &'static str)]` in `crates/prism-mcp/src/resources.rs` where `ExampleKind` is an enum (`Positive`, `NegativeE040`, `NegativeOther`) and each tuple is `(kind, title, pql_snippet)` — the doc and the test both reference this const.
 
 ## Invariants
 
