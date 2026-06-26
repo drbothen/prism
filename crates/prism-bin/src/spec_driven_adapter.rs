@@ -1041,15 +1041,22 @@ fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dy
 /// Construct a `reqwest::Client` with a caller-supplied timeout `Duration`.
 ///
 /// This is the underlying implementation used by `build_http_client_with_timeout`.
-/// Exposed as `pub` to allow tests to inject a short timeout (e.g. 1 ms) so that
-/// `reqwest::Client::builder()` construction can be validated without waiting up
-/// to the full 30-second production timeout under load (AC-004/005; S-PERF-GATE-001).
+/// Exposed as `pub(crate)` so that in-crate tests can inject a short timeout (e.g. 1 ms)
+/// to validate `reqwest::Client::builder()` construction without waiting up to the full
+/// 30-second production timeout under load (AC-004/005; S-PERF-GATE-001).
+///
+/// # Visibility constraint (Architecture Compliance Rule 2 / F-MED-1)
+///
+/// `pub(crate)` — NOT `pub`. The function must NOT expand the public API surface of
+/// `prism-bin`. The construction test `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`
+/// lives in the in-crate `#[cfg(test)] mod tests` block below and accesses this via
+/// `pub(crate)`. Cross-crate integration tests use only `build_http_client_with_timeout()`
+/// (the `pub` 30-second wrapper).
 ///
 /// # Production use
 ///
 /// Production callers MUST use `build_http_client_with_timeout()` (the 30-second variant).
-/// This function is public only to enable test injection; do NOT call it directly from
-/// production paths.
+/// This function is crate-internal; do NOT call it from production paths.
 ///
 /// # Timeout contract
 ///
@@ -1061,7 +1068,9 @@ fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dy
 /// failure mode is malformed TLS configuration).
 ///
 /// TD-S-PLUGIN-PREREQ-B-005; AC-004; AC-005; S-PERF-GATE-001.
-pub fn build_http_client_with_custom_timeout(timeout: Duration) -> Result<reqwest::Client, String> {
+pub(crate) fn build_http_client_with_custom_timeout(
+    timeout: Duration,
+) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(timeout)
         .build()
@@ -1377,13 +1386,14 @@ fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> St
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::time::Duration;
 
     use prism_core::ColumnType;
     use prism_core::OrgSlug;
     use prism_spec_engine::AuthProvider;
     use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
 
-    use super::BearerStaticCredentialAuthProvider;
+    use super::{BearerStaticCredentialAuthProvider, build_http_client_with_custom_timeout};
 
     /// Build a minimal SensorSpec for bearer_static sensors (Armis fixture).
     fn bearer_static_spec() -> SensorSpec {
@@ -1639,6 +1649,40 @@ mod tests {
             result.unwrap().as_str(),
             expected_token,
             "AuthToken value must equal the injected resolved credential value"
+        );
+    }
+
+    /// RG-PERF-001 — `build_http_client_with_custom_timeout` accepts any `Duration`.
+    ///
+    /// Validates that `reqwest::Client::builder()` construction succeeds regardless of
+    /// the timeout value. Uses `Duration::from_millis(1)` so the test completes in
+    /// sub-millisecond time — the builder does NOT block for the configured timeout
+    /// duration; the timeout only affects subsequent HTTP requests, not construction.
+    ///
+    /// # Visibility note (F-MED-1 / Architecture Compliance Rule 2)
+    ///
+    /// `build_http_client_with_custom_timeout` is `pub(crate)` — NOT `pub`. This
+    /// in-crate test exercises it via `super::build_http_client_with_custom_timeout`
+    /// without requiring any public API surface expansion. Cross-crate callers use
+    /// `build_http_client_with_timeout()` (the `pub` 30-second wrapper) exclusively.
+    ///
+    /// # Error type note
+    ///
+    /// Returns `Result<reqwest::Client, String>` (NOT `reqwest::Error`). The `String`
+    /// error type is the correct signature — `reqwest::Client::builder().build()` returns
+    /// `Result<Client, reqwest::Error>`, and `build_http_client_with_custom_timeout`
+    /// maps that to `String` via `.map_err(|e| format!(...))`.
+    ///
+    /// TD-S-PLUGIN-PREREQ-B-005; AC-004; AC-005; S-PERF-GATE-001 F-MED-1.
+    #[test]
+    fn test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration() {
+        let result = build_http_client_with_custom_timeout(Duration::from_millis(1));
+        assert!(
+            result.is_ok(),
+            "build_http_client_with_custom_timeout(1ms) must return Ok(Client) — \
+             reqwest client construction must succeed regardless of timeout value. \
+             Got Err: {:?}",
+            result.err()
         );
     }
 }

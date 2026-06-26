@@ -84,8 +84,7 @@ use prism_bin::{
     boot::BootError,
     spec_driven_adapter::{
         AdapterAuthStrategy, BearerStaticAuthProvider, SpecDrivenSensorAdapter,
-        build_http_client_with_custom_timeout, build_http_client_with_timeout,
-        step9a_populate_adapter_registry,
+        build_http_client_with_timeout, step9a_populate_adapter_registry,
     },
 };
 use prism_core::column::ColumnType;
@@ -1547,32 +1546,15 @@ async fn test_BC_2_06_014_boot_step9a_translates_org_slug_to_org_id() {
     );
 }
 
-/// `build_http_client_with_custom_timeout` constructs successfully regardless of timeout value.
-///
-/// Uses a 1 ms timeout via `build_http_client_with_custom_timeout` — validates that reqwest
-/// client construction succeeds (which is what this test actually proves) without waiting
-/// up to the full 30-second production timeout under load. The construction path is
-/// identical; timeout only affects subsequent HTTP requests, not the builder itself.
-///
-/// AC-004 / AC-005 (S-PERF-GATE-001): this test must complete in under 5 seconds.
-/// The previous `build_http_client_with_timeout()` variant hung 324s under load because
-/// reqwest networking-init could block up to the full 30s timeout.
-///
-/// The 30-second production timeout is exercised by the adv_p02 integration tests
-/// (`test_adv_p02_*`) which call `build_http_client_with_timeout()` directly.
-///
-/// CLAUDE.md §Conventions; TD-S-PLUGIN-PREREQ-B-005; S-DEMO-001 AC-011; AC-004/005.
-#[test]
-fn test_BC_2_01_013_build_http_client_with_timeout_succeeds() {
-    let result = build_http_client_with_custom_timeout(std::time::Duration::from_millis(1));
-    assert!(
-        result.is_ok(),
-        "build_http_client_with_custom_timeout(1ms) must return Ok(Client) — \
-         reqwest client construction must succeed regardless of timeout value. \
-         Got Err: {:?}",
-        result.err()
-    );
-}
+// NOTE (F-MED-1 / S-PERF-GATE-001 AC-004):
+// `build_http_client_with_custom_timeout` was previously `pub` and tested here via
+// `test_BC_2_01_013_build_http_client_with_timeout_succeeds`. It has been changed to
+// `pub(crate)` (Architecture Compliance Rule 2: no public API surface expansion just
+// for a test). The canonical construction test is now in-crate:
+//   `crates/prism-bin/src/spec_driven_adapter.rs` mod tests:
+//   `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`
+// Named per RG-PERF-001. Cross-crate callers use `build_http_client_with_timeout()`
+// (the `pub` 30-second wrapper) — exercised by the adv_p02 integration tests below.
 
 // ===========================================================================
 // BC-2.01.013 v1.14 OCSF Conformance Clause tests (adversary pass-2, F-001-R)

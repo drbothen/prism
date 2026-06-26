@@ -59,12 +59,35 @@ fn prism_bin() -> PathBuf {
 /// MED-2: wired through signals::install_sigterm_handler (not inline duplicate).
 /// MED-5: uses isolated TempDir to avoid parallel RocksDB LOCK collisions.
 ///
-/// Root cause of prior flakiness: `Stdio::piped()` child stdout/stderr not drained
-/// by the parent test process under nextest. When the SIGTERM handler emits tracing
-/// output and the pipe buffer fills, the child blocks on write; nextest then kills
-/// the child with signal 15 before the handler completes. Fix: redirect both streams
+/// # Historical flake root cause (AC-010 / F-PERF-GATE-001-HIGH-2)
+///
+/// This test and its siblings in this file previously exhibited intermittent SIGSEGV
+/// (signal=11) failures on the child `prism start` process under load. Root cause:
+/// RocksDB opens memory-mapped (mmap) regions for its SSTable/WAL files. When
+/// multiple `prism start` subprocess tests run in PARALLEL (nextest default), two
+/// child processes attempt to open RocksDB in the SAME temp directory or compete
+/// for OS mmap resources. If one child's process is terminated while the other still
+/// holds a reference to the same mmap region, the surviving child's mmap is
+/// invalidated — any subsequent RocksDB access triggers SIGSEGV (signal=11).
+///
+/// The fix has two layers:
+/// 1. **`serial-subprocess` nextest test-group** (`max-threads=1` in
+///    `.config/nextest.toml`): serializes ALL subprocess tests in `signal_handlers`
+///    so at most one `prism start` subprocess is live at any time, eliminating the
+///    parallel-RocksDB mmap collision entirely.
+/// 2. **`retries = 1`** (prepush/ci nextest profile): provides a single-retry
+///    safety net for any residual OS-level timing races (e.g., scheduler jitter
+///    on CI machines) that slip through serialization.
+///
+/// # Prior flakiness symptom
+///
+/// `Stdio::piped()` child stdout/stderr not drained by the parent test process
+/// under nextest. When the SIGTERM handler emits tracing output and the pipe
+/// buffer fills, the child blocks on write; nextest then kills the child with
+/// signal 15 before the handler completes. Additional fix: redirect both streams
 /// to /dev/null via `Stdio::null()`. The test only asserts on the exit code
-/// (BC-2.10.010 postcondition), not on stdout/stderr content, so capture is not needed.
+/// (BC-2.10.010 postcondition), not on stdout/stderr content, so capture is not
+/// needed.
 #[cfg(unix)]
 #[test]
 fn test_BC_2_10_010_sigterm_causes_graceful_exit_zero() {
