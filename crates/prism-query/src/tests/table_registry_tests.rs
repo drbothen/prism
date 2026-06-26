@@ -1080,6 +1080,87 @@ fn test_BC_2_11_001_mode_agnostic_gate_dml_filter_in_subquery_registered_passes(
 }
 
 // ---------------------------------------------------------------------------
+// OBS-1: SqlPipe pipe-stage JOIN sources must reach the E-QUERY-037 gate
+// ---------------------------------------------------------------------------
+
+/// OBS-1: `extract_sources_from_ast_for_gate` must collect `PipeStage::Join`
+/// sources from a SqlPipe AST, not just the head FROM/JOIN sources.
+///
+/// Represents: `SELECT * FROM crowdstrike_detections | join prism_audit on id == trace_id`
+///
+/// Prior to the fix the `Ast::SqlPipe` arm only walked `spq.head.from.source`
+/// and `spq.head.joins`, silently skipping any `PipeStage::Join` in `spq.stages`.
+/// The E-QUERY-037 availability gate therefore never saw the pipe-stage join
+/// source — a parity gap vs the `Ast::Pipe` arm. (TD-VSDD-060)
+#[test]
+#[allow(non_snake_case)]
+fn test_OBS_1_sql_pipe_join_stage_source_discovered_by_availability_gate() {
+    use crate::{
+        ast::{
+            Ast, FieldPath, FromClause, InternalTable, JoinCondition, JoinKind, JoinStage,
+            PipeStage, SelectClause, SelectItem, SourceRef, SourceRefKind, Span, SqlPipeQuery,
+            SqlQuery,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Build: SELECT * FROM crowdstrike_detections | join prism_audit on id == trace_id
+    let join_stage = JoinStage {
+        kind: JoinKind::Inner,
+        source: SourceRef {
+            raw: "prism_audit".to_string(),
+            kind: SourceRefKind::Internal(InternalTable::Audit),
+        },
+        on: JoinCondition::Pair(
+            FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            FieldPath {
+                segments: vec!["trace_id".to_string()],
+                span: Span::ZERO,
+            },
+        ),
+    };
+
+    let sql_pipe_ast = Ast::SqlPipe(SqlPipeQuery {
+        head: SqlQuery {
+            select: SelectClause {
+                distinct: false,
+                items: vec![SelectItem::Star],
+            },
+            from: FromClause {
+                source: SourceRef {
+                    raw: "crowdstrike_detections".to_string(),
+                    kind: SourceRefKind::Custom,
+                },
+                alias: None,
+            },
+            joins: vec![],
+            where_: None,
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        },
+        stages: vec![PipeStage::Join(join_stage)],
+    });
+
+    let sources = extract_sources_from_ast_for_gate_test_only(&sql_pipe_ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "OBS-1: extract_sources_from_ast_for_gate must include 'crowdstrike_detections' \
+         (SqlPipe head source); got sources: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "prism_audit"),
+        "OBS-1: extract_sources_from_ast_for_gate must discover 'prism_audit' \
+         from SqlPipe PipeStage::Join source in spq.stages; got sources: {sources:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // NB-1: RwLock poison path emits tracing WARN (BC-2.16.002 row `table_registry.rwlock_poisoned`)
 // ---------------------------------------------------------------------------
 

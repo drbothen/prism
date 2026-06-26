@@ -735,10 +735,18 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
         // just like Ast::Sql(Select). Without this arm, the gate was a no-op for
         // SqlPipe, silently skipping the fast-fail path and deferring the error to
         // a later (less helpful) site. AC-8: gate is mode-agnostic. (TD-VSDD-060)
+        // OBS-1 parity fix: also collect PipeStage::Join sources from spq.stages so
+        // that `SELECT … | join <table> on …` pipe-stage JOINs also reach the
+        // E-QUERY-037 gate. Mirrors the Ast::Pipe arm above. (TD-VSDD-060)
         Ast::SqlPipe(spq) => {
             push_dedup(&mut sources, &spq.head.from.source);
             for join in &spq.head.joins {
                 push_dedup(&mut sources, &join.source);
+            }
+            for stage in &spq.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    push_dedup(&mut sources, &js.source);
+                }
             }
         }
         // #[non_exhaustive] catch-all for future AST variants.

@@ -1758,10 +1758,18 @@ fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
         }
         // BC-2.11.020: SqlPipe mode — extract source table from the head SQL's FROM clause.
         // The head SELECT drives the fan-out; pipe stages operate on the fetched rows.
+        // OBS-1 parity fix: also collect PipeStage::Join sources from spq.stages so
+        // that `SELECT … | join <table> on …` pipe stages reach the E-QUERY-011
+        // AuditRead gate and E-QUERY-037 availability gate. Mirrors Ast::Pipe arm above.
         Ast::SqlPipe(spq) => {
             names.push(spq.head.from.source.raw.clone());
             for join in &spq.head.joins {
                 names.push(join.source.raw.clone());
+            }
+            for stage in &spq.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    names.push(js.source.raw.clone());
+                }
             }
         }
         // Non-exhaustive: ignore other variants
@@ -1843,8 +1851,16 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
         // head `SELECT * FROM prism_audit …` would bypass the AuditRead gate entirely.
         // Walk `walk_sql_query` on the head so that prism_* references in JOINs and
         // WHERE subqueries are also collected (mirrors `Ast::Sql(Select)` arm above).
+        // OBS-1 parity fix: also collect PipeStage::Join sources from spq.stages so
+        // that `SELECT … | join <table> on …` pipe stages reach the AuditRead gate.
+        // Mirrors the Ast::Pipe arm above. (TD-VSDD-060)
         Ast::SqlPipe(spq) => {
             walk_sql_query(&spq.head, &mut names);
+            for stage in &spq.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    names.insert(js.source.raw.clone());
+                }
+            }
         }
         // SqlStatement and Ast are #[non_exhaustive]; wildcard required for future variants.
         #[allow(unreachable_patterns)]
@@ -2335,6 +2351,80 @@ mod walker_coverage_tests {
             shallow_names.iter().any(|n| n == "prism_audit"),
             "F-LP5-LOW-1: extract_source_names_shallow must discover `prism_audit` \
              from PipeStage::Join source; got names: {shallow_names:?}"
+        );
+    }
+
+    /// OBS-1: SqlPipe pipe-stage JOIN sources must be collected by both Layer 1 walkers.
+    ///
+    /// Represents queries like:
+    ///   `SELECT * FROM crowdstrike_detections | join prism_audit on id == trace_id`
+    ///
+    /// Prior to the OBS-1 fix, `extract_source_names_recursive` and
+    /// `extract_source_names_shallow` only collected the SqlPipe head sources
+    /// (`crowdstrike_detections`) and silently skipped `PipeStage::Join` sources
+    /// (`prism_audit`) from `spq.stages`. The AuditRead gate (E-QUERY-011) and
+    /// availability gate (E-QUERY-037) therefore never saw the join source.
+    ///
+    /// This is a defensive parity fix — `Ast::SqlPipe` must mirror `Ast::Pipe`
+    /// for Join source collection. (TD-VSDD-060)
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_OBS_1_sql_pipe_join_stage_source_discovered_by_layer1() {
+        use super::extract_source_names_shallow;
+        use crate::ast::{
+            InternalTable, JoinCondition, JoinKind, JoinStage, PipeStage, SqlPipeQuery,
+        };
+
+        // Build: SELECT * FROM crowdstrike_detections | join prism_audit on id == trace_id
+        let join_stage = JoinStage {
+            kind: JoinKind::Inner,
+            source: SourceRef {
+                raw: "prism_audit".to_string(),
+                kind: SourceRefKind::Internal(InternalTable::Audit),
+            },
+            on: JoinCondition::Pair(
+                FieldPath {
+                    segments: vec!["id".to_string()],
+                    span: Span::ZERO,
+                },
+                FieldPath {
+                    segments: vec!["trace_id".to_string()],
+                    span: Span::ZERO,
+                },
+            ),
+        };
+
+        let sql_pipe_ast = Ast::SqlPipe(SqlPipeQuery {
+            head: minimal_select("crowdstrike_detections"),
+            stages: vec![PipeStage::Join(join_stage)],
+        });
+
+        // extract_source_names_recursive must discover both the head source and the join source.
+        let recursive_names = extract_source_names_recursive(&sql_pipe_ast);
+        assert!(
+            recursive_names
+                .iter()
+                .any(|n| n == "crowdstrike_detections"),
+            "OBS-1: extract_source_names_recursive must include 'crowdstrike_detections' \
+             (SqlPipe head source); got names: {recursive_names:?}"
+        );
+        assert!(
+            recursive_names.iter().any(|n| n == "prism_audit"),
+            "OBS-1: extract_source_names_recursive must discover 'prism_audit' \
+             from SqlPipe PipeStage::Join source; got names: {recursive_names:?}"
+        );
+
+        // extract_source_names_shallow must also discover both sources.
+        let shallow_names = extract_source_names_shallow(&sql_pipe_ast);
+        assert!(
+            shallow_names.iter().any(|n| n == "crowdstrike_detections"),
+            "OBS-1: extract_source_names_shallow must include 'crowdstrike_detections' \
+             (SqlPipe head source); got names: {shallow_names:?}"
+        );
+        assert!(
+            shallow_names.iter().any(|n| n == "prism_audit"),
+            "OBS-1: extract_source_names_shallow must discover 'prism_audit' \
+             from SqlPipe PipeStage::Join source; got names: {shallow_names:?}"
         );
     }
 

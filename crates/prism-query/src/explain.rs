@@ -577,10 +577,18 @@ fn extract_sources_from_ast(ast: &Ast) -> Vec<SourceRef> {
         // in `sensors_to_query` so operators see the full query plan for SqlPipe queries.
         // Without this arm the head's FROM/JOIN sources were silently dropped from EXPLAIN
         // output, making it impossible to audit which sensors a SqlPipe query touches.
+        // OBS-1 parity fix: also collect PipeStage::Join sources from spq.stages so
+        // that `SELECT … | join <table> on …` pipe-stage JOINs appear in EXPLAIN
+        // `sensors_to_query`. Mirrors the Ast::Pipe arm above. (TD-VSDD-060)
         Ast::SqlPipe(spq) => {
             push_dedup(&mut sources, &spq.head.from.source);
             for join in &spq.head.joins {
                 push_dedup(&mut sources, &join.source);
+            }
+            for stage in &spq.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    push_dedup(&mut sources, &js.source);
+                }
             }
         }
         // SqlStatement and Ast are #[non_exhaustive]; wildcard required for future variants.
