@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-ACCEPTED v1.2 (2026-06-24). Architect decision following grammar usability audit
+ACCEPTED v1.3 (2026-06-26). Architect decision following grammar usability audit
 (GRAMMAR-001, GRAMMAR-014, GRAMMAR-015, GRAMMAR-016) and pre-flight audit
 (BLOCKER-002, BLOCKER-003). Amends ADR-041 by specifying the mode-bridge error
 architecture and Filter mode execution validation requirement. Human ratifications
