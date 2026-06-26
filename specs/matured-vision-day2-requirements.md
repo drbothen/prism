@@ -1145,6 +1145,11 @@ output hardening). This is a notable scope addition — flag for architect.
 **Cross-cutting UI requirements:**
 - **Web-stack ADR:** Prism is a Rust workspace with no frontend. Options: Rust-native (Leptos/Dioxus,
   stays in-language) vs TS SPA (React/Svelte). Served over the E-CENTRAL-TRANSPORT-001 HTTP transport.
+  **UI research (2026-06-25, `research/ui-requirements-2026-06-25.md`) recommends TS SPA (React) +
+  Rust backend** for ecosystem reasons (AG Grid/TanStack, ECharts/visx, Cytoscape/sigma.js, Monaco for
+  the PrismQL editor — Monaco is an awkward JS island under Rust-WASM). BUT it flags that Rust-native
+  (Leptos) is "feasible" precisely for an all-Rust team like prism — so this remains a genuine OPEN
+  judgment call (UI-D5), not auto-decided. Shared types via OpenAPI→openapi-typescript codegen.
 - **SSO (enhancement over Query):** OIDC/SAML from day one — research shows Query does *not* document
   SSO. Strong enterprise/MSSP differentiator.
 - **Multi-tenant web-UI security canon:** tenant-context propagation via signed tokens, per-tenant
@@ -1937,9 +1942,13 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
 
 ### 16.4 Open items / NEXT STEPS (for the resumed session)
 
-- **UI (next up, was paused here):** draft S2 investigations-console screens in depth + U1 admin-console
-  screen inventory; web-stack ADR (Rust-native Leptos/Dioxus vs TS SPA); SSO/OIDC-SAML; S3 agent-runtime
-  ADR. (§11.3, §11.3.1, §11.3.2)
+- **UI (next up, was paused here):** UI-needs research DONE 2026-06-25 — see
+  `research/ui-requirements-2026-06-25.md` (distilled) + `research/ui-investigations-console-ux-2026-06-25.md`
+  + `research/ui-webstack-admin-rbac-2026-06-25.md` (raw). Next: hand the distilled requirements to
+  ux-designer to draft S2 investigations-console screens + U1 admin-console inventory; resolve the
+  **web-stack ADR (UI-D5: TS SPA-React vs Rust-native Leptos — OPEN judgment call)**; SSO/OIDC-SAML;
+  S3 agent-runtime ADR. Table-stakes screen list, differentiators, trust-first AI UX, accessibility/
+  streaming, and fine-grained-RBAC admin patterns are all captured in the requirements doc. (§11.3, §11.3.1, §11.3.2)
 - **`SecretBackend` trait + per-tenant-DEK flow** concrete sketch (§11.1).
 - **Sequence-sugar ADR open questions** (§12.4): keyword finalization; overall-`WITHIN` semantics;
   cross-step running-semantics; **`NOT`/`WITHOUT` non-event desugaring** (exclusion vs timeout — hardest).
