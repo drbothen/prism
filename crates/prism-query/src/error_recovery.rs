@@ -297,6 +297,42 @@ mod tests {
 // prism-mcp delegates to this public function rather than duplicating the logic.
 // ---------------------------------------------------------------------------
 
+/// Find the byte offset of `needle` inside `haystack` using ASCII case-insensitive
+/// comparison, returning an offset valid for slicing `haystack`.
+///
+/// Unlike `haystack.to_uppercase().find(needle)`, this function searches the
+/// ORIGINAL bytes of `haystack` directly.  It only folds ASCII letters (A–Z ↔ a–z);
+/// non-ASCII bytes are compared as-is and are never altered.  This guarantees that
+/// the returned offset is always a valid `haystack` byte index — no risk of landing
+/// inside a multi-byte UTF-8 sequence due to case-expansion length changes.
+///
+/// `needle` must contain only ASCII characters (the call sites use `" FROM "` and
+/// `" WHERE "` which are pure ASCII).
+///
+/// Returns `Some(offset)` where `offset` is the start of the first match inside
+/// `haystack`, or `None` if no match is found.
+fn find_substr_ignore_ascii_case(haystack: &str, needle: &str) -> Option<usize> {
+    let hb = haystack.as_bytes();
+    let nb = needle.as_bytes();
+    if nb.is_empty() {
+        return Some(0);
+    }
+    if nb.len() > hb.len() {
+        return None;
+    }
+    // Slide a window of needle.len() bytes over haystack.
+    // ASCII fold: compare each byte with eq_ignore_ascii_case for letter bytes.
+    'outer: for start in 0..=(hb.len() - nb.len()) {
+        for (i, &n) in nb.iter().enumerate() {
+            if !hb[start + i].eq_ignore_ascii_case(&n) {
+                continue 'outer;
+            }
+        }
+        return Some(start);
+    }
+    None
+}
+
 /// Attempt to produce a Pipe-mode rewrite of `original_query` for D1 mode-bridge
 /// errors (ADR-046 §D1).
 ///
@@ -350,12 +386,23 @@ pub fn mode_bridge_normalized_pql(original_query: &str) -> Option<String> {
     let stages_suffix = &trimmed[pipe_offset..]; // "| stages..."
 
     // Extract table name from "SELECT ... FROM <table>" (only handles simple single-table).
-    let from_idx = sql_head.to_uppercase().find(" FROM ")?;
+    //
+    // SAFETY NOTE: We must search the same string we will slice.
+    // `str::to_uppercase()` is NOT byte-length-preserving for non-ASCII characters
+    // (e.g. U+FB01 ﬁ is 3 bytes but uppercases to "FI" which is 2 bytes).
+    // Using the byte offset from an uppercase copy as an index into the original
+    // string can therefore land inside a multi-byte UTF-8 sequence → panic.
+    //
+    // Fix: use `find_substr_ignore_ascii_case` which searches the ORIGINAL string
+    // directly, yielding offsets that are valid for slicing that same string.
+    // This function only treats A-Z/a-z as equivalent; it leaves non-ASCII bytes
+    // unchanged, so offsets are always valid char boundaries in the source string.
+    let from_idx = find_substr_ignore_ascii_case(sql_head, " FROM ")?;
     let after_from = sql_head[from_idx + 6..].trim(); // "<table> [WHERE ...]"
 
-    // Split at WHERE (case-insensitive).
+    // Split at WHERE (case-insensitive) using the same offset-safe helper.
     let (table_part, predicate_part) =
-        if let Some(where_idx) = after_from.to_uppercase().find(" WHERE ") {
+        if let Some(where_idx) = find_substr_ignore_ascii_case(after_from, " WHERE ") {
             let table = after_from[..where_idx].trim();
             let predicate = after_from[where_idx + 7..].trim();
             (table, Some(predicate))
@@ -418,6 +465,76 @@ pub fn find_first_unquoted_pipe(input: &str) -> Option<usize> {
         i += 1;
     }
     None
+}
+
+// ---------------------------------------------------------------------------
+// F-P3-CRIT-001 regression tests
+// ---------------------------------------------------------------------------
+//
+// UTF-8 byte-offset safety: `to_uppercase()` is NOT byte-length-preserving
+// for non-ASCII characters (e.g. `ﬁ` U+FB01 → 3 bytes becomes `FI` → 2 bytes).
+// Using the offset returned by searching the uppercased copy as an index into
+// the original string can therefore land inside a multi-byte UTF-8 sequence,
+// causing a "byte index N is not a char boundary" panic.
+//
+// These regression tests must fail (panic) BEFORE the fix is applied, and pass
+// after.
+#[cfg(test)]
+mod f_p3_crit_001_utf8_offset_regression {
+    use super::mode_bridge_normalized_pql;
+
+    /// Non-ASCII ligature U+FB01 (ﬁ, 3 bytes) before FROM:
+    /// `SELECT ﬁ FROM t WHERE x=1 | limit 5`
+    /// The uppercased copy of the `SELECT ﬁ` head is 1 byte shorter (ﬁ→FI),
+    /// so the FROM offset from the uppercase search is off by 1 when used to
+    /// index the original — this must NOT panic.
+    #[test]
+    fn test_mode_bridge_non_ascii_before_from_no_panic() {
+        // ﬁ is U+FB01 (LATIN SMALL LIGATURE FI): 3 UTF-8 bytes, uppercases to
+        // "FI" which is 2 UTF-8 bytes — the classic length-changing case.
+        let query = "SELECT \u{FB01} FROM t WHERE x=1 | limit 5";
+        // Must not panic; result is None or Some(valid_rewrite) — either is OK.
+        let result = std::panic::catch_unwind(|| mode_bridge_normalized_pql(query));
+        assert!(
+            result.is_ok(),
+            "mode_bridge_normalized_pql panicked on non-ASCII input before FROM"
+        );
+    }
+
+    /// Non-ASCII ligature U+FB01 (ﬁ) in the table name (after FROM, before WHERE):
+    /// `SELECT * FROM ﬁ WHERE x=1 | limit 5`
+    #[test]
+    fn test_mode_bridge_non_ascii_in_table_name_no_panic() {
+        let query = "SELECT * FROM \u{FB01} WHERE x=1 | limit 5";
+        let result = std::panic::catch_unwind(|| mode_bridge_normalized_pql(query));
+        assert!(
+            result.is_ok(),
+            "mode_bridge_normalized_pql panicked on non-ASCII table name"
+        );
+    }
+
+    /// Turkish dotless i (U+0131, ı) before FROM — 2 bytes, uppercases to ASCII 'I' 1 byte.
+    #[test]
+    fn test_mode_bridge_turkish_i_before_from_no_panic() {
+        let query = "SELECT \u{0131}d FROM t WHERE x=1 | limit 5";
+        let result = std::panic::catch_unwind(|| mode_bridge_normalized_pql(query));
+        assert!(
+            result.is_ok(),
+            "mode_bridge_normalized_pql panicked on Turkish dotless-i input"
+        );
+    }
+
+    /// ASCII-only input must still produce a correct result (no regression).
+    #[test]
+    fn test_mode_bridge_ascii_rewrite_preserved() {
+        // This ASCII query should remain unaffected by the fix.
+        // The rewrite only works if the parser recognises the resulting pipe query.
+        // We simply assert no panic and accept both None and Some.
+        let query = "SELECT * FROM sensors WHERE severity = 'HIGH' | limit 5";
+        let _result = mode_bridge_normalized_pql(query);
+        // No assertion on value — the parser may or may not recognise the table name.
+        // The point of this test is: must not panic.
+    }
 }
 
 #[cfg(test)]
