@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.3"
-spec_version: "v1.3"
+version: "1.4"
+spec_version: "v1.4"
 level: ops
 producer: story-writer
 timestamp: "2026-06-26"
@@ -75,10 +75,16 @@ to **1076–3952 seconds** under concurrency oversubscription. The diagnosis doc
 at `.factory/research/test-suite-performance-diagnosis-2026-06-26.md` identifies
 five actionable optimizations ranked by win × fidelity-safety / effort.
 
-This story implements items #1, #2, #4, #5, and #6 from the diagnosis. Item #3
-(RUSTFLAGS alignment for doctest compile-pass deduplication) is deferred — the
-macOS RUSTFLAGS situation is already correct (both steps use `RUSTFLAGS=""`) and
-the deduplication benefit is 0 min warm on macOS.
+This story implements items #1, #2, #5, and #6 from the diagnosis. Two items are
+deferred: item #3 (RUSTFLAGS alignment for doctest compile-pass deduplication) and
+item #4 (adv_p02 LazyLock shared DTU fixtures). Item #3 is deferred because the
+macOS RUSTFLAGS situation is already correct (both steps use `RUSTFLAGS=""`) and the
+deduplication benefit is 0 min warm on macOS. Item #4 (AC-006/007) is deferred to
+S-PERF-GATE-002 (D-1368 2026-06-26) because 4 of the 8 adv_p02 tests call
+`clone.reset()` mid-test — sharing a `LazyLock` clone across parallel tests would
+allow one test's internal mid-test reset to destroy another's wire-log state,
+breaking filter push-down assertions (ADV-P02-CRIT-001). The prerequisite internal-reset
+refactor must land in S-PERF-GATE-002 before the shared-fixture optimization is safe.
 
 **Key data points:**
 - `test_BC_2_01_013_build_http_client_with_timeout_succeeds` was observed hanging
@@ -130,8 +136,9 @@ failure-output = "immediate"
 - `terminate-after = 2`: any test that exceeds 90 s twice across retries is a
   genuine hang (RocksDB deadlock, tokio runtime stuck). Killing it is the correct
   signal. The `proptest_BC_3_2_002_vp_01_cross_org_isolation` suite takes ~75 s at
-  1000 cases (documented in the existing `[profile.ci]` comment lines 38–53 in
-  `.config/nextest.toml`); `terminate-after = 2` gives 180 s total, well above that.
+  1000 cases (documented in the `# Updated 2026-05-06 (PR #127)` LazyLock
+  commentary block in `[profile.ci]` of `.config/nextest.toml`);
+  `terminate-after = 2` gives 180 s total, well above that.
 - A comment above the section documents the rationale, referencing PR #127 precedent
   and this story ID.
 
@@ -272,8 +279,9 @@ build + process spawn overhead).
 
 `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs` is refactored to
 introduce `LazyLock<Arc<TestDtuHandle>>` (or equivalent) shared fixtures for the
-CrowdStrike and Armis DTU clones, following the PR #127 pattern documented in
-`.config/nextest.toml` comment lines 41–52.
+CrowdStrike and Armis DTU clones, following the PR #127 pattern documented in the
+`# Updated 2026-05-06 (PR #127)` LazyLock commentary block in `[profile.ci]` of
+`.config/nextest.toml`.
 
 Each DTU clone is started once per test binary. Each test calls the DTU's reset
 endpoint at its start to clear filter/request log state, preserving per-test isolation.
@@ -313,27 +321,39 @@ reset.
 
 ### AC-008: `.cargo/config.toml` updated with documented sccache opt-in stanza (traces to BC-5.39.001 §Delivery process — cross-worktree cold-build path documented)
 
-`.cargo/config.toml` gains a commented-out `sccache` opt-in stanza:
+`.cargo/config.toml` gains a commented-out `sccache` opt-in stanza. The shipped stanza
+(excerpt — full stanza follows the `# sccache: opt-in distributed/shared compilation cache`
+section header in `.cargo/config.toml`):
 
 ```toml
-# -----------------------------------------------------------------------------
-# sccache: optional rustc-wrapper for cross-invocation and cross-worktree caching.
-#   Enable with: RUSTC_WRAPPER=sccache or by uncommenting the line below.
-#   Requires: cargo install sccache
-#   Do NOT enable unconditionally — sccache must be installed first.
-#   Docs: https://github.com/mozilla/sccache
-#   Measured speedup (research §7d):
-#     Cold first build: no benefit (cache must be populated first).
-#     Warm incremental (same machine, different worktrees): ~25-40% build-time
-#     reduction for the crypto/datafusion dependency tree which changes rarely.
-#   Note: CI uses Swatinem/rust-cache (not sccache); this stanza is local-dev only.
-# -----------------------------------------------------------------------------
+# DO NOT uncomment on CI — CI runners have no sccache daemon and the build will
+# silently fall back to uncached (harmless but pointless).
+#
+# Install: cargo install sccache --locked  (or: brew install sccache)
+# Start daemon: sccache --start-server
+# Verify: sccache --show-stats
+#
+# Measured speedup (research §7d — NOTE: the shipped stanza supersedes/corrects
+# the research §7d/§3.2.2 figure of "40-70% on cold builds"; the accurate measured
+# numbers are cold-first: no benefit, warm incremental: ~25-40% as below):
+#   Cold first build: no benefit (cache must be populated first).
+#   Warm incremental (same machine, different worktrees): ~25-40% build-time
+#   reduction for the crypto/datafusion dependency tree which changes rarely.
+#   Cross-worktree sharing: sccache shares across all .worktrees/<story>/ because
+#   it caches by input hash, not by $CARGO_TARGET_DIR path.
+#
 # [build]
-# rustc-wrapper = "sccache"   # uncomment after `cargo install sccache`
+# rustc-wrapper = "sccache"
 ```
 
-The stanza is commented out. CI is unaffected. Running `grep 'sccache' .cargo/config.toml`
-returns at least 2 hits (comment + the commented-out line).
+The stanza is entirely commented out. CI is unaffected. Running `grep 'sccache' .cargo/config.toml`
+returns at least 2 hits (the section header comment + the commented-out `rustc-wrapper` line).
+
+**sccache speedup numbers:** the shipped `.cargo/config.toml` is the authoritative source. The
+research §7d/§3.2.2 figure of "40-70% on cold builds" is incorrect and superseded by the shipped
+stanza's numbers: cold first build has no benefit (cache must be populated first), warm incremental
+(same machine, different worktrees) yields ~25-40% reduction for the crypto/datafusion dependency
+tree which changes rarely.
 
 ### AC-009: `just check` completes in ≤600 s on a warm cache with no concurrent cargo jobs (traces to BC-5.39.001 §Delivery process — gate is not a productivity bottleneck)
 
@@ -345,7 +365,8 @@ time just check
 
 Must complete in ≤600 seconds on the developer machine under idle conditions (single
 concurrent cargo job, warm incremental cache). The historical warm-cache baseline is
-421–864 s; items #1–#4 project a warm-cache reduction to 280–480 s per diagnosis §9.
+421–864 s; items #1, #2, #5, and #6 (those implemented by this story) project a
+warm-cache reduction to 280–480 s per diagnosis §9 (items #3 and #4 are deferred).
 
 This AC is measured, not formally gated — it serves as a regression benchmark. If
 the gate exceeds 600 s on a warm idle machine after this story ships, that is a P2
@@ -497,8 +518,9 @@ pass) acts as the correctness gate.
    shared fixtures (SID-1: no deferral without specific story ID + test name).
 
 5. **Introduce `LazyLock` shared DTU fixtures in `adv_p02_e2e_pushdown_pipeline_test.rs`**
-   per AC-006 and AC-007. Follow the PR #127 pattern in `.config/nextest.toml` lines 41–52.
-   Verify all 8 adv_p02 tests still pass:
+   per AC-006 and AC-007. Follow the PR #127 pattern documented in the
+   `# Updated 2026-05-06 (PR #127)` LazyLock commentary block in `[profile.ci]` of
+   `.config/nextest.toml`. Verify all 8 adv_p02 tests still pass:
    ```bash
    cargo nextest run -p prism-bin --test adv_p02_e2e_pushdown_pipeline_test --no-fail-fast
    ```
@@ -534,9 +556,10 @@ pass) acts as the correctness gate.
 
 - **PR #127 (2026-05-05, S-DEMO-002 era):** Established the `LazyLock<TempDir>` +
   `LazyLock<Runtime>` shared-fixture pattern for prism-credentials proptest, achieving
-  an 18x speedup (342 s → 19 s at 256 cases). The `.config/nextest.toml` comment at
-  lines 41–52 is the canonical documentation of this pattern — read it before writing
-  the adv_p02 shared fixtures.
+  an 18x speedup (342 s → 19 s at 256 cases). The `# Updated 2026-05-06 (PR #127)`
+  LazyLock commentary block in `[profile.ci]` of `.config/nextest.toml` is the
+  canonical documentation of this pattern — read it before writing the adv_p02
+  shared fixtures.
 
 - **S-MAINT-EAUTH-COLLISION-001 (2026-06-16):** Precedent for maintenance story format,
   Red Gate discipline, and CLAUDE.md §Canonical Principle compliance in a maintenance
@@ -679,7 +702,7 @@ Per POL-7 (verbatim BC H1 titles):
 - `.factory/research/test-suite-performance-diagnosis-2026-06-26.md` — diagnostic
   source: 237 push-log files, bimodal timing data, per-test root cause analysis
 - PR #127 — LazyLock shared-fixture precedent (prism-credentials proptest 18x speedup)
-- `.config/nextest.toml` lines 41–52 — LazyLock pattern commentary (canonical reference)
+- `.config/nextest.toml` `[profile.ci]` `# Updated 2026-05-06 (PR #127)` commentary block — LazyLock pattern documentation (canonical reference; behavioral anchor not line number)
 
 ## §Changelog
 
@@ -688,4 +711,5 @@ Per POL-7 (verbatim BC H1 titles):
 | 1.0 | 2026-06-26 | story-writer | Initial materialization from performance diagnosis §10 skeleton + §6/§7 detail |
 | 1.1 | 2026-06-26 | story-writer | AC-text-accuracy sync to shipped code: (1) AC-004 error type corrected from `reqwest::Error` to `String` for both functions; (2) AC-004 visibility note expanded — `pub(crate)` confirmed, in-crate test access documented; (3) AC-005/RG-PERF-001 test name updated to `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`, file location corrected to `src/spec_driven_adapter.rs` `#[cfg(test)] mod tests` (in-crate); (4) AC-011 nextest group name corrected to `serial-subprocess`, filter confirmed as `binary(signal_handlers)`, profile-scoped overrides (`prepush` + `ci`) documented instead of `[profile.default.overrides]`. |
 | 1.2 | 2026-06-26 | story-writer | F-LOW-1 fix (AC-003 codeblock drift): corrected `cargo nextest run` invocation to match shipped Justfile line 26 exactly — added `RUSTFLAGS=""` prefix, removed stale `--no-fail-fast` flag (superseded by `fail-fast = false` in `[profile.prepush]`), added explanatory note for both changes. Comprehensive AC↔code text audit performed; all other AC verification commands, file paths, function names, test names, nextest filter/group names, and profile settings confirmed MATCHES against shipped worktree. |
-| 1.3 | 2026-06-26 | story-writer | F-P2-MED-001 fix (AC-008 sccache codeblock advisory prose): replaced technically-wrong "40-70% on cold builds" with accurate wording matching shipped `.cargo/config.toml` (research §7d) — cold first build: no benefit; warm incremental/cross-worktree: ~25-40% reduction for the crypto/datafusion dependency tree. Definitive codeblock-prose sweep performed: every numeric/percentage/advisory claim in all codeblocks audited against shipped code; all other claims confirmed MATCHES. |
+| 1.3 | 2026-06-26 | story-writer | F-P2-MED-001 fix (AC-008 sccache codeblock advisory prose): replaced technically-wrong "40-70% on cold builds" with accurate wording matching shipped `.cargo/config.toml` — cold first build: no benefit; warm incremental/cross-worktree: ~25-40% reduction for the crypto/datafusion dependency tree. NOTE: research §7d/§3.2.2 figure of "40-70% on cold builds" is incorrect; shipped stanza supersedes it (§7d must NOT be cited as agreeing with cold-build wording). Definitive codeblock-prose sweep performed: every numeric/percentage/advisory claim in all codeblocks audited against shipped code; all other claims confirmed MATCHES. |
+| 1.4 | 2026-06-26 | story-writer | Round-5 holistic reconciliation — five findings closed: (1) §Background #4-contradiction: corrected "implements #1, #2, #4, #5, #6" → "implements #1, #2, #5, #6"; added item #4 deferral statement (D-1368, S-PERF-GATE-002 anchor, ADV-P02-CRIT-001 justification) alongside item #3 deferral. (2) AC-008 codeblock: reconciled to exactly match shipped `.cargo/config.toml` stanza — DO-NOT-uncomment-on-CI warning, correct Install/Start daemon/Verify instructions, Cross-worktree sharing line, corrected speedup prose; added explicit note that shipped stanza supersedes/corrects research §7d/§3.2.2 figure. (3) TD-VSDD-091 line-pin elimination: all five volatile "lines 41–52" / "lines 38–53" citations replaced with behavioral anchor "the `# Updated 2026-05-06 (PR #127)` LazyLock commentary block in `[profile.ci]`" across AC-001, AC-006, §Tasks task 5, §Previous Story Intelligence, §References. (4) §Changelog v1.3 false-§7d-agreement citation corrected. (5) AC-009 projection corrected from "items #1–#4" to "items #1, #2, #5, and #6 (those implemented)" to match actual implemented scope. Full top-to-bottom section audit: all sections confirmed MATCHES shipped code — zero remaining drift. |
