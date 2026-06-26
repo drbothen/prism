@@ -1038,19 +1038,54 @@ fn build_column_array(records: &[serde_json::Value], col: &ColumnSpec) -> Arc<dy
 // build_http_client_with_timeout — production reqwest::Client factory
 // ---------------------------------------------------------------------------
 
+/// Construct a `reqwest::Client` with a caller-supplied timeout `Duration`.
+///
+/// This is the underlying implementation used by `build_http_client_with_timeout`.
+/// Exposed as `pub` to allow tests to inject a short timeout (e.g. 1 ms) so that
+/// `reqwest::Client::builder()` construction can be validated without waiting up
+/// to the full 30-second production timeout under load (AC-004/005; S-PERF-GATE-001).
+///
+/// # Production use
+///
+/// Production callers MUST use `build_http_client_with_timeout()` (the 30-second variant).
+/// This function is public only to enable test injection; do NOT call it directly from
+/// production paths.
+///
+/// # Timeout contract
+///
+/// The constructed client has `.timeout(timeout)` set. A timeout of `Duration::ZERO` is
+/// silently accepted by reqwest's builder but will cause every request to fail immediately —
+/// use only in construction-only tests that never issue an HTTP request.
+///
+/// Returns `Err(String)` if the client builder fails (should not happen in practice;
+/// failure mode is malformed TLS configuration).
+///
+/// TD-S-PLUGIN-PREREQ-B-005; AC-004; AC-005; S-PERF-GATE-001.
+pub fn build_http_client_with_custom_timeout(timeout: Duration) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(timeout)
+        .build()
+        .map_err(|e| {
+            format!(
+                "failed to build reqwest::Client with timeout {:?}: {e}",
+                timeout
+            )
+        })
+}
+
 /// Construct a `reqwest::Client` with a 30-second timeout.
 ///
 /// MUST be used by `step9a_populate_adapter_registry` when constructing `SpecDrivenSensorAdapter`
 /// instances. Using `reqwest::Client::new()` without a timeout is a P2 finding per
 /// CLAUDE.md conventions (TD-S-PLUGIN-PREREQ-B-005).
 ///
+/// Thin wrapper around `build_http_client_with_custom_timeout(Duration::from_secs(30))`.
+/// The 30-second production timeout is unchanged.
+///
 /// Returns `Err(String)` if the client builder fails (should not happen in production;
 /// failure mode is malformed TLS configuration).
 pub fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("failed to build reqwest::Client with 30s timeout: {e}"))
+    build_http_client_with_custom_timeout(Duration::from_secs(30))
 }
 
 // ---------------------------------------------------------------------------
