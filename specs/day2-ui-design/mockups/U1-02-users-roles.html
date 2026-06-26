@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<!--
+  U1-02-users-roles.html — Prism Admin Console: User & Role Management (Screen U1-2)
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  Faithful to U1-users-roles screen spec.
+  Scoped to tenant "Acme Corp". Tabs: Users (active), Roles, Groups.
+  Invite User slide-over open. Custom Role Builder modal shown. Remove User confirm modal shown.
+  Open via file:// in any modern browser. No build step required.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — Users &amp; Roles</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    /* ── App shell ───────────────────────────────────────────────── */
+    html, body { height: 100%; overflow: hidden; }
+    .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* ── Topbar ──────────────────────────────────────────────────── */
+    .topbar {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: 0 var(--space-5); height: var(--topbar-height);
+      background: var(--topbar-bg); border-bottom: var(--border);
+      flex-shrink: 0; z-index: var(--z-topbar);
+    }
+    .topbar-logo {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-family: var(--font-display); font-size: var(--text-xl);
+      font-weight: var(--weight-bold); letter-spacing: var(--tracking-wide);
+      text-transform: uppercase; color: var(--color-text);
+      margin-right: var(--space-3); text-decoration: none;
+    }
+    .topbar-logo:hover { text-decoration: none; }
+    .logo-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--color-accent);
+    }
+    .topbar-nav { display: flex; gap: 2px; list-style: none; flex: 1; }
+    .topbar-nav-item {
+      display: flex; align-items: center; height: 32px;
+      padding: 0 var(--space-3); border-radius: var(--radius-md);
+      font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      white-space: nowrap;
+    }
+    .topbar-nav-item:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .topbar-nav-item.active { color: var(--color-text); font-weight: var(--weight-semibold); }
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2);
+      height: 30px; padding: 0 var(--space-3);
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm);
+      color: var(--color-text-muted); cursor: pointer; min-width: 200px;
+      transition: background var(--transition-fast);
+    }
+    .search-trigger:hover { background: var(--color-surface-3, var(--color-border)); }
+    .kbd {
+      font-family: var(--font-mono); font-size: 10px;
+      background: var(--color-border); border-radius: 3px;
+      padding: 1px 4px; margin-left: auto; color: var(--color-text-muted);
+    }
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: var(--radius-md);
+      border: none; background: transparent; color: var(--color-icon-default);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      position: relative;
+    }
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .notif-badge {
+      position: absolute; top: 4px; right: 4px; width: 8px; height: 8px;
+      background: var(--color-accent); border-radius: 50%;
+      border: 2px solid var(--topbar-bg);
+    }
+    .avatar-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--color-blue-subtle); color: var(--color-blue);
+      font-size: var(--text-xs); font-weight: var(--weight-bold);
+      border: none; cursor: pointer;
+      transition: box-shadow var(--transition-fast);
+    }
+    .avatar-btn:hover { box-shadow: 0 0 0 2px var(--color-blue); }
+
+    /* ── Body layout ─────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav ────────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg);
+      border-right: var(--border); display: flex; flex-direction: column;
+      flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+    .leftnav-main { flex: 1; }
+    .leftnav-footer { border-top: var(--border); padding-top: var(--space-2); margin-top: var(--space-2); }
+    .nav-group-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); padding: var(--space-3) var(--space-2) var(--space-1);
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px;
+      padding: 0 var(--space-2); border-radius: var(--radius-md);
+      font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active {
+      background: var(--nav-item-bg-active); color: var(--nav-item-text-active);
+      font-weight: var(--weight-semibold);
+    }
+    .nav-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--color-border-strong); flex-shrink: 0;
+    }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+    .nav-sub-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-2) 0 calc(var(--space-2) + 14px);
+      border-radius: var(--radius-md); font-size: var(--text-sm);
+      color: var(--nav-item-text); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .nav-sub-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-sub-item.active {
+      background: var(--nav-item-bg-active); color: var(--nav-item-text-active);
+      font-weight: var(--weight-semibold);
+    }
+
+    /* ── Main content ────────────────────────────────────────────── */
+    .main {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; background: var(--color-bg); position: relative;
+    }
+    .main-scroll { flex: 1; overflow-y: auto; }
+
+    /* Page header */
+    .page-header {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-4) var(--space-5) var(--space-3);
+      border-bottom: var(--border); flex-shrink: 0;
+    }
+    .breadcrumb {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      font-size: var(--text-sm); color: var(--color-text-muted);
+      margin-bottom: var(--space-1);
+    }
+    .breadcrumb-sep { color: var(--color-border-strong); }
+    .breadcrumb-active { color: var(--color-text-muted); }
+    .page-title {
+      font-size: var(--text-xl); font-weight: var(--weight-bold);
+      color: var(--color-text); letter-spacing: var(--tracking-tight);
+    }
+    .page-header-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md);
+      border-radius: var(--btn-radius); font-family: var(--font-sans);
+      font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent;
+      transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+      text-decoration: none; white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--btn-primary-bg); color: var(--btn-primary-text);
+      border-color: var(--btn-primary-border);
+    }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-secondary {
+      background: var(--btn-secondary-bg); color: var(--btn-secondary-text);
+      border-color: var(--btn-secondary-border);
+    }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-danger {
+      background: var(--btn-danger-bg); color: var(--btn-danger-text);
+    }
+    .btn-danger:hover { background: var(--btn-danger-bg-hover); }
+    .btn-danger:disabled {
+      background: var(--color-surface-2); color: var(--color-text-disabled);
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      background: var(--btn-ghost-bg); color: var(--btn-ghost-text);
+      border-color: transparent;
+    }
+    .btn-ghost:hover { background: var(--btn-ghost-bg-hover); }
+    .btn-sm { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+    .btn-link {
+      background: none; border: none; color: var(--color-text-link);
+      padding: 0; cursor: pointer; font-size: var(--text-sm);
+      font-family: var(--font-sans);
+    }
+    .btn-link:hover { color: var(--color-text-link-hover); text-decoration: underline; }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex; align-items: center; gap: 0;
+      border-bottom: var(--border); padding: 0 var(--space-5);
+      background: var(--color-bg); flex-shrink: 0;
+    }
+    .tab {
+      display: flex; align-items: center; height: 40px; padding: 0 var(--space-4);
+      font-size: var(--tab-font-size); font-weight: var(--weight-medium);
+      color: var(--tab-text); cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color var(--transition-fast), border-color var(--transition-fast);
+      white-space: nowrap; background: none; border-left: none; border-right: none; border-top: none;
+    }
+    .tab:hover { color: var(--color-text); background: var(--tab-bg-hover); }
+    .tab.active {
+      color: var(--tab-text-active); font-weight: var(--tab-font-weight-active);
+      border-bottom-color: var(--tab-border-active);
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-3) var(--space-5); border-bottom: var(--border);
+      background: var(--color-bg); flex-shrink: 0; flex-wrap: wrap;
+    }
+    .filter-input-wrap { position: relative; flex: 1; max-width: 280px; min-width: 160px; }
+    .filter-input-wrap svg {
+      position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+      color: var(--color-icon-default); pointer-events: none;
+    }
+    .filter-input {
+      width: 100%; height: 30px; padding: 0 var(--space-3) 0 30px;
+      background: var(--input-bg); border: var(--border);
+      border-radius: var(--radius-md); font-family: var(--font-sans);
+      font-size: var(--text-sm); color: var(--color-text);
+    }
+    .filter-input::placeholder { color: var(--color-text-muted); }
+    .filter-input:focus { outline: none; border-color: var(--color-blue); box-shadow: 0 0 0 3px rgba(64,153,255,0.15); }
+    .filter-select {
+      height: 30px; padding: 0 var(--space-3); background: var(--input-bg);
+      border: var(--border); border-radius: var(--radius-md);
+      font-family: var(--font-sans); font-size: var(--text-sm);
+      color: var(--color-text); cursor: pointer;
+    }
+    .filter-select:focus { outline: none; border-color: var(--color-blue); }
+    .filter-count {
+      margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted);
+    }
+
+    /* Users table */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+    thead th {
+      background: var(--table-header-bg); color: var(--table-header-text);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      padding: var(--space-2) var(--space-3); text-align: left;
+      border-bottom: var(--border); white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--table-border);
+      transition: background var(--transition-fast);
+    }
+    tbody tr:nth-child(even) { background: var(--table-row-bg-alt); }
+    tbody tr:hover { background: var(--table-row-bg-hover); }
+    tbody td { padding: var(--space-2) var(--space-3); vertical-align: middle; }
+
+    /* User cell */
+    .user-cell { display: flex; align-items: center; gap: var(--space-2); }
+    .user-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-xs); font-weight: var(--weight-bold);
+      color: var(--color-text-on-dark);
+    }
+    .user-avatar.av-blue   { background: var(--color-blue); }
+    .user-avatar.av-teal   { background: var(--color-sev-info-icon); }
+    .user-avatar.av-purple { background: var(--color-ai-label); }
+    .user-avatar.av-green  { background: var(--color-cov-answered-text, var(--color-cov-answered-icon)); }
+    .user-avatar.av-amber  { background: var(--color-sev-medium-icon); }
+    .user-avatar.av-rose   { background: var(--color-sev-critical-icon); }
+    .user-name { font-weight: var(--weight-semibold); color: var(--color-text); }
+    .user-email { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+    /* Role pill */
+    .role-pill {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      height: 22px; padding: 0 var(--space-2);
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); font-size: var(--text-xs);
+      font-weight: var(--weight-semibold); color: var(--color-text-secondary);
+      white-space: nowrap;
+    }
+    .role-pill.custom {
+      background: var(--color-ai-bg); border-color: var(--color-ai-border);
+      color: var(--color-ai-label);
+    }
+
+    /* Status badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: var(--badge-radius);
+      font-size: var(--badge-font-size); font-weight: var(--badge-font-weight);
+      white-space: nowrap;
+    }
+    .badge-active {
+      background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text);
+      border: 1px solid var(--color-cov-answered-border);
+    }
+    .badge-pending {
+      background: var(--color-sev-low-bg); color: var(--color-sev-low-text);
+      border: 1px solid var(--color-sev-low-border);
+    }
+    .badge-dormant {
+      background: var(--color-sev-medium-bg); color: var(--color-sev-medium-text);
+      border: 1px solid var(--color-sev-medium-border);
+      cursor: help; position: relative;
+    }
+    /* Tooltip */
+    .tooltip-wrap { position: relative; display: inline-flex; }
+    .tooltip-wrap .tooltip-text {
+      visibility: hidden; opacity: 0;
+      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: var(--toast-bg); color: var(--toast-text);
+      font-size: var(--text-xs); font-weight: var(--weight-regular);
+      padding: var(--space-1-5) var(--space-2); border-radius: var(--radius-md);
+      white-space: nowrap; pointer-events: none;
+      transition: opacity var(--transition-fast); z-index: var(--z-popover);
+      box-shadow: var(--shadow-lg);
+    }
+    .tooltip-wrap:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+    /* Action buttons in table */
+    .action-group { display: flex; align-items: center; gap: var(--space-1); }
+    .action-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 26px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-xs);
+      font-weight: var(--weight-semibold); cursor: pointer;
+      border: var(--border); background: var(--color-surface-1);
+      color: var(--color-text-muted);
+      transition: background var(--transition-fast), color var(--transition-fast);
+      white-space: nowrap;
+    }
+    .action-btn:hover { background: var(--color-surface-2); color: var(--color-text); }
+    .action-btn.danger { border-color: var(--color-sev-high-border); color: var(--color-sev-high-text); }
+    .action-btn.danger:hover { background: var(--color-sev-high-bg); }
+    .action-btn.warn { border-color: var(--color-sev-medium-border); color: var(--color-sev-medium-text); }
+
+    /* ── Roles section ───────────────────────────────────────────── */
+    .section-block { padding: var(--space-5); border-bottom: var(--border); }
+    .section-title {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); margin-bottom: var(--space-3);
+    }
+    .roles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: var(--space-3);
+    }
+    .role-card {
+      background: var(--card-bg); border: var(--border);
+      border-radius: var(--card-radius); padding: var(--space-3);
+      display: flex; flex-direction: column; gap: var(--space-1-5);
+    }
+    .role-card-header { display: flex; align-items: flex-start; gap: var(--space-2); }
+    .role-card-icon {
+      width: 28px; height: 28px; border-radius: var(--radius-md); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--color-surface-2); color: var(--color-icon-default);
+      font-size: 14px;
+    }
+    .role-card-name { font-weight: var(--weight-semibold); color: var(--color-text); font-size: var(--text-sm); }
+    .role-card-locked {
+      margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted);
+      display: flex; align-items: center; gap: 3px;
+    }
+    .role-card-desc { font-size: var(--text-xs); color: var(--color-text-muted); line-height: var(--leading-relaxed); }
+    .role-card-users { font-size: var(--text-xs); color: var(--color-text-subtle); }
+    .custom-role-card {
+      background: var(--card-bg); border: var(--border);
+      border-radius: var(--card-radius); padding: var(--space-3);
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+    .custom-role-perms {
+      display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1;
+    }
+    .perm-tag {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 6px;
+      background: var(--color-surface-2); border-radius: var(--radius-sm);
+      font-size: 10px; font-weight: var(--weight-semibold);
+      color: var(--color-text-secondary); font-family: var(--font-mono);
+    }
+
+    /* ── Invite slide-over ───────────────────────────────────────── */
+    .slideover-backdrop {
+      position: fixed; inset: 0; background: var(--color-bg-overlay);
+      z-index: var(--z-overlay); transition: opacity var(--transition-slow);
+    }
+    .slideover {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 380px;
+      background: var(--color-bg-elevated); border-left: var(--border);
+      z-index: calc(var(--z-overlay) + 10); display: flex; flex-direction: column;
+      box-shadow: var(--shadow-xl);
+    }
+    .slideover-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-4) var(--space-5); border-bottom: var(--border); flex-shrink: 0;
+    }
+    .slideover-title { font-size: var(--text-lg); font-weight: var(--weight-bold); color: var(--color-text); }
+    .slideover-body { flex: 1; overflow-y: auto; padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+    .slideover-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-4) var(--space-5); border-top: var(--border); flex-shrink: 0;
+    }
+    .form-group { display: flex; flex-direction: column; gap: var(--space-1-5); }
+    .form-label {
+      font-size: var(--text-sm); font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+    .form-label-hint { font-weight: var(--weight-regular); color: var(--color-text-muted); }
+    .form-input {
+      height: var(--input-height); padding: var(--input-padding);
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      border-radius: var(--input-radius); font-family: var(--font-sans);
+      font-size: var(--input-font-size); color: var(--color-text); width: 100%;
+    }
+    .form-input:focus { outline: none; border-color: var(--input-border-focus); box-shadow: 0 0 0 3px rgba(64,153,255,0.15); }
+    .form-input::placeholder { color: var(--input-placeholder); }
+    .form-select {
+      height: var(--input-height); padding: 0 var(--space-3);
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      border-radius: var(--input-radius); font-family: var(--font-sans);
+      font-size: var(--input-font-size); color: var(--color-text); width: 100%;
+    }
+    .form-select:focus { outline: none; border-color: var(--input-border-focus); }
+    .role-desc-box {
+      padding: var(--space-3); background: var(--color-surface-2);
+      border-radius: var(--radius-md); border: var(--border);
+      font-size: var(--text-xs); color: var(--color-text-muted);
+      line-height: var(--leading-relaxed);
+    }
+    .role-desc-box strong { color: var(--color-text); font-weight: var(--weight-semibold); }
+    .advanced-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; padding: var(--space-2) 0; border-top: var(--border);
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-muted);
+    }
+    .advanced-content { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-2); }
+    .least-priv-callout {
+      display: flex; align-items: flex-start; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3); background: var(--color-ai-bg);
+      border: 1px solid var(--color-ai-border); border-radius: var(--radius-md);
+      font-size: var(--text-xs); color: var(--color-ai-text);
+      line-height: var(--leading-relaxed);
+    }
+    .ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-ai-label); flex-shrink: 0; margin-top: 4px; }
+
+    /* ── Remove user modal ───────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: var(--color-bg-overlay);
+      z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
+    }
+    .modal {
+      background: var(--color-bg-elevated); border: var(--border);
+      border-radius: var(--radius-xl); padding: var(--space-6); width: 440px;
+      max-width: calc(100vw - 2rem); box-shadow: var(--shadow-xl);
+      z-index: calc(var(--z-modal) + 1);
+    }
+    .modal-icon {
+      width: 44px; height: 44px; border-radius: var(--radius-xl);
+      background: var(--color-sev-critical-bg); color: var(--color-sev-critical-icon);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: var(--space-4);
+    }
+    .modal-title {
+      font-size: var(--text-lg); font-weight: var(--weight-bold);
+      color: var(--color-text); margin-bottom: var(--space-2);
+    }
+    .modal-desc {
+      font-size: var(--text-sm); color: var(--color-text-muted);
+      line-height: var(--leading-relaxed); margin-bottom: var(--space-4);
+    }
+    .modal-confirm-row { display: flex; flex-direction: column; gap: var(--space-1-5); margin-bottom: var(--space-3); }
+    .modal-confirm-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-text-muted); }
+    .modal-mfa-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-5); }
+    .modal-mfa-row input[type=checkbox] { accent-color: var(--color-blue); width: 14px; height: 14px; }
+    .modal-mfa-label { font-size: var(--text-sm); color: var(--color-text-muted); }
+    .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+
+    /* ── Role builder modal ──────────────────────────────────────── */
+    .rolebuilder-backdrop {
+      position: fixed; inset: 0; background: var(--color-bg-overlay);
+      z-index: calc(var(--z-modal) + 50);
+      display: flex; align-items: flex-start; justify-content: center;
+      padding-top: 40px; overflow-y: auto;
+    }
+    .rolebuilder {
+      background: var(--color-bg-elevated); border: var(--border);
+      border-radius: var(--radius-xl); width: 600px;
+      max-width: calc(100vw - 2rem); box-shadow: var(--shadow-xl);
+      margin-bottom: 40px;
+    }
+    .rolebuilder-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-5) var(--space-6); border-bottom: var(--border);
+    }
+    .rolebuilder-title { font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--color-text); }
+    .rolebuilder-body { padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
+    .perm-section { display: flex; flex-direction: column; gap: var(--space-2); }
+    .perm-section-title {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); padding-bottom: var(--space-1);
+      border-bottom: var(--border);
+    }
+    .perm-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .perm-check { display: flex; align-items: center; gap: var(--space-1-5); }
+    .perm-check input[type=checkbox] { accent-color: var(--color-blue); width: 14px; height: 14px; cursor: pointer; }
+    .perm-check label {
+      font-size: var(--text-xs); font-family: var(--font-mono);
+      color: var(--color-text-muted); cursor: pointer; user-select: none;
+    }
+    .perm-check.checked label { color: var(--color-blue); font-weight: var(--weight-semibold); }
+    .perm-check.readonly input { opacity: 0.5; cursor: not-allowed; }
+    .perm-check.readonly label { opacity: 0.5; cursor: not-allowed; }
+    .preview-box {
+      background: var(--color-surface-1); border: var(--border);
+      border-radius: var(--radius-lg); padding: var(--space-4);
+      font-size: var(--text-sm);
+    }
+    .preview-box-title {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); margin-bottom: var(--space-2);
+    }
+    .preview-can { color: var(--color-cov-answered-text); margin-bottom: var(--space-1); }
+    .preview-cannot { color: var(--color-sev-high-text); }
+    .preview-item {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      font-size: var(--text-xs); font-family: var(--font-mono);
+      padding: 2px 0;
+    }
+    .rolebuilder-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-4) var(--space-6); border-top: var(--border);
+    }
+    .rolebuilder-footer-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    /* ── Tab panel content toggle ────────────────────────────────── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Misc utils ──────────────────────────────────────────────── */
+    .text-muted { color: var(--color-text-muted); font-size: var(--text-xs); }
+    .text-mono { font-family: var(--font-mono); font-size: var(--text-xs); }
+    .divider { height: 1px; background: var(--color-border); margin: var(--space-2) 0; }
+
+    /* ── Theme toggle ────────────────────────────────────────────── */
+    #theme-toggle { }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══════════════ TOPBAR ══════════════════════════════════════ -->
+  <header class="topbar" role="banner">
+    <a class="topbar-logo" href="#" aria-label="Prism home">
+      Prism<span class="logo-dot" aria-hidden="true"></span>
+    </a>
+
+    <nav aria-label="Primary navigation">
+      <ul class="topbar-nav">
+        <li class="topbar-nav-item" role="menuitem">Investigations</li>
+        <li class="topbar-nav-item" role="menuitem">Dashboards</li>
+        <li class="topbar-nav-item" role="menuitem">Connectors</li>
+        <li class="topbar-nav-item active" role="menuitem" aria-current="page">Admin</li>
+        <li class="topbar-nav-item" role="menuitem">Settings</li>
+      </ul>
+    </nav>
+
+    <div class="topbar-actions">
+      <button class="search-trigger" aria-label="Search (Cmd K)">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>Search…</span>
+        <kbd class="kbd">⌘K</kbd>
+      </button>
+
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5A4.5 4.5 0 003.5 6v2.5L2 10h12l-1.5-1.5V6A4.5 4.5 0 008 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M6.5 12.5a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+
+      <button class="avatar-btn" aria-label="User menu — JM" aria-haspopup="true">JM</button>
+
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">
+        <svg id="icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <svg id="icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="display:none">
+          <path d="M13 9.5A5.5 5.5 0 016.5 3 5.5 5.5 0 1013 9.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══════════════ BODY ════════════════════════════════════════ -->
+  <div class="body">
+
+    <!-- ── Left nav ──────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Admin navigation">
+      <div class="leftnav-main">
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Triage Queue
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Cases
+        </div>
+
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Overview
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Sensor Coverage
+        </div>
+
+        <div class="nav-group-label">Connectors</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>All Connectors
+        </div>
+
+        <div class="nav-group-label">Admin</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Tenants
+        </div>
+        <div class="nav-sub-item active" aria-current="page">
+          Users &amp; Roles
+        </div>
+        <div class="nav-sub-item">Credentials</div>
+        <div class="nav-sub-item">Audit Log</div>
+        <div class="nav-sub-item">SSO</div>
+      </div>
+
+      <div class="leftnav-footer">
+        <div class="nav-group-label">Settings</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Health
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Config / Policies
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Main content ──────────────────────────────────────── -->
+    <main class="main" id="main-content">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <div>
+          <div class="breadcrumb" aria-label="Breadcrumb">
+            <span>Admin</span>
+            <span class="breadcrumb-sep" aria-hidden="true">›</span>
+            <span>Acme Corp</span>
+            <span class="breadcrumb-sep" aria-hidden="true">›</span>
+            <span class="breadcrumb-active">Users &amp; Roles</span>
+          </div>
+          <h1 class="page-title">Users &amp; Roles — Acme Corp</h1>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-secondary" onclick="openRoleBuilder()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            New Role
+          </button>
+          <button class="btn btn-primary" onclick="openSlideover()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Invite User
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar" role="tablist" aria-label="Users and Roles tabs">
+        <button class="tab active" role="tab" id="tab-users" aria-selected="true" aria-controls="panel-users"
+          onclick="switchTab('users', this)">Users <span style="color:var(--color-text-muted);font-weight:var(--weight-regular);margin-left:4px;">(6)</span>
+        </button>
+        <button class="tab" role="tab" id="tab-roles" aria-selected="false" aria-controls="panel-roles"
+          onclick="switchTab('roles', this)">Roles</button>
+        <button class="tab" role="tab" id="tab-groups" aria-selected="false" aria-controls="panel-groups"
+          onclick="switchTab('groups', this)">Groups</button>
+      </div>
+
+      <div class="main-scroll">
+
+        <!-- ── Users tab panel ────────────────────────────────── -->
+        <div class="tab-panel active" id="panel-users" role="tabpanel" aria-labelledby="tab-users">
+
+          <!-- Filter bar -->
+          <div class="filter-bar" role="search" aria-label="Filter users">
+            <div class="filter-input-wrap">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <input class="filter-input" type="search" placeholder="Search users…" aria-label="Search users">
+            </div>
+            <select class="filter-select" aria-label="Filter by role">
+              <option value="">All roles</option>
+              <option>Tenant-Admin</option>
+              <option>Security-Analyst</option>
+              <option>Detection-Engineer</option>
+              <option>Connector-Admin</option>
+              <option>Read-Only</option>
+              <option>Custom</option>
+            </select>
+            <select class="filter-select" aria-label="Filter by status">
+              <option value="">All status</option>
+              <option>Active</option>
+              <option>Pending invite</option>
+              <option>Dormant</option>
+            </select>
+            <select class="filter-select" aria-label="Filter by last active">
+              <option value="">Any time</option>
+              <option>Last 7 days</option>
+              <option>Last 30 days</option>
+              <option>Last 90 days</option>
+              <option>Over 90 days</option>
+            </select>
+            <span class="filter-count">6 users</span>
+          </div>
+
+          <!-- Users table -->
+          <div class="table-wrap">
+            <table aria-label="Users in Acme Corp">
+              <thead>
+                <tr>
+                  <th scope="col">User</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Last Active</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+
+                <!-- Row 1: John Smith — Tenant-Admin — Active -->
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar av-blue" aria-hidden="true">JS</div>
+                      <div>
+                        <div class="user-name">John Smith</div>
+                        <div class="user-email">jsmith@acme.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-pill">Tenant-Admin</span></td>
+                  <td>
+                    <span class="badge badge-active" aria-label="Status: Active">
+                      <svg width="7" height="7" viewBox="0 0 7 7" aria-hidden="true"><circle cx="3.5" cy="3.5" r="3.5" fill="currentColor"/></svg>
+                      Active
+                    </span>
+                  </td>
+                  <td><span class="text-muted text-mono">2026-06-25</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="action-btn">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8.5 1.5l2 2L4 10H2V8L8.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                        Edit
+                      </button>
+                      <button class="action-btn danger" aria-label="Remove John Smith — destructive action">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3h8M5 3V2h2v1M4.5 9.5V5m3 4.5V5M3 3l.5 7h5L9 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Remove ⚠
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Row 2: Alice Chen — Security-Analyst — Active -->
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar av-teal" aria-hidden="true">AC</div>
+                      <div>
+                        <div class="user-name">Alice Chen</div>
+                        <div class="user-email">alice@acme.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-pill">Security-Analyst</span></td>
+                  <td>
+                    <span class="badge badge-active" aria-label="Status: Active">
+                      <svg width="7" height="7" viewBox="0 0 7 7" aria-hidden="true"><circle cx="3.5" cy="3.5" r="3.5" fill="currentColor"/></svg>
+                      Active
+                    </span>
+                  </td>
+                  <td><span class="text-muted text-mono">2026-06-24</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="action-btn">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8.5 1.5l2 2L4 10H2V8L8.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                        Edit
+                      </button>
+                      <button class="action-btn danger" onclick="openRemoveModal()" aria-label="Remove alice@acme.com — destructive action">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3h8M5 3V2h2v1M4.5 9.5V5m3 4.5V5M3 3l.5 7h5L9 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Remove ⚠
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Row 3: Bob Martinez — Detection-Engineer — Pending -->
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar av-purple" aria-hidden="true">BM</div>
+                      <div>
+                        <div class="user-name">Bob Martinez</div>
+                        <div class="user-email">bob@acme.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-pill">Detection-Engineer</span></td>
+                  <td>
+                    <span class="badge badge-pending" aria-label="Status: Pending invite">
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="2.5" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1 4l5 3.5L11 4" stroke="currentColor" stroke-width="1.2"/></svg>
+                      Pending invite
+                    </span>
+                  </td>
+                  <td><span class="text-muted">—</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="action-btn">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="2.5" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1 4l5 3.5L11 4" stroke="currentColor" stroke-width="1.2"/></svg>
+                        Resend
+                      </button>
+                      <button class="action-btn warn" aria-label="Cancel invite for Bob Martinez">Cancel invite</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Row 4: Carol White — Connector-Admin — Active -->
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar av-green" aria-hidden="true">CW</div>
+                      <div>
+                        <div class="user-name">Carol White</div>
+                        <div class="user-email">carol@acme.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-pill">Connector-Admin</span></td>
+                  <td>
+                    <span class="badge badge-active" aria-label="Status: Active">
+                      <svg width="7" height="7" viewBox="0 0 7 7" aria-hidden="true"><circle cx="3.5" cy="3.5" r="3.5" fill="currentColor"/></svg>
+                      Active
+                    </span>
+                  </td>
+                  <td><span class="text-muted text-mono">2026-06-20</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="action-btn">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8.5 1.5l2 2L4 10H2V8L8.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                        Edit
+                      </button>
+                      <button class="action-btn danger" aria-label="Remove carol@acme.com — destructive action">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3h8M5 3V2h2v1M4.5 9.5V5m3 4.5V5M3 3l.5 7h5L9 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Remove ⚠
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Row 5: Dave Kim — Read-Only — Dormant -->
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar av-amber" aria-hidden="true">DK</div>
+                      <div>
+                        <div class="user-name">Dave Kim</div>
+                        <div class="user-email">dave@acme.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-pill">Read-Only</span></td>
+                  <td>
+                    <div class="tooltip-wrap">
+                      <span class="badge badge-dormant" id="dormant-badge-dave"
+                        aria-describedby="dormant-tip-dave">
+                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5V6l1.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                        Dormant
+                      </span>
+                      <span class="tooltip-text" id="dormant-tip-dave" role="tooltip">
+                        Last active &gt;90 days — review recommended
+                      </span>
+                    </div>
+                  </td>
+                  <td><span class="text-muted text-mono">2026-03-01</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="action-btn">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8.5 1.5l2 2L4 10H2V8L8.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                        Edit
+                      </button>
+                      <button class="action-btn danger" aria-label="Remove dave@acme.com — destructive action">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3h8M5 3V2h2v1M4.5 9.5V5m3 4.5V5M3 3l.5 7h5L9 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Remove ⚠
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Row 6: Eve Singh — SOAR-Integration (custom) — Active -->
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar av-rose" aria-hidden="true">ES</div>
+                      <div>
+                        <div class="user-name">Eve Singh</div>
+                        <div class="user-email">eve@acme.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="role-pill custom" aria-label="Custom role: SOAR-Integration">
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                        <path d="M4 1l.9 2.7H8L5.6 5.1l.9 2.7L4 6.3 1.5 7.8l.9-2.7L0 3.7h3.1z" fill="currentColor"/>
+                      </svg>
+                      SOAR-Integration
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge badge-active" aria-label="Status: Active">
+                      <svg width="7" height="7" viewBox="0 0 7 7" aria-hidden="true"><circle cx="3.5" cy="3.5" r="3.5" fill="currentColor"/></svg>
+                      Active
+                    </span>
+                  </td>
+                  <td><span class="text-muted text-mono">2026-06-23</span></td>
+                  <td>
+                    <div class="action-group">
+                      <button class="action-btn">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8.5 1.5l2 2L4 10H2V8L8.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                        Edit
+                      </button>
+                      <button class="action-btn danger" aria-label="Remove eve@acme.com — destructive action">
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3h8M5 3V2h2v1M4.5 9.5V5m3 4.5V5M3 3l.5 7h5L9 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Remove ⚠
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div><!-- /table-wrap -->
+        </div><!-- /panel-users -->
+
+        <!-- ── Roles tab panel ────────────────────────────────── -->
+        <div class="tab-panel" id="panel-roles" role="tabpanel" aria-labelledby="tab-roles">
+
+          <!-- Built-in roles -->
+          <div class="section-block">
+            <div class="section-title">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="vertical-align:-1px;margin-right:4px;" aria-hidden="true"><path d="M6 1.5L8 4h3L9 6l1 3-4-2-4 2 1-3-2-2h3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+              Built-in roles — read only
+            </div>
+            <div class="roles-grid">
+              <!-- Platform-Admin -->
+              <div class="role-card">
+                <div class="role-card-header">
+                  <div class="role-card-icon" aria-hidden="true">🛡</div>
+                  <div>
+                    <div class="role-card-name">Platform-Admin</div>
+                  </div>
+                  <div class="role-card-locked" aria-label="Read-only built-in role">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" stroke-width="1.2"/></svg>
+                    Read-only
+                  </div>
+                </div>
+                <div class="role-card-desc">All capabilities on all tenants</div>
+                <div class="role-card-users">Assigned to: 1 user</div>
+              </div>
+              <!-- Tenant-Admin -->
+              <div class="role-card">
+                <div class="role-card-header">
+                  <div class="role-card-icon" aria-hidden="true">🏢</div>
+                  <div><div class="role-card-name">Tenant-Admin</div></div>
+                  <div class="role-card-locked" aria-label="Read-only built-in role">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" stroke-width="1.2"/></svg>
+                    Read-only
+                  </div>
+                </div>
+                <div class="role-card-desc">Full user/role/connector management for one tenant</div>
+                <div class="role-card-users">Assigned to: 1 user</div>
+              </div>
+              <!-- Security-Analyst -->
+              <div class="role-card">
+                <div class="role-card-header">
+                  <div class="role-card-icon" aria-hidden="true">🔍</div>
+                  <div><div class="role-card-name">Security-Analyst</div></div>
+                  <div class="role-card-locked" aria-label="Read-only built-in role">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" stroke-width="1.2"/></svg>
+                    Read-only
+                  </div>
+                </div>
+                <div class="role-card-desc">Investigate, query, and triage alerts and cases</div>
+                <div class="role-card-users">Assigned to: 1 user</div>
+              </div>
+              <!-- Detection-Engineer -->
+              <div class="role-card">
+                <div class="role-card-header">
+                  <div class="role-card-icon" aria-hidden="true">⚙️</div>
+                  <div><div class="role-card-name">Detection-Engineer</div></div>
+                  <div class="role-card-locked" aria-label="Read-only built-in role">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" stroke-width="1.2"/></svg>
+                    Read-only
+                  </div>
+                </div>
+                <div class="role-card-desc">Author and manage detection rules</div>
+                <div class="role-card-users">Assigned to: 1 user</div>
+              </div>
+              <!-- Connector-Admin -->
+              <div class="role-card">
+                <div class="role-card-header">
+                  <div class="role-card-icon" aria-hidden="true">🔌</div>
+                  <div><div class="role-card-name">Connector-Admin</div></div>
+                  <div class="role-card-locked" aria-label="Read-only built-in role">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" stroke-width="1.2"/></svg>
+                    Read-only
+                  </div>
+                </div>
+                <div class="role-card-desc">Add/edit connectors and credentials</div>
+                <div class="role-card-users">Assigned to: 1 user</div>
+              </div>
+              <!-- Read-Only -->
+              <div class="role-card">
+                <div class="role-card-header">
+                  <div class="role-card-icon" aria-hidden="true">👁</div>
+                  <div><div class="role-card-name">Read-Only</div></div>
+                  <div class="role-card-locked" aria-label="Read-only built-in role">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" stroke-width="1.2"/></svg>
+                    Read-only
+                  </div>
+                </div>
+                <div class="role-card-desc">View-only access to dashboards and cases</div>
+                <div class="role-card-users">Assigned to: 1 user</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom roles -->
+          <div class="section-block">
+            <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="vertical-align:-1px;margin-right:4px;" aria-hidden="true"><path d="M4 1h4a1 1 0 011 1v9L6 9.5 3 11V2a1 1 0 011-1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                Custom roles (2)
+              </span>
+              <button class="btn btn-sm btn-secondary" onclick="openRoleBuilder()">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                New custom role
+              </button>
+            </div>
+
+            <!-- SOAR-Integration -->
+            <div class="custom-role-card" style="margin-bottom:var(--space-2);">
+              <div style="min-width:140px;">
+                <div class="role-card-name">SOAR-Integration</div>
+                <div class="role-card-users">2 users</div>
+              </div>
+              <div class="custom-role-perms" aria-label="Permissions: findings.read, alerts.read, destinations.write">
+                <span class="perm-tag">findings.read</span>
+                <span class="perm-tag">alerts.read</span>
+                <span class="perm-tag">destinations.write</span>
+              </div>
+              <div class="action-group" style="flex-shrink:0;">
+                <button class="action-btn">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8.5 1.5l2 2L4 10H2V8L8.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                  Edit
+                </button>
+                <button class="action-btn danger" aria-label="Delete SOAR-Integration role — destructive">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3h8M5 3V2h2v1M4.5 9.5V5m3 4.5V5M3 3l.5 7h5L9 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Delete ⚠
+                </button>
+              </div>
+            </div>
+
+            <!-- Compliance-Viewer -->
+            <div class="custom-role-card">
+              <div style="min-width:140px;">
+                <div class="role-card-name">Compliance-Viewer</div>
+                <div class="role-card-users">1 user</div>
+              </div>
+              <div class="custom-role-perms" aria-label="Permissions: dashboards.read, reports.read, cases.read">
+                <span class="perm-tag">dashboards.read</span>
+                <span class="perm-tag">reports.read</span>
+                <span class="perm-tag">cases.read</span>
+              </div>
+              <div class="action-group" style="flex-shrink:0;">
+                <button class="action-btn">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8.5 1.5l2 2L4 10H2V8L8.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                  Edit
+                </button>
+                <button class="action-btn danger" aria-label="Delete Compliance-Viewer role — destructive">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3h8M5 3V2h2v1M4.5 9.5V5m3 4.5V5M3 3l.5 7h5L9 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Delete ⚠
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /panel-roles -->
+
+        <!-- ── Groups tab panel ───────────────────────────────── -->
+        <div class="tab-panel" id="panel-groups" role="tabpanel" aria-labelledby="tab-groups">
+          <div class="section-block" style="padding-top:var(--space-8);text-align:center;">
+            <div style="color:var(--color-text-muted);font-size:var(--text-sm);margin-bottom:var(--space-2);">
+              Groups let you bulk-assign roles and resource scopes to sets of users.
+            </div>
+            <button class="btn btn-secondary">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Create group
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /main-scroll -->
+    </main><!-- /main -->
+  </div><!-- /body -->
+</div><!-- /app -->
+
+
+<!-- ══════════════ INVITE USER SLIDE-OVER ═════════════════════════ -->
+<div class="slideover-backdrop" id="slideover-backdrop" onclick="closeSlideover()" style="display:none;" aria-hidden="true"></div>
+<aside class="slideover" id="invite-slideover" role="dialog" aria-modal="true" aria-labelledby="slideover-heading" style="display:none;">
+  <div class="slideover-header">
+    <h2 class="slideover-title" id="slideover-heading">Invite User to Acme Corp</h2>
+    <button class="icon-btn" onclick="closeSlideover()" aria-label="Close invite panel">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="slideover-body">
+    <!-- Least-privilege callout -->
+    <div class="least-priv-callout" aria-label="Security guidance">
+      <span class="ai-dot" aria-hidden="true"></span>
+      <span>Least-privilege default: <strong>Read-Only</strong> is pre-selected. Upgrade the role only if the user's job requires it.</span>
+    </div>
+
+    <!-- Email -->
+    <div class="form-group">
+      <label class="form-label" for="invite-email">
+        Email address <span class="form-label-hint">(required)</span>
+      </label>
+      <input class="form-input" type="email" id="invite-email"
+        placeholder="user@acme.com" autocomplete="email" aria-required="true">
+    </div>
+
+    <!-- Role selector -->
+    <div class="form-group">
+      <label class="form-label" for="invite-role">Role</label>
+      <select class="form-select" id="invite-role" aria-describedby="role-desc-box" onchange="updateRoleDesc(this.value)">
+        <option value="read-only" selected>Read-Only</option>
+        <option value="security-analyst">Security-Analyst</option>
+        <option value="detection-engineer">Detection-Engineer</option>
+        <option value="connector-admin">Connector-Admin</option>
+        <option value="tenant-admin">Tenant-Admin</option>
+        <option value="soar-integration">SOAR-Integration (custom)</option>
+        <option value="compliance-viewer">Compliance-Viewer (custom)</option>
+      </select>
+      <div class="role-desc-box" id="role-desc-box" role="status" aria-live="polite">
+        <strong>Read-Only:</strong> view-only access to dashboards, cases, and alerts. No query execution, no configuration.
+      </div>
+    </div>
+
+    <!-- Advanced / resource-scoped overrides -->
+    <div>
+      <div class="advanced-toggle" id="advanced-toggle" aria-expanded="false" aria-controls="advanced-content"
+        onclick="toggleAdvanced()" role="button" tabindex="0"
+        onkeydown="if(event.key==='Enter'||event.key===' ')toggleAdvanced()">
+        <span>Advanced: resource-scoped overrides</span>
+        <svg id="adv-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+          style="transition:transform var(--transition-base);">
+          <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="advanced-content" id="advanced-content" style="display:none;">
+        <div class="form-group">
+          <label class="form-label" for="adv-connectors">Can access connectors</label>
+          <select class="form-select" id="adv-connectors" aria-label="Connector access scope">
+            <option>All connectors</option>
+            <option>CrowdStrike Falcon</option>
+            <option>Claroty xDome</option>
+            <option>Armis Centrix</option>
+            <option>Cyberint</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="adv-dashboards">Can access dashboards</label>
+          <select class="form-select" id="adv-dashboards" aria-label="Dashboard access scope">
+            <option>All dashboards</option>
+            <option>Executive Overview</option>
+            <option>Sensor Coverage</option>
+            <option>Threat Intelligence</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slideover-footer">
+    <button class="btn-link" onclick="closeSlideover()">Cancel</button>
+    <button class="btn btn-primary">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <rect x="1" y="2.5" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.2"/>
+        <path d="M1 4l5 3.5L11 4" stroke="currentColor" stroke-width="1.2"/>
+      </svg>
+      Send invite
+    </button>
+  </div>
+</aside>
+
+
+<!-- ══════════════ REMOVE USER CONFIRM MODAL ═════════════════════ -->
+<div class="modal-backdrop" id="remove-modal-backdrop" style="display:none;"
+  role="dialog" aria-modal="true" aria-labelledby="remove-modal-title">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-icon" aria-hidden="true">⚠️</div>
+    <h2 class="modal-title" id="remove-modal-title">Remove alice@acme.com from Acme Corp</h2>
+    <p class="modal-desc">
+      This will permanently revoke all access for <strong>alice@acme.com</strong>.
+      They will be immediately signed out and unable to log in. This action cannot be undone.
+    </p>
+    <div class="modal-confirm-row">
+      <label class="modal-confirm-label" for="confirm-input">
+        Type <code style="font-family:var(--font-mono);background:var(--color-surface-2);padding:1px 4px;border-radius:3px;">alice@acme.com</code> to confirm
+      </label>
+      <input class="form-input" type="text" id="confirm-input"
+        placeholder="alice@acme.com"
+        oninput="checkRemoveConfirm(this.value)"
+        aria-required="true">
+    </div>
+    <div class="modal-mfa-row">
+      <input type="checkbox" id="mfa-confirm" aria-label="I acknowledge this will immediately revoke access">
+      <label class="modal-mfa-label" for="mfa-confirm">
+        I understand this immediately revokes all sessions and MFA devices
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeRemoveModal()">Cancel</button>
+      <button class="btn btn-danger" id="remove-confirm-btn" disabled aria-disabled="true"
+        aria-label="Confirm removal of alice@acme.com">
+        Remove user
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════ CUSTOM ROLE BUILDER MODAL ═════════════════════ -->
+<div class="rolebuilder-backdrop" id="rolebuilder-backdrop" style="display:none;"
+  role="dialog" aria-modal="true" aria-labelledby="rolebuilder-title">
+  <div class="rolebuilder" onclick="event.stopPropagation()">
+    <div class="rolebuilder-header">
+      <h2 class="rolebuilder-title" id="rolebuilder-title">New Custom Role</h2>
+      <button class="icon-btn" onclick="closeRoleBuilder()" aria-label="Close role builder">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="rolebuilder-body">
+      <!-- Name + description -->
+      <div class="form-group">
+        <label class="form-label" for="rb-name">Role name</label>
+        <input class="form-input" type="text" id="rb-name" placeholder="e.g. SOAR-Readonly" aria-required="true">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="rb-desc">Description <span class="form-label-hint">(optional)</span></label>
+        <textarea class="form-input" id="rb-desc" rows="2"
+          style="height:auto;padding:var(--space-2) var(--space-3);resize:vertical;"
+          placeholder="Describe what this role can do…"></textarea>
+      </div>
+
+      <!-- Permissions -->
+      <div>
+        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--color-text);margin-bottom:var(--space-3);">
+          Permissions
+        </div>
+
+        <!-- Investigations -->
+        <fieldset class="perm-section">
+          <legend class="perm-section-title">Investigations</legend>
+          <div class="perm-grid">
+            <div class="perm-check" id="pcheck-cases-read">
+              <input type="checkbox" id="cb-cases-read" onchange="updatePreview()">
+              <label for="cb-cases-read">cases.read</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-cases-write" onchange="updatePreview()">
+              <label for="cb-cases-write">cases.write</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-cases-delete" onchange="updatePreview()">
+              <label for="cb-cases-delete">cases.delete</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-alerts-read" onchange="updatePreview()">
+              <label for="cb-alerts-read">alerts.read</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-alerts-ack" onchange="updatePreview()">
+              <label for="cb-alerts-ack">alerts.acknowledge</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-findings-read" checked onchange="updatePreview()">
+              <label for="cb-findings-read">findings.read</label>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Detections -->
+        <fieldset class="perm-section" style="margin-top:var(--space-3);">
+          <legend class="perm-section-title">Detections</legend>
+          <div class="perm-grid">
+            <div class="perm-check">
+              <input type="checkbox" id="cb-rules-read" onchange="updatePreview()">
+              <label for="cb-rules-read">rules.read</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-rules-write" onchange="updatePreview()">
+              <label for="cb-rules-write">rules.write</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-rules-delete" onchange="updatePreview()">
+              <label for="cb-rules-delete">rules.delete</label>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Connectors -->
+        <fieldset class="perm-section" style="margin-top:var(--space-3);">
+          <legend class="perm-section-title">Connectors</legend>
+          <div class="perm-grid">
+            <div class="perm-check">
+              <input type="checkbox" id="cb-connectors-read" onchange="updatePreview()">
+              <label for="cb-connectors-read">connectors.read</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-connectors-write" onchange="updatePreview()">
+              <label for="cb-connectors-write">connectors.write</label>
+            </div>
+            <div class="perm-check readonly" title="Connector-Admin only">
+              <input type="checkbox" id="cb-credentials-read" disabled onchange="updatePreview()">
+              <label for="cb-credentials-read">credentials.read</label>
+            </div>
+            <div class="perm-check readonly" title="Connector-Admin only">
+              <input type="checkbox" id="cb-credentials-write" disabled onchange="updatePreview()">
+              <label for="cb-credentials-write">credentials.write</label>
+            </div>
+          </div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-1-5);">
+            credentials.* requires Connector-Admin base — contact your Platform-Admin.
+          </div>
+        </fieldset>
+
+        <!-- Admin -->
+        <fieldset class="perm-section" style="margin-top:var(--space-3);">
+          <legend class="perm-section-title">Admin</legend>
+          <div class="perm-grid">
+            <div class="perm-check">
+              <input type="checkbox" id="cb-users-read" onchange="updatePreview()">
+              <label for="cb-users-read">users.read</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-users-invite" onchange="updatePreview()">
+              <label for="cb-users-invite">users.invite</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-users-remove" onchange="updatePreview()">
+              <label for="cb-users-remove">users.remove</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-roles-manage" onchange="updatePreview()">
+              <label for="cb-roles-manage">roles.manage</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-audit-read" onchange="updatePreview()">
+              <label for="cb-audit-read">audit.read</label>
+            </div>
+            <div class="perm-check">
+              <input type="checkbox" id="cb-tenant-configure" onchange="updatePreview()">
+              <label for="cb-tenant-configure">tenant.configure</label>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- Live preview -->
+      <div class="preview-box" aria-live="polite" aria-label="Role capability preview">
+        <div class="preview-box-title">Preview</div>
+        <div class="preview-can" id="preview-can">
+          <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);margin-bottom:4px;">A user with this role CAN:</div>
+          <div id="preview-can-list">
+            <div class="preview-item">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              findings.read
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="preview-cannot" id="preview-cannot">
+          <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);margin-bottom:4px;">CANNOT:</div>
+          <div id="preview-cannot-list">
+            <div class="preview-item">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              cases.read, cases.write, cases.delete, alerts.read, alerts.acknowledge, rules.read, rules.write, rules.delete, connectors.read, connectors.write, users.read, users.invite, users.remove, roles.manage, audit.read, tenant.configure
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /rolebuilder-body -->
+
+    <div class="rolebuilder-footer">
+      <a href="#" class="btn-link" style="font-size:var(--text-xs);"
+        onclick="event.preventDefault()" aria-label="Export permissions as JSON">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="vertical-align:-1px;" aria-hidden="true">
+          <path d="M2 9v1.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5V9M6 1v7m-2.5-2L6 8l2.5-2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Export as JSON
+      </a>
+      <div class="rolebuilder-footer-actions">
+        <button class="btn btn-secondary" onclick="closeRoleBuilder()">Cancel</button>
+        <button class="btn btn-primary">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 6.5l2.5 2.5L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Create role
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════ JAVASCRIPT ══════════════════════════════════════ -->
+<script>
+  /* ── Theme toggle ─────────────────────────────────────────── */
+  const htmlEl = document.documentElement;
+  const toggleBtn = document.getElementById('theme-toggle');
+  const iconSun = document.getElementById('icon-sun');
+  const iconMoon = document.getElementById('icon-moon');
+
+  function applyTheme(theme) {
+    htmlEl.setAttribute('data-theme', theme);
+    iconSun.style.display = theme === 'dark' ? 'none' : '';
+    iconMoon.style.display = theme === 'dark' ? '' : 'none';
+    toggleBtn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    const current = htmlEl.getAttribute('data-theme') || 'light';
+    const next = current === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    try { localStorage.setItem('prism-theme', next); } catch(e) {}
+  });
+
+  try {
+    const saved = localStorage.getItem('prism-theme');
+    if (saved === 'dark') applyTheme('dark');
+  } catch(e) {}
+
+  /* ── Tab switching ────────────────────────────────────────── */
+  function switchTab(id, el) {
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    el.setAttribute('aria-selected', 'true');
+    document.getElementById('panel-' + id).classList.add('active');
+  }
+
+  /* ── Invite slide-over ────────────────────────────────────── */
+  function openSlideover() {
+    document.getElementById('invite-slideover').style.display = '';
+    document.getElementById('slideover-backdrop').style.display = '';
+    document.getElementById('slideover-backdrop').setAttribute('aria-hidden', 'false');
+    document.getElementById('invite-email').focus();
+  }
+
+  function closeSlideover() {
+    document.getElementById('invite-slideover').style.display = 'none';
+    document.getElementById('slideover-backdrop').style.display = 'none';
+    document.getElementById('slideover-backdrop').setAttribute('aria-hidden', 'true');
+  }
+
+  // Open by default to show the open state
+  openSlideover();
+
+  /* ── Role description update ──────────────────────────────── */
+  const roleDescriptions = {
+    'read-only': '<strong>Read-Only:</strong> view-only access to dashboards, cases, and alerts. No query execution, no configuration.',
+    'security-analyst': '<strong>Security-Analyst:</strong> investigate, query, triage alerts and cases. No role or connector management.',
+    'detection-engineer': '<strong>Detection-Engineer:</strong> author and manage detection rules, read alert and case data.',
+    'connector-admin': '<strong>Connector-Admin:</strong> add, edit, and remove connectors and manage credentials. Read-only on cases.',
+    'tenant-admin': '<strong>Tenant-Admin:</strong> full user, role, and connector management for Acme Corp. Cannot modify platform config.',
+    'soar-integration': '<strong>SOAR-Integration (custom):</strong> findings.read · alerts.read · destinations.write. Designed for outbound SOAR webhook.',
+    'compliance-viewer': '<strong>Compliance-Viewer (custom):</strong> dashboards.read · reports.read · cases.read. View-only for auditors.',
+  };
+
+  function updateRoleDesc(value) {
+    const box = document.getElementById('role-desc-box');
+    box.innerHTML = roleDescriptions[value] || '';
+  }
+
+  /* ── Advanced toggle ──────────────────────────────────────── */
+  function toggleAdvanced() {
+    const content = document.getElementById('advanced-content');
+    const chevron = document.getElementById('adv-chevron');
+    const toggle = document.getElementById('advanced-toggle');
+    const isOpen = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : '';
+    chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+    toggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+  }
+
+  /* ── Remove user modal ────────────────────────────────────── */
+  function openRemoveModal() {
+    document.getElementById('remove-modal-backdrop').style.display = 'flex';
+    setTimeout(() => document.getElementById('confirm-input').focus(), 50);
+  }
+
+  function closeRemoveModal() {
+    document.getElementById('remove-modal-backdrop').style.display = 'none';
+    document.getElementById('confirm-input').value = '';
+    document.getElementById('remove-confirm-btn').disabled = true;
+    document.getElementById('remove-confirm-btn').setAttribute('aria-disabled', 'true');
+  }
+
+  function checkRemoveConfirm(value) {
+    const btn = document.getElementById('remove-confirm-btn');
+    const match = value.trim() === 'alice@acme.com';
+    btn.disabled = !match;
+    btn.setAttribute('aria-disabled', match ? 'false' : 'true');
+  }
+
+  // Escape key support for remove modal
+  document.getElementById('remove-modal-backdrop').addEventListener('click', function(e) {
+    if (e.target === this) closeRemoveModal();
+  });
+
+  /* ── Role builder modal ───────────────────────────────────── */
+  function openRoleBuilder() {
+    // Close slideover if open to avoid z-index fight
+    closeSlideover();
+    document.getElementById('rolebuilder-backdrop').style.display = 'flex';
+    setTimeout(() => document.getElementById('rb-name').focus(), 50);
+  }
+
+  function closeRoleBuilder() {
+    document.getElementById('rolebuilder-backdrop').style.display = 'none';
+  }
+
+  document.getElementById('rolebuilder-backdrop').addEventListener('click', function(e) {
+    if (e.target === this) closeRoleBuilder();
+  });
+
+  /* ── Permission preview update ────────────────────────────── */
+  const ALL_PERMS = [
+    'cases.read','cases.write','cases.delete',
+    'alerts.read','alerts.acknowledge',
+    'findings.read',
+    'rules.read','rules.write','rules.delete',
+    'connectors.read','connectors.write',
+    'users.read','users.invite','users.remove',
+    'roles.manage','audit.read','tenant.configure'
+  ];
+
+  const PERM_ID_MAP = {
+    'cases.read': 'cb-cases-read',
+    'cases.write': 'cb-cases-write',
+    'cases.delete': 'cb-cases-delete',
+    'alerts.read': 'cb-alerts-read',
+    'alerts.acknowledge': 'cb-alerts-ack',
+    'findings.read': 'cb-findings-read',
+    'rules.read': 'cb-rules-read',
+    'rules.write': 'cb-rules-write',
+    'rules.delete': 'cb-rules-delete',
+    'connectors.read': 'cb-connectors-read',
+    'connectors.write': 'cb-connectors-write',
+    'users.read': 'cb-users-read',
+    'users.invite': 'cb-users-invite',
+    'users.remove': 'cb-users-remove',
+    'roles.manage': 'cb-roles-manage',
+    'audit.read': 'cb-audit-read',
+    'tenant.configure': 'cb-tenant-configure',
+  };
+
+  function updatePreview() {
+    const checked = ALL_PERMS.filter(p => {
+      const el = document.getElementById(PERM_ID_MAP[p]);
+      return el && el.checked;
+    });
+    const unchecked = ALL_PERMS.filter(p => !checked.includes(p));
+
+    const checkIcon = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5l2.5 2.5L8 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const crossIcon = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+
+    const canList = document.getElementById('preview-can-list');
+    const cannotList = document.getElementById('preview-cannot-list');
+
+    if (checked.length === 0) {
+      canList.innerHTML = `<div class="preview-item" style="color:var(--color-text-muted);">No permissions selected</div>`;
+    } else {
+      canList.innerHTML = checked.map(p =>
+        `<div class="preview-item">${checkIcon} ${p}</div>`
+      ).join('');
+    }
+
+    if (unchecked.length === 0) {
+      cannotList.innerHTML = `<div class="preview-item" style="color:var(--color-text-muted);">Full access granted</div>`;
+    } else {
+      cannotList.innerHTML = `<div class="preview-item">${crossIcon} ${unchecked.join(', ')}</div>`;
+    }
+  }
+
+  /* ── Keyboard: close overlays on Escape ───────────────────── */
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (document.getElementById('rolebuilder-backdrop').style.display !== 'none') {
+        closeRoleBuilder();
+      } else if (document.getElementById('remove-modal-backdrop').style.display !== 'none') {
+        closeRemoveModal();
+      } else if (document.getElementById('invite-slideover').style.display !== 'none') {
+        closeSlideover();
+      }
+    }
+  });
+</script>
+</body>
+</html>

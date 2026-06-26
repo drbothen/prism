@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<!--
+  U1-07-sso-wizard.html — Prism Admin Console: SSO Configuration Wizard (Screen U1-7)
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  Faithful to U1-07 spec: SAML/OIDC protocol toggle, SP details read-only card,
+  IdP configuration, attribute mapping, role mapping rules, test+activate bar,
+  dangerous-action modal (CSS hidden, JS-triggered).
+  Theme toggle top-right. Open via file:// in any modern browser. No build step.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism Admin — SSO Configuration</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    /* ── App shell ───────────────────────────────────────────────── */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ──────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-2);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .topbar-logo:hover { text-decoration: none; }
+
+    .logo-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      flex-shrink: 0;
+    }
+
+    .topbar-admin-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      padding: 2px var(--space-2);
+      background: var(--color-surface-2);
+      border-radius: var(--radius-sm);
+    }
+
+    .topbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--color-border);
+      margin: 0 var(--space-1);
+    }
+
+    .org-pill {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      height: 30px;
+      padding: 0 var(--space-3);
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .org-pill:hover { background: var(--color-bg-hover); }
+
+    .topbar-spacer { flex: 1; }
+
+    .search-trigger {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      height: 30px;
+      padding: 0 var(--space-3);
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      min-width: 180px;
+      transition: background var(--transition-fast);
+    }
+    .search-trigger:hover { background: var(--color-surface-3, var(--color-border)); }
+
+    .kbd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: var(--color-border);
+      border-radius: 3px;
+      padding: 1px 4px;
+      margin-left: auto;
+      color: var(--color-text-muted);
+    }
+
+    .icon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: transparent;
+      color: var(--color-icon-default);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      position: relative;
+    }
+    .icon-btn:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      background: var(--color-accent);
+      border-radius: 50%;
+      border: 2px solid var(--topbar-bg);
+    }
+
+    /* ── Body layout ─────────────────────────────────────────────── */
+    .body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Left nav ────────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width);
+      background: var(--nav-bg);
+      border-right: var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      padding: var(--space-2);
+    }
+
+    .nav-group-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      padding: var(--space-3) var(--space-2) var(--space-1);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      height: 34px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--nav-item-text);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .nav-item:hover {
+      background: var(--nav-item-bg-hover);
+      color: var(--nav-item-text-active);
+    }
+    .nav-item.active {
+      background: var(--nav-item-bg-active);
+      color: var(--nav-item-text-active);
+      font-weight: var(--weight-semibold);
+    }
+
+    .nav-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--color-border-strong);
+      flex-shrink: 0;
+    }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Main content area ───────────────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--color-bg);
+    }
+
+    .main-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-5);
+      padding-bottom: 0;
+    }
+
+    /* ── SSO Active Banner ───────────────────────────────────────── */
+    .sso-banner {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      background: var(--color-cov-answered-bg);
+      border: 1px solid var(--color-cov-answered-border);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-5);
+      font-size: var(--text-sm);
+      color: var(--color-cov-answered-text);
+      font-weight: var(--weight-medium);
+    }
+    .sso-banner-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .sso-banner-detail {
+      font-weight: var(--weight-regular);
+      color: var(--color-cov-answered-text);
+      opacity: 0.8;
+    }
+
+    /* ── Page header ─────────────────────────────────────────────── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      margin-bottom: var(--space-5);
+    }
+
+    .page-title {
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      color: var(--color-text);
+      letter-spacing: var(--tracking-tight);
+      flex: 1;
+    }
+
+    /* ── Protocol toggle ─────────────────────────────────────────── */
+    .protocol-toggle {
+      display: flex;
+      border: var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--color-surface-2);
+    }
+
+    .protocol-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      height: 32px;
+      padding: 0 var(--space-4);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .protocol-btn.active {
+      background: var(--color-bg-elevated);
+      color: var(--color-text);
+      font-weight: var(--weight-semibold);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .protocol-btn .radio-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .protocol-btn.active .radio-dot::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--color-accent);
+    }
+
+    /* ── Config panels ───────────────────────────────────────────── */
+    .config-panel { display: block; }
+    .config-panel.hidden { display: none; }
+
+    /* ── Card ────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      margin-bottom: var(--space-4);
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--card-padding);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .card-header-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--color-icon-default);
+      flex-shrink: 0;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-header-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    .card-body {
+      padding: var(--card-padding);
+    }
+
+    /* Read-only SP details card */
+    .card.sp-details {
+      background: var(--color-surface-2);
+      border-color: var(--color-border-subtle);
+    }
+    .card.sp-details .card-header {
+      background: var(--color-surface-2);
+      border-bottom-color: var(--color-border);
+    }
+    .card.sp-details .card-header-title {
+      color: var(--color-text-muted);
+    }
+
+    /* ── Form layout ─────────────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-4);
+    }
+
+    .form-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-4);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      flex: 1;
+    }
+
+    .form-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+    }
+
+    .form-input {
+      height: var(--input-height);
+      padding: var(--input-padding);
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--input-radius);
+      font-size: var(--input-font-size);
+      font-family: var(--font-sans);
+      color: var(--input-text);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      width: 100%;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--input-border-focus);
+      box-shadow: var(--shadow-focus);
+    }
+    .form-input::placeholder { color: var(--input-placeholder); }
+
+    .form-input.readonly {
+      background: var(--color-surface-2);
+      color: var(--color-text-muted);
+      cursor: default;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+
+    .form-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .form-input-wrap .form-input {
+      padding-right: var(--space-8);
+    }
+    .copy-btn {
+      position: absolute;
+      right: var(--space-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--color-icon-default);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      opacity: 0;
+      transition: opacity var(--transition-fast), background var(--transition-fast);
+    }
+    .form-input-wrap:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover {
+      background: var(--color-surface-3, var(--color-border));
+      color: var(--color-text);
+    }
+    .copy-btn.copied { color: var(--color-cov-answered-icon); }
+
+    .form-helper {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: var(--leading-normal);
+    }
+
+    .form-select {
+      height: var(--input-height);
+      padding: 0 var(--space-3);
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--input-radius);
+      font-size: var(--input-font-size);
+      font-family: var(--font-sans);
+      color: var(--input-text);
+      cursor: pointer;
+      transition: border-color var(--transition-fast);
+      width: 100%;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2363666b' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right var(--space-3) center;
+      padding-right: var(--space-8);
+    }
+    .form-select:focus {
+      outline: none;
+      border-color: var(--input-border-focus);
+      box-shadow: var(--shadow-focus);
+    }
+
+    /* File upload button area */
+    .or-divider {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin: var(--space-3) 0;
+    }
+    .or-divider::before,
+    .or-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--color-border);
+    }
+    .or-divider span {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps);
+    }
+
+    /* Certificate row */
+    .cert-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+    }
+    .cert-row + .cert-row {
+      margin-top: var(--space-2);
+    }
+    .cert-row.warning {
+      background: var(--color-sev-medium-bg);
+      border-color: var(--color-sev-medium-border);
+    }
+
+    /* ── Badges ──────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: var(--badge-padding);
+      border-radius: var(--badge-radius);
+      font-size: var(--badge-font-size);
+      font-weight: var(--badge-font-weight);
+      white-space: nowrap;
+    }
+    .badge-success {
+      background: var(--color-cov-answered-bg);
+      color: var(--color-cov-answered-text);
+      border: 1px solid var(--color-cov-answered-border);
+    }
+    .badge-warning {
+      background: var(--color-sev-medium-bg);
+      color: var(--color-sev-medium-text);
+      border: 1px solid var(--color-sev-medium-border);
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-1-5);
+      height: var(--btn-height-md);
+      padding: var(--btn-padding-md);
+      border-radius: var(--btn-radius);
+      font-size: var(--btn-font-size);
+      font-weight: var(--btn-font-weight);
+      font-family: var(--font-sans);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background var(--transition-fast), color var(--transition-fast),
+                  border-color var(--transition-fast), opacity var(--transition-fast);
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
+      border-color: var(--btn-primary-border);
+    }
+    .btn-primary:not(:disabled):hover { background: var(--btn-primary-bg-hover); }
+
+    .btn-secondary {
+      background: var(--btn-secondary-bg);
+      color: var(--btn-secondary-text);
+      border-color: var(--btn-secondary-border);
+    }
+    .btn-secondary:not(:disabled):hover { background: var(--btn-secondary-bg-hover); }
+
+    .btn-ghost {
+      background: var(--btn-ghost-bg);
+      color: var(--btn-ghost-text);
+      border-color: transparent;
+    }
+    .btn-ghost:not(:disabled):hover { background: var(--btn-ghost-bg-hover); }
+
+    .btn-danger {
+      background: var(--btn-danger-bg);
+      color: var(--btn-danger-text);
+      border-color: var(--btn-danger-border);
+    }
+    .btn-danger:not(:disabled):hover { background: var(--btn-danger-bg-hover); }
+
+    .btn-sm {
+      height: var(--btn-height-sm);
+      padding: var(--btn-padding-sm);
+      font-size: var(--text-xs);
+    }
+
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--color-text-link);
+      cursor: pointer;
+      font-size: var(--text-sm);
+      font-family: var(--font-sans);
+      padding: 0;
+      font-weight: var(--weight-medium);
+    }
+    .btn-link:hover { color: var(--color-text-link-hover); text-decoration: underline; }
+
+    /* ── Role mapping table ──────────────────────────────────────── */
+    .mapping-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .mapping-table th {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps);
+      color: var(--color-text-muted);
+      padding: var(--space-2) var(--space-3);
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .mapping-table td {
+      padding: var(--space-2) var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      border-bottom: 1px solid var(--color-border-subtle);
+      vertical-align: middle;
+    }
+    .mapping-table tr:last-child td { border-bottom: none; }
+    .mapping-table tr:hover td { background: var(--color-bg-hover); }
+
+    .mapping-group-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px var(--space-2);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--color-text);
+    }
+
+    .mapping-role-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px var(--space-2);
+      background: var(--color-blue-subtle);
+      border: 1px solid var(--color-sev-low-border);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-sev-low-text);
+    }
+
+    .mapping-arrow {
+      color: var(--color-text-muted);
+      font-size: var(--text-sm);
+    }
+
+    .table-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .add-rule-row {
+      padding: var(--space-2) var(--space-3);
+      border-top: 1px solid var(--color-border-subtle);
+    }
+
+    .default-role-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--card-padding);
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface-2);
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+    }
+    .default-role-row .form-select {
+      width: auto;
+      min-width: 160px;
+    }
+
+    /* ── Action bar (sticky bottom) ──────────────────────────────── */
+    .action-bar {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-5);
+      border-top: 1px solid var(--card-border);
+      background: var(--card-bg);
+      flex-shrink: 0;
+    }
+
+    .action-bar-left {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1-5);
+    }
+
+    .action-bar-spacer { flex: 1; }
+
+    .action-bar-right {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .test-result {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      font-size: var(--text-xs);
+      color: var(--color-cov-answered-text);
+    }
+    .test-result-icon { font-size: 14px; }
+
+    /* ── OIDC scope chips ────────────────────────────────────────── */
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1-5);
+      margin-top: var(--space-1);
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 var(--space-2);
+      background: var(--color-blue-subtle);
+      border: 1px solid var(--color-sev-low-border);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-sev-low-text);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Modal overlay ───────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--color-bg-overlay);
+      z-index: var(--z-modal);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--color-bg-elevated);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
+      width: 480px;
+      max-width: calc(100vw - var(--space-8));
+      border: 1px solid var(--card-border);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-5) var(--space-5) var(--space-4);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .modal-danger-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-lg);
+      background: var(--color-sev-critical-bg);
+      border: 1px solid var(--color-sev-critical-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .modal-title {
+      font-size: var(--text-lg);
+      font-weight: var(--weight-bold);
+      color: var(--color-text);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .modal-body {
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .modal-warning-text {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      line-height: var(--leading-relaxed);
+    }
+
+    .modal-affected-users {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      background: var(--color-sev-medium-bg);
+      border: 1px solid var(--color-sev-medium-border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--color-sev-medium-text);
+      font-weight: var(--weight-medium);
+    }
+
+    .modal-confirm-input {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .modal-confirm-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps);
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-5);
+      border-top: 1px solid var(--card-border);
+      background: var(--color-surface-2);
+      gap: var(--space-3);
+    }
+
+    .modal-fine-print {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: var(--leading-normal);
+      margin-top: var(--space-1);
+    }
+
+    /* ── Theme toggle ────────────────────────────────────────────── */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      border: var(--border);
+      background: var(--color-surface-2);
+      color: var(--color-icon-default);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      font-size: 15px;
+    }
+    .theme-toggle:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+    }
+
+    /* ── Scrollable area padding ─────────────────────────────────── */
+    .scroll-padding-bottom { height: var(--space-8); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ──────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <a class="topbar-logo" href="#">
+      PRISM<span class="logo-dot"></span>
+    </a>
+    <span class="topbar-admin-label">Admin</span>
+    <div class="topbar-sep"></div>
+    <div class="org-pill">
+      Acme Corp
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="search-trigger" role="button" tabindex="0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Search…
+      <span class="kbd">⌘K</span>
+    </div>
+    <button class="icon-btn" aria-label="Notifications" title="Notifications">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="notif-badge"></span>
+    </button>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light/dark">☀</button>
+  </header>
+
+  <!-- ── Body ────────────────────────────────────────────────────── -->
+  <div class="body">
+
+    <!-- ── Left nav ──────────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Admin navigation">
+      <div class="nav-group-label">Investigations</div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Triage Queue
+      </div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Active Cases
+      </div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Detection Rules
+      </div>
+
+      <div class="nav-group-label">Dashboards</div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Overview
+      </div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Threat Intel
+      </div>
+
+      <div class="nav-group-label">Connectors</div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Connector List
+      </div>
+
+      <div class="nav-group-label">Admin</div>
+      <div class="nav-item active">
+        <span class="nav-dot"></span>Tenants
+      </div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Users &amp; Roles
+      </div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Credentials
+      </div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Audit Log
+      </div>
+      <div class="nav-item active" aria-current="page">
+        <span class="nav-dot"></span>SSO
+      </div>
+
+      <div class="nav-group-label">Settings</div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Health
+      </div>
+      <div class="nav-item">
+        <span class="nav-dot"></span>Config &amp; Policies
+      </div>
+    </nav>
+
+    <!-- ── Main ──────────────────────────────────────────────────── -->
+    <main class="main">
+      <div class="main-scroll">
+
+        <!-- SSO active banner -->
+        <div class="sso-banner" role="status">
+          <span class="sso-banner-icon">✓</span>
+          <strong>SSO Active — Okta SAML</strong>
+          <span class="sso-banner-detail">· Last verified 2026-06-20</span>
+        </div>
+
+        <!-- Page header with protocol toggle -->
+        <div class="page-header">
+          <h1 class="page-title">SSO Configuration — Acme Corp</h1>
+          <div class="protocol-toggle" role="group" aria-label="Protocol">
+            <button class="protocol-btn active" id="samlBtn" onclick="switchProtocol('saml')" type="button">
+              <span class="radio-dot" aria-hidden="true"></span>
+              SAML
+            </button>
+            <button class="protocol-btn" id="oidcBtn" onclick="switchProtocol('oidc')" type="button">
+              <span class="radio-dot" aria-hidden="true"></span>
+              OIDC
+            </button>
+          </div>
+        </div>
+
+        <!-- ══ SAML panel ══════════════════════════════════════════ -->
+        <div id="samlPanel" class="config-panel">
+
+          <!-- Section 1: SP Details (read-only) -->
+          <div class="card sp-details">
+            <div class="card-header">
+              <span class="card-header-icon" aria-hidden="true">ℹ</span>
+              <span class="card-header-title">Service Provider Details (read-only — share with your IdP)</span>
+            </div>
+            <div class="card-body">
+              <div class="form-grid">
+
+                <div class="form-group">
+                  <label class="form-label">Entity ID</label>
+                  <div class="form-input-wrap">
+                    <input class="form-input readonly" type="text" readonly
+                      value="https://prism.acme.io/saml/acme-corp"
+                      aria-label="Entity ID (read-only, copyable)">
+                    <button class="copy-btn" title="Copy Entity ID" aria-label="Copy Entity ID"
+                      onclick="copyField(this, 'https://prism.acme.io/saml/acme-corp')">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">ACS URL</label>
+                  <div class="form-input-wrap">
+                    <input class="form-input readonly" type="text" readonly
+                      value="https://prism.acme.io/saml/acme-corp/acs"
+                      aria-label="ACS URL (read-only, copyable)">
+                    <button class="copy-btn" title="Copy ACS URL" aria-label="Copy ACS URL"
+                      onclick="copyField(this, 'https://prism.acme.io/saml/acme-corp/acs')">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">SP Metadata</label>
+                  <div>
+                    <button class="btn btn-secondary btn-sm" type="button">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Download SP Metadata XML
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: IdP Configuration -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </span>
+              <span class="card-header-title">Identity Provider Configuration</span>
+            </div>
+            <div class="card-body">
+              <div class="form-grid">
+
+                <div class="form-group">
+                  <label class="form-label" for="idpMetadataUrl">IdP Metadata URL</label>
+                  <input class="form-input" type="url" id="idpMetadataUrl"
+                    value="https://acme.okta.com/app/prism/metadata"
+                    placeholder="https://your-idp.example.com/metadata">
+                  <span class="form-helper">Prism will fetch and cache metadata from this URL</span>
+                </div>
+
+                <div class="or-divider"><span>or</span></div>
+
+                <div class="form-group">
+                  <button class="btn btn-secondary" type="button" style="align-self: flex-start;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload metadata XML
+                  </button>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Certificate</label>
+                  <div class="cert-row">
+                    <span class="badge badge-success">✓ Valid</span>
+                    <span style="font-size: var(--text-sm); color: var(--color-text);">Valid until 2027-01-01</span>
+                    <button class="btn-link" type="button" style="margin-left: auto;">Update certificate</button>
+                  </div>
+                  <div class="cert-row warning" style="margin-top: var(--space-2);">
+                    <span class="badge badge-warning">⚠ Expiring soon</span>
+                    <span style="font-size: var(--text-xs); color: var(--color-sev-medium-text);">
+                      Certificate expires in 14 days — example of expiry warning state
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Attribute Mapping -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </span>
+              <span class="card-header-title">Attribute Mapping</span>
+            </div>
+            <div class="card-body">
+              <div class="form-grid">
+
+                <div class="form-row">
+                  <div class="form-group" style="max-width: 280px;">
+                    <label class="form-label" for="nameidFormat">NameID Format</label>
+                    <select class="form-select" id="nameidFormat">
+                      <option value="email" selected>Email</option>
+                      <option value="persistent">Persistent</option>
+                      <option value="transient">Transient</option>
+                      <option value="unspecified">Unspecified</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="groupsClaim">Groups Claim</label>
+                  <input class="form-input" type="text" id="groupsClaim" value="groups">
+                  <span class="form-helper">Used for automatic role assignment based on IdP group membership</span>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="emailClaim">Email Claim</label>
+                  <input class="form-input" type="text" id="emailClaim" value="email"
+                    style="color: var(--color-text-muted);" placeholder="email">
+                  <span class="form-helper">Default: <code style="font-family: var(--font-mono); font-size: var(--text-xs);">email</code> — override only if your IdP uses a different attribute name</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Role Mapping -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              <span class="card-header-title">Group → Role Mapping</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              <table class="mapping-table" aria-label="Group to role mapping rules">
+                <thead>
+                  <tr>
+                    <th style="width: 40%;">IdP Group</th>
+                    <th style="width: 12px; padding: 0;"></th>
+                    <th style="width: 35%;">Prism Role</th>
+                    <th style="width: 20%;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="mapping-group-chip">admin</span></td>
+                    <td class="mapping-arrow" style="padding: var(--space-2) 0; text-align: center;">→</td>
+                    <td><span class="mapping-role-chip">Tenant-Admin</span></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="btn btn-ghost btn-sm" type="button">Edit</button>
+                        <button class="btn btn-ghost btn-sm" type="button" style="color: var(--color-red);">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><span class="mapping-group-chip">analyst</span></td>
+                    <td class="mapping-arrow" style="padding: var(--space-2) 0; text-align: center;">→</td>
+                    <td><span class="mapping-role-chip">Security-Analyst</span></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="btn btn-ghost btn-sm" type="button">Edit</button>
+                        <button class="btn btn-ghost btn-sm" type="button" style="color: var(--color-red);">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><span class="mapping-group-chip">readonly</span></td>
+                    <td class="mapping-arrow" style="padding: var(--space-2) 0; text-align: center;">→</td>
+                    <td><span class="mapping-role-chip">Read-Only</span></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="btn btn-ghost btn-sm" type="button">Edit</button>
+                        <button class="btn btn-ghost btn-sm" type="button" style="color: var(--color-red);">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="add-rule-row">
+                <button class="btn-link" type="button">
+                  + Add mapping rule
+                </button>
+              </div>
+            </div>
+            <div class="default-role-row">
+              <span>Default role for unmapped groups:</span>
+              <select class="form-select" aria-label="Default role for unmapped groups" style="width: auto; min-width: 160px; height: 28px; font-size: var(--text-xs);">
+                <option value="readonly" selected>Read-Only</option>
+                <option value="analyst">Security-Analyst</option>
+                <option value="none">None (deny access)</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+        <!-- end SAML panel -->
+
+        <!-- ══ OIDC panel (hidden) ════════════════════════════════ -->
+        <div id="oidcPanel" class="config-panel hidden">
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </span>
+              <span class="card-header-title">OIDC Provider Configuration</span>
+            </div>
+            <div class="card-body">
+              <div class="form-grid">
+
+                <div class="form-group">
+                  <label class="form-label" for="oidcClientId">Client ID</label>
+                  <input class="form-input" type="text" id="oidcClientId"
+                    placeholder="0oab1c2d3e4f5g6h7i8j">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="oidcClientSecret">Client Secret</label>
+                  <input class="form-input" type="password" id="oidcClientSecret"
+                    placeholder="Write-only — enter to update"
+                    autocomplete="new-password">
+                  <span class="form-helper">Stored encrypted. Shown as write-only for security.</span>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="oidcDiscoveryUrl">OIDC Discovery URL</label>
+                  <input class="form-input" type="url" id="oidcDiscoveryUrl"
+                    value="https://accounts.google.com/.well-known/openid-configuration">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Scopes</label>
+                  <div class="chip-group">
+                    <span class="chip">openid</span>
+                    <span class="chip">email</span>
+                    <span class="chip">profile</span>
+                    <span class="chip">groups</span>
+                  </div>
+                  <span class="form-helper">Additional scopes requested from the OIDC provider</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </span>
+              <span class="card-header-title">Claims Mapping</span>
+            </div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label" for="oidcEmailClaim">Email claim</label>
+                    <input class="form-input" type="text" id="oidcEmailClaim" value="email">
+                    <span class="form-helper">JWT claim that contains the user's email address</span>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="oidcGroupsClaim">Groups claim</label>
+                    <input class="form-input" type="text" id="oidcGroupsClaim" value="groups">
+                    <span class="form-helper">JWT claim used for role assignment</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Role mapping — same structure as SAML -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-header-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              <span class="card-header-title">Group → Role Mapping</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              <table class="mapping-table" aria-label="OIDC group to role mapping rules">
+                <thead>
+                  <tr>
+                    <th>IdP Group</th>
+                    <th style="padding: 0;"></th>
+                    <th>Prism Role</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="mapping-group-chip">admin</span></td>
+                    <td class="mapping-arrow" style="text-align: center;">→</td>
+                    <td><span class="mapping-role-chip">Tenant-Admin</span></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="btn btn-ghost btn-sm" type="button">Edit</button>
+                        <button class="btn btn-ghost btn-sm" type="button" style="color: var(--color-red);">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="add-rule-row">
+                <button class="btn-link" type="button">+ Add mapping rule</button>
+              </div>
+            </div>
+            <div class="default-role-row">
+              <span>Default role for unmapped groups:</span>
+              <select class="form-select" aria-label="Default role" style="width: auto; min-width: 160px; height: 28px; font-size: var(--text-xs);">
+                <option value="readonly" selected>Read-Only</option>
+                <option value="analyst">Security-Analyst</option>
+                <option value="none">None (deny access)</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+        <!-- end OIDC panel -->
+
+        <div class="scroll-padding-bottom"></div>
+      </div><!-- end main-scroll -->
+
+      <!-- ── Action bar (sticky bottom) ──────────────────────────── -->
+      <div class="action-bar" role="toolbar" aria-label="SSO actions">
+        <div class="action-bar-left">
+          <button class="btn btn-primary" type="button" id="testSsoBtn" onclick="runTestSSO()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Test SSO Login
+          </button>
+          <div class="test-result" aria-live="polite">
+            <span class="test-result-icon">✓</span>
+            Last test passed — 2026-06-20T14:30 UTC — jsmith@acme.com
+          </div>
+        </div>
+
+        <div class="action-bar-spacer"></div>
+
+        <div class="action-bar-right">
+          <button class="btn btn-secondary" type="button">
+            Save Changes
+          </button>
+          <button class="btn btn-danger" type="button" id="deactivateSsoBtn"
+            onclick="openDeactivateModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Deactivate SSO
+          </button>
+        </div>
+      </div>
+
+    </main><!-- end main -->
+  </div><!-- end body -->
+</div><!-- end app -->
+
+<!-- ── Deactivate SSO modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="deactivateModal" role="dialog" aria-modal="true"
+  aria-labelledby="modalTitle" aria-describedby="modalWarning">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-danger-icon" aria-hidden="true">⚠</div>
+      <div>
+        <h2 class="modal-title" id="modalTitle">Deactivate SSO — Acme Corp</h2>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p class="modal-warning-text" id="modalWarning">
+        Deactivating SSO will require all users to log in with their Prism password.
+        Users who were invited via SSO-only (no Prism password) will be unable to log in
+        until they reset their password. This change will be logged in the audit trail.
+      </p>
+      <div class="modal-affected-users">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Affected users: <strong>7 users</strong> currently using SSO login
+      </div>
+      <div class="modal-confirm-input">
+        <label class="modal-confirm-label" for="confirmDeactivate">
+          Type <code style="font-family: var(--font-mono); font-size: 11px; background: var(--color-surface-2); padding: 1px 4px; border-radius: 3px;">deactivate</code> to confirm
+        </label>
+        <input class="form-input" type="text" id="confirmDeactivate"
+          placeholder="deactivate"
+          autocomplete="off"
+          oninput="checkConfirmText(this.value)">
+        <p class="modal-fine-print">This action will be recorded in your audit log.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" type="button" onclick="closeDeactivateModal()">
+        Cancel
+      </button>
+      <button class="btn btn-danger" type="button" id="confirmDeactivateBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Deactivate SSO
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Protocol toggle ─────────────────────────────────────── */
+  function switchProtocol(proto) {
+    const samlBtn  = document.getElementById('samlBtn');
+    const oidcBtn  = document.getElementById('oidcBtn');
+    const samlPanel = document.getElementById('samlPanel');
+    const oidcPanel = document.getElementById('oidcPanel');
+
+    if (proto === 'saml') {
+      samlBtn.classList.add('active');
+      oidcBtn.classList.remove('active');
+      samlPanel.classList.remove('hidden');
+      oidcPanel.classList.add('hidden');
+    } else {
+      oidcBtn.classList.add('active');
+      samlBtn.classList.remove('active');
+      oidcPanel.classList.remove('hidden');
+      samlPanel.classList.add('hidden');
+    }
+  }
+
+  /* ── Copy to clipboard ───────────────────────────────────── */
+  function copyField(btn, text) {
+    if (!navigator.clipboard) {
+      // Fallback for file:// contexts
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-999px;left:-999px;';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } else {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+    btn.classList.add('copied');
+    const original = btn.innerHTML;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(() => {
+      btn.innerHTML = original;
+      btn.classList.remove('copied');
+    }, 1800);
+  }
+
+  /* ── Test SSO ────────────────────────────────────────────── */
+  function runTestSSO() {
+    const btn = document.getElementById('testSsoBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Testing…';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Test SSO Login';
+    }, 1600);
+  }
+
+  /* ── Deactivate modal ────────────────────────────────────── */
+  function openDeactivateModal() {
+    const modal = document.getElementById('deactivateModal');
+    const input = document.getElementById('confirmDeactivate');
+    input.value = '';
+    document.getElementById('confirmDeactivateBtn').disabled = true;
+    modal.classList.add('open');
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function closeDeactivateModal() {
+    document.getElementById('deactivateModal').classList.remove('open');
+  }
+
+  function checkConfirmText(val) {
+    document.getElementById('confirmDeactivateBtn').disabled = (val !== 'deactivate');
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('deactivateModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeactivateModal();
+  });
+
+  // Close modal on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDeactivateModal();
+  });
+
+  /* ── Theme toggle ────────────────────────────────────────── */
+  const themeToggle = document.getElementById('themeToggle');
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    themeToggle.textContent = theme === 'dark' ? '☽' : '☀';
+    localStorage.setItem('prism-theme', theme);
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  // Restore saved theme preference
+  const savedTheme = localStorage.getItem('prism-theme');
+  if (savedTheme) applyTheme(savedTheme);
+</script>
+</body>
+</html>

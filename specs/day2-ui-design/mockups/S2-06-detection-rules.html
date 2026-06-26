@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<!--
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  S2-06-detection-rules.html — Prism Investigations Console: Detection Rule Editor + Library (Screen 6)
+  Faithful to S2-investigations-console.md Screen 6 spec (§14, §14.1–§14.7, detection-as-query).
+  Includes: MITRE ATT&CK coverage heatmap, rule library, split-pane editor, lifecycle stepper,
+  backtest panel, AI "converted from investigation" callout, Monaco-style PrismQL editor.
+  Theme toggle top-right. All colors via tokens.css — no hardcoded hex except src-* dots.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — Detection Rules</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ────────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-3);
+      user-select: none;
+    }
+
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+
+    .topbar-nav { display: flex; gap: 2px; list-style: none; flex: 1; }
+
+    .topbar-nav-item {
+      display: flex; align-items: center; height: 32px; padding: 0 var(--space-3);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      white-space: nowrap;
+    }
+    .topbar-nav-item:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .topbar-nav-item.active { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);
+      cursor: pointer; min-width: 200px;
+    }
+
+    .kbd {
+      font-family: var(--font-mono); font-size: 10px; background: var(--color-border);
+      border-radius: 3px; padding: 1px 4px; margin-left: auto; color: var(--color-text-muted);
+    }
+
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: var(--radius-md); border: none; background: transparent;
+      color: var(--color-icon-default); cursor: pointer;
+      transition: background var(--transition-fast); position: relative;
+    }
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    .notif-badge {
+      position: absolute; top: 4px; right: 4px; width: 8px; height: 8px;
+      background: var(--color-accent); border-radius: 50%; border: 2px solid var(--topbar-bg);
+    }
+
+    /* ── Body ─────────────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav ─────────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg); border-right: var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+    .leftnav-main { flex: 1; }
+    .leftnav-footer { border-top: var(--border); padding-top: var(--space-2); margin-top: var(--space-2); }
+
+    .nav-group-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); padding: var(--space-3) var(--space-2) var(--space-1);
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active { background: var(--nav-item-bg-active); color: var(--nav-item-text-active); font-weight: var(--weight-semibold); }
+
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); flex-shrink: 0; }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Main ─────────────────────────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg); }
+
+    /* ── Shared buttons ───────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md); border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap; line-height: 1;
+      transition: background var(--transition-fast);
+    }
+    .btn-primary { background: var(--btn-primary-bg); color: #fff; border-color: transparent; }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-secondary {
+      background: var(--btn-secondary-bg); color: var(--btn-secondary-text);
+      border-color: var(--btn-secondary-border);
+    }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .btn-sm { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+
+    .drop-btn {
+      display: inline-flex; align-items: center; gap: var(--space-1); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-bg); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer; transition: background var(--transition-fast);
+    }
+    .drop-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .drop-caret { font-size: 9px; opacity: 0.6; }
+
+    /* ── Badge ────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap;
+    }
+    .badge-icon { width: 10px; height: 10px; flex-shrink: 0; }
+    .badge-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical-text); border: 1px solid var(--color-sev-critical-border); }
+    .badge-high     { background: var(--color-sev-high-bg);     color: var(--color-sev-high-text);     border: 1px solid var(--color-sev-high-border); }
+    .badge-medium   { background: var(--color-sev-medium-bg);   color: var(--color-sev-medium-text);   border: 1px solid var(--color-sev-medium-border); }
+    .badge-low      { background: var(--color-sev-low-bg);      color: var(--color-sev-low-text);      border: 1px solid var(--color-sev-low-border); }
+
+    .status-badge {
+      display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      text-transform: uppercase; letter-spacing: var(--tracking-wide); white-space: nowrap;
+    }
+    .status-production { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); border: 1px solid var(--color-cov-answered-border); }
+    .status-shadow     { background: var(--color-sev-medium-bg); color: var(--color-sev-medium-text); border: 1px solid var(--color-sev-medium-border); }
+    .status-draft      { background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border-strong); }
+
+    .mitre-tag {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-1-5);
+      background: var(--color-bg-selected); color: var(--color-blue); border: 1px solid var(--color-blue-subtle);
+      border-radius: var(--radius-sm); font-size: 10px; font-weight: var(--weight-semibold);
+      font-family: var(--font-mono); white-space: nowrap; cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .mitre-tag:hover { background: var(--color-blue-subtle); }
+
+    .ai-tag {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-1-5);
+      background: var(--color-ai-label); color: #fff; font-size: 10px; font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase; border-radius: 3px;
+    }
+
+    /* Source dots */
+    .source-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+    .src-cs { background: #1a6fc4; }
+    .src-cy { background: #7c3aed; }
+    .src-cl { background: #0d7c66; }
+    .src-ar { background: #b45309; }
+
+    /* ── Theme toggle ─────────────────────────────────────────────── */
+    .theme-toggle-fixed {
+      position: fixed; top: calc(var(--topbar-height) + var(--space-3)); right: var(--space-4);
+      z-index: var(--z-toast);
+      display: flex; background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); padding: 3px; gap: 2px; box-shadow: var(--shadow-md);
+    }
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+      border-radius: var(--radius-full); border: none; background: transparent; cursor: pointer;
+      font-size: 14px; color: var(--color-text-muted);
+    }
+    .theme-btn.active { background: var(--color-bg); box-shadow: var(--shadow-xs); }
+
+    /* ── AI sidecar ───────────────────────────────────────────────── */
+    .ai-sidecar {
+      width: var(--sidecar-width); background: var(--color-bg-card);
+      border-left: var(--border); display: flex; flex-direction: column;
+      flex-shrink: 0; overflow: hidden;
+      transition: width var(--transition-slow), opacity var(--transition-slow);
+    }
+    .ai-sidecar.collapsed { width: 0; opacity: 0; border-left: none; }
+
+    .sidecar-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4); border-bottom: var(--border);
+      background: var(--color-ai-bg); flex-shrink: 0;
+    }
+    .sidecar-title {
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-ai-label); flex: 1;
+    }
+
+    .sidecar-body { flex: 1; overflow-y: auto; padding: var(--space-3) var(--space-4); }
+    .sidecar-hint {
+      font-size: var(--text-xs); color: var(--color-text-muted);
+      background: var(--color-ai-bg); border: 1px solid var(--color-ai-border);
+      border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3);
+    }
+    .sidecar-msg {
+      font-size: var(--text-xs); color: var(--color-ai-text); margin-bottom: var(--space-2);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* ── Library view ─────────────────────────────────────────────── */
+    .screen-library { display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+    .screen-editor  { display: none; flex-direction: column; overflow: hidden; height: 100%; }
+
+    /* Page header */
+    .page-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-4) var(--space-5);
+      border-bottom: var(--border); background: var(--color-bg-card);
+      flex-shrink: 0;
+    }
+    .page-title {
+      font-family: var(--font-display); font-size: var(--text-2xl);
+      font-weight: var(--weight-bold); color: var(--color-text); flex: 1;
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-5);
+      border-bottom: var(--border); background: var(--color-bg);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+
+    .search-input-wrap {
+      display: flex; align-items: center; gap: var(--space-2);
+      height: 32px; padding: 0 var(--space-3);
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      border-radius: var(--input-radius); min-width: 200px;
+    }
+    .search-input-wrap input {
+      border: none; background: transparent; font-size: var(--text-sm);
+      color: var(--color-text); outline: none; width: 100%;
+      font-family: var(--font-sans);
+    }
+    .search-input-wrap input::placeholder { color: var(--color-muted); }
+
+    /* ── MITRE heatmap ────────────────────────────────────────────── */
+    .mitre-section {
+      flex-shrink: 0; border-bottom: var(--border);
+      background: var(--color-bg-card);
+    }
+    .mitre-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5) var(--space-1);
+    }
+    .mitre-header-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+    .mitre-grid-wrap { padding: var(--space-1) var(--space-5) var(--space-2); overflow-x: auto; }
+    .mitre-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 3px;
+      min-width: 720px;
+    }
+
+    .mitre-tactic-col {}
+
+    .mitre-tactic-header {
+      text-align: center; font-size: 9px; font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); padding: 2px 0 4px;
+      border-bottom: 2px solid var(--color-border-strong);
+      margin-bottom: 3px; cursor: pointer;
+    }
+    .mitre-tactic-header:hover { color: var(--color-text); }
+
+    .mitre-cell {
+      height: 18px; border-radius: var(--radius-sm);
+      cursor: pointer; transition: filter var(--transition-fast), opacity var(--transition-fast);
+      position: relative;
+    }
+    .mitre-cell:hover { filter: brightness(0.88); }
+    .mitre-cell.active { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+    .mitre-cell.filtered { opacity: 0.25; }
+
+    /* Coverage levels */
+    .cov-0 { background: var(--color-surface-3); }
+    .cov-1 { background: #bbf7d0; }  /* light green — 1 rule */
+    .cov-2 { background: #4ade80; }  /* medium green — 2-3 rules */
+    .cov-3 { background: #16a34a; }  /* dark green — 4+ rules */
+    [data-theme="dark"] .cov-0 { background: var(--color-surface-3); }
+    [data-theme="dark"] .cov-1 { background: #14532d; }
+    [data-theme="dark"] .cov-2 { background: #15803d; }
+    [data-theme="dark"] .cov-3 { background: #22c55e; }
+
+    .mitre-legend {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: 0 var(--space-5) var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted);
+    }
+    .mitre-legend-item { display: flex; align-items: center; gap: var(--space-1-5); }
+    .mitre-legend-swatch { width: 12px; height: 12px; border-radius: var(--radius-sm); }
+
+    /* ── Rule list ────────────────────────────────────────────────── */
+    .rule-list-wrap { flex: 1; overflow-y: auto; }
+
+    .rule-list-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      background: var(--table-header-bg); border-bottom: var(--border);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .rule-row {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-5);
+      border-bottom: var(--border);
+      background: var(--table-row-bg);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .rule-row:nth-child(even) { background: var(--table-row-bg-alt); }
+    .rule-row:hover { background: var(--table-row-bg-hover); }
+    .rule-row.active-rule { background: var(--color-bg-selected); }
+
+    .rule-name {
+      font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text); flex: 1; min-width: 0; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .rule-meta { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 1px; }
+    .rule-info { flex: 1; min-width: 0; }
+
+    .rule-mitre { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; }
+    .rule-version { font-size: var(--text-xs); color: var(--color-text-muted); font-family: var(--font-mono); white-space: nowrap; width: 50px; text-align: right; flex-shrink: 0; }
+    .rule-author  { font-size: var(--text-xs); color: var(--color-text-muted); width: 56px; flex-shrink: 0; text-align: right; }
+    .rule-actions { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; }
+
+    /* ── Editor view ──────────────────────────────────────────────── */
+    .editor-breadcrumb {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-5);
+      border-bottom: var(--border); background: var(--color-bg-card);
+      font-size: var(--text-sm); color: var(--color-text-muted); flex-shrink: 0;
+    }
+    .editor-breadcrumb-sep { opacity: 0.4; }
+    .editor-breadcrumb-current { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    /* AI conversion callout */
+    .ai-callout {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-ai-bg); border-bottom: 1px solid var(--color-ai-border);
+      flex-shrink: 0;
+    }
+    .ai-callout-text { font-size: var(--text-xs); color: var(--color-ai-text); flex: 1; }
+    .ai-callout-link {
+      font-size: var(--text-xs); color: var(--color-ai-label);
+      font-weight: var(--weight-semibold); cursor: pointer;
+      text-decoration: none; white-space: nowrap;
+    }
+    .ai-callout-link:hover { text-decoration: underline; }
+
+    /* Editor header bar */
+    .editor-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5); border-bottom: var(--border);
+      background: var(--color-bg-card); flex-shrink: 0; flex-wrap: wrap;
+    }
+
+    .editor-title {
+      font-size: var(--text-base); font-weight: var(--weight-semibold); color: var(--color-text);
+      font-family: var(--font-mono);
+    }
+
+    .version-chip {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-1-5);
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-sm); font-size: var(--text-xs); color: var(--color-text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Split pane */
+    .split-pane {
+      display: flex; flex: 1; overflow: hidden; border-bottom: var(--border);
+    }
+
+    /* ── Metadata panel (left) ───────────────────────────────────── */
+    .metadata-panel {
+      width: 340px; flex-shrink: 0; overflow-y: auto;
+      border-right: var(--border); background: var(--color-bg-card);
+      padding: var(--space-4) var(--space-4);
+    }
+
+    .form-group { margin-bottom: var(--space-4); }
+    .form-label {
+      display: block; font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); margin-bottom: var(--space-1-5);
+    }
+    .form-input {
+      width: 100%; height: var(--input-height); padding: var(--input-padding);
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      border-radius: var(--input-radius); font-size: var(--input-font-size);
+      color: var(--input-text); font-family: var(--font-sans); outline: none;
+      transition: border-color var(--transition-fast);
+    }
+    .form-input:focus { border-color: var(--input-border-focus); }
+    .form-input::placeholder { color: var(--input-placeholder); }
+
+    select.form-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23707070' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+
+    .form-textarea {
+      width: 100%; padding: var(--space-2) var(--space-3);
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      border-radius: var(--input-radius); font-size: var(--input-font-size);
+      color: var(--input-text); font-family: var(--font-sans); outline: none;
+      resize: vertical; min-height: 64px; line-height: var(--leading-normal);
+      transition: border-color var(--transition-fast);
+    }
+    .form-textarea:focus { border-color: var(--input-border-focus); }
+
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+
+    .mitre-tag-list { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1-5); }
+    .mitre-tag-remove {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-1-5);
+      background: var(--color-bg-selected); color: var(--color-blue); border: 1px solid var(--color-blue-subtle);
+      border-radius: var(--radius-sm); font-size: 10px; font-weight: var(--weight-semibold);
+      font-family: var(--font-mono); white-space: nowrap; cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .mitre-tag-remove:hover { background: var(--color-blue-subtle); }
+    .mitre-tag-remove .rm { margin-left: 3px; opacity: 0.6; font-size: 9px; }
+
+    /* ── Monaco-style PrismQL editor ─────────────────────────────── */
+    .code-panel {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+      background: var(--editor-bg);
+    }
+
+    .code-panel-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-bg-card); border-bottom: var(--border);
+      flex-shrink: 0;
+    }
+    .code-panel-title {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .editor-chrome { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .editor-body { display: flex; flex: 1; overflow: auto; }
+
+    .editor-gutter {
+      padding: var(--space-2) var(--space-2); background: var(--editor-gutter-bg);
+      color: var(--editor-gutter-text); text-align: right; min-width: 36px;
+      user-select: none; border-right: 1px solid rgba(128,128,128,0.12);
+      flex-shrink: 0;
+    }
+    .editor-gutter div { line-height: var(--editor-line-height); font-size: var(--editor-font-size); font-family: var(--font-mono); }
+
+    .editor-code {
+      padding: var(--space-2) var(--space-4); color: var(--editor-text);
+      flex: 1; white-space: pre; overflow-x: auto;
+      font-family: var(--font-mono); font-size: var(--editor-font-size);
+      line-height: var(--editor-line-height);
+    }
+
+    .editor-code .kw { color: var(--editor-keyword); }
+    .editor-code .fn { color: var(--editor-function); }
+    .editor-code .str { color: var(--editor-string); }
+    .editor-code .num { color: var(--editor-number); }
+    .editor-code .cm { color: var(--editor-comment); font-style: italic; }
+    .editor-code .op { color: var(--editor-operator); }
+    .editor-code .ty { color: var(--editor-type); }
+    .editor-code .hl { background: var(--editor-line-highlight); display: block; margin: 0 -16px; padding: 0 16px; }
+
+    .editor-statusbar {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-1) var(--space-3); background: var(--editor-gutter-bg);
+      border-top: 1px solid rgba(128,128,128,0.1); font-size: 11px;
+      color: var(--editor-gutter-text); flex-wrap: wrap; flex-shrink: 0;
+    }
+
+    .editor-action-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3); border-top: var(--border);
+      background: var(--color-bg-card); flex-shrink: 0;
+    }
+
+    /* ── Lifecycle stepper ────────────────────────────────────────── */
+    .lifecycle-section {
+      flex-shrink: 0; border-top: var(--border);
+      padding: var(--space-3) var(--space-5);
+      background: var(--color-bg-card);
+    }
+    .lifecycle-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); margin-bottom: var(--space-2);
+    }
+    .lifecycle-stepper {
+      display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+    }
+    .step-item {
+      display: flex; align-items: center; gap: var(--space-1);
+    }
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: var(--weight-bold);
+      border: 2px solid var(--color-border-strong);
+      background: var(--color-surface-2); color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+    .step-dot.completed { background: var(--color-cov-answered-bg); border-color: var(--color-cov-answered-icon); color: var(--color-cov-answered-text); }
+    .step-dot.current   { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+    .step-name {
+      font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap;
+      font-weight: var(--weight-medium);
+    }
+    .step-name.completed { color: var(--color-cov-answered-text); }
+    .step-name.current   { color: var(--color-accent); font-weight: var(--weight-semibold); }
+    .step-connector {
+      width: 24px; height: 2px; background: var(--color-border-strong); flex-shrink: 0; margin: 0 var(--space-1);
+    }
+    .step-connector.completed { background: var(--color-cov-answered-icon); }
+
+    .lifecycle-actions {
+      display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
+    }
+
+    /* ── Backtest panel ───────────────────────────────────────────── */
+    .backtest-section {
+      flex-shrink: 0; border-top: var(--border);
+      background: var(--color-bg-card);
+    }
+    .backtest-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      cursor: pointer; user-select: none;
+      transition: background var(--transition-fast);
+    }
+    .backtest-header:hover { background: var(--color-bg-hover); }
+    .backtest-title {
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text); flex: 1;
+    }
+    .backtest-chevron {
+      display: inline-block; font-size: 10px; color: var(--color-text-muted);
+      transition: transform var(--transition-base);
+    }
+    .backtest-chevron.open { transform: rotate(180deg); }
+
+    .backtest-body {
+      display: none; padding: var(--space-3) var(--space-5); border-top: var(--border);
+      gap: var(--space-3);
+    }
+    .backtest-body.open { display: flex; flex-direction: column; }
+
+    .backtest-controls { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+    .backtest-result {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-cov-answered-bg); border: 1px solid var(--color-cov-answered-border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-cov-answered-text);
+    }
+    .backtest-result svg { flex-shrink: 0; }
+    .backtest-result-detail { font-size: var(--text-xs); color: var(--color-cov-answered-text); margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ──────────────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar-logo" aria-label="Prism home">
+      <span class="logo-dot" aria-hidden="true"></span>
+      Prism
+    </div>
+    <nav aria-label="Main navigation">
+      <ul class="topbar-nav" role="list">
+        <li class="topbar-nav-item" role="listitem">Investigations</li>
+        <li class="topbar-nav-item" role="listitem">Query</li>
+        <li class="topbar-nav-item active" role="listitem" aria-current="page">Detections</li>
+        <li class="topbar-nav-item" role="listitem">Dashboards</li>
+        <li class="topbar-nav-item" role="listitem">Data</li>
+        <li class="topbar-nav-item" role="listitem">Admin</li>
+      </ul>
+    </nav>
+    <div class="topbar-actions">
+      <!-- Org switcher -->
+      <button class="drop-btn" aria-haspopup="listbox" aria-label="Current organization: Acme MSSP" style="font-size: var(--text-xs); height: 28px;">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 5.5h3M5.5 4v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Acme MSSP
+        <span class="drop-caret">▾</span>
+      </button>
+      <div class="search-trigger" role="button" aria-label="Open command palette (Ctrl+K)">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Search…</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="icon-btn" id="ai-toggle-btn" onclick="toggleSidecar()" aria-label="Toggle Prism AI chat sidecar" aria-pressed="false">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2.5-2.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="12.5" r="0.7" fill="currentColor"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 2.5C5 2.5 3.5 4 3.5 6.5V10H2v1.5h11V10h-1.5V6.5C11.5 4 10 2.5 7.5 2.5Z" stroke="currentColor" stroke-width="1.2"/><path d="M6 12c0 .8.7 1.5 1.5 1.5S9 12.8 9 12" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="User menu — jsmith">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ── Left nav ─────────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Section navigation">
+      <div class="leftnav-main">
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Triage Queue
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cases
+        </div>
+        <div class="nav-group-label">Query</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Workspace
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Results Explorer
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Saved Queries
+        </div>
+        <div class="nav-group-label">Detections</div>
+        <div class="nav-item active" role="link" aria-current="page">
+          <span class="nav-dot" aria-hidden="true"></span>Detection Rules
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Findings Queue
+        </div>
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Summary Insights
+        </div>
+        <div class="nav-group-label">Data</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Sources
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cache Browser
+        </div>
+      </div>
+
+      <div class="leftnav-footer" role="group" aria-label="Administration">
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zm0 1.5a5 5 0 110 10 5 5 0 010-10zm0 2a.75.75 0 100 1.5.75.75 0 000-1.5zm0 2.5a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 007.5 7z" fill="currentColor"/></svg>
+          Help
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.5a6 6 0 100 12 6 6 0 000-12zm-1 3h2v4h-2V4.5zm0 5h2v2h-2v-2z" fill="currentColor"/></svg>
+          Org Settings
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a2 2 0 100 4 2 2 0 000-4zM4.5 7.5A3 3 0 017.5 6h0a3 3 0 013 1.5M2 13a5.5 5.5 0 0111 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          User Management
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Main content ────────────────────────────────────────── -->
+    <main class="main" id="main-content" aria-label="Detection Rules">
+
+      <!-- ╔══ LIBRARY VIEW ══════════════════════════════════════╗ -->
+      <div class="screen-library" id="screen-library">
+
+        <!-- Page header -->
+        <div class="page-header">
+          <h1 class="page-title">Detection Rules</h1>
+          <span style="font-size: var(--text-xs); color: var(--color-text-muted);">5 rules · 4 active</span>
+          <div style="margin-left: auto; display: flex; gap: var(--space-2);">
+            <button class="btn btn-secondary" aria-label="Import Sigma rule" onclick="alert('Sigma import — drag-and-drop .yml support')">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 2v7M4 7l2.5 2.5L9 7M2 11h9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Import Sigma
+            </button>
+            <button class="btn btn-primary" aria-label="Create new detection rule" onclick="showEditor('new')">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 2.5v8M2.5 6.5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              + New Rule
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar" role="search" aria-label="Filter detection rules">
+          <div class="search-input-wrap" style="flex: 1; min-width: 180px; max-width: 280px;">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true" style="flex-shrink:0; color: var(--color-muted);"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <input type="text" placeholder="Search rules…" aria-label="Search rules by name or description">
+          </div>
+          <button class="drop-btn" aria-haspopup="listbox" aria-label="Filter by MITRE tactic">Tactic <span class="drop-caret">▾</span></button>
+          <button class="drop-btn" aria-haspopup="listbox" aria-label="Filter by MITRE technique">Technique <span class="drop-caret">▾</span></button>
+          <button class="drop-btn" aria-haspopup="listbox" aria-label="Filter by status">Status <span class="drop-caret">▾</span></button>
+          <button class="drop-btn" aria-haspopup="listbox" aria-label="Filter by source">Source <span class="drop-caret">▾</span></button>
+          <button class="drop-btn" aria-haspopup="listbox" aria-label="Filter by severity">Severity <span class="drop-caret">▾</span></button>
+          <button class="drop-btn" aria-haspopup="listbox" aria-label="Filter by quality">Quality <span class="drop-caret">▾</span></button>
+        </div>
+
+        <!-- MITRE ATT&CK coverage heatmap -->
+        <div class="mitre-section" aria-label="MITRE ATT&CK coverage heatmap">
+          <div class="mitre-header">
+            <span class="mitre-header-label">MITRE ATT&amp;CK Coverage</span>
+            <span style="font-size: var(--text-xs); color: var(--color-text-muted);">— click a cell to filter rules</span>
+            <button class="btn btn-ghost btn-sm" style="margin-left: auto;" id="mitre-clear-btn" onclick="clearMitreFilter()" aria-label="Clear MITRE filter" style="display:none;">✕ Clear filter</button>
+          </div>
+          <div class="mitre-grid-wrap">
+            <div class="mitre-grid" id="mitre-grid" role="grid" aria-label="MITRE ATT&CK coverage — tactics as columns, techniques as rows"></div>
+          </div>
+          <div class="mitre-legend" aria-label="Coverage legend">
+            <span class="mitre-legend-item">
+              <span class="mitre-legend-swatch cov-0" style="border: 1px solid var(--color-border-strong);" aria-hidden="true"></span>
+              No coverage
+            </span>
+            <span class="mitre-legend-item">
+              <span class="mitre-legend-swatch cov-1" aria-hidden="true"></span>
+              1 rule
+            </span>
+            <span class="mitre-legend-item">
+              <span class="mitre-legend-swatch cov-2" aria-hidden="true"></span>
+              2–3 rules
+            </span>
+            <span class="mitre-legend-item">
+              <span class="mitre-legend-swatch cov-3" aria-hidden="true"></span>
+              4+ rules
+            </span>
+          </div>
+        </div>
+
+        <!-- Rule list -->
+        <div class="rule-list-wrap" id="rule-list-wrap">
+          <div class="rule-list-header" aria-hidden="true">
+            <span style="width: 22px; flex-shrink: 0;"></span>
+            <span style="flex: 1;">Rule</span>
+            <span style="width: 160px; flex-shrink: 0;">MITRE</span>
+            <span style="width: 80px; flex-shrink: 0; text-align: right;">Version</span>
+            <span style="width: 90px; flex-shrink: 0; text-align: center;">Status</span>
+            <span style="width: 56px; flex-shrink: 0; text-align: right;">Author</span>
+            <span style="width: 130px; flex-shrink: 0;"></span>
+          </div>
+          <div id="rule-list" role="list" aria-label="Detection rules"></div>
+        </div>
+
+      </div><!-- /screen-library -->
+
+      <!-- ╔══ EDITOR VIEW ═══════════════════════════════════════╗ -->
+      <div class="screen-editor" id="screen-editor">
+
+        <!-- Breadcrumb -->
+        <div class="editor-breadcrumb" aria-label="Navigation breadcrumb">
+          <button class="btn btn-ghost btn-sm" onclick="showLibrary()" aria-label="Back to Rules Library" style="gap: var(--space-1);">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8 2L4 6l4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Rules Library
+          </button>
+          <span class="editor-breadcrumb-sep" aria-hidden="true">/</span>
+          <span class="editor-breadcrumb-current" id="editor-breadcrumb-name">credential_theft</span>
+        </div>
+
+        <!-- AI callout — converted from investigation -->
+        <div class="ai-callout" role="note" aria-label="Converted from investigation workspace query">
+          <span class="ai-tag">AI</span>
+          <span class="ai-callout-text">
+            Converted from Investigation Workspace query by <strong>jsmith</strong> at 14:30 UTC on 2026-06-25
+          </span>
+          <a href="#" class="ai-callout-link" aria-label="View original investigation workspace query">View original</a>
+          <button class="btn btn-ghost btn-sm" onclick="this.closest('.ai-callout').style.display='none'" aria-label="Dismiss provenance notice">✕</button>
+        </div>
+
+        <!-- Editor header -->
+        <div class="editor-header">
+          <span class="editor-title" id="editor-title">credential_theft</span>
+          <span class="version-chip" aria-label="Rule version 1.2.0">v1.2.0</span>
+          <span class="badge badge-critical" aria-label="Severity: Critical">
+            <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/></svg>
+            Critical
+          </span>
+          <span class="status-badge status-production" aria-label="Status: Production">Production</span>
+          <div style="margin-left: auto; display: flex; gap: var(--space-2);">
+            <button class="btn btn-ghost btn-sm" aria-label="View test results for this rule">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 4-8 4V2z" fill="currentColor" opacity="0.8"/></svg>
+              Test Rule
+            </button>
+            <button class="btn btn-secondary btn-sm" aria-label="Save rule changes">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 1.5v3h4v-3" stroke="currentColor" stroke-width="1.2"/><path d="M3 7.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Save
+            </button>
+            <button class="btn btn-ghost btn-sm" aria-label="More rule actions (dropdown)" style="padding: 0 var(--space-2);">⋯</button>
+          </div>
+        </div>
+
+        <!-- Split pane: metadata left | editor right -->
+        <div class="split-pane">
+
+          <!-- Metadata panel -->
+          <aside class="metadata-panel" aria-label="Rule metadata">
+            <div class="form-group">
+              <label class="form-label" for="field-id">Rule ID</label>
+              <input id="field-id" class="form-input" type="text" value="credential_theft" aria-label="Rule identifier">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="field-name">Display Name</label>
+              <input id="field-name" class="form-input" type="text" value="Credential Theft — Mimikatz + LSASS + KeePass" aria-label="Rule display name">
+            </div>
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label" for="field-severity">Severity</label>
+                <select id="field-severity" class="form-input" aria-label="Rule severity">
+                  <option value="critical" selected>Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="field-status">Status</label>
+                <select id="field-status" class="form-input" aria-label="Rule lifecycle status">
+                  <option value="draft">Draft</option>
+                  <option value="review">Review</option>
+                  <option value="testing">Testing</option>
+                  <option value="shadow">Shadow</option>
+                  <option value="canary">Canary</option>
+                  <option value="production" selected>Production</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">MITRE Tactic / Technique</label>
+              <div class="mitre-tag-list" aria-label="Assigned MITRE ATT&CK techniques">
+                <span class="mitre-tag-remove" role="button" aria-label="Remove T1003 Credential Dumping tag" tabindex="0">T1003<span class="rm">×</span></span>
+                <span class="mitre-tag-remove" role="button" aria-label="Remove T1059 Command and Scripting Interpreter tag" tabindex="0">T1059<span class="rm">×</span></span>
+                <span class="mitre-tag-remove" role="button" aria-label="Remove TA0006 Credential Access tactic tag" tabindex="0">TA0006<span class="rm">×</span></span>
+                <button class="btn btn-ghost btn-sm" style="height: 18px; padding: 0 6px; font-size: 10px;" aria-label="Add MITRE ATT&CK technique">+ Add</button>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label" for="field-schedule">Schedule (cron)</label>
+                <input id="field-schedule" class="form-input" type="text" value="*/5 * * * *" style="font-family: var(--font-mono); font-size: var(--text-xs);" aria-label="Rule execution schedule in cron format">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="field-window">Window</label>
+                <input id="field-window" class="form-input" type="text" value="30m" style="font-family: var(--font-mono); font-size: var(--text-xs);" aria-label="Detection window duration">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="field-groupby">Group By</label>
+              <input id="field-groupby" class="form-input" type="text" value="user.name, host.name" style="font-family: var(--font-mono); font-size: var(--text-xs);" aria-label="Fields to group results by">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="field-fp">False Positive Notes</label>
+              <textarea id="field-fp" class="form-textarea" aria-label="Known false positive scenarios">Pen test activity from authorized red team.
+Authorized credential audit tooling (IT Ops).
+Security scanning from 10.0.200.0/24 (scanner pool).</textarea>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label" for="field-version">Version</label>
+                <input id="field-version" class="form-input" type="text" value="1.2.0" style="font-family: var(--font-mono); font-size: var(--text-xs);" aria-label="Rule version">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="field-author">Author</label>
+                <input id="field-author" class="form-input" type="text" value="jsmith" aria-label="Rule author">
+              </div>
+            </div>
+          </aside>
+
+          <!-- PrismQL code editor -->
+          <div class="code-panel" aria-label="PrismQL rule logic editor">
+            <div class="code-panel-header">
+              <span class="code-panel-title">PrismQL — DETECT logic</span>
+              <div style="margin-left: auto; display: flex; gap: var(--space-2);">
+                <button class="btn btn-ghost btn-sm" aria-label="Explain pushdown plan for this DETECT query">EXPLAIN pushdown</button>
+                <button class="btn btn-ghost btn-sm" aria-label="Desugar SEQUENCE sugar to MATCH_RECOGNIZE SQL">Desugar to MATCH_RECOGNIZE</button>
+              </div>
+            </div>
+
+            <div class="editor-chrome">
+              <div class="editor-body">
+                <!-- Gutter -->
+                <div class="editor-gutter" aria-hidden="true">
+                  <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div>
+                  <div>6</div><div>7</div><div>8</div><div>9</div><div>10</div>
+                  <div>11</div><div>12</div><div>13</div><div>14</div><div>15</div>
+                  <div>16</div><div>17</div><div>18</div><div>19</div><div>20</div>
+                </div>
+                <!-- Code -->
+                <div class="editor-code" role="textbox" aria-label="PrismQL DETECT rule logic" aria-multiline="true" tabindex="0"><span class="kw">DETECT</span> <span class="fn">credential_theft</span>
+  <span class="kw">SEQUENCE BY</span> <span class="ty">user.name</span>
+  <span class="kw">WITHIN</span> <span class="num">30m</span>
+  <span class="kw">STEP</span> <span class="fn">a</span><span class="op">:</span> <span class="ty">process.name</span> <span class="op">=</span> <span class="str">'mimikatz.exe'</span>
+       <span class="op">OR</span>  <span class="ty">process.name</span> <span class="op">=</span> <span class="str">'lsass.exe'</span>
+       <span class="op">OR</span>  <span class="ty">process.cmd_line</span> <span class="kw">LIKE</span> <span class="str">'%sekurlsa%'</span>
+  <span class="kw">THEN</span>  <span class="fn">b</span><span class="op">:</span> <span class="ty">file.path</span> <span class="kw">LIKE</span> <span class="str">'%.kdbx'</span>
+           <span class="op">AND</span> <span class="ty">access.type</span> <span class="op">=</span> <span class="str">'write'</span>
+  <span class="cm">-- Optional step c: network exfil indicator</span>
+  <span class="kw">THEN</span>  <span class="fn">c</span><span class="op">:</span> <span class="ty">dst_endpoint.ip</span> <span class="kw">NOT IN</span> <span class="fn">rfc1918</span><span class="op">()</span>
+           <span class="op">AND</span> <span class="ty">network.bytes_out</span> <span class="op">&gt;</span> <span class="num">50000</span>
+  <span class="kw">EMIT</span>  <span class="ty">user.name</span><span class="op">,</span> <span class="ty">host.name</span><span class="op">,</span> <span class="ty">process.name</span><span class="op">,</span>
+        <span class="ty">matched_steps</span><span class="op">,</span> <span class="ty">confidence</span>
+  <span class="kw">RETAIN</span> <span class="num">30m</span> <span class="kw">AS</span> <span class="fn">credential_theft_window</span>
+<span class="cm">-- Rule metadata injected at evaluation:</span>
+<span class="cm">-- rule_id = 'credential_theft', version = '1.2.0'</span>
+<span class="cm">-- schedule = '*/5 * * * *', severity = CRITICAL</span></div>
+              </div>
+              <div class="editor-statusbar" aria-live="polite">
+                <span>Ln 15, Col 1</span>
+                <span>PrismQL · DETECT mode · OCSF v1.3</span>
+                <span style="color: var(--color-cov-answered-icon);">✓ Valid</span>
+                <span style="margin-left: auto;">⌘S save · ⌘/ comment · ⌘Shift+F format</span>
+              </div>
+            </div>
+
+            <div class="editor-action-bar">
+              <span style="font-size: var(--text-xs); color: var(--color-text-muted);">
+                <strong style="color: var(--color-text);">SEQUENCE...THEN...WITHIN</strong> is PrismQL sugar —
+                desugars to <span style="font-family: var(--font-mono); font-size: 11px;">MATCH_RECOGNIZE</span>
+              </span>
+            </div>
+          </div><!-- /code-panel -->
+        </div><!-- /split-pane -->
+
+        <!-- Lifecycle stepper -->
+        <div class="lifecycle-section" aria-label="Rule lifecycle status stepper">
+          <div class="lifecycle-label">Lifecycle</div>
+          <div class="lifecycle-stepper" role="list" aria-label="Rule lifecycle stages">
+            <div class="step-item" role="listitem">
+              <div class="step-dot completed" aria-label="Stage completed: Draft">✓</div>
+              <span class="step-name completed">Draft</span>
+            </div>
+            <div class="step-connector completed" aria-hidden="true"></div>
+            <div class="step-item" role="listitem">
+              <div class="step-dot completed" aria-label="Stage completed: Review">✓</div>
+              <span class="step-name completed">Review</span>
+            </div>
+            <div class="step-connector completed" aria-hidden="true"></div>
+            <div class="step-item" role="listitem">
+              <div class="step-dot completed" aria-label="Stage completed: Testing">✓</div>
+              <span class="step-name completed">Testing</span>
+            </div>
+            <div class="step-connector completed" aria-hidden="true"></div>
+            <div class="step-item" role="listitem">
+              <div class="step-dot completed" aria-label="Stage completed: Shadow">✓</div>
+              <span class="step-name completed">Shadow</span>
+            </div>
+            <div class="step-connector completed" aria-hidden="true"></div>
+            <div class="step-item" role="listitem">
+              <div class="step-dot completed" aria-label="Stage completed: Canary">✓</div>
+              <span class="step-name completed">Canary</span>
+            </div>
+            <div class="step-connector completed" aria-hidden="true"></div>
+            <div class="step-item" role="listitem">
+              <div class="step-dot current" aria-label="Current stage: Production" aria-current="step">✓</div>
+              <span class="step-name current">Production</span>
+            </div>
+          </div>
+          <div class="lifecycle-actions">
+            <button class="btn btn-secondary btn-sm" aria-label="Demote rule from production to canary">Demote to canary</button>
+            <button class="btn btn-ghost btn-sm" aria-label="Archive this rule">Archive</button>
+            <span style="font-size: var(--text-xs); color: var(--color-text-muted); margin-left: var(--space-2);">
+              Auto-rollback: FP rate &gt; 15% in canary → rollback to shadow
+            </span>
+          </div>
+        </div>
+
+        <!-- Backtest panel (collapsible, collapsed by default) -->
+        <div class="backtest-section" aria-label="Backtest panel">
+          <div class="backtest-header" onclick="toggleBacktest()" role="button" tabindex="0" aria-expanded="false" aria-controls="backtest-body" onkeydown="if(event.key==='Enter'||event.key===' ')toggleBacktest()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style="color: var(--color-text-muted);"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 7l4-3v6L5 7z" fill="currentColor" opacity="0.7"/></svg>
+            <span class="backtest-title">Backtest</span>
+            <span style="font-size: var(--text-xs); color: var(--color-text-muted);">Run rule against historical cache to estimate match rate</span>
+            <span class="backtest-chevron" id="backtest-chevron" aria-hidden="true">▾</span>
+          </div>
+          <div class="backtest-body" id="backtest-body">
+            <div class="backtest-controls">
+              <button class="drop-btn" aria-haspopup="listbox" aria-label="Select backtest time range — currently last 7 days">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                Last 7 days
+                <span class="drop-caret">▾</span>
+              </button>
+              <button class="drop-btn" aria-haspopup="listbox" aria-label="Select sources for backtest — currently all sources">All sources <span class="drop-caret">▾</span></button>
+              <button class="btn btn-primary" aria-label="Run backtest for this rule" style="gap: var(--space-2);">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 2.5L9.5 6 2.5 9.5V2.5Z" fill="currentColor"/></svg>
+                Run Backtest
+              </button>
+            </div>
+            <!-- Backtest results (simulated) -->
+            <div class="backtest-result" role="status" aria-label="Backtest result: 23 matches">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-cov-answered-icon);"/></svg>
+              <div>
+                <div><strong>23 matches</strong> in 1.2M events over 7 days · Est. FP rate: <strong>3%</strong></div>
+                <div class="backtest-result-detail">Coverage: ✓ CrowdStrike · ✓ Claroty · ✓ Cyberint · △ Armis (degraded, results may be incomplete)</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" style="margin-left: auto; white-space: nowrap;" aria-label="View backtest matches in Results Explorer">View matches</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /screen-editor -->
+
+    </main><!-- /main -->
+
+    <!-- ── AI Chat Sidecar ─────────────────────────────────────── -->
+    <aside class="ai-sidecar collapsed" id="ai-sidecar" aria-label="Prism AI chat sidecar" aria-hidden="true">
+      <div class="sidecar-header">
+        <span class="ai-tag">AI</span>
+        <span class="sidecar-title">Prism AI (Beta)</span>
+        <button class="icon-btn" onclick="toggleSidecar()" aria-label="Close AI sidecar" style="width:24px; height:24px;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="sidecar-body">
+        <div class="sidecar-hint" role="note">
+          AI can suggest rule improvements, threshold tuning, and exception patterns — all require your approval before saving.
+        </div>
+        <p class="sidecar-msg">
+          <strong style="color: var(--color-ai-label);">Suggestion:</strong> The <code style="font-family: var(--font-mono); font-size: 11px;">credential_theft</code> rule has fired 23 times in the last 7 days. 3 of those matches involved pen test activity from <code style="font-family: var(--font-mono); font-size: 11px;">10.0.200.0/24</code>. Consider adding an exclusion predicate.
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%;" aria-label="Apply suggested exclusion predicate to rule editor">Review suggested change</button>
+        <div style="margin-top: var(--space-3); font-size: var(--text-xs); color: var(--color-text-muted); border-top: var(--border); padding-top: var(--space-3);">
+          Based on: 23 backtest matches · <a href="#" style="color: var(--color-ai-label);">View evidence</a>
+        </div>
+      </div>
+    </aside>
+
+  </div><!-- /body -->
+</div><!-- /app -->
+
+<!-- Theme toggle -->
+<div class="theme-toggle-fixed" role="group" aria-label="Theme selector">
+  <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme">☀️</button>
+  <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme">🌙</button>
+</div>
+
+<script>
+  // ── Theme ──────────────────────────────────────────────────────
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById('btn-light').classList.toggle('active', t === 'light');
+    document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+    localStorage.setItem('prism-theme', t);
+  }
+  (function() {
+    const s = localStorage.getItem('prism-theme');
+    if (s === 'dark') setTheme('dark');
+  })();
+
+  // ── AI sidecar toggle ──────────────────────────────────────────
+  function toggleSidecar() {
+    const sc = document.getElementById('ai-sidecar');
+    const btn = document.getElementById('ai-toggle-btn');
+    const isOpen = !sc.classList.contains('collapsed');
+    sc.classList.toggle('collapsed', isOpen);
+    sc.setAttribute('aria-hidden', String(isOpen));
+    btn.setAttribute('aria-pressed', String(!isOpen));
+  }
+
+  // ── Library ↔ Editor toggle ────────────────────────────────────
+  function showEditor(ruleId) {
+    document.getElementById('screen-library').style.display = 'none';
+    const ed = document.getElementById('screen-editor');
+    ed.style.display = 'flex';
+    // Update title + breadcrumb
+    const name = ruleId === 'new' ? 'new_rule' : (rules.find(r => r.id === ruleId) || rules[0]).id;
+    document.getElementById('editor-title').textContent = name;
+    document.getElementById('editor-breadcrumb-name').textContent = name;
+    // Show/hide ai callout for converted rules
+    const callout = document.querySelector('.ai-callout');
+    if (ruleId === 'credential_theft' || ruleId === 'new') {
+      callout.style.display = 'flex';
+    } else {
+      callout.style.display = 'none';
+    }
+  }
+
+  function showLibrary() {
+    document.getElementById('screen-editor').style.display = 'none';
+    document.getElementById('screen-library').style.display = 'flex';
+  }
+
+  // ── Backtest collapse ──────────────────────────────────────────
+  function toggleBacktest() {
+    const body = document.getElementById('backtest-body');
+    const chevron = document.getElementById('backtest-chevron');
+    const header = chevron.closest('[aria-expanded]');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    chevron.classList.toggle('open', !isOpen);
+    if (header) header.setAttribute('aria-expanded', String(!isOpen));
+  }
+
+  // ── MITRE ATT&CK heatmap data ──────────────────────────────────
+  const tactics = [
+    { id: 'TA0001', label: 'Initial\nAccess',    short: 'Init' },
+    { id: 'TA0002', label: 'Execution',           short: 'Exec' },
+    { id: 'TA0003', label: 'Persistence',         short: 'Pers' },
+    { id: 'TA0004', label: 'Priv.\nEscalation',  short: 'PrivEsc' },
+    { id: 'TA0005', label: 'Defense\nEvasion',    short: 'DefEv' },
+    { id: 'TA0006', label: 'Cred.\nAccess',       short: 'CredA' },
+    { id: 'TA0007', label: 'Discovery',           short: 'Disco' },
+    { id: 'TA0008', label: 'Lateral\nMovement',   short: 'LM' },
+    { id: 'TA0009', label: 'Collection',          short: 'Coll' },
+    { id: 'TA0010', label: 'Exfiltration',        short: 'Exfil' },
+  ];
+
+  // Coverage map: tacticId → [{ tech, count }]
+  // count: 0=no coverage, 1=1rule, 2=2-3rules, 3=4+rules
+  const coverageMap = {
+    'TA0001': [
+      { tech: 'T1078', name: 'Valid Accounts', count: 1 },
+      { tech: 'T1566', name: 'Phishing', count: 0 },
+      { tech: 'T1190', name: 'Exploit Public-Facing App', count: 0 },
+    ],
+    'TA0002': [
+      { tech: 'T1059', name: 'Command and Scripting', count: 3 },
+      { tech: 'T1106', name: 'Native API', count: 0 },
+      { tech: 'T1053', name: 'Scheduled Task', count: 1 },
+    ],
+    'TA0003': [
+      { tech: 'T1547', name: 'Boot/Logon Autostart', count: 0 },
+      { tech: 'T1053', name: 'Scheduled Task', count: 1 },
+      { tech: 'T1543', name: 'Create/Modify System Process', count: 0 },
+    ],
+    'TA0004': [
+      { tech: 'T1548', name: 'Abuse Elevation Control', count: 0 },
+      { tech: 'T1055', name: 'Process Injection', count: 0 },
+      { tech: 'T1078', name: 'Valid Accounts', count: 1 },
+    ],
+    'TA0005': [
+      { tech: 'T1562', name: 'Impair Defenses', count: 0 },
+      { tech: 'T1070', name: 'Indicator Removal', count: 0 },
+      { tech: 'T1036', name: 'Masquerading', count: 0 },
+    ],
+    'TA0006': [
+      { tech: 'T1003', name: 'OS Credential Dumping', count: 3 },
+      { tech: 'T1110', name: 'Brute Force', count: 2 },
+      { tech: 'T1552', name: 'Unsecured Credentials', count: 1 },
+    ],
+    'TA0007': [
+      { tech: 'T1046', name: 'Network Service Scanning', count: 2 },
+      { tech: 'T1082', name: 'System Information Discovery', count: 0 },
+      { tech: 'T1018', name: 'Remote System Discovery', count: 0 },
+    ],
+    'TA0008': [
+      { tech: 'T1021', name: 'Remote Services', count: 2 },
+      { tech: 'T1075', name: 'Pass the Hash', count: 1 },
+      { tech: 'T1076', name: 'RDP', count: 0 },
+    ],
+    'TA0009': [
+      { tech: 'T1074', name: 'Data Staged', count: 1 },
+      { tech: 'T1005', name: 'Data from Local System', count: 0 },
+      { tech: 'T1039', name: 'Data from Network Share', count: 0 },
+    ],
+    'TA0010': [
+      { tech: 'T1041', name: 'Exfil Over C2 Channel', count: 0 },
+      { tech: 'T1048', name: 'Exfil Over Alt Protocol', count: 0 },
+      { tech: 'T1071', name: 'App Layer Protocol', count: 0 },
+    ],
+  };
+
+  // Render heatmap
+  let activeMitreTech = null;
+
+  function renderMitreGrid() {
+    const grid = document.getElementById('mitre-grid');
+    grid.innerHTML = '';
+    tactics.forEach(tac => {
+      const col = document.createElement('div');
+      col.className = 'mitre-tactic-col';
+      // Tactic header
+      const hdr = document.createElement('div');
+      hdr.className = 'mitre-tactic-header';
+      hdr.textContent = tac.short;
+      hdr.title = tac.id + ' — ' + tac.label.replace('\n', ' ');
+      hdr.setAttribute('aria-label', tac.id + ' ' + tac.label.replace('\n', ' '));
+      col.appendChild(hdr);
+      // Technique cells
+      const techs = coverageMap[tac.id] || [];
+      techs.forEach(t => {
+        const cell = document.createElement('div');
+        const covClass = ['cov-0','cov-1','cov-2','cov-3'][Math.min(t.count, 3)];
+        cell.className = `mitre-cell ${covClass}`;
+        cell.setAttribute('role', 'gridcell');
+        cell.setAttribute('tabindex', '0');
+        cell.setAttribute('aria-label', `${tac.id} ${t.tech} ${t.name}: ${t.count === 0 ? 'no coverage' : t.count + ' rule(s)'}`);
+        cell.title = `${t.tech} ${t.name} — ${t.count} rule(s)`;
+        cell.dataset.tech = t.tech;
+        cell.addEventListener('click', () => toggleMitreFilter(t.tech, cell));
+        cell.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMitreFilter(t.tech, cell); }
+        });
+        col.appendChild(cell);
+      });
+      grid.appendChild(col);
+    });
+  }
+
+  function toggleMitreFilter(tech, cell) {
+    const clearBtn = document.getElementById('mitre-clear-btn');
+    if (activeMitreTech === tech) {
+      // Clear filter
+      activeMitreTech = null;
+      document.querySelectorAll('.mitre-cell').forEach(c => { c.classList.remove('active', 'filtered'); });
+      document.querySelectorAll('.rule-row').forEach(r => { r.style.display = ''; });
+      clearBtn.style.display = 'none';
+    } else {
+      activeMitreTech = tech;
+      document.querySelectorAll('.mitre-cell').forEach(c => {
+        const isActive = c.dataset.tech === tech;
+        c.classList.toggle('active', isActive);
+        c.classList.toggle('filtered', !isActive);
+      });
+      document.querySelectorAll('.rule-row').forEach(r => {
+        const hasTech = r.dataset.mitre && r.dataset.mitre.includes(tech);
+        r.style.display = hasTech ? '' : 'none';
+      });
+      clearBtn.style.display = 'flex';
+    }
+  }
+
+  function clearMitreFilter() {
+    activeMitreTech = null;
+    document.querySelectorAll('.mitre-cell').forEach(c => { c.classList.remove('active', 'filtered'); });
+    document.querySelectorAll('.rule-row').forEach(r => { r.style.display = ''; });
+    document.getElementById('mitre-clear-btn').style.display = 'none';
+  }
+
+  // ── Rule data ──────────────────────────────────────────────────
+  const rules = [
+    {
+      id: 'credential_theft',
+      displayName: 'Credential Theft — Mimikatz + LSASS + KeePass',
+      sev: 'critical', sevClass: 'badge-critical', sevLabel: 'Critical',
+      sevIcon: '<circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/>',
+      mitre: ['T1003', 'T1059'],
+      version: 'v1.2.0',
+      status: 'production', statusClass: 'status-production', statusLabel: 'Production',
+      author: 'jsmith',
+      desc: 'Mimikatz + LSASS access + kdbx write sequence — 3-step correlated detection',
+    },
+    {
+      id: 'brute_then_success',
+      displayName: 'Brute Force → Auth Success (same user+IP)',
+      sev: 'high', sevClass: 'badge-high', sevLabel: 'High',
+      sevIcon: '<path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/>',
+      mitre: ['T1110'],
+      version: 'v1.0.1',
+      status: 'production', statusClass: 'status-production', statusLabel: 'Production',
+      author: 'jdoe',
+      desc: 'Failed auth burst followed by success from same user+IP within 10m',
+    },
+    {
+      id: 'lateral_move_smb',
+      displayName: 'Lateral Movement via SMB (internal hop)',
+      sev: 'high', sevClass: 'badge-high', sevLabel: 'High',
+      sevIcon: '<path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/>',
+      mitre: ['T1021'],
+      version: 'v0.9.0',
+      status: 'shadow', statusClass: 'status-shadow', statusLabel: 'Shadow',
+      author: 'system',
+      desc: 'Internal SMB lateral movement hop — shadow mode while FP tuning in progress',
+    },
+    {
+      id: 'port_scan_internal',
+      displayName: 'High-Rate Port Scan from Internal Host',
+      sev: 'medium', sevClass: 'badge-medium', sevLabel: 'Medium',
+      sevIcon: '<rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.9"/>',
+      mitre: ['T1046'],
+      version: 'v1.1.0',
+      status: 'production', statusClass: 'status-production', statusLabel: 'Production',
+      author: 'jsmith',
+      desc: '>500 distinct dst ports from same src in 60s — excludes scanner pool',
+    },
+    {
+      id: 'data_staged_outbound',
+      displayName: 'Data Staged for Outbound Exfil',
+      sev: 'medium', sevClass: 'badge-medium', sevLabel: 'Medium',
+      sevIcon: '<rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.9"/>',
+      mitre: ['T1074'],
+      version: 'v0.2.0',
+      status: 'draft', statusClass: 'status-draft', statusLabel: 'Draft',
+      author: 'analyst',
+      desc: 'Large file staged to temp directory followed by outbound network traffic',
+    },
+  ];
+
+  // ── Render rule list ───────────────────────────────────────────
+  function renderRuleList() {
+    const list = document.getElementById('rule-list');
+    list.innerHTML = '';
+    rules.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'rule-row';
+      row.setAttribute('role', 'listitem');
+      row.setAttribute('aria-label', `Rule: ${r.id}, ${r.sevLabel} severity, ${r.statusLabel} status`);
+      row.dataset.mitre = r.mitre.join(',');
+      row.dataset.ruleId = r.id;
+
+      row.innerHTML = `
+        <span style="width:22px; flex-shrink:0; font-size:10px; color: var(--color-icon-default);">
+          <span class="badge ${r.sevClass}" style="height:16px; padding:0 4px; font-size:9px;" aria-label="Severity: ${r.sevLabel}">
+            <svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true">${r.sevIcon}</svg>
+          </span>
+        </span>
+        <div class="rule-info" style="flex:1; min-width:0;">
+          <div class="rule-name">${r.id}</div>
+          <div class="rule-meta">${r.desc}</div>
+        </div>
+        <div class="rule-mitre" style="width:160px; flex-shrink:0; gap: var(--space-1);" aria-label="MITRE techniques: ${r.mitre.join(', ')}">
+          ${r.mitre.map(t => `<span class="mitre-tag" role="button" tabindex="0" onclick="toggleMitreFilter('${t}', event.target.closest('.mitre-cell') || event.target)" aria-label="Filter by ${t}">${t}</span>`).join('')}
+        </div>
+        <div class="rule-version" aria-label="Version ${r.version}">${r.version}</div>
+        <div style="width:90px; flex-shrink:0; text-align:center;">
+          <span class="status-badge ${r.statusClass}" aria-label="Status: ${r.statusLabel}">${r.statusLabel}</span>
+        </div>
+        <div class="rule-author" aria-label="Author: ${r.author}">${r.author}</div>
+        <div class="rule-actions">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); showEditor('${r.id}')" aria-label="Edit rule ${r.id}">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); alert('Test: running rule ${r.id} in shadow mode against last 1h')" aria-label="Test rule ${r.id}">Test</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();" aria-label="More actions for rule ${r.id}" style="padding: 0 var(--space-2);">▾</button>
+        </div>
+      `;
+
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        showEditor(r.id);
+      });
+
+      list.appendChild(row);
+    });
+  }
+
+  // ── Init ───────────────────────────────────────────────────────
+  renderMitreGrid();
+  renderRuleList();
+</script>
+</body>
+</html>

@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<!--
+  U1-06-health-observability.html — Prism Admin Console: Health / Observability Dashboard (Screen U1-6)
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  Shows: platform status banner, 3-up stat cards, connector status table (Armis degraded),
+  SVG query latency trend chart (P50/P95), DataFusion horizontal bar chart, recent error log,
+  satellite health section, cross-tenant view toggle.
+  Theme toggle top-right. Matches S2-05-results-explorer.html app shell exactly.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — Health / Observability</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-3);
+      flex-shrink: 0;
+    }
+
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+    .logo-admin { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-text-muted); letter-spacing: var(--tracking-caps); text-transform: uppercase; margin-left: var(--space-1); }
+
+    .tenant-pill {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      height: 28px; padding: 0 var(--space-3);
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); font-size: var(--text-sm);
+      font-weight: var(--weight-medium); color: var(--color-text);
+      cursor: pointer; white-space: nowrap;
+      transition: background var(--transition-fast);
+    }
+    .tenant-pill:hover { background: var(--color-bg-hover); }
+
+    .topbar-spacer { flex: 1; }
+
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);
+      cursor: pointer; min-width: 180px;
+    }
+    .kbd { font-family: var(--font-mono); font-size: 10px; background: var(--color-border); border-radius: 3px; padding: 1px 4px; margin-left: auto; color: var(--color-text-muted); }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: var(--radius-md); border: none; background: transparent; color: var(--color-icon-default);
+      cursor: pointer; transition: background var(--transition-fast); position: relative;
+    }
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    .notif-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%; border: 2px solid var(--topbar-bg); }
+
+    .theme-toggle {
+      position: fixed; top: 10px; right: 16px; z-index: calc(var(--z-topbar) + 10);
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: var(--radius-md);
+      border: var(--border); background: var(--color-surface-1);
+      cursor: pointer; color: var(--color-icon-default); font-size: 16px;
+      transition: background var(--transition-fast);
+    }
+    .theme-toggle:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    /* ── Body ────────────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav ────────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg); border-right: var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+    .leftnav-main { flex: 1; }
+    .leftnav-footer { border-top: var(--border); padding-top: var(--space-2); margin-top: var(--space-2); }
+
+    .nav-group-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); padding: var(--space-3) var(--space-2) var(--space-1);
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active { background: var(--nav-item-bg-active); color: var(--nav-item-text-active); font-weight: var(--weight-semibold); }
+
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); flex-shrink: 0; }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Main content ────────────────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg); }
+
+    /* ── Page header / controls bar ─────────────────────────────── */
+    .page-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-4) var(--space-6);
+      background: var(--color-bg); border-bottom: var(--border); flex-shrink: 0;
+    }
+
+    .page-title {
+      font-family: var(--font-display); font-size: var(--text-xl); font-weight: var(--weight-bold);
+      color: var(--color-text); flex: 1;
+    }
+
+    .page-title span { color: var(--color-text-muted); font-weight: var(--weight-regular); }
+
+    .view-tabs {
+      display: flex; gap: 2px; background: var(--color-surface-2);
+      border: var(--border); border-radius: var(--radius-md); padding: 2px;
+    }
+    .view-tab {
+      display: flex; align-items: center; height: 26px; padding: 0 var(--space-3);
+      border-radius: var(--radius-sm); border: none; background: transparent;
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .view-tab.active { background: var(--color-bg); color: var(--color-text); box-shadow: var(--shadow-xs); }
+    .view-tab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); margin-left: 4px; }
+
+    .ctrl-select {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      height: 30px; padding: 0 var(--space-3);
+      border: var(--border); border-radius: var(--radius-md);
+      background: var(--input-bg); font-size: var(--text-sm);
+      color: var(--color-text); cursor: pointer; white-space: nowrap;
+    }
+
+    .ctrl-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border: var(--border);
+      border-radius: var(--radius-md); background: var(--color-surface-1);
+      color: var(--color-icon-default); cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .ctrl-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    /* ── Scrollable content area ─────────────────────────────────── */
+    .content-area { flex: 1; overflow-y: auto; padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
+
+    /* ── Status banner ───────────────────────────────────────────── */
+    .status-banner {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-lg); border-width: 1px; border-style: solid;
+      font-size: var(--text-sm); font-weight: var(--weight-medium);
+      flex-shrink: 0;
+    }
+    .status-banner.ok {
+      background: var(--color-cov-answered-bg); border-color: var(--color-cov-answered-border);
+      color: var(--color-cov-answered-text);
+    }
+    .status-banner.degraded {
+      background: var(--color-cov-degraded-bg); border-color: var(--color-cov-degraded-border);
+      color: var(--color-cov-degraded-text);
+    }
+    .status-banner-icon { font-size: 16px; flex-shrink: 0; }
+    .status-banner-text { flex: 1; }
+    .status-banner-time { font-size: var(--text-xs); color: inherit; opacity: 0.7; }
+
+    /* ── 3-up stat cards ──────────────────────────────────────────── */
+    .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+
+    .stat-card {
+      background: var(--card-bg); border: var(--border); border-radius: var(--card-radius);
+      padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2);
+      box-shadow: var(--card-shadow);
+    }
+
+    .stat-card-header { display: flex; align-items: center; gap: var(--space-2); }
+    .stat-card-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-muted); flex: 1; }
+
+    .stat-card-status-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-ok { background: var(--color-cov-answered-icon); }
+    .dot-warn { background: var(--color-cov-degraded-icon); }
+    .dot-err { background: var(--color-cov-timeout-icon); }
+
+    .stat-big { font-family: var(--font-display); font-size: 38px; font-weight: var(--weight-bold); color: var(--color-text); line-height: 1; }
+    .stat-sublabel { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: 2px; }
+    .stat-secondary { font-size: var(--text-xs); color: var(--color-text-muted); }
+    .stat-note { font-size: var(--text-xs); margin-top: var(--space-1); }
+    .stat-note.warn { color: var(--color-cov-degraded-text); }
+    .stat-note.err  { color: var(--color-cov-timeout-text); }
+
+    .stat-breakdown { display: flex; gap: var(--space-3); margin-top: var(--space-1); }
+    .stat-breakdown-item { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+    /* ── Two-column layout ───────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 380px; gap: var(--space-4); align-items: start; }
+
+    /* ── Section ─────────────────────────────────────────────────── */
+    .section {
+      background: var(--card-bg); border: var(--border); border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+    }
+
+    .section-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-4); border-bottom: var(--border);
+    }
+    .section-title { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text); flex: 1; }
+    .section-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+    /* ── Connector table ─────────────────────────────────────────── */
+    .conn-table { width: 100%; border-collapse: collapse; }
+
+    .conn-table th {
+      padding: var(--space-2) var(--space-3); text-align: left;
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); background: var(--table-header-bg);
+      border-bottom: var(--border);
+    }
+
+    .conn-table td {
+      padding: var(--space-2) var(--space-3); font-size: var(--text-sm);
+      color: var(--color-text); border-bottom: var(--border); vertical-align: middle;
+    }
+
+    .conn-table tr:last-child td { border-bottom: none; }
+    .conn-table tr:hover td { background: var(--table-row-bg-hover); }
+    .conn-table tr.degraded-row td { background: var(--color-cov-timeout-bg); }
+    .conn-table tr.degraded-row:hover td { background: var(--color-cov-degraded-bg); }
+
+    .conn-status-cell { display: flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .latency-cell { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+    .latency-cell .p50 { color: var(--color-text); font-weight: var(--weight-medium); }
+
+    .action-cell { display: flex; gap: var(--space-2); align-items: center; }
+
+    .btn-sm {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      height: var(--btn-height-sm); padding: var(--btn-padding-sm);
+      border-radius: var(--btn-radius); border: var(--border);
+      background: var(--btn-secondary-bg); color: var(--color-text);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      cursor: pointer; white-space: nowrap;
+      transition: background var(--transition-fast);
+    }
+    .btn-sm:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-sm.primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); border-color: transparent; }
+    .btn-sm.primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-sm.warn { background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); border-color: var(--color-cov-degraded-border); }
+    .btn-sm.warn:hover { filter: brightness(0.95); }
+
+    .conn-expand { cursor: pointer; }
+    .conn-expand-row td { background: var(--color-cov-timeout-bg) !important; padding: 0; }
+    .conn-expand-detail {
+      padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + 16px);
+      border-top: 1px solid var(--color-cov-timeout-border);
+      font-size: var(--text-xs);
+    }
+    .conn-expand-detail .detail-line { color: var(--color-cov-timeout-text); margin-bottom: var(--space-1-5); }
+    .conn-expand-detail .detail-meta { display: flex; gap: var(--space-4); color: var(--color-text-muted); flex-wrap: wrap; }
+    .conn-expand-detail .detail-meta span { display: flex; align-items: center; gap: 4px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: var(--badge-padding); border-radius: var(--badge-radius);
+      font-size: var(--badge-font-size); font-weight: var(--badge-font-weight);
+    }
+    .badge.ok { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); border: 1px solid var(--color-cov-answered-border); }
+    .badge.warn { background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); border: 1px solid var(--color-cov-degraded-border); }
+    .badge.err { background: var(--color-cov-timeout-bg); color: var(--color-cov-timeout-text); border: 1px solid var(--color-cov-timeout-border); }
+    .badge.neutral { background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+
+    .chevron { display: inline-block; transition: transform var(--transition-base); font-style: normal; font-size: 10px; color: var(--color-icon-default); }
+    .chevron.open { transform: rotate(90deg); }
+
+    /* ── SVG Chart ───────────────────────────────────────────────── */
+    .chart-wrap { padding: var(--space-4); }
+
+    .chart-legend { display: flex; gap: var(--space-4); margin-bottom: var(--space-3); }
+    .legend-item { display: flex; align-items: center; gap: var(--space-1-5); font-size: var(--text-xs); color: var(--color-text-muted); }
+    .legend-line { width: 24px; height: 2px; flex-shrink: 0; }
+    .legend-line.p50 { background: var(--color-blue); }
+    .legend-line.p95 { background: var(--color-accent); border-top: 2px dashed var(--color-accent); height: 0; }
+
+    .chart-svg { width: 100%; overflow: visible; }
+
+    .chart-axis-label { font-size: 10px; fill: var(--color-text-muted); font-family: var(--font-sans); }
+    .chart-grid { stroke: var(--color-border); stroke-width: 1; }
+    .chart-line-p50 { stroke: var(--color-blue); stroke-width: 2; fill: none; }
+    .chart-line-p95 { stroke: var(--color-accent); stroke-width: 2; fill: none; stroke-dasharray: 5 3; }
+    .chart-area-p50 { fill: var(--color-blue); opacity: 0.07; }
+    .chart-area-p95 { fill: var(--color-accent); opacity: 0.06; }
+
+    /* ── Bar chart ───────────────────────────────────────────────── */
+    .bar-chart { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+    .bar-row { display: flex; align-items: center; gap: var(--space-3); }
+    .bar-label { width: 100px; font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--color-text); flex-shrink: 0; text-align: right; }
+    .bar-track { flex: 1; height: 22px; background: var(--color-surface-2); border-radius: var(--radius-sm); overflow: hidden; display: flex; position: relative; }
+    .bar-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgba(255,255,255,0.85); font-weight: var(--weight-semibold); overflow: hidden; white-space: nowrap; }
+    .bar-seg.parse  { background: var(--color-blue); opacity: 1; }
+    .bar-seg.plan   { background: var(--color-blue); opacity: 0.75; }
+    .bar-seg.exec   { background: var(--color-blue); opacity: 0.55; }
+    .bar-seg.norm   { background: var(--color-blue); opacity: 0.35; }
+    .bar-nodata { flex: 1; height: 22px; background: var(--color-surface-2); border-radius: var(--radius-sm); display: flex; align-items: center; padding: 0 var(--space-3); font-size: var(--text-xs); color: var(--color-text-muted); }
+    .bar-total { width: 56px; font-size: var(--text-xs); font-family: var(--font-mono); color: var(--color-text-muted); text-align: right; flex-shrink: 0; }
+
+    .bar-legend { display: flex; gap: var(--space-4); margin-bottom: var(--space-3); flex-wrap: wrap; }
+    .bar-legend-item { display: flex; align-items: center; gap: var(--space-1-5); font-size: var(--text-xs); color: var(--color-text-muted); }
+    .bar-legend-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Error log ───────────────────────────────────────────────── */
+    .error-table { width: 100%; border-collapse: collapse; }
+    .error-table th {
+      padding: var(--space-2) var(--space-3); text-align: left;
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); background: var(--table-header-bg);
+      border-bottom: var(--border);
+    }
+    .error-table td { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); color: var(--color-text); border-bottom: var(--border); vertical-align: middle; }
+    .error-table tr:last-child td { border-bottom: none; }
+    .error-table tr:hover td { background: var(--table-row-bg-hover); }
+
+    .error-time { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
+    .error-code { font-family: var(--font-mono); font-size: var(--text-xs); }
+    .err-code-timeout { color: var(--color-cov-timeout-text); }
+    .err-code-http    { color: var(--color-sev-medium-text); }
+    .error-outcome { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+    .section-footer {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-4); border-top: var(--border);
+      background: var(--color-surface-1);
+    }
+    .link-sm { font-size: var(--text-xs); color: var(--color-text-link); cursor: pointer; }
+    .link-sm:hover { color: var(--color-text-link-hover); text-decoration: underline; }
+
+    /* ── Satellite health ────────────────────────────────────────── */
+    .satellite-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); padding: var(--space-4); }
+    .satellite-card {
+      border: var(--border); border-radius: var(--radius-md);
+      padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);
+    }
+    .satellite-card.ok { border-color: var(--color-cov-answered-border); background: var(--color-cov-answered-bg); }
+    .satellite-card.warn { border-color: var(--color-cov-degraded-border); background: var(--color-cov-degraded-bg); }
+
+    .sat-header { display: flex; align-items: center; gap: var(--space-2); }
+    .sat-name { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text); flex: 1; }
+    .sat-badge { font-size: var(--text-xs); font-weight: var(--weight-semibold); padding: 2px 6px; border-radius: var(--radius-full); }
+    .sat-badge.ok { background: var(--color-cov-answered-icon); color: var(--color-text-on-accent); }
+    .sat-badge.warn { background: var(--color-cov-degraded-icon); color: var(--color-text-on-accent); }
+
+    .sat-stats { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+    .sat-stat { font-size: var(--text-xs); color: var(--color-text-muted); }
+    .sat-stat strong { color: var(--color-text); font-weight: var(--weight-semibold); }
+    .sat-stat.warn-val strong { color: var(--color-cov-degraded-text); }
+
+    .sat-actions { display: flex; gap: var(--space-2); }
+
+    /* ── Degraded note (inline in connector expand) ─────────────── */
+    .armis-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--color-cov-timeout-bg); color: var(--color-cov-timeout-text);
+      border: 1px solid var(--color-cov-timeout-border);
+      padding: 2px 8px; border-radius: var(--radius-full);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- ── Theme toggle ─────────────────────────────────────────────── -->
+<button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+  <span id="themeIcon">☀</span>
+</button>
+
+<div class="app">
+
+  <!-- ── Topbar ─────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      PRISM<span class="logo-dot" style="margin-left:4px"></span>
+      <span class="logo-admin">Admin</span>
+    </div>
+
+    <div class="tenant-pill">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.6"><rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/><rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor"/><rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor"/></svg>
+      Acme Corp ▾
+    </div>
+
+    <div class="topbar-spacer"></div>
+
+    <div class="search-trigger" aria-label="Search (⌘K)">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Search…
+      <span class="kbd">⌘K</span>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a4 4 0 00-4 4v3l-1 1.5V12h10v-1.5L12 9V6a4 4 0 00-4-4z" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 13a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.4"/></svg>
+        <span class="notif-badge"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Body ───────────────────────────────────────────────────── -->
+  <div class="body">
+
+    <!-- ── Left nav ─────────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Primary navigation">
+      <div class="leftnav-main">
+
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Triage Queue
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Active Cases
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Detection Rules
+        </div>
+
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Overview
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Threat Intel
+        </div>
+
+        <div class="nav-group-label">Connectors</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Connector List
+        </div>
+
+        <div class="nav-group-label">Admin</div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Tenants
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Users &amp; Roles
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Credentials
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Audit Log
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>SSO
+        </div>
+
+        <div class="nav-group-label">Settings</div>
+        <div class="nav-item active" aria-current="page">
+          <span class="nav-dot"></span>Health
+        </div>
+        <div class="nav-item">
+          <span class="nav-dot"></span>Config &amp; Policies
+        </div>
+
+      </div>
+      <div class="leftnav-footer"></div>
+    </nav>
+
+    <!-- ── Main ─────────────────────────────────────────────────── -->
+    <main class="main">
+
+      <!-- ── Page header ─────────────────────────────────────────── -->
+      <div class="page-header">
+        <h1 class="page-title">Health <span>— Acme Corp</span></h1>
+
+        <!-- Cross-tenant view toggle -->
+        <div class="view-tabs" role="tablist" aria-label="View scope">
+          <button class="view-tab active" role="tab" aria-selected="true">
+            Acme Corp <span class="dot"></span>
+          </button>
+          <button class="view-tab" role="tab" aria-selected="false">All Tenants</button>
+        </div>
+
+        <!-- Tenant selector -->
+        <div class="ctrl-select" aria-label="Tenant selector">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.5"><rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/><rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor"/><rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor"/></svg>
+          Acme Corp ▾
+        </div>
+
+        <!-- Time range selector -->
+        <div class="ctrl-select" aria-label="Time range">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3v3.5l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          1h ▾
+        </div>
+
+        <!-- Refresh button -->
+        <button class="ctrl-btn" aria-label="Refresh">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12 7A5 5 0 112 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 3v4h-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <!-- ── Scrollable content ──────────────────────────────────── -->
+      <div class="content-area">
+
+        <!-- ── Platform status banner ─────────────────────────────── -->
+        <div class="status-banner ok" role="status">
+          <span class="status-banner-icon" aria-hidden="true">✓</span>
+          <div class="status-banner-text">
+            <strong>All systems operational</strong>
+            <span style="font-weight: normal"> — Acme Corp</span>
+          </div>
+          <span class="status-banner-time">Last checked 12s ago</span>
+        </div>
+
+        <!-- ── Degraded notice (Armis) ───────────────────────────── -->
+        <div class="status-banner degraded" role="alert">
+          <span class="status-banner-icon" aria-hidden="true">△</span>
+          <div class="status-banner-text">
+            <strong>Degraded — Armis connector timeout</strong>
+            <span style="font-weight:normal"> · Connect timeout (5s) since 14:55 UTC · Queries to Armis return partial results</span>
+          </div>
+          <span class="status-banner-time">8 consecutive failures</span>
+        </div>
+
+        <!-- ── 3-up stat cards ──────────────────────────────────── -->
+        <div class="stat-cards">
+
+          <!-- Card 1: Connectors -->
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Connectors</span>
+              <span class="stat-card-status-dot dot-warn" title="Degraded"></span>
+            </div>
+            <div class="stat-big">3 / 4</div>
+            <div class="stat-sublabel">Healthy connectors</div>
+            <div class="stat-note warn">
+              <span class="armis-badge">△ Armis</span>
+              <span style="margin-left:6px">timeout since 14:55 UTC</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Query Latency -->
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Query Latency</span>
+              <span class="stat-card-status-dot dot-warn" title="Elevated P95"></span>
+            </div>
+            <div class="stat-big">1.2s</div>
+            <div class="stat-sublabel">Median (P50)</div>
+            <div class="stat-secondary">P95: <strong style="color:var(--color-cov-degraded-text)">8.4s</strong> <span style="font-size:var(--text-xs);color:var(--color-text-muted)">(elevated — Armis)</span></div>
+          </div>
+
+          <!-- Card 3: Errors -->
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Errors (1h)</span>
+              <span class="stat-card-status-dot dot-err" title="Error count elevated"></span>
+            </div>
+            <div class="stat-big">12</div>
+            <div class="stat-sublabel">Errors this hour</div>
+            <div class="stat-secondary" style="color:var(--color-cov-timeout-text)">↑ from 4 (previous hour)</div>
+            <div class="stat-breakdown">
+              <span class="stat-breakdown-item">8 timeout</span>
+              <span class="stat-breakdown-item">4 other</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── Two-col: connector table + latency chart ─────────── -->
+        <div class="two-col">
+
+          <!-- Connector status section -->
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Connector Status</span>
+              <span class="section-meta">Acme Corp · 4 connectors · updated 12s ago</span>
+            </div>
+            <table class="conn-table" aria-label="Connector status">
+              <thead>
+                <tr>
+                  <th>Connector</th>
+                  <th>Status</th>
+                  <th>Type</th>
+                  <th>Avg / P95</th>
+                  <th>Errors (1h)</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+
+                <!-- CrowdStrike -->
+                <tr>
+                  <td><strong>CrowdStrike</strong></td>
+                  <td>
+                    <div class="conn-status-cell">
+                      <span class="status-dot dot-ok"></span>
+                      <span class="badge ok">Healthy</span>
+                    </div>
+                  </td>
+                  <td><span class="badge neutral">Static / OCSF</span></td>
+                  <td>
+                    <div class="latency-cell">
+                      <span class="p50">320ms</span> / P95: 780ms
+                    </div>
+                  </td>
+                  <td><span style="color:var(--color-cov-answered-text);font-weight:var(--weight-semibold)">0</span></td>
+                  <td>
+                    <div class="action-cell">
+                      <button class="btn-sm">View</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Cyberint -->
+                <tr>
+                  <td><strong>Cyberint</strong></td>
+                  <td>
+                    <div class="conn-status-cell">
+                      <span class="status-dot dot-ok"></span>
+                      <span class="badge ok">Healthy</span>
+                    </div>
+                  </td>
+                  <td><span class="badge neutral">Static / OCSF</span></td>
+                  <td>
+                    <div class="latency-cell">
+                      <span class="p50">580ms</span> / P95: 1.4s
+                    </div>
+                  </td>
+                  <td><span style="color:var(--color-cov-answered-text);font-weight:var(--weight-semibold)">0</span></td>
+                  <td>
+                    <div class="action-cell">
+                      <button class="btn-sm">View</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Claroty -->
+                <tr>
+                  <td><strong>Claroty</strong></td>
+                  <td>
+                    <div class="conn-status-cell">
+                      <span class="status-dot dot-ok"></span>
+                      <span class="badge ok">Healthy</span>
+                    </div>
+                  </td>
+                  <td><span class="badge neutral">Static / OCSF</span></td>
+                  <td>
+                    <div class="latency-cell">
+                      <span class="p50">740ms</span> / P95: 1.8s
+                    </div>
+                  </td>
+                  <td><span style="color:var(--color-cov-degraded-text);font-weight:var(--weight-semibold)">1</span></td>
+                  <td>
+                    <div class="action-cell">
+                      <button class="btn-sm">View</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Armis — degraded (expandable) -->
+                <tr class="degraded-row conn-expand" id="armisRow" onclick="toggleArmis()" aria-expanded="false">
+                  <td>
+                    <div style="display:flex;align-items:center;gap:var(--space-2)">
+                      <span class="chevron" id="armisChevron">▶</span>
+                      <strong>Armis</strong>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="conn-status-cell">
+                      <span class="status-dot dot-err"></span>
+                      <span class="badge err">Timeout</span>
+                    </div>
+                  </td>
+                  <td><span class="badge neutral">Static / OCSF</span></td>
+                  <td>
+                    <div class="latency-cell">
+                      <span style="color:var(--color-text-muted)">— / —</span>
+                    </div>
+                  </td>
+                  <td><span style="color:var(--color-cov-timeout-text);font-weight:var(--weight-semibold)">8</span></td>
+                  <td>
+                    <div class="action-cell" onclick="event.stopPropagation()">
+                      <button class="btn-sm warn">Diagnose</button>
+                      <button class="btn-sm">View errors</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Armis expand row -->
+                <tr class="conn-expand-row" id="armisExpandRow" style="display:none">
+                  <td colspan="6">
+                    <div class="conn-expand-detail">
+                      <div class="detail-line">
+                        <strong>Connect timeout (5s)</strong> since 14:55 UTC · 8 consecutive failures
+                      </div>
+                      <div class="detail-meta">
+                        <span>🕐 Last success: <strong>14:50 UTC</strong></span>
+                        <span>⏱ Timeout: <strong>5s</strong></span>
+                        <span>⚠ Failures: <strong>8</strong></span>
+                        <span>🔗 Endpoint: <code style="font-size:var(--text-xs);font-family:var(--font-mono)">api.armis.com</code></span>
+                      </div>
+                      <div style="margin-top:var(--space-3)">
+                        <button class="btn-sm primary" onclick="event.stopPropagation()">Test connection now</button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Query Latency Chart -->
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Query Latency Trend</span>
+              <span class="section-meta">Last 1h</span>
+            </div>
+            <div class="chart-wrap">
+              <div class="chart-legend">
+                <div class="legend-item">
+                  <div class="legend-line p50"></div>
+                  <span>— P50 (median)</span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-line p95"></div>
+                  <span>--- P95</span>
+                </div>
+              </div>
+
+              <!--
+                Chart: 340×200 viewBox.
+                Y axis: 0-10s, 50px per 2s = 250px total plot height.
+                Plot area: x=40..320 (280px), y=10..210 (200px)
+                7 time ticks: 14:00 14:15 14:30 14:45 15:00 15:15 15:30
+                x spacing: 280/6 ≈ 46.7px
+                X positions: 40, 86.7, 133.3, 180, 226.7, 273.3, 320
+                Y: y = 210 - (val/10)*200
+                  0s → 210; 2s → 170; 4s → 130; 6s → 90; 8s → 50; 10s → 10
+
+                P50 values (s): 1.2, 1.0, 1.1, 1.3, 2.4, 1.8, 1.2
+                P95 values (s): 4.2, 3.8, 4.5, 3.9, 8.4, 8.2, 7.6
+
+                Y for P50: 210-(1.2/10)*200=186; 190; 188; 184; 162; 174; 186
+                Y for P95: 210-(4.2/10)*200=126; 134; 120; 132; 42; 46; 58
+              -->
+              <svg class="chart-svg" viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" aria-label="Query latency trend chart P50 and P95 over last 1 hour">
+
+                <!-- Y-axis grid lines and labels -->
+                <!-- 0s = y210, 2s = y170, 4s = y130, 6s = y90, 8s = y50, 10s = y10 -->
+                <line x1="40" y1="210" x2="320" y2="210" class="chart-grid"/>
+                <line x1="40" y1="170" x2="320" y2="170" class="chart-grid" stroke-dasharray="3 3"/>
+                <line x1="40" y1="130" x2="320" y2="130" class="chart-grid" stroke-dasharray="3 3"/>
+                <line x1="40" y1="90"  x2="320" y2="90"  class="chart-grid" stroke-dasharray="3 3"/>
+                <line x1="40" y1="50"  x2="320" y2="50"  class="chart-grid" stroke-dasharray="3 3"/>
+                <line x1="40" y1="10"  x2="320" y2="10"  class="chart-grid" stroke-dasharray="3 3"/>
+
+                <text x="34" y="213" class="chart-axis-label" text-anchor="end">0</text>
+                <text x="34" y="173" class="chart-axis-label" text-anchor="end">2s</text>
+                <text x="34" y="133" class="chart-axis-label" text-anchor="end">4s</text>
+                <text x="34" y="93"  class="chart-axis-label" text-anchor="end">6s</text>
+                <text x="34" y="53"  class="chart-axis-label" text-anchor="end">8s</text>
+                <text x="34" y="13"  class="chart-axis-label" text-anchor="end">10s</text>
+
+                <!-- X-axis labels -->
+                <text x="40"    y="225" class="chart-axis-label" text-anchor="middle">14:00</text>
+                <text x="86.7"  y="225" class="chart-axis-label" text-anchor="middle">14:15</text>
+                <text x="133.3" y="225" class="chart-axis-label" text-anchor="middle">14:30</text>
+                <text x="180"   y="225" class="chart-axis-label" text-anchor="middle">14:45</text>
+                <text x="226.7" y="225" class="chart-axis-label" text-anchor="middle">15:00</text>
+                <text x="273.3" y="225" class="chart-axis-label" text-anchor="middle">15:15</text>
+                <text x="320"   y="225" class="chart-axis-label" text-anchor="middle">15:30</text>
+
+                <!-- P50 area fill -->
+                <polygon class="chart-area-p50"
+                  points="40,186 86.7,190 133.3,188 180,184 226.7,162 273.3,174 320,186 320,210 40,210"/>
+
+                <!-- P95 area fill -->
+                <polygon class="chart-area-p95"
+                  points="40,126 86.7,134 133.3,120 180,132 226.7,42 273.3,46 320,58 320,210 40,210"/>
+
+                <!-- P50 line -->
+                <polyline class="chart-line-p50"
+                  points="40,186 86.7,190 133.3,188 180,184 226.7,162 273.3,174 320,186"/>
+
+                <!-- P95 line (dashed via class) -->
+                <polyline class="chart-line-p95"
+                  points="40,126 86.7,134 133.3,120 180,132 226.7,42 273.3,46 320,58"/>
+
+                <!-- Annotation: Armis timeout event -->
+                <line x1="226.7" y1="10" x2="226.7" y2="210" stroke="var(--color-cov-timeout-icon)" stroke-width="1" stroke-dasharray="2 2" opacity="0.6"/>
+                <text x="230" y="24" font-size="9" fill="var(--color-cov-timeout-text)" font-family="var(--font-sans)">Armis</text>
+                <text x="230" y="34" font-size="9" fill="var(--color-cov-timeout-text)" font-family="var(--font-sans)">timeout</text>
+
+                <!-- P50 dots -->
+                <circle cx="40"    cy="186" r="3" fill="var(--color-blue)"/>
+                <circle cx="86.7"  cy="190" r="3" fill="var(--color-blue)"/>
+                <circle cx="133.3" cy="188" r="3" fill="var(--color-blue)"/>
+                <circle cx="180"   cy="184" r="3" fill="var(--color-blue)"/>
+                <circle cx="226.7" cy="162" r="3" fill="var(--color-blue)"/>
+                <circle cx="273.3" cy="174" r="3" fill="var(--color-blue)"/>
+                <circle cx="320"   cy="186" r="3" fill="var(--color-blue)"/>
+
+                <!-- P95 dots -->
+                <circle cx="40"    cy="126" r="3" fill="var(--color-accent)"/>
+                <circle cx="86.7"  cy="134" r="3" fill="var(--color-accent)"/>
+                <circle cx="133.3" cy="120" r="3" fill="var(--color-accent)"/>
+                <circle cx="180"   cy="132" r="3" fill="var(--color-accent)"/>
+                <circle cx="226.7" cy="42"  r="4" fill="var(--color-accent)" stroke="var(--color-bg)" stroke-width="1.5"/>
+                <circle cx="273.3" cy="46"  r="3" fill="var(--color-accent)"/>
+                <circle cx="320"   cy="58"  r="3" fill="var(--color-accent)"/>
+
+                <!-- P95 spike callout -->
+                <text x="236" y="40" font-size="9" fill="var(--color-accent)" font-weight="600" font-family="var(--font-sans)">8.4s</text>
+
+              </svg>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── DataFusion Execution Times ────────────────────────── -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">DataFusion Execution Times</span>
+            <span class="section-meta">Last 1h avg · per connector</span>
+          </div>
+          <div class="bar-chart">
+            <div class="bar-legend">
+              <div class="bar-legend-item">
+                <div class="bar-legend-swatch" style="background:var(--color-blue);opacity:1"></div>
+                <span>Parse</span>
+              </div>
+              <div class="bar-legend-item">
+                <div class="bar-legend-swatch" style="background:var(--color-blue);opacity:0.75"></div>
+                <span>Plan</span>
+              </div>
+              <div class="bar-legend-item">
+                <div class="bar-legend-swatch" style="background:var(--color-blue);opacity:0.55"></div>
+                <span>Execute</span>
+              </div>
+              <div class="bar-legend-item">
+                <div class="bar-legend-swatch" style="background:var(--color-blue);opacity:0.35"></div>
+                <span>Normalize</span>
+              </div>
+            </div>
+
+            <!-- CrowdStrike: 320ms total = parse12 plan8 exec280 norm20 → max for scale = 800ms -->
+            <!-- Scale: 1px per ms, but capped at 400px track width for 800ms max  -->
+            <!-- Width% = (ms / 800) * 100 -->
+            <!-- CrowdStrike: 12+8+280+20=320. scale: /800*100 = parse=1.5% plan=1% exec=35% norm=2.5% -->
+            <div class="bar-row">
+              <div class="bar-label">CrowdStrike</div>
+              <div class="bar-track">
+                <div class="bar-seg parse" style="width:1.5%" title="Parse: 12ms">12</div>
+                <div class="bar-seg plan"  style="width:1%"   title="Plan: 8ms"></div>
+                <div class="bar-seg exec"  style="width:35%"  title="Execute: 280ms"></div>
+                <div class="bar-seg norm"  style="width:2.5%" title="Normalize: 20ms"></div>
+              </div>
+              <div class="bar-total">320ms</div>
+            </div>
+
+            <!-- Cyberint: 580ms total = parse20 plan12 exec520 norm28 -->
+            <!-- parse=2.5% plan=1.5% exec=65% norm=3.5% -->
+            <div class="bar-row">
+              <div class="bar-label">Cyberint</div>
+              <div class="bar-track">
+                <div class="bar-seg parse" style="width:2.5%" title="Parse: 20ms">20</div>
+                <div class="bar-seg plan"  style="width:1.5%" title="Plan: 12ms"></div>
+                <div class="bar-seg exec"  style="width:65%"  title="Execute: 520ms"></div>
+                <div class="bar-seg norm"  style="width:3.5%" title="Normalize: 28ms"></div>
+              </div>
+              <div class="bar-total">580ms</div>
+            </div>
+
+            <!-- Claroty: 740ms total = parse24 plan16 exec668 norm32 -->
+            <!-- parse=3% plan=2% exec=83.5% norm=4% -->
+            <div class="bar-row">
+              <div class="bar-label">Claroty</div>
+              <div class="bar-track">
+                <div class="bar-seg parse" style="width:3%"    title="Parse: 24ms">24</div>
+                <div class="bar-seg plan"  style="width:2%"    title="Plan: 16ms"></div>
+                <div class="bar-seg exec"  style="width:83.5%" title="Execute: 668ms"></div>
+                <div class="bar-seg norm"  style="width:4%"    title="Normalize: 32ms"></div>
+              </div>
+              <div class="bar-total">740ms</div>
+            </div>
+
+            <!-- Armis: no data -->
+            <div class="bar-row">
+              <div class="bar-label" style="color:var(--color-cov-timeout-text)">Armis</div>
+              <div class="bar-nodata">No data — connector timeout</div>
+              <div class="bar-total" style="color:var(--color-text-muted)">—</div>
+            </div>
+
+            <!-- Federation overhead: 45ms -->
+            <!-- 45/800*100 = 5.6% -->
+            <div class="bar-row">
+              <div class="bar-label" style="color:var(--color-text-muted);font-style:italic">Fed. overhead</div>
+              <div class="bar-track">
+                <div class="bar-seg exec" style="width:5.6%;background:var(--color-text-muted);opacity:0.6" title="Federation overhead: 45ms">45ms</div>
+              </div>
+              <div class="bar-total">45ms</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Error log ──────────────────────────────────────────── -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">Recent Errors</span>
+            <span class="section-meta">Last 1h · 12 total</span>
+          </div>
+          <table class="error-table" aria-label="Recent error log">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Connector</th>
+                <th>Error Code</th>
+                <th>Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="error-time">15:28</td>
+                <td><strong>Armis</strong></td>
+                <td><code class="error-code err-code-timeout">connect_timeout (5s)</code></td>
+                <td class="error-outcome">Source degraded — query returned partial results</td>
+              </tr>
+              <tr>
+                <td class="error-time">15:14</td>
+                <td><strong>Armis</strong></td>
+                <td><code class="error-code err-code-timeout">connect_timeout (5s)</code></td>
+                <td class="error-outcome">Source degraded — query returned partial results</td>
+              </tr>
+              <tr>
+                <td class="error-time">15:02</td>
+                <td><strong>Armis</strong></td>
+                <td><code class="error-code err-code-timeout">connect_timeout (5s)</code></td>
+                <td class="error-outcome">Source degraded — query returned partial results</td>
+              </tr>
+              <tr>
+                <td class="error-time">14:55</td>
+                <td><strong>Armis</strong></td>
+                <td><code class="error-code err-code-timeout">connect_timeout (5s)</code></td>
+                <td class="error-outcome">Source first failed — subsequent queries degraded</td>
+              </tr>
+              <tr>
+                <td class="error-time">14:32</td>
+                <td><strong>Armis</strong></td>
+                <td><code class="error-code err-code-timeout">connect_timeout (5s)</code></td>
+                <td class="error-outcome">Intermittent — recovered within 30s</td>
+              </tr>
+              <tr>
+                <td class="error-time">14:10</td>
+                <td><strong>Claroty</strong></td>
+                <td><code class="error-code err-code-http">http_error_429 (rate limit)</code></td>
+                <td class="error-outcome">Retried — succeeded on attempt 2 (1.4s backoff)</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="section-footer">
+            <span class="link-sm">View all errors →</span>
+            <div style="flex:1"></div>
+            <button class="btn-sm primary">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M4 6l2 2 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              View Armis diagnostic
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Satellite Health ───────────────────────────────────── -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">Satellite Health</span>
+            <span class="section-meta">2 satellites · Acme Corp</span>
+          </div>
+          <div class="satellite-cards">
+
+            <!-- SAT-US-EAST — healthy -->
+            <div class="satellite-card ok">
+              <div class="sat-header">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M2 7h10M7 2c-2 2-3 3.5-3 5s1 3 3 5M7 2c2 2 3 3.5 3 5s-1 3-3 5" stroke="currentColor" stroke-width="1"/></svg>
+                <span class="sat-name">SAT-US-EAST</span>
+                <span class="sat-badge ok">✓ Healthy</span>
+              </div>
+              <div class="sat-stats">
+                <div class="sat-stat">RTT: <strong>12ms</strong></div>
+                <div class="sat-stat">Connectors routed: <strong>3</strong></div>
+                <div class="sat-stat">Uptime (1h): <strong>100%</strong></div>
+              </div>
+              <div class="sat-actions">
+                <button class="btn-sm">View</button>
+              </div>
+            </div>
+
+            <!-- SAT-OT-ZONE-A — degraded -->
+            <div class="satellite-card warn">
+              <div class="sat-header">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M2 7h10M7 2c-2 2-3 3.5-3 5s1 3 3 5M7 2c2 2 3 3.5 3 5s-1 3-3 5" stroke="currentColor" stroke-width="1"/></svg>
+                <span class="sat-name">SAT-OT-ZONE-A</span>
+                <span class="sat-badge warn">△ Degraded</span>
+              </div>
+              <div class="sat-stats">
+                <div class="sat-stat warn-val">RTT: <strong>450ms</strong></div>
+                <div class="sat-stat">Connectors routed: <strong>1</strong></div>
+                <div class="sat-stat">Issue: <strong style="color:var(--color-cov-degraded-text)">High latency</strong></div>
+              </div>
+              <div class="sat-actions">
+                <button class="btn-sm warn">Diagnose</button>
+                <button class="btn-sm">View</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Spacer at bottom ───────────────────────────────────── -->
+        <div style="height:var(--space-8)"></div>
+
+      </div> <!-- /content-area -->
+    </main>
+  </div> <!-- /body -->
+</div> <!-- /app -->
+
+<script>
+  // ── Light/dark toggle ────────────────────────────────────────────
+  const themeToggle = document.getElementById('themeToggle');
+  const themeIcon   = document.getElementById('themeIcon');
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    themeIcon.textContent = theme === 'dark' ? '☽' : '☀';
+    localStorage.setItem('prism-theme', theme);
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(current === 'light' ? 'dark' : 'light');
+  });
+
+  // Restore saved preference
+  const saved = localStorage.getItem('prism-theme');
+  if (saved) applyTheme(saved);
+
+  // ── Armis row expand/collapse ────────────────────────────────────
+  function toggleArmis() {
+    const row     = document.getElementById('armisExpandRow');
+    const chevron = document.getElementById('armisChevron');
+    const trigger = document.getElementById('armisRow');
+    const isOpen  = row.style.display !== 'none';
+
+    row.style.display = isOpen ? 'none' : 'table-row';
+    chevron.classList.toggle('open', !isOpen);
+    trigger.setAttribute('aria-expanded', String(!isOpen));
+  }
+
+  // ── Cross-tenant view tabs ───────────────────────────────────────
+  document.querySelectorAll('.view-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.view-tab').forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      tab.classList.add('active');
+      tab.setAttribute('aria-selected', 'true');
+    });
+  });
+</script>
+</body>
+</html>

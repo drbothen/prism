@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<!--
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+  S2-09-reporting.html — Prism Investigations Console: Reporting (Screen 9)
+  Faithful to S2-investigations-console.md Screen 9 spec + prompt requirements.
+  Two-panel layout: Report Builder (left ~55%) + Live Preview (right ~45%).
+  Tabs: Report Builder | Recent Reports.
+  Theme toggle top-right.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — Reports</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ───────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-3);
+      flex-shrink: 0;
+    }
+
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+
+    .topbar-nav { display: flex; gap: 2px; list-style: none; flex: 1; }
+
+    .topbar-nav-item {
+      display: flex; align-items: center; height: 32px; padding: 0 var(--space-3);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast); white-space: nowrap;
+    }
+
+    .topbar-nav-item:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .topbar-nav-item.active { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);
+      cursor: pointer; min-width: 180px;
+    }
+
+    .kbd { font-family: var(--font-mono); font-size: 10px; background: var(--color-border); border-radius: 3px; padding: 1px 4px; margin-left: auto; color: var(--color-text-muted); }
+
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: var(--radius-md); border: none; background: transparent; color: var(--color-icon-default);
+      cursor: pointer; transition: background var(--transition-fast); position: relative;
+    }
+
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .notif-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%; border: 2px solid var(--topbar-bg); }
+
+    /* ── Body ─────────────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav ──────────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg); border-right: var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+
+    .leftnav-main { flex: 1; }
+    .leftnav-footer { border-top: var(--border); padding-top: var(--space-2); margin-top: var(--space-2); }
+
+    .nav-group-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); padding: var(--space-3) var(--space-2) var(--space-1);
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active { background: var(--nav-item-bg-active); color: var(--nav-item-text-active); font-weight: var(--weight-semibold); }
+
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); flex-shrink: 0; }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Main content ─────────────────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg); }
+
+    /* ── Page header ──────────────────────────────────────────────── */
+    .page-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-4) var(--space-6);
+      border-bottom: var(--border); background: var(--color-bg-card); flex-shrink: 0;
+    }
+
+    .page-title {
+      font-family: var(--font-display); font-size: var(--text-2xl); font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-tight); color: var(--color-text);
+    }
+
+    /* ── Tab bar ──────────────────────────────────────────────────── */
+    .tab-bar {
+      display: flex; gap: 0; padding: 0 var(--space-6);
+      border-bottom: var(--border); background: var(--color-bg-card);
+      flex-shrink: 0;
+    }
+
+    .tab-item {
+      display: flex; align-items: center; height: 40px; padding: 0 var(--space-4);
+      font-size: var(--tab-font-size); font-weight: var(--weight-medium);
+      color: var(--tab-text); cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color var(--transition-fast), border-color var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .tab-item:hover { background: var(--tab-bg-hover); color: var(--tab-text-active); }
+    .tab-item.active {
+      color: var(--tab-text-active); font-weight: var(--tab-font-weight-active);
+      border-bottom-color: var(--tab-border-active);
+    }
+
+    /* ── Two-panel split ──────────────────────────────────────────── */
+    .two-panel {
+      display: flex; flex: 1; overflow: hidden;
+    }
+
+    /* ── Left builder panel ────────────────────────────────────────── */
+    .builder-panel {
+      width: 55%; border-right: var(--border);
+      display: flex; flex-direction: column; overflow-y: auto;
+      padding: var(--space-5) var(--space-6);
+      gap: var(--space-4);
+      flex-shrink: 0;
+    }
+
+    /* ── Right preview panel ──────────────────────────────────────── */
+    .preview-panel {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+      background: var(--color-surface-2);
+    }
+
+    .preview-panel-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-5); border-bottom: var(--border);
+      background: var(--color-bg-card); flex-shrink: 0;
+    }
+
+    .preview-panel-title {
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text);
+    }
+
+    .preview-canvas {
+      flex: 1; overflow-y: auto;
+      display: flex; flex-direction: column; align-items: center;
+      padding: var(--space-6) var(--space-4);
+    }
+
+    /* A4-proportioned white page card */
+    .pdf-page-card {
+      background: #ffffff;
+      color: #1a1a1a;
+      width: 100%;
+      max-width: 480px;
+      min-height: 620px;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+      padding: 32px 36px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    /* PDF page chrome styles — always light (simulating paper) */
+    .pdf-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .pdf-logo-text { font-family: var(--font-display); font-size: 15px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #ff6a39; }
+    .pdf-logo-dot { display: inline-block; width: 6px; height: 6px; background: #ff6a39; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+    .pdf-confidential { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #888; background: #f0f0f0; padding: 2px 7px; border-radius: 3px; border: 1px solid #ddd; }
+    .pdf-client { font-size: 10px; color: #666; margin-top: 2px; }
+
+    .pdf-hr { height: 1px; background: #e0e0e0; margin: 12px 0; }
+    .pdf-title { font-family: var(--font-display); font-size: 19px; font-weight: 800; color: #1a1a1a; line-height: 1.2; margin-bottom: 4px; }
+    .pdf-subtitle { font-size: 10px; color: #777; margin-bottom: 14px; }
+
+    .pdf-section-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid #eee; }
+    .pdf-body-text { font-size: 9.5px; color: #333; line-height: 1.6; margin-bottom: 12px; }
+
+    /* Mini bar chart in PDF */
+    .pdf-chart { display: flex; align-items: flex-end; gap: 4px; height: 44px; margin-bottom: 14px; }
+    .pdf-bar-col { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+    .pdf-bar { width: 100%; border-radius: 2px 2px 0 0; background: #1a6fc4; }
+    .pdf-bar-crit { background: #c80f2e; }
+    .pdf-bar-high { background: #cc3b15; }
+    .pdf-bar-med  { background: #d4a017; }
+    .pdf-bar-low  { background: #0057b8; }
+    .pdf-bar-label { font-size: 7px; color: #aaa; }
+    .pdf-bar-day { font-size: 7px; color: #999; white-space: nowrap; }
+
+    .pdf-data-note {
+      background: #fffbe6; border: 1px solid #fcd34d; border-radius: 3px;
+      padding: 6px 10px; font-size: 8.5px; color: #7a4f00;
+      display: flex; align-items: flex-start; gap: 5px; margin-top: 12px;
+    }
+
+    .pdf-footer-page { font-size: 8px; color: #bbb; text-align: center; margin-top: 16px; padding-top: 10px; border-top: 1px solid #ebebeb; }
+
+    /* ── Buttons / shared ─────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md); border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap; line-height: 1;
+      transition: background var(--transition-fast), opacity var(--transition-fast);
+    }
+
+    .btn-primary { background: var(--btn-primary-bg); color: #fff; }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border-color: var(--btn-secondary-border); }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .btn-sm { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+    .btn-lg { height: var(--btn-height-lg); font-size: var(--text-base); }
+    .btn-full { width: 100%; }
+
+    /* ── Card / section containers ────────────────────────────────── */
+    .form-card {
+      background: var(--card-bg); border: var(--border); border-radius: var(--card-radius);
+      padding: var(--space-4);
+    }
+
+    .form-card-title {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); margin-bottom: var(--space-3);
+    }
+
+    /* ── Drop buttons / selects ───────────────────────────────────── */
+    .drop-btn {
+      display: inline-flex; align-items: center; gap: var(--space-1-5); height: var(--input-height);
+      padding: 0 var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border);
+      border-radius: var(--input-radius); font-family: var(--font-sans);
+      font-size: var(--input-font-size); font-weight: var(--weight-medium);
+      color: var(--input-text); cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .drop-btn:hover { background: var(--input-bg-hover); border-color: var(--input-border-focus); }
+    .drop-caret { font-size: 9px; color: var(--color-text-muted); margin-left: auto; }
+
+    /* ── Text inputs ──────────────────────────────────────────────── */
+    .form-input {
+      width: 100%; height: var(--input-height); padding: var(--input-padding);
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      border-radius: var(--input-radius); font-family: var(--font-sans);
+      font-size: var(--input-font-size); color: var(--input-text);
+      transition: border-color var(--transition-fast);
+    }
+
+    .form-input:focus { outline: none; border-color: var(--input-border-focus); box-shadow: var(--shadow-focus); }
+
+    .form-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-text-muted); margin-bottom: var(--space-1-5); display: block; }
+
+    .form-row { display: flex; align-items: center; gap: var(--space-3); }
+
+    /* ── Template selector ────────────────────────────────────────── */
+    .template-desc {
+      font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-2);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* ── Audience toggle ──────────────────────────────────────────── */
+    .audience-pills { display: flex; gap: var(--space-1-5); flex-wrap: wrap; }
+
+    .audience-pill {
+      display: inline-flex; align-items: center; height: 28px; padding: 0 var(--space-3);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text-muted);
+      cursor: pointer; transition: all var(--transition-fast);
+    }
+
+    .audience-pill:hover { border-color: var(--color-border-strong); color: var(--color-text); }
+    .audience-pill.active {
+      background: var(--color-accent); color: #fff; border-color: var(--color-accent);
+    }
+
+    /* ── Section checkboxes ───────────────────────────────────────── */
+    .section-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2);
+    }
+
+    .section-item {
+      display: flex; align-items: flex-start; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      background: var(--color-bg); cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .section-item:hover { background: var(--color-bg-hover); border-color: var(--color-border-strong); }
+    .section-item.checked { background: var(--color-accent-subtle); border-color: var(--color-accent-muted); }
+    .section-item.locked { background: var(--color-sev-info-bg); border-color: var(--color-sev-info-border); cursor: default; }
+
+    .section-item input[type="checkbox"] {
+      accent-color: var(--color-accent); flex-shrink: 0; margin-top: 2px; cursor: pointer;
+    }
+
+    .section-item-body { flex: 1; min-width: 0; }
+    .section-item-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-text); display: flex; align-items: center; gap: var(--space-1); }
+    .section-item-desc { font-size: 10px; color: var(--color-text-muted); margin-top: 1px; line-height: 1.4; }
+
+    .lock-icon { font-size: 11px; }
+
+    /* ── Coverage callout (amber) ─────────────────────────────────── */
+    .coverage-callout {
+      background: var(--color-cov-degraded-bg);
+      border: 1px solid var(--color-cov-degraded-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-3) var(--space-4);
+      display: flex; align-items: flex-start; gap: var(--space-3);
+    }
+
+    .coverage-callout-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .coverage-callout-body { flex: 1; }
+    .coverage-callout-title { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--color-cov-degraded-text); margin-bottom: var(--space-1); }
+    .coverage-callout-text { font-size: var(--text-xs); color: var(--color-cov-degraded-text); line-height: var(--leading-relaxed); }
+    .coverage-callout-link { color: var(--color-cov-degraded-text); font-weight: var(--weight-semibold); text-decoration: underline; cursor: pointer; }
+
+    /* ── Export controls ──────────────────────────────────────────── */
+    .export-controls { display: flex; flex-direction: column; gap: var(--space-2); }
+
+    .schedule-detail {
+      background: var(--color-surface-2); border: var(--border); border-radius: var(--radius-md);
+      padding: var(--space-3); font-size: var(--text-xs); color: var(--color-text-muted);
+      display: none; gap: var(--space-2); flex-direction: column;
+    }
+
+    .schedule-detail.open { display: flex; }
+
+    .schedule-detail-row { display: flex; align-items: center; gap: var(--space-2); }
+    .schedule-detail-label { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    /* ── Recent reports table ─────────────────────────────────────── */
+    .recent-panel {
+      flex: 1; overflow-y: auto; padding: var(--space-5) var(--space-6);
+      display: flex; flex-direction: column; gap: var(--space-4);
+    }
+
+    .recent-header {
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+
+    .recent-title {
+      font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--color-text);
+    }
+
+    .reports-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+
+    .reports-table th {
+      position: sticky; top: 0; z-index: 1;
+      background: var(--table-header-bg); color: var(--table-header-text);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border-strong);
+      text-align: left; white-space: nowrap;
+    }
+
+    .reports-table td {
+      padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--table-border);
+      vertical-align: middle;
+    }
+
+    .reports-table tr:hover td { background: var(--table-row-bg-hover); }
+
+    .report-file-cell { display: flex; align-items: center; gap: var(--space-2); }
+    .pdf-icon { color: var(--color-red); flex-shrink: 0; }
+
+    .report-name { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-text); }
+    .report-name-muted { color: var(--color-text-muted); }
+
+    .type-badge {
+      display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      white-space: nowrap;
+    }
+
+    .type-weekly    { background: var(--color-sev-low-bg); color: var(--color-sev-low-text); border: 1px solid var(--color-sev-low-border); }
+    .type-incident  { background: var(--color-sev-high-bg); color: var(--color-sev-high-text); border: 1px solid var(--color-sev-high-border); }
+    .type-monthly   { background: var(--color-sev-info-bg); color: var(--color-sev-info-text); border: 1px solid var(--color-sev-info-border); }
+    .type-compliance { background: var(--color-ai-bg); color: var(--color-ai-text); border: 1px solid var(--color-ai-border); }
+    .type-scheduled { background: var(--color-surface-2); color: var(--color-text-muted); border: var(--border); }
+
+    .actions-cell { display: flex; align-items: center; gap: var(--space-1-5); white-space: nowrap; }
+
+    /* ── Preview footer controls ──────────────────────────────────── */
+    .preview-footer {
+      border-top: var(--border); background: var(--color-bg-card);
+      padding: var(--space-3) var(--space-5); flex-shrink: 0;
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+
+    .page-nav {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-sm); color: var(--color-text-muted);
+    }
+
+    .zoom-control {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      margin-left: auto;
+    }
+
+    .zoom-btn {
+      display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+      border: var(--border); border-radius: var(--radius-sm); background: var(--color-bg);
+      font-size: 14px; cursor: pointer; color: var(--color-text-muted);
+      transition: background var(--transition-fast);
+    }
+
+    .zoom-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    .zoom-value {
+      font-size: var(--text-xs); color: var(--color-text-muted); font-family: var(--font-mono);
+      min-width: 36px; text-align: center;
+    }
+
+    /* ── Preview generating overlay ───────────────────────────────── */
+    .generating-overlay {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      flex: 1; gap: var(--space-4); color: var(--color-text-muted);
+    }
+
+    .generating-overlay.active { display: flex; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--color-border);
+      border-top-color: var(--color-accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* ── Theme toggle ─────────────────────────────────────────────── */
+    .theme-toggle-fixed {
+      position: fixed; top: calc(var(--topbar-height) + var(--space-3)); right: var(--space-4);
+      z-index: var(--z-toast);
+      display: flex; background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); padding: 3px; gap: 2px; box-shadow: var(--shadow-md);
+    }
+
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+      border-radius: var(--radius-full); border: none; background: transparent;
+      cursor: pointer; font-size: 14px; color: var(--color-text-muted);
+    }
+
+    .theme-btn.active { background: var(--color-bg); box-shadow: var(--shadow-xs); }
+
+    /* ── AI sidecar ───────────────────────────────────────────────── */
+    .sidecar {
+      width: var(--sidecar-width); border-left: var(--border); background: var(--color-bg-card);
+      display: flex; flex-direction: column; flex-shrink: 0;
+      transform: translateX(100%); transition: transform var(--transition-slow);
+      position: absolute; right: 0; top: 0; bottom: 0; z-index: var(--z-overlay);
+    }
+
+    .sidecar.open { transform: translateX(0); position: relative; }
+
+    .sidecar-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4); border-bottom: var(--border); flex-shrink: 0;
+    }
+
+    .sidecar-title {
+      font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text); flex: 1;
+    }
+
+    .ai-tag {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-1-5);
+      background: var(--color-ai-label); color: #fff; font-size: 10px; font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase; border-radius: 3px;
+    }
+
+    .sidecar-body {
+      flex: 1; overflow-y: auto; padding: var(--space-4);
+      display: flex; flex-direction: column; gap: var(--space-3);
+    }
+
+    .sidecar-placeholder {
+      font-size: var(--text-xs); color: var(--color-text-muted); text-align: center;
+      margin: auto; padding: var(--space-8);
+    }
+
+    /* ── Relative layout wrapper for sidecar overlay ──────────────── */
+    .main-with-sidecar { flex: 1; display: flex; position: relative; overflow: hidden; }
+
+    /* ── Badge ─────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap;
+    }
+
+    /* ── Tooltip (CSS-only) ────────────────────────────────────────── */
+    [data-tooltip] { position: relative; }
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: var(--toast-bg); color: var(--toast-text);
+      font-size: var(--text-xs); padding: 4px 8px; border-radius: var(--radius-md);
+      white-space: nowrap; pointer-events: none; opacity: 0;
+      transition: opacity var(--transition-fast); z-index: var(--z-popover);
+    }
+    [data-tooltip]:hover::after { opacity: 1; }
+
+    /* Recent reports view (initially hidden) */
+    #recent-view { display: none; }
+    #builder-view { display: flex; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ──────────────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar-logo" aria-label="Prism home">
+      <span class="logo-dot" aria-hidden="true"></span>
+      Prism
+    </div>
+    <nav aria-label="Main navigation">
+      <ul class="topbar-nav" role="list">
+        <li class="topbar-nav-item" role="listitem">Investigations</li>
+        <li class="topbar-nav-item" role="listitem">Query</li>
+        <li class="topbar-nav-item" role="listitem">Detections</li>
+        <li class="topbar-nav-item active" role="listitem" aria-current="page">Dashboards</li>
+        <li class="topbar-nav-item" role="listitem">Data</li>
+        <li class="topbar-nav-item" role="listitem">Admin</li>
+      </ul>
+    </nav>
+    <div class="topbar-actions">
+      <div class="search-trigger" role="button" aria-label="Open command palette (Ctrl+K)">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Search…</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="icon-btn" id="sidecar-toggle-btn" onclick="toggleSidecar()" aria-label="Toggle Prism AI chat sidecar" aria-expanded="false">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 6a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2-2.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="12" r="0.7" fill="currentColor"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Notifications (3 unread)">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 2.5C5 2.5 3.5 4 3.5 6.5V10H2v1.5h11V10h-1.5V6.5C11.5 4 10 2.5 7.5 2.5Z" stroke="currentColor" stroke-width="1.2"/><path d="M6 12c0 .8.7 1.5 1.5 1.5S9 12.8 9 12" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="User menu (jsmith)">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Body ──────────────────────────────────────────────────────── -->
+  <div class="body">
+
+    <!-- Left nav -->
+    <nav class="leftnav" aria-label="Section navigation">
+      <div class="leftnav-main">
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Triage Queue</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Cases</div>
+
+        <div class="nav-group-label">Query</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Workspace</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Results Explorer</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Saved Queries</div>
+
+        <div class="nav-group-label">Detections</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Rules</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Findings</div>
+
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Summary Insights</div>
+        <div class="nav-item active" role="link" tabindex="0" aria-current="page">
+          <span class="nav-dot" aria-hidden="true"></span>Reports
+        </div>
+
+        <div class="nav-group-label">Data</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Sources</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Cache Browser</div>
+        <div class="nav-item" role="link" tabindex="0"><span class="nav-dot" aria-hidden="true"></span>Topology</div>
+      </div>
+      <div class="leftnav-footer" role="group" aria-label="Administration">
+        <div class="nav-item" role="link" tabindex="0">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zm0 3.5a.75.75 0 100 1.5.75.75 0 000-1.5zm0 3a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 007.5 7.5z" fill="currentColor"/></svg>
+          Help
+        </div>
+        <div class="nav-item" role="link" tabindex="0">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M6.5 1h2l.5 2.5A5 5 0 0111.5 5l2.5-.5.7 1.9-2 1.5a5 5 0 010 2.2l2 1.5-.7 1.9-2.5-.5a5 5 0 01-2.5 1.4L8 14h-2l-.5-2.5A5 5 0 013 10.1l-2.5.5-.7-1.9 2-1.5a5 5 0 010-2.2l-2-1.5.7-1.9 2.5.5A5 5 0 016 1.5L6.5 1z" stroke="currentColor" stroke-width="1.1"/><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" stroke-width="1.1"/></svg>
+          Org Settings
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main content + optional sidecar -->
+    <div class="main-with-sidecar">
+      <main class="main" aria-label="Reports">
+
+        <!-- Page header -->
+        <div class="page-header">
+          <h1 class="page-title">Reports</h1>
+          <div style="margin-left: auto;">
+            <button class="btn btn-primary" aria-label="Create new report">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              New Report
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar" role="tablist" aria-label="Report views">
+          <div class="tab-item active" id="tab-builder" role="tab" aria-selected="true" aria-controls="builder-view" tabindex="0" onclick="switchTab('builder')">Report Builder</div>
+          <div class="tab-item" id="tab-recent" role="tab" aria-selected="false" aria-controls="recent-view" tabindex="0" onclick="switchTab('recent')">Recent Reports</div>
+        </div>
+
+        <!-- ── Builder View ─────────────────────────────────────── -->
+        <div id="builder-view" class="two-panel" role="tabpanel" aria-labelledby="tab-builder">
+
+          <!-- LEFT: Report Builder -->
+          <div class="builder-panel">
+
+            <!-- Report type + template -->
+            <div class="form-card">
+              <div class="form-card-title">Report Type &amp; Template</div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3);">
+                <div>
+                  <label class="form-label" for="report-type">Report type</label>
+                  <button class="drop-btn" id="report-type" style="width:100%;" aria-haspopup="listbox" aria-label="Report type — currently Weekly SOC Report" onclick="cycleReportType()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2" y="1.5" width="8" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 4.5h4M4 6.5h4M4 8.5h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+                    <span id="report-type-label">Weekly SOC Report</span>
+                    <span class="drop-caret">▾</span>
+                  </button>
+                </div>
+                <div>
+                  <label class="form-label" for="template-select">Template</label>
+                  <button class="drop-btn" id="template-select" style="width:100%;" aria-haspopup="listbox" aria-label="Template — currently MSSP Client Weekly">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="1.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1.5" y="6.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="6.5" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+                    MSSP Client Weekly
+                    <span class="drop-caret">▾</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="template-desc" id="template-desc">
+                Pre-built for MSSP client delivery. Includes executive summary, alert trends, open cases, MITRE coverage.
+                <a href="#" style="margin-left: var(--space-2); font-size: var(--text-xs);" aria-label="Change the selected template">Change template</a>
+              </div>
+            </div>
+
+            <!-- Scope settings -->
+            <div class="form-card">
+              <div class="form-card-title">Scope Settings</div>
+
+              <div style="margin-bottom: var(--space-3);">
+                <label class="form-label" for="report-title">Report title</label>
+                <input class="form-input" id="report-title" type="text" value="Acme Corp — Weekly SOC Report — 2026-06-23" aria-label="Report title" />
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3);">
+                <div>
+                  <label class="form-label">Time period</label>
+                  <button class="drop-btn" style="width:100%;" aria-haspopup="listbox" aria-label="Time period — currently last 7 days">
+                    Last 7 days
+                    <span class="drop-caret">▾</span>
+                  </button>
+                </div>
+                <div>
+                  <label class="form-label">Custom range</label>
+                  <div style="display: flex; align-items: center; height: var(--input-height); padding: 0 var(--space-3); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--input-radius); font-size: var(--text-xs); color: var(--color-text-muted);">
+                    Jun 16 – Jun 23, 2026
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-bottom: var(--space-3);">
+                <label class="form-label">Organization context</label>
+                <div style="display: flex; align-items: center; height: var(--input-height); padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border); border-radius: var(--input-radius); font-size: var(--text-sm); color: var(--color-text);">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="margin-right: var(--space-2); color: var(--color-text-muted);"><rect x="1.5" y="3" width="9" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 3V2a1 1 0 011-1h1a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.2"/></svg>
+                  Acme Corp
+                  <span style="font-size: var(--text-xs); color: var(--color-text-muted); margin-left: var(--space-2);">(all tenants: Acme Corp, Acme EU, Acme OT)</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="form-label" id="audience-label">Target audience</label>
+                <div class="audience-pills" role="group" aria-labelledby="audience-label">
+                  <button class="audience-pill active" id="pill-exec" onclick="setAudience('exec')" aria-pressed="true">Executive</button>
+                  <button class="audience-pill" id="pill-tech" onclick="setAudience('tech')" aria-pressed="false">Technical</button>
+                  <button class="audience-pill" id="pill-comp" onclick="setAudience('comp')" aria-pressed="false">Compliance</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section selector -->
+            <div class="form-card">
+              <div class="form-card-title">Include Sections</div>
+              <div class="section-grid" role="group" aria-label="Report sections to include">
+
+                <div class="section-item checked" id="sec-executive" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="true">
+                  <input type="checkbox" checked aria-label="Executive Summary" id="chk-executive">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Executive Summary</div>
+                    <div class="section-item-desc">AI-generated narrative overview</div>
+                  </div>
+                </div>
+
+                <div class="section-item checked" id="sec-trend" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="true">
+                  <input type="checkbox" checked aria-label="Alert Trend Analysis" id="chk-trend">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Alert Trend Analysis</div>
+                    <div class="section-item-desc">7-day chart with severity breakdown</div>
+                  </div>
+                </div>
+
+                <div class="section-item checked" id="sec-cases" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="true">
+                  <input type="checkbox" checked aria-label="Open Cases Summary" id="chk-cases">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Open Cases Summary</div>
+                    <div class="section-item-desc">Table of open cases with status</div>
+                  </div>
+                </div>
+
+                <div class="section-item checked" id="sec-mitre" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="true">
+                  <input type="checkbox" checked aria-label="MITRE ATT&CK Coverage" id="chk-mitre">
+                  <div class="section-item-body">
+                    <div class="section-item-label">MITRE ATT&amp;CK Coverage</div>
+                    <div class="section-item-desc">Heatmap of covered techniques</div>
+                  </div>
+                </div>
+
+                <div class="section-item checked" id="sec-entities" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="true">
+                  <input type="checkbox" checked aria-label="Top Entities at Risk" id="chk-entities">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Top Entities at Risk</div>
+                    <div class="section-item-desc">Ranked list of risky entities</div>
+                  </div>
+                </div>
+
+                <div class="section-item locked" id="sec-coverage" tabindex="0"
+                     data-tooltip="Always included — ensures report recipients know data completeness"
+                     role="checkbox" aria-checked="true" aria-readonly="true">
+                  <input type="checkbox" checked disabled aria-label="Source Coverage Notes — always included">
+                  <div class="section-item-body">
+                    <div class="section-item-label">
+                      Source Coverage Notes
+                      <span class="lock-icon" aria-label="Always included">🔒</span>
+                    </div>
+                    <div class="section-item-desc">Per-source data completeness record</div>
+                  </div>
+                </div>
+
+                <div class="section-item" id="sec-raw" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="false">
+                  <input type="checkbox" aria-label="Raw Findings List" id="chk-raw">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Raw Findings List</div>
+                    <div class="section-item-desc">Detailed finding records</div>
+                  </div>
+                </div>
+
+                <div class="section-item" id="sec-queries" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="false">
+                  <input type="checkbox" aria-label="Query Details (Technical)" id="chk-queries">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Query Details (Technical)</div>
+                    <div class="section-item-desc">PrismQL queries used this period</div>
+                  </div>
+                </div>
+
+                <div class="section-item" id="sec-timeline" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="false">
+                  <input type="checkbox" aria-label="Incident Timeline" id="chk-timeline">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Incident Timeline</div>
+                    <div class="section-item-desc">Chronological event timeline</div>
+                  </div>
+                </div>
+
+                <div class="section-item" id="sec-compliance" onclick="toggleSection(this)" tabindex="0" role="checkbox" aria-checked="false">
+                  <input type="checkbox" aria-label="Compliance Mapping" id="chk-compliance">
+                  <div class="section-item-body">
+                    <div class="section-item-label">Compliance Mapping</div>
+                    <div class="section-item-desc">Controls mapped to NIST CSF / SOC2</div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Source coverage callout -->
+            <div class="coverage-callout" role="alert" aria-label="Data completeness note for this report period">
+              <span class="coverage-callout-icon" aria-hidden="true">△</span>
+              <div class="coverage-callout-body">
+                <div class="coverage-callout-title">Data completeness note</div>
+                <div class="coverage-callout-text">
+                  Armis was degraded for 2h during this report period (Jun 22 14:00–16:00 UTC). This gap will be automatically noted in the generated report.
+                  <span class="coverage-callout-link" role="link" tabindex="0">View details</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Export controls -->
+            <div class="form-card">
+              <div class="form-card-title">Export &amp; Delivery</div>
+              <div class="export-controls">
+
+                <button class="btn btn-primary btn-full btn-lg" id="preview-btn" onclick="triggerPreview()" aria-label="Generate and preview this report">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7c0-2.5 2-4.5 4.5-4.5S11.5 4.5 11.5 7 9.5 11.5 7 11.5 2.5 9.5 2.5 7z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>
+                  ▶ Preview Report
+                </button>
+
+                <button class="btn btn-primary btn-full" aria-label="Export report as PDF" style="background: var(--color-accent-hover);">
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><rect x="2" y="1.5" width="9" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 5.5H8.5M4.5 7.5H8.5M4.5 9.5H6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M4 2v1.5h5V2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Export as PDF
+                </button>
+
+                <div style="display: flex; gap: var(--space-2); align-items: center;">
+                  <button class="btn btn-secondary" style="flex:1;" id="schedule-btn" onclick="toggleSchedule()" aria-expanded="false" aria-controls="schedule-detail">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                    Schedule Recurring
+                    <span class="drop-caret">▾</span>
+                  </button>
+                  <button class="btn btn-ghost btn-sm" aria-label="Share this report configuration">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="9" cy="2.5" r="1.5" stroke="currentColor" stroke-width="1.1"/><circle cx="2.5" cy="6" r="1.5" stroke="currentColor" stroke-width="1.1"/><circle cx="9" cy="9.5" r="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 6.7L7.5 9M4 5.3L7.5 3" stroke="currentColor" stroke-width="1.1"/></svg>
+                    Share
+                  </button>
+                </div>
+
+                <!-- Schedule detail (collapsed) -->
+                <div class="schedule-detail" id="schedule-detail" role="region" aria-label="Recurring schedule details">
+                  <div class="schedule-detail-row">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="color: var(--color-cov-degraded-icon);"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                    <span><span class="schedule-detail-label">Every Monday 09:00 UTC</span></span>
+                  </div>
+                  <div class="schedule-detail-row">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="color: var(--color-text-muted);"><circle cx="6" cy="4" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M2 10c0-2.5 1.8-4 4-4s4 1.5 4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                    <span>Recipients: <span class="schedule-detail-label">jsmith@acme.com</span>, manager@acme.com</span>
+                  </div>
+                  <div>
+                    <a href="#" style="font-size: var(--text-xs);" aria-label="Edit the recurring schedule">Edit schedule</a>
+                  </div>
+                </div>
+
+                <div style="font-size: var(--text-xs); color: var(--color-text-muted);">
+                  Last exported: 2026-06-16 by jsmith
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /builder-panel -->
+
+          <!-- RIGHT: Live Preview Panel -->
+          <div class="preview-panel" aria-label="Report live preview">
+            <div class="preview-panel-header">
+              <span class="preview-panel-title">Live Preview</span>
+              <span style="font-size: var(--text-xs); color: var(--color-text-muted);">PDF preview — page 1 of 4</span>
+              <span style="margin-left: auto; font-size: var(--text-xs); color: var(--color-cov-degraded-text); display: flex; align-items: center; gap: 4px;">
+                <span aria-hidden="true">△</span> Armis data gap noted in report
+              </span>
+            </div>
+
+            <!-- Generating state -->
+            <div class="generating-overlay" id="generating-overlay" aria-live="polite" aria-label="Generating report preview">
+              <div class="spinner" aria-hidden="true"></div>
+              <span style="font-size: var(--text-sm);">Generating preview…</span>
+            </div>
+
+            <!-- Preview canvas -->
+            <div class="preview-canvas" id="preview-canvas">
+
+              <!-- PDF page card -->
+              <div class="pdf-page-card" role="document" aria-label="PDF report preview page 1">
+
+                <!-- PDF Header -->
+                <div class="pdf-header">
+                  <div>
+                    <div class="pdf-logo-text"><span class="pdf-logo-dot"></span>Prism</div>
+                    <div class="pdf-client">Acme Corp — Weekly Report</div>
+                  </div>
+                  <div style="text-align: right;">
+                    <div class="pdf-confidential">CONFIDENTIAL</div>
+                    <div style="font-size: 9px; color: #999; margin-top: 3px;">2026-06-23</div>
+                  </div>
+                </div>
+
+                <div class="pdf-hr"></div>
+
+                <div class="pdf-title">Weekly SOC Report — 2026-06-23</div>
+                <div class="pdf-subtitle">MSSP Client Weekly &nbsp;·&nbsp; Time period: Jun 16–23, 2026 &nbsp;·&nbsp; Org: Acme Corp (all tenants)</div>
+
+                <div class="pdf-hr"></div>
+
+                <!-- Executive Summary -->
+                <div class="pdf-section-label">Executive Summary</div>
+                <div class="pdf-body-text">
+                  This week, Acme Corp's security posture shows elevated credential-related activity with <strong>8 open cases</strong> (2 critical, 4 high). Detection coverage spans 3 of 4 configured sources. Armis experienced degraded connectivity June 22, 14:00–16:00 UTC — see Data Completeness section for details. No significant lateral movement escalations were confirmed beyond Case CASE-042.
+                </div>
+
+                <!-- Alert Trend mini chart -->
+                <div class="pdf-section-label">Alert Trend — Jun 16–23, 2026</div>
+                <div class="pdf-chart" aria-label="Alert trend bar chart — simplified">
+                  <div class="pdf-bar-col">
+                    <div class="pdf-bar pdf-bar-high" style="height:22px;" aria-label="Monday: 18 alerts"></div>
+                    <div class="pdf-bar-day">Mon</div>
+                  </div>
+                  <div class="pdf-bar-col">
+                    <div class="pdf-bar" style="height:14px;" aria-label="Tuesday: 11 alerts"></div>
+                    <div class="pdf-bar-day">Tue</div>
+                  </div>
+                  <div class="pdf-bar-col">
+                    <div class="pdf-bar pdf-bar-med" style="height:20px;" aria-label="Wednesday: 16 alerts"></div>
+                    <div class="pdf-bar-day">Wed</div>
+                  </div>
+                  <div class="pdf-bar-col">
+                    <div class="pdf-bar pdf-bar-low" style="height:11px;" aria-label="Thursday: 9 alerts"></div>
+                    <div class="pdf-bar-day">Thu</div>
+                  </div>
+                  <div class="pdf-bar-col">
+                    <div class="pdf-bar pdf-bar-crit" style="height:34px;" aria-label="Friday: 27 alerts"></div>
+                    <div class="pdf-bar-day">Fri</div>
+                  </div>
+                  <div class="pdf-bar-col">
+                    <div class="pdf-bar" style="height:18px;" aria-label="Saturday: 14 alerts"></div>
+                    <div class="pdf-bar-day">Sat</div>
+                  </div>
+                  <div class="pdf-bar-col">
+                    <div class="pdf-bar pdf-bar-high" style="height:24px;" aria-label="Sunday: 19 alerts"></div>
+                    <div class="pdf-bar-day">Sun</div>
+                  </div>
+                </div>
+                <div style="font-size: 8px; color: #999; margin-bottom: 12px; margin-top: -4px; display: flex; gap: 10px; flex-wrap: wrap;">
+                  <span><span style="display:inline-block;width:7px;height:7px;background:#c80f2e;border-radius:1px;margin-right:3px;vertical-align:middle;"></span>Critical</span>
+                  <span><span style="display:inline-block;width:7px;height:7px;background:#cc3b15;border-radius:1px;margin-right:3px;vertical-align:middle;"></span>High</span>
+                  <span><span style="display:inline-block;width:7px;height:7px;background:#d4a017;border-radius:1px;margin-right:3px;vertical-align:middle;"></span>Medium</span>
+                  <span><span style="display:inline-block;width:7px;height:7px;background:#1a6fc4;border-radius:1px;margin-right:3px;vertical-align:middle;"></span>Low</span>
+                </div>
+
+                <!-- Data completeness note -->
+                <div class="pdf-data-note" role="note" aria-label="Data completeness note">
+                  <span aria-hidden="true">⚠</span>
+                  <div>
+                    <strong>Data note:</strong> Armis degraded 2h (Jun 22 14:00–16:00 UTC). Results may be incomplete for OT sensor data during this period. CrowdStrike, Cyberint, and Claroty were fully operational for the entire report period.
+                  </div>
+                </div>
+
+                <div class="pdf-footer-page" aria-label="Page 1 of 4">Page 1 of 4 · Generated by Prism · 2026-06-23 · CONFIDENTIAL</div>
+              </div>
+
+            </div><!-- /preview-canvas -->
+
+            <!-- Preview footer -->
+            <div class="preview-footer">
+              <div class="page-nav" aria-label="Page navigation">
+                <button class="btn btn-secondary btn-sm" id="prev-page-btn" onclick="changePage(-1)" aria-label="Previous page" disabled>◀ Prev</button>
+                <span id="page-indicator" aria-live="polite" aria-atomic="true">Page 1 of 4</span>
+                <button class="btn btn-secondary btn-sm" id="next-page-btn" onclick="changePage(1)" aria-label="Next page">Next ▶</button>
+              </div>
+              <div class="zoom-control" aria-label="Zoom controls">
+                <button class="zoom-btn" onclick="changeZoom(-1)" aria-label="Zoom out">−</button>
+                <span class="zoom-value" id="zoom-value" aria-live="polite">75%</span>
+                <button class="zoom-btn" onclick="changeZoom(1)" aria-label="Zoom in">+</button>
+              </div>
+            </div>
+          </div><!-- /preview-panel -->
+
+        </div><!-- /builder-view (two-panel) -->
+
+        <!-- ── Recent Reports View ──────────────────────────────── -->
+        <div id="recent-view" role="tabpanel" aria-labelledby="tab-recent" style="flex:1; overflow: hidden;">
+          <div class="recent-panel">
+            <div class="recent-header">
+              <h2 class="recent-title">Recent Reports</h2>
+              <a href="#" style="font-size: var(--text-sm); margin-left: auto;" aria-label="View all reports in the archive">View all</a>
+            </div>
+
+            <div style="overflow-x: auto;">
+              <table class="reports-table" role="grid" aria-label="Recent exported reports">
+                <thead>
+                  <tr role="row">
+                    <th scope="col" style="min-width: 300px;">Report</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Period</th>
+                    <th scope="col" style="min-width: 130px;">Export date</th>
+                    <th scope="col">Exported by</th>
+                    <th scope="col" style="min-width: 200px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr role="row">
+                    <td>
+                      <div class="report-file-cell">
+                        <svg class="pdf-icon" width="18" height="20" viewBox="0 0 18 20" fill="none" aria-hidden="true"><rect x="1" y="1" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 7h6M5 10h6M5 13h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M13 1v4h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 1l4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+                        <div>
+                          <div class="report-name">Weekly SOC Report — 2026-06-23.pdf</div>
+                          <div style="font-size: var(--text-xs); color: var(--color-text-muted);">4 pages · 842 KB</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="type-badge type-weekly">Weekly</span></td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">Jun 16–23</td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">Jun 23 09:02</td>
+                    <td style="font-size: var(--text-xs);">jsmith</td>
+                    <td>
+                      <div class="actions-cell">
+                        <button class="btn btn-secondary btn-sm" aria-label="Download Weekly SOC Report 2026-06-23">Download</button>
+                        <button class="btn btn-ghost btn-sm" aria-label="Resend Weekly SOC Report 2026-06-23">Resend</button>
+                        <button class="btn btn-ghost btn-sm" aria-label="Re-run Weekly SOC Report 2026-06-23">Re-run</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr role="row">
+                    <td>
+                      <div class="report-file-cell">
+                        <svg class="pdf-icon" width="18" height="20" viewBox="0 0 18 20" fill="none" aria-hidden="true"><rect x="1" y="1" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 7h6M5 10h6M5 13h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M13 1v4h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 1l4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+                        <div>
+                          <div class="report-name">Incident Report — CASE-042 (CVE Exploit).pdf</div>
+                          <div style="font-size: var(--text-xs); color: var(--color-text-muted);">9 pages · 2.1 MB</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="type-badge type-incident">Incident</span></td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">Jun 22</td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">Jun 22 16:45</td>
+                    <td style="font-size: var(--text-xs);">jdoe</td>
+                    <td>
+                      <div class="actions-cell">
+                        <button class="btn btn-secondary btn-sm" aria-label="Download Incident Report CASE-042">Download</button>
+                        <button class="btn btn-ghost btn-sm" aria-label="Resend Incident Report CASE-042">Resend</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr role="row">
+                    <td>
+                      <div class="report-file-cell">
+                        <svg class="pdf-icon" width="18" height="20" viewBox="0 0 18 20" fill="none" aria-hidden="true"><rect x="1" y="1" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 7h6M5 10h6M5 13h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M13 1v4h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 1l4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+                        <div>
+                          <div class="report-name">Monthly Executive Summary — May 2026.pdf</div>
+                          <div style="font-size: var(--text-xs); color: var(--color-text-muted);">6 pages · 1.3 MB</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="type-badge type-monthly">Monthly</span></td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">May 2026</td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">Jun 1 08:00</td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">scheduled</td>
+                    <td>
+                      <div class="actions-cell">
+                        <button class="btn btn-secondary btn-sm" aria-label="Download Monthly Executive Summary May 2026">Download</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr role="row">
+                    <td>
+                      <div class="report-file-cell">
+                        <svg style="color: var(--color-cov-degraded-icon);" width="18" height="20" viewBox="0 0 18 20" fill="none" aria-hidden="true"><rect x="1" y="1" width="13" height="16" rx="2" stroke="currentColor" stroke-width="1.4" stroke-dasharray="3 2"/><path d="M5 7h6M5 10h6M5 13h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                        <div>
+                          <div class="report-name">
+                            Compliance Report — SOC2 Q2.pdf
+                            <span style="font-size: var(--text-xs); background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); border: 1px solid var(--color-cov-degraded-border); border-radius: var(--radius-sm); padding: 1px 5px; margin-left: 6px;">Scheduled</span>
+                          </div>
+                          <div style="font-size: var(--text-xs); color: var(--color-text-muted);">Pending export — runs Jun 30</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="type-badge type-compliance">Compliance</span></td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">Q2 2026</td>
+                    <td style="font-size: var(--text-xs); color: var(--color-cov-degraded-text);">Jun 30 (scheduled)</td>
+                    <td style="font-size: var(--text-xs); color: var(--color-text-muted);">—</td>
+                    <td>
+                      <div class="actions-cell">
+                        <button class="btn btn-secondary btn-sm" aria-label="Preview Compliance Report SOC2 Q2">Preview</button>
+                        <button class="btn btn-ghost btn-sm" aria-label="Edit schedule for Compliance Report SOC2 Q2">Edit schedule</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div style="font-size: var(--text-xs); color: var(--color-text-muted); padding: var(--space-2) 0;">
+              Showing 4 of 27 reports. <a href="#" aria-label="View all 27 reports">View all reports</a>
+            </div>
+          </div>
+        </div><!-- /recent-view -->
+
+      </main>
+
+      <!-- AI Sidecar -->
+      <aside class="sidecar" id="sidecar" aria-label="Prism AI assistant (Beta)" aria-hidden="true">
+        <div class="sidecar-header">
+          <span class="ai-tag" aria-label="AI-generated content">AI</span>
+          <span class="sidecar-title">Prism AI (Beta)</span>
+          <button class="icon-btn" onclick="toggleSidecar()" aria-label="Close AI assistant">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 2l9 9M11 2L2 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="sidecar-body">
+          <div class="sidecar-placeholder">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true" style="margin: 0 auto var(--space-3); display: block; opacity: 0.3;"><circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5"/><path d="M12 14a4 4 0 018 0c0 3-4 5-4 7M16 25v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Ask Prism AI to help draft your executive summary, suggest report sections, or explain coverage gaps.
+            <br><br>
+            <em style="font-size: var(--text-xs);">Every AI response shows the PrismQL queries used — never a black box.</em>
+          </div>
+        </div>
+      </aside>
+
+    </div><!-- /main-with-sidecar -->
+
+  </div><!-- /body -->
+
+</div><!-- /app -->
+
+<!-- Theme toggle (fixed) -->
+<div class="theme-toggle-fixed" role="group" aria-label="Theme toggle">
+  <button class="theme-btn active" id="theme-light" onclick="setTheme('light')" aria-pressed="true" aria-label="Switch to light theme">☀</button>
+  <button class="theme-btn" id="theme-dark" onclick="setTheme('dark')" aria-pressed="false" aria-label="Switch to dark theme">◑</button>
+</div>
+
+<script>
+  /* ── Theme toggle ─────────────────────────────────────────────── */
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.getElementById('theme-light').classList.toggle('active', t === 'light');
+    document.getElementById('theme-dark').classList.toggle('active', t === 'dark');
+    document.getElementById('theme-light').setAttribute('aria-pressed', t === 'light');
+    document.getElementById('theme-dark').setAttribute('aria-pressed', t === 'dark');
+  }
+
+  /* ── Tab switching: Report Builder ↔ Recent Reports ───────────── */
+  function switchTab(tab) {
+    const builderView = document.getElementById('builder-view');
+    const recentView  = document.getElementById('recent-view');
+    const tabBuilder  = document.getElementById('tab-builder');
+    const tabRecent   = document.getElementById('tab-recent');
+
+    if (tab === 'builder') {
+      builderView.style.display = 'flex';
+      recentView.style.display  = 'none';
+      tabBuilder.classList.add('active');    tabBuilder.setAttribute('aria-selected', 'true');
+      tabRecent.classList.remove('active');  tabRecent.setAttribute('aria-selected', 'false');
+    } else {
+      builderView.style.display = 'none';
+      recentView.style.display  = 'flex';
+      tabRecent.classList.add('active');     tabRecent.setAttribute('aria-selected', 'true');
+      tabBuilder.classList.remove('active'); tabBuilder.setAttribute('aria-selected', 'false');
+    }
+  }
+
+  /* ── Report type cycling ──────────────────────────────────────── */
+  const reportTypes = [
+    { label: 'Weekly SOC Report', desc: 'Pre-built for MSSP client delivery. Includes executive summary, alert trends, open cases, MITRE coverage.' },
+    { label: 'Incident Report', desc: 'Deep-dive incident narrative with timeline, entities, evidence chain, and remediation recommendations.' },
+    { label: 'Monthly Executive Summary', desc: 'High-level monthly posture overview for executives. Charts-first, minimal technical detail.' },
+    { label: 'Compliance Report', desc: 'Controls coverage mapped to NIST CSF, SOC2, or ISO 27001. Suitable for auditor delivery.' },
+  ];
+  let currentType = 0;
+
+  function cycleReportType() {
+    currentType = (currentType + 1) % reportTypes.length;
+    document.getElementById('report-type-label').textContent = reportTypes[currentType].label;
+    document.getElementById('template-desc').textContent = reportTypes[currentType].desc;
+    document.getElementById('report-type-label').parentElement.setAttribute(
+      'aria-label', 'Report type — currently ' + reportTypes[currentType].label
+    );
+  }
+
+  /* ── Section checkbox toggle ──────────────────────────────────── */
+  function toggleSection(el) {
+    if (el.classList.contains('locked')) return;
+    const isChecked = el.getAttribute('aria-checked') === 'true';
+    const newChecked = !isChecked;
+    el.setAttribute('aria-checked', String(newChecked));
+    el.classList.toggle('checked', newChecked);
+    // Update internal checkbox
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = newChecked;
+  }
+
+  // Keyboard support for section items
+  document.querySelectorAll('.section-item:not(.locked)').forEach(item => {
+    item.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSection(item); }
+    });
+  });
+
+  /* ── Audience toggle ──────────────────────────────────────────── */
+  function setAudience(type) {
+    ['exec','tech','comp'].forEach(id => {
+      const el = document.getElementById('pill-' + id);
+      const active = id === type;
+      el.classList.toggle('active', active);
+      el.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  /* ── Preview generation ───────────────────────────────────────── */
+  function triggerPreview() {
+    const overlay = document.getElementById('generating-overlay');
+    const canvas  = document.getElementById('preview-canvas');
+
+    // Show generating state
+    overlay.classList.add('active');
+    canvas.style.display = 'none';
+
+    setTimeout(() => {
+      overlay.classList.remove('active');
+      canvas.style.display = '';
+    }, 1100);
+  }
+
+  /* ── Schedule toggle ──────────────────────────────────────────── */
+  function toggleSchedule() {
+    const detail = document.getElementById('schedule-detail');
+    const btn    = document.getElementById('schedule-btn');
+    const open   = detail.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+  }
+
+  /* ── Page navigation ──────────────────────────────────────────── */
+  let currentPage = 1;
+  const totalPages = 4;
+
+  function changePage(delta) {
+    currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+    document.getElementById('page-indicator').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+    document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+    document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+    // Update preview panel header text
+    document.querySelector('.preview-panel-header span:nth-child(2)').textContent =
+      'PDF preview — page ' + currentPage + ' of ' + totalPages;
+  }
+
+  /* ── Zoom control ──────────────────────────────────────────────── */
+  const zoomLevels = [50, 75, 100, 125];
+  let zoomIdx = 1; // 75%
+
+  function changeZoom(delta) {
+    zoomIdx = Math.max(0, Math.min(zoomLevels.length - 1, zoomIdx + delta));
+    const pct = zoomLevels[zoomIdx];
+    document.getElementById('zoom-value').textContent = pct + '%';
+    const page = document.querySelector('.pdf-page-card');
+    if (page) {
+      page.style.transform = 'scale(' + (pct / 100) + ')';
+      page.style.transformOrigin = 'top center';
+    }
+  }
+
+  /* ── AI Sidecar ────────────────────────────────────────────────── */
+  function toggleSidecar() {
+    const sidecar = document.getElementById('sidecar');
+    const btn     = document.getElementById('sidecar-toggle-btn');
+    const open    = sidecar.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+    sidecar.setAttribute('aria-hidden', String(!open));
+  }
+</script>
+</body>
+</html>

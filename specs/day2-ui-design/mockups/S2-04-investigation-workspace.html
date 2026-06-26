@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<!--
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  S2-04-investigation-workspace.html — Prism Investigations Console: Investigation Workspace (Screen 4)
+  Primary PrismQL query surface: Monaco-style editor with NL toggle, time picker, source selector,
+  run/cancel, and a split-pane results area below.
+
+  KEY DIFFERENTIATOR vs S2-05-results-explorer.html:
+  This is the multi-source collection/correlation CANVAS for building queries and attaching
+  results to a case. The results area includes a "Working Set" band for correlation artifacts.
+  S2-05 is a pure exploration/browsing surface with no case attachment or working set concept.
+
+  Design system: tokens.css only — no inline hex colors, no forked tokens.
+  Theme toggle: fixed top-right, persisted via localStorage.
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — Investigation Workspace</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-3);
+    }
+
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+
+    .topbar-nav { display: flex; gap: 2px; list-style: none; flex: 1; }
+
+    .topbar-nav-item {
+      display: flex; align-items: center; height: 32px; padding: 0 var(--space-3);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast); white-space: nowrap;
+    }
+
+    .topbar-nav-item:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .topbar-nav-item.active { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);
+      cursor: pointer; min-width: 200px;
+    }
+
+    .kbd { font-family: var(--font-mono); font-size: 10px; background: var(--color-border); border-radius: 3px; padding: 1px 4px; margin-left: auto; color: var(--color-text-muted); }
+
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: var(--radius-md); border: none; background: transparent; color: var(--color-icon-default);
+      cursor: pointer; transition: background var(--transition-fast); position: relative;
+    }
+
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+
+    .notif-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%; border: 2px solid var(--topbar-bg); }
+
+    /* ── Body ───────────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav ───────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg); border-right: var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+    .leftnav-main { flex: 1; }
+    .leftnav-footer {
+      border-top: var(--border);
+      padding-top: var(--space-2);
+      margin-top: var(--space-2);
+    }
+
+    .nav-group-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-muted); padding: var(--space-3) var(--space-2) var(--space-1); }
+
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active { background: var(--nav-item-bg-active); color: var(--nav-item-text-active); font-weight: var(--weight-semibold); }
+
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); flex-shrink: 0; }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Main ───────────────────────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg); }
+
+    /* ── Query panel (top, flex-shrink 0) ────────────────────────── */
+    .query-panel {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-bottom: var(--border);
+      background: var(--color-bg-card);
+    }
+
+    .query-panel-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3) var(--space-2) var(--space-5);
+      background: var(--color-bg-card);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .query-panel-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+      white-space: nowrap;
+    }
+
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-md);
+      padding: 2px;
+    }
+
+    .mode-btn {
+      display: flex; align-items: center; height: 24px; padding: 0 var(--space-3);
+      border-radius: var(--radius-sm); border: none; background: transparent;
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      color: var(--color-text-muted); cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .mode-btn.active { background: var(--color-bg); color: var(--color-text); box-shadow: var(--shadow-xs); }
+
+    /* Monaco-style editor */
+    .editor-chrome {
+      background: var(--editor-bg);
+      font-family: var(--font-mono);
+      font-size: var(--editor-font-size);
+      line-height: var(--editor-line-height);
+      flex-shrink: 0;
+    }
+
+    .editor-body { display: flex; }
+
+    .editor-gutter {
+      padding: var(--space-2) var(--space-2);
+      background: var(--editor-gutter-bg);
+      color: var(--editor-gutter-text); text-align: right; min-width: 36px;
+      user-select: none; border-right: 1px solid rgba(128,128,128,0.12);
+    }
+
+    .editor-gutter div { line-height: var(--editor-line-height); font-size: var(--editor-font-size); }
+    .editor-gutter div.line-highlighted { background: var(--editor-line-highlight); color: var(--editor-text); }
+
+    .editor-code {
+      padding: var(--space-2) var(--space-4); color: var(--editor-text);
+      flex: 1; white-space: pre; overflow-x: auto;
+    }
+
+    .editor-code .line-highlighted {
+      display: block;
+      background: var(--editor-line-highlight);
+      margin-left: calc(-1 * var(--space-4));
+      padding-left: var(--space-4);
+    }
+
+    .editor-code .kw  { color: var(--editor-keyword); }
+    .editor-code .fn  { color: var(--editor-function); }
+    .editor-code .str { color: var(--editor-string); }
+    .editor-code .num { color: var(--editor-number); }
+    .editor-code .cm  { color: var(--editor-comment); font-style: italic; }
+    .editor-code .op  { color: var(--editor-operator); }
+    .editor-code .ty  { color: var(--editor-type); }
+
+    .editor-statusbar {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-1) var(--space-3); background: var(--editor-gutter-bg);
+      border-top: 1px solid rgba(128,128,128,0.08); font-size: 11px;
+      flex-wrap: wrap; flex-shrink: 0;
+    }
+
+    .editor-statusbar span { font-size: 11px; color: var(--editor-gutter-text); }
+
+    /* NL mode panel */
+    .nl-panel {
+      display: none;
+      flex-direction: column;
+      padding: var(--space-4) var(--space-5);
+      gap: var(--space-3);
+      background: var(--editor-bg);
+    }
+
+    .nl-panel.active { display: flex; }
+
+    .nl-textarea {
+      width: 100%;
+      height: 64px;
+      padding: var(--space-3);
+      background: var(--color-bg);
+      border: var(--border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: var(--text-base);
+      color: var(--color-text);
+      resize: none;
+    }
+
+    .nl-textarea::placeholder { color: var(--color-text-muted); }
+    .nl-textarea:focus { outline: 2px solid var(--color-focus-ring); outline-offset: -1px; }
+
+    .nl-generated-panel {
+      background: var(--color-ai-bg);
+      border: 1px solid var(--color-ai-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .nl-generated-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--color-ai-border);
+    }
+
+    .nl-generated-header span {
+      font-size: var(--text-xs);
+      color: var(--color-ai-text);
+      font-weight: var(--weight-medium);
+    }
+
+    .nl-generated-code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--color-ai-text);
+      padding: var(--space-2) var(--space-3);
+      background: transparent;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .nl-generated-footer {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-top: 1px solid var(--color-ai-border);
+    }
+
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .spinner { width: 12px; height: 12px; border: 1.5px solid var(--color-ai-border); border-top-color: var(--color-ai-label); border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+    .nl-generating {
+      display: none;
+      align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      font-size: var(--text-xs); color: var(--color-ai-label);
+    }
+
+    /* Options bar */
+    .options-bar {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-bg-card); border-bottom: var(--border);
+      flex-wrap: wrap; flex-shrink: 0;
+    }
+
+    .options-group {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    .options-group-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .source-item {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      font-size: var(--text-sm); color: var(--color-text); cursor: pointer;
+    }
+
+    .source-item input { accent-color: var(--color-accent); }
+    .source-item.degraded { color: var(--color-cov-degraded-text); }
+
+    /* Run bar */
+    .run-bar {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-bg-card); border-bottom: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* Error/warning banners */
+    .banner-error {
+      display: none;
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-sev-high-bg);
+      border-bottom: 1px solid var(--color-sev-high-border);
+      font-size: var(--text-xs);
+      color: var(--color-sev-high-text);
+      align-items: center;
+      gap: var(--space-2);
+      flex-shrink: 0;
+    }
+    .banner-error.visible { display: flex; }
+
+    .banner-critical {
+      display: none;
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-sev-critical-bg);
+      border-bottom: 1px solid var(--color-sev-critical-border);
+      font-size: var(--text-xs);
+      color: var(--color-sev-critical-text);
+      align-items: center;
+      gap: var(--space-2);
+      flex-shrink: 0;
+    }
+    .banner-critical.visible { display: flex; }
+
+    /* Resizer */
+    .resizer-handle {
+      height: 4px;
+      background: var(--color-border);
+      cursor: row-resize;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: background var(--transition-fast);
+    }
+    .resizer-handle:hover { background: var(--color-border-strong); }
+
+    .resizer-grip { display: flex; gap: 2px; }
+    .resizer-grip span { width: 3px; height: 3px; border-radius: 50%; background: var(--color-icon-default); }
+
+    /* Results area */
+    .results-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Coverage banner */
+    .coverage-banner-results {
+      flex-shrink: 0;
+      border-bottom: var(--border);
+      background: var(--color-bg-card);
+    }
+
+    .coverage-compact {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      height: 38px;
+    }
+
+    .coverage-chip {
+      display: inline-flex; align-items: center; gap: var(--space-1-5);
+      padding: 3px var(--space-3);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      background: var(--color-cov-degraded-bg);
+      color: var(--color-cov-degraded-text);
+      border: 1px solid var(--color-cov-degraded-border);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .coverage-chip:hover { filter: brightness(0.95); }
+
+    .coverage-chip-chevron {
+      display: inline-block; width: 10px; height: 10px; margin-left: 2px;
+      transition: transform var(--transition-base);
+    }
+    .coverage-chip-chevron.open { transform: rotate(180deg); }
+
+    .coverage-detail {
+      display: none;
+      flex-direction: column;
+      border-top: var(--border);
+      padding: var(--space-2) var(--space-5) var(--space-3);
+      gap: var(--space-1-5);
+    }
+    .coverage-detail.open { display: flex; }
+
+    .coverage-detail-row {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-xs);
+    }
+
+    .coverage-source-item {
+      display: flex; align-items: center; gap: var(--space-1-5);
+      padding: var(--space-1-5) var(--space-3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+    }
+
+    .cov-answered { background: var(--color-cov-answered-bg); color: var(--color-cov-answered-text); border: 1px solid var(--color-cov-answered-border); }
+    .cov-degraded { background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text); border: 1px solid var(--color-cov-degraded-border); }
+    .cov-count { font-weight: var(--weight-bold); }
+
+    /* Working Set band — KEY DIFFERENTIATOR from S2-05 Results Explorer */
+    .working-set-band {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-surface-2);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      min-height: 42px;
+    }
+
+    .working-set-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+
+    .working-set-count {
+      font-size: var(--text-xs);
+      color: var(--color-text);
+      font-weight: var(--weight-medium);
+    }
+
+    .ws-pill {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      padding: 2px var(--space-2);
+      background: var(--color-bg); border: var(--border); border-radius: var(--radius-full);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    .ws-pill-remove {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--color-border); color: var(--color-text-muted);
+      border: none; cursor: pointer; font-size: 10px; line-height: 1;
+    }
+    .ws-pill-remove:hover { background: var(--color-sev-high-bg); color: var(--color-sev-high-text); }
+
+    /* Results toolbar */
+    .results-toolbar {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) var(--space-5); border-bottom: var(--border);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+
+    .results-count { font-size: var(--text-sm); color: var(--color-text-muted); }
+    .results-count strong { color: var(--color-text); }
+
+    .streaming-indicator {
+      display: inline-flex; align-items: center; gap: var(--space-1-5);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      color: var(--color-cov-answered-icon);
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .streaming-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1s ease-in-out infinite; }
+
+    /* Results grid */
+    .results-grid { flex: 1; overflow: auto; }
+
+    .grid-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+
+    .grid-table th {
+      position: sticky; top: 0; z-index: 1;
+      background: var(--table-header-bg); color: var(--table-header-text);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border-strong);
+      text-align: left; white-space: nowrap; cursor: pointer; user-select: none;
+    }
+    .grid-table th:hover { background: var(--color-surface-3, var(--color-border)); }
+
+    .sort-icon { opacity: 0.5; font-size: 10px; margin-left: 3px; }
+    .sort-active { opacity: 1; color: var(--color-accent); }
+
+    .grid-table td {
+      padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--table-border);
+      vertical-align: middle; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .grid-table tr { cursor: pointer; transition: background var(--transition-fast); }
+    .grid-table tr:nth-child(even) td { background: var(--table-row-bg-alt); }
+    .grid-table tr:hover td { background: var(--table-row-bg-hover); }
+
+    .cell-mono { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+    .cell-link { color: var(--color-text-link); cursor: pointer; font-family: var(--font-mono); font-size: var(--text-xs); }
+    .cell-link:hover { text-decoration: underline; }
+
+    .source-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 18px; padding: 0 6px;
+      border-radius: var(--radius-full); font-size: 10px; font-weight: var(--weight-semibold);
+      border: var(--border); background: var(--color-surface-2);
+      color: var(--color-text-muted); white-space: nowrap;
+    }
+
+    .source-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .src-cs { background: #1a6fc4; }
+    .src-cy { background: #7c3aed; }
+    .src-cl { background: #0d7c66; }
+    .src-ar { background: #b45309; }
+
+    /* Entity grid */
+    .entity-grid { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-5); overflow-y: auto; }
+
+    .entity-card {
+      display: flex; align-items: center; gap: var(--space-4);
+      background: var(--color-bg-card); border: var(--border); border-radius: var(--radius-lg);
+      padding: var(--space-3) var(--space-4); cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+    .entity-card:hover { background: var(--color-bg-hover); border-color: var(--color-border-strong); }
+
+    .entity-type-badge {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: var(--radius-md);
+      background: var(--color-surface-2); font-size: 16px; flex-shrink: 0;
+    }
+
+    .entity-card-info { flex: 1; min-width: 0; }
+    .entity-card-name { font-size: var(--text-sm); font-weight: var(--weight-semibold); font-family: var(--font-mono); color: var(--color-text); margin-bottom: 2px; }
+    .entity-card-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+    .entity-sev-bar { display: flex; gap: 2px; align-items: center; width: 80px; }
+    .entity-sev-seg { height: 6px; border-radius: 2px; }
+
+    /* Status bar */
+    .results-statusbar {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-2) var(--space-5); border-top: var(--border);
+      background: var(--color-bg-card); flex-shrink: 0;
+      font-size: var(--text-xs); color: var(--color-text-muted);
+    }
+
+    /* Shared buttons / badges */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md); border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap; line-height: 1;
+      transition: background var(--transition-fast);
+    }
+
+    .btn-primary { background: var(--btn-primary-bg); color: #fff; }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border-color: var(--btn-secondary-border); }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .btn-sm { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap;
+    }
+
+    .badge-icon { width: 10px; height: 10px; flex-shrink: 0; }
+    .badge-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical-text); border: 1px solid var(--color-sev-critical-border); }
+    .badge-high     { background: var(--color-sev-high-bg);     color: var(--color-sev-high-text);     border: 1px solid var(--color-sev-high-border);     }
+    .badge-medium   { background: var(--color-sev-medium-bg);   color: var(--color-sev-medium-text);   border: 1px solid var(--color-sev-medium-border);   }
+
+    .ai-tag {
+      display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-1-5);
+      background: var(--color-ai-label); color: #fff; font-size: 10px; font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase; border-radius: 3px;
+    }
+
+    .drop-btn {
+      display: inline-flex; align-items: center; gap: var(--space-1); height: 30px; padding: 0 var(--space-3);
+      background: var(--color-bg); border: var(--border); border-radius: var(--radius-md);
+      font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .drop-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .drop-caret { font-size: 9px; opacity: 0.6; }
+
+    /* Theme toggle */
+    .theme-toggle-fixed {
+      position: fixed; top: calc(var(--topbar-height) + var(--space-3)); right: var(--space-4);
+      z-index: var(--z-toast);
+      display: flex; background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-full); padding: 3px; gap: 2px; box-shadow: var(--shadow-md);
+    }
+
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+      border-radius: var(--radius-full); border: none; background: transparent; cursor: pointer; font-size: 14px; color: var(--color-text-muted);
+    }
+    .theme-btn.active { background: var(--color-bg); box-shadow: var(--shadow-xs); }
+
+    /* Running state streaming indicator */
+    .streaming-status {
+      display: none;
+      align-items: center; gap: var(--space-1-5);
+      font-size: 11px; color: var(--editor-gutter-text);
+    }
+    .streaming-status.visible { display: flex; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ─────────────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar-logo" aria-label="Prism home">
+      <span class="logo-dot" aria-hidden="true"></span>
+      Prism
+    </div>
+    <nav aria-label="Main navigation">
+      <ul class="topbar-nav" role="list">
+        <li class="topbar-nav-item" role="listitem">Investigations</li>
+        <li class="topbar-nav-item active" role="listitem" aria-current="page">Query</li>
+        <li class="topbar-nav-item" role="listitem">Detections</li>
+        <li class="topbar-nav-item" role="listitem">Dashboards</li>
+        <li class="topbar-nav-item" role="listitem">Data</li>
+        <li class="topbar-nav-item" role="listitem">Admin</li>
+      </ul>
+    </nav>
+    <div class="topbar-actions">
+      <div class="search-trigger" role="button" aria-label="Open command palette (Ctrl+K)">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Search…</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="icon-btn" aria-label="Toggle Prism AI chat sidecar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2.5-2.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="12.5" r="0.7" fill="currentColor"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 2.5C5 2.5 3.5 4 3.5 6.5V10H2v1.5h11V10h-1.5V6.5C11.5 4 10 2.5 7.5 2.5Z" stroke="currentColor" stroke-width="1.2"/><path d="M6 12c0 .8.7 1.5 1.5 1.5S9 12.8 9 12" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="User menu">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ── Left nav ──────────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Section navigation">
+      <div class="leftnav-main">
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Triage Queue
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cases
+        </div>
+        <div class="nav-group-label">Query</div>
+        <div class="nav-item active" role="link" aria-current="page">
+          <span class="nav-dot" aria-hidden="true"></span>Workspace
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Results Explorer
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Saved Queries
+        </div>
+        <div class="nav-group-label">Detections</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Rules
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Findings
+        </div>
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Summary Insights
+        </div>
+        <div class="nav-group-label">Data</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Sources
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cache Browser
+        </div>
+      </div>
+
+      <div class="leftnav-footer" role="group" aria-label="Administration">
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zm0 1.5a5 5 0 110 10 5 5 0 010-10zm0 2a.75.75 0 100 1.5.75.75 0 000-1.5zm0 2.5a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 007.5 7z" fill="currentColor"/></svg>
+          Help
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.5a6 6 0 100 12 6 6 0 000-12zm-1 3h2v4h-2V4.5zm0 5h2v2h-2v-2z" fill="currentColor"/></svg>
+          Org Settings
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a2 2 0 100 4 2 2 0 000-4zM4.5 7.5A3 3 0 017.5 6h0a3 3 0 013 1.5M2 13a5.5 5.5 0 0111 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          User Management
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Main: query panel + resizer + results ──────────────────── -->
+    <main class="main" aria-label="Investigation Workspace">
+
+      <!-- ── Query panel ────────────────────────────────────────── -->
+      <div class="query-panel" id="query-panel">
+
+        <!-- Panel header -->
+        <div class="query-panel-header">
+          <span class="query-panel-title">Investigation Workspace</span>
+
+          <div class="mode-toggle" role="group" aria-label="Query mode">
+            <button class="mode-btn active" id="btn-prismql-mode" onclick="setQueryMode('prismql')" aria-pressed="true">PrismQL ●</button>
+            <button class="mode-btn" id="btn-nl-mode" onclick="setQueryMode('nl')" aria-pressed="false">
+              <span class="ai-tag" style="height:16px;font-size:9px;margin-right:3px;">AI</span>
+              Natural Language
+            </button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:var(--space-2);margin-left:var(--space-4);">
+            <button class="btn btn-ghost btn-sm" aria-label="View query history">History</button>
+            <button class="btn btn-ghost btn-sm" aria-label="Explain query execution plan">EXPLAIN</button>
+            <button class="btn btn-secondary btn-sm" aria-label="Save this query">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 1.5v3h4v-3" stroke="currentColor" stroke-width="1.2"/><path d="M3 7.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Save Query <span class="drop-caret" style="font-size:9px;opacity:.6;margin-left:2px;">▾</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" aria-label="Convert this query to a detection rule">→ Rule</button>
+          </div>
+
+          <!-- Demo state pills -->
+          <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-1);">
+            <span style="font-size:10px;color:var(--color-text-subtle);letter-spacing:var(--tracking-caps);text-transform:uppercase;">Demo:</span>
+            <button class="btn btn-ghost btn-sm" onclick="setDemoState('running')" aria-label="Show running state">Running</button>
+            <button class="btn btn-ghost btn-sm" onclick="setDemoState('nl')" aria-label="Show NL mode state">NL Mode</button>
+            <button class="btn btn-ghost btn-sm" onclick="setDemoState('join-error')" aria-label="Show join error state">Join error</button>
+            <button class="btn btn-ghost btn-sm" onclick="setDemoState('syntax-error')" aria-label="Show syntax error state">Syntax error</button>
+            <button class="btn btn-ghost btn-sm" onclick="setDemoState('default')" aria-label="Reset to default state">Reset</button>
+          </div>
+        </div>
+
+        <!-- Monaco-style PrismQL editor -->
+        <div id="prismql-editor-panel">
+          <div class="editor-chrome">
+            <div class="editor-body">
+              <!-- Gutter: line 11 (WHERE AND clause) highlighted -->
+              <div class="editor-gutter" aria-hidden="true">
+                <div>1</div>
+                <div>2</div>
+                <div>3</div>
+                <div>4</div>
+                <div>5</div>
+                <div>6</div>
+                <div>7</div>
+                <div>8</div>
+                <div>9</div>
+                <div>10</div>
+                <div class="line-highlighted">11</div>
+                <div>12</div>
+                <div>13</div>
+              </div>
+              <div class="editor-code" id="editor-code-area" role="textbox" aria-label="PrismQL query editor" aria-multiline="true" tabindex="0"><span class="cm">-- Multi-source correlation: CVE-2026-44821 exploit chain</span>
+<span class="cm">-- Attach results to case CASE-2026-0042</span>
+<span class="kw">SELECT</span>
+  <span class="ty">time</span><span class="op">,</span> <span class="ty">src_endpoint.ip</span> <span class="kw">AS</span> src_ip<span class="op">,</span>
+  <span class="ty">actor.user.name</span> <span class="kw">AS</span> user<span class="op">,</span> <span class="ty">dst_endpoint.hostname</span> <span class="kw">AS</span> host<span class="op">,</span>
+  <span class="ty">event_type</span><span class="op">,</span> <span class="ty">severity_id</span><span class="op">,</span>
+  <span class="fn">source</span><span class="op">()</span> <span class="kw">AS</span> _source<span class="op">,</span> <span class="ty">mitre_technique</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="op">(</span><span class="fn">entity</span><span class="op">(</span><span class="str">'ip'</span><span class="op">,</span> <span class="str">'10.0.1.5'</span><span class="op">)</span> <span class="kw">OR</span> <span class="fn">entity</span><span class="op">(</span><span class="str">'hostname'</span><span class="op">,</span> <span class="str">'acme-dc-01'</span><span class="op">)</span><span class="op">)</span>
+<span class="line-highlighted">  <span class="kw">AND</span>  <span class="ty">severity_id</span> <span class="kw">IN</span> <span class="op">(</span><span class="num">1</span><span class="op">,</span> <span class="num">2</span><span class="op">)</span>            <span class="cm">-- critical + high only</span></span>
+<span class="kw">SINCE</span>  <span class="num">24h</span>
+<span class="kw">ORDER BY</span> <span class="ty">time</span> <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">500</span></div>
+            </div>
+            <!-- Status bar -->
+            <div class="editor-statusbar" aria-live="polite">
+              <span>Ln 13, Col 7</span>
+              <span>PrismQL · OCSF v1.3</span>
+              <span style="color: var(--color-cov-answered-icon);">✓ CrowdStrike</span>
+              <span style="color: var(--color-cov-answered-icon);">✓ Cyberint</span>
+              <span style="color: var(--color-cov-answered-icon);">✓ Claroty</span>
+              <span style="color: var(--color-cov-degraded-icon);">△ Armis</span>
+              <span class="streaming-status" id="streaming-status-bar">
+                <span class="streaming-dot"></span>Streaming… 42 rows / 3 sources
+              </span>
+              <span id="syntax-error-hint" style="display:none;color:var(--color-sev-critical-text);">
+                ⚠ E-QUERY-004: Unknown field 'severity_cod' at line 8, col 5. Did you mean 'severity_id'?
+              </span>
+              <span style="margin-left: auto;">⌘↵ to run</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- NL mode panel (hidden by default) -->
+        <div class="nl-panel" id="nl-panel" role="region" aria-label="Natural language query input">
+          <textarea
+            class="nl-textarea"
+            placeholder="Describe what you're looking for… e.g. 'Show me lateral movement from the compromised host in the last 24 hours'"
+            aria-label="Natural language query input"
+          ></textarea>
+
+          <div class="nl-generating" id="nl-generating" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <span>Generating PrismQL…</span>
+          </div>
+
+          <div class="nl-generated-panel" id="nl-generated-panel" role="region" aria-label="AI-generated PrismQL query">
+            <div class="nl-generated-header">
+              <span class="ai-tag">AI</span>
+              <span>Generated PrismQL — always review before running</span>
+            </div>
+            <div class="nl-generated-code"><span class="kw">SELECT</span> <span class="ty">time</span><span class="op">,</span> <span class="ty">src_endpoint.ip</span><span class="op">,</span> <span class="ty">event_type</span><span class="op">,</span> <span class="fn">source</span><span class="op">()</span>
+<span class="kw">FROM</span>   <span class="ty">federated</span>
+<span class="kw">WHERE</span>  <span class="fn">entity</span><span class="op">(</span><span class="str">'hostname'</span><span class="op">,</span> <span class="str">'acme-dc-01'</span><span class="op">)</span>
+  <span class="kw">AND</span>  <span class="ty">severity_id</span> <span class="kw">IN</span> <span class="op">(</span><span class="num">1</span><span class="op">,</span> <span class="num">2</span><span class="op">)</span>
+<span class="kw">SINCE</span>  <span class="num">24h</span> <span class="kw">ORDER BY</span> <span class="ty">time</span> <span class="kw">DESC</span> <span class="kw">LIMIT</span> <span class="num">500</span></div>
+            <div class="nl-generated-footer">
+              <button class="btn btn-ghost btn-sm" onclick="setQueryMode('prismql')" aria-label="Open this query in the PrismQL editor">Edit in PrismQL mode</button>
+              <button class="btn btn-primary btn-sm" aria-label="Run this AI-generated query as-is">Run as-is</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Join error banner -->
+        <div class="banner-error" id="banner-join-error" role="alert" aria-label="Cross-source join error">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true" style="color:var(--color-sev-high-icon);flex-shrink:0;"><path d="M6.5 1L12 11.5H1L6.5 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r="0.7" fill="currentColor"/></svg>
+          <span>Cross-source join requires a selective key predicate. The current WHERE clause may produce a Cartesian result.</span>
+          <button class="btn btn-ghost btn-sm" aria-label="Add a join key predicate">Add join key</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Learn more about cross-source join requirements">Learn more</button>
+        </div>
+
+        <!-- Syntax error banner -->
+        <div class="banner-critical" id="banner-syntax-error" role="alert" aria-label="PrismQL syntax error">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true" style="color:var(--color-sev-critical-icon);flex-shrink:0;"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M6.5 3.5v3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6.5" cy="9" r="0.7" fill="currentColor"/></svg>
+          <span><strong>E-QUERY-004:</strong> Unknown field <code style="font-family:var(--font-mono);background:var(--color-sev-critical-bg);padding:1px 4px;border-radius:3px;">'severity_cod'</code> at line 8, col 5. Did you mean <code style="font-family:var(--font-mono);background:var(--color-sev-critical-bg);padding:1px 4px;border-radius:3px;">'severity_id'</code>?</span>
+        </div>
+
+        <!-- Controls bar -->
+        <div class="options-bar" aria-label="Query options">
+
+          <!-- Time Range -->
+          <div class="options-group" role="group" aria-label="Time range">
+            <span class="options-group-label">Time</span>
+            <button class="drop-btn" aria-haspopup="listbox" aria-label="Time range — last 24 hours">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              SINCE 24h <span class="drop-caret">▾</span>
+            </button>
+            <button class="btn btn-ghost btn-sm" aria-label="Set a custom time range">Custom range…</button>
+          </div>
+
+          <!-- Sources -->
+          <div class="options-group" role="group" aria-label="Source selection">
+            <span class="options-group-label">Sources</span>
+            <label class="source-item">
+              <input type="checkbox" checked aria-label="Include CrowdStrike">
+              <span class="source-dot src-cs" aria-hidden="true"></span>CrowdStrike
+            </label>
+            <label class="source-item">
+              <input type="checkbox" checked aria-label="Include Cyberint">
+              <span class="source-dot src-cy" aria-hidden="true"></span>Cyberint
+            </label>
+            <label class="source-item">
+              <input type="checkbox" checked aria-label="Include Claroty">
+              <span class="source-dot src-cl" aria-hidden="true"></span>Claroty
+            </label>
+            <label class="source-item degraded" aria-label="Armis — degraded">
+              <input type="checkbox" checked aria-label="Include Armis (currently degraded)">
+              <span class="source-dot src-ar" aria-hidden="true"></span>Armis
+              <span class="badge" style="height:16px;padding:0 5px;font-size:9px;background:var(--color-cov-degraded-bg);color:var(--color-cov-degraded-text);border:1px solid var(--color-cov-degraded-border);margin-left:2px;">△ degraded</span>
+            </label>
+            <button class="btn btn-ghost btn-sm" aria-label="Add a new data source">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2v6M2 5h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Add source
+            </button>
+          </div>
+
+          <!-- Options -->
+          <div class="options-group" role="group" aria-label="Query output options">
+            <span class="options-group-label">Limit</span>
+            <button class="drop-btn" aria-haspopup="listbox" aria-label="Row limit — 500 rows">500 rows <span class="drop-caret">▾</span></button>
+            <button class="drop-btn" aria-haspopup="listbox" aria-label="Output format — OCSF">OCSF <span class="drop-caret">▾</span></button>
+            <button class="drop-btn" aria-haspopup="listbox" aria-label="Explain query pushdown">EXPLAIN <span class="drop-caret">▾</span></button>
+          </div>
+        </div>
+
+        <!-- Run bar -->
+        <div class="run-bar" aria-label="Query run controls">
+          <div style="display:flex;align-items:center;gap:var(--space-2);" role="note" aria-label="AI time bound">
+            <span class="ai-tag" style="height:16px;font-size:9px;">AI</span>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted);">Prism AI time bound applied — SINCE 24h</span>
+            <button class="btn btn-ghost btn-sm" style="padding:0 var(--space-2);height:22px;font-size:10px;color:var(--color-text-link);" aria-label="Remove AI time bound">[remove]</button>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-2);">
+            <button class="btn btn-secondary" id="btn-cancel" aria-label="Cancel running query" style="display:none;">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>
+              Cancel
+            </button>
+            <button class="btn btn-primary" id="btn-run" aria-label="Run query (Cmd+Enter)">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M3 2.5L10 6.5L3 10.5V2.5Z" fill="currentColor"/></svg>
+              Run Query
+            </button>
+            <kbd class="kbd" style="background:var(--color-surface-2);border:var(--border);">⌘↵</kbd>
+          </div>
+        </div>
+      </div><!-- /query-panel -->
+
+      <!-- ── Resizer handle ─────────────────────────────────────── -->
+      <div class="resizer-handle" id="resizer-handle" role="separator" aria-label="Drag to resize panels" aria-orientation="horizontal" tabindex="0">
+        <div class="resizer-grip" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <!-- ── Results area ───────────────────────────────────────── -->
+      <div class="results-area" id="results-area">
+
+        <!-- Coverage banner: 3/4 answered, Armis degraded -->
+        <div class="coverage-banner-results" role="status" aria-label="Source coverage for current results">
+          <div class="coverage-compact">
+            <button
+              class="coverage-chip"
+              id="coverage-chip-btn"
+              aria-expanded="false"
+              aria-controls="coverage-detail-panel"
+              aria-label="Coverage: 3 of 4 sources. Armis degraded. Click to expand."
+              onclick="toggleCoverage()"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="color:var(--color-cov-degraded-icon);">
+                <path d="M6 1L11 10H1L6 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+                <path d="M6 5v2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                <circle cx="6" cy="9" r="0.6" fill="currentColor"/>
+              </svg>
+              3/4 sources
+              <svg class="coverage-chip-chevron" id="coverage-chevron" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <span style="display:flex;align-items:center;gap:var(--space-1-5);" aria-hidden="true">
+              <span class="source-dot src-cs" title="CrowdStrike: answered"></span>
+              <span class="source-dot src-cy" title="Cyberint: answered"></span>
+              <span class="source-dot src-cl" title="Claroty: answered"></span>
+              <span class="source-dot src-ar" title="Armis: degraded" style="opacity:0.4;"></span>
+            </span>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted);">226 rows · 3 sources (Armis excluded)</span>
+          </div>
+
+          <div class="coverage-detail" id="coverage-detail-panel" role="region" aria-label="Per-source coverage detail">
+            <div class="coverage-detail-row">
+              <div class="coverage-source-item cov-answered" aria-label="CrowdStrike: 148 rows answered">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="color:var(--color-cov-answered-icon);"><path d="M2 6l2.5 2.5L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="source-dot src-cs"></span>CrowdStrike
+                <span class="cov-count">148 rows</span>
+              </div>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted);">0.9s</span>
+            </div>
+            <div class="coverage-detail-row">
+              <div class="coverage-source-item cov-answered" aria-label="Cyberint: 38 rows answered">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="color:var(--color-cov-answered-icon);"><path d="M2 6l2.5 2.5L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="source-dot src-cy"></span>Cyberint
+                <span class="cov-count">38 rows</span>
+              </div>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted);">1.1s</span>
+            </div>
+            <div class="coverage-detail-row">
+              <div class="coverage-source-item cov-answered" aria-label="Claroty: 40 rows answered">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="color:var(--color-cov-answered-icon);"><path d="M2 6l2.5 2.5L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="source-dot src-cl"></span>Claroty
+                <span class="cov-count">40 rows</span>
+              </div>
+              <span style="font-size:var(--text-xs);color:var(--color-text-muted);">1.8s</span>
+            </div>
+            <div class="coverage-detail-row">
+              <div class="coverage-source-item cov-degraded" aria-label="Armis: degraded, excluded">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="color:var(--color-cov-degraded-icon);"><path d="M6 1L11 10H1L6 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5v2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="6" cy="9" r="0.6" fill="currentColor"/></svg>
+                <span class="source-dot src-ar"></span>Armis
+                <span class="cov-count">excluded</span>
+              </div>
+              <span style="font-size:var(--text-xs);color:var(--color-cov-degraded-text);">Degraded since 13:47 UTC — OT device events may be missing.</span>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;" aria-label="View Armis degradation details">View details</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Working Set band — KEY DIFFERENTIATOR from S2-05 ── -->
+        <div class="working-set-band" role="region" aria-label="Investigation working set — correlation canvas">
+          <span class="working-set-label">Working Set</span>
+          <span class="working-set-count">226 events selected</span>
+
+          <span class="ws-pill" aria-label="Working set entity: IP 10.0.1.5 with 226 events">
+            <span class="source-dot src-cs" aria-hidden="true"></span>
+            10.0.1.5 · 226
+            <button class="ws-pill-remove" aria-label="Remove 10.0.1.5 from working set">×</button>
+          </span>
+          <span class="ws-pill" aria-label="Working set entity: host acme-dc-01 with 186 events">
+            <span class="source-dot src-cs" aria-hidden="true"></span>
+            acme-dc-01 · 186
+            <button class="ws-pill-remove" aria-label="Remove acme-dc-01 from working set">×</button>
+          </span>
+
+          <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-2);">
+            <button class="btn btn-ghost btn-sm" aria-label="Add results from a saved query" aria-haspopup="menu">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2v6M2 5h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Add from saved query <span class="drop-caret">▾</span>
+            </button>
+            <button class="btn btn-ghost btn-sm" aria-label="Add items from a case" aria-haspopup="menu">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 2v6M2 5h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Add from case <span class="drop-caret">▾</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" aria-label="Save this working set as a named entity set">Save as named set</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--color-sev-high-text);" aria-label="Clear all items from working set">Clear</button>
+          </div>
+        </div>
+
+        <!-- Results toolbar -->
+        <div class="results-toolbar" aria-label="Results actions toolbar">
+          <span class="results-count">
+            <strong>226</strong> rows · <strong>3</strong> sources (Armis excluded)
+          </span>
+          <span class="streaming-indicator" aria-live="polite" aria-label="Streaming complete">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M2 5.5l2.5 2.5L9 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Streaming complete
+          </span>
+
+          <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-2);">
+            <div style="display:flex;align-items:center;gap:2px;background:var(--color-surface-2);border:var(--border);border-radius:var(--radius-md);padding:2px;">
+              <button id="btn-event-mode" class="mode-btn active" onclick="setResultMode('event')" aria-pressed="true" aria-label="Event view">Event ●</button>
+              <button id="btn-entity-mode" class="mode-btn" onclick="setResultMode('entity')" aria-pressed="false" aria-label="Entity view">Entity</button>
+            </div>
+            <button class="drop-btn" aria-haspopup="listbox" aria-label="Show or hide columns">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 4h8M2 8h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="1" y="1" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+              Columns <span class="drop-caret">▾</span>
+            </button>
+            <button class="drop-btn" aria-haspopup="listbox" aria-label="Export results">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v6M4 6l2 2 2-2M2 10h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Export <span class="drop-caret">▾</span>
+            </button>
+            <button class="btn btn-primary btn-sm" aria-label="Attach selected results to this investigation case">
+              + Attach to Case
+            </button>
+          </div>
+        </div>
+
+        <!-- Event mode results grid -->
+        <div class="results-grid" id="event-mode-view" aria-label="Query results grid">
+          <table class="grid-table" role="grid" aria-label="OCSF-normalized federated query results">
+            <thead>
+              <tr role="row">
+                <th scope="col" style="width:28px;"><input type="checkbox" aria-label="Select all rows"></th>
+                <th scope="col" style="width:22px;"></th>
+                <th scope="col">time <span class="sort-icon sort-active" aria-label="Sorted descending">↓</span></th>
+                <th scope="col">source</th>
+                <th scope="col">severity</th>
+                <th scope="col">event_type <span class="sort-icon">↕</span></th>
+                <th scope="col">src_ip <span class="sort-icon">↕</span></th>
+                <th scope="col">user</th>
+                <th scope="col">host</th>
+                <th scope="col" style="width:60px;"></th>
+              </tr>
+            </thead>
+            <tbody id="grid-body">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Entity mode view (hidden by default) -->
+        <div class="entity-grid" id="entity-mode-view" style="display:none;" aria-label="Entity-aggregated results">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Status bar at bottom -->
+        <div class="results-statusbar" aria-live="polite">
+          <span>226 rows · 3 sources answered · 1 excluded (Armis degraded) · Elapsed: 1.8s</span>
+          <span style="margin-left:auto;color:var(--color-text-subtle);">CASE-2026-0042 · CVE-2026-44821 exploit chain</span>
+        </div>
+
+      </div><!-- /results-area -->
+
+    </main>
+  </div>
+</div><!-- /app -->
+
+<!-- Theme toggle (fixed top-right) -->
+<div class="theme-toggle-fixed" role="group" aria-label="Theme selector">
+  <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme">&#9728;&#65039;</button>
+  <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme">&#127769;</button>
+</div>
+
+<script>
+  // ── 1. Theme ─────────────────────────────────────────────────────
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById('btn-light').classList.toggle('active', t === 'light');
+    document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+    localStorage.setItem('prism-theme', t);
+  }
+  (function() {
+    var s = localStorage.getItem('prism-theme');
+    if (s === 'dark') setTheme('dark');
+  })();
+
+  // ── 2. Query mode toggle ──────────────────────────────────────────
+  function setQueryMode(mode) {
+    var isPrismql = (mode === 'prismql');
+    document.getElementById('prismql-editor-panel').style.display = isPrismql ? 'block' : 'none';
+    document.getElementById('nl-panel').classList.toggle('active', !isPrismql);
+    document.getElementById('btn-prismql-mode').classList.toggle('active', isPrismql);
+    document.getElementById('btn-nl-mode').classList.toggle('active', !isPrismql);
+    document.getElementById('btn-prismql-mode').setAttribute('aria-pressed', String(isPrismql));
+    document.getElementById('btn-nl-mode').setAttribute('aria-pressed', String(!isPrismql));
+  }
+
+  // ── 3. Coverage banner toggle ─────────────────────────────────────
+  function toggleCoverage() {
+    var btn = document.getElementById('coverage-chip-btn');
+    var panel = document.getElementById('coverage-detail-panel');
+    var chevron = document.getElementById('coverage-chevron');
+    var isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    chevron.classList.toggle('open', !isOpen);
+    btn.setAttribute('aria-expanded', String(!isOpen));
+  }
+
+  // ── 4. Result mode toggle ─────────────────────────────────────────
+  function setResultMode(mode) {
+    var isEvent = (mode === 'event');
+    document.getElementById('event-mode-view').style.display = isEvent ? 'block' : 'none';
+    document.getElementById('entity-mode-view').style.display = isEvent ? 'none' : 'flex';
+    document.getElementById('btn-event-mode').classList.toggle('active', isEvent);
+    document.getElementById('btn-entity-mode').classList.toggle('active', !isEvent);
+    document.getElementById('btn-event-mode').setAttribute('aria-pressed', String(isEvent));
+    document.getElementById('btn-entity-mode').setAttribute('aria-pressed', String(!isEvent));
+  }
+
+  // ── 5. Demo state machine ─────────────────────────────────────────
+  function setDemoState(state) {
+    document.getElementById('banner-join-error').classList.remove('visible');
+    document.getElementById('banner-syntax-error').classList.remove('visible');
+    document.getElementById('streaming-status-bar').classList.remove('visible');
+    document.getElementById('syntax-error-hint').style.display = 'none';
+    document.getElementById('btn-run').style.display = '';
+    document.getElementById('btn-cancel').style.display = 'none';
+    setQueryMode('prismql');
+
+    switch (state) {
+      case 'running':
+        document.getElementById('btn-run').style.display = 'none';
+        document.getElementById('btn-cancel').style.display = '';
+        document.getElementById('streaming-status-bar').classList.add('visible');
+        break;
+      case 'nl':
+        setQueryMode('nl');
+        break;
+      case 'join-error':
+        document.getElementById('banner-join-error').classList.add('visible');
+        break;
+      case 'syntax-error':
+        document.getElementById('banner-syntax-error').classList.add('visible');
+        document.getElementById('syntax-error-hint').style.display = '';
+        break;
+      default:
+        break;
+    }
+  }
+
+  // ── 6. Resizer ────────────────────────────────────────────────────
+  (function() {
+    var resizer = document.getElementById('resizer-handle');
+    var queryPanel = document.getElementById('query-panel');
+    var startY = 0;
+    var startHeight = 0;
+
+    resizer.addEventListener('mousedown', function(e) {
+      startY = e.clientY;
+      startHeight = queryPanel.getBoundingClientRect().height;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'row-resize';
+
+      function onMouseMove(e) {
+        var dy = e.clientY - startY;
+        var newH = Math.max(180, Math.min(600, startHeight + dy));
+        queryPanel.style.height = newH + 'px';
+        queryPanel.style.flexShrink = '0';
+      }
+
+      function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      }
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      e.preventDefault();
+    });
+
+    resizer.addEventListener('keydown', function(e) {
+      var h = queryPanel.getBoundingClientRect().height;
+      if (e.key === 'ArrowUp') {
+        queryPanel.style.height = Math.max(180, h - 20) + 'px';
+        queryPanel.style.flexShrink = '0';
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        queryPanel.style.height = Math.min(600, h + 20) + 'px';
+        queryPanel.style.flexShrink = '0';
+        e.preventDefault();
+      }
+    });
+  })();
+
+  // ── 7. Seeded rows ────────────────────────────────────────────────
+  var rows = [
+    { time:'14:22 UTC', source:'CrowdStrike', srcClass:'src-cs', sevClass:'badge-critical', sevLabel:'Critical', sevIcon:'<circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/>', eventType:'Endpoint Activity', srcIp:'10.0.1.5', user:'alice@acme.corp', host:'acme-dc-01' },
+    { time:'14:23 UTC', source:'CrowdStrike', srcClass:'src-cs', sevClass:'badge-high',     sevLabel:'High',     sevIcon:'<path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/>',      eventType:'Process Spawn',    srcIp:'10.0.1.5', user:'alice@acme.corp', host:'acme-dc-01' },
+    { time:'14:25 UTC', source:'Claroty',     srcClass:'src-cl', sevClass:'badge-high',     sevLabel:'High',     sevIcon:'<path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/>',      eventType:'OT Comm Anomaly',  srcIp:'10.100.5.3', user:'—', host:'PLC-Zone-A' },
+    { time:'14:30 UTC', source:'CrowdStrike', srcClass:'src-cs', sevClass:'badge-critical', sevLabel:'Critical', sevIcon:'<circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/>', eventType:'Credential Access', srcIp:'10.0.1.5', user:'alice@acme.corp', host:'acme-dc-01' },
+    { time:'14:35 UTC', source:'Cyberint',    srcClass:'src-cy', sevClass:'badge-high',     sevLabel:'High',     sevIcon:'<path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/>',      eventType:'IOC Match',        srcIp:'10.0.1.5', user:'—', host:'—' },
+    { time:'14:45 UTC', source:'CrowdStrike', srcClass:'src-cs', sevClass:'badge-high',     sevLabel:'High',     sevIcon:'<path d="M5 1L9 9H1L5 1Z" fill="currentColor" opacity="0.9"/>',      eventType:'Lateral Move',     srcIp:'10.0.1.5', user:'alice@acme.corp', host:'acme-srv-02' },
+  ];
+
+  function renderGrid() {
+    var tbody = document.getElementById('grid-body');
+    tbody.innerHTML = '';
+    rows.forEach(function(r, i) {
+      var tr = document.createElement('tr');
+      tr.setAttribute('role', 'row');
+      tr.setAttribute('aria-label', 'Row ' + (i+1) + ': ' + r.sevLabel + ' ' + r.eventType + ' from ' + r.source + ' at ' + r.time);
+      tr.innerHTML =
+        '<td><input type="checkbox" aria-label="Select row ' + (i+1) + '"></td>' +
+        '<td style="color:var(--color-icon-default);font-size:10px;cursor:pointer;" aria-label="Expand row">&#9654;</td>' +
+        '<td class="cell-mono">' + r.time + '</td>' +
+        '<td><span class="source-tag" aria-label="Source: ' + r.source + '"><span class="source-dot ' + r.srcClass + '" aria-hidden="true"></span>' + r.source + '</span></td>' +
+        '<td><span class="badge ' + r.sevClass + '" aria-label="Severity: ' + r.sevLabel + '"><svg class="badge-icon" viewBox="0 0 10 10" fill="none" aria-hidden="true">' + r.sevIcon + '</svg>' + r.sevLabel + '</span></td>' +
+        '<td style="font-weight:var(--weight-medium);">' + r.eventType + '</td>' +
+        '<td><span class="cell-link" role="link" title="FIND ip \'' + r.srcIp + '\'" aria-label="Source IP: ' + r.srcIp + '">' + r.srcIp + '</span></td>' +
+        '<td><span class="cell-link" role="link" aria-label="User: ' + r.user + '">' + r.user + '</span></td>' +
+        '<td><span class="cell-link" role="link" aria-label="Host: ' + r.host + '">' + r.host + '</span></td>' +
+        '<td style="text-align:right;"><button class="btn btn-ghost btn-sm" aria-label="More actions" style="padding:0 var(--space-2);font-size:14px;height:24px;">&#8943;</button></td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── 8. Entity cards ───────────────────────────────────────────────
+  var entities = [
+    { icon:'&#127760;', name:'10.0.1.5',       type:'IP Address', events:149, sev:{crit:4,high:3,med:1,low:0}, sources:'CrowdStrike, Cyberint' },
+    { icon:'&#128187;', name:'acme-dc-01',      type:'Hostname',   events:97,  sev:{crit:3,high:2,med:1,low:0}, sources:'CrowdStrike' },
+    { icon:'&#128100;', name:'alice@acme.corp', type:'User',       events:81,  sev:{crit:3,high:2,med:0,low:0}, sources:'CrowdStrike, Cyberint' },
+    { icon:'&#127981;', name:'PLC-Zone-A',      type:'OT Device',  events:40,  sev:{crit:0,high:1,med:2,low:0}, sources:'Claroty' },
+  ];
+
+  function renderEntities() {
+    var grid = document.getElementById('entity-mode-view');
+    grid.innerHTML = '';
+    entities.forEach(function(e) {
+      var total = e.sev.crit + e.sev.high + e.sev.med + e.sev.low;
+      var div = document.createElement('div');
+      div.className = 'entity-card';
+      div.setAttribute('role', 'article');
+      div.setAttribute('aria-label', 'Entity: ' + e.name + ' (' + e.type + '), ' + e.events + ' events');
+      var bars = '';
+      if (e.sev.crit > 0) bars += '<div class="entity-sev-seg" style="width:' + Math.round(e.sev.crit/total*80) + 'px;background:var(--color-sev-critical-solid);" aria-hidden="true"></div>';
+      if (e.sev.high > 0) bars += '<div class="entity-sev-seg" style="width:' + Math.round(e.sev.high/total*80) + 'px;background:var(--color-sev-high-solid);" aria-hidden="true"></div>';
+      if (e.sev.med  > 0) bars += '<div class="entity-sev-seg" style="width:' + Math.round(e.sev.med/total*80)  + 'px;background:var(--color-sev-medium-solid);" aria-hidden="true"></div>';
+      div.innerHTML =
+        '<div class="entity-type-badge" aria-hidden="true">' + e.icon + '</div>' +
+        '<div class="entity-card-info"><div class="entity-card-name">' + e.name + '</div><div class="entity-card-meta">' + e.type + ' &middot; ' + e.events + ' events &middot; ' + e.sources + '</div></div>' +
+        '<div class="entity-sev-bar" aria-label="Severity distribution">' + bars + '</div>' +
+        '<button class="btn btn-ghost btn-sm" aria-label="Open Entity 360 for ' + e.name + '">360 &rarr;</button>';
+      grid.appendChild(div);
+    });
+  }
+
+  // ── 9. Init ───────────────────────────────────────────────────────
+  renderGrid();
+  renderEntities();
+</script>
+</body>
+</html>

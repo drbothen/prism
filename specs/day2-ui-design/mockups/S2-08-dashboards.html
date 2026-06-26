@@ -1,0 +1,2216 @@
+<!DOCTYPE html>
+<!--
+  2026-06-25 day-2 side-analysis — UI mockup, do_not_execute, separate from live factory.
+
+  S2-08-dashboards.html — Prism Investigations Console: Posture Dashboards / Summary Insights (Screen 8)
+  Faithful to S2-investigations-console.md Screen 8 spec.
+
+  Includes:
+  - Header bar with time range + export controls + source coverage status
+  - Row 1: 4 metric tiles (Open Cases, New Alerts, MTTD avg, Source Coverage)
+  - Row 2: Alert Trend (SVG stacked bar chart) + Severity Distribution (SVG donut chart)
+  - Row 3: MITRE ATT&CK Coverage Heatmap (full width, interactive, T-IDs)
+  - Row 4: Top Entities at Risk (ranked table) + Recent Cases (list)
+  - AI Insight card (full width, purple AI styling)
+  - Same global shell as S2-05-results-explorer.html (topbar, leftnav, AI sidecar stub)
+  - Theme toggle + vanilla JS interactions
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prism — Summary Insights</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ──────────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-5);
+      height: var(--topbar-height);
+      background: var(--topbar-bg);
+      border-bottom: var(--border);
+      flex-shrink: 0;
+      z-index: var(--z-topbar);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text);
+      margin-right: var(--space-3);
+    }
+
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+
+    .topbar-nav { display: flex; gap: 2px; list-style: none; flex: 1; }
+
+    .topbar-nav-item {
+      display: flex; align-items: center; height: 32px; padding: 0 var(--space-3);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast); white-space: nowrap;
+    }
+
+    .topbar-nav-item:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .topbar-nav-item.active { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+    .search-trigger {
+      display: flex; align-items: center; gap: var(--space-2); height: 30px;
+      padding: 0 var(--space-3); background: var(--color-surface-2); border: var(--border);
+      border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);
+      cursor: pointer; min-width: 200px;
+    }
+
+    .kbd { font-family: var(--font-mono); font-size: 10px; background: var(--color-border); border-radius: 3px; padding: 1px 4px; margin-left: auto; color: var(--color-text-muted); }
+
+    .icon-btn {
+      display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+      border-radius: var(--radius-md); border: none; background: transparent; color: var(--color-icon-default);
+      cursor: pointer; transition: background var(--transition-fast); position: relative;
+    }
+    .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .notif-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%; border: 2px solid var(--topbar-bg); }
+
+    /* ── Body ────────────────────────────────────────────────────────── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left nav ────────────────────────────────────────────────────── */
+    .leftnav {
+      width: var(--nav-rail-width); background: var(--nav-bg); border-right: var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; padding: var(--space-2);
+    }
+    .leftnav-main { flex: 1; }
+    .leftnav-footer { border-top: var(--border); padding-top: var(--space-2); margin-top: var(--space-2); }
+
+    .nav-group-label {
+      font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--color-text-muted); padding: var(--space-3) var(--space-2) var(--space-1);
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: var(--space-2); height: 34px; padding: 0 var(--space-2);
+      border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      color: var(--nav-item-text); cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .nav-item:hover { background: var(--nav-item-bg-hover); color: var(--nav-item-text-active); }
+    .nav-item.active { background: var(--nav-item-bg-active); color: var(--nav-item-text-active); font-weight: var(--weight-semibold); }
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); flex-shrink: 0; }
+    .nav-item.active .nav-dot { background: var(--color-accent); }
+
+    /* ── Main ────────────────────────────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg); }
+
+    /* ── Dashboard header bar ────────────────────────────────────────── */
+    .dash-header {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: var(--color-bg-elevated);
+      border-bottom: var(--border);
+    }
+
+    .dash-header-top {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-6);
+    }
+
+    .dash-title {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-tight);
+      color: var(--color-text);
+      flex: 1;
+    }
+
+    .dash-title span {
+      font-weight: var(--weight-regular);
+      color: var(--color-text-muted);
+      font-family: var(--font-sans);
+      font-size: var(--text-md);
+      letter-spacing: 0;
+    }
+
+    .source-coverage-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-1-5) var(--space-6) var(--space-2);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      border-top: var(--border);
+      background: var(--color-surface-1);
+    }
+
+    .source-coverage-label {
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide);
+      color: var(--color-text-subtle);
+      margin-right: var(--space-1);
+    }
+
+    .cov-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: var(--weight-semibold);
+    }
+
+    .cov-inline-ok   { color: var(--color-cov-answered-text); }
+    .cov-inline-deg  { color: var(--color-cov-degraded-text); }
+
+    /* ── Dashboard scroll area ───────────────────────────────────────── */
+    .dash-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-6);
+    }
+
+    /* ── Shared button/drop styles ───────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+      height: var(--btn-height-md); padding: var(--btn-padding-md); border-radius: var(--btn-radius);
+      font-family: var(--font-sans); font-size: var(--btn-font-size); font-weight: var(--btn-font-weight);
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap; line-height: 1;
+      transition: background var(--transition-fast);
+    }
+    .btn-primary { background: var(--btn-primary-bg); color: #fff; }
+    .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+    .btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border-color: var(--btn-secondary-border); }
+    .btn-secondary:hover { background: var(--btn-secondary-bg-hover); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); border-color: transparent; }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .btn-sm { height: var(--btn-height-sm); padding: var(--btn-padding-sm); font-size: var(--text-xs); }
+
+    .drop-btn {
+      display: inline-flex; align-items: center; gap: var(--space-1); height: 30px; padding: 0 var(--space-3);
+      background: var(--color-bg); border: var(--border); border-radius: var(--radius-md);
+      font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-text-muted); cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .drop-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .drop-caret { font-size: 9px; opacity: 0.6; }
+
+    /* ── ROW 1: Metric tiles ─────────────────────────────────────────── */
+    .metric-tiles {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-4);
+    }
+
+    .metric-tile {
+      background: var(--card-bg);
+      border: var(--border);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-tile-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .metric-tile-value {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: var(--weight-bold);
+      line-height: 1.1;
+      color: var(--color-text);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .metric-tile-trend {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      border-radius: var(--radius-sm);
+      padding: 2px 5px;
+    }
+
+    .trend-up {
+      color: var(--color-sev-high-text);
+      background: var(--color-sev-high-bg);
+    }
+
+    .trend-up-bad {
+      color: var(--color-sev-high-text);
+      background: var(--color-sev-high-bg);
+    }
+
+    .trend-down-good {
+      color: var(--color-cov-answered-text);
+      background: var(--color-cov-answered-bg);
+    }
+
+    .trend-neutral {
+      color: var(--color-text-muted);
+      background: var(--color-surface-2);
+    }
+
+    .metric-tile-sub {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: var(--leading-snug);
+    }
+
+    .metric-tile-sub .deg {
+      color: var(--color-cov-degraded-text);
+      font-weight: var(--weight-semibold);
+    }
+
+    /* ── ROW 2: Charts ───────────────────────────────────────────────── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      border: var(--border);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .chart-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+    }
+
+    .chart-card-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    /* Chart source tabs */
+    .chart-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-md);
+      padding: 2px;
+    }
+
+    .chart-tab {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .chart-tab.active {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-weight: var(--weight-semibold);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .chart-tab:hover:not(.active) {
+      color: var(--color-text);
+    }
+
+    /* SVG chart container */
+    .chart-svg-wrap {
+      width: 100%;
+      overflow: visible;
+    }
+
+    /* Legend */
+    .chart-legend {
+      display: flex;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1-5);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Donut chart layout */
+    .donut-layout {
+      display: flex;
+      align-items: center;
+      gap: var(--space-6);
+    }
+
+    .donut-svg-wrap {
+      flex-shrink: 0;
+    }
+
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      flex: 1;
+    }
+
+    .donut-legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+    }
+
+    .donut-legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .donut-legend-label {
+      flex: 1;
+      font-weight: var(--weight-medium);
+      color: var(--color-text);
+    }
+
+    .donut-legend-pct {
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-muted);
+      min-width: 32px;
+      text-align: right;
+    }
+
+    .donut-legend-count {
+      color: var(--color-text-subtle);
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* ── ROW 3: MITRE heatmap ────────────────────────────────────────── */
+    .heatmap-card {
+      background: var(--card-bg);
+      border: var(--border);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .heatmap-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .heatmap-scroll {
+      overflow-x: auto;
+      padding-bottom: var(--space-2);
+    }
+
+    .heatmap-grid {
+      display: grid;
+      /* 10 tactic columns + 1 label column */
+      grid-template-columns: 140px repeat(10, 1fr);
+      gap: 3px;
+      min-width: 900px;
+    }
+
+    .heatmap-col-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: var(--space-1-5) var(--space-1);
+      font-size: 10px;
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      text-align: center;
+      line-height: 1.25;
+      border-bottom: 2px solid var(--color-border-strong);
+      min-height: 44px;
+    }
+
+    .heatmap-row-label {
+      display: flex;
+      align-items: center;
+      padding: 0 var(--space-2);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+      border-radius: var(--radius-sm);
+      height: 34px;
+    }
+
+    .heatmap-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      position: relative;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      font-weight: var(--weight-semibold);
+      transition: filter var(--transition-fast), outline var(--transition-fast);
+      outline: 2px solid transparent;
+      outline-offset: 1px;
+      gap: 1px;
+    }
+
+    .heatmap-cell:hover {
+      filter: brightness(0.92);
+      outline-color: var(--color-border-strong);
+      z-index: 2;
+    }
+
+    .heatmap-cell:focus-visible {
+      outline-color: var(--color-focus-ring);
+    }
+
+    /* Coverage levels — no coverage */
+    .hm-none {
+      background: var(--color-surface-2);
+      color: var(--color-text-subtle);
+    }
+
+    /* 1 rule */
+    .hm-low {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    [data-theme="dark"] .hm-low {
+      background: #0d3320;
+      color: #4ade80;
+    }
+
+    /* 2-3 rules */
+    .hm-med {
+      background: #bbf7d0;
+      color: #166534;
+    }
+    [data-theme="dark"] .hm-med {
+      background: #0d4a28;
+      color: #4ade80;
+    }
+
+    /* 4+ rules */
+    .hm-high {
+      background: var(--color-cov-answered-bg);
+      color: var(--color-cov-answered-text);
+      border: 1px solid var(--color-cov-answered-border);
+    }
+    [data-theme="dark"] .hm-high {
+      background: var(--color-cov-answered-bg);
+      color: var(--color-cov-answered-text);
+    }
+
+    .hm-cell-id {
+      font-size: 8px;
+      line-height: 1;
+      opacity: 0.75;
+    }
+
+    .hm-cell-count {
+      font-size: 10px;
+      font-weight: var(--weight-bold);
+      line-height: 1;
+    }
+
+    /* Alert badge on MITRE cell */
+    .hm-alert-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 3px;
+      border-radius: var(--radius-full);
+      background: var(--color-sev-critical-solid);
+      color: #fff;
+      font-size: 8px;
+      font-weight: var(--weight-bold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    /* Coverage summary */
+    .heatmap-summary {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      display: flex;
+      gap: var(--space-4);
+      align-items: center;
+      flex-wrap: wrap;
+      padding-top: var(--space-2);
+      border-top: var(--border);
+    }
+
+    .heatmap-summary strong {
+      color: var(--color-text);
+    }
+
+    /* MITRE tooltip */
+    .hm-tooltip {
+      position: fixed;
+      z-index: var(--z-popover);
+      background: var(--color-text-primary);
+      color: #fff;
+      font-size: var(--text-xs);
+      font-family: var(--font-sans);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      pointer-events: none;
+      display: none;
+      max-width: 260px;
+      line-height: var(--leading-snug);
+      white-space: normal;
+    }
+
+    /* ── ROW 4: Two columns ──────────────────────────────────────────── */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+    }
+
+    .data-card {
+      background: var(--card-bg);
+      border: var(--border);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+
+    .data-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-5);
+      border-bottom: var(--border);
+    }
+
+    .data-card-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text);
+    }
+
+    /* Entity risk table */
+    .entity-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .entity-table th {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      padding: var(--space-2) var(--space-3);
+      text-align: left;
+      background: var(--table-header-bg);
+      border-bottom: 1px solid var(--color-border-strong);
+      white-space: nowrap;
+    }
+
+    .entity-table td {
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--table-border);
+      font-size: var(--text-sm);
+      vertical-align: middle;
+    }
+
+    .entity-table tr:last-child td { border-bottom: none; }
+
+    .entity-table tr:hover td {
+      background: var(--table-row-bg-hover);
+    }
+
+    .entity-rank {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .entity-name {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-link);
+      cursor: pointer;
+    }
+
+    .entity-name:hover { text-decoration: underline; }
+
+    .entity-type-badge {
+      display: inline-flex;
+      align-items: center;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      background: var(--color-surface-2);
+      color: var(--color-text-muted);
+      border: var(--border);
+    }
+
+    .risk-score {
+      font-family: var(--font-mono);
+      font-weight: var(--weight-bold);
+      font-size: var(--text-sm);
+    }
+
+    .risk-score.risk-crit { color: var(--color-sev-critical-text); }
+    .risk-score.risk-high { color: var(--color-sev-high-text); }
+    .risk-score.risk-med  { color: var(--color-sev-medium-text); }
+    .risk-score.risk-low  { color: var(--color-sev-low-text); }
+
+    .trend-arrow { font-size: var(--text-xs); }
+    .trend-arrow.up   { color: var(--color-sev-high-icon); }
+    .trend-arrow.down { color: var(--color-cov-answered-icon); }
+    .trend-arrow.flat { color: var(--color-text-muted); }
+
+    .source-tags {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+    }
+
+    .source-tag-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      height: 16px;
+      padding: 0 5px;
+      border-radius: var(--radius-full);
+      font-size: 9px;
+      font-weight: var(--weight-semibold);
+      border: var(--border);
+      background: var(--color-surface-2);
+      color: var(--color-text-muted);
+    }
+
+    .source-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .src-cs { background: #1a6fc4; }
+    .src-cy { background: #7c3aed; }
+    .src-cl { background: #0d7c66; }
+    .src-ar { background: #b45309; }
+
+    /* Recent cases list */
+    .cases-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .case-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-5);
+      border-bottom: 1px solid var(--table-border);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .case-row:last-child { border-bottom: none; }
+    .case-row:hover { background: var(--table-row-bg-hover); }
+
+    .case-sev-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: var(--weight-bold);
+    }
+
+    .sev-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical-text); border: 1px solid var(--color-sev-critical-border); }
+    .sev-high     { background: var(--color-sev-high-bg);     color: var(--color-sev-high-text);     border: 1px solid var(--color-sev-high-border);     }
+    .sev-medium   { background: var(--color-sev-medium-bg);   color: var(--color-sev-medium-text);   border: 1px solid var(--color-sev-medium-border);   }
+    .sev-low      { background: var(--color-sev-low-bg);      color: var(--color-sev-low-text);      border: 1px solid var(--color-sev-low-border);      }
+
+    .case-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .case-title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+
+    .case-meta {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      display: flex;
+      gap: var(--space-2);
+      align-items: center;
+    }
+
+    .case-entity {
+      font-family: var(--font-mono);
+      color: var(--color-text-subtle);
+    }
+
+    .case-age {
+      color: var(--color-text-subtle);
+    }
+
+    .case-owner {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-2);
+      color: var(--color-text-muted);
+    }
+
+    .case-owner.unowned {
+      color: var(--color-sev-medium-text);
+      background: var(--color-sev-medium-bg);
+    }
+
+    /* ── AI Insight card ─────────────────────────────────────────────── */
+    .ai-insight-card {
+      background: var(--color-ai-bg);
+      border: 1px solid var(--color-ai-border);
+      border-radius: var(--card-radius);
+      padding: var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .ai-insight-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .ai-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 20px;
+      padding: 0 var(--space-2);
+      background: var(--color-ai-label);
+      color: #fff;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .ai-system-name {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-ai-label);
+    }
+
+    .ai-insight-body {
+      font-size: var(--text-sm);
+      color: var(--color-ai-text);
+      line-height: var(--leading-relaxed);
+    }
+
+    .ai-insight-actions {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .ai-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 28px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      cursor: pointer;
+      border: 1px solid var(--color-ai-border);
+      background: var(--color-bg-elevated);
+      color: var(--color-ai-label);
+      transition: background var(--transition-fast);
+    }
+
+    .ai-action-btn:hover {
+      background: var(--color-surface-2);
+    }
+
+    .ai-dismiss-btn {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      color: var(--color-ai-text);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      margin-left: auto;
+      opacity: 0.7;
+      transition: opacity var(--transition-fast);
+    }
+
+    .ai-dismiss-btn:hover { opacity: 1; }
+
+    /* ── Theme toggle ────────────────────────────────────────────────── */
+    .theme-toggle-fixed {
+      position: fixed;
+      top: calc(var(--topbar-height) + var(--space-3));
+      right: var(--space-4);
+      z-index: var(--z-toast);
+      display: flex;
+      background: var(--color-surface-2);
+      border: var(--border);
+      border-radius: var(--radius-full);
+      padding: 3px;
+      gap: 2px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: var(--radius-full);
+      border: none; background: transparent; cursor: pointer;
+      font-size: 14px; color: var(--color-text-muted);
+    }
+
+    .theme-btn.active { background: var(--color-bg); box-shadow: var(--shadow-xs); }
+
+    /* Badge shared */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 var(--space-2);
+      border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ──────────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar-logo" aria-label="Prism home">
+      <span class="logo-dot" aria-hidden="true"></span>
+      Prism
+    </div>
+    <nav aria-label="Main navigation">
+      <ul class="topbar-nav" role="list">
+        <li class="topbar-nav-item" role="listitem">Investigations</li>
+        <li class="topbar-nav-item" role="listitem">Query</li>
+        <li class="topbar-nav-item" role="listitem">Detections</li>
+        <li class="topbar-nav-item active" role="listitem" aria-current="page">Dashboards</li>
+        <li class="topbar-nav-item" role="listitem">Data</li>
+        <li class="topbar-nav-item" role="listitem">Admin</li>
+      </ul>
+    </nav>
+    <div class="topbar-actions">
+      <div class="search-trigger" role="button" aria-label="Open command palette (Ctrl+K)">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M10.5 10.5L7.5 7.5M7.5 7.5A4 4 0 1 0 2 2a4 4 0 0 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Search…</span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <button class="icon-btn" aria-label="Toggle Prism AI chat sidecar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2.5-2.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="12.5" r="0.7" fill="currentColor"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 2.5C5 2.5 3.5 4 3.5 6.5V10H2v1.5h11V10h-1.5V6.5C11.5 4 10 2.5 7.5 2.5Z" stroke="currentColor" stroke-width="1.2"/><path d="M6 12c0 .8.7 1.5 1.5 1.5S9 12.8 9 12" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span class="notif-badge" aria-hidden="true"></span>
+      </button>
+      <button class="icon-btn" aria-label="User menu">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ── Left nav ──────────────────────────────────────────── -->
+    <nav class="leftnav" aria-label="Section navigation">
+      <div class="leftnav-main">
+        <div class="nav-group-label">Investigations</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Triage Queue
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cases
+        </div>
+        <div class="nav-group-label">Query</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Workspace
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Results Explorer
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Saved Queries
+        </div>
+        <div class="nav-group-label">Detections</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Rules
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Findings
+        </div>
+        <div class="nav-group-label">Dashboards</div>
+        <div class="nav-item active" role="link" aria-current="page">
+          <span class="nav-dot" aria-hidden="true"></span>Summary Insights
+        </div>
+        <div class="nav-group-label">Data</div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Sources
+        </div>
+        <div class="nav-item" role="link">
+          <span class="nav-dot" aria-hidden="true"></span>Cache Browser
+        </div>
+      </div>
+      <div class="leftnav-footer" role="group" aria-label="Administration">
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zm0 1.5a5 5 0 110 10 5 5 0 010-10zm0 2a.75.75 0 100 1.5.75.75 0 000-1.5zm0 2.5a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 007.5 7z" fill="currentColor"/></svg>
+          Help
+        </div>
+        <div class="nav-item" role="link">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.5a6 6 0 100 12 6 6 0 000-12zm-1 3h2v4h-2V4.5zm0 5h2v2h-2v-2z" fill="currentColor"/></svg>
+          Org Settings
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── Main dashboard ────────────────────────────────────── -->
+    <main class="main" aria-label="Summary Insights Dashboard">
+
+      <!-- Dashboard header bar -->
+      <div class="dash-header">
+        <div class="dash-header-top">
+          <h1 class="dash-title">
+            Summary Insights
+            <span>— Acme Corp</span>
+          </h1>
+          <button class="drop-btn" id="time-range-btn" aria-haspopup="listbox" aria-label="Time range — currently last 7 days" onclick="toggleTimeMenu()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Time: Last 7d
+            <span class="drop-caret">▾</span>
+          </button>
+          <button class="drop-btn" aria-haspopup="menu" aria-label="Export dashboard">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v6M4 6l2 2 2-2M2 10h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Export
+            <span class="drop-caret">▾</span>
+          </button>
+        </div>
+
+        <!-- Source coverage status row -->
+        <div class="source-coverage-row" role="status" aria-label="Federated data source coverage status">
+          <span class="source-coverage-label">Coverage:</span>
+          <span class="cov-inline cov-inline-ok" aria-label="CrowdStrike healthy">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M2 5.5l2.5 2.5L9 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            CrowdStrike
+          </span>
+          <span style="color: var(--color-border-strong);" aria-hidden="true">·</span>
+          <span class="cov-inline cov-inline-deg" aria-label="Armis degraded, 2 hours">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1L10 9.5H1L5.5 1Z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5.5 4.5v2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="5.5" cy="8.5" r="0.5" fill="currentColor"/></svg>
+            Armis (2h degraded)
+          </span>
+          <span style="color: var(--color-border-strong);" aria-hidden="true">·</span>
+          <span class="cov-inline cov-inline-ok" aria-label="Cyberint healthy">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M2 5.5l2.5 2.5L9 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Cyberint
+          </span>
+          <span style="color: var(--color-border-strong);" aria-hidden="true">·</span>
+          <span class="cov-inline cov-inline-ok" aria-label="Claroty healthy">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M2 5.5l2.5 2.5L9 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Claroty
+          </span>
+        </div>
+      </div>
+
+      <!-- ── Scrollable dashboard body ──────────────────────── -->
+      <div class="dash-body" id="dash-body">
+
+        <!-- ── ROW 1: Metric tiles ──────────────────────────── -->
+        <section aria-label="Key metrics" class="metric-tiles">
+
+          <!-- Tile 1: Open Cases -->
+          <div class="metric-tile" role="article" aria-label="Open cases: 8, up 2 since yesterday">
+            <div class="metric-tile-label">Open Cases</div>
+            <div class="metric-tile-value" style="color: var(--color-sev-high-text);">8</div>
+            <div>
+              <span class="metric-tile-trend trend-up-bad" aria-label="Increased by 2 since yesterday">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true"><path d="M4.5 1.5L8 7H1L4.5 1.5Z" fill="currentColor"/></svg>
+                +2 vs yesterday
+              </span>
+            </div>
+            <div class="metric-tile-sub">3 critical · 2 unowned</div>
+          </div>
+
+          <!-- Tile 2: New Alerts (7d) -->
+          <div class="metric-tile" role="article" aria-label="New alerts in last 7 days: 247, up 18 percent versus prior 7 days">
+            <div class="metric-tile-label">New Alerts (7d)</div>
+            <div class="metric-tile-value">247</div>
+            <div>
+              <span class="metric-tile-trend trend-up-bad" aria-label="Increased 18 percent versus prior 7 days">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true"><path d="M4.5 1.5L8 7H1L4.5 1.5Z" fill="currentColor"/></svg>
+                +18% vs prior 7d
+              </span>
+            </div>
+            <div class="metric-tile-sub">43 critical · 77 high</div>
+          </div>
+
+          <!-- Tile 3: MTTD -->
+          <div class="metric-tile" role="article" aria-label="Mean time to detect average: 4.2 hours, down 0.8 hours versus prior 7 days, improving">
+            <div class="metric-tile-label">MTTD avg</div>
+            <div class="metric-tile-value" style="color: var(--color-cov-answered-text);">4.2h</div>
+            <div>
+              <span class="metric-tile-trend trend-down-good" aria-label="Decreased 0.8 hours versus prior 7 days — improvement">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true"><path d="M4.5 7.5L8 2H1L4.5 7.5Z" fill="currentColor"/></svg>
+                −0.8h vs prior 7d
+              </span>
+            </div>
+            <div class="metric-tile-sub">Improving trend ↓</div>
+          </div>
+
+          <!-- Tile 4: Source Coverage -->
+          <div class="metric-tile" role="article" aria-label="Source coverage: 3 of 4 sources healthy, Armis degraded 2 hours">
+            <div class="metric-tile-label">Source Coverage</div>
+            <div class="metric-tile-value" style="font-size: var(--text-2xl); color: var(--color-cov-degraded-text);">3/4</div>
+            <div>
+              <span class="metric-tile-trend" style="background: var(--color-cov-degraded-bg); color: var(--color-cov-degraded-text);" aria-label="Armis degraded">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true"><path d="M4.5 1.5L8 7.5H1L4.5 1.5Z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></svg>
+                Armis (2h degraded)
+              </span>
+            </div>
+            <div class="metric-tile-sub">3 sources healthy · 1 degraded</div>
+          </div>
+
+        </section>
+
+        <!-- ── ROW 2: Charts ────────────────────────────────── -->
+        <section aria-label="Alert trend and severity distribution charts" class="chart-row">
+
+          <!-- Alert Trend (SVG stacked bar chart) -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <span class="chart-card-title">Alert Trend (7d)</span>
+              <div class="chart-tabs" role="tablist" aria-label="Filter by source">
+                <button class="chart-tab active" role="tab" aria-selected="true" aria-label="All sources">All Sources</button>
+                <button class="chart-tab" role="tab" aria-selected="false" aria-label="CrowdStrike only">CrowdStrike</button>
+                <button class="chart-tab" role="tab" aria-selected="false" aria-label="Claroty only">Claroty</button>
+                <button class="chart-tab" role="tab" aria-selected="false" aria-label="Armis only">Armis</button>
+                <button class="chart-tab" role="tab" aria-selected="false" aria-label="Cyberint only">Cyberint</button>
+              </div>
+            </div>
+
+            <!-- SVG stacked bar chart
+                 Data: Mon:43, Tue:36, Wed:60, Thu:48, Fri:37, Sat:22, Sun:32
+                 Y scale max 65 (leave breathing room above 60)
+                 Chart area: 570×160; left gutter 32; bottom 20; right 8
+                 bar width: (570-40)/7 ≈ 75, gap 8 → bar w = 67
+            -->
+            <div class="chart-svg-wrap" role="img" aria-label="7-day alert trend stacked bar chart">
+              <svg viewBox="0 0 580 185" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;" aria-hidden="true">
+                <defs>
+                  <!-- CSS variable fill via presentation attributes doesn't work, so we use named fills -->
+                  <!-- Critical: #c80f2e, High: #cc3b15, Medium: #d4a017, Low: #0057b8 -->
+                </defs>
+
+                <!-- Y axis gridlines (0, 20, 40, 60) -->
+                <!-- Y pixel = 165 - (value/65 * 145) -->
+                <!-- Y=0  → 165; Y=20 → 165-44.6=120; Y=40 → 165-89.2=75; Y=60 → 165-133.8=31 -->
+                <line x1="38" y1="165" x2="572" y2="165" stroke="var(--color-border)" stroke-width="1"/>
+                <line x1="38" y1="120" x2="572" y2="120" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="38" y1="75"  x2="572" y2="75"  stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3,3"/>
+                <line x1="38" y1="31"  x2="572" y2="31"  stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3,3"/>
+
+                <!-- Y axis labels -->
+                <text x="32" y="169" text-anchor="end" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-mono)">0</text>
+                <text x="32" y="124" text-anchor="end" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-mono)">20</text>
+                <text x="32" y="79"  text-anchor="end" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-mono)">40</text>
+                <text x="32" y="35"  text-anchor="end" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-mono)">60</text>
+
+                <!-- Stacked bars: scale factor = 145/65 ≈ 2.23 px per unit -->
+                <!-- bar x positions: 7 bars, spacing = (572-38)/7 = 76.28 -->
+                <!-- bar center x: 38 + 38.1, 38+114.4, 38+190.7, 38+267, 38+343.3, 38+419.6, 38+495.9 -->
+                <!-- bar width 52, centered on position -->
+                <!-- Mon crit:5, high:12, med:18, low:8 = 43 -->
+
+                <!-- MON x=76 -->
+                <!-- low: 8 → h=17.8 → y=165-17.8=147.2 -->
+                <rect x="50"  y="147" width="52" height="18" fill="#0057b8" rx="1" aria-label="Monday low 8"/>
+                <!-- med: 18 → h=40.2 → cumTop=147-40.2=106.8 -->
+                <rect x="50"  y="107" width="52" height="40" fill="#d4a017" rx="1"/>
+                <!-- high: 12 → h=26.8 → cumTop=106.8-26.8=80 -->
+                <rect x="50"  y="80"  width="52" height="27" fill="#cc3b15" rx="1"/>
+                <!-- crit: 5 → h=11.2 → cumTop=80-11.2=68.8 -->
+                <rect x="50"  y="69"  width="52" height="11" fill="#c80f2e" rx="1"/>
+                <text x="76" y="180" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">Mon</text>
+
+                <!-- TUE: crit:3, high:8, med:15, low:10 = 36 -->
+                <!-- low:10 h=22.3 y=165-22.3=142.7 -->
+                <rect x="126" y="143" width="52" height="22" fill="#0057b8" rx="1"/>
+                <!-- med:15 h=33.5 y=143-33.5=109.5 -->
+                <rect x="126" y="110" width="52" height="33" fill="#d4a017" rx="1"/>
+                <!-- high:8 h=17.8 y=110-17.8=92.2 -->
+                <rect x="126" y="92"  width="52" height="18" fill="#cc3b15" rx="1"/>
+                <!-- crit:3 h=6.7 y=92-6.7=85.3 -->
+                <rect x="126" y="86"  width="52" height="7"  fill="#c80f2e" rx="1"/>
+                <text x="152" y="180" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">Tue</text>
+
+                <!-- WED: crit:8, high:18, med:22, low:12 = 60 -->
+                <!-- low:12 h=26.8 y=165-26.8=138.2 -->
+                <rect x="202" y="138" width="52" height="27" fill="#0057b8" rx="1"/>
+                <!-- med:22 h=49.1 y=138-49.1=88.9 -->
+                <rect x="202" y="89"  width="52" height="49" fill="#d4a017" rx="1"/>
+                <!-- high:18 h=40.2 y=89-40.2=48.8 -->
+                <rect x="202" y="49"  width="52" height="40" fill="#cc3b15" rx="1"/>
+                <!-- crit:8 h=17.8 y=49-17.8=31.2 -->
+                <rect x="202" y="31"  width="52" height="18" fill="#c80f2e" rx="1"/>
+                <text x="228" y="180" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">Wed</text>
+
+                <!-- THU: crit:6, high:14, med:19, low:9 = 48 -->
+                <!-- low:9 h=20.1 y=165-20.1=144.9 -->
+                <rect x="278" y="145" width="52" height="20" fill="#0057b8" rx="1"/>
+                <!-- med:19 h=42.4 y=145-42.4=102.6 -->
+                <rect x="278" y="103" width="52" height="42" fill="#d4a017" rx="1"/>
+                <!-- high:14 h=31.2 y=103-31.2=71.8 -->
+                <rect x="278" y="72"  width="52" height="31" fill="#cc3b15" rx="1"/>
+                <!-- crit:6 h=13.4 y=72-13.4=58.6 -->
+                <rect x="278" y="59"  width="52" height="13" fill="#c80f2e" rx="1"/>
+                <text x="304" y="180" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">Thu</text>
+
+                <!-- FRI: crit:4, high:10, med:16, low:7 = 37 -->
+                <!-- low:7 h=15.6 y=165-15.6=149.4 -->
+                <rect x="354" y="149" width="52" height="16" fill="#0057b8" rx="1"/>
+                <!-- med:16 h=35.7 y=149-35.7=113.3 -->
+                <rect x="354" y="113" width="52" height="36" fill="#d4a017" rx="1"/>
+                <!-- high:10 h=22.3 y=113-22.3=90.7 -->
+                <rect x="354" y="91"  width="52" height="22" fill="#cc3b15" rx="1"/>
+                <!-- crit:4 h=8.9 y=91-8.9=82.1 -->
+                <rect x="354" y="82"  width="52" height="9"  fill="#c80f2e" rx="1"/>
+                <text x="380" y="180" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">Fri</text>
+
+                <!-- SAT: crit:2, high:6, med:10, low:4 = 22 -->
+                <!-- low:4 h=8.9 y=165-8.9=156.1 -->
+                <rect x="430" y="156" width="52" height="9"  fill="#0057b8" rx="1"/>
+                <!-- med:10 h=22.3 y=156-22.3=133.7 -->
+                <rect x="430" y="134" width="52" height="22" fill="#d4a017" rx="1"/>
+                <!-- high:6 h=13.4 y=134-13.4=120.6 -->
+                <rect x="430" y="121" width="52" height="13" fill="#cc3b15" rx="1"/>
+                <!-- crit:2 h=4.5 y=121-4.5=116.5 -->
+                <rect x="430" y="117" width="52" height="4"  fill="#c80f2e" rx="1"/>
+                <text x="456" y="180" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">Sat</text>
+
+                <!-- SUN: crit:3, high:9, med:14, low:6 = 32 -->
+                <!-- low:6 h=13.4 y=165-13.4=151.6 -->
+                <rect x="506" y="152" width="52" height="13" fill="#0057b8" rx="1"/>
+                <!-- med:14 h=31.2 y=152-31.2=120.8 -->
+                <rect x="506" y="121" width="52" height="31" fill="#d4a017" rx="1"/>
+                <!-- high:9 h=20.1 y=121-20.1=100.9 -->
+                <rect x="506" y="101" width="52" height="20" fill="#cc3b15" rx="1"/>
+                <!-- crit:3 h=6.7 y=101-6.7=94.3 -->
+                <rect x="506" y="94"  width="52" height="7"  fill="#c80f2e" rx="1"/>
+                <text x="532" y="180" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">Sun</text>
+
+              </svg>
+            </div>
+
+            <!-- Legend -->
+            <div class="chart-legend" role="list" aria-label="Chart legend">
+              <div class="legend-item" role="listitem">
+                <div class="legend-swatch" style="background: #c80f2e;" aria-hidden="true"></div>
+                <span>Critical</span>
+              </div>
+              <div class="legend-item" role="listitem">
+                <div class="legend-swatch" style="background: #cc3b15;" aria-hidden="true"></div>
+                <span>High</span>
+              </div>
+              <div class="legend-item" role="listitem">
+                <div class="legend-swatch" style="background: #d4a017;" aria-hidden="true"></div>
+                <span>Medium</span>
+              </div>
+              <div class="legend-item" role="listitem">
+                <div class="legend-swatch" style="background: #0057b8;" aria-hidden="true"></div>
+                <span>Low</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Severity Distribution (SVG donut chart) -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <span class="chart-card-title">Severity Distribution (7d)</span>
+            </div>
+
+            <!--
+              Donut: r=70, cx=cy=100, circumference ≈ 2πr = 439.8
+              stroke-dasharray: segment_length rest_of_circ
+              stroke-dashoffset: offset to rotate segment into position
+              Starting at top (−90°), going clockwise.
+              Stroke-width 38 (donut thickness).
+
+              CRITICAL 18%: 439.8 * 0.18 = 79.2
+              HIGH     31%: 439.8 * 0.31 = 136.3
+              MEDIUM   29%: 439.8 * 0.29 = 127.5
+              LOW      22%: 439.8 * 0.22 = 96.8
+
+              Offset: starts at 0°(top) = offset -circumference/4 = -109.95
+              After crit:  offset = -(109.95) = -109.95
+              After high:  offset = -(109.95 + 79.2) = -189.15
+              After medium: offset = -(189.15 + 136.3) = -325.45
+              (low fills the remainder)
+
+              stroke-dashoffset moves the "gap" start clockwise.
+              We use the trick: set offset = -(circumference - segment_start)
+              Better: use offset as negative cumulative start.
+
+              Method: draw each segment with dasharray=(seg, rest) and dashoffset=(-cum_start)
+              cum_start starts at circumference/4 (to start at top, CSS rotates -90deg).
+
+              Actually simpler: rotate the SVG by -90deg and use dashoffset=cum_start directly.
+              Using transform="rotate(-90, 100, 100)" on the group.
+            -->
+            <div class="donut-layout" role="img" aria-label="Severity distribution donut chart: 18% critical, 31% high, 29% medium, 22% low">
+              <div class="donut-svg-wrap">
+                <svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <g transform="rotate(-90, 100, 100)">
+                    <!-- Critical 18% (79.2 of 439.8) cumStart=0 -->
+                    <circle cx="100" cy="100" r="70" fill="none"
+                      stroke="#c80f2e"
+                      stroke-width="38"
+                      stroke-dasharray="79.2 360.6"
+                      stroke-dashoffset="0"/>
+                    <!-- High 31% (136.3) cumStart=79.2 → offset=-(439.8-79.2)=-360.6 -->
+                    <circle cx="100" cy="100" r="70" fill="none"
+                      stroke="#cc3b15"
+                      stroke-width="38"
+                      stroke-dasharray="136.3 303.5"
+                      stroke-dashoffset="-79.2"/>
+                    <!-- Medium 29% (127.5) cumStart=215.5 → offset=-215.5 -->
+                    <circle cx="100" cy="100" r="70" fill="none"
+                      stroke="#d4a017"
+                      stroke-width="38"
+                      stroke-dasharray="127.5 312.3"
+                      stroke-dashoffset="-215.5"/>
+                    <!-- Low 22% (96.8) cumStart=343 → offset=-343 -->
+                    <circle cx="100" cy="100" r="70" fill="none"
+                      stroke="#0057b8"
+                      stroke-width="38"
+                      stroke-dasharray="96.8 343"
+                      stroke-dashoffset="-343"/>
+                  </g>
+                  <!-- Center label -->
+                  <text x="100" y="94" text-anchor="middle" font-size="22" font-weight="700" fill="var(--color-text)" font-family="var(--font-display)">247</text>
+                  <text x="100" y="113" text-anchor="middle" font-size="9" fill="var(--color-text-muted)" font-family="var(--font-sans)">total alerts</text>
+                </svg>
+              </div>
+
+              <!-- Legend -->
+              <div class="donut-legend" role="list" aria-label="Severity distribution legend">
+                <div class="donut-legend-item" role="listitem">
+                  <div class="donut-legend-swatch" style="background: #c80f2e;" aria-hidden="true"></div>
+                  <span class="donut-legend-label">Critical</span>
+                  <span class="donut-legend-pct">18%</span>
+                  <span class="donut-legend-count">44</span>
+                </div>
+                <div class="donut-legend-item" role="listitem">
+                  <div class="donut-legend-swatch" style="background: #cc3b15;" aria-hidden="true"></div>
+                  <span class="donut-legend-label">High</span>
+                  <span class="donut-legend-pct">31%</span>
+                  <span class="donut-legend-count">76</span>
+                </div>
+                <div class="donut-legend-item" role="listitem">
+                  <div class="donut-legend-swatch" style="background: #d4a017;" aria-hidden="true"></div>
+                  <span class="donut-legend-label">Medium</span>
+                  <span class="donut-legend-pct">29%</span>
+                  <span class="donut-legend-count">72</span>
+                </div>
+                <div class="donut-legend-item" role="listitem">
+                  <div class="donut-legend-swatch" style="background: #0057b8;" aria-hidden="true"></div>
+                  <span class="donut-legend-label">Low</span>
+                  <span class="donut-legend-pct">22%</span>
+                  <span class="donut-legend-count">55</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ── ROW 3: MITRE ATT&CK Coverage Heatmap ──────────── -->
+        <section aria-label="MITRE ATT&CK coverage heatmap">
+          <div class="heatmap-card">
+            <div class="heatmap-card-header">
+              <span class="chart-card-title">MITRE ATT&CK Coverage</span>
+              <a href="#" style="font-size: var(--text-xs); color: var(--color-text-link); font-weight: var(--weight-semibold);" aria-label="View detection rules (opens detection rules page)">
+                View Detection Rules ↗
+              </a>
+            </div>
+
+            <div class="heatmap-scroll">
+              <div class="heatmap-grid" id="mitre-grid" role="grid" aria-label="MITRE ATT&CK technique coverage grid">
+
+                <!-- Column headers: empty label cell + 10 tactic headers -->
+                <div class="heatmap-col-header" style="border-bottom: none;" role="columnheader"></div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Initial Access tactic">Initial<br>Access</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Execution tactic">Execution</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Persistence tactic">Persistence</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Privilege Escalation tactic">Priv.<br>Esc.</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Defense Evasion tactic">Defense<br>Evasion</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Credential Access tactic">Credential<br>Access</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Discovery tactic">Discovery</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Lateral Movement tactic">Lateral<br>Movement</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Collection tactic">Collection</div>
+                <div class="heatmap-col-header" role="columnheader" aria-label="Exfiltration tactic">Exfiltration</div>
+
+                <!-- Rows: 5 technique rows -->
+                <!-- Row labels are technique IDs for the first tactic column's technique -->
+                <!-- Each row: label | InitAccess | Execution | Persistence | PrivEsc | DefEvasion | CredAccess | Discovery | LateralMov | Collection | Exfil -->
+
+                <!-- Row 1 -->
+                <div class="heatmap-row-label" role="rowheader">Techniques</div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1190" data-tactic="Initial Access" data-rules="2" data-alerts="3"
+                  aria-label="T1190 Exploit Public-Facing App, Initial Access, 2 rules, 3 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1190</span>
+                  <span class="hm-cell-count">2</span>
+                  <span class="hm-alert-badge" aria-label="3 alerts">3</span>
+                </div>
+                <div class="heatmap-cell hm-high" role="gridcell" tabindex="0"
+                  data-technique="T1059" data-tactic="Execution" data-rules="5" data-alerts="8"
+                  aria-label="T1059 Command and Scripting Interpreter, Execution, 5 rules, 8 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1059</span>
+                  <span class="hm-cell-count">5</span>
+                  <span class="hm-alert-badge" aria-label="8 alerts">8</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1053" data-tactic="Persistence" data-rules="1" data-alerts="0"
+                  aria-label="T1053 Scheduled Task, Persistence, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1053</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1055" data-tactic="Privilege Escalation" data-rules="3" data-alerts="2"
+                  aria-label="T1055 Process Injection, Privilege Escalation, 3 rules, 2 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1055</span>
+                  <span class="hm-cell-count">3</span>
+                  <span class="hm-alert-badge" aria-label="2 alerts">2</span>
+                </div>
+                <div class="heatmap-cell hm-high" role="gridcell" tabindex="0"
+                  data-technique="T1027" data-tactic="Defense Evasion" data-rules="4" data-alerts="5"
+                  aria-label="T1027 Obfuscated Files, Defense Evasion, 4 rules, 5 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1027</span>
+                  <span class="hm-cell-count">4</span>
+                  <span class="hm-alert-badge" aria-label="5 alerts">5</span>
+                </div>
+                <div class="heatmap-cell hm-high" role="gridcell" tabindex="0"
+                  data-technique="T1003" data-tactic="Credential Access" data-rules="4" data-alerts="12"
+                  aria-label="T1003 OS Credential Dumping, Credential Access, 4 rules, 12 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1003</span>
+                  <span class="hm-cell-count">4</span>
+                  <span class="hm-alert-badge" aria-label="12 alerts">12</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1083" data-tactic="Discovery" data-rules="2" data-alerts="0"
+                  aria-label="T1083 File and Directory Discovery, Discovery, 2 rules"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1083</span>
+                  <span class="hm-cell-count">2</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1021" data-tactic="Lateral Movement" data-rules="3" data-alerts="6"
+                  aria-label="T1021 Remote Services, Lateral Movement, 3 rules, 6 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1021</span>
+                  <span class="hm-cell-count">3</span>
+                  <span class="hm-alert-badge" aria-label="6 alerts">6</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1560" data-tactic="Collection" data-rules="0" data-alerts="0"
+                  aria-label="T1560 Archive Collected Data, Collection, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1560</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1048" data-tactic="Exfiltration" data-rules="0" data-alerts="0"
+                  aria-label="T1048 Exfiltration Over Alternative Protocol, Exfiltration, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1048</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+
+                <!-- Row 2 -->
+                <div class="heatmap-row-label" role="rowheader"></div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1078" data-tactic="Initial Access" data-rules="1" data-alerts="0"
+                  aria-label="T1078 Valid Accounts, Initial Access, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1078</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1204" data-tactic="Execution" data-rules="0" data-alerts="0"
+                  aria-label="T1204 User Execution, Execution, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1204</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1136" data-tactic="Persistence" data-rules="2" data-alerts="1"
+                  aria-label="T1136 Create Account, Persistence, 2 rules, 1 recent alert"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1136</span>
+                  <span class="hm-cell-count">2</span>
+                  <span class="hm-alert-badge" aria-label="1 alert">1</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1134" data-tactic="Privilege Escalation" data-rules="0" data-alerts="0"
+                  aria-label="T1134 Access Token Manipulation, Privilege Escalation, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1134</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1562" data-tactic="Defense Evasion" data-rules="0" data-alerts="0"
+                  aria-label="T1562 Impair Defenses, Defense Evasion, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1562</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-high" role="gridcell" tabindex="0"
+                  data-technique="T1110" data-tactic="Credential Access" data-rules="4" data-alerts="8"
+                  aria-label="T1110 Brute Force, Credential Access, 4 rules, 8 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1110</span>
+                  <span class="hm-cell-count">4</span>
+                  <span class="hm-alert-badge" aria-label="8 alerts">8</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1046" data-tactic="Discovery" data-rules="1" data-alerts="4"
+                  aria-label="T1046 Network Service Scanning, Discovery, 1 rule, 4 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1046</span>
+                  <span class="hm-cell-count">1</span>
+                  <span class="hm-alert-badge" aria-label="4 alerts">4</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1570" data-tactic="Lateral Movement" data-rules="1" data-alerts="0"
+                  aria-label="T1570 Lateral Tool Transfer, Lateral Movement, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1570</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1005" data-tactic="Collection" data-rules="0" data-alerts="0"
+                  aria-label="T1005 Data from Local System, Collection, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1005</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1041" data-tactic="Exfiltration" data-rules="0" data-alerts="0"
+                  aria-label="T1041 Exfiltration Over C2 Channel, Exfiltration, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1041</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+
+                <!-- Row 3 -->
+                <div class="heatmap-row-label" role="rowheader"></div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1566" data-tactic="Initial Access" data-rules="0" data-alerts="0"
+                  aria-label="T1566 Phishing, Initial Access, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1566</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1047" data-tactic="Execution" data-rules="2" data-alerts="0"
+                  aria-label="T1047 Windows Management Instrumentation, Execution, 2 rules"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1047</span>
+                  <span class="hm-cell-count">2</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1098" data-tactic="Persistence" data-rules="0" data-alerts="0"
+                  aria-label="T1098 Account Manipulation, Persistence, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1098</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1547" data-tactic="Privilege Escalation" data-rules="1" data-alerts="0"
+                  aria-label="T1547 Boot or Logon Autostart, Privilege Escalation, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1547</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1070" data-tactic="Defense Evasion" data-rules="1" data-alerts="0"
+                  aria-label="T1070 Indicator Removal, Defense Evasion, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1070</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1555" data-tactic="Credential Access" data-rules="2" data-alerts="3"
+                  aria-label="T1555 Credentials from Password Stores, Credential Access, 2 rules, 3 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1555</span>
+                  <span class="hm-cell-count">2</span>
+                  <span class="hm-alert-badge" aria-label="3 alerts">3</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1135" data-tactic="Discovery" data-rules="0" data-alerts="0"
+                  aria-label="T1135 Network Share Discovery, Discovery, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1135</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1091" data-tactic="Lateral Movement" data-rules="0" data-alerts="0"
+                  aria-label="T1091 Replication Through Removable Media, Lateral Movement, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1091</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1213" data-tactic="Collection" data-rules="0" data-alerts="0"
+                  aria-label="T1213 Data from Information Repositories, Collection, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1213</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1567" data-tactic="Exfiltration" data-rules="1" data-alerts="0"
+                  aria-label="T1567 Exfiltration Over Web Service, Exfiltration, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1567</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+
+                <!-- Row 4 -->
+                <div class="heatmap-row-label" role="rowheader"></div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1195" data-tactic="Initial Access" data-rules="0" data-alerts="0"
+                  aria-label="T1195 Supply Chain Compromise, Initial Access, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1195</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1569" data-tactic="Execution" data-rules="1" data-alerts="0"
+                  aria-label="T1569 System Services, Execution, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1569</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1543" data-tactic="Persistence" data-rules="1" data-alerts="0"
+                  aria-label="T1543 Create or Modify System Process, Persistence, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1543</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1068" data-tactic="Privilege Escalation" data-rules="0" data-alerts="0"
+                  aria-label="T1068 Exploitation for Privilege Escalation, Privilege Escalation, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1068</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1036" data-tactic="Defense Evasion" data-rules="0" data-alerts="0"
+                  aria-label="T1036 Masquerading, Defense Evasion, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1036</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-low" role="gridcell" tabindex="0"
+                  data-technique="T1539" data-tactic="Credential Access" data-rules="1" data-alerts="0"
+                  aria-label="T1539 Steal Web Session Cookie, Credential Access, 1 rule"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1539</span>
+                  <span class="hm-cell-count">1</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1082" data-tactic="Discovery" data-rules="2" data-alerts="0"
+                  aria-label="T1082 System Information Discovery, Discovery, 2 rules"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1082</span>
+                  <span class="hm-cell-count">2</span>
+                </div>
+                <div class="heatmap-cell hm-high" role="gridcell" tabindex="0"
+                  data-technique="T1550" data-tactic="Lateral Movement" data-rules="4" data-alerts="4"
+                  aria-label="T1550 Use Alternate Authentication Material, Lateral Movement, 4 rules, 4 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1550</span>
+                  <span class="hm-cell-count">4</span>
+                  <span class="hm-alert-badge" aria-label="4 alerts">4</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1114" data-tactic="Collection" data-rules="0" data-alerts="0"
+                  aria-label="T1114 Email Collection, Collection, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1114</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1030" data-tactic="Exfiltration" data-rules="0" data-alerts="0"
+                  aria-label="T1030 Data Transfer Size Limits, Exfiltration, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1030</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+
+                <!-- Row 5 -->
+                <div class="heatmap-row-label" role="rowheader"></div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1199" data-tactic="Initial Access" data-rules="0" data-alerts="0"
+                  aria-label="T1199 Trusted Relationship, Initial Access, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1199</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1106" data-tactic="Execution" data-rules="0" data-alerts="0"
+                  aria-label="T1106 Native API, Execution, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1106</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1505" data-tactic="Persistence" data-rules="0" data-alerts="0"
+                  aria-label="T1505 Server Software Component, Persistence, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1505</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1548" data-tactic="Privilege Escalation" data-rules="0" data-alerts="0"
+                  aria-label="T1548 Abuse Elevation Control Mechanism, Privilege Escalation, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1548</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-med" role="gridcell" tabindex="0"
+                  data-technique="T1218" data-tactic="Defense Evasion" data-rules="3" data-alerts="2"
+                  aria-label="T1218 Signed Binary Proxy Execution, Defense Evasion, 3 rules, 2 recent alerts"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1218</span>
+                  <span class="hm-cell-count">3</span>
+                  <span class="hm-alert-badge" aria-label="2 alerts">2</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1056" data-tactic="Credential Access" data-rules="0" data-alerts="0"
+                  aria-label="T1056 Input Capture, Credential Access, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1056</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1016" data-tactic="Discovery" data-rules="0" data-alerts="0"
+                  aria-label="T1016 System Network Configuration Discovery, Discovery, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1016</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1534" data-tactic="Lateral Movement" data-rules="0" data-alerts="0"
+                  aria-label="T1534 Internal Spearphishing, Lateral Movement, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1534</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1074" data-tactic="Collection" data-rules="0" data-alerts="0"
+                  aria-label="T1074 Data Staged, Collection, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1074</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+                <div class="heatmap-cell hm-none" role="gridcell" tabindex="0"
+                  data-technique="T1020" data-tactic="Exfiltration" data-rules="0" data-alerts="0"
+                  aria-label="T1020 Automated Exfiltration, Exfiltration, no rules (coverage gap)"
+                  onclick="hmClick(this)">
+                  <span class="hm-cell-id">T1020</span>
+                  <span class="hm-cell-count" style="opacity:0.4;">—</span>
+                </div>
+
+              </div><!-- /heatmap-grid -->
+            </div><!-- /heatmap-scroll -->
+
+            <!-- Coverage summary -->
+            <div class="heatmap-summary" role="note" aria-label="MITRE coverage summary">
+              <span><strong>Coverage summary:</strong> 23/45 techniques covered (51%)</span>
+              <span>·</span>
+              <span><strong>6</strong> techniques with recent alert activity</span>
+              <span style="margin-left: auto;">
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--text-xs);color:var(--color-text-muted);">
+                  <span style="width:10px;height:10px;border-radius:2px;background:var(--color-surface-2);display:inline-block;" aria-hidden="true"></span> No rules
+                  <span style="width:10px;height:10px;border-radius:2px;background:#dcfce7;display:inline-block;margin-left:6px;" aria-hidden="true"></span> 1 rule
+                  <span style="width:10px;height:10px;border-radius:2px;background:#bbf7d0;display:inline-block;margin-left:6px;" aria-hidden="true"></span> 2–3 rules
+                  <span style="width:10px;height:10px;border-radius:2px;background:var(--color-cov-answered-bg);border:1px solid var(--color-cov-answered-border);display:inline-block;margin-left:6px;" aria-hidden="true"></span> 4+ rules
+                  <span style="font-size:8px;background:#c80f2e;color:#fff;border-radius:3px;padding:0 3px;margin-left:6px;" aria-hidden="true">N</span> alert count
+                </span>
+              </span>
+            </div>
+
+          </div><!-- /heatmap-card -->
+        </section>
+
+        <!-- ── ROW 4: Entities + Cases ───────────────────────── -->
+        <section aria-label="Top entities at risk and recent cases" class="bottom-row">
+
+          <!-- Top Entities at Risk -->
+          <div class="data-card">
+            <div class="data-card-header">
+              <span class="data-card-title">Top Entities at Risk</span>
+              <a href="#" style="font-size: var(--text-xs); color: var(--color-text-link);" aria-label="View all entities">View all →</a>
+            </div>
+            <table class="entity-table" aria-label="Top entities ranked by risk score">
+              <thead>
+                <tr>
+                  <th scope="col" style="width:28px;">#</th>
+                  <th scope="col">Entity</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Risk</th>
+                  <th scope="col">Trend</th>
+                  <th scope="col">Sources</th>
+                  <th scope="col" style="width:80px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="entity-rank">1</td>
+                  <td><span class="entity-name" onclick="openEntity360('acme-dc-01')" aria-label="Open Entity 360 for acme-dc-01">acme-dc-01</span></td>
+                  <td><span class="entity-type-badge">HOST</span></td>
+                  <td><span class="risk-score risk-crit" aria-label="Risk score 94">94</span></td>
+                  <td><span class="trend-arrow up" aria-label="Trend increasing">▲</span></td>
+                  <td>
+                    <div class="source-tags">
+                      <span class="source-tag-mini"><span class="source-dot src-cs" aria-hidden="true"></span>CS</span>
+                      <span class="source-tag-mini"><span class="source-dot src-cl" aria-hidden="true"></span>CL</span>
+                    </div>
+                  </td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openEntity360('acme-dc-01')" aria-label="Open Entity 360 for acme-dc-01">360 →</button></td>
+                </tr>
+                <tr>
+                  <td class="entity-rank">2</td>
+                  <td><span class="entity-name" onclick="openEntity360('alice@acme')" aria-label="Open Entity 360 for alice@acme">alice@acme</span></td>
+                  <td><span class="entity-type-badge">USER</span></td>
+                  <td><span class="risk-score risk-high" aria-label="Risk score 78">78</span></td>
+                  <td><span class="trend-arrow up" aria-label="Trend increasing">▲</span></td>
+                  <td>
+                    <div class="source-tags">
+                      <span class="source-tag-mini"><span class="source-dot src-cs" aria-hidden="true"></span>CS</span>
+                    </div>
+                  </td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openEntity360('alice@acme')" aria-label="Open Entity 360 for alice@acme">360 →</button></td>
+                </tr>
+                <tr>
+                  <td class="entity-rank">3</td>
+                  <td><span class="entity-name" onclick="openEntity360('10.0.1.5')" aria-label="Open Entity 360 for 10.0.1.5">10.0.1.5</span></td>
+                  <td><span class="entity-type-badge">IP</span></td>
+                  <td><span class="risk-score risk-med" aria-label="Risk score 65">65</span></td>
+                  <td><span class="trend-arrow flat" aria-label="Trend flat">→</span></td>
+                  <td>
+                    <div class="source-tags">
+                      <span class="source-tag-mini"><span class="source-dot src-cl" aria-hidden="true"></span>CL</span>
+                      <span class="source-tag-mini"><span class="source-dot src-ar" aria-hidden="true"></span>AR</span>
+                    </div>
+                  </td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openEntity360('10.0.1.5')" aria-label="Open Entity 360 for 10.0.1.5">360 →</button></td>
+                </tr>
+                <tr>
+                  <td class="entity-rank">4</td>
+                  <td><span class="entity-name" onclick="openEntity360('WKSTN-042')" aria-label="Open Entity 360 for WKSTN-042">WKSTN-042</span></td>
+                  <td><span class="entity-type-badge">HOST</span></td>
+                  <td><span class="risk-score risk-med" aria-label="Risk score 58">58</span></td>
+                  <td><span class="trend-arrow down" aria-label="Trend decreasing">▼</span></td>
+                  <td>
+                    <div class="source-tags">
+                      <span class="source-tag-mini"><span class="source-dot src-cs" aria-hidden="true"></span>CS</span>
+                    </div>
+                  </td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openEntity360('WKSTN-042')" aria-label="Open Entity 360 for WKSTN-042">360 →</button></td>
+                </tr>
+                <tr>
+                  <td class="entity-rank">5</td>
+                  <td><span class="entity-name" onclick="openEntity360('svc-backup@acme')" aria-label="Open Entity 360 for svc-backup@acme">svc-backup@acme</span></td>
+                  <td><span class="entity-type-badge">USER</span></td>
+                  <td><span class="risk-score risk-low" aria-label="Risk score 52">52</span></td>
+                  <td><span class="trend-arrow up" aria-label="Trend increasing">▲</span></td>
+                  <td>
+                    <div class="source-tags">
+                      <span class="source-tag-mini"><span class="source-dot src-cs" aria-hidden="true"></span>CS</span>
+                    </div>
+                  </td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="openEntity360('svc-backup@acme')" aria-label="Open Entity 360 for svc-backup@acme">360 →</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Recent Cases -->
+          <div class="data-card">
+            <div class="data-card-header">
+              <span class="data-card-title">Recent Cases</span>
+              <a href="#" style="font-size: var(--text-xs); color: var(--color-text-link);" aria-label="View all cases">View all →</a>
+            </div>
+            <div class="cases-list" role="list" aria-label="Recent open cases">
+
+              <!-- Case 1 -->
+              <div class="case-row" role="listitem" onclick="viewCase('CVE-2026-1234')" aria-label="Critical case: CVE-2026-1234 Exploit on acme-dc-01, 2 hours ago, owned by jsmith">
+                <div class="case-sev-icon sev-critical" aria-label="Critical severity">CR</div>
+                <div class="case-info">
+                  <div class="case-title">CVE-2026-1234 Exploit</div>
+                  <div class="case-meta">
+                    <span class="case-entity">acme-dc-01</span>
+                    <span>·</span>
+                    <span class="case-age">2h ago</span>
+                    <span>·</span>
+                    <span class="case-owner">jsmith</span>
+                  </div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); viewCase('CVE-2026-1234')" aria-label="View case CVE-2026-1234 Exploit">View →</button>
+              </div>
+
+              <!-- Case 2 -->
+              <div class="case-row" role="listitem" onclick="viewCase('LateralMovement')" aria-label="High case: Lateral movement for alice@acme, 4 hours ago, owned by jdoe">
+                <div class="case-sev-icon sev-high" aria-label="High severity">HI</div>
+                <div class="case-info">
+                  <div class="case-title">Lateral movement</div>
+                  <div class="case-meta">
+                    <span class="case-entity">alice@acme</span>
+                    <span>·</span>
+                    <span class="case-age">4h ago</span>
+                    <span>·</span>
+                    <span class="case-owner">jdoe</span>
+                  </div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); viewCase('LateralMovement')" aria-label="View lateral movement case">View →</button>
+              </div>
+
+              <!-- Case 3 -->
+              <div class="case-row" role="listitem" onclick="viewCase('BruteForce')" aria-label="High case: Brute force on 10.0.5.22, 6 hours ago, unowned">
+                <div class="case-sev-icon sev-high" aria-label="High severity">HI</div>
+                <div class="case-info">
+                  <div class="case-title">Brute force</div>
+                  <div class="case-meta">
+                    <span class="case-entity">10.0.5.22</span>
+                    <span>·</span>
+                    <span class="case-age">6h ago</span>
+                    <span>·</span>
+                    <span class="case-owner unowned">unowned</span>
+                  </div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); viewCase('BruteForce')" aria-label="View brute force case">View →</button>
+              </div>
+
+              <!-- Case 4 -->
+              <div class="case-row" role="listitem" onclick="viewCase('DataStaged')" aria-label="Medium case: Data staged for carol@acme, 1 day ago, owned by jsmith">
+                <div class="case-sev-icon sev-medium" aria-label="Medium severity">MD</div>
+                <div class="case-info">
+                  <div class="case-title">Data staged</div>
+                  <div class="case-meta">
+                    <span class="case-entity">carol@acme</span>
+                    <span>·</span>
+                    <span class="case-age">1d ago</span>
+                    <span>·</span>
+                    <span class="case-owner">jsmith</span>
+                  </div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); viewCase('DataStaged')" aria-label="View data staged case">View →</button>
+              </div>
+
+              <!-- Case 5 -->
+              <div class="case-row" role="listitem" onclick="viewCase('PortScan')" aria-label="Medium case: Port scan on WKSTN-042, 2 days ago, unowned">
+                <div class="case-sev-icon sev-medium" aria-label="Medium severity">MD</div>
+                <div class="case-info">
+                  <div class="case-title">Port scan</div>
+                  <div class="case-meta">
+                    <span class="case-entity">WKSTN-042</span>
+                    <span>·</span>
+                    <span class="case-age">2d ago</span>
+                    <span>·</span>
+                    <span class="case-owner unowned">unowned</span>
+                  </div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); viewCase('PortScan')" aria-label="View port scan case">View →</button>
+              </div>
+
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ── AI Insight card ───────────────────────────────── -->
+        <section aria-label="AI-generated insight" id="ai-insight-section">
+          <div class="ai-insight-card" id="ai-insight-card">
+            <div class="ai-insight-header">
+              <span class="ai-label" aria-label="AI-generated content">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="4.5" fill="currentColor" opacity="0.9"/><path d="M5 2.5v2.5l1.5 1.5" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg>
+                AI
+              </span>
+              <span class="ai-system-name">Prism AI (Beta)</span>
+            </div>
+            <div class="ai-insight-body">
+              This week saw a <strong>40% increase in credential-related alerts</strong> compared to last week.
+              Key contributors: <em>alice@acme</em> (3 findings), <em>acme-dc-01</em> (2 findings).
+              The <code style="font-family:var(--font-mono);font-size:12px;background:var(--color-ai-border);padding:1px 4px;border-radius:3px;">brute_then_success</code>
+              detection rule fired <strong>8 times on Friday</strong> — investigate scheduled tasks and
+              look for persistence via T1053. Lateral movement detections are elevated on acme-dc-01,
+              consistent with post-exploitation behavior following credential compromise.
+            </div>
+            <div class="ai-insight-actions">
+              <button class="ai-action-btn" aria-label="View detailed PrismQL analysis">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M9 9L6.5 6.5M6.5 6.5A3.5 3.5 0 1 0 2 2a3.5 3.5 0 0 0 4.5 4.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                View detailed PrismQL analysis
+              </button>
+              <button class="ai-action-btn" aria-label="View source events that generated this insight">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><rect x="1" y="2" width="9" height="7" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M1 4.5h9" stroke="currentColor" stroke-width="1.2"/></svg>
+                View source events
+              </button>
+              <button class="ai-dismiss-btn" onclick="dismissAI()" aria-label="Dismiss this AI insight">
+                Dismiss ✕
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Bottom spacer so last card isn't flush against viewport edge -->
+        <div style="height: var(--space-4);"></div>
+
+      </div><!-- /dash-body -->
+    </main>
+  </div>
+</div><!-- /app -->
+
+<!-- Theme toggle -->
+<div class="theme-toggle-fixed" role="group" aria-label="Theme selector">
+  <button class="theme-btn active" id="btn-light" onclick="setTheme('light')" aria-label="Light theme">☀️</button>
+  <button class="theme-btn" id="btn-dark" onclick="setTheme('dark')" aria-label="Dark theme">🌙</button>
+</div>
+
+<!-- MITRE tooltip -->
+<div class="hm-tooltip" id="hm-tooltip" role="tooltip" aria-live="polite"></div>
+
+<script>
+  // ── Theme ─────────────────────────────────────────────────────────
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById('btn-light').classList.toggle('active', t === 'light');
+    document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+    localStorage.setItem('prism-theme', t);
+  }
+  (function() {
+    const s = localStorage.getItem('prism-theme');
+    if (s === 'dark') setTheme('dark');
+  })();
+
+  // ── Time range picker (visual feedback) ───────────────────────────
+  const timeRanges = ['Last 1h', 'Last 6h', 'Last 24h', 'Last 7d', 'Last 30d', 'Custom…'];
+  let currentRange = 'Last 7d';
+  function toggleTimeMenu() {
+    const btn = document.getElementById('time-range-btn');
+    const idx = timeRanges.indexOf(currentRange);
+    const next = timeRanges[(idx + 1) % (timeRanges.length - 1)];
+    currentRange = next;
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5v2.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Time: ${next} <span class="drop-caret">▾</span>`;
+  }
+
+  // ── MITRE cell click → tooltip + console log ──────────────────────
+  function hmClick(cell) {
+    const tech = cell.dataset.technique;
+    const tactic = cell.dataset.tactic;
+    const rules = parseInt(cell.dataset.rules, 10);
+    const alerts = parseInt(cell.dataset.alerts, 10);
+
+    const tooltip = document.getElementById('hm-tooltip');
+
+    if (rules === 0) {
+      tooltip.textContent = `Coverage gap: ${tech} (${tactic}) — no detection rules. Click to add a rule.`;
+    } else {
+      tooltip.textContent = `${tech} (${tactic}): ${rules} rule${rules !== 1 ? 's' : ''} active${alerts > 0 ? `, ${alerts} alert${alerts !== 1 ? 's' : ''} this week` : ''}. Click to view detection rules.`;
+    }
+
+    // Position tooltip near the cell
+    const rect = cell.getBoundingClientRect();
+    tooltip.style.display = 'block';
+    tooltip.style.left = `${Math.min(rect.left, window.innerWidth - 280)}px`;
+    tooltip.style.top = `${rect.bottom + 6}px`;
+
+    console.log(`[Prism Mockup] MITRE cell clicked: ${tech} — ${tactic}, ${rules} rules, ${alerts} alerts`);
+
+    // Auto-hide after 3s
+    clearTimeout(tooltip._timer);
+    tooltip._timer = setTimeout(() => { tooltip.style.display = 'none'; }, 3000);
+  }
+
+  // Hide tooltip on outside click
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.heatmap-cell')) {
+      document.getElementById('hm-tooltip').style.display = 'none';
+    }
+  });
+
+  // ── Entity 360 navigation ─────────────────────────────────────────
+  function openEntity360(entity) {
+    console.log(`[Prism Mockup] Navigate to Entity 360 for: ${entity}`);
+    const msg = `Opening Entity 360 for "${entity}"… (navigation stub — in production, opens Screen 3)`;
+    showToast(msg);
+  }
+
+  // ── Case navigation ───────────────────────────────────────────────
+  function viewCase(caseId) {
+    console.log(`[Prism Mockup] Navigate to Case Detail: ${caseId}`);
+    showToast(`Opening case "${caseId}"… (navigation stub — in production, opens Screen 2)`);
+  }
+
+  // ── AI insight dismiss ────────────────────────────────────────────
+  function dismissAI() {
+    const card = document.getElementById('ai-insight-card');
+    card.style.transition = 'opacity 0.2s ease, height 0.3s ease, margin 0.3s ease';
+    card.style.opacity = '0';
+    setTimeout(() => {
+      card.style.height = '0';
+      card.style.padding = '0';
+      card.style.overflow = 'hidden';
+    }, 200);
+    console.log('[Prism Mockup] AI insight dismissed');
+  }
+
+  // ── Toast helper ─────────────────────────────────────────────────
+  let toastEl = null;
+  function showToast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.style.cssText = `
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: var(--toast-bg); color: var(--toast-text);
+        padding: 10px 18px; border-radius: var(--radius-lg);
+        box-shadow: var(--toast-shadow); font-size: var(--text-xs);
+        font-family: var(--font-sans); font-weight: var(--weight-medium);
+        z-index: var(--z-toast); max-width: 400px; text-align: center;
+        pointer-events: none; transition: opacity 0.2s ease;
+      `;
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.style.opacity = '1';
+    clearTimeout(toastEl._timer);
+    toastEl._timer = setTimeout(() => { toastEl.style.opacity = '0'; }, 2500);
+  }
+
+  // ── Chart source tab interaction ─────────────────────────────────
+  document.querySelectorAll('.chart-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      const parent = this.closest('.chart-tabs');
+      parent.querySelectorAll('.chart-tab').forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      this.classList.add('active');
+      this.setAttribute('aria-selected', 'true');
+      console.log(`[Prism Mockup] Chart tab selected: ${this.textContent.trim()}`);
+    });
+  });
+</script>
+</body>
+</html>
