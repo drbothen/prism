@@ -36,14 +36,68 @@ timestamp: 2026-06-25T08:00:00Z
 >
 > **D-1337 (2026-06-25): SESSION WRAP — RESUME SNAPSHOT D-1337 authored (supersedes D-1331). e518d96c fix-burst closed F-P1-MED-001 (unfolded-temporal guard → E-QUERY-034) + F-P1-MED-002 (Ast::Sql arm ok_or_else hardened, TD-VSDD-060 sibling). Groups 1/2/3 all GREEN. Temporal grammar fully fixed + SPEC-ALIGNED: plan-time pinning (Option A D-1333); constant-fold inject_now; plain-string literal per BC-2.11.021/ADR-044 D4 (OCSF Datetime = Arrow Utf8); FORBID-BOTH plan-time data-independent; OBS-1 fallbacks on both AST arms. 3-CLEAN streak 0/3 on FROZEN HEAD e518d96c (none taken yet on this HEAD). NEXT: re-confirm just check on e518d96c → LOCAL adversary Pass 1. Track B unchanged; demo target FROZEN. STATE v7.965→v7.966.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1337** (authoritative zero-context restart protocol; supersedes D-1331). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1331 notes SUPERSEDED.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1337 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `903c8fcb` (PR #202 S-5.04 sensor-health merged D-1319). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.966.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1356** (authoritative zero-context restart protocol; supersedes D-1337). STATE.md frontmatter (`develop_head`, `current_step`) is the secondary authoritative source. All prior D-1101..D-1337 notes SUPERSEDED.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1356 (below) + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `903c8fcb` (PR #202 S-5.04 sensor-health merged D-1319). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED at 5504c152; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.985. D-1356.
 
 ---
 
-## §RESUME SNAPSHOT — D-1337 (2026-06-25 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.12; STORY-INDEX v2.472; ARCH-INDEX v2.145; STATE v7.966; FROZEN HEAD e518d96c; TWO-TRACK: demo-critical Track A + day-2 morph Track B) [SUPERSEDES D-1331]
+## §RESUME SNAPSHOT — D-1356 (2026-06-25 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.15; STORY-INDEX v2.477; ARCH-INDEX v2.145; STATE v7.985; FROZEN PR HEAD b65b4d0c; PR-LEVEL cascade in progress on PR #203) [SUPERSEDES D-1337]
 
+> **D-1356 burst (2026-06-25).** Session wrap. Comprehensive fold↔detect symmetry fix landed at b65b4d0c (inject_now now provably mirrors detect side across ALL Expr variants + SqlQuery clauses). 4 load-bearing tests; just check EXIT 0 full workspace; non-exhaustive 87. PR-LEVEL 3-CLEAN streak 0/3 on FROZEN PR HEAD b65b4d0c (none taken on this HEAD). All prior D-1101..D-1337 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+Track A demo-critical story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 is in PR-LEVEL adversarial convergence on PR #203 (→develop), FROZEN PR HEAD b65b4d0c. LOCAL 3-CLEAN already CONVERGED (D-1347 @71b196ad); the comprehensive temporal fold↔detect symmetry fix just landed at b65b4d0c (ends the recurring per-variant asymmetry pattern). NEXT: dispatch vsdd-factory:adversary for PR-LEVEL cascade Pass 1 on b65b4d0c; need 3 consecutive CLEAN(strict) on UNCHANGED b65b4d0c → confirm CI green → squash-merge --admin → post-merge POL-14 → pre-flight demo re-audit → T13 capstone → T14 recording.
+
+### HEADS
+- origin/develop: `903c8fcb`. local develop: `ba1108d2` (unpushed /wrap-skill commit, DIVERGED — advisory SHA-currency hook FAIL, non-blocking, pending-human reconciliation; precedent D-1319+). New branches cut from origin/develop@903c8fcb.
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (this wrap commit is HEAD; do not hard-code).
+- Agents in flight: NONE (all returned; the b65b4d0c push landed EXIT 0 with full-workspace just check green).
+- Persistent user directive: "No pragmatic convergence. Fix all issues before build."
+
+### WORKSTREAM — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 (Track A, demo-critical; demo target FROZEN)
+- Branch `feature/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`; worktree `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`; PR #203 OPEN → develop; FROZEN PR HEAD = `b65b4d0c`.
+- Story v1.8; 27 ACs / 20 Red-Gate; 8 BCs: BC-2.11.020/021/022/023, BC-2.11.002 v1.4, BC-2.10.015 v1.1, BC-2.10.016 v1.1, BC-2.10.017. error-taxonomy v2.00; BC-2.16.002 v1.90.
+- LOCAL cascade: CONVERGED 3-CLEAN at code HEAD 71b196ad (D-1347).
+- PR-LEVEL cascade history: Passes 1–9 taken on various prior HEADs. Each "clean" pass surfaced a deeper finding (demo-tape /tmp sibling-sweep HIGH, Filter-arm apostrophe escaping, SqlPipe gate-sweep HIGH across 11 sites, SqlPipe JOIN-source parity, then a temporal fold↔detect asymmetry FAMILY: Predicate::InSubquery → value-context Expr::InSubquery + FuncCall args). The COMPREHENSIVE fold↔detect symmetry fix landed at b65b4d0c — inject_now now provably mirrors the detection side across ALL Expr variants + SqlQuery clauses (Expr::InSubquery, FuncCall scalar/aggregate args, SELECT/GROUP BY/ORDER BY/JOIN ON); DML temporal verified out-of-scope-safe (no normalize path; grammar rejects NOW in DML). 4 new load-bearing tests.
+- PR-LEVEL 3-CLEAN streak: **0/3** counted on FROZEN PR HEAD `b65b4d0c` (NONE taken yet on this HEAD — frozen-HEAD rule DRIFT-ORCH-PRLEVEL-PUSH-001: any new push resets streak).
+- `just check`: EXIT 0 full workspace on b65b4d0c (pre-push hook; incl. all DTU tests). non-exhaustive gate EXPECTED=87 (carries develop 84→87 at merge). fmt-canonical clean.
+- CI on PR #203: running on b65b4d0c. NOTE: an earlier transient CI runner failure ("No space left on device") was infra, NOT code — resolves on re-run. Confirm `gh pr checks 203` all green before merge.
+- pr-reviewer cycle-1: APPROVE (0 blocking). Security review: CLEAN(PR-merge); SEC-001/002/003 non-blocking adjudicated (BC-2.10.017 Option A; E-QUERY-037 enumeration pattern; normalized_pql round-trip + safety_envelope).
+- **RESUME NEXT-ACTION:** dispatch `vsdd-factory:adversary` for PR-LEVEL cascade Pass 1 on PR #203 frozen HEAD `b65b4d0c` (diff `903c8fcb..b65b4d0c`), injecting the comprehensive DO-NOT-FLAG list (below) + policies.yaml v1.33 rubric + SAP-1/SAP-2/SID-1. Need 3 consecutive CLEAN(strict) on UNCHANGED `b65b4d0c`. On 3-CLEAN: confirm `gh pr checks 203` green → squash-merge `--admin` (D-1337 authorization; precedent PR #202) → state-manager post-merge POL-14 BC promotion (BC-2.11.020/021/022/023 + BC-2.10.015/016/017 + BC-2.11.002 draft→active) + develop_head update + non-exhaustive 84→87 sync → re-run pre-flight demo audit (`.factory/research/demo-pre-flight-audit-2026-06-24.md`) → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording.
+
+### DO-NOT-FLAG (comprehensive carry-forward for the PR-LEVEL cascade on b65b4d0c)
+Temporal pinned literal = plain string `'<iso>'` (D-1335, OCSF Datetime=Arrow Utf8). AC-019 connect-timeout/reset_token_cache deferral → S-RESILIENCE-FEDERATED-001 (D-1326). non-exhaustive 84→87 (ci.yml EXPECTED=87). BC-2.11.009 per-client-alias → S-ALIAS-CLIENT-SCOPE-001 (P2). E-QUERY-037 "Available sensors:" vs E-QUERY-036 "Available tables:" intentionally distinct. E-QUERY-036 available_tables = registered sensor prefixes (taxonomy matches). Architecture Mapping anchors corrected (materialization.rs Step 1a/1b, lib.rs inject_now/plan_sqlpipe_query, server.rs list_capabilities). AC-020 satisfied (runbook v1.4). AC-024 GRAMMAR-013 table cites real headers. parse_select_mode unification; FORBID-BOTH Limit+Tail; Filter-arm temporal guard + predicate_to_datafusion_sql apostrophe escaping ('→''); SqlPipe enrich/D2 parity; E-QUERY-040 v2.00 neutral row-cap wording; NYA doc accuracy (input-processing handlers doc length-bound-then-NYA, parameter-free stubs doc "no input processing"); 11 demo tapes self-contained + 11 committed driver scripts; ExampleKind unit-variant NegativeOther; D2-on-bare-ORDER helpful superset; SEC-001/002/003 non-blocking; normalize_predicate_pub/emit_quoted_string PQL-roundtrip double-quote correct (BC-2.11.018). Ast::SqlPipe swept through ALL plan-time match sites incl. PipeStage::Join sources (4 extractors) + both normalizer pre-checks (head+stages); REFERENCE_EXAMPLES both limit+tail NegativeE040; AC-016 named test full-transport load-bearing; BC-2.10.016 v1.1 option-(a) (unknown) substitution returns Ok within 5s. inject_now fold↔detect PROVABLY SYMMETRIC across all variants (Expr::InSubquery, FuncCall args, SELECT/GROUP BY/ORDER BY/JOIN ON); DML temporal out-of-scope-safe.
+
+### PENDING USER-APPROVED WORK / AUTONOMY
+User granted autonomous drive of the remediation story through remaining VSDD steps (objective gates — 3-CLEAN strict, CI, security — enforced; --admin merge authorized for harness-blocked GH approvals, precedent PR #202 / D-1337). Pause only for genuine product/business decision, hard prereq/Level-3 blocker, or §-principle change.
+
+### DEMO / RELEASE ROADMAP REMAINING
+PR #203 PR-LEVEL 3-CLEAN → CI green → squash-merge → post-merge POL-14 → pre-flight demo re-audit → T13 capstone → T14 recording. Day-2 (Track B) begins ONLY post-T14 per `.factory/specs/matured-vision-day2-requirements.md` (demo target FROZEN).
+
+### TRACK B — DAY-2 MORPH (begins ONLY post-T14; demo target FROZEN)
+Source-of-truth: `.factory/specs/matured-vision-day2-requirements.md` (D-1331). Brief reframe GATED on human sign-off. Day-2 epics: E-CACHE-DEMAND-001, E-CENTRAL-TRANSPORT-001/AUTHZ/OPS, S-RESILIENCE-FEDERATED-001 (stub registered; BCs not authored), Prism-Satellite, lake-connector, vision-threading/spec-evolution. ADRs ADR-047..054. Research artifacts: `.factory/research/federated-search-architecture-2026-06-24.md` + `.factory/research/siem-securitylake-datalake-federation-2026-06-24.md`.
+
+### WORKTREE INVENTORY
+- ACTIVE: `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001` (PR #203, HEAD `b65b4d0c`, mid PR-LEVEL cascade).
+- STALE / leave-alone: `.worktrees/S-3.09` (FROZEN), `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded).
+
+### DECISION-LOG DELTA since D-1337 (this session)
+D-1338 (LOCAL Pass 1 e518d96c fixes: filter-mode load-bearing, E-QUERY-040 verbatim, mode_bridge relocation, BC anchor fixes), D-1339 (story v1.4 BC-pin sweep), D-1340 (SAP-1 catalog rows filter.* + E-QUERY-036 taxonomy), D-1341 (story v1.5 D2 AC + D1 tighten), D-1342..D-1343 (AC-023 note + ci_3tier_gate + path-hint sweeps), D-1344 (SqlPipe enrich parity), D-1345 (parse_with_registry unification), D-1346..D-1347 (FORBID-BOTH tail + Filter-arm temporal guard; LOCAL 3-CLEAN CONVERGED @71b196ad), D-1348 (PR #203 created; demo evidence; pr-reviewer APPROVE; security CLEAN), D-1349 (NYA doc + E-QUERY-040/036 wording, taxonomy v2.00), D-1350 (demo-tape /tmp sibling-sweep + Filter-arm apostrophe), D-1351 (SqlPipe gate-sweep 11 sites), D-1352 (SqlPipe JOIN-source parity), D-1353 (BC-2.10.016 v1.1 + normalizer pre-check SqlPipe arms + AC-016 test), D-1354 (Predicate::InSubquery fold + E-QUERY-037 subquery source-walk), D-1355 (comprehensive Expr::InSubquery + FuncCall fold↔detect symmetry @b65b4d0c). Plus the 34cbce69 day-2 UI-requirements research doc commit.
+
+### PENDING HUMAN DECISIONS
+1. Local develop /wrap-commit reconciliation (ba1108d2 vs origin 903c8fcb).
+2. Brief reframe sign-off (day-2 morph).
+3. EC-11 namespace collisions (older; separate maintenance burst).
+
+### D-1356 (this wrap) decision row
+D-1356: session wrap — RESUME SNAPSHOT D-1356 authored (supersedes D-1337); PR #203 PR-LEVEL cascade in progress, FROZEN PR HEAD `b65b4d0c`, streak 0/3; comprehensive fold↔detect symmetry fix landed @b65b4d0c; NEXT = PR-LEVEL adversary Pass 1 on `b65b4d0c`.
+
+---
+
+## §RESUME SNAPSHOT — D-1337 (2026-06-25 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.12; STORY-INDEX v2.472; ARCH-INDEX v2.145; STATE v7.966; FROZEN HEAD e518d96c; TWO-TRACK: demo-critical Track A + day-2 morph Track B) [SUPERSEDED by D-1356]
+
+> **SUPERSEDED by D-1356 (2026-06-25 wrap).**
 > **D-1337 burst (2026-06-25).** Session wrap. e518d96c fix-burst closed F-P1-MED-001 + F-P1-MED-002; temporal grammar fully fixed + SPEC-ALIGNED. 3-CLEAN streak 0/3 on FROZEN HEAD e518d96c. TRACK B unchanged; demo target FROZEN. All prior D-1101..D-1331 notes SUPERSEDED.
 
 ### RESUME IN ONE BREATH

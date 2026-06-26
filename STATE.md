@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.984"
+version: "7.985"
 producer: state-manager
-timestamp: 2026-06-25T23:55:00Z
+timestamp: 2026-06-25T23:59:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 4949
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1355 (2026-06-25). PR-LEVEL Pass 9 on 950c19be = CLEAN(strict)=NO, CLEAN(PR-merge)=NO. MED-1 (Expr::InSubquery fold↔detect asymmetry — value-context subquery NOW() unfolded → normalize_expr catch-all → malformed SQL; SOUL.md #4; same asymmetry family as F-P1-MED-001/LOW-1/F-P2-MED-001) + OBS-1 (FuncCall scalar/agg args latent, non-reachable today) + OBS-2 (DML WHERE temporal — out-of-scope, verified safe: no normalize path, grammar rejects NOW() in DML). MED-1+OBS-1 CLOSED by implementer (950c19be→b65b4d0c) via comprehensive fold↔detect symmetry sweep: inject_now now recurses into EXACTLY the variants detect side recurses into — Expr::InSubquery (fold+detect), FuncCall::Scalar/Aggregate args (fold+detect), SELECT/GROUP BY/ORDER BY/JOIN ON in inject_now_sql_query; full symmetry table verified; misleading mutual-omission comment removed; 4 load-bearing tests; just check EXIT 0 (4949 tests); non-exhaustive 87; SAP-1 clean. OBS-2 verified safe (no fix). This ENDS the recurring per-variant asymmetry pattern (inject_now fold↔detect now provably symmetric). New FROZEN PR HEAD b65b4d0c. 3-CLEAN streak RESET 0/3 on b65b4d0c. BC-INDEX UNCHANGED v7.15. STORY-INDEX UNCHANGED v2.477. develop_head UNCHANGED 903c8fcb. NEXT: PR-LEVEL adversary 3× CLEAN(strict) on UNCHANGED b65b4d0c → CI green → squash-merge (--admin D-1337) → post-merge POL-14 BC promotion → pre-flight demo re-audit → T13 capstone → T14 recording."
+current_step: "D-1356 (2026-06-25). SESSION WRAP — RESUME SNAPSHOT D-1356 authored (supersedes D-1337). Comprehensive fold↔detect symmetry fix landed at b65b4d0c (inject_now now provably mirrors detect side across ALL Expr variants + SqlQuery clauses — Expr::InSubquery, FuncCall scalar/aggregate args, SELECT/GROUP BY/ORDER BY/JOIN ON; DML temporal verified safe). 4 load-bearing tests; just check EXIT 0 full workspace; non-exhaustive 87. PR-LEVEL 3-CLEAN streak RESET 0/3 on FROZEN PR HEAD b65b4d0c (none taken on this HEAD). NEXT: PR-LEVEL adversary Pass 1 on UNCHANGED b65b4d0c → 3× CLEAN(strict) → CI green → squash-merge (--admin D-1337) → post-merge POL-14 BC promotion → pre-flight demo re-audit → T13 capstone → T14 recording."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -441,27 +441,21 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1354 — 2026-06-25; STATE v7.983)
+## Session Resume Checkpoint (D-1356 — 2026-06-25; STATE v7.985)
 
-**STATE v7.983. CURRENT POSITION: D-1354 PR #203 OPEN for S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001. FROZEN PR HEAD `950c19be`. PR-LEVEL Pass 8 (737f4ed8): NOT CLEAN (MED-1 InSubquery fold↔detect asymmetry + OBS-1 gate source-walk; BOTH CLOSED at 950c19be). 3-CLEAN streak RESET 0/3 on 950c19be. just check EXIT 0 full workspace (1672s; all DTU tests pass). non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.15. STORY-INDEX v2.477. SESSION-HANDOFF.md §RESUME SNAPSHOT D-1337 remains the zero-context restart authority (SESSION-HANDOFF not updated in D-1338..D-1354 bursts — factory-only).**
+**STATE v7.985. SESSION WRAP complete. RESUME SNAPSHOT D-1356 is the authoritative zero-context restart. FROZEN PR HEAD `b65b4d0c`. PR-LEVEL 3-CLEAN streak 0/3 on b65b4d0c (none taken on this HEAD). just check EXIT 0 full workspace. non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.15. STORY-INDEX v2.477.**
 
-**TRACK A — DEMO-CRITICAL (ACTIVE):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.8 (27 ACs, 8 BCs). PR #203 OPEN (base develop 903c8fcb, FROZEN PR HEAD `950c19be`). LOCAL 3-CLEAN CONVERGED @71b196ad (D-1347). PR-LEVEL Pass 1 (e0374818): CLEAN 1/3 (RESET by P2). PR-LEVEL Pass 2 (e0374818): OBS-1 + OBS-2 CLOSED @752e22ce. PR-LEVEL Pass 3 (752e22ce): MED-1 + OBS-1 + OBS-2 ALL CLOSED @3820268a (error_taxonomy v2.00). PR-LEVEL Pass 4 (3820268a): HIGH-1 + OBS-1 ALL CLOSED @216e19fa. PR-LEVEL Pass 5 (216e19fa): HIGH-1 (SqlPipe 11 sites) + OBS-1 (tail) ALL CLOSED @b58a1a49. PR-LEVEL Pass 6 (b58a1a49): OBS-1 (SqlPipe join-source parity) CLOSED @9eab936b. PR-LEVEL Pass 7 (9eab936b): OBS-1 (normalizer SqlPipe parity) + OBS-2 (AC-016+BC-2.10.016) ALL CLOSED @737f4ed8. PR-LEVEL Pass 8 (737f4ed8): MED-1 (InSubquery fold↔detect asymmetry → inject_now_predicate now recurses via inject_now_sql_query) + OBS-1 (gate source walk InSubquery — Select+SqlPipe arms now call collect_predicate_sources_into_gate) ALL CLOSED @950c19be. FROZEN PR HEAD = 950c19be. PR-LEVEL streak RESET 0/3 on 950c19be. NEXT: PR-LEVEL adversary Pass 9 on UNCHANGED 950c19be → if CLEAN → Pass 10 → Pass 11 → 3× CLEAN(strict) streak → CI green → squash-merge (--admin D-1337) → post-merge POL-14 BC promotion burst → pre-flight demo re-audit → T13 capstone → T14 recording. PR-LEVEL DO-NOT-FLAG: AC-019 (BLOCKER-001 deferred D-1326), AC-020 (runbook v1.4 satisfied), temporal plain-string (D-1335), E-QUERY-036/037 label distinction, OBS-1 NYA docs (CLOSED 1275a2c1), OBS-2 GRAMMAR-013 table (CLOSED 752e22ce), MED-1/OBS-1/OBS-2 P3 (ALL CLOSED 3820268a), HIGH-1/OBS-1 P4 (ALL CLOSED 216e19fa), HIGH-1/OBS-1 P5 (ALL CLOSED b58a1a49), P6 OBS-1 (CLOSED 9eab936b), P7 OBS-1+OBS-2 (ALL CLOSED 737f4ed8), P8 MED-1+OBS-1 (ALL CLOSED 950c19be), D2-on-bare-ORDER (intentional helpful superset — NOT a defect), inject_now_predicate recurses into Predicate::InSubquery (fold↔detect symmetric CLOSED 950c19be), E-QUERY-037 gate walks WHERE InSubquery sources (Select+SqlPipe+DML consistent CLOSED 950c19be), armis test confirmed pass via pre-push hook (ad-hoc flake was environmental).
+**TRACK A — DEMO-CRITICAL (ACTIVE):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.8 (27 ACs, 8 BCs). PR #203 OPEN (base develop 903c8fcb, FROZEN PR HEAD `b65b4d0c`). LOCAL 3-CLEAN CONVERGED @71b196ad (D-1347). Comprehensive fold↔detect symmetry fix landed @b65b4d0c (D-1355): inject_now provably symmetric across Expr::InSubquery, FuncCall args, SELECT/GROUP BY/ORDER BY/JOIN ON; DML safe. PR-LEVEL streak 0/3 on b65b4d0c. pr-reviewer: APPROVE. Security: CLEAN(PR-merge) SEC-001/002/003 non-blocking. **NEXT: dispatch vsdd-factory:adversary for PR-LEVEL Pass 1 on UNCHANGED b65b4d0c. On 3-CLEAN: CI green check → squash-merge --admin → post-merge POL-14 → demo re-audit → T13 → T14.**
 
-**TRACK B — DAY-2 MORPH (POST-T14):** source-of-truth = `.factory/specs/matured-vision-day2-requirements.md` (committed D-1331). Demo target FROZEN/UNCHANGED; morph begins post-T14. Epics: E-CACHE-DEMAND-001, E-CENTRAL-TRANSPORT-001, E-CENTRAL-AUTHZ-001, E-CENTRAL-OPS-001, S-RESILIENCE-FEDERATED-001 (stub registered D-1329; BCs not authored), Prism-Satellite, lake-connector. ADRs ADR-047..054. Brief reframe GATED on human sign-off.
+**TRACK B — DAY-2 MORPH (POST-T14):** source-of-truth = `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
-**CLOSED WORKSTREAMS:** WS-1 Enrichment MERGED PR #200 develop@acc6722c (T13 gate 1). WS-2 S-5.04 MERGED PR #202 develop@903c8fcb (T13 gate 2). WS-4 Quinn-proto MERGED PR #201 develop@233cfc66. All NO ACTIVE ACTION.
-
-**DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 903c8fcb at 5504c152. New branches must cut from origin/develop (903c8fcb). ADVISORY SHA-currency hook FAIL (non-blocking per D-1319+).
-
-**PENDING HUMAN DECISIONS:** (1) local develop /wrap-commit reconciliation (ba1108d2 vs 903c8fcb); (2) brief reframe sign-off (day-2, federated-query + smart-caching SIEM/lake replace-or-federate + central + AI-native); (3) EC-11 namespace collisions (separate maintenance burst).
-
-**STATE INDICES:** develop_head 903c8fcb (origin/develop) | local develop ba1108d2 (LOCAL-ONLY — diverged) | BC-INDEX v7.15 | VP-INDEX v1.80 | STORY-INDEX v2.477 | ARCH-INDEX v2.145 | error_taxonomy 2.00 | active_contracts 246 | draft_contracts 5 | bc_count_corrected 264 | total_stories 212 | CLAUDE.md non-exhaustive=84 on develop (worktree=87). workspace_test_count=4942. STATE v7.983.
+**DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 903c8fcb. Advisory SHA-currency hook FAIL (non-blocking per D-1319+).
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1337 (authoritative zero-context restart; supersedes D-1331; SESSION-HANDOFF not updated in D-1338..D-1354 bursts — factory-only). STATE v7.983.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1356 (authoritative zero-context restart; supersedes D-1337). STATE v7.985.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `903c8fcb`.
-3. `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` → expect `950c19be` (D-1354 FROZEN PR HEAD; just check EXIT 0 full workspace; PR #203 open).
-4. `gh pr list --state open --base develop` → expect PR #203 open (FROZEN HEAD 950c19be).
+3. `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` → expect `b65b4d0c` (D-1356 FROZEN PR HEAD; just check EXIT 0; PR #203 open).
+4. `gh pr list --state open --base develop` → expect PR #203 open (FROZEN HEAD b65b4d0c).
 5. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off.
-6. PR-LEVEL 3-CLEAN streak is 0/3 on 950c19be. Next action: adversary PR-LEVEL Pass 9 on UNCHANGED 950c19be. Convergence rules from SESSION-HANDOFF. Autonomy D-989+D-1090 active.
+6. PR-LEVEL 3-CLEAN streak is 0/3 on b65b4d0c. Next action: adversary PR-LEVEL Pass 1 on UNCHANGED b65b4d0c. DO-NOT-FLAG list in SESSION-HANDOFF §RESUME SNAPSHOT D-1356. Autonomy D-989+D-1337 active.
