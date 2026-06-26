@@ -306,6 +306,30 @@ data store.
 - R2: Detection-driven caching in streaming security engines (prior art).
 - R3: event_time-vs-wall-clock TTL semantics (correctness for out-of-order events).
 
+> **Day-2 addendum (2026-06-25 side analysis — HUMAN DIRECTIVE).** The RetentionCache is **tiered**,
+> and **multi-schema** (not OCSF-only). Demand spans seconds → multi-year, which is two storage
+> regimes:
+> - **Hot tier** — in-memory + the `StorageDomain::RetentionCache` RocksDB CF (current design):
+>   seconds → hours/days, point lookups, detection-window correlation, low latency.
+> - **Cold/long tier** — **Apache Iceberg** (Parquet-on-object-store + catalog): days → multi-year
+>   `RETAIN`. Columnar, partition-pruned on `event_time`/`eventDay`, schema-evolution, time-travel,
+>   zstd-in-Parquet, cheap object storage.
+>
+> The Retention Policy Engine routes by retention duration: short TTL → RocksDB hot; long /
+> explicit-`RETAIN` → Iceberg cold. **`RETAIN <dur>`** writes rows to an Iceberg table; **`FROM
+> cache.<name>`** reads them. This is the concrete implementation of the previously-deferred P4
+> cold-tier (below), and it **unifies the cache with the Amazon Security Lake connector (§3.5):
+> Security Lake IS OCSF-as-Iceberg, so the cold-cache read path and the lake read path are the SAME
+> DataFusion + Iceberg TableProvider** — one mechanism, not two. The long-baseline storage also
+> serves statistical/anomaly detection (Section 14).
+>
+> **Multi-schema (critical):** the Iceberg cold tier is **NOT one OCSF table.** It is a set of tables
+> keyed by **(source-class, schema, schema-version)** — OCSF-vN tables (OCSF is itself versioned:
+> 1.1, 1.3, …) AND **native schema-on-read tables** for cached non-security-connector data (§3.4,
+> §13). Iceberg schema-evolution handles OCSF version drift. Iceberg overhead is unsuited to the
+> seconds-scale hot path, so it stays cold-tier only — hot stays RocksDB. See §13.6 for the full
+> multi-schema model.
+
 **Human decision H2 (D-1328):** SIEM-replacement = DECIDED. Prism's demand-driven cache
 makes it a SIEM replacement by capability. Human directive. H1/H3/H4/H5 deferred to
 caching-epic kickoff post-demo.
@@ -358,6 +382,16 @@ ubiquitous-language decision owned jointly by business-analyst and PO. The term
 The role noun for a satellite that acts as both executor and upstream relay in the chain
 (the "relay" or "aggregator" role) is TBD.
 
+> **Day-2 addendum (2026-06-25, side analysis — see Section 10).** The source/connector
+> generalization needs a missing technical spine: a **per-connector capability descriptor**.
+> Every connector TOML should declare its pushdown capability profile — which predicate
+> classes (equality, range, IN, prefix), aggregations, group-by, sort, limit, and join it
+> can execute natively vs. what PrismQL must compute centrally in DataFusion. This is the
+> direct analog of Trino's connector SPI (`applyFilter`), DataFusion's
+> `supports_filters_pushdown`, and Athena's federated-connector pushdown negotiation. Without
+> it, "any source valuable to a security analyst" has no planner contract. See Section 10
+> §10.3 (ADOPT-1) and §10.5 gap G-2.
+
 ### 3.5 SIEM / Security Lake / Data Lake — federate-or-replace dual stance
 
 **Concept:** SIEMs, security lakes, and data lakes are not only competitors; they are
@@ -396,6 +430,15 @@ federate into your lake — Prism queries it."
 
 **Epic (day-2):** E-LAKE-CONNECTOR-001. Amazon Security Lake first; generic
 Iceberg/Parquet-on-S3 second; Splunk/Sentinel/Snowflake-fronted lakes third.
+
+> **Day-2 addendum (2026-06-25, side analysis — see Section 10).** The competitive research
+> on Query.io surfaces a useful connector dichotomy Prism should adopt explicitly:
+> **static-schema sources** (pre-mapped sensors — CrowdStrike/Cyberint/Claroty/Armis, the
+> current model) vs. **dynamic-schema sources** (Splunk/Sentinel/Snowflake/BigQuery/lakes,
+> where the schema must be introspected, partitioning auto-discovered, and fields mapped to
+> OCSF via a no-code "configure-schema" workflow). The lake/SIEM Mode-A query-subscriber path
+> (above) IS a dynamic-schema source. This split, and the GAV-vs-LAV mediation decision it
+> implies, should be ratified in an ADR (Section 10 §10.3 ADOPT-6, ADOPT-8; gap G-5).
 
 ### 3.6 Federated-connectivity resilience (S-RESILIENCE-FEDERATED-001)
 
@@ -604,6 +647,21 @@ with the specific nature of each change. All items are PENDING and gated on brie
   recommended GB-range for central server." Update the numerical target to be a
   parameterized constraint, not a fixed 512MB.
 
+> **Day-2 addendum (2026-06-25, side analysis — see Section 10).** The federated-query-language
+> research identifies an expressiveness-vs-safety canon the current NFR set does not cover.
+> Add the following (see Section 10 §10.5 gaps G-1, G-3):
+> - [ ] New NFR: **Cross-source join cost guard.** A PrismQL query that joins two or more
+>   sources where neither can execute the join natively MUST require a selective, key-based
+>   join predicate; the planner rejects (or demands an explicit override + row cap) joins
+>   estimated to fetch more than a bounded row count per side. This is the single largest
+>   unguarded runaway risk once PrismQL can join (e.g.) CrowdStrike × Splunk. Distributed-join
+>   strategy (broadcast / semi-join / central hash in DataFusion) to be specified.
+> - [ ] New NFR: **Mandatory time-bound.** Every federated query MUST carry an effective time
+>   predicate (explicit, or an injected default window). Generalizes the Security-Lake
+>   `eventDay`/`time_dt` push-down guardrail (§3.5 Mode A) to all sources.
+> - [ ] New NFR: **Default + maximum result limit** with limit-pushdown where the connector
+>   capability descriptor supports it (§3.4 addendum).
+
 ### 5.4 Architecture and ADRs
 
 **system-overview.md:**
@@ -637,6 +695,20 @@ with the specific nature of each change. All items are PENDING and gated on brie
   org in central deployment; per-analyst state isolation preserved in per-analyst mode.
 - [ ] ADR-054: Central service operational model — startup, health endpoints, scaling
   characteristics, graceful shutdown under multi-analyst load.
+
+> **Day-2 addendum (2026-06-25, side analysis — see Section 10).** Candidate ADRs surfaced by
+> the federated-query-language research (numbers to be allocated by architect):
+> - [ ] ADR (TBD): **Connector capability-descriptor model** — per-connector pushdown profile;
+>   PrismQL planner push-vs-local contract; DataFusion `supports_filters_pushdown` mapping.
+> - [ ] ADR (TBD): **PrismQL pushdown & cross-source-join semantics** — predicate / projection /
+>   aggregation / limit / sort pushdown matrix; distributed-join strategy; join guards.
+> - [ ] ADR (TBD): **Mediated-schema model (GAV vs LAV)** — OCSF as the global mediated schema
+>   for sensors (LAV-style) vs. direct source tables for non-security connectors (GAV-style);
+>   schema-on-read normalization boundary.
+> - [ ] ADR (TBD): **DataFusion Federation as the Satellite remote-execution substrate** —
+>   bind §3.2 satellite mesh to remote-subplan delegation rather than bespoke transport.
+> - [ ] ADR (TBD): **PrismQL entity/observable pivot** — `entity:<type>` search expanding to
+>   all OCSF attributes that can hold the value (the one Query.io UX primitive worth copying).
 
 ### 5.5 Behavioral Contracts
 
@@ -826,3 +898,773 @@ All 9 D-1330 items are covered. Human decisions ledger (Section 4) captures all 
 including the 5 explicit HUMAN CALL items (DC-001 through DC-006, excluding DC-007/008/009/010
 which are corrections or research-validated). The 9-item D-1330 inventory + all human
 decisions are accounted for.
+
+---
+
+## Section 10 — Federated Query-Language & Competitive Architecture Analysis (Query.io)
+
+> **PROVENANCE — READ FIRST.** This section is a **2026-06-25 side-analysis addendum**, authored
+> out-of-band from the 2026-06-24 capture session. It is NOT yet product-owner-ratified and does
+> NOT carry a decision ledger entry. It is grounded in two deep-research passes run 2026-06-25:
+> (A) a technical analysis of Query (query.ai / query.io) — their FSQL query language and federated
+> data-mesh architecture; and (B) the general architecture of query languages in federated-search
+> engines (Apache Calcite, Trino/Presto, Starburst, **Apache DataFusion + DataFusion Federation**,
+> AWS Athena, Steampipe, Apollo GraphQL Federation, Elasticsearch/OpenSearch cross-cluster search).
+> **These two research bodies are not yet committed as `.factory/research/` artifacts** — a future
+> state-manager burst should persist them as `research/queryio-federated-search-2026-06-25.md` and
+> `research/federated-query-language-patterns-2026-06-25.md` before any of the ADOPT/ENHANCE items
+> below are dispatched. All §10 recommendations are PROPOSALS pending PO + architect adjudication.
+
+### 10.1 How Query (query.io) works — query language
+
+- **FSQL (Federated Search Query Language)** supersedes the earlier **UQL (Unified Query Language)**:
+  "one query language across every source." FSQL is an **intermediate representation**, not a
+  backend-executable — the mesh "translates FSQL to each source's native language at query time"
+  (Splunk SPL, Azure KQL, Chronicle UDM, REST params). It is a **schema-aware DSL over OCSF**,
+  referencing OCSF event classes / attributes / entities / enumerations rather than raw fields.
+- **FSQL has a documented syntax surface** (corrected from the first-pass assessment after reading
+  docs.query.ai directly): typed **sigil attribute selectors** — `%` string (`%email`), `@` decimal
+  (`@cvss.base_score`), `#` integer/count (`#network.count`); a `SUMMARIZE` command (with `STATS` as
+  an SPL-compatible alias) supporting `COUNT`/`AVG`/`SUM`; a `WITH` filter clause; `GROUP BY`; and a
+  relative-time `SINCE <duration>` (e.g. `SINCE 1mo`). Example:
+  `SUMMARIZE COUNT authentication WITH %email CONTAINS 'example.com' GROUP BY %email SINCE 1mo`.
+  Docs also ship **Entities**, **Subqueries**, **FSQL-for-SPL-users**, **FSQL-for-KQL-users**, a
+  **Cheat Sheet**, an **FSQL API**, and an **FAQL** page (FSQL FAQ — NOT a separate language; the
+  NL→query path is CoPilot/agent-driven). What is STILL missing:
+  a formal grammar/EBNF, a published type system, and cross-source join semantics. So Prism's
+  rigor advantage holds, but narrows to *formal-grammar + planner + verification*, not "they have no
+  language."
+- **Three input modes:** natural language → LLM → FSQL (FAQL); structured FSQL; and **entity/observable
+  search**, where an "entity" is an alias spanning multiple OCSF attributes (search one IP and it
+  traverses every field that can hold an IP across all sources).
+- **Rule translation IN:** Query converts existing **SPL, KQL, and Sigma** detection rules into FSQL
+  as a migration on-ramp, and ships a **Hunting Library** of pre-built threat hunts (APT28, BRICKSTORM).
+
+### 10.2 How Query (query.io) works — federation
+
+- **"Centralize insights, not data."** Zero-ETL, no ingestion, no index, read-only API "bridges,"
+  data stays at source. Query Data Model (QDM) **= OCSF**.
+- **Static-schema connectors** (CrowdStrike, Okta, Defender…) are pre-mapped by Query's engineers;
+  **dynamic-schema connectors** (Splunk, Snowflake, BigQuery, Chronicle, Sentinel) use a no-code
+  **Configure-Schema** workflow that introspects the source, auto-discovers partitioning, samples
+  data, and maps fields → OCSF.
+- **Fan-out:** parse → resolve against QDM → select capable connectors → compile per-source native
+  query → **execute in parallel** → normalize to OCSF (always populates `time`) → merge.
+- **Federated Detections:** scheduled FSQL with explicit evaluation windows + thresholds; each run
+  records **time range evaluated, source coverage, match counts**; supports **early termination** on
+  threshold; emits a **finding with a replay link** that re-runs the exact window.
+- **Weaknesses (Prism whitespace):** partial-failure handling, rate limits, pagination, caching, and
+  performance are only *hinted* (via "source coverage" + "Test Connection"), never first-class.
+  On-prem is a **reverse-proxy hack** (internet-reachable URL), not a mesh. Credentials are stored
+  **centrally in the SaaS control plane**.
+
+### 10.3 What Prism should ADOPT
+
+**Strategic frame:** Prism already runs the engine the entire federation literature points to —
+**DataFusion + Chumsky.** Query.io has no published grammar and no real planner story; Prism has a
+formal PrismQL grammar, a DataFusion logical/physical planner, and Kani VPs. This inverts the usual
+challenger position — Prism can be the *rigorous, formally-grounded* federated query engine.
+
+| ID | Adopt | Rationale / prior art | Maps to |
+|----|-------|----------------------|---------|
+| ADOPT-1 | **Per-connector capability descriptors** (pushdown profile in TOML) | Trino SPI `applyFilter`; DataFusion `supports_filters_pushdown`; Athena federated connectors | §3.4; new ADR |
+| ADOPT-2 | **Entity/observable pivot as a PrismQL primitive** (`entity:ip = …` expands across all OCSF attributes) | Query.io's single best UX idea | grammar epic; new ADR |
+| ADOPT-3 | **CCS `skip_unavailable` partial-result semantics** (cite Elastic/OpenSearch CCS as canonical) | already implicit in BC-2.01.010 + S-RESILIENCE | §3.6 |
+| ADOPT-4 | **Detection execution record + replay handle + early-termination** (time range, source coverage, match counts) | Query.io Federated Detections | E-CACHE-DEMAND-001 |
+| ADOPT-5 | **Rule-translation IN: Sigma → PrismQL** migration on-ramp | Query.io SPL/KQL/Sigma → FSQL | candidate epic |
+| ADOPT-6 | **Static- vs dynamic-schema source split + configure-schema workflow** | Query.io connector dichotomy | §3.5; E-LAKE-CONNECTOR |
+| ADOPT-7 | **Safety canon in NFRs/BCs:** mandatory time predicate, default+max LIMIT, join guards | Calcite/Trino/CCS expressiveness-vs-safety patterns | §5.3 addendum |
+| ADOPT-8 | **Name the mediation model (GAV vs LAV) in an ADR** | mediated-schema theory; OCSF as global schema | §5.4 addendum |
+
+### 10.4 Where Prism should ENHANCE / beat Query.io
+
+| Dimension | Query.io | Prism enhancement |
+|-----------|----------|-------------------|
+| Query-language rigor | No grammar, no formal semantics | PrismQL Chumsky grammar + DataFusion planner + Kani VPs → a **formally-verified** federated query language |
+| Credentials | Stored centrally in SaaS control plane | **AI-opaque, reference-based (AD-017)** + MCP-native + prompt-injection-hardened output |
+| Stateful detection | Pure ephemeral; **no** retention story | **Demand-driven RetentionCache (§3.3)** = SIEM-by-capability — a capability Query lacks |
+| On-prem / OT | Reverse-proxy hack | **Prism Satellite dial-home mesh + multi-hop chaining (§3.2)**, mapped onto DataFusion-Federation remote-subplan execution |
+| Resilience | Hinted, undocumented | First-class: `connect_timeout`, availability cache, no-circuit-breaker-at-low-QPS, recover-without-restart, hot credential reload |
+| Language-level retention | None | **`RETAIN <dur> [AS name]` + `FROM cache.<name>`** — unique primitive |
+| Cost-aware planning | Translate-and-pray | Capability + cost-based pushdown via DataFusion, with EXPLAIN showing pushdown |
+
+### 10.5 Gaps in this vision doc the research exposes
+
+| Gap | Description | Disposition |
+|-----|-------------|-------------|
+| G-1 | **Cross-source join strategy + join guards** — distributed-join + runaway-join risk once PrismQL joins across sources | §5.3 addendum NFR + new ADR |
+| G-2 | **Per-connector capability descriptors** — the missing planner contract behind source/connector taxonomy | §3.4 addendum + new ADR |
+| G-3 | **PrismQL pushdown contract** — what pushes to which connector class vs. runs centrally in DataFusion | new BC family + ADR |
+| G-4 | **Entity/observable pivot construct** in PrismQL | new ADR (ADOPT-2) |
+| G-5 | **GAV-vs-LAV mediation decision** as an explicit ADR | §5.4 addendum (ADOPT-8) |
+| G-6 | **DataFusion Federation as satellite execution substrate** — bind §3.2 to the actual remote-subplan mechanism | §5.4 addendum |
+| G-7 | **Sigma → PrismQL translation** epic — migration on-ramp | candidate epic (ADOPT-5) |
+
+### 10.6 References (session research, 2026-06-25 — not yet committed)
+
+| Research pass | Scope | Key primary sources |
+|---------------|-------|---------------------|
+| Query.io federated-search analysis | FSQL/UQL, OCSF QDM, static/dynamic connectors, federated detections, fan-out, decoupled control plane, residency, AI agents | query.ai/product, query.ai/federated-search, query.ai/federated-detections, docs.query.ai (QDM, Chronicle, MISP), ocsf.io |
+| Federated query-language patterns | predicate/query pushdown, capability descriptors, GAV/LAV, schema-on-read, distributed joins, cost-based optimization w/ incomplete stats, partial results / fan-out / timeouts, safety guards | Calcite adapter docs, Trino connector SPI, Starburst pushdown, DataFusion custom-table-providers + datafusion-federation, Athena predicate-pushdown, Steampipe FDW, Apollo query-plans, OpenSearch cross-cluster-search, VLDB mediation, ocsf.io |
+| Query deployment / credentials / UI / config + server-secret best practice | multi-tenant SaaS topology, Integration Control Plane, Query Agents, Security Data Pipelines/destinations, 2-role RBAC, envelope encryption + per-tenant DEK + secret broker + short-lived vending, multi-tenant web-UI security | docs.query.ai (product-architecture, team-management, configure-schema, security-and-privacy), query.ai/connectors, query.ai/product, AWS KMS envelope-encryption guidance, HashiCorp Vault / AWS Secrets Manager, OIDC/SAML SSO (Curity, FusionAuth), AWS SaaS multi-tenant guidance |
+
+---
+
+## Section 11 — Server-Deployment Pillars: Credentials, Configuration, UI
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum (see Section 10 provenance block). These three
+> pillars are required by the central-deployment pivot (§3.1, DC-005) but were not scoped in the
+> 2026-06-24 capture. Grounded in the 2026-06-25 deployment/credential research pass + direct reads
+> of docs.query.ai. All items are PROPOSALS pending PO + architect adjudication.
+
+### 11.0 Why these three are now in scope
+
+The central-deployment pivot (§3.1) explicitly scoped "the access layer only." But a production
+central service forces three subsystems the per-analyst stdio model never needed:
+1. **Credential storage** — the current reference-based, AI-opaque model resolves credentials on the
+   *analyst's machine* (env/CLI/vault paths; `PluginKvStore` is in-memory, fresh per `prism start`).
+   **This does not work server-side** (human directive, 2026-06-25): a central multi-tenant service
+   must hold and resolve credentials for many orgs without an analyst laptop in the loop.
+2. **Configuration management** — per-laptop TOML files + arc-swap hot-reload do not generalize to
+   multi-tenant central config with RBAC, audit, and versioned change control.
+3. **UI** — Prism currently has **no UI surface at all** (MCP-native, stdio). A central server needs
+   at minimum an admin/ops console; whether it also needs an investigations console is a major
+   scope decision (§11.3).
+
+These partially overlap planned ADRs (ADR-052 central credential custody; E-CENTRAL-AUTHZ/OPS) but
+each needs substantially more design than the capture allotted.
+
+### 11.1 Credential storage (server-grade) — extends ADR-052
+
+**Current (as-is):** reference-based, AI-opaque credentials (AD-017). A credential *reference*
+(env var / CLI / vault path) is resolved locally on the analyst machine; the secret value never
+transits AI/MCP context; newtypes give redacted `Debug`; `OrgSlug::new_unchecked` is audit-gated.
+
+**Target (to-be) — server secret subsystem.** Preserve the reference-based, AI-opaque contract;
+change only the *resolution backend* from "analyst-local" to "server secret backend." Design per
+the secret-management canon surfaced in research:
+- **DECISION (HUMAN-CONFIRMED 2026-06-25): hybrid — ship BOTH a first-party built-in encrypted secret
+  store AND external-vault backends.** Prism is self-sufficient out of the box (built-in store, no
+  external dependency required — critical for air-gap/on-prem/satellite) AND integrates with the
+  customer's existing secret manager when they have one.
+- **Pluggable `SecretBackend` trait** with implementations for (a) the **built-in self-hosted encrypted
+  store** (default; envelope-encrypted, per-tenant DEK — see below) and (b) **external backends**:
+  HashiCorp Vault, AWS Secrets Manager, GCP Secret Manager, Azure Key Vault. A credential reference
+  resolves against the configured backend. (Dogfoods the existing reference model — references stay,
+  resolver swaps; built-in vs external is per-tenant/per-deployment config.)
+- **Envelope encryption + KMS key hierarchy** for the self-hosted store: per-credential blob
+  encrypted under a **per-tenant Data Encryption Key (DEK)**; each DEK wrapped by a KMS master key.
+  Per-`OrgId` DEK isolation means compromise of one org's DEK cannot decrypt another's — binds
+  cryptographic isolation to the existing OrgId/OrgSlug multi-tenant boundary.
+- **Secret broker / short-lived credential vending:** prefer OAuth client-credentials + refresh →
+  short-lived access tokens over long-lived API keys; store refresh tokens, not bearer keys, where
+  the source supports it. For static-token sensors (Armis/Claroty) that cannot, store the token under
+  the per-tenant DEK and use the **hot credential reload** path already authorized in S-RESILIENCE
+  (DC-002) for rotation-without-restart.
+- **AI-opacity preserved & hardened (the enhancement over Query):** Query stores connector creds
+  centrally too — but Prism keeps them **AI-opaque**: the broker injects the resolved secret into the
+  adapter HTTP client at the I/O boundary, *never* into PrismQL results, MCP tool output, logs, or
+  agent context. Output stays prompt-injection-hardened. This is a genuine trust differentiator for
+  MSSP/regulated buyers.
+- **Rotation, audit, scrubbing:** rotation API; every credential resolution audited with
+  per-connection analyst identity (binds to ADR-051); no secrets in logs (extend existing redacted
+  `Debug` discipline); backups encrypted.
+- **Satellite/residency interaction (§3.2):** at OT/edge enclaves, credentials may be resolved
+  *at the satellite* and never sent to central — only normalized, sanitized results transit upward.
+  The `SecretBackend` is satellite-local in that topology.
+
+**Epic/ADR (day-2):** flesh out **ADR-052** into the full secret subsystem; new BC family for
+server credential custody (resolution, per-tenant DEK isolation, rotation, audit, AI-opacity
+invariant). New subsystem candidate: SS-26 Secret Broker.
+
+### 11.2 Configuration management (server-grade) — feeds E-CENTRAL-OPS-001
+
+**Current (as-is):** per-laptop TOML spec files; arc-swap hot-reload (AD-007); config read via
+`ArcSwap::load()`; in-flight queries hold a snapshot.
+
+**Target (to-be):**
+- **Central, per-tenant config store** for connector configs, schema mappings, detection/retention
+  policies — scoped by OrgId, isolated per tenant.
+- **Config API + RBAC** governing who may add/edit/delete connectors and policies (Team-Admin analog
+  — see §11.4; routes to E-CENTRAL-AUTHZ-001).
+- **Versioned change control + audit + rollback** (an explicit ENHANCEMENT — research confirms Query
+  does *not* document config versioning). Every config mutation carries analyst identity + timestamp;
+  rollback to known-good is supported. Candidate: Git-backed or DB-backed config history.
+- **Declarative / GitOps config (enhancement over Query):** connector + detection + retention
+  definitions as version-controlled TOML applied via API/CLI. Prism already ships built-in sensors as
+  TOML specs (dogfood) — extend that to a declarative apply model with drift detection.
+- **Multi-tenant hot-reload:** generalize arc-swap so a single tenant's config reloads without
+  affecting other tenants or in-flight queries (snapshot semantics preserved per tenant).
+- **Configure-schema workflow (adopt from Query, §3.5/§10.3 ADOPT-6):** introspect dynamic sources,
+  map to OCSF, store the mapping *versioned*.
+
+**Epic/ADR (day-2):** new ADR for central config store + versioning model; extend E-CENTRAL-OPS-001
+to own config-plane vs data-plane separation; new BC family for config RBAC + audit + rollback.
+
+### 11.3 Production-grade UI — multi-surface, multi-persona (HUMAN DIRECTIVE 2026-06-25)
+
+**Current (as-is):** NO UI. Prism is MCP-native (Claude Code, stdio).
+
+**Human directive (2026-06-25):** Prism stays **AI-native first (MCP, bring-your-own-agent)** AND
+ALSO ships a **full browser experience with the AI capability built into the browser**, so the
+product serves **multiple user personas** rather than only AI-forward analysts. The earlier
+"admin-console-only / decline the investigations console" recommendation is **overridden**. A full
+investigations console is now a **first-class day-2 deliverable**, not an optional U2.
+
+> **Value-prop #5 amendment — DRAFTED replacement (HUMAN-APPROVED 2026-06-25, PO to ratify at
+> brief-reframe).** Replace the current *"Federated search built for the analyst's agent, not for yet
+> another browser tab"* with:
+>
+> > **5. Meets every analyst where they work — agent-native first, full browser console included.**
+> > Prism is MCP-native so an analyst's AI agent can drive it directly (bring-your-own-agent), AND it
+> > ships a full-fidelity investigations console with **built-in AI** for analysts who prefer a GUI —
+> > plus a right-click browser extension for triage. One federated query engine, four surfaces
+> > (S1–S4, §11.3), one set of guarantees: credentials the AI never sees, output hardened against
+> > prompt injection, the same PrismQL underneath. The agent is the differentiator; the console makes
+> > it usable by the whole SOC.
+>
+> Rationale: the original framing rejected the browser console as a category; the matured vision
+> embraces it as an *additional* persona surface without surrendering the agent-native core.
+
+**Four surfaces over ONE central backend (E-CENTRAL-TRANSPORT-001):**
+
+| # | Surface | Persona | Notes |
+|---|---------|---------|-------|
+| S1 | **MCP-native (BYO agent)** | AI-forward analyst (Claude Code / own MCP client) | Existing thesis; primary for power users |
+| S2 | **Full browser investigations console** | GUI / SOC-floor analyst | Search bar (PrismQL + NL), time picker, entity/event modes, results explorer, Summary-Insights dashboards, saved queries, detection findings + replay (source-coverage/replay per §10.3 ADOPT-4) |
+| S3 | **Embedded AI inside the browser console** | GUI analyst who wants agentic help without a BYO MCP client | Prism-hosted copilot/agent (NL→PrismQL, guided investigation). **Architectural add: the central service now hosts an agent runtime server-side**, not only acts as an MCP server for BYO clients |
+| S4 | **Browser extension (IOC right-click pivot)** | Tier-1 / triage analyst | Query-extension analog, improved: select any IOC on any page → federated PrismQL search against the central service; AI-opaque inline result preview; no session-staleness footgun |
+| (U1) | **Admin/Ops console** | Admin / operator | Tenant+user mgmt, connector config + configure-schema wizard, credential rotation, health/observability, audit-log viewer |
+
+**Key architectural implication of S3 (server-hosted agent).** Prism is no longer *only*
+"bring-your-own-agent" — it also SHIPS an agent embedded in the console. The AI-opaque-credential
+(AD-017) and prompt-injection-hardening guarantees apply to BOTH the BYO and the built-in agent. The
+central service gains an LLM-agent orchestration layer (model routing, tool-call mediation,
+output hardening). This is a notable scope addition — flag for architect.
+
+**Cross-cutting UI requirements:**
+- **Web-stack ADR:** Prism is a Rust workspace with no frontend. Options: Rust-native (Leptos/Dioxus,
+  stays in-language) vs TS SPA (React/Svelte). Served over the E-CENTRAL-TRANSPORT-001 HTTP transport.
+- **SSO (enhancement over Query):** OIDC/SAML from day one — research shows Query does *not* document
+  SSO. Strong enterprise/MSSP differentiator.
+- **Multi-tenant web-UI security canon:** tenant-context propagation via signed tokens, per-tenant
+  isolation in every view, CSP/XSS/CSRF/clickjacking defenses, HTTP-only/SameSite cookies, session
+  expiry/idle-timeout — all binding to per-connection analyst identity (ADR-051).
+- **Browser-extension auth (improve on Query):** Query's extension piggybacks on an active console
+  session and breaks when the session is stale (documented known issue). Prism's extension should use
+  a proper token flow against the central service (no silent staleness failure).
+- **Factory pipeline implication:** S2/S3/S4 activate the UI side of the factory prism has never
+  exercised — ux-designer, design-system-bootstrap, accessibility-auditor, visual-reviewer,
+  e2e-tester, ui-quality-gate, multi-variant-design, responsive-validation. Material process cost.
+
+**Epics/ADRs (day-2):**
+- E-UI-ADMIN-001 (U1 admin/ops console).
+- E-UI-CONSOLE-001 (S2 full investigations console).
+- E-UI-EMBEDDED-AI-001 (S3 server-hosted agent + in-console copilot).
+- E-UI-EXTENSION-001 (S4 browser extension IOC pivot).
+- ADRs: web-stack selection; SSO/identity-provider integration; UI↔transport binding;
+  **server-hosted agent runtime** (model routing, tool mediation, output hardening) — net-new.
+
+#### 11.3.1 S2 — Investigations console screen inventory (DRAFT)
+
+Concrete screen set for E-UI-CONSOLE-001 (ux-designer to formalize; this is the scoping skeleton):
+
+| Screen | Purpose | Key elements |
+|--------|---------|--------------|
+| **Investigation workspace** | The primary search surface | PrismQL editor (syntax highlight + OCSF-schema/entity autocomplete) · NL toggle (→ S3 agent) · time picker (`SINCE`/`BETWEEN`) · source selector (which connectors) · run/cancel |
+| **Results explorer** | Read/triage federated results | OCSF-normalized result grid · **per-source coverage banner** (answered / degraded / timed-out — §3.6 partial-result semantics) · event-mode vs entity-mode toggle · row → raw-record drill-in · click observable → `FIND` pivot (§12.1) · export |
+| **Entity / observable profile** | 360° view of an IP/user/host/hash | aggregated cross-source appearances + timeline · related entities · enrichment (threat-intel sources) |
+| **Saved queries / query library** | Reuse | saved PrismQL · shared (tenant) vs personal · parameterized |
+| **Detection rules** | Author/manage detections | rule list · rule editor (scope informed by axiathon, Section 14) · test/backtest run · enable/disable/version |
+| **Findings / alerts** | Triage detection output | findings queue · finding detail with **replay link** (re-run the exact detection window, §10.3 ADOPT-4) · source-coverage record · disposition/notes |
+| **Summary Insights (dashboards)** | Cross-source metrics | federated dashboards over OCSF events · time-scoped tiles |
+| **Cache / retention browser** | Visibility into demand-driven cache | what's cached, TTL, policy source · browse `FROM cache.<name>` (§3.3) |
+| **Sources / connectors** | Connector ops (admin-gated) | list + health · static vs dynamic (Section 13) · configure-schema wizard for dynamic · credential rotation (§11.1) |
+| **Satellite / topology** | Mesh health (if satellites deployed) | tree view · per-hop status · degraded-subtree indicators (§3.2) |
+| **Admin** (U1) | Tenant/user/audit | tenants · users + roles (fine-grained RBAC, §11.5 G-12) · audit-log viewer |
+
+#### 11.3.2 S3 — Server-hosted agent runtime architecture (DRAFT)
+
+The embedded-AI capability (S3) requires Prism to host an agent server-side, in addition to being an
+MCP server for BYO clients (S1). Sketch for E-UI-EMBEDDED-AI-001 + the net-new agent-runtime ADR:
+
+```
+Browser console (S2) ──► Agent Orchestrator (server-side, per-tenant session)
+                              │
+              ┌───────────────┼─────────────────────┐
+              ▼               ▼                     ▼
+        Model Router    Tool Mediator         Output Hardener
+        (LiteLLM-style; (exposes the SAME      (prompt-injection
+         model-routing   MCP tool surface       defense — existing
+         skill)          as S1 BYO clients)     Prism strength)
+              │               │                     ▲
+              ▼               ▼                     │
+            LLM         PrismQL / federated  ───────┘
+                        query engine (creds AI-opaque, §11.1)
+```
+
+- **Single tool contract, two consumers.** The hosted agent calls the *same* MCP tool surface BYO
+  agents (S1) use — one contract, no fork. Credentials stay AI-opaque: the agent sees normalized
+  OCSF results, never raw secrets.
+- **Reuses existing strengths:** the `model-routing` skill (model selection/fallback) and Prism's
+  prompt-injection-hardened output. **Net-new:** the orchestration loop + a per-tenant, isolated
+  conversation store + tool-call audit bound to per-connection analyst identity (ADR-051).
+- **LLM access configured server-side** via the §11.1 secret broker (dogfood — the agent's model API
+  keys are themselves AI-opaque, broker-resolved). Per-tenant model + cost budgets.
+- **Optional / deployment-gated (critical for OT/air-gap):** S3 can be disabled, or pointed at a
+  local/on-prem model. Air-gapped and regulated deployments may run S1-only (BYO agent) with S3 off,
+  or S3 against a self-hosted model. The federated-query core never depends on S3 being present.
+
+### 11.4 Deeper Query findings (from direct docs read, 2026-06-25)
+
+- **Deployment is multi-tenant SaaS** organized as Organization → tenant → team; sign-up generates a
+  tenant + team. **No documented on-prem edge/connector-runtime** — connectors are logical SaaS
+  objects that call source APIs directly; on-prem sources need a customer-stood-up reverse proxy.
+  → **Prism Satellite (§3.2) is a structural advantage Query lacks entirely.**
+- **"Integration Control Plane"** is Query's term for the connector layer: "each integration
+  translates your search terms into an efficient query, then normalizes the responses."
+- **Query Agents** (mission-specific): Asset Information, Detection Finding Triage, File Hash, Network
+  Activity, Threat Research, Vulnerability Intelligence. → maps to Prism's MCP-native agent posture;
+  Prism's whole thesis is agent-native, so this is parity-with-differentiation.
+- **Security Data Pipelines / Destinations** (newer Query feature): route normalized data OUT to
+  Amazon S3, Azure Blob, GCS, Cribl Stream (HTTP), Splunk HEC. → Query has quietly added an *egress*
+  capability; a Prism "normalized-result destination" (forward OCSF results to S3/Splunk-HEC) is a
+  candidate day-2 connector-egress feature worth noting (complements RETAIN/cache).
+- **RBAC is only two roles** (Team Admin / Team Member). → Prism can differentiate with finer-grained,
+  connector/dataset-scoped RBAC + custom roles (research flags Query's coarse model as a gap).
+- **Credential storage is undocumented** by Query (high-level only) — they do not publish KMS/Vault/
+  envelope-encryption details. Prism documenting a rigorous, AI-opaque, per-tenant-DEK model is a
+  credibility win.
+
+### 11.5 New gaps (extends §10.5)
+
+| Gap | Description | Disposition |
+|-----|-------------|-------------|
+| G-8 | **Server credential subsystem** — reference-model resolver backend, per-tenant DEK, secret broker, AI-opacity invariant | §11.1; flesh out ADR-052 + BC family + SS-26 |
+| G-9 | **Central config store + versioning/audit/rollback + GitOps apply** | §11.2; new ADR + BC family; E-CENTRAL-OPS-001 |
+| G-10 | **Multi-surface UI (S1 MCP + S2 console + S3 embedded AI + S4 extension + U1 admin) + server-hosted agent runtime + web-stack + SSO** | §11.3 (HUMAN DIRECTIVE 2026-06-25); E-UI-ADMIN/CONSOLE/EMBEDDED-AI/EXTENSION-001 + ADRs; value-prop #5 amendment |
+| G-11 | **Connector egress / normalized-result destinations** (S3/Splunk-HEC analog) | §11.4; candidate connector feature, complements RETAIN |
+| G-12 | **Finer-grained RBAC** (connector/dataset-scoped, custom roles) beyond 2-role | §11.4; E-CENTRAL-AUTHZ-001 |
+
+---
+
+## Section 12 — PrismQL Design Deliverables (entity-pivot grammar + join-guard NFR)
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum, in response to the "keep iterating" request.
+> These are DRAFT design sketches for architect/PO review, not ratified grammar or NFR text. They
+> make §10.3 ADOPT-2 (entity pivot) and §10.5 G-1 / §5.3 (join guard) concrete.
+
+### 12.1 PrismQL entity/observable pivot — grammar sketch (DRAFT)
+
+**Goal:** adopt Query's single best UX primitive — search one observable and have it fan across every
+OCSF attribute that can hold that value — but expressed natively in PrismQL (Chumsky grammar +
+DataFusion planner), composable with full SQL.
+
+**Two surfaces:**
+
+(a) **Standalone `FIND` statement** (ergonomic shorthand):
+```
+FIND ip '10.0.0.5' SINCE 24h ACROSS crowdstrike, splunk
+FIND user 'alice@example.com' BETWEEN '2026-06-01' AND '2026-06-25'
+FIND hash 'e3b0c442...' SINCE 7d
+```
+
+(b) **`entity(...)` predicate function** (composes inside any PrismQL SELECT):
+```
+SELECT * FROM federated
+WHERE entity('ip', '10.0.0.5')
+  AND severity >= 'high'
+SINCE 24h
+```
+
+**Grammar (EBNF-ish, DRAFT):**
+```
+entity_pivot   ::= "FIND" entity_type entity_value time_bound? source_scope?
+entity_type    ::= "ip" | "user" | "host" | "domain" | "email" | "hash" | "cve" | IDENT
+entity_value   ::= STRING
+time_bound     ::= "SINCE" duration | "BETWEEN" timestamp "AND" timestamp
+source_scope   ::= "ACROSS" ident ( "," ident )*
+duration       ::= INT ( "s" | "m" | "h" | "d" | "w" | "mo" )      -- SINCE ergonomics (cf. FSQL)
+
+entity_pred    ::= "entity" "(" STRING "," STRING ")"              -- embeddable in WHERE
+```
+
+**Semantics (planner contract):**
+1. The **entity registry** maps each `entity_type` → an ordered set of OCSF attribute paths that can
+   hold that observable, e.g.
+   `ip → [src_endpoint.ip, dst_endpoint.ip, device.ip, src_endpoint.intermediate_ips, …]`.
+2. The planner expands the pivot into a **disjunction of equality predicates** over those attribute
+   paths: `entity('ip', X)` ⇒ `src_endpoint.ip = X OR dst_endpoint.ip = X OR device.ip = X …`.
+3. Per connector, the **capability descriptor (§3.4 addendum / §10.3 ADOPT-1)** decides which of those
+   attribute predicates push down natively; the rest are evaluated centrally in DataFusion after
+   normalization.
+4. **Mandatory time-bound:** if `SINCE`/`BETWEEN` is absent, the planner injects the default window
+   (§5.3 mandatory-time-bound NFR). No unbounded observable sweep.
+5. Fan-out (MAX_FANOUT_CONCURRENCY), normalize to OCSF, merge, partial-result metadata on degraded
+   sources (§3.6).
+
+**Open questions for architect:** keyword `FIND` vs `PIVOT` vs `SEARCH`; whether the entity registry
+is config-driven TOML (preferred — dogfoods spec-driven model) or code; interaction with `RETAIN`
+(can a `FIND` result be retained as `FROM cache.<name>`? — likely yes).
+
+### 12.2 NFR-JOIN-GUARD — concrete specification (DRAFT)
+
+**ID:** NFR-JOIN-GUARD (new; §5.3 / §10.5 G-1). **Category:** safety / cost-bounding.
+
+**Requirement.** A PrismQL query containing a join across two or more *distinct sources* where neither
+side can execute the join natively (different catalogs / no join-pushdown capability) MUST satisfy ALL:
+
+1. **Equality-key requirement** — at least one equality predicate on a join key between the joined
+   relations. Cross-source cross-products and non-equi-only cross-source joins are rejected at plan
+   time with `E-QUERY-NNN` (cross-source-join-requires-key).
+2. **Per-side selectivity** — each non-pushed side carries an effective time-bound plus ≥1 filterable
+   attribute the planner estimates returns ≤ **N rows** (default **N = 100_000**, configurable per
+   deployment). A side that cannot be bounded is rejected.
+3. **Materialized-row budget** — total fetched rows across all sides ≤ **M** (default **M = 1_000_000**),
+   enforced at *execution* by a monotonic row counter. Exceeding M aborts with `E-QUERY-NNN`
+   (cross-source-join-budget-exceeded) and returns partial-result metadata (§3.6).
+4. **EXPLAIN annotation** — the plan annotates: which joins run centrally vs pushed; estimated per-side
+   cardinality; and the chosen distributed-join strategy.
+
+**Distributed-join strategy mapping (DataFusion):**
+- **Broadcast join** when the small side ≤ `broadcast_threshold` (default 10_000 rows).
+- **Repartitioned hash join** otherwise.
+- **Semi-join** when only existence is needed (`WHERE EXISTS` / `IN (subquery)` across sources) — fetch
+  keys only, not full rows.
+
+**Override.** An explicit `ALLOW LARGE JOIN` directive (or a per-deployment config grant) may raise
+N/M for a specific query, but the equality-key and time-bound requirements remain non-negotiable —
+the guard never permits an *unbounded* cross-source join.
+
+**Validation.**
+- Planner unit tests: reject missing-key cross-source join; reject unbounded side; accept bounded
+  key-join.
+- Execution test: abort on budget breach with structured error + partial-result metadata.
+- EXPLAIN test: assert strategy + cardinality annotations present.
+- **Kani candidate:** monotonicity of the materialized-row counter (never under-counts → budget can't
+  be silently exceeded) — fits Prism's existing VP/Kani discipline.
+
+**Rationale.** Once PrismQL can join across sources (e.g. CrowdStrike × Splunk), the distributed-join
+literature (Calcite/Trino/DataFusion) identifies cross-source joins as the dominant runaway-cost risk.
+This NFR is the join-guard pattern the federated-query research calls mandatory; it operationalizes
+the production-grade default (bound the cost, fail-fast with structured errors + partial results)
+rather than allowing an unbounded fetch-both-sides join.
+
+### 12.3 PrismQL Ergonomics Parity Ledger — FSQL adopt / enhance / map (CONFIRMED 2026-06-25)
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum. Dispositions CONFIRMED by human directive
+> 2026-06-25: (i) the two SQL-colliding ergonomics are **mapped/dropped**, not adopted verbatim;
+> (ii) SPL/KQL/Sigma migration is **docs-guides in day-2, automated translator deferred** to a
+> follow-up epic. PrismQL's foundation remains SQL (DataFusion + Chumsky); "adopt" means *add as
+> ergonomic sugar over SQL*, "enhance" means *do it better than FSQL*. DRAFT for architect/PO review.
+
+**Adopt / enhance:**
+
+| # | FSQL ergonomic | Disposition | How in PrismQL |
+|---|----------------|-------------|----------------|
+| E1 | `SINCE <dur>` relative time (`1mo`/`24h`/`7d`) | ADOPT + ENHANCE | `SINCE`/`LAST` sugar; add `BETWEEN`, timezones, named windows; wire to mandatory-time-bound NFR (§5.3) |
+| E2 | `SUMMARIZE` aggregation (+ `STATS` SPL alias) | ENHANCE | SQL `GROUP BY`/aggregates canonical; add `SUMMARIZE`/`STATS` shorthand alias for SPL migrators |
+| E3 | Entities / observable pivot | ADOPT + ENHANCE | `FIND` + `entity()` (§12.1) — composable in `WHERE`, richer than FSQL |
+| E4 | Attribute selectors (dot-notation OCSF paths) | ADOPT | Native nested OCSF field access |
+| E5 | Search filter operators (`CONTAINS`, comparisons) | ADOPT | Map `CONTAINS`/`IN`/comparators; keep SQL `LIKE` |
+| E6 | Subqueries | ADOPT | SQL/DataFusion native |
+| E7 | Dates & times | ADOPT + ENHANCE | Relative + absolute + timezone-aware; event-time vs wall-clock (ties to RetentionCache TTL) |
+| E8 | NL → query (FAQL) | ADOPT + ENHANCE | NL→PrismQL via embedded agent (S3, §11.3) and BYO MCP (S1) — agent-native |
+| E9 | SPL→ / KQL→ migration guides | ADOPT (docs) | Ship "PrismQL for SPL/KQL users" guides + cheat sheet in day-2 |
+| E10 | Cheat Sheet / Investigation Patterns / Best Practices | ADOPT (docs) | Docs strategy |
+| E11 | FSQL API (programmatic) | ADOPT | PrismQL HTTP API surface (in addition to MCP) |
+| E12 | Hunting Library (prebuilt hunts) | ADOPT (content) | Curated PrismQL threat-hunt pack |
+| E13 | Detection early-termination on threshold | ADOPT | Already §10.3 ADOPT-4 |
+
+**Map / drop (CONFIRMED — not adopted verbatim):**
+
+| # | FSQL ergonomic | Disposition | Rationale |
+|---|----------------|-------------|-----------|
+| M1 | `WITH <filter>` clause (FSQL filter keyword) | **MAP, not adopt** | `WITH` is SQL CTE; adopting FSQL's WITH-as-filter collides with PrismQL grammar. Keep SQL `WHERE`; surface FSQL's `WITH` only in the SPL/KQL migration guide (E9). |
+| M2 | Typed sigil selectors (`%`/`@`/`#`) | **DROP syntax, keep intent** | PrismQL columns are already typed via the OCSF schema; sigils would fragment a SQL language. Type-aware selection retained without sigil syntax. |
+
+**Deferred (follow-up epic, NOT day-2):**
+
+| # | Item | Note |
+|---|------|------|
+| D1 | **Automated SPL/KQL/Sigma → PrismQL translator** | Query's marquee migration on-ramp. Day-2 ships only the docs guides (E9); the automated translator is a candidate follow-up epic (E-RULE-XLATE-001, unscheduled). Log so it is not lost. |
+
+**Net position:** PrismQL achieves *ergonomic parity-or-better* with FSQL on every analyst-facing
+affordance while keeping a real SQL foundation (DataFusion planner + Chumsky grammar + Kani VPs) —
+i.e. Prism matches Query's usability without inheriting FSQL's lack of a formal grammar/type-system/
+join semantics (§10.1).
+
+---
+
+## Section 13 — Static & Dynamic Connector Model — Scope
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum. Deepens §3.4 (source/connector taxonomy),
+> §3.5 (lake/SIEM), and §10.3 ADOPT-1/ADOPT-6. DRAFT for architect/PO/business-analyst review.
+
+### 13.0 Two orthogonal axes
+
+A "connector" varies along **two independent axes** — do not conflate them:
+- **Schema axis: static vs dynamic** (is the source schema known ahead of time, or must it be
+  introspected + mapped per deployment?).
+- **Protocol axis: HTTP / SSH / WMI-WinRM / LDAP / SMB-file / SQL** (§3.4) — *orthogonal* to the
+  schema axis. A SQL source can be dynamic-schema; an HTTP sensor can be static-schema.
+
+This section scopes the **schema axis**; the protocol axis is tracked in §3.4.
+
+### 13.1 Definitions (proposed; business-analyst + PO to ratify)
+
+| Type | Definition | Examples | Normalization |
+|------|------------|----------|---------------|
+| **Static-schema connector** (today's "Sensor" subtype) | Schema known at spec/build time; Prism authors the OCSF mapping and capability descriptor; onboarding = credentials only | CrowdStrike, Cyberint, Claroty, Armis (current TOML spec-engine sensors) | Full OCSF mapping shipped by Prism |
+| **Dynamic-schema connector** | Schema unknown ahead; introspected at onboarding; customer maps fields via a configure-schema workflow; mapping stored + versioned per tenant | Splunk, Sentinel, Snowflake, BigQuery, Amazon Security Lake, S3/Iceberg, custom SQL/LDAP sources | Security sources → OCSF (Security Lake = OCSF pass-through, §3.5); non-security structured → native schema-on-read |
+
+### 13.2 Onboarding flow per type
+
+- **Static:** supply credential reference (resolved via §11.1 secret broker) → connector live. No
+  schema work. Capability descriptor (§10.3 ADOPT-1) ships with the connector spec.
+- **Dynamic:** (1) supply credentials; (2) **schema introspection** — enumerate tables/indices/feeds
+  and **auto-discover partitioning**; (3) **configure-schema workflow** (adopt from Query, §10.3
+  ADOPT-6) maps native fields → OCSF event classes/attributes (or declares native schema-on-read for
+  non-security data); (4) **preview/validate** against sample data; (5) **store the mapping
+  versioned** (§11.2 config store, with audit + rollback). Capability descriptor is *derived* from the
+  source class (e.g. SQL/Iceberg = rich pushdown; REST = filter-only) + what introspection reveals.
+
+### 13.3 Scope dimensions to nail (each → BC/ADR)
+
+1. **Schema-introspection subsystem** — per source class (SQL `information_schema`, Splunk
+   `| metadata`, Iceberg/Glue catalog, OpenSearch `_mapping`, LDAP schema). What's in scope day-2:
+   SQL + Iceberg/Glue (Security Lake) first; others follow.
+2. **Configure-schema mapping model** — mapping artifact schema (source field → OCSF path, type
+   coercion, enum normalization, nested-flatten); stored per-tenant, versioned, rollback-able.
+3. **Capability-descriptor sourcing** — static = authored in spec; dynamic = inferred from source
+   class + introspection; both drive PrismQL pushdown (§10.3 ADOPT-1) and the join-guard (§12.2).
+4. **Normalization boundary** — security telemetry → OCSF; non-security structured → native
+   schema-on-read; Security Lake → OCSF pass-through (near-zero mapping, §3.5).
+5. **Mediation model (GAV vs LAV, §10.3 ADOPT-8)** — static connectors are GAV-ish (pre-defined
+   view over a known source); dynamic connectors are LAV-ish (mapped into the OCSF global schema).
+   Make explicit in the connector ADR.
+6. **Trust/validation** — static: DTU clones (existing). Dynamic: configure-schema sample-preview +
+   a mapping-validation gate (no DTU clone for customer-specific schemas).
+7. **RBAC + audit** — only admin roles configure connectors/mappings; every mutation audited (§11.2).
+8. **Hot-reload** — connector + mapping changes apply via arc-swap per-tenant without dropping
+   in-flight queries (§11.2).
+
+### 13.4 Day-2 epics / ADRs
+
+- **E-CONNECTOR-DYNAMIC-001** — schema introspection + configure-schema workflow + versioned mapping
+  store + capability-descriptor inference. (Sequences with / extends E-LAKE-CONNECTOR-001; Security
+  Lake is the first dynamic connector.)
+- **ADR (TBD): connector schema-axis model** — static vs dynamic definitions, onboarding flows,
+  mapping artifact schema, GAV/LAV stance, capability-descriptor sourcing.
+- BC families: dynamic-connector onboarding/introspection; configure-schema mapping + versioning;
+  capability-descriptor contract.
+
+### 13.5 Gaps (extends §10.5 / §11.5)
+
+| Gap | Description | Disposition |
+|-----|-------------|-------------|
+| G-13 | **Schema-introspection subsystem** per source class | §13.3.1; E-CONNECTOR-DYNAMIC-001 |
+| G-14 | **Versioned configure-schema mapping store** (per-tenant, rollback) | §13.3.2; ties to §11.2 config store |
+| G-15 | **Dynamic-connector capability-descriptor inference** | §13.3.3; feeds pushdown + join-guard |
+
+### 13.6 Multi-schema reality (authoritative — HUMAN-CONFIRMED 2026-06-25)
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum, human-confirmed. This is the authoritative
+> statement of Prism's schema model; §3.3, §3.4, §3.5, §10.3 ADOPT-8, §12.1, and Section 14 all
+> defer to it.
+
+**Prism is a multi-schema engine — NOT OCSF-only.** It contends with four schema families
+simultaneously:
+
+1. **OCSF — canonical normalization target for *security telemetry* (sensors).** OCSF is **itself
+   versioned** (1.1, 1.3, …). Prism must support **multiple OCSF versions concurrently** + schema
+   evolution (Amazon Security Lake = OCSF 1.1 native + 1.3 custom; axiathon already had multi-version
+   OCSF support in `version.rs`).
+2. **Native / structured schema-on-read** for **non-security connectors** — SQL databases, AD/LDAP,
+   switch MAC tables, Excel/CSV, generic warehouses. These are **NOT** normalized to OCSF; they keep
+   their native structured schema, queried schema-on-read (§3.4).
+3. **Source-native query dialects/schemas** Prism translates to/from at pushdown — Chronicle UDM,
+   Splunk fields, KQL/Sentinel, Snowflake/BigQuery tables — bridged by the configure-schema mapping
+   on dynamic connectors (§13).
+4. **protobuf shapes** alongside OCSF (project vision — sensors emit OCSF + protobuf).
+
+**Consequences threaded through the design:**
+- **Iceberg cold tier is multi-schema** — a set of tables keyed by (source-class, schema,
+  schema-version): OCSF-vN tables + native schema-on-read tables; Iceberg schema-evolution absorbs
+  OCSF version drift (§3.3 addendum).
+- **PrismQL's type system is multi-schema-aware** — multiple schema namespaces + field aliasing +
+  multi-version resolution (mirror axiathon's `type_system.rs` + `aliases.rs` + `version.rs`).
+  Detection-as-query, the entity pivot (§12.1), and `MATCH_RECOGNIZE` (Section 14) all operate
+  **across** OCSF *and* native schemas.
+- **Mediation is hybrid/multi (§10.3 ADOPT-8)** — OCSF as a LAV global schema for security telemetry;
+  native tables GAV-style for non-security sources. Not a single global schema.
+- **The entity registry (§12.1) resolves an observable across schemas** — an IP lives at OCSF
+  `src_endpoint.ip` *and* a SQL `source_ip` column *and* an AD attribute; the pivot spans all.
+- **Capability descriptors carry each source's native schema + its mapping** to the query-time
+  logical schema.
+
+| Gap | Description | Disposition |
+|-----|-------------|-------------|
+| G-16 | **Multi-version OCSF support** (concurrent 1.1/1.3 + evolution) in type system + Iceberg tier | §13.6; ADR + BC |
+| G-17 | **Multi-schema PrismQL type system** (namespaces, aliasing, schema-on-read for native sources) | §13.6; mirrors axiathon type_system/aliases/version |
+
+---
+
+## Section 14 — Detection Engine & Rule Editor (HUMAN-CONFIRMED 2026-06-25)
+
+> **PROVENANCE.** 2026-06-25 side-analysis addendum. Built from the axiathon exploration (the
+> AxiQL-era predecessor) + Query Federated Detections + the MATCH_RECOGNIZE feasibility research, all
+> 2026-06-25. Decisions HUMAN-CONFIRMED: detection-as-query (PrismQL, not a separate DSL); phased
+> sequence support (B then A); correlation state in RocksDB/RetentionCache (Prism-native, no new
+> datastore); rule editor on browser-console (S2) + MCP/agent (S1+S3) + CLI (no TUI); OT in scope.
+> DRAFT for architect/PO review.
+
+### 14.1 Core model — Detection-as-Query
+
+**A detection IS a (scheduled) PrismQL query whose result rows are findings, wrapped in YAML rule
+metadata.** One rigorous language for both ad-hoc investigation and detection — every query can
+become a detection and vice versa. This beats Query (FSQL, no formal grammar) and axiathon (separate
+AxD DSL) by keeping a single, formally-grounded language (DataFusion + Chumsky + Kani).
+
+Rule metadata (adopt axiathon's schema): `id`, `name`, `description`, `severity`, `tags`,
+`version` (semver), `status` (draft→review→testing→shadow→canary→production→deprecated), `mitre`
+(tactic/technique), `schedule`, `window`, `group_by`, `false_positives`, `references`, `quality`
+(test_coverage, fp_rate, mttd), `changelog`. The matching logic is **PrismQL**, not a bespoke
+condition language.
+
+### 14.2 Correlation type coverage (what PrismQL expresses)
+
+| Correlation type | PrismQL mechanism | Phase |
+|---|---|---|
+| Single-event match | `WHERE` predicates (multi-schema, §13.6) | now |
+| Threshold (`count > N within W group_by k`) | `GROUP BY … HAVING COUNT(*) > N` + time predicate | now |
+| Distinct-count (spray / lateral across N) | `COUNT(DISTINCT …) HAVING > N` | now |
+| Cross-source correlation | federated joins + **join-guard (§12.2)** | now |
+| Statistical / baseline anomaly | window functions + `stddev`; long baseline → Iceberg cold tier (§3.3) | now (in-window) / later (long baseline) |
+| **Sequence / kill-chain** (`A then B then C`, `maxspan`, `$var` capture, Kleene `B+`, alternation, non-event) | **Phase A pulled forward (HUMAN-CONFIRMED 2026-06-25):** build the full NFA `MATCH_RECOGNIZE` operator from the start (full richness ≥ axiathon). Phase B (join/window rewrite) is retained only as an optimizer fast-path for simple fixed-step cases. Human surface is a **readable `SEQUENCE…THEN…WITHIN` sugar** that desugars to `MATCH_RECOGNIZE` (§14.2.1) | A now |
+| Multi-stage DAG (alert-as-input) | rules consume prior findings within a run | adopt |
+| Entity pivot | `FIND` / `entity()` (§12.1) | adopt |
+
+**MATCH_RECOGNIZE facts (research-verified 2026-06-25):** SQL:2016 standard (R010/R020/R030;
+`PATTERN`/`DEFINE`/`PARTITION BY`/`ORDER BY`/`MEASURES`/`AFTER MATCH SKIP`). Time windows via `DEFINE`
+timestamp predicates — **no standard `WITHIN` keyword**. DataFusion: **parser supports it, core engine
+does NOT execute it**, and the core team has signaled low appetite for in-core support → Prism builds
+it as a **custom logical/physical operator** (Phase A). A join-rewrite (Microsoft "RPR Using Joins,"
+5.4× speedup) validates the Phase-B path. Native vendors: Oracle, Snowflake, Trino, Flink SQL, Azure
+Stream Analytics, DeltaStream.
+
+#### 14.2.1 Keeping PrismQL human-friendly for sequences — layered surface (HUMAN-DIRECTED 2026-06-25)
+
+Raw `MATCH_RECOGNIZE` is powerful but verbose and has a real learning curve (`PARTITION BY` /
+`ORDER BY` / `MEASURES` / `PATTERN` / `DEFINE`). To keep PrismQL approachable, the **human surface is a
+readable `SEQUENCE…THEN…WITHIN` sugar that desugars to `MATCH_RECOGNIZE`** — analysts write the
+friendly form; the engine compiles to the full RPR operator. Best of both: axiathon-grade readability
+on top, full SQL:2016 power underneath.
+
+Friendly surface (what analysts write):
+```
+DETECT credential_theft
+  SEQUENCE BY user.name WITHIN 30m
+    STEP a: process.name = 'mimikatz.exe'
+    THEN b: access.type = 'dump' AND resource = 'lsass'
+    THEN c: file.path ENDS WITH '.kdbx'
+  EMIT user.name, a.time AS started, c.time AS completed
+```
+Desugars to (what the engine runs):
+```sql
+SELECT * FROM events MATCH_RECOGNIZE (
+  PARTITION BY user_name  ORDER BY event_time
+  MEASURES A.event_time AS started, C.event_time AS completed
+  PATTERN (A B C)
+  DEFINE A AS A.process_name='mimikatz.exe',
+         B AS B.access_type='dump' AND B.resource='lsass',
+         C AS C.file_path LIKE '%.kdbx'
+)
+```
+Learnability ladder: single-event + threshold + distinct-count read like ordinary SQL (trivial for
+anyone with SQL); the `SEQUENCE…THEN` sugar is easy/moderate; raw `MATCH_RECOGNIZE` is reserved for
+power users and for the long tail (Kleene quantifiers, alternation, overlap control). Reinforced by:
+**NL→PrismQL via the embedded agent (S3)**, a **visual sequence builder in the S2 console** (adopt
+axiathon's builder UX), autocomplete, and the **recipe library** (§14.7). Net: most analysts never
+write raw RPR — the sugar + agent + recipes cover the common cases; the formal operator guarantees the
+ceiling. This is an explicit ADR item (sequence-sugar grammar + desugaring).
+
+### 14.3 Federated/ephemeral adaptation — correlation over the cache
+
+Axiathon assumed *ingested* data (Iceberg lake, inline-with-ingestion detection, RocksDB-persisted
+state, backtest-from-local-storage). Prism is **federated/ephemeral**. Reconciliation:
+- **Correlation/sequence detection runs over the RetentionCache window (§3.3), not a full lake.** The
+  detection rule's window drives what's cached (hot RocksDB tier); the engine correlates over that
+  bounded window. No store-everything.
+- **Correlation state stays Prism-native:** short-term in-memory; durable correlation + risk/campaign
+  state in **RocksDB / RetentionCache** — **NOT** a new datastore (the explore agent suggested
+  PostgreSQL; rejected — Prism is RocksDB-native).
+- **Backtesting** re-queries remote sources / Iceberg cold tier via the same federated path (not a
+  local-lake replay).
+- **Multi-schema:** detections operate across OCSF (versioned) + native schemas (§13.6).
+
+### 14.4 Rule editor / authoring — surfaces (HUMAN-CONFIRMED: S2 + MCP + CLI; no TUI)
+
+Adopt axiathon's authoring *concepts*, render on Prism's surfaces:
+- **S2 browser console** — PrismQL rule editor (Monaco-style: highlight + OCSF/native-schema
+  autocomplete + MITRE lookup), lifecycle-state management, **staged rollout** (shadow → canary →
+  production, auto-rollback on FP spike), **backtest panel**, **exception/suppression manager** +
+  **auto-tune** suggestions, **MITRE ATT&CK coverage dashboard** + gap analysis, community/**Sigma
+  import**.
+- **MCP / agent (S1 + S3)** — author/test/deploy rules via MCP tools; NL→rule via the embedded agent.
+- **CLI** — `prism rules validate|test|deploy|shadow` for engineers + CI/CD (detection-as-code: Git,
+  semver, validation gates, backtest TP/FP thresholds).
+- **NOT TUI** — axiathon's vim TUI is a UX *reference* only, not a build target.
+
+### 14.5 Alerting, findings & destinations
+
+- **Alert model** (adopt axiathon): `Alert{id(UUIDv7), tenant, rule_id, severity, status, source_events,
+  enrichment, assignee, …}`; statuses New→Acknowledged→InProgress→Resolved→Closed→FalsePositive;
+  enrichment (threat-intel, asset, user, related alerts, MITRE).
+- **Source-coverage record + replay link + early-termination** (adopt from Query Federated Detections
+  + §10.3 ADOPT-4): each run records time-range, which sources answered/degraded, match counts;
+  findings carry a replay handle.
+- **Alert routing engine** (adopt axiathon): priority rules, AND/OR conditions, plugin channels, dedup,
+  escalate-after.
+- **Destinations** (adopt — Query "Alert Destinations" + axiathon channels): Slack/Teams/PagerDuty/
+  email/webhook (notification) + **ServiceNow/Jira (ticketing)** + **Tines/webhook (SOAR)**. HMAC
+  verification + interactive actions. **Distinct from response-actions** (reset/isolate) which stay
+  **deferred behind feature flags** (project memory: writes gated).
+- **Connector egress / Security Data Pipelines** (Query parity, §11.5 G-11): optionally forward
+  normalized OCSF results to S3 / Splunk-HEC destinations — complements `RETAIN`/cache.
+
+### 14.6 OT/ICS detection — IN SCOPE (HUMAN-CONFIRMED)
+
+Prism serves OT (Claroty/Armis sensors + Purdue/OT satellite mesh §3.2), so OT detection is **in
+scope**, contrary to the explore agent's IT-only assumption. Includes OT-relevant detection content
+and (later) OT-protocol-aware semantics. OT detections run via satellites at the appropriate Purdue
+layer; partial-result + degraded-subtree semantics (§3.2/§3.6) apply.
+
+### 14.7 Content libraries (adopt)
+
+- **PrismQL detection + threat-hunt recipe library** (Query "Recipes" + axiathon Hunting Library):
+  curated, categorized, MITRE-tagged, **executable + backtested + version-controlled** (not doc
+  snippets). Includes Sigma→PrismQL conversion examples (ties to deferred translator E-RULE-XLATE-001).
+- **Prebuilt agent personas** (Query "Query Agents" parity): Triage, Threat-Research, Vuln-Intel,
+  Asset-Info, File-Hash, Network-Activity — shipped as MCP/S3 agent skills; first-class, not bolt-on.
+
+### 14.8 Epics / ADRs / gaps
+
+- **E-DETECT-ENGINE-001** — detection-as-query model, rule metadata schema, threshold/distinct/
+  cross-source/statistical via PrismQL, correlation over RetentionCache, multi-stage DAG.
+- **E-DETECT-SEQUENCE-001** — full NFA `MATCH_RECOGNIZE` operator IN SCOPE FROM START (Phase A pulled
+  forward, HUMAN-CONFIRMED 2026-06-25) + the `SEQUENCE…THEN…WITHIN` desugaring surface (§14.2.1). Phase
+  B join/window rewrite retained only as an optimizer fast-path for simple fixed-step patterns.
+- **E-DETECT-EDITOR-001** — S2 rule editor (lifecycle, staged rollout, backtest, exceptions, auto-tune,
+  MITRE coverage, Sigma import); MCP + CLI authoring.
+- **E-ALERT-ROUTING-001** — alert model, routing engine, notification + ticketing + SOAR destinations.
+- **E-DETECT-RECIPES-001** — detection/hunt recipe library + agent personas.
+- **ADRs:** detection-as-query semantics; sequence-detection phasing (join-rewrite → RPR operator);
+  correlation-state-on-RocksDB; alert routing + destinations; OT detection topology.
+
+| Gap | Description | Disposition |
+|-----|-------------|-------------|
+| G-18 | **`MATCH_RECOGNIZE` custom operator on DataFusion** (in scope now; core team won't add it, so Prism owns it) + **`SEQUENCE…THEN` sugar + desugaring** | E-DETECT-SEQUENCE-001 (Phase A pulled forward) |
+| G-19 | **Backtesting over federated/cold-tier sources** (not local-lake replay) | E-DETECT-ENGINE-001 |
+| G-20 | **Ticketing/SOAR destinations** (ServiceNow/Jira/Tines) beyond notifications | E-ALERT-ROUTING-001 |
+| G-21 | **Prebuilt agent personas** library | E-DETECT-RECIPES-001 |
