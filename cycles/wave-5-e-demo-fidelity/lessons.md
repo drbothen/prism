@@ -1834,3 +1834,154 @@ For every story AC that introduces a new behavioral gate, validator, or transfor
 - Adversary SAP extension: for stories touching `QueryEngine::execute` or `execute_against_session`, Pass 1 MUST include an execution-path wiring grep to confirm new `Ast` variants and validators appear in call chains reachable from the production entrypoint.
 
 **Source:** D-1325 (LOCAL cascade Pass 1); adversary a21b900e798cac0ec; frozen HEAD 329fa519.
+
+---
+
+### [process-gap, RECURRING×3] S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: Char-boundary panic class — exhaustive `rfind`/`find`/`position`+offset+slice enumeration is the standing TD-VSDD-060 sweep method
+
+**Date recorded:** 2026-06-26
+**D-NNN anchor:** D-1367 (cycle-close S-7.02 codification; class first appeared D-1357 PR-LEVEL Pass 1, recurred D-1361 PR-LEVEL Pass 5, recurred again D-1364 PR-LEVEL fix-burst-4)
+**Story:** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001
+**Tags:** [process-gap] [char-boundary] [byte-offset-panic] [TD-VSDD-060] [RECURRING]
+**Classification:** PROCESS-GAP — UTF-8 byte-boundary panic class recurred 3 times in a single PR-LEVEL cascade.
+
+**Description:**
+
+Three separate PR-LEVEL cascade rounds found UTF-8 char-boundary panics in `error_recovery.rs`/`resources.rs`/`error_mapping.rs`:
+1. **Round 4 (D-1357)**: `mode_bridge_normalized_pql` — `position().map(|i| i+1)` used as byte-slice index without verifying `i+1` is a char boundary.
+2. **Round 5 (D-1361)**: `near_text` in `error_mapping.rs` — similar byte-offset slice without boundary check.
+3. **Round 4 fresh-context adversary (D-1364)**: `is_enrich_missing_column_at` — `rfind().map(|i| i+1)` byte-slice index without boundary check.
+
+Each was fixed in isolation, but the class recurred because the fix-burst scope was limited to the reported site without sweeping all sibling uses of the same pattern.
+
+**Root cause:**
+
+`rfind` / `find` / `position` on string slices returns a byte offset, not a char index. Using the result directly as a slice bound (`&s[i+1..]`) panics if the next byte is a multibyte UTF-8 continuation byte. The `+1` offset compounds the risk: even if `i` is a valid char boundary, `i+1` need not be.
+
+**Correct response (codified rule — standing TD-VSDD-060 sweep method):**
+
+For EVERY story touching string-slicing code (`rfind`, `find`, `position`, `splitn`, `split_at`):
+
+1. **Grep the entire file (not just changed lines) for every occurrence of `.rfind(`, `.find(`, `.position(`**
+2. **For each occurrence**, check: is the result used directly as a byte-slice index (`[i..]`, `[..i]`, `[i+N..]`)? If yes, replace with `char_indices()` + boundary-safe enumeration.
+3. **Build an enumeration table** (like the 25-site table in D-1364) listing every site and its verdict (SAFE / FIXED). This table is the deliverable — it closes the class, not the individual fix.
+4. **The implementer self-check**: "Did I enumerate EVERY `rfind`/`find`/`position` result used as a slice bound in this file? Can I produce a table?"
+
+**Boundary:** This rule applies to files whose unit tests use ASCII-only inputs. Real user inputs contain multibyte UTF-8 (sensor column names, error messages, query text). ASCII-only tests cannot catch byte-boundary panics.
+
+**Codification direction:**
+
+- Add to SID-1 (or create SID-3): "For stories touching error_recovery.rs, resources.rs, error_mapping.rs, or any string-slicing module — implementer MUST produce an enumeration table of all `rfind`/`find`/`position` slice sites before declaring LOCAL RED GATE PASS."
+- Adversary standing probe (extend SAP-1): for stories with `rfind`/`find`/`position` in scope, Pass 1 MUST include a grep + table verification. Finding a single unguarded site is HIGH.
+
+**Follow-up story:** No dedicated follow-up story needed — pattern was exhaustively swept in D-1364 (25-site enumeration table in STORY-INDEX v2.480 §Changelog D-1364 row). Standing TD-VSDD-060 sweep method is sufficient for future stories.
+
+**Source:** D-1357 (PR-LEVEL Pass 1 F-P3-CRIT-001); D-1361 (PR-LEVEL Pass 5 c2c4e6bd near_text fix); D-1364 (PR-LEVEL fix-burst-4 is_enrich_missing_column_at exhaustive sweep).
+
+---
+
+### [process-gap, RECURRING×2] S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: Doc-comment-vs-reality drift — whole-file comment audit is the reference closure method
+
+**Date recorded:** 2026-06-26
+**D-NNN anchor:** D-1367 (cycle-close S-7.02 codification; first instance D-1348 LOCAL round-5 OBS-1, recurred D-1366 PR-LEVEL round-8 F-P2R2-LOW-002)
+**Story:** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001
+**Tags:** [process-gap] [doc-comment-drift] [whole-file-audit]
+**Classification:** PROCESS-GAP — doc-comment-vs-reality drift in `resources.rs::build_reference_content` recurred across two cascade rounds despite per-occurrence fixes.
+
+**Description:**
+
+- **Round 5 LOCAL (D-1348)**: adversary found a doc-comment block describing a phantom `_ => {}` wildcard arm that did not exist in the shipped exhaustive match. Fixed at that site.
+- **Round 8 PR-LEVEL (D-1366)**: a different doc-comment block in the same function had the same problem (phantom wildcard + stale `debug_assert!` "skip gracefully" comment). Fixed via a comprehensive 35-block audit.
+
+Per-occurrence fixes are insufficient when the file has many comment blocks; the class recurs until a comprehensive sweep is run.
+
+**Root cause:**
+
+Match-arm-heavy functions (like `build_reference_content`) accumulate doc-comment blocks that describe the match structure. When the match arms change (exhaustive → explicit arms, new variants added), the comments do not auto-update. Per-occurrence fixing closes one site but leaves siblings.
+
+**Correct response (codified rule — whole-file comment audit method):**
+
+For any PR touching a match-arm-heavy module:
+
+1. **Enumerate ALL comment blocks** in the changed file (not just changed lines).
+2. For each comment, verify it accurately describes the surrounding code.
+3. Mark each as FIXED or MATCHES REALITY.
+4. The deliverable is the enumeration (35 blocks in D-1366's audit — 1 FIXED, 34 MATCHES, 0 additional drift).
+
+This is the same pattern as the char-boundary enumeration table: a comprehensive CLASS sweep, not a per-occurrence fix.
+
+**Codification direction:**
+
+- Add to the implementer self-check (CLAUDE.md §Self-Audit Checklist): "Did I run a whole-file comment audit on any match-arm-heavy module I modified? Can I enumerate all comment blocks?"
+- Adversary standing probe for stories touching `resources.rs`, `error_recovery.rs`, or any module with `match` + doc-comment blocks: Pass 1 MUST include a comment-block sweep, not just code-behavior verification.
+
+**Follow-up story:** None needed. Class closed by D-1366 35-block audit. Standing audit method codified here.
+
+**Source:** D-1348 (LOCAL Pass 5 OBS-1); D-1366 (PR-LEVEL Round 8 F-P2R2-LOW-002 + 35-block comprehensive audit).
+
+---
+
+### [production-grade] S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: Magnitude-overflow class (chrono Duration/DateTime on user input) — sweep checklist item
+
+**Date recorded:** 2026-06-26
+**D-NNN anchor:** D-1367 (cycle-close S-7.02 codification; F-P3-FRESH-CRIT-001 closed by D-1362 implementer at 70029166)
+**Story:** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001
+**Tags:** [production-grade] [overflow] [chrono] [user-input] [VP-021]
+**Classification:** PRODUCTION-GRADE — magnitude overflow panics on user-supplied temporal values are a security-relevant class (DoS via crafted query input).
+
+**Description:**
+
+PR-LEVEL fresh-context adversary (D-1362 F-P3-FRESH-CRIT-001) found:
+- `parse_interval_duration_str` used `Duration::hours(n)` etc. directly from user input without checking overflow. `chrono::Duration::hours(i64::MAX / 3)` panics.
+- `inject_now_expr` constructed `DateTime ± Duration` directly via arithmetic operators without overflow guard. Crafted durations produce `DateTime` overflow panics.
+
+**Root cause:**
+
+`chrono::Duration` arithmetic panics on overflow for the standard operator forms (`+`, `-`). `checked_add_signed`/`checked_sub_signed` return `Option` and must be used for user-supplied values.
+
+**Correct response (codified sweep checklist item):**
+
+For EVERY story touching temporal arithmetic on user-supplied inputs:
+
+1. Every `Duration::hours(n)` / `Duration::minutes(n)` / `Duration::seconds(n)` where `n` comes from user input MUST use `i64::checked_mul` or `try_*` conversion before the Duration constructor.
+2. Every `DateTime ± Duration` where the Duration originates from user input MUST use `DateTime::checked_add_signed` / `checked_sub_signed`, not the panic-on-overflow operators.
+3. Overflow test vectors MUST be added (i64::MAX / 3 hours, i64::MIN / 3 hours, at minimum) to the regression suite.
+
+**Follow-up story:** None. Fixed at 70029166 with VP-021 + 6 overflow regression tests. Pattern is now in the sweep checklist for all future temporal grammar work.
+
+**Source:** D-1362 (F-P3-FRESH-CRIT-001); implementer 70029166; VP-021; 6 overflow regression tests.
+
+---
+
+### [process-gap] S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: ADR-version-pin / file-anchor corrections are POL-29 in-place syncs (no version bump) per D-1360
+
+**Date recorded:** 2026-06-26
+**D-NNN anchor:** D-1367 (cycle-close S-7.02 codification; D-1360 adjudication established the rule)
+**Story:** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001
+**Tags:** [process-gap] [POL-29] [in-place-sync] [adr-version-pin] [file-anchor]
+**Classification:** PROCESS-GAP — version-pin sync corrections to ADR references and file anchors were being treated as content changes requiring BC/story version bumps, creating unnecessary churn.
+
+**Description:**
+
+During the PR-LEVEL cascade, several corrections involved updating ADR version pins (e.g., "ADR-043 v1.1" → "ADR-043 v1.2") and file anchors (e.g., correcting a stale `engine.rs` reference to `lib.rs`) in BC files and story files. Initially these corrections were being tracked as full version bumps (BC v1.x → v1.y, STORY-INDEX row update). D-1360 adjudicated that these are POL-29 in-place syncs: corrections that update a cited version or path to match reality without changing behavioral contract semantics require no version bump.
+
+**Correct response (codified rule):**
+
+**POL-29 in-place sync criteria (no version bump required):**
+1. ADR version pin updated to match current ADR frontmatter (the ADR's behavior is unchanged; only the cite is stale).
+2. File anchor corrected to match current codebase location (function moved, file renamed, no behavioral change).
+3. Formatting/ordering corrections (descending sort, whitespace normalization).
+
+**Version bump IS required when:**
+1. Behavioral contract semantics change (new invariant, updated postcondition, new error case).
+2. New acceptance criterion added or existing AC modified.
+3. BC interface/API anchor changes (not just its file location).
+
+**Codification direction:**
+
+- Add to state-manager dispatch protocol: "POL-29 in-place sync corrections → no BC-INDEX version bump, no STORY-INDEX row update, no version column in BC changelog. Mark commit as POL-29 in commit message."
+- Adversary should NOT flag POL-29 corrections as "version bump omitted" — they are exempt by design.
+
+**Follow-up story:** None. D-1360 adjudication is the canonical reference. Pattern codified here for future cascade cycles.
+
+**Source:** D-1360 (POL-29-class adjudication during PR-LEVEL cascade); D-1362/D-1365 (in-place sync applications).

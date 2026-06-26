@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.1"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 phase: 1a
@@ -136,5 +136,6 @@ VP-021 (fuzz), VP-014 (size limit)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.1 | F-P2-HIGH-001-bc-sweep | 2026-06-25 | product-owner | **F-P2-HIGH-001 closure (POL-25 multi-cite propagation gap).** FORBID-BOTH rule extended from `\| limit M`-only to the full row-capping pipe-stage family (`\| limit M` OR `\| tail M`), matching error-taxonomy.md v2.00 E-QUERY-040 row (updated by S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 HIGH-1 fix-burst). Changes: (1) §Description updated to reference row-capping pipe stage family; (2) §Postconditions FORBID-BOTH bullet updated — condition now reads `PipeStage::Limit(_) \| PipeStage::Tail(_)`, neutral wording "a row-capping pipe stage (`\| limit M` OR `\| tail M`)"; (3) §Error Cases E-QUERY-040 row updated — condition covers both forms; message format updated to verbatim error-taxonomy v2.00 neutral wording "a row-capping `\| limit`/`\| tail` pipe stage (cap: {pipe_limit})"; `{pipe_limit}` field definition clarified; (4) EC-11-020-008 + EC-11-020-009 added (`\| tail` FORBID-BOTH and valid-`\| tail` edge cases); (5) `\| tail` E-QUERY-040 error test vector added to Canonical Test Vectors. Frontmatter: version 1.0→1.1, modified: 2026-06-25. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-043 v1.1 (FORBID-BOTH ratified). Closes GRAMMAR-001, GRAMMAR-009. Allocates E-QUERY-040 plan-time dual-limit rejection (error-taxonomy row authored in same burst). |

@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.2"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 phase: 1a
@@ -124,6 +124,7 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.2 | PR-203-fix-burst-F-P2R2-LOW-001 | 2026-06-26 | product-owner | Phantom Architecture Anchor correction (F-P2R2-LOW-001 / TD-VSDD-091). §Architecture Anchors: replaced non-existent `crates/prism-mcp/src/tools/list_capabilities.rs (or equivalent handler)` with real `crates/prism-mcp/src/server.rs — list_capabilities handler`. Verified: `tools/` contains only `config.rs`, `mod.rs`, `operations.rs`, `prism_describe.rs`, `query.rs`, `sensor_health.rs`, `write.rs` — no `list_capabilities.rs` exists. Story v1.7 OBS-3 closure (2026-06-25) corrected the same phantom in story file; this BC is the sibling-sweep closure on the spec side. No behavioral semantics changed. |
 | 1.1 | LOCAL-adversary-pass1-obs3-closure | 2026-06-25 | product-owner | OBS-3 stale Architecture Anchor (LOCAL pass-1). Corrected `OrgRegistry::contains(client_id: &str) -> bool` to `OrgRegistry::slug_exists(&OrgSlug) -> bool` per D-1110 (the method does not exist; the real API is `slug_exists`). The story spec and implementation already use `slug_exists` correctly; only this BC anchor text was stale. No behavioral semantics changed. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 MAJOR-001 Path B ratification (HRG-4). Closes MAJOR-001. |

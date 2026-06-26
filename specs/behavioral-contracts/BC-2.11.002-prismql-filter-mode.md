@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.4"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
 phase: 1a
@@ -110,6 +110,7 @@ Both tests MUST use `QueryEngine::execute`, not just `PrismQlParser::parse`. Par
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.4 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | AMENDMENT: added §Execution Validation Requirements (ADR-046 D4). Filter mode execution was UNVERIFIED — parse-only tests do not satisfy BC-2.11.002 which specifies "Filter mode predicates are applied to the sensor data source." Two mandatory integration tests added: `test_filter_mode_simple_predicate` and `test_filter_mode_with_source`, both using `QueryEngine::execute`. Closes ADR-046 D4 obligation. BC-2.11.023 governs the D7 shared-predicate-grammar invariant as a companion constraint. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

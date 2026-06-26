@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.0"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 phase: 1a
@@ -158,4 +158,5 @@ VP-021 (fuzz gate applies to CI gate inputs)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.0 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-045 v1.1. Closes GRAMMAR-008/009/017 and partially closes GRAMMAR-002/003/007/018/019 via reference content requirements. CI gate mandates shared example array. |

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.994"
+version: "7.995"
 producer: state-manager
-timestamp: 2026-06-26T21:00:00Z
+timestamp: 2026-06-26T22:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,16 +16,16 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "903c8fcb"
-# NOTE: 903c8fcb is the squash-merge of PR #202 (S-5.04 sensor-health; --admin merge; CI green; T13 gate 2 CLEARED). origin/develop is now 903c8fcb. LOCAL develop e4506a00 (/wrap-skill commit) diverged at 5504c152 — HUMAN DECISION PENDING reconciliation (rebase wrap-skill commit onto 903c8fcb or rework as PR). New branches must be cut from origin/develop (903c8fcb).
-bc_index_version: "7.17"
+develop_head: "7e60df03"
+# NOTE: 7e60df03 is the squash-merge of PR #203 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001; --admin; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; 2026-06-26). origin/develop is now 7e60df03. LOCAL develop ba1108d2 (/wrap-skill commit) DIVERGED — HUMAN DECISION PENDING reconciliation. New branches must be cut from origin/develop (7e60df03).
+bc_index_version: "7.18"
 vp_index_version: "1.80"
-story_index_version: "v2.480"
+story_index_version: "v2.481"
 arch_index_version: "2.147"
 error_taxonomy_version: "2.00"
 total_stories: 212
-active_contracts: 246
-draft_contracts: 5
+active_contracts: 254
+draft_contracts: 0
 retired_contracts: 6
 prd_version: "1.12"
 policies_version: "1.33"
@@ -36,7 +36,7 @@ workspace_test_count: 4949
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1366 (2026-06-26). PR-LEVEL ROUND-8 COMMENT-ONLY FIX-BURST COMMITTED (TD-VSDD-053 single-commit). Pass 1 CLEAN(strict)=YES, Pass 3 CLEAN(strict)=YES — code/runtime perimeter DECISIVELY CLOSED (second consecutive round). Pass 2 F-P2R2-LOW-002 CLOSED (LOW — stale doc-comment blocks in resources.rs::build_reference_content describing phantom wildcard match arm + stale debug_assert! 'skip gracefully' comment vs shipped EXHAUSTIVE match; comment-only fix at 356e0573; comprehensive 35-block resources.rs doc-comment audit: 1 FIXED, 34 MATCHES, 0 additional drift — doc-comment-drift class CLOSED). 3-CLEAN streak RESET 0/3 (new frozen HEAD = 356e0573 once pushed; DRIFT-ORCH-PRLEVEL-PUSH-001). BC-INDEX UNCHANGED v7.17. STORY-INDEX UNCHANGED v2.480. ARCH-INDEX UNCHANGED v2.147. develop_head UNCHANGED 903c8fcb. STATE v7.993→v7.994."
+current_step: "D-1367 (2026-06-26). PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on frozen HEAD 356e0573). POL-14: all 8 BCs promoted draft→active (BC-2.11.020/021/022/023 + BC-2.11.002 + BC-2.10.015/016/017). POL-13: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 draft→merged. active_contracts 246→254. draft_contracts 5→0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails). BC-INDEX v7.17→v7.18. STORY-INDEX v2.480→v2.481. ARCH-INDEX UNCHANGED v2.147. STATE v7.994→v7.995."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1366 round-8 comment-only fix-burst — resources.rs doc-comment-drift CLOSED (35-block audit); Pass1+3 CLEAN(strict); 3-CLEAN streak RESET 0/3 on new HEAD 356e0573; BC-INDEX/STORY-INDEX/ARCH-INDEX UNCHANGED; STATE v7.993→v7.994)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1367 PR #203 MERGED develop@7e60df03 — POL-14 8 BCs draft→active; active_contracts 254; develop_head 7e60df03; non-exhaustive 87; BC-INDEX v7.18; STORY-INDEX v2.481; STATE v7.994→v7.995)
 
 ## Active Objective (North Star)
 
@@ -226,6 +226,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1367 | state-manager | 2026-06-26 | **PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL cascade; 3 consecutive CLEAN(strict) passes on frozen HEAD 356e0573; security CLEAN). POL-14 BC auto-promotions (draft→active): BC-2.11.020 v1.1, BC-2.11.021 v1.0, BC-2.11.022 v1.0, BC-2.11.023 v1.2, BC-2.11.002 v1.4, BC-2.10.015 v1.2, BC-2.10.016 v1.1, BC-2.10.017 v1.1. POL-13: story status draft→merged. **Count changes: active_contracts 246→254 (+8), draft_contracts 5→0.** NOTE: BC-2.06.011 + BC-2.21.001 + BC-2.11.019 remain `status: draft` in BC files (pre-existing; not anchor-story BCs for PR #203; will promote at their own story merges). develop_head 903c8fcb→7e60df03. non-exhaustive 84→87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added). **PENDING HUMAN: CLAUDE.md has stale sentence "ci.yml EXPECTED=83/84" — now EXPECTED=87; state-manager cannot edit CLAUDE.md (human-mandated doc). Orchestrator to surface to human for manual update.** BC-INDEX v7.17→v7.18. STORY-INDEX v2.480→v2.481. ARCH-INDEX UNCHANGED v2.147. LOCAL develop ba1108d2 (/wrap-skill) still DIVERGED — HUMAN DECISION PENDING (carry forward). STATE v7.994→v7.995. | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1366 | state-manager | 2026-06-26 | **PR-LEVEL ROUND-8 COMMENT-ONLY FIX-BURST — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR #203 (TD-VSDD-053 single-commit). Re-gate on UNCHANGED code HEAD e6fe1b57 + round-7 spec fix. Pass 1 CLEAN(strict)=YES, CLEAN(PR-merge)=YES (streak 1/3 — RESET by push below). Pass 3 CLEAN(strict)=YES — code/runtime perimeter DECISIVELY CLOSED (second consecutive round with Pass1+Pass3 both CLEAN(strict)). Pass 2 CLEAN(strict)=NO: F-P2R2-LOW-002 (LOW — `crates/prism-mcp/src/resources.rs::build_reference_content` had two stale doc-comment blocks: (a) comment described a phantom wildcard/`_` match arm that does not exist in the shipped EXHAUSTIVE match; (b) `debug_assert!` comment said "skip gracefully" implying fallthrough — the shipped code uses exhaustive match with no fallthrough path; comment-only drift, zero behavioral impact). **Fix-burst-8:** implementer committed 356e0573 — comment-only fix + COMPREHENSIVE resources.rs doc-comment audit (35 comment blocks enumerated: 1 FIXED, 34 MATCHES REALITY, 0 additional drift found; doc-comment-drift class CLOSED for this file). No behavioral change; no spec/index update required. **[process-gap] DOC-COMMENT-DRIFT CLASS NOTE (S-7.02 candidate):** stale doc-comment-vs-reality drift in resources.rs recurred across rounds (round-5 OBS-1 and round-8 LOW-002 both described phantom match arms). Both now closed by the comprehensive 35-block file-level audit. The whole-file doc-comment audit (enumerate ALL comment blocks, verify each matches implementation, mark FIXED or MATCHES) is the reference method for closing this class — analogous to the exhaustive char-boundary sweep (D-1364) and the 25-site char-indices enumeration table. Candidate for codification in cycle-close lessons (S-7.02) as a standing probe for any PR touching match-arm-heavy modules. **3-CLEAN streak RESET 0/3 (new frozen PR HEAD = 356e0573 once pushed; DRIFT-ORCH-PRLEVEL-PUSH-001 applies). BC-INDEX UNCHANGED v7.17. STORY-INDEX UNCHANGED v2.480. ARCH-INDEX UNCHANGED v2.147. develop_head UNCHANGED 903c8fcb. active_contracts / draft_contracts UNCHANGED (246/5). STATE v7.993→v7.994.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1365 | state-manager | 2026-06-26 | **PR-LEVEL FIX-BURST-7 SPEC-ONLY STATE COMMIT — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR #203 (TD-VSDD-053 single-commit). Round-7 PR-LEVEL cascade on FROZEN PR HEAD e6fe1b57: Pass 1 CLEAN(strict)=YES, CLEAN(PR-merge)=YES (streak 1/3 — RESET by spec change). Pass 3 CLEAN(strict)=YES — runtime/security perimeter DECISIVELY CLOSED. Pass 2 CLEAN(strict)=NO: F-P2R2-P2-MED-001 (MED — BC-2.11.022 §CI-gate tuple description + story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-007 and Phase-4 Task step 1 both described REFERENCE_EXAMPLES const as a 2-tuple `(&'static str, ExampleKind)` — WRONG; the shipped and tested const uses a 3-tuple `(ExampleKind, &'static str, &'static str)` = `(kind, title, snippet)`; additionally, `NegativeOther(&'static str)` in the description was incorrect — the shipped variant is a unit variant; title field is load-bearing per LOW-002 render test; BC and story were over-specified implementation-detail DESCRIPTIONS that drifted from the actual shipped design). **ADJUDICATION (POL-29-class implementation-detail-description sync):** the REFERENCE_EXAMPLES tuple-arity correction is a description sync to match the shipped and tested `(ExampleKind, title, snippet)` 3-tuple design. This is NOT a code-weakening spec amendment — the behavioral contract is unchanged; only the implementation-detail description in §CI-gate + story task prose was wrong. Corrected IN PLACE per D-1360 POL-29-class precedent: no BC version bump, no STORY-INDEX version bump, no BC-INDEX or STORY-INDEX version change. Also: char-boundary class DECISIVELY CLOSED via exhaustive 25-site sweep (Pass 1 confirmation). Pass 2 char-boundary class confirmation: all 25 sites in e6fe1b57 exhaustive enumeration table verified SAFE or FIXED. **OBS typo fix:** STORY-INDEX v2.480 §Changelog table row (written in D-1364) had `ARCH-INDEX UNCHANGED v2.146` — factual error; ARCH-INDEX was bumped to v2.147 by D-1363 BEFORE D-1364 wrote the row; corrected to `v2.147` in both the §Changelog table row and the body Overview changelog row. **Research artifact:** `research/test-suite-performance-diagnosis-2026-06-26.md` committed — test-speed maintenance plan (post-#203-merge work; NOT in PR #203 scope). **3-CLEAN streak RESET 0/3 (spec changed → re-gate on UNCHANGED code HEAD e6fe1b57 + updated specs; DRIFT-ORCH-PRLEVEL-PUSH-001 applies: spec-only changes require fresh adversary pass before streak can advance).** ARCH-INDEX UNCHANGED v2.147. BC-INDEX UNCHANGED v7.17. STORY-INDEX UNCHANGED v2.480 (no version bump). develop_head UNCHANGED 903c8fcb. active_contracts / draft_contracts UNCHANGED (246/5). STATE v7.992→v7.993.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1364 | state-manager | 2026-06-26 | **PR-LEVEL FIX-BURST-6 STATE COMMIT — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR #203 (TD-VSDD-053 single-commit). Round-6 PR-LEVEL cascade on FROZEN PR HEAD c3b3d3fd: Pass 1 CLEAN(strict)=YES, CLEAN(PR-merge)=YES (streak 1/3 — RESET by subsequent pass findings). Pass 2 CLEAN(strict)=NO: F-P2R3-MED-001 (STORY-INDEX §Changelog table missing v2.480 row — v2.479→v2.480 transition was recorded in STORY-INDEX body Overview changelog and in D-1362, but the §Changelog table had no v2.480 row; v2.479→v2.480 records: story v1.10→v1.11, BC-2.10.017 v1.0→v1.1 + BC-2.10.015 v1.1→v1.2 pin propagation, BC-INDEX v7.16→v7.17 reference; state-manager prior omission) — CLOSED: v2.480 §Changelog row added (this burst). F-P2R3-MED-002 (BC-2.11.022 §Invariants stale file anchor `resources.rs` → `crates/prism-mcp/src/resources/schema.rs`; named removed symbols PQL_REFERENCE_CONTENT + render_pql_reference_resource — IN PLACE, no version bump per POL-29/D-1360 adjudication) — CLOSED by product-owner. Pass 3 CLEAN(strict)=NO: F-P3-CRIT-001 (THIRD char-boundary panic class — `is_enrich_missing_column_at` in error_recovery.rs used `rfind().map(|i| i+1)` as a byte-slice index and a direct `&original_query[..N]` slice at ~line-122; both sites panic on multibyte char boundaries) — CLOSED by implementer at e6fe1b57 (`char_indices().rev()` boundary-safe at both sites; 9 regression tests; DEFINITIVE exhaustive char-boundary sweep table covering ~24 sites in error_recovery.rs: 2 FIXED, 22+ SAFE). **[process-gap] ESCALATED FOR CYCLE-CLOSE CODIFICATION (S-7.02):** char-boundary panic class recurred a THIRD time; two prior "comprehensive sweeps" (at F-P3-CRIT-001 in D-1357 and F-P3-CRIT-NEW-001 in D-1359) both missed `is_enrich_missing_column_at`. Root cause: sweep anchored on KNOWN site patterns (`to_uppercase()`-offset, `split_at(len-1)`) rather than exhaustively enumerating ALL `rfind`/`find`/`position` results used with `+N`/`.map(|i| i+1)` as byte-slice indices. Standing TD-VSDD-060 char-boundary sweep protocol MUST be extended: for any parser/error-recovery file change, grep ALL `rfind`/`find`/`position`/`char_indices` calls + ALL `[..N]`/`[N..]` slice sites where N is NOT a known-safe boundary (string length, const, 0); verify each is either char-boundary-safe by construction or uses `char_indices`/`is_char_boundary`. The e6fe1b57 exhaustive enumeration table (listing all ~24 sites with SAFE/FIXED status) is the reference method for this protocol. **Index updates:** STORY-INDEX v2.480 (§Changelog table row added — no version re-bump; header already v2.480 correctly). BC-INDEX UNCHANGED v7.17. ARCH-INDEX UNCHANGED v2.147. **3-CLEAN streak RESET 0/3 on NEW FROZEN PR HEAD e6fe1b57 once pushed (DRIFT-ORCH-PRLEVEL-PUSH-001).** develop_head UNCHANGED 903c8fcb. active_contracts / draft_contracts UNCHANGED (246/5). STATE v7.991→v7.992.** | wave-5-e-demo-fidelity | 2026-06-26 |
@@ -449,21 +450,22 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1366 — 2026-06-26; STATE v7.994)
+## Session Resume Checkpoint (D-1367 — 2026-06-26; STATE v7.995)
 
-**STATE v7.994. D-1366 round-8 comment-only fix-burst COMMITTED (F-P2R2-LOW-002 CLOSED — resources.rs::build_reference_content stale doc-comment blocks; 35-block comprehensive audit: 1 FIXED, 34 MATCHES, 0 additional drift; doc-comment-drift class CLOSED). Pass1+3 CLEAN(strict) — code/runtime perimeter DECISIVELY CLOSED (consecutive rounds 7+8). PR-LEVEL 3-CLEAN streak RESET 0/3 (new frozen PR HEAD 356e0573 once pushed). non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.17. ARCH-INDEX v2.147. STORY-INDEX v2.480.**
+**STATE v7.995. D-1367 PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) on 356e0573; security CLEAN). POL-14 COMPLETE: 8 BCs draft→active. POL-13 COMPLETE: story status→merged. active_contracts 254. draft_contracts 0. develop_head 7e60df03. non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.481.**
 
-**TRACK A — DEMO-CRITICAL (ACTIVE):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.11 (27 ACs, 8 BCs). PR #203 OPEN (base develop 903c8fcb, FROZEN PR HEAD `356e0573` once pushed). LOCAL 3-CLEAN CONVERGED @71b196ad (D-1347). Round-8 cascade (D-1366): Pass 1 CLEAN(strict)=YES, Pass 3 CLEAN(strict)=YES. Pass 2 F-P2R2-LOW-002 CLOSED (resources.rs doc-comment-drift; comment-only at 356e0573; comprehensive 35-block audit complete). PR-LEVEL streak RESET 0/3 (new HEAD 356e0573). pr-reviewer APPROVE on b65b4d0c still valid. Security CLEAN(PR-merge) non-blocking. **NEXT: dispatch vsdd-factory:adversary for PR-LEVEL Pass 1 on FROZEN HEAD 356e0573. On 3-CLEAN: CI green check → squash-merge --admin (D-1337) → post-merge POL-14 → demo re-audit → T13 → T14.**
+**TRACK A — DEMO-CRITICAL (COMPLETED):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.12 MERGED. PR #203 MERGED develop@7e60df03. All post-merge bookkeeping done (POL-13 + POL-14 + develop_head + non-exhaustive sync). **NEXT: pre-flight demo re-audit → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording.**
 
 **TRACK B — DAY-2 MORPH (POST-T14):** source-of-truth = `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
-**DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 903c8fcb. Advisory SHA-currency hook FAIL (non-blocking per D-1319+).
+**DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 7e60df03. Advisory SHA-currency hook FAIL (non-blocking per D-1319+).
+
+**PENDING HUMAN (CLAUDE.md stale):** CLAUDE.md has "ci.yml EXPECTED=83/84" — now EXPECTED=87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added; PR #203). state-manager cannot edit CLAUDE.md. Human must update manually.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1356 for full context; then apply D-1357+D-1359+D-1360+D-1361+D-1362+D-1363+D-1364+D-1365 delta. STATE v7.993.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (latest) for full context. STATE v7.995.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `903c8fcb`.
-3. `git -C .worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 rev-parse HEAD` → expect `e6fe1b57` (D-1365 FROZEN PR HEAD; PR #203 open).
-4. `gh pr list --state open --base develop` → expect PR #203 open (FROZEN HEAD e6fe1b57).
-5. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off.
-6. PR-LEVEL 3-CLEAN streak is 0/3 on e6fe1b57. Next action: adversary PR-LEVEL Pass 1 on UNCHANGED e6fe1b57 + updated specs. DO-NOT-FLAG: char-boundary class DECISIVELY CLOSED (25-site exhaustive sweep); REFERENCE_EXAMPLES is a 3-tuple (ExampleKind, &'static str, &'static str) per shipped const. Autonomy D-989+D-1337 active.
+2. `git log --oneline -1 origin/develop` → expect `7e60df03`.
+3. S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 worktree MAY be cleaned up (PR merged). `vsdd-factory:worktree-manage cleanup S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`.
+4. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off; (C) CLAUDE.md EXPECTED count update.
+5. Next: pre-flight demo re-audit → T13 capstone → T14 recording. Autonomy D-989 active.

@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.1"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 phase: 1a
@@ -118,4 +118,5 @@ TBD
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md + ADR-046 D6. Closes BLOCKER-003. Implementer must investigate `#[prompt_handler]` macro expansion + `PromptRoute::new_dyn` closure before fixing. |
+| 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.1 | S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 | 2026-06-25 | product-owner | Spec-internal-consistency reconciliation (OBS-2b from PR-LEVEL adversary). INV-PROMPT-REQUIRED-ARGS already sanctioned option (a) placeholder substitution; §Error Cases row and EC-10-016-003 incorrectly stated "Returns structured MCP error" for a missing required arg, contradicting the invariant. Updated §Error Cases, EC-10-016-003, and INV-PROMPT-REQUIRED-ARGS prose to reflect the shipped option-(a) behavior (`(unknown)` substitution, returns Ok within 5s). The no-hang / within-5s guarantee is unchanged. No code change. |

@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.1"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-06-24T00:00:00Z
 phase: 1a
@@ -116,5 +116,6 @@ TBD
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | PR-203-post-merge-POL-14 | 2026-06-26 | state-manager | **POL-14 BC auto-promotion: draft → active.** Anchor story S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 squash-merged via PR #203 to develop@7e60df03 (2026-06-26; CI 43/43 green; 9-round PR-LEVEL 3-CLEAN(strict) cascade on frozen HEAD 356e0573). `status: draft → active`. No behavioral change; frontmatter status field only. |
 | 1.1 | PR-203-fix-burst-F-P2R2-HIGH-001 | 2026-06-26 | product-owner | D-1110 reality-drift reconciliation (F-P2R2-HIGH-001 sibling-sweep miss). §Preconditions: removed fictional `mpsc::Sender<AuditEntry>`; reflects `Option<Arc<dyn AuditWriter>>`. §Postconditions: Option B `try_send` mandate dropped; shipped implementation is Option A (guard-reorder — `emit_tool_audit` never reached for NOT_YET_AVAILABLE tools). INV-AUDIT-NON-BLOCKING: rewritten to reflect Arc-DI async-await path with no mpsc/try_send; non-blocking property is satisfied by guard-reorder. §Architecture Anchors: cite real `emit_tool_audit` function signature + behavioral anchor; drop stale `try_send` prescription. BC-2.10.016 received its D-1110 reconciliation in the prior burst; this BC (2.10.017) is the sibling-sweep closure. EC-10-017-001 (and §Edge Cases sweep) reconciled to guard-reorder reality — "audit channel buffer full" was a fictional condition; rewritten to describe the slow-AuditWriter scenario and the invariant that `emit_tool_audit` is never reached for NOT_YET_AVAILABLE tools (completes the v1.1 D-1110 sweep, closes F-002). |
 | 1.0 | demo-readiness-2026-06-24 | 2026-06-24 | product-owner | Initial contract. Authored per demo-readiness-remediation-design-2026-06-24.md. Closes BLOCKER-004. Root cause: `emit_tool_audit` blocking `send()` before fast-fail guard; fix: reorder guard before audit OR change to `try_send`. |
