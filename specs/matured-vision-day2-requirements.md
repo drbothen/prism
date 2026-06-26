@@ -1978,16 +1978,24 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   - **Additional surfaces built (light+dark):** S4 browser extension (`mockups/S4-01-extension.html`),
     responsive breakpoints for key S2 panels (`mockups/responsive-S2-*.html`), and a canonical state-coverage
     gallery (`mockups/states-gallery.html`).
-  - **Still OPEN (UI):** SSO/OIDC-SAML ADR; S3 server-hosted agent-runtime ADR + widget-DSL render/schema-validation
-    ADR + sandboxed-expression-evaluator (ANTLR4) ADR; web-stack ADR formalization. (§11.3, §11.3.1, §11.3.2)
-- **`SecretBackend` trait + per-tenant-DEK flow** concrete sketch (§11.1).
-- **Sequence-sugar ADR open questions** (§12.4): keyword finalization; overall-`WITHIN` semantics;
-  cross-step running-semantics; **`NOT`/`WITHOUT` non-event desugaring** (exclusion vs timeout — hardest).
-- **PO ratifications at brief-reframe:** value-prop #5 rewrite (§11.3); §2.4 tradeoff softening
-  (§15.9, three-ways-to-long-baseline); §1.x framing.
-- **ML depth phasing** (§15.7): lightweight statistical first; heavier learned models + pluggable
-  backends later.
-- All Section 5.x day-2 execution-checklist items remain pending the brief-reframe HUMAN GATE.
+- **Day-2 design decisions CAPTURED (2026-06-26 side analysis)** — all the prior open items below were
+  resolved into PROPOSED capture artifacts under `specs/day2-design-decisions/` (do_not_execute; real ADR
+  numbers + brief-reframe ratification deferred to morph). Each carries a firm recommendation + flagged
+  residual human decisions:
+  - `ADR-PROP-web-stack.md` — formalizes UI-D5 (TS SPA/React + Rust). 
+  - `ADR-PROP-sso-identity.md` — OIDC + SAML 2.0 + 7-role RBAC; SCIM flagged.
+  - `ADR-PROP-s3-agent-runtime.md` — 4-component server-hosted runtime wrapping the MCP tool surface.
+  - `ADR-PROP-widget-dsl-render-and-schema-validation.md` — 54-primitive DSL + mandatory Zod gate + OCSF primitives.
+  - `ADR-PROP-sandboxed-expression-evaluator.md` — prohibits `new Function()`; ANTLR4 path mandatory.
+  - `secret-subsystem-sketch.md` — `SS-26 Secret Broker`, `SecretBackend` trait, per-tenant-DEK envelope (§11.1).
+  - `prismql-sequence-sugar-decisions.md` — keyword set + `WITHIN` + cross-step + NOT/WITHOUT desugaring (§12.4).
+  - `ml-depth-phasing.md` — P1 statistical → P2 online (`ModelState` CF) → P3 pluggable `ModelBackend` (§15.7).
+  - `po-ratifications.md` — value-prop #5 + §2.4 softening + §1.x framing (PO-ratified-ready, gated on §5.1).
+  - **Residual HUMAN decisions flagged across these** (to settle at morph): NOT/WITHOUT exclusion-vs-timeout
+    (PrismQL — the key one); ML v1 starting scope; SCIM in-scope vs follow-on; secret-store KMS/cipher/DEK-granularity
+    defaults; S3 default-enabled vs opt-in; S2–S4 in §1 In-Scope vs roadmap.
+- **Still OPEN (not yet captured):** SSO↔transport binding detail; the §5.x execution-checklist items all remain
+  pending the brief-reframe HUMAN GATE.
 
 ### 16.5 Status & boundaries reminder
 
