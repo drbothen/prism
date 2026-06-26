@@ -57,7 +57,7 @@ mod proofs {
         let mut client_map = BTreeMap::new();
         client_map.insert(client_id.to_string(), caps);
 
-        let evaluator = FeatureFlagEvaluator::new(client_map);
+        let evaluator = FeatureFlagEvaluator::new(client_map, std::sync::Arc::new(prism_core::OrgRegistry::new()));
 
         let compile_gate = if compile_ok {
             CompileTimeGate::Present
@@ -109,7 +109,7 @@ mod proofs {
         let mut client_map = BTreeMap::new();
         client_map.insert(client_id.to_string(), caps);
 
-        let evaluator = FeatureFlagEvaluator::new(client_map);
+        let evaluator = FeatureFlagEvaluator::new(client_map, std::sync::Arc::new(prism_core::OrgRegistry::new()));
 
         let result = evaluator.check_permission(
             CompileTimeGate::Absent, // feature NOT compiled in

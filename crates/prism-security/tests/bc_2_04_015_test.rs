@@ -19,7 +19,10 @@ use prism_core::error::PrismError;
 use prism_security::feature_flag::{CapabilityCheckResult, CompileTimeGate, FeatureFlagEvaluator};
 
 fn make_empty_evaluator() -> FeatureFlagEvaluator {
-    FeatureFlagEvaluator::new(BTreeMap::new())
+    FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    )
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -249,7 +252,8 @@ fn test_BC_2_04_015_to_error_returns_none_for_allowed() {
     let mut map = BTreeMap::new();
     map.insert("acme".to_string(), caps);
 
-    let evaluator = FeatureFlagEvaluator::new(map);
+    let evaluator =
+        FeatureFlagEvaluator::new(map, std::sync::Arc::new(prism_core::OrgRegistry::new()));
     let result = evaluator.check_permission(
         CompileTimeGate::Present,
         "acme",

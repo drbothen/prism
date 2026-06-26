@@ -12,6 +12,9 @@
 //! mode-specific sub-parsers.
 
 pub mod alias_tests;
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: HIGH-002 plan-time pinning unit tests.
+// Drives inject_now + PqlNormalizer::normalize to assert plan-pinned form (no NOW(), no INTERVAL).
+pub mod high002_plan_pinning_tests;
 // S-DEMO-002: Red Gate unit tests for AC-014 AQL push-down seeding.
 // Drives production code path (pushdown::predicate_tree_to_filter_map) without external DTU.
 pub mod aql_pushdown_tests;

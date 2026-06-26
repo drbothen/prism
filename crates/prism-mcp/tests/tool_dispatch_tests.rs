@@ -1860,7 +1860,19 @@ fn server_with_write_executor_acme_crowdstrike() -> prism_mcp::PrismServer {
     let mut client_map = BTreeMap::new();
     client_map.insert("acme".to_owned(), acme_caps);
 
-    let feature_flags = Arc::new(FeatureFlagEvaluator::new(client_map));
+    // MED-001 fix: seed OrgRegistry with "acme" so validate_client_ids passes.
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    org_registry
+        .register(
+            prism_core::OrgSlug::new("acme").expect("valid slug"),
+            prism_core::ids::OrgId::new(),
+        )
+        .expect("acme registration must not conflict");
+
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+        client_map,
+        Arc::clone(&org_registry),
+    ));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
     let audit_writer = Arc::new(NullAuditWriter);
     let adapter_registry = Arc::new(AdapterRegistry::new());
@@ -1876,7 +1888,9 @@ fn server_with_write_executor_acme_crowdstrike() -> prism_mcp::PrismServer {
         endpoint_registry,
         cache_invalidator,
     ));
-    PrismServer::new().with_write_executor(write_executor)
+    PrismServer::new()
+        .with_write_executor(write_executor)
+        .with_org_registry(org_registry)
 }
 
 /// BC-2.10.011 v1.5 postcondition — enabled capability has two resolution steps.

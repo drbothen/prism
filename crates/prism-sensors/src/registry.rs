@@ -122,6 +122,26 @@ impl AdapterRegistry {
     pub fn is_empty(&self) -> bool {
         self.adapters.is_empty()
     }
+
+    /// Returns a sorted, deduplicated list of all unique `SensorId` values registered
+    /// in this registry (across all orgs).
+    ///
+    /// Used by `resolve_source_refs` to populate `UnknownSourceTableDetails::available_tables`
+    /// with an actionable list of known sensor IDs when returning E-QUERY-036.
+    ///
+    /// Sorting ensures deterministic output for tests and error messages.
+    ///
+    /// Story: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021 (GRAMMAR-004 E-QUERY-036 available_tables).
+    pub fn registered_sensor_ids(&self) -> Vec<SensorId> {
+        let mut ids: Vec<SensorId> = self
+            .adapters
+            .keys()
+            .map(|(_, sensor_id)| sensor_id.clone())
+            .collect();
+        ids.sort_unstable_by(|a, b| a.as_ref().cmp(b.as_ref()));
+        ids.dedup_by(|a, b| a.as_ref() == b.as_ref());
+        ids
+    }
 }
 
 impl std::fmt::Debug for AdapterRegistry {

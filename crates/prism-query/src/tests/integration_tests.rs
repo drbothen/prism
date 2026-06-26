@@ -584,6 +584,75 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
+    // OBS-1 fix: filter-mode string literal with embedded single-quote
+    // -----------------------------------------------------------------------
+
+    /// OBS-1 fix (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR-LEVEL): filter-mode SQL lowering
+    /// MUST use SQL-safe single-quoted escaping (`'O''Brien'`) for string literals containing
+    /// an embedded `'`, not double-quoted form (`"O'Brien"` = ANSI SQL identifier reference).
+    ///
+    /// Pre-fix failure mode: `normalize_predicate_pub` emitted `name = "O'Brien"` (double-quoted).
+    /// DataFusion treats double-quoted tokens as identifier references, not string literals, so
+    /// the WHERE clause filtered nothing (no column named `O'Brien`) or produced a planning error.
+    ///
+    /// Post-fix: Filter arm uses `predicate_to_datafusion_sql` which emits `name = 'O''Brien'`
+    /// (standard SQL escaping). DataFusion executes the equality filter correctly.
+    #[tokio::test]
+    async fn test_filter_mode_string_with_embedded_apostrophe_executes_correctly() {
+        use crate::{filter_parser::PrismQlParser, materialization::execute_against_session};
+
+        // Build a MemTable with two rows: one whose `name` contains `'` and one without.
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("name", arrow::datatypes::DataType::Utf8, true),
+        ]));
+        let names: arrow::array::StringArray = vec!["O'Brien", "Smith"].into();
+        let batch = arrow::record_batch::RecordBatch::try_new(schema, vec![Arc::new(names) as _])
+            .expect("batch with apostrophe-bearing value must build");
+
+        let ctx = crate::memory::build_session_context(200 * 1024 * 1024)
+            .expect("session context must build");
+        register_mem_table(&ctx, "test_table", vec![batch])
+            .expect("MemTable registration must succeed");
+
+        // Filter-mode query: match only the row with the apostrophe-bearing value.
+        // Grammar: double-quoted `"O'Brien"` is valid PrismQL (none_of('"') accepts `'`).
+        let input = r#"test_table | name = "O'Brien""#;
+        let ast = PrismQlParser::parse(input)
+            .expect("OBS-1 precondition: filter-mode query with embedded apostrophe must parse");
+
+        let result =
+            execute_against_session(&ctx, input, &ast, std::collections::HashMap::new()).await;
+
+        let batches = result.expect(
+            "OBS-1: filter with embedded apostrophe must execute without planning error. \
+             Pre-fix: DataFusion received `name = \"O'Brien\"` (double-quotes = identifier) \
+             and returned a planning/column error. \
+             Post-fix: DataFusion receives `name = 'O''Brien'` (SQL-escaped) and succeeds.",
+        );
+
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(
+            total_rows, 1,
+            "OBS-1: exactly 1 row must match `name = 'O''Brien'`, got {total_rows}. \
+             Pre-fix: 0 rows (identifier lookup vs. string literal mismatch). \
+             Post-fix: 1 row (SQL-escaped single-quoted literal matches correctly)."
+        );
+
+        // Verify the matching row has the correct value.
+        use arrow::array::StringArray;
+        let row_val = batches[0]
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .value(0);
+        assert_eq!(
+            row_val, "O'Brien",
+            "OBS-1: the returned row must have name = \"O'Brien\""
+        );
+    }
+
+    // -----------------------------------------------------------------------
     // execute_scheduled: Arc<SessionContext> returned
     // -----------------------------------------------------------------------
 

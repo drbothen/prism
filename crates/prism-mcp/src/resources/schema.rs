@@ -24,9 +24,9 @@
 //!
 //! # `prismql://reference` (BC-2.10.014)
 //!
-//! Static resource. Content is embedded at build time via `include_str!("../pql_reference.md")`.
-//! NOT loaded from filesystem at runtime (BC-2.10.014 postcondition).
-//! mimeType: "text/markdown". No subscribe/listChanged.
+//! Static resource. Content is generated at runtime by `build_reference_content()`
+//! in `crates/prism-mcp/src/resources.rs`, which renders PQL grammar reference
+//! dynamically including live registry data. mimeType: "text/markdown". No subscribe/listChanged.
 
 use std::{
     collections::HashMap,
@@ -49,15 +49,6 @@ pub const URI_TEMPLATE_PQL_SCHEMA: &str = "prismql://schema/{client_id}";
 
 /// URI for the static PQL grammar reference resource.
 pub const URI_PQL_REFERENCE: &str = "prismql://reference";
-
-// ─── Static reference content ─────────────────────────────────────────────────
-
-/// PQL grammar reference content embedded at build time (BC-2.10.014).
-///
-/// NOT loaded from the filesystem at runtime — `include_str!` is the only
-/// acceptable mechanism (adversary probe: grep for `read_to_string` in this
-/// file will FAIL if found).
-pub const PQL_REFERENCE_CONTENT: &str = include_str!("../pql_reference.md");
 
 // ─── SchemaChangeNotifier trait (BC-2.10.013 subscribe/notify) ───────────────
 
@@ -377,26 +368,4 @@ pub async fn notify_schema_updated(
     }
 
     Ok(())
-}
-
-// ─── prismql://reference static resource handler ─────────────────────────────
-
-/// Handle `resources/read("prismql://reference")`.
-///
-/// Returns the build-time static PQL grammar reference embedded via `include_str!`.
-/// Content is IDENTICAL on every call within the same server process (static invariant,
-/// AC-008, BC-2.10.014). No subscribe/notify needed (static content).
-///
-/// NOTE: content is embedded at build time via `include_str!("../pql_reference.md")` —
-/// NOT loaded from the filesystem at runtime.
-pub fn render_pql_reference_resource() -> Result<ReadResourceResult, ErrorData> {
-    use rmcp::model::ResourceContents;
-    Ok(ReadResourceResult::new(vec![
-        ResourceContents::TextResourceContents {
-            uri: URI_PQL_REFERENCE.into(),
-            mime_type: Some("text/markdown".to_string()),
-            text: PQL_REFERENCE_CONTENT.to_string(),
-            meta: None,
-        },
-    ]))
 }

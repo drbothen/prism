@@ -28,11 +28,14 @@ fn evaluator_with_allow(client_id: &str, path: &str) -> FeatureFlagEvaluator {
     caps.grant(cap(path), CapabilityEffect::Allow);
     let mut map = BTreeMap::new();
     map.insert(client_id.to_string(), caps);
-    FeatureFlagEvaluator::new(map)
+    FeatureFlagEvaluator::new(map, std::sync::Arc::new(prism_core::OrgRegistry::new()))
 }
 
 fn evaluator_empty() -> FeatureFlagEvaluator {
-    FeatureFlagEvaluator::new(BTreeMap::new())
+    FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    )
 }
 
 // ─────────────────────────────────────────────────────────────

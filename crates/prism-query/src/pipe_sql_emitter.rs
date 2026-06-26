@@ -93,6 +93,50 @@ pub(crate) fn pipe_to_executable_sql(
     builder.build(pipe)
 }
 
+/// Lower a `SqlPipeQuery` to an executable DataFusion SQL string.
+///
+/// The head SQL SELECT is wrapped in a CTE (`_sqlpipe_head`), and pipe stages
+/// are applied on top of that CTE using the same `PipeQueryBuilder` pipeline
+/// as `pipe_to_executable_sql`.  The caller must have already run the
+/// FORBID-BOTH check (`plan_sqlpipe_query`) before calling this function.
+///
+/// # Arguments
+/// - `query_str` — the original PrismQL query string (used to extract the head
+///   SQL substring; the split point is re-derived using `find_sqlpipe_split`).
+/// - `spq` — the parsed `SqlPipeQuery` AST (stages list).
+/// - `table_batches` — fan-out result map; used ONLY for schema inspection in
+///   the `Fields(exclude)` case.
+///
+/// # Errors
+/// Returns `PrismError::QueryExecutionFailed` if the head SQL cannot be
+/// extracted from `query_str` (should not occur in practice — the parser
+/// already validated the split during `parse_sqlpipe_internal`).
+pub(crate) fn sqlpipe_to_executable_sql(
+    head_sql: &str,
+    spq: &crate::ast::SqlPipeQuery,
+    table_batches: &HashMap<String, Vec<RecordBatch>>,
+) -> Result<String, PrismError> {
+    // BC-2.11.021 / ADR-044 D4 / D-1333 Option A:
+    // `head_sql` is the plan-pinned head SQL (already computed by the caller
+    // from the inject_now-ed AST via PqlNormalizer::normalize). It must NOT
+    // be re-derived from the raw query_str (which would contain runtime NOW()
+    // or INTERVAL). The caller in execute_against_session passes the normalized
+    // plan-pinned form directly.
+
+    // Wrap head SQL in a CTE so pipe stages can reference it by alias.
+    // CTE alias `_sqlpipe_head` is an internal name that cannot collide with
+    // user-defined table names (which must match sensor table naming conventions).
+    let cte_alias = "_sqlpipe_head";
+    let mut builder =
+        PipeQueryBuilder::new_with_cte(cte_alias.to_string(), head_sql.trim_end(), table_batches);
+
+    // Apply pipe stages from the SqlPipeQuery.
+    for stage in &spq.stages {
+        builder.apply_stage(stage)?;
+    }
+    Ok(builder.assemble())
+}
+
 // ---------------------------------------------------------------------------
 // Source table name resolution
 // ---------------------------------------------------------------------------
@@ -162,6 +206,37 @@ impl PipeQueryBuilder {
             distinct: false,
             ctes: Vec::new(),
             current_from,
+            schema,
+        }
+    }
+
+    /// Build a `PipeQueryBuilder` that wraps `head_sql` as a CTE under `cte_alias`.
+    ///
+    /// Used by `sqlpipe_to_executable_sql` for SQL→Pipe composition mode: the SQL
+    /// head is wrapped as `cte_alias AS (head_sql)` so subsequent pipe stages can
+    /// reference it as a named relation.
+    fn new_with_cte(
+        cte_alias: String,
+        head_sql: &str,
+        table_batches: &HashMap<String, Vec<RecordBatch>>,
+    ) -> Self {
+        // Schema cannot be statically inferred from the head SQL (it would require
+        // DataFusion planning to resolve the output schema). Fields-exclude after a
+        // SqlPipe head falls back to SELECT * (same as Fields-exclude after an Enrich CTE).
+        let schema = table_batches
+            .get(&cte_alias)
+            .and_then(|bs| bs.first())
+            .map(|b| b.schema());
+
+        Self {
+            select_items: vec!["*".to_string()],
+            where_clauses: Vec::new(),
+            group_by: Vec::new(),
+            order_by: Vec::new(),
+            limit: None,
+            distinct: false,
+            ctes: vec![(cte_alias.clone(), head_sql.to_string())],
+            current_from: cte_alias,
             schema,
         }
     }
@@ -677,6 +752,33 @@ fn expr_to_sql(expr: &Expr) -> Result<String, PrismError> {
             Ok(format!("{lhs_sql} {op_str} {rhs_sql}"))
         }
         Expr::Star => Ok("*".to_string()),
+        // Temporal arithmetic: `'<iso>' ± INTERVAL '<n> seconds'`.
+        //
+        // After `inject_now` is called (BC-2.11.021), `Expr::Now` nodes are
+        // replaced with `Expr::Literal(Literal::Timestamp(now))` and the outer
+        // `TimestampArithmetic` is constant-folded. This arm fires only if folding
+        // did not complete (defensive code path; should not occur in production).
+        //
+        // The base expression emits as `'<iso>'` (plain ISO string, matching the
+        // DataType::Utf8 column type per ADR-044 D4 / F-HIGH-002). Arithmetic on
+        // a Utf8 string is not supported by DataFusion; this arm is an edge-case
+        // fallback for unfold-able expressions. If DataFusion rejects the emitted
+        // SQL, the query surfaces a QueryExecutionFailed error (acceptable — the
+        // spec requires inject_now to fold these before emission).
+        // Using seconds as the canonical unit avoids ambiguity between calendar
+        // days and SI days. `chrono::Duration::num_seconds()` is exact for all
+        // sub-day durations; for whole-day durations it is `n * 86400`.
+        Expr::TimestampArithmetic { base, op, offset } => {
+            use crate::ast::BinaryOp;
+            let base_sql = expr_to_sql(base)?;
+            let op_str = match op {
+                BinaryOp::Sub => "-",
+                BinaryOp::Add => "+",
+                _ => "-", // non_exhaustive arm — Sub is the only grammar-producible op
+            };
+            let secs = offset.num_seconds();
+            Ok(format!("{base_sql} {op_str} INTERVAL '{secs} seconds'"))
+        }
         // Non-exhaustive: FuncCall, Logical, Not, In, InSubquery → simplified fallback.
         _ => Err(PrismError::QueryExecutionFailed {
             detail: "Complex expression in pipe WHERE stage is not yet supported. \
@@ -711,7 +813,13 @@ fn literal_to_sql(lit: &Literal) -> String {
         Literal::Cidr(c) => format!("'{}'", escape_sql_string(&c.cidr)),
         Literal::Regex(r) => format!("'{}'", escape_sql_string(&r.pattern)),
         Literal::IpAddr(ip) => format!("'{}'", ip.0 .0),
-        Literal::Timestamp(ts) => format!("TIMESTAMP '{}'", ts.iso8601),
+        // BC-2.11.021 / ADR-044 D4: The materialized Arrow column type for OCSF
+        // Datetime fields is DataType::Utf8 (ISO-8601 string) — see spec_driven_adapter
+        // `column_type_to_arrow`: `ColumnType::Datetime => DataType::Utf8`. DataFusion
+        // cannot compare a typed `TIMESTAMP '<iso>'` literal against a Utf8 column.
+        // Emit as plain single-quoted ISO string (matching PqlNormalizer::normalize_literal
+        // and BC-2.11.021/ADR-044 D4). (F-HIGH-002 fix)
+        Literal::Timestamp(ts) => format!("'{}'", ts.iso8601),
         _ => "NULL".to_string(), // non_exhaustive arm
     }
 }

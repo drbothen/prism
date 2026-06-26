@@ -236,6 +236,30 @@ impl PrismServer {
         self
     }
 
+    /// Wire an `OrgRegistry` into an existing `PrismServer` (test fixture helper).
+    ///
+    /// Intended for integration tests that need `valid_client_ids()` to return a
+    /// non-empty set (e.g., `server_with_write_executor_acme_crowdstrike`). Without
+    /// an `OrgRegistry`, `validate_client_ids` rejects all slugs with CLIENT_VALIDATION_FAILED.
+    ///
+    /// `with_deps()` remains the production wiring path (boot step 9).
+    pub fn with_org_registry(mut self, registry: Arc<prism_core::OrgRegistry>) -> Self {
+        self.org_registry = Some(registry);
+        self
+    }
+
+    /// Wire an `AuditWriter` into an existing `PrismServer` (test fixture helper).
+    ///
+    /// Intended for integration tests that exercise the `emit_tool_audit` call path
+    /// with a controlled `AuditWriter` (slow writer for timing tests, panicking writer
+    /// for guard-ordering tests per BC-2.10.017 AC-017/AC-018).
+    ///
+    /// `with_deps()` remains the production wiring path (boot step 9).
+    pub fn with_audit_writer(mut self, writer: Arc<dyn AuditWriter>) -> Self {
+        self.audit_writer = Some(writer);
+        self
+    }
+
     /// Construct a minimal PrismServer with NO domain dependencies wired.
     ///
     /// All domain tools return `PrismError::Internal` when called.
@@ -1411,13 +1435,16 @@ const LIVE_TOOLS: &[&str] = &[
     "validate_config",
     "list_capabilities",
     "prism_describe",
+    // HIGH-3: check_sensor_health has a genuine live handler (line ~3082) that validates
+    // client_id, calls scan_inputs_audited, emits audit events, and returns SensorHealthStructuredContent.
+    // It was incorrectly listed in NOT_YET_AVAILABLE_TOOLS; moved here per adversary pass 1.
+    "check_sensor_health",
 ];
 
 /// Tools registered in the catalog whose handlers return `-32003 not
 /// implemented` (`not_yet_available_msg`) — they cannot be invoked regardless
 /// of feature-flag state, so `list_capabilities` reports them as `false`.
 const NOT_YET_AVAILABLE_TOOLS: &[&str] = &[
-    "check_sensor_health",
     "get_diagnostics",
     "create_schedule",
     "list_schedules",
@@ -3398,12 +3425,16 @@ impl PrismServer {
     /// Retrieve diagnostic information for a specific sensor or all sensors.
     ///
     /// DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.
-    /// SECURITY NOTE: Sensor name parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: Configured sensor adapters.
     #[tool(
         description = "Retrieve diagnostic information for a specific sensor or all sensors.\n\
         DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.\n\
-        SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `sensor` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: Configured sensor adapters.\n\
         WHEN TO USE: when investigating sensor adapter behavior or performance issues\n\
         WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
@@ -3417,25 +3448,14 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<GetDiagnosticsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS3-MED-1: sensor name is length-bounded before guard (256-byte cap).
         if let Some(ref sensor) = params.sensor {
-            // F-PR163-PASS3-MED-1: sensor name is length-bounded before injection scan (256-byte cap).
             validate_text_field("sensor", sensor.as_str(), 256)?;
-            self.scan_inputs_audited("get_diagnostics", &[("sensor", sensor.as_str())])
-                .await?;
         }
-
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "get_diagnostics",
-            None,
-            "invoked",
-        )
-        .await?;
-
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         // CRIT-4 fix: sensor diagnostics require live adapter queries (GAP-002-A).
         // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
         // PluginAuthProvider (ADR-028 §D10). Direct adapter wiring is in S-5.04.
-        // Return a structured not-yet-available response rather than Internal (architectural gap, not a wiring defect).
         Err(not_yet_available_msg(
             "sensor diagnostics — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
         ))
@@ -4416,16 +4436,20 @@ is NOT an error — returns matrix with client_registered: false",
     /// Create a recurring PrismQL query schedule.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Query and cron parameters scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a recurring PrismQL query schedule.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Query and cron parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: scope (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4435,26 +4459,11 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateScheduleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
-        validate_text_field("cron", params.cron.as_str(), 256)?;
-        let mut inputs = vec![
-            ("query", params.query.as_str()),
-            ("cron", params.cron.as_str()),
-        ];
+        // F-PR163-PASS3-MED-1: bound scope before guard (256-byte cap).
         if let Some(ref scope) = params.scope {
-            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
             validate_text_field("scope", scope.as_str(), 256)?;
-            inputs.push(("scope", scope.as_str()));
         }
-        self.scan_inputs_audited("create_schedule", &inputs).await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "create_schedule",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -4470,7 +4479,7 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4479,29 +4488,23 @@ is NOT an error — returns matrix with client_registered: false",
     pub async fn list_schedules(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_schedules",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
     /// Delete a PrismQL query schedule by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Delete a PrismQL query schedule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4509,34 +4512,25 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn delete_schedule(
         &self,
-        Parameters(params): Parameters<DeleteScheduleParams>,
+        Parameters(_params): Parameters<DeleteScheduleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("delete_schedule", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "delete_schedule",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
     /// Retrieve diff results from the most recent schedule run.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Retrieve diff results from the most recent schedule run.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4544,34 +4538,29 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn get_diff_results(
         &self,
-        Parameters(params): Parameters<GetDiffResultsParams>,
+        Parameters(_params): Parameters<GetDiffResultsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("get_diff_results", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "get_diff_results",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("schedule management"))
     }
 
     /// Create a detection rule from a PrismQL query.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Name and query parameters scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a detection rule from a PrismQL query.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Name and query parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: scope (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4581,20 +4570,11 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateRuleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        validate_text_field("name", params.name.as_str(), 256)?;
-        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
-        let mut inputs = vec![
-            ("name", params.name.as_str()),
-            ("query", params.query.as_str()),
-        ];
+        // F-PR163-PASS3-MED-1: bound scope before guard (256-byte cap).
         if let Some(ref scope) = params.scope {
-            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
             validate_text_field("scope", scope.as_str(), 256)?;
-            inputs.push(("scope", scope.as_str()));
         }
-        self.scan_inputs_audited("create_rule", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_rule", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -4610,30 +4590,34 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_rules(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_rules", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("detection rules"))
     }
 
     /// Delete a detection rule by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — validates the `id` field format (returns
+    /// INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Delete a detection rule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — validates the `id` field format (returns \
+INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: id (required) — format-validated; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4643,27 +4627,29 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<DeleteRuleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        // F-PASS16-MED-1: validate id length before guard.
         validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("delete_rule", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_rule", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("detection rules"))
     }
 
     /// Create a new security case.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Title and description scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Create a new security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Title and description scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `scope` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: scope (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4673,22 +4659,11 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        validate_text_field("title", params.title.as_str(), 4 * 1024)?;
-        if let Some(ref desc) = params.description {
-            validate_text_field("description", desc.as_str(), 4 * 1024)?;
-        }
-        let mut inputs = vec![("title", params.title.as_str())];
-        if let Some(ref desc) = params.description {
-            inputs.push(("description", desc.as_str()));
-        }
+        // F-PR163-PASS3-MED-1: bound scope before guard (256-byte cap).
         if let Some(ref scope) = params.scope {
-            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
             validate_text_field("scope", scope.as_str(), 256)?;
-            inputs.push(("scope", scope.as_str()));
         }
-        self.scan_inputs_audited("create_case", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_case", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4704,30 +4679,34 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_cases(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_cases", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
     /// Get a specific security case by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID parameter scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — validates the `id` field format (returns
+    /// INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Get a specific security case by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID parameter scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — validates the `id` field format (returns \
+INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: id (required) — format-validated; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4737,27 +4716,29 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<GetCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        // F-PASS16-MED-1: validate id length before guard.
         validate_id_field("id", params.id.as_str())?;
-        self.scan_inputs_audited("get_case", &[("id", params.id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_case", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
     /// Update fields on an existing security case.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: ID, title, and description scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — validates the `id` field format (returns
+    /// INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations (not yet merged).
     #[tool(
         description = "Update fields on an existing security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: ID, title, and description scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — validates the `id` field format (returns \
+INVALID_PARAMS/-32602 on invalid input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: id (required) — format-validated; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4767,24 +4748,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<UpdateCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        // F-PASS16-MED-1: validate id length before guard.
         validate_id_field("id", params.id.as_str())?;
-        // IMP-7/SEC-001: bound free-text fields before injection scanning.
-        if let Some(ref title) = params.title {
-            validate_text_field("title", title.as_str(), 4 * 1024)?;
-        }
-        if let Some(ref desc) = params.description {
-            validate_text_field("description", desc.as_str(), 4 * 1024)?;
-        }
-        let mut inputs = vec![("id", params.id.as_str())];
-        if let Some(ref title) = params.title {
-            inputs.push(("title", title.as_str()));
-        }
-        if let Some(ref desc) = params.description {
-            inputs.push(("description", desc.as_str()));
-        }
-        self.scan_inputs_audited("update_case", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "update_case", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4800,7 +4766,7 @@ is NOT an error — returns matrix with client_registered: false",
         DATA SOURCE: prism-operations (not yet merged).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -4809,7 +4775,7 @@ is NOT an error — returns matrix with client_registered: false",
     pub async fn case_metrics(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "case_metrics", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("case management"))
     }
 
@@ -4818,12 +4784,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// List credential references for the given client (names only, never raw values).
     ///
     /// DATA TRUST LEVEL: Internal — credential names are operator-managed references.
-    /// SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "List credential references for the given client (names only, never raw values per AD-017).\n\
         DATA TRUST LEVEL: Internal — credential names are operator-managed references.\n\
-        SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4835,35 +4801,21 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn list_credentials(
         &self,
-        Parameters(params): Parameters<ListCredentialsParams>,
+        Parameters(_params): Parameters<ListCredentialsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        self.scan_inputs_audited(
-            "list_credentials",
-            &[("client_id", params.client_id.as_str())],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_credentials",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
     /// Check the status of a credential reference for the given client.
     ///
     /// DATA TRUST LEVEL: Internal — credential status is operator-managed.
-    /// SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Check the status of a credential reference for the given client.\n\
         DATA TRUST LEVEL: Internal — credential status is operator-managed.\n\
-        SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs. Credential values NEVER exposed (AD-017).\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4875,35 +4827,26 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn credential_status(
         &self,
-        Parameters(params): Parameters<CredentialStatusParams>,
+        Parameters(_params): Parameters<CredentialStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        self.scan_inputs_audited(
-            "credential_status",
-            &[("client_id", params.client_id.as_str())],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "credential_status",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
     /// Configure a credential source for a sensor (env, file, vault, or keyring reference).
     ///
     /// DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled in MCP context.
-    /// SECURITY NOTE: All string fields scanned for prompt injection. Credential values NEVER stored (AD-017).
+    /// SECURITY NOTE: Not yet available — length-bounds the `name` (256 B) and `source` (1 KB) text
+    /// parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns
+    /// E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs. Credential values
+    /// NEVER stored (AD-017).
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Configure a credential source for a sensor (env, file, vault, or keyring reference).\n\
         DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled.\n\
-        SECURITY NOTE: All string fields scanned for prompt injection. Credential values NEVER stored (AD-017).\n\
+        SECURITY NOTE: Not yet available — length-bounds the `name` (256 B) and `source` (1 KB) \
+text parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns \
+E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs. Credential values NEVER stored (AD-017).\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4917,43 +4860,26 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<ConfigureCredentialSourceParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
-        validate_id_field("sensor_id", params.sensor_id.as_str())?;
-        // F-PR163-PASS2-IMP-2: bound name (256 B) and source (1 KiB) before injection scan.
+        // F-PR163-PASS2-IMP-2: bound name and source before guard.
         validate_text_field("name", params.name.as_str(), 256)?;
         validate_text_field("source", params.source.as_str(), 1024)?;
-        self.scan_inputs_audited(
-            "configure_credential_source",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("sensor_id", params.sensor_id.as_str()),
-                ("name", params.name.as_str()),
-                ("source", params.source.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "configure_credential_source",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
     /// Delete a credential reference for a sensor (removes the reference, not any external value).
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: All string fields scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — length-bounds the `name` text parameter (returns
+    /// INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no
+    /// scan/audit/business-logic processing occurs.
     /// DATA SOURCE: Credential store (not yet wired).
     #[tool(
         description = "Delete a credential reference for a sensor (removes the reference, not any external value).\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: All string fields scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `name` text parameter (returns \
+INVALID_PARAMS/-32602 on oversized input), then returns E-INFRA-NYA/-32003; no \
+scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: Credential store (not yet wired).\n\
         WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
         WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
@@ -4967,29 +4893,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<DeleteCredentialParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
-        validate_id_field("sensor_id", params.sensor_id.as_str())?;
-        // F-PR163-PASS2-IMP-2: bound name before injection scan (256 B).
+        // F-PR163-PASS2-IMP-2: bound name before guard (256-byte cap).
         validate_text_field("name", params.name.as_str(), 256)?;
-        self.scan_inputs_audited(
-            "delete_credential",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("sensor_id", params.sensor_id.as_str()),
-                ("name", params.name.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "delete_credential",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -5017,29 +4923,27 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(_params): Parameters<WatchdogStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "watchdog_status",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("watchdog"))
     }
 
     /// List alerts for the given client, with optional severity/rule/status filters.
     ///
     /// DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled in MCP context.
-    /// SECURITY NOTE: All string filter parameters scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — length-bounds the `severity`, `status`, and `since` text
+    /// parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns
+    /// E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs.
     /// DATA SOURCE: prism-operations alert store (not yet wired).
     #[tool(
         description = "List alerts for the given client, with optional severity/rule/status filters.\n\
         DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled.\n\
-        SECURITY NOTE: All string filter parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — length-bounds the `severity`, `status`, and `since` \
+text parameters (returns INVALID_PARAMS/-32602 on oversized input), then returns \
+E-INFRA-NYA/-32003; no scan/audit/business-logic processing occurs.\n\
         DATA SOURCE: prism-operations alert store (not yet wired).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: severity/status/since (optional) — length-bounded; all other parameters not processed\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -5049,9 +4953,7 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<ListAlertsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound filter strings before injection scan.
-        // severity, status are enum-like (short) — 256 B cap.
-        // since is ISO8601 timestamp — 256 B cap (ISO8601 is ~30 chars max).
+        // F-PR163-PASS2-IMP-2: bound filter strings before guard (all 256 B cap).
         if let Some(ref v) = params.severity {
             validate_text_field("severity", v.as_str(), 256)?;
         }
@@ -5061,65 +4963,23 @@ is NOT an error — returns matrix with client_registered: false",
         if let Some(ref v) = params.since {
             validate_text_field("since", v.as_str(), 256)?;
         }
-        let mut inputs: Vec<(&str, &str)> = Vec::new();
-        let client_id_storage;
-        let severity_storage;
-        let rule_id_storage;
-        let status_storage;
-        let since_storage;
-        if let Some(ref v) = params.client_id {
-            client_id_storage = v.as_str();
-            inputs.push(("client_id", client_id_storage));
-        }
-        if let Some(ref v) = params.severity {
-            severity_storage = v.as_str();
-            inputs.push(("severity", severity_storage));
-        }
-        if let Some(ref v) = params.rule_id {
-            rule_id_storage = v.as_str();
-            // F-PASS15-HIGH-1: validate rule_id length before injection scan.
-            validate_id_field("rule_id", rule_id_storage)?;
-            inputs.push(("rule_id", rule_id_storage));
-        }
-        if let Some(ref v) = params.status {
-            status_storage = v.as_str();
-            inputs.push(("status", status_storage));
-        }
-        if let Some(ref v) = params.since {
-            since_storage = v.as_str();
-            inputs.push(("since", since_storage));
-        }
-        if !inputs.is_empty() {
-            self.scan_inputs_audited("list_alerts", &inputs).await?;
-        }
-        if let Some(ref client_id) = params.client_id {
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_alerts",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("alerting"))
     }
 
     /// Get a specific alert by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled in MCP context.
-    /// SECURITY NOTE: alert_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations alert store (not yet wired).
     #[tool(
         description = "Get a specific alert by ID.\n\
         DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
-        SECURITY NOTE: alert_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations alert store (not yet wired).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -5127,28 +4987,25 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn get_alert(
         &self,
-        Parameters(params): Parameters<GetAlertParams>,
+        Parameters(_params): Parameters<GetAlertParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("alert_id", params.alert_id.as_str())?;
-        self.scan_inputs_audited("get_alert", &[("alert_id", params.alert_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_alert", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("alerting"))
     }
 
     /// Acknowledge an alert to suppress repeat notifications.
     ///
     /// DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled in MCP context.
-    /// SECURITY NOTE: alert_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: prism-operations alert store (not yet wired).
     #[tool(
         description = "Acknowledge an alert to suppress repeat notifications.\n\
         DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
-        SECURITY NOTE: alert_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: prism-operations alert store (not yet wired).\n\
         WHEN TO USE: when managing prism-operations features once that module is available\n\
         WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
-        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PARAMETERS: not applicable — tool returns E-INFRA-NYA / -32003 before any parameter processing\n\
         PAGINATION: not applicable in the current not-yet-available state\n\
         RESPONSE: not yet available — returns -32003 not implemented\n\
         ERRORS: -32003 not implemented, prism-operations not yet merged",
@@ -5156,21 +5013,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn acknowledge_alert(
         &self,
-        Parameters(params): Parameters<AcknowledgeAlertParams>,
+        Parameters(_params): Parameters<AcknowledgeAlertParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("alert_id", params.alert_id.as_str())?;
-        self.scan_inputs_audited(
-            "acknowledge_alert",
-            &[("alert_id", params.alert_id.as_str())],
-        )
-        .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "acknowledge_alert",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("alerting"))
     }
 
@@ -5179,12 +5024,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Contain (network-isolate) a CrowdStrike-managed host.
     ///
     /// DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: client_id and device_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).
     #[tool(
         description = "Contain (network-isolate) a CrowdStrike-managed host.\n\
         DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
-        SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).\n\
         WHEN TO USE: when executing a confirmed sensor write action on a CrowdStrike device\n\
         WHEN NOT TO USE: do not execute without prior dry-run approval and confirmation token\n\
@@ -5196,39 +5041,21 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn crowdstrike_contain_host(
         &self,
-        Parameters(params): Parameters<CrowdstrikeContainHostParams>,
+        Parameters(_params): Parameters<CrowdstrikeContainHostParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("device_id", params.device_id.as_str())?;
-        self.scan_inputs_audited(
-            "crowdstrike_contain_host",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("device_id", params.device_id.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "crowdstrike_contain_host",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("crowdstrike sensor actions"))
     }
 
     /// Lift network containment from a CrowdStrike-managed host.
     ///
     /// DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: client_id and device_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).
     #[tool(
         description = "Lift network containment from a CrowdStrike-managed host.\n\
         DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
-        SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).\n\
         WHEN TO USE: when executing a confirmed sensor write action on a CrowdStrike device\n\
         WHEN NOT TO USE: do not execute without prior dry-run approval and confirmation token\n\
@@ -5240,27 +5067,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn crowdstrike_lift_containment(
         &self,
-        Parameters(params): Parameters<CrowdstrikeLiftContainmentParams>,
+        Parameters(_params): Parameters<CrowdstrikeLiftContainmentParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("device_id", params.device_id.as_str())?;
-        self.scan_inputs_audited(
-            "crowdstrike_lift_containment",
-            &[
-                ("client_id", params.client_id.as_str()),
-                ("device_id", params.device_id.as_str()),
-            ],
-        )
-        .await?;
-        if let Err(e) = validate_client_ids(std::slice::from_ref(&params.client_id)) {
-            return Ok(e);
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "crowdstrike_lift_containment",
-            Some(params.client_id.as_str()),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("crowdstrike sensor actions"))
     }
 
@@ -5288,19 +5097,19 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(_params): Parameters<ListPacksParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_packs", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
     /// Explain the contents and discovery status of a specific pack.
     ///
     /// DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: pack_id and client_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal pack registry (not yet wired).
     #[tool(
         description = "Explain the contents and discovery status of a specific pack.\n\
         DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
-        SECURITY NOTE: pack_id and client_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal pack registry (not yet wired).\n\
         WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
         WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
@@ -5314,37 +5123,21 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<ExplainPackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate pack_id length before injection scan.
+        // F-PASS15-HIGH-1: validate pack_id length before guard.
         validate_id_field("pack_id", params.pack_id.as_str())?;
-        let mut inputs = vec![("pack_id", params.pack_id.as_str())];
-        if let Some(ref client_id) = params.client_id {
-            inputs.push(("client_id", client_id.as_str()));
-        }
-        self.scan_inputs_audited("explain_pack", &inputs).await?;
-        if let Some(ref client_id) = params.client_id {
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "explain_pack",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
     /// Create a new query pack from the given queries, rules, and aliases.
     ///
     /// DATA TRUST LEVEL: External/untrusted — pack_name and queries are attacker-controlled in MCP context.
-    /// SECURITY NOTE: pack_name and all query strings scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal pack registry (not yet wired).
     #[tool(
         description = "Create a new query pack from the given queries, rules, and aliases.\n\
         DATA TRUST LEVEL: External/untrusted — pack_name and queries are attacker-controlled.\n\
-        SECURITY NOTE: pack_name and all query strings scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal pack registry (not yet wired).\n\
         WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
         WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
@@ -5358,7 +5151,7 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreatePackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound all free-text fields before injection scan.
+        // F-PR163-PASS2-IMP-2: bound all free-text fields before guard.
         validate_text_field("pack_name", params.pack_name.as_str(), 256)?;
         if let Some(ref queries) = params.queries {
             // queries: each is a PrismQL string — cap at 100 items × 64 KiB each.
@@ -5372,37 +5165,19 @@ is NOT an error — returns matrix with client_registered: false",
             // aliases: each is an alias name reference — cap at 100 items × 256 B each.
             validate_string_vec_field("aliases", aliases, 100, 256)?;
         }
-        let mut inputs = vec![("pack_name", params.pack_name.as_str())];
-        // HIGH-3 fix: scan queries, rules, AND aliases arrays for injection (all are user-controlled).
-        if let Some(ref queries) = params.queries {
-            for q in queries {
-                inputs.push(("query", q.as_str()));
-            }
-        }
-        if let Some(ref rules) = params.rules {
-            for r in rules {
-                inputs.push(("rule", r.as_str()));
-            }
-        }
-        if let Some(ref aliases) = params.aliases {
-            for a in aliases {
-                inputs.push(("alias", a.as_str()));
-            }
-        }
-        self.scan_inputs_audited("create_pack", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_pack", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
     /// Delete a query pack by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: pack_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal pack registry (not yet wired).
     #[tool(
         description = "Delete a query pack by ID.\n\
         DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
-        SECURITY NOTE: pack_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal pack registry (not yet wired).\n\
         WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
         WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
@@ -5414,13 +5189,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn delete_pack(
         &self,
-        Parameters(params): Parameters<DeletePackParams>,
+        Parameters(_params): Parameters<DeletePackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PASS15-HIGH-1: validate pack_id length before injection scan.
-        validate_id_field("pack_id", params.pack_id.as_str())?;
-        self.scan_inputs_audited("delete_pack", &[("pack_id", params.pack_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_pack", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -5429,12 +5200,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// List all configured infusions (data enrichment pipelines).
     ///
     /// DATA TRUST LEVEL: Internal — infusion metadata is operator-managed.
-    /// SECURITY NOTE: Optional client_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal infusion registry (not yet wired).
     #[tool(
         description = "List all configured infusions (data enrichment pipelines).\n\
         DATA TRUST LEVEL: Internal — infusion metadata is operator-managed.\n\
-        SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal infusion registry (not yet wired).\n\
         WHEN TO USE: when managing data enrichment pipeline configurations\n\
         WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
@@ -5446,34 +5217,23 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn list_infusions(
         &self,
-        Parameters(params): Parameters<ListInfusionsParams>,
+        Parameters(_params): Parameters<ListInfusionsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        if let Some(ref client_id) = params.client_id {
-            self.scan_inputs_audited("list_infusions", &[("client_id", client_id.as_str())])
-                .await?;
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_infusions",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: the not_yet_available
+        // guard fires BEFORE emit_tool_audit — no audit for unavailable tools
+        // (nothing was executed; Option A per BC-2.10.017 postconditions).
         Err(not_yet_available_msg("infusion management"))
     }
 
     /// Retrieve the status of a specific infusion pipeline.
     ///
     /// DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: infusion_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal infusion registry (not yet wired).
     #[tool(
         description = "Retrieve the status of a specific infusion pipeline.\n\
         DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
-        SECURITY NOTE: infusion_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal infusion registry (not yet wired).\n\
         WHEN TO USE: when managing data enrichment pipeline configurations\n\
         WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
@@ -5485,33 +5245,21 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn infusion_status(
         &self,
-        Parameters(params): Parameters<InfusionStatusParams>,
+        Parameters(_params): Parameters<InfusionStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("infusion_id", params.infusion_id.as_str())?;
-        self.scan_inputs_audited(
-            "infusion_status",
-            &[("infusion_id", params.infusion_id.as_str())],
-        )
-        .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "infusion_status",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before audit.
         Err(not_yet_available_msg("infusion management"))
     }
 
     /// Hot-reload an infusion pipeline configuration without restarting Prism.
     ///
     /// DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: infusion_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal infusion registry (not yet wired).
     #[tool(
         description = "Hot-reload an infusion pipeline configuration without restarting Prism.\n\
         DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
-        SECURITY NOTE: infusion_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal infusion registry (not yet wired).\n\
         WHEN TO USE: when managing data enrichment pipeline configurations\n\
         WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
@@ -5523,21 +5271,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn reload_infusion(
         &self,
-        Parameters(params): Parameters<ReloadInfusionParams>,
+        Parameters(_params): Parameters<ReloadInfusionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("infusion_id", params.infusion_id.as_str())?;
-        self.scan_inputs_audited(
-            "reload_infusion",
-            &[("infusion_id", params.infusion_id.as_str())],
-        )
-        .await?;
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "reload_infusion",
-            None,
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("infusion management"))
     }
 
@@ -5565,19 +5301,19 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(_params): Parameters<ListPluginsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_plugins", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("plugin management"))
     }
 
     /// Retrieve the status and metrics of a specific WASM plugin.
     ///
     /// DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: plugin_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal WASM plugin runtime (not yet wired).
     #[tool(
         description = "Retrieve the status and metrics of a specific WASM plugin.\n\
         DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
-        SECURITY NOTE: plugin_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal WASM plugin runtime (not yet wired).\n\
         WHEN TO USE: when managing WASM plugin runtime state\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5589,24 +5325,21 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn plugin_status(
         &self,
-        Parameters(params): Parameters<PluginStatusParams>,
+        Parameters(_params): Parameters<PluginStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("plugin_id", params.plugin_id.as_str())?;
-        self.scan_inputs_audited("plugin_status", &[("plugin_id", params.plugin_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "plugin_status", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before audit.
         Err(not_yet_available_msg("plugin management"))
     }
 
     /// Hot-reload a WASM plugin without restarting Prism.
     ///
     /// DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: plugin_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal WASM plugin runtime (not yet wired).
     #[tool(
         description = "Hot-reload a WASM plugin without restarting Prism.\n\
         DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
-        SECURITY NOTE: plugin_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal WASM plugin runtime (not yet wired).\n\
         WHEN TO USE: when managing WASM plugin runtime state\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5618,12 +5351,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn reload_plugin(
         &self,
-        Parameters(params): Parameters<ReloadPluginParams>,
+        Parameters(_params): Parameters<ReloadPluginParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("plugin_id", params.plugin_id.as_str())?;
-        self.scan_inputs_audited("reload_plugin", &[("plugin_id", params.plugin_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "reload_plugin", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("plugin management"))
     }
 
@@ -5632,12 +5362,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// List all configured actions (automated response playbooks).
     ///
     /// DATA TRUST LEVEL: Internal — action metadata is operator-managed.
-    /// SECURITY NOTE: Optional client_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired).
     #[tool(
         description = "List all configured actions (automated response playbooks).\n\
         DATA TRUST LEVEL: Internal — action metadata is operator-managed.\n\
-        SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5649,34 +5379,21 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn list_actions(
         &self,
-        Parameters(params): Parameters<ListActionsParams>,
+        Parameters(_params): Parameters<ListActionsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        if let Some(ref client_id) = params.client_id {
-            self.scan_inputs_audited("list_actions", &[("client_id", client_id.as_str())])
-                .await?;
-            if let Err(e) = validate_client_ids(std::slice::from_ref(client_id)) {
-                return Ok(e);
-            }
-        }
-        emit_tool_audit(
-            self.audit_writer.as_ref(),
-            "list_actions",
-            params.client_id.as_deref(),
-            "invoked",
-        )
-        .await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
     /// Retrieve the status and last-run metadata of a specific action.
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired).
     #[tool(
         description = "Retrieve the status and last-run metadata of a specific action.\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
-        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5688,24 +5405,21 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn action_status(
         &self,
-        Parameters(params): Parameters<ActionStatusParams>,
+        Parameters(_params): Parameters<ActionStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        self.scan_inputs_audited("action_status", &[("action_id", params.action_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "action_status", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
     /// Fire (execute) an action immediately with optional context.
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id and context are attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id and context scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).
     #[tool(
         description = "Fire (execute) an action immediately with optional context.\n\
         DATA TRUST LEVEL: External/untrusted — action_id and context are attacker-controlled.\n\
-        SECURITY NOTE: action_id and context scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5719,29 +5433,23 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<FireActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        // F-PR163-PASS2-IMP-2: bound context before injection scan (4 KiB).
+        // F-PR163-PASS2-IMP-2: bound context before guard (4 KiB).
         if let Some(ref ctx) = params.context {
             validate_text_field("context", ctx.as_str(), 4 * 1024)?;
         }
-        let mut inputs = vec![("action_id", params.action_id.as_str())];
-        if let Some(ref ctx) = params.context {
-            inputs.push(("context", ctx.as_str()));
-        }
-        self.scan_inputs_audited("fire_action", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "fire_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
     /// Test an action in dry-run mode (no side effects).
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action runtime (not yet wired).
     #[tool(
         description = "Test an action in dry-run mode (no side effects).\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
-        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action runtime (not yet wired).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5753,24 +5461,21 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn test_action(
         &self,
-        Parameters(params): Parameters<TestActionParams>,
+        Parameters(_params): Parameters<TestActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        self.scan_inputs_audited("test_action", &[("action_id", params.action_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "test_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
     /// Create a new action from a TOML spec.
     ///
     /// DATA TRUST LEVEL: External/untrusted — TOML spec is attacker-controlled in MCP context.
-    /// SECURITY NOTE: spec_toml scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired — capability-gated write).
     #[tool(
         description = "Create a new action from a TOML spec.\n\
         DATA TRUST LEVEL: External/untrusted — TOML spec is attacker-controlled.\n\
-        SECURITY NOTE: spec_toml scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired — capability-gated write).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5784,23 +5489,21 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<CreateActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound spec_toml before injection scan (256 KiB, matches add_sensor_spec).
+        // F-PR163-PASS2-IMP-2: bound spec_toml before guard (256 KiB, matches add_sensor_spec).
         validate_text_field("spec_toml", params.spec_toml.as_str(), 256 * 1024)?;
-        self.scan_inputs_audited("create_action", &[("spec_toml", params.spec_toml.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
     /// Delete an action by ID.
     ///
     /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
-    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal action registry (not yet wired — capability-gated write).
     #[tool(
         description = "Delete an action by ID.\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
-        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal action registry (not yet wired — capability-gated write).\n\
         WHEN TO USE: when managing or executing automated response playbooks\n\
         WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
@@ -5812,12 +5515,9 @@ is NOT an error — returns matrix with client_registered: false",
     )]
     pub async fn delete_action(
         &self,
-        Parameters(params): Parameters<DeleteActionParams>,
+        Parameters(_params): Parameters<DeleteActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        validate_id_field("action_id", params.action_id.as_str())?;
-        self.scan_inputs_audited("delete_action", &[("action_id", params.action_id.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_action", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("action management"))
     }
 
@@ -5826,12 +5526,12 @@ is NOT an error — returns matrix with client_registered: false",
     /// Get structured help on a Prism topic (PrismQL, OCSF fields, detection rules, error codes).
     ///
     /// DATA TRUST LEVEL: External/untrusted — topic string is attacker-controlled in MCP context.
-    /// SECURITY NOTE: topic scanned for prompt injection.
+    /// SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.
     /// DATA SOURCE: Internal documentation registry (not yet wired).
     #[tool(
         description = "Get structured help on a Prism topic (PrismQL, OCSF fields, detection rules, error codes).\n\
         DATA TRUST LEVEL: External/untrusted — topic string is attacker-controlled.\n\
-        SECURITY NOTE: topic scanned for prompt injection.\n\
+        SECURITY NOTE: Not yet available — returns E-INFRA-NYA / -32003 immediately; no input processing occurs.\n\
         DATA SOURCE: Internal documentation registry (not yet wired).\n\
         WHEN TO USE: when you need documentation on PrismQL syntax, OCSF fields, or error codes\n\
         WHEN NOT TO USE: not for data retrieval — use query tool for sensor data\n\
@@ -5845,11 +5545,9 @@ is NOT an error — returns matrix with client_registered: false",
         &self,
         Parameters(params): Parameters<GetHelpParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        // F-PR163-PASS2-IMP-2: bound topic before injection scan (256 B).
+        // F-PR163-PASS2-IMP-2: bound topic before guard (256 B).
         validate_text_field("topic", params.topic.as_str(), 256)?;
-        self.scan_inputs_audited("get_help", &[("topic", params.topic.as_str())])
-            .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked").await?;
+        // BC-2.10.017 INV-NOT-YET-AVAILABLE-GUARD-ORDER: guard fires before scan/audit.
         Err(not_yet_available_msg("help system"))
     }
 
@@ -6593,7 +6291,10 @@ mod tests {
             .expect("endpoint registration must succeed");
 
         // FeatureFlagEvaluator with empty client map — deny-by-default for any client.
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+            BTreeMap::new(),
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
+        ));
         let confirmation_store = Arc::new(ConfirmationTokenStore::new());
         let adapter_registry = Arc::new(AdapterRegistry::new());
 
@@ -7051,7 +6752,10 @@ mod tests {
             .register("test_sensor", vec![endpoint_spec])
             .expect("endpoint registration must succeed");
 
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+            BTreeMap::new(),
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
+        ));
         let confirmation_store = Arc::new(ConfirmationTokenStore::new());
         let adapter_registry = Arc::new(AdapterRegistry::new());
 
@@ -7976,7 +7680,10 @@ mod tests {
             .register("test_sensor", vec![endpoint_spec])
             .expect("endpoint registration must succeed");
 
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+            BTreeMap::new(),
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
+        ));
         let confirmation_store =
             Arc::new(prism_security::confirmation_token::ConfirmationTokenStore::new());
         let adapter_registry = Arc::new(AdapterRegistry::new());
@@ -9434,6 +9141,54 @@ mod tests {
         );
     }
 
+    /// OBS-4/PG-1: positive-coverage assertions for the tool classification partition.
+    ///
+    /// Verifies:
+    /// - A NOT_YET_AVAILABLE tool (`get_diagnostics`) returns error code -32003
+    ///   (NOT_IMPLEMENTED) — proving it uses `not_yet_available_msg`.
+    /// - `check_sensor_health` (LIVE since HIGH-3 fix) does NOT return -32003 for a
+    ///   valid client_id — proving the handler is wired and not stubbed.
+    ///
+    /// This catches the case where a tool is moved to LIVE_TOOLS but its handler
+    /// still calls `not_yet_available_msg` (a paper-fix detection case).
+    #[tokio::test]
+    async fn test_MCP_01_partition_positive_coverage() {
+        use rmcp::handler::server::wrapper::Parameters;
+
+        let server = PrismServer::new();
+
+        // ── NOT_YET_AVAILABLE tool: must return -32003 (NOT_IMPLEMENTED) ──────
+        let diag_result = server
+            .get_diagnostics(Parameters(GetDiagnosticsParams { sensor: None }))
+            .await;
+        let diag_err =
+            diag_result.expect_err("get_diagnostics is NOT_YET_AVAILABLE → must return Err");
+        assert_eq!(
+            diag_err.code.0,
+            codes::NOT_IMPLEMENTED,
+            "OBS-4/PG-1: get_diagnostics (NOT_YET_AVAILABLE) must return -32003; \
+             got code {}",
+            diag_err.code.0
+        );
+
+        // ── LIVE tool (check_sensor_health): must NOT return -32003 ───────────
+        // Use a valid client_id so the handler proceeds past the empty-check guard.
+        // Expected: the handler returns Ok(...) or Err(-32000 internal) but NOT -32003.
+        let health_result = server
+            .check_sensor_health(Parameters(CheckSensorHealthParams::for_client("acme")))
+            .await;
+        if let Err(ref health_err) = health_result {
+            assert_ne!(
+                health_err.code.0,
+                codes::NOT_IMPLEMENTED,
+                "OBS-4/PG-1: check_sensor_health is LIVE → must NOT return -32003; \
+                 but got code {} — handler is still using not_yet_available_msg",
+                health_err.code.0
+            );
+        }
+        // Ok(...) or any non-(-32003) error both satisfy the LIVE assertion.
+    }
+
     /// Build a PrismServer with a WriteExecutor whose FeatureFlagEvaluator has
     /// `registered_client` in its runtime capability registry.
     ///
@@ -9481,7 +9236,21 @@ mod tests {
         let mut clients = BTreeMap::new();
         clients.insert(registered_client.to_owned(), caps);
 
-        let feature_flags = Arc::new(FeatureFlagEvaluator::new(clients));
+        // BC-2.10.015: client_exists consults OrgRegistry (not client_capabilities map).
+        // Register the client in OrgRegistry so the "registered client" test scenario
+        // correctly reports client_registered=true. An empty OrgRegistry produces false
+        // per EC-10-015-005, which is correct for unregistered-client tests but NOT for
+        // this helper which models a fully wired registered-client scenario.
+        let org_registry = {
+            use prism_core::{OrgId, OrgSlug};
+            let reg = Arc::new(prism_core::OrgRegistry::new());
+            let slug = OrgSlug::new(registered_client);
+            if slug.is_ok() {
+                let _ = reg.register(slug, OrgId::new());
+            }
+            reg
+        };
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(clients, org_registry));
         let write_executor = Arc::new(WriteExecutor::new(
             feature_flags,
             Arc::new(ConfirmationTokenStore::new()),

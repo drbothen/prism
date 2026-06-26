@@ -183,7 +183,10 @@ fn make_executor(fail_audit: bool) -> WriteExecutor {
     );
     caps.insert("acme".to_string(), acme_caps);
 
-    let evaluator = Arc::new(FeatureFlagEvaluator::new(caps));
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(
+        caps,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let audit = if fail_audit {
         test_helpers::MockAuditWriter::always_fail_intent()
     } else {
@@ -450,7 +453,10 @@ async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
     );
     caps.insert("acme".to_string(), acme_caps);
 
-    let evaluator = Arc::new(FeatureFlagEvaluator::new(caps));
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(
+        caps,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let store = Arc::new(ConfirmationTokenStore::new());
     let audit = test_helpers::MockAuditWriter::always_succeed();
     let registry = Arc::new(prism_sensors::AdapterRegistry::new());
@@ -592,7 +598,10 @@ async fn test_crit3_crowdstrike_write_denied_in_default_build() {
         CapabilityEffect::Allow,
     );
     caps.insert("acme".to_string(), acme_caps);
-    let evaluator = Arc::new(FeatureFlagEvaluator::new(caps));
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(
+        caps,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let store = Arc::new(ConfirmationTokenStore::new());
     let audit = test_helpers::MockAuditWriter::always_succeed();
     let registry = Arc::new(prism_sensors::AdapterRegistry::new());
@@ -1237,7 +1246,10 @@ async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
         CapabilityEffect::Allow,
     );
     caps.insert("acme".to_string(), acme_caps);
-    let evaluator = Arc::new(FeatureFlagEvaluator::new(caps));
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(
+        caps,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let audit = test_helpers::MockAuditWriter::always_succeed();
     let registry = Arc::new(prism_sensors::AdapterRegistry::new());
 
@@ -1377,7 +1389,10 @@ async fn test_BC_2_07_004_executor_success_invalidates_response_cache() {
         CapabilityEffect::Allow,
     );
     caps.insert("acme".to_string(), acme_caps);
-    let evaluator = Arc::new(FeatureFlagEvaluator::new(caps));
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(
+        caps,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let mut endpoint_registry = WriteEndpointRegistry::new();
     let _ = endpoint_registry.register(
         "crowdstrike",
