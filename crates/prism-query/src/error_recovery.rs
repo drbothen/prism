@@ -108,10 +108,20 @@ fn is_enrich_missing_column_at(input: &str, offset: usize) -> bool {
     }
 
     // Extract the last word (infusion name) before the error offset.
+    //
+    // SAFETY (F-P3-CRIT-001): `rfind(char_pred)` returns the byte START of the matched
+    // char, so `i + 1` lands INSIDE any multibyte non-alphanumeric char (e.g. `»`
+    // U+00BB = 2 bytes: rfind → byte 17, i+1 = 18 = inside the char → panic on slice).
+    //
+    // Fix: use `char_indices().rev().find(pred)` which yields `(byte_offset, char)`.
+    // `i + c.len_utf8()` is always the byte START of the NEXT character — a valid
+    // char boundary regardless of whether `c` is ASCII or multibyte.
     let last_word_end = prefix_trimmed.len();
     let last_word_start = prefix_trimmed
-        .rfind(|c: char| !c.is_alphanumeric() && c != '_')
-        .map(|i| i + 1)
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !c.is_alphanumeric() && *c != '_')
+        .map(|(i, c)| i + c.len_utf8())
         .unwrap_or(0);
     if last_word_start >= last_word_end {
         return false;
@@ -125,10 +135,13 @@ fn is_enrich_missing_column_at(input: &str, offset: usize) -> bool {
     }
 
     // The word before the infusion name must be `enrich` (case-insensitive).
+    // Same char-boundary-safe pattern: use char_indices().rev().find() instead of rfind.
     let kw_end = before_infusion.len();
     let kw_start = before_infusion
-        .rfind(|c: char| !c.is_alphanumeric() && c != '_')
-        .map(|i| i + 1)
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !c.is_alphanumeric() && *c != '_')
+        .map(|(i, c)| i + c.len_utf8())
         .unwrap_or(0);
     let keyword = &before_infusion[kw_start..kw_end];
     keyword.eq_ignore_ascii_case("enrich")
@@ -285,6 +298,102 @@ mod tests {
         assert!(
             !is_enrich_missing_column_at(input, input.len()),
             "should NOT detect enrich missing column for non-enrich keyword"
+        );
+    }
+
+    // ── F-P3-CRIT-001 unit regression tests ──────────────────────────────────
+    //
+    // These tests call is_enrich_missing_column_at DIRECTLY with offset=input.len()
+    // (the EOF offset that the function always receives for "missing column" errors).
+    // They trigger the char-boundary panic by placing a multibyte non-alphanumeric
+    // char INSIDE the prefix that rfind scans.
+    //
+    // Before the fix: rfind returns the START byte of the multibyte char (e.g. byte 17
+    // for »), then .map(|i| i+1) produces byte 18 which is INSIDE the char. The
+    // subsequent &prefix_trimmed[18..] slice panics "not a char boundary".
+    // After the fix: must return bool without panicking.
+
+    /// F-P3-CRIT-001 unit-a: `»` (U+00BB, 2 bytes) between ident tokens — EOF offset.
+    ///
+    /// `"FROM t | enrich a»b"` at offset=20 (EOF):
+    ///   prefix_trimmed = "FROM t | enrich a»b"
+    ///   rfind(!alphanumeric, !=_) finds '»' at byte 17 → i+1=18 NOT a boundary → PANIC.
+    #[test]
+    fn test_f_p3_crit_001_unit_a_two_byte_separator_no_panic() {
+        let input = "FROM t | enrich a\u{00BB}b";
+        // catch_unwind returns Err if a panic occurs.
+        // Before fix: panic → Err → assertion fails (RED gate).
+        // After fix: no panic → Ok → assertion passes (GREEN gate).
+        let result = std::panic::catch_unwind(|| is_enrich_missing_column_at(input, input.len()));
+        assert!(
+            result.is_ok(),
+            "F-P3-CRIT-001 unit-a: is_enrich_missing_column_at panicked on 2-byte separator '»'"
+        );
+    }
+
+    /// F-P3-CRIT-001 unit-b: `—` (U+2014, 3 bytes) between ident tokens — EOF offset.
+    ///
+    /// `"FROM t | enrich x—y"` at offset=EOF:
+    ///   rfind finds '—' at its start byte, i+1 is inside the 3-byte sequence → PANIC.
+    #[test]
+    fn test_f_p3_crit_001_unit_b_three_byte_separator_no_panic() {
+        let input = "FROM t | enrich x\u{2014}y";
+        let result = std::panic::catch_unwind(|| is_enrich_missing_column_at(input, input.len()));
+        assert!(
+            result.is_ok(),
+            "F-P3-CRIT-001 unit-b: is_enrich_missing_column_at panicked on 3-byte separator '—'"
+        );
+    }
+
+    /// F-P3-CRIT-001 unit-c: `×` (U+00D7, 2 bytes) as separator — EOF offset.
+    ///
+    /// `"FROM t | enrich a×b"` at offset=EOF:
+    ///   rfind finds '×' at its start byte, i+1 is inside the 2-byte sequence → PANIC.
+    #[test]
+    fn test_f_p3_crit_001_unit_c_multiplication_sign_no_panic() {
+        // × is U+00D7: 0xC3 0x97 (2 bytes), not alphanumeric.
+        let input = "FROM t | enrich a\u{00D7}b";
+        let result = std::panic::catch_unwind(|| is_enrich_missing_column_at(input, input.len()));
+        assert!(
+            result.is_ok(),
+            "F-P3-CRIT-001 unit-c: is_enrich_missing_column_at panicked on 2-byte '×' separator"
+        );
+    }
+
+    /// F-P3-CRIT-001 unit-d: same bug in kw_start/kw_end second rfind — `»` before `enrich`.
+    ///
+    /// `"FROM t | enrich»threat_score"` — the first rfind extracts the infusion name
+    /// `threat_score` (after `»`), then the second rfind extracts the keyword candidate
+    /// and finds `|` or `»`. If `»` appears just before `enrich` keyword token, the
+    /// second rfind hits it.
+    ///
+    /// Input: `"FROM t | a»enrich threat_score"` — second rfind on `"FROM t | a»enrich"`
+    /// finds `»` at byte 10, i+1=11 is NOT a boundary → PANIC.
+    #[test]
+    fn test_f_p3_crit_001_unit_d_second_rfind_kw_boundary_no_panic() {
+        // "FROM t | a»enrich threat_score": the second rfind (for keyword) operates on
+        // "FROM t | a»enrich" and finds '»' at byte 10, i+1=11 is inside '»' → PANIC.
+        let input = "FROM t | a\u{00BB}enrich threat_score";
+        let result = std::panic::catch_unwind(|| is_enrich_missing_column_at(input, input.len()));
+        assert!(
+            result.is_ok(),
+            "F-P3-CRIT-001 unit-d: is_enrich_missing_column_at panicked on 2-byte separator before keyword"
+        );
+    }
+
+    /// F-P3-CRIT-001 unit-e: ASCII behavior preserved after fix.
+    ///
+    /// `"FROM t | enrich threat_score"` at EOF must still return true (enrich missing column).
+    /// `"FROM t | where severity"` at EOF must still return false (not enrich pattern).
+    #[test]
+    fn test_f_p3_crit_001_unit_e_ascii_behavior_preserved() {
+        assert!(
+            is_enrich_missing_column_at("FROM t | enrich threat_score", 28),
+            "F-P3-CRIT-001 unit-e: ASCII enrich-missing-column must return true"
+        );
+        assert!(
+            !is_enrich_missing_column_at("FROM t | where severity", 23),
+            "F-P3-CRIT-001 unit-e: non-enrich pattern must return false"
         );
     }
 }

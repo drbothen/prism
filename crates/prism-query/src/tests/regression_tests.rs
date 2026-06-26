@@ -1868,3 +1868,119 @@ fn test_f_p3_crit_new_001d_interval_ascii_behavior_preserved() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// F-P3-CRIT-001 integration smoke tests — char-boundary safety in the
+// `is_enrich_missing_column_at` enrich-error path via PrismQlParser::parse.
+//
+// Root cause (fixed in error_recovery.rs): `rfind(|c: char| !c.is_alphanumeric() && c != '_')`
+// returns the BYTE START of the matched char. For multibyte chars (e.g. `»` U+00BB = 2
+// bytes, `—` U+2014 = 3 bytes), `i + 1` lands INSIDE the UTF-8 sequence →
+// the subsequent byte-slice panics "byte index N is not a char boundary".
+//
+// Unit RED-gate tests live in error_recovery.rs tests module (direct calls with
+// offset=input.len(), which expose the panic).  These integration tests verify
+// the FULL parse path also produces Err without panic.
+//
+// Note on integration path: Chumsky's error offset for `"FROM t | enrich a»b"` is
+// 17 (start of `»`), making prefix = "FROM t | enrich a" (ASCII). The unit tests in
+// error_recovery.rs are the RED-gate because they call is_enrich_missing_column_at
+// with offset=input.len() directly, exposing the multibyte char in the prefix.
+// These integration tests serve as post-fix smoke tests confirming Err + no panic
+// on the full PrismQlParser::parse path.
+// ---------------------------------------------------------------------------
+
+/// F-P3-CRIT-001a: pipe mode smoke test — `»` (U+00BB, 2 bytes) in enrich input.
+///
+/// `FROM t | enrich a»b` must return `Err` without panic via the full parse path.
+/// (Unit RED-gate: error_recovery::tests::test_f_p3_crit_001_unit_a_two_byte_separator_no_panic)
+#[test]
+fn test_f_p3_crit_001a_enrich_multibyte_separator_2byte_no_panic() {
+    let query = "FROM t | enrich a\u{00BB}b";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-001a: PrismQlParser::parse panicked on enrich with 2-byte separator '»'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-001a: expected Err for invalid enrich 'a»b', got Ok"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-001b: pipe mode smoke test — `—` (U+2014 EM DASH, 3 bytes) in enrich input.
+///
+/// `FROM t | enrich x—y` must return `Err` without panic.
+/// (Unit RED-gate: error_recovery::tests::test_f_p3_crit_001_unit_b_three_byte_separator_no_panic)
+#[test]
+fn test_f_p3_crit_001b_enrich_multibyte_separator_3byte_no_panic() {
+    let query = "FROM t | enrich x\u{2014}y";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-001b: PrismQlParser::parse panicked on enrich with 3-byte separator '—'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-001b: expected Err for invalid enrich 'x—y', got Ok"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-001c: SqlPipe mode smoke test — `»` (U+00BB) in enrich input via
+/// the SqlPipe path (filter_parser.rs:485).
+///
+/// `SELECT * FROM t | enrich a»b` must return `Err` without panic.
+/// (Unit RED-gate: error_recovery::tests::test_f_p3_crit_001_unit_a_two_byte_separator_no_panic)
+#[test]
+fn test_f_p3_crit_001c_enrich_multibyte_sqlpipe_path_no_panic() {
+    let query = "SELECT * FROM t | enrich a\u{00BB}b";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-001c: PrismQlParser::parse panicked on SqlPipe enrich with 2-byte separator '»'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-001c: expected Err for invalid SqlPipe enrich 'a»b', got Ok"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-001d: ASCII enrich behavior must be preserved after the fix.
+///
+/// `FROM t | enrich threat_score` must still produce the actionable
+/// "enrich requires a column argument" guidance message (GRAMMAR-005).
+#[test]
+fn test_f_p3_crit_001d_enrich_ascii_behavior_preserved() {
+    // Missing column — must be Err with enrich guidance message.
+    let missing_col = "FROM t | enrich threat_score";
+    let r = PrismQlParser::parse(missing_col);
+    assert!(
+        r.is_err(),
+        "F-P3-CRIT-001d: expected Err for enrich without column, got Ok"
+    );
+    let errs = r.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("enrich requires a column argument"),
+        "F-P3-CRIT-001d: expected enrich guidance message, got: {msg}"
+    );
+}
