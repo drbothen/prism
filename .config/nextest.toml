@@ -90,11 +90,11 @@ failure-output = "immediate"
 serial-subprocess = { max-threads = 1 }
 
 [[profile.prepush.overrides]]
-filter = 'package(prism-bin) and test(/signal/)'
+filter = 'binary(signal_handlers)'
 test-group = 'serial-subprocess'
 
 [[profile.ci.overrides]]
-filter = 'package(prism-bin) and test(/signal/)'
+filter = 'binary(signal_handlers)'
 test-group = 'serial-subprocess'
 
 # S-DEMO-004: Multi-org × multi-sensor isolation smoke test profile.
