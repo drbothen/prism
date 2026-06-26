@@ -145,6 +145,7 @@ mod helpers {
 
         let evaluator = Arc::new(prism_security::feature_flag::FeatureFlagEvaluator::new(
             caps,
+            std::sync::Arc::new(prism_core::OrgRegistry::new()),
         ));
         let audit = Arc::new(AlwaysSucceedAudit);
         let registry = Arc::new(prism_sensors::AdapterRegistry::new());
@@ -556,7 +557,10 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
         caps
     };
 
-    let evaluator = Arc::new(FeatureFlagEvaluator::new(restricted_client_capabilities));
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(
+        restricted_client_capabilities,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    ));
     let store = Arc::new(ConfirmationTokenStore::new());
 
     struct NoOpAudit;

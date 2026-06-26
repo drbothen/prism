@@ -261,7 +261,10 @@ fn test_BC_2_04_005_ec_null_client_id_returns_e_flag_006() {
     // NOTE: The exact mechanism for detecting null vs missing client_id will be
     // defined by the implementer. This test verifies the observable contract:
     // an empty client_id for a write path must produce an error, not Allowed.
-    let evaluator = FeatureFlagEvaluator::new(BTreeMap::new());
+    let evaluator = FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    );
     let result = evaluator.check_permission(
         CompileTimeGate::Present,
         "", // null/absent client_id

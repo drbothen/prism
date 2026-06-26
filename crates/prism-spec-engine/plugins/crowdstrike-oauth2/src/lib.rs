@@ -627,6 +627,9 @@ pub fn plugin_version() -> &'static str {
 //   cache  → test_get_token_cache_miss_calls_acquire_token
 //   cache  → test_get_token_cache_hit_but_empty_token_treats_as_miss
 //   bonus  → test_acquire_token_form_body_contains_required_params
+//   NOTE: test_AC_019_BLOCKER_001_reset_token_cache_evicts_stale_token and reset_token_cache
+//         removed — BLOCKER-001 architect adjudication confirmed dead code (no host callers,
+//         PluginKvStore is in-memory per-session, cross-session stale state cannot occur).
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]

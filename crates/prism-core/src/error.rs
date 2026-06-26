@@ -180,6 +180,77 @@ impl std::fmt::Display for TableNotAvailableDetails {
     }
 }
 
+/// Inner fields for `PrismError::UnknownSourceTable` (E-QUERY-036).
+///
+/// Boxed inside the enum variant to keep `PrismError` under the
+/// `clippy::result_large_err` 128-byte threshold. Two `String` fields plus
+/// `Vec<String>` plus `Option<String>` inline would push the variant past the limit.
+///
+/// Implements `Display` directly so `PrismError::UnknownSourceTable` can use
+/// `#[error("{0}")]` to delegate formatting without `thiserror`'s field-access syntax.
+///
+/// # Construction
+/// ```
+/// use prism_core::error::{PrismError, UnknownSourceTableDetails};
+/// let err = PrismError::UnknownSourceTable(Box::new(UnknownSourceTableDetails::new(
+///     "ghost_sensor.devices",
+///     vec!["crowdstrike".to_string()],
+///     Some("crowdstrike".to_string()),
+/// )));
+/// ```
+///
+/// Reference: S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021; error-taxonomy.md E-QUERY-036.
+///
+/// # `#[non_exhaustive]` note
+/// Marked `#[non_exhaustive]` per CLAUDE.md convention for public `prism-core` structs.
+/// Callers outside this crate must use `UnknownSourceTableDetails::new(...)` rather than
+/// struct literal construction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct UnknownSourceTableDetails {
+    /// The source name that was queried (e.g. `"ghost_sensor.devices"`).
+    pub source_name: String,
+    /// Sorted list of registered sensor IDs available to query (e.g. `["crowdstrike"]`).
+    pub available_tables: Vec<String>,
+    /// Levenshtein-based suggestion — `Some("crowdstrike")` when distance ≤ 3, `None` otherwise.
+    pub did_you_mean: Option<String>,
+}
+
+impl UnknownSourceTableDetails {
+    /// Construct an `UnknownSourceTableDetails`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct literal construction
+    /// from outside `prism-core`. (CLAUDE.md `#[non_exhaustive]` discipline)
+    pub fn new(
+        source_name: impl Into<String>,
+        available_tables: Vec<String>,
+        did_you_mean: Option<String>,
+    ) -> Self {
+        Self {
+            source_name: source_name.into(),
+            available_tables,
+            did_you_mean,
+        }
+    }
+}
+
+impl std::fmt::Display for UnknownSourceTableDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let available = self.available_tables.join(", ");
+        let did_you_mean_suffix = match &self.did_you_mean {
+            Some(s) => format!(" Did you mean: '{s}'?"),
+            None => String::new(),
+        };
+        write!(
+            f,
+            "E-QUERY-036: unknown source table '{}': table is not a registered sensor \
+             or internal table. Check spelling or register the sensor in prism.toml. \
+             Available tables: [{}].{}",
+            self.source_name, available, did_you_mean_suffix
+        )
+    }
+}
+
 /// Canonical error type for the Prism platform.
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
@@ -776,12 +847,19 @@ pub enum PrismError {
     /// E-QUERY-036: Query references an unregistered sensor table or an invalid table name prefix.
     ///
     /// Caller-resolvable: check spelling or register the sensor in prism.toml.
-    /// Reference: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication 2026-06-11.
-    #[error(
-        "E-QUERY-036: unknown source table '{source_name}': table is not a registered sensor \
-         or internal table. Check spelling or register the sensor in prism.toml."
-    )]
-    UnknownSourceTable { source_name: String },
+    /// The inner `UnknownSourceTableDetails` carries `available_tables` (registered sensor IDs)
+    /// and `did_you_mean` (Levenshtein ≤ 3 suggestion) for actionable diagnostics.
+    ///
+    /// The fields are boxed (`Box<UnknownSourceTableDetails>`) to keep `PrismError`
+    /// within the `clippy::result_large_err` 128-byte threshold.
+    ///
+    /// Construct via `PrismError::UnknownSourceTable(Box::new(UnknownSourceTableDetails::new(...)))`.
+    /// Match via `PrismError::UnknownSourceTable(ref d)` or `PrismError::UnknownSourceTable(..)`.
+    ///
+    /// Reference: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication 2026-06-11;
+    ///            S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 AC-021.
+    #[error("{0}")]
+    UnknownSourceTable(Box<UnknownSourceTableDetails>),
 
     /// E-QUERY-038: Column not found in table at plan time (BC-2.11.016).
     ///
@@ -1238,6 +1316,25 @@ pub enum PrismError {
         conflict_kind: String,
         /// The specific keyword or field name that conflicts.
         conflict: String,
+    },
+
+    // -------------------------------------------------------------------------
+    // E-QUERY-040 — SQL→Pipe redundant row-limit (ADR-043)
+    // -------------------------------------------------------------------------
+    /// E-QUERY-040: Both the SQL SELECT head and a pipe `| limit` or `| tail` stage carry a
+    /// row-limit.  Only one may be specified; the other must be removed.
+    ///
+    /// Raised at planning time by the FORBID-BOTH invariant (ADR-043 §C).
+    ///
+    /// Message template is verbatim from error-taxonomy.md v2.00 (POL-24).
+    #[error(
+        "E-QUERY-040: redundant row limit. This query caps rows in two places: a SQL `LIMIT {sql_limit}` in the head and a row-capping `| limit`/`| tail` pipe stage (cap: {pipe_limit}). PrismQL requires exactly one row cap. Remove the SQL `LIMIT {sql_limit}` and place a single `| limit` at the end of the pipeline (recommended for composed queries), or use `LIMIT` only in pure SQL-mode queries."
+    )]
+    RedundantRowLimit {
+        /// The `LIMIT n` value in the SQL SELECT head.
+        sql_limit: u64,
+        /// The `| limit m` or `| tail m` value from the row-capping pipe stage.
+        pipe_limit: u64,
     },
 
     // -------------------------------------------------------------------------
@@ -1745,6 +1842,49 @@ mod tests {
         assert_eq!(
             format!("{err}"),
             "E-QUERY-034: query execution error: DataFusion plan execution aborted"
+        );
+    }
+
+    /// E-QUERY-036 Display — no `did_you_mean` (error-taxonomy.md canonical format, OBS-1 fix).
+    ///
+    /// Asserts the verbatim message format byte-for-byte:
+    ///   `E-QUERY-036: unknown source table '{source_name}': table is not a registered
+    ///    sensor or internal table. Check spelling or register the sensor in prism.toml.
+    ///    Available tables: [{available_tables}].`
+    ///
+    /// The label must be "Available tables:" (not the retired "Available sensors:").
+    #[test]
+    fn test_unknown_source_table_display_no_did_you_mean() {
+        let detail = UnknownSourceTableDetails::new(
+            "ghost_sensor.devices",
+            vec!["armis".to_string(), "crowdstrike".to_string()],
+            None,
+        );
+        assert_eq!(
+            format!("{detail}"),
+            "E-QUERY-036: unknown source table 'ghost_sensor.devices': table is not a registered \
+             sensor or internal table. Check spelling or register the sensor in prism.toml. \
+             Available tables: [armis, crowdstrike]."
+        );
+    }
+
+    /// E-QUERY-036 Display — with `did_you_mean` (error-taxonomy.md canonical format, OBS-1 fix).
+    ///
+    /// Asserts the verbatim suffix `" Did you mean: '{candidate}'?"` — leading space, colon
+    /// after "mean", single-quoted candidate, trailing question mark — matching
+    /// E-QUERY-037 `TableNotAvailableDetails` convention (OBS-2 parity).
+    #[test]
+    fn test_unknown_source_table_display_with_did_you_mean() {
+        let detail = UnknownSourceTableDetails::new(
+            "crowdstrik",
+            vec!["crowdstrike".to_string()],
+            Some("crowdstrike".to_string()),
+        );
+        assert_eq!(
+            format!("{detail}"),
+            "E-QUERY-036: unknown source table 'crowdstrik': table is not a registered \
+             sensor or internal table. Check spelling or register the sensor in prism.toml. \
+             Available tables: [crowdstrike]. Did you mean: 'crowdstrike'?"
         );
     }
 }

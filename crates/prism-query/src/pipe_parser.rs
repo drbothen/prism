@@ -26,7 +26,10 @@ use crate::{
         PipeQuery, PipeStage, SortDirection, SortExpr, SourceRef, Span, StatFunction, StatsStage,
     },
     error::ParseError,
-    error_recovery::{pipe_boundary_chars, rich_to_parse_error},
+    error_recovery::{
+        pipe_boundary_chars, rewrite_d2_sql_keyword_in_pipe_position, rewrite_enrich_parse_errors,
+        rich_to_parse_error,
+    },
     filter_parser::{build_predicate_parser, build_source_ref_parser},
     security,
     write_ast::{WriteArg, WriteNode},
@@ -98,6 +101,10 @@ pub(crate) fn parse_pipe_with_limits(
         }
     }
     let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
+    // BC-2.11.023 §D2: rewrite before enrich-check so D2 takes precedence over
+    // the generic enrich-missing-column message when both could apply.
+    let parse_errors = rewrite_d2_sql_keyword_in_pipe_position(input, parse_errors);
+    let parse_errors = rewrite_enrich_parse_errors(input, parse_errors);
     if parse_errors.is_empty() {
         Err(vec![ParseError::new(0, "E-QUERY-001: pipe parse failed")])
     } else {
@@ -516,6 +523,218 @@ pub(crate) fn build_pipe_parser<'a>(
         });
 
     choice((from_source_query, no_source_query, bare_source_query))
+}
+
+/// Build a parser for the pipe-stages suffix: `('|' stage)+`.
+///
+/// Used by the SqlPipe parser (BC-2.11.020, ADR-043) to parse the stage list
+/// that follows a SQL SELECT head. The input fed to this parser is the full
+/// suffix starting with the first `|`, e.g. `| enrich fn(x) | limit 10`.
+///
+/// Returns `Vec<PipeStage>` — one entry per stage, in order.
+///
+/// # Clippy exemption (OBS-002)
+/// `clone_on_copy` fires on `field_path.clone()` because the Chumsky parser
+/// combinator type happens to implement Copy. The clones are intentional here
+/// (same pattern as `build_pipe_parser` which has the same exemption).
+#[allow(clippy::clone_on_copy)]
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+pub(crate) fn build_pipe_stages_parser<'a>(
+) -> impl Parser<'a, &'a str, Vec<crate::ast::PipeStage>, extra::Err<Rich<'a, char>>> + Clone {
+    // Re-use all stage sub-parsers from the full pipe parser.
+    // We deliberately duplicate the stage table here (rather than extracting a
+    // shared helper) to keep the full pipe parser self-contained and avoid
+    // lifetime / Clone bound complexity from a partial extraction.  The stage
+    // grammar is stable; the duplication is intentional.
+    let predicate = crate::filter_parser::build_predicate_parser();
+    let source_ref = crate::filter_parser::build_source_ref_parser();
+
+    let ident_char = any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_');
+    let field_segment = ident_char.repeated().at_least(1).to_slice();
+    let field_path = field_segment
+        .separated_by(just('.'))
+        .at_least(1)
+        .collect::<Vec<&str>>()
+        .map_with(|segs: Vec<&str>, e| {
+            let s = e.span();
+            crate::ast::FieldPath {
+                segments: segs.into_iter().map(|seg| seg.to_string()).collect(),
+                span: crate::ast::Span {
+                    start: s.start,
+                    end: s.end,
+                },
+            }
+        });
+
+    let ident = ident_char
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .map(|s: &str| s.to_string());
+
+    let uint = text::int(10).to_slice().try_map(|s: &str, span| {
+        s.parse::<u64>()
+            .map_err(|e| Rich::custom(span, format!("invalid integer: {e}")))
+    });
+
+    let kw_ci = |k: &'static str| {
+        ident_char
+            .repeated()
+            .at_least(1)
+            .to_slice()
+            .try_map(move |s: &str, span| {
+                if s.eq_ignore_ascii_case(k) {
+                    Ok(())
+                } else {
+                    Err(Rich::custom(span, format!("expected keyword '{k}'")))
+                }
+            })
+    };
+
+    let sort_direction = choice((
+        text::keyword("desc")
+            .or(text::keyword("DESC"))
+            .to(SortDirection::Desc),
+        text::keyword("asc")
+            .or(text::keyword("ASC"))
+            .to(SortDirection::Asc),
+    ))
+    .padded()
+    .or_not()
+    .map(|dir| dir.unwrap_or(SortDirection::Asc));
+
+    let sort_expr = field_path
+        .clone()
+        .padded()
+        .then(sort_direction)
+        .map(|(field, direction)| SortExpr { field, direction });
+
+    let where_stage = kw_ci("where")
+        .padded()
+        .ignore_then(predicate.clone().padded())
+        .map(PipeStage::Where);
+    let sort_stage = kw_ci("sort")
+        .padded()
+        .ignore_then(
+            sort_expr
+                .padded()
+                .separated_by(just(',').padded())
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .map(PipeStage::Sort);
+    let head_stage = kw_ci("head")
+        .padded()
+        .ignore_then(uint.padded())
+        .map(PipeStage::Limit);
+    let tail_stage = kw_ci("tail")
+        .padded()
+        .ignore_then(uint.padded())
+        .map(PipeStage::Tail);
+    let limit_stage = kw_ci("limit")
+        .padded()
+        .ignore_then(uint.padded())
+        .map(PipeStage::Limit);
+    let dedup_stage = kw_ci("dedup")
+        .padded()
+        .ignore_then(
+            field_path
+                .clone()
+                .padded()
+                .separated_by(just(',').padded())
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .map(PipeStage::Dedup);
+    let fields_stage = kw_ci("fields")
+        .padded()
+        .ignore_then(
+            choice((just('+').padded().to(true), just('-').padded().to(false)))
+                .or_not()
+                .map(|sign| sign.unwrap_or(true)),
+        )
+        .then(
+            field_path
+                .clone()
+                .padded()
+                .separated_by(just(',').padded())
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .map(|(include, fields)| PipeStage::Fields(crate::ast::FieldsStage { include, fields }));
+
+    let pipe_join_kind = choice((
+        kw_ci("inner").padded().to(crate::ast::JoinKind::Inner),
+        kw_ci("left").padded().to(crate::ast::JoinKind::Left),
+        kw_ci("right").padded().to(crate::ast::JoinKind::Right),
+        kw_ci("full").padded().to(crate::ast::JoinKind::FullOuter),
+        kw_ci("cross").padded().to(crate::ast::JoinKind::Cross),
+        empty().to(crate::ast::JoinKind::Inner),
+    ));
+    let join_stage = kw_ci("join")
+        .padded()
+        .ignore_then(pipe_join_kind)
+        .then(source_ref.clone().padded())
+        .then_ignore(kw_ci("on").padded())
+        .then(field_path.clone().padded())
+        .then(
+            just("==")
+                .padded()
+                .ignore_then(field_path.clone().padded())
+                .or_not(),
+        )
+        .map(|(((kind, source), left_field), right_field)| {
+            let on = match right_field {
+                Some(rf) => crate::ast::JoinCondition::Pair(left_field, rf),
+                None => crate::ast::JoinCondition::SameField(left_field),
+            };
+            PipeStage::Join(crate::ast::JoinStage { kind, source, on })
+        });
+    let enrich_stage = kw_ci("enrich")
+        .padded()
+        .ignore_then(ident.padded())
+        .then(
+            field_path
+                .clone()
+                .padded()
+                .delimited_by(just('(').padded(), just(')').padded()),
+        )
+        .map(|(infusion, field)| PipeStage::Enrich(crate::ast::EnrichStage { infusion, field }));
+
+    let pipe_stage = choice((
+        where_stage,
+        sort_stage,
+        head_stage,
+        tail_stage,
+        limit_stage,
+        dedup_stage,
+        fields_stage,
+        join_stage,
+        enrich_stage,
+    ))
+    .recover_with(skip_then_retry_until(
+        any().ignored(),
+        one_of(pipe_boundary_chars()).ignored(),
+    ));
+
+    // `('|' stage)+` — at least one stage required
+    just('|')
+        .padded()
+        .ignore_then(pipe_stage.clone().padded())
+        .then(
+            just('|')
+                .padded()
+                .ignore_then(pipe_stage.padded())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(first, mut rest)| {
+            let mut stages = vec![first];
+            stages.append(&mut rest);
+            stages
+        })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@
 //!
 //! S-DEMO-PRISMQL-ONBOARDING-001-A adds (BC-2.10.013, BC-2.10.014):
 //! - `prismql://schema/{client_id}` — per-client PQL table/column/type schema catalog
-//! - `prismql://reference` — static PQL grammar reference (build-time embedded)
+//! - `prismql://reference` — runtime-assembled PQL grammar reference (built via `build_reference_content()`)
 //!
 //! Resources are served by overriding `list_resources`, `list_resource_templates`,
 //! and `read_resource` on `impl ServerHandler for PrismServer` in `server.rs`.
@@ -19,11 +19,11 @@
 //! All resource response serialization MUST redact API keys and full URL paths.
 //! Only host+port components are emitted for URL fields (VP-050, BC-2.10.008 postcondition).
 
-/// `prismql://schema/{client_id}` resource template and `prismql://reference` static resource.
+/// `prismql://schema/{client_id}` resource template and `prismql://reference` runtime resource.
 ///
 /// `prismql://schema/{client_id}` (BC-2.10.013) returns the full PQL table/column/type
 /// catalog for a given client as structured JSON. `prismql://reference` (BC-2.10.014)
-/// serves the static PQL grammar reference embedded at build time.
+/// serves the PQL grammar reference assembled at runtime by `build_reference_content()`.
 pub mod schema;
 
 use std::{collections::BTreeSet, sync::Arc};
@@ -436,7 +436,7 @@ fn sanitize_display_name(name: &str) -> String {
 /// S-DEMO-PRISMQL-ONBOARDING-001-A.
 ///
 /// Content delivery is handled by `dispatch_read_resource` →
-/// `render_pql_reference_resource` in `resources/schema.rs`.
+/// `build_reference_content` (runtime-assembled; ADR-045 §A / CRIT-001).
 pub fn build_resource_list() -> ListResourcesResult {
     let resources = vec![
         RawResource::new(URI_CONFIG_CLIENTS, "Prism Client Inventory")
@@ -449,9 +449,9 @@ pub fn build_resource_list() -> ListResourcesResult {
             )
             .with_mime_type("application/json")
             .no_annotation(),
-        // L3: PQL grammar reference static resource (BC-2.10.014 — S-DEMO-PRISMQL-ONBOARDING-001-A).
-        // Content embedded via include_str! in resources/schema.rs::PQL_REFERENCE_CONTENT.
-        // No subscribe/listChanged (static content — BC-2.10.014).
+        // L3: PQL grammar reference resource (BC-2.10.014 — S-DEMO-PRISMQL-ONBOARDING-001-A).
+        // Content assembled at runtime via build_reference_content (ADR-045 §A / CRIT-001).
+        // No subscribe/listChanged (content is stable per session — BC-2.10.014).
         // BC-2.10.014 AC-007: annotations.priority=0.8 + audience=["assistant"] required
         // (high-value reference material targeted at LLM agents, not human users).
         RawResource::new(schema::URI_PQL_REFERENCE, "PrismQL Grammar Reference")
@@ -601,9 +601,17 @@ pub async fn dispatch_read_resource(
         }
     }
 
-    // Exact match: prismql://reference (BC-2.10.014 — static PQL grammar reference)
+    // Exact match: prismql://reference (BC-2.11.022, ADR-045 §A — runtime reference content).
+    // build_reference_content generates the PQL grammar reference dynamically, incorporating
+    // live InfusionRegistry data so the returned document reflects currently-loaded enrichment
+    // UDFs at query time (CRIT-001, closed S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001).
     if uri == schema::URI_PQL_REFERENCE {
-        return schema::render_pql_reference_resource();
+        let infusion_registry = query_engine.and_then(|qe| qe.infusion_registry());
+        let content = build_reference_content(infusion_registry.as_deref());
+        return Ok(ReadResourceResult::new(vec![ResourceContents::text(
+            content,
+            schema::URI_PQL_REFERENCE,
+        )]));
     }
 
     // Template match: prismql://schema/{client_id} (BC-2.10.013 — per-client schema catalog)
@@ -1240,6 +1248,335 @@ fn strip_path_from_authority(authority_and_rest: &str) -> &str {
     } else {
         authority_and_rest
     }
+}
+
+// ─── PrismQL reference content (ADR-045) ────────────────────────────────────
+
+/// Classification of a PQL usage example (ADR-045).
+///
+/// Used in `REFERENCE_EXAMPLES` to tag each example for the 3-tier CI gate
+/// and for the `build_reference_content` runtime injector.
+///
+/// Variants match the BC-2.11.022 / ADR-045 D3 mandate:
+/// - `Positive` → Tier 1 (positive examples that MUST parse successfully)
+/// - `NegativeE040` → Tier 2 (E-QUERY-040 dual-limit examples — gate asserts RedundantRowLimit)
+/// - `NegativeOther` → Tier 3 (other error quick-reference / self-correction examples)
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExampleKind {
+    /// Tier 1: positive parseable examples (filter, SELECT, pipe, stats, temporal).
+    /// All entries MUST round-trip through `PrismQlParser::parse` without error.
+    Positive,
+    /// Tier 2: E-QUERY-040 FORBID-BOTH examples.
+    /// Every entry MUST produce `PrismError::RedundantRowLimit` when executed.
+    NegativeE040,
+    /// Tier 3: other error quick-reference entries (E-QUERY-001, E-QUERY-038, etc.).
+    /// May be comment-prefixed; these are excluded from the positive round-trip gate.
+    NegativeOther,
+}
+
+/// Canonical reference examples shared by `build_reference_content` and the
+/// 3-tier CI gate (ADR-045 §B).
+///
+/// Each tuple is `(kind, title, pql_snippet)`. The CI gate asserts that at least
+/// one `Positive`, one `NegativeE040`, and one `NegativeOther` example is present.
+///
+/// **ADR-044 INTERVAL format:** Duration strings use the `Nh` / `Nd` unit suffix
+/// (e.g., `'7d'` = 7 days, `'24h'` = 24 hours). Full English words like `'7 days'`
+/// are NOT accepted by the PrismQL parser — they produce E-QUERY-001.
+pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
+    (
+        ExampleKind::Positive,
+        "filter — detections with HIGH severity",
+        "crowdstrike.detections | severity = 'HIGH'",
+    ),
+    (
+        ExampleKind::Positive,
+        "SQL — select all detections",
+        "SELECT * FROM crowdstrike.detections WHERE severity = 'HIGH'",
+    ),
+    (
+        ExampleKind::Positive,
+        "pipe — filter by severity",
+        "FROM crowdstrike.detections | where severity = 'HIGH'",
+    ),
+    (
+        ExampleKind::Positive,
+        "temporal — last 7 days (SQL mode)",
+        "SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '7d'",
+    ),
+    (
+        ExampleKind::Positive,
+        "temporal — last 24 hours (pipe mode)",
+        "FROM crowdstrike.detections | where timestamp > NOW() - INTERVAL '24h'",
+    ),
+    (
+        ExampleKind::Positive,
+        "SQL→Pipe — enrich with stats",
+        "SELECT * FROM crowdstrike.detections | enrich threat_score(src_ip) | limit 10",
+    ),
+    (
+        ExampleKind::Positive,
+        "pipe stats — count by severity",
+        "FROM crowdstrike.detections | stats count() by severity",
+    ),
+    (
+        ExampleKind::NegativeE040,
+        "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe limit",
+        "SELECT * FROM crowdstrike.detections LIMIT 10 | limit 5",
+    ),
+    // OBS-1 fix: error-taxonomy.md v2.00 E-QUERY-040 CI-gate obligation (ADR-045 D3)
+    // mandates NegativeE040 examples for BOTH `| limit` AND `| tail`. The `| tail`
+    // variant combines SQL LIMIT in the head with a `| tail` stage — both consume
+    // the shared row-limit slot and thus violate the FORBID-BOTH invariant (ADR-043 §C).
+    (
+        ExampleKind::NegativeE040,
+        "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe tail",
+        "SELECT * FROM crowdstrike.detections LIMIT 10 | tail 5",
+    ),
+    (
+        ExampleKind::NegativeOther,
+        "E-QUERY-001 self-correction",
+        "-- If you receive E-QUERY-001: check spelling and use prism_describe to list columns.",
+    ),
+    (
+        ExampleKind::NegativeOther,
+        "E-QUERY-038 column not found",
+        "-- E-QUERY-038: column not found. Run prism_describe to see available columns.",
+    ),
+];
+
+/// Build the `prismql://reference` resource content at runtime (ADR-045 §A).
+///
+/// Assembles the PQL grammar reference as a runtime Markdown document so that
+/// infusion examples, sensor-specific tables, and the 3-tier example set can
+/// be injected at query time rather than baked in at compile time.
+///
+/// # Parameters
+/// - `infusion_registry`: optional live `InfusionRegistry` snapshot. When `Some`,
+///   the returned content includes a section listing available infusions with their
+///   field mappings. When `None`, the infusion section shows a placeholder.
+///
+/// # Contract (BC-2.11.022, ADR-045 §B)
+/// - MUST include at least one example from each `ExampleKind` tier (Positive, NegativeE040, NegativeOther).
+/// - MUST round-trip all `Positive` PQL snippets through the Chumsky parser.
+/// - MUST include the infusion placeholder when `infusion_registry` is `None`.
+/// - The CI gate (`crates/prism-mcp/tests/reference_content.rs`) asserts these invariants.
+pub fn build_reference_content(
+    infusion_registry: Option<&prism_spec_engine::InfusionRegistry>,
+) -> String {
+    let mut out = String::with_capacity(16 * 1024);
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    out.push_str("# PrismQL Reference\n\n");
+
+    // ── Section 1: What is PrismQL ───────────────────────────────────────────
+    out.push_str("## What is PrismQL\n\n");
+    out.push_str(
+        "PrismQL (PQL) is the Prism query language for querying security sensor data. \
+         It supports four modes:\n\n\
+         | Mode | Syntax | Notes |\n\
+         |------|--------|-------|\n\
+         | **Filter** | `field op value` | Bare predicate; no FROM clause. |\n\
+         | **SQL** | `SELECT ... FROM t WHERE ...` | Standard SQL SELECT; no pipe stages. |\n\
+         | **Pipe** | `FROM t | where ... | stage ...` | Source + pipeline stages chained with `|`. |\n\
+         | **SqlPipe** | `SELECT ... FROM t | stage ...` | SQL→Pipe composition; SQL header + pipe stages. |\n\n\
+         All PrismQL keywords are case-insensitive. Convention: UPPER for SQL keywords, \
+         lowercase for pipe stage names.\n\n",
+    );
+
+    // ── Section 2: Clause Grammar (BNF) ─────────────────────────────────────
+    out.push_str("## Clause Grammar (BNF)\n\n");
+    out.push_str("**SQL Mode:**\n```sql\n");
+    out.push_str(
+        "SELECT <columns>      -- * or comma-separated field list\n\
+         FROM <table>          -- sensor_table or bare table name\n\
+         [WHERE <predicate>]   -- filter expression\n\
+         [GROUP BY <fields>]\n\
+         [ORDER BY <field> [ASC|DESC]]\n\
+         [LIMIT <n>]           -- trailing row cap; do NOT combine with pipe | limit\n",
+    );
+    out.push_str("```\n\n**Pipe Mode:**\n```\n");
+    out.push_str(
+        "FROM <table>\n\
+         [| where <predicate>]\n\
+         [| sort <field> [asc|desc]]\n\
+         [| head <n>] [| tail <n>] [| limit <n>]  -- head/limit are equivalent\n\
+         [| stats <agg> [by <field>]]\n\
+         [| dedup <field>]\n\
+         [| fields <field_list>]\n\
+         [| enrich <fn>(<col>)]\n",
+    );
+    out.push_str(
+        "```\n\n**SqlPipe Mode (SQL→Pipe composition):**\n\
+         `SELECT ... FROM t | <stage> ...` — SQL header followed by one or more pipe stages. \
+         **FORBID-BOTH (E-QUERY-040):** You cannot use both SQL `LIMIT` and `| limit` in the \
+         same query. Use one or the other.\n\n",
+    );
+
+    // ── Section 3: Operators and Types ──────────────────────────────────────
+    out.push_str("## Operators and Types\n\n");
+    out.push_str(
+        "| Operator | Description | Example |\n\
+         |----------|-------------|--------|\n\
+         | `=` | Equality | `severity = 'HIGH'` |\n\
+         | `!=` | Inequality | `status != 'closed'` |\n\
+         | `>`, `>=`, `<`, `<=` | Comparison | `risk_score > 50` |\n\
+         | `IN` | Set membership | `status IN ('open', 'new')` |\n\
+         | `BETWEEN` | Range (inclusive) | `score BETWEEN 50 AND 90` |\n\
+         | `CONTAINS` | Substring match (case-sensitive) | `hostname CONTAINS 'prod'` |\n\
+         | `ICONTAINS` | Substring match (case-insensitive) | `hostname ICONTAINS 'prod'` |\n\
+         | `=~` / `MATCHES` | Regex match | `hostname =~ '^web-'` |\n\
+         | `IN CIDR` | CIDR range check | `src_ip IN CIDR '10.0.0.0/8'` |\n\
+         | `HAS` | Field exists and is non-null | `HAS extra_data` |\n\
+         | `MISSING` | Field is absent or null | `MISSING assigned_to` |\n\
+         | `IS NULL` / `IS NOT NULL` | Null check | `resolved_at IS NULL` |\n\
+         | `AND`, `OR`, `NOT` | Logical combinators | `severity = 'HIGH' AND NOT MISSING src_ip` |\n\n\
+         **Null semantics for JSON-list fields:** \
+         `IS NOT NULL` on a JSON-list field returns `true` if the field is present and non-null \
+         (empty list `[]` is NOT null; `null` value is null).\n\n\
+         **Aggregate functions** (for `| stats` and SQL `SELECT`):\n\n\
+         `count()`, `sum(field)`, `avg(field)`, `min(field)`, `max(field)`, \
+         `percentile(field, p)`, `distinct_count(field)`.\n\n\
+         **Virtual fields** injected into every result:\n\
+         `_sensor`, `_client`, `_source_table`, `_safety_flags`.\n\n\
+         Column names come verbatim from `prism_describe` — do not construct dot-path names.\n\n",
+    );
+
+    // ── Section 4: Datetime Arithmetic ───────────────────────────────────────
+    out.push_str("## Datetime Arithmetic\n\n");
+    out.push_str(
+        "PrismQL supports temporal expressions in WHERE / `| where` predicates:\n\n\
+         - `NOW()` — current timestamp at query planning time\n\
+         - `INTERVAL 'Nd'` — duration literal; units: `s`=seconds, `m`=minutes, `h`=hours, `d`=days\n\
+         - `NOW() - INTERVAL 'Nd'` — timestamp subtraction (subtraction only; `+` not supported)\n\n\
+         **Examples:**\n\
+         ```sql\n\
+         -- Last 7 days\n\
+         WHERE timestamp > NOW() - INTERVAL '7d'\n\
+         -- Last 24 hours\n\
+         WHERE timestamp > NOW() - INTERVAL '24h'\n\
+         ```\n\n\
+         **Note:** Use `'7d'` not `'7 days'` — full English words are not accepted \
+         (results in a parse error).\n\n",
+    );
+
+    // ── Section 5: Error Code Quick-Reference ────────────────────────────────
+    out.push_str("## Error Code Quick-Reference\n\n");
+    out.push_str(
+        "| Code | Cause | Self-Correction |\n\
+         |------|-------|-----------------|\n\
+         | **E-QUERY-001** | Parse/syntax error — invalid syntax, bad operator, unknown keyword | Check spelling; use `prism_describe` to list valid columns |\n\
+         | **E-QUERY-002** | Query planning failed — type mismatch, invalid operator for column type, or plan construction failure | Use `prism_describe` to verify column types; select a compatible operator |\n\
+         | **E-QUERY-003** | Depth limit exceeded | Reduce nesting depth |\n\
+         | **E-QUERY-037** | Table not available — sensor not configured for this client | Run `prism_describe(client_id)` to see available tables and sensors |\n\
+         | **E-QUERY-038** | Column not found | Run `prism_describe(client_id, table)` to see available columns |\n\
+         | **E-QUERY-039** | Enrichment infusion not registered | Call `list_infusions` to see available enrichment functions |\n\
+         | **E-QUERY-040** | FORBID-BOTH — both SQL LIMIT and pipe `| limit` in same query | Remove one of the two LIMIT clauses |\n\n",
+    );
+
+    // ── Enrichment Section ────────────────────────────────────────────────────
+    out.push_str(
+        "Enrichment functions are called via `| enrich <fn>(<col>)` in pipe or SqlPipe mode.\n\n",
+    );
+
+    match infusion_registry {
+        Some(registry) => {
+            // Build enrichment list from live registry via udf_descriptors().
+            // Collect unique infusion names (multiple UDFs can belong to one infusion).
+            let descriptors = registry.udf_descriptors();
+            // Deduplicate by infusion_id to list each infusion once.
+            let mut seen_ids = std::collections::BTreeSet::new();
+            let mut infusion_names: Vec<String> = Vec::new();
+            for desc in &descriptors {
+                if seen_ids.insert(desc.infusion_id.clone()) {
+                    infusion_names.push(desc.infusion_id.clone());
+                }
+            }
+            if infusion_names.is_empty() {
+                out.push_str(
+                    "No enrichment functions are currently registered for your deployment.\n\n",
+                );
+            } else {
+                out.push_str("Available enrichment functions:\n\n");
+                for name in &infusion_names {
+                    out.push_str(&format!("- `enrich {name}(col)`\n"));
+                }
+                out.push('\n');
+            }
+        }
+        None => {
+            // BC-2.11.022 invariant — placeholder text when registry is not available.
+            out.push_str(
+                "Call `list_infusions` to see available enrichment functions for your deployment.\n\n",
+            );
+        }
+    }
+
+    // ── Section 6: Query Examples (from REFERENCE_EXAMPLES shared constant) ───
+    // Collect into three buckets in a SINGLE exhaustive match pass over REFERENCE_EXAMPLES.
+    // See the in-loop comment for the exhaustive-match rationale.
+    out.push_str("## Query Examples\n\n");
+
+    let mut positive_entries: Vec<(&str, &str)> = Vec::new();
+    let mut negative_e040_entries: Vec<(&str, &str)> = Vec::new();
+    let mut negative_other_entries: Vec<(&str, &str)> = Vec::new();
+
+    for (kind, title, snippet) in REFERENCE_EXAMPLES.iter() {
+        // LOW-002 fix: exhaustive match (no matches!() filter) — within the defining
+        // crate, all ExampleKind variants are known at compile time. Adding a new
+        // ExampleKind variant will produce a compile error here (non-exhaustive match),
+        // forcing the developer to add the corresponding rendering section below.
+        // This replaces the previous 3× matches!() pass pattern which would silently
+        // omit new variants from the rendered reference output.
+        match kind {
+            ExampleKind::Positive => positive_entries.push((title, snippet)),
+            ExampleKind::NegativeE040 => negative_e040_entries.push((title, snippet)),
+            ExampleKind::NegativeOther => negative_other_entries.push((title, snippet)),
+        }
+    }
+
+    // Render positive examples section.
+    out.push_str("### Positive Examples\n\n");
+    for (title, snippet) in &positive_entries {
+        out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+    }
+
+    // Render E-QUERY-040 negative examples section.
+    out.push_str("### E-QUERY-040 Negative Examples\n\n");
+    out.push_str(
+        "The following queries violate FORBID-BOTH (E-QUERY-040). \
+         Do NOT use both SQL `LIMIT` and pipe `| limit` in the same query.\n\n",
+    );
+    for (title, snippet) in &negative_e040_entries {
+        out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+    }
+
+    // Render NegativeOther / error self-correction examples.
+    out.push_str("### Error Self-Correction\n\n");
+    for (title, snippet) in &negative_other_entries {
+        out.push_str(&format!("**{title}**\n```\n{snippet}\n```\n\n"));
+    }
+
+    // ── Section 7: Self-Correction Workflow ──────────────────────────────────
+    out.push_str("## Self-Correction Workflow\n\n");
+    out.push_str(
+        "When a query returns an error, follow these steps:\n\n\
+         1. **E-QUERY-001 (parse error):** Check syntax against the BNF above. \
+            Common causes: missing quotes, wrong operator, unsupported interval format.\n\
+         2. **E-QUERY-037 (table not available):** Run `prism_describe(client_id)` to see \
+            registered tables. The error message includes available alternatives.\n\
+         3. **E-QUERY-038 (column not found):** Run `prism_describe(client_id, table)` to \
+            see available columns. The error message includes a did-you-mean suggestion.\n\
+         4. **E-QUERY-040 (FORBID-BOTH):** Remove either the SQL `LIMIT` clause or the \
+            pipe `| limit` stage — not both.\n\
+         5. **E-QUERY-002 (plan failed / type mismatch):** The operator may be incompatible \
+            with the column type. Check the column type via `prism_describe` and select a \
+            compatible operator.\n\n\
+         Always call `prism_describe` before writing queries against unfamiliar tables.\n\n",
+    );
+
+    out
 }
 
 // ─── Hot-reload notification dispatch (AC-9) ────────────────────────────────

@@ -2281,7 +2281,7 @@ async fn test_resolve_source_refs_unknown_table_returns_e_query_036() {
     );
     // Verify the error is the dedicated UnknownSourceTable variant (E-QUERY-036).
     assert!(
-        matches!(err, prism_core::PrismError::UnknownSourceTable { .. }),
+        matches!(err, prism_core::PrismError::UnknownSourceTable(..)),
         "F-LP1-CRITICAL-001: error must be PrismError::UnknownSourceTable (E-QUERY-036); got: {err:?}"
     );
     let detail = err.to_string();
@@ -2616,6 +2616,402 @@ async fn test_QRY_P1_05_forced_refresh_failed_fetch_invalidates_entry() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: CRIT-1 / CRIT-2
+// SqlPipe end-to-end via QueryEngine::execute (not via bare plan_sqlpipe_query)
+// ---------------------------------------------------------------------------
+
+/// CRIT-1: `SELECT * FROM crowdstrike_detections | limit 10` must execute
+/// end-to-end via `QueryEngine::execute` and return rows (NOT empty).
+///
+/// Before the fix, `execute_against_session` dispatches `Ast::SqlPipe` to the
+/// `_ =>` catch-all which silently returns `Ok(Vec::new())`.
+/// After the fix, the `Ast::SqlPipe` arm is present and the pipe stages (| limit)
+/// are applied via the SQL lowering path.
+///
+/// Red Gate: before the fix, the assertion `total_rows > 0` FAILS because
+/// the engine returns 0 rows for any SqlPipe query.
+#[tokio::test]
+async fn test_crit1_sqlpipe_executes_via_engine_not_empty() {
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 5,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections | limit 10", options)
+        .await
+        .expect("CRIT-1: SqlPipe query must not fail");
+
+    let total_rows: usize = result.batches.iter().map(|b| b.num_rows()).sum();
+    assert!(
+        total_rows > 0,
+        "CRIT-1: SqlPipe query must return rows (not empty); \
+         got 0 — Ast::SqlPipe arm is missing from execute_against_session"
+    );
+}
+
+/// CRIT-2: `SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3` must return
+/// `Err(PrismError::RedundantRowLimit{sql_limit:5, pipe_limit:3})` via
+/// `QueryEngine::execute` (not via bare `plan_sqlpipe_query`).
+///
+/// The FORBID-BOTH E-QUERY-040 check must be wired into the production execute path.
+///
+/// Red Gate: before the fix, the `_ =>` catch-all returns `Ok(Vec::new())` so
+/// the engine silently succeeds instead of returning the hard error.
+#[tokio::test]
+async fn test_crit2_sqlpipe_forbid_both_via_engine_returns_e_query_040() {
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 5,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3",
+            options,
+        )
+        .await;
+
+    let err = result.expect_err(
+        "CRIT-2: FORBID-BOTH (both SQL LIMIT and pipe | limit) must return Err, not Ok",
+    );
+    assert!(
+        matches!(
+            err,
+            PrismError::RedundantRowLimit {
+                sql_limit: 5,
+                pipe_limit: 3,
+            }
+        ),
+        "CRIT-2: error must be PrismError::RedundantRowLimit{{sql_limit:5, pipe_limit:3}}; got: {err:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: CRIT-1b
+// NOW() substitution wired into the production execute path
+// ---------------------------------------------------------------------------
+
+/// BC-2.11.021 AC-004 (coverage): SQL-mode temporal query executes end-to-end.
+///
+/// SCOPE NOTE (post D-1333 Option A): execute_against_session re-emits the
+/// SQL-mode AST via `PqlNormalizer::normalize(ast)` (plan-pinned constant),
+/// so DataFusion receives `TIMESTAMP '<iso>'` rather than a runtime `NOW()`.
+/// This test is a smoke test confirming SQL-mode NOW() queries succeed end-to-end
+/// (regression coverage). The DISCRIMINATING test is
+/// `test_high003_discriminating_sql_in_window_row_returned`, which asserts exactly
+/// 1 in-window row is returned (proving the temporal predicate fires correctly).
+#[tokio::test]
+async fn test_crit1b_sql_mode_now_substituted_before_datafusion() {
+    use arrow::{
+        array::{StringArray, TimestampMicrosecondArray},
+        datatypes::{DataType, Field, Schema, TimeUnit},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// StubAdapter that returns rows with a real `timestamp` column (Utf8 ISO-8601).
+    /// DataFusion can CAST a Utf8 column to TIMESTAMP in the WHERE clause, so the
+    /// injected `TIMESTAMP '<iso8601>'` literal is type-compatible.
+    struct TimestampStubAdapter;
+
+    #[async_trait]
+    impl SensorAdapter for TimestampStubAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            // Return one row with a `timestamp` column as a recent ISO-8601 string.
+            // This is a recent timestamp so it falls within `NOW() - INTERVAL '7d'`.
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("timestamp", DataType::Utf8, false),
+            ]));
+            let ids = Arc::new(StringArray::from(vec!["det-001"])) as _;
+            // Use chrono to produce a UTC timestamp string.
+            let ts_str = chrono::Utc::now().to_rfc3339();
+            let ts_arr = Arc::new(StringArray::from(vec![ts_str.as_str()])) as _;
+            let batch =
+                RecordBatch::try_new(schema, vec![ids, ts_arr]).expect("timestamp stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(TimestampStubAdapter));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SQL-mode query with NOW() - INTERVAL. DataFusion 53.1 handles NOW() natively
+    // in SQL strings, so this passes whether or not inject_now is called.
+    // Retained as regression coverage for the SQL-mode execution path.
+    let result = engine
+        .execute(
+            "SELECT detection_id FROM crowdstrike_detections \
+             WHERE timestamp > NOW() - INTERVAL '7d'",
+            options,
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "CRIT-1b: SQL-mode query with NOW() must succeed (DataFusion handles NOW() \
+         natively in SQL strings); got: {:?}",
+        result.err()
+    );
+}
+
+/// BC-2.11.021 AC-004 (coverage): SqlPipe-head temporal query executes end-to-end.
+///
+/// SCOPE NOTE (post D-1333 Option A): execute_against_session computes
+/// `plan_pinned_head_sql` from `PqlNormalizer::normalize(spq.head AST)` and
+/// passes it directly to `sqlpipe_to_executable_sql` (no find_sqlpipe_split).
+/// Retained as regression coverage for the SqlPipe execution path.
+/// The DISCRIMINATING test is `test_high003_discriminating_sqlpipe_in_window_row_returned`.
+#[tokio::test]
+async fn test_crit1b_sqlpipe_head_now_substituted_before_datafusion() {
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    struct TimestampStubAdapterSqlPipe;
+
+    #[async_trait]
+    impl SensorAdapter for TimestampStubAdapterSqlPipe {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("timestamp", DataType::Utf8, false),
+            ]));
+            let ts_str = chrono::Utc::now().to_rfc3339();
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec!["det-sqlpipe-001"])) as _,
+                    Arc::new(StringArray::from(vec![ts_str.as_str()])) as _,
+                ],
+            )
+            .expect("sqlpipe timestamp stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(TimestampStubAdapterSqlPipe));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SqlPipe: SQL head with NOW() followed by a pipe | limit stage.
+    // inject_now must fire for SqlPipe.head BEFORE sqlpipe_to_executable_sql.
+    let result = engine
+        .execute(
+            "SELECT detection_id FROM crowdstrike_detections \
+             WHERE timestamp > NOW() - INTERVAL '7d' | limit 10",
+            options,
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "CRIT-1b SqlPipe: SqlPipe temporal query with NOW() must succeed (DataFusion \
+         handles NOW() natively in the head SQL string); got: {:?}",
+        result.err()
+    );
+}
+
+/// BC-2.11.020 INV-FORBID-BOTH-PERMANENT (coverage): FORBID-BOTH fires with a 0-row batch.
+///
+/// SCOPE NOTE: `StubAdapter(row_count: 0)` returns `Ok(vec![0-row-batch])` — one batch
+/// with zero rows. That batch IS pushed to table_batches; the MemTable IS registered;
+/// the early-return guard does NOT fire. This test passes because the FORBID-BOTH hoist
+/// is now in run_materialization_pipeline Step 1b (before fan-out), but it would also
+/// have passed with the old code because execute_against_session was always reached.
+///
+/// The TRUE early-return bypass test (adapter returning Ok(vec![])) is:
+/// `test_high1_forbid_both_fires_with_empty_vec_sensor`.
+/// Retained as regression coverage for the zero-row-batch case.
+#[tokio::test]
+async fn test_forbid_both_fires_with_zero_row_sensor() {
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let mut registry = AdapterRegistry::new();
+    // row_count: 0 → sensor returns Ok(vec![0-row-batch]) (one batch, zero rows).
+    // The batch IS pushed to table_batches; the early-return guard does NOT fire.
+    // This exercises FORBID-BOTH via the standard code path.
+    registry.register(
+        OrgId::new(),
+        Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 0,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // Query has BOTH SQL LIMIT 5 AND pipe | limit 3 — must be E-QUERY-040.
+    // FORBID-BOTH is enforced in run_materialization_pipeline Step 1b (after parse,
+    // before fan-out), so it fires regardless of row count.
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3",
+            options,
+        )
+        .await;
+
+    let err = result.expect_err("FORBID-BOTH (E-QUERY-040) must fire with 0-row-batch sensor");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("E-QUERY-040"),
+        "error must contain 'E-QUERY-040' (FORBID-BOTH); got: {msg}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: HIGH-2
+// did_you_mean near-miss via QueryEngine::execute
+// ---------------------------------------------------------------------------
+
+/// HIGH-2: A near-miss table name (Levenshtein ≤ 3 to a registered table)
+/// must produce `PrismError::UnknownSourceTable` with a non-None `did_you_mean`
+/// field via `QueryEngine::execute`.
+///
+/// The existing E-QUERY-036 test only covers Lev > 3 (did_you_mean: None).
+/// This test exercises the `Some(...)` branch.
+///
+/// Red Gate: if did_you_mean is None for a near-miss, the assertion fails.
+#[tokio::test]
+async fn test_high2_did_you_mean_near_miss_via_engine() {
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 0,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // "crowdstrik" is 1 edit (delete 'e') from "crowdstrike_detections"
+    // Lev("crowdstrik_detections", "crowdstrike_detections") = 1 — well within the ≤3 threshold.
+    let result = engine
+        .execute("crowdstrik_detections | host = 'test'", options)
+        .await;
+
+    let err =
+        result.expect_err("HIGH-2: near-miss table name must return Err (E-QUERY-036), not Ok");
+
+    match &err {
+        PrismError::UnknownSourceTable(detail) => {
+            assert!(
+                detail.did_you_mean.is_some(),
+                "HIGH-2: did_you_mean must be Some(...) for near-miss 'crowdstrik_detections'; \
+                 got None — Levenshtein near-miss branch not reached"
+            );
+            let suggestion = detail.did_you_mean.as_deref().unwrap();
+            assert!(
+                suggestion.contains("crowdstrike"),
+                "HIGH-2: did_you_mean must suggest a name containing 'crowdstrike'; got: {suggestion}"
+            );
+        }
+        other => panic!("HIGH-2: expected PrismError::UnknownSourceTable, got: {other:?}"),
+    }
+}
+
 /// BC-2.07.004: a write-operation invalidation against the engine's response
 /// cache (`QueryEngine::response_cache()`) evicts the cached entries, so the
 /// next query re-fetches from the sensor (write-then-read consistency, DEC-018).
@@ -2658,3 +3054,773 @@ async fn test_BC_2_07_004_write_invalidation_evicts_engine_response_cache() {
          from the sensor API (cache entry evicted before write response)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: F-P1-CRIT-001 load-bearing tests
+// NOW()/INTERVAL injection wired into production execute path — PIPE mode
+// BC-2.11.021 / AC-004 / ADR-044
+// ---------------------------------------------------------------------------
+
+/// F-P1-CRIT-001 / BC-2.11.021 AC-004: Pipe mode temporal query via QueryEngine::execute.
+///
+/// Tests that `NOW() - INTERVAL '7d'` in a `| where` stage executes end-to-end.
+/// This is the LOAD-BEARING test: SQL mode and SqlPipe head bypass this because
+/// DataFusion 53 has a built-in NOW() function. Pipe mode stages go through
+/// `pipe_to_executable_sql` → `expr_to_sql`, which must handle
+/// `Expr::TimestampArithmetic` (and requires `inject_now` to have replaced
+/// `Expr::Now` with `Expr::Literal(Literal::Timestamp)` first).
+///
+/// Red Gate (two-part requirement, BOTH must be present):
+///   1. `inject_now` must be called in `run_materialization_pipeline` so
+///      `Expr::Now` is replaced with `Literal::Timestamp(now)` before
+///      `pipe_to_executable_sql` processes the pipe stages.
+///   2. `expr_to_sql` in `pipe_sql_emitter.rs` must handle `Expr::TimestampArithmetic`
+///      and emit it as `TIMESTAMP '<iso>' - INTERVAL '<n> seconds'`.
+///
+/// Without BOTH, execution returns `Err(QueryExecutionFailed)` with
+/// "Complex expression in pipe WHERE stage is not yet supported."
+///
+/// Negative control is structural: if `inject_now` is absent, `Expr::Now` reaches
+/// `expr_to_sql` which has no arm for it → `Err`. If `expr_to_sql` lacks the
+/// `TimestampArithmetic` arm, even after injection the outer wrapper errors → `Err`.
+#[tokio::test]
+async fn test_crit1_pipe_now_interval_executes_end_to_end() {
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// Pipe-mode stub: returns rows with `detection_id` and `event_timestamp` columns.
+    /// `event_timestamp` is a recent ISO-8601 string so DataFusion's CAST comparison
+    /// against the injected TIMESTAMP constant succeeds.
+    struct PipeTimestampStubAdapter;
+
+    #[async_trait]
+    impl SensorAdapter for PipeTimestampStubAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("event_timestamp", DataType::Utf8, false),
+            ]));
+            let ts_str = chrono::Utc::now().to_rfc3339();
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec!["pipe-det-001"])) as _,
+                    Arc::new(StringArray::from(vec![ts_str.as_str()])) as _,
+                ],
+            )
+            .expect("pipe timestamp stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(PipeTimestampStubAdapter));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // Pure pipe mode with NOW() - INTERVAL in a | where stage.
+    // This is the mode that CANNOT rely on DataFusion's built-in NOW():
+    // the pipe stage goes through expr_to_sql, which must handle
+    // Expr::TimestampArithmetic after inject_now replaces Expr::Now.
+    //
+    // If inject_now is not wired OR expr_to_sql lacks TimestampArithmetic support,
+    // this returns Err(QueryExecutionFailed) with
+    // "Complex expression in pipe WHERE stage is not yet supported."
+    let result = engine
+        .execute(
+            "crowdstrike_detections | where event_timestamp > NOW() - INTERVAL '1d'",
+            options,
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "F-P1-CRIT-001: Pipe-mode query with NOW() - INTERVAL '1d' must succeed. \
+         Requires inject_now wired in run_materialization_pipeline AND \
+         Expr::TimestampArithmetic handled in expr_to_sql. Got: {:?}",
+        result.err()
+    );
+}
+
+/// F-P1-HIGH-001 / BC-2.11.020 INV-FORBID-BOTH-PERMANENT: FORBID-BOTH fires even
+/// when the sensor adapter returns an EMPTY vec of batches (Ok(vec![])).
+///
+/// This tests the TRUE bypass scenario: an adapter returning `Ok(vec![])` puts
+/// NOTHING into `table_batches`, so the Step-5 MemTable registration loop registers
+/// no table, `any_external_table_registered` stays false, and the early-return at
+/// Step 6 fires BEFORE `execute_against_session` (which contains the FORBID-BOTH
+/// plan_sqlpipe_query call).
+///
+/// Red Gate: before the FORBID-BOTH hoist to AFTER parse (but BEFORE fan-out),
+/// a query with both SQL LIMIT and `| limit` against an adapter returning
+/// `Ok(vec![])` returns `Ok(empty)` instead of `Err(E-QUERY-040)`.
+///
+/// Note: the existing `test_forbid_both_fires_with_zero_row_sensor` uses a
+/// `StubAdapter(row_count: 0)` which returns `Ok(vec![0-row-batch])` — one batch
+/// with zero rows. That batch IS pushed to table_batches and the MemTable IS
+/// registered, so the early-return never fires. That test passes whether or not
+/// the hoist is implemented. THIS test uses an adapter returning `Ok(vec![])`,
+/// which triggers the actual bypass.
+#[tokio::test]
+async fn test_high1_forbid_both_fires_with_empty_vec_sensor() {
+    use async_trait::async_trait;
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// Adapter that returns Ok(vec![]) — completely empty, no batches at all.
+    /// This triggers the early-return guard in run_materialization_pipeline
+    /// (`if !any_external_table_registered { return Ok(empty) }`).
+    struct EmptyVecAdapter;
+
+    #[async_trait]
+    impl SensorAdapter for EmptyVecAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            // Return an empty vec — no batches at all.
+            // This is different from row_count:0 (which returns vec![0-row-batch]).
+            Ok(vec![])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(EmptyVecAdapter));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SqlPipe query with BOTH SQL LIMIT and pipe | limit — must be E-QUERY-040
+    // even though the adapter returns Ok(vec![]) (triggering the early-return).
+    // After the hoist, plan_sqlpipe_query fires RIGHT AFTER parse, before fan-out.
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections LIMIT 5 | limit 3",
+            options,
+        )
+        .await;
+
+    let err = result.expect_err(
+        "F-P1-HIGH-001: FORBID-BOTH must fire even when adapter returns Ok(vec![]) \
+         (empty vec triggers early-return before execute_against_session). \
+         plan_sqlpipe_query must run before the data-availability guard.",
+    );
+    let msg = err.to_string();
+    assert!(
+        msg.contains("E-QUERY-040"),
+        "F-P1-HIGH-001: error must contain 'E-QUERY-040' (FORBID-BOTH); got: {msg}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001: LOCAL CASCADE PASS-1
+// HIGH-001: pushdown spy test — QueryParams.start_time populated for relative-time query
+// HIGH-002: SQL-mode + SqlPipe-head execute folded TIMESTAMP constant, not raw INTERVAL
+// HIGH-003: discriminating in/out-of-window tests (semantic filtering assertions)
+// BC-2.11.021 / ADR-033 T1 / ADR-044
+// ---------------------------------------------------------------------------
+
+/// HIGH-001 / BC-2.11.021 ADR-033 T1: `NOW() - INTERVAL '24h'` in a SQL-mode query
+/// must constant-fold to a single `TIMESTAMP '<iso>'` literal after `inject_now`, so
+/// `extract_time_bounds_from_predicate` can match the RHS as `Expr::Literal(Literal::Timestamp)`
+/// and populate `QueryParams.start_time`.
+///
+/// This is the LOAD-BEARING pushdown spy test. A spy adapter records the
+/// `QueryParams.start_time` it receives on each `fetch()` call. The test
+/// asserts `start_time == Some(...)` (approximately now-24h).
+///
+/// Red Gate: before constant-folding, `TimestampArithmetic { base: Literal::Timestamp(now),
+/// op: Sub, offset: 24h }` is NOT matched by `extract_time_bounds_from_predicate`
+/// (which requires a bare `Literal::Timestamp` RHS) → `start_time` is `None`.
+#[tokio::test]
+async fn test_high001_pushdown_spy_start_time_populated_for_relative_time_query() {
+    use std::sync::{Arc, Mutex};
+
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// Spy adapter that records `QueryParams.start_time` and `end_time`.
+    struct StartTimeSpyAdapter {
+        captured_start: Arc<Mutex<Vec<Option<String>>>>,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for StartTimeSpyAdapter {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            let mut guard = self
+                .captured_start
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            guard.push(params.start_time.clone());
+
+            // Return one row with a `timestamp` column (recent, within the 24h window).
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("timestamp", DataType::Utf8, false),
+            ]));
+            let ts_str = chrono::Utc::now().to_rfc3339();
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec!["det-spy-001"])) as _,
+                    Arc::new(StringArray::from(vec![ts_str.as_str()])) as _,
+                ],
+            )
+            .expect("spy batch");
+            Ok(vec![batch])
+        }
+    }
+
+    // To wire QueryParams.start_time we need a resolved_spec_map with a datetime INDEX
+    // column named `timestamp` on `crowdstrike.detections`. Build it in-memory.
+    // Uses the legitimate external construction path: OverlayLoader::merge_overlay_onto_type_spec
+    // (ResolvedSensorSpec is #[non_exhaustive] — cannot construct with struct literal in tests).
+    use prism_core::{ColumnOptions, ColumnType};
+    use prism_spec_engine::{
+        overlay::{OverlayLoader, SensorInstanceOverlay},
+        spec_parser::{ColumnSpec, SensorSpec as SpecSensorSpec, TableSpec},
+        ResolvedSpecKey,
+    };
+
+    let mut col = ColumnSpec::default();
+    col.name = "timestamp".to_string();
+    col.column_type = ColumnType::Datetime;
+    col.options = vec![ColumnOptions::Index];
+
+    let table = TableSpec::new(
+        "detections",
+        "security_finding",
+        vec![col],
+        vec![],
+        prism_core::TableType::PointInTime,
+        None,
+        None,
+    );
+
+    let mut sensor_spec = SpecSensorSpec::default();
+    sensor_spec.sensor_id = "crowdstrike".to_string();
+    sensor_spec.tables = vec![table];
+
+    let org_slug = helpers::org("acme");
+
+    // Construct via the only external construction path (non_exhaustive guard).
+    let overlay_toml = format!("extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@acme\"",);
+    let overlay: SensorInstanceOverlay =
+        toml::from_str(&overlay_toml).expect("HIGH-001: overlay TOML parse");
+    let resolved =
+        OverlayLoader::merge_overlay_onto_type_spec(&sensor_spec, &overlay, org_slug.clone());
+
+    let key: ResolvedSpecKey = (org_slug.clone(), prism_core::SensorId::from("crowdstrike"));
+    let mut spec_map = std::collections::HashMap::new();
+    spec_map.insert(key, resolved);
+    let spec_map = Arc::new(spec_map);
+
+    let captured_start: Arc<Mutex<Vec<Option<String>>>> = Arc::new(Mutex::new(Vec::new()));
+    let spy = Arc::new(StartTimeSpyAdapter {
+        captured_start: Arc::clone(&captured_start),
+    });
+
+    let org_id = OrgId::new();
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(org_id, spy);
+
+    // Build QueryEngine with org_registry and resolved_spec_map so the pushdown wiring fires.
+    use prism_query::engine::{QueryEngine, QueryEngineConfig};
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(prism_ocsf::OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    org_registry
+        .register(org_slug.clone(), org_id)
+        .expect("HIGH-001: OrgRegistry registration must succeed");
+    let storage = helpers::make_storage();
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        spec_map,
+        helpers::make_empty_alias_store().store(),
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SQL-mode query: WHERE timestamp > NOW() - INTERVAL '24h'.
+    // After constant-folding: RHS becomes TIMESTAMP '<now-24h>' literal.
+    // extract_time_bounds_from_predicate matches Literal::Timestamp(now-24h) → start_time populated.
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE timestamp > NOW() - INTERVAL '24h'",
+            options,
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "HIGH-001: temporal query must execute successfully; got: {:?}",
+        result.err()
+    );
+
+    let calls = captured_start.lock().unwrap_or_else(|e| e.into_inner());
+    assert!(
+        !calls.is_empty(),
+        "HIGH-001: spy adapter must have been called at least once"
+    );
+
+    // start_time must be populated (constant-folding enables push-down extraction).
+    let any_start_populated = calls.iter().any(|st| st.is_some());
+    assert!(
+        any_start_populated,
+        "HIGH-001: QueryParams.start_time must be Some(...) for \
+         `WHERE timestamp > NOW() - INTERVAL '24h'` after constant-folding. \
+         Got calls: {calls:?}. \
+         Root cause: inject_now_expr does not fold TimestampArithmetic {{ base: Literal::Timestamp, \
+         op: Sub, offset }} into a single Literal::Timestamp — so extract_time_bounds_from_predicate \
+         never matches the RHS as a bare Timestamp literal."
+    );
+
+    // The start_time value must contain a date within the last 25 hours.
+    for st in calls.iter().flatten() {
+        // Should be an RFC3339 string close to now-24h.
+        assert!(
+            !st.is_empty(),
+            "HIGH-001: start_time must be a non-empty ISO8601 string; got: {st:?}"
+        );
+    }
+}
+
+/// HIGH-003 (in-window row) / BC-2.11.021 ADR-044: filter mode temporal query —
+/// a row with an `event_time` column value INSIDE the 24h window MUST be returned.
+///
+/// Discriminating test: the stub adapter returns TWO rows:
+///   Row A: `event_time` = now (inside window)
+///   Row B: `event_time` = now - 30 days (outside window, 720h ago)
+///
+/// Query: `crowdstrike_detections | where event_time > NOW() - INTERVAL '24h'`
+///
+/// Expected: exactly Row A returned (count=1, id="in-window-001").
+///
+/// Red Gate: before constant-folding, `TimestampArithmetic` in pipe WHERE emits
+/// `TIMESTAMP '<now>' - INTERVAL '<86400> seconds'` to DataFusion — which is
+/// correct runtime arithmetic. However the test verifies BOTH the count AND that
+/// the out-of-window row is excluded (semantic predicate correctness).
+///
+/// NOTE: This test MAY pass before the constant-fold fix if DataFusion correctly
+/// handles `TIMESTAMP '<iso>' - INTERVAL '86400 seconds'` at runtime.
+/// It is still load-bearing for HIGH-003 because it verifies the predicate
+/// is NOT dropped (if inject_now is missing, Expr::Now reaches expr_to_sql
+/// → Err, and the test would panic rather than assert wrong count).
+#[tokio::test]
+async fn test_high003_discriminating_pipe_in_window_row_returned() {
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    /// Returns two rows: one inside the 24h window, one outside (30 days ago).
+    struct TwoRowStub;
+
+    #[async_trait]
+    impl SensorAdapter for TwoRowStub {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            // Row A: now (inside 24h window)
+            // Row B: 30 days ago (outside 24h window)
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("event_time", DataType::Utf8, false),
+            ]));
+            let now = chrono::Utc::now();
+            let old = now - chrono::Duration::days(30);
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec!["in-window-001", "out-window-001"])) as _,
+                    Arc::new(StringArray::from(vec![
+                        now.to_rfc3339().as_str(),
+                        old.to_rfc3339().as_str(),
+                    ])) as _,
+                ],
+            )
+            .expect("two-row stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(TwoRowStub));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // Pipe mode: filter stage with NOW() - INTERVAL '24h'.
+    // After inject_now + expr_to_sql, DataFusion sees:
+    //   WHERE event_time > TIMESTAMP '<now-24h>' - INTERVAL '86400 seconds'
+    // (before fold), OR after fold:
+    //   WHERE event_time > TIMESTAMP '<now-24h-ISO>'
+    // Both should filter out the 30d-old row.
+    let result = engine
+        .execute(
+            "crowdstrike_detections | where event_time > NOW() - INTERVAL '24h'",
+            options,
+        )
+        .await
+        .expect("HIGH-003: pipe temporal query must succeed");
+
+    let total_rows: usize = result.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total_rows, 1,
+        "HIGH-003: pipe temporal filter must return EXACTLY 1 row (in-window); \
+         got {total_rows}. \
+         If 0: inject_now or expr_to_sql is broken (query errors out or drops predicate). \
+         If 2: temporal predicate is a no-op (NOW() not substituted or INTERVAL emitted wrongly)."
+    );
+
+    // Verify the returned row is the in-window one.
+    for batch in &result.batches {
+        if batch.num_rows() > 0 {
+            let id_idx = batch
+                .schema()
+                .index_of("detection_id")
+                .expect("HIGH-003: detection_id column must be present");
+            let ids = batch
+                .column(id_idx)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .expect("detection_id must be StringArray");
+            for row in 0..ids.len() {
+                assert_eq!(
+                    ids.value(row),
+                    "in-window-001",
+                    "HIGH-003: only 'in-window-001' must pass the temporal filter; \
+                     got: '{}' at row {}",
+                    ids.value(row),
+                    row
+                );
+            }
+        }
+    }
+}
+
+/// HIGH-003 (out-of-window row) / SQL-mode: discriminating SQL temporal query.
+///
+/// Same two-row stub as above, but via SQL mode:
+///   `SELECT * FROM crowdstrike_detections WHERE event_time > NOW() - INTERVAL '24h'`
+///
+/// SQL mode uses DataFusion's native NOW() in the raw SQL string, so this SHOULD
+/// work before the constant-fold fix. It's included as a cross-mode regression test.
+#[tokio::test]
+async fn test_high003_discriminating_sql_in_window_row_returned() {
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    struct TwoRowStubSql;
+
+    #[async_trait]
+    impl SensorAdapter for TwoRowStubSql {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("event_time", DataType::Utf8, false),
+            ]));
+            let now = chrono::Utc::now();
+            let old = now - chrono::Duration::days(30);
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec![
+                        "in-window-sql-001",
+                        "out-window-sql-001",
+                    ])) as _,
+                    Arc::new(StringArray::from(vec![
+                        now.to_rfc3339().as_str(),
+                        old.to_rfc3339().as_str(),
+                    ])) as _,
+                ],
+            )
+            .expect("two-row sql stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(TwoRowStubSql));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SQL mode: execute_against_session re-emits from injected AST via PqlNormalizer
+    // (D-1333 Option A), so DataFusion receives TIMESTAMP '<iso>' (plan-pinned constant).
+    // Uses PrismQL interval syntax: integer + unit letter (e.g. '24h', not '24 hours').
+    // This should filter out the 30d-old row.
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE event_time > NOW() - INTERVAL '24h'",
+            options,
+        )
+        .await
+        .expect("HIGH-003 SQL: temporal SQL query must succeed");
+
+    let total_rows: usize = result.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total_rows, 1,
+        "HIGH-003 SQL: SQL temporal filter must return EXACTLY 1 row (in-window); \
+         got {total_rows}. \
+         If 2: DataFusion's native NOW() is not filtering the 30d-old row."
+    );
+
+    for batch in &result.batches {
+        if batch.num_rows() > 0 {
+            if let Ok(id_idx) = batch.schema().index_of("detection_id") {
+                if let Some(ids) = batch.column(id_idx).as_any().downcast_ref::<StringArray>() {
+                    for row in 0..ids.len() {
+                        assert_eq!(
+                            ids.value(row),
+                            "in-window-sql-001",
+                            "HIGH-003 SQL: only 'in-window-sql-001' must pass the filter; \
+                             got: '{}'",
+                            ids.value(row)
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// HIGH-003 (SqlPipe-head) / discriminating SqlPipe temporal query.
+///
+/// Same two-row stub, but via SqlPipe mode:
+///   `SELECT * FROM crowdstrike_detections WHERE event_time > NOW() - INTERVAL '24h' | limit 10`
+///
+/// SqlPipe head uses raw SQL string for DataFusion (same as SQL mode).
+#[tokio::test]
+async fn test_high003_discriminating_sqlpipe_in_window_row_returned() {
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+    use async_trait::async_trait;
+    use prism_core::{OrgId, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
+
+    struct TwoRowStubSqlPipe;
+
+    #[async_trait]
+    impl SensorAdapter for TwoRowStubSqlPipe {
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
+        }
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            let schema = Arc::new(Schema::new(vec![
+                Field::new("detection_id", DataType::Utf8, false),
+                Field::new("event_time", DataType::Utf8, false),
+            ]));
+            let now = chrono::Utc::now();
+            let old = now - chrono::Duration::days(30);
+            let batch = RecordBatch::try_new(
+                schema,
+                vec![
+                    Arc::new(StringArray::from(vec![
+                        "in-window-sp-001",
+                        "out-window-sp-001",
+                    ])) as _,
+                    Arc::new(StringArray::from(vec![
+                        now.to_rfc3339().as_str(),
+                        old.to_rfc3339().as_str(),
+                    ])) as _,
+                ],
+            )
+            .expect("two-row sqlpipe stub batch");
+            Ok(vec![batch])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(TwoRowStubSqlPipe));
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // SqlPipe: SQL head with NOW() (raw string to DataFusion) + pipe | limit stage.
+    // Uses PrismQL interval syntax: integer + unit letter.
+    let result = engine
+        .execute(
+            "SELECT * FROM crowdstrike_detections WHERE event_time > NOW() - INTERVAL '24h' | limit 10",
+            options,
+        )
+        .await
+        .expect("HIGH-003 SqlPipe: temporal SqlPipe query must succeed");
+
+    let total_rows: usize = result.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total_rows, 1,
+        "HIGH-003 SqlPipe: SqlPipe temporal filter must return EXACTLY 1 row (in-window); \
+         got {total_rows}."
+    );
+
+    for batch in &result.batches {
+        if batch.num_rows() > 0 {
+            if let Ok(id_idx) = batch.schema().index_of("detection_id") {
+                if let Some(ids) = batch.column(id_idx).as_any().downcast_ref::<StringArray>() {
+                    for row in 0..ids.len() {
+                        assert_eq!(
+                            ids.value(row),
+                            "in-window-sp-001",
+                            "HIGH-003 SqlPipe: only 'in-window-sp-001' must pass; got: '{}'",
+                            ids.value(row)
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HIGH-002: plan-time pinning — SQL-mode and SqlPipe-head must execute the
+// plan-pinned TIMESTAMP constant, NOT DataFusion's runtime NOW()
+// BC-2.11.021 / ADR-044 D4 / D-1333 human decision (Option A accepted)
+// ---------------------------------------------------------------------------
+
+// HIGH-002 tests are unit tests in lib.rs (pub(crate) access to inject_now).
+// See `crates/prism-query/src/lib.rs` mod tests::high002_*

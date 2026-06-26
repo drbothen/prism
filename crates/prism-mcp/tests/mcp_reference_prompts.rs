@@ -35,9 +35,7 @@ use std::sync::Arc;
 use prism_mcp::{
     context::PrismContext,
     prompts::{build_prompt_router, render_query_tutorial, PROMPT_QUERY_TUTORIAL},
-    resources::{
-        build_resource_list, dispatch_read_resource, schema::render_pql_reference_resource,
-    },
+    resources::{build_resource_list, dispatch_read_resource},
     server::PrismServer,
 };
 

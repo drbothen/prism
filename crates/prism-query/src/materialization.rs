@@ -40,7 +40,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
-use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
+use prism_core::{OrgId, OrgSlug, PrismError, SensorId, UnknownSourceTableDetails};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
 
@@ -490,6 +490,56 @@ pub async fn run_materialization_pipeline(
         }
     })?;
 
+    // Step 1a: Inject NOW() constant (BC-2.11.021 / AC-004 / ADR-044).
+    //
+    // Capture Utc::now() ONCE per query so all NOW() occurrences resolve to the
+    // same instant (consistency invariant). The injected AST is used for:
+    //   - Pipe-mode stages: `pipe_to_executable_sql` → `expr_to_sql` must receive
+    //     `Literal::Timestamp(now)` not `Expr::Now` (TimestampArithmetic emission).
+    //   - Filter-mode predicates: injected before push-down filter extraction.
+    //   - SqlPipe pipe stages: same as Pipe-mode above.
+    //
+    // NOTE: For SQL-mode, the injected AST is re-emitted via PqlNormalizer::normalize
+    // (BC-2.11.021 / ADR-044 D4 / D-1333 Option A) so DataFusion receives the
+    // plan-pinned `'<iso>'` constant literal rather than a runtime NOW() call.
+    // For SqlPipe-head SQL, the head is normalized from the injected spq.head AST
+    // (see plan_pinned_head_sql below). For Pipe-mode, inject_now fires on stage
+    // expressions (Expr::Now replaced inline). All modes are covered.
+    let ast = {
+        use crate::ast::{Expr, Literal, TimestampLiteral};
+        use chrono::Utc;
+        let now: chrono::DateTime<Utc> = Utc::now();
+        let now_iso = now.to_rfc3339();
+        let now_ts = TimestampLiteral {
+            iso8601: now_iso,
+            instant: now,
+        };
+        let now_literal_expr = Expr::Literal(Literal::Timestamp(now_ts));
+        // F-P3-FRESH-CRIT-001 (Site 2): inject_now is now fallible — DateTime range
+        // overflow in the constant-fold arm produces E-QUERY-001 instead of panicking.
+        crate::inject_now(ast, &now_literal_expr).map_err(|errs| PrismError::QueryParseFailed {
+            offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            detail: errs
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("; "),
+            query: query_str.to_string(),
+        })?
+    };
+
+    // Step 1b: Plan-time FORBID-BOTH check (BC-2.11.020 INV-FORBID-BOTH-PERMANENT /
+    // ADR-043 §C §D4): hoisted to BEFORE fan-out so it fires data-independently.
+    //
+    // Previously `plan_sqlpipe_query` was called inside `execute_against_session`
+    // (after fan-out). If the adapter returned Ok(vec![]) (no batches), the Step-6
+    // early-return guard `if !any_external_table_registered` fired first, bypassing
+    // FORBID-BOTH. By hoisting here — right after parse and inject_now — the check
+    // runs unconditionally regardless of adapter row count.
+    if let crate::ast::Ast::SqlPipe(ref spq) = ast {
+        crate::plan_sqlpipe_query(spq)?;
+    }
+
     let source_names = extract_source_names(&ast);
 
     // Build a flat FilterMap of equality predicates from the WHERE clause (BC-2.11.007).
@@ -513,13 +563,56 @@ pub async fn run_materialization_pipeline(
     let all_clients: Vec<OrgSlug> = options.clients.clone().unwrap_or_default();
 
     // Step 3: Resolve source refs to fan-out targets.
-    let targets = resolve_source_refs(
+    let mut targets = resolve_source_refs(
         &source_names,
         &all_clients,
         &mat_ctx.adapter_registry,
         &mat_ctx.org_registry,
     )
     .await?;
+
+    // Step 3b: Bare-filter fan-out-to-all.
+    //
+    // BC-2.11.023 AC-011 / BC-2.11.002: A bare-predicate filter query (`severity = 'HIGH'`
+    // with no explicit source) fans out to ALL registered sensors. `resolve_source_refs`
+    // is called with empty `source_names` and returns empty targets — the bare-filter
+    // semantics require a separate path that enumerates the registry directly.
+    //
+    // This path synthesizes one FanOutTarget per (OrgId, SensorId) entry in the adapter
+    // registry. The `source_table` for each target is the sensor_id string (no explicit
+    // table qualifier), matching the bare-filter DataFusion enumeration in
+    // `execute_against_session::Ast::Filter` (which iterates session catalog tables and
+    // excludes `prism_*` internal tables).
+    if matches!(&ast, crate::ast::Ast::Filter(f) if f.source.raw.is_empty())
+        && targets.is_empty()
+        && !mat_ctx.adapter_registry.is_empty()
+    {
+        // Enumerate all (OrgId, SensorId) pairs registered in the adapter registry.
+        // For each pair, synthesize a FanOutTarget using sensor_id as source_table.
+        // client_id uses the same synthetic-slug fallback as resolve_source_refs lines
+        // 1284-1311 (no OrgRegistry available in bare-filter test path).
+        for sensor_id in mat_ctx.adapter_registry.registered_sensor_ids() {
+            let adapters = mat_ctx.adapter_registry.get_all_for_sensor(&sensor_id);
+            for (org_id, _adapter) in adapters {
+                let client_id = OrgSlug::new(format!("org-{}", &org_id.to_string()[..8]));
+                let source_table = sensor_id.as_ref().to_string();
+                targets.push(FanOutTarget {
+                    sensor_id: sensor_id.clone(),
+                    client_id: client_id.clone(),
+                    org_id,
+                    sensor_spec: SensorSpec {
+                        source_table: source_table.clone(),
+                        #[allow(deprecated)]
+                        client_id: client_id.as_str().to_string(),
+                        org_id,
+                        sensor_config: serde_json::Value::Null,
+                    },
+                    source_table,
+                    push_down_plan: PushDownPlan::default(),
+                });
+            }
+        }
+    }
 
     // Step 4: Fan out to sensor adapters, collecting results per source table.
     // Group results by source table name for MemTable registration.
@@ -800,12 +893,45 @@ pub async fn run_materialization_pipeline(
         }
         let batches = table_batches.remove(source_name).unwrap_or_default();
         if !batches.is_empty() {
-            register_mem_table(session_ctx, source_name, batches)?;
+            // Normalize the table name for DataFusion registration: replace the first dot with
+            // underscore (e.g. "crowdstrike.detections" → "crowdstrike_detections").
+            // DataFusion's `register_table` treats dots as catalog/schema separators and rejects
+            // names like "crowdstrike.detections". Filter-mode source refs use dot notation
+            // (BC-2.11.023), so normalization is required here. SQL-mode queries already use
+            // underscore notation by convention (BC-2.11.002), so normalization is a no-op for them.
+            let normalized_name = datafusion_table_name(source_name);
+            register_mem_table(session_ctx, &normalized_name, batches)?;
             any_external_table_registered = true;
-            registered_tables.push(source_name.clone());
+            registered_tables.push(normalized_name);
         }
         // If batches is empty, the table is NOT registered — DataFusion can't plan for it.
         // This is the "no adapter" case. We skip SQL execution in this case.
+    }
+
+    // Step 5b: Bare-filter fallthrough — register any remaining `table_batches` entries.
+    //
+    // For bare-filter fan-out (BC-2.11.023 AC-011 / Step 3b above), `source_names` is empty
+    // so the step-5 loop above does nothing. After the fan-out in step 4, `table_batches`
+    // holds entries keyed by sensor_id string (e.g. "stub", "crowdstrike"). Register them
+    // here so `execute_against_session::Ast::Filter` can enumerate them via the DataFusion
+    // session catalog and apply the predicate.
+    //
+    // Only runs when `source_names` is empty (bare filter) AND there are remaining batches
+    // (non-empty fan-out produced data). Non-bare-filter queries fully drain `table_batches`
+    // in the step-5 loop above — this block is a no-op for those paths.
+    if source_names.is_empty() {
+        for (table_key, batches) in table_batches.drain() {
+            if table_key.starts_with("prism_") {
+                any_external_table_registered = true;
+                continue;
+            }
+            if !batches.is_empty() {
+                let normalized_name = datafusion_table_name(&table_key);
+                register_mem_table(session_ctx, &normalized_name, batches)?;
+                any_external_table_registered = true;
+                registered_tables.push(normalized_name);
+            }
+        }
     }
 
     // Step 6: Execute the DataFusion SQL plan and collect results.
@@ -843,7 +969,11 @@ pub async fn run_materialization_pipeline(
 /// Production callers use `run_materialization_pipeline` which calls this internally.
 pub async fn execute_against_session(
     session_ctx: &SessionContext,
-    query_str: &str,
+    // F-P1-MED-002: `_query_str` was previously used by the `Ast::Sql(Select)` fallback
+    // `unwrap_or_else(|| query_str.to_string())`. That fallback is replaced by
+    // `ok_or_else(|| PrismError::QueryExecutionFailed{...})?` — consistent with the
+    // OBS-1 fix on the `Ast::SqlPipe` arm. The parameter is retained for API stability.
+    _query_str: &str,
     ast: &crate::ast::Ast,
     table_batches: std::collections::HashMap<String, Vec<RecordBatch>>,
 ) -> Result<Vec<RecordBatch>, PrismError> {
@@ -855,8 +985,38 @@ pub async fn execute_against_session(
             // budget-exceeded errors report the configured limit (engine
             // config `memory_pool_bytes`), not the 200MB default constant.
             let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
-            // Execute the SQL string via DataFusion.
-            let df = session_ctx.sql(query_str).await.map_err(|e| {
+            // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
+            // Re-emit the SQL from the inject_now-ed AST (which has folded all
+            // TimestampArithmetic nodes into bare Literal::Timestamp constants).
+            // DataFusion receives the plan-pinned `'<iso8601>'` literal rather than
+            // runtime `NOW()` or `NOW() - INTERVAL '...'`. This ensures:
+            //   1. The temporal bound used by DataFusion's post-filter is IDENTICAL
+            //      to the plan-time bound used for ADR-033 T1 push-down (QueryParams).
+            //   2. No PrismQL INTERVAL syntax (`'24h'`) reaches DataFusion (which uses
+            //      different syntax), eliminating the parsing ambiguity.
+            //   3. Cross-mode consistency: SQL/filter/pipe all see the same pinned instant.
+            //
+            // F-P1-MED-002 / OBS-1 sibling hardening: replace the silent `unwrap_or_else`
+            // fallback with a structured `ok_or_else` error. `normalize` returns `None`
+            // when the AST contains unfolded temporal expressions (Expr::Now /
+            // Expr::Interval / Expr::TimestampArithmetic — detected by the
+            // `ast_has_unfolded_temporal_expr` pre-check added by F-P1-MED-001).
+            // The old `unwrap_or_else(|| query_str.to_string())` would silently hand
+            // malformed SQL to DataFusion; `ok_or_else` returns a structured
+            // PrismError::QueryExecutionFailed instead. Consistent with the OBS-1 fix
+            // already applied to the sibling `Ast::SqlPipe` arm. (BC-2.11.021, ADR-044)
+            let plan_pinned_sql = crate::ast::PqlNormalizer::normalize(ast).ok_or_else(|| {
+                PrismError::QueryExecutionFailed {
+                    detail: "SQL normalization failed: query contains unfolded temporal \
+                             expression (Expr::Now / Expr::Interval / \
+                             Expr::TimestampArithmetic). This indicates inject_now did not \
+                             fully constant-fold the AST before normalization. Retry the \
+                             query or report to support."
+                        .to_string(),
+                }
+            })?;
+            // Execute the plan-pinned SQL string via DataFusion.
+            let df = session_ctx.sql(&plan_pinned_sql).await.map_err(|e| {
                 tracing::error!(error = %e, "DataFusion SQL planning error");
                 PrismError::QueryExecutionFailed {
                     detail: "SQL planning error: <redacted; see server logs>".to_string(),
@@ -873,14 +1033,139 @@ pub async fn execute_against_session(
                 .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
             collect_record_batch_stream(stream, pool_bytes).await
         }
-        // F-LP1-HIGH-1: For Filter mode, return the union of all materialized batches.
-        // The batches were already collected in the fan-out loop with virtual field injection.
-        // DataFusion MemTable registration has already happened for SQL query capability;
-        // for Filter mode we return the pre-collected annotated batches directly.
-        // (ENRICH-4-C: Filter-mode SQL execution is a follow-up story.)
-        Ast::Filter(_) => {
-            // Return the union of all table_batches values (unchanged from pre-ENRICH-4-B).
-            let all_batches: Vec<RecordBatch> = table_batches.into_values().flatten().collect();
+        // BC-2.11.023 AC-011 / ADR-046 D4: Filter mode predicate application via DataFusion.
+        //
+        // Filter mode lowers to `SELECT * FROM <table> WHERE <predicate>` and executes through
+        // DataFusion, applying the predicate to the materialized rows. This is the ENRICH-4-C
+        // implementation: filter predicates are now genuinely applied (not just pass-through).
+        //
+        // Source-qualified filter (`crowdstrike.detections | severity = 'HIGH'`):
+        //   → `SELECT * FROM crowdstrike_detections WHERE severity = 'HIGH'`
+        //
+        // Bare filter (`severity = 'HIGH'`, fan-out-to-all):
+        //   → `SELECT * FROM <table> WHERE severity = 'HIGH'` for each registered table,
+        //   results unioned. Each registered table gets its own SQL scan so DataFusion can
+        //   apply the predicate independently per schema.
+        //
+        // Returns empty Vec when no tables were registered (no-sensor engine: table_batches
+        // is empty because run_materialization_pipeline early-returned before this function
+        // for the no-adapter case; this arm handles only the with-data path).
+        //
+        // Memory budget: uses the same GreedyMemoryPool session as SQL/Pipe modes.
+        Ast::Filter(filter) => {
+            let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+
+            // LOW-1 fix — F-P1-MED-001 sibling parity (BC-2.11.021 / ADR-044):
+            // Guard against bare `Expr::Interval` (or other unfolded temporal expressions —
+            // `Expr::Now`, `Expr::TimestampArithmetic`) reaching `normalize_predicate_pub`.
+            //
+            // The SQL/SqlPipe arms are protected by `PqlNormalizer::normalize`'s
+            // `ast_has_unfolded_temporal_expr` pre-check (F-P1-MED-001). Without this
+            // guard, a bare `Expr::Interval` RHS (e.g. `timestamp > INTERVAL '24h'` —
+            // accepted by `build_temporal_rhs_parser`, NOT folded by `inject_now`) reaches
+            // `normalize_expr`'s catch-all → emits empty string → `WHERE timestamp > `
+            // (malformed) to DataFusion → generic redacted `QueryExecutionFailed` instead
+            // of a clear structured error.
+            //
+            // This guard makes the Filter arm consistent: any unfolded temporal expression
+            // returns the same E-QUERY-034 structured error the SQL/SqlPipe arms return.
+            if crate::ast::PqlNormalizer::predicate_has_unfolded_temporal_pub(&filter.predicate) {
+                return Err(PrismError::QueryExecutionFailed {
+                    detail: "filter SQL normalization failed: predicate contains unfolded \
+                             temporal expression (Expr::Now / Expr::Interval / \
+                             Expr::TimestampArithmetic). Bare interval comparisons such as \
+                             `timestamp > INTERVAL '24h'` are not supported in filter mode — \
+                             use `timestamp > NOW() - INTERVAL '24h'` which constant-folds at \
+                             plan time. Retry or report to support."
+                        .to_string(),
+                });
+            }
+
+            // Lower the predicate to a DataFusion-compatible SQL WHERE clause.
+            //
+            // OBS-1 fix (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 PR-LEVEL): use
+            // `predicate_to_datafusion_sql` (from `pipe_sql_emitter`) instead of
+            // `PqlNormalizer::normalize_predicate_pub`.
+            //
+            // `normalize_predicate_pub` emits double-quoted form (`"O'Brien"`) for string
+            // literals containing `'` — correct for PQL round-trips (BC-2.11.018) but WRONG
+            // for DataFusion SQL: DataFusion follows ANSI SQL and treats double-quoted tokens as
+            // IDENTIFIER references (column names), not string literals.  DataFusion would
+            // receive `WHERE name = "O'Brien"` and look for a column named `O'Brien` → no match /
+            // planning error instead of the expected string equality filter.
+            //
+            // `predicate_to_datafusion_sql` uses `escape_sql_string` which replaces `'` with
+            // `''` (standard SQL single-quote escaping) and always wraps in single quotes,
+            // producing `WHERE name = 'O''Brien'` — the correct DataFusion SQL form.
+            let where_clause = crate::pipe_sql_emitter::predicate_to_datafusion_sql(
+                &filter.predicate,
+            )
+            .map_err(|e| PrismError::QueryExecutionFailed {
+                detail: format!("filter SQL lowering failed: {e}. Retry or report to support."),
+            })?;
+
+            // Determine the set of registered source tables to apply the predicate against.
+            // Source-qualified: only the specified source. Bare: all registered tables.
+            //
+            // NOTE: `table_batches` is EMPTY at this point — run_materialization_pipeline step 5
+            // already consumed all entries via `table_batches.remove(source_name)` and registered
+            // them as DataFusion MemTables. For the bare-filter case we enumerate the session
+            // context's default catalog to find registered external tables (excluding prism_*
+            // internal tables, which are registered separately).
+            let table_names: Vec<String> = if filter.source.raw.is_empty() {
+                // Bare predicate: enumerate all tables registered in the DataFusion session.
+                // DataFusion registers MemTables into the default catalog ("datafusion") /
+                // default schema ("public"). Exclude prism_* tables (internal tables not
+                // relevant to sensor-data filter queries).
+                session_ctx
+                    .catalog("datafusion")
+                    .and_then(|cat| cat.schema("public"))
+                    .map(|schema| {
+                        schema
+                            .table_names()
+                            .into_iter()
+                            .filter(|n| !n.starts_with("prism_"))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                // Source-qualified: normalize the source ref using `datafusion_table_name`
+                // (dot→underscore) to match the normalized name used when registering the
+                // MemTable in step 5. The raw source ref "crowdstrike.detections" is
+                // registered as "crowdstrike_detections" — the SQL must use the same form.
+                vec![datafusion_table_name(&filter.source.raw)]
+            };
+
+            // Execute `SELECT * FROM <table> WHERE <predicate>` for each table and union.
+            let mut all_batches: Vec<RecordBatch> = Vec::new();
+            for table_name in &table_names {
+                // Table names are DataFusion-normalized (dots replaced with underscores)
+                // matching the normalization applied in step 5. Use plain identifier quoting.
+                let filter_sql = format!("SELECT * FROM {table_name} WHERE {where_clause}");
+                tracing::debug!(
+                    filter_sql = %filter_sql,
+                    event_type = "filter.sql_lowering",
+                    "filter-to-SQL lowering complete"
+                );
+                let df = session_ctx.sql(&filter_sql).await.map_err(|e| {
+                    tracing::error!(
+                        error = %e,
+                        filter_sql = %filter_sql,
+                        event_type = "filter.sql_planning_error",
+                        "filter-to-sql DataFusion planning error"
+                    );
+                    PrismError::QueryExecutionFailed {
+                        detail: "filter SQL planning error: <redacted; see server logs>"
+                            .to_string(),
+                    }
+                })?;
+                let stream = df
+                    .execute_stream()
+                    .await
+                    .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
+                let batches = collect_record_batch_stream(stream, pool_bytes).await?;
+                all_batches.extend(batches);
+            }
             Ok(all_batches)
         }
         // ENRICH-4-B: Pipe mode now routes through the SQL-lowering path.
@@ -916,6 +1201,71 @@ pub async fn execute_against_session(
             // so a GreedyMemoryPool trip (ResourcesExhausted) surfaces as
             // PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001) instead of
             // a generic QueryExecutionFailed (BC-2.11.006 EC-001).
+            let stream = df
+                .execute_stream()
+                .await
+                .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
+            collect_record_batch_stream(stream, pool_bytes).await
+        }
+        // BC-2.11.020: SQL→Pipe composition mode.
+        //
+        // FORBID-BOTH invariant (E-QUERY-040, BC-2.11.020 INV-FORBID-BOTH-PERMANENT,
+        // ADR-043 §C §D4) is now enforced by `run_materialization_pipeline` Step 1b
+        // (hoisted BEFORE fan-out and data-availability guard). Duplicate call removed
+        // here to avoid confusion — the check fires exactly once per query, at parse time.
+        //
+        // For valid queries, the head SQL is wrapped in a CTE (`_sqlpipe_head`)
+        // and the pipe stages are applied on top via the same SQL lowering path
+        // as `Ast::Pipe` — same pool, same stream collection, same memory-error
+        // mapper — preserving all BC-2.11.006 invariants.
+        Ast::SqlPipe(spq) => {
+            let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
+            // BC-2.11.021 / ADR-044 D4 / D-1333 Option A (plan-time pinning):
+            // Compute the SqlPipe head SQL from the inject_now-ed AST (spq.head has
+            // the folded Literal::Timestamp) rather than the raw query_str[..split].
+            // This ensures DataFusion receives the plan-pinned constant for the head SQL.
+            let plan_pinned_head_sql = {
+                use crate::ast::{Ast as InnerAst, SqlStatement};
+                // OBS-1 (BC-2.11.021 / ADR-044 D4): normalize MUST succeed for a
+                // well-formed SqlPipe head. If it returns None, the fallback would
+                // silently pass `query_str` (which may contain runtime NOW() or
+                // INTERVAL) to DataFusion, violating BC-2.11.021 plan-pinning.
+                // Return a structured error instead — the query can be retried.
+                crate::ast::PqlNormalizer::normalize(&InnerAst::Sql(SqlStatement::Select(
+                    spq.head.clone(),
+                )))
+                .ok_or_else(|| PrismError::QueryExecutionFailed {
+                    detail: "SqlPipe head SQL normalization failed: plan-pinned SQL could not be \
+                             derived. This is an internal error; retry the query or report to \
+                             support."
+                        .to_string(),
+                })?
+            };
+            let sql = crate::pipe_sql_emitter::sqlpipe_to_executable_sql(
+                &plan_pinned_head_sql,
+                spq,
+                &table_batches,
+            )?;
+            // SAP-1: reuse existing catalog event type `pipe.sql_lowering` (BC-2.16.002 row 178).
+            // SqlPipe lowering is semantically identical to Pipe lowering — same execution path,
+            // same diagnostic information. No new catalog row needed.
+            tracing::debug!(
+                pipe_sql = %sql,
+                event_type = "pipe.sql_lowering",
+                "sqlpipe-to-SQL lowering complete"
+            );
+            let df = session_ctx.sql(&sql).await.map_err(|e| {
+                // SAP-1: reuse existing catalog event type `pipe.sql_planning_error` (BC-2.16.002 row 179).
+                tracing::error!(
+                    error = %e,
+                    pipe_sql = %sql,
+                    event_type = "pipe.sql_planning_error",
+                    "sqlpipe-to-SQL DataFusion planning error"
+                );
+                PrismError::QueryExecutionFailed {
+                    detail: "sqlpipe SQL planning error: <redacted; see server logs>".to_string(),
+                }
+            })?;
             let stream = df
                 .execute_stream()
                 .await
@@ -979,9 +1329,16 @@ pub(crate) async fn resolve_source_refs(
                 source_name,
                 "resolve_source_refs: unknown sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::UnknownSourceTable {
-                source_name: source_name.to_string(),
-            });
+            // Populate available_tables from the registry for actionable diagnostics (AC-021).
+            let available_tables: Vec<String> = adapter_registry
+                .registered_sensor_ids()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            // No valid sensor prefix — cannot compute did_you_mean (nothing to compare to).
+            return Err(PrismError::UnknownSourceTable(Box::new(
+                UnknownSourceTableDetails::new(source_name.to_string(), available_tables, None),
+            )));
         };
 
         // F-LP1-CRITICAL-001: after extracting the sensor prefix, verify that at least
@@ -1000,9 +1357,28 @@ pub(crate) async fn resolve_source_refs(
                 sensor_id = %sensor_id,
                 "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::UnknownSourceTable {
-                source_name: source_name.to_string(),
-            });
+            // Populate available_tables and did_you_mean for actionable diagnostics (AC-021).
+            let registered: Vec<String> = adapter_registry
+                .registered_sensor_ids()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            let sensor_str: &str = sensor_id.as_ref();
+            // Levenshtein ≤ 3 suggestion — matches E-QUERY-037 / E-QUERY-038 threshold (D-1163).
+            let did_you_mean = registered
+                .iter()
+                .map(|candidate| {
+                    (
+                        candidate.as_str(),
+                        strsim::levenshtein(sensor_str, candidate.as_str()),
+                    )
+                })
+                .filter(|(_, dist)| *dist <= 3)
+                .min_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(b.0)))
+                .map(|(candidate, _)| candidate.to_string());
+            return Err(PrismError::UnknownSourceTable(Box::new(
+                UnknownSourceTableDetails::new(source_name.to_string(), registered, did_you_mean),
+            )));
         }
 
         if clients.is_empty() {
@@ -1197,14 +1573,28 @@ fn sensor_id_from_table_name(table_name: &str) -> Option<SensorId> {
     // Convention: `crowdstrike_hosts` → "crowdstrike", `armis_devices` → "armis".
     // MED-002: apply .to_lowercase() to match explain.rs convention and the
     // SensorId validation charset (lowercase only).
-    let prefix = table_name.split('_').next()?;
-    if prefix.is_empty() {
-        return None;
+    //
+    // BC-2.11.023 / AC-011 extension: filter-mode source refs use dot notation
+    // (`crowdstrike.detections`) rather than underscore notation. If the
+    // underscore-split path yields a prefix with a `.` (not a valid SensorId),
+    // also try splitting by `.` to extract the sensor component.
+    let underscore_prefix = table_name.split('_').next()?;
+    if !underscore_prefix.is_empty() && !underscore_prefix.contains('.') {
+        let prefix_lower = underscore_prefix.to_lowercase();
+        if let Ok(sid) = SensorId::try_from_str(prefix_lower.as_str()) {
+            return Some(sid);
+        }
     }
-    let prefix_lower = prefix.to_lowercase();
-    // Construct SensorId from lowercase prefix. SensorId::from panics on invalid
-    // charset, so use the fallible try_from_str for untrusted table name input.
-    SensorId::try_from_str(prefix_lower.as_str()).ok()
+    // Dot-notation fallback: `crowdstrike.detections` → sensor = "crowdstrike".
+    if let Some(dot_prefix) = table_name.split('.').next() {
+        if !dot_prefix.is_empty() {
+            let prefix_lower = dot_prefix.to_lowercase();
+            if let Ok(sid) = SensorId::try_from_str(prefix_lower.as_str()) {
+                return Some(sid);
+            }
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -1275,9 +1665,17 @@ fn extract_time_window_from_ast_from_query(
 ) -> (Option<String>, Option<String>) {
     use crate::ast::{Ast, SqlStatement};
 
-    // Only SELECT queries have a WHERE clause with time predicates.
+    // Only SELECT queries (and the head of a SqlPipe) have a WHERE clause with
+    // time predicates. BC-2.11.020 / HIGH-1 sibling sweep: the SqlPipe head is a
+    // full SQL SELECT — its WHERE clause must be propagated to the adapter as
+    // ADR-033 T1 time-window bounds, exactly like a bare Ast::Sql(Select) query.
+    // Without this arm, a SqlPipe query like
+    //   `SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '24h' | enrich ...`
+    // would not push the time-window to the adapter, causing a full-table scan
+    // against the 200MB/query memory budget (ADR-033 over-fetch risk).
     let Some(pred) = (match ast {
         Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref(),
+        Ast::SqlPipe(spq) => spq.head.where_.as_ref(),
         _ => None,
     }) else {
         return (None, None);
@@ -1306,8 +1704,13 @@ fn extract_time_window_from_ast_from_query(
 fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::types::FilterMap {
     use crate::ast::{Ast, SqlStatement};
 
+    // BC-2.11.020 / HIGH-1 sibling sweep: the SqlPipe head carries the WHERE clause
+    // that drives push-down equality filters. Without this arm, equality predicates
+    // in a SqlPipe head's WHERE (e.g. `WHERE severity = 'HIGH'`) would not be pushed
+    // to the sensor adapter, causing a full-table scan + post-materialization filter.
     let where_pred = match ast {
         Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref(),
+        Ast::SqlPipe(spq) => spq.head.where_.as_ref(),
         _ => None,
     };
 
@@ -1340,8 +1743,17 @@ fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
                 names.push(join.source.raw.clone());
             }
         }
-        Ast::Filter(filter) => {
+        // BC-2.11.002 / BC-2.11.023 AC-011: a bare-predicate filter query has
+        // source.raw = "" (no explicit sensor source). An empty source means
+        // "fan out to all sensors" — do NOT add the empty string to source_names
+        // or resolve_source_refs will fail with UnknownSourceTable { source_name: "" }.
+        // A source-qualified filter (e.g. "crowdstrike.detections | pred") has a
+        // non-empty raw source and IS pushed normally for targeted fan-out.
+        Ast::Filter(filter) if !filter.source.raw.is_empty() => {
             names.push(filter.source.raw.clone());
+        }
+        Ast::Filter(_) => {
+            // Bare predicate (no source): fan-out-to-all — add nothing to source_names.
         }
         Ast::Pipe(pipe) => {
             names.push(pipe.source.raw.clone());
@@ -1349,6 +1761,22 @@ fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
             // sources so that pipe-mode `<source> | join <internal_table> on ...`
             // is caught by the Layer 1 capability gate. Mirrors explain.rs:489-499.
             for stage in &pipe.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    names.push(js.source.raw.clone());
+                }
+            }
+        }
+        // BC-2.11.020: SqlPipe mode — extract source table from the head SQL's FROM clause.
+        // The head SELECT drives the fan-out; pipe stages operate on the fetched rows.
+        // OBS-1 parity fix: also collect PipeStage::Join sources from spq.stages so
+        // that `SELECT … | join <table> on …` pipe stages reach the E-QUERY-011
+        // AuditRead gate and E-QUERY-037 availability gate. Mirrors Ast::Pipe arm above.
+        Ast::SqlPipe(spq) => {
+            names.push(spq.head.from.source.raw.clone());
+            for join in &spq.head.joins {
+                names.push(join.source.raw.clone());
+            }
+            for stage in &spq.stages {
                 if let crate::ast::PipeStage::Join(js) = stage {
                     names.push(js.source.raw.clone());
                 }
@@ -1422,6 +1850,23 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
             // sources so that pipe-mode `<source> | join <internal_table> on ...`
             // is caught by the Layer 1 capability gate. Mirrors explain.rs:489-499.
             for stage in &pipe.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    names.insert(js.source.raw.clone());
+                }
+            }
+        }
+        // BC-2.11.020 / HIGH-1 sibling sweep: SqlPipe head drives the E-QUERY-011
+        // AuditRead capability gate. `check_internal_table_capabilities` calls
+        // `extract_source_names_recursive` — without this arm, a SqlPipe query with
+        // head `SELECT * FROM prism_audit …` would bypass the AuditRead gate entirely.
+        // Walk `walk_sql_query` on the head so that prism_* references in JOINs and
+        // WHERE subqueries are also collected (mirrors `Ast::Sql(Select)` arm above).
+        // OBS-1 parity fix: also collect PipeStage::Join sources from spq.stages so
+        // that `SELECT … | join <table> on …` pipe stages reach the AuditRead gate.
+        // Mirrors the Ast::Pipe arm above. (TD-VSDD-060)
+        Ast::SqlPipe(spq) => {
+            walk_sql_query(&spq.head, &mut names);
+            for stage in &spq.stages {
                 if let crate::ast::PipeStage::Join(js) = stage {
                     names.insert(js.source.raw.clone());
                 }
@@ -1553,6 +1998,33 @@ fn walk_expr(expr: &crate::ast::Expr, names: &mut std::collections::HashSet<Stri
         },
         // Other Expr variants (Literal, Field, VirtualField, In, Star) have no subqueries.
         _ => {}
+    }
+}
+
+// ---------------------------------------------------------------------------
+// datafusion_table_name
+// ---------------------------------------------------------------------------
+
+/// Normalize a PrismQL source ref to a valid DataFusion table name.
+///
+/// DataFusion's `register_table` treats dots in table names as catalog/schema
+/// separators and rejects names like `"crowdstrike.detections"`. Filter-mode
+/// source refs use dot notation (BC-2.11.023 AC-011); SQL-mode queries use
+/// underscore notation by convention. This function replaces the first dot with
+/// an underscore so both forms resolve to the same registered MemTable name.
+///
+/// Examples:
+/// - `"crowdstrike.detections"` → `"crowdstrike_detections"`
+/// - `"crowdstrike_detections"` → `"crowdstrike_detections"` (no-op)
+/// - `"prism_audit"` → `"prism_audit"` (no-op; internal table prefix preserved)
+fn datafusion_table_name(source_name: &str) -> String {
+    match source_name.find('.') {
+        Some(pos) => {
+            let mut s = source_name.to_string();
+            s.replace_range(pos..=pos, "_");
+            s
+        }
+        None => source_name.to_string(),
     }
 }
 
@@ -1889,6 +2361,80 @@ mod walker_coverage_tests {
             shallow_names.iter().any(|n| n == "prism_audit"),
             "F-LP5-LOW-1: extract_source_names_shallow must discover `prism_audit` \
              from PipeStage::Join source; got names: {shallow_names:?}"
+        );
+    }
+
+    /// OBS-1: SqlPipe pipe-stage JOIN sources must be collected by both Layer 1 walkers.
+    ///
+    /// Represents queries like:
+    ///   `SELECT * FROM crowdstrike_detections | join prism_audit on id == trace_id`
+    ///
+    /// Prior to the OBS-1 fix, `extract_source_names_recursive` and
+    /// `extract_source_names_shallow` only collected the SqlPipe head sources
+    /// (`crowdstrike_detections`) and silently skipped `PipeStage::Join` sources
+    /// (`prism_audit`) from `spq.stages`. The AuditRead gate (E-QUERY-011) and
+    /// availability gate (E-QUERY-037) therefore never saw the join source.
+    ///
+    /// This is a defensive parity fix — `Ast::SqlPipe` must mirror `Ast::Pipe`
+    /// for Join source collection. (TD-VSDD-060)
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_OBS_1_sql_pipe_join_stage_source_discovered_by_layer1() {
+        use super::extract_source_names_shallow;
+        use crate::ast::{
+            InternalTable, JoinCondition, JoinKind, JoinStage, PipeStage, SqlPipeQuery,
+        };
+
+        // Build: SELECT * FROM crowdstrike_detections | join prism_audit on id == trace_id
+        let join_stage = JoinStage {
+            kind: JoinKind::Inner,
+            source: SourceRef {
+                raw: "prism_audit".to_string(),
+                kind: SourceRefKind::Internal(InternalTable::Audit),
+            },
+            on: JoinCondition::Pair(
+                FieldPath {
+                    segments: vec!["id".to_string()],
+                    span: Span::ZERO,
+                },
+                FieldPath {
+                    segments: vec!["trace_id".to_string()],
+                    span: Span::ZERO,
+                },
+            ),
+        };
+
+        let sql_pipe_ast = Ast::SqlPipe(SqlPipeQuery {
+            head: minimal_select("crowdstrike_detections"),
+            stages: vec![PipeStage::Join(join_stage)],
+        });
+
+        // extract_source_names_recursive must discover both the head source and the join source.
+        let recursive_names = extract_source_names_recursive(&sql_pipe_ast);
+        assert!(
+            recursive_names
+                .iter()
+                .any(|n| n == "crowdstrike_detections"),
+            "OBS-1: extract_source_names_recursive must include 'crowdstrike_detections' \
+             (SqlPipe head source); got names: {recursive_names:?}"
+        );
+        assert!(
+            recursive_names.iter().any(|n| n == "prism_audit"),
+            "OBS-1: extract_source_names_recursive must discover 'prism_audit' \
+             from SqlPipe PipeStage::Join source; got names: {recursive_names:?}"
+        );
+
+        // extract_source_names_shallow must also discover both sources.
+        let shallow_names = extract_source_names_shallow(&sql_pipe_ast);
+        assert!(
+            shallow_names.iter().any(|n| n == "crowdstrike_detections"),
+            "OBS-1: extract_source_names_shallow must include 'crowdstrike_detections' \
+             (SqlPipe head source); got names: {shallow_names:?}"
+        );
+        assert!(
+            shallow_names.iter().any(|n| n == "prism_audit"),
+            "OBS-1: extract_source_names_shallow must discover 'prism_audit' \
+             from SqlPipe PipeStage::Join source; got names: {shallow_names:?}"
         );
     }
 
@@ -2460,7 +3006,7 @@ mod unknown_source_table_tests {
             "resolve_source_refs must return Err for unregistered sensor prefix; got Ok",
         );
         assert!(
-            matches!(err, PrismError::UnknownSourceTable { .. }),
+            matches!(err, PrismError::UnknownSourceTable(..)),
             "error must be PrismError::UnknownSourceTable (E-QUERY-036); got: {err:?}"
         );
         let display = err.to_string();
@@ -2471,6 +3017,64 @@ mod unknown_source_table_tests {
         assert!(
             display.contains("ghost_sensor.devices"),
             "error display must include the source_name; got: {display}"
+        );
+    }
+
+    /// AC-021 / GRAMMAR-004 / E-QUERY-036: UnknownSourceTable error carries available_tables
+    /// and did_you_mean when the registry is non-empty.
+    ///
+    /// RED GATE: currently UnknownSourceTable { source_name: String } has no available_tables
+    /// or did_you_mean fields.  After the fix the variant becomes a boxed struct and this
+    /// test must pass.
+    ///
+    /// Mental-deletion proof: removing available_tables population at the emit site causes
+    /// the available_tables assertion to fail; removing did_you_mean computation causes the
+    /// did_you_mean assertion to fail.
+    #[tokio::test]
+    async fn test_BC_2_11_007_grammar004_unknown_source_table_carries_available_tables_and_did_you_mean(
+    ) {
+        let org_id = OrgId::new();
+        let mut registry = AdapterRegistry::new();
+        // Register "crowdstrike" — the user typo'd "crowdstrke" so did_you_mean should suggest it.
+        registry.register(
+            org_id,
+            Arc::new(StubAdapterForUnknownTest {
+                sensor_id: SensorId::new("crowdstrike"),
+            }),
+        );
+
+        // "crowdstrke" is 1 Levenshtein distance from "crowdstrike" — within the ≤3 threshold.
+        let source_names = vec!["crowdstrke_detections".to_string()];
+        let clients = vec![];
+        let org_registry = None;
+
+        let result =
+            super::resolve_source_refs(&source_names, &clients, &registry, &org_registry).await;
+
+        let err = result.expect_err(
+            "resolve_source_refs must return Err for unregistered 'crowdstrke'; got Ok",
+        );
+
+        // Must be the new boxed-struct variant.
+        let PrismError::UnknownSourceTable(ref details) = err else {
+            panic!(
+                "AC-021: error must be PrismError::UnknownSourceTable(Box<UnknownSourceTableDetails>); got: {err:?}"
+            );
+        };
+
+        // available_tables must list "crowdstrike" (the registered sensor prefix).
+        assert!(
+            details.available_tables.iter().any(|s| s == "crowdstrike"),
+            "AC-021: available_tables must contain 'crowdstrike'; got: {:?}",
+            details.available_tables
+        );
+
+        // did_you_mean must suggest "crowdstrike" (distance 1 ≤ 3).
+        assert_eq!(
+            details.did_you_mean.as_deref(),
+            Some("crowdstrike"),
+            "AC-021: did_you_mean must suggest 'crowdstrike' for 'crowdstrke'; got: {:?}",
+            details.did_you_mean
         );
     }
 
@@ -2504,7 +3108,7 @@ mod unknown_source_table_tests {
         let err = result
             .expect_err("resolve_source_refs must return Err for invalid table prefix; got Ok");
         assert!(
-            matches!(err, PrismError::UnknownSourceTable { .. }),
+            matches!(err, PrismError::UnknownSourceTable(..)),
             "error must be PrismError::UnknownSourceTable (E-QUERY-036) for invalid prefix; got: {err:?}"
         );
     }

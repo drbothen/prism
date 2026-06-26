@@ -2836,7 +2836,13 @@ pub async fn step9_start_mcp_server(
     // Feature flags start with empty client capability map — all write capabilities deny-by-default
     // until the per-client capability config loads (S-2.03). The deny-by-default posture matches
     // the production security-default; do not interpret the empty map as "all-open".
-    let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+    // BC-2.10.015: wire org_registry into FeatureFlagEvaluator so client_exists
+    // uses OrgRegistry::slug_exists (the authoritative gate), not a local BTreeMap
+    // key check. Cloned from org_registry_for_server (IMP-8 hold for PrismServer).
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        Arc::clone(&org_registry_for_server),
+    ));
     // confirmation_store was constructed before query_engine above (F-S504-P1-004).
 
     // BootAuditWriter (module-scope item below, P1-03 2026-06-10 review pass-1):

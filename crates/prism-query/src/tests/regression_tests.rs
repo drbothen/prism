@@ -1512,3 +1512,475 @@ fn test_p6_01_map_datafusion_memory_error_fallback_display_has_exactly_one_query
          got {count} occurrence(s): {display}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-P3-CRIT-NEW-001 regression tests — char-boundary panic in
+// `parse_interval_duration_str` (split_at(s.len()-1) on multi-byte input)
+//
+// `parse_interval_duration_str` does `s.split_at(s.len() - 1)` as its first
+// split operation.  When the last character of the INTERVAL content is a
+// multi-byte UTF-8 sequence, `s.len() - 1` lands inside that sequence — a
+// byte index that is NOT a char boundary — causing an unconditional panic.
+//
+// Reachable from all three public parse modes (filter / SQL WHERE / pipe
+// where) via `build_temporal_rhs_parser`'s `interval_content` parser, which
+// accepts `none_of('\'').repeated()` (any non-quote, including multi-byte).
+//
+// These tests MUST panic (or otherwise fail) BEFORE the fix and pass after.
+// Each calls `PrismQlParser::parse` with a real INTERVAL expression so that
+// the production parse path — including the grammar-level parser and
+// `parse_interval_duration_str` — is exercised.
+// ---------------------------------------------------------------------------
+
+/// F-P3-CRIT-NEW-001a: INTERVAL with a single trailing 2-byte multi-byte char.
+///
+/// `é` (U+00E9) is 2 UTF-8 bytes. `s.split_at(s.len() - 1) = split_at(1)` lands
+/// inside the 2-byte sequence → char-boundary panic in the unpatched code.
+/// Post-fix: must return `Err` with a structured E-QUERY-001 message, never panic.
+#[test]
+fn test_f_p3_crit_new_001a_interval_trailing_multibyte_no_panic() {
+    // `é` is U+00E9: two bytes, so s.len()-1 == 1 which is NOT a char boundary.
+    let query = "event_time > INTERVAL 'é'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-NEW-001a: PrismQlParser::parse panicked on INTERVAL with trailing 2-byte char 'é'"
+    );
+    // Post-fix: must be Err with a structured message (not a panic-converted Ok).
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-NEW-001a: expected Err for invalid INTERVAL 'é', got Ok"
+            );
+            let errs = parse_result.unwrap_err();
+            let msg = errs
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("; ");
+            assert!(
+                msg.contains("E-QUERY-001"),
+                "F-P3-CRIT-NEW-001a: error must contain E-QUERY-001, got: {msg}"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-NEW-001b: INTERVAL inside NOW() arithmetic with multi-byte content.
+///
+/// `café` ends with `é` (U+00E9, 2 bytes). `s.len()-1` lands inside that byte
+/// sequence → panic.  Post-fix: must return `Err`, never panic.
+#[test]
+fn test_f_p3_crit_new_001b_interval_in_now_arithmetic_multibyte_no_panic() {
+    let query = "event_time > NOW() - INTERVAL 'café'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-NEW-001b: PrismQlParser::parse panicked on NOW() - INTERVAL 'café'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-NEW-001b: expected Err for invalid INTERVAL 'café', got Ok"
+            );
+            let errs = parse_result.unwrap_err();
+            let msg = errs
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("; ");
+            assert!(
+                msg.contains("E-QUERY-001"),
+                "F-P3-CRIT-NEW-001b: error must contain E-QUERY-001, got: {msg}"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-NEW-001c: INTERVAL with a 3-byte trailing multi-byte char.
+///
+/// `€` (U+20AC) is 3 UTF-8 bytes. Both `s.len()-1` (2) and `s.len()-2` (1) are
+/// NOT char boundaries → panic.  Post-fix: must return `Err`, never panic.
+#[test]
+fn test_f_p3_crit_new_001c_interval_trailing_3byte_multibyte_no_panic() {
+    // `€` is U+20AC: 3 bytes. None of len-1, len-2 are char boundaries.
+    let query = "event_time > INTERVAL '24€'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-NEW-001c: PrismQlParser::parse panicked on INTERVAL with 3-byte trailing char '€'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-NEW-001c: expected Err for invalid INTERVAL '24€', got Ok"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-P3-FRESH-CRIT-001 regression tests — numeric-magnitude overflow panics in
+// `parse_interval_duration_str` (Site 1) and `inject_now_expr` (Site 2).
+//
+// VP-021 ("PrismQL parser: never panics on arbitrary input") is violated by:
+//   Site 1: `value as i64` silently wraps when value > i64::MAX; then
+//            `chrono::Duration::{seconds,minutes,hours,days}(wrapped_i64)` panics
+//            when the resulting milliseconds representation overflows i64.
+//   Site 2: `ts.instant - offset` / `ts.instant + offset` in `inject_now_expr`
+//            panic on DateTime range overflow even when the Duration itself is
+//            in-bounds (e.g. huge-but-representable seconds → underflows DateTime).
+//
+// chrono 0.4.44 bounds (verified from source + Cargo.lock):
+//   max days  = 106_751_991_167       (overflow: 106_751_991_168)
+//   max hours = 2_562_047_788_015     (overflow: 2_562_047_788_016)
+//   max mins  = 153_722_867_280_912   (overflow: 153_722_867_280_913)
+//   max secs  = 9_223_372_036_854_775 (overflow: 9_223_372_036_854_776)
+//
+// i64 cast-wrap: any u64 value > i64::MAX (9_223_372_036_854_775_807)
+// wraps on `as i64` to a NEGATIVE value, which also violates Duration invariants.
+//
+// Each test calls `std::panic::catch_unwind` so that a panic does not abort the
+// test binary — it shows up as Err from catch_unwind, which the test then fails
+// with a descriptive assertion message (instead of a SIGABRT / test crash).
+// ---------------------------------------------------------------------------
+
+/// F-P3-FRESH-CRIT-001a: INTERVAL '106751991168d' — days magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001a_interval_days_overflow_no_panic() {
+    // 106_751_991_168 days = max_days + 1; Duration::days panics on this.
+    let query = "event_time > INTERVAL '106751991168d'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001a: PrismQlParser::parse panicked on INTERVAL days magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001a: expected Err for overflowing INTERVAL days, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001a: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001b: INTERVAL '2562047788016h' — hours magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001b_interval_hours_overflow_no_panic() {
+    // 2_562_047_788_016 hours = max_hours + 1
+    let query = "event_time > INTERVAL '2562047788016h'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001b: PrismQlParser::parse panicked on INTERVAL hours magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001b: expected Err for overflowing INTERVAL hours, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001b: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001c: INTERVAL '153722867280913m' — minutes magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001c_interval_minutes_overflow_no_panic() {
+    // 153_722_867_280_913 minutes = max_minutes + 1
+    let query = "event_time > INTERVAL '153722867280913m'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001c: PrismQlParser::parse panicked on INTERVAL minutes magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001c: expected Err for overflowing INTERVAL minutes, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001c: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001d: INTERVAL '9223372036854776s' — seconds magnitude exceeds
+/// chrono::TimeDelta max. Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001d_interval_seconds_overflow_no_panic() {
+    // 9_223_372_036_854_776s = max_secs + 1; still fits in u64 and i64
+    let query = "event_time > INTERVAL '9223372036854776s'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001d: PrismQlParser::parse panicked on INTERVAL seconds magnitude overflow"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001d: expected Err for overflowing INTERVAL seconds, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001d: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001e: INTERVAL with value > i64::MAX (u64 overflow cast-wrap).
+///
+/// A u64 value of i64::MAX + 1 (= 9_223_372_036_854_775_808) cast to i64 wraps to
+/// -9_223_372_036_854_775_808, which makes Duration::seconds(-i64::MAX-1) panic.
+/// Must return Err(E-QUERY-001), never panic.
+#[test]
+fn test_f_p3_fresh_crit_001e_interval_value_exceeds_i64_max_no_panic() {
+    // 9_223_372_036_854_775_808 = i64::MAX + 1: wraps to i64::MIN when cast via `as i64`
+    let query = "event_time > INTERVAL '9223372036854775808s'";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001e: PrismQlParser::parse panicked on INTERVAL value > i64::MAX"
+    );
+    let parse_result = result.unwrap();
+    assert!(
+        parse_result.is_err(),
+        "F-P3-FRESH-CRIT-001e: expected Err for INTERVAL value > i64::MAX, got Ok"
+    );
+    let errs = parse_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001e: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-FRESH-CRIT-001f: plan-time DateTime underflow via `inject_now_expr`.
+///
+/// `NOW() - INTERVAL '9223372036854775s'` (max representable Duration in seconds)
+/// produces a valid Duration but when subtracted from the current DateTime (near
+/// Unix epoch + some years) will underflow the DateTime range.
+/// Must propagate a structured Err from `parse_and_plan`, never panic.
+#[test]
+fn test_f_p3_fresh_crit_001f_plan_time_datetime_underflow_no_panic() {
+    // max_secs = 9_223_372_036_854_775s is within chrono::Duration bounds.
+    // Subtracting this from a DateTime near "now" (year ~2026) will underflow the
+    // DateTime representable range (min ~year -262,000), causing a panic in the
+    // non-checked `ts.instant - offset` path.
+    let query = "event_time > NOW() - INTERVAL '9223372036854775s'";
+    let result = std::panic::catch_unwind(|| crate::parse_and_plan(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-FRESH-CRIT-001f: parse_and_plan panicked on DateTime underflow from max-Duration seconds"
+    );
+    let plan_result = result.unwrap();
+    assert!(
+        plan_result.is_err(),
+        "F-P3-FRESH-CRIT-001f: expected Err for DateTime underflow, got Ok"
+    );
+    let errs = plan_result.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "F-P3-FRESH-CRIT-001f: error must contain E-QUERY-001, got: {msg}"
+    );
+}
+
+/// F-P3-CRIT-NEW-001d: Existing ASCII INTERVAL behavior must be preserved after fix.
+///
+/// `'24h'`, `'7d'`, `'1h'` are valid; `'bogus'` must be Err; `'999s'` must succeed.
+/// This test guards against regressions introduced while fixing the char-boundary bug.
+#[test]
+fn test_f_p3_crit_new_001d_interval_ascii_behavior_preserved() {
+    // Valid ASCII intervals must still parse to Ok(Ast).
+    for valid in &[
+        "event_time > INTERVAL '24h'",
+        "event_time > INTERVAL '7d'",
+        "event_time > INTERVAL '999s'",
+        "event_time > INTERVAL '30m'",
+    ] {
+        let r = PrismQlParser::parse(valid);
+        assert!(
+            r.is_ok(),
+            "F-P3-CRIT-NEW-001d: valid interval '{valid}' must parse Ok, got: {r:?}"
+        );
+    }
+
+    // Invalid ASCII intervals must be Err (not panic).
+    for invalid in &[
+        "event_time > INTERVAL 'bogus'",
+        "event_time > INTERVAL ''",
+        "event_time > INTERVAL 'x'",
+    ] {
+        let result = std::panic::catch_unwind(|| PrismQlParser::parse(invalid));
+        assert!(
+            result.is_ok(),
+            "F-P3-CRIT-NEW-001d: invalid interval '{invalid}' panicked (must return Err instead)"
+        );
+        if let Ok(r) = result {
+            assert!(
+                r.is_err(),
+                "F-P3-CRIT-NEW-001d: invalid interval '{invalid}' must be Err, got Ok"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-P3-CRIT-001 integration smoke tests — char-boundary safety in the
+// `is_enrich_missing_column_at` enrich-error path via PrismQlParser::parse.
+//
+// Root cause (fixed in error_recovery.rs): `rfind(|c: char| !c.is_alphanumeric() && c != '_')`
+// returns the BYTE START of the matched char. For multibyte chars (e.g. `»` U+00BB = 2
+// bytes, `—` U+2014 = 3 bytes), `i + 1` lands INSIDE the UTF-8 sequence →
+// the subsequent byte-slice panics "byte index N is not a char boundary".
+//
+// Unit RED-gate tests live in error_recovery.rs tests module (direct calls with
+// offset=input.len(), which expose the panic).  These integration tests verify
+// the FULL parse path also produces Err without panic.
+//
+// Note on integration path: Chumsky's error offset for `"FROM t | enrich a»b"` is
+// 17 (start of `»`), making prefix = "FROM t | enrich a" (ASCII). The unit tests in
+// error_recovery.rs are the RED-gate because they call is_enrich_missing_column_at
+// with offset=input.len() directly, exposing the multibyte char in the prefix.
+// These integration tests serve as post-fix smoke tests confirming Err + no panic
+// on the full PrismQlParser::parse path.
+// ---------------------------------------------------------------------------
+
+/// F-P3-CRIT-001a: pipe mode smoke test — `»` (U+00BB, 2 bytes) in enrich input.
+///
+/// `FROM t | enrich a»b` must return `Err` without panic via the full parse path.
+/// (Unit RED-gate: error_recovery::tests::test_f_p3_crit_001_unit_a_two_byte_separator_no_panic)
+#[test]
+fn test_f_p3_crit_001a_enrich_multibyte_separator_2byte_no_panic() {
+    let query = "FROM t | enrich a\u{00BB}b";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-001a: PrismQlParser::parse panicked on enrich with 2-byte separator '»'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-001a: expected Err for invalid enrich 'a»b', got Ok"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-001b: pipe mode smoke test — `—` (U+2014 EM DASH, 3 bytes) in enrich input.
+///
+/// `FROM t | enrich x—y` must return `Err` without panic.
+/// (Unit RED-gate: error_recovery::tests::test_f_p3_crit_001_unit_b_three_byte_separator_no_panic)
+#[test]
+fn test_f_p3_crit_001b_enrich_multibyte_separator_3byte_no_panic() {
+    let query = "FROM t | enrich x\u{2014}y";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-001b: PrismQlParser::parse panicked on enrich with 3-byte separator '—'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-001b: expected Err for invalid enrich 'x—y', got Ok"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-001c: SqlPipe mode smoke test — `»` (U+00BB) in enrich input via
+/// the SqlPipe path (filter_parser.rs:485).
+///
+/// `SELECT * FROM t | enrich a»b` must return `Err` without panic.
+/// (Unit RED-gate: error_recovery::tests::test_f_p3_crit_001_unit_a_two_byte_separator_no_panic)
+#[test]
+fn test_f_p3_crit_001c_enrich_multibyte_sqlpipe_path_no_panic() {
+    let query = "SELECT * FROM t | enrich a\u{00BB}b";
+    let result = std::panic::catch_unwind(|| PrismQlParser::parse(query));
+    assert!(
+        result.is_ok(),
+        "F-P3-CRIT-001c: PrismQlParser::parse panicked on SqlPipe enrich with 2-byte separator '»'"
+    );
+    match result {
+        Ok(parse_result) => {
+            assert!(
+                parse_result.is_err(),
+                "F-P3-CRIT-001c: expected Err for invalid SqlPipe enrich 'a»b', got Ok"
+            );
+        }
+        Err(_) => unreachable!("caught unwind should have been Ok — panic was caught above"),
+    }
+}
+
+/// F-P3-CRIT-001d: ASCII enrich behavior must be preserved after the fix.
+///
+/// `FROM t | enrich threat_score` must still produce the actionable
+/// "enrich requires a column argument" guidance message (GRAMMAR-005).
+#[test]
+fn test_f_p3_crit_001d_enrich_ascii_behavior_preserved() {
+    // Missing column — must be Err with enrich guidance message.
+    let missing_col = "FROM t | enrich threat_score";
+    let r = PrismQlParser::parse(missing_col);
+    assert!(
+        r.is_err(),
+        "F-P3-CRIT-001d: expected Err for enrich without column, got Ok"
+    );
+    let errs = r.unwrap_err();
+    let msg = errs
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    assert!(
+        msg.contains("enrich requires a column argument"),
+        "F-P3-CRIT-001d: expected enrich guidance message, got: {msg}"
+    );
+}

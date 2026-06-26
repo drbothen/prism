@@ -145,11 +145,14 @@ fn make_evaluator_allow(client_id: &str, capability_path: &str) -> FeatureFlagEv
         CapabilityEffect::Allow,
     );
     caps.insert(client_id.to_string(), client_caps);
-    FeatureFlagEvaluator::new(caps)
+    FeatureFlagEvaluator::new(caps, std::sync::Arc::new(prism_core::OrgRegistry::new()))
 }
 
 fn make_evaluator_deny_all() -> FeatureFlagEvaluator {
-    FeatureFlagEvaluator::new(BTreeMap::new())
+    FeatureFlagEvaluator::new(
+        BTreeMap::new(),
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -620,7 +623,7 @@ fn test_BC_2_04_005_ec_04_011_all_clients_deny_write_invocation_returns_e_flag_0
         caps.insert("client-a".to_string(), ClientCapabilities::new());
         caps.insert("client-b".to_string(), ClientCapabilities::new());
         caps.insert("client-c".to_string(), ClientCapabilities::new());
-        FeatureFlagEvaluator::new(caps)
+        FeatureFlagEvaluator::new(caps, std::sync::Arc::new(prism_core::OrgRegistry::new()))
     };
     let endpoint_spec = make_write_endpoint_spec(RiskTier::Irreversible);
     let limit = ResolvedBatchLimit { limit: 100 };
@@ -663,7 +666,7 @@ fn test_BC_2_04_005_ec_04_010_tool_enabled_for_a_denied_for_b() {
         );
         caps.insert("client-a".to_string(), caps_a);
         caps.insert("client-b".to_string(), ClientCapabilities::new()); // no containment
-        FeatureFlagEvaluator::new(caps)
+        FeatureFlagEvaluator::new(caps, std::sync::Arc::new(prism_core::OrgRegistry::new()))
     };
 
     let endpoint_spec = make_write_endpoint_spec(RiskTier::Irreversible);
@@ -724,7 +727,7 @@ fn test_BC_2_05_009_capability_checks_emitted_in_hierarchical_order() {
             CapabilityEffect::Allow,
         );
         caps.insert("acme".to_string(), client_caps);
-        FeatureFlagEvaluator::new(caps)
+        FeatureFlagEvaluator::new(caps, std::sync::Arc::new(prism_core::OrgRegistry::new()))
     };
 
     let endpoint_spec = make_write_endpoint_spec(RiskTier::Irreversible);
@@ -777,7 +780,7 @@ fn test_BC_2_05_009_ec_05_015_child_deny_overrides_parent_allow() {
             CapabilityEffect::Deny,
         );
         caps.insert("acme".to_string(), client_caps);
-        FeatureFlagEvaluator::new(caps)
+        FeatureFlagEvaluator::new(caps, std::sync::Arc::new(prism_core::OrgRegistry::new()))
     };
 
     let endpoint_spec = make_write_endpoint_spec(RiskTier::Irreversible);

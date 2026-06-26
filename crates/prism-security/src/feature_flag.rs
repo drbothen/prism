@@ -10,11 +10,12 @@
 //   - `BTreeMap` MUST be used for capability storage — NOT HashMap (BC-2.04.003).
 //   - Both tiers must independently return Allow for the combined result to be Allow (BC-2.04.004).
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use prism_core::{
     capability::{CapabilityPath, ClientCapabilities},
     error::PrismError,
+    OrgRegistry, OrgSlug,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -84,17 +85,33 @@ pub struct FeatureFlagEvaluator {
     /// Per-client capability maps keyed by client ID.
     /// `BTreeMap` required — NOT `HashMap` — for deterministic trace order.
     client_capabilities: BTreeMap<String, ClientCapabilities>,
+    /// Organisation registry for multi-tenant client existence checks (BC-2.10.015).
+    ///
+    /// `client_exists` uses `org_registry.slug_exists(&OrgSlug)` — the ONLY
+    /// authoritative path for org membership. `OrgSlug::new_unchecked` MUST NOT
+    /// be used; call `OrgSlug::new(client_id)` (fallible, non-panicking) instead.
+    ///
+    /// BC-2.10.015: consulted by `client_exists` via `slug_exists(&OrgSlug)`.
+    org_registry: Arc<OrgRegistry>,
 }
 
 impl FeatureFlagEvaluator {
     /// Construct a `FeatureFlagEvaluator` with pre-resolved per-client
-    /// capability maps.
+    /// capability maps and an org registry for client existence checks.
     ///
     /// `client_capabilities` MUST be a `BTreeMap` — see architecture
     /// compliance rule in story spec.
-    pub fn new(client_capabilities: BTreeMap<String, ClientCapabilities>) -> Self {
+    ///
+    /// `org_registry` MUST be the live `Arc<OrgRegistry>` wired at boot via
+    /// Arc-DI (ADR-022). The placeholder-construct anti-pattern is forbidden here
+    /// (Standing Rule 3 §4; ADR-022 §C).
+    pub fn new(
+        client_capabilities: BTreeMap<String, ClientCapabilities>,
+        org_registry: Arc<OrgRegistry>,
+    ) -> Self {
         FeatureFlagEvaluator {
             client_capabilities,
+            org_registry,
         }
     }
 
@@ -259,9 +276,24 @@ impl FeatureFlagEvaluator {
         }
     }
 
-    /// Return true if `client_id` is present in the configured client map.
+    /// Return true if `client_id` is a registered org in `OrgRegistry` (BC-2.10.015).
+    ///
+    /// Uses `OrgRegistry::slug_exists(&OrgSlug)` as the single authoritative gate.
+    /// Parses `client_id` via `OrgSlug::new(client_id)` (fallible); returns `false`
+    /// for any string that fails `OrgSlug` validation — no panic, no `new_unchecked`.
+    ///
+    /// # Invariant
+    /// MUST NOT use `OrgSlug::new_unchecked` — that is a validation-bypass constructor
+    /// forbidden in production code paths (CLAUDE.md §Conventions).
     pub fn client_exists(&self, client_id: &str) -> bool {
-        self.client_capabilities.contains_key(client_id)
+        // OrgSlug::new validates format (is_ok() / is_err() carries validity state).
+        // Invalid client_ids (too long, bad chars) return is_err() → false.
+        // No new_unchecked, no panic (AD-017 / CLAUDE.md §Conventions).
+        let slug = OrgSlug::new(client_id);
+        if slug.is_err() {
+            return false;
+        }
+        self.org_registry.slug_exists(&slug)
     }
 
     /// Return all capability paths configured for a specific client.

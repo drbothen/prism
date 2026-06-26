@@ -31,7 +31,10 @@ fn evaluator_with_caps(
         }
         client_map.insert(client_id.to_string(), caps);
     }
-    FeatureFlagEvaluator::new(client_map)
+    FeatureFlagEvaluator::new(
+        client_map,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    )
 }
 
 // ─────────────────────────────────────────────────────────────

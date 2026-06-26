@@ -30,7 +30,10 @@ fn evaluator_with(rules: Vec<(&str, CapabilityEffect)>) -> FeatureFlagEvaluator 
     }
     let mut client_map = BTreeMap::new();
     client_map.insert("acme".to_string(), caps);
-    FeatureFlagEvaluator::new(client_map)
+    FeatureFlagEvaluator::new(
+        client_map,
+        std::sync::Arc::new(prism_core::OrgRegistry::new()),
+    )
 }
 
 fn check(evaluator: &FeatureFlagEvaluator, path: &str) -> CapabilityCheckResult {
