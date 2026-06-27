@@ -607,3 +607,67 @@ fn test_bc_2_11_022_crit003_residual_negativee040_plan_rejected() {
         }
     }
 }
+
+// ─── Some(empty-registry) placeholder path ───────────────────────────────────
+
+/// BC-2.11.022 — `build_reference_content(Some(&empty_registry))` renders the
+/// wired-but-empty placeholder (not the `None`/unwired placeholder).
+///
+/// This test covers the `Some(registry)` branch where the registry has ZERO
+/// loaded infusion specs (zero `load_spec` calls). The code path at
+/// `resources.rs` emits:
+///   "No enrichment functions are currently registered for your deployment."
+///
+/// This is DISTINCT from the `None` path (`test_bc_2_11_022_none_registry_placeholder`)
+/// which emits the `list_infusions` placeholder.
+///
+/// Invariants asserted:
+/// 1. Content contains the exact Some(empty) placeholder string.
+/// 2. Content does NOT contain the None-path placeholder (`list_infusions`).
+/// 3. Content does NOT contain any `enrich <name>(col)` line (zero infusions registered).
+#[test]
+fn test_bc_2_11_022_some_empty_registry_placeholder() {
+    // Construct a wired-but-EMPTY registry — no load_spec calls.
+    let empty_registry = InfusionRegistry::new();
+
+    let content = build_reference_content(Some(&empty_registry));
+
+    // Must not be empty.
+    assert!(
+        !content.is_empty(),
+        "BC-2.11.022: build_reference_content(Some(&empty_registry)) must return non-empty string"
+    );
+
+    // Must contain the Some(empty) placeholder (resources.rs ~line 1519).
+    let some_empty_placeholder =
+        "No enrichment functions are currently registered for your deployment.";
+    assert!(
+        content.contains(some_empty_placeholder),
+        "BC-2.11.022: build_reference_content(Some(&empty_registry)) must contain the \
+         wired-but-empty placeholder; got content (first 300 chars): {:?}",
+        &content[..content.len().min(300)]
+    );
+
+    // Must NOT contain the None-path placeholder (list_infusions text).
+    let none_placeholder =
+        "Call `list_infusions` to see available enrichment functions for your deployment.";
+    assert!(
+        !content.contains(none_placeholder),
+        "BC-2.11.022: build_reference_content(Some(&empty_registry)) must NOT contain the \
+         None-path list_infusions placeholder — these are distinct code paths"
+    );
+
+    // Must NOT contain any `enrich <name>(col)` line (no infusions registered).
+    // Scan line-by-line: any line containing "enrich " followed by a word and "(col)" is a bug.
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("- `enrich ") && trimmed.contains("(col)`") {
+            panic!(
+                "BC-2.11.022: build_reference_content(Some(&empty_registry)) must NOT render \
+                 any `enrich <name>(col)` line when no infusions are registered; \
+                 found line: {:?}",
+                trimmed
+            );
+        }
+    }
+}
