@@ -2068,6 +2068,102 @@ layer; partial-result + degraded-subtree semantics (§3.2/§3.6) apply.
 | G-20 | **Ticketing/SOAR destinations** (ServiceNow/Jira/Tines) beyond notifications | E-ALERT-ROUTING-001 |
 | G-21 | **Prebuilt agent personas** library | E-DETECT-RECIPES-001 |
 
+### 14.9 C6 Depth Decisions — DECIDED 2026-06-27 (human)
+
+> **PROVENANCE.** 2026-06-27 side-analysis depth pass on the open implementation questions from §14.
+> Research basis: `research/detection-engine-depth-2026-06-27.md` (six sonar-deep-research calls at
+> `reasoning_effort=high`). Capture artifact: `specs/day2-design-decisions/ADR-PROP-detection-engine-depth.md`
+> (`do_not_execute: true`; real ADR numbers deferred to morph). These decisions are ON TOP OF the
+> §14 foundation — they add DEPTH/implementation decisions and do NOT re-litigate any settled §14 item.
+
+**D-C6-1 — BACKTESTING POSTURE (gap G-19) = BOTH tiers, ALWAYS with coverage map (DECIDED 2026-06-27).**
+Backtest against (a) the Iceberg cold tier deterministically — pin `snapshot-id + rule-version` →
+reproducible point-in-time reads, no look-ahead bias; AND (b) remote sources best-effort —
+current-state, retention-bounded, NON-deterministic (stated explicitly). MANDATORY coverage map per
+`(source × time-slice)` labeled `{full / partial / none}` derived from `(source retention window) ∩
+(connector onboarding date) ∩ (query error log) ∩ (schema-version availability)`. The single most
+important correctness affordance: **distinguish "EVALUATED, no match" from "NO DATA to evaluate"** —
+the entire surveyed prior art (Elastic, Chronicle, Panther, Splunk) is missing this; Prism builds it
+from scratch. Mandatory time-bound + per-run volume ceiling + dry-run estimate (Panther-envelope,
+generalized). Reuse §14.5 ADOPT-4 source-coverage-record + replay-link machinery for coverage map.
+Cold-tier-only alternative rejected (most customer data lives in remote sources; non-determinism is
+real but manageable; coverage map is the honesty mechanism).
+
+**D-C6-2 — FALSE-POSITIVE HANDLING = RISK-BASED AGGREGATION (RBA) as default over hard suppression
+(DECIDED 2026-06-27).** Prefer Splunk-RBA-style re-aggregation (noisy events accrue risk to an
+entity; alert on aggregated risk → retains visibility into underlying events) to silent drop. Hard
+suppression/exceptions delivered as **suppression-as-code**: every suppression is a versioned object
+in the detection repo with MANDATORY justification + MANDATORY time-box expiry (no immortal
+exceptions; expiry forces re-review) + fire-frequency/scope-breadth dashboard (catches over-broad
+and stale suppressions). **Auto-tune emits SUGGESTIONS ONLY** — NEVER auto-applies, and NEVER
+auto-disables a detection's evaluation without human sign-off. **HONEST CAVEAT stated plainly:**
+"never silently mask a true positive" is NOT achievable as an absolute guarantee — the
+production-grade posture is transparency + narrow-scope + mandatory-justification + time-boxed-expiry
++ fire-frequency-dashboards + RBA-over-suppression, NOT a proof.
+
+**D-C6-3 — AUTO-ROLLBACK (staged-rollout FP-spike circuit-breaker, §14.4) = DEFERRED pending
+targeted deep-research pass (HUMAN-DIRECTED 2026-06-27). OPEN ITEM OQ-C6-AUTOROLLBACK.** A focused
+research pass is in flight (`research/detection-auto-rollback-depth-2026-06-27.md`) covering
+automated-canary-analysis (Kayenta/Flagger), bad-rollout detection without ground-truth labels
+(change-point/CUSUM/Page-Hinkley on alert volume), circuit-breaker design + hysteresis, the
+rollback-action fork (demote-to-shadow-keep-evaluating vs full-disable vs revert-version), promotion
+gates, and legitimate-spike-vs-noise discrimination. Fold on return. **STANDING GUARDRAIL regardless
+of deferred fork:** auto-rollback may DISABLE ROUTING but the production-grade default is that a
+detection keeps EVALUATING (coverage never silently zeroed); AUTO-DISABLING a detection's evaluation
+requires human sign-off — but the demote-vs-disable mechanism choice itself is the deferred decision.
+Canary unit lean (not binding): TENANT (Prism is already multi-tenant → tenant-scope is the natural
+canary scope). Note alongside D-C6-3.
+
+**IMPLEMENTATION LEANS confirmed 2026-06-27 (human non-objection):**
+
+- **MATCH_RECOGNIZE operator (keystone G-18):** build as `MatchRecognizeNode` (`UserDefinedLogicalNode`)
+  + `MatchRecognizeExec` (custom `ExecutionPlan`) wrapping a Thompson-NFA INSTRUCTION-PROGRAM matcher
+  (`MATCH`/`SPLIT`/`JUMP`/`CHECK`/`ACCEPT`; greedy/reluctant = `SPLIT` branch ordering; `{m,n}` =
+  concat + optional tails). Declare required input distribution = hash-partition on `PARTITION BY` +
+  required ordering = sort on `event_time` (planner inserts `RepartitionExec`/`SortExec`). `PlanProperties`
+  `EmissionType::Incremental + Boundedness::Bounded` (batch-over-window); emit matches incrementally
+  via `RecordBatchStreamAdapter`. COMPILE-TIME REJECTION of the SQL:2016 empty-match × `SKIP-TO-FIRST`
+  infinite-loop and unbound-SKIP-target cases. Match-context (program-counter + per-variable ordered
+  bindings + running aggregates + first/last index per variable) MUST be serializable from day one so
+  the §17.7 continuous operator reuses the SAME matcher core. Optimizer fast-path (§14.2 Phase B) =
+  a `RelationPlanner` rewrite detecting simple fixed-step `SEQUENCE` → self-join + window (MS "RPR
+  Using Joins", 5.4×). MATCHER-REPRESENTATION lean = instruction-program (Trino model — easier
+  reluctant-ordering + serialization than Flink pointer-graph); architect confirms against the pinned
+  DataFusion version at morph (exact `ExtensionPlanner`/`QueryPlanner` method signatures flagged to
+  re-verify — INCONCLUSIVE for pinned version; PIV-C6-1).
+
+- **CONTINUOUS/INCREMENTAL RPR (§17.7 Phase 2):** wrap the SAME matcher core with a watermark +
+  per-partition TIMER + incremental-checkpoint layer on RocksDB CFs. `WATCH…UNLESS` / absence /
+  non-event = a per-partition event-time TIMER, NOT a relational anti-join (absence over an unbounded
+  stream is undecidable without a deadline — confirms §17.14's dual-impl ruling: `AbsenceWindowNode`
+  polled/batch + CEP timer continuous). SharedBuffer-equivalent with REFERENCE-COUNTING (dedup-and-free)
+  + `event_time`-TTL window pruning bound memory. Window-state CF distinct from `detection_state` CF
+  (§17.14). Checkpoint cadence (window-state vs durable detection_state vs ML ModelState) = architect
+  open question (PIV-C6-2 + OQ-C6-3; Flink incremental-SSTable model is the template). Honest cost:
+  the temporal/checkpoint/fault-tolerance layer is the real build; the matcher core is the cheap part
+  (§17.7 self-identifies this as the single most expensive item).
+
+- **SIGMA → PrismQL (deferred E-RULE-XLATE-001, feasibility confirmed):** a pySigma-style `Backend`
+  + `ProcessingPipeline` targeting the OCSF taxonomy (extend the existing community Sigma→OCSF
+  pipeline). Single-event + selection + threshold/distinct-count map cleanly to `WHERE`/`GROUP BY…HAVING`.
+  STRATEGIC ALIGNMENT: Sigma CORRELATION rules (`event_count`/`value_count`/`temporal`/`temporal_ordered`)
+  — thinly supported across backends — map onto Prism's `MATCH_RECOGNIZE`/`SEQUENCE` operator, so
+  Prism is unusually well-positioned. Lossy edges (`base64offset`, `windash`, exotic regex dialects,
+  class-spanning correlations) → translate with a FIDELITY REPORT flagging every non-losslessly-
+  expressible modifier/condition (NEVER silent drop; the Q5 analog of the D-C6-1 coverage map). Keep
+  deferred; ship Sigma→PrismQL EXAMPLES in the recipe library (§14.7) now to validate the mapping
+  surface.
+
+**OPEN QUESTIONS for architect/morph:** PIV-C6-1 (DataFusion ExtensionPlanner wiring confirm vs
+pinned version); PIV-C6-2 (continuous-operator window-state↔detection_state CF isolation sufficiency
+under shared checkpoint stream; §17.14 open #1); OQ-C6-3 (continuous-operator checkpoint cadence —
+Flink incremental-SSTable model is the template, not a decision); OQ-C6-4 (backtest coverage-map
+data model); OQ-C6-5 (Iceberg snapshot-retention policy for reproducible backtests — ties coldtier
++ C5); OQ-C6-6 (Sigma fidelity-report schema); OQ-C6-AUTOROLLBACK (deferred, see D-C6-3).
+
+**Downstream SAP-1 flag:** backtest-coverage, rollout-transition, suppression-fire, and auto-tune-
+suggestion events likely need BC-2.16.002 catalog rows — flagged in capture artifact; NOT actioned here.
+
 ---
 
 ## Section 15 — On-Demand ML & Behavior Analytics (HUMAN-CONFIRMED 2026-06-25)
@@ -2450,6 +2546,52 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   pushdown-decision, injected-window disclosure, egress-estimate, residency-denied, and
   OCSF-version-skew events each need new BC-2.16.002 Canonical Structured Event Catalog rows.
   Proposed epic: E-LAKE-CONNECTOR-001 (§3.5).
+
+- **C6 Detection Engine DEPTH DECIDED + CAPTURED 2026-06-27 (human).** Three architecture
+  decisions D-C6-1/2/3 confirmed (D-C6-3 auto-rollback DEFERRED); implementation leans
+  L-C6-1/2/3 confirmed. Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-detection-engine-depth.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/detection-engine-depth-2026-06-27.md` (six sonar-deep-research calls at
+  `reasoning_effort=high`, 2 Context7 calls for DataFusion API).
+  **D-C6-1 BACKTESTING (G-19) = BOTH cold-tier deterministic (Iceberg snapshot-id + rule-version
+  pin, reproducible, no look-ahead bias) AND remote best-effort (current-state, NON-deterministic,
+  retention-bounded — stated explicitly), ALWAYS with a mandatory coverage map per (source ×
+  time-slice) labeled `{full/partial/none}`. The single most important correctness affordance:
+  "EVALUATED, no match" vs "NO DATA to evaluate" — ALL surveyed prior art (Elastic/Chronicle/
+  Panther/Splunk) is missing this; Prism builds it from scratch.** Mandatory time-bound +
+  volume ceiling + dry-run estimate. Reuse §14.5 ADOPT-4 source-coverage-record + replay-link.
+  Cold-tier-only rejected (remote sources = most customer data). C6-decision block appended at
+  §14.9 in-place.
+  **D-C6-2 FALSE-POSITIVE HANDLING = RBA as default over hard suppression.** Noisy events accrue
+  risk to entity; alert on aggregated risk → retains underlying-event visibility. Hard suppression
+  = suppression-as-code (versioned, mandatory justification, mandatory time-box expiry, no immortal
+  exceptions, fire-frequency/scope-breadth dashboard). Auto-tune = suggestions only, NEVER
+  auto-applies, NEVER auto-disables evaluation without human sign-off. Honest caveat stated
+  plainly: "never silently mask a true positive" is NOT achievable as an absolute guarantee — the
+  production-grade posture is transparency + narrow-scope + mandatory-justification + time-boxed-
+  expiry + fire-frequency-dashboards + RBA-over-suppression, NOT a proof.
+  **D-C6-3 AUTO-ROLLBACK DEFERRED — OQ-C6-AUTOROLLBACK (HUMAN-DIRECTED 2026-06-27).** Deep-research
+  pass in flight (`research/detection-auto-rollback-depth-2026-06-27.md`). Fold on return.
+  Standing guardrail: auto-rollback may DISABLE ROUTING but MUST NOT auto-disable EVALUATION
+  without human sign-off. Canary unit lean: TENANT (multi-tenant → natural scope).
+  **LEANS confirmed:** MATCH_RECOGNIZE = `MatchRecognizeNode` (UserDefinedLogicalNode) +
+  `MatchRecognizeExec` (custom ExecutionPlan) wrapping Thompson-NFA instruction-program matcher
+  (`MATCH`/`SPLIT`/`JUMP`/`CHECK`/`ACCEPT`; greedy/reluctant = SPLIT branch ordering; serializable
+  match-context from day one for §17.7 reuse); optimizer fast-path = RelationPlanner rewrite for
+  simple fixed-step SEQUENCE → self-join + window (5.4×); ExtensionPlanner wiring flagged for
+  pre-implementation re-verify at pinned version (PIV-C6-1). Continuous RPR (§17.7 Phase 2) =
+  SAME matcher core + watermark + per-partition event-time TIMER + incremental-checkpoint on
+  RocksDB CFs (window-state CF distinct from detection_state CF; CF isolation PIV-C6-2).
+  Sigma→PrismQL (deferred E-RULE-XLATE-001, feasibility confirmed) = pySigma-style Backend +
+  ProcessingPipeline targeting OCSF taxonomy; lossy edges → fidelity report (NEVER silent drop);
+  Sigma correlation rules map cleanly onto MATCH_RECOGNIZE (Prism well-positioned); ship
+  Sigma→PrismQL EXAMPLES in recipe library (§14.7) now. Open questions: PIV-C6-1/2, OQ-C6-3
+  (checkpoint cadence), OQ-C6-4 (coverage-map data model), OQ-C6-5 (Iceberg snapshot-retention
+  policy), OQ-C6-6 (Sigma fidelity-report schema), OQ-C6-AUTOROLLBACK. Downstream SAP-1:
+  backtest-coverage/rollout-transition/suppression-fire/auto-tune-suggestion events likely need
+  BC-2.16.002 catalog rows (flagged, NOT actioned). Proposed epics: E-DETECT-ENGINE-001 +
+  E-DETECT-SEQUENCE-001 + E-DETECT-EDITOR-001 + E-ALERT-ROUTING-001 + E-RULE-XLATE-001 (§14.8).
 
 ### 16.5 Status & boundaries reminder
 
