@@ -16,7 +16,10 @@
 .factory/
 
 # Claude Code local settings (use `git add -f .claude/settings.json` to share team settings)
-.claude/
+# Exception: project skills are shared tooling, not machine-local settings
+# Note: .claude/* (glob) rather than .claude/ (dir) so the !.claude/skills/ negation is evaluated.
+.claude/*
+!.claude/skills/
 
 # MCP server config — contains API keys, must not be committed
 .mcp.json
@@ -41,3 +44,7 @@ crates/plugins/prism-threatintel-infusion/Cargo.lock
 # These are ephemeral process state, not source — never committed.
 .prism-dtu-demo-server.pid
 .prism-dtu-demo-server.urls*.json
+
+# direnv environment files — contains local env overrides, must not be committed
+# .envrc* covers .envrc, .envrc.bed, .envrc.backup, .envrc.local, etc.
+.envrc*
