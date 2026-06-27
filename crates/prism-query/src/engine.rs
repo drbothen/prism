@@ -4348,9 +4348,14 @@ mod sqlpipe_gate_sweep_tests {
         // to the spec above, finds only "severity", and must deny "severit" with E-QUERY-038.
         // Note: "sev" would be distance 5 from "severity" (>3 threshold) so would give
         // did_you_mean=None. "severit" (missing trailing 'y') is the correct test typo.
+        //
+        // IMPORTANT: Uses underscore form "crowdstrike_detections" (NOT dot form
+        // "crowdstrike.detections"). BC-2.11.001 v1.15 / EC-11-067: dot-notation in FROM
+        // targets is rejected with E-QUERY-037 for ALL modes including SqlPipe.
+        // The underscore form must pass the availability gate so the column gate fires.
         let result = engine
             .execute(
-                "SELECT severit FROM crowdstrike.detections | limit 5",
+                "SELECT severit FROM crowdstrike_detections | limit 5",
                 QueryOptions {
                     clients: Some(vec![OrgSlug::new("testorg")]),
                     ..Default::default()
@@ -4378,8 +4383,8 @@ mod sqlpipe_gate_sweep_tests {
                 );
             }
             Ok(_) => panic!(
-                "HIGH-1 / E-QUERY-038: SqlPipe query with typo'd column 'sev' must NOT succeed \
-                 (before fix the gate was bypassed for SqlPipe). E-QUERY-038 must fire."
+                "HIGH-1 / E-QUERY-038: SqlPipe query with typo'd column 'severit' must NOT \
+                 succeed. E-QUERY-038 (ColumnNotFound) must fire."
             ),
             Err(other) => {
                 panic!("HIGH-1 / E-QUERY-038: expected PrismError::ColumnNotFound, got: {other:?}")
