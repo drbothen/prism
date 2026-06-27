@@ -16,7 +16,7 @@ candidate_adr_slots:
   - "ADR-PROP-C3-10: Collector subtype — pushdown_target = buffer"
 produced_by: architect
 timestamp: "2026-06-27"
-provenance: "side-analysis C3 capture; human-confirmed decisions 2026-06-27 session. Research basis: research/capability-descriptor-pushdown-2026-06-26.md (2 perplexity_research sonar-deep-research calls at reasoning_effort=high + 2 perplexity_ask). Hardening pass on DataFusion mechanics in flight: research/datafusion-cost-degrade-mechanics-2026-06-27.md (see Open Questions). Does NOT modify live ADR files, ARCH-INDEX.md, STATE.md, SESSION-HANDOFF.md, or any live factory artifact."
+provenance: "side-analysis C3 capture; human-confirmed decisions 2026-06-27 session. Research basis: research/capability-descriptor-pushdown-2026-06-26.md (2 perplexity_research sonar-deep-research calls at reasoning_effort=high + 2 perplexity_ask). Hardening pass folded 2026-06-27: research/datafusion-cost-degrade-mechanics-2026-06-27.md — OQ-C3-1..6 resolved; guardrail model updated; 3 residual pre-implementation verifications (PIV-1..3) remain before degrade posture ships. Does NOT modify live ADR files, ARCH-INDEX.md, STATE.md, SESSION-HANDOFF.md, or any live factory artifact."
 traces_to:
   - matured-vision-day2-requirements.md §3.4 (per-connector capability descriptor addendum)
   - matured-vision-day2-requirements.md §5.3 (cross-source join cost guard NFR, mandatory time-bound NFR)
@@ -44,11 +44,11 @@ traces_to:
 > All load-bearing claims are source-grounded in that research document. Claims from model knowledge
 > are flagged `[model-knowledge]`.
 
-> **Hardening research in flight:** `research/datafusion-cost-degrade-mechanics-2026-06-27.md`
-> (verifying DataFusion 50.x MemoryPool/disk-spill, timeout cancellation, broadcast-of-unknown-size
-> guard, NestedLoopJoinExec cost + spill, and row-cap enforcement mechanics). Open Questions
-> OQ-C3-1..OQ-C3-6 below are explicitly flagged "resolution pending hardening pass — fold on return."
-> Do not block the capture on that pass.
+> **Hardening research folded (2026-06-27):** `research/datafusion-cost-degrade-mechanics-2026-06-27.md`
+> (DataFusion 50.x MemoryPool/disk-spill, timeout/cooperative-cancellation, no-broadcast-guard
+> gap, NestedLoopJoinExec cost + spill, and row-cap enforcement mechanics). OQ-C3-1..OQ-C3-6
+> resolved; guardrail model updated; 3 residual pre-implementation verifications (PIV-1..3) remain
+> before the degrade posture ships. See §Hardening Findings Folded and §Open Questions table.
 
 > **§5.3/§12.2 Reconciliation.** The earlier §5.3 addendum and §12.2 NFR-JOIN-GUARD (DRAFT)
 > specified that cross-source cross-products and non-equi-only cross-source joins are *rejected at
@@ -223,11 +223,11 @@ This is the consequence of D-C3-1 / D-C3-3 — the full stack of cost guards, in
 | Guard | Mechanism | When Activated |
 |-------|-----------|---------------|
 | **Default time-bound injection** | PrismQL pre-pass injects the configured default window; pushes as range predicate; discloses in response envelope | Every query lacking an explicit time predicate |
-| **Per-side row-cap** | Enforced on each source's scan in the cross-source join; limit-pushdown where descriptor declares `limit.supported = true` | Every cross-source join input and output |
-| **Dynamic filtering (DataFusion 50.x)** | Inner equi-join sideways-information-passing: build side's key set pruned into probe-side scan | Inner equi-joins where the smaller side is the build side |
-| **Partitioned hash distribution** | Default join distribution for unknown-cardinality sources; NEVER broadcast a source of unknown size | All cross-source joins; see OQ-C3-2 for DataFusion enforcement detail |
-| **Resource-based abort** | Query wall-clock timeout + MemoryPool limit abort the query after consumption; surfaces partial-result coverage metadata per BC-2.01.010 / §3.6 | Queries that exceed time or memory budget mid-execution |
-| **Cost/coverage disclosure** | Bare CROSS JOIN / comma-join flagged in response envelope with cost disclosure | Any cross-source Cartesian |
+| **Per-side row-cap** | Three-layer enforcement: (a) `LIMIT`/`scan(limit)` injected into EACH side's scan subtree before the join (DataFusion does NOT auto-cap join inputs); (b) `GlobalLimitExec` output cap + limit-pushdown where descriptor declares `limit.supported = exact`; (c) optional counting-abort `ExecutionPlan` wrapper above join as hard ceiling [HF-5] | Every cross-source join input and output |
+| **Dynamic filtering (DataFusion 50.x)** | Inner equi-join sideways-information-passing: build side's key set pruned into probe-side scan via `DynamicFilterPhysicalExpr` [HF-1] | Inner equi-joins ONLY; outer/non-equi joins receive NO dynamic-filter benefit (semantic constraint, not implementation gap) |
+| **Partitioned hash distribution** | Prism-built post-optimization physical-plan rewrite: walk `ExecutionPlan` tree, downcast each `HashJoinExec`, reconstruct any `PartitionMode::CollectLeft` as `PartitionMode::Partitioned` for cross-source joins; guard predicate-less `CrossJoinExec` over two REST sources. DataFusion has NO config equivalent of Trino `join-max-broadcast-table-size` — this MUST be embedder code. `prefer_hash_join = false` as defense-in-depth. [HF-2] | All cross-source joins; triggered at plan-optimization time |
+| **Resource-based abort** | (a) Embedder-enforced `tokio::time::timeout` + stream drop for wall-clock timeout (DataFusion has no built-in timeout); (b) bounded `FairSpillPool` via `RuntimeEnvBuilder::with_memory_limit` per ephemeral query — `HashJoinExec` returns `DataFusionError::ResourcesExhausted` (NOT spill) when its hash table exceeds the pool; this IS the abort-after-consumption mechanism for inner hash joins; (c) cooperative cancellation via `EnsureCooperative` / `CooperativeExec` propagates to adapter `scan()` at `await` points. Map `ResourcesExhausted` → `E-QUERY-NNN` + `degrade_reason` field. [HF-3, HF-4] | Queries that exceed wall-clock or memory budget mid-execution; partial-result coverage metadata per BC-2.01.010 / §3.6 |
+| **Cost/coverage disclosure** | Bare CROSS JOIN / comma-join flagged in response envelope with cost disclosure; any cap/abort/injected-window surfaces `degrade_reason` field to agent harness | Any cross-source Cartesian; any query where a guard fires |
 
 **Override hook:** the PrismQL hint (D-C3-4) raises the row-cap within the absolute max; every
 use is audited.
@@ -368,20 +368,214 @@ DataFusion 50.0.0+, which introduced `DynamicFilterPhysicalExpr` for inner hash 
 
 ---
 
-## Open Questions (Resolution Pending Hardening Pass)
+## Open Questions (Hardening Pass Complete 2026-06-27)
 
-The following questions are flagged with `OQ-C3-N`. Each is resolvable by the targeted hardening
-research in `research/datafusion-cost-degrade-mechanics-2026-06-27.md`. Do NOT block the ADR-PROP
-capture on them; fold each answer on the research pass's return.
+The following questions were flagged with `OQ-C3-N` as "resolution pending hardening pass — fold on
+return." The hardening research pass (`research/datafusion-cost-degrade-mechanics-2026-06-27.md`)
+has returned. OQ-C3-1 through OQ-C3-6 are resolved below; three sub-items are downgraded to
+"pre-implementation verification required" (see §Residual Pre-Implementation Verifications).
+Full citations and mechanism detail are in the folded subsection that follows this table.
 
-| # | Question | Domain | Notes |
-|---|---------|--------|-------|
-| **OQ-C3-1** | **NestedLoopJoinExec cost + spill behavior.** D-C3-3 allows outer/non-equi cross-source joins via `NestedLoopJoinExec`. What is the memory footprint and spill behavior under the MemoryPool configuration? Does DataFusion 50.x spill NestedLoopJoin to disk, or is it memory-only (OOM risk)? | DataFusion internals | Resolution pending `datafusion-cost-degrade-mechanics-2026-06-27.md`. If memory-only, the row-cap and resource-abort backstop take on full responsibility for bounding the join's footprint. |
-| **OQ-C3-2** | **Broadcast-of-unknown-size guard.** D-C3-1 guardrail model states "NEVER broadcast a source of unknown size." DataFusion's join planner may not enforce this natively — does it fall back to NestedLoop vs broadcast based on statistics presence? Prism may need to explicitly intercept the join distribution choice in the PrismQL pre-pass to force partitioned hash when source statistics are absent. | DataFusion join planning | Resolution pending `datafusion-cost-degrade-mechanics-2026-06-27.md`. This is the Trino `join-max-broadcast-table-size` analog — verify whether DataFusion has it or whether Prism must enforce. |
-| **OQ-C3-3** | **Query wall-clock timeout cancellation propagation.** When a timeout fires mid-join, does DataFusion's cancellation token propagate into a mid-fetch TableProvider `scan()` call at the source? The spec-driven adapter must honor the cancellation to avoid hanging I/O after the DataFusion executor has declared timeout. | DataFusion + adapter I/O | Resolution pending `datafusion-cost-degrade-mechanics-2026-06-27.md`. If cancellation does not propagate into `scan()`, Prism must implement explicit cooperative cancellation at the adapter boundary. |
-| **OQ-C3-4** | **MemoryPool / disk-spill for hash join.** Under what conditions does DataFusion 50.x's `HashJoinExec` spill to disk vs OOM when source cardinality exceeds the MemoryPool configuration? What is the Prism-recommended MemoryPool ceiling for cross-source join workloads? | DataFusion MemoryPool | Resolution pending `datafusion-cost-degrade-mechanics-2026-06-27.md`. |
-| **OQ-C3-5** | **Row-cap enforcement mechanics.** The per-side row-cap on cross-source join inputs must be enforced before the join executes (cap the scan output) AND on the join output (cap the result). What is the canonical DataFusion mechanism — a `LimitExec` node wrapping the source plan, or a custom `ExecutionPlan` that counts rows and aborts? | DataFusion plan construction | Resolution pending `datafusion-cost-degrade-mechanics-2026-06-27.md`. |
-| **OQ-C3-6** | **Cost estimation with absent statistics.** DataFusion's join optimizer relies on statistics to choose join distribution (broadcast vs hash-repartition) and determine the build side. For sensor REST adapters, statistics are absent or wildly estimated. What is DataFusion's fallback behavior when `TableStatistics` returns `None`? Does it default to the safer partitioned distribution? | DataFusion CBO | Resolution pending `datafusion-cost-degrade-mechanics-2026-06-27.md`. If the fallback is unsafe, Prism's PrismQL pre-pass must explicitly override the distribution choice. |
+| # | Question | Status | Disposition |
+|---|---------|--------|-------------|
+| **OQ-C3-1** | NestedLoopJoinExec cost + spill behavior | **RESOLVED** | Non-spilling; errors with `ResourcesExhausted` on OOM (same as HashJoin). Spill behavior of NestedLoop/Cross is `[INCONCLUSIVE]` in public docs — treat as non-spilling (pre-implementation verification required). Row-cap + resource-abort are the ONLY defense for outer/non-equi joins. See §Hardening findings. |
+| **OQ-C3-2** | Broadcast-of-unknown-size guard | **RESOLVED** | DataFusion has NO equivalent of Trino `join-max-broadcast-table-size` and NO config to disable `CollectLeft`. Prism MUST enforce this via a physical-plan rewrite — it is a required embedder guard, not a config knob. See §Hardening findings. |
+| **OQ-C3-3** | Query wall-clock timeout cancellation propagation | **RESOLVED** | No built-in DataFusion timeout. Cancellation is cooperative (DataFusion 49.0.0+ `EnsureCooperative` / `CooperativeExec`). Propagates into a mid-fetch `scan()` **at `await` points only** — adapter must be fully async. Pre-implementation verification: confirm exact latency to a mid-fetch TableProvider. See §Hardening findings. |
+| **OQ-C3-4** | MemoryPool / disk-spill for HashJoinExec | **RESOLVED** | `HashJoinExec` does NOT spill. It returns `ResourcesExhausted` when its in-memory hash table exceeds the pool limit — this IS the abort-after-consumption mechanism for the common cross-source inner-hash-join case. Use `FairSpillPool` + bounded `RuntimeEnv` per ephemeral query. See §Hardening findings. |
+| **OQ-C3-5** | Row-cap enforcement mechanics | **RESOLVED** | OUTPUT cap: `GlobalLimitExec` + push to `scan(limit)` where descriptor declares `limit.supported = exact`. INPUT cap (load-bearing): inject `LIMIT`/`scan(limit)` into EACH side's scan subtree before the join — DataFusion does NOT auto-cap join inputs. Belt-and-suspenders: optional counting-abort `ExecutionPlan` wrapper above the join. Pre-implementation verification: confirm no-broadcast plan-rewrite composes cleanly with DataFusion 50.x optimizer pass ordering. See §Hardening findings. |
+| **OQ-C3-6** | Cost estimation with absent statistics (`Precision::Absent`) | **RESOLVED** | `TableProvider::statistics()` docs state stats are "not presently used in mainline DataFusion" for join reordering — absent stats means the optimizer falls back to structural/syntactic heuristics, not cost-based join order. Crucially, the absent-stats default behavior of `JoinSelection` (CollectLeft vs Partitioned) is `[INCONCLUSIVE]` in public docs and MUST be verified by reading `join_selection.rs` at the pinned DataFusion 50.x version + `EXPLAIN`-inspecting a real cross-source join plan. See §Hardening findings. |
+
+---
+
+## Hardening Findings Folded (2026-06-27)
+
+> **Source:** `research/datafusion-cost-degrade-mechanics-2026-06-27.md` — DataFusion 50.x runtime
+> resource-bounding, cost-mitigation mechanics, MemoryPool/spill/cancellation, outer/non-equi join
+> cost + dynamic-filter coverage, row-cap enforcement, and federated prior art. All load-bearing
+> claims in this subsection cite that document; `[ctx7-verified]` and `[web]` confidence tags are
+> inherited from it.
+
+### HF-1 — D-C3-3 VALIDATED: Dynamic filter covers inner hash equi-joins ONLY (resolves OQ-C3-1)
+
+**RESOLVED — confirms D-C3-3 was the correct call.**
+
+DataFusion 50.0.0 dynamic filtering / "Sideways Information Passing" is documented **only for INNER
+hash equi-joins** (min/max key-range pushdown into the probe-side scan via `DynamicFilterPhysicalExpr`
+as `Arc<dyn PhysicalExpr>`; 50.0.0 changelog PR #17201, #17280 `[ctx7-verified]`). Outer joins
+**cannot** be optimized this way — the semantic reason is that outer joins must preserve unmatched
+rows, so probe-side pruning is unsafe, not merely unimplemented. Non-equi / `NestedLoopJoinExec` /
+`CrossJoinExec` have **no documented dynamic-filter coverage**. `[web]`
+
+**Consequence for D-C3-3:** The human's choice to "allow outer/non-equi cross-source, central-only,
+no dynamic-filter optimization" gives up **no optimization that actually exists in DataFusion 50.x.**
+There is nothing to lose — those shapes simply execute without sideways-information-passing because
+the engine does not (and semantically cannot, for outer) apply it. D-C3-3 was correct as stated.
+
+[`research/datafusion-cost-degrade-mechanics-2026-06-27.md` §Topic 3.2]
+
+---
+
+### HF-2 — SHARPEST GAP: No broadcast guard config; Prism MUST enforce via plan rewrite (resolves OQ-C3-2)
+
+**RESOLVED — closes the sharpest gap in the original guardrail model.**
+
+DataFusion has **no equivalent of Trino's `join-max-broadcast-table-size`** and **no config to
+disable `CollectLeft` (broadcast hash join) or force `Partitioned` globally**. Multiple sources
+state this explicitly. `[web]`
+
+The knobs that DO exist (all `[ctx7-verified]`):
+- `datafusion.optimizer.prefer_hash_join` (default `true`; set `false` → favors `SortMergeJoinExec`,
+  which CAN spill — a memory-safety default worth enabling)
+- `datafusion.optimizer.hash_join_single_partition_threshold` (default `1048576` bytes)
+- `datafusion.optimizer.hash_join_single_partition_threshold_rows` (default `131072` rows)
+
+These gate `CollectLeft` by **declared size** — but a REST source returning `Precision::Absent`
+statistics cannot be classified as "small," which *should* default away from `CollectLeft`. Whether
+it actually does under absent stats is **`[INCONCLUSIVE]`** (see §Residual Pre-Implementation
+Verifications).
+
+**Operative consequence for the guardrail model:** the "NEVER broadcast a source of unknown size"
+guard from D-C3-1 is **a Prism-built physical-plan rewrite, not a DataFusion config knob.** The
+implementation is: post-optimization walk of the `ExecutionPlan` tree; downcast each `HashJoinExec`;
+if `PartitionMode::CollectLeft` for a cross-source join, reconstruct with `PartitionMode::Partitioned`
+(using `swap_inputs()` as needed); guard predicate-less `CrossJoinExec` over two REST sources.
+Registered as a `PhysicalOptimizerRule` (composes cleanly with DataFusion's optimizer pipeline) is
+the recommended implementation form. `prefer_hash_join = false` is defense-in-depth.
+
+[`research/datafusion-cost-degrade-mechanics-2026-06-27.md` §Topic 2.2–2.3]
+
+---
+
+### HF-3 — No built-in timeout; cooperative cancellation is the abort mechanism (resolves OQ-C3-3)
+
+**RESOLVED.**
+
+DataFusion has **no built-in query-level wall-clock timeout** — confirmed by absence across
+`configs.md`, `RuntimeEnv` docs, and relevant GitHub issues. `[web]`
+
+**Mechanism:** Prism wraps consumption of the `SendableRecordBatchStream` in
+`tokio::time::timeout(...)`; on elapse, **drop the stream** — dropping cancels the underlying Tokio
+tasks. DataFusion 49.0.0 added cooperative scheduling (`EnsureCooperative` optimizer rule,
+`CooperativeExec` wrapper) so built-in sources participate automatically. `[web]`
+
+**Custom `TableProvider` mid-network-fetch:** if the adapter's `scan()` returns a stream that
+`await`s a remote HTTP response, dropping the consuming stream propagates cancellation **at the next
+`await` point** — the in-flight `reqwest` future is dropped and the connection aborted. This works
+precisely because the fetch is `async`/awaiting. A custom operator doing a long synchronous CPU
+loop between `await`s will NOT yield and can refuse to cancel. `[web]`
+
+**Lean:** enforce a per-query wall-clock budget via `tokio::time::timeout` + stream drop. Ensure
+the spec-driven adapter's `scan()` is fully `async` with `await` points around every network call.
+The mandated 30s `reqwest` client timeout (CLAUDE.md HTTP-client rule) is a complementary
+per-request bound, not a substitute for the query-level timeout.
+
+[`research/datafusion-cost-degrade-mechanics-2026-06-27.md` §Topic 1.4]
+
+---
+
+### HF-4 — `HashJoinExec` does NOT spill; `ResourcesExhausted` IS the abort mechanism (resolves OQ-C3-4)
+
+**RESOLVED.**
+
+**Spill matrix for cross-source join operators** `[web]` (partly `[INCONCLUSIVE]` for nested-loop/cross):
+
+| Operator | Spills to disk? | On memory-limit exceeded |
+|----------|-----------------|--------------------------|
+| `SortExec` | **Yes** (50.0.0 hardened) | spill |
+| `AggregateExec` (grouped) | **Yes** | spill |
+| `SortMergeJoinExec` | **Yes** | spill |
+| `HashJoinExec` | **NO** | **`ResourcesExhausted` error** |
+| `NestedLoopJoinExec` | **UNCONFIRMED** — not listed among spilling operators | likely error `[INCONCLUSIVE]` |
+| `CrossJoinExec` | **UNCONFIRMED** — not listed as spilling | likely error `[INCONCLUSIVE]` |
+
+`HashJoinExec` "does not support spilling yet. The query will fail with a memory reservation error
+if the hash table exceeds the memory limit." `[web]` For the common **cross-source inner hash join**,
+`DataFusionError::ResourcesExhausted` IS the abort-after-consumption mechanism.
+
+**`MemoryPool` configuration:**
+- Use `FairSpillPool` with a configured byte limit (distributes fairly between spillable and
+  unspillable consumers; keeps `unspillable_reserve_ratio ≈ 0.2` for hash-join). `[web]`
+- Fresh `RuntimeEnv` (and pool) per ephemeral query fits Prism's ephemeral-engine thesis. `[web]`
+- Per-query pool limit should be ≤ the 200MB per-query budget from `project_memory_budget.md`.
+- `DiskManager` (`with_disk_manager_os()` / `with_temp_file_path(path)`) enables Sort/Aggregate/SMJ
+  spill; set a bounded `max_temp_directory_size`.
+
+Map `ResourcesExhausted` → a `E-QUERY-NNN` error code at the engine boundary; surface to agent
+harness as `degrade_reason = "memory_cap"` (Topic 6 of the research).
+
+[`research/datafusion-cost-degrade-mechanics-2026-06-27.md` §Topic 1.2–1.3]
+
+---
+
+### HF-5 — Row-cap mechanics: input injection + output GlobalLimitExec + counting-abort ceiling (resolves OQ-C3-5)
+
+**RESOLVED.**
+
+Three layers:
+
+1. **Per-join-side INPUT cap (load-bearing):** DataFusion does NOT auto-cap join inputs. Prism must
+   inject a `LIMIT`/`scan(limit)` into **each** side's scan subtree before the join node, as a
+   PrismQL plan-rewrite. This bounds the buffered build side of `NestedLoopJoinExec`/`CrossJoinExec`
+   (non-spilling) and `HashJoinExec` (non-spilling), preventing them from hitting the pool limit in
+   the first place. `[web]`
+2. **OUTPUT cap:** `LIMIT n` in PrismQL → `GlobalLimitExec`. Push to the source scan via
+   `scan(limit)` where C3's descriptor declares `limit.supported = exact`; otherwise enforce
+   centrally at `GlobalLimitExec`. `[web]`
+3. **Hard ceiling (belt-and-suspenders):** a custom counting `ExecutionPlan` wrapper inserted above
+   the join that aborts (returns `ResourcesExhausted` or `E-QUERY-NNN`) past an absolute row ceiling.
+   Mirrors Trino's `query.max-scan-physical-bytes` intent but as embedder code. `[model-knowledge]`
+
+[`research/datafusion-cost-degrade-mechanics-2026-06-27.md` §Topic 4]
+
+---
+
+### HF-6 — `Precision::Absent` fallback + guardrail stack summary (resolves OQ-C3-6)
+
+**RESOLVED (with one residual `[INCONCLUSIVE]` item).**
+
+`TableProvider::statistics()` docs: stats are "not presently used in mainline DataFusion" for join
+reordering — they "allow implementation-specific behavior for downstream repositories, in conjunction
+with specialized optimizer rules." For a REST source returning `Precision::Absent`, the optimizer
+simply falls back to structural/syntactic heuristics; cost-based join order does not fire. `[web]`
+
+This is **safe for Prism** in one direction: absent stats cannot produce a false "small" broadcast.
+But the `[INCONCLUSIVE]` risk remains: whether `JoinSelection` actually defaults to `Partitioned`
+(not `CollectLeft`) when it cannot compare a size against `hash_join_single_partition_threshold` is
+inferred, not documented. This must be verified before shipping the degrade posture (see
+§Residual Pre-Implementation Verifications).
+
+**Recommended guardrail stack** (from `research/datafusion-cost-degrade-mechanics-2026-06-27.md`
+§Consolidated Findings, folded into the guardrail model below):
+
+1. Embedder-enforced per-query wall-clock timeout — `tokio::time::timeout` + stream drop (HF-3)
+2. Bounded per-query `FairSpillPool` via `RuntimeEnvBuilder::with_memory_limit` (HF-4)
+3. `DiskManager` spill enabled with bounded `max_temp_directory_size` (HF-4)
+4. `prefer_hash_join = false` as memory-safety default — routes large equi-joins to spillable `SortMergeJoinExec` (HF-2)
+5. Post-optimization physical-plan rewrite forbidding `CollectLeft` for cross-source joins (HF-2) — **this is the load-bearing no-broadcast guard; it is NOT a DataFusion config knob**
+6. Mandatory per-join-side input row-cap injection (HF-5)
+7. `GlobalLimitExec` output row-cap (HF-5)
+8. Mandatory time-window injection on every source scan (D-C3-2)
+9. Optional counting-abort operator above the join as absolute hard ceiling (HF-5)
+10. Fully-`async` adapter `scan()` with `await` around every network call + 30s `reqwest` timeout (HF-3)
+11. Coverage-aware result envelope — disclose every degrade/cap/abort/injected-window; map `ResourcesExhausted` → `E-QUERY-NNN` + `degrade_reason` field (Topic 6)
+
+[`research/datafusion-cost-degrade-mechanics-2026-06-27.md` §Topic 2.1, §Consolidated Findings]
+
+---
+
+### Residual Pre-Implementation Verifications (downgraded from OQ)
+
+Three behaviors remain **`[INCONCLUSIVE]`** in public docs and MUST be confirmed by reading
+DataFusion source at Prism's pinned version + empirical `EXPLAIN` / OOM testing **before the degrade
+posture ships**:
+
+| Item | What to verify | Method |
+|------|---------------|--------|
+| **PIV-1: CollectLeft default under absent stats** | Does `JoinSelection` actually pick `Partitioned` (not `CollectLeft`) when `Precision::Absent`? | Read `datafusion/physical-optimizer/src/join_selection.rs` at Prism's locked version; `EXPLAIN` a stats-less cross-source join plan. If it CAN pick `CollectLeft`, mechanism HF-2 plan-rewrite is mandatory (not optional). |
+| **PIV-2: NestedLoopJoinExec / CrossJoinExec spill behavior** | Do these operators spill to disk or error with `ResourcesExhausted` under a tight pool? | Empirical OOM test with a bounded `FairSpillPool`. If they error (likely), input row-caps (HF-5) are the ONLY defense for outer/non-equi joins. |
+| **PIV-3: Plan-rewrite / optimizer rule composition** | Does the no-broadcast `PhysicalOptimizerRule` (HF-2) compose cleanly with DataFusion 50.x's optimizer pass ordering? Does it interact correctly with the `EnsureCooperative` rule? | Integration test with `EXPLAIN VERBOSE` showing final physical plan after full optimizer pipeline. |
+
+[`research/datafusion-cost-degrade-mechanics-2026-06-27.md` §Open Design Questions, §Honest Costs]
 
 ---
 
