@@ -111,7 +111,7 @@ Dated 2026-06-27 (landed this wrap commit):
 
 ### Decided this session, not yet captured in ADR-PROPs
 
-#### C9 config-management (PARTIAL — Q1 + fast-revert + bootstrap-recovery LOCKED; Q2 in progress; Q3 not started)
+#### C9 config-management (PARTIAL — Q1 + fast-revert + bootstrap-recovery + Q2 LOCKED; Q3 not started)
 
 **Q1 LOCKED — config authority + versioning:**
 - ALL config DB-authoritative, UI-only authoring (no hand-edited TOML in production).
@@ -148,15 +148,26 @@ Dated 2026-06-27 (landed this wrap commit):
 - NEW ATTACK SURFACE: security-reviewed safe-mode console → route to security-reviewer before shipping.
 - OPEN: NIST-800-82/IEC-62443 fail-safe normative anchor = separate standards pass.
 
-**Q2 CANARY MECHANICS — IN PROGRESS, NOT DECIDED:**
+**Q2 CANARY MECHANICS — RESOLVED 2026-06-27 (human: 'go with your lean'):**
 - Settled-going-in: canary in day-2; rollback action=fast-revert; reuses C6 circuit-breaker + shared
   change-detector primitive.
-- OPEN — three points, the crux is #2 (human's next answer needed):
-  1. Cohort unit: LEAN = cohort-by-config-scope (tenant for tenant-scoped, satellite/site for fleet-distributed).
-  2. **THE CRUX: health signal posture** — hard-failure-only vs include-soft-regressions (coverage-drop /
-     error-rate-uptick). My lean: include soft regressions with conservative threshold.
-  3. Two-tier blast class: high-blast (connector defs, pushdown, retention, satellite trust, detection rules) =
-     canary; low-blast (feature flags, log-level, TTLs) = direct-apply + fast-revert.
+
+- **D-C9-Q2-HEALTH (the crux):** canary auto-rollback trip signal = INCLUDE SOFT REGRESSIONS (coverage-banner
+  drop §3.6, availability-cache degradation, query error-rate uptick, empty-result-rate climb,
+  normalization-failure rate) IN ADDITION TO hard-failure signals (component/connector load failure, satellite
+  DEGRADED, fetch failures), at a CONSERVATIVE threshold to limit false rollbacks, with the trip CORRELATED
+  to this-config-push-hitting-this-cohort (so an upstream-source outage is NOT misread as bad config — a
+  coverage drop that did not coincide with the push to that cohort is not a config-rollback trigger).
+  Rationale: fast-revert is cheap + non-destructive, so the error-asymmetry favors catching regressions
+  (gentler asymmetry than the C6 detection case). Reuses the C6 shared change-detector primitive
+  (CUSUM/ADWIN) pointed at config-health metrics.
+
+- **D-C9-Q2-COHORT:** canary cohort unit = CONFIG-SCOPE-DEPENDENT — tenant for tenant-scoped config;
+  satellite/site for fleet-distributed config (the fleet-staged rollout from the bootstrap-recovery design).
+
+- **D-C9-Q2-TIERS:** TWO-TIER apply model — HIGH-BLAST classes (connector definitions, pushdown descriptors,
+  retention policies, satellite trust, detection rules) get canary; LOW-BLAST config (feature flags,
+  log-level, TTLs) applies directly with fast-revert available (no staged cohort).
 
 **Q3 SCHEMA-VERSIONING — NOT STARTED:**
 - Now LOAD-BEARING due to dual-deployment (on-prem skip-version upgrades need forward migration).
@@ -216,7 +227,7 @@ Each area: research → discuss → decide → capture → commit. **B = integra
 | C6 — detection engine + rule-editor depth + auto-rollback | ✅ decided + captured (ADR-PROP-detection-engine-depth.md) | |
 | C7 — ML / behavior analytics depth | ✅ decided + captured (ADR-PROP-ml-behavior-analytics-depth.md) | **C7 FOLD pending** (edge-mergeability research done; resolve D-C7-1 + fold into ADR-PROP) |
 | C8 — PrismQL deliverables | ✅ decided + captured (ADR-PROP-prismql-deliverables.md) | **C8 FOLD pending** (AS-OF/OCSF bitemporality research done; resolve OQ-C8-ASOF + OQ-C8-OCSFVER + fold) |
-| **C9 — config-management** | 🔶 PARTIAL — Q1+fast-revert+bootstrap-recovery LOCKED; Q2 in progress; Q3 not started | **RESUME HERE** — Q2 crux = health-signal posture (hard-failure-only vs soft-regressions) |
+| **C9 — config-management** | 🔶 PARTIAL — Q1+fast-revert+bootstrap-recovery+Q2 LOCKED; Q3 not started | **RESUME HERE** — Q3 = schema-versioning, deployment-aware (on-prem + client-managed skip-version upgrades) |
 | **C10 — Query.io competitive refresh** | 🔬 research DONE (`queryio-competitive-refresh-2026-06-27.md`) | NEEDS DISCUSSION: 8 gaps (highest: OOTB detection content + rule-translation; auditable-agent evidence-package; Security-Lake-via-Athena) |
 | **B — integration capstone** | ⏳ LAST | brief-reframe deltas + consolidated epic/ADR/story list — gated on brief-reframe HUMAN sign-off §5.1 |
 
@@ -248,11 +259,12 @@ Resolve OQ-C8-ASOF + OQ-C8-OCSFVER via BITEMPORALITY:
 
 ## 5. EXACT NEXT ACTION ON RESUME
 
-1. **Resume C9 Q2 canary chat.** Open question to human: health-signal posture — hard-failure-only vs
-   include-soft-regressions (my lean: include soft regressions with conservative threshold). Then Q3
-   schema-versioning (now deployment-aware).
+1. **Resume C9 Q3 — schema-versioning, deployment-aware (NOW LOAD-BEARING).** On-prem + client-managed
+   deployments do customer-controlled skip-version upgrades; schema-versioning must handle forward migration.
+   Fork: add schema_version + forward-migration framework (Envoy/K8s apiVersion model) vs
+   `#[non_exhaustive]`-forward-compat-only.
 
-2. **Capture queue** (in order after Q2/Q3 discussions):
+2. **Capture queue** (in order after Q3 discussion):
    1. C9 capture → ADR-PROP-config-management.md
    2. Deployment-matrix capture → ADR-PROP-dual-deployment.md (NEW, cross-cutting; three operating models: SaaS / MSSP-managed / client-managed)
    3. C7 fold → update ADR-PROP-ml-behavior-analytics-depth.md
