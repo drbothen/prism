@@ -2293,6 +2293,126 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
 
 ---
 
+### 15.11 DECIDED 2026-06-27 (human) — C7 Implementation Depth
+
+> **PROVENANCE.** 2026-06-27 side-analysis depth pass on the open implementation questions from §15.
+> Research basis: `research/ml-behavior-analytics-depth-2026-06-27.md` (six sonar-deep-research calls
+> at `reasoning_effort=high`; 13 live crates.io version-verifications). Capture artifact:
+> `specs/day2-design-decisions/ADR-PROP-ml-behavior-analytics-depth.md` (`do_not_execute: true`; real
+> ADR numbers deferred to morph). These decisions are ON TOP OF the §15 foundation — they add
+> DEPTH/implementation decisions and do NOT re-litigate any settled §15 item.
+
+**D-C7-1 — SATELLITE/EDGE MERGEABILITY POSTURE = DEFER-TO-TEST empirical bake-off (DECIDED
+2026-06-27).** PRIMARY lean: restrict satellite/Purdue-edge behavioral baselining to the
+cleanly-MERGEABLE primitives only — Welford/CGL mean-variance (exact associative reduce-tree via
+CGL formula), DDSketch quantiles (exact — add aligned bucket counts), count-min frequency (exact —
+element-wise add), HLL cardinality (exact — register-wise max). Non-mergeable primitives (EWMA,
+reservoir sampling, streaming clustering, streaming iForest) run CENTRAL-ONLY in the primary
+posture. ALTERNATIVE TO TEST empirically at edge-ML build time: allow non-mergeable primitives at
+the edge merged via documented approximations (time-aware re-EWMA, weighted re-sampling for
+reservoir) — measure the approximation error vs the exact-mergeable approach and decide then. The
+binding choice is DEFERRED to the implementation-time measurement (OQ-C7-1). Capture artifact
+records both; primary=mergeable-only holds until the bake-off.
+
+**D-C7-2 — MODEL BACKENDS = COMMIT THE FULL PLUGGABLE-BACKEND SET IN DAY-2 (DECIDED 2026-06-27).**
+Define a first-party AI-opaque `ModelBackend` trait (`load/infer/train`; backend never receives
+raw credentials — mirrors AD-017 + §11.1 BYO secret-store stance; per-tenant isolated). Backends:
+(a) **first-party statistical sketches** (statistical tier, Welford/CGL/EWMA/count-min first-party
++ sketches-ddsketch 0.4.0 + hyperloglogplus 0.4.1 + tdigests 1.0.1 — day-2-first);
+(b) **candle-core 0.11.0** (built-in learned tier; explicit "serverless inference" goal; healthy
+2026-06-26; ~2.1M downloads);
+(c) **ort 2.0.0-rc.12** (TRUSTED BYO ONNX; process-isolated — still RC, pin exactly, budget for
+API churn);
+(d) **wasmtime 46.0.1 Component-Model WASM plugins** (UNTRUSTED BYO; capability-restricted,
+per-tenant WASM instance — REUSE the C4 WASM sandbox pattern from
+ADR-PROP-dynamic-schema-connectors.md D-C4-3; healthy 2026-06-24; ~6.7M downloads);
+(e) **tract-onnx 0.23.3** (satellite/Purdue-edge tiny runtime; pure-Rust; no C++ dep; healthy
+2026-06-19). HONEST COSTS: `ort` still RC (2.0.0-rc.12, no stable 2.0 as of 2026-06-27) — pin
+exactly + budget for churn; WASM-ML has a performance tax (CPU small/medium models fine; SIMD/GPU
+not mature in WASM); this is the LARGER-BUILD option chosen consciously over statistical+candle-first.
+Sequencing within the backend set: statistical + candle first; ort + WASM-BYO later (within day-2
+scope); tract for satellite edge context. OQ-C7-4: whether the C4 connector WASM grant configuration
+is appropriate for inference-weight workloads or needs a separate model-plugin sandbox config.
+
+**D-C7-3 — DRIFT / DECAY / POISONING = DUAL-RATE + QUARANTINE design (DECIDED 2026-06-27).**
+Day-2 baseline math = robust estimators (median/MAD) + bounded per-window update rate (cap how
+far one update can move the baseline) + anomaly-gated learning (do NOT update model from data
+already flagged anomalous). Drift detectors MUST-BUILD in Rust (entire ecosystem is Python —
+River/scikit-multiflow/Frouros; `neural-drift` Rust crate does not document its algorithms): ADWIN
+first (self-tuning window doubles as the decay/forgetting mechanism) + Page-Hinkley second. Dual-rate
++ quarantine design: a fast model flags; a slow model only ABSORBS drift that PERSISTS past a
+quarantine window OR is human/S3-agent-confirmed (§15.8 agent-native). Attacker must sustain
+shifted behavior across both the slow window AND quarantine to poison the slow model. OPEN QUESTIONS
+(OQ-C7-3): quarantine window length, fast/slow-model promotion threshold, per-tenant policy defaults.
+**HONEST CAVEAT STATED PLAINLY:** the anomaly-gated-learning vs concept-drift tension is genuinely
+unsolved in general. Dual-rate + quarantine SHIFTS attacker cost; it does NOT eliminate boiling-frog
+risk. The spec must say this openly — do NOT imply a guarantee.
+
+**D-C7-4 — MODEL REPLAY / EXPLAINABILITY = PER-UPDATE CHANGELOG + PERIODIC MATERIALIZATION
+(DECIDED 2026-06-27).** Append every model update as a delta to a per-tenant changelog; materialize
+consolidated snapshots periodically; a finding's replay link (§14.5) references
+**(materialization-id + changelog-offset)** → enables replaying EVERY update, not just
+per-detection state. Rejected alternative: content-addressed per-detection snapshots (lighter —
+SHA-256-hash the serialized `ModelState` per detection fire; dedup via hash; simpler reference) —
+this gives per-detection auditability but NOT per-update auditability; the human chose the heavier
+mechanism for full per-update auditability. STORAGE = RocksDB (the §3.3 tier); bincode-serialized
+`ModelState` envelope (`schema_version, model_type, tenant_id [newtype/redacted-Debug],
+schema_scope, payload: Vec<u8>`); `#[non_exhaustive]`; per-tenant via CF (few large tenants) +
+**key-prefix** (`tenant_id:schema_scope:entity_class:model_type:...`) within shared CFs for the
+long tail — DO NOT map CF-per-tenant for the long tail (RocksDB degrades at thousands of CFs).
+HONEST COST: heavier than content-addressed (more storage + changelog/materialization machinery);
+changelog retention policy required (keep N materializations + all offsets since oldest retained;
+GC older entries). OQ-C7-6: retention policy parameters.
+
+**IMPLEMENTATION LEANS confirmed 2026-06-27 (human non-objection):**
+
+- **STATISTICAL TOOLKIT (day-2-first, §15.7):** first-party Welford+CGL + EWMA + online z-score
+  (+ robust median/MAD variant); depend on healthy crates: sketches-ddsketch 0.4.0 (rel-error
+  quantiles, fully mergeable), tdigests 1.0.1 (tail-accurate, if needed alongside DDSketch),
+  hyperloglogplus 0.4.1 (cardinality, high adoption); first-party count-min with conservative
+  update (all count-min crates stale). Vendor-vs-build line: DEPEND on healthy mergeable-sketch
+  crates; FIRST-PARTY the math where crates are stale (Welford/CGL/EWMA/count-min/drift-detectors).
+  HEAVY/LEARNED TIER (later, §15.7) = MUST-BUILD streaming iForest / HS-Trees / DenStream/CluStream/
+  streaming-kmeans (no maintained Rust streaming crate; linfa 0.8.1 + extended-isolation-forest 0.2.3
+  cover only the batch/on-demand-train case).
+
+- **VERIFICATION (L-C7-2):** model mergeable sketches as MONOIDS; new VP/Kani targets (siblings to
+  VP-014/VP-015) for bounded-state (anti-DoS) + monotonic-count + count-min-never-underestimates +
+  HLL-register-monotonicity + Welford-M2-non-negativity + merge-monoid-laws; test order-dependence
+  via seeded-permutation + reference-oracle differential + metamorphic-relation proptests; classify
+  each sketch order-agnostic / order-bounded-ε / order-dependent in its spec. VP-NNN numbers
+  deferred to morph (OQ-C7-2; VP-INDEX propagation obligation requires atomic burst across VP-INDEX
+  + verification-architecture.md + verification-coverage-matrix.md).
+
+- **PRIMITIVE→ENGINE COMPILATION (L-C7-3, §15.6):** `PROFILE <entity> OVER <window>` = incremental
+  per-entity sketch in a windowed RocksDB state store (window = RetentionCache hot window §3.3 or
+  scoped federated pull §15.2); `ANOMALY_SCORE/BASELINE_DEVIATION` = z-score/residual over the
+  incremental Welford/EWMA baseline; `RARITY` = per-value frequency/cardinality (count-min/HLL);
+  `FIRST_SEEN` = per-entity seen-set updated on novel keys; `PEER_OUTLIER` day-2-first =
+  ATTRIBUTE-BASED peer group (`GROUP BY peer_attrs` cohort, scored by z-score vs cohort robust
+  mean/MAD), clustering-based peer groups LATER. COST-BOUND (genuinely-novel control, thin vendor
+  prior art): sketches bounded-state by construction + existing mandatory time-bound/join-guard
+  NFRs + a NEW GROUP-BY-entity CARDINALITY CAP + per-query baseline-compute admission budget +
+  time-bound-predicate-pushdown-first (Kusto pattern). OQ-C7-5: cardinality cap value + budget
+  design.
+
+**§2.4 TRADEOFF PROSE UPDATE (G-26) is a PO action** — the three-ways-to-long-baseline reframe;
+flagged, NOT written here.
+
+**OPEN QUESTIONS for architect/morph:** OQ-C7-1 (edge-mergeability bake-off — measure approx-error
+at edge-ML build milestone); OQ-C7-2 (VP-NNN allocation for sketch verification targets; atomic
+burst required); OQ-C7-3 (dual-rate+quarantine policy knobs); OQ-C7-4 (WASM sandbox capability
+grants for inference vs hook/connector plugins); OQ-C7-5 (entity-cardinality cap + baseline-compute
+admission budget); OQ-C7-6 (changelog retention policy parameters); PIV-C7-1 (`ort` RC → stable
+status check at morph).
+
+**Downstream SAP-1 flag:** ml.model.update, ml.model.materialization, ml.drift.detected,
+ml.quarantine.pending/promoted, ml.anomaly_score.computed events likely need BC-2.16.002 catalog
+rows — flagged in capture artifact; NOT actioned here. Epics: E-ML-ONDEMAND-001 +
+E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
+
+---
+
 ## Section 16 — Session Continuity & Resume Notes (2026-06-25 side-analysis session)
 
 > **PROVENANCE.** 2026-06-25 side-analysis addendum. Written as a ZERO-CONTEXT RESUME aid before a
@@ -2592,6 +2712,60 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   backtest-coverage/rollout-transition/suppression-fire/auto-tune-suggestion events likely need
   BC-2.16.002 catalog rows (flagged, NOT actioned). Proposed epics: E-DETECT-ENGINE-001 +
   E-DETECT-SEQUENCE-001 + E-DETECT-EDITOR-001 + E-ALERT-ROUTING-001 + E-RULE-XLATE-001 (§14.8).
+
+- **C7 On-Demand ML & Behavior Analytics DEPTH DECIDED + CAPTURED 2026-06-27 (human).** Four
+  architecture decisions D-C7-1..4 confirmed; implementation leans L-C7-1..3 confirmed. Capture
+  artifact: `specs/day2-design-decisions/ADR-PROP-ml-behavior-analytics-depth.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/ml-behavior-analytics-depth-2026-06-27.md` (six sonar-deep-research calls at
+  `reasoning_effort=high`; 13 live crates.io version-verifications 2026-06-27).
+  **D-C7-1 SATELLITE/EDGE MERGEABILITY = DEFER-TO-TEST (prototype bake-off, like the C2 transport /
+  iceberg-rust-lineage deferrals). PRIMARY LEAN: restrict satellite/Purdue-edge behavioral baselining
+  to the cleanly-MERGEABLE primitives only (Welford/CGL mean-variance, DDSketch quantiles, count-min
+  frequency, HLL cardinality — all combine EXACTLY via their respective merge operators at central).
+  Non-mergeable primitives (EWMA, reservoir, streaming clustering) run CENTRAL-ONLY under the primary
+  posture. ALTERNATIVE TO TEST EMPIRICALLY at edge-ML build time: allow non-mergeable primitives at
+  the edge merged via documented approximations (time-aware re-EWMA, weighted re-sampling) — measure
+  the approximation error vs exact-mergeable and decide at the bake-off milestone. Primary=mergeable-only
+  holds until measured. OQ-C7-1.**
+  **D-C7-2 MODEL BACKENDS = COMMIT THE FULL PLUGGABLE-BACKEND SET IN DAY-2.** First-party
+  `ModelBackend` trait (AI-opaque, per-tenant isolated, AD-017 compatible). Backends: first-party
+  statistical sketches (statistical tier, day-2-first) + candle-core 0.11.0 (built-in learned,
+  healthy 2026-06-26) + ort 2.0.0-rc.12 (TRUSTED BYO ONNX, process-isolated — still RC, pin exactly)
+  + wasmtime 46.0.1 Component-Model WASM plugins (UNTRUSTED BYO, REUSE C4 WASM sandbox pattern from
+  ADR-PROP-dynamic-schema-connectors.md D-C4-3) + tract-onnx 0.23.3 (satellite/edge tiny runtime).
+  HONEST COSTS: ort is RC; WASM-ML has performance tax (SIMD/GPU build flags; GPU-in-WASM immature);
+  this is the larger-build option chosen over statistical+candle-first. OQ-C7-4: whether inference
+  workloads need different WASM capability grants than connector/hook plugins.
+  **D-C7-3 DRIFT / DECAY / POISONING = DUAL-RATE + QUARANTINE.** Day-2 baseline math = robust
+  estimators (median/MAD) + bounded per-window update rate + anomaly-gated learning. Drift
+  detectors MUST-BUILD in Rust (Python-only ecosystem — River/scikit-multiflow; `neural-drift`
+  undocumented algorithms): ADWIN (self-tuning window = doubles as decay) + Page-Hinkley first.
+  Fast model flags; slow model only absorbs drift persisting past a quarantine window OR confirmed
+  by human/S3-agent (§15.8). HONEST CAVEAT: dual-rate + quarantine SHIFTS attacker cost; does NOT
+  eliminate boiling-frog risk — state this plainly, do NOT imply a guarantee. OQ-C7-3: policy knobs.
+  **D-C7-4 MODEL REPLAY / EXPLAINABILITY = PER-UPDATE CHANGELOG + PERIODIC MATERIALIZATION (human
+  chose full per-update auditability over the lighter per-detection content-addressed option).**
+  Append every model update as a delta to a changelog; materialize consolidated snapshots periodically;
+  finding's replay link (§14.5) references (materialization-id + changelog-offset) → enables replaying
+  EVERY update. HONEST COST: heavier than content-addressed (more storage + changelog/materialization
+  machinery). Content-addressed per-detection snapshots = rejected lighter alternative (per-detection
+  auditability only, not per-update). Storage = RocksDB (the §3.3 tier); bincode schema-versioned
+  `ModelState` envelope (redacted Debug, `#[non_exhaustive]`); per-tenant via CF (few large tenants)
+  + key-prefix (long tail) — RocksDB degrades at thousands of CFs so do NOT map CF-per-tenant for
+  the long tail. OQ-C7-6: retention policy parameters.
+  **LEANS confirmed:** statistical toolkit (first-party Welford+CGL+EWMA+count-min+drift-detectors;
+  depend on sketches-ddsketch 0.4.0 + hyperloglogplus 0.4.1 + tdigests 1.0.1; heavy streaming
+  tier MUST-BUILD later); verification (mergeable sketches as MONOIDs; new VP/Kani targets siblings
+  to VP-014/VP-015 — OQ-C7-2 allocates VP-NNNs atomically at morph); primitive→engine compilation
+  (PROFILE→incremental RocksDB sketch; ANOMALY_SCORE/BASELINE_DEVIATION→z-score/residual;
+  RARITY→count-min/HLL; FIRST_SEEN→seen-set; PEER_OUTLIER day-2-first = attribute-based GROUP BY
+  cohort + z-score vs cohort robust mean/MAD; COST-BOUND = cardinality cap + admission budget +
+  time-bound pushdown first). §2.4 tradeoff prose (G-26) = PO action flagged; NOT written here.
+  Downstream SAP-1 obligations: ml.model.update/materialization, ml.drift.detected,
+  ml.quarantine.pending/promoted, ml.anomaly_score.computed events likely need BC-2.16.002 catalog
+  rows (flagged, NOT actioned). Open questions: OQ-C7-1..6 + PIV-C7-1. Proposed epics:
+  E-ML-ONDEMAND-001 + E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
 
 ### 16.5 Status & boundaries reminder
 
