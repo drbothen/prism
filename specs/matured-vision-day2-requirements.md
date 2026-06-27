@@ -3060,6 +3060,44 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   OQ-C9-3 (bundled-PID-1 selection), OQ-C9-4 (savefile opt-in measured), OQ-C9-5 (NIST-800-82/IEC-62443
   standards pass), OQ-C9-6 (safe-mode console security review), OQ-C9-7/8 (calibration).
 
+- **DEPLOYMENT MATRIX (cross-cutting, three-operating-model) FULLY DECIDED + CAPTURED 2026-06-27 (human).**
+  Six architecture decisions confirmed: D-DEPLOY-001 (single-codebase + runtime DEPLOYMENT-PROFILE
+  ~90% shared; divergent-fork anti-pattern explicitly rejected, validated by GitLab/Sentry/Elastic/
+  Mattermost/GitHub/Grafana prior art); D-DEPLOY-002 (THREE named operating models on TWO AXES —
+  WHO HOSTS × WHO OPERATES: **SaaS** = vendor-hosted + vendor-operated + multi-CUSTOMER tenancy;
+  **MSSP-managed** = customer/MSSP infra + MSSP-operated + multi-CLIENT tenancy; **Client-managed**
+  = client infra + client-SOC-operated + single-org or internal-BU tenancy); D-DEPLOY-003
+  (operator-role as PROFILE DIMENSION not build target; RBAC defaults + day-3 workflow defaults vary
+  by operator; no `#[cfg(feature = "mssp")]` or equivalent compile-time gate);
+  D-DEPLOY-004 (uniform `OrgId`/`OrgSlug`/`OrgRegistry` abstraction across the full single-org →
+  multi-BU → multi-client → multi-customer spectrum; NO super-tenant layer above OrgId);
+  D-DEPLOY-005 (**BYOC ZERO-ACCESS BY CONSTRUCTION — HEADLINE DIFFERENTIATOR**: satellite mesh IS
+  the BYOC data-plane by construction; C2 residency invariant + AD-017 satellite-local credentials
+  → SaaS central NEVER receives raw data or creds; egress-blocked CI invariant = STANDING GUARD
+  across all three models; thesis STRENGTHENED across all operating models — client-managed is the
+  purest air-gap expression); D-DEPLOY-006 (deployment-conditional C9 migration posture cross-ref
+  only — see ADR-PROP-config-management.md §D-C9-Q3-DEPLOYMENT: SaaS = blue-green chain-barely-
+  exercised; MSSP-managed = bundle carries full chain + A/B validates; client-managed = HIGHEST
+  skip-version exposure, full chain + required-stop + golden-fixture CI + idempotent/atomic/resumable).
+  **A client-managed deployment CAN admit MSSP oversight WITHOUT re-architecting** (operator-role is
+  a profile config change, not a codebase change — PIV-DEPLOY-007). Config-authority model (DB +
+  UI + git-backed) is IDENTICAL across all three; what varies by operator = RBAC defaults + day-3
+  workflow defaults (PIV-DEPLOY-006).
+  **OPEN sub-choices (NOT resolved — explicitly flagged):** (1) **OQ-DEPLOY-1 tenancy-isolation depth**
+  (pool / bridge / silo / cell-per-customer) — open architectural sub-choice needing a targeted
+  morph decision; compliance/cost implications for SOC 2 / GDPR; (2) **OQ-DEPLOY-2 residual BYOC
+  hardening gaps** — four open hardening items: result-transit residency policy, metadata-leakage
+  audit, ephemeral dial-home token rotation cadence, CMEK for central metadata; NOT blocking
+  architecture but must close before SaaS launch.
+  Capture artifact: `specs/day2-design-decisions/ADR-PROP-dual-deployment.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/dual-deployment-saas-onprem-2026-06-27.md` (PRIMARY). Cross-refs:
+  ADR-PROP-config-management.md (D-C9-Q3-DEPLOYMENT migration posture);
+  ADR-PROP-central-deployment-access-layer.md (C1); ADR-PROP-satellite-mesh.md (C2 residency +
+  AD-017 satellite-local creds); secret-subsystem-sketch.md (SS-26); matured-vision §3.1/§3.2.
+  Ripple effects: E-BUNDLE-DEPLOY-001 (offline bundle tooling epic — not yet registered);
+  OQ-DEPLOY-1/2 require targeted morph passes; SS-26 morph ADR must cite PIV-DEPLOY-004.
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
