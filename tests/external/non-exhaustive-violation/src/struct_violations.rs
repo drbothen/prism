@@ -1398,3 +1398,34 @@ pub fn v87_unknown_source_table_details() {
     };
     let _ = _details;
 }
+
+// ─── S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: EnrichUdfNotFoundDetails ─────────
+//
+// `EnrichUdfNotFoundDetails` is the inner-boxed fields struct for
+// `PrismError::EnrichUdfNotFound` (E-QUERY-039). It carries the requested
+// infusion name, available infusion names, and an optional Levenshtein suggestion
+// for actionable diagnostics. `#[non_exhaustive]` ensures future fields (e.g.,
+// `column_context`, `query_position`) can be added without breaking callers.
+// ci.yml EXPECTED bumped from 87 to 88.
+
+/// Violation 88: prism_core::error::EnrichUdfNotFoundDetails struct literal (E0639).
+///
+/// `EnrichUdfNotFoundDetails` carries the E-QUERY-039 error context: the requested
+/// enrichment UDF name, available infusion names, and an optional Levenshtein
+/// suggestion. `#[non_exhaustive]` ensures external callers cannot use struct-literal
+/// construction — callers MUST use `EnrichUdfNotFoundDetails::new(...)`.
+/// Future fields (e.g., `column_context`, `query_position`) can be added
+/// without breaking downstream callers.
+///
+/// Added: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B (E-QUERY-039 enrich-UDF gate).
+#[allow(dead_code)]
+pub fn v88_enrich_udf_not_found_details() {
+    use prism_core::error::EnrichUdfNotFoundDetails;
+    // Triggers E0639 (#[non_exhaustive]).
+    let _details = EnrichUdfNotFoundDetails {
+        infusion: "threat_intel".to_string(),
+        available_infusions: vec![],
+        did_you_mean: None,
+    };
+    let _ = _details;
+}
