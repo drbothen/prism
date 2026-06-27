@@ -70,7 +70,7 @@ status: draft
 # + BC-2.11.019 v1.3 draft→active at merge per POL-14. Canonical versions are authoritative
 # in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "1.6"
+version: "1.7"
 updated: "2026-06-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -100,7 +100,7 @@ red_gate_tests: 9
 #   AC-AUDIT-001: test_bc_2_10_012_audit_001_sensor_prefixed_table_names
 #   AC-AUDIT-004: test_bc_2_10_016_audit_004_no_dot_notation_in_prompts
 #   AC-REG-1: just check (workspace gate, not a unit test; verified by exit code 0)
-#             test_non_exhaustive_count_87_to_88 (ci.yml EXPECTED increment gate)
+#             scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a named Rust test)
 #   AC-REG-2: test_bc_2_11_022_ci_3tier_gate (existing, updated for per-field UDF parity)
 tdd_mode: strict
 behavioral_contracts:
@@ -476,7 +476,7 @@ catalog row.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v1.6) | ~10,000 |
+| This story spec (v1.7) | ~10,000 |
 | BC files (5 BCs) | ~10,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs) | ~18,000 |
 | Research/audit docs (2) | ~6,000 |
@@ -744,7 +744,7 @@ capture evidence of the fixed MCP tool output and prompt rendering as per AC-DEM
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | N1: `InfusionRegistry` has zero infusions registered at reference request time | `build_reference_content(Some(&registry))` returns enrichment section with "No enrichment infusions are currently registered." (not six UDF entries). Test: `test_bc_2_11_022_none_registry_placeholder` (existing) must still pass. |
+| EC-001 | N1: `InfusionRegistry` has zero infusions registered at reference request time | `build_reference_content(Some(&registry))` returns enrichment section with "No enrichment functions are currently registered for your deployment." (not six UDF entries). Test: `test_bc_2_11_022_some_empty_registry_placeholder` (new, covers the Some(empty) path) must pass. |
 | EC-002 | N1-B: Calling `threat_intel(iocs_value)` where `threat_intel` IS registered as a UDF name (hypothetical future; currently it is NOT) | E-QUERY-039 does NOT fire — the gate only fires when the name is absent from `udf_to_infusion`. This edge case is the negative control for the fix — confirm the test fixture correctly registers only per-field names, not the infusion_id. |
 | EC-003 | N2: Filter-mode query `crowdstrike_detections | severity='HIGH'` continues to work after gate-ordering fix | Gate-ordering fix must NOT alter filter-mode behavior. `Ast::Filter` path does not use `FROM <table>` syntax; the TableRegistry check in the fix applies only to the `FROM`-target path (SQL/Pipe/SqlPipe modes). |
 | EC-004 | N2: `SELECT * FROM crowdstrike.detections` (SQL mode, dot-notation) also returns E-QUERY-037 | The fix applies to all modes (SQL, Pipe, SqlPipe) per EC-11-067 in BC-2.11.001 v1.15. The Red Gate test must cover both pipe and SQL mode. |
@@ -771,6 +771,7 @@ is a set of targeted, surgical code changes:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | low-1-ec001-exhaustive-claim-audit-2026-06-27 | 2026-06-27 | story-writer | LOW-1 + EXHAUSTIVE whole-story claim audit: corrected EC-001 phantom string `"No enrichment infusions are currently registered."` → actual code string `"No enrichment functions are currently registered for your deployment."` (resources.rs ~line 1519, Some(empty) path); updated EC-001 test cite from `test_bc_2_11_022_none_registry_placeholder` (covers None path) → `test_bc_2_11_022_some_empty_registry_placeholder` (covers the Some(empty) path). Second inaccuracy found and fixed: frontmatter Red Gate test comment listed phantom test `test_non_exhaustive_count_87_to_88` — this test does not exist; the non-exhaustive gate is a compile-fail crate run via `scripts/check-non-exhaustive.sh EXPECTED=88`, not a named Rust `fn test_*`; corrected to `scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a named Rust test)`. All other claims across every section verified accurate against feature worktree code: AC-N1 (resources.rs dedup key, per-field UDF names, test name), AC-N1B (EnrichUdfNotFoundDetails struct fields, map_prism_error -32602 arm, Display template, gate ordering, test names), AC-N2 (check_availability_gate / is_registered function names, TableNotAvailable variant, udf_to_infusion field), AC-AUDIT-001 (build_tables_for_client format string, pql_hints generic hint text), AC-AUDIT-004 (render_* function names, FROM-ready table names, regex), AC-REG-1/REG-2/DEMO-001/SAP-1, §Edge Cases (EC-002 through EC-006), §Red Gate Tests table (all other names confirmed present), §File Structure, §Library Requirements, §Architecture Mapping, §Dev Notes, §Previous Story Intelligence. No further inaccuracies found. Token Budget label 1.6→1.7. Version bump 1.6→1.7. |
 | 1.6 | obs-1-ac-prose-accuracy-audit-2026-06-27 | 2026-06-27 | story-writer | OBS-1 + AC-prose accuracy audit: corrected AC-AUDIT-001 phantom `pql_hints[0]` "This client has N tables:" string claim — that string does not exist in `build_pql_hints`; the actual non-empty `pql_hints[0]` is `"Use 'SELECT * FROM <table> LIMIT 25' to query any of the N table(s) above."` (a generic usage hint with `<table>` placeholder, no embedded table names). The disambiguation guarantee is in `TableDescriptor.name` + `example_query`, not in `pql_hints`. Full AC-prose-vs-code accuracy sweep (AC-N1, AC-N1B, AC-N2, AC-AUDIT-004, AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1): all other AC prose matches code — no further inaccuracies found. Token Budget label 1.5→1.6. Version bump 1.5→1.6. |
 | 1.5 | med-1-exhaustive-all-forms-bc-cite-audit-2026-06-27 | 2026-06-27 | story-writer | Exhaustive all-forms BC version-cite audit (Pass MED-1): residual compact-form `(v1.14/v1.1/v1.3/v1.4/v1.2)` at frontmatter line 69 contained stale `v1.14` for BC-2.11.001 (canonical v1.15) — missed by prior prefixed-grep sweeps that searched `BC-2.11.001 v1.14` but not the parenthesized slash-joined form. Redundant compact version enumeration removed from frontmatter comment (drift risk; body BC table is canonical); replaced with accurate status note: 4 active BCs + BC-2.11.019 draft→active at merge per POL-14. Descriptor accuracy fix: prior comment said "all 5 BCs are active" — BC-2.11.019 is `status: draft` (confirmed against BC frontmatter). All prefixed-form cites verified correct (zero stale). Re-grep confirms ZERO live stale `v1.14` or stale compact-form cites remain (changelog rows excepted, TD-VSDD-091 exempt). Token Budget version label updated 1.4→1.5. Version bump 1.4→1.5. |
 | 1.4 | pass-5-bc-version-cite-sweep-2026-06-27 | 2026-06-27 | story-writer | Comprehensive BC version-cite sweep (Pass-5 MED-1/MED-2): BC-2.11.001 v1.14→v1.15 (5 sites: frontmatter comment line 62, BC table line 175, AC-N2 header trace line 338, AC-REG-1 trace line 415, EC-004 table line 748); BC-2.11.019 v1.2→v1.3 (2 residual sites the v1.3 "throughout" claim missed: AC-N1B scope note line 222, Previous Story Intelligence line 596). Token Budget version label updated 1.3→1.4. Frontmatter version bumped 1.3→1.4. BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.4 verified current — no changes needed. POL-29 version-cite recurrence break. |
