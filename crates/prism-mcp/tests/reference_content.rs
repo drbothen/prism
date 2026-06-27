@@ -278,19 +278,21 @@ fn test_bc_2_11_022_low002_all_examples_rendered() {
 
 // ─── CRIT-003: registry-parity assertion ──────────────────────────────────────
 
-/// CRIT-003 / BC-2.11.022 — `build_reference_content(Some(&registry))` renders
-/// EXACTLY the enrichment names from the live registry.
+/// CRIT-003 / BC-2.11.022 v1.1 — `build_reference_content(Some(&registry))` renders
+/// EXACTLY the per-field UDF callable names from the live registry (EC-11-022-006).
 ///
-/// A registry is constructed with two known infusion specs: `"geoip"` and `"threatintel"`.
-/// After calling `build_reference_content(Some(&registry))`:
-/// - Content must list `enrich geoip(col)` and `enrich threatintel(col)`.
+/// A registry is constructed with two known infusion specs: `"geoip"` (field: `geoip_country`)
+/// and `"threatintel"` (field: `threatintel_score`). After calling
+/// `build_reference_content(Some(&registry))`:
+/// - Content must list `enrich geoip_country(col)` and `enrich threatintel_score(col)`
+///   (per-field descriptor.name, NOT the infusion_id).
 /// - Content must NOT contain the placeholder text (registry is present and non-empty).
 /// - Content must contain "Available enrichment functions:" (the populated header).
 /// - Content must NOT list any enrichment not in the registry (no phantom names).
 ///
 /// This is a LOAD-BEARING production test: `build_reference_content` calls
-/// `registry.udf_descriptors()` and deduplicates by `infusion_id` — testing that
-/// the infusion_id values from the specs match what is rendered.
+/// `registry.udf_descriptors()` and deduplicates by `descriptor.name` (v1.1 contract) —
+/// testing that per-field callable names match what is rendered.
 ///
 /// Red Gate (CRIT-003): build_reference_content used `include_str!` (static file)
 /// that ignored the registry entirely; the registry-controlled enrichment section
@@ -335,19 +337,25 @@ fn test_bc_2_11_022_registry_parity() {
     // Call the production function.
     let content = build_reference_content(Some(&registry));
 
-    // Both registered infusion names MUST appear as formatted lines.
-    let geoip_line = "- `enrich geoip(col)`";
-    let threatintel_line = "- `enrich threatintel(col)`";
+    // Both registered per-field UDF callable names MUST appear as formatted lines.
+    // BC-2.11.022 v1.1 / EC-11-022-006: the reference lists descriptor.name (per-field
+    // callable), NOT the infusion_id. For geoip field "geoip_country" the callable is
+    // "enrich geoip_country(col)"; for threatintel field "threatintel_score" it is
+    // "enrich threatintel_score(col)".
+    let geoip_line = "- `enrich geoip_country(col)`";
+    let threatintel_line = "- `enrich threatintel_score(col)`";
 
     assert!(
         content.contains(geoip_line),
-        "CRIT-003 BC-2.11.022: content must contain '{geoip_line}' for registered infusion 'geoip'; \
+        "CRIT-003 BC-2.11.022 v1.1: content must contain '{geoip_line}' for registered \
+         per-field UDF 'geoip_country' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]
     );
     assert!(
         content.contains(threatintel_line),
-        "CRIT-003 BC-2.11.022: content must contain '{threatintel_line}' for registered infusion 'threatintel'; \
+        "CRIT-003 BC-2.11.022 v1.1: content must contain '{threatintel_line}' for registered \
+         per-field UDF 'threatintel_score' (descriptor.name); \
          content snippet: {:?}",
         &content[..content.len().min(600)]
     );
