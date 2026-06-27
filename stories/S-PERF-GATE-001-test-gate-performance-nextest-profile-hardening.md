@@ -6,8 +6,8 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.5"
-spec_version: "v1.5"
+version: "1.6"
+spec_version: "v1.6"
 level: ops
 producer: story-writer
 timestamp: "2026-06-26"
@@ -147,7 +147,10 @@ failure-output = "immediate"
   does NOT reference PR #127 — it references the story ID and the `[profile.e2e]`
   pattern it mirrors.
 
-Running `rg 'profile.prepush' .config/nextest.toml` returns exactly one hit.
+Running `rg '\[profile\.prepush\]' .config/nextest.toml` returns exactly one hit (the
+section header). The broader pattern `rg 'profile.prepush' .config/nextest.toml` returns
+two hits: the `[profile.prepush]` section header and the `[[profile.prepush.overrides]]`
+signal_handlers entry added by AC-011.
 
 ### AC-002: `[profile.ci]` in `.config/nextest.toml` updated — `retries = 1` and `terminate-after = 2` added (traces to BC-5.39.001 §Delivery process — CI gate must not hang on flake)
 
@@ -728,3 +731,4 @@ Per POL-7 (verbatim BC H1 titles):
 | 1.3 | 2026-06-26 | story-writer | F-P2-MED-001 fix (AC-008 sccache codeblock advisory prose): replaced technically-wrong "40-70% on cold builds" with accurate wording matching shipped `.cargo/config.toml` — cold first build: no benefit; warm incremental/cross-worktree: ~25-40% reduction for the crypto/datafusion dependency tree. NOTE: research §7d/§3.2.2 figure of "40-70% on cold builds" is incorrect; shipped stanza supersedes it (§7d must NOT be cited as agreeing with cold-build wording). Definitive codeblock-prose sweep performed: every numeric/percentage/advisory claim in all codeblocks audited against shipped code; all other claims confirmed MATCHES. |
 | 1.4 | 2026-06-26 | story-writer | Round-5 holistic reconciliation — five findings closed: (1) §Background #4-contradiction: corrected "implements #1, #2, #4, #5, #6" → "implements #1, #2, #5, #6"; added item #4 deferral statement (D-1368, S-PERF-GATE-002 anchor, ADV-P02-CRIT-001 justification) alongside item #3 deferral. (2) AC-008 codeblock: reconciled to exactly match shipped `.cargo/config.toml` stanza — DO-NOT-uncomment-on-CI warning, correct Install/Start daemon/Verify instructions, Cross-worktree sharing line, corrected speedup prose; added explicit note that shipped stanza supersedes/corrects research §7d/§3.2.2 figure. (3) TD-VSDD-091 line-pin elimination: all five volatile "lines 41–52" / "lines 38–53" citations replaced with behavioral anchor "the `# Updated 2026-05-06 (PR #127)` LazyLock commentary block in `[profile.ci]`" across AC-001, AC-006, §Tasks task 5, §Previous Story Intelligence, §References. (4) §Changelog v1.3 false-§7d-agreement citation corrected. (5) AC-009 projection corrected from "items #1–#4" to "items #1, #2, #5, and #6 (those implemented)" to match actual implemented scope. Full top-to-bottom section audit: all sections confirmed MATCHES shipped code — zero remaining drift. |
 | 1.5 | 2026-06-26 | story-writer | Narrative source-verification sweep — three findings fixed and full quantitative/factual claim audit completed: (1) F-P2-MED-001: corrected "4 of 8" to "6 of 8" reset-bearing tests in §Background deferral paragraph and AC-006 STATUS block; added exact enumeration of which 6 tests call clone.reset() mid-test and which 2 do not; clarified S-PERF-GATE-002 prerequisite scope (6 tests need refactor, not all 8). (2) F-P2-LOW-1: corrected "8 tests, each booting its own DTU clone" to "7 of 8 boot a DTU clone; 1 uses a wiremock mock server" in §Background key data points — source-verified against adv_p02_e2e_pushdown_pipeline_test.rs which shows test_adv_p02_sid1_armis_fetch_start_time_augments_aql uses wiremock::MockServer not a DTU binary. (3) F-P2-LOW-2: corrected AC-001 final bullet — the shipped [profile.prepush] comment references story ID S-PERF-GATE-001 and the [profile.e2e] pattern, NOT PR #127; PR #127 is cited only in the [profile.ci] comment block (source-verified against shipped .config/nextest.toml). Full narrative quantitative/factual claim audit performed: every count, timing, percentage, and code-factual claim verified against source files — all other claims confirmed MATCHES. |
+| 1.6 | 2026-06-26 | story-writer | F-P2-MED-001 (AC-001 grep-count assertion) + empirical AC verification-command sweep. AC-001: anchored verification regex to `rg '\[profile\.prepush\]'` (1 hit, section header only) and documented that the broader `rg 'profile.prepush'` returns 2 hits (section header + `[[profile.prepush.overrides]]` from AC-011). Empirical sweep: every AC verification command run against shipped worktree `/Users/jmagady/Dev/prism/.worktrees/S-PERF-GATE-001/` — AC-002 (`grep -A5 'profile.ci\]' \| grep retries` → `retries = 1`, 1 hit, MATCHES), AC-003 (`grep 'profile prepush' Justfile` → 1 hit, MATCHES), AC-004 (`grep 'build_http_client_with_custom_timeout'` → 12 hits, ≥2 claimed, MATCHES), AC-005 (`cargo nextest list -E '...'` → test listed, MATCHES), AC-008 (`grep 'sccache'` → 9 hits, ≥2 claimed, MATCHES), AC-010 (`grep -A5 'mmap\|SIGSEGV\|RocksDB.*signal'` → comment block present, MATCHES), AC-011 (`rg 'binary(signal_handlers)'` → both profile overrides present, MATCHES). All AC verification-command claimed outputs now match actual output against shipped tree. |
