@@ -2893,15 +2893,26 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
   `research/ml-behavior-analytics-depth-2026-06-27.md` (six sonar-deep-research calls at
   `reasoning_effort=high`; 13 live crates.io version-verifications 2026-06-27).
-  **D-C7-1 SATELLITE/EDGE MERGEABILITY = DEFER-TO-TEST (prototype bake-off, like the C2 transport /
-  iceberg-rust-lineage deferrals). PRIMARY LEAN: restrict satellite/Purdue-edge behavioral baselining
-  to the cleanly-MERGEABLE primitives only (Welford/CGL mean-variance, DDSketch quantiles, count-min
-  frequency, HLL cardinality — all combine EXACTLY via their respective merge operators at central).
-  Non-mergeable primitives (EWMA, reservoir, streaming clustering) run CENTRAL-ONLY under the primary
-  posture. ALTERNATIVE TO TEST EMPIRICALLY at edge-ML build time: allow non-mergeable primitives at
-  the edge merged via documented approximations (time-aware re-EWMA, weighted re-sampling) — measure
-  the approximation error vs exact-mergeable and decide at the bake-off milestone. Primary=mergeable-only
-  holds until measured. OQ-C7-1.**
+  **D-C7-1 C7 FOLD RESOLVED 2026-06-27.** Prior posture (mergeable-only as conservative default;
+  non-mergeable primitives EWMA/reservoir/clustering central-only) UPGRADED by depth research
+  (`research/edge-ml-mergeability-depth-2026-06-27.md`): representation-change escape hatches make
+  formerly non-mergeable primitives **mergeable-EXACT broadly**: (a) EWMA → forward-decay `(U,V)`
+  sufficient-statistic representation: mergeable-EXACT (Cormode–Shkapenyuk–Srivastava–Xu;
+  [LIT-SETTLED]); (b) Reservoir → random-key/bottom-k (Efraimidis–Spirakis): mergeable-EXACT, no
+  per-shard count relay required ([LIT-SETTLED]); (c) Clustering → BIRCH CF-vectors `(N, LS, SS)`
+  (additive): mergeable-EXACT at the CF level ([LIT-SETTLED] — CONFIRMS the prior human hypothesis
+  that clustering can be made additive); bounded approximation only in fading-weight time-alignment
+  (`2^{λΔ}` clock-skew bound) and macro-clustering coreset error (which also exists single-machine).
+  **Consequences:** edge-ML mergeability is the BROAD DEFAULT via mergeable-exact representations,
+  not a narrow constraint. Scalar-state approximate-merge (scalar EWMA, Algorithm-R + weighted
+  re-sampling) is a constrained-edge FALLBACK ONLY (error bounds extrapolated, not literature-settled).
+  **Coarsening ≠ privacy:** representation coarsening is an accuracy/footprint lever, NOT a privacy
+  mechanism; local-DP on mergeable DP sketches is the separate concern if a formal privacy guarantee
+  is required (PIV-C7-3). **Remaining empirical item (narrowed):** macro-clustering drift test —
+  measure whether BIRCH CF-vector merges preserve macro-cluster fidelity under adversarial
+  cross-shard skew (ARI/NMI/CMM vs central reference; OQ-C7-1 narrowed to this single item).
+  ADR-PROP D-C7-1 updated in-place; PIV-C7-2 (representation correctness gate) + PIV-C7-3
+  (coarsening≠privacy invariant probe) added to Open Questions table.
   **D-C7-2 MODEL BACKENDS = COMMIT THE FULL PLUGGABLE-BACKEND SET IN DAY-2.** First-party
   `ModelBackend` trait (AI-opaque, per-tenant isolated, AD-017 compatible). Backends: first-party
   statistical sketches (statistical tier, day-2-first) + candle-core 0.11.0 (built-in learned,

@@ -34,6 +34,7 @@ traces_to:
   - day2-design-decisions/ADR-PROP-storage-engine-taxonomy.md (C1 — RocksDB as the §3.3 hot/model tier)
   - epics E-ML-ONDEMAND-001, E-ML-ONLINE-001, E-ML-PRIMITIVES-001
   - research/ml-behavior-analytics-depth-2026-06-27.md (primary research basis — all six Q1–Q6 depth questions)
+  - research/edge-ml-mergeability-depth-2026-06-27.md (C7 FOLD depth research — D-C7-1 resolution; Parts 1–6)
   - CLAUDE.md (#[non_exhaustive] discipline; AD-017 AI-opaque credentials; RocksDB CFs; SAP-1 structured event catalog; error taxonomy)
 ---
 
@@ -85,13 +86,18 @@ compilation) were confirmed in the same human session without objection.
 
 ## Decision Ledger
 
-### D-C7-1 — Satellite/Edge Mergeability: PRIMARY = Mergeable-Only; ALTERNATIVE = Approximate-Merge to Test Empirically
+### D-C7-1 — Satellite/Edge Mergeability: MERGEABLE-EXACT REPRESENTATIONS BROADLY (C7 FOLD RESOLVED 2026-06-27)
 
-**DECIDED 2026-06-27 (human). Resolves the §3.2 / §15.8 satellite/Purdue-edge partial-aggregate
-design question.**
+**DECIDED 2026-06-27 (human); C7 FOLD RESOLVED 2026-06-27 (depth research
+`research/edge-ml-mergeability-depth-2026-06-27.md`). Resolves the §3.2 / §15.8
+satellite/Purdue-edge partial-aggregate design question.**
 
-**Primary posture (binding until the empirical bake-off):** restrict satellite / Purdue-edge
-behavioral baselining to the **cleanly-mergeable primitives only**. These are:
+**Prior posture (going in):** "PRIMARY = restrict to cleanly-mergeable primitives; ALTERNATIVE =
+approximate-merge to test empirically." The C7 FOLD upgrades this: representation-change escape
+hatches make formerly non-mergeable online primitives **mergeable-EXACT**, so the primary posture
+is no longer a narrow restriction — it is the **broad default via mergeable-exact representations**.
+
+#### C7 Backbone — Fully Mergeable by Theorem (unchanged from original capture)
 
 | Primitive | Algorithm | Merge semantics |
 |---|---|---|
@@ -100,41 +106,83 @@ behavioral baselining to the **cleanly-mergeable primitives only**. These are:
 | Frequency | Count-min with conservative update (first-party) | Exact — element-wise add |
 | Cardinality | HyperLogLog (hyperloglogplus 0.4.1) | Exact — register-wise max |
 
-The following primitives are **NOT cleanly mergeable** and therefore run **central-only** in the
-primary posture:
+#### C7 FOLD Escape Hatches — Formerly Non-Mergeable, Now Mergeable-Exact by Representation Change
 
-| Primitive | Reason not mergeable | Assignment |
+The depth research (`research/edge-ml-mergeability-depth-2026-06-27.md`, Parts 2–4,
+six `perplexity_research` sonar-deep-research calls at `reasoning_effort=high`) establishes that
+non-mergeability for EWMA, reservoir, and streaming clustering is an algebraic property of the
+**exposed state representation**, not of the underlying statistic. Switching representation
+eliminates the obstruction entirely at zero accuracy cost:
+
+| Primitive | Original state (non-mergeable) | Escape-hatch representation | Merge semantics | Confidence |
+|---|---|---|---|---|
+| **EWMA mean/variance** | Scalar `z_t` (conflates magnitudes + time-ordering irreversibly) | **Forward-decay sufficient statistics `(U, V)`**: `U = Σ xᵢ·exp(λtᵢ)`, `V = Σ exp(λtᵢ)`; decayed avg = `U/V` (the `exp(−λT)` factors cancel) | **Mergeable-EXACT** — `(U₁+U₂, V₁+V₂)` is exact; identity property holds; same decay-function values as backward EWMA (proven). Engineering note: `exp(λt)` grows unbounded; periodic landmark re-basing required to avoid overflow (known, solvable). | [LIT-SETTLED] — Cormode–Shkapenyuk–Srivastava–Xu forward-decay; exploited in production by FDCMSS |
+| **Reservoir sampling** | Algorithm R with count-based retention (`k/nᵢ` per shard) | **Random-key / bottom-k (Efraimidis–Spirakis)**: each item assigned key `K = u^(1/w)`; sample = top-k keys globally; merge = union of per-shard top-k sets + re-select global top-k | **Mergeable-EXACT** — commutative monoid; no per-shard count `nᵢ` relay required (eliminating a coordination dependency and a minor disclosure vector) | [LIT-SETTLED] — Efraimidis–Spirakis; Cohen–Kaplan bottom-k; Tirthapura–Woodruff optimal distributed protocol |
+| **Streaming clustering (BIRCH CF-vectors, DenStream, CluStream)** | Fading-weight micro-clusters treated as partially combinable | **Additive CF-vectors `(N, LS, SS)`**: BIRCH CF Additive Theorem — `CF(C₁ ∪ C₂) = CF(C₁) + CF(C₂)` exactly; time-reconciliation = scale faded CFs to a common `t_ref` before merge | **Mergeable-EXACT** at the CF level; two bounded-error sources remain: (a) fading-weight time-alignment across shards (error bounded by `2^{λΔ}` where Δ = clock skew — controllable by clock-sync discipline + low λ); (b) final macro-clustering coreset error (`(1+ε)` approximation that exists single-machine too, not introduced by distribution) | CF additivity [LIT-SETTLED] — BIRCH SIGMOD 1996; time-alignment bound [LIT-EXTRAPOLATED]; macro-drift on real data **PRISM-MUST-MEASURE** |
+
+**The C7 FOLK human hypothesis on clustering is CONFIRMED BY THEOREM.** The earlier C7 framing that
+streaming clustering was "not cleanly mergeable" was too pessimistic about the arithmetic — the
+BIRCH CF Additive Theorem is a proven algebraic identity. The approximation lives only in
+time-alignment (bounded, controllable) and macro-clustering (exists single-machine).
+
+#### Upgraded Primitive Assignment Table
+
+| Primitive | Original D-C7-1 assignment | Post-fold assignment |
 |---|---|---|
-| EWMA mean/variance | Inherently time/order-ordered; merge requires time-aware re-construction | Central-only |
-| Reservoir sampling | Per-shard reservoirs are not a globally-uniform sample of size k | Central-only |
-| Streaming clustering (DenStream/CluStream) | Fading weights are time-tied; micro-clusters partially combinable but not exactly | Central-only |
-| Streaming isolation forest / HS-Trees | Ensemble-of-ensembles union ≠ centralized training | Central-only |
+| Welford/CGL mean-var | Mergeable-exact | Mergeable-exact (unchanged) |
+| DDSketch / Count-Min / HLL / KLL | Mergeable-exact | Mergeable-exact (unchanged) |
+| **EWMA** | Central-only | **Mergeable-exact via forward-decay `(U,V)` representation** — maintain `(U,V)` per feature per decay rate at edge; landmark re-basing required at edge |
+| **Reservoir sampling** | Central-only | **Mergeable-exact via random-key / bottom-k representation** — replace Algorithm-R with Efraimidis–Spirakis at edge |
+| **Streaming clustering** | Central-only | **Mergeable-exact at CF level** — maintain additive `(N, LS, SS)` (+temporal fields for CluStream; faded `(W, LS, SS)` for DenStream); macro-drift on real security data **MUST be measured empirically** (ARI/NMI/CMM vs centrally-computed reference) |
+| Streaming isolation forest / HS-Trees | Central-only | Central-only (unchanged — no equivalent algebraic escape hatch; ensemble-of-ensembles union ≠ centralized training) |
 
-**Alternative to empirically test at edge-ML build time:**
-Allow non-mergeable primitives at the edge, merged via documented approximations:
-- EWMA: time-aware re-EWMA (weight by elapsed time from last satellite sync vs central receive).
-- Reservoir: weighted re-sampling from per-satellite reservoirs.
-- Streaming clustering: combine micro-clusters with adjusted fading weights.
+**Scalar-state approximate-merge (scalar EWMA, Algorithm-R + weighted re-sampling) is now a
+CONSTRAINED-EDGE FALLBACK ONLY**, not a primary path. Its error bounds are extrapolated (not
+literature-settled); it should only be used for legacy/constrained edges where the extra scalar
+genuinely cannot be afforded, and only after Part 6 empirical measurement confirms acceptable error
+for Prism's λ/N/skew regime.
 
-**The binding choice is DEFERRED to implementation-time measurement.** When the edge-ML feature
-(part of E-ML-ONLINE-001 or a satellite-scoped sub-epic) is built, measure:
-- The approximation error of the alternative approach vs the exact-mergeable-only approach.
-- The accuracy impact on downstream detection (ANOMALY_SCORE / BASELINE_DEVIATION computed at
-  central over merged vs exact sketch).
-- The latency and bandwidth cost of the two approaches.
+#### Empirical Validation Item (Narrowed from the Prior Open Question)
 
-**Record both now; decide empirically at the edge-ML build milestone.** The primary=mergeable-only
-posture is operationally conservative (correctness guarantee at the cost of excluding some
-central-aggregation candidates from edge computation). The alternative=approximate-merge posture
-trades a bounded approximation error for richer edge baselining capability.
+The empirical bake-off at the edge-ML build milestone (OQ-C7-1) is **narrowed** by the fold. The
+broad "mergeable-only vs approximate-merge" fork is resolved in favor of mergeable-exact
+representations. The remaining empirical item is:
+
+**Macro-clustering drift test:** measure whether BIRCH CF-vector merges preserve macro-cluster
+fidelity under realistic security data + adversarial cross-shard skew (up to 10:1 ratio). Metrics:
+ARI, NMI, purity, centroid drift, CMM vs centrally-computed reference clustering. Acceptance
+criterion: ΔFNR ≤ ~0.5pp, ΔFPR ≤ ~2pp, ΔPR-AUC ≥ −0.01 across ALL adversarial regimes. This
+measurement drives the final macro-clustering disposition; it is not a fork between representation
+approaches.
+
+#### Privacy Axis (Separate from D-C7-1)
+
+The depth research establishes a critical invariant: **representation coarsening is NOT a privacy
+mechanism** (Part 5, literature-settled). Deterministic post-processing of a non-private aggregate
+remains non-private under the DP post-processing theorem. This distinction matters because it
+prohibits any downstream spec from justifying approximate-merge "for privacy" or treating
+representation coarsening as satisfying a residency-adjacent privacy requirement.
+
+If a formal privacy guarantee on conduit-crossing aggregates is ever required (a plausible
+MSSP/cross-tenant requirement), the answer is **local differential privacy on mergeable DP
+sketches** — a SEPARATE decision axis from D-C7-1, not solved by coarsening. Flagged as an open
+secondary axis if not already addressed (see Open Questions).
 
 **Relationship to C2 satellite mesh:** D-C2-1 (satellite transport) and D-C2-12 (partial-failure
 relay extending BC-2.01.010) already govern how satellites propagate partial results. D-C7-1 adds
-the sketch-level semantic: what partial result is valid to relay. The satellite-local credential
+the sketch-level semantic: what partial result is valid to relay. With the fold, the `(U,V)` EWMA
+tuple and the `(N, LS, SS)` CF vector are each "a normalized aggregate, not raw" per D-C2-12 — they
+cross the conduit exactly in the spirit of that invariant. The satellite-local credential
 resolution hard invariant (AD-017 / D-C2) applies to ML state: model state artifacts at a satellite
 are AI-opaque and never transit raw credential content.
 
-[research/ml-behavior-analytics-depth-2026-06-27.md §Q1 §1.1 — mergeability column]
+[research/ml-behavior-analytics-depth-2026-06-27.md — Parts 1–6 (C7 FOLD depth research)]
+[research/ml-behavior-analytics-depth-2026-06-27.md §Part 2 — EWMA forward-decay escape hatch]
+[research/ml-behavior-analytics-depth-2026-06-27.md §Part 3 — random-key/bottom-k substitute]
+[research/ml-behavior-analytics-depth-2026-06-27.md §Part 4 — CF additivity theorem]
+[research/ml-behavior-analytics-depth-2026-06-27.md §Part 5 — privacy≠residency; coarsening≠DP]
+[research/ml-behavior-analytics-depth-2026-06-27.md §Part 6 — empirical test plan (narrowed)]
+[research/ml-behavior-analytics-depth-2026-06-27.md §Per-primitive mergeability verdict table]
 
 ---
 
@@ -249,10 +297,14 @@ research); it is NOT a proof that the system is poisoning-safe. The spec must sa
 **"dual-rate + quarantine shifts attacker cost; it does not eliminate boiling-frog risk."** Do not
 imply a guarantee.
 
-**Relationship to EWMA non-mergeability:** EWMA is the primary decay mechanism for the fast model.
-Because EWMA is not cleanly mergeable (D-C7-1), the fast model with EWMA decay is central-only.
-Satellite/edge baselines in the primary posture use Welford/CGL (the fast model at the edge) with
-ADWIN-driven window reset as the forgetting mechanism.
+**Relationship to EWMA mergeability (updated by C7 FOLD):** EWMA is the primary decay mechanism
+for the fast model. Under the original D-C7-1 framing, EWMA was central-only. The C7 FOLD
+(D-C7-1 updated 2026-06-27) establishes that the forward-decay `(U,V)` representation is
+mergeable-EXACT — so the fast model using `(U,V)` EWMA state CAN participate in satellite
+fan-in. In practice, satellite/edge baselines in the primary posture still use Welford/CGL +
+ADWIN-driven window reset as the forgetting mechanism (for simplicity and because ADWIN itself
+does not require the `(U,V)` form). The `(U,V)` escape hatch becomes relevant when the fast-model
+EWMA at the edge needs to fan in to central rather than run independently.
 
 [research/ml-behavior-analytics-depth-2026-06-27.md §Q4, §4.1–4.4 LEAN; §Q4 §4.4 core tension]
 
@@ -448,13 +500,15 @@ D-C3-2 for the missing time-bound injection).
 
 | # | Question | Status | Dependency |
 |---|---------|--------|------------|
-| **OQ-C7-1** | D-C7-1 edge-mergeability empirical bake-off — at the edge-ML build milestone, measure approximation error (approximate-merge vs exact-mergeable-only approach) and accuracy impact on downstream detection. Primary=mergeable-only holds until this measurement. | Open — deferred to edge-ML build milestone (sub-epic of E-ML-ONLINE-001 or E-SATELLITE-MESH) | Edge-ML implementation milestone |
+| **OQ-C7-1** | D-C7-1 macro-clustering drift empirical test (NARROWED by C7 FOLD 2026-06-27) — the broad "mergeable-only vs approximate-merge" fork is resolved (EWMA and reservoir now have mergeable-exact representations; see D-C7-1). The remaining empirical item is specifically: measure whether BIRCH CF-vector merges preserve macro-cluster fidelity under realistic security data + adversarial cross-shard skew (up to 10:1). Metrics: ARI, NMI, purity, centroid drift, CMM vs centrally-computed reference. Acceptance: ΔFNR ≤ ~0.5pp, ΔFPR ≤ ~2pp, ΔPR-AUC ≥ −0.01 across all adversarial regimes. | Open — deferred to edge-ML build milestone (sub-epic of E-ML-ONLINE-001 or E-SATELLITE-MESH) | Edge-ML implementation milestone |
 | **OQ-C7-2** | VP-NNN number allocation for sketch verification targets (L-C7-2) — which get Kani proofs vs proptest-only; what are the VP-NNN numbers; when are they added to VP-INDEX.md, verification-architecture.md, and verification-coverage-matrix.md (must be a single atomic burst per VP-INDEX propagation obligation) | Open architect decision at morph | Morph-time, when VP-NNNs can be allocated without conflicting with Phase 3 live VP work |
 | **OQ-C7-3** | Dual-rate + quarantine policy knobs — quarantine window length; fast/slow-model promotion threshold; human/agent-confirmation routing (§15.8 S3 agent dispatch on quarantine confirmation); per-tenant defaults vs global defaults. Are these runtime-configurable? (Ties to §15.5 policy-governed model artifact.) | Open design decision at morph | Morph-time, before E-ML-ONLINE-001 story decomposition |
 | **OQ-C7-4** | Untrusted-BYO-model WASM sandbox capability grants — is the exact C4 sandbox configuration (connector WASM plugin, hook-level grants) appropriate for inference workloads, or does the model-plugin sandbox need different capability grants (more CPU budget, different memory ceiling, possibly different WASI permissions)? Both reuse wasmtime 46.0.1 Component-Model; the question is the grant configuration. | Open architect decision at morph (PIV-C7-3 in the interim: document the rationale and check whether the existing plugin host grants are sufficient for inference) | Morph-time, before D-C7-2 WASM-BYO backend implementation |
 | **OQ-C7-5** | Entity-cardinality cap value + baseline-compute admission budget design — the genuinely-novel cost-bound (L-C7-3); no vendor prior art. Default values and the degradation behavior (partial result vs error code; which E-QUERY-NNN variant). | Open design decision at morph | Morph-time, before E-ML-PRIMITIVES-001 story decomposition |
 | **OQ-C7-6** | Changelog retention policy parameters — keep-N-materializations, max-changelog-age, per-tenant vs global configuration. Bounded GC must avoid unbounded storage growth. | Open design decision at morph | Morph-time, before E-ML-ONLINE-001 story decomposition |
 | **PIV-C7-1** | `ort` RC → stable: at morph time, check whether a stable `ort` 2.0.x has been released (currently 2.0.0-rc.12 as of 2026-06-27). If stable exists, pin stable. If still RC, budget explicitly for API churn. | Pre-implementation verification | Morph-time Cargo.toml dependency pinning |
+| **PIV-C7-2** | **Edge-ML aggregation uses mergeable-exact sufficient-statistic representations (invariant).** At implementation time, verify: (a) EWMA at edge uses forward-decay `(U,V)` form, NOT scalar `z_t` — confirm landmark re-basing is designed in scope (not deferred); (b) reservoir at edge uses random-key/bottom-k (Efraimidis–Spirakis), NOT Algorithm-R + weighted-re-sample; (c) clustering at edge exposes additive CF-vectors `(N, LS, SS)`, NOT only scalar cluster centroids. A code path that stores scalar EWMA state at the edge and attempts a weighted-average merge is a **P1 violation** of D-C7-1 as updated by the C7 FOLD. | Representation correctness gate | Edge-ML implementation milestone (E-ML-ONLINE-001 satellite scope) |
+| **PIV-C7-3** | **Coarsening ≠ privacy (invariant enforcement).** At morph time and at any story/PR that touches the ML aggregation path: confirm that no spec, story AC, or code comment cites representation coarsening or approximate-merge as a privacy mechanism or as satisfying a privacy requirement. Residency = aggregate-only movement (satisfied regardless of approximation level); privacy = a separate axis requiring local-DP on mergeable DP sketches if a formal guarantee is needed. Any claim of the form "approximate-merge for privacy" is a **P1 finding**. | Pre-implementation verification and ongoing adversary probe | Any story touching ML aggregation or satellite relay |
 
 ---
 
@@ -538,16 +592,19 @@ hash on the finding's replay link. No changelog; no periodic materialization.
 ### Alternative C: Approximate-Merge as Primary for Edge ML (No Restriction to Mergeable-Only Primitives)
 
 Allow all primitives at the satellite/edge and merge them at central via documented approximations
-(time-aware re-EWMA, weighted re-sampling).
+(time-aware re-EWMA, weighted re-sampling for Algorithm-R reservoir).
 
-**Rejected as PRIMARY posture (D-C7-1) pending empirical measurement:**
-- Approximate merge semantics introduce an approximation error whose magnitude is not yet measured.
-- Shipping approximate merges as the default before measuring the error would be the
-  "good-enough-for-v1" anti-pattern forbidden by the production-grade default.
-- The alternative IS recorded and will be empirically tested at the edge-ML build milestone
-  (OQ-C7-1). The decision between primary=mergeable-only and the approximate-merge alternative is
-  explicitly DEFERRED to that measurement. Approximate-merge is NOT permanently rejected — it is
-  the to-test alternative.
+**Rejected as PRIMARY posture (D-C7-1, superseded by C7 FOLD 2026-06-27):**
+- The C7 FOLD establishes that this framing was a false dichotomy. The "non-mergeable primitives"
+  that would have required approximate-merge (EWMA, reservoir) instead have **mergeable-exact**
+  representation alternatives (forward-decay `(U,V)` for EWMA; random-key/bottom-k for reservoir).
+  The correct answer is: use the mergeable-exact representation, not the approximate-merge.
+- Scalar-state approximate-merge (scalar EWMA, Algorithm-R + weighted re-sampling) retains its
+  status as a **constrained-edge fallback only** — for legacy edges where the representation
+  change genuinely cannot be made. Error bounds for those fallbacks are extrapolated (not
+  literature-settled) and must be measured before use.
+- Approximate-merge is NOT the general answer; mergeable-exact representation is. This alternative
+  is superseded at the general level by the fold, while the fallback case remains documented.
 
 ### Alternative D: Dedicated Model Registry (MLflow-Style) Separate From RocksDB
 
@@ -573,10 +630,23 @@ than in RocksDB.
 | **E-ML-ONDEMAND-001** | L-C7-3 primitive→engine compilation table defines the streaming mechanism for each PrismQL ML primitive. The epic's ACs must include the GROUP-BY-entity cardinality cap + baseline-compute admission budget (OQ-C7-5) as mandatory cost-bound controls. Time-bound predicate pushdown first (Kusto pattern) must be an explicit AC. |
 | **E-ML-ONLINE-001** | D-C7-3 dual-rate + quarantine design; D-C7-4 changelog + materialization; L-C7-1 statistical toolkit (vendor-vs-build line for Welford/CGL/EWMA/count-min/drift-detectors). ADWIN + Page-Hinkley MUST-BUILD. The honest caveat on poisoning resistance must appear in the epic definition and user-facing documentation, NOT just in internal spec. |
 | **E-ML-PRIMITIVES-001** | L-C7-3 primitive→engine compilation table. PEER_OUTLIER day-2-first = attribute-based (clustering-based LATER). Entity-cardinality cap + admission budget (OQ-C7-5) are the novel cost controls. |
-| **E-ML-ONLINE-001 satellite scope** | D-C7-1 mergeable-only primary posture for edge ML; OQ-C7-1 bake-off milestone. ADWIN at edge (ADWIN doubles as decay mechanism, does not require EWMA); `tract-onnx` 0.23.3 for the inference runtime at satellite. |
+| **E-ML-ONLINE-001 satellite scope** | D-C7-1 as updated by C7 FOLD (2026-06-27): edge ML uses mergeable-exact representations broadly — forward-decay `(U,V)` for EWMA, random-key/bottom-k for reservoir, additive CF-vectors for clustering. PIV-C7-2 verifies representation correctness at implementation. Remaining empirical item: macro-clustering drift test (ARI/NMI/CMM). ADWIN at edge (ADWIN doubles as decay mechanism, does not require EWMA); `tract-onnx` 0.23.3 for the inference runtime at satellite. |
 | **VP-INDEX.md + verification-architecture.md + verification-coverage-matrix.md** | L-C7-2 sketch invariants → new VP-NNN entries (OQ-C7-2). When VP-NNNs are allocated, the three documents MUST be updated in a single atomic burst per the VP-INDEX propagation obligation (CLAUDE.md source-of-truth invariants). Do NOT add VPs without updating all three in the same commit. |
 | **BC-2.16.002 §Postconditions** | Six SAP-1 event type categories (§Downstream SAP-1 Obligations above) — morph-time BC work. |
 | **ADR-PROP-dynamic-schema-connectors.md (C4)** | D-C7-2 WASM-BYO backend reuses the C4 WASM sandbox; OQ-C7-4 must confirm that the connector-plugin WASM grant configuration is appropriate for inference or produce a separate model-plugin-sandbox ADR at morph. |
 | **§15.5 controls table** | D-C7-3 resolves the drift/decay/poisoning row with the dual-rate + quarantine design. The §15.5 table cell for "Adversarial poisoning" should reference D-C7-3 + the honest caveat at morph-time PO spec update. |
 | **§2.4 tradeoff prose (G-26)** | This is a PO action (the three-ways-to-long-baseline reframe); flagged per the research instructions. Do NOT write it here. C7 confirms the "online-learn a model" path is viable; the online-ML softening of the §2.4 honest tradeoff is now fully grounded. |
-| **matured-vision §16.4** | C7 decision block appended in-place (2026-06-27). |
+| **matured-vision §16.4** | C7 decision block appended in-place (2026-06-27); C7 FOLD marked complete in-place (2026-06-27) — D-C7-1 resolved. |
+
+---
+
+## References
+
+| Document | Role |
+|---|---|
+| `research/ml-behavior-analytics-depth-2026-06-27.md` | Primary C7 research basis (Q1–Q6, six sonar-deep-research calls at `reasoning_effort=high`; 13 live crates.io version-verifications) |
+| `research/edge-ml-mergeability-depth-2026-06-27.md` | **C7 FOLD depth research** — mergeable-summaries formal taxonomy (Agarwal et al. PODS 2012); EWMA forward-decay escape hatch (Cormode–Shkapenyuk–Srivastava–Xu); random-key/bottom-k fully-mergeable substitute (Efraimidis–Spirakis, Cohen–Kaplan); BIRCH CF additivity theorem; privacy vs residency distinction; empirical test plan |
+| `research/satellite-mesh-2026-06-26.md` | C2 satellite mesh — D-C2-12 hard-residency; partial-result fan-in; aggregate-only movement |
+| `day2-design-decisions/ADR-PROP-dynamic-schema-connectors.md` | C4 WASM sandbox (D-C4-3) reused by D-C7-2 WASM-BYO model backend |
+| `day2-design-decisions/ADR-PROP-detection-engine-depth.md` | C6 — §14.5 replay-link machinery reuse; detection state RocksDB CF |
+| `day2-design-decisions/ADR-PROP-storage-engine-taxonomy.md` | C1 — RocksDB as the §3.3 hot/model tier |
