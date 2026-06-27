@@ -1731,6 +1731,112 @@ exposed as the power-user escape hatch (recommended: yes).
 
 ---
 
+### C8 PrismQL Deliverables — DECIDED 2026-06-27 (human)
+
+> **PROVENANCE.** 2026-06-27 side-analysis addendum. Research basis:
+> `research/prismql-deliverables-depth-2026-06-27.md` (Q1–Q6 depth pass). Capture artifact:
+> `specs/day2-design-decisions/ADR-PROP-prismql-deliverables.md` (`do_not_execute: true`; real
+> ADR numbers deferred to morph). Two items (D-C8-2 AS OF reproducibility; D-C8-3 OCSF
+> version-binding) are DEFERRED pending targeted research; all others DECIDED 2026-06-27 (human).
+
+**D-C8-1 PIPED SURFACE = SHIP IN DAY-2.** A KQL/PRQL-style `|`-piped sugar surface
+(`source | where … | summarize … by … | order … | limit …` plus `FIND`/`entity()` and
+`SEQUENCE…THEN` as security-domain pipe operators) DESUGARS to the SAME DataFusion logical plan
+as the SQL surface — NOT a second engine. The SQL surface (canonical semantics, full
+`MATCH_RECOGNIZE`) is preserved. Proven viable and Rust-native by PRQL and RunReveal `pql`
+(both compile to SQL). Core pipe operators mirror KQL/PRQL: `where`, `summarize`/`stats`,
+`project`, `extend`, `join`, `order`, `limit`. **MANDATORY:** expose "show desugared SQL /
+EXPLAIN" (the DSL-debugging caveat — the desugaring must be inspectable, not a black box).
+**HONEST COST:** the LSP server (D-C8-LEAN-3) carries AS MUCH learnability weight as the pipe
+syntax — a pipe surface alone does NOT deliver KQL-grade approachability; and learnability
+claims in the literature rest on design-rationale + anecdote, NOT controlled studies.
+
+**D-C8-2 ENTITY-RESOLUTION AS OF REPRODUCIBILITY = DEFERRED (OQ-C8-ASOF).** A targeted
+research pass is in flight (`research/prismql-asof-version-resolution-2026-06-27.md`) examining:
+live-registry-snapshot (fresh, non-reproducible) vs frozen-registry-version (reproducible /
+audit-grade) vs bitemporality (valid-time + transaction-time — may give BOTH from one model).
+The research is also examining whether one as-of mechanism unifies D-C8-2 AND D-C8-3.
+**SETTLED regardless:** weak-tier observables resolve by interval-containment as-of EVENT-TIME
+(default, NOT query-time) against closed-open `[valid_from, valid_to)` intervals (SQL:2011
+application-time semantics); composite identity key `(observable, namespace/site)` for
+simultaneous multi-asset; strong-tier IDs bind exactly; tier policy lives in the registry with
+an optional query-level `USING` override; the `AS OF <expr>` clause exists (default EVENT TIME).
+The LIVE-vs-FROZEN reproducibility choice is the deferred part.
+
+**D-C8-3 OCSF VERSION-BINDING = DEFERRED (OQ-C8-OCSFVER).** Same research pass.
+Examining: version-agnostic-canonical-names + per-source-version schema-catalog reconciliation
+(ergonomic) vs explicit `@ocsf:<ver>` pin (predictable/reproducible) vs catalog-version-pinning
+(Iceberg-snapshot-id analog). **NOTE interaction with D-C8-2:** a forensic re-query may need
+BOTH as-of-event-time entity resolution AND as-of-version schema binding.
+**SETTLED regardless:** canonical OCSF field names are the identifiers; native fields reachable
+via `native.<source>.<field>` namespace; retain-originals pattern (ASIM lineage — normalized
+field never loses its raw source value); compatibility tiers (stable vs version-sensitive fields)
+in the catalog. The version-agnostic-vs-explicit-pin + reproducibility choice is the deferred
+part.
+
+**LEANS CONFIRMED:**
+
+- **ENTITY-PIVOT GRAMMAR (§12.1):** keep the TWO-SURFACE design — standalone `FIND`
+  (ergonomic shorthand, SPL/Chronicle-search lineage) + `entity()` predicate composable in any
+  `WHERE` (KQL/SQL lineage). **KEYWORD = `FIND`** (resolves §12.1 open "FIND vs PIVOT vs
+  SEARCH" — `PIVOT` collides with SQL PIVOT; `SEARCH` is overloaded). Extended EBNF grammar
+  (extends §12.1): adds `AS OF` clause (default EVENT TIME), `tier_hint` (`USING STRONG` /
+  `STRONG, WEAK`), and `native.<source>.<field>` field_ref. Planner contract extends §12.1:
+  interval-containment as-of EVENT TIME for weak-tier registry expansion; pushdown per C3
+  capability descriptor (NOT reopened); mandatory time-bound injection; fan-out/normalize/
+  partial-result. A `FIND` result may be RETAIN'd as `FROM cache.<name>` (confirm in morph).
+
+- **MULTI-HOP PIVOT = FORWARD-COMPAT TARGET ONLY (NOT day-2).** Reserve a multi-hop
+  path-pattern surface that lowers to SQL/PGQ `GRAPH_TABLE` (SQL:2023 part 16) semantics over
+  an entity-graph view of the registry so day-2 single-hop grammar does NOT foreclose IP→asset
+  →user→assets pivots later. DataFusion does not implement GRAPH_TABLE today [model-knowledge,
+  not version-verified].
+
+- **AUTHORING INTELLIGENCE = single LSP server** reused by THREE consumers: S2 Monaco console
+  (via `monaco-languageclient` + WebSocket), CLI (via ariadne rendering), AND the NL→PrismQL
+  agent's validate-repair loop (NL2KQL judge pattern). Use Chumsky `Rich` errors + `labelled`
+  contexts throughout the grammar (Context7-verified: `Rich.span()` / `expected()` /
+  `contexts()`, `labelled`/`labelled_with`, `try_map` for semantic validation); render via
+  ariadne (CLI) + translate to LSP publishDiagnostics (Monaco). Four catalogs exposed to the
+  server: grammar/operator metadata, OCSF-per-version schema, native-field schema, entity
+  registry. Implement unknown-field→nearest-match suggestion + missing-time-bound→quick-fix
+  (KQL quick-fix lineage). Schema-aware logic lives in the server, not Monaco. Planner-derived
+  semantic diagnostics (DataFusion `LogicalPlanBuilder`/type errors) mapped back to source spans.
+
+- **NL→PrismQL (§12.3 E8, agent-native):** reuse the SAME parser/planner diagnostics as the
+  agent's validate-repair signal (NL2KQL two-stage judge: generate → validate against schema +
+  parser feedback → repair). Schema-grounding + validation-before-execution + hallucinated-
+  field-reject/repair are the guardrails; the existing mandatory-time-bound NFR + C3 cost-degrade
+  are the cost/time safety net (no new agent-specific cost machinery). Prompt-injection defense
+  out of scope here (agent-harness memory).
+
+- **RECIPE FORMAT (§14.7, ties C6):** query text + Sigma-aligned metadata block (stable
+  `rule_id`, semver `version`, `title`/`description`, `status`, `severity`, required
+  `entities`+`data_sources`, ATT&CK `tags`, `false_positives`, `references`, author/dates).
+  Store recipes in Git with semver (major = breaking entity/schema/logic change). Ship a CI
+  harness running recipes against Arrow/Parquet fixtures via DataFusion with expected match /
+  non-match assertions. Sigma import maps metadata 1:1 + logic via entity-registry / canonical
+  fields; day-2 = docs-guided import (§12.3 E9), automated translator deferred
+  (§12.3 D1, E-RULE-XLATE-001, ties C6). Ship Sigma→PrismQL EXAMPLES in recipe library now
+  (per C6 L-C6-3 directive).
+
+**DOWNSTREAM SAP-1 (flag, do not action):** desugar-decision / entity-resolution AS OF audit /
+injected-window events may need BC-2.16.002 catalog rows (ties C3/C6 SAP-1 obligations).
+
+**OPEN QUESTIONS:**
+- OQ-C8-ASOF — entity-resolution AS OF reproducibility (D-C8-2 deferred)
+- OQ-C8-OCSFVER — OCSF version-binding model (D-C8-3 deferred)
+- OQ-C8-NATIVE-RESIDENCY — `native.<source>.<field>` interaction with §13.6 multi-schema
+  descriptor + A7 per-field residency tags (a `native.*` ref may carry `raw` residency class)
+- OQ-C8-RECIPE-SCHEMA — exact recipe-format Sigma-metadata schema + CI fixture shape
+- OQ-C8-GRAPHTABLE-GRAMMAR — whether day-2 grammar needs a concrete placeholder for SQL/PGQ
+  `GRAPH_TABLE` forward-compat, or whether "do not foreclose" is sufficient
+
+**Proposed epic:** E-PRISMQL-GRAMMAR-001 (piped surface + FIND/entity() AS OF grammar +
+LSP server + recipe format + CI harness; NL→PrismQL validate-repair loop).
+
+---
+
 ## Section 13 — Static & Dynamic Connector Model — Scope
 
 > **PROVENANCE.** 2026-06-25 side-analysis addendum. Deepens §3.4 (source/connector taxonomy),
@@ -2834,6 +2940,53 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   ml.quarantine.pending/promoted, ml.anomaly_score.computed events likely need BC-2.16.002 catalog
   rows (flagged, NOT actioned). Open questions: OQ-C7-1..6 + PIV-C7-1. Proposed epics:
   E-ML-ONDEMAND-001 + E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
+
+- **C8 PrismQL Deliverables PARTIALLY DECIDED + CAPTURED 2026-06-27 (human).** D-C8-1 piped
+  surface (DECIDED) + D-C8-2 entity-resolution AS OF reproducibility (DEFERRED) + D-C8-3 OCSF
+  version-binding (DEFERRED) + leans L-C8-1..5 (CONFIRMED). Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-prismql-deliverables.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/prismql-deliverables-depth-2026-06-27.md` (four sonar-deep-research calls at
+  `reasoning_effort=high` + 1 perplexity_reason + 3 Context7 calls for Chumsky/DataFusion API).
+  **D-C8-1 PIPED SURFACE = SHIP IN DAY-2.** KQL/PRQL-style `|`-pipe syntax (`where`/`summarize`
+  /`stats`/`project`/`extend`/`join`/`order`/`limit` plus `FIND`/`entity()` and `SEQUENCE…THEN`
+  as security-domain operators) desugars to the SAME DataFusion logical plan as the SQL surface —
+  NOT a second engine. Proven viable by PRQL + RunReveal pql (both Rust-native, both compile to
+  SQL). MANDATORY: expose "show desugared SQL / EXPLAIN" (DSL-debugging caveat). Honest cost:
+  tooling (LSP server, L-C8-3) carries as much learnability weight as pipe syntax; learnability
+  claims in the literature are design-rationale + anecdote, NOT controlled studies.
+  **D-C8-2 ENTITY-RESOLUTION AS OF REPRODUCIBILITY = DEFERRED (OQ-C8-ASOF)** pending
+  `research/prismql-asof-version-resolution-2026-06-27.md` + human decision. Three options
+  researched: live-registry-snapshot (non-reproducible) vs frozen-registry-version
+  (audit-grade) vs bitemporality (may unify both axes). SETTLED regardless: weak-tier binding
+  = interval-containment AS OF EVENT TIME (default), closed-open `[valid_from, valid_to)`
+  (SQL:2011), composite `(observable, namespace/site)` key; strong-tier = exact; tier policy
+  in registry; `AS OF <expr>` clause exists (default EVENT TIME). LIVE-vs-FROZEN choice deferred.
+  **D-C8-3 OCSF VERSION-BINDING = DEFERRED (OQ-C8-OCSFVER)** pending the SAME research pass.
+  Options: version-agnostic canonical names + catalog reconciliation vs explicit `@ocsf:<ver>`
+  pin vs catalog-version-pinning. Interaction with D-C8-2: forensic re-query may need BOTH
+  as-of-event-time entity resolution AND as-of-version schema binding. SETTLED regardless:
+  canonical OCSF field names as identifiers; `native.<source>.<field>` namespace for raw values;
+  retain-originals pattern; compatibility tiers (stable vs version-sensitive) in catalog.
+  **LEANS CONFIRMED:** FIND keyword (resolves §12.1 "FIND vs PIVOT vs SEARCH"); entity-pivot
+  two-surface design (`FIND` standalone + `entity()` predicate in WHERE) with extended EBNF
+  adding `AS OF` + `tier_hint` + `native.*` field_ref; multi-hop forward-compat target =
+  SQL/PGQ GRAPH_TABLE (NOT day-2; DataFusion not yet implementing it [model-knowledge]);
+  single LSP server reused by Monaco + CLI ariadne + NL→PrismQL validate-repair loop (NL2KQL
+  judge pattern; four catalogs: grammar, OCSF-per-version, native-field, entity registry;
+  unknown-field→nearest-match + missing-time-bound→quick-fix; schema-aware logic in server,
+  not Monaco); NL→PrismQL guardrails = same parser/planner diagnostics + existing mandatory-
+  time-bound NFR + C3 cost-degrade (no new agent-specific cost machinery); recipe format =
+  Sigma-aligned metadata (stable rule_id, semver version, ATT&CK tags, required entities +
+  data_sources) + Git versioning + CI harness (Arrow/Parquet fixtures, match/no-match
+  assertions via DataFusion) + Sigma import docs-guided (day-2), automated translator deferred
+  (E-RULE-XLATE-001); Sigma→PrismQL examples in recipe library NOW (C6 L-C6-3 directive).
+  Open questions: OQ-C8-ASOF (deferred D-C8-2), OQ-C8-OCSFVER (deferred D-C8-3),
+  OQ-C8-NATIVE-RESIDENCY (`native.*` vs §13.6 A7 residency tags), OQ-C8-RECIPE-SCHEMA
+  (metadata schema + CI fixture shape), OQ-C8-GRAPHTABLE-GRAMMAR (day-2 grammar reservation
+  for multi-hop). Downstream SAP-1: desugar-decision / AS OF audit / injected-window events
+  may need BC-2.16.002 catalog rows (flagged, NOT actioned). C8 decision block appended at
+  §12 in-place. Proposed epic: E-PRISMQL-GRAMMAR-001.
 
 ### 16.5 Status & boundaries reminder
 
