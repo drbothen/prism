@@ -274,8 +274,7 @@ fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
     for (i, token) in tokens.iter().enumerate() {
         if *token == "FROM" {
             if let Some(next) = tokens.get(i + 1) {
-                let clean =
-                    next.trim_end_matches(|c: char| c == ',' || c == ';' || c == ')' || c == '\n');
+                let clean = next.trim_end_matches([',', ';', ')', '\n']);
                 // Only consider underscore-qualified tokens (sensor_table form).
                 if clean.contains('_') && !clean.contains("://") {
                     if registered.contains(clean) {
@@ -346,7 +345,7 @@ fn scan_for_violations(text: &str, fn_name: &str, violations: &mut Vec<String>) 
         if *token == "FROM" {
             if let Some(next) = tokens.get(i + 1) {
                 // Strip trailing punctuation (comma, semicolon, newline) from the token.
-                let clean = next.trim_end_matches(|c: char| c == ',' || c == ';' || c == ')');
+                let clean = next.trim_end_matches([',', ';', ')']);
 
                 // Check for dot-notation: must contain '.' and NOT contain '://'
                 // (to exclude URL references like prismql://reference).

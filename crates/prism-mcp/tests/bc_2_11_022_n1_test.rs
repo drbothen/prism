@@ -35,7 +35,7 @@ use prism_spec_engine::{
 ///
 /// NullSource is used (no file-backed source required for descriptor export).
 fn make_two_infusion_registry() -> InfusionRegistry {
-    let mut registry = InfusionRegistry::new();
+    let registry = InfusionRegistry::new();
 
     // threat_intel infusion — 3 per-field UDF names
     // InfusionField::new(name, input_field, input_type, output_type)
