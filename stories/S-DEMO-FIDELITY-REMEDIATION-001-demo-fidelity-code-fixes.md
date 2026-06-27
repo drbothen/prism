@@ -70,7 +70,7 @@ status: draft
 # + BC-2.11.019 v1.3 draft→active at merge per POL-14. Canonical versions are authoritative
 # in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "1.8"
+version: "1.9"
 updated: "2026-06-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -247,17 +247,21 @@ mapping):
 > enrichment name returns E-QUERY-037, NOT E-QUERY-039 — the table gate fires first.
 >
 > **WHERE-clause note (BC-2.11.019 v1.3 §Precondition 1(b)):** SQL-mode enrichment-validation
-> covers `ScalarFunc::Unknown(name)` in BOTH SELECT projection expressions AND WHERE clause
-> positions. The plan-time gate scans both: projection items (select list) and the WHERE predicate
-> tree via `collect_unknown_scalar_from_predicate` (the HIGH-003 fix). Its doc comment explicitly
-> cites "BC-2.11.019 §Precondition 1(b): WHERE-clause unknown scalar functions must be gated at
-> plan time." The WHERE scan is therefore REQUIRED and implemented — not defensive or optional.
-> The ONLY genuine parse-error case is the PIPE-mode `enrich`-keyword form used in a WHERE
-> position (pipe filter grammar has no fn-call atom), e.g. `| WHERE enrich threat_score(col) > 0`,
-> which is an E-QUERY-001 parse error that never reaches the plan-time gate. The SQL bare-funcall
-> form `SELECT ... FROM t WHERE udf(col) = v` DOES parse to `ScalarFunc::Unknown` and IS a
-> required gate path covered by `collect_unknown_scalar_from_predicate`. Both projection and
-> WHERE scans feed the same validation loop and the same `EnrichUdfNotFound` error type.
+> gates `ScalarFunc::Unknown(name)` in SELECT PROJECTION expressions — this is the reachable,
+> real-query path. The WHERE-predicate scan via `collect_unknown_scalar_from_predicate` is
+> DEFENSIVE / forward-compatible coverage: it honors BC-2.11.019 §Precondition 1(b)'s
+> AST-contract ("a WHERE clause containing FuncCall::Scalar{...} must be gated at plan time"),
+> but a real SQL query `WHERE udf(col) = v` is currently an **E-QUERY-001 parse error** —
+> `build_predicate_parser` (the WHERE grammar, `comparison` atom) parses
+> `field_path → compare_op → literal` only; there is no scalar-funcall atom, so the parser
+> hits `(` where it expects a compare op and never produces a `ScalarFunc::Unknown` node from
+> WHERE text. `ScalarFunc::Unknown` is produced ONLY by the SQL expression parser used for
+> SELECT projections (`build_sql_expr_parser`). The WHERE scan is exercised by unit tests via
+> programmatic AST construction (`engine::enrich_gate_where_clause_unit_tests`), not reachable
+> from real parsed query text today. The pipe `enrich`-keyword form used in a WHERE position
+> (e.g., `| WHERE enrich threat_score(col) > 0`) is also an E-QUERY-001 parse error (pipe
+> filter grammar has no fn-call atom). Both projection (reachable) and WHERE (defensive) scans
+> feed the same validation loop and the same `EnrichUdfNotFound` error type.
 
 **Step 1 — Create the error type** (in `crates/prism-core/src/error.rs`):
 - Add variant `EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` to `PrismError`.
@@ -271,7 +275,7 @@ BEFORE `check_availability_gate`/fan-out. This pass uses the AST `visit::Visitor
 enrichment function names from BOTH query paths and validates each against the registered
 UDF name set (derived from `registry.udf_descriptors()`):
 - **Pipe path** — visitor arm collects `EnrichStage.infusion` values from `PipeStage::Enrich` nodes.
-- **SQL path** — visitor arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions AND from WHERE clause predicates via `collect_unknown_scalar_from_predicate` (per BC-2.11.019 v1.3 §Precondition 1(b); see WHERE-clause note above). Only the PIPE-mode `enrich`-keyword WHERE form is an E-QUERY-001 parse error — the SQL bare-funcall WHERE form is a required gate path.
+- **SQL path** — visitor arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions (reachable from real queries via `build_sql_expr_parser`) AND from WHERE clause predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat coverage per BC-2.11.019 v1.3 §Precondition 1(b) AST-contract; see WHERE-clause note above — a real `WHERE udf(col) = v` is an E-QUERY-001 parse error today; the WHERE scan is exercised by programmatic AST unit tests, not real parsed query text).
 
 Both collection paths are DISTINCT visitor arms but feed the same validation loop and the same
 `EnrichUdfNotFound` error type. For each collected name: if `name` is NOT a key in
@@ -513,9 +517,12 @@ tokens versus v1.0 estimate; still well within budget.)
 - [ ] 6. Add plan-time enrichment-validation pass in `crates/prism-query/src/engine.rs`
        BEFORE `check_availability_gate`/fan-out; use AST `visit::Visitor` to collect
        enrichment function names — (a) pipe path: `PipeStage::Enrich` nodes → `EnrichStage.infusion`;
-       (b) SQL path: `ScalarFunc::Unknown(name)` in projection expressions AND WHERE predicates
-       via `collect_unknown_scalar_from_predicate` (BC-2.11.019 v1.3 §Precondition 1(b)); these are DISTINCT
-       visitor arms but feed the same validation loop. For each collected `name`: if NOT in
+       (b) SQL path: `ScalarFunc::Unknown(name)` in SELECT projection expressions (reachable
+       from real queries) AND WHERE predicates via `collect_unknown_scalar_from_predicate`
+       (DEFENSIVE / forward-compat per BC-2.11.019 v1.3 §Precondition 1(b) AST-contract;
+       real `WHERE udf(col)=v` is E-QUERY-001 parse error today; WHERE scan is exercised by
+       programmatic AST unit tests, not real parsed query text); these are DISTINCT visitor
+       arms but feed the same validation loop. For each collected `name`: if NOT in
        `InfusionRegistry.udf_to_infusion`, build the UDF name vec inline via
        `registry.udf_descriptors().iter().map(|d| d.name.clone()).collect::<Vec<_>>()`
        (do NOT call `udf_names()` — that method does not exist), then return
@@ -700,7 +707,7 @@ Files to modify (v1.2 — E-QUERY-039 net-new in prism-core + engine.rs gate; E-
 | `crates/prism-mcp/src/error_mapping.rs` | MODIFY (E-QUERY-039 arm net-new; E-QUERY-037 arm confirmed-present, no change) | N1-B Step 3: add explicit `-32602` INVALID_PARAMS arm for `PrismError::EnrichUdfNotFound` (E-QUERY-039) — this is the ONLY net-new arm; MUST NOT fall through to `-32000` catch-all. `PrismError::TableNotAvailable` (E-QUERY-037) arm is CONFIRMED PRESENT (doc: "S-3.13 AC-2; BC-2.11.001") — no modification needed. |
 | `crates/prism-query/src/table_registry.rs` | MODIFY | N2: in `check_availability_gate` and/or `is_registered`, ensure `TableRegistry::is_registered(table_name_as_written)` check runs BEFORE any fan-out routing — so dot-notation strings like `cyberint.alerts` return `PrismError::TableNotAvailable` (E-QUERY-037) with `did_you_mean`; trace actual call chain first |
 | `crates/prism-query/src/engine.rs` | MODIFY | N2: ensure the table availability gate from table_registry.rs is wired at the correct engine layer entry point (where the plan-time check fires before fan-out is dispatched) |
-| `crates/prism-query/src/engine.rs` (enrichment gate) | MODIFY | N1-B Step 2: add plan-time enrichment-validation pass BEFORE `check_availability_gate`/fan-out in `engine.rs`; use AST `visit::Visitor` to collect enrichment names from BOTH paths — (a) pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; (b) SQL: `ScalarFunc::Unknown(name)` in projection expressions AND WHERE predicates via `collect_unknown_scalar_from_predicate` (BC-2.11.019 v1.3 §Precondition 1(b)); validate each against `registry.udf_descriptors()` (NO new public API on `InfusionRegistry` — derive names inline); unknown name → `PrismError::EnrichUdfNotFound`; function-name anchor required (TD-VSDD-091). |
+| `crates/prism-query/src/engine.rs` (enrichment gate) | MODIFY | N1-B Step 2: add plan-time enrichment-validation pass BEFORE `check_availability_gate`/fan-out in `engine.rs`; use AST `visit::Visitor` to collect enrichment names from BOTH paths — (a) pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; (b) SQL: `ScalarFunc::Unknown(name)` in SELECT projection expressions (reachable from real queries via `build_sql_expr_parser`) AND WHERE predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat per BC-2.11.019 v1.3 §Precondition 1(b) AST-contract; real `WHERE udf(col)=v` is E-QUERY-001 parse error — `build_predicate_parser` has no scalar-funcall atom; WHERE scan is exercised by programmatic AST unit tests); validate each against `registry.udf_descriptors()` (NO new public API on `InfusionRegistry` — derive names inline); unknown name → `PrismError::EnrichUdfNotFound`; function-name anchor required (TD-VSDD-091). |
 | `crates/prism-mcp/src/tools/prism_describe.rs` | MODIFY | AUDIT-001: change `build_tables_for_client` emit from `name: table.table_name.clone()` → `name: format!("{sensor_id}_{}", table.table_name)`; add test |
 | `crates/prism-mcp/src/prompts.rs` | MODIFY | AUDIT-004: replace all dot-notation FROM refs in `render_triage_alerts`, `render_client_overview`, `render_cross_client_status`, `render_investigate_host` with sensor-prefixed underscore-qualified names; add test |
 | `ci.yml` | MODIFY | AC-REG-1: increment `EXPECTED=87` → `EXPECTED=88` (one new #[non_exhaustive] type: EnrichUdfNotFoundDetails) |
@@ -721,7 +728,7 @@ Files NOT to modify:
 | `build_tables_for_client` | `crates/prism-mcp/src/tools/prism_describe.rs` | Pure (takes spec data, returns `Vec<TableDescriptor>`) |
 | `render_triage_alerts` / `render_client_overview` / `render_cross_client_status` / `render_investigate_host` | `crates/prism-mcp/src/prompts.rs` | Pure (synchronous render functions per BC-2.10.016 invariant) |
 | `PrismError::EnrichUdfNotFound` variant + `EnrichUdfNotFoundDetails` struct (NET-NEW) | `crates/prism-core/src/error.rs` | Pure (data type, no I/O) |
-| E-QUERY-039 plan-time enrichment gate (NET-NEW) — pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; SQL: `ScalarFunc::Unknown` in projection AND WHERE predicates via `collect_unknown_scalar_from_predicate` (BC-2.11.019 v1.3 §Precondition 1(b)) | `crates/prism-query/src/engine.rs` (new validation pass before `check_availability_gate`; no new public API on `InfusionRegistry` — names derived from existing `udf_descriptors()`) | Pure (takes `&InfusionRegistry`, returns `Result<_, PrismError>`) |
+| E-QUERY-039 plan-time enrichment gate (NET-NEW) — pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; SQL: `ScalarFunc::Unknown` in SELECT projection expressions (reachable from real queries) AND WHERE predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat per BC-2.11.019 v1.3 §Precondition 1(b) AST-contract; real `WHERE udf(col)=v` is E-QUERY-001 parse error — `build_predicate_parser` has no scalar-funcall atom; WHERE scan exercised by programmatic AST unit tests) | `crates/prism-query/src/engine.rs` (new validation pass before `check_availability_gate`; no new public API on `InfusionRegistry` — names derived from existing `udf_descriptors()`) | Pure (takes `&InfusionRegistry`, returns `Result<_, PrismError>`) |
 | E-QUERY-037 plan-time availability gate — `check_availability_gate` / `is_registered` | `crates/prism-query/src/table_registry.rs` | Pure (gate check, no I/O) |
 | E-QUERY-037 gate wiring point | `crates/prism-query/src/engine.rs` | Pure (plan-time orchestration) |
 | `map_prism_error` (E-QUERY-039 arm NET-NEW; E-QUERY-037 arm CONFIRMED PRESENT — no change) | `crates/prism-mcp/src/error_mapping.rs` | Pure (mapping function) |
@@ -775,6 +782,7 @@ is a set of targeted, surgical code changes:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | med-1-re-correction-where-clause-code-verified-2026-06-27 | 2026-06-27 | story-writer | MED-1 re-correction: AC-N1B WHERE note aligned to code-verified reality (over-corrected in v1.8). `build_predicate_parser` has no scalar-funcall atom → real `WHERE udf(col)=v` is E-QUERY-001 parse error; `collect_unknown_scalar_from_predicate` WHERE scan is DEFENSIVE/forward-compat (programmatic AST), honoring BC-2.11.019 §Precondition 1(b) AST-contract; SQL projection is the reachable gated path. `ScalarFunc::Unknown` is produced ONLY by `build_sql_expr_parser` (SELECT projections), not by the WHERE predicate grammar. Five locations corrected: (1) AC-N1B WHERE-clause note block quote; (2) AC-N1B Step 2 SQL path bullet; (3) Tasks step 6(b); (4) File Structure table engine.rs enrichment gate row; (5) Architecture Mapping E-QUERY-039 gate row. Matches the implementing test docstring in `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` (~lines 355-366). Version bump 1.8→1.9. |
 | 1.8 | med-1-where-clause-note-correction-2026-06-27 | 2026-06-27 | story-writer | MED-1: corrected AC-N1B WHERE-clause note — SQL-mode `ScalarFunc::Unknown` gating covers projection AND WHERE per BC-2.11.019 v1.3 §Precondition 1(b) (the WHERE scan is required+implemented via `collect_unknown_scalar_from_predicate`, not "defensive/unneeded"); only the pipe `enrich`-keyword WHERE form is an E-QUERY-001 parse error. Five locations fixed: (1) AC-N1B WHERE-clause note block quote (lines ~249-261); (2) AC-N1B Step 2 SQL path bullet; (3) Tasks step 6(b); (4) File Structure table engine.rs enrichment gate row; (5) Architecture Mapping E-QUERY-039 gate row. Incorrect assertions "no WHERE-clause scan is needed" and "projection-arm scan is COMPLETE coverage" removed. Version bump 1.7→1.8. |
 | 1.7 | low-1-ec001-exhaustive-claim-audit-2026-06-27 | 2026-06-27 | story-writer | LOW-1 + EXHAUSTIVE whole-story claim audit: corrected EC-001 phantom string `"No enrichment infusions are currently registered."` → actual code string `"No enrichment functions are currently registered for your deployment."` (resources.rs ~line 1519, Some(empty) path); updated EC-001 test cite from `test_bc_2_11_022_none_registry_placeholder` (covers None path) → `test_bc_2_11_022_some_empty_registry_placeholder` (covers the Some(empty) path). Second inaccuracy found and fixed: frontmatter Red Gate test comment listed phantom test `test_non_exhaustive_count_87_to_88` — this test does not exist; the non-exhaustive gate is a compile-fail crate run via `scripts/check-non-exhaustive.sh EXPECTED=88`, not a named Rust `fn test_*`; corrected to `scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a named Rust test)`. All other claims across every section verified accurate against feature worktree code: AC-N1 (resources.rs dedup key, per-field UDF names, test name), AC-N1B (EnrichUdfNotFoundDetails struct fields, map_prism_error -32602 arm, Display template, gate ordering, test names), AC-N2 (check_availability_gate / is_registered function names, TableNotAvailable variant, udf_to_infusion field), AC-AUDIT-001 (build_tables_for_client format string, pql_hints generic hint text), AC-AUDIT-004 (render_* function names, FROM-ready table names, regex), AC-REG-1/REG-2/DEMO-001/SAP-1, §Edge Cases (EC-002 through EC-006), §Red Gate Tests table (all other names confirmed present), §File Structure, §Library Requirements, §Architecture Mapping, §Dev Notes, §Previous Story Intelligence. No further inaccuracies found. Token Budget label 1.6→1.7. Version bump 1.6→1.7. |
 | 1.6 | obs-1-ac-prose-accuracy-audit-2026-06-27 | 2026-06-27 | story-writer | OBS-1 + AC-prose accuracy audit: corrected AC-AUDIT-001 phantom `pql_hints[0]` "This client has N tables:" string claim — that string does not exist in `build_pql_hints`; the actual non-empty `pql_hints[0]` is `"Use 'SELECT * FROM <table> LIMIT 25' to query any of the N table(s) above."` (a generic usage hint with `<table>` placeholder, no embedded table names). The disambiguation guarantee is in `TableDescriptor.name` + `example_query`, not in `pql_hints`. Full AC-prose-vs-code accuracy sweep (AC-N1, AC-N1B, AC-N2, AC-AUDIT-004, AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1): all other AC prose matches code — no further inaccuracies found. Token Budget label 1.5→1.6. Version bump 1.5→1.6. |
