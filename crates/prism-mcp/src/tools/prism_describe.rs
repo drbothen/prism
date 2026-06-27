@@ -313,11 +313,15 @@ fn build_tables_for_client(
                                 nullable: true,
                             })
                             .collect();
-                        let example_query = build_example_query(&table.table_name, &columns);
+                        // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that
+                        // AI agents build valid `FROM crowdstrike_alerts | ...` queries, NOT
+                        // bare `FROM alerts | ...` (which silently routes to E-SENSOR-030).
+                        let prefixed_name = format!("{}_{}", sensor_id.as_ref(), table.table_name);
+                        let example_query = build_example_query(&prefixed_name, &columns);
                         // BC-2.10.012 sensor_type fix: derive from the sensor identity
                         // (sensor_id from the resolved spec), NOT from client_id.
                         TableDescriptor {
-                            name: table.table_name.clone(),
+                            name: prefixed_name,
                             sensor_type: sensor_id.as_ref().to_string(),
                             description: table.ocsf_class.clone(),
                             columns,
@@ -362,10 +366,13 @@ fn build_tables_for_client(
                 })
                 .collect();
 
-            let example_query = build_example_query(&table.table_name, &columns);
+            // BC-2.10.012 AUDIT-001: table name must be sensor-prefixed so that AI agents
+            // build valid `FROM crowdstrike_alerts | ...` queries (not bare `FROM alerts`).
+            let prefixed_name = format!("{}_{}", sensor_spec.sensor_id, table.table_name);
+            let example_query = build_example_query(&prefixed_name, &columns);
 
             TableDescriptor {
-                name: table.table_name.clone(),
+                name: prefixed_name,
                 // BC-2.10.012 sensor_type fix: derive from the sensor spec's sensor_id,
                 // NOT from client_id (in single-tenant mode they happen to be the same,
                 // but the canonical source is the spec's sensor_id).
