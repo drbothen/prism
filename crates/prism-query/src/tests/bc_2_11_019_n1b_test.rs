@@ -938,6 +938,125 @@ async fn test_c1_sql_order_by_unknown_scalar_triggers_e_query_039() {
     );
 }
 
+/// OBS-2 — ENGINE-LEVEL `did_you_mean = Some(...)` from strsim + lexicographic tie-break.
+///
+/// BC-2.11.019 v1.3 §EC-11-059 specifies `did_you_mean` carries the closest registered
+/// UDF name within Levenshtein distance 3.  The strsim + lexicographic tie-break computation
+/// lives in `check_enrich_udf_availability` in `engine.rs`.
+///
+/// Prior coverage: existing tests only assert `did_you_mean = None` (empty registry,
+/// EC-11-059) or do not assert the field at all.  No test exercised the `Some(...)` path
+/// — the strsim computation was a dead code path from a testing perspective.
+///
+/// Query: `FROM cyberint_alerts | enrich threat_scor(iocs_value)`.
+/// `threat_scor` has Levenshtein distance 1 from registered name `threat_score` — within
+/// the Levenshtein-3 threshold — so the engine MUST set `did_you_mean = Some("threat_score")`.
+///
+/// Load-bearing (TD-VSDD-059): removing the strsim computation from
+/// `check_enrich_udf_availability` makes this test fail with `did_you_mean = None`.
+#[tokio::test]
+async fn test_obs2_did_you_mean_some_from_strsim_levenshtein_within_threshold() {
+    use prism_core::error::PrismError;
+
+    // Engine has threat_intel infusion with per-field UDFs:
+    //   threat_score, threat_is_known_malicious, threat_sources
+    // `threat_scor` is Levenshtein distance 1 from `threat_score` — within threshold 3.
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "FROM cyberint_alerts | enrich threat_scor(iocs_value)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "OBS-2: query with near-miss UDF name 'threat_scor' must return Err (E-QUERY-039). \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+
+    match err {
+        PrismError::EnrichUdfNotFound(ref details) => {
+            // Primary: infusion field must reflect the queried name.
+            assert_eq!(
+                details.infusion, "threat_scor",
+                "OBS-2: infusion field must be 'threat_scor'. Got: {:?}",
+                details.infusion
+            );
+
+            // OBS-2 core assertion: did_you_mean must be Some("threat_score") because
+            // Levenshtein("threat_scor", "threat_score") = 1, which is within threshold 3.
+            // This exercises the live strsim computation in check_enrich_udf_availability.
+            assert_eq!(
+                details.did_you_mean,
+                Some("threat_score".to_string()),
+                "OBS-2: did_you_mean must be Some(\"threat_score\") for near-miss 'threat_scor' \
+                 (Levenshtein distance 1, threshold 3). \
+                 Got: {:?}. \
+                 Failure means strsim computation is missing or returning None for distance-1 input.",
+                details.did_you_mean
+            );
+        }
+        other => {
+            let display = format!("{other}");
+            panic!(
+                "OBS-2: expected PrismError::EnrichUdfNotFound, got: {other:?}. \
+                 Display: {display}"
+            );
+        }
+    }
+}
+
+/// OBS-2b — query with a UDF name BEYOND Levenshtein 3 threshold returns `did_you_mean = None`.
+///
+/// Negative counterpart to OBS-2: `threat_xxxxx` has Levenshtein distance > 3 from ALL
+/// registered UDF names, so `did_you_mean` MUST be `None`.
+///
+/// Load-bearing: if the threshold guard is removed (all distances trigger Some), this test fails.
+#[tokio::test]
+async fn test_obs2b_did_you_mean_none_when_beyond_levenshtein_threshold() {
+    use prism_core::error::PrismError;
+
+    let engine = make_test_engine_threat_intel();
+
+    // "totally_unknown_udf" has Levenshtein distance >> 3 from all registered names:
+    //   threat_score (distance ~12), threat_is_known_malicious (distance ~15), etc.
+    let result = engine
+        .execute(
+            "FROM cyberint_alerts | enrich totally_unknown_udf(iocs_value)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "OBS-2b: query with far-miss UDF name must return Err (E-QUERY-039). Got Ok."
+    );
+
+    let err = result.unwrap_err();
+
+    match err {
+        PrismError::EnrichUdfNotFound(ref details) => {
+            assert_eq!(
+                details.did_you_mean, None,
+                "OBS-2b: did_you_mean must be None when no registered UDF is within \
+                 Levenshtein 3 of 'totally_unknown_udf'. Got: {:?}",
+                details.did_you_mean
+            );
+        }
+        other => {
+            let display = format!("{other}");
+            panic!(
+                "OBS-2b: expected PrismError::EnrichUdfNotFound, got: {other:?}. \
+                 Display: {display}"
+            );
+        }
+    }
+}
+
 /// C1+C2 integration — SqlPipe mode GROUP BY unknown scalar triggers E-QUERY-039.
 ///
 /// `SELECT severity, COUNT(*) FROM cyberint_alerts GROUP BY badudf(severity) | LIMIT 10`
