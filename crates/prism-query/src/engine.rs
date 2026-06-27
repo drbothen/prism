@@ -1501,12 +1501,30 @@ fn check_enrich_udf_availability(
                 }
             }
         }
-        // SqlPipe mode: SQL head with pipe stages — enrich can appear in the stages.
+        // SqlPipe mode: SQL head with pipe stages.
+        // Enrich names can appear in TWO places:
+        //   (a) pipe stages: `… | enrich udf_name(col)` — same as Pipe mode
+        //   (b) SQL HEAD projections / WHERE: `SELECT cvss(col) FROM t | limit 10`
+        //       where `cvss` is an unknown scalar (ScalarFunc::Unknown)
+        // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
+        // HIGH-1 fix: missing (b) caused SqlPipe head scalars to bypass this gate
+        // and reach DataFusion as opaque E-INT-001 (-32000). Mirrors Ast::Sql arm.
         Ast::SqlPipe(spq) => {
+            // (a) pipe stages.
             for stage in &spq.stages {
                 if let PipeStage::Enrich(es) = stage {
                     enrich_fn_names.push(es.infusion.clone());
                 }
+            }
+            // (b) SQL head SELECT projection items.
+            for item in &spq.head.select.items {
+                if let SelectItem::Expr { expr, .. } = item {
+                    collect_unknown_scalar_from_expr(expr, &mut enrich_fn_names);
+                }
+            }
+            // (c) SQL head WHERE-clause predicate tree.
+            if let Some(pred) = &spq.head.where_ {
+                collect_unknown_scalar_from_predicate(pred, &mut enrich_fn_names);
             }
         }
         // SQL mode: scan both SELECT projections AND WHERE-clause predicate tree.

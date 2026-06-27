@@ -502,6 +502,90 @@ async fn test_med001_available_infusions_sorted_in_e_query_039_error() {
     }
 }
 
+/// HIGH-1 regression guard — SqlPipe SQL head scalar bypass.
+///
+/// BC-2.11.019 v1.3 §Precondition 1(b): the enrich gate must scan BOTH pipe stages AND
+/// the SQL head (SELECT projection + WHERE clause) for `ScalarFunc::Unknown` names.
+///
+/// Prior to the HIGH-1 fix, the `Ast::SqlPipe(spq)` arm in `check_enrich_udf_availability`
+/// ONLY scanned `spq.stages` for `PipeStage::Enrich`. A SqlPipe query with an unknown
+/// scalar in the SQL head projection (e.g. `SELECT cvss(col) FROM t | limit 10`) bypassed
+/// the E-QUERY-039 gate, flowed to the emitter → DataFusion → opaque E-INT-001 (-32000).
+///
+/// Gate ordering verified: 037 (table) passes (cyberint_alerts is registered) →
+/// 038 (column) passes (no resolved_spec_map in test mode → fail-open) →
+/// 039 (enrich) FIRES on `cvss` which is NOT a registered per-field UDF name.
+///
+/// RED GATE: Prior to the fix, this test returned E-INT-001 (or Ok) instead of E-QUERY-039.
+/// Post-fix: the SqlPipe arm also scans `spq.head.select.items` via
+/// `collect_unknown_scalar_from_expr`, catching `cvss` as an unknown scalar.
+#[tokio::test]
+async fn test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039() {
+    use prism_core::error::PrismError;
+
+    // Engine has:
+    //   - cyberint_alerts in TableRegistry (037 passes)
+    //   - threat_intel infusion: per-field UDFs are threat_score, threat_is_known_malicious,
+    //     threat_sources. `cvss` is NOT a registered UDF name.
+    //   - No resolved_spec_map (038 fails open in test mode)
+    let engine = make_test_engine_threat_intel();
+
+    // SqlPipe query: SQL head has `cvss(iocs_value)` in SELECT projection.
+    // `iocs_value` is a real column in the fixture table; `cvss` is an unknown scalar.
+    // The `| limit 10` pipe stage has no enrich stage — all enrichment is in the SQL head.
+    let result = engine
+        .execute(
+            "SELECT cvss(iocs_value) FROM cyberint_alerts | LIMIT 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "HIGH-1: SqlPipe query with unknown scalar 'cvss' in SQL head projection must return Err. \
+         Prior to fix, the SqlPipe arm only scanned pipe stages (not the SQL head) → \
+         the gate was bypassed → DataFusion emitted opaque E-INT-001. Got Ok."
+    );
+
+    let err = result.unwrap_err();
+
+    match &err {
+        PrismError::EnrichUdfNotFound(ref details) => {
+            // Primary: the unknown scalar name must be reported.
+            assert_eq!(
+                details.infusion, "cvss",
+                "HIGH-1: infusion field must be 'cvss' (the unknown scalar). Got: {:?}",
+                details.infusion
+            );
+            // available_infusions must list the registered per-field UDF names.
+            let has_threat_intel_udfs = details
+                .available_infusions
+                .contains(&"threat_score".to_string())
+                || details
+                    .available_infusions
+                    .contains(&"threat_is_known_malicious".to_string())
+                || details
+                    .available_infusions
+                    .contains(&"threat_sources".to_string());
+            assert!(
+                has_threat_intel_udfs,
+                "HIGH-1: available_infusions must include registered per-field UDF names. \
+                 Got: {:?}",
+                details.available_infusions
+            );
+        }
+        other => {
+            let display = format!("{other}");
+            panic!(
+                "HIGH-1: expected PrismError::EnrichUdfNotFound (E-QUERY-039) for SqlPipe head \
+                 unknown scalar 'cvss'. Got: {other:?} | display: {display}. \
+                 If display contains 'E-INT-001'/'Internal error', the HIGH-1 fix is missing \
+                 (SqlPipe head not scanned in check_enrich_udf_availability)."
+            );
+        }
+    }
+}
+
 /// EC-11-059 — wired-but-empty InfusionRegistry MUST fire E-QUERY-039 with available_infusions=[].
 ///
 /// BC-2.11.019 v1.3 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
