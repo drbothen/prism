@@ -480,6 +480,51 @@ The role noun for a satellite that acts as both executor and upstream relay in t
 > it, "any source valuable to a security analyst" has no planner contract. See Section 10
 > §10.3 (ADOPT-1) and §10.5 gap G-2.
 
+> **DECIDED 2026-06-27 (human) — C3 Capability-Descriptor + PrismQL Pushdown + Cross-Source
+> Cost Guards.** Four architecture decisions confirmed; leans confirmed. Capture artifact:
+> `specs/day2-design-decisions/ADR-PROP-capability-descriptor-pushdown.md`
+> (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+> `research/capability-descriptor-pushdown-2026-06-26.md`. Hardening pass on DataFusion 50.x
+> mechanics in flight (`research/datafusion-cost-degrade-mechanics-2026-06-27.md`).
+>
+> **D-C3-1 Join guard = COST-BASED DEGRADE (Trino-lineage), NOT hard-reject.** Cross-source
+> joins are ALLOWED. Cost is mitigated by: mandatory row-caps per side + on output,
+> DataFusion 50.x inner-equi dynamic filter (sideways-information-passing) as the primary
+> cost lever, partitioned-not-broadcast distribution for unknown-cardinality sources, and
+> resource-based abort after consumption (query wall-clock timeout + memory limit) with
+> partial-result coverage metadata. There is NO plan-time rejection of unbounded joins.
+> **This supersedes the earlier §5.3/§12.2 "reject unbounded joins / mandatory selective
+> key-predicate reject" framing — see reconciliation notes at §5.3 and §12.2.**
+>
+> **D-C3-2 Missing time-bound = INJECT DEFAULT WINDOW + DISCLOSE (NOT reject).** If no
+> explicit time bound, PrismQL injects a configurable default window (e.g., last 24h) at
+> plan-time; pushes as an exact range predicate where the descriptor declares range-pushdown
+> on the time column; ALWAYS surfaces the effective time-bound in the response envelope +
+> a structured event (`event_type = "query.injected_default_window"`, BC-2.16.002 catalog
+> row required at morph). Asymmetric with D-C3-1 by design.
+>
+> **D-C3-3 Cross-source join shape = ALLOW OUTER/NON-EQUI (central-only).** Inner equi-joins
+> get the DataFusion 50.x dynamic-filter (sideways-information-passing) cost lever; outer/
+> non-equi cross-source joins are PERMITTED but fall back to full central execution via
+> `NestedLoopJoinExec` WITHOUT dynamic-filter optimization (weaker cost guarantee, owned
+> consciously). A bare cross-source CROSS JOIN / comma-join is allowed but LOUDLY FLAGGED
+> (cost/coverage disclosure in response envelope) and bounded by the row-cap — not silently
+> executed, not rejected.
+>
+> **D-C3-4 Override = AUDITED PrismQL HINT, capped at absolute max.** An explicit query-level
+> PrismQL hint can raise the row-cap toward the configured maximum but NEVER beyond the
+> absolute maximum. Every override emits `event_type = "query.override_applied"` (BC-2.16.002
+> catalog row required at morph).
+>
+> **Confirmed leans:** declarative TOML capability descriptor per `[[tables]]`, fail-closed
+> default (undeclared = Unsupported → central compute); enumerated predicate-class vocabulary
+> (eq/range/in_list/prefix/like/null), each tagged exact|inexact; contract split —
+> DataFusion `TableProvider::supports_filters_pushdown` for filter/projection/limit,
+> PrismQL pre-pass for time-bound injection + row-cap enforcement + join cost guard;
+> descriptor is per-(table, schema-class); transform exactness via bijection test;
+> collector subtype declares `pushdown_target = buffer`; minimum DataFusion version = 50.x;
+> `#[non_exhaustive]` on all descriptor structs (CLAUDE.md discipline).
+
 ### 3.5 SIEM / Security Lake / Data Lake — federate-or-replace dual stance
 
 **Concept:** SIEMs, security lakes, and data lakes are not only competitors; they are
@@ -749,6 +794,18 @@ with the specific nature of each change. All items are PENDING and gated on brie
 >   `eventDay`/`time_dt` push-down guardrail (§3.5 Mode A) to all sources.
 > - [ ] New NFR: **Default + maximum result limit** with limit-pushdown where the connector
 >   capability descriptor supports it (§3.4 addendum).
+
+> **RECONCILIATION NOTE 2026-06-27 (D-C3-1).** The cross-source join cost guard NFR item
+> above was originally framed as "planner rejects (or demands an explicit override + row cap)
+> joins estimated to fetch more than a bounded row count per side." The decision D-C3-1
+> (human-confirmed 2026-06-27) supersedes the "planner rejects" framing with **cost-based
+> degrade**: cross-source joins are ALLOWED; cost is bounded by row-caps, dynamic filtering,
+> partitioned distribution, and resource-based abort after consumption. The override + row-cap
+> mechanism is retained as specified but functions as an escape hatch above the default cap, not
+> as the primary guard gate. At morph time, this NFR item should be amended to reflect the
+> degrade posture. See `specs/day2-design-decisions/ADR-PROP-capability-descriptor-pushdown.md`
+> D-C3-1 for the full rationale. Later-more-specific-artifact-wins (CLAUDE.md §Source-of-Truth
+> Precedence).
 
 ### 5.4 Architecture and ADRs
 
@@ -1465,6 +1522,22 @@ literature (Calcite/Trino/DataFusion) identifies cross-source joins as the domin
 This NFR is the join-guard pattern the federated-query research calls mandatory; it operationalizes
 the production-grade default (bound the cost, fail-fast with structured errors + partial results)
 rather than allowing an unbounded fetch-both-sides join.
+
+> **RECONCILIATION NOTE 2026-06-27 (D-C3-1 / D-C3-3).** Requirements #1 ("Equality-key requirement
+> — cross-source cross-products and non-equi-only cross-source joins are **rejected at plan time**")
+> and #2 ("A side that cannot be bounded is **rejected**") in the DRAFT above were written before
+> the C3 architecture decisions were confirmed. Decision D-C3-1 (human-confirmed 2026-06-27)
+> supersedes those requirements with **cost-based degrade**: cross-source joins of all shapes
+> (inner equi, outer, non-equi, bare CROSS JOIN) are ALLOWED; cost is bounded by the guardrail
+> stack described in `specs/day2-design-decisions/ADR-PROP-capability-descriptor-pushdown.md`
+> (mandatory row-caps, DataFusion 50.x dynamic filter for inner equi, partitioned distribution,
+> resource-based abort). The equality-key and selectivity requirements #1/#2 survive as **guard
+> triggers** — their presence determines whether the cheaper inner-equi dynamic-filter path fires
+> vs the central-execution fallback — but the response to absence is cap + flag + cost disclosure,
+> not `E-QUERY-NNN` planner rejection. Decision D-C3-3 explicitly allows outer/non-equi joins
+> (central-only, no dynamic filter). At morph time, this NFR should be amended to use "cost-based
+> degrade" language throughout. Later-more-specific-artifact-wins (CLAUDE.md §Source-of-Truth
+> Precedence).
 
 ### 12.3 PrismQL Ergonomics Parity Ledger — FSQL adopt / enhance / map (CONFIRMED 2026-06-25)
 
@@ -2187,6 +2260,24 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   AD-017); max chain depth (8-hop production default, configurable). Remaining open questions:
   trust-anchor rotation across deep tree; transport fork bake-off; MITM proxy survival; per-zone
   normalization attestation; diode transport variant. §3.2 decision block updated in-place.
+- **C3 Capability-Descriptor + PrismQL Pushdown + Cross-Source Cost Guards DECIDED + CAPTURED
+  2026-06-27 (human).** Four architecture decisions D-C3-1..4 confirmed; leans L-C3-1..8 confirmed.
+  Capture artifact: `specs/day2-design-decisions/ADR-PROP-capability-descriptor-pushdown.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/capability-descriptor-pushdown-2026-06-26.md`. Hardening pass on DataFusion 50.x
+  mechanics in flight: `research/datafusion-cost-degrade-mechanics-2026-06-27.md` (OQ-C3-1..6
+  pending fold-on-return). Decisions cover: join guard = cost-based degrade NOT hard-reject
+  (D-C3-1, supersedes §5.3/§12.2 reject-framing — reconciliation notes appended at both sections);
+  missing time-bound = inject default window + disclose NOT reject (D-C3-2); allow outer/non-equi
+  cross-source joins central-only without dynamic-filter (D-C3-3); override = audited PrismQL hint
+  capped at absolute max (D-C3-4). Confirmed leans: declarative TOML descriptor per [[tables]]
+  fail-closed; enumerated predicate-class vocabulary (Spark-style, NOT open expression trees);
+  contract split DataFusion TableProvider vs PrismQL pre-pass; descriptor per-(table, schema-class);
+  bijection test for transform exactness; collector declares pushdown_target=buffer; minimum
+  DataFusion=50.x; #[non_exhaustive] on all descriptor structs. Downstream spec dependencies
+  flagged: BC-2.16.002 new catalog rows for query.pushdown.decision + query.injected_default_window
+  + query.override_applied (SAP-1); §12.2 NFR-JOIN-GUARD language amendment; E-CONNECTOR-
+  CAPABILITY-DESCRIPTOR-001 proposed epic. §3.4 C3 decision block appended in-place.
 
 ### 16.5 Status & boundaries reminder
 
