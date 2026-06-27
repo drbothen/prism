@@ -1871,8 +1871,8 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
 ///
 /// | Variant       | Required template |
 /// |---------------|------------------|
-/// | count-recent  | `SELECT COUNT(*) FROM <table> WHERE timestamp > NOW() - INTERVAL '1h'` |
-/// | severity      | `SELECT * FROM <table> WHERE severity IN ('high', 'critical') LIMIT 50` |
+/// | count-recent  | `SELECT COUNT(*) FROM <table> WHERE <dt_col> > NOW() - INTERVAL '1h'` |
+/// | severity      | `SELECT * FROM <table> WHERE severity IN ('<High>', '<Critical>') LIMIT 50` (per-sensor casing) |
 /// | aggregate     | `SELECT <field>, COUNT(*) FROM <table> GROUP BY <field> ORDER BY COUNT(*) DESC LIMIT 10` |
 ///
 /// ## Fixture design
@@ -1883,54 +1883,21 @@ async fn test_BC_2_10_013_schema_resource_notify_dispatch_per_client_scoped() {
 /// production `build_tables_for_client` → `build_example_query` call chain via
 /// `handle_prism_describe`.
 ///
-/// - `zero-col sensor` ("sensor_zero_col"): table `zct` with NO columns → count-recent.
-/// - `severity-only sensor` ("sensor_sev_only"): table `svt` with ONLY a `severity`
-///    column (String, no Integer/Float) → severity variant.
+/// - `zero-col sensor` ("sensor_zero_col"): table `zct` with NO columns → column-free fallback.
+/// - `severity-only sensor` ("crowdstrike"): table `svt` with ONLY a `severity`
+///    column (String, no Integer/Float) → severity variant with CrowdStrike Title-case vocabulary.
 /// - `agg-only sensor` ("sensor_agg_only"): table `agt` with ONLY `hit_count` (Integer,
 ///   no severity column) → aggregate variant.
 ///
-/// ## RED GATE: All three assertions FAIL now.
+/// ## CRIT-1 + F-L2-CRIT-001 fix status
 ///
-/// Current `build_example_query` emits:
+/// This test was originally a Red Gate for BC-2.10.012 asserting:
+/// - count-recent: `COUNT(*) + NOW() + INTERVAL` (now: column-free fallback — CRIT-1 fix)
+/// - severity: `IN ('high', 'critical')` (now: per-sensor casing — F-L2-CRIT-001 fix)
+/// - aggregate: `ORDER BY COUNT(*) DESC LIMIT 10` (unchanged, still correct)
 ///
-/// - count-recent (fallback): `SELECT * FROM zct LIMIT 25`
-///   Missing: `COUNT(*)`, `NOW() - INTERVAL`.
-///   Assertion `contains("COUNT(*)")` → FAILS.
-///
-/// - severity variant: `SELECT * FROM svt WHERE severity = 'HIGH' LIMIT 25`
-///   Wrong: `severity = 'HIGH' LIMIT 25` vs. BC-canonical `severity IN ('high', 'critical') LIMIT 50`.
-///   Assertion `contains("IN ('high', 'critical')")` → FAILS.
-///   Assertion `contains("LIMIT 50")` → FAILS.
-///
-/// - aggregate variant: `SELECT hit_count, COUNT(*) FROM agt GROUP BY hit_count LIMIT 25`
-///   Missing: `ORDER BY COUNT(*) DESC`. Wrong limit: 25 vs. 10.
-///   Assertion `contains("ORDER BY COUNT(*) DESC")` → FAILS.
-///   Assertion `contains("LIMIT 10")` → FAILS.
-///
-/// ## What the implementer must change in `build_example_query`
-///
-/// ```rust
-/// // count-recent (always present — fallback for zero-column tables EC-002):
-/// let mut query = format!(
-///     "SELECT COUNT(*) FROM {table_name} WHERE timestamp > NOW() - INTERVAL '1h'"
-/// );
-///
-/// // severity variant (when a "severity" column is present):
-/// if has_severity {
-///     query = format!(
-///         "SELECT * FROM {table_name} WHERE severity IN ('high', 'critical') LIMIT 50"
-///     );
-/// }
-///
-/// // aggregate variant (when an Integer/Float column is present):
-/// if let Some(col) = agg_col {
-///     query = format!(
-///         "SELECT {col_name}, COUNT(*) FROM {table_name} GROUP BY {col_name} \
-///          ORDER BY COUNT(*) DESC LIMIT 10",
-///         col_name = col.name
-///     );
-/// }
-/// ```
+/// Both `count-recent` and `severity` assertions have been updated to reflect the
+/// production-grade corrected behavior. The aggregate assertion is unchanged.
 #[tokio::test]
 async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     use prism_core::column::ColumnType;
@@ -2029,7 +1996,15 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
 
     // ── Case 2: severity variant — table with ONLY a severity String column ──────
     //
-    // BC canonical: SELECT * FROM svt WHERE severity IN ('high', 'critical') LIMIT 50
+    // F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001): the original Red Gate asserted
+    // `IN ('high', 'critical')` (lowercase). That was the defect — CrowdStrike DTU emits
+    // Title-case "High"/"Critical", Armis DTU emits UPPER-case "HIGH"/"CRITICAL". The
+    // fixture MUST use a registered sensor prefix so the severity vocabulary lookup fires.
+    //
+    // Updated: sensor_id "crowdstrike" → table name becomes "crowdstrike_svt" → vocabulary
+    // lookup returns ("High", "Critical") → severity variant uses Title-case.
+    //
+    // BC canonical post-fix: SELECT * FROM crowdstrike_svt WHERE severity IN ('High', 'Critical') LIMIT 50
     //
     // No Integer/Float column → aggregate branch does NOT override; severity branch wins.
     let sev_col = ColumnSpec::new(
@@ -2038,11 +2013,10 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         Some("severity".to_string()),
         vec![],
     );
-    let cm_sev = make_sensor_config_manager("sensor_sev_only", "svt", vec![sev_col]);
-    let result_sev =
-        handle_prism_describe("sensor_sev_only".to_string(), None, Some(&cm_sev), None)
-            .await
-            .expect("BC-2.10.012 AC-002 [severity]: handle_prism_describe must return Ok");
+    let cm_sev = make_sensor_config_manager("crowdstrike", "svt", vec![sev_col]);
+    let result_sev = handle_prism_describe("crowdstrike".to_string(), None, Some(&cm_sev), None)
+        .await
+        .expect("BC-2.10.012 AC-002 [severity]: handle_prism_describe must return Ok");
 
     let json_sev: String = result_sev
         .content
@@ -2057,31 +2031,30 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
     let sev_table = &parsed_sev["results"]["tables"][0];
     let sev_eq = sev_table["example_query"]
         .as_str()
-        .expect("BC-2.10.012 AC-002: svt table must have example_query string");
+        .expect("BC-2.10.012 AC-002: crowdstrike_svt table must have example_query string");
 
-    // RED GATE: current code emits "WHERE severity = 'HIGH' LIMIT 25".
+    // F-L2-CRIT-001 fix: CrowdStrike DTU emits Title-case 'High'/'Critical'.
+    // The old assertion `IN ('high', 'critical')` was a paper-confirmation of the bug;
+    // now corrected to assert the DTU-correct vocabulary.
     assert!(
-        sev_eq.contains("IN ('high', 'critical')"),
-        "BC-2.10.012 AC-002 RED GATE [severity]: example_query MUST contain \
-         `IN ('high', 'critical')`. BC-canonical: \
-         'SELECT * FROM svt WHERE severity IN (\\'high\\', \\'critical\\') LIMIT 50'. \
-         Got: {:?}. \
-         Fix `build_example_query`: change `severity = 'HIGH' LIMIT 25` to \
-         `severity IN ('high', 'critical') LIMIT 50`.",
+        sev_eq.contains("IN ('High', 'Critical')"),
+        "BC-2.10.012 AC-002 [severity] F-L2-CRIT-001: example_query for crowdstrike table MUST \
+         use Title-case severity literals `IN ('High', 'Critical')` to match DTU vocabulary. \
+         Got: {:?}.",
         sev_eq
     );
 
     assert!(
         sev_eq.contains("LIMIT 50"),
-        "BC-2.10.012 AC-002 RED GATE [severity]: example_query MUST have LIMIT 50 \
-         (BC-canonical). Current code uses LIMIT 25. Got: {:?}.",
+        "BC-2.10.012 AC-002 [severity]: example_query MUST have LIMIT 50 (BC-canonical). \
+         Got: {:?}.",
         sev_eq
     );
 
     assert!(
-        sev_eq.contains("svt"),
-        "BC-2.10.012 AC-002 [severity]: example_query must substitute table name 'svt'. \
-         Got: {:?}.",
+        sev_eq.contains("crowdstrike_svt"),
+        "BC-2.10.012 AC-002 [severity]: example_query must substitute sensor-prefixed table name \
+         'crowdstrike_svt'. Got: {:?}.",
         sev_eq
     );
 

@@ -443,6 +443,47 @@ fn build_pql_hints(
     }
 }
 
+/// Per-sensor severity vocabulary — maps sensor name prefix to the DTU-emitted
+/// severity literal casing.
+///
+/// # Canonical sources
+///
+/// - `crowdstrike`: Title-case — `"High"`, `"Critical"`, `"Medium"`, `"Low"`
+///   Source: `crates/prism-dtu-crowdstrike/src/generator.rs` `make_detection_with_ioc()`
+///   `1 => "Low", 2 => "Medium", 3 => "High", _ => "Critical"`
+///
+/// - `armis`: UPPER-case — `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`, `"LOW"`
+///   Source: `crates/prism-dtu-armis/src/generator.rs` `build_alert()` severity param
+///   assigned as `"HIGH"`, `"CRITICAL"`, `"MEDIUM"`
+///
+/// Tables with an unknown sensor prefix (not in this table) fall back to the
+/// count-recent or column-free query variant rather than emitting severity literals
+/// with potentially wrong casing that return 0 rows silently.
+///
+/// F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001).
+const SENSOR_SEVERITY_VOCABULARY: &[(&str, &str, &str)] = &[
+    // (sensor_prefix, high_literal, critical_literal)
+    ("crowdstrike", "High", "Critical"),
+    ("armis", "HIGH", "CRITICAL"),
+];
+
+/// Derive the severity literals for a table based on its sensor prefix.
+///
+/// Returns `Some(("High", "Critical"))` or `Some(("HIGH", "CRITICAL"))` for sensors
+/// with a registered vocabulary, `None` for unknown sensors.
+///
+/// F-L2-CRIT-001: unknown sensor → `None` → severity filter is suppressed, falling
+/// back to count-recent or column-free — never a silent zero-row filter.
+fn severity_literals_for_table(table_name: &str) -> Option<(&'static str, &'static str)> {
+    // Table names are sensor-prefixed: "crowdstrike_detections", "armis_alerts", etc.
+    for (prefix, high, critical) in SENSOR_SEVERITY_VOCABULARY {
+        if table_name.starts_with(prefix) {
+            return Some((high, critical));
+        }
+    }
+    None
+}
+
 /// Build an auto-generated example PQL query for a table.
 ///
 /// Produces an executable example query that references ONLY columns that actually exist
@@ -453,23 +494,35 @@ fn build_pql_hints(
 ///
 /// The previous implementation hardcoded `timestamp` in the count-recent fallback
 /// (`WHERE timestamp > NOW() - INTERVAL '1h'`).  Tables without a `timestamp` column
-/// (e.g. `crowdstrike_devices`, `claroty_devices`) produced a non-executable example_query
-/// that violated AUDIT-001/AUDIT-004.
+/// (e.g. `claroty_devices`) produced a non-executable example_query that violated
+/// AUDIT-001/AUDIT-004.
 ///
 /// The fix:
 /// - Derive the time column from the table's actual `Datetime`-typed columns (first one).
 /// - If no datetime column exists, emit a column-free form: `SELECT * FROM <t> LIMIT 25`.
 ///
+/// # F-L2-CRIT-001 fix (S-DEMO-FIDELITY-REMEDIATION-001)
+///
+/// The previous implementation hardcoded lowercase `'high'`/`'critical'` in the
+/// severity filter variant. CrowdStrike DTU emits Title-case (`High`/`Critical`) and
+/// Armis DTU emits UPPER-case (`HIGH`/`CRITICAL`). Lowercase literals match no rows.
+///
+/// The fix:
+/// - Derive severity literals from `SENSOR_SEVERITY_VOCABULARY` keyed on sensor prefix.
+/// - Only emit a severity filter when the sensor prefix is in the registered vocabulary.
+/// - For unknown sensor prefixes with a severity column, fall back to count-recent or
+///   column-free rather than emitting literals that silently return 0 rows.
+///
 /// # Variant selection (priority: aggregate > severity > count-recent/simple)
 ///
-/// | Condition                         | Query emitted |
-/// |-----------------------------------|---------------|
-/// | Integer/Float column present      | GROUP BY aggregate (uses that column) |
-/// | severity column present (no agg)  | WHERE severity IN (...) LIMIT 50 |
-/// | Datetime column found (no above)  | COUNT(*) WHERE <dt_col> > NOW() - INTERVAL '1h' |
-/// | No datetime column (no above)     | SELECT * FROM <t> LIMIT 25 |
+/// | Condition                                          | Query emitted |
+/// |----------------------------------------------------|---------------|
+/// | Integer/Float column present                       | GROUP BY aggregate |
+/// | severity column present + known sensor vocabulary  | WHERE severity IN (...) LIMIT 50 |
+/// | Datetime column found (no above)                   | COUNT(*) WHERE <dt_col> > NOW() - INTERVAL '1h' |
+/// | No datetime column (no above)                      | SELECT * FROM <t> LIMIT 25 |
 ///
-/// BC-2.10.012 / AUDIT-001 / AUDIT-004; S-DEMO-FIDELITY-REMEDIATION-001 CRIT-1.
+/// BC-2.10.012 / AUDIT-001 / AUDIT-004; S-DEMO-FIDELITY-REMEDIATION-001 CRIT-1 + F-L2-CRIT-001.
 pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> String {
     use prism_core::column::ColumnType;
 
@@ -491,12 +544,20 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
         format!("SELECT * FROM {table_name} LIMIT 25")
     };
 
-    // Severity filter variant when a severity column is present.
-    // BC-2.10.012 canonical: SELECT * FROM <t> WHERE severity IN ('high', 'critical') LIMIT 50
+    // Severity filter variant when a severity column is present AND the sensor has a
+    // registered vocabulary.
+    //
+    // F-L2-CRIT-001 fix: only emit severity literals when we know the correct casing
+    // for this sensor's DTU-emitted vocabulary. Unknown sensor prefix → skip severity
+    // variant and keep count-recent/column-free to avoid silent zero-row queries.
     let has_severity = columns.iter().any(|c| c.name == "severity");
     if has_severity {
-        query =
-            format!("SELECT * FROM {table_name} WHERE severity IN ('high', 'critical') LIMIT 50");
+        if let Some((high, critical)) = severity_literals_for_table(table_name) {
+            query = format!(
+                "SELECT * FROM {table_name} WHERE severity IN ('{high}', '{critical}') LIMIT 50"
+            );
+        }
+        // If no vocabulary → fall through, keeping count-recent or column-free query.
     }
 
     // Aggregate variant when an aggregatable column is present (overrides severity if both).
@@ -530,20 +591,29 @@ mod build_example_query_tests {
 
     /// CRIT-1 load-bearing: table with NO datetime column must produce a column-free query.
     ///
-    /// `crowdstrike_devices`/`claroty_devices` have no `timestamp` column.
+    /// `claroty_devices` is the genuine no-datetime table (no Datetime-typed columns in spec).
     /// The old hardcoded `WHERE timestamp > NOW() - INTERVAL '1h'` produced a non-executable
     /// example. This test asserts the fallback `SELECT * FROM <t> LIMIT 25` is used instead.
+    ///
+    /// F-L2-LOW-001 fix: the comment previously (incorrectly) cited `crowdstrike_devices` as
+    /// the no-datetime example. `crowdstrike_devices` actually has `first_seen` and `last_seen`
+    /// (Datetime). `claroty_devices` is the correct no-datetime example — it has only String
+    /// and Boolean columns (`uid`, `asset_id`, `device_category`, `device_type`, `risk_score`,
+    /// `retired`). See `crates/prism-sensors/specs/claroty.sensor.toml`.
     ///
     /// Load-bearing (TD-VSDD-059): fails if the datetime-column derivation is replaced by
     /// a hardcoded "timestamp" again.
     #[test]
     fn test_crit1_no_datetime_column_produces_column_free_query() {
-        // Simulate claroty_devices / crowdstrike_devices: no Datetime column.
+        // Simulate claroty_devices: genuinely no Datetime column.
+        // (crowdstrike_devices has first_seen/last_seen Datetime — do NOT use it here.)
         let columns = vec![
-            col("id", ColumnType::String),
-            col("hostname", ColumnType::String),
-            col("ip_address", ColumnType::String),
-            col("vendor", ColumnType::String),
+            col("uid", ColumnType::String),
+            col("asset_id", ColumnType::String),
+            col("device_category", ColumnType::String),
+            col("device_type", ColumnType::String),
+            col("risk_score", ColumnType::String),
+            col("retired", ColumnType::Boolean),
         ];
 
         let q = build_example_query("claroty_devices", &columns);
@@ -586,10 +656,15 @@ mod build_example_query_tests {
         );
     }
 
-    /// CRIT-1: table with `timestamp` datetime column still works (explicit regression guard).
+    /// CRIT-1 + F-L2-CRIT-001: table with `timestamp` datetime column and severity column
+    /// uses severity variant with correct per-sensor casing (regression guard).
     ///
-    /// If a table has a column literally named `timestamp` with Datetime type, the old
-    /// and new code produce the same output. This test guards against false positives.
+    /// `crowdstrike_detections` has `created_timestamp` (Datetime) and `severity` (String).
+    /// The severity variant takes priority over count-recent. The literals must be Title-case
+    /// (`'High'`, `'Critical'`) to match CrowdStrike DTU vocabulary.
+    ///
+    /// F-L2-CRIT-001 fix (TD-VSDD-059): the prior assertion `('high', 'critical')` was a
+    /// paper-confirmation of the bug. Corrected to assert `('High', 'Critical')`.
     #[test]
     fn test_crit1_datetime_column_named_timestamp_still_works() {
         let columns = vec![
@@ -600,10 +675,12 @@ mod build_example_query_tests {
         let q = build_example_query("crowdstrike_detections", &columns);
 
         // severity variant takes priority over count-recent.
+        // F-L2-CRIT-001: CrowdStrike DTU emits Title-case — 'High'/'Critical', NOT 'high'/'critical'.
         assert_eq!(
             q,
-            "SELECT * FROM crowdstrike_detections WHERE severity IN ('high', 'critical') LIMIT 50",
-            "CRIT-1: severity variant must be selected when severity column present. Got: {q}"
+            "SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') LIMIT 50",
+            "CRIT-1 + F-L2-CRIT-001: severity variant must be selected with Title-case CrowdStrike \
+             vocabulary. Got: {q}"
         );
     }
 
@@ -619,6 +696,111 @@ mod build_example_query_tests {
         assert!(
             !q.contains("timestamp"),
             "CRIT-1 EC-002: fallback must not contain hardcoded 'timestamp'. Got: {q}"
+        );
+    }
+
+    // ── F-L2-CRIT-001 load-bearing tests ─────────────────────────────────────
+    //
+    // These tests assert that build_example_query emits severity literals in the
+    // CORRECT per-sensor casing so the example returns real rows against DTU data.
+    //
+    // CrowdStrike DTU emits Title-case severity: "High", "Critical", "Medium", "Low"
+    //   Source: crates/prism-dtu-crowdstrike/src/generator.rs make_detection_with_ioc()
+    //           severity_id 1=>"Low", 2=>"Medium", 3=>"High", _=>"Critical"
+    //
+    // Armis DTU emits UPPER-case severity: "HIGH", "CRITICAL", "MEDIUM", "LOW"
+    //   Source: crates/prism-dtu-armis/src/generator.rs build_alert() severity param
+    //           "HIGH", "CRITICAL", "MEDIUM"
+    //
+    // The previous code emitted lowercase 'high'/'critical' which matches NEITHER DTU.
+    // These tests FAIL RED against the old code and PASS GREEN after the fix.
+    // Load-bearing (TD-VSDD-059): if the casing regresses, these tests catch it.
+
+    /// F-L2-CRIT-001: crowdstrike_detections severity variant must use Title-case literals.
+    ///
+    /// DTU emits: "High", "Critical" — NOT lowercase "high"/"critical".
+    /// A query with lowercase literals returns 0 rows from DTU data silently.
+    ///
+    /// RED GATE: fails against old code (emits 'high', 'critical').
+    /// GREEN GATE: passes after fix (emits 'High', 'Critical').
+    #[test]
+    fn test_f_l2_crit001_crowdstrike_detections_severity_uses_title_case() {
+        let columns = vec![
+            col("created_timestamp", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+            col("status", ColumnType::String),
+        ];
+
+        let q = build_example_query("crowdstrike_detections", &columns);
+
+        // Must use Title-case (DTU emits "High"/"Critical", NOT "high"/"critical").
+        assert!(
+            q.contains("'High'") && q.contains("'Critical'"),
+            "F-L2-CRIT-001: crowdstrike_detections severity IN must use Title-case \
+             'High'/'Critical' to match DTU vocabulary. Got: {q}"
+        );
+        assert!(
+            !q.contains("'high'") && !q.contains("'critical'"),
+            "F-L2-CRIT-001: crowdstrike_detections must NOT use lowercase 'high'/'critical' \
+             (DTU emits Title-case). Got: {q}"
+        );
+    }
+
+    /// F-L2-CRIT-001: armis_alerts severity variant must use UPPER-case literals.
+    ///
+    /// DTU emits: "HIGH", "CRITICAL" — NOT lowercase "high"/"critical".
+    /// A query with lowercase literals returns 0 rows from DTU data silently.
+    ///
+    /// RED GATE: fails against old code (emits 'high', 'critical').
+    /// GREEN GATE: passes after fix (emits 'HIGH', 'CRITICAL').
+    #[test]
+    fn test_f_l2_crit001_armis_alerts_severity_uses_upper_case() {
+        let columns = vec![
+            col("alert_id", ColumnType::String),
+            col("severity", ColumnType::String),
+            col("status", ColumnType::String),
+        ];
+
+        let q = build_example_query("armis_alerts", &columns);
+
+        // Must use UPPER-case (DTU emits "HIGH"/"CRITICAL", NOT "high"/"critical").
+        assert!(
+            q.contains("'HIGH'") && q.contains("'CRITICAL'"),
+            "F-L2-CRIT-001: armis_alerts severity IN must use UPPER-case \
+             'HIGH'/'CRITICAL' to match DTU vocabulary. Got: {q}"
+        );
+        assert!(
+            !q.contains("'high'") && !q.contains("'critical'"),
+            "F-L2-CRIT-001: armis_alerts must NOT use lowercase 'high'/'critical' \
+             (DTU emits UPPER-case). Got: {q}"
+        );
+    }
+
+    /// F-L2-CRIT-001: unknown sensor falls back to count-recent or column-free, NOT a
+    /// severity filter with potentially wrong casing.
+    ///
+    /// If a table from an unknown sensor has a severity column but no registered
+    /// vocabulary, build_example_query must NOT emit a hardcoded severity literal
+    /// that could return 0 rows. It falls back to count-recent (if datetime present)
+    /// or column-free (if no datetime).
+    #[test]
+    fn test_f_l2_crit001_unknown_sensor_with_severity_falls_back_to_count_recent() {
+        let columns = vec![
+            col("created_at", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+        ];
+
+        let q = build_example_query("unknown_sensor_events", &columns);
+
+        // Unknown sensor: no vocabulary → no severity filter. Must use count-recent.
+        assert!(
+            q.contains("COUNT(*)") && q.contains("created_at"),
+            "F-L2-CRIT-001: unknown sensor with severity column must fall back to \
+             count-recent (no severity vocabulary registered for it). Got: {q}"
+        );
+        assert!(
+            !q.contains("'high'") && !q.contains("'critical'"),
+            "F-L2-CRIT-001: unknown sensor must NOT emit lowercase severity literals. Got: {q}"
         );
     }
 }
