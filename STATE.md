@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.009"
+version: "8.010"
 producer: state-manager
-timestamp: 2026-06-26T00:00:00Z
+timestamp: 2026-06-26T21:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 4949
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1381 (2026-06-26). PR #204 MERGED — S-PERF-GATE-001 squash-merged to develop@f05a9f0e (normal merge, no --admin; CI 43/43 green; 12-round 3-CLEAN(strict) on frozen b40ac1e1); worktree .worktrees/S-PERF-GATE-001 + branch maintenance/perf-gate-001 REMOVED; BC-5.39.001 already ACTIVE (no POL-14 needed); STORY-INDEX v2.492→v2.493. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. STATE v8.008→v8.009."
+current_step: "D-1382 (2026-06-26). PRE-FLIGHT DEMO RE-AUDIT COMPLETE on develop@f05a9f0e — DEMO-READY flipped NO→YES(conditional); 0 DEMO-BLOCKERS (was 4 on 2026-06-24 audit); 6 new findings N1-N6 logged (N1 MAJOR, N2 MED regression, N4/N5 MED runbook-drift, N3 LOW, N6 OBS); triage routing PENDING HUMAN. Audit artifact: .factory/research/demo-pre-flight-audit-2026-06-26.md. NEXT: human triage N1-N6 → T13 capstone → T14 recording. STATE v8.009→v8.010."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1381 PR #204 MERGED — S-PERF-GATE-001 merged develop@f05a9f0e; worktree + branch removed; STORY-INDEX v2.492→v2.493; STATE v8.008→v8.009)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1382 pre-flight demo re-audit complete on f05a9f0e; DEMO-READY YES(conditional); 6 new findings N1-N6; STATE v8.009→v8.010)
 
 ## Active Objective (North Star)
 
@@ -136,6 +136,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1382 | state-manager | 2026-06-26 | **PRE-FLIGHT DEMO RE-AUDIT COMPLETE — develop@f05a9f0e. Audit artifact: `.factory/research/demo-pre-flight-audit-2026-06-26.md` (supersedes 2026-06-24 audit). DEMO-READY status flipped NO→YES(conditional). All 4 prior DEMO-BLOCKERs resolved: BLOCKER-001 CrowdStrike OAuth cross-session corruption (credit PR #203 grammar remediation), BLOCKER-002 runbook §5.5 pipe syntax (credit PR #203), BLOCKER-003 query_tutorial/investigate_host hangs (credit PR #203), BLOCKER-004 list_infusions/plugin_status/infusion_status hangs (credit PR #203). Also resolved: MAJOR-001 (list_capabilities client_registered now true; downgraded to LOW — capabilities map still empty), DISCOVERABILITY-GAP-001 (enrichment now in prismql://reference), AUDIT-005-DEFERRED (live health via S-5.04/PR #202). 6 NEW findings registered (PENDING HUMAN TRIAGE for routing decisions): N1 (MAJOR) — prismql://reference lists WRONG enrichment function names (nvd(col)/threat_intel(col)) vs registered names (threat_score/cvss_base_score/etc.); opaque internal error, not E-QUERY-039. N2 (MEDIUM, regression) — dot-syntax FROM cyberint.alerts now silent-empties with E-SENSOR-030 instead of prior pedagogical E-QUERY-036 did-you-mean. N3 (LOW) — not-registered sensor returns E-QUERY-032 but runbook Query Block 4 expects E-QUERY-037. N4 (MEDIUM) — runbook Step 3.5 queries armis_devices for org-b (no armis), should be org-c. N5 (MEDIUM) — runbook §6.3 uses claroty_audit_log (singular)/log_id; real table is claroty_audit_logs (plural)/id. N6 (OBS) — list_plugins now fast-fails -32003 (prior audit said it worked); non-blocking. CARRY-OVER open (unchanged from 2026-06-24): AUDIT-001 (prism_describe short table names not FROM-ready; org-c has 3 colliding alerts/devices entries), AUDIT-004 (4 of 5 prompts embed sensor.table dot-syntax rejected by engine). DEMO ROADMAP NEXT: human triage N1-N6 routing decision → T13 capstone → T14 recording. BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. STORY-INDEX UNCHANGED v2.493. develop_head UNCHANGED f05a9f0e. active_contracts / draft_contracts UNCHANGED (254/0). STATE v8.009→v8.010.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1381 | state-manager | 2026-06-26 | **PR #204 SQUASH-MERGED — S-PERF-GATE-001 MERGED to develop@f05a9f0e (2026-06-26; normal squash-merge, no --admin, user-authorized; CI 43/43 green; one Perimeter-check infra-flake re-run to success, HEAD b40ac1e1 unchanged; 12-round PR-LEVEL cascade; 3 consecutive CLEAN(strict) passes on frozen HEAD b40ac1e1 round-12; BC-5.39.001 3-CLEAN convergence protocol SATISFIED). BC auto-promotions (POL-14): BC-5.39.001 already ACTIVE — no promotions needed. Story S-PERF-GATE-001 status draft→merged (POL-13). Worktree `.worktrees/S-PERF-GATE-001` + local branch `maintenance/perf-gate-001` REMOVED (devops-engineer). Remote branch auto-deleted by GitHub at merge. develop_head 7e60df03→f05a9f0e. S-PERF-GATE-002 (adv_p02 LazyLock shared DTU fixtures) remains draft v1.0, blocked_by internal-reset refactor — unchanged. PENDING HUMAN (carry forward): LOCAL develop ba1108d2 (/wrap-skill commit) DIVERGED from origin/develop f05a9f0e — advisory SHA-currency, non-blocking, precedent D-1319+. New branches must be cut from origin/develop (f05a9f0e). [cascade process-gap observations: none — clean 12-round cascade with no new process-gap findings requiring follow-up. No unresolved process-gaps from this PR's cascade.] BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. STORY-INDEX v2.492→v2.493. active_contracts / draft_contracts UNCHANGED (254/0). total_stories UNCHANGED 214. STATE v8.008→v8.009. | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1380 | state-manager | 2026-06-26 | **SESSION WRAP — RESUME SNAPSHOT D-1380 authored (supersedes D-1356). PR #203 MERGED (7e60df03); STATE compacted 471→232; CLAUDE.md→EXPECTED=87; S-PERF-GATE-001 PR #204 CONVERGED 3/3 strict @b40ac1e1, pending CI-infra-flake re-run + squash-merge; S-PERF-GATE-002 stub materialized. STATE v8.007→v8.008.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1379 | state-manager | 2026-06-27 | **PR #204 ROUND-11 RECORDED — S-PERF-GATE-002 stub materialized + STORY-INDEX BC reconciliation closes F-P2R11-MED-001 (TD-VSDD-053 single-commit). PR #204 (S-PERF-GATE-001, branch maintenance/perf-gate-001 → develop), Round-11 PR-LEVEL cascade on frozen HEAD b40ac1e1 (story v1.9). Pass 1 CLEAN(strict)=YES, CLEAN(PR-merge)=YES. Pass 3 CLEAN(strict)=YES, CLEAN(PR-merge)=YES. Pass 2 CLEAN(strict)=NO, CLEAN(PR-merge)=NO — F-P2R11-MED-001 (MED — STORY-INDEX registered S-PERF-GATE-002 at D-1368 without ever creating the stub file (`S-PERF-GATE-002-adv-p02-shared-dtu-fixtures.md`); index row showed `file: stub — NOT YET AUTHORED` + BC count `0` despite the behavioral_contracts frontmatter being authored at file-creation time; POL-22 phantom deferral anchor — a deferral anchor registered in the index must have a materialized stub file in the same burst) — CLOSED: (1) story-writer created `S-PERF-GATE-002-adv-p02-shared-dtu-fixtures.md` (draft stub v1.0); (2) state-manager reconciled STORY-INDEX S-PERF-GATE-002 row: BC count `0` → `1 (BC-5.39.001)` (file carries `behavioral_contracts: [BC-5.39.001]`; BC-5.39.001 governs delivery convergence; no product BCs — test-infrastructure story); "stub — NOT YET AUTHORED" → "draft v1.0 (materialized D-1379 2026-06-27)"; file path updated to `S-PERF-GATE-002-adv-p02-shared-dtu-fixtures.md`. NOTE: S-PERF-GATE-001 CONTENT UNCHANGED (its deferral anchor at D-1368 now resolves to a real file). 2 OBS (D-1368 historical "items 1/2/3/5/6 DONE" + "4 of 8") are exempt frozen changelog rows — immutable audit trail, no action required. Frozen HEAD b40ac1e1 UNCHANGED. **[lesson] PHANTOM-DEFERRAL-ANCHOR CLASS (POL-22):** when registering a stub story in the STORY-INDEX (D-1368), the stub FILE must be created in the same burst as the index registration. Registration without materialization = phantom deferral anchor: the index promises a file that does not exist, making the deferral appear anchored while the anchor itself is missing. Fix: ALWAYS create the stub file atomically with the index row. The BC count discrepancy (0 in index vs 1 in file) was a consequence of the missing file — the BC was assigned at file-creation time but the index had already committed with 0. **Streak 0/3 → re-gate on UNCHANGED frozen HEAD b40ac1e1 + v1.9 spec.** STORY-INDEX v2.491→v2.492. BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. develop_head UNCHANGED 7e60df03. active_contracts / draft_contracts UNCHANGED (254/0). total_stories UNCHANGED 214. STATE v8.006→v8.007. | wave-5-e-demo-fidelity | 2026-06-27 |
@@ -226,20 +227,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1381 — 2026-06-26; STATE v8.009)
+## Session Resume Checkpoint (D-1382 — 2026-06-26; STATE v8.010)
 
-**STATE v8.009. D-1381 PR #204 MERGED. S-PERF-GATE-001 squash-merged to develop@f05a9f0e (normal merge, no --admin; CI 43/43 green; 12-round 3-CLEAN(strict) on frozen b40ac1e1; BC-5.39.001 already ACTIVE — no POL-14). Worktree .worktrees/S-PERF-GATE-001 + branch maintenance/perf-gate-001 REMOVED. active_contracts 254. draft_contracts 0. develop_head f05a9f0e. non-exhaustive 87. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.493. total_stories 214. S-PERF-GATE-002 draft v1.0 remains blocked on internal-reset refactor.**
+**STATE v8.010. D-1382 PRE-FLIGHT DEMO RE-AUDIT COMPLETE on develop@f05a9f0e. DEMO-READY: YES(conditional). All 4 prior demo-blockers resolved. 6 new findings N1-N6 logged; TRIAGE PENDING HUMAN. Audit: `.factory/research/demo-pre-flight-audit-2026-06-26.md`. active_contracts 254. draft_contracts 0. develop_head f05a9f0e. non-exhaustive 87. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.493. total_stories 214. S-PERF-GATE-002 draft v1.0 blocked on internal-reset refactor.**
 
-**NEXT ACTION:** pre-flight demo re-audit → T13 capstone (gated on BLOCKER-001 CrowdStrike OAuth fix + remediation story delivery) → T14 recording.
+**NEXT ACTION:** human triage N1-N6 routing (N1 MAJOR, N2 MED regression, N3 LOW, N4/N5 MED runbook-drift, N6 OBS) → T13 capstone → T14 recording.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
 **DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 diverged from origin/develop f05a9f0e. Advisory SHA-currency hook FAIL (non-blocking per D-1319+).
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1380 for full context. STATE v8.009.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1380 for full context. STATE v8.010.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `f05a9f0e`.
-3. S-PERF-GATE-001 worktree REMOVED (PR #204 merged). S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 worktree REMOVED (PR #203 merged).
-4. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off; (C) EC-11 namespace collisions.
-5. Next: pre-flight demo re-audit → T13 capstone → T14 recording. Autonomy D-989 active.
+3. All worktrees CLEAR (S-PERF-GATE-001 removed PR #204; S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 removed PR #203).
+4. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off; (C) EC-11 namespace collisions; (D) N1-N6 triage routing.
+5. Next: N1-N6 triage → T13 capstone → T14 recording. Autonomy D-989 active.
