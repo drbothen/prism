@@ -121,6 +121,89 @@ fn test_bc_2_10_016_audit_004_no_dot_notation_in_prompts() {
     );
 }
 
+/// BC-2.10.016 AUDIT-004 — Positive guard: rendered prompts contain at least one valid
+/// `FROM <sensor>_<table>` reference that resolves to a REAL registered table.
+///
+/// AC-AUDIT-004 requires not just the absence of dot-notation, but also that the
+/// replacement underscore-qualified names are genuine registered tables. A prompt
+/// that switches from `FROM crowdstrike.detections` to `FROM crowdstrike_detections`
+/// satisfies the negative guard, but a prompt that switches to `FROM crowdstrike_phantom`
+/// (non-existent) would pass the negative guard and violate this positive guard.
+///
+/// Registered table set (source of truth: crates/prism-sensors/specs/*.sensor.toml):
+/// crowdstrike: detections, devices, incidents
+/// claroty:     alerts, audit_logs, devices
+/// armis:       devices, alerts
+/// cyberint:    alerts, incidents
+#[test]
+fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
+    // Registered table name set — sensor_prefix + _ + table_name.
+    // Derived from specs/*.sensor.toml; must be updated when new tables are added.
+    let registered: &[&str] = &[
+        "crowdstrike_detections",
+        "crowdstrike_devices",
+        "crowdstrike_incidents",
+        "claroty_alerts",
+        "claroty_audit_logs",
+        "claroty_devices",
+        "armis_devices",
+        "armis_alerts",
+        "cyberint_alerts",
+        "cyberint_incidents",
+    ];
+
+    // Collect the combined text from all render_* prompt functions.
+    let triage_text =
+        extract_text(&render_triage_alerts("acme").expect("render_triage_alerts must not fail"));
+    let investigate_text = extract_text(
+        &render_investigate_host("acme", "10.0.0.1")
+            .expect("render_investigate_host must not fail"),
+    );
+    let overview_text = extract_text(
+        &render_client_overview("acme").expect("render_client_overview must not fail"),
+    );
+    let cross_text = extract_text(
+        &render_cross_client_status(None).expect("render_cross_client_status must not fail"),
+    );
+    let tutorial_text = extract_text(
+        &render_query_tutorial("acme", None).expect("render_query_tutorial must not fail"),
+    );
+
+    let all_text = format!(
+        "{}\n{}\n{}\n{}\n{}",
+        triage_text, investigate_text, overview_text, cross_text, tutorial_text
+    );
+
+    // Collect all `FROM <token>` targets that look like sensor-qualified table names
+    // (contain '_' — underscore form is canonical post AUDIT-004 fix).
+    let tokens: Vec<&str> = all_text.split_ascii_whitespace().collect();
+    let mut found_registered: Vec<String> = Vec::new();
+
+    for (i, token) in tokens.iter().enumerate() {
+        if *token == "FROM" {
+            if let Some(next) = tokens.get(i + 1) {
+                let clean =
+                    next.trim_end_matches(|c: char| c == ',' || c == ';' || c == ')' || c == '\n');
+                // Only consider underscore-qualified tokens (sensor_table form).
+                if clean.contains('_') && !clean.contains("://") {
+                    if registered.contains(&clean) {
+                        found_registered.push(clean.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    assert!(
+        !found_registered.is_empty(),
+        "BC-2.10.016 AUDIT-004 POSITIVE GUARD FAILED: the combined rendered prompt bodies \
+         contain zero 'FROM <sensor>_<table>' references that resolve to a real registered \
+         table. At least one FROM target must resolve to a registered table (e.g., \
+         'FROM crowdstrike_detections'). This guard ensures prompts name real tables, not \
+         just syntactically valid identifiers.\nRegistered tables: {registered:?}"
+    );
+}
+
 // ── Helper functions ──────────────────────────────────────────────────────────
 
 /// Extract the text content from a `GetPromptResult`.
