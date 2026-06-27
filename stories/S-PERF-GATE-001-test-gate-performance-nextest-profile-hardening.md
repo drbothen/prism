@@ -6,12 +6,12 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: draft
-version: "1.6"
-spec_version: "v1.6"
+version: "1.7"
+spec_version: "v1.7"
 level: ops
 producer: story-writer
 timestamp: "2026-06-26"
-modified: "2026-06-26"
+modified: "2026-06-27"
 input-hash: ""
 inputs:
   - .factory/research/test-suite-performance-diagnosis-2026-06-26.md
@@ -195,7 +195,12 @@ pub(crate) fn build_http_client_with_custom_timeout(
     reqwest::Client::builder()
         .timeout(timeout)
         .build()
-        .map_err(|e| format!("failed to build reqwest::Client with timeout {:?}: {e}", timeout))
+        .map_err(|e| {
+            format!(
+                "failed to build reqwest::Client with timeout {:?}: {e}",
+                timeout
+            )
+        })
 }
 ```
 
@@ -338,8 +343,9 @@ reset.
 
 ### AC-008: `.cargo/config.toml` updated with documented sccache opt-in stanza (traces to BC-5.39.001 §Delivery process — cross-worktree cold-build path documented)
 
-`.cargo/config.toml` gains a commented-out `sccache` opt-in stanza. The shipped stanza
-(excerpt — full stanza follows the `# sccache: opt-in distributed/shared compilation cache`
+`.cargo/config.toml` gains a commented-out `sccache` opt-in stanza. The following is a
+byte-for-byte verbatim excerpt of the shipped stanza (the full block, including its surrounding
+delimiter comments, begins at the `# sccache: opt-in distributed/shared compilation cache`
 section header in `.cargo/config.toml`):
 
 ```toml
@@ -350,14 +356,16 @@ section header in `.cargo/config.toml`):
 # Start daemon: sccache --start-server
 # Verify: sccache --show-stats
 #
-# Measured speedup (research §7d — NOTE: the shipped stanza supersedes/corrects
-# the research §7d/§3.2.2 figure of "40-70% on cold builds"; the accurate measured
-# numbers are cold-first: no benefit, warm incremental: ~25-40% as below):
+# Measured speedup (research §7d):
 #   Cold first build: no benefit (cache must be populated first).
 #   Warm incremental (same machine, different worktrees): ~25-40% build-time
 #   reduction for the crypto/datafusion dependency tree which changes rarely.
 #   Cross-worktree sharing: sccache shares across all .worktrees/<story>/ because
 #   it caches by input hash, not by $CARGO_TARGET_DIR path.
+#
+# To enable: uncomment the [build] section below, ensure sccache is installed
+# and the daemon is running, then run `cargo build` to verify it is used
+# (sccache --show-stats should show cache hits after the second build).
 #
 # [build]
 # rustc-wrapper = "sccache"
@@ -366,11 +374,13 @@ section header in `.cargo/config.toml`):
 The stanza is entirely commented out. CI is unaffected. Running `grep 'sccache' .cargo/config.toml`
 returns at least 2 hits (the section header comment + the commented-out `rustc-wrapper` line).
 
-**sccache speedup numbers:** the shipped `.cargo/config.toml` is the authoritative source. The
-research §7d/§3.2.2 figure of "40-70% on cold builds" is incorrect and superseded by the shipped
-stanza's numbers: cold first build has no benefit (cache must be populated first), warm incremental
-(same machine, different worktrees) yields ~25-40% reduction for the crypto/datafusion dependency
-tree which changes rarely.
+**sccache speedup numbers — shipped stanza supersedes research §7d/§3.2.2:** The research document's
+§7d/§3.2.2 figure of "40-70% on cold builds" is incorrect. The shipped `.cargo/config.toml` is the
+authoritative source and supersedes it: the `# Measured speedup (research §7d):` line in the shipped
+stanza introduces numbers that show cold first build has no benefit (cache must be populated first);
+warm incremental (same machine, different worktrees) yields ~25-40% reduction for the crypto/datafusion
+dependency tree which changes rarely. The research §7d label in the shipped stanza is a reference
+citation, not an agreement with the research's "40-70%" figure.
 
 ### AC-009: `just check` completes in ≤600 s on a warm cache with no concurrent cargo jobs (traces to BC-5.39.001 §Delivery process — gate is not a productivity bottleneck)
 
@@ -409,7 +419,11 @@ returns hits in the comment block above `test_BC_2_10_010_sigterm_causes_gracefu
 ### AC-011: `signal_handlers` subprocess tests serialized via nextest `[test-groups]` `max-threads = 1` (traces to BC-5.39.001 §Delivery process — structural SIGTERM flake fix implemented)
 
 `.config/nextest.toml` gains a `[test-groups]` inline table and per-profile override
-entries that serialize the subprocess-spawning tests in `signal_handlers.rs`:
+entries that serialize the subprocess-spawning tests in `signal_handlers.rs`. The
+following is the verbatim shipped content of those entries (lines 90-98 of
+`.config/nextest.toml`; the 5-line `# S-PERF-GATE-001: Serialize ...` comment block
+that precedes `[test-groups]` in the file is omitted here — it is prose documentation
+in the file, not part of the TOML configuration keys):
 
 ```toml
 [test-groups]
@@ -732,3 +746,4 @@ Per POL-7 (verbatim BC H1 titles):
 | 1.4 | 2026-06-26 | story-writer | Round-5 holistic reconciliation — five findings closed: (1) §Background #4-contradiction: corrected "implements #1, #2, #4, #5, #6" → "implements #1, #2, #5, #6"; added item #4 deferral statement (D-1368, S-PERF-GATE-002 anchor, ADV-P02-CRIT-001 justification) alongside item #3 deferral. (2) AC-008 codeblock: reconciled to exactly match shipped `.cargo/config.toml` stanza — DO-NOT-uncomment-on-CI warning, correct Install/Start daemon/Verify instructions, Cross-worktree sharing line, corrected speedup prose; added explicit note that shipped stanza supersedes/corrects research §7d/§3.2.2 figure. (3) TD-VSDD-091 line-pin elimination: all five volatile "lines 41–52" / "lines 38–53" citations replaced with behavioral anchor "the `# Updated 2026-05-06 (PR #127)` LazyLock commentary block in `[profile.ci]`" across AC-001, AC-006, §Tasks task 5, §Previous Story Intelligence, §References. (4) §Changelog v1.3 false-§7d-agreement citation corrected. (5) AC-009 projection corrected from "items #1–#4" to "items #1, #2, #5, and #6 (those implemented)" to match actual implemented scope. Full top-to-bottom section audit: all sections confirmed MATCHES shipped code — zero remaining drift. |
 | 1.5 | 2026-06-26 | story-writer | Narrative source-verification sweep — three findings fixed and full quantitative/factual claim audit completed: (1) F-P2-MED-001: corrected "4 of 8" to "6 of 8" reset-bearing tests in §Background deferral paragraph and AC-006 STATUS block; added exact enumeration of which 6 tests call clone.reset() mid-test and which 2 do not; clarified S-PERF-GATE-002 prerequisite scope (6 tests need refactor, not all 8). (2) F-P2-LOW-1: corrected "8 tests, each booting its own DTU clone" to "7 of 8 boot a DTU clone; 1 uses a wiremock mock server" in §Background key data points — source-verified against adv_p02_e2e_pushdown_pipeline_test.rs which shows test_adv_p02_sid1_armis_fetch_start_time_augments_aql uses wiremock::MockServer not a DTU binary. (3) F-P2-LOW-2: corrected AC-001 final bullet — the shipped [profile.prepush] comment references story ID S-PERF-GATE-001 and the [profile.e2e] pattern, NOT PR #127; PR #127 is cited only in the [profile.ci] comment block (source-verified against shipped .config/nextest.toml). Full narrative quantitative/factual claim audit performed: every count, timing, percentage, and code-factual claim verified against source files — all other claims confirmed MATCHES. |
 | 1.6 | 2026-06-26 | story-writer | F-P2-MED-001 (AC-001 grep-count assertion) + empirical AC verification-command sweep. AC-001: anchored verification regex to `rg '\[profile\.prepush\]'` (1 hit, section header only) and documented that the broader `rg 'profile.prepush'` returns 2 hits (section header + `[[profile.prepush.overrides]]` from AC-011). Empirical sweep: every AC verification command run against shipped worktree `/Users/jmagady/Dev/prism/.worktrees/S-PERF-GATE-001/` — AC-002 (`grep -A5 'profile.ci\]' \| grep retries` → `retries = 1`, 1 hit, MATCHES), AC-003 (`grep 'profile prepush' Justfile` → 1 hit, MATCHES), AC-004 (`grep 'build_http_client_with_custom_timeout'` → 12 hits, ≥2 claimed, MATCHES), AC-005 (`cargo nextest list -E '...'` → test listed, MATCHES), AC-008 (`grep 'sccache'` → 9 hits, ≥2 claimed, MATCHES), AC-010 (`grep -A5 'mmap\|SIGSEGV\|RocksDB.*signal'` → comment block present, MATCHES), AC-011 (`rg 'binary(signal_handlers)'` → both profile overrides present, MATCHES). All AC verification-command claimed outputs now match actual output against shipped tree. |
+| 1.7 | 2026-06-27 | story-writer | F-P2R7-MED-001 close + codeblock-verbatim-excerpt durable fix. (1) AC-008 codeblock: removed the editorially-inserted `— NOTE: the shipped stanza supersedes/corrects ...` content from the `# Measured speedup` line; replaced with byte-for-byte verbatim excerpt of the shipped `.cargo/config.toml` sccache stanza (including the `# To enable: uncomment...` paragraph that was previously absent); moved the supersession commentary entirely into the prose paragraph below the codeblock. (2) AC-004 first codeblock: corrected `.map_err` format from single-line inline to the shipped multi-line `|e| { format!(...) }` block (bytes 1071-1083 of spec_driven_adapter.rs). (3) AC-011 codeblock: re-framed from implicitly illustrative to explicitly verbatim — added prose note that the 5-line comment preamble that precedes `[test-groups]` in the file is omitted from the codeblock since the codeblock shows the TOML config keys (lines 90-98 of nextest.toml). (4) All other shipped-excerpt codeblocks (AC-001, AC-003) confirmed MATCHES verbatim against shipped files. Durable principle applied: ALL commentary, supersession notes, rationale, and meta-explanation moved to prose; codeblocks contain ONLY byte-for-byte content from the shipped file. |
