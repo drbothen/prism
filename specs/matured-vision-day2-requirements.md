@@ -1622,6 +1622,19 @@ simultaneously:
 | G-16 | **Multi-version OCSF support** (concurrent 1.1/1.3 + evolution) in type system + Iceberg tier | §13.6; ADR + BC |
 | G-17 | **Multi-schema PrismQL type system** (namespaces, aliasing, schema-on-read for native sources) | §13.6; mirrors axiathon type_system/aliases/version |
 
+> **Day-2 addendum (2026-06-26 side analysis). PROPOSED. do_not_execute.**
+> OT/ICS telemetry is the **flagship native-schema-on-read case** in the multi-schema model above.
+> OCSF has no first-class ICS/OT event classes or profiles as of 2026 (open proposal ocsf/ocsf-schema
+> issue #1515 "Industrial Control System (ICS) Field Extensions" — not yet standardized; confirmed by
+> independent factual check against schema.ocsf.io). OCSF Network Activity (class 4001) carries only
+> the generic L3/4 envelope of an OT flow; OT protocol semantics (Modbus function codes, DNP3
+> object-groups/points, S7 block/variable access, GOOSE dataset-refs/state-numbers, IEC-104 ASDU types)
+> have no OCSF home today and MUST live in native structured tables queried schema-on-read — exactly
+> §13.6 #2 (native/structured schema-on-read for non-OCSF sources). When/if ocsf#1515 standardizes,
+> prism's multi-version OCSF support (G-16) absorbs ICS extensions without a native-schema migration.
+> Until then OT is the canonical example that makes the multi-schema thesis concrete and non-optional.
+> Cross-reference: §17.13 (OT protocol matrix, OCSF-OT verdict, safety constraints).
+
 ---
 
 ## Section 14 — Detection Engine & Rule Editor (HUMAN-CONFIRMED 2026-06-25)
@@ -1754,6 +1767,20 @@ Prism serves OT (Claroty/Armis sensors + Purdue/OT satellite mesh §3.2), so OT 
 scope**, contrary to the explore agent's IT-only assumption. Includes OT-relevant detection content
 and (later) OT-protocol-aware semantics. OT detections run via satellites at the appropriate Purdue
 layer; partial-result + degraded-subtree semantics (§3.2/§3.6) apply.
+
+> **Day-2 addendum (2026-06-26 side analysis). PROPOSED. do_not_execute.**
+> OT detection runs as detection-as-query over native-schema-on-read OT tables (OCSF has no first-class
+> OT event classes as of 2026; open proposal ocsf#1515 covers this gap — see §13.6 / §17.13). OCSF
+> Network Activity (class 4001) carries only the L3/4 envelope; OT protocol semantics (Modbus function
+> codes, DNP3 object-groups/points, S7 block/variable access, GOOSE dataset-refs/state-numbers, IEC-104
+> ASDU types) live in native structured tables queried schema-on-read. Dissection of OT packets runs via
+> prism's native Spicy-style declarative engine on the OT-layer Satellite (§3.2) under strict passivity
+> constraints: TAP preferred over SPAN, placement per Purdue layer / IEC 62443 zones-and-conduits,
+> no injection onto the OT segment under any configuration. Encrypted-OT traffic (OPC-UA, MQTT-over-TLS)
+> is metadata-only by DEFAULT; bounded decrypt opt-in at OT gateway chokepoints is a later,
+> default-OFF, explicitly-authorized capability — never decrypting on the OT segment itself.
+> Cross-references: §17.12 (native dissector engine), §17.13 (OT protocol matrix, safety constraints,
+> OCSF-OT verdict), §17.14 (synthesis + decisions).
 
 ### 14.7 Content libraries (adopt)
 
@@ -2008,8 +2035,17 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   is per-instance, edge-first default. Chain-aware model leans: declarative-policy-floor tiering; residency-first
   per-field ordered-before-forward replication policy (ahead of prior art); Q3 deadline v1 (gRPC + partial+coverage +
   opportunistic hub pre-aggregate), full budget-aware planner ordered later. Open items: §17.10 (11 questions); proposed
-  E-COLLECTOR-*/E-CHAIN-CACHE-*/E-STREAM-DETECT-* epics + ADRs (§17.11, gaps G-27–G-31). **NEXT in this thread:** how
-  #4 + #5 reshape the storage/detection picture.
+  E-COLLECTOR-*/E-CHAIN-CACHE-*/E-STREAM-DETECT-* epics + ADRs (§17.11, gaps G-27–G-31).
+  - **Protocol dissectors + #4/#5 reshape CAPTURED in §17.12–§17.14** (research `detection-reshape-protocol-dissectors-2026-06-26.md`,
+    R1–R7). **DECIDED 2026-06-26 (human):** prism EMBEDS a native Spicy-style declarative dissector engine (authors its own
+    grammars incl. OT — not federating Zeek/Suricata); prism-NATIVE continuous windowed operator on the RocksDB state backend
+    (reuse the MATCH_RECOGNIZE NFA + watermark/checkpoint layer, not embedded Flink); the detection spec carries EXPLICIT
+    temporal semantics (`lateness`/`accumulation`/window-alignment in §14 YAML — planner picks engine, not meaning); encrypted-OT
+    visibility metadata-only by default + bounded decrypt/proxy opt-in later; **OT = flagship native-schema-on-read** (OCSF has NO
+    OT classes as of 2026, open proposal ocsf#1515). `WATCH…UNLESS` = dual impl (anti-join polled / per-partition timer continuous).
+    Detection-driven packet retention (trigger→pin→retrieve, Community ID). State: unify operator-window + detection_state (distinct
+    CFs), ML ModelState separable. New epics E-DISSECTOR-NATIVE-001 / E-DISSECTOR-OT-001 (+ extend E-STREAM-DETECT-001 /
+    E-COLLECTOR-PCAP-001); gaps G-32–G-36. Honest cost: prism now owns TWO heavy native engines (Spicy-style dissector + windowed operator).
 - **Still OPEN (not yet captured):** SSO↔transport binding detail; the §5.x execution-checklist items all remain
   pending the brief-reframe HUMAN GATE.
 
@@ -2459,3 +2495,234 @@ verdict, composed chain model, failure modes, open questions §7).
 ---
 
 *2026-06-26 side-analysis capture; PROPOSED; gated on brief-reframe sign-off; sources: `research/federated-ingestion-collector-connectors-2026-06-26.md` and `research/chain-cache-tiering-replication-deadlines-2026-06-26.md`.*
+
+### 17.12 Protocol-Dissector Layer (the keystone)
+
+> **PROPOSED. do_not_execute. Gated on brief-reframe sign-off.**
+
+The dissector IS §17 stage-3 normalization for packet/stream sources: packet bytes →
+structured OCSF Network Activity (class 4001, L3/4 envelope) + native schema-on-read
+protocol/OT fields. It is pluggable, declarative, and spec-driven — the dogfood of
+prism's TOML-connector philosophy applied to packets.
+
+**DECIDED 2026-06-26 (human): prism EMBEDS a NATIVE Spicy-style declarative
+parser-generator from the start.** Prism does NOT depend on running external Zeek or
+Suricata as a process. Protocol grammars — Spicy-style `unit`/field/hook definitions
+plus an interface-definition binding that compiles to a parser — are first-class prism
+artifacts, and prism authors its own grammars INCLUDING OT protocols. Implementation
+nuance deferred to the morph: embed the open-source BSD-licensed Spicy runtime/toolchain
+versus re-implement an equivalent engine — either way the dissection engine is
+prism-owned and prism-native; embedding the existing Spicy runtime is the pragmatic
+route. In both paths prism controls the grammar lifecycle.
+
+A dissector-backed packet sensor becomes "just another collector" (`FROM cache.<collector>`);
+new protocols or OT dialects are new declarative grammar plugins with no core change;
+per-site grammars fit the residency-first model perfectly — each satellite carries
+exactly the grammars its equipment needs.
+
+The dissector emits three things per session:
+- **(a) OCSF Network Activity (4001)** — the portable L3/4 envelope (src/dst IP/port,
+  transport, bytes).
+- **(b) Native schema-on-read protocol/OT semantics** — Modbus function codes, DNP3
+  object groups/points, S7 block/variable access, GOOSE dataset-refs/state-numbers,
+  IEC-104 ASDU types, etc. — queried as prism native tables (§13.6; §17.13).
+- **(c) The Community ID session key** — the hash of the 5-tuple that links
+  normalized metadata (axis-1) to pinned raw packets (axis-2 §17.6) and enables the
+  trigger→pin→retrieve loop (§17.14).
+
+**Honest cost:** heaviest dissector build of any approach; re-treads coverage already
+present in ICSNPP. The return is a first-class, integrated, memory-safe, fuzzable,
+spec-driven dissection layer that prism fully owns, with no external process dependency.
+Declarative grammars > hand-written imperative parsers for safety and fuzzability
+(Spicy generates bounds-checked parsers). Research anchor: R5 in
+`research/detection-reshape-protocol-dissectors-2026-06-26.md`.
+
+---
+
+### 17.13 OT/ICS Dissection + Safety + OCSF-OT Verdict
+
+> **PROPOSED. do_not_execute. Gated on brief-reframe sign-off.**
+
+**OT protocol matrix** (Purdue placement, open-source dissection status, prism grammar
+responsibility):
+
+| Protocol | Purdue layer | ICSNPP (Spicy) coverage | Prism grammar responsibility |
+|----------|-------------|------------------------|------------------------------|
+| Modbus / Modbus-TCP (TCP 502) | L0–L2 | YES — ICSNPP-Modbus | Adopt/extend ICSNPP |
+| DNP3 (TCP 20000) | Substation L1–L3 | YES — ICSNPP-DNP3 | Adopt/extend ICSNPP |
+| S7comm / S7comm-plus (TCP 102) | L1–L2 (engineering/HMI↔PLC) | YES — ICSNPP-S7COMM | Adopt/extend ICSNPP |
+| IEC 60870-5-104 (TCP 2404) | Substation L2–L3 | YES — ICSNPP-IEC104 (flagged "outdated"; verify) | Audit + patch ICSNPP |
+| IEC 61850 GOOSE (L2 multicast) | Process bus L0–L1 | YES — ICSNPP-GOOSE | Adopt/extend ICSNPP |
+| PROFINET-IO-CM (L2 industrial) | L0–L2 | YES — ICSNPP-PROFINET-IO-CM | Adopt/extend ICSNPP |
+| EtherNet/IP + CIP (TCP 44818) | L0–L2 | GAP in cited ICSNPP set | Prism authors grammar |
+| OPC-UA (TCP 4840 / 443) | L2–L3 DMZ | GAP — often encrypted; Wireshark only | Prism authors grammar; encrypted-OT caveat applies (see below) |
+| BACnet (UDP 47808) | Building OT L2–L3 | GAP in cited ICSNPP set | Prism authors grammar |
+| MQTT (TCP 1883 / 8883 TLS) | L3–L3.5 / IIoT edge | GAP — often TLS; Wireshark only | Prism authors grammar; encrypted-OT caveat applies |
+| IEC 61850 MMS (TCP 102) | Substation L2–L3 | GAP in cited ICSNPP set | Prism authors grammar |
+| IEC 61850 Sampled Values (L2) | Process bus L0–L1 | Wireshark only; demanding | Prism authors grammar (later) |
+
+(Source: CISA ICSNPP GitHub + deep-research R6 in `research/detection-reshape-protocol-dissectors-2026-06-26.md`.)
+
+**DECIDED 2026-06-26 (human): OT/ICS telemetry is the flagship NATIVE-SCHEMA-ON-READ
+case (§13.6).** OCSF has NO first-class ICS/OT event classes as of 2026; there is an
+open proposal (ocsf/ocsf-schema issue #1515 "Industrial Control System (ICS) Field
+Extensions") but nothing standardized. OCSF Network Activity (class 4001) carries only
+the generic L3/4 envelope. OT protocol semantics — Modbus function codes, DNP3
+object-groups/points, S7 block/variable access, GOOSE dataset-refs/state-numbers, IEC-104
+ASDU types — have no OCSF home and MUST live in native structured tables queried
+schema-on-read. When/if ocsf#1515 standardizes, prism's multi-version OCSF support
+(G-16 §13.6) absorbs ICS extensions without a native-schema migration.
+
+**Safety constraints — NON-NEGOTIABLE:**
+
+- **Passive / read-only only.** Active polling or scanning can fault, hang, or
+  fail-safe PLCs/RTUs/relays. OT monitoring is passive analysis from a TAP or SPAN;
+  prism never injects onto an OT segment under any configuration.
+- **TAP preferred over SPAN.** SPAN/mirror ports can drop under congestion and may lose
+  time-critical L2 frames (GOOSE, SV, PROFINET RT). TAPs are strongly preferred for
+  process-bus protocols; SPAN is an acceptable fallback for L3+ flows.
+- **Purdue + IEC 62443 zones-and-conduits placement.** OT dissectors run on the
+  OT-layer Satellite (§3.2) at the correct Purdue layer — L0–L1 process-bus protocols
+  (GOOSE/SV/PROFINET) need a sensor on that segment with L2 access; L2↔L3 conduit
+  sensors cover the supervisory layer.
+- **Determinism / no-injection.** Parsing must be robust and lightweight; a
+  malformed-parse must never misinterpret safety-relevant data; the dissector must not
+  add buffering or forwarding load to RT I/O paths.
+
+**DECIDED 2026-06-26 (human): encrypted-OT visibility (OPC-UA, MQTT-over-TLS) =
+metadata-only by DEFAULT.** Passive capture of encrypted OT traffic yields only
+L3/4 metadata (IP/port/bytes) — no protocol semantics. An OPT-IN, carefully-bounded
+decryption/proxy posture at OT gateway chokepoints (known keys + known endpoints) is
+a LATER capability — explicitly tensioned with strict passivity; default-OFF;
+requires explicit per-site authorization; decryption NEVER occurs on the OT segment
+itself, only at a governed IT-side gateway chokepoint.
+
+Research anchor: R6 in `research/detection-reshape-protocol-dissectors-2026-06-26.md`.
+
+---
+
+### 17.14 How #4 + #5 + the Dissector Reshape Storage and Detection (Synthesis + Decisions)
+
+> **PROPOSED. do_not_execute. Gated on brief-reframe sign-off.**
+
+This section synthesizes how the protocol-dissector layer (§17.12), full-packet retrieval
+(§17.6 #4), and continuous-operator capability (§17.7 #5) compose into a coherent storage
+and detection architecture. It records the DECIDED items from the 2026-06-26 discussion
+and the remaining OPEN questions.
+
+**Storage — two axes + a state substrate:**
+
+- **Axis-1 (normalized metadata)** — OCSF Network Activity (class 4001) L3/4 envelope +
+  native schema-on-read OT/protocol semantics — produced by the dissector (§17.12),
+  stored in the federated/tiered metadata stores per §3.3 and §17.8, pushed up through
+  the chain.
+- **Axis-2 (raw packets)** — the §17.6 Arkime-style edge-local rolling buffer,
+  disk-bounded, detection-pinned; retrieved by session-ID on demand; raw packets never
+  cross a satellite residency boundary.
+- **State substrate** — RocksDB column families for continuous-operator window/correlation
+  state and `detection_state`; ML `ModelState` (§15) logically separable (see below).
+
+**Detection — ONE language, TWO engines:**
+
+**DECIDED 2026-06-26 (human): the continuous-operator (#5 Phase 2) is prism-NATIVE on
+the RocksDB state backend** — reuses the `MATCH_RECOGNIZE` NFA operator prism already
+owns (DataFusion will not execute it; G-18) extended with a watermark/checkpoint/late-data
+layer. This is NOT an embedded Flink; it is prism's own operator running on the existing
+RocksDB infrastructure. One engine, one language; the watermark/checkpoint layer is the
+expensive build item (consistent with §17.7 "Phase 2 = the single most expensive item").
+
+**DECIDED 2026-06-26 (human): the detection spec carries EXPLICIT temporal semantics.**
+The §14 YAML rule metadata gains `lateness` / `accumulation` / window-alignment fields.
+The planner picks the EXECUTION ENGINE (polled-NRT vs continuous) but NEVER the
+semantics. This prevents silent polled-vs-continuous alert divergence — a rule cannot
+mean two different things depending on which physical engine the planner selects. Research
+anchor: R2 in `research/detection-reshape-protocol-dissectors-2026-06-26.md`.
+
+Note: `WATCH…UNLESS` (§12.4 absence/exclusion operator) now has TWO physical
+implementations:
+- **Relational anti-join `AbsenceWindowNode`** — polled/batch path (existing §12.4
+  desugaring, closes the bounded retrospective window).
+- **CEP-style per-partition TIMER** — continuous path (absence over an unbounded stream
+  requires a timer/watermark to ever "complete" a non-match; a pure relational anti-join
+  cannot confirm absence without a deadline). Research anchor: R1.
+
+**Detection-driven packet retention (the #4 × #5 loop):**
+
+The canonical flow is: **trigger → pin → retrieve.** The continuous operator (Phase 2)
+or the v1 edge detector (Phase 1 NRT path) emits session identifiers on detection; the
+§17.6 rolling buffer receives a pin signal for those session-IDs, extending their
+retention beyond rolling expiry; analysts or automation retrieve the pinned PCAP
+on-demand via the Community ID session key. Prior-art validation: Suricata conditional
+pcap / Zeek Time Machine / Corelight Smart PCAP / Stenographer / Arkime (R3). Required
+infrastructure: synchronized clocks across the dissector, operator, and PCAP buffer;
+the Community ID session key as the consistent cross-tool session identifier; pin-policy
+ownership in the §17.8 retention-policy engine (extended).
+
+**State unification (DECIDED-LEAN, 2026-06-26):**
+
+Continuous-operator window state + `detection_state` share the **RocksDB/RetentionCache
+family in DISTINCT column families** per the existing 19-CF pattern — column-family
+isolation within one engine, not a separate datastore. This matches Kafka Streams
+precedent (operator state + long-lived materialized state on one RocksDB-backed mechanism)
+and honors §14.3 "no new datastore." ML `ModelState` (§15) is kept **logically separable**
+— different access pattern (random-read at inference), different lifecycle (versioned
+releases), different blast-radius / recovery profile; dedicated CF or dedicated RocksDB
+instance (no new datastore either way). The continuous operator's window state gets its
+own incremental-checkpoint cadence, distinct from the durable `detection_state` checkpoint.
+Research anchor: R4.
+
+**Honest costs:**
+
+1. Prism now owns TWO heavy native engines: the Spicy-style declarative dissector + the
+   windowed continuous operator with watermark/checkpoint machinery.
+2. Heavy edge compute — deep OT dissection + RocksDB-backed continuous operator at the
+   capture point; drop/backpressure risk; per-site DevOps complexity.
+3. OT passivity ceiling — strict observe-only; lightweight parsing mandatory; no inline
+   OT enforcement; detection must not perturb TAP/SPAN infra.
+4. Multi-schema burden — OCSF portable baseline + OT-site-specific native schema;
+   per-site schema discovery/registry; detection portability splits (OCSF-portable rules
+   globally deployable; OT-native rules residency/site-specific, must degrade gracefully
+   where OT fields absent).
+5. Checkpoint/recovery coupling — shared checkpoint stream couples fast operator state to
+   slow campaign state; column-family boundary may not be sufficient isolation (open
+   question).
+
+**Remaining OPEN questions (NOT decided):**
+
+1. State checkpoint-cadence specifics — cadence for continuous-operator window state vs
+   durable `detection_state` vs ML `ModelState`.
+2. Pin-policy detail — which detections pin which sessions; first-N-bytes vs full-session;
+   who owns the policy (detection spec, retention-policy engine, or per-site config).
+3. Detection-portability governance — OCSF-portable vs OT-native rule lifecycle; how a
+   globally-deployed rule degrades gracefully where OT fields are absent.
+4. Entity-registry (§12.1) OT-observable resolution — how an OT observable (PLC IP +
+   unit-ID) resolves across OCSF + native + IT schemas.
+5. Per-satellite edge compute budget vs the OT passivity ceiling — what is the per-site
+   compute envelope and how is "must not perturb TAP/SPAN" enforced/measured.
+
+**Proposed epics and candidate ADRs (numbers deferred to architect at morph):**
+
+| Proposed epic | Scope |
+|---------------|-------|
+| **E-DISSECTOR-NATIVE-001** | Embedded Spicy-style parser-generator engine (runtime embed or equivalent); core protocol grammars (Modbus/DNP3/S7comm/IEC-104/GOOSE/PROFINET from ICSNPP); Community ID session-key emission; §17 stage-3 integration |
+| **E-DISSECTOR-OT-001** | OT grammar gaps: EtherNet/IP, OPC-UA, BACnet, MQTT, IEC-61850 MMS/SV; per-site grammar plugin lifecycle; safety/passivity enforcement |
+| **E-STREAM-DETECT-001** (extend) | prism-native continuous operator + explicit-semantics detection spec (`lateness`/`accumulation` fields in §14 YAML); `WATCH…UNLESS` CEP-timer path; watermark/checkpoint machinery |
+| **E-COLLECTOR-PCAP-001** (extend) | Trigger→pin→retrieve: detection-driven pin signals to rolling buffer; Community ID cross-tool session linkage; clock-sync requirements |
+
+ADR candidates: native Spicy-style dissector engine selection (embed vs reimplement);
+prism-native continuous windowed operator on RocksDB; detection-spec explicit temporal
+semantics; OT native-schema-on-read model + encrypted-OT bounded-decrypt opt-in policy.
+
+Gap registry additions:
+
+| Gap | Description | Proposed epic |
+|-----|-------------|---------------|
+| G-32 | Native Spicy-style declarative dissector engine (embedded runtime or equivalent) | E-DISSECTOR-NATIVE-001 |
+| G-33 | OT grammar gaps (EtherNet/IP, OPC-UA, BACnet, MQTT, IEC-61850 MMS/SV) | E-DISSECTOR-OT-001 |
+| G-34 | Detection-spec explicit temporal semantics (`lateness`/`accumulation` fields) | E-STREAM-DETECT-001 (extend) |
+| G-35 | `WATCH…UNLESS` CEP-timer path for continuous/unbounded-stream absence detection | E-STREAM-DETECT-001 (extend) |
+| G-36 | Detection-driven pin signals + Community ID cross-tool session linkage for trigger→pin→retrieve | E-COLLECTOR-PCAP-001 (extend) |
+
+---
+
+*2026-06-26 side-analysis capture; PROPOSED; gated on brief-reframe sign-off; source: `research/detection-reshape-protocol-dissectors-2026-06-26.md` (R1–R7, OT matrix, honest costs, open questions).*
