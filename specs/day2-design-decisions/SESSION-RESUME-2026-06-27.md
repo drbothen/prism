@@ -163,22 +163,41 @@ Dated 2026-06-27 (landed this wrap commit):
 - Fork: add schema_version + forward-migration framework (Envoy/K8s apiVersion style) vs
   `#[non_exhaustive]`-forward-compat-only.
 
-#### Dual-deployment (DECIDED — needs its own cross-cutting ADR-PROP)
-- Single-codebase + run-time deployment-profile (SaaS / on-prem-self-managed), ~90% shared.
+#### Dual-deployment → DEPLOYMENT MATRIX (DECIDED — needs its own cross-cutting ADR-PROP)
+- Single-codebase + run-time deployment-profile, ~90% shared.
   (Confirmed across GitLab/Sentry/Elastic/Mattermost/GitHub/Grafana/HashiCorp/Temporal; divergent forks =
   documented failure mode.)
+- **DEPLOYMENT MATRIX = two axes (WHO HOSTS × WHO OPERATES), THREE named operating models (HUMAN-CONFIRMED 2026-06-27):**
+  1. **SaaS** — vendor(Prism/1898)-hosted, vendor-operated, multi-CUSTOMER tenancy.
+  2. **MSSP-managed** — customer/MSSP infra, MSSP(1898)-operated, multi-CLIENT tenancy (the MSSP's downstream clients).
+  3. **Client-managed (NEW 2026-06-27)** — client infra, the CLIENT'S OWN SOC operates it, single-org (or internal
+     business-unit) tenancy — NO MSSP in the loop ("client just wants the solution, runs it themselves").
+  ABSORBED by the SAME single-codebase + deployment-profile decision: the profile carries an OPERATOR-ROLE dimension
+  (vendor / MSSP / client-SOC) alongside the hosting dimension; the tenant-id abstraction spans the FULL spectrum
+  (multi-customer → multi-client → single-org). Client-managed = the self-managed edition operated by the end client
+  rather than the MSSP — same code, different operator + simpler tenancy, and a client-managed deployment can
+  OPTIONALLY admit the MSSP later without re-architecting (operator is a profile dimension, not a fork).
 - **HEADLINE:** Prism's satellite mesh IS the BYOC zero-access data-plane by construction (C2 residency +
   AD-017 satellite-local creds → SaaS central never sees raw data/creds). Passes BYOC litmus by construction.
-  = Strongest SaaS differentiator.
+  = Strongest SaaS differentiator. **BYOC zero-access thesis STRENGTHENED:** a client who runs it themselves is
+  exactly who values "vendor/MSSP never sees our data or creds".
 - Egress-blocked CI invariant = standing guard (air-gap-leak is the most dangerous risk).
-- On-prem ≠ single-tenant: MSSP-internal multi-tenancy via SAME tenant-id abstraction; tenants = MSSP's clients.
-- Release = largest delta: on-prem customer-controlled skip-version upgrades → makes C9 Q3 schema-versioning
+- Tenancy depth spans single-org → multi-BU → multi-client → multi-customer on the ONE abstraction.
+  (Prior: "on-prem ≠ single-tenant: MSSP-internal multi-tenancy via SAME tenant-id abstraction" — now generalized
+  across all three operating models.)
+- Release = largest delta: on-prem / client-managed skip-version upgrades → makes C9 Q3 schema-versioning
   load-bearing.
 - C9 deployment-conditional:
   - SaaS: managed-remote-git; k8s blue-green (central); SaaS-only fleet-canary layer atop shared customer-scoped canary.
-  - On-prem: offline-signed-bundle; A/B-appliance+watchdog (central); identical satellite self-recovery both modes.
+  - MSSP-managed / client-managed: offline-signed-bundle; A/B-appliance+watchdog (central); identical satellite
+    self-recovery both modes.
+- **C9 IMPACT:** config-authority model (DB-authoritative + UI + git-backed) is IDENTICAL across all three; what varies
+  by operator is WHO is the admin (vendor SRE / MSSP admin / client SOC), the RBAC default, and the day-3
+  approval-WORKFLOWS (must accommodate all three operator shapes — reinforces deferring them as configurable).
+  Support/onboarding/licensing differ by operator (go-to-market, not architecture).
 - Touched decisions to mark deployment-aware: C1/storage/C2/credentials/C9/release.
-- OPEN sub-choice: tenancy-isolation depth (pool/bridge/silo/cell-per-customer).
+- OPEN sub-choice: tenancy-isolation depth (pool/bridge/silo/cell-per-customer). Capture target unchanged: the
+  cross-cutting dual-deployment ADR-PROP now records the THREE-operating-model matrix.
 - Residual BYOC gaps: result-transit residency, metadata-leakage audit, ephemeral dial-home tokens,
   CMEK for central metadata.
 
@@ -235,7 +254,7 @@ Resolve OQ-C8-ASOF + OQ-C8-OCSFVER via BITEMPORALITY:
 
 2. **Capture queue** (in order after Q2/Q3 discussions):
    1. C9 capture → ADR-PROP-config-management.md
-   2. Dual-deployment capture → ADR-PROP-dual-deployment.md (NEW, cross-cutting)
+   2. Deployment-matrix capture → ADR-PROP-dual-deployment.md (NEW, cross-cutting; three operating models: SaaS / MSSP-managed / client-managed)
    3. C7 fold → update ADR-PROP-ml-behavior-analytics-depth.md
    4. C8 fold → update ADR-PROP-prismql-deliverables.md
    5. C10 discussion + capture → ADR-PROP-competitive-positioning.md (or fold into vision doc §16)
@@ -247,6 +266,8 @@ Resolve OQ-C8-ASOF + OQ-C8-OCSFVER via BITEMPORALITY:
 - **factory-artifacts HEAD:** this wrap commit (run `git -C .factory log -1 --format='%h %s'`).
 - Prior committed HEAD before this wrap: C8 PrismQL deliverables capture commit.
 - Working tree otherwise clean (untracked `.DS_Store` only; live-factory files left unstaged).
+- **Amend note (2026-06-27):** deployment matrix updated to three operating models (SaaS / MSSP-managed /
+  client-managed); C9 config research (config-management-depth-2026-06-27.md) landed.
 
 ## 7. Gaps / epics introduced (PROPOSED, not in STORY-INDEX)
 Gaps **G-1 … G-36** (plus new cross-cutting dual-deployment gap). Proposed epics:
