@@ -70,7 +70,7 @@ status: draft
 # + BC-2.11.019 v1.3 draft→active at merge per POL-14. Canonical versions are authoritative
 # in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "1.7"
+version: "1.8"
 updated: "2026-06-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -246,15 +246,18 @@ mapping):
 > UDF not found, this gate). A query with both a dot-notation FROM target AND an invalid
 > enrichment name returns E-QUERY-037, NOT E-QUERY-039 — the table gate fires first.
 >
-> **WHERE-clause note:** The SQL-mode `ScalarFunc::Unknown` gate covers enrichment function calls
-> in SELECT projections. In the current grammar, WHERE-clause enrichment calls are a parse error
-> (E-QUERY-001 at the grammar level) — a WHERE-clause like `WHERE enrich threat_score(col) > 0`
-> is rejected by the parser before reaching the plan-time gate. The SQL-path visitor scan for
-> `ScalarFunc::Unknown` in projection expressions is therefore the COMPLETE coverage for
-> SQL-mode enrichment validation; no WHERE-clause scan is needed in the plan-time pass.
-> The visitor arm is written defensively to handle programmatic AST construction that bypasses
-> the parser, but in practice all SQL-mode enrichment errors surface via the projection arm
-> or as E-QUERY-001 parse errors before the plan-time gate is reached.
+> **WHERE-clause note (BC-2.11.019 v1.3 §Precondition 1(b)):** SQL-mode enrichment-validation
+> covers `ScalarFunc::Unknown(name)` in BOTH SELECT projection expressions AND WHERE clause
+> positions. The plan-time gate scans both: projection items (select list) and the WHERE predicate
+> tree via `collect_unknown_scalar_from_predicate` (the HIGH-003 fix). Its doc comment explicitly
+> cites "BC-2.11.019 §Precondition 1(b): WHERE-clause unknown scalar functions must be gated at
+> plan time." The WHERE scan is therefore REQUIRED and implemented — not defensive or optional.
+> The ONLY genuine parse-error case is the PIPE-mode `enrich`-keyword form used in a WHERE
+> position (pipe filter grammar has no fn-call atom), e.g. `| WHERE enrich threat_score(col) > 0`,
+> which is an E-QUERY-001 parse error that never reaches the plan-time gate. The SQL bare-funcall
+> form `SELECT ... FROM t WHERE udf(col) = v` DOES parse to `ScalarFunc::Unknown` and IS a
+> required gate path covered by `collect_unknown_scalar_from_predicate`. Both projection and
+> WHERE scans feed the same validation loop and the same `EnrichUdfNotFound` error type.
 
 **Step 1 — Create the error type** (in `crates/prism-core/src/error.rs`):
 - Add variant `EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` to `PrismError`.
@@ -268,7 +271,7 @@ BEFORE `check_availability_gate`/fan-out. This pass uses the AST `visit::Visitor
 enrichment function names from BOTH query paths and validates each against the registered
 UDF name set (derived from `registry.udf_descriptors()`):
 - **Pipe path** — visitor arm collects `EnrichStage.infusion` values from `PipeStage::Enrich` nodes.
-- **SQL path** — visitor arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions (WHERE-clause enrichment calls are E-QUERY-001 parse errors — they never reach this gate; see WHERE-clause note above).
+- **SQL path** — visitor arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions AND from WHERE clause predicates via `collect_unknown_scalar_from_predicate` (per BC-2.11.019 v1.3 §Precondition 1(b); see WHERE-clause note above). Only the PIPE-mode `enrich`-keyword WHERE form is an E-QUERY-001 parse error — the SQL bare-funcall WHERE form is a required gate path.
 
 Both collection paths are DISTINCT visitor arms but feed the same validation loop and the same
 `EnrichUdfNotFound` error type. For each collected name: if `name` is NOT a key in
@@ -476,7 +479,7 @@ catalog row.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v1.7) | ~10,000 |
+| This story spec (v1.8) | ~10,000 |
 | BC files (5 BCs) | ~10,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs) | ~18,000 |
 | Research/audit docs (2) | ~6,000 |
@@ -510,7 +513,8 @@ tokens versus v1.0 estimate; still well within budget.)
 - [ ] 6. Add plan-time enrichment-validation pass in `crates/prism-query/src/engine.rs`
        BEFORE `check_availability_gate`/fan-out; use AST `visit::Visitor` to collect
        enrichment function names — (a) pipe path: `PipeStage::Enrich` nodes → `EnrichStage.infusion`;
-       (b) SQL path: `ScalarFunc::Unknown(name)` in projection expressions; these are DISTINCT
+       (b) SQL path: `ScalarFunc::Unknown(name)` in projection expressions AND WHERE predicates
+       via `collect_unknown_scalar_from_predicate` (BC-2.11.019 v1.3 §Precondition 1(b)); these are DISTINCT
        visitor arms but feed the same validation loop. For each collected `name`: if NOT in
        `InfusionRegistry.udf_to_infusion`, build the UDF name vec inline via
        `registry.udf_descriptors().iter().map(|d| d.name.clone()).collect::<Vec<_>>()`
@@ -696,7 +700,7 @@ Files to modify (v1.2 — E-QUERY-039 net-new in prism-core + engine.rs gate; E-
 | `crates/prism-mcp/src/error_mapping.rs` | MODIFY (E-QUERY-039 arm net-new; E-QUERY-037 arm confirmed-present, no change) | N1-B Step 3: add explicit `-32602` INVALID_PARAMS arm for `PrismError::EnrichUdfNotFound` (E-QUERY-039) — this is the ONLY net-new arm; MUST NOT fall through to `-32000` catch-all. `PrismError::TableNotAvailable` (E-QUERY-037) arm is CONFIRMED PRESENT (doc: "S-3.13 AC-2; BC-2.11.001") — no modification needed. |
 | `crates/prism-query/src/table_registry.rs` | MODIFY | N2: in `check_availability_gate` and/or `is_registered`, ensure `TableRegistry::is_registered(table_name_as_written)` check runs BEFORE any fan-out routing — so dot-notation strings like `cyberint.alerts` return `PrismError::TableNotAvailable` (E-QUERY-037) with `did_you_mean`; trace actual call chain first |
 | `crates/prism-query/src/engine.rs` | MODIFY | N2: ensure the table availability gate from table_registry.rs is wired at the correct engine layer entry point (where the plan-time check fires before fan-out is dispatched) |
-| `crates/prism-query/src/engine.rs` (enrichment gate) | MODIFY | N1-B Step 2: add plan-time enrichment-validation pass BEFORE `check_availability_gate`/fan-out in `engine.rs`; use AST `visit::Visitor` to collect enrichment names from BOTH paths — (a) pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; (b) SQL: `ScalarFunc::Unknown(name)` in projection expressions; validate each against `registry.udf_descriptors()` (NO new public API on `InfusionRegistry` — derive names inline); unknown name → `PrismError::EnrichUdfNotFound`; function-name anchor required (TD-VSDD-091). |
+| `crates/prism-query/src/engine.rs` (enrichment gate) | MODIFY | N1-B Step 2: add plan-time enrichment-validation pass BEFORE `check_availability_gate`/fan-out in `engine.rs`; use AST `visit::Visitor` to collect enrichment names from BOTH paths — (a) pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; (b) SQL: `ScalarFunc::Unknown(name)` in projection expressions AND WHERE predicates via `collect_unknown_scalar_from_predicate` (BC-2.11.019 v1.3 §Precondition 1(b)); validate each against `registry.udf_descriptors()` (NO new public API on `InfusionRegistry` — derive names inline); unknown name → `PrismError::EnrichUdfNotFound`; function-name anchor required (TD-VSDD-091). |
 | `crates/prism-mcp/src/tools/prism_describe.rs` | MODIFY | AUDIT-001: change `build_tables_for_client` emit from `name: table.table_name.clone()` → `name: format!("{sensor_id}_{}", table.table_name)`; add test |
 | `crates/prism-mcp/src/prompts.rs` | MODIFY | AUDIT-004: replace all dot-notation FROM refs in `render_triage_alerts`, `render_client_overview`, `render_cross_client_status`, `render_investigate_host` with sensor-prefixed underscore-qualified names; add test |
 | `ci.yml` | MODIFY | AC-REG-1: increment `EXPECTED=87` → `EXPECTED=88` (one new #[non_exhaustive] type: EnrichUdfNotFoundDetails) |
@@ -717,7 +721,7 @@ Files NOT to modify:
 | `build_tables_for_client` | `crates/prism-mcp/src/tools/prism_describe.rs` | Pure (takes spec data, returns `Vec<TableDescriptor>`) |
 | `render_triage_alerts` / `render_client_overview` / `render_cross_client_status` / `render_investigate_host` | `crates/prism-mcp/src/prompts.rs` | Pure (synchronous render functions per BC-2.10.016 invariant) |
 | `PrismError::EnrichUdfNotFound` variant + `EnrichUdfNotFoundDetails` struct (NET-NEW) | `crates/prism-core/src/error.rs` | Pure (data type, no I/O) |
-| E-QUERY-039 plan-time enrichment gate (NET-NEW) — pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; SQL: `ScalarFunc::Unknown` in projection | `crates/prism-query/src/engine.rs` (new validation pass before `check_availability_gate`; no new public API on `InfusionRegistry` — names derived from existing `udf_descriptors()`) | Pure (takes `&InfusionRegistry`, returns `Result<_, PrismError>`) |
+| E-QUERY-039 plan-time enrichment gate (NET-NEW) — pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; SQL: `ScalarFunc::Unknown` in projection AND WHERE predicates via `collect_unknown_scalar_from_predicate` (BC-2.11.019 v1.3 §Precondition 1(b)) | `crates/prism-query/src/engine.rs` (new validation pass before `check_availability_gate`; no new public API on `InfusionRegistry` — names derived from existing `udf_descriptors()`) | Pure (takes `&InfusionRegistry`, returns `Result<_, PrismError>`) |
 | E-QUERY-037 plan-time availability gate — `check_availability_gate` / `is_registered` | `crates/prism-query/src/table_registry.rs` | Pure (gate check, no I/O) |
 | E-QUERY-037 gate wiring point | `crates/prism-query/src/engine.rs` | Pure (plan-time orchestration) |
 | `map_prism_error` (E-QUERY-039 arm NET-NEW; E-QUERY-037 arm CONFIRMED PRESENT — no change) | `crates/prism-mcp/src/error_mapping.rs` | Pure (mapping function) |
@@ -771,6 +775,7 @@ is a set of targeted, surgical code changes:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | med-1-where-clause-note-correction-2026-06-27 | 2026-06-27 | story-writer | MED-1: corrected AC-N1B WHERE-clause note — SQL-mode `ScalarFunc::Unknown` gating covers projection AND WHERE per BC-2.11.019 v1.3 §Precondition 1(b) (the WHERE scan is required+implemented via `collect_unknown_scalar_from_predicate`, not "defensive/unneeded"); only the pipe `enrich`-keyword WHERE form is an E-QUERY-001 parse error. Five locations fixed: (1) AC-N1B WHERE-clause note block quote (lines ~249-261); (2) AC-N1B Step 2 SQL path bullet; (3) Tasks step 6(b); (4) File Structure table engine.rs enrichment gate row; (5) Architecture Mapping E-QUERY-039 gate row. Incorrect assertions "no WHERE-clause scan is needed" and "projection-arm scan is COMPLETE coverage" removed. Version bump 1.7→1.8. |
 | 1.7 | low-1-ec001-exhaustive-claim-audit-2026-06-27 | 2026-06-27 | story-writer | LOW-1 + EXHAUSTIVE whole-story claim audit: corrected EC-001 phantom string `"No enrichment infusions are currently registered."` → actual code string `"No enrichment functions are currently registered for your deployment."` (resources.rs ~line 1519, Some(empty) path); updated EC-001 test cite from `test_bc_2_11_022_none_registry_placeholder` (covers None path) → `test_bc_2_11_022_some_empty_registry_placeholder` (covers the Some(empty) path). Second inaccuracy found and fixed: frontmatter Red Gate test comment listed phantom test `test_non_exhaustive_count_87_to_88` — this test does not exist; the non-exhaustive gate is a compile-fail crate run via `scripts/check-non-exhaustive.sh EXPECTED=88`, not a named Rust `fn test_*`; corrected to `scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a named Rust test)`. All other claims across every section verified accurate against feature worktree code: AC-N1 (resources.rs dedup key, per-field UDF names, test name), AC-N1B (EnrichUdfNotFoundDetails struct fields, map_prism_error -32602 arm, Display template, gate ordering, test names), AC-N2 (check_availability_gate / is_registered function names, TableNotAvailable variant, udf_to_infusion field), AC-AUDIT-001 (build_tables_for_client format string, pql_hints generic hint text), AC-AUDIT-004 (render_* function names, FROM-ready table names, regex), AC-REG-1/REG-2/DEMO-001/SAP-1, §Edge Cases (EC-002 through EC-006), §Red Gate Tests table (all other names confirmed present), §File Structure, §Library Requirements, §Architecture Mapping, §Dev Notes, §Previous Story Intelligence. No further inaccuracies found. Token Budget label 1.6→1.7. Version bump 1.6→1.7. |
 | 1.6 | obs-1-ac-prose-accuracy-audit-2026-06-27 | 2026-06-27 | story-writer | OBS-1 + AC-prose accuracy audit: corrected AC-AUDIT-001 phantom `pql_hints[0]` "This client has N tables:" string claim — that string does not exist in `build_pql_hints`; the actual non-empty `pql_hints[0]` is `"Use 'SELECT * FROM <table> LIMIT 25' to query any of the N table(s) above."` (a generic usage hint with `<table>` placeholder, no embedded table names). The disambiguation guarantee is in `TableDescriptor.name` + `example_query`, not in `pql_hints`. Full AC-prose-vs-code accuracy sweep (AC-N1, AC-N1B, AC-N2, AC-AUDIT-004, AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1): all other AC prose matches code — no further inaccuracies found. Token Budget label 1.5→1.6. Version bump 1.5→1.6. |
 | 1.5 | med-1-exhaustive-all-forms-bc-cite-audit-2026-06-27 | 2026-06-27 | story-writer | Exhaustive all-forms BC version-cite audit (Pass MED-1): residual compact-form `(v1.14/v1.1/v1.3/v1.4/v1.2)` at frontmatter line 69 contained stale `v1.14` for BC-2.11.001 (canonical v1.15) — missed by prior prefixed-grep sweeps that searched `BC-2.11.001 v1.14` but not the parenthesized slash-joined form. Redundant compact version enumeration removed from frontmatter comment (drift risk; body BC table is canonical); replaced with accurate status note: 4 active BCs + BC-2.11.019 draft→active at merge per POL-14. Descriptor accuracy fix: prior comment said "all 5 BCs are active" — BC-2.11.019 is `status: draft` (confirmed against BC frontmatter). All prefixed-form cites verified correct (zero stale). Re-grep confirms ZERO live stale `v1.14` or stale compact-form cites remain (changelog rows excepted, TD-VSDD-091 exempt). Token Budget version label updated 1.4→1.5. Version bump 1.4→1.5. |
