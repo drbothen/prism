@@ -469,88 +469,88 @@ impl TableRegistry {
             //
             // External kind: `sensor.table` dot-notation parsing.
             //
-            // Pipe mode / SQL mode: dot-notation in FROM target position is INVALID PrismQL
-            //   syntax. Only underscore-qualified names (`sensor_table`) are valid in FROM.
-            //   Reject with E-QUERY-037 immediately using the dot-notation string as the
-            //   error table name (EC-11-067 / BC-2.11.001 v1.14 / AC-N2). Do NOT silently
+            // All modes (Pipe, SQL, SqlPipe): dot-notation in FROM target position is INVALID
+            //   PrismQL syntax. Only underscore-qualified names (`sensor_table`) are valid in
+            //   FROM. Reject with E-QUERY-037 immediately using the dot-notation string as the
+            //   error table name (EC-11-067 / BC-2.11.001 v1.15 / AC-N2). Do NOT silently
             //   convert to underscore form and let the fan-out proceed.
             //
-            //   Example: `FROM cyberint.alerts` → Err(TableNotAvailable { table:
+            //   Example (pipe):    `FROM cyberint.alerts` → Err(TableNotAvailable { table:
             //     "cyberint.alerts", did_you_mean: " Did you mean: 'cyberint_alerts'?" })
+            //   Example (SqlPipe): `SELECT * FROM crowdstrike.detections | limit 10` →
+            //     Err(TableNotAvailable { table: "crowdstrike.detections",
+            //     did_you_mean: " Did you mean: 'crowdstrike_detections'?" })
             //
-            // SqlPipe mode: `SELECT ... FROM sensor.table | ...` uses dot-notation in the
-            //   SQL head as syntactic sugar that is valid in that context. EC-11-067 does NOT
-            //   apply to SqlPipe. Instead, use the underscore form for registry lookup.
-            //   If the underscore form IS registered → proceed (E-QUERY-038 column gate fires).
-            //   If NOT registered → fire E-QUERY-037 for the unregistered table.
+            //   HIGH-1 (BC-2.11.001 v1.15): the prior SqlPipe exemption (`is_sqlpipe` guard)
+            //   allowed dot-notation in SqlPipe queries to bypass E-QUERY-037, silently routing
+            //   to fan-out. EC-11-067 applies to ALL AST modes — the exemption is removed.
+            //   The later `SourceRefKind::External { sensor, table } => format!("{sensor}_{table}")`
+            //   underscore-conversion arm remains as a safety fallback but is dead for External
+            //   sources that reach it (the rejection above fires first).
             //
             // Filter-mode queries parse External source refs only for the table-source
             //   position, and they emit Custom refs (underscore form) — not External —
             //   so BC-2.11.023 / ADR-046 filter-mode queries are not affected.
-            let is_sqlpipe = matches!(ast, crate::ast::Ast::SqlPipe(_));
-            if !is_sqlpipe {
-                if let SourceRefKind::External { sensor, table } = &source.kind {
-                    // Reject dot-notation in Pipe/SQL mode (EC-11-067).
-                    let dot_name = format!("{sensor}.{table}");
-                    let underscore_name = format!("{sensor}_{table}");
-                    let did_you_mean = format!(" Did you mean: '{underscore_name}'?");
+            if let SourceRefKind::External { sensor, table } = &source.kind {
+                // Reject dot-notation in all modes (EC-11-067, BC-2.11.001 v1.15).
+                let dot_name = format!("{sensor}.{table}");
+                let underscore_name = format!("{sensor}_{table}");
+                let did_you_mean = format!(" Did you mean: '{underscore_name}'?");
 
-                    let sensor_by_table_snapshot = match self.sensor_by_table.read() {
-                        Ok(g) => g.clone(),
-                        Err(_) => {
-                            tracing::warn!(
-                                event_type = "table_registry.rwlock_poisoned",
-                                method = "check_availability_gate.dot_notation",
-                                "TableRegistry::check_availability_gate: sensor_by_table RwLock \
-                                 poisoned — using empty map for dot-notation org filter."
-                            );
-                            HashMap::new()
-                        }
-                    };
+                let sensor_by_table_snapshot = match self.sensor_by_table.read() {
+                    Ok(g) => g.clone(),
+                    Err(_) => {
+                        tracing::warn!(
+                            event_type = "table_registry.rwlock_poisoned",
+                            method = "check_availability_gate.dot_notation",
+                            "TableRegistry::check_availability_gate: sensor_by_table RwLock \
+                             poisoned — using empty map for dot-notation org filter."
+                        );
+                        HashMap::new()
+                    }
+                };
 
-                    let global_sensor_ids = self.registered_sensor_ids();
-                    let global_tables = self.registered_tables();
-                    let org_visible_sensor_ids = filter_to_org_visible_sensors(
-                        global_sensor_ids,
-                        org_scope,
-                        resolved_spec_map,
-                    );
-                    let org_visible_tables = filter_to_org_visible_tables(
-                        global_tables,
-                        &sensor_by_table_snapshot,
-                        &org_visible_sensor_ids,
-                        org_scope,
-                        resolved_spec_map,
-                    );
-                    let available_sensors = org_visible_sensor_ids.join(", ");
-                    let available_tables = org_visible_tables.join(", ");
+                let global_sensor_ids = self.registered_sensor_ids();
+                let global_tables = self.registered_tables();
+                let org_visible_sensor_ids =
+                    filter_to_org_visible_sensors(global_sensor_ids, org_scope, resolved_spec_map);
+                let org_visible_tables = filter_to_org_visible_tables(
+                    global_tables,
+                    &sensor_by_table_snapshot,
+                    &org_visible_sensor_ids,
+                    org_scope,
+                    resolved_spec_map,
+                );
+                let available_sensors = org_visible_sensor_ids.join(", ");
+                let available_tables = org_visible_tables.join(", ");
 
-                    let client_id_for_suggestion = org_scope
-                        .and_then(|s| s.first())
-                        .map(|o| o.as_str())
-                        .unwrap_or(sensor.as_str());
-                    let suggestion = crate::engine::e_query_037_suggestion(
-                        client_id_for_suggestion,
-                        Some(underscore_name.as_str()),
-                    );
+                let client_id_for_suggestion = org_scope
+                    .and_then(|s| s.first())
+                    .map(|o| o.as_str())
+                    .unwrap_or(sensor.as_str());
+                let suggestion = crate::engine::e_query_037_suggestion(
+                    client_id_for_suggestion,
+                    Some(underscore_name.as_str()),
+                );
 
-                    return Err(PrismError::TableNotAvailable(Box::new(
-                        TableNotAvailableDetails::new(
-                            dot_name,
-                            sensor.clone(),
-                            available_sensors,
-                            available_tables,
-                            did_you_mean,
-                            suggestion,
-                        ),
-                    )));
-                }
+                return Err(PrismError::TableNotAvailable(Box::new(
+                    TableNotAvailableDetails::new(
+                        dot_name,
+                        sensor.clone(),
+                        available_sensors,
+                        available_tables,
+                        did_you_mean,
+                        suggestion,
+                    ),
+                )));
             }
 
             let table_name = match &source.kind {
                 SourceRefKind::Custom => source.raw.clone(),
-                // SqlPipe mode: External sources use underscore form for registry lookup.
-                // Non-SqlPipe External sources are already rejected above.
+                // External sources are always rejected by the dot-notation guard above
+                // (EC-11-067 / BC-2.11.001 v1.15 — all modes including SqlPipe).
+                // This arm is unreachable for External sources but kept as a safety
+                // fallback for hypothetical future AST variants that reach this point.
                 // Internal and Composite already handled above.
                 SourceRefKind::External { sensor, table } => format!("{sensor}_{table}"),
                 _ => continue,
