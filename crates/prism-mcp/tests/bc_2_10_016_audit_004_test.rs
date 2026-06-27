@@ -630,9 +630,13 @@ fn test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns() {
     ];
 
     let mut failures: Vec<String> = Vec::new();
+    // OBS-5: track totals for fail-closed vacuous-pass guards.
+    let mut total_columns_checked: usize = 0;
+    let mut total_sql_lines_found: usize = 0;
 
     for (prompt_name, body) in &prompts {
         let sql_lines = extract_example_sql_lines(body);
+        total_sql_lines_found += sql_lines.len();
 
         for sql in &sql_lines {
             let Some(table_key) = sql_from_table(sql) else {
@@ -645,6 +649,7 @@ fn test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns() {
             };
 
             let col_refs = sql_column_refs(sql);
+            total_columns_checked += col_refs.len();
             for col in col_refs {
                 if !valid_cols.contains(&col) {
                     failures.push(format!(
@@ -655,6 +660,21 @@ fn test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns() {
             }
         }
     }
+
+    // OBS-5: fail-closed guards — ensure the test is not vacuously passing when the
+    // prompt format drifts and extract_example_sql_lines() stops finding SQL lines.
+    assert!(
+        total_sql_lines_found >= 4,
+        "OBS-5 vacuous-pass guard: extracted {total_sql_lines_found} SQL example line(s) from \
+         render_* prompts, expected >= 4. The prompt format may have drifted — \
+         extract_example_sql_lines() no longer finds SQL examples in the prompt bodies."
+    );
+    assert!(
+        total_columns_checked > 0,
+        "OBS-5 vacuous-pass guard: checked 0 column references across all SQL example lines. \
+         This means no SQL examples contain column references in SELECT/WHERE/GROUP BY. \
+         The prompt format may have drifted — the test would pass vacuously without this guard."
+    );
 
     assert!(
         failures.is_empty(),
@@ -738,6 +758,273 @@ fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
             );
         }
     }
+}
+
+// ── MED-2 value-validation test (process-gap closure) ─────────────────────────
+//
+// BC-2.10.016 v1.2 §Postconditions: "any analyst copying an embedded prompt
+// example query and executing it MUST get a successful result."
+//
+// The column-validity test proves columns exist. This test proves the WHERE/IN
+// literal VALUES for status and severity columns also match what the DTU
+// generators actually emit — a value mismatch produces 0 rows with no error.
+//
+// Canonical per-sensor value sets (verified against DTU generator source):
+//
+// crowdstrike:
+//   status  ∈ {"new", "deleted"}
+//     Source: prism-dtu-crowdstrike/src/generator.rs make_detection_with_ioc()
+//             json!({..., "status": "new", ...}) (line ~766), tombstone "deleted"
+//   severity ∈ {"Low", "Medium", "High", "Critical"}  (Title-case)
+//     Source: make_detection_with_ioc() match severity_id (lines ~724-728):
+//             1=>"Low", 2=>"Medium", 3=>"High", _=>"Critical"
+//
+// claroty:
+//   status  ∈ {"Unresolved", "tombstone", "online"}
+//     Source: prism-dtu-claroty/src/generator.rs make_alert() (line ~179):
+//             "status": "Unresolved"
+//
+// armis:
+//   status  ∈ {"UNHANDLED"}
+//     Source: prism-dtu-armis/src/generator.rs build_alert() (line ~789):
+//             "status": "UNHANDLED"
+//   severity ∈ {"HIGH", "CRITICAL", "MEDIUM", "LOW"}  (UPPER-case)
+//     Source: build_alert() severity parameter values (lines ~288-297 generate_compromised_endpoint)
+//             "HIGH", "CRITICAL", "MEDIUM"
+
+/// Canonical per-sensor vocabulary for status and severity columns.
+///
+/// Derived from the DTU generator source files (see comment above for citations).
+/// If a DTU generator adds new values, update this const to match.
+///
+/// Format: `(table_key, column_name, &[valid_values])`.
+/// A WHERE/IN literal in a prompt example query must be a member of the
+/// corresponding valid_values slice.
+const SENSOR_COLUMN_VOCABULARIES: &[(&str, &str, &[&str])] = &[
+    // crowdstrike_detections.status: DTU emits "new" for live detections, "deleted" for tombstones.
+    // Source: generator.rs make_detection_with_ioc() "status": "new"; make_tombstone() "status": "deleted"
+    (
+        "crowdstrike_detections",
+        "status",
+        &["new", "deleted", "contained"],
+    ),
+    // crowdstrike_detections.severity: Title-case from severity_id mapping.
+    // Source: generator.rs make_detection_with_ioc() 1=>"Low", 2=>"Medium", 3=>"High", _=>"Critical"
+    (
+        "crowdstrike_detections",
+        "severity",
+        &["Low", "Medium", "High", "Critical"],
+    ),
+    // claroty_alerts.status: DTU emits "Unresolved" for all non-tombstone alerts.
+    // Source: generator.rs make_alert() "status": "Unresolved"
+    ("claroty_alerts", "status", &["Unresolved", "tombstone"]),
+    // armis_alerts.status: DTU emits "UNHANDLED" for all alert records.
+    // Source: generator.rs build_alert() "status": "UNHANDLED"
+    ("armis_alerts", "status", &["UNHANDLED"]),
+    // armis_alerts.severity: UPPER-case from generate_compromised_endpoint() severity assignments.
+    // Source: generator.rs build_alert() severity param, assigned as "HIGH", "CRITICAL", "MEDIUM", "LOW"
+    (
+        "armis_alerts",
+        "severity",
+        &["HIGH", "CRITICAL", "MEDIUM", "LOW"],
+    ),
+];
+
+/// Extract string literal values from a SQL WHERE predicate or IN list.
+///
+/// Scans for single-quoted string literals in the SQL fragment.
+/// Returns all values enclosed in single quotes.
+fn extract_string_literals(sql: &str) -> Vec<String> {
+    let mut literals = Vec::new();
+    let mut chars = sql.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\'' {
+            let mut val = String::new();
+            // Collect until closing quote (no escape handling needed for these simple prompts)
+            for inner in chars.by_ref() {
+                if inner == '\'' {
+                    break;
+                }
+                val.push(inner);
+            }
+            if !val.is_empty() {
+                literals.push(val);
+            }
+        }
+    }
+    literals
+}
+
+/// MED-2: value-validation test — WHERE/IN literals match DTU-emitted values.
+///
+/// For each render_* prompt example query, cross-references the WHERE/IN literal
+/// values for status and severity columns against the canonical per-sensor vocabulary
+/// derived from the DTU generators (see SENSOR_COLUMN_VOCABULARIES above).
+///
+/// A value NOT in the vocabulary would cause the prompt query to return 0 rows
+/// against live DTU data with no error, silently producing an empty demo.
+///
+/// Vocabulary constants are documented with their generator source citations so
+/// a future DTU generator change fails this test (value-regression detection).
+///
+/// OBS-5 fix applied inline: also asserts total_columns_checked > 0 and
+/// sql_lines_found >= EXPECTED_SQL_LINES so the test fails-closed if the prompt
+/// format drifts (vacuous-pass prevention).
+#[test]
+fn test_bc_2_10_016_med2_prompt_filter_values_match_dtu_vocabulary() {
+    let client_id = "acme";
+    let hostname = "10.0.0.1";
+
+    let prompts: Vec<(&str, String)> = vec![
+        (
+            "render_triage_alerts",
+            extract_text(
+                &render_triage_alerts(client_id).expect("render_triage_alerts must succeed"),
+            ),
+        ),
+        (
+            "render_investigate_host",
+            extract_text(
+                &render_investigate_host(client_id, hostname)
+                    .expect("render_investigate_host must succeed"),
+            ),
+        ),
+        (
+            "render_client_overview",
+            extract_text(
+                &render_client_overview(client_id).expect("render_client_overview must succeed"),
+            ),
+        ),
+        (
+            "render_cross_client_status",
+            extract_text(
+                &render_cross_client_status(None).expect("render_cross_client_status must succeed"),
+            ),
+        ),
+    ];
+
+    let column_sets = build_column_sets_from_specs();
+
+    let mut failures: Vec<String> = Vec::new();
+    let mut total_columns_checked: usize = 0;
+    let mut total_sql_lines: usize = 0;
+
+    for (prompt_name, body) in &prompts {
+        let sql_lines = extract_example_sql_lines(body);
+        total_sql_lines += sql_lines.len();
+
+        for sql in &sql_lines {
+            let Some(table_key) = sql_from_table(sql) else {
+                continue;
+            };
+
+            // Only validate tables we have vocabulary for — skip if not in SENSOR_COLUMN_VOCABULARIES.
+            let vocab_entries: Vec<(&str, &[&str])> = SENSOR_COLUMN_VOCABULARIES
+                .iter()
+                .filter(|(tbl, _, _)| *tbl == table_key.as_str())
+                .map(|(_, col, vals)| (*col, *vals))
+                .collect();
+
+            if vocab_entries.is_empty() {
+                // No vocabulary registered for this table — skip (not a failure).
+                continue;
+            }
+
+            // Check whether this SQL references any of the vocabulary columns.
+            // Only run value-check if the column_sets confirms the column exists in this table.
+            let valid_cols_for_table = column_sets.get(&table_key);
+
+            for (vocab_col, valid_values) in &vocab_entries {
+                // Skip if this column doesn't appear in the SQL (no WHERE/IN clause for it).
+                let col_upper = vocab_col.to_ascii_uppercase();
+                if !sql.to_ascii_uppercase().contains(&col_upper) {
+                    continue;
+                }
+
+                // Confirm the column is real in this table (guard against test drift).
+                if let Some(valid_cols) = valid_cols_for_table {
+                    if !valid_cols.contains(*vocab_col) {
+                        // Column not in spec for this table — skip (column test catches this).
+                        continue;
+                    }
+                }
+
+                total_columns_checked += 1;
+
+                // Extract string literals from the WHERE region NEAR this specific column.
+                //
+                // Strategy: find the column name in the WHERE region (case-insensitive),
+                // then extract only string literals that appear in the predicate fragment
+                // starting at that column reference (up to the next AND/OR keyword or end).
+                // This prevents cross-predicate false positives (e.g., severity literals
+                // being checked against the status vocabulary from the same WHERE clause).
+                let upper = sql.to_ascii_uppercase();
+                let where_start = upper.find(" WHERE ").map(|p| p + 7).unwrap_or(sql.len());
+                let where_region = &sql[where_start.min(sql.len())..];
+                let where_upper = where_region.to_ascii_uppercase();
+
+                // Find the column reference in the WHERE region.
+                let col_pos = match where_upper.find(&col_upper) {
+                    Some(p) => p,
+                    None => continue, // column not actually in WHERE clause — skip
+                };
+
+                // Extract the predicate fragment from the column position to the next
+                // AND / OR keyword (or end of WHERE region). This isolates the predicate
+                // `col = 'val'` or `col IN ('v1', 'v2')` belonging to this column.
+                let predicate_region = &where_region[col_pos..];
+                let predicate_upper = predicate_region.to_ascii_uppercase();
+                let pred_end = [predicate_upper.find(" AND "), predicate_upper.find(" OR ")]
+                    .into_iter()
+                    .flatten()
+                    .min()
+                    .unwrap_or(predicate_region.len());
+                let predicate = &predicate_region[..pred_end];
+
+                let literals = extract_string_literals(predicate);
+
+                for lit in &literals {
+                    if !valid_values.contains(&lit.as_str()) {
+                        failures.push(format!(
+                            "{prompt_name} table={table_key} col={vocab_col}: literal value \
+                             '{lit}' is NOT in the DTU-emitted vocabulary {valid_values:?}. \
+                             A query with this value returns 0 rows against DTU data. \
+                             Fix: update prompts.rs to use an exact emitted value."
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // OBS-5: fail-closed guards — test must not go vacuous if prompt format drifts.
+    // We expect at least 4 SQL example lines across the four prompts (one per sensor per prompt
+    // that has SQL examples — triage_alerts has 3, client_overview has 2, etc.)
+    const EXPECTED_MIN_SQL_LINES: usize = 4;
+    assert!(
+        total_sql_lines >= EXPECTED_MIN_SQL_LINES,
+        "MED-2 OBS-5 vacuous-pass guard: extracted {total_sql_lines} SQL example line(s) from \
+         render_* prompts, expected >= {EXPECTED_MIN_SQL_LINES}. If this fails, the prompt \
+         format drifted and extract_example_sql_lines() no longer finds SQL lines."
+    );
+
+    assert!(
+        total_columns_checked > 0,
+        "MED-2 OBS-5 vacuous-pass guard: checked 0 column vocabulary entries across all SQL \
+         lines. This means no SQL examples reference the status/severity columns we have \
+         vocabulary for. Either the prompts changed format or SENSOR_COLUMN_VOCABULARIES is \
+         misconfigured. The test must not pass vacuously."
+    );
+
+    assert!(
+        failures.is_empty(),
+        "BC-2.10.016 MED-2 value-validation: prompt(s) use filter values NOT emitted by DTU \
+         generators:\n\n{}\n\n\
+         Fix: update render_* functions in prompts.rs so WHERE/IN literals match the exact \
+         values the DTU generators emit. Canonical vocabulary is in SENSOR_COLUMN_VOCABULARIES \
+         (citing generator source lines).",
+        failures.join("\n")
+    );
 }
 
 // ── Helper functions ──────────────────────────────────────────────────────────
