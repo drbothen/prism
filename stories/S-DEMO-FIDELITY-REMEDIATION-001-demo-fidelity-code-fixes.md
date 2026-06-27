@@ -70,7 +70,7 @@ status: draft
 # + BC-2.11.019 v1.3 draft→active at merge per POL-14. Canonical versions are authoritative
 # in the body BC table (§Behavioral Contracts); this comment is a status note only.
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "1.9"
+version: "2.0"
 updated: "2026-06-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
@@ -87,21 +87,64 @@ cycle: "v1.0.0-greenfield"
 epic_id: "E-5"
 # Epic E-5 (MCP Interface / Query Engine). Remediation story targeting T13 capstone demo fidelity.
 phase: 2
-acceptance_criteria_count: 10
-# 10 ACs: 5 code-fix ACs (one per finding), 2 regression/workspace ACs, 1 demo-evidence AC,
-# 1 non-exhaustive compliance AC, 1 SAP-1 structural-event-catalog AC.
-# NOTE v1.2: AC-N1B corrected (C1/I1/I2/S1); AC-N2 E-QUERY-037 arm confirmed-present; AC-REG-1 unchanged.
-red_gate_tests: 9
-# 9 Red Gate tests (v1.2 — count unchanged from v1.1; test assertions corrected per S1):
-#   AC-N1: test_bc_2_11_022_n1_per_field_udf_names
-#   AC-N1B: test_bc_2_11_019_n1b_infusion_id_as_udf_name (Err(EnrichUdfNotFound(_)) assertion)
-#           test_bc_2_11_019_n1b_mcp_maps_to_32602 (map_prism_error -32602 arm)
-#   AC-N2: test_bc_2_11_001_n2_dot_notation_from_target_e_query_037 (pipe + SQL + filter regression)
-#   AC-AUDIT-001: test_bc_2_10_012_audit_001_sensor_prefixed_table_names
-#   AC-AUDIT-004: test_bc_2_10_016_audit_004_no_dot_notation_in_prompts
-#   AC-REG-1: just check (workspace gate, not a unit test; verified by exit code 0)
-#             scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a named Rust test)
-#   AC-REG-2: test_bc_2_11_022_ci_3tier_gate (existing, updated for per-field UDF parity)
+acceptance_criteria_count: 16
+# 16 ACs (v2.0 — expanded from 10 to document full implemented scope):
+#   Original 5 code-fix ACs: AC-N1, AC-N1B, AC-N2, AC-AUDIT-001, AC-AUDIT-004
+#   New gate-coverage ACs: AC-C1C2 (enrich gate JOIN/GROUP/ORDER), AC-M2 (E-QUERY-038
+#     column gate validates GROUP BY/ORDER BY func-args + JOIN ON columns), AC-L1 (E-QUERY-037
+#     source walk covers HAVING/GROUP BY/ORDER BY/JOIN ON subqueries)
+#   New behavioral ACs: AC-H1 (capability-gate ordering aligned), AC-M1 (single-tenant
+#     column gate fires via TableRegistry.columns_by_table / columns_for_table),
+#     AC-CRIT1 (build_example_query derives datetime column from spec instead of hardcoding)
+#   Regression/workspace/compliance ACs: AC-REG-1, AC-REG-2, AC-DEMO-001, AC-SAP-1
+#   Plus new ACs for SqlPipe modes and did_you_mean engine behavior
+red_gate_tests: 31
+# 31 Red Gate tests (v2.0 — full implemented test inventory):
+# --- AC-N1 ---
+#   test_bc_2_11_022_n1_per_field_udf_names (bc_2_11_022_n1_test.rs)
+# --- AC-N1B core ---
+#   test_bc_2_11_019_n1b_infusion_id_as_udf_name (bc_2_11_019_n1b_test.rs)
+#   test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name (bc_2_11_019_n1b_test.rs)
+#   test_bc_2_11_019_n1b_mcp_maps_to_32602 (bc_2_11_019_n1b_mcp_test.rs)
+# --- AC-N1B gate ordering ---
+#   test_high001_gate_ordering_table_error_before_enrich_error (bc_2_11_019_n1b_test.rs)
+#   test_high003_sql_select_unknown_scalar_triggers_enrich_error (bc_2_11_019_n1b_test.rs)
+# --- AC-N1B availability sorted ---
+#   test_med001_available_infusions_sorted_in_e_query_039_error (bc_2_11_019_n1b_test.rs)
+# --- AC-N1B SqlPipe head (HIGH-1) ---
+#   test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039 (bc_2_11_019_n1b_test.rs)
+# --- AC-N1B EC-11-059 wired-but-empty registry ---
+#   test_ec_11_059_wired_empty_registry_fires_e_query_039_with_empty_available (bc_2_11_019_n1b_test.rs)
+# --- AC-N1B did_you_mean engine (OBS-2) ---
+#   test_obs2_did_you_mean_some_from_strsim_levenshtein_within_threshold (bc_2_11_019_n1b_test.rs)
+#   test_obs2b_did_you_mean_none_when_beyond_levenshtein_threshold (bc_2_11_019_n1b_test.rs)
+# --- AC-C1C2 enrich gate JOIN/GROUP/ORDER (unit-level) ---
+#   test_c1_collect_unknown_scalar_from_sql_query_group_by (bc_2_11_019_n1b_test.rs)
+#   test_c1_collect_unknown_scalar_from_sql_query_order_by (bc_2_11_019_n1b_test.rs)
+#   test_c2_collect_unknown_scalar_from_sql_query_join_on (bc_2_11_019_n1b_test.rs)
+# --- AC-C1C2 enrich gate JOIN/GROUP/ORDER (engine-level) ---
+#   test_c1_sql_group_by_unknown_scalar_triggers_e_query_039 (bc_2_11_019_n1b_test.rs)
+#   test_c1_sql_order_by_unknown_scalar_triggers_e_query_039 (bc_2_11_019_n1b_test.rs)
+#   test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039 (bc_2_11_019_n1b_test.rs)
+# --- AC-N2 (dot-notation E-QUERY-037) ---
+#   test_bc_2_11_001_n2_dot_notation_from_target_e_query_037 (bc_2_11_001_n2_test.rs)
+#   test_bc_2_11_001_n2_filter_mode_underscore_no_regression (bc_2_11_001_n2_test.rs)
+#   test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037 (bc_2_11_001_n2_test.rs — HIGH-1 SqlPipe)
+#   test_bc_2_11_001_n2_sqlpipe_underscore_no_regression (bc_2_11_001_n2_test.rs)
+# --- AC-AUDIT-001 ---
+#   test_bc_2_10_012_audit_001_sensor_prefixed_table_names (bc_2_10_012_audit_001_test.rs)
+#   test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique (bc_2_10_012_audit_001_test.rs)
+#   test_crit1_no_datetime_column_produces_column_free_query (prism_describe.rs inline tests)
+# --- AC-AUDIT-004 ---
+#   test_bc_2_10_016_audit_004_no_dot_notation_in_prompts (bc_2_10_016_audit_004_test.rs)
+#   test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table (bc_2_10_016_audit_004_test.rs)
+#   test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns (bc_2_10_016_audit_004_test.rs)
+#   test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables (bc_2_10_016_audit_004_test.rs)
+#   test_bc_2_10_016_med2_prompt_filter_values_match_dtu_vocabulary (bc_2_10_016_audit_004_test.rs — MED-2)
+# --- AC-REG-1 ---
+#   scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a Rust fn)
+# --- AC-REG-2 ---
+#   test_bc_2_11_022_ci_3tier_gate (reference_content.rs, existing — updated for per-field UDF parity)
 tdd_mode: strict
 behavioral_contracts:
   [BC-2.11.001, BC-2.11.022, BC-2.11.019, BC-2.10.016, BC-2.10.012]
@@ -119,54 +162,94 @@ assumption_validations: []
 risk_mitigations: []
 crates_touched:
   - prism-core
-  # error.rs: CREATE PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>) variant
-  # and EnrichUdfNotFoundDetails { infusion: String, available_infusions: Vec<String>,
-  # did_you_mean: Option<String> } struct. Both MUST carry #[non_exhaustive].
-  # This is a net-new public type — ci.yml EXPECTED increments 87→88; CLAUDE.md sentence
-  # + attribution list updated in-scope.
+  # IMPLEMENTED: error.rs — PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>) variant
+  # and #[non_exhaustive] EnrichUdfNotFoundDetails { infusion: String, available_infusions:
+  # Vec<String>, did_you_mean: Option<String> } struct. Both carry #[non_exhaustive].
+  # error.rs also gains variant_meta category "validation" for structured MCP output (MED-4).
+  # New test file: crates/prism-core/src/tests/test_enrich_udf_not_found_display.rs
+  # (4 tests: display_no_did_you_mean, display_with_did_you_mean, display_empty_available,
+  # display_starts_with_error_code). scripts/check-non-exhaustive.sh EXPECTED=88.
   - prism-mcp
-  # resources.rs: build_reference_content function — change deduplication key from
-  # descriptor.infusion_id to descriptor.name; update REFERENCE_EXAMPLES enrichment section.
-  # tools/prism_describe.rs: build_tables_for_client function — change name field emit from
-  # table.table_name.clone() to format!("{sensor_id}_{}", table.table_name).
-  # prompts.rs: render_triage_alerts, render_client_overview, render_cross_client_status,
-  # render_investigate_host functions — replace all dot-notation FROM references (FROM
-  # crowdstrike.alerts, FROM claroty.alerts, etc.) with sensor-prefixed underscore-qualified
-  # names (FROM crowdstrike_detections, FROM armis_devices, etc.).
-  # error_mapping.rs: map_prism_error function — ADD explicit -32602 INVALID_PARAMS arm for
-  # PrismError::EnrichUdfNotFound (E-QUERY-039). This is the ONLY net-new arm.
-  # PrismError::TableNotAvailable (E-QUERY-037) arm is CONFIRMED PRESENT at line ~166 with
-  # doc block citing "S-3.13 AC-2; BC-2.11.001; error-taxonomy.md E-QUERY-037" — NO CHANGE NEEDED.
-  # The E-QUERY-039 arm MUST NOT fall through to -32000.
+  # IMPLEMENTED — resources.rs: build_reference_content dedup key changed from infusion_id
+  # to descriptor.name; Some(empty)/None placeholders implemented.
+  # New test file: crates/prism-mcp/tests/bc_2_11_022_n1_test.rs (test_bc_2_11_022_n1_per_field_udf_names)
+  # IMPLEMENTED — tools/prism_describe.rs: build_tables_for_client in BOTH multi-tenant
+  # (resolved_spec_map path) and single-tenant (config_manager path) emit
+  # format!("{sensor_id}_{}", table.table_name) as the prefixed_name. New public function
+  # build_example_query derives the datetime column from the spec (CRIT-1 fix: no longer
+  # hardcodes 'timestamp'). New inline test module build_example_query_tests with
+  # test_crit1_no_datetime_column_produces_column_free_query.
+  # New test file: crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs
+  # (test_bc_2_10_012_audit_001_sensor_prefixed_table_names, _multi_tenant_sensor_prefixed_unique)
+  # IMPLEMENTED — prompts.rs: 4 render_* functions updated with FROM-ready names; all
+  # filter VALUES in embedded queries now match each DTU's exact emitted vocabulary (MED-1 fix).
+  # New test file: crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs
+  # (test_bc_2_10_016_audit_004_no_dot_notation_in_prompts,
+  #  test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table,
+  #  test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns,
+  #  test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables,
+  #  test_bc_2_10_016_med2_prompt_filter_values_match_dtu_vocabulary)
+  # IMPLEMENTED — error_mapping.rs: explicit -32602 INVALID_PARAMS arm for
+  # PrismError::EnrichUdfNotFound (E-QUERY-039); structured variant_meta category "validation";
+  # available_infusions Vec<String> sorted+deduped before MCP output.
+  # New test file: crates/prism-mcp/tests/bc_2_11_019_n1b_mcp_test.rs
+  # (test_bc_2_11_019_n1b_mcp_maps_to_32602, test_med5_enrich_udf_not_found_suggestion_non_empty_no_brackets,
+  #  test_med5_enrich_udf_not_found_suggestion_empty_infusions)
+  # ALSO — tool_dispatch_tests.rs: new fail-closed guard tests (OBS-5 fix)
+  # test_med4_enrich_udf_not_found_structured_category_is_validation (in tool_dispatch_tests.rs)
+  # DELETED — crates/prism-mcp/tests/crit001_prompt_table_names.rs: superseded by
+  # AUDIT-004 TOML-derived guard (bc_2_10_016_audit_004_test.rs) per OBS-4 finding.
   - prism-query
-  # table_registry.rs: check_availability_gate and/or is_registered functions — add or
-  # correct the plan-time TableRegistry::is_registered check so dot-notation FROM targets
-  # (e.g., cyberint.alerts) return PrismError::TableNotAvailable (E-QUERY-037) with
-  # did_you_mean BEFORE sensor_id_from_table_name dot-extraction routes to the fan-out.
-  # Verify whether the current E-QUERY-036 vs E-QUERY-037 path distinction is correct:
-  # UnknownSourceTable (E-QUERY-036) is for materialization.rs resolve_source_refs failures;
-  # TableNotAvailable (E-QUERY-037) is the availability/registration gate path.
-  # engine.rs: locate where table availability gate is surfaced to the caller and confirm
-  # it is the correct insertion point for the is_registered pre-check.
-  # NOTE: materialization.rs resolve_source_refs currently returns E-QUERY-036 via
-  # UnknownSourceTable; do NOT move or remove that path — the N2 fix adds the E-QUERY-037
-  # gate in the table_registry / engine layer BEFORE resolve_source_refs is reached.
-  # Also add plan-time enrichment gate for EnrichStage.infusion (pipe path) and
-  # ScalarFunc::Unknown (SQL path) that returns PrismError::EnrichUdfNotFound (E-QUERY-039).
+  # IMPLEMENTED — engine.rs: collect_unknown_scalars_from_sql_query (new fn) scans ALL
+  # scalar-expr positions via helper fns collect_unknown_scalar_from_expr and
+  # collect_unknown_scalar_from_predicate (SELECT projection, WHERE, JOIN ON, GROUP BY,
+  # ORDER BY, HAVING) for BOTH Ast::Sql(Select) and Ast::SqlPipe head queries, plus
+  # Pipe stages. gate check_enrich_udf_availability fires LAST (after E-QUERY-037 +
+  # E-QUERY-038). Gate ordering in execute_inner AND execute_scheduled_inner aligned:
+  # E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011 (H1 fix:
+  # capability gate moved AFTER enrich gate in execute_scheduled_inner to match execute_inner).
+  # available_infusions Vec<String> sorted+deduped; strsim did_you_mean lexicographic tie-break.
+  # New test file: crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs (15 tests — see
+  # AC-N1B below for full inventory including C1/C2 unit-level + engine-level tests,
+  # high001 gate ordering, high003 SQL projection, med001 sort, high1 SqlPipe, ec_11_059
+  # wired-empty, obs2 did_you_mean Some/None tests).
+  # ALSO — engine.rs: check_query_column_availability (E-QUERY-038) column gate now
+  # validates GROUP BY/ORDER BY func-args and JOIN ON columns (M2 fix) using
+  # extract_field_paths_from_expr helper (the SINGLE extraction point for all 5 positions);
+  # accepts table_registry parameter for single-tenant mode (M1 wiring).
+  # IMPLEMENTED — table_registry.rs: columns_by_table field + columns_for_table() method
+  # added so check_query_column_availability can fire in single-tenant mode (M1 fix). New
+  # collect_expr_sources_into_gate fn makes source walk cover HAVING, GROUP BY, ORDER BY,
+  # JOIN ON subqueries (L1 fix). New test file:
+  # crates/prism-query/src/tests/table_registry_tests.rs (new tests for columns_for_table,
+  # availability gate coverage for all subquery positions, OBS-1 SqlPipe JOIN stage source
+  # discovery, OBS-1 SELECT WHERE IN subquery source discovery)
+  # New test file: crates/prism-query/src/tests/bc_2_11_001_n2_test.rs (4 tests: pipe-mode
+  # dot-notation→E-QUERY-037, filter-mode regression, SqlPipe dot-notation→E-QUERY-037,
+  # SqlPipe underscore regression)
 ---
 
 # S-DEMO-FIDELITY-REMEDIATION-001: Demo Fidelity Code Fixes
 
 ## Narrative
 
-As a Prism developer preparing the T13 capstone demo recording, I want five targeted
-code defects identified in the 2026-06-26 pre-flight re-audit fixed, so that the
-`prismql://reference` resource lists the correct callable enrichment UDF names, calling
-an unregistered enrichment name returns a self-correcting E-QUERY-039 error (not an
-opaque internal error), `FROM cyberint.alerts` returns a pedagogical E-QUERY-037 with
-`did_you_mean` (not a silent empty result), `prism_describe` table `name` fields are
-FROM-ready sensor-prefixed names, and all MCP prompt bodies embed valid FROM-ready
-sensor-prefixed table names that execute without E-QUERY-037.
+As a Prism developer preparing the T13 capstone demo recording, I want the five
+code defects identified in the 2026-06-26 pre-flight re-audit fixed, plus all
+gate-coverage gaps found during LOCAL adversarial passes, so that: the `prismql://reference`
+resource lists the correct callable enrichment UDF names; calling an unregistered
+enrichment name at any AST position (SELECT projection, JOIN ON, GROUP BY, ORDER BY,
+HAVING, WHERE, or SqlPipe head) returns a self-correcting E-QUERY-039 error (not an
+opaque internal error) with sorted `available_infusions` and optional `did_you_mean`;
+`FROM cyberint.alerts` in ANY query mode (Pipe, SQL, SqlPipe) returns a pedagogical
+E-QUERY-037 with `did_you_mean` (not a silent empty result); `prism_describe` table
+`name` fields are FROM-ready sensor-prefixed names derived via `format!("{sensor_id}_{table_name}")`
+on both tenant paths, and `example_query` uses the actual datetime column from the spec
+rather than a hardcoded `timestamp` literal; all MCP prompt bodies embed valid FROM-ready
+sensor-prefixed table names that execute without E-QUERY-037, with filter VALUES matching
+each DTU's exact emitted vocabulary; the E-QUERY-038 column gate fires in single-tenant
+mode (via `TableRegistry.columns_for_table`); capability-gate ordering is symmetric between
+`execute_inner` and `execute_scheduled_inner`; and E-QUERY-037 availability gate covers
+all subquery positions (HAVING, GROUP BY, ORDER BY, JOIN ON).
 
 ## Behavioral Contracts
 
@@ -322,54 +405,45 @@ a valid outcome (S1 relaxation v1.2). Also assert SQL-mode `ScalarFunc::Unknown(
 
 `test_bc_2_11_019_n1b_mcp_maps_to_32602` — call `map_prism_error(PrismError::EnrichUdfNotFound(...))`;
 assert the returned MCP error code is `-32602` (INVALID_PARAMS); assert it is NOT `-32000`
-(the generic catch-all). This test lives in `crates/prism-mcp/src/error_mapping.rs`
-`#[cfg(test)]` module.
+(the generic catch-all). This test lives in `crates/prism-mcp/tests/bc_2_11_019_n1b_mcp_test.rs`
+(an integration test file, not an inline `#[cfg(test)]` module in error_mapping.rs).
 
 ---
 
 ### Area C — E-QUERY-037: Dot-Notation FROM Target Intercepted at Plan Time (N2)
 
-> **SCOPE NOTE (v1.1, confirmed in v1.2):** N2's gate-ordering fix is located in `crates/prism-query/src/table_registry.rs`
-> (`check_availability_gate` / `is_registered`) and `crates/prism-query/src/engine.rs` — NOT
-> in `materialization.rs` only. The `TableNotAvailable` variant (E-QUERY-037) already exists
-> and is constructed in table_registry.rs. In `materialization.rs`, `resolve_source_refs` calls
-> `sensor_id_from_table_name` FIRST and returns `UnknownSourceTable` (E-QUERY-036) on failure
-> — a DIFFERENT code path. The N2 fix adds/corrects the `TableRegistry::is_registered` pre-check
-> in the table_registry/engine layer so dot-notation strings are caught BEFORE reaching the
-> fan-out or resolve_source_refs. The current failure mode is silent E-SENSOR-030 (dot-notation
-> string routes to sensor fan-out) rather than the claimed "E-QUERY-036 in materialization.rs."
-> Implementer MUST trace the actual call chain via table_registry.rs → engine.rs before writing
-> the fix. Do NOT conflate E-QUERY-036 (UnknownSourceTable, materialization.rs) with E-QUERY-037
-> (TableNotAvailable, table_registry.rs/engine.rs).
+> **SCOPE NOTE (v1.1, confirmed in v1.2, extended v2.0):** N2's gate-ordering fix is located
+> in `crates/prism-query/src/table_registry.rs` (`check_availability_gate` / `is_registered`)
+> and `crates/prism-query/src/engine.rs` — NOT in `materialization.rs` only. The N2 fix
+> catches dot-notation strings BEFORE reaching fan-out or resolve_source_refs.
+>
+> **BC-2.11.001 v1.15 SqlPipe mode is NOT exempt (v2.0 HIGH-1 fix):** The original story
+> (through v1.9) was silent on whether `Ast::SqlPipe` queries received the same E-QUERY-037
+> treatment. BC-2.11.001 v1.15 is mode-agnostic for EC-11-067: dot-notation in FROM target
+> position MUST return E-QUERY-037 regardless of whether the AST is `Ast::Sql`, `Ast::Pipe`,
+> or `Ast::SqlPipe`. A previous is_sqlpipe exemption has been removed. The implementation
+> and Red Gate tests confirm all three modes are covered.
 
 **AC-N2** (traces to BC-2.11.001 v1.15 postcondition — table availability plan-time check,
-EC-11-067: dot-notation in FROM target position): A query `FROM cyberint.alerts` (pipe mode)
-or `SELECT * FROM crowdstrike.detections` (SQL mode) where `cyberint.alerts` / `crowdstrike.detections`
-is NOT a key in `TableRegistry` (only underscore-qualified names like `cyberint_alerts`,
-`crowdstrike_detections` are registered), returns `PrismError::TableNotAvailable` (`E-QUERY-037`)
-at plan time with `table: "cyberint.alerts"`, `sensor: "cyberint"`, `did_you_mean: "cyberint_alerts"`
-(or `"crowdstrike_detections"` respectively). The `TableRegistry::is_registered` check in
-`check_availability_gate` (table_registry.rs) MUST run BEFORE `sensor_id_from_table_name`
-dot-notation extraction in the fan-out path — the dot-notation string MUST NOT silently route
-to the sensor adapter fan-out (which produces E-SENSOR-030 partial failures). The result is
+EC-11-067: dot-notation in FROM target position): A query `FROM cyberint.alerts` (Pipe mode),
+`SELECT * FROM crowdstrike.detections` (SQL mode), or a SqlPipe head `FROM cyberint.alerts |
+SELECT *` (SqlPipe mode) where the dot-notation string is NOT a key in `TableRegistry` (only
+underscore-qualified names like `cyberint_alerts`, `crowdstrike_detections` are registered),
+returns `PrismError::TableNotAvailable` (`E-QUERY-037`) at plan time with `table: "cyberint.alerts"`,
+`sensor: "cyberint"`, `did_you_mean: "cyberint_alerts"`. The `TableRegistry::is_registered`
+check in `check_availability_gate` (table_registry.rs) MUST run BEFORE `sensor_id_from_table_name`
+dot-notation extraction in the fan-out path. No SqlPipe-mode exemption. The result is
 `isError: true`, NOT `isError: false, returned: 0` with `sensor_errors: ["E-SENSOR-030"]`.
-The fix MUST NOT regress BC-2.11.023 / ADR-046 filter-mode dot-notation (source-qualified
-filter refs like `crowdstrike_detections | severity='HIGH'` continue to work — filter mode
-uses `<table_name> | <predicate>` syntax, NOT `<sensor>.<table>` dot-syntax as a FROM target).
-The `map_prism_error` arm for `PrismError::TableNotAvailable` (E-QUERY-037) is CONFIRMED
-PRESENT in `error_mapping.rs` (doc block: "Reference: S-3.13 AC-2; BC-2.11.001") — no
-change needed to that arm. The implementer should verify it returns `-32602` as expected
-(it does) but MUST NOT modify or duplicate it.
+The fix MUST NOT regress BC-2.11.023 / ADR-046 filter-mode dot-notation (filter mode uses
+`<table_name> | <predicate>` syntax, not dot-syntax as a FROM target). The `map_prism_error`
+arm for `PrismError::TableNotAvailable` (E-QUERY-037) is CONFIRMED PRESENT in
+`error_mapping.rs` — no change to that arm.
 
-**Red Gate test:** `test_bc_2_11_001_n2_dot_notation_from_target_e_query_037` — execute plan
-validation on `FROM cyberint.alerts` with `cyberint_alerts` registered in `TableRegistry`
-(via check_availability_gate or equivalent table_registry entry point); assert
-`Err(PrismError::TableNotAvailable(_))` with `table: "cyberint.alerts"` and
-`did_you_mean: "cyberint_alerts"`; assert `isError: true` in the MCP response (not partial
-success). Also assert filter-mode `crowdstrike_detections | severity='HIGH'` continues to
-parse as `Ast::Filter` and passes TableRegistry validation (regression guard for BC-2.11.023).
-Also assert SQL-mode `SELECT * FROM crowdstrike.detections` returns `TableNotAvailable`
-(EC-11-067 covers all modes).
+**Red Gate tests:**
+- `test_bc_2_11_001_n2_dot_notation_from_target_e_query_037` — pipe mode `FROM cyberint.alerts`; assert `Err(PrismError::TableNotAvailable(_))` with `did_you_mean: "cyberint_alerts"`.
+- `test_bc_2_11_001_n2_filter_mode_underscore_no_regression` — filter mode `crowdstrike_detections | severity='HIGH'`; assert parse succeeds and passes availability gate (BC-2.11.023 regression guard).
+- `test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037` — SqlPipe head `FROM cyberint.alerts | SELECT *`; assert `Err(PrismError::TableNotAvailable(_))` (HIGH-1 fix: SqlPipe-not-exempt scope, BC-2.11.001 v1.15 mode-agnostic).
+- `test_bc_2_11_001_n2_sqlpipe_underscore_no_regression` — SqlPipe head with valid underscore name; assert passes availability gate (regression guard).
 
 ---
 
@@ -378,44 +452,64 @@ Also assert SQL-mode `SELECT * FROM crowdstrike.detections` returns `TableNotAva
 **AC-AUDIT-001** (traces to BC-2.10.012 v1.4 postcondition — `name` postcondition fully-qualified
 FROM-ready token, closes AUDIT-001 + AUDIT-008): `build_tables_for_client` in
 `crates/prism-mcp/src/tools/prism_describe.rs` emits `name: format!("{sensor_id}_{}", table.table_name)`
-for each table entry, NOT `name: table.table_name.clone()`. For org-c with 4 sensors
-(crowdstrike, cyberint, claroty, armis), `prism_describe(org-c)` returns table entries with
-distinct, fully-qualified `name` values: `crowdstrike_detections`, `cyberint_alerts`,
-`claroty_devices`, `claroty_audit_logs`, `armis_devices`, etc. No two `name` entries are
-identical (the disambiguation guarantee). The `example_query` field uses the same
-sensor-prefixed name (e.g., `"SELECT COUNT(*) FROM cyberint_alerts WHERE timestamp > NOW() -
-INTERVAL '1h'"`). The `pql_hints` array, when non-empty, contains a generic usage hint
-(`"Use 'SELECT * FROM <table> LIMIT 25' to query any of the N table(s) above."`) with a
-`<table>` placeholder — it does NOT embed table names. The disambiguation guarantee is
-entirely in `TableDescriptor.name` and `example_query`; `pql_hints` plays no role in it.
+for each table entry on BOTH code paths (multi-tenant: `resolved_spec_map` filtered by `OrgSlug`;
+single-tenant fallback: `config_manager.sensor_specs` filtered by `sensor_id == client_id`).
+For org-c with 4 sensors (crowdstrike, cyberint, claroty, armis), `prism_describe(org-c)`
+returns table entries with distinct, fully-qualified `name` values: `crowdstrike_detections`,
+`cyberint_alerts`, `claroty_devices`, `claroty_audit_logs`, `armis_devices`, etc. No two
+`name` entries are identical (the disambiguation guarantee). The `example_query` field uses
+the same sensor-prefixed name.
 
-**Red Gate test:** `test_bc_2_10_012_audit_001_sensor_prefixed_table_names` — construct a
-`build_tables_for_client` call with a 3-sensor client (cyberint/alerts, claroty/devices,
-armis/devices); assert NO two returned `name` fields are identical; assert each `name` equals
-`format!("{sensor_id}_{table_name}")`; assert each `example_query` references the same
-fully-qualified name (no bare `FROM alerts`).
+**CRIT-1 fix (v2.0):** `build_example_query` now derives the datetime column from the spec
+rather than hardcoding `'timestamp'`. Logic: scan `columns` for the first `ColumnType::Datetime`
+entry; if found, emit `SELECT COUNT(*) FROM <t> WHERE <datetime_col> > NOW() - INTERVAL '1h'`;
+if no datetime column exists (e.g., `crowdstrike_devices`, `claroty_devices`), emit
+`SELECT * FROM <t> LIMIT 25`. Tables without a datetime column previously produced a
+non-executable `example_query` (`WHERE timestamp > NOW() - INTERVAL '1h'` on a table without
+a `timestamp` column). The `pql_hints` array contains a generic usage hint
+(`"Use 'SELECT * FROM <table> LIMIT 25' to query any of the N table(s) above."`) — no embedded
+table names.
+
+**Red Gate tests:**
+- `test_bc_2_10_012_audit_001_sensor_prefixed_table_names` — single-tenant 3-sensor call; assert no two `name` fields are identical; assert each `name` equals `format!("{sensor_id}_{table_name}")`; assert each `example_query` references the fully-qualified name.
+- `test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique` — multi-tenant resolved_spec_map path; assert sensor-prefixed uniqueness.
+- `test_crit1_no_datetime_column_produces_column_free_query` (inline test in `prism_describe.rs`) — table with NO datetime column produces `SELECT * FROM claroty_devices LIMIT 25` (not `WHERE timestamp > ...`).
 
 ---
 
 ### Area E — MCP Prompts: FROM-Ready Table Names in All Prompt Bodies (AUDIT-004)
 
-**AC-AUDIT-004** (traces to BC-2.10.016 v1.2 postcondition — FROM-ready table names in prompt
-bodies, EC-10-016-005 / EC-10-016-006): All five `render_*` functions in
-`crates/prism-mcp/src/prompts.rs` (`render_triage_alerts`, `render_client_overview`,
-`render_cross_client_status`, `render_investigate_host`, `render_query_tutorial`) MUST NOT
-emit dot-notation table references (`FROM crowdstrike.alerts`, `FROM claroty.alerts`,
-`FROM armis.devices`, etc.) in any embedded PrismQL query in their message body. Every FROM
-clause in a rendered prompt MUST use sensor-prefixed underscore-qualified names that resolve
-without error: `crowdstrike_detections`, `armis_devices`, `claroty_devices`,
-`claroty_audit_logs`, `cyberint_alerts`. A regex scan `FROM\s+\w+\.\w+` across all five
-rendered prompt bodies MUST return zero matches (no dot-notation in FROM target position).
+> **SCOPE NOTE (v2.0 OBS-1 clarification):** AUDIT-004 scope = scan 5 `render_*` functions,
+> modify 4 (the 4 that contained dot-notation FROM refs). `render_query_tutorial` uses
+> `<sensor_table>` placeholder syntax (no hardcoded table names) and was NOT modified —
+> it was already compliant. Only `render_triage_alerts`, `render_client_overview`,
+> `render_cross_client_status`, and `render_investigate_host` were changed.
 
-**Red Gate test:** `test_bc_2_10_016_audit_004_no_dot_notation_in_prompts` — call each of the
-five `render_*` functions with representative arguments (`client_id: "org-c"` or equivalent);
-collect the full rendered message text from all five; assert the regex `FROM\s+\w+\.\w+` has
-zero matches across the combined output; assert each rendered body contains at least one
-valid FROM reference (e.g., `FROM crowdstrike_detections`) — not merely that dot-notation
-is absent, but that correct sensor-prefixed names are present (positive guard).
+**AC-AUDIT-004** (traces to BC-2.10.016 v1.2 postcondition — FROM-ready table names in prompt
+bodies, EC-10-016-005 / EC-10-016-006): The 4 affected `render_*` functions in
+`crates/prism-mcp/src/prompts.rs` (`render_triage_alerts`, `render_client_overview`,
+`render_cross_client_status`, `render_investigate_host`) MUST NOT emit dot-notation table
+references (`FROM crowdstrike.alerts`, `FROM claroty.alerts`, `FROM armis.devices`, etc.)
+in any embedded PrismQL query in their message body. Every FROM clause in a rendered prompt
+MUST use sensor-prefixed underscore-qualified names that resolve without error:
+`crowdstrike_detections`, `armis_devices`, `claroty_devices`, `claroty_audit_logs`,
+`cyberint_alerts`. A regex scan `FROM\s+\w+\.\w+` across all five rendered prompt bodies
+MUST return zero matches. `render_query_tutorial` (uses `<sensor_table>` placeholder) is
+unchanged and must not be inadvertently broken.
+
+**MED-1 prompt-value fix (v2.0):** All filter VALUES in embedded queries across the 4 modified
+prompts now match each DTU's exact emitted vocabulary. The `all-FROM-resolve` guard validates
+that every FROM-target name in every rendered prompt is a currently-registered table name
+(not a stale or fabricated one). This prevents the class of invisible failures where the
+prompt text looked correct but the embedded query would return 0 rows because the filter
+value used a casing or label not present in the DTU-emitted data.
+
+**Red Gate tests:**
+- `test_bc_2_10_016_audit_004_no_dot_notation_in_prompts` — call all 5 render_* functions; assert regex `FROM\s+\w+\.\w+` has zero matches; assert each body contains at least one valid FROM reference.
+- `test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table` — assert all FROM targets in rendered prompts are registered in TableRegistry (all-FROM-resolve guard, MED-1).
+- `test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns` — assert column references in embedded queries resolve to columns that exist in the spec.
+- `test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables` — assert column sets are populated for all sensor tables used in prompts.
+- `test_bc_2_10_016_med2_prompt_filter_values_match_dtu_vocabulary` — assert filter VALUES in embedded queries match each DTU's exact emitted vocabulary (MED-2 column-value-vocabulary validation).
 
 ---
 
@@ -423,23 +517,25 @@ is absent, but that correct sensor-prefixed names are present (positive guard).
 
 **AC-REG-1** (traces to BC-2.11.001 v1.15 invariant — DI-019 and DI-008, and
 `#[non_exhaustive]` discipline in CLAUDE.md §Conventions): Full workspace `just check` exits
-0 after all five code fixes. No existing tests regress.
+0 after all code fixes. No existing tests regress.
 
 **REQUIRED (not optional):** The N1-B net-new work introduces `EnrichUdfNotFoundDetails` as
 a new `#[non_exhaustive]` public struct in `prism-core/src/error.rs`. This MUST be reflected
 in ALL of:
 1. `EnrichUdfNotFoundDetails` carries `#[non_exhaustive]` attribute (required by CLAUDE.md discipline).
-2. `ci.yml EXPECTED` is incremented from `87` to `88` (the compile-fail gate count).
+2. `scripts/check-non-exhaustive.sh EXPECTED` is incremented from `87` to `88` (the compile-fail gate count). The gate script is `scripts/check-non-exhaustive.sh`; CI invokes it via `.github/workflows/ci.yml`. Verify with: `grep EXPECTED= scripts/check-non-exhaustive.sh` → must show `EXPECTED=88`.
 3. The CLAUDE.md `#[non_exhaustive]` sentence (currently "87 types currently enforced") is
    updated to `88` with `EnrichUdfNotFoundDetails` added to the attribution parenthetical.
 4. The perimeter/non-exhaustive compile-fail gate (`tests/external/non-exhaustive-violation/`)
    continues to pass with `EXPECTED=88`.
 
 All four changes MUST land in the same atomic commit as the `EnrichUdfNotFoundDetails` struct
-definition. A story is NOT DONE if `ci.yml EXPECTED` still reads `87` after this story merges.
+definition. A story is NOT DONE if `EXPECTED` in `scripts/check-non-exhaustive.sh` still reads `87`
+after this story merges.
 
 **Red Gate verification:** `just check` exit code 0 (workspace gate). Additionally, the
-implementer MUST verify `grep 'EXPECTED=' ci.yml` shows `88` before declaring done.
+implementer MUST verify `grep 'EXPECTED=' scripts/check-non-exhaustive.sh` shows `88` before
+declaring done.
 
 **AC-REG-2** (traces to BC-2.11.022 v1.1 invariant — CI 3-tier gate): The existing
 `REFERENCE_EXAMPLES` CI round-trip gate tests continue to pass: (1) positive examples parse
@@ -451,6 +547,116 @@ infusion_id aggregate names). No gate test previously passing may regress.
 **Red Gate test:** `test_bc_2_11_022_ci_3tier_gate` (existing) — this test MUST continue to
 pass and the implementer MUST update its registry-parity sub-assertion to verify per-field
 UDF name emission (NOT infusion_id emission) as the N1 regression guard.
+
+---
+
+### Area F — Gate Coverage: Enrich Gate at All AST Positions (C1/C2)
+
+**AC-C1C2** (traces to BC-2.11.019 v1.3 postcondition — gate covers all scalar-expr positions):
+`collect_unknown_scalars_from_sql_query` walks ALL scalar-expression positions in a `SqlQuery`:
+SELECT projections, WHERE predicate, JOIN ON conditions (typed as `Expr` in the AST), GROUP BY
+expressions, ORDER BY expressions, and HAVING predicate. For both `Ast::Sql(Select)` and
+`Ast::SqlPipe` head queries, `check_enrich_udf_availability` uses this SINGLE canonical walk.
+A query like `SELECT crowdstrike_detections.severity FROM crowdstrike_detections GROUP BY
+badudf(col)` returns `PrismError::EnrichUdfNotFound` — the GROUP BY position is NOT bypassed.
+Similarly for ORDER BY and JOIN ON positions. Before this fix (C1/C2 finding), only the SELECT
+projection and WHERE positions were scanned; GROUP BY, ORDER BY, and JOIN ON were silent bypass
+paths.
+
+**Red Gate tests (unit-level, no InfusionRegistry wiring needed):**
+- `test_c1_collect_unknown_scalar_from_sql_query_group_by` — programmatic `SqlQuery` with unknown scalar in GROUP BY; assert `collect_unknown_scalars_from_sql_query` collects the name.
+- `test_c1_collect_unknown_scalar_from_sql_query_order_by` — GROUP BY → ORDER BY variant.
+- `test_c2_collect_unknown_scalar_from_sql_query_join_on` — programmatic `SqlQuery` with unknown scalar in JOIN ON condition; assert collected.
+
+**Red Gate tests (engine-level, full InfusionRegistry wiring):**
+- `test_c1_sql_group_by_unknown_scalar_triggers_e_query_039` — full engine execute with GROUP BY badudf; assert `Err(EnrichUdfNotFound)`.
+- `test_c1_sql_order_by_unknown_scalar_triggers_e_query_039` — ORDER BY variant.
+- `test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039` — SqlPipe mode GROUP BY variant.
+
+---
+
+### Area G — Gate Coverage: E-QUERY-038 Column Gate in Single-Tenant Mode (M1)
+
+**AC-M1** (traces to BC-2.11.016 postcondition — E-QUERY-038 fires for unknown columns): The
+`check_query_column_availability` function (E-QUERY-038 column gate) MUST fire in single-tenant
+mode where `resolved_spec_map` is `None`. Previously it returned `Ok(())` immediately in this
+case, silently bypassing E-QUERY-038 for all single-tenant queries. The fix: `TableRegistry`
+gains a `columns_by_table` field (populated by `register_sensor` from `[[tables]][*].columns`
+spec entries) and a `columns_for_table(table_name: &str) -> Vec<String>` method. The
+`check_query_column_availability` function accepts an additional `table_registry: Option<&TableRegistry>`
+parameter; when `resolved_spec_map` is `None` but `table_registry` is `Some(r)`, it calls
+`r.columns_for_table(table_name)` to validate columns. Fail-open: if `columns_for_table`
+returns an empty `Vec` (table has no columns in spec or is unregistered), the column gate
+skips that table rather than blocking — this preserves the existing behavior for tables without
+column metadata.
+
+> **EC for single-tenant column gate:** A query `SELECT unknown_field FROM cyberint_alerts`
+> in single-tenant mode now returns `E-QUERY-038` (column gate) rather than executing and
+> returning 0 rows or an opaque error.
+
+---
+
+### Area H — Gate Coverage: E-QUERY-038 Column Gate Validates GROUP BY / ORDER BY / JOIN ON (M2)
+
+**AC-M2** (traces to BC-2.11.016 postcondition — E-QUERY-038 fires for unknown columns at
+all relevant positions): `check_query_column_availability` validates GROUP BY expressions,
+ORDER BY expressions, and JOIN ON column refs in addition to SELECT projections and WHERE
+predicates. Previously GROUP BY, ORDER BY, and JOIN ON column references were not checked,
+creating a bypass path where an invalid column in `GROUP BY invalid_col` would not fire
+E-QUERY-038 at plan time. The fix uses `extract_field_paths_from_expr` — the SINGLE extraction
+point for all 5 positions — preventing the `.first()` false-reject pattern from recurring at
+any single position independently. `extract_field_paths_from_expr` recurses into FuncCall args
+to find `Expr::Field` references.
+
+---
+
+### Area I — Gate Coverage: E-QUERY-037 Source Walk Covers All Subquery Positions (L1)
+
+**AC-L1** (traces to BC-2.11.001 v1.15 postcondition — availability gate is mode-agnostic):
+The `extract_sources_from_ast_for_gate` function in `table_registry.rs` now covers subquery
+sources at ALL expression positions: HAVING, GROUP BY, ORDER BY, and JOIN ON. The new
+`collect_expr_sources_into_gate` helper walks `Expr::InSubquery`, `Expr::FuncCall`, `Expr::Compare`,
+`Expr::Logical`, `Expr::Not`, and `Expr::TimestampArithmetic` to find any `SourceRef` embedded
+in those positions. Before this fix, a FROM subquery embedded in a GROUP BY expression would
+bypass the E-QUERY-037 gate and fail later with a less actionable error.
+
+---
+
+### Area J — Capability-Gate Ordering Symmetric Across execute_inner / execute_scheduled_inner (H1)
+
+**AC-H1** (traces to BC-2.11.001 v1.15 invariant — gate ordering is consistent):
+The capability gate (E-QUERY-011, `check_internal_table_capabilities`) in `execute_scheduled_inner`
+has been moved AFTER E-QUERY-037, E-QUERY-038, and E-QUERY-039, mirroring the canonical order
+in `execute_inner`. Previously in `execute_scheduled_inner`, E-QUERY-011 ran BEFORE E-QUERY-037,
+E-QUERY-038, and E-QUERY-039, causing asymmetric first-error behavior: a query with both an
+unknown table and a capability violation would report the capability error in scheduled mode
+but the table error in interactive mode. Post-fix: the canonical gate sequence is identical for
+both execution paths: E-QUERY-001 (parse) → E-QUERY-037 (table) → E-QUERY-038 (column) →
+E-QUERY-039 (enrich) → E-QUERY-011 (capability, last pre-I/O gate).
+
+---
+
+### Area K — Case-Insensitive Querying (Split to S-PRISMQL-CASE-INSENSITIVE-001)
+
+> **Out-of-scope deferred split (v2.0):** Case-insensitive querying (IEQ/IIN operators and
+> adapter canonical-case normalization) is demo-critical but architecturally distinct from
+> the gate-coverage and fidelity fixes in this story. Per human direction, it is split to a
+> SEPARATE story **S-PRISMQL-CASE-INSENSITIVE-001**. The prompt VALUES implemented in this
+> story (AUDIT-004 / AC-AUDIT-004) use each sensor's exact CURRENT casing as an interim
+> (matching DTU-emitted values), which unblocks T13 recording. Case-insensitive querying
+> will be delivered via S-PRISMQL-CASE-INSENSITIVE-001 in a subsequent cycle.
+
+---
+
+### Deferred / Out-of-Perimeter Items (v2.0)
+
+The following items were identified during the LOCAL adversarial cascade but are out of scope
+for this story and deferred with explicit anchors:
+
+| Item | Disposition | Target |
+|------|-------------|--------|
+| BC-2.10.012 §pql_hints Category-1 hint-text divergence (BC text vs. rendered output wording) | PO adjudication required; not a runtime defect | wave-gate / Phase 5 / PO |
+| 4x-query-reparse perf (enrich gate re-parses the full query string instead of accepting the already-parsed AST) | Performance, not correctness; no user-visible impact at current demo scale | follow-up story |
 
 ---
 
@@ -483,17 +689,19 @@ catalog row.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v1.8) | ~10,000 |
+| This story spec (v2.0) | ~16,000 |
 | BC files (5 BCs) | ~10,000 |
-| Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs) | ~18,000 |
+| Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs + new test files) | ~32,000 |
 | Research/audit docs (2) | ~6,000 |
-| Test files (existing + new — 9 Red Gate tests) | ~6,000 |
-| Tool outputs (grep, rg scans, call-chain traces) | ~3,000 |
-| **Total estimate** | **~53,000** |
+| Test files (existing + new — 31 Red Gate tests across 8 new test files) | ~18,000 |
+| Tool outputs (grep, rg scans, call-chain traces) | ~4,000 |
+| **Total estimate** | **~86,000** |
 
 Within the 20-30% context window budget for a Sonnet-class agent context (≈200k tokens).
-Story is safe to dispatch as a single story without splitting. (N1-B net-new scope adds ~10k
-tokens versus v1.0 estimate; still well within budget.)
+The story has grown substantially from the original 5-finding scope to cover gate-coverage
+expansion, describe correctness, and prompt-value fixes. It remains within a single dispatch
+budget — no splitting required. Implementations should be delivered in sub-bursts to avoid
+context overflow (more than 8 artifacts → sub-burst A: create files, sub-burst B: update indexes).
 
 ---
 
@@ -512,8 +720,9 @@ tokens versus v1.0 estimate; still well within budget.)
        variant to `PrismError`; add `#[non_exhaustive] pub struct EnrichUdfNotFoundDetails`
        with fields `infusion: String`, `available_infusions: Vec<String>`,
        `did_you_mean: Option<String>`.
-- [ ] 5. Increment `ci.yml EXPECTED` from `87` to `88`; update `CLAUDE.md` non-exhaustive
-       sentence (87→88) and add `EnrichUdfNotFoundDetails` to the attribution list.
+- [ ] 5. Increment `EXPECTED` in `scripts/check-non-exhaustive.sh` from `87` to `88`;
+       update `CLAUDE.md` non-exhaustive sentence (87→88) and add `EnrichUdfNotFoundDetails`
+       to the attribution list. Also update `.github/workflows/ci.yml` if it pins EXPECTED.
 - [ ] 6. Add plan-time enrichment-validation pass in `crates/prism-query/src/engine.rs`
        BEFORE `check_availability_gate`/fan-out; use AST `visit::Visitor` to collect
        enrichment function names — (a) pipe path: `PipeStage::Enrich` nodes → `EnrichStage.infusion`;
@@ -572,7 +781,7 @@ tokens versus v1.0 estimate; still well within budget.)
 
 ### Final gates
 - [ ] 21. Run `just check` (full workspace); confirm EXIT 0.
-- [ ] 22. Verify `grep 'EXPECTED=' ci.yml` shows `88` (not 87).
+- [ ] 22. Verify `grep 'EXPECTED=' scripts/check-non-exhaustive.sh` shows `88` (not 87).
 - [ ] 23. Run `rg 'event_type\s*=' crates/ --type rust`; verify every emission has a
         BC-2.16.002 catalog row (SAP-1 compliance).
 
@@ -642,9 +851,10 @@ These rules are binding for this story.
 2. **`#[non_exhaustive]` discipline and InfusionRegistry API surface:** No new public struct
    or enum field may be added without `#[non_exhaustive]` and a corresponding `ci.yml EXPECTED`
    increment. This story DOES introduce exactly ONE new public type: `EnrichUdfNotFoundDetails`
-   (for AC-N1B). It MUST carry `#[non_exhaustive]`. `ci.yml EXPECTED` increments 87→88. The
-   CLAUDE.md non-exhaustive sentence is updated 87→88 with `EnrichUdfNotFoundDetails` in the
-   attribution list. These three changes are REQUIRED — not conditional on "if a new type is needed."
+   (for AC-N1B). It MUST carry `#[non_exhaustive]`. `scripts/check-non-exhaustive.sh EXPECTED`
+   increments 87→88. The CLAUDE.md non-exhaustive sentence is updated 87→88 with
+   `EnrichUdfNotFoundDetails` in the attribution list. These three changes are REQUIRED —
+   not conditional on "if a new type is needed."
 
    **No new public methods on `InfusionRegistry`** (I1 v1.2): The UDF name set needed for
    `available_infusions` and strsim candidates MUST be derived from the EXISTING public method
@@ -698,25 +908,42 @@ already-present library calls.
 
 ## File Structure Requirements
 
-Files to modify (v1.2 — E-QUERY-039 net-new in prism-core + engine.rs gate; E-QUERY-037 map_prism_error arm confirmed-present, no change):
+All files modified in the implemented scope (v2.0):
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `crates/prism-core/src/error.rs` | MODIFY (NET-NEW variant+struct) | N1-B Step 1: add `PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` variant; add `#[non_exhaustive] pub struct EnrichUdfNotFoundDetails { pub infusion, pub available_infusions, pub did_you_mean }` |
-| `crates/prism-mcp/src/resources.rs` | MODIFY | N1: change `build_reference_content` dedup key from `desc.infusion_id` to `desc.name`; add test `test_bc_2_11_022_n1_per_field_udf_names` in `#[cfg(test)]` module |
-| `crates/prism-mcp/src/error_mapping.rs` | MODIFY (E-QUERY-039 arm net-new; E-QUERY-037 arm confirmed-present, no change) | N1-B Step 3: add explicit `-32602` INVALID_PARAMS arm for `PrismError::EnrichUdfNotFound` (E-QUERY-039) — this is the ONLY net-new arm; MUST NOT fall through to `-32000` catch-all. `PrismError::TableNotAvailable` (E-QUERY-037) arm is CONFIRMED PRESENT (doc: "S-3.13 AC-2; BC-2.11.001") — no modification needed. |
-| `crates/prism-query/src/table_registry.rs` | MODIFY | N2: in `check_availability_gate` and/or `is_registered`, ensure `TableRegistry::is_registered(table_name_as_written)` check runs BEFORE any fan-out routing — so dot-notation strings like `cyberint.alerts` return `PrismError::TableNotAvailable` (E-QUERY-037) with `did_you_mean`; trace actual call chain first |
-| `crates/prism-query/src/engine.rs` | MODIFY | N2: ensure the table availability gate from table_registry.rs is wired at the correct engine layer entry point (where the plan-time check fires before fan-out is dispatched) |
-| `crates/prism-query/src/engine.rs` (enrichment gate) | MODIFY | N1-B Step 2: add plan-time enrichment-validation pass BEFORE `check_availability_gate`/fan-out in `engine.rs`; use AST `visit::Visitor` to collect enrichment names from BOTH paths — (a) pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; (b) SQL: `ScalarFunc::Unknown(name)` in SELECT projection expressions (reachable from real queries via `build_sql_expr_parser`) AND WHERE predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat per BC-2.11.019 v1.3 §Precondition 1(b) AST-contract; real `WHERE udf(col)=v` is E-QUERY-001 parse error — `build_predicate_parser` has no scalar-funcall atom; WHERE scan is exercised by programmatic AST unit tests); validate each against `registry.udf_descriptors()` (NO new public API on `InfusionRegistry` — derive names inline); unknown name → `PrismError::EnrichUdfNotFound`; function-name anchor required (TD-VSDD-091). |
-| `crates/prism-mcp/src/tools/prism_describe.rs` | MODIFY | AUDIT-001: change `build_tables_for_client` emit from `name: table.table_name.clone()` → `name: format!("{sensor_id}_{}", table.table_name)`; add test |
-| `crates/prism-mcp/src/prompts.rs` | MODIFY | AUDIT-004: replace all dot-notation FROM refs in `render_triage_alerts`, `render_client_overview`, `render_cross_client_status`, `render_investigate_host` with sensor-prefixed underscore-qualified names; add test |
-| `ci.yml` | MODIFY | AC-REG-1: increment `EXPECTED=87` → `EXPECTED=88` (one new #[non_exhaustive] type: EnrichUdfNotFoundDetails) |
-| `CLAUDE.md` | MODIFY | AC-REG-1: update non-exhaustive sentence count 87→88; add `EnrichUdfNotFoundDetails` to attribution parenthetical |
+| `crates/prism-core/src/error.rs` | MODIFIED | N1-B: added `PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` variant; added `#[non_exhaustive] pub struct EnrichUdfNotFoundDetails { pub infusion, pub available_infusions, pub did_you_mean }` with variant_meta category "validation" |
+| `crates/prism-core/src/tests/test_enrich_udf_not_found_display.rs` | CREATED | N1-B: 4 Display format tests for EnrichUdfNotFoundDetails |
+| `crates/prism-core/src/tests/mod.rs` | MODIFIED | N1-B: register new test module |
+| `crates/prism-mcp/src/resources.rs` | MODIFIED | N1: `build_reference_content` dedup key changed from `infusion_id` → `descriptor.name`; Some(empty)/None placeholders |
+| `crates/prism-mcp/src/error_mapping.rs` | MODIFIED | N1-B: explicit `-32602` INVALID_PARAMS arm for `PrismError::EnrichUdfNotFound` (E-QUERY-039); sorted+deduped available_infusions; structured variant_meta category "validation" |
+| `crates/prism-mcp/src/tools/prism_describe.rs` | MODIFIED | AUDIT-001 + CRIT-1: `build_tables_for_client` emits `format!("{sensor_id}_{}", table.table_name)` on BOTH multi-tenant and single-tenant paths; new `pub fn build_example_query(table_name, columns)` derives datetime column from spec (no hardcoded 'timestamp'); inline test module |
+| `crates/prism-mcp/src/prompts.rs` | MODIFIED | AUDIT-004 + MED-1: 4 `render_*` functions updated with FROM-ready names; filter VALUES aligned to DTU vocabulary; all-FROM-resolve guard |
+| `crates/prism-query/src/engine.rs` | MODIFIED | N1-B + N2 + H1 + M2: new `collect_unknown_scalars_from_sql_query`, `collect_unknown_scalar_from_expr`, `collect_unknown_scalar_from_predicate`, `check_enrich_udf_availability` functions; E-QUERY-039 gate wired in execute_inner AND execute_scheduled_inner (fires LAST); capability-gate moved AFTER enrich gate in execute_scheduled_inner (H1); `check_query_column_availability` signature updated to accept `table_registry` param + validates GROUP BY/ORDER BY/JOIN ON columns (M2) |
+| `crates/prism-query/src/table_registry.rs` | MODIFIED | N2 + M1 + L1: `columns_by_table` field + `columns_for_table()` method (M1 single-tenant column gate); `collect_expr_sources_into_gate` fn for subquery source walk at HAVING/GROUP BY/ORDER BY/JOIN ON positions (L1) |
+| `crates/prism-mcp/tests/bc_2_11_022_n1_test.rs` | CREATED | N1: `test_bc_2_11_022_n1_per_field_udf_names` |
+| `crates/prism-mcp/tests/bc_2_11_019_n1b_mcp_test.rs` | CREATED | N1-B MCP: `test_bc_2_11_019_n1b_mcp_maps_to_32602`, `test_med5_enrich_udf_not_found_suggestion_non_empty_no_brackets`, `test_med5_enrich_udf_not_found_suggestion_empty_infusions` |
+| `crates/prism-mcp/tests/bc_2_10_012_audit_001_test.rs` | CREATED | AUDIT-001: `test_bc_2_10_012_audit_001_sensor_prefixed_table_names`, `test_bc_2_10_012_audit_001_multi_tenant_sensor_prefixed_unique` |
+| `crates/prism-mcp/tests/bc_2_10_016_audit_004_test.rs` | CREATED | AUDIT-004 + MED-2: 5 tests (no_dot_notation, from_targets_include_registered, column_refs_resolve, column_sets_loaded, med2_prompt_filter_values_match_dtu_vocabulary) |
+| `crates/prism-mcp/tests/reference_content.rs` | MODIFIED | N1: added `test_bc_2_11_022_crit001_positive_examples_runtime_valid` (OBS-4 migration from deleted file), `test_bc_2_11_022_some_empty_registry_placeholder` |
+| `crates/prism-mcp/tests/tool_dispatch_tests.rs` | MODIFIED | OBS-5: new fail-closed guard tests; `test_med4_enrich_udf_not_found_structured_category_is_validation` |
+| `crates/prism-query/src/tests/bc_2_11_001_n2_test.rs` | CREATED | N2 + HIGH-1: 4 tests (`dot_notation_from_target_e_query_037`, `filter_mode_underscore_no_regression`, `dot_notation_sqlpipe_e_query_037`, `sqlpipe_underscore_no_regression`) |
+| `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` | CREATED | N1-B + C1/C2 + gate coverage: 15 tests (infusion_id_as_udf_name, sql_path, high001_gate_ordering, high003_sql_select_projection, med001_sort, high1_sqlpipe_head, ec_11_059, c1 unit-level × 3, c1/c2 engine-level × 3, obs2 did_you_mean Some/None) |
+| `crates/prism-query/src/tests/table_registry_tests.rs` | MODIFIED | M1 + L1 + OBS-1: new tests for `columns_for_table`, availability gate subquery position coverage, OBS-1 SqlPipe JOIN stage, OBS-1 SELECT WHERE IN subquery |
+| `crates/prism-query/src/tests/mod.rs` | MODIFIED | Register new test modules |
+| `scripts/check-non-exhaustive.sh` | MODIFIED | AC-REG-1: `EXPECTED=87` → `EXPECTED=88` (EnrichUdfNotFoundDetails) |
+| `.github/workflows/ci.yml` | MODIFIED | Minor CI wiring for non-exhaustive gate |
+| `CLAUDE.md` | MODIFIED | AC-REG-1: non-exhaustive sentence count 87→88; attribution list updated |
 
-Files NOT to modify:
+Files DELETED:
+| File | Reason |
+|------|--------|
+| `crates/prism-mcp/tests/crit001_prompt_table_names.rs` | Superseded by AUDIT-004 TOML-derived guard in `bc_2_10_016_audit_004_test.rs` (OBS-4 finding) |
+
+Files NOT modified:
 - BC files (PO owns them — this story reads BCs, never modifies them)
 - `.factory/STATE.md` (state-manager owns it)
-- `crates/prism-query/src/materialization.rs` — resolve_source_refs returns E-QUERY-036 (UnknownSourceTable) via a DIFFERENT path; N2 fix is in table_registry.rs/engine.rs, not here. Do NOT add E-QUERY-037 logic to materialization.rs.
+- `crates/prism-query/src/materialization.rs` — resolve_source_refs returns E-QUERY-036 (UnknownSourceTable) via a DIFFERENT path; NOT touched by this story
 
 ---
 
@@ -725,13 +952,19 @@ Files NOT to modify:
 | Component | Module | Pure/Effectful |
 |-----------|--------|---------------|
 | `build_reference_content` | `crates/prism-mcp/src/resources.rs` | Pure (takes `Option<&InfusionRegistry>`, returns `String`) |
-| `build_tables_for_client` | `crates/prism-mcp/src/tools/prism_describe.rs` | Pure (takes spec data, returns `Vec<TableDescriptor>`) |
-| `render_triage_alerts` / `render_client_overview` / `render_cross_client_status` / `render_investigate_host` | `crates/prism-mcp/src/prompts.rs` | Pure (synchronous render functions per BC-2.10.016 invariant) |
-| `PrismError::EnrichUdfNotFound` variant + `EnrichUdfNotFoundDetails` struct (NET-NEW) | `crates/prism-core/src/error.rs` | Pure (data type, no I/O) |
-| E-QUERY-039 plan-time enrichment gate (NET-NEW) — pipe: `PipeStage::Enrich` → `EnrichStage.infusion`; SQL: `ScalarFunc::Unknown` in SELECT projection expressions (reachable from real queries) AND WHERE predicates via `collect_unknown_scalar_from_predicate` (DEFENSIVE / forward-compat per BC-2.11.019 v1.3 §Precondition 1(b) AST-contract; real `WHERE udf(col)=v` is E-QUERY-001 parse error — `build_predicate_parser` has no scalar-funcall atom; WHERE scan exercised by programmatic AST unit tests) | `crates/prism-query/src/engine.rs` (new validation pass before `check_availability_gate`; no new public API on `InfusionRegistry` — names derived from existing `udf_descriptors()`) | Pure (takes `&InfusionRegistry`, returns `Result<_, PrismError>`) |
+| `build_tables_for_client` (multi-tenant + single-tenant paths) | `crates/prism-mcp/src/tools/prism_describe.rs` | Pure (takes spec data, returns `Vec<TableDescriptor>`) |
+| `build_example_query` (NEW — CRIT-1: derives datetime col from spec) | `crates/prism-mcp/src/tools/prism_describe.rs` | Pure |
+| `render_triage_alerts` / `render_client_overview` / `render_cross_client_status` / `render_investigate_host` (4 modified; `render_query_tutorial` unchanged) | `crates/prism-mcp/src/prompts.rs` | Pure (synchronous per BC-2.10.016 invariant) |
+| `PrismError::EnrichUdfNotFound` variant + `EnrichUdfNotFoundDetails` struct | `crates/prism-core/src/error.rs` | Pure (data type, no I/O) |
+| `collect_unknown_scalars_from_sql_query` (NEW — canonical walk for Sql+SqlPipe) | `crates/prism-query/src/engine.rs` | Pure |
+| `collect_unknown_scalar_from_expr` (NEW — recursive Expr walker) | `crates/prism-query/src/engine.rs` | Pure |
+| `collect_unknown_scalar_from_predicate` (NEW — Predicate walker, DEFENSIVE) | `crates/prism-query/src/engine.rs` | Pure |
+| `check_enrich_udf_availability` (NEW — E-QUERY-039 gate, fires LAST) | `crates/prism-query/src/engine.rs` | Pure (takes `&str` query + `Option<&InfusionRegistry>`, returns `Result<_, PrismError>`) |
 | E-QUERY-037 plan-time availability gate — `check_availability_gate` / `is_registered` | `crates/prism-query/src/table_registry.rs` | Pure (gate check, no I/O) |
-| E-QUERY-037 gate wiring point | `crates/prism-query/src/engine.rs` | Pure (plan-time orchestration) |
-| `map_prism_error` (E-QUERY-039 arm NET-NEW; E-QUERY-037 arm CONFIRMED PRESENT — no change) | `crates/prism-mcp/src/error_mapping.rs` | Pure (mapping function) |
+| `columns_by_table` field + `columns_for_table()` method (NEW — M1 single-tenant column gate) | `crates/prism-query/src/table_registry.rs` | Pure |
+| `collect_expr_sources_into_gate` (NEW — L1 subquery source walk for HAVING/GROUP BY/ORDER BY/JOIN ON) | `crates/prism-query/src/table_registry.rs` | Pure |
+| Gate ordering (execute_inner + execute_scheduled_inner) | `crates/prism-query/src/engine.rs` | Pure (plan-time orchestration); canonical: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039 → E-QUERY-011 |
+| `map_prism_error` (E-QUERY-039 arm net-new; E-QUERY-037 arm confirmed-present — no change) | `crates/prism-mcp/src/error_mapping.rs` | Pure (mapping function) |
 
 ---
 
@@ -755,26 +988,37 @@ capture evidence of the fixed MCP tool output and prompt rendering as per AC-DEM
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | N1: `InfusionRegistry` has zero infusions registered at reference request time | `build_reference_content(Some(&registry))` returns enrichment section with "No enrichment functions are currently registered for your deployment." (not six UDF entries). Test: `test_bc_2_11_022_some_empty_registry_placeholder` (new, covers the Some(empty) path) must pass. |
-| EC-002 | N1-B: Calling `threat_intel(iocs_value)` where `threat_intel` IS registered as a UDF name (hypothetical future; currently it is NOT) | E-QUERY-039 does NOT fire — the gate only fires when the name is absent from `udf_to_infusion`. This edge case is the negative control for the fix — confirm the test fixture correctly registers only per-field names, not the infusion_id. |
-| EC-003 | N2: Filter-mode query `crowdstrike_detections | severity='HIGH'` continues to work after gate-ordering fix | Gate-ordering fix must NOT alter filter-mode behavior. `Ast::Filter` path does not use `FROM <table>` syntax; the TableRegistry check in the fix applies only to the `FROM`-target path (SQL/Pipe/SqlPipe modes). |
-| EC-004 | N2: `SELECT * FROM crowdstrike.detections` (SQL mode, dot-notation) also returns E-QUERY-037 | The fix applies to all modes (SQL, Pipe, SqlPipe) per EC-11-067 in BC-2.11.001 v1.15. The Red Gate test must cover both pipe and SQL mode. |
-| EC-005 | AUDIT-001: `prism_describe(org-c)` for a sensor with a table name already containing an underscore (hypothetical, e.g., `audit_logs`) | `format!("{sensor_id}_{}", table.table_name)` produces `"claroty_audit_logs"` — correct. No double-underscore issue since `sensor_id` is a simple identifier (`claroty`) and `table_name` is the TOML value (`audit_logs`). |
-| EC-006 | AUDIT-004: `render_query_tutorial` (the one clean prompt) must not be inadvertently broken | The fix targets only the four affected prompts. `render_query_tutorial` already uses `<sensor_table>` placeholder syntax (no hardcoded table names) — MUST NOT be modified. |
+| EC-001 | N1: `InfusionRegistry` has zero infusions registered at reference request time | `build_reference_content(Some(&registry))` returns enrichment section with "No enrichment functions are currently registered for your deployment." (not six UDF entries). Test: `test_bc_2_11_022_some_empty_registry_placeholder` covers the Some(empty) path. |
+| EC-002 | N1-B: Calling a name that IS registered as a per-field UDF name | E-QUERY-039 does NOT fire — gate only fires when name is absent from `udf_to_infusion`. Negative control for the fix. |
+| EC-003 | N2: Filter-mode query `crowdstrike_detections | severity='HIGH'` continues to work after gate-ordering fix | Gate fix must NOT alter filter-mode behavior. `Ast::Filter` path uses `<table_name> | <predicate>` syntax, NOT dot-syntax as FROM target. |
+| EC-004 | N2: `SELECT * FROM crowdstrike.detections` (SQL mode, dot-notation) returns E-QUERY-037 | All three modes (SQL, Pipe, SqlPipe) covered per EC-11-067 in BC-2.11.001 v1.15. |
+| EC-005 | AUDIT-001: `prism_describe(org-c)` for a sensor with a table name containing an underscore (e.g., `audit_logs`) | `format!("{sensor_id}_{}", table.table_name)` → `"claroty_audit_logs"` — correct. No double-underscore since `sensor_id` is a simple identifier. |
+| EC-006 | AUDIT-004: `render_query_tutorial` must not be broken | Already compliant (uses `<sensor_table>` placeholder); MUST NOT be modified. |
+| EC-007 | N2: SqlPipe head with dot-notation `FROM cyberint.alerts | SELECT *` returns E-QUERY-037 | BC-2.11.001 v1.15 is mode-agnostic; SqlPipe-not-exempt scope. Test: `test_bc_2_11_001_n2_dot_notation_sqlpipe_e_query_037`. |
+| EC-008 | N1-B: Wired InfusionRegistry with zero UDF descriptors (EC-11-059) | `check_enrich_udf_availability` fires E-QUERY-039 with `available_infusions: []` (empty Vec) when the registry is wired but has no descriptors. Gate does NOT skip — an empty registry with an enrich call is still an error. Test: `test_ec_11_059_wired_empty_registry_fires_e_query_039_with_empty_available`. |
+| EC-009 | N1-B: did_you_mean Some vs None based on Levenshtein distance | When queried name is within distance ≤ 3 of a registered UDF name, `did_you_mean: Some(closest)`. When all registered names are > distance 3 from queried name, `did_you_mean: None`. Tie-break: lexicographic on distance-equal candidates. Tests: `test_obs2_did_you_mean_some_from_strsim_levenshtein_within_threshold`, `test_obs2b_did_you_mean_none_when_beyond_levenshtein_threshold`. |
+| EC-010 | N1-B: available_infusions is sorted in E-QUERY-039 error | Registered UDF names appear sorted (ascending) in the `available_infusions` Vec of the error and in the MCP Display string. Test: `test_med001_available_infusions_sorted_in_e_query_039_error`. |
+| EC-011 | C1/C2: Unknown scalar in GROUP BY or ORDER BY returns E-QUERY-039 | `check_enrich_udf_availability` catches GROUP BY `badudf(col)` and ORDER BY `badudf(col)` positions via `collect_unknown_scalars_from_sql_query`. Tests: `test_c1_sql_group_by_unknown_scalar_triggers_e_query_039`, `test_c1_sql_order_by_unknown_scalar_triggers_e_query_039`. |
+| EC-012 | C2: Unknown scalar in JOIN ON condition returns E-QUERY-039 | `collect_unknown_scalar_from_expr` handles JOIN ON (typed as `Expr` not `Predicate`). Test: `test_c2_collect_unknown_scalar_from_sql_query_join_on`. |
+| EC-013 | H1: Query in execute_scheduled_inner with both unknown table and capability violation — first error is E-QUERY-037 (table), not E-QUERY-011 (capability) | Gate ordering symmetric with execute_inner: table gate fires first. This is the canonical first-error ordering. |
+| EC-014 | M1: Single-tenant column gate for table with NO columns in spec | `columns_for_table` returns empty `Vec` → column gate skips that table (fail-open). No false E-QUERY-038 for tables without column metadata in the spec. |
+| EC-015 | AUDIT-001: No datetime column in table spec → column-free example_query | `build_example_query` produces `SELECT * FROM <t> LIMIT 25` (not `WHERE timestamp > ...`). Test: `test_crit1_no_datetime_column_produces_column_free_query`. |
 
 ---
 
 ## Estimated Complexity
 
-**8 story points.**
+**10 story points.**
 
 Root causes are all confirmed, code paths are known, and BCs are in place. The implementation
-is a set of targeted, surgical code changes:
+spans the original 5 findings plus 6 gate-coverage fixes found during LOCAL adversarial passes:
 - N1: one-line dedup key change in `build_reference_content` + test
-- N1-B: net-new error type (error.rs) + AST-visitor enrichment gate in engine.rs (pipe+SQL paths, derive names from udf_descriptors()) + map_prism_error -32602 arm (E-QUERY-039 only) + tests
-- N2: gate ordering resequence in `run_materialization_pipeline` + test (with filter-mode regression guard)
-- AUDIT-001: one-line format change in `build_tables_for_client` + test
-- AUDIT-004: string replacement across four `render_*` functions + test (requires reading sensor TOML specs for correct table names)
+- N1-B: net-new error type (error.rs) + `collect_unknown_scalars_from_sql_query` + `check_enrich_udf_availability` in engine.rs covering ALL AST positions (SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING) for both Sql and SqlPipe; map_prism_error -32602 arm; sorted+deduped available_infusions; strsim did_you_mean; + 15 new tests
+- N2: gate ordering fix in `check_availability_gate` (table_registry.rs) with SqlPipe-not-exempt scope; 4 new N2 tests
+- AUDIT-001: sensor-prefixed names on both tenant code paths; `build_example_query` datetime column derivation from spec (CRIT-1 fix); 3 new tests
+- AUDIT-004: FROM-ready names in 4 `render_*` functions (not 5 — `render_query_tutorial` was clean); prompt VALUES aligned to DTU vocabulary (MED-1); `all-FROM-resolve` guard; 5 new tests
+- Gate-coverage fixes: C1/C2 (enrich gate JOIN/GROUP/ORDER), M1 (single-tenant column gate via `columns_for_table`), M2 (E-QUERY-038 validates GROUP BY/ORDER BY/JOIN ON columns), L1 (E-QUERY-037 source walk covers all subquery positions), H1 (capability-gate ordering symmetric in execute_scheduled_inner)
+- Deleted: `crates/prism-mcp/tests/crit001_prompt_table_names.rs` (superseded by AUDIT-004 TOML-derived guard, OBS-4)
 
 ---
 
@@ -782,6 +1026,7 @@ is a set of targeted, surgical code changes:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.0 | full-scope-expansion-prose-accuracy-sweep-2026-06-27 | 2026-06-27 | story-writer | Major revision: story updated to comprehensively document ALL implemented work beyond the original 5 findings. Gate-coverage expansion: (1) C1/C2 — enrich gate `collect_unknown_scalars_from_sql_query` scans SELECT, WHERE, JOIN ON, GROUP BY, ORDER BY, HAVING positions via canonical single-walk fn; (2) HIGH-1 — SqlPipe-not-exempt scope for N2 (BC-2.11.001 v1.15 mode-agnostic) + SqlPipe enrich gate (test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039); (3) H1 — capability-gate ordering symmetric in execute_scheduled_inner (E-QUERY-011 moved AFTER 037/038/039); (4) M1 — single-tenant column gate via TableRegistry.columns_by_table + columns_for_table; (5) M2 — E-QUERY-038 validates GROUP BY/ORDER BY/JOIN ON columns; (6) L1 — E-QUERY-037 source walk covers HAVING/GROUP BY/ORDER BY/JOIN ON subqueries via collect_expr_sources_into_gate. Describe+prompt correctness: CRIT-1 (build_example_query derives datetime column from spec, not hardcoded 'timestamp'); MED-1 (prompt VALUES aligned to DTU vocabulary); MED-2 (test_bc_2_10_016_med2_prompt_filter_values_match_dtu_vocabulary); OBS-1 (AUDIT-004 scope = 4 render_* modified, not 5 — render_query_tutorial unchanged); OBS-2 (did_you_mean=Some engine test + None test); OBS-4 (deleted crit001_prompt_table_names.rs, superseded); OBS-5 (fail-closed guards). Prose fixes: CRIT-1 (AC-N2 SqlPipe-not-exempt scope added); HIGH-1 (Red Gate inventory expanded 9→31 tests); HIGH-2 (test_bc_2_11_019_n1b_mcp_maps_to_32602 correct file: crates/prism-mcp/tests/bc_2_11_019_n1b_mcp_test.rs, not error_mapping.rs #[cfg(test)]); HIGH-3 (all ci.yml refs → scripts/check-non-exhaustive.sh, grep command corrected); OBS-2 (Estimated Complexity 8→10 pts; N2 anchor → check_availability_gate in table_registry.rs); OBS-3 (Token Budget label v1.8→v2.0); full crates_touched + File Structure updated to list all 20 files touched/created/deleted; 15 new Edge Cases (EC-007–EC-015); new ACs for gate-coverage (AC-C1C2, AC-M1, AC-M2, AC-L1, AC-H1); acceptance_criteria_count 10→16; red_gate_tests 9→31; case-insensitive querying split noted (→ S-PRISMQL-CASE-INSENSITIVE-001); deferred items noted (BC-2.10.012 §pql_hints divergence, 4x-query-reparse perf). Version bump 1.9→2.0. |
 | 1.9 | med-1-re-correction-where-clause-code-verified-2026-06-27 | 2026-06-27 | story-writer | MED-1 re-correction: AC-N1B WHERE note aligned to code-verified reality (over-corrected in v1.8). `build_predicate_parser` has no scalar-funcall atom → real `WHERE udf(col)=v` is E-QUERY-001 parse error; `collect_unknown_scalar_from_predicate` WHERE scan is DEFENSIVE/forward-compat (programmatic AST), honoring BC-2.11.019 §Precondition 1(b) AST-contract; SQL projection is the reachable gated path. `ScalarFunc::Unknown` is produced ONLY by `build_sql_expr_parser` (SELECT projections), not by the WHERE predicate grammar. Five locations corrected: (1) AC-N1B WHERE-clause note block quote; (2) AC-N1B Step 2 SQL path bullet; (3) Tasks step 6(b); (4) File Structure table engine.rs enrichment gate row; (5) Architecture Mapping E-QUERY-039 gate row. Matches the implementing test docstring in `crates/prism-query/src/tests/bc_2_11_019_n1b_test.rs` (~lines 355-366). Version bump 1.8→1.9. |
 | 1.8 | med-1-where-clause-note-correction-2026-06-27 | 2026-06-27 | story-writer | MED-1: corrected AC-N1B WHERE-clause note — SQL-mode `ScalarFunc::Unknown` gating covers projection AND WHERE per BC-2.11.019 v1.3 §Precondition 1(b) (the WHERE scan is required+implemented via `collect_unknown_scalar_from_predicate`, not "defensive/unneeded"); only the pipe `enrich`-keyword WHERE form is an E-QUERY-001 parse error. Five locations fixed: (1) AC-N1B WHERE-clause note block quote (lines ~249-261); (2) AC-N1B Step 2 SQL path bullet; (3) Tasks step 6(b); (4) File Structure table engine.rs enrichment gate row; (5) Architecture Mapping E-QUERY-039 gate row. Incorrect assertions "no WHERE-clause scan is needed" and "projection-arm scan is COMPLETE coverage" removed. Version bump 1.7→1.8. |
 | 1.7 | low-1-ec001-exhaustive-claim-audit-2026-06-27 | 2026-06-27 | story-writer | LOW-1 + EXHAUSTIVE whole-story claim audit: corrected EC-001 phantom string `"No enrichment infusions are currently registered."` → actual code string `"No enrichment functions are currently registered for your deployment."` (resources.rs ~line 1519, Some(empty) path); updated EC-001 test cite from `test_bc_2_11_022_none_registry_placeholder` (covers None path) → `test_bc_2_11_022_some_empty_registry_placeholder` (covers the Some(empty) path). Second inaccuracy found and fixed: frontmatter Red Gate test comment listed phantom test `test_non_exhaustive_count_87_to_88` — this test does not exist; the non-exhaustive gate is a compile-fail crate run via `scripts/check-non-exhaustive.sh EXPECTED=88`, not a named Rust `fn test_*`; corrected to `scripts/check-non-exhaustive.sh EXPECTED=88 (compile-fail gate via shell script, not a named Rust test)`. All other claims across every section verified accurate against feature worktree code: AC-N1 (resources.rs dedup key, per-field UDF names, test name), AC-N1B (EnrichUdfNotFoundDetails struct fields, map_prism_error -32602 arm, Display template, gate ordering, test names), AC-N2 (check_availability_gate / is_registered function names, TableNotAvailable variant, udf_to_infusion field), AC-AUDIT-001 (build_tables_for_client format string, pql_hints generic hint text), AC-AUDIT-004 (render_* function names, FROM-ready table names, regex), AC-REG-1/REG-2/DEMO-001/SAP-1, §Edge Cases (EC-002 through EC-006), §Red Gate Tests table (all other names confirmed present), §File Structure, §Library Requirements, §Architecture Mapping, §Dev Notes, §Previous Story Intelligence. No further inaccuracies found. Token Budget label 1.6→1.7. Version bump 1.6→1.7. |

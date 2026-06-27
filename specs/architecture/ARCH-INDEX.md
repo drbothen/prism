@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.147"
+version: "2.148"
 status: draft
 producer: state-manager
 timestamp: 2026-06-26T17:00:00Z
@@ -113,6 +113,7 @@ deployment_topology: single-service  # prism-bin is the sole [[bin]] target (ADR
 | ADR-044 | Temporal Grammar — `NOW()` and `INTERVAL`/Relative-Duration Literals in PrismQL | PROPOSED v1.0 | 2026-06-24 | decisions/ADR-044-temporal-grammar-now-and-interval-relative-duration-literals.md |
 | ADR-045 | Auto-Generated PrismQL Reference Resource — Grammar-Registry Parity Gate | ACCEPTED v1.1 | 2026-06-24 | decisions/ADR-045-auto-generated-prismql-reference-resource-grammar-registry-parity-gate.md |
 | ADR-046 | Three-Mode Correctness — Filter / SQL / Pipe Mode-Bridge Error and Execution Validation | ACCEPTED v1.3 | 2026-06-26 | decisions/ADR-046-three-mode-correctness-filter-sql-pipe-mode-bridge-error-and-execution-validation.md |
+| ADR-047 | PrismQL Case-Sensitivity Policy — Case-Sensitive Default, IEQ/IIN Opt-In, and Adapter-Boundary OCSF Enum-Label Normalization | PROPOSED v1.0 | 2026-06-27 | decisions/ADR-047-prismql-case-sensitivity-policy-ieq-iin-and-adapter-boundary-normalization.md |
 
 ## Architecture Decisions
 
