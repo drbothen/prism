@@ -15,7 +15,7 @@ candidate_adr_slots:
   - "ADR-PROP-C4-9: DataFusion integration — schema() built from PINNED TOML; C3↔C4 reconciliation invariant at boot"
 produced_by: architect
 timestamp: "2026-06-27"
-provenance: "side-analysis C4 capture; human-confirmed decisions 2026-06-27 session. Research basis: research/dynamic-schema-connectors-2026-06-27.md (6 perplexity_research sonar-deep-research calls + 2 Context7 calls). Hardening pass on boundary-normalization + WASM sandbox in flight: research/connector-boundary-sanitization-wasm-2026-06-27.md (see Open Questions OQ-C4-1..6). Does NOT modify live ADR files, ARCH-INDEX.md, STATE.md, SESSION-HANDOFF.md, or any live factory artifact."
+provenance: "side-analysis C4 capture; human-confirmed decisions 2026-06-27 session. Research basis: research/dynamic-schema-connectors-2026-06-27.md (6 perplexity_research sonar-deep-research calls + 2 Context7 calls). Hardening pass folded 2026-06-27: research/connector-boundary-sanitization-wasm-2026-06-27.md resolved OQ-C4-1..6; see §Hardening Findings Folded below. Does NOT modify live ADR files, ARCH-INDEX.md, STATE.md, SESSION-HANDOFF.md, or any live factory artifact."
 traces_to:
   - matured-vision-day2-requirements.md §3.4 (Source/Connector taxonomy; non-security Connector subtype)
   - matured-vision-day2-requirements.md §13 (static/dynamic connector model; multi-schema onboarding)
@@ -41,11 +41,10 @@ traces_to:
 > dynamic-registration API for Topic 5. All load-bearing claims are source-grounded in that research
 > document. Claims from model knowledge are flagged `[model-knowledge]` there.
 
-> **Hardening research in flight:** `research/connector-boundary-sanitization-wasm-2026-06-27.md`
-> (targeted pass resolving OQ-C4-1..6 on buildable Rust sanitization mechanism, scope of the
-> normalization layer, hot-path performance cost, quarantine+relabel mechanics, data/instruction
-> separation, and WASM sandbox prior art). Open Questions OQ-C4-N below are explicitly flagged
-> "resolution pending hardening pass — fold on return." Do not block the capture on that pass.
+> **Hardening research folded (2026-06-27):** `research/connector-boundary-sanitization-wasm-2026-06-27.md`
+> resolved all six OQ-C4-N items. The open-questions table below now marks each RESOLVED; the
+> concrete mechanism detail has been incorporated into D-C4-1 and D-C4-4; three residuals are
+> downgraded to PIV-C4-N (pre-implementation verification items). See §Hardening Findings Folded.
 
 > **C3↔C4 Composition.** C3 (ADR-PROP-capability-descriptor-pushdown.md) settled the capability
 > descriptor + pushdown model: a declarative TOML descriptor mapped 1:1 onto DataFusion's
@@ -97,17 +96,47 @@ A mandatory fail-closed connector-boundary normalization and sanitization chokep
 **every source that passes through Prism** — including the four existing live OCSF security sensors
 (CrowdStrike, Cyberint, Claroty, Armis). There is NO "trusted source" exemption.
 
-**What the chokepoint enforces** (mechanism detail pending OQ-C4-1..3 hardening pass):
-- NFC normalization of all identifiers
-- Single-script allowlist (Latin + digits + underscore by default)
-- Length cap on identifier names (target: ≤128 chars) and table comments
-- Control-character and bidi-override (Trojan-Source) rejection
-- Confusable / unicode skeleton detection (UTS#39)
-- Structural data/instruction separation in agent-facing output
-- Read-only-default action layer (no write capability without an explicit feature-flag-gated gate)
+**What the chokepoint enforces** — two tiers by data class (mechanism resolved by OQ-C4-1..3; see
+§Hardening Findings Folded for full detail and crate pinning):
 
-Every schema element and every value that reaches an agent context passes through this boundary.
-Fail-closed means: if the normalization pipeline cannot make a safe classification, it rejects.
+**Identifier tier (bounded, heavy, run ONCE at schema-pin time and cached):**
+
+| Step | Mechanism | Notes |
+|------|-----------|-------|
+| 0 | Byte-length pre-cap + non-empty check | Bound work before Unicode; guards CWE-400 |
+| 1 | UTF-8 validate + trim | Establish valid char stream |
+| 2 | Reject bidi/control/zero-width codepoints | Manual `matches!` on `U+202A–U+202E`, `U+2066–U+2069`, `U+200E/F`, `Default_Ignorable_Code_Point`, C0/C1 controls. **Must precede NFC** so normalization cannot launder a hostile char. Catches Trojan-Source / CVE-2021-42574 class. |
+| 3 | NFC normalize | `unicode-normalization` 0.1.25; ASCII is pass-through via QuickCheck `Yes`. Use NFC (not NFKC) to preserve identifier identity. |
+| 4 | Single-script allowlist / mixed-script check | `unicode-script` 0.5.8 + `unicode-security` 0.1.2 `MixedScript` / `RestrictionLevelDetection`. Cheaper than skeleton; rejects most hostile inputs before the costliest step. |
+| 5 | Code-point length cap | ≤128 code points for column/table identifiers; bounded cap for comments. |
+| 6 | Confusable skeleton + collision check | `unicode-security::confusable_detection::skeleton` (0.1.2). Heaviest step; amortized to ~zero per query by pin-time caching. |
+
+**CRITICAL CRATE TRAP:** `unicode-skeleton` (latest 0.1.1, released 2017-10-08, pinned to UTS#39 v10.0.0)
+is **ABANDONED** and must NOT be used. The maintained skeleton is
+`unicode-security::confusable_detection::skeleton` (0.1.2, 2024-09-12).
+[`research/connector-boundary-sanitization-wasm-2026-06-27.md` §1.1]
+
+**Value tier (unbounded, light, bounded-cost, hot path / ingest):**
+- `is_ascii()` fast-path: ASCII inputs skip all Unicode machinery (only C0/C1 control check). Security
+  telemetry is overwhelmingly ASCII; this makes the common case near-free.
+- Non-ASCII: strip invisible/bidi/zero-width/Unicode-tag (`U+E0000–U+E007F`) codepoints + NFC normalize.
+- Token-budget cap on total value-derived context (CWE-400 / model-DoS guard).
+- **No per-cell skeleton scan on the hot path.** Full confusable skeleton scanning on unbounded value
+  streams is cost-prohibitive with no demonstrated industry precedent [INCONCLUSIVE; see PIV-C4-1].
+
+**Structural data/instruction separation:** deliver labels and values to agent context inside an
+output-encoded JSON `schema`/`data` envelope, datamarked by default and base64-encoded for
+high-risk/suspicious fields (spotlighting per arXiv:2403.14720 — demonstrated >50%→<2% attack-success-rate
+on GPT-family models). Spotlighting is a mitigation layer, not a guarantee; the real backstop is the
+read-only-default action layer.
+
+**Read-only-default action layer:** no write capability without an explicit feature-flag-gated gate (Prism
+feature-flag model). This is the primary security backstop; spotlighting sits atop it.
+
+Every connector's identifiers pass through the heavy tier at pin time. Every connector's values pass
+through the value tier on the hot path. Fail-closed means: if the normalization pipeline cannot make a
+safe classification, it rejects (for hard violations) or quarantines+relabels (for suspicious but
+soft-violation identifiers; see D-C4-4).
 
 **Why no trusted-source exemption:**
 The production-grade default (CLAUDE.md §Canonical Principle) explicitly forbids fail-open on
@@ -118,11 +147,20 @@ rows`). The OCSF security sensors are the highest-value data sources and therefo
 injection targets — they must pass through the normalization boundary, not bypass it.
 
 **Honest cost (explicitly captured per human directive):**
-This adds a normalization chokepoint and latency to the EXISTING `prism-sensors` hot path (the live
-OCSF sensor fetch pipeline). This is a real day-2 morph item. The concrete buildable mechanism and
-the precise hot-path performance cost are under targeted research (OQ-C4-1..3 hardening pass on
-`research/connector-boundary-sanitization-wasm-2026-06-27.md`). Do not pre-optimize the chokepoint
-before that pass delivers cost data; do not skip the chokepoint to avoid the latency.
+This adds a normalization chokepoint to the EXISTING `prism-sensors` hot path. The hardening pass
+resolved the mechanism and scope questions. The cost shape is:
+
+- **Identifier tier cost = amortized to ~zero per query** by normalize-once-and-cache-at-pin-time.
+  Skeleton is the heaviest step but runs only at schema-pin, not per query.
+- **Value tier steady-state cost = near-free for ASCII inputs** (the common case for security
+  telemetry) via the `is_ascii()` fast-path. Non-ASCII values pay strip + NFC, not skeleton.
+- **Absolute throughput figures are NOT yet benchmarked** — this is a qualitative cost shape derived
+  from algorithm analysis, not measured wall-clock numbers. See PIV-C4-1 (hot-path throughput
+  benchmark as a pre-implementation verification item). Do not skip the chokepoint to avoid the
+  latency; do not assume the latency is negligible without the benchmark.
+
+The mandatory-on-ALL-connectors requirement is met without skeleton-scanning every sensor cell
+because the identifier/value tier split amortizes the heavy work to pin/ingest time.
 
 **Downstream spec note:** `connector.schema.identifier.sanitized` and
 `connector.schema.identifier.rejected` tracing events require new Canonical Structured Event Catalog
@@ -179,9 +217,32 @@ express.
 **Stronger posture than Airbyte's precedent:**
 Airbyte gates custom Python connectors behind `AIRBYTE_ENABLE_UNSAFE_CODE` and labels them
 "unsafe and experimental, no sandboxing guarantees." Prism's WASM escape-hatch is explicitly
-stronger: WASM provides memory isolation, capability-based sandboxing (no ambient network/FS
-access except via Prism-mediated host functions), and auditability. A WASM connector is
-sandboxed-and-audited, not unsafe. This is a direct improvement over the prior art.
+stronger. The concrete sandbox guarantees (resolved by OQ-C4-6; see §Hardening Findings Folded):
+
+- **Wasmtime WASI Preview 2 (current stable 46.0.1; LTS line 36.x) — no ambient authority by
+  default.** The default `WasiCtxBuilder` grants: no filesystem preopens, all socket addresses
+  denied, `wasi:sockets/ip-name-lookup` denied. A guest compiled from defaults can do NO FS and
+  NO network until the host explicitly grants a capability handle.
+- **DoS bounds compose from three orthogonal mechanisms:**
+  - **Fuel** (`Config::consume_fuel` + `Store` fuel methods) — deterministic CPU/work budget;
+    traps on exhaustion; default store starts with 0 fuel (traps immediately if unfunded).
+  - **Epoch interruption** (`Config::epoch_interruption` + `Store::set_epoch_deadline` +
+    `Engine::increment_epoch`) — wall-clock / scheduler preemption; trap or async-yield at deadline.
+  - **Memory/instance limits** (`StoreLimitsBuilder` + `Store::limiter` / `ResourceLimiter`) —
+    linear-memory bytes, table elements, instance counts; memory is **unbounded by default and
+    MUST be explicitly capped** via `StoreLimitsBuilder`.
+- **Extism 1.30.0** (2026-06-04) is a maintained higher-level wrapper offering manifest-based config
+  (`allowed_hosts`, `allowed_paths`, `MemoryOptions { MaxPages }`, `timeout_ms`) if a manifest UX
+  is preferred over direct Wasmtime embedding.
+- A properly-sandboxed Wasmtime host provides what Airbyte's path cannot: confinement to
+  pre-approved FS paths and network endpoints + bounded CPU + bounded memory. A WASM connector is
+  sandboxed-and-audited, not unsafe.
+- **No WASM runtime is infallible:** wasmtime shipped 12 advisories (including 2 critical) in
+  April-2026 (patched across 43.x/36.x lines). The capability guarantee holds under a bug-free
+  runtime; track advisories, prefer an LTS pin, and apply defense-in-depth for the most sensitive
+  workloads. See PIV-C4-3.
+
+All versions verified against crates.io 2026-06-27.
 
 **Reconciliation item at morph time:**
 Prism already has an existing plugin SDK (a `threatintel-lookup` plugin exists under
@@ -217,11 +278,33 @@ operator's audit dashboard shows the original value, enabling triage.
 Hard-reject on control chars and bidi overrides is non-negotiable: those are unambiguous attack
 vectors with no legitimate use in a column identifier.
 
-**Mechanism detail (OQ-C4-4):** the deterministic quarantine and reversible audit mechanism
-(encoding scheme, placeholder naming, audit field schema) are under the hardening pass. The
-decision posture is settled; the wire format is not yet.
+**Mechanism detail (resolved by OQ-C4-4; see §Hardening Findings Folded):**
 
-[research/dynamic-schema-connectors-2026-06-27.md §Topic 6]
+- **Placeholder naming:** `col_<ordinal>` (e.g. `col_0001`, human-stable, determined by
+  declaration order) OR `col_<base32(BLAKE3/SHA-256(raw_bytes))[..N]>` (content-addressed,
+  stable across re-pins if raw bytes are unchanged). Hash the **raw bytes**, not the display
+  or normalized form, so two visually-identical confusables get *distinct* placeholders.
+  Pick ordinal for readability, content-hash for re-pin stability. The final choice is an
+  authoring UX decision for morph time.
+
+- **Collision-safety:** maintain a per-schema `HashSet<String>` of assigned placeholders; on
+  hash-prefix clash extend the prefix / bump the ordinal until unique. Bounded loop over a
+  bounded identifier set.
+
+- **Audit field encoding:** retain `{original_raw_bytes_encoded, nfc_form, skeleton, scripts,
+  flags[]}` in an **audit-only, non-agent-facing** side-channel field (NOT part of the
+  `SchemaRef` presented to DataFusion or to agent consumers). Encode the raw original via
+  **punycode (RFC 3492 / IDNA)** or base32/hex so the hostile Unicode is rendered as inert
+  ASCII in logs and the operator's audit dashboard. Punycode is the canonical
+  "reversibly-encode hostile-Unicode-to-ASCII" prior art (browsers relabel suspicious IDN
+  to `xn--…` rather than reject — the same quarantine-and-surface pattern). The hostile
+  string never re-enters agent context.
+
+- **Quarantine event:** emit a structured `connector.schema.identifier.sanitized` event
+  (SAP-1 downstream dependency — BC-2.16.002 Canonical Structured Event Catalog row required
+  at morph time, not actioned here).
+
+[research/dynamic-schema-connectors-2026-06-27.md §Topic 4; research/connector-boundary-sanitization-wasm-2026-06-27.md §Topic 4]
 
 ---
 
@@ -402,20 +485,135 @@ runtime-built `SchemaRef`; a MemTable-like buffer and a dynamic-schema connector
 
 ---
 
-## Open Questions (Resolution Pending Hardening Pass)
+## Open Questions — ALL RESOLVED (hardening pass 2026-06-27)
 
-The following questions are flagged OQ-C4-N. Each is resolvable by the targeted hardening
-research in `research/connector-boundary-sanitization-wasm-2026-06-27.md`. Do NOT block the
-ADR-PROP capture on them; fold each answer on the research pass's return.
+All six OQ-C4-N items were resolved by `research/connector-boundary-sanitization-wasm-2026-06-27.md`.
+See §Hardening Findings Folded for full detail. Three residuals are downgraded to PIV-C4-N
+(pre-implementation verification items — not design unknowns, but items requiring measurement or
+confirmation at implementation time).
 
-| # | Question | Domain | Notes |
-|---|---------|--------|-------|
-| **OQ-C4-1** | **Buildable Rust sanitization mechanism.** Which crates cover the D-C4-1 chokepoint pipeline: NFC normalization (`unicode-normalization`?), UTS#39 confusable/skeleton detection (which Rust crate?), Trojan-Source/bidi-override detection, recognizer pipeline ordering? | Rust crate ecosystem | Resolution pending `connector-boundary-sanitization-wasm-2026-06-27.md`. Once resolved, the concrete crate selections and pipeline ordering become binding. |
-| **OQ-C4-2** | **Identifiers-only vs values-too scope.** D-C4-1 specifies that every schema element AND value passes through the boundary. Is full value-sanitization feasible on the live OCSF sensor hot path, or should a tiered approach apply (identifiers always; values on first-ingest + agent-context-materialization only)? | Hot-path performance + scope | Resolution pending hardening pass. The decision posture (all connectors including OCSF sensors, no exemption) is settled. The precise scope of value sanitization is an implementation decision gated on performance cost data. |
-| **OQ-C4-3** | **Hot-path performance cost.** What is the wall-clock latency added to the existing CrowdStrike/Claroty/Armis/Cyberint fetch pipeline by the normalization chokepoint? Is it amortizable at onboarding time (schema path) vs per-query (value path)? | `prism-sensors` adapter performance | Resolution pending hardening pass. Honest cost explicitly captured in D-C4-1. |
-| **OQ-C4-4** | **Quarantine+relabel mechanism detail.** Deterministic placeholder naming (`__sanitized_col_N` — sequential per connector registration? per-session?), encoding scheme for the original identifier in the audit field, and whether the audit field is part of the `SchemaRef` or a separate side-channel. | Wire format + audit schema | Resolution pending hardening pass. The decision posture (quarantine+relabel by default, hard-reject on hard violations) is settled. |
-| **OQ-C4-5** | **Structural data/instruction-separation patterns.** What is the canonical implementation pattern for presenting column names and table comments to an LLM agent in a way that structurally separates them from instruction text (not just advisory)? Best prior art from agent harness literature? | Agent harness design | Resolution pending hardening pass. Ties to `project_agent_harness_design.md` memory. |
-| **OQ-C4-6** | **WASM connector sandbox prior art.** What does the Wasmtime/WASI component model provide for capability-based sandboxing (network, FS, host function gating) that Prism's WASM connector host can leverage? How does Extism compare for plugin host ergonomics? How does this reconcile with the existing plugin SDK's Wasm execution model (if any)? | WASM host + plugin SDK | Resolution pending hardening pass. The morph-time reconciliation obligation with the existing plugin SDK (D-C4-3) depends on this finding. |
+| # | Question | Status | Resolution |
+|---|---------|--------|------------|
+| **OQ-C4-1** | **Buildable Rust sanitization mechanism.** Which crates cover the D-C4-1 chokepoint pipeline: NFC normalization, UTS#39 confusable/skeleton detection, Trojan-Source/bidi-override detection, recognizer pipeline ordering? | **RESOLVED** | Pipeline: `unicode-normalization` 0.1.25 (NFC) + manual bidi/control `matches!` reject + `unicode-script` 0.5.8 (single-script) + `unicode-security` 0.1.2 (skeleton/mixed-script/restriction-level) + length cap. ORDER IS BINDING (bidi reject before NFC). TRAP: `unicode-skeleton` 0.1.1 is abandoned (2017); use `unicode-security::skeleton` instead. See §Hardening Findings Folded and D-C4-1 chokepoint table. |
+| **OQ-C4-2** | **Identifiers-only vs values-too scope.** Full value-sanitization on the live OCSF sensor hot path — feasible, or should a tiered approach apply? | **RESOLVED** | Two-tier model adopted: HEAVY pipeline on the bounded identifier set ONCE at pin time (cacheable); LIGHT bounded treatment (NFC + bidi/control/tag strip + token-budget cap, NO per-cell skeleton) on the unbounded value stream. No surveyed production system skeleton-scans every cell on the hot path [INCONCLUSIVE universal standard; defensible tiered inference]. See D-C4-1 value tier and §Hardening Findings Folded. |
+| **OQ-C4-3** | **Hot-path performance cost.** Wall-clock latency added to the prism-sensors hot path; amortizable at onboarding vs per-query? | **RESOLVED** | Cost shape resolved: identifier tier = amortized to ~zero per query (normalize-once-cache-at-pin-time); value tier = near-free for ASCII inputs (common case for security telemetry) via `is_ascii()` fast-path. Absolute throughput figures NOT benchmarked — see PIV-C4-1. The guarantee holds at negligible steady-state latency ONLY with the ASCII fast-path + pin-time caching + scan-on-ingest discipline. |
+| **OQ-C4-4** | **Quarantine+relabel mechanism detail.** Placeholder naming, encoding scheme for the original in the audit field, audit field placement. | **RESOLVED** | `col_<ordinal>` or `col_<base32(hash(raw_bytes))[..N]>` placeholder (morph-time UX choice); per-schema `HashSet` for collision-safety; original retained punycode/base32-encoded in an audit-only, non-agent-facing side-channel field (NOT part of `SchemaRef`). Punycode / IDNA (RFC 3492) is the canonical reversible-encode-hostile-Unicode-to-ASCII prior art. See D-C4-4 mechanism detail. |
+| **OQ-C4-5** | **Structural data/instruction-separation patterns.** Canonical pattern for presenting connector data to LLM agents without mixing instruction and data channels. | **RESOLVED** | Spotlighting (arXiv:2403.14720, Hines et al.) — delimiting / datamarking / base64-encoding — is DEMONSTRATED (>50%→<2% attack-success-rate on GPT-family models), not theater. Base64-encoding is strongest. Caveats: model-capability-dependent, token/latency overhead, NOT a guarantee vs adaptive adversaries; re-validate per model upgrade. Real backstop = read-only-default least-privilege action layer. Datamark-default + base64 for quarantined/high-risk fields. See D-C4-1 structural separation clause and §Hardening Findings Folded. |
+| **OQ-C4-6** | **WASM connector sandbox prior art.** Wasmtime/WASI capabilities; Extism ergonomics; existing plugin SDK reconciliation. | **RESOLVED** | Wasmtime WASI-P2 default `WasiCtxBuilder` = no ambient authority (no FS preopens, all sockets denied, ip-name-lookup denied). DoS bounds: fuel + epoch interruption + StoreLimits (memory MUST be explicitly capped — unbounded by default). Extism 1.30.0 is a viable higher-level wrapper. Existing plugin SDK reconciliation remains a morph-time codebase task (PIV-C4-3). See D-C4-3 sandbox detail and §Hardening Findings Folded. |
+
+---
+
+## Hardening Findings Folded (2026-06-27) — Connector-Boundary Sanitization + WASM Sandbox
+
+> **Source:** `research/connector-boundary-sanitization-wasm-2026-06-27.md` (targeted hardening pass;
+> buildable Rust sanitization + hot-path cost + quarantine/relabel mechanics + spotlighting prior art +
+> WASM capability-sandbox prior art; all crate/runtime versions verified against crates.io 2026-06-27).
+> This subsection resolves OQ-C4-1..6 and records the folded findings in place. It does not modify the
+> research file itself.
+
+### Resolved: OQ-C4-1 + OQ-C4-2 + OQ-C4-3 — Buildable Rust Pipeline + Two-Tier Scope + Hot-Path Cost
+
+**Ordered sanitization pipeline (BINDING for identifier tier):**
+
+```
+0. Byte-length pre-cap + non-empty               (~0, one compare — bound work before Unicode; CWE-400)
+1. UTF-8 validate + trim ASCII whitespace         (~0 — establish valid char stream)
+2. Reject bidi/control/zero-width codepoints     (~0, one pass, no tables)
+   ↑ MUST be BEFORE NFC so normalization cannot launder a hostile char
+3. NFC normalize                                  (unicode-normalization 0.1.25 — ASCII ≈ pass-through)
+4. Single-script + mixed-script/restriction-level (unicode-script 0.5.8 + unicode-security 0.1.2)
+5. Code-point length cap                          (~0, .chars().count())
+6. Confusable skeleton + collision check          (unicode-security::confusable_detection::skeleton)
+   ↑ Heaviest step; MUST be last, on survivors only; amortized to ~zero by pin-time cache
+```
+
+**Crate versions (all verified crates.io 2026-06-27):**
+
+| Crate | Version | Released | Verdict |
+|-------|---------|----------|---------|
+| `unicode-normalization` | 0.1.25 | 2025-10-30 | Production. Canonical NFC. ASCII QuickCheck = pass-through. |
+| `unicode-security` | 0.1.2 | 2024-09-12 | **Viable, pre-1.0.** Open "implement all of UTS#39" tracking issue. Open CJK-ideograph confusable gap (Mar-2025). Own these gaps. See PIV-C4-2. |
+| `unicode-script` | 0.5.8 | 2025-12-03 | Production. |
+| **`unicode-skeleton`** | 0.1.1 | **2017-10-08** | **ABANDONED. DO NOT USE.** Pinned to UTS#39 v10.0.0. Superseded by `unicode-security::skeleton`. |
+| `unicode-bidi` | 0.3.18 | 2024-12-16 | Maintained, but for bidi *layout*, NOT identifier defense. Don't use for the reject step. |
+| `decancer` | 3.3.3 | 2025-07-16 | Maintained but *lossy* aggressive cleanser — not UTS#39-normative. Wrong tool for identity-preserving identifiers. |
+
+**Trojan-Source / CVE-2021-42574 (bidi) handling:** explicit codepoint reject before NFC, not a crate.
+Forbid in identifiers (strip from values): `U+202A LRE`, `U+202B RLE`, `U+202D LRO`, `U+202E RLO`,
+`U+2066 LRI`, `U+2067 RLI`, `U+2068 FSI`, `U+2069 PDI`, `U+200E LRM`, `U+200F RLM`, broader
+`Default_Ignorable_Code_Point` set, zero-width (`U+200B/C/D`, `U+2060`), and C0/C1 controls.
+
+**Two-tier identifier-vs-value architecture:**
+- **IDENTIFIER tier (bounded, pinned, run once at schema-pin time, cached):** full pipeline above.
+  Cache `{raw → sanitized_label, skeleton, flags, placeholder?}` keyed by pinned schema version.
+  Re-pin invalidates the cache. Per-query identifier cost = a hash lookup.
+- **VALUE tier (unbounded, hot path, ingest):** `is_ascii()` fast-path skips all Unicode machinery
+  (common case for security telemetry = near-free). Non-ASCII: strip invisible/bidi/zero-width/
+  Unicode-tag + NFC. NO per-cell skeleton scan. Add spotlight envelope + token-budget cap.
+
+**Hot-path cost shape:** affordable ONLY with (a) ASCII fast-path, (b) normalize-once-and-cache for
+identifiers at pin time, (c) scan-on-ingest not on-read. Skeleton MUST stay off the per-query/per-cell
+path. **Absolute throughput figures are qualitative (linear, ASCII-fast, skeleton-heaviest) — not
+benchmarked. See PIV-C4-1.**
+
+### Resolved: OQ-C4-4 — Quarantine + Relabel Mechanism
+
+Placeholder = `col_<ordinal>` (human-stable) or `col_<base32(BLAKE3/SHA-256(raw_bytes))[..N]>`
+(content-addressed, cross-re-pin stable). Hash the **raw bytes**, not the display form — two
+visually-identical confusables get distinct placeholders. Per-schema `HashSet<String>` ensures
+collision-safety with a bounded extend-prefix loop.
+
+Original raw bytes retained in an **audit-only, non-agent-facing** field (NOT part of `SchemaRef`),
+encoded as **punycode (RFC 3492 / IDNA)** or base32/hex so the hostile Unicode string never re-enters
+agent context. Punycode is the canonical reversible-encode prior art: browsers relabel suspicious IDN to
+`xn--…` (quarantine-and-surface, not reject) — the same pattern Prism uses here.
+
+Hard violations (control chars, bidi overrides, over-length) → REJECT the column. Soft violations
+(confusable, mixed-script, restriction-level fail) → QUARANTINE + RELABEL.
+
+### Resolved: OQ-C4-5 — Structural Data/Instruction Separation
+
+**Spotlighting (Hines et al., Microsoft Research, arXiv:2403.14720)** is DEMONSTRATED mitigation
+(not theater): three variants — delimiting, datamarking, base64-encoding. Encoding (base64) is
+strongest, driving indirect-injection attack-success-rate from **>50% to <2%** on GPT-family models.
+Corroborated by NAACL-2025 "Mixture of Encodings" and a datamarking eval reporting ~0.8% ASR.
+
+**Adopted posture:** datamark-default for all connector-derived labels/values delivered to agent
+context; base64-encode for quarantined/high-risk/suspicious fields. Carry coercion/drift/quarantine
+flags in the same structured envelope. Re-validate per model version upgrade.
+
+**Critical caveats (must own these):**
+- Model-capability-dependent — weaker models may fail the meta-instruction or lose task quality.
+- Token/latency overhead — base64 inflates context, especially for large value batches.
+- NOT complete vs adaptive adversaries / the "promptware kill chain." Microsoft ships spotlighting
+  inside Prompt Shields *layered* with detection classifiers — not as a standalone defense.
+- Invisible-char defense is complementary: strip invisible/tag chars at ingest before spotlighting.
+- "The model will fail to read confusable substitutions" is a FALSE assumption — frontier models
+  correctly interpret confusable substitutions. The skeleton-on-identifiers posture is validated
+  by this finding.
+- The real backstop remains the **read-only-default least-privilege action layer** (writes separately
+  gated + audited + human-approvable via Prism feature-flag model).
+
+### Resolved: OQ-C4-6 — WASM Capability-Sandbox (Wasmtime WASI-P2)
+
+See D-C4-3 sandbox detail above for the full specification. Summary:
+- **No ambient authority by default** — default `WasiCtxBuilder` denies all FS and network.
+- **DoS bounds compose:** fuel (CPU budget) + epoch interruption (time preemption) + StoreLimits
+  (memory cap — **MUST explicitly set; memory is unbounded by default**).
+- **Wasmtime 46.0.1 (stable), LTS 36.x** — versions verified crates.io 2026-06-27.
+- **Extism 1.30.0** (2026-06-04) — viable higher-level wrapper; manifest config for hosts/paths/memory/timeout.
+- **Existing plugin SDK reconciliation = PIV-C4-3** (morph-time codebase task; not resolved by external research).
+
+### Pre-Implementation Verification Items (PIV-C4-N)
+
+These are residuals from the hardening pass. They are NOT design unknowns — the architecture decisions
+are settled. They are measurement and confirmation tasks required before or during implementation.
+
+| # | Item | What to verify | When |
+|---|------|----------------|------|
+| **PIV-C4-1** | **Hot-path throughput benchmark** | Measure wall-clock latency of the identifier tier (full pipeline, cache-miss path) and value tier (`is_ascii()` fast-path vs non-ASCII strip+NFC) on representative CrowdStrike/Claroty/Armis/Cyberint response shapes. Confirm the ASCII fast-path delivers the near-free common case. Gate: latency must be acceptable before merging the chokepoint onto the live `prism-sensors` path. | Before D-C4-1 morph-time implementation merges to `develop`. |
+| **PIV-C4-2** | **`unicode-security` pre-1.0 + CJK-confusable gap** | `unicode-security` 0.1.2 is pre-1.0 with an open "implement all of UTS#39" tracking issue and an open (Mar-2025) CJK-ideograph confusable gap. At implementation time: (a) pin the version explicitly; (b) configure `RestrictionLevel::HighlyRestrictive` as the default (treats CJK + unsupported-script identifiers as quarantine candidates); (c) add a compensating note in the connector onboarding docs acknowledging the CJK gap for operators onboarding CJK-language data sources. Monitor for a 1.0 release or patch addressing the gap. | Before first production deployment of a connector onboarding CJK-language source column names. |
+| **PIV-C4-3** | **Existing plugin SDK reconciliation for the WASM path** | `crates/prism-spec-engine/plugins/threatintel-lookup/` is an existing plugin. Determine: is it already a WASM host? If yes, the day-2 WASM connector extends it. If no, does it use a separate runtime? Ensure the day-2 WASM connector does NOT create a second disconnected WASM runtime (D-C4-3 constraint). Architecture decision must be recorded in a real ADR at morph time. | At morph-time D-C4-3 WASM connector design; before implementation begins. |
 
 ---
 
@@ -463,7 +661,7 @@ epics in §13.4 are the direct morph-time output targets for the C4 decisions. E
 
 | Cost | Description |
 |------|-------------|
-| **Normalization chokepoint on existing hot path** | D-C4-1 applies to ALL connectors including the live OCSF sensors. The hot-path latency cost is real and not yet quantified. OQ-C4-2/3 resolve scope and cost; do not skip the chokepoint to avoid the measurement. |
+| **Normalization chokepoint on existing hot path** | D-C4-1 applies to ALL connectors including the live OCSF sensors. The cost shape is now resolved (identifier tier ≈ zero/query via pin-time caching; value tier ≈ free for ASCII inputs). Absolute throughput numbers NOT yet benchmarked — see PIV-C4-1. Do not skip the chokepoint; do not assume negligible latency without the benchmark. |
 | **Type-mapping table is authoring work, not auto-derivable** | The per-source-family explicit mapping table (JDBC dialects, OpenAPI scalar variants, GraphQL scalars, LDAP syntaxes, CSV inference) must be authored with lossy/ambiguous classification per type pair. Under-documented vendor-specific cases (over-precision DECIMAL, timezone handling) will need empirical validation — the DTU-clone pattern is the right mechanism. |
 | **Drift detection + re-pin workflow is Prism-built** | DataFusion provides runtime `register_table`/`SchemaRef`. The detection, classification, degraded-state, and re-pin lifecycle have no out-of-box DataFusion support. This is the C4 analog of C3's "the hard join-reject guard has no DataFusion hook." |
 | **No public schema-as-prompt-injection exploit case study** | The security lean in D-C4-1 and D-C4-4 is extrapolated from OWASP LLM01 + CAPEC-146 + CWE-20/400/1007 + UTS#39. It is a conservative precautionary posture, not an empirically-demonstrated-in-production exploit. Own this as a design-by-reasoning position pending empirical confirmation. |
@@ -545,7 +743,7 @@ that TOML cannot express are out of scope.
 
 | Affected area | Ripple |
 |---------------|--------|
-| **prism-sensors hot path** | D-C4-1 boundary-normalization chokepoint applies to CrowdStrike/Cyberint/Claroty/Armis adapters. Morph-time: add the chokepoint to the spec-engine adapter boundary; measure latency impact; optimize if OQ-C4-2/3 data warrants. |
+| **prism-sensors hot path** | D-C4-1 boundary-normalization chokepoint applies to CrowdStrike/Cyberint/Claroty/Armis adapters. Morph-time: add the chokepoint to the spec-engine adapter boundary with two-tier identifier/value split (D-C4-1 §chokepoint table); run PIV-C4-1 throughput benchmark before merging to `develop`. |
 | **BC-2.16.002 §Postconditions** | New Canonical Structured Event Catalog rows for 4 new event types (SAP-1 obligation, morph-time). |
 | **ADR-024 two ColumnType enums** | L-C4-2 two-hop mapping function must be authored, unit-tested, and protected by a compile-fail gate against the retired shadow enum. |
 | **§13.2..§13.4** | Onboarding flow, scope dimensions, E-CONNECTOR-DYNAMIC-001 epic — all feed directly from L-C4-1 (discover-then-pin), L-C4-5 (TOML/WASM decision tree), and L-C4-6 (DataFusion registration). |
