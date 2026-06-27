@@ -282,6 +282,62 @@ gap upward.
 
 **Name confirmed by human (D-1330):** "Prism Satellite."
 
+---
+
+> **DECIDED 2026-06-27 (human) — C2 Satellite Mesh Design Decisions D-C2-1…13.**
+> Full capture: `specs/day2-design-decisions/ADR-PROP-satellite-mesh.md`. Research basis:
+> `research/satellite-mesh-2026-06-26.md`. Summary of decisions (do_not_execute until morph):
+>
+> - **D-C2-1 Transport:** gRPC bidirectional streaming over HTTP/2:443 via `tonic` = PRIMARY /
+>   default (reverse-RPC: coordinator pushes requests DOWN, reads results UP the satellite-initiated
+>   stream). NATS leaf-node hierarchy = STRONG ALTERNATIVE (topology + JetStream S&F + reconnect
+>   for free; embedded-broker cost). Final either/or gated on prototype bake-off. Explicit cost:
+>   TCP-HOLB on single-connection HTTP/2 mixed control+bulk; HTTP/3/QUIC (`quinn`) is the eventual
+>   HOLB upgrade path.
+> - **D-C2-2 Relay trust role:** Relay Satellite = mTLS TERMINATOR / re-originator ONLY. Does NOT
+>   act as sub-CA; vends NO cross-hop credential.
+> - **D-C2-3 Role nouns (architectural lean):** Coordinator (central root) / Relay Satellite
+>   (interior executor+aggregator) / Edge Satellite (leaf executor). §3.4 BA+PO finalization owns
+>   the real decision.
+> - **D-C2-4 Diode / one-way OT mode:** DEFERRED. Day-2 = bidirectional mTLS mesh only. Recorded
+>   as explicit open design question / future epic E-SATELLITE-DIODE-001. Mutual-auth mTLS likely
+>   precludes a true unidirectional link without a separate store-and-forward + one-way-result
+>   transport variant.
+> - **D-C2-5 Identity:** SPIFFE-model (`prism-sat://<trust-domain>/<sat-id>` URI → short-lived
+>   X.509-SVID chaining to a per-trust-domain CA). Implemented NATIVE RUST. SPIRE is NOT a runtime
+>   dependency (air-gap/edge + ephemeral ethos). Bootstrap secret + private key use Prism newtype +
+>   redacted-Debug credential discipline (AD-017).
+> - **D-C2-6 Trust model:** per-hop mutual mTLS ONLY. No transitive trust. Explicitly rejects the
+>   Teleport root-CA-reaches-leaf foot-gun. Required for IEC-62443 zone separation across Purdue
+>   layers.
+> - **D-C2-7 Bootstrap:** SPIRE-style one-time/TTL join token, out-of-band distribution at deploy.
+>   Optional TPM attestation as hardening upgrade for high-assurance OT.
+> - **D-C2-8 Loop prevention:** belt-and-suspenders — seen-request-ID set (existing §3.2) + hop-count
+>   TTL decremented per hop (IP-TTL analog, hard ceiling) + OPTIONAL path-vector (BGP AS-path analog;
+>   free topology/health diagnostics).
+> - **D-C2-9 Deadlines:** gRPC per-hop deadline decrement verbatim (absolute deadline; residual =
+>   deadline − now − hop-budget; fail-fast on non-positive residual). Ties §17.8 Q3 v1.
+> - **D-C2-10 Store-and-forward:** RocksDB-backed durable queue (new CF) at collection-capable
+>   Satellites (lowest-new-dependency; Prism already runs RocksDB). Bounded buffer; drop-oldest +
+>   loud coverage signal on fill; NEVER silent loss. Transient (buffer-and-replay) vs. hard
+>   (deadline-exceeded subtree → skipped) failure classes explicitly distinguished.
+> - **D-C2-11 Partial-failure:** extend BC-2.01.010 partial-result + §3.6 coverage banner (CCS
+>   skip_unavailable lineage). A relay surfaces a lost child's subtree as skipped (reason +
+>   last-seen ts) and relays the gap UPWARD UNMODIFIED through every hop. No hop swallows a
+>   downstream failure (binds Standing Rule 3 §2 no-silent-Vec::new()).
+> - **D-C2-12 Residency:** structural enforcement — Satellite normalizes raw → OCSF/native
+>   AT THE EDGE in-zone; only normalized result transits conduit upward; raw NEVER crosses a
+>   Satellite boundary. IEC-62443 zones-and-conduits mapping explicit (one Satellite per zone,
+>   inter-Satellite hop = conduit, per-hop mTLS = conduit authentication control; NIST SP 800-82
+>   companion). Satellite-local credential resolution = HARD INVARIANT (creds resolved AT the
+>   Satellite, never sent to central; binds AD-017 / project_ai_opaque_credentials.md).
+> - **D-C2-13 Max chain depth:** hop-TTL ceiling = **8 hops** (production default). Rationale:
+>   deepest expected MSSP topology is 7 hops (OT L1 → L2 → L3 → enterprise → DMZ → regional hub →
+>   national hub → coordinator); +1 safety margin. Configurable; operators with simpler topologies
+>   should set a tighter ceiling.
+
+---
+
 ### 3.3 Demand-driven caching / smart retention (SIEM replacement by capability)
 
 **Concept:** Prism's existing architecture is ephemeral-by-default. Demand-driven caching
@@ -2115,6 +2171,22 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   research also on disk. Remaining program for the side-analysis track: **C2 satellite mesh** (research
   already in `research/`) → **C3 capability-descriptor model** (research ready) → **C4–C10** remaining topics
   → **B brief-reframe sign-off** (HUMAN GATE, §5.1). No further open sub-threads from today's session.
+- **C2 Satellite Mesh DECIDED + CAPTURED 2026-06-27 (human).** Thirteen architecture decisions
+  D-C2-1…13 confirmed. Capture artifact: `specs/day2-design-decisions/ADR-PROP-satellite-mesh.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/satellite-mesh-2026-06-26.md`. Decisions cover: transport (gRPC bidi PRIMARY / NATS
+  STRONG-ALT, prototype bake-off gated); relay trust role (terminator-only, no sub-CA); role nouns
+  (Coordinator / Relay Satellite / Edge Satellite — lean, §3.4 finalizes); diode OT mode DEFERRED
+  (future epic E-SATELLITE-DIODE-001); identity (SPIFFE-model native Rust, no SPIRE runtime);
+  trust model (per-hop mTLS only, no transitive trust, IEC-62443 zone separation); bootstrap
+  (join-token OOB + optional TPM); loop prevention (request-ID + hop-TTL ceiling + optional
+  path-vector); per-hop deadline decrement (gRPC model, ties §17.8 Q3 v1); store-and-forward
+  (RocksDB new CF, drop-oldest-loud, at-least-once + dedup); partial-failure relay (extends
+  BC-2.01.010 / CCS lineage, no hop swallows downstream gap); residency (structural enforcement,
+  IEC-62443 zones-and-conduits map, satellite-local credential resolution hard invariant binding
+  AD-017); max chain depth (8-hop production default, configurable). Remaining open questions:
+  trust-anchor rotation across deep tree; transport fork bake-off; MITM proxy survival; per-zone
+  normalization attestation; diode transport variant. §3.2 decision block updated in-place.
 
 ### 16.5 Status & boundaries reminder
 
