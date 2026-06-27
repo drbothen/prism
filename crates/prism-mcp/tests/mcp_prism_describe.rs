@@ -1993,29 +1993,37 @@ async fn test_BC_2_10_012_example_query_templates_match_bc_canonical_shape() {
         .as_str()
         .expect("BC-2.10.012 AC-002: zct table must have example_query string");
 
-    // RED GATE: current code emits "SELECT * FROM zct LIMIT 25" — no COUNT(*).
+    // CRIT-1 fix (S-DEMO-FIDELITY-REMEDIATION-001): zero-column table has NO Datetime column,
+    // so the time-window form `WHERE timestamp > NOW() - INTERVAL '1h'` cannot be generated
+    // without referencing a non-existent column. The correct fallback is `SELECT * FROM <t> LIMIT 25`.
+    // The old Red Gate assertion (COUNT(*) + NOW() + INTERVAL) was written when the BC assumed
+    // `timestamp` always existed. The CRIT-1 fix makes the column-free form the correct fallback.
+    //
+    // Updated assertion: zero-column table → column-free fallback.
     assert!(
-        zero_eq.contains("COUNT(*)"),
-        "BC-2.10.012 AC-002 RED GATE [count-recent]: example_query for zero-column table \
-         MUST contain 'COUNT(*)'. BC-canonical: \
-         'SELECT COUNT(*) FROM zct WHERE timestamp > NOW() - INTERVAL \\'1h\\''. \
-         Got: {:?}. \
-         Fix `build_example_query`: change fallback from `SELECT * FROM ... LIMIT 25` \
-         to `SELECT COUNT(*) FROM ... WHERE timestamp > NOW() - INTERVAL '1h'`.",
+        zero_eq.contains("SELECT * FROM"),
+        "BC-2.10.012 AC-002 [count-recent/CRIT-1]: example_query for zero-column table must \
+         use column-free fallback 'SELECT * FROM zct LIMIT 25' (CRIT-1 fix: no Datetime column \
+         means the timestamp time-window form would reference a non-existent column). Got: {:?}.",
         zero_eq
     );
-
     assert!(
-        zero_eq.contains("NOW()") && zero_eq.contains("INTERVAL"),
-        "BC-2.10.012 AC-002 RED GATE [count-recent]: example_query MUST contain \
-         time-window clause `NOW() - INTERVAL '1h'`. Got: {:?}.",
+        zero_eq.contains("LIMIT"),
+        "BC-2.10.012 AC-002 [count-recent/CRIT-1]: column-free fallback must include LIMIT. \
+         Got: {:?}.",
         zero_eq
     );
-
     assert!(
         zero_eq.contains("zct"),
         "BC-2.10.012 AC-002 [count-recent]: example_query must substitute the real table \
          name 'zct'. Got: {:?}.",
+        zero_eq
+    );
+    // Must NOT contain hardcoded "timestamp" (the column-free form avoids all column refs).
+    assert!(
+        !zero_eq.contains("timestamp"),
+        "BC-2.10.012 AC-002 [CRIT-1 regression guard]: column-free fallback must NOT contain \
+         hardcoded 'timestamp'. Got: {:?}.",
         zero_eq
     );
 

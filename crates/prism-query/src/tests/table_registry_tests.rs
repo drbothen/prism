@@ -1922,6 +1922,274 @@ async fn test_SEC_001_e_query_037_no_resolved_spec_map_falls_back_to_global() {
 }
 
 // ---------------------------------------------------------------------------
+// L1 fix — extract_sources_from_ast_for_gate must walk HAVING, GROUP BY,
+// ORDER BY, and JOIN ON for InSubquery expressions
+// ---------------------------------------------------------------------------
+//
+// Finding L1 (S-DEMO-FIDELITY-REMEDIATION-001): extract_sources_from_ast_for_gate
+// only walked WHERE InSubquery predicates. GROUP BY, ORDER BY, and JOIN ON
+// expressions can also carry InSubquery nodes (e.g. GROUP BY field IN (SELECT …)).
+// Without this walk, subqueries in those positions bypass E-QUERY-037 and fail
+// with an opaque DataFusion error.
+//
+// Fix: `collect_expr_sources_into_gate` recursively walks Expr trees for
+// InSubquery nodes. The Sql(Select) and SqlPipe arms now call it for GROUP BY,
+// ORDER BY, and JOIN ON positions in addition to the existing WHERE walk.
+//
+// TD-VSDD-059: load-bearing — removing the GROUP BY, ORDER BY, or JOIN ON
+// calls to `collect_expr_sources_into_gate` causes these tests to fail.
+//
+// Test strategy: construct ASTs directly (bypassing the parser) to prove
+// the walker discovers InSubquery sources in each new position.
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the GROUP BY clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT severity FROM crowdstrike_detections GROUP BY field IN (SELECT id FROM armis_devices)`
+///
+/// RED GATE: before L1 fix, the GROUP BY exprs were not walked — armis_devices
+/// would never reach the availability gate.
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_group_by_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, Expr, FieldPath, FromClause, SelectClause, SelectItem, SourceRef, SourceRefKind,
+            Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // GROUP BY: `host_id IN (SELECT id FROM armis_devices)` — Expr::InSubquery
+    let group_by_expr = Expr::InSubquery {
+        field: FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        },
+        subquery: Box::new(subquery),
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![group_by_expr],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 GROUP BY: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 GROUP BY: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in GROUP BY clause. Got sources: {sources:?}"
+    );
+}
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the ORDER BY clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT severity FROM crowdstrike_detections ORDER BY field IN (SELECT id FROM armis_devices)`
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_order_by_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, Expr, FieldPath, FromClause, OrderExpr, SelectClause, SelectItem, SortDirection,
+            SourceRef, SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // ORDER BY: `host_id IN (SELECT id FROM armis_devices) ASC` — Expr::InSubquery
+    let order_by_expr = OrderExpr {
+        expr: Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["host_id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: Box::new(subquery),
+        },
+        direction: SortDirection::Asc,
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![order_by_expr],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 ORDER BY: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 ORDER BY: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery in ORDER BY clause. Got sources: {sources:?}"
+    );
+}
+
+/// L1 fix — `extract_sources_from_ast_for_gate` must discover InSubquery sources
+/// from the JOIN ON clause of an `Ast::Sql(Select)`.
+///
+/// Represents: `SELECT * FROM crowdstrike_detections JOIN other_table ON host_id IN (SELECT id FROM armis_devices)`
+#[test]
+#[allow(non_snake_case)]
+fn test_l1_sql_select_join_on_in_subquery_source_discovered() {
+    use crate::{
+        ast::{
+            Ast, CompareOp, Expr, FieldPath, FromClause, Join, JoinKind, SelectClause, SelectItem,
+            SourceRef, SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        table_registry::extract_sources_from_ast_for_gate_test_only,
+    };
+
+    // Subquery: SELECT id FROM armis_devices
+    let subquery = build_minimal_subquery("armis_devices");
+
+    // JOIN ON: `host_id = (SELECT id FROM armis_devices)` wrapped as Expr::Compare
+    // where the rhs is an InSubquery. Real parser uses field_comparison for ON,
+    // but we construct directly to test the walker.
+    let join_on_expr = Expr::Compare {
+        lhs: Box::new(Expr::Field(FieldPath {
+            segments: vec!["host_id".to_string()],
+            span: Span::ZERO,
+        })),
+        op: CompareOp::Eq,
+        rhs: Box::new(Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: Box::new(subquery),
+        }),
+    };
+
+    let join = Join {
+        kind: JoinKind::Inner,
+        source: SourceRef {
+            raw: "other_table".to_string(),
+            kind: SourceRefKind::Custom,
+        },
+        alias: None,
+        on: join_on_expr,
+    };
+
+    let select_query = SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Star],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: "crowdstrike_detections".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![join],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let ast = Ast::Sql(SqlStatement::Select(select_query));
+    let sources = extract_sources_from_ast_for_gate_test_only(&ast);
+
+    assert!(
+        sources.iter().any(|s| s.raw == "crowdstrike_detections"),
+        "L1 JOIN ON: outer FROM 'crowdstrike_detections' must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "other_table"),
+        "L1 JOIN ON: 'other_table' (the join source) must be present; got: {sources:?}"
+    );
+    assert!(
+        sources.iter().any(|s| s.raw == "armis_devices"),
+        "L1 JOIN ON: extract_sources_from_ast_for_gate must discover 'armis_devices' \
+         from InSubquery nested in JOIN ON Expr::Compare rhs. Got sources: {sources:?}"
+    );
+}
+
+/// Helper: build a minimal `SqlQuery` that selects `id` from `source_table_name`.
+///
+/// Used by L1 tests to build subquery AST nodes without repetition.
+fn build_minimal_subquery(source_table_name: &str) -> crate::ast::SqlQuery {
+    use crate::ast::{
+        Expr, FieldPath, FromClause, SelectClause, SelectItem, SourceRef, SourceRefKind, Span,
+        SqlQuery,
+    };
+    SqlQuery {
+        select: SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: Expr::Field(FieldPath {
+                    segments: vec!["id".to_string()],
+                    span: Span::ZERO,
+                }),
+                alias: None,
+            }],
+        },
+        from: FromClause {
+            source: SourceRef {
+                raw: source_table_name.to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+        },
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Test helper module (not a test itself)
 // ---------------------------------------------------------------------------
 #[cfg(test)]

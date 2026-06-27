@@ -684,3 +684,293 @@ async fn test_ec_11_059_wired_empty_registry_fires_e_query_039_with_empty_availa
         }
     }
 }
+
+// ── C1+C2 fix: E-QUERY-039 gate covers JOIN ON / GROUP BY / ORDER BY ──────────
+//
+// S-DEMO-FIDELITY-REMEDIATION-001 C1+C2: `check_enrich_udf_availability` previously
+// scanned only SELECT + WHERE for `ScalarFunc::Unknown` names.  JOIN ON, GROUP BY, and
+// ORDER BY positions were not walked, so an unregistered UDF in those positions bypassed
+// the gate and reached DataFusion as an opaque E-INT-001.
+//
+// The fix introduces `collect_unknown_scalars_from_sql_query` (a canonical shared
+// helper) that walks ALL scalar positions in a `SqlQuery`, and replaces the per-arm
+// inline walks in `check_enrich_udf_availability` with calls to this helper.
+//
+// Note on parser reach: PrismQL's SQL parser accepts `func(col)` syntax in GROUP BY
+// and ORDER BY but NOT in JOIN ON (which uses `col = col` equality, not function calls,
+// in its grammar).  However the AST struct allows any `Expr` in `Join.on`, and
+// programmatic/macro-generated AST construction (test fixtures, future parser
+// extensions) can place `Expr::FuncCall(ScalarFunc::Unknown)` there.  The fix covers
+// all AST positions so the gate is correct by construction regardless of parser version.
+// Tests that exercise the JOIN ON and GROUP BY positions use the `check_enrich_udf_availability`
+// function directly via AST fixtures (not the parser) to avoid parser grammar coupling.
+//
+// Integration tests (Sql + SqlPipe) via the execute() path cover the SELECT/pipe positions
+// that are reachable by the live parser.  Unit tests cover JOIN ON + GROUP BY + ORDER BY
+// via direct function calls.
+
+/// C1 unit — `collect_unknown_scalars_from_sql_query` finds unknown scalar in GROUP BY.
+///
+/// Constructs a SqlQuery programmatically with `badudf(col)` as a GROUP BY expression.
+/// Asserts the name is collected, proving the GROUP BY walk in the canonical helper is live.
+///
+/// Load-bearing (TD-VSDD-059): removing the GROUP BY walk from
+/// `collect_unknown_scalars_from_sql_query` makes this test fail.
+#[test]
+fn test_c1_collect_unknown_scalar_from_sql_query_group_by() {
+    use crate::ast::{
+        Expr, FieldPath, FromClause, FuncCall, ScalarFunc, SelectClause, SourceRef, SourceRefKind,
+        SqlQuery,
+    };
+
+    let func_expr = Expr::FuncCall(FuncCall::Scalar {
+        func: ScalarFunc::Unknown("badudf".to_string()),
+        args: vec![Expr::Field(FieldPath::new(vec!["col".to_string()]))],
+    });
+
+    let sq = SqlQuery {
+        select: SelectClause::new(vec![]),
+        from: FromClause::new(SourceRef {
+            raw: "crowdstrike_alerts".to_string(),
+            kind: SourceRefKind::Custom,
+        }),
+        joins: vec![],
+        where_: None,
+        group_by: vec![func_expr],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let mut out = Vec::new();
+    crate::engine::collect_unknown_scalars_from_sql_query_test_only(&sq, &mut out);
+
+    assert_eq!(
+        out,
+        vec!["badudf".to_string()],
+        "C1: collect_unknown_scalars_from_sql_query must collect ScalarFunc::Unknown \
+         in GROUP BY expressions. Got: {out:?}"
+    );
+}
+
+/// C1 unit — `collect_unknown_scalars_from_sql_query` finds unknown scalar in ORDER BY.
+///
+/// Constructs a SqlQuery programmatically with `badudf(col)` as an ORDER BY expression.
+/// Asserts the name is collected, proving the ORDER BY walk is live.
+///
+/// Load-bearing (TD-VSDD-059): removing the ORDER BY walk makes this test fail.
+#[test]
+fn test_c1_collect_unknown_scalar_from_sql_query_order_by() {
+    use crate::ast::{
+        Expr, FieldPath, FromClause, FuncCall, OrderExpr, ScalarFunc, SelectClause, SortDirection,
+        SourceRef, SourceRefKind, SqlQuery,
+    };
+
+    let func_expr = Expr::FuncCall(FuncCall::Scalar {
+        func: ScalarFunc::Unknown("rankerudf".to_string()),
+        args: vec![Expr::Field(FieldPath::new(vec!["severity".to_string()]))],
+    });
+
+    let sq = SqlQuery {
+        select: SelectClause::new(vec![]),
+        from: FromClause::new(SourceRef {
+            raw: "crowdstrike_alerts".to_string(),
+            kind: SourceRefKind::Custom,
+        }),
+        joins: vec![],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![OrderExpr {
+            expr: func_expr,
+            direction: SortDirection::Asc,
+        }],
+        limit: None,
+    };
+
+    let mut out = Vec::new();
+    crate::engine::collect_unknown_scalars_from_sql_query_test_only(&sq, &mut out);
+
+    assert_eq!(
+        out,
+        vec!["rankerudf".to_string()],
+        "C1: collect_unknown_scalars_from_sql_query must collect ScalarFunc::Unknown \
+         in ORDER BY expressions. Got: {out:?}"
+    );
+}
+
+/// C2 unit — `collect_unknown_scalars_from_sql_query` finds unknown scalar in JOIN ON.
+///
+/// Constructs a SqlQuery programmatically with a JOIN whose ON condition is
+/// `badjoinudf(col) = other_col` (Expr::FuncCall in the on field).
+/// Asserts the name is collected, proving the JOIN ON walk is live.
+///
+/// Note: the PrismQL parser's JOIN grammar uses `col = col` equality in ON, so this
+/// position is exercised here via direct AST construction (not parser).
+///
+/// Load-bearing (TD-VSDD-059): removing the JOIN ON walk makes this test fail.
+#[test]
+fn test_c2_collect_unknown_scalar_from_sql_query_join_on() {
+    use crate::ast::{
+        Expr, FieldPath, FromClause, FuncCall, Join, JoinKind, ScalarFunc, SelectClause, SourceRef,
+        SourceRefKind, SqlQuery,
+    };
+
+    let join_on_expr = Expr::FuncCall(FuncCall::Scalar {
+        func: ScalarFunc::Unknown("badjoinudf".to_string()),
+        args: vec![Expr::Field(FieldPath::new(vec!["x".to_string()]))],
+    });
+
+    let sq = SqlQuery {
+        select: SelectClause::new(vec![]),
+        from: FromClause::new(SourceRef {
+            raw: "crowdstrike_alerts".to_string(),
+            kind: SourceRefKind::Custom,
+        }),
+        joins: vec![Join {
+            kind: JoinKind::Inner,
+            source: SourceRef {
+                raw: "cyberint_alerts".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            alias: None,
+            on: join_on_expr,
+        }],
+        where_: None,
+        group_by: vec![],
+        having: None,
+        order_by: vec![],
+        limit: None,
+    };
+
+    let mut out = Vec::new();
+    crate::engine::collect_unknown_scalars_from_sql_query_test_only(&sq, &mut out);
+
+    assert_eq!(
+        out,
+        vec!["badjoinudf".to_string()],
+        "C2: collect_unknown_scalars_from_sql_query must collect ScalarFunc::Unknown \
+         in JOIN ON expressions. Got: {out:?}"
+    );
+}
+
+/// C1+C2 integration — SQL mode GROUP BY unknown scalar triggers E-QUERY-039.
+///
+/// `SELECT severity, COUNT(*) FROM cyberint_alerts GROUP BY badudf(severity)` where
+/// `badudf` is not a registered UDF must return E-QUERY-039, NOT opaque E-INT-001.
+///
+/// Load-bearing: fails if GROUP BY walk is removed from
+/// `collect_unknown_scalars_from_sql_query`.
+#[tokio::test]
+async fn test_c1_sql_group_by_unknown_scalar_triggers_e_query_039() {
+    let engine = make_test_engine_threat_intel();
+
+    // GROUP BY clause with an unknown scalar function — triggers the GROUP BY walk fix.
+    let result = engine
+        .execute(
+            "SELECT severity, COUNT(*) FROM cyberint_alerts GROUP BY badudf(severity)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "C1: SQL GROUP BY with unknown scalar 'badudf' must return Err (E-QUERY-039). \
+         Prior to C1/C2 fix, GROUP BY was not walked → gate bypass → opaque E-INT-001. \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "C1: SQL GROUP BY unknown scalar must trigger E-QUERY-039. Got: {display}"
+    );
+    assert!(
+        !display.contains("E-INT-001") && !display.contains("Internal error"),
+        "C1: error must NOT be opaque E-INT-001. Got: {display}"
+    );
+    assert!(
+        display.contains("badudf"),
+        "C1: error must name the unregistered function 'badudf'. Got: {display}"
+    );
+}
+
+/// C1+C2 integration — SQL mode ORDER BY unknown scalar triggers E-QUERY-039.
+///
+/// `SELECT severity FROM cyberint_alerts ORDER BY rankerudf(severity)` must return
+/// E-QUERY-039, NOT opaque E-INT-001.
+///
+/// Load-bearing: fails if ORDER BY walk is removed from
+/// `collect_unknown_scalars_from_sql_query`.
+#[tokio::test]
+async fn test_c1_sql_order_by_unknown_scalar_triggers_e_query_039() {
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "SELECT severity FROM cyberint_alerts ORDER BY rankerudf(severity)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "C1: SQL ORDER BY with unknown scalar 'rankerudf' must return Err (E-QUERY-039). \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "C1: SQL ORDER BY unknown scalar must trigger E-QUERY-039. Got: {display}"
+    );
+    assert!(
+        !display.contains("E-INT-001") && !display.contains("Internal error"),
+        "C1: error must NOT be opaque E-INT-001. Got: {display}"
+    );
+    assert!(
+        display.contains("rankerudf"),
+        "C1: error must name the unregistered function 'rankerudf'. Got: {display}"
+    );
+}
+
+/// C1+C2 integration — SqlPipe mode GROUP BY unknown scalar triggers E-QUERY-039.
+///
+/// `SELECT severity, COUNT(*) FROM cyberint_alerts GROUP BY badudf(severity) | LIMIT 10`
+/// must return E-QUERY-039 (the GROUP BY is in the SqlPipe HEAD).
+///
+/// Load-bearing: fails if GROUP BY walk is removed from the SqlPipe arm of
+/// `check_enrich_udf_availability`.
+#[tokio::test]
+async fn test_c1_sqlpipe_group_by_unknown_scalar_triggers_e_query_039() {
+    let engine = make_test_engine_threat_intel();
+
+    let result = engine
+        .execute(
+            "SELECT severity, COUNT(*) FROM cyberint_alerts GROUP BY badudf(severity) | LIMIT 10",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "C1: SqlPipe GROUP BY with unknown scalar 'badudf' must return Err (E-QUERY-039). \
+         Got Ok."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "C1: SqlPipe GROUP BY unknown scalar must trigger E-QUERY-039. Got: {display}"
+    );
+    assert!(
+        display.contains("badudf"),
+        "C1: error must name the unregistered function 'badudf'. Got: {display}"
+    );
+}

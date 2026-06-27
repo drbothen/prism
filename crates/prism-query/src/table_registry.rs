@@ -69,6 +69,17 @@ pub struct TableRegistry {
     registered: Arc<RwLock<HashSet<String>>>,
     /// Table name → sensor_id reverse mapping for error messages.
     sensor_by_table: Arc<RwLock<HashMap<String, String>>>,
+    /// Table name → column name list, used for single-tenant E-QUERY-038 gate.
+    ///
+    /// M1 fix (S-DEMO-FIDELITY-REMEDIATION-001): `check_query_column_availability`
+    /// previously returned `Ok(())` immediately when `resolved_spec_map.is_none()`
+    /// (single-tenant mode), silently bypassing E-QUERY-038 for all queries.
+    ///
+    /// By retaining column names here, the gate can fire in single-tenant mode by
+    /// looking up columns from the registry rather than the resolved_spec_map.
+    /// Only populated when `register_sensor` is called with a spec that has columns
+    /// defined in its `[[tables]]` entries; empty = fail-open (gate skips that table).
+    columns_by_table: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
 impl TableRegistry {
@@ -80,6 +91,7 @@ impl TableRegistry {
         Self {
             registered: Arc::new(RwLock::new(HashSet::new())),
             sensor_by_table: Arc::new(RwLock::new(HashMap::new())),
+            columns_by_table: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -130,6 +142,14 @@ impl TableRegistry {
                     detail: "TableRegistry::register_sensor: sensor_by_table RwLock poisoned"
                         .to_string(),
                 })?;
+        // M1 fix: acquire columns_by_table lock atomically with the other two.
+        let mut columns_by_table =
+            self.columns_by_table
+                .write()
+                .map_err(|_| PrismError::Internal {
+                    detail: "TableRegistry::register_sensor: columns_by_table RwLock poisoned"
+                        .to_string(),
+                })?;
 
         // Remove existing tables for this sensor (the deregister phase).
         // Executed under the held locks — no visibility gap.
@@ -141,6 +161,7 @@ impl TableRegistry {
         for name in to_remove {
             registered.remove(&name);
             sensor_by_table.remove(&name);
+            columns_by_table.remove(&name);
         }
 
         // Insert new tables for this sensor (the register phase).
@@ -148,7 +169,13 @@ impl TableRegistry {
         for table in &spec.tables {
             let full_name = format!("{}_{}", spec.sensor_id, table.table_name);
             registered.insert(full_name.clone());
-            sensor_by_table.insert(full_name, spec.sensor_id.clone());
+            sensor_by_table.insert(full_name.clone(), spec.sensor_id.clone());
+            // M1 fix: retain column names for single-tenant E-QUERY-038 gate.
+            // Only populated when the spec has explicit columns defined.
+            if !table.columns.is_empty() {
+                let col_names: Vec<String> = table.columns.iter().map(|c| c.name.clone()).collect();
+                columns_by_table.insert(full_name, col_names);
+            }
         }
 
         Ok(())
@@ -179,6 +206,16 @@ impl TableRegistry {
                          for sensor_id={sensor_id}"
                     ),
                 })?;
+        // M1 fix: also acquire columns_by_table for cleanup.
+        let mut columns_by_table =
+            self.columns_by_table
+                .write()
+                .map_err(|_| PrismError::Internal {
+                    detail: format!(
+                        "TableRegistry::deregister_sensor: columns_by_table RwLock poisoned \
+                         for sensor_id={sensor_id}"
+                    ),
+                })?;
 
         // Collect keys to remove (avoid modifying while iterating).
         let to_remove: Vec<String> = registered
@@ -190,6 +227,7 @@ impl TableRegistry {
         for name in to_remove {
             registered.remove(&name);
             sensor_by_table.remove(&name);
+            columns_by_table.remove(&name);
         }
 
         Ok(())
@@ -250,6 +288,33 @@ impl TableRegistry {
         let mut tables: Vec<String> = guard.iter().cloned().collect();
         tables.sort();
         tables
+    }
+
+    /// Return the column names for `table_name`, or an empty `Vec` if unknown.
+    ///
+    /// Used by `check_query_column_availability` (E-QUERY-038) in single-tenant
+    /// mode when `resolved_spec_map` is `None`. Returns column names populated via
+    /// `register_sensor` from the sensor spec's `[[tables]][*].columns` entries.
+    ///
+    /// Returns an empty `Vec` (fail-open) when:
+    /// - `table_name` is not registered
+    /// - `table_name` was registered with an empty column list (no columns in spec)
+    /// - The `columns_by_table` lock is poisoned
+    ///
+    /// M1 fix: S-DEMO-FIDELITY-REMEDIATION-001.
+    pub fn columns_for_table(&self, table_name: &str) -> Vec<String> {
+        match self.columns_by_table.read() {
+            Ok(guard) => guard.get(table_name).cloned().unwrap_or_default(),
+            Err(_) => {
+                tracing::warn!(
+                    event_type = "table_registry.rwlock_poisoned",
+                    method = "columns_for_table",
+                    "TableRegistry::columns_for_table: RwLock poisoned — returning empty list. \
+                     Another thread panicked while holding the lock."
+                );
+                Vec::new()
+            }
+        }
     }
 
     /// Return the sensor_id that owns `table_name`, or `None` if not registered.
@@ -793,6 +858,22 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
             if let Some(ref where_pred) = sq.where_ {
                 collect_predicate_sources_into_gate(where_pred, &mut sources);
             }
+            // L1 fix (S-DEMO-FIDELITY-REMEDIATION-001): also walk HAVING, GROUP BY,
+            // ORDER BY, and JOIN ON positions for InSubquery expressions.
+            // Previously only WHERE was walked; subqueries in these positions bypassed
+            // the gate and produced opaque DataFusion errors instead of E-QUERY-037.
+            if let Some(ref having_pred) = sq.having {
+                collect_predicate_sources_into_gate(having_pred, &mut sources);
+            }
+            for expr in &sq.group_by {
+                collect_expr_sources_into_gate(expr, &mut sources);
+            }
+            for oe in &sq.order_by {
+                collect_expr_sources_into_gate(&oe.expr, &mut sources);
+            }
+            for join in &sq.joins {
+                collect_expr_sources_into_gate(&join.on, &mut sources);
+            }
         }
         Ast::Sql(SqlStatement::Dml(dml)) => {
             if let Some(ref source_select) = dml.source_select {
@@ -838,6 +919,20 @@ fn extract_sources_from_ast_for_gate(ast: &crate::ast::Ast) -> Vec<crate::ast::S
             // reach the E-QUERY-037 gate.
             if let Some(ref where_pred) = spq.head.where_ {
                 collect_predicate_sources_into_gate(where_pred, &mut sources);
+            }
+            // L1 fix (S-DEMO-FIDELITY-REMEDIATION-001): mirror the SQL Select arm —
+            // also walk HAVING, GROUP BY, ORDER BY, and JOIN ON in the SqlPipe head.
+            if let Some(ref having_pred) = spq.head.having {
+                collect_predicate_sources_into_gate(having_pred, &mut sources);
+            }
+            for expr in &spq.head.group_by {
+                collect_expr_sources_into_gate(expr, &mut sources);
+            }
+            for oe in &spq.head.order_by {
+                collect_expr_sources_into_gate(&oe.expr, &mut sources);
+            }
+            for join in &spq.head.joins {
+                collect_expr_sources_into_gate(&join.on, &mut sources);
             }
             for stage in &spq.stages {
                 if let crate::ast::PipeStage::Join(js) = stage {
@@ -892,6 +987,72 @@ fn collect_predicate_sources_into_gate(
         // Other predicate variants (Compare, Between, Cidr, Has, Missing, IsNull,
         // Wildcard, RecoveryError, In, StringOp, Regex) do not carry nested SqlQuery
         // references and need no traversal.
+        _ => {}
+    }
+}
+
+/// Walk an `Expr` tree and collect `SourceRef`s from any `Expr::InSubquery` nodes.
+///
+/// Used by `extract_sources_from_ast_for_gate` for HAVING, GROUP BY, ORDER BY, and
+/// JOIN ON positions — all of which can contain subqueries in expressions
+/// (e.g. `GROUP BY (SELECT MAX(ts) FROM other_table)`). Without this walk,
+/// an InSubquery expression in those positions would bypass the E-QUERY-037 gate
+/// and fail later with a less helpful error. (L1 fix, S-DEMO-FIDELITY-REMEDIATION-001)
+///
+/// # What is walked
+/// - `Expr::InSubquery { subquery, .. }` — collect the subquery's FROM source and joins.
+/// - `Expr::FuncCall(Aggregate | Scalar)` — recurse into args.
+/// - `Expr::Compare { lhs, rhs, .. }` — recurse into both operands (JOIN ON conditions).
+/// - `Expr::Logical { lhs, rhs, .. }` — recurse into both operands (AND/OR).
+/// - `Expr::Not(inner)` — recurse into inner.
+/// - `Expr::TimestampArithmetic { base, .. }` — recurse into base.
+///
+/// # Non-exhaustive safety
+/// Unknown future `Expr` and `FuncCall` variants are silently skipped via
+/// the `_ => {}` catch-all arm, preserving fail-open gate semantics and
+/// satisfying `#[non_exhaustive]` discipline.
+fn collect_expr_sources_into_gate(
+    expr: &crate::ast::Expr,
+    sources: &mut Vec<crate::ast::SourceRef>,
+) {
+    use crate::ast::{Expr, FuncCall};
+
+    fn push_dedup(sources: &mut Vec<crate::ast::SourceRef>, s: &crate::ast::SourceRef) {
+        if !sources.iter().any(|x| x.raw == s.raw) {
+            sources.push(s.clone());
+        }
+    }
+
+    match expr {
+        Expr::InSubquery { subquery, .. } => {
+            push_dedup(sources, &subquery.from.source);
+            for join in &subquery.joins {
+                push_dedup(sources, &join.source);
+            }
+        }
+        Expr::FuncCall(fc) => match fc {
+            FuncCall::Aggregate { args, .. } | FuncCall::Scalar { args, .. } => {
+                for arg in args {
+                    collect_expr_sources_into_gate(arg, sources);
+                }
+            }
+            FuncCall::Window { .. } => {} // No args yet.
+            #[allow(unreachable_patterns)]
+            _ => {}
+        },
+        Expr::Compare { lhs, rhs, .. } => {
+            collect_expr_sources_into_gate(lhs, sources);
+            collect_expr_sources_into_gate(rhs, sources);
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            collect_expr_sources_into_gate(lhs, sources);
+            collect_expr_sources_into_gate(rhs, sources);
+        }
+        Expr::Not(inner) => collect_expr_sources_into_gate(inner, sources),
+        Expr::TimestampArithmetic { base, .. } => {
+            collect_expr_sources_into_gate(base, sources);
+        }
+        // Literal, Field, VirtualField, In, Star, Now, Interval, and future variants: skip.
         _ => {}
     }
 }

@@ -445,16 +445,51 @@ fn build_pql_hints(
 
 /// Build an auto-generated example PQL query for a table.
 ///
-/// Always includes a count-recent fallback. Adds severity-filter variant when a
-/// `severity` column is present. Adds aggregate variant when an aggregatable column
-/// (Integer/Float) is present.
+/// Produces an executable example query that references ONLY columns that actually exist
+/// in the table's spec.  All three query variants (count-recent, severity-filter, aggregate)
+/// must be syntactically and semantically valid against the table's actual schema.
+///
+/// # CRIT-1 fix (S-DEMO-FIDELITY-REMEDIATION-001)
+///
+/// The previous implementation hardcoded `timestamp` in the count-recent fallback
+/// (`WHERE timestamp > NOW() - INTERVAL '1h'`).  Tables without a `timestamp` column
+/// (e.g. `crowdstrike_devices`, `claroty_devices`) produced a non-executable example_query
+/// that violated AUDIT-001/AUDIT-004.
+///
+/// The fix:
+/// - Derive the time column from the table's actual `Datetime`-typed columns (first one).
+/// - If no datetime column exists, emit a column-free form: `SELECT * FROM <t> LIMIT 25`.
+///
+/// # Variant selection (priority: aggregate > severity > count-recent/simple)
+///
+/// | Condition                         | Query emitted |
+/// |-----------------------------------|---------------|
+/// | Integer/Float column present      | GROUP BY aggregate (uses that column) |
+/// | severity column present (no agg)  | WHERE severity IN (...) LIMIT 50 |
+/// | Datetime column found (no above)  | COUNT(*) WHERE <dt_col> > NOW() - INTERVAL '1h' |
+/// | No datetime column (no above)     | SELECT * FROM <t> LIMIT 25 |
+///
+/// BC-2.10.012 / AUDIT-001 / AUDIT-004; S-DEMO-FIDELITY-REMEDIATION-001 CRIT-1.
 pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> String {
     use prism_core::column::ColumnType;
 
-    // Count-recent fallback (always present, EC-002 zero-column case).
-    // BC-2.10.012 canonical: SELECT COUNT(*) FROM <t> WHERE timestamp > NOW() - INTERVAL '1h'
-    let mut query =
-        format!("SELECT COUNT(*) FROM {table_name} WHERE timestamp > NOW() - INTERVAL '1h'");
+    // CRIT-1 fix: derive time column from actual Datetime-typed columns.
+    // Prefer the first Datetime-typed column; do NOT assume a column named "timestamp" exists.
+    let datetime_col: Option<&str> = columns
+        .iter()
+        .find(|c| matches!(c.col_type, ColumnType::Datetime))
+        .map(|c| c.name.as_str());
+
+    // Count-recent fallback (only when a datetime column exists).
+    // BC-2.10.012 canonical: SELECT COUNT(*) FROM <t> WHERE <datetime_col> > NOW() - INTERVAL '1h'
+    // CRIT-1 fix: use actual datetime column name, not hardcoded "timestamp".
+    // If no datetime column exists, fall back to a column-free SELECT * LIMIT 25.
+    let mut query = if let Some(dt_col) = datetime_col {
+        format!("SELECT COUNT(*) FROM {table_name} WHERE {dt_col} > NOW() - INTERVAL '1h'")
+    } else {
+        // No datetime column — emit a simple scan that is always valid.
+        format!("SELECT * FROM {table_name} LIMIT 25")
+    };
 
     // Severity filter variant when a severity column is present.
     // BC-2.10.012 canonical: SELECT * FROM <t> WHERE severity IN ('high', 'critical') LIMIT 50
@@ -477,4 +512,113 @@ pub fn build_example_query(table_name: &str, columns: &[ColumnDescriptor]) -> St
     }
 
     query
+}
+
+#[cfg(test)]
+mod build_example_query_tests {
+    use super::{build_example_query, ColumnDescriptor};
+    use prism_core::column::ColumnType;
+
+    fn col(name: &str, col_type: ColumnType) -> ColumnDescriptor {
+        ColumnDescriptor {
+            name: name.to_string(),
+            col_type,
+            description: None,
+            nullable: false,
+        }
+    }
+
+    /// CRIT-1 load-bearing: table with NO datetime column must produce a column-free query.
+    ///
+    /// `crowdstrike_devices`/`claroty_devices` have no `timestamp` column.
+    /// The old hardcoded `WHERE timestamp > NOW() - INTERVAL '1h'` produced a non-executable
+    /// example. This test asserts the fallback `SELECT * FROM <t> LIMIT 25` is used instead.
+    ///
+    /// Load-bearing (TD-VSDD-059): fails if the datetime-column derivation is replaced by
+    /// a hardcoded "timestamp" again.
+    #[test]
+    fn test_crit1_no_datetime_column_produces_column_free_query() {
+        // Simulate claroty_devices / crowdstrike_devices: no Datetime column.
+        let columns = vec![
+            col("id", ColumnType::String),
+            col("hostname", ColumnType::String),
+            col("ip_address", ColumnType::String),
+            col("vendor", ColumnType::String),
+        ];
+
+        let q = build_example_query("claroty_devices", &columns);
+
+        assert_eq!(
+            q, "SELECT * FROM claroty_devices LIMIT 25",
+            "CRIT-1: table with no Datetime column must use column-free fallback. Got: {q}"
+        );
+        // Must NOT contain hardcoded "timestamp" (the bug being fixed).
+        assert!(
+            !q.contains("timestamp"),
+            "CRIT-1: fallback query must NOT contain hardcoded 'timestamp'. Got: {q}"
+        );
+    }
+
+    /// CRIT-1 load-bearing: table WITH a datetime column uses that column in count-recent.
+    ///
+    /// `crowdstrike_alerts` has `event_time` (Datetime). The example_query should use
+    /// `event_time`, not hardcoded `timestamp`.
+    #[test]
+    fn test_crit1_datetime_column_named_event_time_used_in_count_recent() {
+        let columns = vec![
+            col("event_time", ColumnType::Datetime),
+            col("hostname", ColumnType::String),
+        ];
+
+        let q = build_example_query("crowdstrike_alerts", &columns);
+
+        assert!(
+            q.contains("event_time"),
+            "CRIT-1: Datetime column 'event_time' must appear in count-recent query. Got: {q}"
+        );
+        assert!(
+            !q.contains("timestamp"),
+            "CRIT-1: query must use actual Datetime column name, not hardcoded 'timestamp'. Got: {q}"
+        );
+        assert!(
+            q.contains("NOW()"),
+            "CRIT-1: count-recent query must contain NOW(). Got: {q}"
+        );
+    }
+
+    /// CRIT-1: table with `timestamp` datetime column still works (explicit regression guard).
+    ///
+    /// If a table has a column literally named `timestamp` with Datetime type, the old
+    /// and new code produce the same output. This test guards against false positives.
+    #[test]
+    fn test_crit1_datetime_column_named_timestamp_still_works() {
+        let columns = vec![
+            col("timestamp", ColumnType::Datetime),
+            col("severity", ColumnType::String),
+        ];
+
+        let q = build_example_query("crowdstrike_detections", &columns);
+
+        // severity variant takes priority over count-recent.
+        assert_eq!(
+            q,
+            "SELECT * FROM crowdstrike_detections WHERE severity IN ('high', 'critical') LIMIT 50",
+            "CRIT-1: severity variant must be selected when severity column present. Got: {q}"
+        );
+    }
+
+    /// CRIT-1: zero-column table (EC-002) uses column-free fallback.
+    #[test]
+    fn test_crit1_zero_columns_uses_column_free_fallback() {
+        let q = build_example_query("empty_table", &[]);
+
+        assert_eq!(
+            q, "SELECT * FROM empty_table LIMIT 25",
+            "CRIT-1 EC-002: zero-column table must use column-free fallback. Got: {q}"
+        );
+        assert!(
+            !q.contains("timestamp"),
+            "CRIT-1 EC-002: fallback must not contain hardcoded 'timestamp'. Got: {q}"
+        );
+    }
 }
