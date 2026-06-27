@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.025"
+version: "8.026"
 producer: state-manager
-timestamp: 2026-06-27T05:15:00Z
+timestamp: 2026-06-27T07:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 5009
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1398 (2026-06-27). PARALLEL MULTI-FOCUS SWEEP (4 lenses) + batch-fix closure. Feature HEAD 073d305f. Story v2.0 (16 ACs, 31 Red Gate tests). ADR-047 PROPOSED + design map. S-PRISMQL-CASE-INSENSITIVE-001 stub registered. ARCH-INDEX v2.148. STORY-INDEX v2.505. total_stories 215→216. OD-1..OD-4 open. 3-CLEAN streak 0/3; re-gating next on 073d305f + v2.0. STATE v8.024→v8.025."
+current_step: "D-1399 (2026-06-27). SESSION WRAP — RESUME SNAPSHOT D-1399 authored (supersedes D-1380). S-DEMO-FIDELITY-REMEDIATION-001 CODE-COMPLETE @073d305f story v2.0 (16 ACs, 31 Red Gate tests; streak 0/3; NEXT=re-gate to 3-CLEAN→PR→merge). S-PRISMQL-CASE-INSENSITIVE-001 scaffolded demo-critical (ADR-047, OD-1..OD-4 RESOLVED). PRs merged: #204 S-PERF-GATE-001→f05a9f0e; #205 /wrap-chore→9a09653a (develop divergence FULLY RESOLVED). develop 9a09653a (local==origin). STATE v8.025→v8.026."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -68,14 +68,14 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 supersedes ADR-026 §D3 partial"
 
 # ── COMPACTION RECORD ──
-pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1398."
+pre_compact_snapshot: "See cycles/wave-5-e-demo-fidelity/session-handoff-archive.md. Latest: D-1182 comprehensive zero-context restart snapshot 2026-06-15. Prior compactions: D-1170/D-1159/D-1132/D-1056/D-1368 (2026-06-26). Last decision: D-1399."
 pre_compact_snapshot_at: "2026-06-15"
 ---
 # VSDD Pipeline State — Prism
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1398 parallel multi-focus sweep closure: story v2.0 16 ACs 31 Red Gate tests; ADR-047 + design map; S-PRISMQL-CASE-INSENSITIVE-001 stub; ARCH-INDEX v2.148; STORY-INDEX v2.505; total_stories 216; feature HEAD 073d305f; OD-1..OD-4 open; 3-CLEAN streak 0/3 re-gating on 073d305f+v2.0; STATE v8.024→v8.025)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1399 session wrap: RESUME SNAPSHOT D-1399 authored; S-DEMO-FIDELITY-REMEDIATION-001 code-complete @073d305f story v2.0; S-PRISMQL-CASE-INSENSITIVE-001 scaffolded demo-critical ADR-047 OD-1..OD-4 resolved; develop 9a09653a; STATE v8.025→v8.026)
 
 ## Active Objective (North Star)
 
@@ -122,6 +122,7 @@ pre_compact_snapshot_at: "2026-06-15"
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1165 archived to cycles/wave-5-e-demo-fidelity/burst-log.md and decisions-archive files. D-1170 through D-1339 archived to burst-log.md (D-1368 compaction 2026-06-26). D-1344 archived to burst-log.md (this compaction)._
+| D-1399 | state-manager | 2026-06-27 | **SESSION WRAP — RESUME SNAPSHOT D-1399 authored (supersedes D-1380). S-DEMO-FIDELITY-REMEDIATION-001 CODE-COMPLETE @073d305f story v2.0 (16 ACs, 31 Red Gate tests; streak 0/3; NEXT=re-gate to 3-CLEAN→PR→merge). S-PRISMQL-CASE-INSENSITIVE-001 scaffolded demo-critical (ADR-047, OD-1..OD-4 RESOLVED by human). PRs merged: #204 S-PERF-GATE-001→f05a9f0e; #205 /wrap-chore→9a09653a (develop divergence FULLY RESOLVED; local==origin==9a09653a). STATE v8.025→v8.026.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1398 | state-manager | 2026-06-27 | **PARALLEL MULTI-FOCUS SWEEP (4 lenses) + batch-fix closure. Sweep found (beyond serial cascade): CRIT enrich-gate position gaps (JOIN ON/GROUP BY/ORDER BY bypass → opaque E-INT-001, same class as SqlPipe-head); CRIT prism_describe build_example_query hardcoded 'timestamp' (non-executable for crowdstrike_devices/claroty_devices); MED-1 prompt filter VALUES mismatched DTU data (zero rows); HIGH gate-order asymmetry (H1); MED single-tenant column-gate inert (M1) + column-gate JOIN/GROUP/ORDER parity (M2); LOW E-QUERY-037 subquery-position walk (L1); + story-prose findings (SqlPipe scope silence, red_gate undercount, wrong test location, phantom root ci.yml, stale pts/anchor). ALL FIXED in feature HEAD →073d305f: collect_unknown_scalars_from_sql_query canonical AST walker (all positions, both Ast::Sql + SqlPipe head); build_example_query datetime-derivation; gate-order aligned across both execute entry points; single-tenant column gate via TableRegistry.columns_by_table/columns_for_table; E-QUERY-037 source walk extended; prompt values aligned to exact per-sensor DTU vocabulary (crowdstrike Title-case+'new', claroty 'Unresolved', armis UPPER+'UNHANDLED'); test-adequacy: column-value-vocabulary validation (MED-2), fail-closed guards (OBS-5), did_you_mean=Some engine test (OBS-2), crit001 hardcoded-table test DELETED (OBS-4). just check green 88. Story v1.9→v2.0 (16 ACs, 31 Red Gate tests). CASE-INSENSITIVITY: per human direction promoted from deferred to DEMO-CRITICAL — split to dedicated story S-PRISMQL-CASE-INSENSITIVE-001 (ADR-047 PROPOSED + design map authored; OD-1..OD-4 pending human sign-off; PO BCs pending). DEFERRED (out-of-perimeter): BC-2.10.012 §pql_hints Category-1 divergence (→wave-gate/phase-5); 4x-query-reparse perf (→follow-up). ARCH-INDEX v2.147→v2.148. STORY-INDEX v2.504→v2.505. total_stories 215→216. 3-CLEAN streak 0/3 (HEAD changed); re-gate next on 073d305f + story v2.0. BC-INDEX v7.19 UNCHANGED. develop_head 9a09653a UNCHANGED. workspace_test_count UNCHANGED 5009. STATE v8.024→v8.025.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1397 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL cascade Pass 2/3 MED-1 finding + fix. Pass 2/3 NOT CLEAN — MED-1 (genuine, demo-relevant): AUDIT-004 prompt example queries referenced NON-EXISTENT COLUMNS — claroty_alerts WHERE risk_score/resolved + GROUP BY risk_level (none exist; real cols: id/alert_type_name/category/status/detected_time/...), claroty_devices WHERE ip_address/name (none; has uid/asset_id/...), armis_devices WHERE ip (→ip_address), crowdstrike_detections GROUP BY client_id (not a column; multi-client is via the clients MCP param). Violated BC-2.10.016 v1.2 §Postconditions (copied prompt query MUST get a successful result). [process-gap]: AUDIT-004 test validated FROM-target TABLES but not COLUMNS (false-green). Fix (code HEAD c88aeead→6ef787e8): corrected all 5 prompt queries to real schema columns (status/category/asset_id/uid/ip_address/severity), restructured cross_client to use severity GROUP BY + prose noting clients-param fan-out; EXTENDED AUDIT-004 test with column-validation (test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns + column_sets smoke test) parsing SELECT/WHERE/GROUP-BY columns against TOML-derived column sets. just check green 408/408 prism-mcp, non-exhaustive 88. ORCHESTRATOR-VERIFIED finding (confirmed claroty_alerts lacks risk_score/resolved against claroty.sensor.toml before dispatch). 3-CLEAN streak reset 0/3; re-gating on code HEAD 6ef787e8 + story v1.9. develop_head 9a09653a (local==origin==9a09653a; develop divergence FULLY resolved; /wrap skill now tracked on develop via PR #205 squash-merge). BC-INDEX v7.19 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. workspace_test_count UNCHANGED 5009. STATE v8.023→v8.024.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1396 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 3/3 HIGH-1 (genuine reachable code gap): check_enrich_udf_availability Ast::SqlPipe arm scanned only spq.stages (PipeStage::Enrich), NOT the SQL head — a SqlPipe query with an unknown scalar UDF in the head projection (e.g. `SELECT cvss(col) FROM armis_devices | limit 10`) bypassed the E-QUERY-039 gate → opaque E-INT-001 (AUDIT-005 mode BC-2.11.019 closes). Same SqlPipe-head-bypass class previously fixed for E-QUERY-011/037/038 gates; net-new 039 gate repeated it (TD-VSDD-060 sibling-parity miss). Fix (code HEAD ee6188be→c88aeead): SqlPipe arm now also scans spq.head.select.items + spq.head.where_ via collect_unknown_scalar_from_expr/_predicate, mirroring the Ast::Sql arm; added Red Gate test test_high1_sqlpipe_head_unknown_scalar_fires_e_query_039; gate ordering 037→038→039 preserved; just check 5009 green, non-exhaustive 88. CODE-VERIFIED finding (orchestrator confirmed the gap in engine.rs before dispatch). 3-CLEAN streak reset 0/3; re-gating on code HEAD c88aeead + story v1.9. develop_head 9a09653a UNCHANGED. BC-INDEX v7.19 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. workspace_test_count 5008→5009. STATE v8.022→v8.023.** | wave-5-e-demo-fidelity | 2026-06-27 |
@@ -244,10 +245,7 @@ _Closed items: `cycles/wave-5-e-demo-fidelity/drift-items-resolved.md`. Deferred
 | ID | Description | Blocker Owner | Since | Status |
 |----|-------------|---------------|-------|--------|
 | TD-VSDD-005 | vsdd-factory:adversary runtime tool-binding bug — only Read bound at dispatch; general-purpose-as-adversary workaround required | vsdd-factory plugin maintainer | 2026-04-26 | OPEN — housekeeping pause before Wave 3 |
-| OD-1 | **S-PRISMQL-CASE-INSENSITIVE-001: Adapter-normalization scope** — architect recommends ALL enum-label fields at adapter boundary (minimum: severity + status; ideally all OCSF enums). Human must decide: (a) all enum fields, (b) severity+status only, or (c) demo-critical only. Blocks PO BC-2.02.013 authoring. | Human | 2026-06-27 | OPEN — pending human sign-off |
-| OD-2 | **S-PRISMQL-CASE-INSENSITIVE-001: Confirm case-sensitive default** — PrismQL operators `=`, `IN`, `!=` remain case-sensitive by default; IEQ/IIN/INE are the opt-in forms. Architect recommends: YES (case-sensitive default). Blocks PO BC-2.11.024 + BC-2.11.002/.004 amendments. | Human | 2026-06-27 | OPEN — pending human sign-off |
-| OD-3 | **S-PRISMQL-CASE-INSENSITIVE-001: Confirm operator spelling IEQ/IIN/INE** — architect recommends IEQ (case-insensitive equality), IIN (case-insensitive IN), INE (case-insensitive not-equal). Blocks grammar + AST authoring in story body. | Human | 2026-06-27 | OPEN — pending human sign-off |
-| OD-4 | **S-PRISMQL-CASE-INSENSITIVE-001: Near-miss pedagogical hint timing** — when a query uses `=` on a known OCSF enum field, should the engine emit a did-you-mean hint about IEQ now (in-story) or defer to a follow-up? Architect recommends: follow-up (out-of-story scope). Blocks story scope boundary. | Human | 2026-06-27 | OPEN — pending human sign-off |
+| OD-1..OD-4 | **S-PRISMQL-CASE-INSENSITIVE-001 design open decisions RESOLVED** — OD-1: normalize ALL OCSF enum-label fields at adapter boundary (min severity+status for demo); OD-2: case-SENSITIVE default for =/!=/IN; OD-3: IEQ/IIN/INE operators (I-prefix); OD-4: did-you-mean IEQ hint DEFERRED to follow-up. Human sign-off received 2026-06-27 (D-1398). Removed from blocking. | Human (RESOLVED) | 2026-06-27 | RESOLVED D-1398 |
 
 ## Historical Content
 
@@ -255,20 +253,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1398 — 2026-06-27; STATE v8.025)
+## Session Resume Checkpoint (D-1399 — 2026-06-27; STATE v8.026)
 
-**STATE v8.025. D-1398 PARALLEL MULTI-FOCUS SWEEP (4 lenses) + batch-fix closure. Feature HEAD 073d305f. Story S-DEMO-FIDELITY-REMEDIATION-001 v2.0 (16 ACs, 31 Red Gate tests). ADR-047 PROPOSED + design map authored. S-PRISMQL-CASE-INSENSITIVE-001 stub registered (DEMO-CRITICAL; OD-1..OD-4 pending human). ARCH-INDEX v2.148. STORY-INDEX v2.505. total_stories 216. develop_head 9a09653a (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive 88. BC-INDEX v7.19. error-taxonomy v2.01. BC-2.11.019 v1.3. BC-2.11.001 v1.15. workspace_test_count 5009. 3-CLEAN streak 0/3 (HEAD changed to 073d305f); re-gating next on 073d305f + story v2.0.**
+**STATE v8.026. D-1399 SESSION WRAP. Feature HEAD 073d305f. Story S-DEMO-FIDELITY-REMEDIATION-001 v2.0 (16 ACs, 31 Red Gate tests). S-PRISMQL-CASE-INSENSITIVE-001 scaffolded DEMO-CRITICAL (ADR-047; OD-1..OD-4 RESOLVED). ARCH-INDEX v2.148. STORY-INDEX v2.505. total_stories 216. develop_head 9a09653a (local==origin). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. non-exhaustive 88. BC-INDEX v7.19. error-taxonomy v2.01. workspace_test_count 5009. 3-CLEAN streak 0/3 on 073d305f; re-gating next on 073d305f + story v2.0.**
 
-**NEXT ACTION:** LOCAL adversary fresh pass on feature branch CODE HEAD 073d305f + story v2.0 → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge. After merge: human signs off OD-1..OD-4 → PO authors BCs → story-writer materializes S-PRISMQL-CASE-INSENSITIVE-001 body → TDD delivery.
+**NEXT ACTION:** Re-gate LOCAL adversary cascade on 073d305f + story v2.0 — use 4-lens parallel discovery sweep, then batch-fix, then 3× CLEAN(strict). Then: demo evidence → PR (rebase onto develop 9a09653a) → PR-LEVEL 3-CLEAN → normal squash-merge → state-manager post-merge burst. After merge: PO authors BCs for S-PRISMQL-CASE-INSENSITIVE-001 (OD-1..OD-4 locked) → story-writer body → TDD delivery.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
-**PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions; (C) OD-1..OD-4 sign-off (case-insensitive feature scope/spelling/default/hint-timing — see Blocking Issues).
+**PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1383 (last authored; D-1384..D-1398 are factory-only bursts — update SESSION-HANDOFF if needed) for full context. STATE v8.025.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1399 for full context. STATE v8.026.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `9a09653a`.
 3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at CODE HEAD 073d305f (story v2.0).
-4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions; (C) OD-1..OD-4 (case-insensitive feature).
+4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions.
 5. Next: LOCAL adversary fresh pass on 073d305f + v2.0 → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.

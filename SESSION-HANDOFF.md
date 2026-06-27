@@ -38,13 +38,57 @@ timestamp: 2026-06-26T00:00:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1380** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1380 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `7e60df03` (PR #203 merged D-1367; PR #204 S-PERF-GATE-001 CONVERGED 3/3 strict @b40ac1e1, pending CI-infra-flake re-run + squash-merge). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.008. D-1380.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1399** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1399 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.026. D-1399.
 
 ---
 
-## §RESUME SNAPSHOT — D-1380 (2026-06-26 — SESSION WRAP; develop origin/develop 7e60df03 / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.18; STORY-INDEX v2.492; ARCH-INDEX v2.147; STATE v8.008; PR #204 CONVERGED 3/3 strict @b40ac1e1; pending CI-infra-flake re-run + squash-merge) [SUPERSEDES D-1356]
+## §RESUME SNAPSHOT — D-1399 (2026-06-27 — SESSION WRAP; develop origin/develop 9a09653a (local==origin); BC-INDEX v7.19; STORY-INDEX v2.505; ARCH-INDEX v2.148; STATE v8.026; S-DEMO-FIDELITY-REMEDIATION-001 CODE-COMPLETE @073d305f story v2.0; 3-CLEAN streak 0/3; S-PRISMQL-CASE-INSENSITIVE-001 scaffolded) [SUPERSEDES D-1380]
+
+> **D-1399 burst (2026-06-27).** Session wrap. S-DEMO-FIDELITY-REMEDIATION-001 is CODE-COMPLETE on feature/S-DEMO-FIDELITY-REMEDIATION-001 @ 073d305f (just check green, non-exhaustive EXPECTED=88, story v2.0 16 ACs / 31 Red Gate tests). 3-CLEAN streak 0/3 on 073d305f (reset by the parallel-sweep batch-fix). New DEMO-CRITICAL story S-PRISMQL-CASE-INSENSITIVE-001 scaffolded (ADR-047, OD-1..OD-4 RESOLVED by human). PRs merged this session: #204 S-PERF-GATE-001→f05a9f0e; #205 /wrap-chore→9a09653a (develop divergence FULLY RESOLVED). All prior D-1101..D-1398 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+Two demo-roadmap deliverables in flight. S-DEMO-FIDELITY-REMEDIATION-001 (demo-fidelity code fixes) is CODE-COMPLETE on feature/S-DEMO-FIDELITY-REMEDIATION-001 @ 073d305f (just check green, 88, story v2.0, 16 ACs / 31 Red Gate tests) but the LOCAL adversary 3-CLEAN streak is 0/3 — NEXT is to re-gate it to 3 consecutive CLEAN(strict), then demo evidence → PR (rebase onto develop 9a09653a) → PR-LEVEL 3-CLEAN → merge. A new DEMO-CRITICAL feature S-PRISMQL-CASE-INSENSITIVE-001 (IEQ/IIN operators + adapter canonical-case normalization) is scaffolded (ADR-047, OD-1..OD-4 RESOLVED) and queued to deliver before T13.
+
+### HEADS
+- develop 9a09653a (local==origin); factory-artifacts (this wrap commit becomes HEAD; prior f83e3ec7). No agents in flight. No open PRs.
+- PRs merged this session: #204 S-PERF-GATE-001→f05a9f0e; #205 /wrap-chore→9a09653a (develop divergence FULLY RESOLVED; /wrap skill now tracked on develop).
+
+### WORKSTREAM — S-DEMO-FIDELITY-REMEDIATION-001 (CURRENT, code complete)
+- Branch feature/S-DEMO-FIDELITY-REMEDIATION-001; worktree .worktrees/S-DEMO-FIDELITY-REMEDIATION-001; frozen HEAD 073d305f. Story v2.0 (16 ACs, 31 Red Gate tests). just check green, non-exhaustive EXPECTED=88, 1614+ tests.
+- 3-CLEAN streak: 0/3 on 073d305f (reset by the parallel-sweep batch-fix; frozen-HEAD rule — any new push resets).
+- Scope delivered: N1 (build_reference_content dedup by descriptor.name; Some(empty)/None placeholders); N1-B (E-QUERY-039 EnrichUdfNotFound via collect_unknown_scalars_from_sql_query covering SELECT/WHERE/JOIN-ON/GROUP-BY/ORDER-BY/HAVING for Ast::Sql + SqlPipe head + Pipe stages; gate fires LAST; -32602 arm; structured variant_meta category=validation; available_infusions sorted+deduped; did_you_mean strsim+lexicographic); N2 (dot-notation FROM→E-QUERY-037 all modes incl SqlPipe, BC-2.11.001 v1.15); AUDIT-001 (sensor-prefixed describe + build_example_query datetime-derivation, CRIT-1); AUDIT-004 (prompts FROM-ready + columns valid + values match per-sensor DTU vocabulary, MED-1); plus gate-coverage expansion C1/C2 (enrich JOIN/GROUP/ORDER), M2 (column gate JOIN/GROUP/ORDER), L1 (E-QUERY-037 subquery walk), H1 (gate-order aligned across execute_inner + execute_scheduled_inner), M1 (single-tenant column gate via TableRegistry.columns_by_table/columns_for_table); test-adequacy MED-2/OBS-2/OBS-5; crit001_prompt_table_names.rs DELETED (OBS-4).
+- BCs: BC-2.11.001 v1.15, BC-2.11.022 v1.1, BC-2.10.016 v1.2, BC-2.10.012 v1.4, BC-2.11.019 v1.3 (all draft→active at merge per POL-14 except already-active).
+- **RESUME NEXT-ACTION:** re-gate the LOCAL adversary cascade on 073d305f + story v2.0 to 3 consecutive CLEAN(strict) — RECOMMEND the 4-lens parallel discovery sweep (gate-mode coverage / query-executability / spec-prose / test-adequacy) which proved far more effective than the serial loop, then batch-fix, then the streak. Then: demo-recorder per-AC evidence → PR via pr-manager (rebase feature onto develop 9a09653a first — feature is behind by the /wrap commit; files disjoint, no conflict) → PR-LEVEL 3-CLEAN → normal squash-merge (user authorizes, NO --admin) → state-manager post-merge burst (story draft→merged, develop_head, POL-14 promotions).
+
+### WORKSTREAM — S-PRISMQL-CASE-INSENSITIVE-001 (NEW, DEMO-CRITICAL, draft stub registered)
+- ADR-047 PROPOSED (.factory/specs/architecture/decisions/ADR-047-...md) + design map (.factory/specs/architecture/prismql-case-insensitive-design-map.md) + research (.factory/research/prismql-case-sensitivity-2026-06-27.md).
+- OD-1..OD-4 RESOLVED (human accepted architect recs 2026-06-27): OD-1 = normalize ALL OCSF enum-label fields at adapter boundary (min severity+status for demo); OD-2 = case-SENSITIVE default for =/!=/IN; OD-3 = add IEQ/IIN/INE case-insensitive operators (I-prefix, lower()=lower(), collision-free vs =~); OD-4 = near-miss "did you mean IEQ?" hint DEFERRED to follow-up.
+- **RESUME NEXT-ACTION (after remediation merges):** PO authors BCs — NEW BC-2.11.024 (IEQ/IIN/INE semantics), BC-2.02.013 (adapter enum canonical-case normalization); AMEND BC-2.11.002/.004 (operator tables), BC-2.11.018 (round-trip normalized_pql), BC-2.02.002/.010 (adapter postconditions) → story-writer authors S-PRISMQL-CASE-INSENSITIVE-001 body → remove-uncertainty x2 (D-1110) → TDD delivery → update DEMO-SCOPE.md + T13 runbook with case-insensitive query examples.
+
+### PENDING USER-APPROVED WORK
+Strict 3-CLEAN convergence + normal squash-merge of S-DEMO-FIDELITY-REMEDIATION-001; deliver S-PRISMQL-CASE-INSENSITIVE-001 as demo-critical (OD-1..OD-4 locked).
+
+### DEMO ROADMAP REMAINING
+S-DEMO-FIDELITY-REMEDIATION-001 converge+merge → S-PRISMQL-CASE-INSENSITIVE-001 deliver → DEMO-SCOPE.md + T13 runbook update (case-insensitive examples) → T13 capstone → T14 recording.
+
+### WORKTREE INVENTORY
+- ACTIVE: .worktrees/S-DEMO-FIDELITY-REMEDIATION-001 (073d305f, converge+PR+merge).
+- STALE/leave-alone: .worktrees/S-3.09 (FROZEN), .worktrees/W3-FIX-S307-001 (BLOCKED). chore-wrap-skill worktree REMOVED this session.
+
+### DECISION-LOG DELTA this session (not in a prior snapshot)
+D-1381 (PR #204 merged f05a9f0e), D-1382 (pre-flight re-audit DEMO-READY:YES), D-1383 (remediation prep), D-1384..D-1397 (LOCAL adversary cascade + fix-bursts: empty-registry gate, SqlPipe-head gate, prompt columns, version-cite sweeps, WHERE-semantics ping-pong resolved, etc.), D-1398 (parallel multi-focus sweep + batch-fix closure + S-PRISMQL-CASE-INSENSITIVE-001 + ADR-047 + OD-1..OD-4). Plus PR #205 merged (9a09653a); develop divergence resolved.
+
+### DEFERRED (out-of-perimeter, tracked)
+BC-2.10.012 §pql_hints Category-1 hint-text divergence (→ wave-gate/phase-5/PO); PrismQL 4x-query-reparse perf (→ follow-up); PG-CLIPPY-ALLTARGETS-001 / S-CLIPPY-ALLTARGETS-GATE-001 (gates omit --all-targets; post-T14).
+
+### D-1399 (this wrap) decision row
+D-1399: session wrap — RESUME SNAPSHOT D-1399 authored (supersedes D-1380); S-DEMO-FIDELITY-REMEDIATION-001 code-complete @073d305f story v2.0 (streak 0/3, NEXT=re-gate to 3-CLEAN→PR→merge); S-PRISMQL-CASE-INSENSITIVE-001 scaffolded demo-critical (ADR-047, OD-1..OD-4 resolved); develop 9a09653a; STATE bumped v8.025→v8.026.
+
+---
+
+## §RESUME SNAPSHOT — D-1380 (2026-06-26 — SESSION WRAP; develop origin/develop 7e60df03 / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.18; STORY-INDEX v2.492; ARCH-INDEX v2.147; STATE v8.008; PR #204 CONVERGED 3/3 strict @b40ac1e1; pending CI-infra-flake re-run + squash-merge) [SUPERSEDED by D-1399]
 
 > **D-1380 burst (2026-06-26).** Session wrap. PR #203 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001) CONVERGED + MERGED to develop (squash 7e60df03; CI 43/43; 9-round PR-LEVEL 3-CLEAN strict). PR #204 (S-PERF-GATE-001 test-gate performance) CONVERGED 3-CLEAN(strict) at frozen HEAD b40ac1e1 — blocked only on a CI infra-flake (Perimeter compile-fail check job fast-failed 1m0s on run 28273204091; the SAME check passed 7m39s on parallel run 28273202978; diff does not touch prism-query). STATE compacted 471→232 lines (e54c001c). All prior D-1101..D-1379 notes SUPERSEDED.
 
