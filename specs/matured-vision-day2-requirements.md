@@ -201,6 +201,38 @@ local use. Central mode exposes a streamable HTTP transport with per-connection 
 **Architect confirmation (D-1327, a129e53b8894aab78):** T13 demo needs no change from
 this pivot. The demo runs on the current per-analyst stdio path, which remains valid.
 
+> **Day-2 addendum (2026-06-26 side analysis — DECIDED 2026-06-26 (human)).** C1 decisions are
+> now SETTLED and captured in `specs/day2-design-decisions/ADR-PROP-central-deployment-access-layer.md`.
+> Summary of what is decided:
+>
+> - **Transport (→ADR-050):** MCP **Streamable HTTP** (spec rev 2025-06-18; replaces deprecated
+>   HTTP+SSE) + keep stdio for single-analyst/local. Implement via in-tree **`rmcp 1.7.0`
+>   `StreamableHttpService`** (`stateful_mode`, pluggable `SessionStore`, DNS-rebinding
+>   `allowed_hosts/origins`, bearer plumbing) — mount + middleware, not new protocol code.
+> - **Identity (→ADR-051):** MCP server = **OAuth 2.1 Resource Server** (MCP Authorization spec
+>   2025-06-18; audience RFC 8707; Protected-Resource-Metadata RFC 9728; 401/WWW-Authenticate
+>   discovery). Token → analyst identity → OrgId scope → per-connection capability gate
+>   reusing the existing write-gate feature-flag model. Stdio stays env-credential unchanged.
+>   **Built-in OAuth 2.1 AS + external IdP (OIDC/SAML)** — hybrid; mirrors the §11.1 hybrid
+>   secret-store stance.
+> - **Credentials (→ADR-052 + SS-26):** SS-26 design stands unchanged; the only C1 addition is
+>   per-connection-analyst **audit binding** on every credential resolution.
+> - **Shared state (→ADR-053):** **FULL case-management** (status/assignment/case-wall/links/
+>   disposition + §11.3.1 case-detail UI surface) on **BUNDLED PostgreSQL** (per
+>   `ADR-PROP-storage-engine-taxonomy.md` — Postgres central-only, never external/cloud, never
+>   at a Satellite). **Optimistic concurrency (per-record version/ETag CAS) + soft ownership +
+>   presence hints** — no hard pessimistic locks (SOC/TheHive/SOAR prior art). `409 Conflict`
+>   on stale write.
+> - **Ops (→ADR-054):** stateless-leaning front + shared state; SSE resumability via
+>   `Last-Event-ID` (no sticky sessions); readiness-flip + connection-drain graceful shutdown
+>   (rmcp `cancellation_token`); per-tenant fairness via nested Tokio `Semaphore` /
+>   weighted-fair-queue (§5.3 NFR-CONCURRENCY-FAIRNESS).
+> - **Storage taxonomy:** The storage decision in ADR-053 is part of a wider FOUR-ENGINE taxonomy
+>   decided at the same time — see §14.3 addendum and `ADR-PROP-storage-engine-taxonomy.md`.
+> - **Research citation:** `research/central-deployment-access-layer-2026-06-26.md` (Topics 1–5;
+>   MCP spec 2025-06-18 transports + authorization; rmcp 1.7.0 docs; SOC concurrency + scaling
+>   patterns prior art).
+
 ### 3.2 Prism Satellite and multi-hop chaining
 
 **Concept:** A "Prism Satellite" is a remote query executor deployed at a client site,
@@ -1731,6 +1763,32 @@ state, backtest-from-local-storage). Prism is **federated/ephemeral**. Reconcili
   local-lake replay).
 - **Multi-schema:** detections operate across OCSF (versioned) + native schemas (§13.6).
 
+> **Day-2 addendum (2026-06-26 side analysis — DECIDED 2026-06-26 (human)).** §14.3's
+> RocksDB-native ruling stands for the EPHEMERAL CORRELATION/DETECTION PATH (short-lived,
+> ephemeral, federated, append/scan-shaped, high-write, key-range). This is UNCHANGED.
+>
+> The 2026-06-26 decision introduces a FOUR-ENGINE storage taxonomy that reconciles §14.3 with
+> the new control-plane requirements that emerged from the central-deployment pivot (§3.1, §11.1,
+> §11.2, ADR-053). The four lanes:
+>
+> | Engine | Lane | Scope |
+> |--------|------|-------|
+> | **RocksDB** | Ephemeral/hot DATA-PLANE | Correlation & detection state, RetentionCache hot tier, continuous-operator window/sequence state, store-and-forward queues — central AND every Satellite. §14.3 preserved exactly. |
+> | **Apache Iceberg** | Cold ANALYTIC tier | Long-baseline OCSF + native event/metadata, `RETAIN` multi-year, columnar/partition-pruned. Central / regional only. |
+> | **PostgreSQL (BUNDLED in the central appliance, NEVER external/cloud)** | Relational CONTROL-PLANE | Case-management + alerts (ADR-053), central config store (§11.2), RBAC, audit log, tenant/user, identity/AS state, result-cache METADATA. **Central-only.** |
+> | **SQLite (embedded)** | Satellite-local CONTROL-PLANE | Local config, enrollment/identity state, local policy + operational metadata. Satellite / edge only. |
+>
+> **Why NOT Iceberg for case-management:** Iceberg is OLAP/append-mostly. Table-level snapshot
+> commits are expensive under concurrent multi-analyst writes; there are no point-lookup indexes;
+> multi-row CAS requires app-built logic; row updates are expensive (merge-on-read or
+> copy-on-write). Case-management is OLTP collaborative — wrong tool for that workload.
+>
+> **The §14.3 no-PostgreSQL ruling protects the EPHEMERAL CORRELATION PATH and stands.** The
+> relational CONTROL-PLANE (case-mgmt/config/RBAC/audit/identity/AS) uses BUNDLED PostgreSQL
+> at the central service only. This is a different workload class — a CONSCIOUS decision, not
+> a silent reversal. Cross-ref: `ADR-PROP-storage-engine-taxonomy.md` §14.3 Reconciliation
+> section and `research/central-deployment-access-layer-2026-06-26.md §Topic 4`.
+
 ### 14.4 Rule editor / authoring — surfaces (HUMAN-CONFIRMED: S2 + MCP + CLI; no TUI)
 
 Adopt axiathon's authoring *concepts*, render on Prism's surfaces:
@@ -2048,6 +2106,15 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
     E-COLLECTOR-PCAP-001); gaps G-32–G-36. Honest cost: prism now owns TWO heavy native engines (Spicy-style dissector + windowed operator).
 - **Still OPEN (not yet captured):** SSO↔transport binding detail; the §5.x execution-checklist items all remain
   pending the brief-reframe HUMAN GATE.
+- **C1 (central access layer) + the FOUR-ENGINE STORAGE TAXONOMY (RocksDB/Iceberg/bundled-Postgres-central/
+  SQLite-edge) + A's 7 ingestion sub-thread leans all DECIDED/captured 2026-06-26.** Capture artifacts on disk:
+  `specs/day2-design-decisions/ADR-PROP-storage-engine-taxonomy.md` (storage taxonomy + §14.3 reconciliation);
+  `specs/day2-design-decisions/ADR-PROP-central-deployment-access-layer.md` (transport/identity/credentials/
+  shared-state/ops — ADR-050..054 inputs); `research/central-deployment-access-layer-2026-06-26.md` and
+  `research/ingestion-open-subthreads-2026-06-26.md` (primary research); satellite-mesh and capability-descriptor
+  research also on disk. Remaining program for the side-analysis track: **C2 satellite mesh** (research
+  already in `research/`) → **C3 capability-descriptor model** (research ready) → **C4–C10** remaining topics
+  → **B brief-reframe sign-off** (HUMAN GATE, §5.1). No further open sub-threads from today's session.
 
 ### 16.5 Status & boundaries reminder
 
@@ -2726,3 +2793,180 @@ Gap registry additions:
 ---
 
 *2026-06-26 side-analysis capture; PROPOSED; gated on brief-reframe sign-off; source: `research/detection-reshape-protocol-dissectors-2026-06-26.md` (R1–R7, OT matrix, honest costs, open questions).*
+
+---
+
+### 17.15 — Ingestion Open Sub-Threads: Resolved Leans (2026-06-26)
+
+> **ACCEPTED 2026-06-26 (human).** Seven ingestion open sub-threads from
+> `research/ingestion-open-subthreads-2026-06-26.md` (7 × `perplexity_research` at
+> `reasoning_effort: high`, 2026-06) were presented as pressure-tested recommendations
+> and accepted as design leans. They do NOT constitute finalised ADR decisions; they become
+> the input to the respective epic/ADR authorship at morph time. All items remain
+> `do_not_execute: true` and gated on brief-reframe sign-off (§5.1).
+>
+> **Research citation:** `research/ingestion-open-subthreads-2026-06-26.md` (all seven
+> sub-threads; read-coverage caveat in research front-matter: sub-threads 3–7 mined via
+> targeted grep of oversized result files; sub-threads 1–2 read in full through §6 of 8).
+
+#### A1 — Detection-Portability Governance (Sub-thread 1)
+
+**Lean (ACCEPTED):** per-rule **data-dependency manifest** carrying the OCSF classes/attribute
+paths AND/OR native-OT tables the detection requires. The planner checks the manifest against
+available capability descriptors (§3.4/§10.3 ADOPT-1) at enable-time. **Three explicit rule
+states — not silent zero-rows:**
+- `runnable` — all required data present.
+- `degraded` — some optional fields absent; runs a reduced predicate set, marks findings
+  `coverage=partial`.
+- `unavailable` — required data absent; rule auto-disabled with a surfaced reason.
+
+**Two rule classes in ONE lifecycle (§14.1):** OCSF-portable detections declare OCSF classes;
+OT-native/site-specific detections declare native-OT tables (§17.12). Same lifecycle
+(draft→production), CI/test, MITRE mapping; only the manifest + site-applicability differ.
+
+**No prior art for graceful degradation at this granularity** — existing tools (Sigma, Elastic
+`required_fields`, Sentinel data-connector gating) all produce silent zero-rows or require
+manual disable. Prism making it declarative is greenfield.
+
+#### A2 — Result-Cache Coherence Across Hops (Sub-thread 2)
+
+**Lean (ACCEPTED):** canonical cache key =
+`canonicalized(query_intent) + canonicalized(time_window) + residency_scope + schema_version`.
+Parse to logical plan, sort predicates, normalize literals/operators, hash (Intent Signature
+pattern). Align time windows to **event-time buckets** for key collision.
+
+**DECLINE cross-hop coherence as a guarantee in v1 (the conscious scope-limit):** each tier
+independently TTLs its entries; **reconcile at query time via coverage-metadata** (§3.6 /
+BC-2.01.010) rather than promising a cross-hop coherence invariant. This sidesteps stale-parent
+poisons-children, eviction races, and double-caching failure modes. Coverage metadata says what
+window/sources each tier's contribution actually covers; the coordinator merges + reports partial.
+
+**Subsumption as optimization, not correctness:** a cached wider window may answer a narrower
+query only if its watermark ≥ the narrow window end AND its residency scope ⊇ the requester's
+allowed scope.
+
+**Single-flight the recompute:** coalesce N concurrent recompute requests for the same canonical
+key into one; integrate with §3.2 seen-request-ID loop prevention.
+
+**Note:** result-cache METADATA (coverage annotations, freshness watermarks, canonical key store)
+lands on **BUNDLED PostgreSQL** (per the storage taxonomy, §17.15 and §14.3 addendum) — NOT in
+RocksDB. The cache PAYLOAD stays in RocksDB hot / Iceberg cold.
+
+#### A3 — Continuous-Operator Checkpoint Cadence + Recovery Isolation (Sub-thread 3)
+
+**Lean (ACCEPTED):** **at-least-once + idempotent finding-emit** (relax exactly-once). Findings
+are deduped by `(rule_id, match_key, window)`; duplicate emits are harmless. Avoids two-phase-
+commit cost on a demand-driven, ephemeral operator.
+
+**Two-tier state by criticality (greenfield — no prior art supports this off-the-shelf):**
+- (a) **Hot window correlation state** — large, fast-changing, *recomputable* from the
+  §3.3 RetentionCache window → checkpoint rarely or not at all; rebuild from cache on recovery.
+- (b) **Durable detection/campaign/risk state + fired-finding dedup** — small, must survive →
+  checkpoint frequently (short-cadence, changelog-style) to RocksDB.
+
+Handling the **processing-time-timer storm** on restore: prefer event-time timers; on restart,
+clamp/coalesce processing-time timers that "should have fired" rather than bursting.
+
+#### A4 — Detection-Driven Packet-Pin Policy (Sub-thread 4)
+
+**Lean (ACCEPTED):** **decoupled three-stage pipeline** — dissector/detection (§17.12/§14)
+emits flow-tied trigger → a **retention-policy engine OWNS the pin decision** (NOT the
+detection rule directly). Pin policy is a residency-aware retention decision, not an analytics
+decision (consistent with §17.8 Q2 policy-as-artifact locus).
+
+**First-N-bytes default, full-session escalation:** mirror Zeek Time Machine class-based
+cutoffs. Default pin = headers + first-N-bytes (forensic triage); high-severity / specific
+detection classes escalate to full-session.
+
+**Pin = explicit object** keyed by **Community ID** (§17.12 axis-2 session key):
+`{community_id, byte_depth, retain_until, residency_scope}`. Severity-tiered retention
+duration is the gap prism fills — no prior tool carries this as a first-class pin attribute.
+
+**PTP/NTP is a hard prerequisite** at the satellite — alert timestamps must align to
+captured-packet timestamps; surface clock-sync health as a satellite fleet signal (§17.10 Q2).
+
+#### A5 — Entity-Registry Cross-Schema Resolution incl. OT (Sub-thread 5)
+
+**Lean (ACCEPTED):** **prism-native, config-driven entity registry** (§12.1 TOML path is
+correct — no standard to adopt; OCSF defines NO cross-event canonical identity through 1.3.x).
+Map `entity_type → ordered set of attribute paths` spanning OCSF + native-OT + IT schemas.
+
+**Deterministic-first, with strong/weak identifier tiers** (adopt Sentinel's taxonomy):
+resolve on strong IDs (device serial, MAC, CIP identity object) exactly; treat weak IDs (IP,
+hostname, unit-ID-alone) as probabilistic with **temporal-validity windows** (DHCP-reassigned
+IP must not merge two assets).
+
+**OT identity is prism's own concern.** OCSF has no OT entity model; SIEM models map poorly
+to OT sub-device identity (Modbus unit-ID, DNP3 station-address, CIP identity object). The
+entity registry + §17.12/§17.13 dissector together ARE the OT entity layer. prism is
+*defining*, not adopting — own the spec surface.
+
+**Flow vs asset distinction held:** Community ID = flow/session key (A4 pin linkage);
+entity registry = asset layer. Do not conflate.
+
+#### A6 — Per-Satellite Edge Compute Budget + Backpressure Governance (Sub-thread 6)
+
+**Lean (ACCEPTED):** **protect the capture path FIRST — hard isolation invariant.** Pin
+capture to dedicated cores via cgroups v2 + CPU affinity + IRQ steering; size NIC rings for
+burst absorption. The dissector (§17.12), windowed operator (§17.7), and packet buffer (§17.6)
+run in a **lower-priority cgroup** that can be CPU/IO-throttled but can NEVER starve capture.
+
+**Shed analysis before dropping packets (ordered degradation under pressure):**
+1. Shed/sample the windowed operator work (cheapest to lose, recomputable from cache per A3).
+2. Reduce dissector depth (parse fewer protocols / shallower).
+3. Only as last resort accept capture loss.
+Adopt Aurora/Borealis window-aware shedding for the operator tier.
+
+**Surface canonical signals upward as the fleet budget contract:** per-satellite drop-rate
+(capture_loss / kernel_drops), **ring-utilization**, **analysis-lag** (operator backlog),
+dissector queue depth, **clock-sync health** (A4). A satellite exceeding a drop threshold is
+*over-budget* — fleet either provisions more cores or narrows that site's grammar/operator scope.
+
+#### A7 — Per-Field Residency Classification + Replication-Policy Authorship Locus (Sub-thread 7)
+
+**Lean (ACCEPTED):** **classify per-field, scoped within a per-(source-class, schema, version)
+table.** Tag vocabulary: a small residency-class enum per field (e.g., `raw` / `normalized` /
+`metadata-only`) + a region/zone tag, attached to the field within its
+`(source_class, schema, schema_version)` table descriptor (§13.6 multi-schema).
+
+**Locus: author residency/replication policy as a DEDICATED policy-as-code artifact; reserve
+inline per-collector config for BINDING + EXCEPTIONS only.** The OPA/Kyverno/SCP pattern is
+decisive — core governance logic belongs in a separable artifact (central audit, consistency,
+separation of authorship: connector-author ≠ compliance-owner). The `{select → reduce → retain
+→ destination → RESIDENCY}` rule (§17.8.2) lives in a **chain-level governance policy artifact**.
+
+**Transform-ordering machine-verification:** because residency is a separate policy artifact
+evaluated over field-level tags, the "residency enforced BEFORE destination selection" invariant
+(§17.8.2 F6/F7) becomes a checkable property of the policy engine — a raw-tagged field crossing
+a region boundary must be **inexpressible by construction** in the policy DSL.
+
+**Prior art note:** field/column tagging is mature for sensitivity/masking (Purview, Snowflake
+tags, BigQuery policy tags) but all existing systems express residency at resource/bucket/region
+level, NOT per-field. prism's residency-first per-field model is ahead of, not behind, prior art.
+
+#### Cross-cutting observations
+
+- Sub-threads 1 (data-dependency manifest) + 5 (entity registry) + 7 (residency-tag vocabulary)
+  all converge on a **prism-native residency-and-capability-aware metadata layer** that both the
+  §17.8 chain-cache/replication policy and the §14 detection lifecycle read. Build as one coherent
+  descriptor family, not three silos.
+- Sub-threads 2 (decline cross-hop coherence) + 3 (recompute-cheap state) + 6 (shed-before-drop)
+  all converge on **graceful degradation as the first-class primitive** — the §3.6 partial-result
+  thesis extended from query fan-out to caching, recovery, and edge overload. Unifying rule:
+  **degrade explicitly with a surfaced signal, never silently.**
+- The §17.12 dissector + §17.7 operator co-residence (A6) is the load-bearing physical constraint.
+  If the operator must shed-to-hub under OT line-rate pressure, that reshapes §17.7 Phase-2
+  placement — the edge-budget sub-thread is not cosmetic; it gates where heavy analysis can live.
+
+#### Honest cost line
+
+Adopting these seven leans adds: four declarative metadata/policy surfaces — (i) per-rule
+data-dependency manifest + tri-state enablement (A1); (ii) canonical result-cache key + unified
+coverage-metadata schema (A2); (iii) prism-native entity registry with strong/weak + temporal-
+validity (A5); (iv) per-field residency-tag vocabulary scoped within (source-class, schema,
+version) tables + dedicated policy-as-code artifact (A7) — plus two operational disciplines —
+capture-path-first cgroup isolation with ordered analysis-shedding (A6), and a severity-tiered
+pin-retention policy engine (A4) — plus one engine design — at-least-once, two-tier
+(recompute-cheap window vs durable detection) state for the continuous operator (A3).
+**No new datastore; all RocksDB-native + TOML-spec-driven**, consistent with the ephemeral /
+federated / residency-first / OCSF+native thesis.
