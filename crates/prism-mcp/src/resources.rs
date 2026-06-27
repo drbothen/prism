@@ -1288,42 +1288,57 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
     (
         ExampleKind::Positive,
         "filter — detections with HIGH severity",
-        "crowdstrike.detections | severity = 'HIGH'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // The canonical FROM-target syntax is `<sensor_table>` (sensor_name + "_" + table_name).
+        // Dot-notation (`sensor.table`) is illegal in FROM position — returns E-QUERY-037
+        // at plan time (BC-2.11.001 / EC-11-067 / N2). ADR-046 / BC-2.11.023: filter mode
+        // uses `<table_name> | <predicate>` — the table name is always underscore-qualified.
+        // Generic `sensor_table` placeholder satisfies BC-2.10.014 AC-008 (no vendor names).
+        "sensor_table | severity = 'HIGH'",
     ),
     (
         ExampleKind::Positive,
         "SQL — select all detections",
-        "SELECT * FROM crowdstrike.detections WHERE severity = 'HIGH'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        // Replaces dot-notation (crowdstrike.detections) which returns E-QUERY-037 at plan time.
+        // Generic `sensor_table` satisfies BC-2.10.014 AC-008 (no hardcoded vendor prefixes).
+        "SELECT * FROM sensor_table WHERE severity = 'HIGH'",
     ),
     (
         ExampleKind::Positive,
         "pipe — filter by severity",
-        "FROM crowdstrike.detections | where severity = 'HIGH'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "FROM sensor_table | where severity = 'HIGH'",
     ),
     (
         ExampleKind::Positive,
         "temporal — last 7 days (SQL mode)",
-        "SELECT * FROM crowdstrike.detections WHERE timestamp > NOW() - INTERVAL '7d'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "SELECT * FROM sensor_table WHERE timestamp > NOW() - INTERVAL '7d'",
     ),
     (
         ExampleKind::Positive,
         "temporal — last 24 hours (pipe mode)",
-        "FROM crowdstrike.detections | where timestamp > NOW() - INTERVAL '24h'",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "FROM sensor_table | where timestamp > NOW() - INTERVAL '24h'",
     ),
     (
         ExampleKind::Positive,
         "SQL→Pipe — enrich with stats",
-        "SELECT * FROM crowdstrike.detections | enrich threat_score(src_ip) | limit 10",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "SELECT * FROM sensor_table | enrich threat_score(src_ip) | limit 10",
     ),
     (
         ExampleKind::Positive,
         "pipe stats — count by severity",
-        "FROM crowdstrike.detections | stats count() by severity",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "FROM sensor_table | stats count() by severity",
     ),
     (
         ExampleKind::NegativeE040,
         "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe limit",
-        "SELECT * FROM crowdstrike.detections LIMIT 10 | limit 5",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "SELECT * FROM sensor_table LIMIT 10 | limit 5",
     ),
     // OBS-1 fix: error-taxonomy.md v2.00 E-QUERY-040 CI-gate obligation (ADR-045 D3)
     // mandates NegativeE040 examples for BOTH `| limit` AND `| tail`. The `| tail`
@@ -1332,7 +1347,8 @@ pub const REFERENCE_EXAMPLES: &[(ExampleKind, &str, &str)] = &[
     (
         ExampleKind::NegativeE040,
         "E-QUERY-040 FORBID-BOTH — SQL LIMIT + pipe tail",
-        "SELECT * FROM crowdstrike.detections LIMIT 10 | tail 5",
+        // CRIT-001 fix: FROM target uses generic underscore-qualified table name.
+        "SELECT * FROM sensor_table LIMIT 10 | tail 5",
     ),
     (
         ExampleKind::NegativeOther,

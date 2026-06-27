@@ -409,3 +409,95 @@ async fn test_high003_sql_select_unknown_scalar_triggers_enrich_error() {
          Got: {display}"
     );
 }
+
+/// MED-001 regression guard — `available_infusions` in E-QUERY-039 is sorted + deduped.
+///
+/// error-taxonomy.md v2.01 §E-QUERY-039 specifies the `available_infusions` field
+/// MUST be sorted (lexicographic ascending). Without the sort fix, the field is built
+/// from `HashSet` iteration order (non-deterministic), causing:
+/// 1. Non-deterministic error messages (flaky tests, non-reproducible output).
+/// 2. Drift from the E-QUERY-038 sibling which already sorts `available_columns`
+///    (OBS-FRESH-1 fix, engine.rs ~line 1714).
+///
+/// Test protocol:
+/// 1. Build an engine with 3 infusion UDFs registered in reverse-lex order:
+///    `["zzz_score", "mmm_count", "aaa_flag"]` (names that have a clear sorted order).
+/// 2. Execute a query with an unregistered UDF name to trigger E-QUERY-039.
+/// 3. Extract the `available_infusions` field from the error details.
+/// 4. Assert it matches the sorted order: `["aaa_flag", "mmm_count", "zzz_score"]`.
+///
+/// Load-bearing: this test fails if the sort/dedup is removed from
+/// `check_enrich_udf_availability` (MED-001 fix in S-DEMO-FIDELITY-REMEDIATION-001).
+#[tokio::test]
+async fn test_med001_available_infusions_sorted_in_e_query_039_error() {
+    use prism_core::error::PrismError;
+
+    // Build a registry with 3 infusion specs whose per-field names are deliberately
+    // inserted in REVERSE-LEX order to verify the sort fix is load-bearing.
+    let infusion_registry = InfusionRegistry::new();
+
+    // Per-field names in reverse-lex: "zzz_score", "mmm_count", "aaa_flag"
+    // (the sorted result should be: ["aaa_flag", "mmm_count", "zzz_score"])
+    for name in ["zzz_score", "mmm_count", "aaa_flag"] {
+        let spec = InfusionSpec::new(
+            name,
+            "test infusion",
+            InfusionType::LocalLookup,
+            vec![InfusionField::new(name, "input_col", "string", "string")],
+            "/dev/null",
+        );
+        infusion_registry
+            .load_spec(spec)
+            .unwrap_or_else(|e| panic!("MED-001: load_spec for '{name}' must not fail: {e}"));
+    }
+
+    let table_registry = make_cyberint_table_registry();
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+    .with_table_registry(table_registry)
+    .with_infusion_registry(Arc::new(infusion_registry));
+
+    // Execute query with an unregistered UDF name to trigger E-QUERY-039.
+    let result = engine
+        .execute(
+            "FROM cyberint_alerts | enrich unknown_udf(some_col)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "MED-001: query with unregistered UDF must return Err; got Ok"
+    );
+
+    let err = result.unwrap_err();
+    match err {
+        PrismError::EnrichUdfNotFound(ref details) => {
+            // MED-001 assertion: available_infusions must be sorted lexicographically.
+            let infusions = &details.available_infusions;
+            let mut expected_sorted = infusions.clone();
+            expected_sorted.sort();
+            expected_sorted.dedup();
+            assert_eq!(
+                infusions, &expected_sorted,
+                "MED-001: available_infusions in E-QUERY-039 must be sorted (lexicographic). \
+                 Got: {infusions:?}. Expected sorted: {expected_sorted:?}. \
+                 This fails if sort+dedup is missing from check_enrich_udf_availability."
+            );
+            // Verify the sort produces the expected order.
+            assert_eq!(
+                infusions.as_slice(),
+                &["aaa_flag", "mmm_count", "zzz_score"],
+                "MED-001: available_infusions must be sorted ['aaa_flag', 'mmm_count', 'zzz_score']. \
+                 Got: {infusions:?}"
+            );
+        }
+        other => panic!("MED-001: expected PrismError::EnrichUdfNotFound, got: {other:?}"),
+    }
+}

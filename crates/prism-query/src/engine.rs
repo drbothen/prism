@@ -1537,8 +1537,14 @@ fn check_enrich_udf_availability(
         if !registered_names.contains(requested.as_str()) {
             // Requested name is not a registered per-field UDF name.
             // Build available_infusions from all registered per-field names.
-            let available_infusions: Vec<String> =
+            // MED-001 fix: sort + dedup so the list is deterministic (lexicographic order)
+            // as required by error-taxonomy.md v2.01 §E-QUERY-039. This mirrors the
+            // sort+dedup fix applied to available_columns in check_column_availability
+            // (OBS-FRESH-1, engine.rs line ~1714) for E-QUERY-038 parity.
+            let mut available_infusions: Vec<String> =
                 descriptors.iter().map(|d| d.name.clone()).collect();
+            available_infusions.sort();
+            available_infusions.dedup();
 
             // did_you_mean: Levenshtein ≤ 3 suggestion from registered names.
             // OBS-1 fix: lexicographic tie-break (name asc) to ensure determinism
