@@ -40,7 +40,7 @@ timestamp: 2026-06-26T00:00:00Z
 >
 > **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1399** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
 > **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1399 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.026. D-1399.
+> develop HEAD origin/develop `9a09653a` (PR #205 chore/wrap-skill squash-merged 2026-06-27). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.027. D-1400.
 
 ---
 
@@ -85,6 +85,9 @@ BC-2.10.012 §pql_hints Category-1 hint-text divergence (→ wave-gate/phase-5/P
 
 ### D-1399 (this wrap) decision row
 D-1399: session wrap — RESUME SNAPSHOT D-1399 authored (supersedes D-1380); S-DEMO-FIDELITY-REMEDIATION-001 code-complete @073d305f story v2.0 (streak 0/3, NEXT=re-gate to 3-CLEAN→PR→merge); S-PRISMQL-CASE-INSENSITIVE-001 scaffolded demo-critical (ADR-047, OD-1..OD-4 resolved); develop 9a09653a; STATE bumped v8.025→v8.026.
+
+### D-1400 DELTA (discovery-sweep fix-burst — appended to D-1399 snapshot)
+> Feature HEAD advanced 073d305f→a562ebaa. Spec deltas: BC-2.11.019 v1.3→v1.4 (§Gate Scope Boundaries: OBS-001/002/003 + F-L3-OBS-002 adjudicated); error-taxonomy v2.01→v2.02 (E-QUERY-039 example sort + BC anchor v1.4); story v2.0→v2.1 (BC-2.11.016 re-anchored in behavioral_contracts + body BC table; Token Budget 5→6 BCs; BC-2.11.019 cites v1.3→v1.4; AC-SAP-1 reworded to compliance note; F-L3-OBS-001 build_example_query prose fixed). BC-INDEX v7.19→v7.20. STORY-INDEX v2.505→v2.506. 3-CLEAN streak 0/3; NEXT = re-gate LOCAL adversary cascade on a562ebaa + story v2.1. STATE v8.026→v8.027.
 
 ---
 
