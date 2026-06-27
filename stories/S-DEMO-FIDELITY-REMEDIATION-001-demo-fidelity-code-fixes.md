@@ -24,7 +24,7 @@ subsystems: [SS-10, SS-11]
 #             plan-time enrichment gate in prism-query/engine.rs (AST visitor, pipe EnrichStage +
 #             SQL ScalarFunc::Unknown paths); map_prism_error -32602 net-new arm in error_mapping.rs.
 #             NOTE: map_prism_error arm for E-QUERY-037 (TableNotAvailable) is CONFIRMED PRESENT —
-#             only the E-QUERY-039 (EnrichUdfNotFound) arm is net-new. BC-2.11.019 v1.2 draft→active
+#             only the E-QUERY-039 (EnrichUdfNotFound) arm is net-new. BC-2.11.019 v1.3 draft→active
 #             at merge (POL-14).
 #     - N2: E-QUERY-037 gate-ordering fix located in table_registry.rs (check_availability_gate /
 #           is_registered) + engine.rs — NOT materialization.rs only (verified 2026-06-26).
@@ -53,7 +53,7 @@ estimated_days: 2
 points: 10
 # Points breakdown (revised v1.2 — C1/I1/I2/S1 corrections; total unchanged from v1.1):
 #   BC-2.11.022 v1.1 — N1: fix dedup key in build_reference_content: 2 pts
-#   BC-2.11.019 v1.2 — N1-B: NET-NEW E-QUERY-039 implementation:
+#   BC-2.11.019 v1.3 — N1-B: NET-NEW E-QUERY-039 implementation:
 #     create EnrichUdfNotFound variant + EnrichUdfNotFoundDetails #[non_exhaustive] struct
 #     in prism-core/error.rs; plan-time enrichment gate in prism-query/engine.rs (AST visitor,
 #     pipe PipeStage::Enrich + SQL ScalarFunc::Unknown paths; derive UDF names from udf_descriptors());
@@ -66,10 +66,12 @@ points: 10
 #   Total: 10 pts (N1-B is full net-new implementation, not a routing investigation)
 level: "L4"
 status: draft
-# BC status: all 5 BCs in behavioral_contracts are active (v1.14/v1.1/v1.2/v1.4/v1.2).
+# BC status: all 5 BCs in behavioral_contracts are active (v1.14/v1.1/v1.3/v1.4/v1.2).
+# BC-2.11.019 bumped to v1.3 per PO E-QUERY-039 reconciliation (canonical message template,
+# Vec<String> available_infusions, enrich-LAST gate ordering).
 # Per Spec-First Gate S-7.01 this story is valid for dispatch as behavioral_contracts is non-empty.
-version: "1.2"
-updated: "2026-06-26"
+version: "1.3"
+updated: "2026-06-27"
 producer: story-writer
 timestamp: "2026-06-26T00:00:00Z"
 input-hash: "TBD"
@@ -172,7 +174,7 @@ sensor-prefixed table names that execute without E-QUERY-037.
 |-------|---------|-------|
 | BC-2.11.001 | v1.14 | `query` MCP Tool Accepts Scoping + PrismQL Query String |
 | BC-2.11.022 | v1.1 | Auto-Generated `prismql://reference` Content Contract and CI Parity Gate |
-| BC-2.11.019 | v1.2 | E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
+| BC-2.11.019 | v1.3 | E-QUERY-039 Enrich-UDF-Not-Found Plan-Time Gate |
 | BC-2.10.016 | v1.2 | MCP Prompts Fast-Return Guarantee — No Indefinite Hang |
 | BC-2.10.012 | v1.4 | `prism_describe` Schema Discovery Tool (L2) |
 
@@ -233,23 +235,40 @@ callable fn forms (the N1 regression guard).
 > doc block: "Reference: S-3.13 AC-2; BC-2.11.001; error-taxonomy.md E-QUERY-037"). No change
 > needed to that arm. ONLY the `EnrichUdfNotFound` arm (E-QUERY-039) is net-new.
 
-**AC-N1B** (traces to BC-2.11.019 v1.2 postconditions — EnrichUdfNotFound variant shape,
+**AC-N1B** (traces to BC-2.11.019 v1.3 postconditions — EnrichUdfNotFound variant shape,
 gate firing condition for pipe-mode `EnrichStage.infusion` NOT in
 `InfusionRegistry.udf_to_infusion`, and SQL-mode `ScalarFunc::Unknown` gate, and MCP -32602
 mapping):
 
+> **Gate-ordering note (BC-2.11.019 v1.3):** E-QUERY-039 fires LAST in the plan-time gate
+> sequence. The full ordered sequence is: E-QUERY-001 (parse error) → E-QUERY-037 (table
+> availability, `check_availability_gate`) → E-QUERY-038 (column gate) → E-QUERY-039 (enrichment
+> UDF not found, this gate). A query with both a dot-notation FROM target AND an invalid
+> enrichment name returns E-QUERY-037, NOT E-QUERY-039 — the table gate fires first.
+>
+> **WHERE-clause note:** The SQL-mode `ScalarFunc::Unknown` gate covers enrichment function calls
+> in SELECT projections. In the current grammar, WHERE-clause enrichment calls are a parse error
+> (E-QUERY-001 at the grammar level) — a WHERE-clause like `WHERE enrich threat_score(col) > 0`
+> is rejected by the parser before reaching the plan-time gate. The SQL-path visitor scan for
+> `ScalarFunc::Unknown` in projection expressions is therefore the COMPLETE coverage for
+> SQL-mode enrichment validation; no WHERE-clause scan is needed in the plan-time pass.
+> The visitor arm is written defensively to handle programmatic AST construction that bypasses
+> the parser, but in practice all SQL-mode enrichment errors surface via the projection arm
+> or as E-QUERY-001 parse errors before the plan-time gate is reached.
+
 **Step 1 — Create the error type** (in `crates/prism-core/src/error.rs`):
 - Add variant `EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` to `PrismError`.
 - Add `#[non_exhaustive]` struct `EnrichUdfNotFoundDetails { pub infusion: String, pub available_infusions: Vec<String>, pub did_you_mean: Option<String> }`.
+  - `available_infusions` is `Vec<String>` (canonical type per BC-2.11.019 v1.3; PO-ratified).
 - Both type and variant MUST carry `#[non_exhaustive]`. Increment `ci.yml EXPECTED` 87→88. Update `CLAUDE.md` non-exhaustive sentence + attribution list in the same atomic commit.
 
-**Step 2 — Add plan-time enrichment gate** (in `crates/prism-query/src/engine.rs`) (I2 anchor v1.2):
+**Step 2 — Add plan-time enrichment gate** (in `crates/prism-query/src/engine.rs`) (I2 anchor v1.3):
 Add a new plan-time enrichment-validation pass in `crates/prism-query/src/engine.rs`, invoked
 BEFORE `check_availability_gate`/fan-out. This pass uses the AST `visit::Visitor` to collect
 enrichment function names from BOTH query paths and validates each against the registered
 UDF name set (derived from `registry.udf_descriptors()`):
 - **Pipe path** — visitor arm collects `EnrichStage.infusion` values from `PipeStage::Enrich` nodes.
-- **SQL path** — visitor arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions.
+- **SQL path** — visitor arm collects `ScalarFunc::Unknown(name)` values from SELECT projection expressions (WHERE-clause enrichment calls are E-QUERY-001 parse errors — they never reach this gate; see WHERE-clause note above).
 
 Both collection paths are DISTINCT visitor arms but feed the same validation loop and the same
 `EnrichUdfNotFound` error type. For each collected name: if `name` is NOT a key in
@@ -262,12 +281,24 @@ Err(PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails {
 })))
 ```
 Gate MUST fire BEFORE any fan-out or sensor I/O. No new public methods on `InfusionRegistry`.
+Gate ordering: this enrichment-validation pass runs AFTER the table availability gate
+(`check_availability_gate` / E-QUERY-037) so that table-availability errors are reported first.
 
 **Step 3 — Add MCP mapping** (in `crates/prism-mcp/src/error_mapping.rs`):
-- Add an explicit arm `PrismError::EnrichUdfNotFound(d) => (codes::INVALID_PARAMS, format!("E-QUERY-039: enrichment UDF '{}' not found; ...", d.infusion))` in `map_prism_error`. This arm MUST NOT fall through to the `-32000` catch-all.
+- Add an explicit arm for `PrismError::EnrichUdfNotFound(d)` in `map_prism_error` that returns
+  `(codes::INVALID_PARAMS, ...)` with the canonical Display message format (BC-2.11.019 v1.3):
+  ```
+  E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}
+  ```
+  Where `{available_infusions}` is the comma-joined `Vec<String>` wrapped in brackets (e.g.,
+  `[threat_score, threat_is_known_malicious, threat_sources]`), and `{did_you_mean}` is
+  ` Did you mean: '{x}'?` when `did_you_mean` is `Some(x)`, or omitted (empty string) when `None`.
+  Full example (no suggestion): `E-QUERY-039: enrichment infusion 'threat_intel' is not registered; available: [threat_score, threat_is_known_malicious, threat_sources, cvss_base_score, cvss_severity, cvss_vector]`
+  Full example (with suggestion): `E-QUERY-039: enrichment infusion 'threat_scor' is not registered; available: [threat_score, ...] Did you mean: 'threat_score'?`
+- This arm MUST NOT fall through to the `-32000` catch-all.
 - The `PrismError::TableNotAvailable(..)` arm (E-QUERY-037) is CONFIRMED PRESENT — do NOT modify or duplicate it.
 
-**Observable behavior**: A pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where `threat_intel` is an infusion_id (not a per-field UDF name) and therefore NOT a key in `InfusionRegistry.udf_to_infusion`, returns `PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` at plan time, surfaced as MCP `-32602 INVALID_PARAMS` with `code: "E-QUERY-039"`. It MUST NOT return `E-INT-001` "Internal error; see audit log". The `available_infusions` field MUST list the registered per-field UDF names (e.g., `threat_score, threat_is_known_malicious, threat_sources, ...`). A `did_you_mean` suggestion is present IF any registered UDF name is within Levenshtein distance 3 of the queried name; `None` is a valid outcome when no registered name is within distance 3 (e.g., `"threat_intel"` vs per-field names like `"threat_score"` may exceed distance 3). The same gate applies to a SQL-mode `ScalarFunc::Unknown("nvd")` in a SELECT projection: it returns E-QUERY-039, NOT E-INT-001.
+**Observable behavior**: A pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where `threat_intel` is an infusion_id (not a per-field UDF name) and therefore NOT a key in `InfusionRegistry.udf_to_infusion`, returns `PrismError::EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>)` at plan time, surfaced as MCP `-32602 INVALID_PARAMS` with `code: "E-QUERY-039"`. It MUST NOT return `E-INT-001` "Internal error; see audit log". The `available_infusions: Vec<String>` field MUST list the registered per-field UDF names (e.g., `threat_score`, `threat_is_known_malicious`, `threat_sources`, ...). A `did_you_mean` suggestion is present IF any registered UDF name is within Levenshtein distance 3 of the queried name; `None` is a valid outcome when no registered name is within distance 3 (e.g., `"threat_intel"` vs per-field names like `"threat_score"` may exceed distance 3). The same gate applies to a SQL-mode `ScalarFunc::Unknown("nvd")` in a SELECT projection: it returns E-QUERY-039, NOT E-INT-001.
 
 **Red Gate tests:**
 
@@ -443,7 +474,7 @@ catalog row.
 
 | Artifact | Estimated Tokens |
 |----------|-----------------|
-| This story spec (v1.2) | ~10,000 |
+| This story spec (v1.3) | ~10,000 |
 | BC files (5 BCs) | ~10,000 |
 | Source files touched (resources.rs, prompts.rs, prism_describe.rs, error.rs, table_registry.rs, engine.rs, error_mapping.rs) | ~18,000 |
 | Research/audit docs (2) | ~6,000 |
@@ -738,6 +769,7 @@ is a set of targeted, surgical code changes:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | demo-fidelity-remediation-2026-06-26 | 2026-06-26 | story-writer | Initial story. Materializes the 5 code-fix ACs from the 2026-06-26 pre-flight audit remediation plan. Traces to BC-2.11.001 v1.14 (EC-11-067 N2), BC-2.11.022 v1.1 (EC-11-022-006 N1), BC-2.11.019 v1.2 (N1-B), BC-2.10.012 v1.4 (AUDIT-001), BC-2.10.016 v1.2 (AUDIT-004). 10 ACs; 7 Red Gate tests; 8 pts; P0; depends_on S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001. |
+| 1.3 | po-e-query-039-reconciliation-2026-06-27 | 2026-06-27 | story-writer | HIGH-005 changelog reorder (POL-32 monotonic_descending violation — rows were 1.0→1.2→1.1; reordered to strict descending 1.3→1.2→1.1→1.0). Sync to PO E-QUERY-039 reconciliation: (1) canonical Display message template added to AC-N1B Step 3 — EXACTLY `E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}` (bracket-wrapped comma-joined Vec<String>; did_you_mean = ` Did you mean: '{x}'?` when Some, omitted when None); (2) available_infusions confirmed as `Vec<String>` (PO-ratified canonical type — already matched struct definition; now explicit in AC text and observable behavior); (3) enrich-LAST gate ordering added as explicit callout in AC-N1B: E-QUERY-039 fires LAST (E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039); (4) WHERE-clause note added: SQL-mode ScalarFunc::Unknown gate covers projections only — WHERE-clause enrichment calls are E-QUERY-001 parse errors at the grammar level; the projection-arm scan is complete coverage; defensive visitor arm noted for programmatic AST; (5) BC-2.11.019 version references updated v1.2→v1.3 throughout (BC table, AC-N1B header trace, frontmatter I2 anchor comment, crates_touched comment, BC status comment). LOCAL Pass-1 fix-burst closures noted for record: CRIT-001 (prompt table names), HIGH-001 (gate ordering), HIGH-002 (Display template), HIGH-003 (WHERE scan), OBS-1 (tie-break), OBS-2 (doc-comment). Version bump 1.2→1.3. |
 | 1.2 | pre-tdd-api-mismatch-corrections-2026-06-26 | 2026-06-26 | story-writer | Four internal-API mismatch corrections found before TDD delivery. C1 (HIGH): E-QUERY-037 `map_prism_error` arm CONFIRMED PRESENT in error_mapping.rs (~line 166, doc "S-3.13 AC-2; BC-2.11.001") — v1.1 wrongly marked it net-new; corrected throughout (AC-N1B, AC-N2, File Structure table, Tasks, Architecture Mapping). I1 (HIGH): `InfusionRegistry.udf_names()` does NOT exist — only `udf_descriptors()` exists; corrected gate code to derive UDF names inline via `udf_descriptors().iter().map(|d| d.name.clone()).collect()` throughout; no new public method added (keeps EXPECTED increment at exactly 87→88). I2 (MED-HIGH): enrichment-gate insertion point pinned to `engine.rs` (new AST-visitor pass before `check_availability_gate`; pipe arm: `PipeStage::Enrich` → `EnrichStage.infusion`; SQL arm: `ScalarFunc::Unknown` in projections; both distinct visitor arms, same validation loop); "implementer determines exact file" language removed. S1 (LOW): Red Gate test for N1-B relaxed — `did_you_mean.is_some()` assertion removed; test must assert `available_infusions` non-empty and error variant/code only (registered per-field UDF names likely > Levenshtein-3 from "threat_intel" so `did_you_mean: None` is valid). Points/Red Gate test count/token budget UNCHANGED from v1.1 (10 pts / 9 tests / ~53k tokens). |
 | 1.1 | remove-uncertainty-scope-correction-2026-06-26 | 2026-06-26 | story-writer | Scope corrections from post-materialization remove-uncertainty pass. THREE HIGH findings resolved: (1) N1-B re-scoped net-new — EnrichUdfNotFound variant + EnrichUdfNotFoundDetails struct do NOT exist in workspace (zero matches); AC-N1B now requires creating error.rs variant + plan-time gate (prism-query) + map_prism_error -32602 arm (error_mapping.rs) from scratch; story-investigation framing removed; BC-2.11.019 promotes draft→active at merge (POL-14). (2) N2 gate-ordering fix relocated from materialization.rs to table_registry.rs (check_availability_gate / is_registered) + engine.rs; materialization.rs resolve_source_refs is a DIFFERENT code path (E-QUERY-036, not E-QUERY-037); AC-N2 scope note + scope-note re-written accordingly. (3) AC-REG-1 amended: previously incorrectly stated no new #[non_exhaustive] types; now REQUIRES EnrichUdfNotFoundDetails with #[non_exhaustive]; ci.yml EXPECTED 87→88; CLAUDE.md sentence updated. map_prism_error E-QUERY-037 arm also changed from conditional to net-new. crates_touched expanded: + prism-core/src/error.rs, + prism-query/src/table_registry.rs, + prism-query/src/engine.rs. Points: 8→10. Red Gate tests: 7→9. Token budget: ~43k→~53k. |
+| 1.0 | demo-fidelity-remediation-2026-06-26 | 2026-06-26 | story-writer | Initial story. Materializes the 5 code-fix ACs from the 2026-06-26 pre-flight audit remediation plan. Traces to BC-2.11.001 v1.14 (EC-11-067 N2), BC-2.11.022 v1.1 (EC-11-022-006 N1), BC-2.11.019 v1.2 (N1-B), BC-2.10.012 v1.4 (AUDIT-001), BC-2.10.016 v1.2 (AUDIT-004). 10 ACs; 7 Red Gate tests; 8 pts; P0; depends_on S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-06-23T00:00:00Z
@@ -15,7 +15,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: draft
 introduced: 2026-06-23
-modified: 2026-06-23
+modified: 2026-06-27
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -28,7 +28,7 @@ removal_reason: null
 
 ## Description
 
-When a PrismQL query — in pipe mode (`| enrich <infusion>(<column>)`) or in SQL mode (`SELECT <infusion>(<column>) FROM ...`) — invokes an enrichment function name that is not registered in the process-global `InfusionRegistry`, the query engine rejects the query at plan time (before any sensor fan-out or DataFusion execution) with `E-QUERY-039`. The error payload carries `infusion` (the unrecognized enrichment function name as written), `available_infusions` (comma-separated list of all `InfusionField.name` values in the global `InfusionRegistry`), and `did_you_mean` (Levenshtein ≤ 3 match against the global set, if any). This prevents an opaque runtime `E-INT-001` crash (AUDIT-005 root cause) and enables the LLM agent to self-correct the enrichment call in a single retry without human intervention. The gate fires at the same plan-time validation point as E-QUERY-037 (table) and E-QUERY-038 (column).
+When a PrismQL query — in pipe mode (`| enrich <infusion>(<column>)`) or in SQL mode (`SELECT <infusion>(<column>) FROM ...`) — invokes an enrichment infusion name that is not registered in the process-global `InfusionRegistry`, the query engine rejects the query at plan time (before any sensor fan-out or DataFusion execution) with `E-QUERY-039`. The error payload carries `infusion` (the unrecognized infusion name as written), `available_infusions` (`Vec<String>` of all `InfusionField.name` values in the global `InfusionRegistry`, rendered in the message as a bracket-wrapped comma-joined list), and `did_you_mean` (Levenshtein ≤ 3 match against the global set, if any). This prevents an opaque runtime `E-INT-001` crash (AUDIT-005 root cause) and enables the LLM agent to self-correct the enrichment call in a single retry without human intervention. The gate fires at the same plan-time validation point as E-QUERY-037 (table) and E-QUERY-038 (column).
 
 ## Preconditions
 
@@ -56,16 +56,14 @@ The gate fires at plan time, after AST parse and before fan-out and before DataF
 ### E-QUERY-039 error payload shape
 
 ```
-E-QUERY-039: enrichment function '{infusion}' is not registered.
-  available_infusions: <comma-separated list>,
-  did_you_mean: Option<"<infusion>">
+E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}
 ```
 
 **Payload fields:**
 
 - `infusion`: the exact enrichment function name token as written in the query (e.g., `"threat_score"`, `"cvss"`)
-- `available_infusions`: a comma-separated string of ALL `InfusionField.name` values in the process-global `InfusionRegistry` at plan time. When no infusions are registered, this is an empty string `""`. This field is ALWAYS present. **Global scope:** `available_infusions` reflects ALL `InfusionField.name` values across the entire `InfusionRegistryInner.udf_to_infusion` map — there is no per-org keying in the current implementation (infusions are shared across all orgs). See §Follow-Up Story Anchor for the per-org scoping deferral.
-- `did_you_mean`: optional string. Present when the Levenshtein distance between `infusion` and the closest `InfusionField.name` in the global registry is ≤ 3 (implementation: `strsim::levenshtein`, same crate used by E-QUERY-037 and E-QUERY-038). When present, contains the single closest-match infusion name from the global set. When absent (no match within threshold), the field is OMITTED (not null, not empty string). **Org-scoping note:** computed against the global registry; per-org candidate filtering deferred to the §Follow-Up Story Anchor.
+- `available_infusions`: a `Vec<String>` of ALL `InfusionField.name` values in the process-global `InfusionRegistry` at plan time. When no infusions are registered, this is an empty `Vec` (renders as `[]` in the Display output). This field is ALWAYS present. The Display impl comma-joins the Vec and wraps it in square brackets — e.g., `[threat_score, nvd_cvss]`; an empty Vec renders as `[]`. **Global scope:** `available_infusions` reflects ALL `InfusionField.name` values across the entire `InfusionRegistryInner.udf_to_infusion` map — there is no per-org keying in the current implementation (infusions are shared across all orgs). See §Follow-Up Story Anchor for the per-org scoping deferral.
+- `did_you_mean`: `Option<String>`. Present when the Levenshtein distance between `infusion` and the closest `InfusionField.name` in the global registry is ≤ 3 (implementation: `strsim::levenshtein`, same crate used by E-QUERY-037 and E-QUERY-038). When present, contains the single closest-match infusion name from the global set, rendered as `" Did you mean: '{best_match}'?"` (leading space, one candidate — consistent with E-QUERY-037/038 convention). When absent (no match within threshold), the field is `None` (omitted from the Display output — not rendered as empty string). **Org-scoping note:** computed against the global registry; per-org candidate filtering deferred to the §Follow-Up Story Anchor.
 
 ### MCP surface
 
@@ -85,10 +83,12 @@ The error is delivered as a BC-2.10.007 structured error response with:
 ```rust
 pub struct EnrichUdfNotFoundDetails {
     pub infusion: String,
-    pub available_infusions: String,     // comma-separated; "" when none
+    pub available_infusions: Vec<String>,   // all registered InfusionField.name values; empty Vec when none
     pub did_you_mean: Option<String>,
 }
 ```
+
+**`available_infusions` rendering:** the `Display` implementation MUST comma-join the `Vec<String>` and wrap it in square brackets, e.g., `[threat_score, nvd_cvss]`. When the Vec is empty the rendered form MUST be `[]`. This bracket convention is consistent with `ColumnNotFoundDetails.available_columns` (E-QUERY-038 sibling). The canonical message format the Display MUST produce byte-for-byte is: `"E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}"` where `{available_infusions}` is replaced by the comma-joined Vec content (no additional brackets added — the brackets are part of the format string literal).
 
 The `#[non_exhaustive]` attribute on `EnrichUdfNotFoundDetails` is required per CLAUDE.md `#[non_exhaustive]` discipline (public type in `prism-core`). This adds +1 to the `ci.yml EXPECTED` non-exhaustive gate count (currently 83; increment to 84). External match arms must include a wildcard `_ => {}` arm.
 
@@ -100,8 +100,10 @@ The full plan-time gate sequence is:
 1. E-QUERY-001 — parse error (Chumsky cannot parse the query at all)
 2. E-QUERY-037 — table not in `TableRegistry` (fires before column/enrichment checks)
 3. E-QUERY-038 — column not found in table schema
-4. **E-QUERY-039** — enrichment function name not registered in `InfusionRegistry` (fires after table and column checks; applies to both pipe-mode `EnrichStage.infusion` and SQL-mode `ScalarFunc::Unknown(name)`)
+4. **E-QUERY-039** — enrichment infusion name not registered in `InfusionRegistry` (fires LAST among the plan-time validation gates — after both E-QUERY-037 table check and E-QUERY-038 column check have passed; applies to both pipe-mode `EnrichStage.infusion` and SQL-mode `ScalarFunc::Unknown(name)`)
 5. E-QUERY-034 — fallback for DataFusion execution failures
+
+**Implementer note (addresses HIGH-001 from S-DEMO-FIDELITY-REMEDIATION-001 adversary pass):** The code currently fires E-QUERY-039 BEFORE E-QUERY-037 and E-QUERY-038. This is wrong. The implementation MUST perform the checks in the order listed above: table check → column check → enrichment check. The spec ordering is the canonical ordering; the code must be corrected to match it.
 
 ### Closes AUDIT-005
 
@@ -127,9 +129,9 @@ E-QUERY-039 gates BOTH AST paths at plan time:
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-11-057 | `\| enrich threet_score(ioc_value)` (typo — missing 'a') where `threat_score` is registered in `InfusionRegistry` | `E-QUERY-039` with `infusion: "threet_score"`, `available_infusions: "threat_score"` (or all registered names), `did_you_mean: "threat_score"` (Levenshtein distance 1) |
-| EC-11-058 | `\| enrich completely_unknown_udf(col)` where no registered infusion name is within Levenshtein distance 3 | `E-QUERY-039` with `infusion: "completely_unknown_udf"`, `available_infusions: "threat_score,nvd_cvss"` (global set), `did_you_mean` ABSENT (omitted, not null) |
-| EC-11-059 | No infusions registered in `InfusionRegistry` at all (`available_infusions: ""`) | `E-QUERY-039` with `available_infusions: ""`, `did_you_mean` absent, `suggestion` using the "not available" form |
+| EC-11-057 | `\| enrich threet_score(ioc_value)` (typo — missing 'a') where `threat_score` is registered in `InfusionRegistry` | `E-QUERY-039` with `infusion: "threet_score"`, `available_infusions: ["threat_score"]` (or all registered names as a Vec), `did_you_mean: "threat_score"` (Levenshtein distance 1); message renders as `available: [threat_score]` |
+| EC-11-058 | `\| enrich completely_unknown_udf(col)` where no registered infusion name is within Levenshtein distance 3 | `E-QUERY-039` with `infusion: "completely_unknown_udf"`, `available_infusions: ["threat_score", "nvd_cvss"]` (global set as Vec), `did_you_mean` ABSENT (`None` — omitted from message); message renders as `available: [threat_score, nvd_cvss]` |
+| EC-11-059 | No infusions registered in `InfusionRegistry` at all (`available_infusions: Vec::new()`) | `E-QUERY-039` with `available_infusions: []` (empty Vec renders as `[]` in Display), `did_you_mean` absent, `suggestion` using the "not available" form |
 | EC-11-060 | Pipe-mode query with `\| enrich` AND a non-existent table | E-QUERY-037 fires first (table not found); E-QUERY-039 does not fire. Gate ordering: table check → column check → infusion check. |
 | EC-11-061 | SQL mode query with no `ScalarFunc::Unknown` nodes AND pipe mode with no `EnrichStage` (no enrichment in query) | E-QUERY-039 does not fire; the gate is a no-op. |
 | EC-11-062 | Hot reload adds a new infusion between parse and gate check | The gate uses the `InfusionRegistry` snapshot at plan time (consistent with `ArcSwap` hot-reload pattern per ADR-022). If the infusion was added during the in-flight query, the gate may reject it; the next query sees the updated registry. |
@@ -141,7 +143,7 @@ E-QUERY-039 gates BOTH AST paths at plan time:
 |-------|----------------|----------|
 | `query("FROM cyberint_alerts \| enrich threat_scor(ioc_value)", clients=["acme"])` where `threat_score` is registered but `threat_scor` is not | `E-QUERY-039` with `infusion: "threat_scor"`, `available_infusions` includes `"threat_score"`, `did_you_mean: "threat_score"` | happy-path (did_you_mean) |
 | `query("FROM cyberint_alerts \| enrich completely_unknown_udf(alert_id)", clients=["acme"])` where no infusion name is close | `E-QUERY-039` with `infusion: "completely_unknown_udf"`, `available_infusions` lists all global infusion names, `did_you_mean` absent | no-suggestion |
-| `query("FROM cyberint_alerts \| enrich threat_score(ioc_value)")` when no infusions are registered | `E-QUERY-039` with `available_infusions: ""`, `suggestion` uses "not available" form | no-infusions |
+| `query("FROM cyberint_alerts \| enrich threat_score(ioc_value)")` when no infusions are registered | `E-QUERY-039` with `available_infusions: []` (empty Vec; Display renders as `[]`), `suggestion` uses "not available" form | no-infusions |
 | `query("SELECT * FROM cyberint_alerts")` (no enrich call) when `cyberint_alerts` is registered | Successful result rows — E-QUERY-039 does not fire | no-op |
 | `query("FROM unknown_table \| enrich threat_score(col)")` when `unknown_table` is not registered | `E-QUERY-037` (not E-QUERY-039) — table gate fires first | gate-ordering |
 | MCP error code for E-QUERY-039 | Surfaces as `-32602 INVALID_PARAMS` (not `-32000`) | mcp-mapping |
@@ -198,6 +200,7 @@ VP assignments TBD — assigned after VP authoring pass.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | S-DEMO-FIDELITY-REMEDIATION-001-HIGH-002-HIGH-004-canonical | 2026-06-27 | product-owner | **HIGH-002 + HIGH-004 closure from LOCAL adversary Pass 1 on S-DEMO-FIDELITY-REMEDIATION-001: three-way message drift and available_infusions type contradiction resolved.** **(HIGH-002) Message format canonicalized:** §payload-shape prose heading changed from "enrichment function '...' is not registered" to the verbatim canonical Display format `"E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}"` — "infusion" (not "function", not "UDF"), "is not registered" (not "not found"), brackets around `{available_infusions}` (parity with E-QUERY-038). The canonical message is the error-taxonomy.md row (POL-24 SOT), now also amended to add brackets (error-taxonomy v2.01). **(HIGH-004) `available_infusions` type corrected String→Vec<String>:** `EnrichUdfNotFoundDetails.available_infusions` changed from `String // comma-separated; "" when none` to `Vec<String>` matching E-QUERY-038 sibling (`ColumnNotFoundDetails.available_columns: Vec<String>`) and the pre-existing taxonomy emitter clause. The BC was wrong; the taxonomy emitter was already correct. Rendering rule added: Display comma-joins the Vec and wraps in brackets; empty Vec renders as `[]`. EC-11-059 updated: `available_infusions: ""` → `available_infusions: []` (empty Vec). no-infusions canonical test vector updated to `available_infusions: []`. `did_you_mean` description clarified: `Option<String>`, rendered as `" Did you mean: '{x}'?"` (leading space) when `Some`; omitted (not empty string) when `None` — consistent with E-QUERY-037/038. **(Gate ordering confirmation + HIGH-001 implementer note):** §Gate ordering prose amended: E-QUERY-039 fires LAST (after E-QUERY-037 and E-QUERY-038); explicit implementer note added that the code fires E-QUERY-039 FIRST (adversary HIGH-001) and MUST be corrected to match spec ordering — spec is the canonical ordering, code is wrong. The gate ordering itself (table→column→enrich) was always correct in the BC; no semantic change, only explicit statement added. |
 | 1.2 | onboarding-001-C-sr-006-ec-renumber-2026-06-23 | 2026-06-23 | product-owner | SR-006 EC-11 namespace collision fix: renumbered all edge-case IDs in this BC from EC-11-046..053 range (which collided with committed BC-2.11.017 046..050 and BC-2.11.018 051..056) into the free range EC-11-057..063. Exact map: EC-11-046→057, 047→058, 048→059, 049→060, 050→061, 052→062, 053→063. Semantic content of every edge case unchanged — ID-only fix. Changelog references to old IDs in v1.1 entry are historical and left intact per append-only audit trail policy. |
 | 1.1 | onboarding-001-C-sr-resolution-2026-06-23 | 2026-06-23 | product-owner | SR-001–SR-005 architect-adjudicated revisions: (SR-001) renamed `udf_name`→`infusion` and `available_udfs`→`available_infusions` throughout; bound to `EnrichStage.infusion` (pipe) / `ScalarFunc::Unknown(name)` (SQL) and `InfusionField.name` namespace in `InfusionRegistry`; updated `EnrichUdfNotFoundDetails` struct fields accordingly. (SR-002) replaced per-org `available_udfs` scoping with process-global `InfusionRegistry` enumeration; removed DI-008 from §Invariants; removed EC-11-051 (per-org isolation edge case) and the org-isolation Canonical Test Vector; added §Follow-Up Story Anchor for per-org scoping deferral with CWE-200 risk note. (SR-003) extended gate to cover BOTH AST paths — pipe-mode `EnrichStage.infusion` AND SQL-mode `FuncCall::Scalar { ScalarFunc::Unknown(name) }` (the actual AUDIT-005 reproducer); rewrote §Description, §Preconditions, §Gate firing condition, and §Closes AUDIT-005 to cover both paths; removed the conditional implementer-MUST paragraph; added EC-11-053 (SQL-mode AUDIT-005 reproducer) and `audit-005-repro` Canonical Test Vector. (SR-004) updated §Traceability ADR citation to `ADR-041 v1.2 — allocates E-QUERY-039 in the L4 pedagogical error suite; closes AUDIT-005`; removed "pending ADR-041 amendment" hedge. (SR-005) clarified `did_you_mean` as computed against the FULL global `InfusionField.name` set; added org-scoping note matching §Follow-Up Story Anchor. |
 | 1.0 | onboarding-001-C-spec-burst-2026-06-23 | 2026-06-23 | product-owner | Initial draft — E-QUERY-039 enrich-UDF-not-found plan-time gate; closes AUDIT-005 from onboarding-discoverability-audit-2026-06-23.md |

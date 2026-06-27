@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.011"
+version: "8.012"
 producer: state-manager
-timestamp: 2026-06-27T02:00:00Z
+timestamp: 2026-06-27T08:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,13 +16,13 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "f05a9f0e"
-# NOTE: f05a9f0e is the squash-merge of PR #204 (S-PERF-GATE-001; normal squash-merge, no --admin; CI 43/43 green; 12-round PR-LEVEL 3-CLEAN(strict) on frozen b40ac1e1; 2026-06-26). origin/develop is now f05a9f0e. LOCAL develop DIVERGENCE RESOLVED (D-1383): local develop realigned to origin/develop f05a9f0e; /wrap-skill commit preserved on branch chore/wrap-session-durability-skill (rebased onto f05a9f0e; HEAD c817e6d6 after 2 in-scope gitignore security fixes); PR #205 opened (chore(skills): add /wrap session-durability skill → develop; pr-reviewer APPROVE; CI running; MERGE PENDING HUMAN AUTH). Prior origin/develop was 7e60df03 (PR #203).
+develop_head: "9a09653a"
+# NOTE: 9a09653a is the squash-merge of PR #205 (chore(skills): add /wrap session-durability skill; normal squash-merge; 2026-06-27). origin/develop is now 9a09653a. Prior origin/develop was f05a9f0e (PR #204 S-PERF-GATE-001). chore/wrap-session-durability-skill branch + worktree cleaned up at merge.
 bc_index_version: "7.18"
 vp_index_version: "1.80"
-story_index_version: "v2.496"
+story_index_version: "v2.497"
 arch_index_version: "2.147"
-error_taxonomy_version: "2.00"
+error_taxonomy_version: "2.01"
 total_stories: 215
 active_contracts: 254
 draft_contracts: 0
@@ -32,11 +32,11 @@ policies_version: "1.33"
 subsystem_count: 22
 vp_count: 157
 bc_count_corrected: 264
-workspace_test_count: 4949
+workspace_test_count: 4994
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1383 (2026-06-27). DEMO-FIDELITY REMEDIATION PREP COMPLETE. PR #204 merged (f05a9f0e); local develop divergence resolved (D-1383a); pre-flight re-audit DEMO-READY:YES(conditional); architect remediation plan + PO spec layer complete (BC-2.11.001 v1.14, BC-2.11.022 v1.1, BC-2.10.016 v1.2; T13 runbook v1.5 N3/N4/N5); story S-DEMO-FIDELITY-REMEDIATION-001 v1.2 delivery-clean (2 remove-uncertainty passes; 6 internal-API mismatches resolved). PENDING HUMAN: PR #205 merge auth. NEXT: TDD fix-PR delivery of S-DEMO-FIDELITY-REMEDIATION-001 → re-verify audit items → T13. STATE v8.010→v8.011."
+current_step: "D-1384 (2026-06-27). LOCAL adversary Pass 1 fix-burst COMMITTED. S-DEMO-FIDELITY-REMEDIATION-001 LOCAL pass 1 = NOT CLEAN (1 CRIT + 4 HIGH + 1 MED + 2 OBS); all findings closed on feature branch 4613f0b8. PO reconciled BC-2.11.019 v1.2→v1.3 + error-taxonomy v2.00→v2.01. Story v1.2→v1.3 (story-writer). just check 4994/4994 green; non-exhaustive 88. PR #205 MERGED develop@9a09653a. 3-CLEAN streak 0/3. NEXT: LOCAL adversary re-gate on new feature HEAD → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge. STATE v8.011→v8.012."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1383 demo-fidelity remediation PREP complete; spec layer + story v1.2 + divergence resolved; STATE v8.010→v8.011)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1384 LOCAL adversary Pass 1 fix-burst committed; BC-2.11.019 v1.3 + error-taxonomy v2.01 + story v1.3; PR #205 merged develop@9a09653a; STATE v8.011→v8.012)
 
 ## Active Objective (North Star)
 
@@ -136,6 +136,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1384 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 1 = NOT CLEAN (1 CRIT + 4 HIGH + 1 MED + 2 OBS); fix-burst closed all on feature branch HEAD 4613f0b8 + story-writer changelog/AC sync. Findings: CRIT-001 (AUDIT-004 prompts used non-existent table names crowdstrike_alerts/claroty_assets → fixed to crowdstrike_detections/claroty_devices + positive-resolve test guard added — paper-fix caught); HIGH-001 (E-QUERY-039 gate fired first → moved to enrich-LAST per BC-2.11.019 v1.3); HIGH-002 (Display template → canonical, POL-24); HIGH-003 (SQL enrich gate WHERE-clause scan — WHERE fn-call syntax is parse-error E-QUERY-001, scan is defensive); HIGH-004 (available_infusions type contradiction resolved: PO ratified Vec<String> as canonical, BC-2.11.019 §variant amended); HIGH-005 (story changelog reordered descending per POL-32); OBS-1 (did_you_mean lexicographic tie-break); OBS-2 (stale doc-comment). PO reconciled BC-2.11.019 v1.2→v1.3 + error-taxonomy v2.00→v2.01. just check green 4994/4994, non-exhaustive 88. ALSO this session: implementer's 'parity test already-failing-at-base' claim DISPROVEN (TD-VSDD-059 — passed at base, N1 broke it; test-writer aligned to BC-2.11.022 v1.1). 3-CLEAN streak 0/3, re-gating LOCAL Pass 1 on new HEAD next. NEXT = LOCAL adversary re-gate → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge. PR #205 MERGED develop@9a09653a (/wrap chore; normal squash-merge; worktree+branch cleaned up). BC-INDEX v7.18 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. STORY-INDEX v2.496→v2.497. error_taxonomy_version 2.00→2.01. develop_head f05a9f0e→9a09653a. workspace_test_count 4949→4994. STATE v8.011→v8.012.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1383 | state-manager | 2026-06-27 | **DEMO-FIDELITY REMEDIATION PREP COMPLETE. Architect remediation plan + PO spec layer (BC-2.11.001 v1.14, BC-2.11.022 v1.1, BC-2.10.016 v1.2; BC-2.10.012 v1.4 + BC-2.11.019 v1.2 confirmed already-correct; error-taxonomy unchanged) + T13 runbook v1.5 (N3/N4/N5) + story S-DEMO-FIDELITY-REMEDIATION-001 v1.2. Two mandatory remove-uncertainty passes (post-materialization + pre-TDD) caught 6 internal-API mismatches total — all resolved: N1-B re-scoped net-new (create EnrichUdfNotFound + EnrichUdfNotFoundDetails #[non_exhaustive] in prism-core; plan-time enrichment gate in engine.rs pipe+SQL paths; map_prism_error -32602 arm); N2 relocated to table_registry.rs/engine.rs; AC-REG-1 amended (non-exhaustive 87→88, exactly 1 new type); E-QUERY-037 map arm confirmed-present (not net-new); udf names derive from udf_descriptors() (no new InfusionRegistry API); gate anchor pinned to engine.rs AST-visitor. BC-2.11.019 promotes draft→active at story merge (POL-14). LOCAL develop divergence RESOLVED: local develop realigned to origin/develop f05a9f0e; /wrap-skill commit preserved on branch chore/wrap-session-durability-skill (rebased onto f05a9f0e; HEAD c817e6d6 after 2 in-scope gitignore security fixes); PR #205 opened (chore(skills): add /wrap session-durability skill → develop; pr-reviewer APPROVE; CI running; MERGE PENDING HUMAN AUTH). "PENDING HUMAN DECISION: local develop vs origin reconciliation" item CLEARED. NEXT = TDD fix-PR delivery of S-DEMO-FIDELITY-REMEDIATION-001. BC-INDEX v7.18 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. STORY-INDEX v2.493→v2.496. total_stories 214→215. active_contracts / draft_contracts UNCHANGED (254/0). develop_head UNCHANGED f05a9f0e. STATE v8.010→v8.011.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1382 | state-manager | 2026-06-26 | **PRE-FLIGHT DEMO RE-AUDIT COMPLETE — develop@f05a9f0e. Audit artifact: `.factory/research/demo-pre-flight-audit-2026-06-26.md` (supersedes 2026-06-24 audit). DEMO-READY status flipped NO→YES(conditional). All 4 prior DEMO-BLOCKERs resolved: BLOCKER-001 CrowdStrike OAuth cross-session corruption (credit PR #203 grammar remediation), BLOCKER-002 runbook §5.5 pipe syntax (credit PR #203), BLOCKER-003 query_tutorial/investigate_host hangs (credit PR #203), BLOCKER-004 list_infusions/plugin_status/infusion_status hangs (credit PR #203). Also resolved: MAJOR-001 (list_capabilities client_registered now true; downgraded to LOW — capabilities map still empty), DISCOVERABILITY-GAP-001 (enrichment now in prismql://reference), AUDIT-005-DEFERRED (live health via S-5.04/PR #202). 6 NEW findings registered (PENDING HUMAN TRIAGE for routing decisions): N1 (MAJOR) — prismql://reference lists WRONG enrichment function names (nvd(col)/threat_intel(col)) vs registered names (threat_score/cvss_base_score/etc.); opaque internal error, not E-QUERY-039. N2 (MEDIUM, regression) — dot-syntax FROM cyberint.alerts now silent-empties with E-SENSOR-030 instead of prior pedagogical E-QUERY-036 did-you-mean. N3 (LOW) — not-registered sensor returns E-QUERY-032 but runbook Query Block 4 expects E-QUERY-037. N4 (MEDIUM) — runbook Step 3.5 queries armis_devices for org-b (no armis), should be org-c. N5 (MEDIUM) — runbook §6.3 uses claroty_audit_log (singular)/log_id; real table is claroty_audit_logs (plural)/id. N6 (OBS) — list_plugins now fast-fails -32003 (prior audit said it worked); non-blocking. CARRY-OVER open (unchanged from 2026-06-24): AUDIT-001 (prism_describe short table names not FROM-ready; org-c has 3 colliding alerts/devices entries), AUDIT-004 (4 of 5 prompts embed sensor.table dot-syntax rejected by engine). DEMO ROADMAP NEXT: human triage N1-N6 routing decision → T13 capstone → T14 recording. BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. STORY-INDEX UNCHANGED v2.493. develop_head UNCHANGED f05a9f0e. active_contracts / draft_contracts UNCHANGED (254/0). STATE v8.009→v8.010.** | wave-5-e-demo-fidelity | 2026-06-26 |
 | D-1381 | state-manager | 2026-06-26 | **PR #204 SQUASH-MERGED — S-PERF-GATE-001 MERGED to develop@f05a9f0e (2026-06-26; normal squash-merge, no --admin, user-authorized; CI 43/43 green; one Perimeter-check infra-flake re-run to success, HEAD b40ac1e1 unchanged; 12-round PR-LEVEL cascade; 3 consecutive CLEAN(strict) passes on frozen HEAD b40ac1e1 round-12; BC-5.39.001 3-CLEAN convergence protocol SATISFIED). BC auto-promotions (POL-14): BC-5.39.001 already ACTIVE — no promotions needed. Story S-PERF-GATE-001 status draft→merged (POL-13). Worktree `.worktrees/S-PERF-GATE-001` + local branch `maintenance/perf-gate-001` REMOVED (devops-engineer). Remote branch auto-deleted by GitHub at merge. develop_head 7e60df03→f05a9f0e. S-PERF-GATE-002 (adv_p02 LazyLock shared DTU fixtures) remains draft v1.0, blocked_by internal-reset refactor — unchanged. PENDING HUMAN (carry forward): LOCAL develop ba1108d2 (/wrap-skill commit) DIVERGED from origin/develop f05a9f0e — advisory SHA-currency, non-blocking, precedent D-1319+. New branches must be cut from origin/develop (f05a9f0e). [cascade process-gap observations: none — clean 12-round cascade with no new process-gap findings requiring follow-up. No unresolved process-gaps from this PR's cascade.] BC-INDEX UNCHANGED v7.18. ARCH-INDEX UNCHANGED v2.147. STORY-INDEX v2.492→v2.493. active_contracts / draft_contracts UNCHANGED (254/0). total_stories UNCHANGED 214. STATE v8.008→v8.009. | wave-5-e-demo-fidelity | 2026-06-26 |
@@ -228,20 +229,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1383 — 2026-06-27; STATE v8.011)
+## Session Resume Checkpoint (D-1384 — 2026-06-27; STATE v8.012)
 
-**STATE v8.011. D-1383 DEMO-FIDELITY REMEDIATION PREP COMPLETE. DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. develop_head f05a9f0e. non-exhaustive 87 (88 after S-DEMO-FIDELITY-REMEDIATION-001 merges). BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.496. total_stories 215. Story S-DEMO-FIDELITY-REMEDIATION-001 v1.2 delivery-clean. Local develop divergence RESOLVED. S-PERF-GATE-002 draft v1.0 blocked on internal-reset refactor.**
+**STATE v8.012. D-1384 LOCAL adversary Pass 1 fix-burst COMMITTED. DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. develop_head 9a09653a. non-exhaustive 88 (after fix-burst on feature branch 4613f0b8). BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.497. error-taxonomy v2.01. total_stories 215. BC-2.11.019 v1.3. Story S-DEMO-FIDELITY-REMEDIATION-001 v1.3. 3-CLEAN streak 0/3. PR #205 MERGED. S-PERF-GATE-002 draft v1.0 blocked on internal-reset refactor.**
 
-**NEXT ACTION:** TDD fix-PR delivery of S-DEMO-FIDELITY-REMEDIATION-001 → re-verify audit items → T13 capstone → T14 recording.
+**NEXT ACTION:** LOCAL adversary re-gate on feature branch HEAD 4613f0b8 → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
-**PENDING HUMAN AUTH:** PR #205 (chore/wrap-session-durability-skill → develop; pr-reviewer APPROVED; CI running). Merge requires human authorization.
+**PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1383 for full context. STATE v8.011.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1383 (last authored; D-1384 is factory-only burst — update SESSION-HANDOFF if needed) for full context. STATE v8.012.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
-2. `git log --oneline -1 origin/develop` → expect `f05a9f0e`.
-3. All worktrees CLEAR.
-4. HUMAN DECISIONS PENDING: (A) PR #205 merge auth; (B) brief reframe sign-off; (C) EC-11 namespace collisions.
-5. Next: TDD delivery S-DEMO-FIDELITY-REMEDIATION-001 → re-audit → T13. Autonomy D-989 active.
+2. `git log --oneline -1 origin/develop` → expect `9a09653a`.
+3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at HEAD 4613f0b8.
+4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions.
+5. Next: LOCAL adversary re-gate on 4613f0b8 → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.
