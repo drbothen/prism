@@ -1999,6 +1999,17 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   - **Still deferred to morph (recommended defaults recorded):** ML v1 starting scope; secret-store
     KMS-provider/cipher/DEK-granularity/rotation/satellite-custody defaults; and the lower-impact
     implementation flags (Monaco host, bundler, state-mgmt, MFA level, session durations, etc.).
+- **Federated ingestion / collector class CAPTURED in §17 (2026-06-26 side analysis).** New collector/stream-connector
+  vision: collect-at-edge → OCSF/native-normalize → demand-driven TTL'd buffer → queryable source (collector = a
+  *source+buffer*, not a sink). Research: `research/federated-ingestion-collector-connectors-2026-06-26.md` +
+  `research/chain-cache-tiering-replication-deadlines-2026-06-26.md`. **DECIDED 2026-06-26 (human):** (a) full-packet
+  pcap retrieval IN day-2 scope (second storage regime, Arkime-style); (b) prism will own a continuous-operator
+  capability, PHASED (v1 NRT-over-cache + edge Zeek/Suricata → later native windowed operator); (c) collection locus
+  is per-instance, edge-first default. Chain-aware model leans: declarative-policy-floor tiering; residency-first
+  per-field ordered-before-forward replication policy (ahead of prior art); Q3 deadline v1 (gRPC + partial+coverage +
+  opportunistic hub pre-aggregate), full budget-aware planner ordered later. Open items: §17.10 (11 questions); proposed
+  E-COLLECTOR-*/E-CHAIN-CACHE-*/E-STREAM-DETECT-* epics + ADRs (§17.11, gaps G-27–G-31). **NEXT in this thread:** how
+  #4 + #5 reshape the storage/detection picture.
 - **Still OPEN (not yet captured):** SSO↔transport binding detail; the §5.x execution-checklist items all remain
   pending the brief-reframe HUMAN GATE.
 
@@ -2013,3 +2024,438 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
 - Epic IDs introduced in §10–§15 (E-CACHE-DEMAND, E-CENTRAL-*, E-SATELLITE-MESH, E-LAKE-CONNECTOR,
   E-UI-*, E-CONNECTOR-DYNAMIC, E-DETECT-*, E-ALERT-ROUTING, E-RULE-XLATE, E-ML-*) are PROPOSED, not yet
   registered in STORY-INDEX; gaps G-1…G-26 track the new findings.
+
+---
+
+## Section 17 — Federated Ingestion: The Collector / Stream-Connector Class
+
+> **PROVENANCE.** 2026-06-26 side-analysis capture. PROPOSED; `do_not_execute: true`; gated on
+> brief-reframe sign-off (§5.1). Sources: `research/federated-ingestion-collector-connectors-2026-06-26.md`
+> and `research/chain-cache-tiering-replication-deadlines-2026-06-26.md`.
+
+### 17.1 Concept and the "prism way" reframe
+
+Federated ingestion of push/stream/capture data follows a single pattern: **collect at the edge →
+OCSF/native normalize at the boundary → demand-driven TTL'd buffer (RetentionCache) → expose as a
+queryable source.** The reframe that keeps the federation thesis intact is:
+
+> **A collector is a SOURCE and a buffer — NOT a central sink.**
+
+"No ingestion" has never meant "never persist a byte." The RetentionCache (§3.3) already buffers
+demand-pulled data; a collector extends the same buffer with a *receiver endpoint* bolted on the front.
+Raw data lands at the edge node (the Satellite hosting the receiver), gets normalized at the
+boundary, is TTL'd per the retention policy, and surfaces as `FROM cache.<collector>` — central Prism
+stays pull-based and ephemeral against that source.
+
+**Cribl neutral-incentive analogue.** Cribl's "no ingest-priced analytics backend" stance means
+aggressive edge reduction is a *selling point*, not a conflict — the same incentive structure Prism
+claims (sensor-API-native, no ingestion revenue). The "collect-and-reduce at the edge, route only
+the reduction" posture reinforces, not dilutes, the federation thesis. Prism can use the identical
+reframe: a collector is a telemetry *service*; ingestion is the act of loading into a priced
+analytics store. Prism never does the latter.
+
+### 17.2 The four-stage abstraction and collector-as-subtype
+
+Every mature edge-pipeline product (Cribl Stream/Edge, Vector, Fluent Bit/Fluentd, Logstash/Beats)
+implements the same spine:
+
+| Stage | What it is | Prism mapping |
+|-------|-----------|---------------|
+| **1. Receiver / listener endpoint** | Externally addressable ingress the source pushes to | **GAP — the only genuinely new primitive** |
+| **2. Local buffer (store-and-forward)** | Bridges bursty arrival against controlled downstream processing | Satellite store-and-forward + RetentionCache hot tier (§3.2, §3.3) |
+| **3. Boundary normalization** | Wire format → OCSF or native schema-on-read | Connector taxonomy §3.4 + multi-schema §13.6 |
+| **4. Queryable / forwardable surface** | Where detection/analytics/query runs | PrismQL `FROM cache.<name>` + detection-as-query §14 |
+
+Prism already has stages 2–4. **The only genuinely new primitive is stage 1 — a receiver/listener
+endpoint** — plus the consequences of accepting push semantics (no backpressure to the source, loss
+handling, store-and-forward durability).
+
+**DECISION-LEAN: model collector as a connector SUBTYPE** — specifically a `collector-connector`
+sitting alongside `sensor` and `pull-connector` in the existing taxonomy (§3.4). This subtype
+shares the capability-descriptor, RetentionCache, and Satellite machinery. It does NOT become a
+separate component class, because 3 of 4 abstraction stages are pure reuse. A collector's
+capability descriptor declares "push source, no pushdown, buffer-backed" — a new descriptor class
+that gives the PrismQL join-guard (§12.2) the information it needs to reason about a no-pushdown
+surface.
+
+### 17.3 The collector source class
+
+The six push/stream/capture source families, with their backpressure characteristics:
+
+| Source | Receiver endpoint | Backpressure | Buffer regime | Federatability |
+|--------|-------------------|-------------|---------------|----------------|
+| **Syslog (UDP/RFC 3164)** | UDP port 514 | **None — silent drop** | NIC ring + socket buffer | Low — loss is intrinsic to transport |
+| **Syslog (TCP/TLS/RELP)** | TCP port 514/6514 | TCP flow-control (weak); RELP per-message ack (strongest) | rsyslog/syslog-ng disk queue | Medium — RELP gives reliable delivery |
+| **NetFlow v9 / IPFIX (RFC 7011)** | UDP (e.g. 2055) | **None — silent drop**; IPFIX adds TCP option | Socket buffer + template store | Low — template loss → misparse |
+| **sFlow** | UDP | None | Socket buffer | Low — sampled; scale by sample rate |
+| **Kafka topic** | Consumer-group subscription | **Consumer lag — data waits, no drop** within configured retention | Durable partitioned log | **High — replayable, offset-addressable** |
+| **Webhook / HTTP-push** | HTTP endpoint | HTTP 2xx ack; sender retries → **must be idempotent** (event-ID dedup) | App-level queue | Medium — ack+retry, dedup needed |
+| **S3 / object-drop** | SQS queue / SNS sub on PutObject | **SQS managed queue** (at-least-once, visibility timeout) | SQS durable queue + S3 object | Medium — notify-then-pull, durable |
+| **pcap** | NIC promiscuous capture | No external backpressure | Disk-bounded rolling packet buffer (Arkime model) | Metadata high; raw packets: separate regime |
+
+**Backpressure spectrum:** UDP (silent drop — worst) → HTTP/SQS (ack + retry) → Kafka (lag, no
+loss — best federatable). This spectrum is the key engineering variable for each collector subtype.
+
+Push data **must land before it can be queried** — this is intrinsic to push transport, not an
+implementation choice. That landing buffer is the RetentionCache. The reframe holds.
+
+**LEAN: Kafka-first to prototype the abstraction.** Kafka is the most federatable push source —
+replayable, offset-addressable, consumer-lag-not-loss. Prototyping the `collector-connector` subtype
+against a Kafka topic validates the abstraction with the best-behaved source before tackling UDP
+syslog or pcap capture.
+
+### 17.4 Collection locus — per-instance, edge-first default
+
+**Locus** = which node in the Satellite tree hosts the receiver endpoint and its buffer. This is a
+per-instance property declared in the connector's configuration; there is no single universal winner.
+
+**DECIDED 2026-06-26 (human): locus is a per-INSTANCE property; edge-first default** where
+residency, volume economics, or air-gap mandate it; central deployment is valid where the source is
+already cloud-native and residency is not at stake.
+
+The three locus options converge architecturally:
+
+- **(a) Satellite-edge** — receiver + buffer hosted by an existing Satellite node in-region, co-located
+  with the data source. Strongest residency guarantee: raw never crosses a network boundary before
+  normalization. Best fit for OT/ICS (Purdue-layer chaining, §3.2 #1/#2/#5), air-gapped enclosures,
+  and any source with volume that would be prohibitive to egress raw.
+  *OT/Purdue example:* a Level 2 satellite hosts a syslog receiver for PLC/HMI syslog on the OT VLAN;
+  only OCSF Network Activity / Authentication events transit the conduit to the Level 4 Satellite; raw
+  syslog stays on the OT segment.
+- **(b) Standalone collector** — a dedicated "collection-capable Satellite" deployed specifically to host
+  receivers, no other workloads. Architecturally this converges with (a): it is a satellite whose
+  primary role is collection. Not a distinct component class.
+- **(c) Central / cloud-hosted** — the root or a cloud-managed node hosts a listener for sources that are
+  already cloud-native (e.g., a SaaS vendor's outbound webhook). Appropriate when residency is not
+  an issue and the source has no on-prem path.
+
+Locus (a) and (b) converge as a "collection-capable Satellite" — the Satellite gains a listener-hosting
+capability. This is the key new Satellite capability the collector subtype requires.
+
+### 17.5 Chain interaction — push lands locally, pull retrieves on query
+
+The collector locus node owns the receiver and the local RetentionCache buffer. The rest of the
+Satellite chain interacts with that buffer through the **existing inward-plan / outward-result PULL
+mechanics** — a parent Satellite queries the locus node just as it would any other Satellite, using
+the established per-hop deadline-decrement + partial-result propagation (§3.2, §3.6, BC-2.01.010).
+
+**No new "stream upstream" mechanism is needed by default.** The design consequences:
+
+- **Residency preserved by construction.** Raw push data never crosses a Satellite boundary; only
+  OCSF-normalized result rows transit upward (the reduction happened at the locus). This is the same
+  residency invariant as pull connectors (§3.2 #6), now extended to push sources.
+- **Subtree-drop = "unreachable, not lost."** If the locus node is offline, the Satellite chain's
+  existing partial-result/coverage mechanics (§3.6 CAQP / Elastic CCS lineage) surface the gap as a
+  coverage annotation on the query result — never silent. Push data that arrived while the node was
+  offline is in the local store-and-forward buffer and replays when connectivity restores (§3.2
+  store-and-forward).
+- **Deadline budget makes locus depth cost latency.** A deep locus adds chain hops; the chain-aware
+  deadline model (§17.8) applies. Shallow placement (edge-first) is also the low-latency choice.
+- **Storage tiers map onto topology.** Hot RocksDB at the locus edge node; warm intermediate
+  materialization at a regional hub if Q1/Q2 policy places it there (§17.8); cold Iceberg at
+  central. The §3.3 Retention Policy Engine runs at each node that holds a tier.
+- **Satellite must gain listener-hosting to be a collection locus.** The existing Satellite abstraction
+  is a remote *executor* (pull); adding receiver-hosting is the new capability that turns it into a
+  collection-capable Satellite. This is a new Satellite mode, not a new component.
+
+### 17.6 DECIDED 2026-06-26 (human): full-packet pcap retrieval is in day-2 scope
+
+Full-packet capture retrieval (#4) adds a **second distinct storage regime**, separate from the
+RocksDB-hot / Iceberg-cold tiers:
+
+- **The regime:** a disk-bounded rolling **packet buffer** at the deepest edge node (Arkime/Moloch
+  model) — PCAP files written by a capture process (`libpcap` / `AF_PACKET`), rotating on disk-fill
+  or time boundary, indexed by session ID. Retention is bounded by edge disk capacity and a declared
+  retention policy (typically days to weeks).
+- **The queryable surface:** flow/session **metadata** (Zeek conn.log / Suricata EVE flow / Arkime SPI)
+  → OCSF Network Activity (class_uid 4001). This is the federated surface: structured, OCSF-normalized,
+  queryable via `FROM cache.<collector>`. Cross-tool pivoting uses Zeek UID / Suricata `flow_id` /
+  Community ID as the session identifier.
+- **On-demand packet retrieval:** PrismQL gains a `retrieve-packets-by-session` affordance (session ID →
+  PCAP bytes or stream). S2 console gains a "download PCAP" action on a flow result row. This is a
+  retrieve-blob capability, not a federated query over raw packets.
+- **Distinct from the cache tiers:** the packet buffer is NOT RocksDB and NOT Iceberg. It is a disk-file
+  regime with its own rotation/retention/residency governance. Conflating it with the cache tiering
+  model (§3.3, §17.8) would be an architecture error.
+- **Security-review surface:** a packet buffer at the edge is a sensitive data store (captures
+  credentials in plaintext traffic, PII, etc.). It requires a dedicated security review covering
+  access control, at-rest encryption, residency enforcement (raw never egresses), and retention
+  policy governance. This is net-new security scope compared to pull connectors.
+- **Normalizers:** Zeek and Suricata are the preferred session/flow metadata normalizers. Arkime/Moloch
+  is the reference model for the PCAP-on-disk + SPI-metadata split. Prism does not replace these
+  tools; it federates their output.
+
+### 17.7 DECIDED 2026-06-26 (human): prism will own a continuous-operator capability — phased
+
+Continuous/streaming detection (#5) is in day-2 scope, ordered in two phases:
+
+**Phase 1 — NRT-over-cache (reuse existing §14 detection-as-query):**
+Detection-as-query over a short-TTL RetentionCache is the Splunk real-time / Sentinel NRT lineage —
+a polled window over the last W minutes. This reuses §14 as-is and is the correct starting point.
+For OT/ICS edge detection, Zeek scripts and Suricata rules run inline at the capture point and emit
+structured OCSF events that Prism federates — those tools are the continuous operators for their
+domain; Prism federates their output.
+
+**Phase 2 — native continuous windowed operator (ordered later):**
+A native continuous operator with event-time semantics, watermarks, late-arrival handling, and
+fault-tolerant state (RocksDB state backend — note alignment with Flink's RocksDB state backend).
+This is what lets §12.4 `MATCH_RECOGNIZE` / `WATCH…UNLESS` run truly real-time over an arriving
+stream rather than as a polled window. It is also what closes the gap that the NRT-over-cache model
+cannot fully express (arbitrary stateful windowed correlation with watermark-driven window closure).
+
+**This is the single most expensive item in the collector space** — new correlation-state machinery
+(watermarks, event-time, late arrivals, fault-tolerant state checkpointing). It is ordered later as
+a whole feature (Canonical Principle Rule 2 — feature ordering, not a quality shortcut within the
+current cycle). The RocksDB state-backend alignment means the existing §3.3 hot tier provides a
+natural home for operator state when Phase 2 arrives.
+
+### 17.8 Chain-aware cache / replication / deadline model (Q1 + Q2 + Q3 compose into one model)
+
+The three research questions from `chain-cache-tiering-replication-deadlines-2026-06-26.md` compose
+into a single chain-aware model. Each question is summarized with its lean, then the composition is
+stated.
+
+#### 17.8.1 Q1 — Chain-aware cache tiering (LEAN: declarative policy is the authoritative floor)
+
+Mapping cache tiers onto chain topology — RocksDB hot at the locus edge node → warm at a regional
+hub intermediate node → Iceberg cold at central — is validated by prior art (CDN edge/shield/origin,
+Prometheus-local/Thanos-hub/object-store, Kafka tiered local/remote, S3 Intelligent-Tiering /
+Lifecycle). The topology mapping is sound.
+
+**Correction to "automatic by default":** mature practice is **declarative envelope + automatic
+optimization inside it.** The declarative per-collector policy is the **authoritative floor**:
+retention duration, max tier, what may transit, residency class. Automatic age/temperature demotion
+optimizes *within* that declared envelope. It may **never** cross a declared residency boundary or
+move raw data to a tier that violates the policy, regardless of access temperature. For a
+residency-first, regulated-data system (MSSP/OT), the automatic layer must yield to the policy
+layer every time they conflict.
+
+The "warm hub" is not a new storage regime — it is the §3.3 Retention Policy Engine running at an
+intermediate node (a regional hub can hold its own RocksDB hot and optionally Iceberg cold as a
+residency fan-in point). `event_time` TTL (§3.3) neutralizes eviction-race skew across tiers:
+freshness is data-intrinsic, not insertion-wall-clock-relative.
+
+**Failure modes to design against** (from CDN/HSM/ICN prior art, research §2.4):
+
+| # | Failure mode | Prism mitigation |
+|---|-------------|-----------------|
+| F1 | Centralized incoherence — stale hub poisons whole subtree | Targeted purge / stale-while-revalidate with bounded windows; hub single-flight on revalidation |
+| F2 | Cache stampede at the hub | Request collapsing / single-flight on hub re-materialization (Redis SET…NX pattern or Prism-native seen-request-ID dedup §3.2) |
+| F3 | Double-caching (edge + hub + central same result) | `event_time`-anchored TTL as cache key component; coverage-metadata reconciliation at query time |
+| F4 | Eviction races across tiers | `event_time` TTL (§3.3) makes freshness data-intrinsic; removes wall-clock cross-tier skew |
+| F5 | Delete-raw-before-aggregate-exists | Never expire edge-hot record before its hub/cold materialization is durable (Thanos retention rule generalized); silent coverage loss = SOUL.md §4 violation |
+| F6/F7 | Residency-as-afterthought / redact-after-forward ordering bug | Residency enforcement ordered BEFORE destination selection (§17.8.2 transform-ordering); raw-forward across a residency boundary must be inexpressible in the policy DSL |
+
+#### 17.8.2 Q2 — Upstream replication policy language (LEAN: residency-first, per-field, ordered)
+
+The replication policy is a declarative rule set:
+
+```
+{ selector → reduction/normalization → retention(tier) → destination(tier) → RESIDENCY }
+```
+
+**Validated primitives** (confirmed across Cribl, OTel Collector/OTTL, rsyslog/syslog-ng, S3/Iceberg
+ILM, Kafka MM2, Prometheus remote-write, OPA/Rego):
+
+- **Selector** — which records/fields route to this rule (Cribl Routes/Eval filters; OTel OTTL
+  conditions; rsyslog property filters; Prometheus `write_relabel_configs`)
+- **Reduction/normalization** — project/aggregate/sample/redact (Cribl Eval/Parser keep/remove;
+  OTel attributes processor `delete/hash/redact`; Prometheus `labeldrop` + recording rules)
+- **Retention** — TTL / RETAIN duration, tier assignment (S3 Lifecycle; Kafka tiered local-vs-remote;
+  Iceberg `expire_snapshots`; Thanos retention flags)
+- **Destination** — which parent tier receives the reduced output (Cribl destinations; OTel pipelines;
+  rsyslog actions; Kafka MM2 replication policy)
+- **Residency** — raw-stays vs metadata-only-up, per-field, evaluated BEFORE destination selection
+
+The **residency primitive** is first-class in Prism's policy language. Every surveyed tool treats
+residency as an emergent afterthought (Cribl enforces it indirectly by dropping fields before a
+cross-region destination; OTel has no residency DSL; Prometheus's residency is de-facto).
+**Prism making residency explicit and per-field is ahead of, not behind, the prior art** — a genuine
+differentiator consistent with vision §3.2 #6 and §2.3 sovereignty.
+
+**Three missing primitives** the survey adds (the base five-field rule is incomplete without these):
+
+1. **Store-and-forward / buffering** — what happens to upstream-bound data when the parent is
+   unreachable: drop vs memory-buffer vs disk-spool (rsyslog `ActionQueueType LinkedList` + disk
+   persistence). Prism already commits to store-and-forward in §3.2; the policy language must express
+   it explicitly per edge, not leave it implicit in satellite config.
+2. **QoS / durability level** — how hard does this hop try to deliver upward? Maps to §3.6
+   `skip_unavailable` and best-effort vs required posture. MQTT bridge QoS + rsyslog retry semantics
+   are the prior-art models.
+3. **Transform ordering** — filter/residency/redact steps are ordered, not a bag. **Residency
+   enforcement and redaction MUST be ordered BEFORE any upstream destination selection.** If a
+   route/forward step precedes a redact step, raw data has already crossed the boundary — the
+   residency invariant is silently broken. The policy schema must make ordering explicit and
+   machine-verifiable, not implicit.
+
+**Hard constraint:** raw-forward across a residency boundary must be **inexpressible** in the policy
+language, not merely discouraged. The type system or schema validation layer must prevent this at
+policy-author time, not detect it at runtime.
+
+#### 17.8.3 Q3 — Deadline budget model (LEAN: v1 gRPC + partial+coverage; full planner ordered later)
+
+The fixed "mandatory intermediate cache below N hops" rule is **rejected** — it has no substantiation
+in prior art (Dremel/BigQuery, Trino, Drill, Spark all determine tree depth from infrastructure
+topology and data distribution, not a latency rule).
+
+The adaptive budget-aware planner's direction is **validated**, but the full integrated planner is
+research-grade assembly — not off-the-shelf. The building blocks exist separately:
+
+- **gRPC per-hop deadline decrement** (absolute deadline → per-hop timeout by subtracting elapsed
+  time, clock-skew-safe, `DEADLINE_EXCEEDED` on late calls) — available off the shelf. This is
+  exactly Prism §3.2's per-hop deadline propagation mechanism.
+- **Tail amplification argument for intermediate materialization** (Dean & Barroso, CACM 2013):
+  `P(≥1 slow) ≈ n·p`; deeper + wider trees blow the 99th percentile. The trigger for inserting an
+  intermediate materialization is **fan-out width × tail risk × remaining budget**, not depth.
+- **Partial + coverage on deadline** (CAQP bounded-error-and-time, Elastic CCS `timed_out` /
+  `skip_unavailable`) — validates §3.6 / BC-2.01.010 directly.
+- **Hub pre-aggregate as descent shortcut** (Dremel multi-level serving tree) — an intermediate hub
+  materialization (cached partial aggregate) lets the coordinator avoid descending into a deep subtree
+  that cannot meet the budget.
+
+**LEAN — production-grade v1:** per-hop gRPC deadline decrement + partial-results-on-deadline with
+coverage metadata (§3.6) + opportunistic hub pre-aggregate when a popular subtree repeatedly times
+out (latency-induced-probation-style, Dean & Barroso). This is production-grade on the cycle it
+ships. The full cost-model-driven adaptive cache-placement planner is a whole *feature* ordered
+later (Canonical Principle Rule 2 — not a quality shortcut). Hedging (duplicate to replica on
+deadline) is likely N/A for Prism's residency-partitioned single-path subtrees — partial+coverage
+is the deadline escape.
+
+#### 17.8.4 Composition — one model
+
+The three questions are not independent:
+
+1. **Q2 policy decides Q1 placement.** The per-collector declarative rule `{select → reduce →
+   retain(duration) → destination-tier → RESIDENCY}` determines which records materialize at which
+   tier. Retention duration is the routing key into the tier (short → RocksDB hot; long/`RETAIN` →
+   Iceberg cold). Q1 is the storage projection of Q2's policy.
+2. **Q1 materializations become Q3 descent shortcuts.** A hub-tier pre-aggregate placed by Q1/Q2
+   policy is exactly the intermediate materialized cache Q3's planner uses to avoid descending into a
+   deep subtree that cannot make the budget.
+3. **Q3 budget decides whether to use Q1 cache, descend, or return partial.** Remaining budget + per-hop
+   latency + fan-out tail risk → (a) read the Q1 hub materialization, (b) return §3.6 partial +
+   coverage, or (c) descend fully. The Q1 cache's `event_time` TTL feeds the coverage metadata:
+   stale-but-within-window = valid coverage; expired = gap to report, never to silently swallow.
+4. **Residency constrains all three simultaneously.** Q1: automatic demotion may never move raw
+   across a residency boundary. Q2: residency evaluated before destination selection, ordered before
+   forward. Q3: a hub materialization used as a descent shortcut must itself be residency-clean —
+   the planner cannot satisfy a deadline by reading a cache that holds raw data that should never
+   have transited.
+
+**One-sentence composition:** *A declarative per-locus replication policy (Q2) projects records into
+topology-aligned cache tiers (Q1) under a hard residency invariant, and a deadline-budget-aware
+coordinator (Q3) reads those tiers as descent shortcuts or returns partial+coverage — never crossing
+a residency boundary, never silently dropping coverage.*
+
+**Coverage-metadata unification (LEAN):** one Prism coverage schema across the §3.6/BC-2.01.010,
+CAQP, and Elastic CCS vocabularies: `{which subtrees contributed, which timed out, which tier served
+the data, freshness per source, residency-clean assertion}`. Single schema, not three separate
+partial-result dialects.
+
+### 17.9 Honest strains — do not minimize
+
+| Strain | Description |
+|--------|-------------|
+| **Full-take pcap volume** | Second storage regime; TB/day at 10Gbps. Not a RocksDB/Iceberg budget — requires a separate disk-bounded rolling-buffer regime with its own sizing, retention policy, and residency governance (§17.6). |
+| **High-rate stream buffer budget** | A 200MB hot cap (§3.3, DC-004) is seconds of busy syslog or NetFlow. Requires edge reduction policy (drop/aggregate before buffering), per-collector buffer sizing guidance, or explicit shedding policy. "Configurable server-sized memory budget" helps but does not eliminate the tension. Never silent (SOUL.md §4): buffer-full events must surface as loss metrics. |
+| **Streaming correlation state** | The continuous windowed operator (§17.7 Phase 2) is the single most expensive item. Watermarks, event-time windows, late-arrival handling, fault-tolerant state checkpointing — net-new machinery. Ordered later as a whole feature. |
+| **Receiver endpoints are listeners** | A UDP/TCP/HTTP listener is new attack surface: auth, rate-limiting, DoS amplification, credential-in-payload interception. Unlike outbound pull connectors, a receiver is publicly (or network-) addressable. Dedicated security review scope — not covered by the existing pull-connector security model. |
+| **Push-loss on UDP is un-fixable at the transport layer** | UDP syslog / NetFlow / sFlow have no backpressure and no delivery acknowledgement. Loss is intrinsic to the transport. Prism must: (a) expose loss metrics (`UdpRcvbufErrors`-equivalent) visibly in the coverage metadata, (b) never present UDP-sourced data as complete without a coverage annotation, (c) offer TLS/RELP / TCP upgrade paths for critical sources where loss is unacceptable. Silent loss = SOUL.md §4 violation. |
+| **Idempotency / dedup for at-least-once sources** | Webhook + SQS sources retry on failure → duplicates. Event-ID based dedup required at the receiver boundary. Dedup window sizing interacts with the detection-window correlation model. |
+
+### 17.10 Open design questions — consolidated (NOT decided)
+
+These questions span both research docs (collector class + chain-cache model) and are consolidated
+here for the human discussion. All marked NOT decided.
+
+1. **Collector subtype vs class boundary.** The LEAN is `collector-connector` subtype sharing all
+   existing machinery. Is the receiver endpoint cleanly addable to the Satellite without a new
+   component class, or does the operational model (fleet management of listeners, receiver-specific
+   config, distinct monitoring) justify a named `CollectorSatellite` type?
+2. **Durability contract for un-ackable push.** For UDP syslog / NetFlow / sFlow: does Prism
+   (a) accept best-effort + surface loss metrics, (b) require TLS/RELP/TCP for all critical sources
+   and treat UDP as "optional coverage source," or (c) mandate a local rsyslog/syslog-ng aggregator
+   that converts UDP→RELP before Prism's receiver? What does BC-2.01.010 say about loss from a
+   transport-layer drop?
+3. **Coherence model for a demand-driven, event_time-TTL'd result cache across hops.** CDN coherence
+   assumes stable URL-keyed objects; Prism's "object" is a query+window result set. What is the cache
+   key? What does cross-hop invalidation look like? Is any cross-hop coherence guarantee offered, or
+   is each tier independently TTL'd with coverage-metadata reconciliation at query time?
+4. **Residency primitive granularity and vocabulary.** Per-field? Per-OCSF-attribute? Per
+   (source-class, schema, schema-version) table? What is the classification vocabulary (`raw` /
+   `normalized` / `metadata-only` / region-tag)? How is the transform-ordering constraint
+   machine-verified (F7 in §17.8.1)?
+5. **Where is the replication policy authored and enforced?** Per-collector TOML? Per-Satellite
+   config? A new dedicated policy artifact? Who owns the `{select → reduce → retain → destination →
+   RESIDENCY}` rule — the connector author, the Satellite operator, or a chain-level governance layer?
+6. **Pre-aggregate semantics for security detection.** Dremel pre-aggregates are SUM/COUNT/histogram.
+   Detection-window correlation (§14, §3.3 DI-029) may require event-level rows, not aggregates. Does
+   a hub intermediate materialization hold reduced events or true aggregates? How does this interact
+   with the streaming-correlation-state open question (§17.7 Phase 2)?
+7. **Budget-aware planner — v1 or full?** §17.8.3 LEAN = v1 (gRPC + partial+coverage +
+   opportunistic hub pre-aggregate). Human confirms feature ordering: full adaptive planner is a
+   separate cycle.
+8. **Hedging vs residency-partitioned topology.** Hedged/tied requests assume replica choice. Prism's
+   tree is residency-partitioned (a leaf owns its layer's sources uniquely, §3.2 #1). Is there any
+   replica to hedge to below a single-path subtree, or is partial+coverage the only deadline escape?
+9. **Coverage-metadata schema unification.** §3.6/BC-2.01.010, CAQP, Elastic CCS are three
+   vocabularies. Where is the canonical Prism coverage schema defined? What artifact owns it?
+10. **Stampede / single-flight ownership.** When a hub pre-aggregate expires and N descendants
+    simultaneously want it, who single-flights the recompute — the hub, the coordinator, or a
+    distributed lock? How does this interact with §3.2 seen-request-ID loop prevention?
+11. **Capability-descriptor for a no-pushdown push source.** A collector cannot push down predicates
+    to the *source* — pushdown applies only to the *buffer*. Does the descriptor model need a
+    `buffer-backed-push` class, and what are its join-guard implications (§12.2)?
+
+### 17.11 Proposed epics and candidate ADRs (day-2; numbers deferred to architect at morph)
+
+All items below are PROPOSED. Epic IDs and ADR numbers are illustrative placeholders; the architect
+assigns real IDs during the brief-reframe morph.
+
+**Proposed epics:**
+
+| Epic (placeholder ID) | Scope |
+|-----------------------|-------|
+| **E-COLLECTOR-CLASS-001** | Collector-connector subtype: receiver endpoint abstraction, push-source capability descriptor, Satellite listener-hosting mode, UDP/TCP/HTTP/Kafka receiver implementations (Kafka-first), store-and-forward durability contract, loss metrics surface |
+| **E-COLLECTOR-PCAP-001** | Full-packet capture: Arkime-model disk-bounded rolling packet buffer, PCAP-file rotation/retention/residency governance, Zeek/Suricata metadata normalization → OCSF Network Activity, PrismQL `retrieve-packets-by-session` affordance, S2 "download PCAP" action |
+| **E-CHAIN-CACHE-001** | Chain-aware cache tiering: declarative per-collector replication policy (Q2 language, residency-first per-field, transform-ordering enforcement), topology-aligned tier placement (Q1, declarative-floor), v1 deadline-budget coordinator (Q3: gRPC + partial+coverage + opportunistic hub pre-aggregate), coverage-metadata schema unification |
+| **E-STREAM-DETECT-001** | Streaming detection: NRT-over-cache Phase 1 (reuse §14, integrates with collector buffer), continuous windowed operator Phase 2 (event-time, watermarks, late arrivals, RocksDB state backend) — Phase 2 ordered later |
+
+**Candidate ADRs:**
+
+1. `ADR-PROP-collector-connector-subtype` — collector as connector subtype vs separate class;
+   receiver endpoint model; `collector-connector` capability descriptor class.
+2. `ADR-PROP-collection-locus` — locus as per-instance property; edge-first default; Satellite
+   listener-hosting mode; convergence of (a) satellite-edge and (b) standalone-collector.
+3. `ADR-PROP-chain-aware-cache-tiering` — declarative policy as authoritative floor; automatic
+   demotion within envelope; event_time TTL for cross-tier freshness; failure-mode mitigations.
+4. `ADR-PROP-upstream-replication-policy-language` — five primitives + three missing
+   (store-and-forward, QoS, transform-ordering); residency-first per-field as first-class constraint;
+   raw-forward across residency boundary inexpressible by construction.
+5. `ADR-PROP-deadline-budget-planner` — v1 = gRPC per-hop decrement + partial+coverage + opportunistic
+   hub pre-aggregate; full adaptive planner as separate feature cycle; hedging vs residency-partitioned
+   topology.
+6. `ADR-PROP-pcap-packet-store-regime` — second storage regime distinct from RocksDB/Iceberg; Arkime
+   model; metadata/payload split; residency + security-review scope.
+7. `ADR-PROP-continuous-operator-roadmap` — Phase 1 NRT-over-cache; Phase 2 native windowed operator;
+   RocksDB state-backend alignment; ordering rationale.
+
+**Cross-references:** `research/federated-ingestion-collector-connectors-2026-06-26.md` (collector
+class, four-stage abstraction, locus, syslog deep, pcap deep, Cribl neutral-incentive, streaming
+detection prior art, open questions §8) and `research/chain-cache-tiering-replication-deadlines-2026-06-26.md`
+(Q1 tiering verdict, Q2 replication-policy primitive survey + residency gap, Q3 deadline-budget
+verdict, composed chain model, failure modes, open questions §7).
+
+**Gap registry additions:**
+
+| Gap | Description | Proposed epic |
+|-----|-------------|---------------|
+| G-27 | Collector-connector subtype: receiver endpoint, push-source descriptor, Satellite listener mode | E-COLLECTOR-CLASS-001 |
+| G-28 | Full-packet capture: Arkime-model packet buffer, PCAP-retrieve affordance, S2 action | E-COLLECTOR-PCAP-001 |
+| G-29 | Chain-aware tiering + replication policy language (residency-first, transform-ordered) | E-CHAIN-CACHE-001 |
+| G-30 | v1 deadline-budget coordinator (gRPC + partial+coverage + opportunistic hub pre-aggregate) | E-CHAIN-CACHE-001 |
+| G-31 | Streaming detection Phase 2: continuous windowed operator (event-time, watermarks, RocksDB state) | E-STREAM-DETECT-001 |
+
+---
+
+*2026-06-26 side-analysis capture; PROPOSED; gated on brief-reframe sign-off; sources: `research/federated-ingestion-collector-connectors-2026-06-26.md` and `research/chain-cache-tiering-replication-deadlines-2026-06-26.md`.*
