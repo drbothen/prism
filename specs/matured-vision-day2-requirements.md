@@ -2101,18 +2101,64 @@ auto-disables a detection's evaluation without human sign-off. **HONEST CAVEAT s
 production-grade posture is transparency + narrow-scope + mandatory-justification + time-boxed-expiry
 + fire-frequency-dashboards + RBA-over-suppression, NOT a proof.
 
-**D-C6-3 — AUTO-ROLLBACK (staged-rollout FP-spike circuit-breaker, §14.4) = DEFERRED pending
-targeted deep-research pass (HUMAN-DIRECTED 2026-06-27). OPEN ITEM OQ-C6-AUTOROLLBACK.** A focused
-research pass is in flight (`research/detection-auto-rollback-depth-2026-06-27.md`) covering
-automated-canary-analysis (Kayenta/Flagger), bad-rollout detection without ground-truth labels
-(change-point/CUSUM/Page-Hinkley on alert volume), circuit-breaker design + hysteresis, the
-rollback-action fork (demote-to-shadow-keep-evaluating vs full-disable vs revert-version), promotion
-gates, and legitimate-spike-vs-noise discrimination. Fold on return. **STANDING GUARDRAIL regardless
-of deferred fork:** auto-rollback may DISABLE ROUTING but the production-grade default is that a
-detection keeps EVALUATING (coverage never silently zeroed); AUTO-DISABLING a detection's evaluation
-requires human sign-off — but the demote-vs-disable mechanism choice itself is the deferred decision.
-Canary unit lean (not binding): TENANT (Prism is already multi-tenant → tenant-scope is the natural
-canary scope). Note alongside D-C6-3.
+**D-C6-3 — AUTO-ROLLBACK (staged-rollout FP-spike circuit-breaker, §14.4) = RESOLVED 2026-06-27
+(human-confirmed). OQ-C6-AUTOROLLBACK CLOSED.** Research basis:
+`research/detection-auto-rollback-depth-2026-06-27.md` (six sonar-deep-research calls at
+`reasoning_effort=high`, Q1–Q6). Full control-loop design in
+`specs/day2-design-decisions/ADR-PROP-detection-engine-depth.md §D-C6-3-RESOLVED`. Summary:
+
+**ROLLBACK ACTION = DEMOTE-TO-SHADOW (auto).** Rule keeps EVALUATING (no coverage blind spot,
+full audit trail); routing to analysts stops. Already-emitted findings annotated, not retracted.
+FULL-DISABLE of evaluation = explicit HUMAN sign-off (SOAR coverage-reducing-action gate).
+REVERT-TO-PRIOR-VERSION = one-click HUMAN action, not auto reflex. Governing rationale: if the
+spike was a real attack, demote-to-shadow still detects and logs it — auto-full-disable would
+silence the rule at the worst possible moment (error-asymmetry argument).
+
+**CORROBORATION-MASTER-GATE (trip discriminator, the novel piece — no vendor ships it):**
+(a) Corroborated by independent rules/threat-intel AND concentrated on few (high-value) entities
+→ likely REAL ATTACK → DO NOT auto-rollback, ESCALATE to human.
+(b) Uncorroborated + uniformly dispersed (high cardinality, no entity clustering) + sustained over
+prolonged window with low incident yield → likely BROKEN → demote-to-shadow is safe.
+(c) Ambiguous → HOLD-AND-ESCALATE, never auto-act.
+The breaker trips on "persistent uncorroborated noise," NEVER on a "transient high-signal spike."
+
+**CONTROL LOOP = per-tenant alert-rate circuit-breaker on the ROUTING path** (closed=route /
+open=demote-routing / half-open=trial-route), coexisting with downstream notification throttles.
+SIGNALS (zero-label real-time constraint — DDM/EDDM need labels and CANNOT drive the real-time
+trip): primary = CUSUM on per-rule per-tenant alert-rate `λ_t` (`v`/`h` calibrated from the
+shadow-mode baseline to a target ARL₀; ADWIN if baseline is strongly diurnal/non-stationary);
+secondary = distinct-entity cardinality `U_t` + `N_t/U_t` duplicate-ratio (catches cardinality-
+explosion AND duplicate-storm); analyst dispositions = DELAYED VALIDATION only (confirm/tune
+trips after the fact). TRIP = N-of-M signal gating (volume-spike AND cardinality/duplicate
+anomaly) + RELATIVE-to-shadow-baseline multiplier (+ absolute backstop cap) + minimum-window
+count before the breaker may open (the Kayenta ≥50-sample discipline) + the CORROBORATION-MASTER-GATE.
+HYSTERESIS/ANTI-FLAP = cool-down (`waitDurationInOpenState`) → half-open trial-route →
+`consecutiveSuccessLimit` clean windows to re-close + exponential backoff on repeated trips +
+HUMAN CONFIRMATION REQUIRED before re-promotion after any rollback (no auto re-promote loop).
+SHARED PRIMITIVE: build the change-detector ONCE (CUSUM/ADWIN/Page-Hinkley/BOCPD) and point it
+at C6 alert-volume stream OR C7 drift detection model-input/output stream — same statistical
+family, different target (a real architectural economy).
+
+**PROMOTION GATES:** shadow → canary AUTO-gates on metrics over a bake window (scope-limited,
+safe to automate); canary → production = HUMAN sign-off (high-blast-radius widening to all
+tenants — the Argo no-duration-pause analog). CANARY UNIT = TENANT (Prism is multi-tenant).
+Gate thresholds carried in the §14.1 `quality` block (explicit-in-spec, not implicit operator
+judgment).
+
+**HONEST CAVEAT:** "never roll back a working rule" is a safety POSTURE (corroboration gate +
+concentration test + sustained-window requirement + hold-and-escalate + demote-not-disable +
+human re-promote gate), NOT an absolute guarantee — same honesty discipline as D-C6-2's "never
+silently mask a TP." No SIEM ships integrated detection auto-rollback; Prism assembles it from
+progressive-delivery (Kayenta/Flagger/Argo) + circuit-breaker (resilience4j/Hystrix) +
+change-detection (CUSUM/ADWIN/BOCPD) + SOC-triage prior art, and owns the integration.
+
+**Residual pre-implementation items (not blocking forks):** trip signal weighting / N-of-M
+composition; relative-multiplier value + absolute backstop (§14.1 quality block vs per-deployment
+config); CUSUM/ADWIN parameterization (v/h or window → target ARL₀; acceptable ARL₁ for security);
+minimum-window count before breaker may open; corroboration data model (real-time computation of
+corroboration + entity-concentration — the novel piece); cool-down/backoff/half-open-trial-size
+schedule; per-tenant vs global breaker escalation rule; canary→production human-gate UX surface
+(S2/MCP/CLI); shared change-detector primitive boundary with C7. (PIV-C6-RB-1..9 in capture artifact.)
 
 **IMPLEMENTATION LEANS confirmed 2026-06-27 (human non-objection):**
 
@@ -2159,7 +2205,9 @@ pinned version); PIV-C6-2 (continuous-operator window-state↔detection_state CF
 under shared checkpoint stream; §17.14 open #1); OQ-C6-3 (continuous-operator checkpoint cadence —
 Flink incremental-SSTable model is the template, not a decision); OQ-C6-4 (backtest coverage-map
 data model); OQ-C6-5 (Iceberg snapshot-retention policy for reproducible backtests — ties coldtier
-+ C5); OQ-C6-6 (Sigma fidelity-report schema); OQ-C6-AUTOROLLBACK (deferred, see D-C6-3).
++ C5); OQ-C6-6 (Sigma fidelity-report schema); PIV-C6-RB-1..9 (auto-rollback pre-implementation
+items — not blocking forks; see D-C6-3 and capture artifact for full table). OQ-C6-AUTOROLLBACK =
+CLOSED (resolved into D-C6-3 above, 2026-06-27).
 
 **Downstream SAP-1 flag:** backtest-coverage, rollout-transition, suppression-fire, and auto-tune-
 suggestion events likely need BC-2.16.002 catalog rows — flagged in capture artifact; NOT actioned here.
@@ -2667,13 +2715,15 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   OCSF-version-skew events each need new BC-2.16.002 Canonical Structured Event Catalog rows.
   Proposed epic: E-LAKE-CONNECTOR-001 (§3.5).
 
-- **C6 Detection Engine DEPTH DECIDED + CAPTURED 2026-06-27 (human).** Three architecture
-  decisions D-C6-1/2/3 confirmed (D-C6-3 auto-rollback DEFERRED); implementation leans
-  L-C6-1/2/3 confirmed. Capture artifact:
+- **C6 Detection Engine DEPTH FULLY DECIDED + CAPTURED 2026-06-27 (human).** All three
+  architecture decisions D-C6-1/2/3 confirmed (D-C6-3 auto-rollback RESOLVED 2026-06-27 — folded
+  from deep-research pass); implementation leans L-C6-1/2/3 confirmed. Capture artifact:
   `specs/day2-design-decisions/ADR-PROP-detection-engine-depth.md`
   (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
   `research/detection-engine-depth-2026-06-27.md` (six sonar-deep-research calls at
-  `reasoning_effort=high`, 2 Context7 calls for DataFusion API).
+  `reasoning_effort=high`, 2 Context7 calls for DataFusion API) +
+  `research/detection-auto-rollback-depth-2026-06-27.md` (six sonar-deep-research calls at
+  `reasoning_effort=high`, Q1–Q6 depth on the auto-rollback control loop).
   **D-C6-1 BACKTESTING (G-19) = BOTH cold-tier deterministic (Iceberg snapshot-id + rule-version
   pin, reproducible, no look-ahead bias) AND remote best-effort (current-state, NON-deterministic,
   retention-bounded — stated explicitly), ALWAYS with a mandatory coverage map per (source ×
@@ -2691,10 +2741,27 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   plainly: "never silently mask a true positive" is NOT achievable as an absolute guarantee — the
   production-grade posture is transparency + narrow-scope + mandatory-justification + time-boxed-
   expiry + fire-frequency-dashboards + RBA-over-suppression, NOT a proof.
-  **D-C6-3 AUTO-ROLLBACK DEFERRED — OQ-C6-AUTOROLLBACK (HUMAN-DIRECTED 2026-06-27).** Deep-research
-  pass in flight (`research/detection-auto-rollback-depth-2026-06-27.md`). Fold on return.
-  Standing guardrail: auto-rollback may DISABLE ROUTING but MUST NOT auto-disable EVALUATION
-  without human sign-off. Canary unit lean: TENANT (multi-tenant → natural scope).
+  **D-C6-3 AUTO-ROLLBACK RESOLVED — OQ-C6-AUTOROLLBACK CLOSED (2026-06-27).** AUTO action =
+  DEMOTE-TO-SHADOW (rule keeps evaluating, stops routing; idempotent; already-emitted findings
+  annotated not retracted). FULL-DISABLE = explicit human sign-off (SOAR coverage-reducing-action
+  gate). REVERT-TO-PRIOR-VERSION = one-click human action, not auto reflex. Trip gated by
+  CORROBORATION-MASTER-GATE: (a) corroborated + entity-concentrated → DO NOT auto-rollback,
+  ESCALATE; (b) uncorroborated + uniformly dispersed + sustained + low incident yield → demote-
+  to-shadow is safe; (c) ambiguous → HOLD-AND-ESCALATE. Per-tenant circuit-breaker on the routing
+  path (closed=route / open=demote / half-open=trial-route). Signals: CUSUM on alert-rate `λ_t`
+  (primary; ADWIN if diurnal) + cardinality `U_t` + `N_t/U_t` duplicate-ratio (secondary);
+  analyst dispositions = delayed validation only (DDM/EDDM need labels, cannot drive real-time
+  trip). Trip = N-of-M + relative-to-baseline multiplier + absolute backstop + minimum-window
+  count + corroboration gate. Hysteresis: cool-down → half-open trial → `consecutiveSuccessLimit`
+  clean windows to re-close + exponential backoff on repeated trips + human confirmation before
+  re-promotion (no auto re-promote). Shared change-detector primitive with C7. Promotion: shadow→
+  canary auto-gated on metrics + bake window; canary→production human-gated (high-blast-radius).
+  Canary unit = TENANT. Gate thresholds in §14.1 `quality` block. Honest caveat: "never roll back
+  a working rule" is a safety POSTURE (corroboration gate + concentration test + sustained-window
+  + hold-and-escalate + demote-not-disable + human re-promote), not an absolute guarantee. No SIEM
+  ships integrated detection auto-rollback; Prism assembles from progressive-delivery + circuit-
+  breaker + change-detection + SOC-triage prior art and owns the integration. Residual pre-
+  implementation items PIV-C6-RB-1..9 (not blocking forks; see capture artifact §D-C6-3).
   **LEANS confirmed:** MATCH_RECOGNIZE = `MatchRecognizeNode` (UserDefinedLogicalNode) +
   `MatchRecognizeExec` (custom ExecutionPlan) wrapping Thompson-NFA instruction-program matcher
   (`MATCH`/`SPLIT`/`JUMP`/`CHECK`/`ACCEPT`; greedy/reluctant = SPLIT branch ordering; serializable
@@ -2708,10 +2775,11 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   Sigma correlation rules map cleanly onto MATCH_RECOGNIZE (Prism well-positioned); ship
   Sigma→PrismQL EXAMPLES in recipe library (§14.7) now. Open questions: PIV-C6-1/2, OQ-C6-3
   (checkpoint cadence), OQ-C6-4 (coverage-map data model), OQ-C6-5 (Iceberg snapshot-retention
-  policy), OQ-C6-6 (Sigma fidelity-report schema), OQ-C6-AUTOROLLBACK. Downstream SAP-1:
-  backtest-coverage/rollout-transition/suppression-fire/auto-tune-suggestion events likely need
-  BC-2.16.002 catalog rows (flagged, NOT actioned). Proposed epics: E-DETECT-ENGINE-001 +
-  E-DETECT-SEQUENCE-001 + E-DETECT-EDITOR-001 + E-ALERT-ROUTING-001 + E-RULE-XLATE-001 (§14.8).
+  policy), OQ-C6-6 (Sigma fidelity-report schema), PIV-C6-RB-1..9 (auto-rollback pre-impl items).
+  OQ-C6-AUTOROLLBACK = CLOSED. Downstream SAP-1: backtest-coverage/rollout-transition/suppression-
+  fire/auto-tune-suggestion events likely need BC-2.16.002 catalog rows (flagged, NOT actioned).
+  Proposed epics: E-DETECT-ENGINE-001 + E-DETECT-SEQUENCE-001 + E-DETECT-EDITOR-001 +
+  E-ALERT-ROUTING-001 + E-RULE-XLATE-001 (§14.8).
 
 - **C7 On-Demand ML & Behavior Analytics DEPTH DECIDED + CAPTURED 2026-06-27 (human).** Four
   architecture decisions D-C7-1..4 confirmed; implementation leans L-C7-1..3 confirmed. Capture

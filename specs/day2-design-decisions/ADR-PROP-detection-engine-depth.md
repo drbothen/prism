@@ -6,7 +6,7 @@ decided: "2026-06-27 (human)"
 candidate_adr_slots:
   - "ADR-PROP-C6-1: Backtesting posture — BOTH cold-tier deterministic AND remote best-effort, ALWAYS with coverage map"
   - "ADR-PROP-C6-2: False-positive handling — RBA as default over hard suppression; suppression-as-code with mandatory justification + time-box expiry"
-  - "ADR-PROP-C6-3: Auto-rollback — DEFERRED pending deep-research; OPEN ITEM OQ-C6-AUTOROLLBACK"
+  - "ADR-PROP-C6-3: Auto-rollback — RESOLVED 2026-06-27; demote-to-shadow auto + human-gated full-disable/revert + CORROBORATION-MASTER-GATE + per-tenant circuit-breaker + shadow→canary-auto / canary→production-human gates; residual pre-implementation items PIV-C6-RB-1..9"
   - "ADR-PROP-C6-LEAN-1: MATCH_RECOGNIZE operator — UserDefinedLogicalNode + MatchRecognizeExec wrapping Thompson-NFA instruction-program"
   - "ADR-PROP-C6-LEAN-2: Continuous/incremental RPR — SAME matcher core + watermark/timer/checkpoint layer on RocksDB CFs"
   - "ADR-PROP-C6-LEAN-3: Sigma → PrismQL — pySigma-style Backend + ProcessingPipeline targeting OCSF taxonomy; fidelity report for lossy edges"
@@ -40,10 +40,10 @@ traces_to:
 
 # ADR-PROP — Detection Engine Depth (C6)
 
-> **STATUS: DECIDED 2026-06-27 (human) — EXCEPT D-C6-3 (auto-rollback) which is DEFERRED pending
-> deep-research pass.** This is a CAPTURE artifact for the side-analysis C6 program.
-> `do_not_execute: true`. Real ADR numbers and formal ARCH-INDEX.md rows are deferred to the morph
-> execution (post-demo, post-T14, gated on brief-reframe sign-off §5.1).
+> **STATUS: FULLY DECIDED 2026-06-27 (human) — including D-C6-3 (auto-rollback) RESOLVED
+> 2026-06-27 (folded from deep-research pass).** This is a CAPTURE artifact for the side-analysis
+> C6 program. `do_not_execute: true`. Real ADR numbers and formal ARCH-INDEX.md rows are deferred
+> to the morph execution (post-demo, post-T14, gated on brief-reframe sign-off §5.1).
 
 > **Research basis:** `research/detection-engine-depth-2026-06-27.md` — six
 > `perplexity_research` (sonar-deep-research, `reasoning_effort=high`) calls covering:
@@ -77,8 +77,9 @@ left unresolved. Six open implementation questions drove the research pass (rese
 5. **E-RULE-XLATE-001 / Q5:** Whether Sigma→PrismQL translation is feasible and how to handle lossy edges.
 6. **§14.4 / Q6:** How to design false-positive auto-tune and suppression without silent masking.
 
-C6 resolves Q3, Q6, and the key implementation leans for Q1/Q2/Q5. Q4 auto-rollback is
-deferred (D-C6-3 / OQ-C6-AUTOROLLBACK) pending a focused deep-research pass.
+C6 resolves Q3, Q6, and the key implementation leans for Q1/Q2/Q5. Q4 auto-rollback (D-C6-3 /
+OQ-C6-AUTOROLLBACK) is resolved 2026-06-27 — folded from the deep-research pass at
+`research/detection-auto-rollback-depth-2026-06-27.md`; see §D-C6-3 below.
 
 ---
 
@@ -212,61 +213,163 @@ caveat; Splunk-RBA, Elastic-Suppress — none claim an absolute guarantee either
 
 ---
 
-### D-C6-3 — Auto-Rollback (Staged Rollout FP-Spike Circuit-Breaker): DEFERRED
+### D-C6-3 — Auto-Rollback (Staged Rollout FP-Spike Circuit-Breaker): RESOLVED
 
-**DEFERRED 2026-06-27 (human-directed). OPEN ITEM: OQ-C6-AUTOROLLBACK.**
+**RESOLVED 2026-06-27 (human-confirmed). OQ-C6-AUTOROLLBACK CLOSED.**
 
-A focused deep-research pass is in flight (file will be at
-`/Users/jmagady/Dev/prism/.factory/research/detection-auto-rollback-depth-2026-06-27.md`).
-This decision is recorded as OPEN and will be resolved when that research returns.
+Research basis: `research/detection-auto-rollback-depth-2026-06-27.md` — six
+`perplexity_research` (sonar-deep-research, `reasoning_effort=high`) calls covering Q1 automated
+canary analysis (Kayenta/Flagger/Argo), Q2 zero-label change-point detection, Q3 circuit-breaker
+design, Q4 rollback-action semantics, Q5 promotion gates, Q6 legitimate-spike-vs-noise
+discrimination.
 
-**What the deferred research pass must cover:**
-- Automated canary analysis (Kayenta/Flagger approach) applied to detection rules.
-- Bad-rollout detection without ground-truth labels (change-point / CUSUM / Page-Hinkley on alert
-  volume as a proxy signal for FP spikes; FP-spike detection from alert volume alone is inherently
-  ambiguous with legitimate-spike-vs-noise discrimination).
-- Circuit-breaker design: what signal triggers rollback + hysteresis (how long must the signal
-  persist before rollback fires; how long must the signal clear before re-promotion is allowed).
-- The rollback-action fork — the single most important unresolved question:
-  a. **Demote-to-shadow (keep evaluating, stop routing):** the detection keeps running; findings
-     write to a shadow stream; no alert routing. Coverage is preserved. The analyst can inspect
-     shadow findings to diagnose whether it was a real spike or a false alarm.
-  b. **Full disable (stop evaluating entirely):** faster cost savings; harder to re-enable safely;
-     loses coverage entirely during the disabled window.
-  c. **Revert-version:** roll back to the prior rule version if available; evaluating against old
-     semantics may also generate noise if the data changed.
-- Promotion gates: what criteria must a rule satisfy before graduating from shadow → canary →
-  production; where thresholds live (§14.1 `quality` block vs per-deployment config).
-- Canary unit choice: tenant (Prism is already multi-tenant → natural canary scope) vs asset-group
-  vs traffic sample.
+---
 
-**GUARDRAIL THAT HOLDS REGARDLESS OF THE DEFERRED MECHANISM:**
-Even before the rollback-action fork is decided, one invariant is settled and must be respected
-by whichever mechanism is chosen:
+## Auto-rollback control loop folded (2026-06-27)
 
-> **Auto-rollback MAY disable routing. It MUST NOT auto-disable evaluation without human sign-off.**
->
-> The production-grade default: a detection that is auto-rolled-back continues EVALUATING and
-> writing findings to a shadow or monitoring stream. Coverage is never silently zeroed by an
-> automated circuit-breaker. Auto-disabling a detection's evaluation pipeline — not just routing,
-> but the evaluation itself — requires explicit human approval.
+### Rollback action
 
-This guardrail is identical to D-C6-2's auto-tune guardrail: the automation may surface a problem
-and take protective routing action; it may not decide the detection is no longer valid.
+**AUTO action = DEMOTE-TO-SHADOW.** On circuit-breaker trip: the rule keeps EVALUATING (no
+coverage blind spot, full audit trail); routing to analysts stops. Rule state transitions to
+`shadow` (idempotent declarative state). Already-emitted findings are ANNOTATED, not retracted.
 
-**Canary unit lean (recorded, not binding):** tenant is the natural scope for Prism's multi-tenant
-architecture. Confirm at morph-time alongside the deferred rollback-action fork resolution.
+**FULL-DISABLE of evaluation = explicit HUMAN sign-off required** (SOAR coverage-reducing-action
+gate, analogous to account-deactivation/host-isolation). Full-disable is a coverage-reducing
+action that silences detection at the worst possible moment if the spike was a real attack.
+
+**REVERT-TO-PRIOR-VERSION = one-click HUMAN action in the console**, not the auto reflex. Requires
+knowing the prior version was good; may reintroduce old deficiencies. Offered as a manual
+remediation path, never auto-triggered.
+
+**Error-asymmetry rationale (governing):** if the spike was a real attack the rule correctly caught,
+demote-to-shadow still detects and logs it — the worst case is delayed analyst visibility, not
+blinded coverage. Auto-full-disable in that scenario silences the rule at the worst possible moment.
+This single point is the decisive argument against auto-full-disable. [Rollback-Synthesis, Q4]
+
+### CORROBORATION-MASTER-GATE — trip discriminator
+
+Before the breaker opens, the corroboration gate runs. The gate has three outcomes:
+
+**(a) Corroborated + concentrated → DO NOT auto-rollback. ESCALATE.**
+The spike is corroborated by independent rules/threat-intel firing on the same entities/window,
+AND activity is concentrated on a small set of (high-value) entities. Likely a REAL ATTACK. The
+rule may be doing its job at the worst moment. Escalate to a human detection engineer / incident
+commander. Never auto-trip. [Spike-Synthesis, Q6]
+
+**(b) Uncorroborated + uniformly dispersed + sustained + low incident yield → DEMOTE-TO-SHADOW is safe.**
+The spike is NOT corroborated by independent rules or threat-intel, AND alert cardinality is high
+with no entity clustering (uniform dispersion), AND the pattern is sustained over a prolonged
+window with low analyst-confirmed incident yield. Likely a BROKEN/NOISY rule. The circuit-breaker
+may open; demote-to-shadow. [Spike-Synthesis, Q6]
+
+**(c) Ambiguous → HOLD-AND-ESCALATE. Never auto-act.**
+Partial corroboration, borderline concentration, or insufficient baseline window. The Argo/Spinnaker
+Inconclusive/Marginal→pause-for-human prior art applies. Hold routing at current state; escalate
+to a human. [Rollback-Synthesis, Q1]
+
+**This corroboration→auto-rollback discriminator is the novel, hardest, least-documented piece.**
+No SIEM or SOAR vendor ships it as an integrated primitive. Sources apply corroboration and
+entity-concentration to alert triage; extending them to automated rollback decisions is explicitly
+conceptual in the research corpus. Prism builds the discriminator from scratch and owns its
+correctness. [Spike-Synthesis §6.2 INCONCLUSIVE]
+
+### Control loop shape (per-tenant circuit-breaker)
+
+A **per-tenant alert-rate circuit-breaker** on the ROUTING path. States:
+- **CLOSED** — rule routes alerts normally.
+- **OPEN** — rule demoted; stops routing (evaluation continues in shadow).
+- **HALF-OPEN** — trial re-route after cool-down; testing whether the spike subsided.
+
+The breaker coexists with (does not replace) downstream notification throttles.
+
+**Signals (unlabeled, zero-label real-time constraint):**
+- **Primary:** CUSUM on per-rule per-tenant alert-rate `λ_t`, calibrated from the shadow-mode
+  baseline to a target `ARL₀` (tolerable false-alarm rate). Use ADWIN instead of CUSUM if the
+  baseline is strongly diurnal / non-stationary (self-adapting window). Shadow-mode baseline IS
+  the reference window — the shadow stage does double duty (rule bake + baseline fitting). [Q2]
+- **Secondary:** distinct-entity cardinality `U_t` + the `N_t/U_t` duplicate-ratio (catches
+  cardinality-explosion AND duplicate-storm as independent signals). [Q2]
+- **Delayed validation only:** analyst dispositions (TP/FP labels from §14.5). DDM/EDDM require
+  labels and CANNOT drive the real-time trip. Labels arrive as delayed confirmation/tuning AFTER
+  the trip, not as a trip driver. [Q2 — zero-label constraint, decisive]
+
+**Trip gate (N-of-M signal gating):**
+Trip requires ALL of:
+1. **Volume-spike signal** (CUSUM on `λ_t` fires), AND
+2. **Cardinality or duplicate-ratio anomaly** (N-of-M; single-signal trips are forbidden as
+   single-signal flap vectors), AND
+3. **RELATIVE-to-shadow-baseline multiplier** exceeded (alert-rate > `Nx` the shadow baseline for
+   this rule/tenant) PLUS an **absolute backstop cap** for the degenerate runaway case, AND
+4. **Minimum-window count** not violated (the Kayenta ≥50-sample discipline — a minimum number
+   of evaluation windows of shadow baseline must exist before the breaker may open; you cannot
+   trip on a spike you have not sampled enough times to characterize), AND
+5. **CORROBORATION-MASTER-GATE** passes case (b) (uncorroborated + dispersed + sustained).
+
+**Hysteresis and anti-flap (anti-flap is mandatory, not optional):**
+- `waitDurationInOpenState` (cool-down) before half-open trial re-route.
+- `consecutiveSuccessLimit` clean windows (clean = volume + cardinality within baseline bounds)
+  required to re-close. [Argo `consecutiveSuccessLimit` prior art]
+- **Exponential backoff** on repeated trips (repeated trips of the same rule = the breaker opening
+  repeatedly signals a chronic rule problem, not a transient spike; escalation cadence grows).
+- **HUMAN CONFIRMATION REQUIRED before re-promotion** after any rollback. No auto re-promote loop.
+  [SRE-Flap, Q6]
+
+**Shared primitive with C7:**
+The change-detector (CUSUM/ADWIN/Page-Hinkley/BOCPD) is the same statistical family used for
+C7 ML drift detection — same primitive, different target stream (C6 watches alert-volume/cardinality;
+C7 watches model input/output distributions). Build the change-detector ONCE and point it at either
+target. [Q2 §2.5]
+
+### Promotion gates (forward dual of the breaker)
+
+**Shadow → canary: AUTO-gated on metrics over a bake window.**
+Gate thresholds carried in the §14.1 `quality` block (explicit-in-spec, not implicit operator
+judgment). Shadow→canary is safe to automate: scope-limited by definition.
+
+**Canary unit = TENANT.** Prism is multi-tenant; the deployment-ring analog is
+tenant-by-tenant promotion (one tenant → a few tenants → all tenants). [Q5, C6 Q4 settled]
+
+**Canary → production: HUMAN sign-off required.**
+Widening to all tenants is the high-blast-radius step (the Argo no-duration-pause analog). Auto-
+promoting to production is forbidden. The S2-console/MCP/CLI gate surface is the human approval
+point. Per-stage bake-time ceiling (`progressDeadlineSeconds`-style) bounds the soak window. [Q5]
+
+### Honest caveat
+
+**"Never roll back a working rule" is a safety POSTURE, not an absolute guarantee.** The
+posture is: corroboration gate + entity-concentration test + sustained-window requirement +
+hold-and-escalate on ambiguity + demote-not-disable + human re-promote gate. This is the
+best achievable safety envelope; it is not a proof. State this plainly in all downstream specs.
+Analogous to D-C6-2's honest caveat: the same transparency-without-guarantee discipline.
+
+No SIEM vendor ships integrated detection auto-rollback. Prism assembles it from:
+progressive-delivery (Kayenta/Flagger/Argo) + circuit-breaker (resilience4j/Hystrix) +
+change-detection (CUSUM/ADWIN/BOCPD) + SOC-triage prior art. Prism owns the integration
+and its correctness. [Detection-CB-Synthesis, Q3]
+
+### Residual pre-implementation items (PIV-C6-ROLLBACK-*)
+
+OQ-C6-AUTOROLLBACK is CLOSED as a blocking deferral. The following items are **pre-implementation
+design questions** for the architect at morph, NOT open forks:
+
+| ID | Question |
+|----|---------|
+| PIV-C6-RB-1 | Trip signal weighting / N-of-M composition — exact which signals (CUSUM-on-`λ_t`, cardinality-on-`U_t`, `N_t/U_t` duplicate-ratio) and the N-of-M threshold value. LEAN: volume-spike AND a cardinality/duplicate anomaly. |
+| PIV-C6-RB-2 | Relative-multiplier value (`Nx`) + absolute backstop cap. Location: §14.1 `quality` block vs per-deployment config. Carried from C6 Q4 open #9. |
+| PIV-C6-RB-3 | CUSUM/ADWIN parameterization: `v`/`h` (CUSUM) or window (ADWIN) derived from the shadow baseline to a target `ARL₀`; acceptable detection-latency (`ARL₁`) for a security context. |
+| PIV-C6-RB-4 | Minimum-window count before the breaker may open (the ≥50-sample analog) — how many evaluation windows of shadow baseline are required before active monitoring is statistically trustworthy. |
+| PIV-C6-RB-5 | Corroboration data model — how "spike corroborated by independent rules / threat-intel / entity-concentration" is computed in real time and fed into the CORROBORATION-MASTER-GATE. This is the novel piece; no vendor template exists. |
+| PIV-C6-RB-6 | Cool-down + backoff schedule + half-open trial size — `waitDurationInOpenState`, exponential-backoff increments on repeated trips, `consecutiveSuccessLimit` clean-window count. |
+| PIV-C6-RB-7 | Per-tenant vs global breaker state management — confirm per-tenant default; define the escalation rule when the same rule trips across many tenants simultaneously (a "rule broken, not tenant-attacked" global signal). |
+| PIV-C6-RB-8 | Canary → production human-gate UX surface — where the sign-off lives (S2-console / MCP / CLI) and what evidence it surfaces to the approving analyst. |
+| PIV-C6-RB-9 | Confirm the shared change-detector primitive boundary with C7 (same implementation, different target stream). |
 
 **Relationship to D-C6-2:** The staged-rollout shadow phase (§14.4) directly feeds the
-suppression fire-frequency dashboard (D-C6-2): shadow mode alerts write to a non-routed stream
+suppression fire-frequency dashboard (D-C6-2): shadow-mode alerts write to a non-routed stream
 from which fire-frequency and precision signals can be computed before promotion. The two
 mechanisms reinforce each other.
 
-**Resolution instruction:** "Fold on return" — when `research/detection-auto-rollback-depth-2026-06-27.md`
-returns, resolve OQ-C6-AUTOROLLBACK by appending a `### D-C6-3-RESOLVED` section to this document
-with the decided rollback-action fork, promotion-gate thresholds, and circuit-breaker design.
-
-[research/detection-engine-depth-2026-06-27.md §Q4, §4.2 LEAN; Flagger; ML-Canary]
+[research/detection-auto-rollback-depth-2026-06-27.md — all six Q1–Q6 passes]
 
 ---
 
@@ -470,7 +573,7 @@ the first test vectors for the eventual pySigma backend.
 
 | # | Question | Status | Dependency |
 |---|---------|--------|------------|
-| **OQ-C6-AUTOROLLBACK** | Auto-rollback: rollback-action fork (demote-to-shadow vs full-disable vs revert-version), circuit-breaker design + hysteresis, promotion-gate thresholds, legitimate-spike-vs-noise discrimination, canary unit | **DEFERRED — pending deep-research pass** at `research/detection-auto-rollback-depth-2026-06-27.md`. Fold on return; amend D-C6-3 with a `D-C6-3-RESOLVED` section. | Deep-research pass (in flight) |
+| **OQ-C6-AUTOROLLBACK** | Auto-rollback: rollback-action fork, circuit-breaker design, promotion gates, legitimate-spike-vs-noise discrimination, canary unit | **RESOLVED 2026-06-27** — see D-C6-3 above. Residual pre-implementation items PIV-C6-RB-1..9 (not blocking forks). | — |
 | **PIV-C6-1** | DataFusion `ExtensionPlanner`/`QueryPlanner` exact method signatures for the pinned DataFusion version; re-verify `UserDefinedLogicalNode` + custom `ExecutionPlan` + `RelationPlanner` rewrite wiring against that version's source | Pre-implementation verification — read DataFusion source at Prism's pinned version + integration test with `EXPLAIN VERBOSE` | Morph-time, before MATCH_RECOGNIZE implementation starts |
 | **PIV-C6-2** | Window-state CF ↔ `detection_state` CF boundary isolation under a shared checkpoint stream (§17.14 honest-cost #5) | Pre-implementation verification — validate that fast operator state and slow campaign state can checkpoint independently without coupling. Empirical test. | Morph-time, before continuous operator work starts |
 | **OQ-C6-3** | Continuous-operator checkpoint cadence — window-state CF cadence vs durable `detection_state` CF cadence vs ML `ModelState`. Flink incremental-SSTable model is the template; concrete cadence values are left to architect. (§17.14 open question #1) | Open architect decision at morph | Morph-time |
@@ -505,7 +608,9 @@ implementation time, not at ADR-PROP capture time).
   delta or exclusion suggestion; fields include rule_id, suggestion_type, proposed_value, basis
   (disposition history window). NOT an action — human sign-off required.
 - Rollout-transition events (shadow→canary promotion, canary→production, rollback trigger) — schema
-  deferred to OQ-C6-AUTOROLLBACK resolution.
+  deferred to morph-time implementation (OQ-C6-AUTOROLLBACK RESOLVED; rollback action = demote-to-shadow,
+  CORROBORATION-MASTER-GATE gate; suggested fields: rule_id, tenant_id, from_state, to_state,
+  trigger_signal, corroboration_check_result, entity_cardinality, baseline_rate, observed_rate).
 
 All six categories above are flagged; BC-2.16.002 catalog rows are morph-time work.
 
@@ -518,7 +623,7 @@ All six categories above are flagged; BC-2.16.002 catalog rows are morph-time wo
 | **MATCH_RECOGNIZE is a real engine operator, not a query rewrite.** | DataFusion parses it but does not execute it; the core team has low appetite to add it. Prism owns the full lifecycle: pattern compiler, NFA simulation, SKIP/empty-match correctness, MEASURES RUNNING/FINAL, SQL:2016 edge cases. The correctness bugs hide in empty-match × SKIP interactions and greedy/reluctant nesting. [Trino-RPR][Oracle-Skip] |
 | **The continuous operator is the single most expensive item in §14.** | Watermarks, event-time, late-arrival, fault-tolerant incremental checkpointing on RocksDB, per-partition timers, SharedBuffer reference-counting — the matcher core (L-C6-1) is the cheap part; this temporal/fault-tolerance layer is the real build. Ordered later as a whole feature (§17.7 self-identifies this). |
 | **Federated backtesting is genuinely novel.** | No surveyed security platform (Elastic, Chronicle, Panther, Splunk, Sigma/pySigma) documents backtesting over federated remote sources without first ingesting locally. Iceberg time-travel gives determinism on the cold tier; remote-API sources are best-effort/non-deterministic and retention-bounded. The coverage map ("evaluated-no-match" vs "no-data") is unprecedented in the prior art — Prism builds it from scratch. [Q3 survey findings] |
-| **Auto-rollback is not a shipped SIEM feature.** | Must be assembled from Prism primitives borrowing Flagger's control-loop model. The deferred deep-research pass (D-C6-3 / OQ-C6-AUTOROLLBACK) must resolve the rollback-action fork before this is implementable. Anvilogic/SnapAttack detection-as-code specific practices were INCONCLUSIVE in the research. [Flagger, INCONCLUSIVE on Anvilogic/SnapAttack] |
+| **Auto-rollback is not a shipped SIEM feature (D-C6-3 RESOLVED).** | Assembled from Prism primitives: progressive-delivery (Kayenta/Flagger/Argo) + circuit-breaker (resilience4j/Hystrix) + change-detection (CUSUM/ADWIN/BOCPD) + SOC-triage prior art. The CORROBORATION-MASTER-GATE (corroboration + entity-concentration discriminator) is the novel, hardest piece — no vendor ships it; Prism owns the integration and its correctness. Residual pre-implementation items PIV-C6-RB-1..9; none are blocking forks. [Rollback-Synthesis, Spike-Synthesis, INCONCLUSIVE on the spike→auto-rollback discriminator in prior art] |
 | **Sigma→PrismQL is lossy at the edges.** | `base64offset`, `windash`, exotic regex dialects, class-spanning correlations. A fidelity report (never silent drop) is required. Sigma correlation rules are thinly supported across all backends; Prism's MATCH_RECOGNIZE is the advantage. [pySigma][Sigma-Correlation] |
 | **"Never silently mask a true positive" is not achievable as an absolute guarantee.** | State this plainly. The production-grade posture (RBA + transparency + time-boxing + fire-frequency dashboards) is the best achievable, not a proof. [D-C6-2 honest caveat] |
 
@@ -593,11 +698,11 @@ as entirely separate implementations with different matcher internals.
 |---------------|--------|
 | **E-DETECT-ENGINE-001** | D-C6-1 defines the backtest coverage-map requirement + cost-control envelope. The epic's acceptance criteria for backtesting must include the coverage map as a mandatory output, the deterministic cold-tier path (snapshot-id + rule-version), the best-effort remote path (explicitly labeled non-deterministic), and the "evaluated-no-match" vs "no-data" UI distinction. |
 | **E-DETECT-SEQUENCE-001** | L-C6-1 concrete build shape (UserDefinedLogicalNode + MatchRecognizeExec + Thompson-NFA instruction-program + serializable match-context). PIV-C6-1 (DataFusion ExtensionPlanner wiring) must be confirmed before implementation starts. L-C6-2 continuous extension is ordered later; the serializable match-context must be built into Phase A. |
-| **E-DETECT-EDITOR-001** | D-C6-2 defines the suppression-as-code requirements (versioned, justified, time-boxed, fire-frequency dashboard). D-C6-3 OQ-C6-AUTOROLLBACK defines the staged-rollout automation; once resolved, the circuit-breaker + promotion-gate design must flow into this epic's AC. |
+| **E-DETECT-EDITOR-001** | D-C6-2 defines the suppression-as-code requirements (versioned, justified, time-boxed, fire-frequency dashboard). D-C6-3 (RESOLVED) defines the staged-rollout automation: per-tenant circuit-breaker + CORROBORATION-MASTER-GATE + demote-to-shadow action + shadow→canary-auto/canary→production-human promotion gates. These must flow into this epic's AC. Residual design questions: PIV-C6-RB-1..9 (morph-time). |
 | **E-RULE-XLATE-001** | L-C6-3 confirms feasibility; defines the pySigma-style backend + OCSF ProcessingPipeline + fidelity report requirement. Sigma→PrismQL examples ship in §14.7 recipe library NOW (before E-RULE-XLATE-001 is formally executed). |
 | **§14.5 source-coverage-record** | D-C6-1 extends the §14.5 ADOPT-4 source-coverage-record schema with the per-slice `{full/partial/none}` coverage-map field. PO must amend §14.5 at morph time to add the coverage-map fields to the Alert/run record. |
 | **§14.7 recipe library** | Sigma→PrismQL translation examples (L-C6-3) should be included in the first recipe library release, regardless of E-RULE-XLATE-001 schedule. |
-| **BC-2.16.002 §Postconditions** | Six SAP-1 event type categories listed in §Downstream SAP-1 Obligations above (morph-time BC work; backtest run/gap events, suppression applied/expired events, auto-tune suggestion event, rollout-transition events pending OQ-C6-AUTOROLLBACK resolution). |
+| **BC-2.16.002 §Postconditions** | Six SAP-1 event type categories listed in §Downstream SAP-1 Obligations above (morph-time BC work; backtest run/gap events, suppression applied/expired events, auto-tune suggestion event, rollout-transition events — schema shape suggested in §Downstream SAP-1 Obligations; OQ-C6-AUTOROLLBACK CLOSED). |
 | **ADR-TBD: MATCH_RECOGNIZE operator implementation** | This ADR-PROP covers the implementation lean; the real ADR (allocated at morph, ADR-NNN) formalizes the DataFusion extension API choice, the Thompson-NFA instruction-program design, and the match-context serialization contract. |
 | **ADR-TBD: Backtesting posture** | D-C6-1 formalized as a separate ADR covering the dual-tier architecture, coverage-map data model, snapshot-pinning protocol, cost-control envelope, and "evaluated-no-match" vs "no-data" UI contract. |
 | **ADR-TBD: FP handling + suppression-as-code** | D-C6-2 formalized as a separate ADR covering RBA-as-default, suppression-as-code schema, mandatory justification/expiry fields, fire-frequency dashboard, and honest-caveat language. |
