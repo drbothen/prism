@@ -61,9 +61,13 @@ impl EnrichUdfNotFoundDetails {
 
 impl std::fmt::Display for EnrichUdfNotFoundDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Taxonomy template (error-taxonomy.md E-QUERY-039):
-        // "E-QUERY-039: enrichment UDF '{infusion}' not found;
+        // Canonical taxonomy template (error-taxonomy.md E-QUERY-039 v2.01,
+        // BC-2.11.019 v1.3, PO-reconciled spec S-DEMO-FIDELITY-REMEDIATION-001):
+        // "E-QUERY-039: enrichment infusion '{infusion}' is not registered;
         //  available: [{available_infusions}]{did_you_mean}"
+        // {available_infusions}: available_infusions.join(", ") wrapped in [ ] brackets.
+        // Empty Vec → [].
+        // {did_you_mean}: " Did you mean: '{x}'?" (leading space) when Some, omitted when None.
         let available = self.available_infusions.join(", ");
         let did_you_mean_suffix = match &self.did_you_mean {
             Some(s) => format!(" Did you mean: '{s}'?"),
@@ -71,7 +75,7 @@ impl std::fmt::Display for EnrichUdfNotFoundDetails {
         };
         write!(
             f,
-            "E-QUERY-039: enrichment UDF '{}' not found; available: [{}]{}",
+            "E-QUERY-039: enrichment infusion '{}' is not registered; available: [{}]{}",
             self.infusion, available, did_you_mean_suffix
         )
     }

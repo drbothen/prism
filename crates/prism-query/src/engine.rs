@@ -795,21 +795,11 @@ impl QueryEngine {
             };
         let effective_query: &str = &effective_query;
 
-        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: Plan-time enrichment UDF gate (E-QUERY-039).
-        //
-        // Fires BEFORE the table availability gate (E-QUERY-037) and column gate (E-QUERY-038).
-        // Gate ordering: E-QUERY-001 (parse) → E-QUERY-039 (enrich UDF not found)
-        //   → E-QUERY-037 (table not found) → E-QUERY-038 (column not found).
-        //
-        // Validates that all enrichment function names in the query (pipe: `| enrich name(col)`;
-        // SQL: `SELECT name(col)`) are registered per-field UDF names in the InfusionRegistry.
-        // Returns E-QUERY-039 with available_infusions and did_you_mean when an unregistered
-        // name is detected (prevents "infusion_id used as UDF name" silent failures).
-        //
-        // Gate is skipped when `infusion_registry` is None (enrichment not configured).
-        check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
-
         // S-3.13 Step 1a: Plan-time table availability gate (BC-2.11.001, AC-2, AC-8).
+        //
+        // Gate ordering (BC-2.11.019 v1.3, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        //   E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038 (column not found)
+        //   → E-QUERY-039 (enrich UDF not found, LAST).
         //
         // Fires BEFORE client scope resolution and BEFORE `materialize_query` (fail fast,
         // no fan-out). Validates each source_ref extracted from the AST against the
@@ -838,7 +828,8 @@ impl QueryEngine {
         // S-DEMO-PRISMQL-ONBOARDING-001-B: plan-time column gate (BC-2.11.016 / E-QUERY-038).
         // Fires AFTER E-QUERY-037 passes (table exists → then check columns).
         // Gate ordering: E-QUERY-001 (parse) → E-QUERY-037 (table not found) → E-QUERY-038
-        // (column not found). The client_id is derived from the first explicit client scope.
+        // (column not found) → E-QUERY-039 (enrich, LAST). The client_id is derived from
+        // the first explicit client scope.
         let client_id_for_col_gate = options
             .clients
             .as_deref()
@@ -851,6 +842,20 @@ impl QueryEngine {
             options.clients.as_deref(),
             resolved_spec_snapshot.as_deref(),
         )?;
+
+        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: Plan-time enrichment UDF gate (E-QUERY-039).
+        //
+        // Fires LAST — after E-QUERY-037 (table gate) and E-QUERY-038 (column gate).
+        // Gate ordering (BC-2.11.019 v1.3): E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        //
+        // Validates that all enrichment function names in the query (pipe: `| enrich name(col)`;
+        // SQL: `SELECT name(col)` or `WHERE name(col) = val`) are registered per-field UDF names
+        // in the InfusionRegistry. Returns E-QUERY-039 with available_infusions and did_you_mean
+        // when an unregistered name is detected (prevents "infusion_id used as UDF name" silent
+        // failures).
+        //
+        // Gate is skipped when `infusion_registry` is None (enrichment not configured).
+        check_enrich_udf_availability(effective_query, self.infusion_registry.as_deref())?;
 
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
@@ -1116,11 +1121,9 @@ impl QueryEngine {
         // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
         check_internal_table_capabilities(query_str, &[])?;
 
-        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
-        // scheduled queries — same rationale as execute_inner.
-        check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
-
         // S-3.13: plan-time table availability gate for scheduled queries (AC-8 mode-agnostic).
+        // Gate ordering (BC-2.11.019 v1.3, S-DEMO-FIDELITY-REMEDIATION-001 HIGH-001):
+        //   E-QUERY-037 (table) → E-QUERY-038 (column) → E-QUERY-039 (enrich, LAST).
         // ADR-039 / SEC-001: pass org_scope and resolved_spec_map for org-scoped filtering.
         // Gate fires BEFORE resolve_clients to avoid moving `clients` before the borrow.
         // ADR-042: load snapshot from ArcSwap — snapshot lives long enough for the borrow below.
@@ -1145,6 +1148,11 @@ impl QueryEngine {
             clients.as_deref(),
             resolved_spec_snapshot_scheduled.as_deref(),
         )?;
+
+        // S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B: E-QUERY-039 enrichment UDF gate for
+        // scheduled queries — fires LAST (after E-QUERY-037 and E-QUERY-038).
+        // Gate ordering (BC-2.11.019 v1.3): E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+        check_enrich_udf_availability(query_str, self.infusion_registry.as_deref())?;
 
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
@@ -1355,6 +1363,78 @@ fn check_table_availability(
 // E-QUERY-039 plan-time enrichment UDF gate (S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B)
 // ---------------------------------------------------------------------------
 
+/// Collect all `ScalarFunc::Unknown` names from an `Expr` tree.
+///
+/// Recurses into `FuncCall::Scalar` arguments, `Expr::Logical`, `Expr::Not`, and
+/// `Expr::Compare` (lhs/rhs) to find every `ScalarFunc::Unknown(name)` node.
+///
+/// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
+/// Called by `check_enrich_udf_availability`.
+fn collect_unknown_scalar_from_expr(expr: &crate::ast::Expr, out: &mut Vec<String>) {
+    use crate::ast::{Expr, FuncCall, ScalarFunc};
+    match expr {
+        Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown(name),
+            args,
+        }) => {
+            out.push(name.clone());
+            for arg in args {
+                collect_unknown_scalar_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Scalar { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_from_expr(arg, out);
+            }
+        }
+        Expr::FuncCall(FuncCall::Aggregate { args, .. }) => {
+            for arg in args {
+                collect_unknown_scalar_from_expr(arg, out);
+            }
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            collect_unknown_scalar_from_expr(lhs, out);
+            collect_unknown_scalar_from_expr(rhs, out);
+        }
+        Expr::Not(inner) => collect_unknown_scalar_from_expr(inner, out),
+        Expr::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_from_expr(lhs, out);
+            collect_unknown_scalar_from_expr(rhs, out);
+        }
+        // Leaf nodes or non-function expressions — nothing to collect.
+        _ => {}
+    }
+}
+
+/// Collect all `ScalarFunc::Unknown` names from a `Predicate` tree.
+///
+/// Handles `Predicate::Compare { lhs, rhs }` whose lhs/rhs are `Box<Expr>`, and
+/// recurses into `Predicate::Logical` and `Predicate::Not`.
+///
+/// BC-2.11.019 §Precondition 1(b): WHERE-clause unknown scalar functions must be gated
+/// at plan time (HIGH-003 fix in S-DEMO-FIDELITY-REMEDIATION-001).
+///
+/// Module-level so it is accessible from `#[cfg(test)]` blocks for unit testing.
+/// Called by `check_enrich_udf_availability`.
+fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut Vec<String>) {
+    use crate::ast::Predicate;
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            collect_unknown_scalar_from_expr(lhs, out);
+            collect_unknown_scalar_from_expr(rhs, out);
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_unknown_scalar_from_predicate(p, out);
+            }
+        }
+        Predicate::Not(inner) => collect_unknown_scalar_from_predicate(inner, out),
+        // All other variants (StringOp, Regex, In, InSubquery, Between, Cidr,
+        // Has, Missing, IsNull, Wildcard, RecoveryError) do not embed function calls.
+        _ => {}
+    }
+}
+
 /// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019 v1.2).
 ///
 /// Fires BEFORE `check_table_availability` (fail-fast: enrichment UDF names are
@@ -1385,7 +1465,7 @@ fn check_enrich_udf_availability(
     query_str: &str,
     registry: Option<&prism_spec_engine::InfusionRegistry>,
 ) -> Result<(), PrismError> {
-    use crate::ast::{Ast, FuncCall, PipeStage, ScalarFunc, SelectItem, SqlStatement};
+    use crate::ast::{Ast, PipeStage, SelectItem, SqlStatement};
     use crate::filter_parser::PrismQlParser;
     use prism_core::error::EnrichUdfNotFoundDetails;
 
@@ -1433,20 +1513,18 @@ fn check_enrich_udf_availability(
                 }
             }
         }
-        // SQL mode: `SELECT udf_name(col) FROM table` — ScalarFunc::Unknown in projections.
+        // SQL mode: scan both SELECT projections AND WHERE-clause predicate tree.
+        // BC-2.11.019 §Precondition 1(b): projection OR WHERE (either site counts).
         Ast::Sql(SqlStatement::Select(sq)) => {
+            // (a) SELECT projection items.
             for item in &sq.select.items {
-                if let SelectItem::Expr {
-                    expr:
-                        crate::ast::Expr::FuncCall(FuncCall::Scalar {
-                            func: ScalarFunc::Unknown(name),
-                            ..
-                        }),
-                    ..
-                } = item
-                {
-                    enrich_fn_names.push(name.clone());
+                if let SelectItem::Expr { expr, .. } = item {
+                    collect_unknown_scalar_from_expr(expr, &mut enrich_fn_names);
                 }
+            }
+            // (b) WHERE-clause predicate tree (HIGH-003 fix: catches WHERE badudf(col) = val).
+            if let Some(pred) = &sq.where_ {
+                collect_unknown_scalar_from_predicate(pred, &mut enrich_fn_names);
             }
         }
         // Filter mode and DML have no enrichment syntax.
@@ -1462,11 +1540,14 @@ fn check_enrich_udf_availability(
                 descriptors.iter().map(|d| d.name.clone()).collect();
 
             // did_you_mean: Levenshtein ≤ 3 suggestion from registered names.
+            // OBS-1 fix: lexicographic tie-break (name asc) to ensure determinism
+            // when multiple names have the same minimum edit distance. This mirrors
+            // the column gate's determinism fix (check_query_column_availability).
             let did_you_mean = available_infusions
                 .iter()
                 .map(|n| (n.clone(), strsim::levenshtein(requested, n)))
                 .filter(|(_, dist)| *dist <= 3)
-                .min_by_key(|(_, dist)| *dist)
+                .min_by_key(|(name, dist)| (*dist, name.clone()))
                 .map(|(name, _)| name);
 
             return Err(PrismError::EnrichUdfNotFound(Box::new(
@@ -4297,5 +4378,136 @@ mod sqlpipe_gate_sweep_tests {
                 panic!("HIGH-1 / E-QUERY-038: expected PrismError::ColumnNotFound, got: {other:?}")
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-FIDELITY-REMEDIATION-001 HIGH-003 unit tests
+// ---------------------------------------------------------------------------
+//
+// These tests directly exercise `collect_unknown_scalar_from_predicate` and
+// `collect_unknown_scalar_from_expr` (now module-level private fns accessible
+// from this #[cfg(test)] block via `super::`).
+//
+// Rationale for direct AST construction (not query-string parsing):
+// The SQL parser's WHERE predicate grammar uses `build_predicate_parser()` which
+// does NOT include scalar function call syntax — `WHERE badudf(col) = 1` is a
+// parse error (E-QUERY-001) at runtime. The collect_unknown_scalar_from_predicate
+// helper is defensive code for programmatic AST construction (e.g., macros,
+// future parser extensions). These unit tests verify the logic directly.
+//
+// TD-VSDD-059: load-bearing unit tests on the actual collect_ functions.
+
+#[cfg(test)]
+mod enrich_gate_where_clause_unit_tests {
+    use crate::ast::{
+        CompareOp, Expr, FieldPath, FuncCall, Literal, LogicalOp, Predicate, ScalarFunc,
+    };
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` finds
+    /// `ScalarFunc::Unknown` in a `Predicate::Compare { lhs: Expr::FuncCall(..) }`.
+    ///
+    /// Constructs a predicate: `badudf(field) = "value"` where `badudf` is
+    /// `ScalarFunc::Unknown("badudf")`. Asserts the name is collected.
+    #[test]
+    fn test_high003_collect_unknown_scalar_in_compare_lhs() {
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::Unknown("badudf".to_string()),
+                args: vec![Expr::Field(FieldPath::new(vec!["col".to_string()]))],
+            })),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("value".to_string()))),
+        };
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&pred, &mut out);
+
+        assert_eq!(
+            out,
+            vec!["badudf".to_string()],
+            "HIGH-003: collect_unknown_scalar_from_predicate must collect \
+             ScalarFunc::Unknown in Predicate::Compare lhs"
+        );
+    }
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` finds
+    /// `ScalarFunc::Unknown` nested in `Predicate::Logical` (AND/OR).
+    #[test]
+    fn test_high003_collect_unknown_scalar_in_logical_predicate() {
+        let compare_with_udf = Predicate::Compare {
+            lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::Unknown("badudf".to_string()),
+                args: vec![],
+            })),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::Integer(1))),
+        };
+        let simple_compare = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+        };
+
+        let logical = Predicate::Logical {
+            op: LogicalOp::And,
+            predicates: vec![compare_with_udf, simple_compare],
+        };
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&logical, &mut out);
+
+        assert_eq!(
+            out,
+            vec!["badudf".to_string()],
+            "HIGH-003: collect_unknown_scalar_from_predicate must collect \
+             ScalarFunc::Unknown nested inside Predicate::Logical"
+        );
+    }
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` finds nothing
+    /// in a simple field-vs-literal comparison (no function call).
+    ///
+    /// Negative control: regular predicates must NOT emit false positives.
+    #[test]
+    fn test_high003_no_false_positive_on_simple_predicate() {
+        let pred = Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(vec!["severity".to_string()]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("high".to_string()))),
+        };
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&pred, &mut out);
+
+        assert!(
+            out.is_empty(),
+            "HIGH-003: collect_unknown_scalar_from_predicate must NOT collect \
+             anything from a plain field = literal predicate. Got: {out:?}"
+        );
+    }
+
+    /// HIGH-003 regression — `collect_unknown_scalar_from_predicate` handles `Not`.
+    #[test]
+    fn test_high003_collect_unknown_scalar_in_not_predicate() {
+        let inner = Predicate::Compare {
+            lhs: Box::new(Expr::FuncCall(FuncCall::Scalar {
+                func: ScalarFunc::Unknown("evil_udf".to_string()),
+                args: vec![],
+            })),
+            op: CompareOp::Ne,
+            rhs: Box::new(Expr::Literal(Literal::Integer(0))),
+        };
+        let not_pred = Predicate::Not(Box::new(inner));
+
+        let mut out = Vec::new();
+        super::collect_unknown_scalar_from_predicate(&not_pred, &mut out);
+
+        assert_eq!(
+            out,
+            vec!["evil_udf".to_string()],
+            "HIGH-003: collect_unknown_scalar_from_predicate must collect \
+             ScalarFunc::Unknown inside Predicate::Not"
+        );
     }
 }

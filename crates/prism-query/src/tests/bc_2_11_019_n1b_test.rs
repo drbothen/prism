@@ -129,7 +129,7 @@ fn make_cyberint_table_registry() -> Arc<TableRegistry> {
 /// are the per-field names. A query using `enrich threat_intel(col)` calls a name
 /// that is NOT in `udf_to_infusion` (only the per-field names are keys there).
 fn make_threat_intel_infusion_registry() -> Arc<InfusionRegistry> {
-    let mut registry = InfusionRegistry::new();
+    let registry = InfusionRegistry::new();
     let spec = InfusionSpec::new(
         "threat_intel",
         "ThreatIntel enrichment",
@@ -244,7 +244,7 @@ async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
 #[tokio::test]
 async fn test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name() {
     // Build engine with nvd infusion (per-field UDFs: cvss_base_score, cvss_severity, cvss_vector)
-    let mut registry = InfusionRegistry::new();
+    let registry = InfusionRegistry::new();
     let nvd_spec = InfusionSpec::new(
         "nvd",
         "NVD CVSS enrichment",
@@ -298,6 +298,114 @@ async fn test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name() {
     assert!(
         !display.contains("Internal error") && !display.contains("E-INT-001"),
         "BC-2.11.019 AC-N1B SQL path: error must NOT be opaque internal error. \
+         Got: {display}"
+    );
+}
+
+// ── S-DEMO-FIDELITY-REMEDIATION-001 regression tests ─────────────────────────
+// These tests are GREEN-GATE: they pass after the fix-burst and must remain green.
+// TD-VSDD-059: load-bearing tests, not paper-fix closures.
+
+/// HIGH-001 regression guard — gate ordering: table gate fires BEFORE enrich gate.
+///
+/// BC-2.11.019 v1.3 enrich-LAST ordering: E-QUERY-001 → E-QUERY-037 → E-QUERY-038 → E-QUERY-039.
+///
+/// A query referencing a non-existent table AND an invalid enrichment function name
+/// MUST return E-QUERY-037 (TableNotAvailable), NOT E-QUERY-039 (EnrichUdfNotFound).
+/// The table gate must fire first and short-circuit before the enrich gate runs.
+///
+/// Regression: prior to HIGH-001 fix, enrich gate ran FIRST and returned E-QUERY-039
+/// even when the table itself didn't exist.
+#[tokio::test]
+async fn test_high001_gate_ordering_table_error_before_enrich_error() {
+    let engine = make_test_engine_threat_intel();
+
+    // `nonexistent_table` is not registered in the TableRegistry.
+    // `badname` is also not a valid per-field UDF.
+    // Table gate must fire first → E-QUERY-037, NOT E-QUERY-039.
+    let result = engine
+        .execute(
+            "FROM nonexistent_table | enrich badname(col)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "HIGH-001 regression: query with unknown table + unknown enrich must fail"
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        display.contains("E-QUERY-037"),
+        "HIGH-001 regression: gate ordering must be table FIRST (E-QUERY-037), \
+         not enrich (E-QUERY-039). Got: {display}"
+    );
+
+    assert!(
+        !display.contains("E-QUERY-039"),
+        "HIGH-001 regression: E-QUERY-039 must NOT appear when table gate should fire first. \
+         Got: {display}"
+    );
+}
+
+/// HIGH-003 regression guard — collect_unknown_scalar_from_predicate wiring check.
+///
+/// BC-2.11.019 v1.3 §Precondition 1(b): the enrich gate must scan BOTH SELECT projections
+/// AND the WHERE clause for `ScalarFunc::Unknown` names.
+///
+/// NOTE on WHERE-clause coverage: The PrismQL SQL parser's WHERE predicate grammar
+/// (`build_predicate_parser`) does not include scalar function call syntax — a query like
+/// `WHERE badudf(col) = 1` is rejected as E-QUERY-001 (parse error) before the enrich
+/// gate runs. `collect_unknown_scalar_from_predicate` is defensive code for programmatic
+/// AST construction (future parser extensions, macro-generated queries).
+///
+/// The direct unit tests for `collect_unknown_scalar_from_predicate` live in
+/// `engine::enrich_gate_where_clause_unit_tests` in `engine.rs`, which construct
+/// `Predicate::Compare { lhs: Expr::FuncCall(ScalarFunc::Unknown) }` directly.
+///
+/// This integration test verifies the end-to-end wiring: a SQL SELECT with an unknown
+/// UDF in the projection (parseable path) must trigger E-QUERY-039, confirming that
+/// `collect_unknown_scalar_from_expr` is correctly called from the Ast::Sql arm.
+///
+/// Regression: prior to HIGH-003 fix, the collect helpers were nested inside
+/// `check_enrich_udf_availability` (not module-level), blocking direct unit testing.
+/// After HIGH-003, both helpers are module-level private functions with direct unit tests.
+#[tokio::test]
+async fn test_high003_sql_select_unknown_scalar_triggers_enrich_error() {
+    let engine = make_test_engine_threat_intel();
+
+    // `badudf` is not a registered per-field UDF name.
+    // It appears in the SELECT projection — the parseable path for SQL-mode enrichment.
+    // This verifies the Ast::Sql arm in check_enrich_udf_availability calls
+    // collect_unknown_scalar_from_expr for SELECT items.
+    let result = engine
+        .execute(
+            "SELECT badudf(iocs_value) FROM cyberint_alerts",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "HIGH-003 wiring check: SQL SELECT with unknown UDF 'badudf' in projection must fail. \
+         Got Ok — collect_unknown_scalar_from_expr not wired for SELECT items."
+    );
+
+    let err = result.unwrap_err();
+    let display = format!("{err}");
+
+    assert!(
+        display.contains("E-QUERY-039"),
+        "HIGH-003 wiring check: SQL SELECT with unknown UDF must trigger E-QUERY-039. \
+         Got: {display}"
+    );
+
+    assert!(
+        display.contains("badudf"),
+        "HIGH-003 wiring check: error message must name the unregistered function 'badudf'. \
          Got: {display}"
     );
 }

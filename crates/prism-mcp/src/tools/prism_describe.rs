@@ -62,7 +62,7 @@ pub struct PrismDescribeResponse {
 #[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableDescriptor {
-    /// The qualified table name (e.g., `"crowdstrike.alerts"`).
+    /// The qualified table name (e.g., `"crowdstrike_detections"`).
     pub name: String,
     /// Sensor type identifier (e.g., `"crowdstrike"`, `"claroty"`).
     pub sensor_type: String,
