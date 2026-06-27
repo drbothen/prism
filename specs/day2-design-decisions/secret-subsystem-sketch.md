@@ -15,11 +15,11 @@ traces_to:
   - project memory OrgSlug/OrgId multi-tenant boundary
   - CLAUDE.md §Conventions (newtype + redacted Debug, OrgSlug::new_unchecked audit-gate)
 human_decisions_required:
-  - HD-1: Default KMS provider for the built-in encrypted store (see §6)
-  - HD-2: Built-in store crypto primitives selection (AES-256-GCM vs ChaCha20-Poly1305; see §4.2)
-  - HD-3: DEK rotation policy — manual-only vs automatic scheduled rotation (see §4.4)
-  - HD-4: Per-tenant vs per-credential DEK granularity (see §4.1)
-  - HD-5: Satellite credential custody model — full local store vs central-vend-then-cache (see §7)
+  - HD-1: RESOLVED 2026-06-27 (human) — built-in encrypted store = DEFAULT (see §6)
+  - HD-2: RESOLVED 2026-06-27 (human) — AES-256-GCM = default crypto primitive (see §4.2)
+  - HD-3: RESOLVED 2026-06-27 (human) — automatic SCHEDULED DEK rotation + on-demand manual override (see §4.4)
+  - HD-4: RESOLVED 2026-06-27 (human) — per-tenant DEK envelope NOW; per-credential DEK = FUTURE ENHANCEMENT OQ-SECRET-DEK-GRANULARITY (see §4.1)
+  - HD-5: RESOLVED 2026-06-27 (human) — satellite holds credentials FULL-LOCAL; central-vend-then-cache = managed-mode option only (see §7)
 ---
 
 # SS-26 Secret Broker — Day-2 Design Sketch
@@ -281,19 +281,24 @@ The built-in store uses a three-level key hierarchy: KMS master key → per-tena
 - Each org has exactly one active DEK (plus a previous DEK during rotation window).
 - Compromise of one org's DEK cannot decrypt any other org's credentials — the
   cryptographic isolation mirrors the existing multi-tenant OrgId boundary.
-- DEK granularity is per-tenant by default (HD-4: per-credential granularity is more
-  complex, provides narrower blast radius but higher operational overhead — human decides).
+- **HD-4 RESOLVED 2026-06-27 (human): per-tenant DEK is the day-2 granularity.** Each org
+  gets one active DEK; all credentials for that org are encrypted under it (with per-credential
+  unique nonce/IV per §4.3 encrypt flow). Per-credential DEK granularity is recorded as a
+  **FUTURE ENHANCEMENT** (OQ-SECRET-DEK-GRANULARITY): finer blast-radius isolation, heavier
+  key management overhead — NOT day-2 scope.
 - The wrapped DEK (ciphertext-of-DEK) is stored alongside the credential ciphertext in
   the credential store table. The KMS master key is never stored locally.
 
 ### 4.2 Encryption Primitives
 
-**Recommended: AES-256-GCM** (industry standard for envelope encryption; AWS KMS, GCP
-KMS, and HashiCorp Vault all use AES-256-GCM natively for their data-key operations).
+**HD-2 RESOLVED 2026-06-27 (human): AES-256-GCM is the default crypto primitive.**
+Industry standard for envelope encryption; AWS KMS, GCP KMS, and HashiCorp Vault all use
+AES-256-GCM natively for their data-key operations. FIPS-140-validatable path (NERC-CIP /
+FedRAMP aligned); benefits from AES-NI hardware acceleration on modern servers.
 
-Alternative: ChaCha20-Poly1305 (better on systems without AES hardware acceleration;
-relevant for OT satellites on constrained hardware). HD-2: human selects one algorithm
-for the built-in store; a per-backend cipher enum can support both if needed.
+**ChaCha20-Poly1305 is retained as an OPTIONAL fallback** for environments without AES
+hardware acceleration (e.g., constrained OT satellites). The cipher is negotiated via
+per-backend/per-deployment config; AES-256-GCM is the default for new deployments.
 
 Rust crate candidates: `aes-gcm` (RustCrypto; pure Rust; FIPS-validated path via
 `openssl`). Key derivation: never use raw random bytes as a DEK; derive via HKDF if
@@ -374,10 +379,12 @@ wrapped — no local key generation required.
 
 ### 4.4 DEK Rotation Policy
 
-Current recommendation: manual rotation via Platform-Admin (audit-triggered). Automatic
-scheduled rotation adds operational complexity (must handle rotation-in-progress state,
-concurrent resolution races). HD-3: human decides if automatic DEK rotation scheduler is
-in-scope for day-2 or day-3.
+**HD-3 RESOLVED 2026-06-27 (human): automatic SCHEDULED DEK rotation is in day-2 scope,**
+plus on-demand manual override via Platform-Admin. The scheduler uses a configurable interval
+(per-org). The implementation must handle rotation-in-progress state (exclusive org-level
+write lock per §4.3 "Rotate DEK" flow) and concurrent resolution races (DEK cache eviction
+on new DEK promotion). Manual trigger (Platform-Admin on-demand) is available at any time
+and does not require scheduler involvement.
 
 ---
 
@@ -458,13 +465,13 @@ The built-in store requires a KMS provider to generate and wrap DEKs. Options:
 | AWS CloudHSM / on-prem HSM | Regulated/air-gap | Highest security; customer-owned hardware | High cost; specialized ops |
 | Sodiumoxide / in-process AEAD without external KMS | Air-gap / local dev | Zero external dependency | KMS master key is stored locally; key protection is the operator's problem |
 
-**Recommendation:** Ship with an abstracted `KmsProvider` trait (same pattern as
-`SecretBackend`) with two initial implementations: (a) AWS KMS and (b) a local
-`SoftwareKms` backed by a OS-keychain-protected or file-encrypted root key for
-air-gap/dev deployments. GCP/Azure/Vault Transit follow as additional implementations.
-The `SoftwareKms` path is the default for single-node / satellite / air-gap deployments
-where no external KMS is available. HD-1 is whether to ship AWS KMS first or make
-`SoftwareKms` the only day-2 implementation with the hook defined for external KMS.
+**HD-1 RESOLVED 2026-06-27 (human): built-in encrypted store with `SoftwareKms` is the
+DEFAULT.** Air-gap / BYOC-first posture: the `SoftwareKms` backed by an OS-keychain-protected
+or file-encrypted root key is the out-of-the-box KMS for single-node / satellite / air-gap
+deployments. External KMS (AWS KMS, Azure Key Vault, HashiCorp Vault Transit, GCP Cloud KMS)
+is a PLUGGABLE opt-in backend, not the default. The `KmsProvider` trait abstraction (same
+pattern as `SecretBackend`) ships in day-2 with `SoftwareKms` as implementation 1; cloud KMS
+adapters follow as additional implementations keyed by deployment profile.
 
 ---
 
@@ -495,17 +502,21 @@ local KMS, e.g., `SoftwareKms` backed by an HSM or OS keychain at the satellite 
 sanitized OCSF rows transit upward. The central Prism service never sees the raw
 credential or the raw sensor response.
 
-HD-5: The satellite credential custody model has two variants:
-- (a) **Full local store:** satellite provisions its own `SecretBackend` independently;
-  Platform-Admin manages satellite credentials via a satellite-local admin channel.
-  Simpler; best for strict air-gap. No credential sync to central.
-- (b) **Central-vend-then-cache:** central issues short-lived credential tokens to the
-  satellite at enrollment; satellite caches them encrypted under its local KMS.
-  More complex; requires an enrollment protocol with expiry and renewal.
+**HD-5 RESOLVED 2026-06-27 (human): satellite holds credentials FULL-LOCAL (option a).**
+The satellite provisions its own `SecretBackend` independently; Platform-Admin manages
+satellite credentials via a satellite-local admin channel. No credential sync to central.
+Consistent with C2 (AD-017 BYOC zero-access) — central never holds satellite creds.
 
-The matured-vision §3.2 enrollment protocol is not yet designed; this sketch recommends
-(a) for day-2 simplicity, with (b) as a day-3 enhancement once the enrollment protocol
-is settled.
+- (a) **Full local store (RESOLVED DEFAULT):** satellite provisions its own `SecretBackend`
+  independently; Platform-Admin manages satellite credentials via a satellite-local admin
+  channel. Simpler; best for strict air-gap. No credential sync to central.
+- (b) **Central-vend-then-cache (MANAGED-MODE OPTION ONLY):** available as a per-deployment-
+  profile option for managed deployments where the enrollment protocol is designed and the
+  tenant explicitly opts into central-vended credentials. This is NOT the default; it requires
+  an enrollment protocol with expiry and renewal (not yet fully designed — §3.2).
+
+The matured-vision §3.2 enrollment protocol is not yet designed; option (b) is only activated
+per deployment-profile when the enrollment protocol is fully specified.
 
 ---
 
@@ -668,10 +679,10 @@ deployment path. The env-var convention remains valid for the per-analyst stdio 
 
 ## 13. Open Decisions for Human
 
-| ID | Decision | Context | Options |
-|----|----------|---------|---------|
-| HD-1 | Default KMS provider for built-in encrypted store | KMS wraps per-tenant DEKs. Must support air-gap/on-prem deployments. | (a) AWS KMS + SoftwareKms fallback; (b) SoftwareKms only for day-2 (hardware/cloud KMS as day-3 enhancement); (c) HashiCorp Vault Transit as the one KMS abstraction |
-| HD-2 | Built-in store cipher: AES-256-GCM vs ChaCha20-Poly1305 | AES-256-GCM is the industry standard for envelope encryption and aligns with all major KMS providers. ChaCha20-Poly1305 is preferable on OT satellites without AES hardware acceleration. | (a) AES-256-GCM only; (b) AES-256-GCM default + ChaCha20-Poly1305 for satellite via per-backend config |
-| HD-3 | DEK rotation — manual-only vs automatic scheduled | Automatic DEK rotation requires a scheduler, in-progress state management, and concurrent-read safety during re-key. Manual provides audit control. | (a) Manual-only for day-2, automatic scheduler as day-3; (b) Automatic from day-2 with configurable schedule per org |
-| HD-4 | DEK granularity: per-tenant vs per-credential | Per-tenant DEK is simpler (one key per org, all credentials share it). Per-credential DEK narrows blast radius (one compromised credential's DEK does not expose others) but multiplies KMS operations and key storage. | (a) Per-tenant DEK (recommended for day-2 simplicity); (b) Per-credential DEK (stronger isolation, higher operational cost) |
-| HD-5 | Satellite credential custody model | Full-local-store (simplest, best for air-gap) vs central-vend-then-cache (more integrated, requires enrollment protocol). | (a) Full local store for day-2; central-vend-then-cache as satellite v2; (b) Central-vend-then-cache from day-2 if enrollment protocol is designed concurrently |
+| ID | Decision | Context | Resolution |
+|----|----------|---------|------------|
+| HD-1 | Default KMS provider for built-in encrypted store | KMS wraps per-tenant DEKs. Must support air-gap/on-prem deployments. | **RESOLVED 2026-06-27 (human):** built-in encrypted store = DEFAULT (SoftwareKms, air-gap/BYOC-first). External KMS (AWS KMS / Azure Key Vault / HashiCorp Vault) = PLUGGABLE opt-in backend. See §6. |
+| HD-2 | Built-in store cipher: AES-256-GCM vs ChaCha20-Poly1305 | AES-256-GCM is the industry standard for envelope encryption and aligns with all major KMS providers. ChaCha20-Poly1305 is preferable on OT satellites without AES hardware acceleration. | **RESOLVED 2026-06-27 (human):** AES-256-GCM = default (FIPS-140-validatable, AES-NI, NERC-CIP/FedRAMP-friendly). ChaCha20-Poly1305 = OPTIONAL fallback for no-AES-NI environments. See §4.2. |
+| HD-3 | DEK rotation — manual-only vs automatic scheduled | Automatic DEK rotation requires a scheduler, in-progress state management, and concurrent-read safety during re-key. Manual provides audit control. | **RESOLVED 2026-06-27 (human):** automatic SCHEDULED DEK rotation (configurable interval) + on-demand manual override. Not manual-only; not auto-only. See §4.4. |
+| HD-4 | DEK granularity: per-tenant vs per-credential | Per-tenant DEK is simpler (one key per org, all credentials share it). Per-credential DEK narrows blast radius (one compromised credential's DEK does not expose others) but multiplies KMS operations and key storage. | **RESOLVED 2026-06-27 (human):** per-tenant DEK envelope NOW (day-2). Per-credential DEK granularity = FUTURE ENHANCEMENT (OQ-SECRET-DEK-GRANULARITY) — finer blast-radius isolation, heavier key management; NOT day-2 scope. See §4.1. |
+| HD-5 | Satellite credential custody model | Full-local-store (simplest, best for air-gap) vs central-vend-then-cache (more integrated, requires enrollment protocol). | **RESOLVED 2026-06-27 (human):** satellite holds credentials FULL-LOCAL (consistent with C2 + AD-017 BYOC zero-access — central never holds satellite creds). Central-vend-then-cache = available as managed-mode option only (per deployment-profile). See §7. |

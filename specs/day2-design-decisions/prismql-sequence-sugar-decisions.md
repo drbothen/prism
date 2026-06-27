@@ -14,6 +14,7 @@ related_bcs:
 related_adrs: []
 human_decisions_required:
   - HD-1: NOT/WITHOUT primary semantics (exclusion vs timeout — see §4) — RESOLVED 2026-06-26 (human): BOTH in Phase A
+  - HD-2: Raw MATCH_RECOGNIZE power-user escape hatch — ACCEPTED 2026-06-27 (human): YES, expose it, lower priority / later phase
 ---
 
 # PrismQL SEQUENCE Sugar — Design Decisions (PROPOSED)
@@ -577,18 +578,16 @@ parser + RocksDB timer state). Reconcile with §16.2 #4 at morph time.
 
 ### HD-2 (lower urgency) — Raw MATCH_RECOGNIZE as power-user escape hatch
 
-**The question:** Should the PrismQL parser expose raw `MATCH_RECOGNIZE` syntax (the full
-SQL:2016 form including `PATTERN`/`DEFINE`/`MEASURES`/`PARTITION BY`/`ORDER BY`/
-`AFTER MATCH SKIP`) directly to users?
+**ACCEPTED 2026-06-27 (human):** YES — expose raw `MATCH_RECOGNIZE` as documented
+power-user syntax. Lower priority / later phase within Phase A scope.
 
-**Recommendation:** YES — expose as documented power-user syntax. The sugar desugars to
-it; letting power users write it directly costs nothing extra and prevents "I need to do
-X that the sugar can't express" hitting a dead end. Gate behind a doc note: "raw
-MATCH_RECOGNIZE is advanced syntax; most analysts should use SEQUENCE…THEN."
+The sugar desugars to it; letting power users write it directly costs nothing extra and
+prevents "I need to do X that the sugar can't express" hitting a dead end. Gate behind a
+doc note: "raw MATCH_RECOGNIZE is advanced syntax; most analysts should use SEQUENCE…THEN."
 
-**Tradeoff:** raw `MATCH_RECOGNIZE` in user queries is harder to lint for the join-guard
-NFR (§12.2) — the linter must understand both syntactic forms. This is a known cost,
-acceptable at Phase A.
+**Tradeoff (recorded):** raw `MATCH_RECOGNIZE` in user queries is harder to lint for the
+join-guard NFR (§12.2) — the linter must understand both syntactic forms. This is a known
+cost, accepted at Phase A.
 
 ---
 
@@ -600,4 +599,4 @@ acceptable at Phase A.
 | 2 | Overall-WITHIN semantics | Bounds first-to-last span of matched sequence; expressed as post-match WHERE predicate; NOT a hard row filter | PROPOSED |
 | 3 | Cross-step running semantics | Pattern var references read the last matched row for that var; aggregates (`count(f)`) available for quantified Kleene vars; OCSF dot-notation flattened at desugar time | PROPOSED |
 | 4 | NOT/WITHOUT desugaring — BOTH forms Phase A | (a) `THEN NOT/WITHOUT … THEN` = exclusion-between-anchors via SQL:2016 `{- B -}`; bare terminal NOT forbidden. (b) `WATCH … FOR … AFTER … UNLESS` = timeout/absence via `AbsenceWindowNode` (negative anti-join); promoted from Phase-B to Phase A 2026-06-26. Two syntactically distinct constructs; no overloading. Phase-A scope +~2 stories. | **DECIDED 2026-06-26 (human): BOTH** |
-| 5 | Raw MATCH_RECOGNIZE escape hatch | YES — expose as documented advanced syntax | PROPOSED — **HD-2 lower urgency** |
+| 5 | Raw MATCH_RECOGNIZE escape hatch | YES — expose as documented advanced syntax, lower priority / later phase | **ACCEPTED 2026-06-27 (human)** |

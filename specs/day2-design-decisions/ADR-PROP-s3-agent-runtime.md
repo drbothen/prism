@@ -188,15 +188,29 @@ conversation storage requires explicit human authorization.
 
 ## Open Decisions for Human
 
-1. **Conversation history persistence policy.** S3 v1 stores conversation state in the
+1. **Conversation history persistence policy.** ~~S3 v1 stores conversation state in the
    browser (session/localStorage only). If the analyst refreshes or closes the tab, history is
    lost. Is this acceptable for v1, or should a minimal server-side store (e.g., Redis TTL-backed
-   session cache, not RocksDB) be included from day one?
+   session cache, not RocksDB) be included from day one?~~
 
-2. **Per-tenant model budget enforcement.** The design specifies per-tenant cost budgets in
+   **RESOLVED 2026-06-27 (human): server-side conversation store from day one.** Minimal
+   per-tenant server-side conversation/history store required; NOT browser-only. Per-tenant-DEK
+   encrypted (ties secret-subsystem HD-4 / SS-26 per-tenant DEK). Configurable retention policy.
+   Rationale: feeds the C10 GAP-Q2 evidence-package + audit story and gives cross-device
+   continuity. Must respect AI-opaque output (AD-017) and C16 entity-masking. Supersedes the
+   "browser session/localStorage only for v1" framing in the Deployment Gating section and the
+   Consequences/Alternatives sections above — those passages reflected the pre-resolution
+   position; this resolution governs for story decomposition.
+
+2. **Per-tenant model budget enforcement.** ~~The design specifies per-tenant cost budgets in
    the Model Router, but does not define the enforcement mechanism (token counter? API-cost
    estimator? hard cutoff vs soft warning?). This needs a concrete design before story
-   decomposition.
+   decomposition.~~
+
+   **RESOLVED 2026-06-27 (human): per-tenant model budget = token+cost accounting with
+   soft-warn → hard cutoff.** Per-tenant configurable budget; token counter + API-cost estimator;
+   SOFT warning at a configurable threshold (e.g. 80%) then HARD cutoff at 100%. Not
+   warning-only; not cutoff-only. Both enforcement stages are required from day one.
 
 3. **S3 default enabled/disabled.** — **RESOLVED 2026-06-26 (human).** S3 is
    `s3_agent_runtime_enabled = false` by default across ALL deployment types (cloud,

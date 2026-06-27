@@ -3156,6 +3156,40 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   (table in capture artifact). SAP-1 downstream obligations: 5 new BC-2.16.002 event-catalog rows
   flagged in capture artifact (morph-time).
 
+- **C13 §16.4 open-items closeout COMPLETE 2026-06-27 (human).** All residual open items from
+  the six §16.4 capture sketches resolved. Key resolutions applied to files under
+  `specs/day2-design-decisions/`:
+  - **s3 OD-1 (conversation history):** server-side per-tenant-DEK-encrypted conversation store
+    from day one; NOT browser-only. Configurable retention; feeds C10 GAP-Q2 evidence package.
+  - **s3 OD-2 (model budget):** per-tenant token+cost accounting with SOFT warning (configurable
+    %) then HARD cutoff at 100%. Both enforcement stages required.
+  - **secret HD-1:** built-in encrypted store = DEFAULT (SoftwareKms, air-gap/BYOC-first);
+    external KMS = pluggable opt-in backend.
+  - **secret HD-2:** AES-256-GCM = default (FIPS-140/AES-NI/NERC-CIP-friendly); ChaCha20-Poly1305
+    = optional fallback (no-AES-NI environments).
+  - **secret HD-3:** automatic SCHEDULED DEK rotation (configurable interval) + on-demand manual
+    override. Not manual-only.
+  - **secret HD-4:** per-tenant DEK envelope day-2; per-credential DEK = FUTURE ENHANCEMENT
+    (OQ-SECRET-DEK-GRANULARITY) — finer blast-radius isolation, heavier key mgmt; NOT day-2 scope.
+  - **secret HD-5:** satellite holds credentials FULL-LOCAL (C2 + AD-017 BYOC zero-access —
+    central never holds satellite creds); central-vend-then-cache = managed-mode option only
+    (per deployment-profile).
+  - **ml OD-3 (Phase 3 inference engine):** RESOLVED via C7 reconciliation — not a single pick;
+    it is the pluggable `ModelBackend` from C7 ADR-PROP: candle + ort/ONNX + wasmtime-WASM +
+    tract. Single-engine framing superseded.
+  - **ml recommendation-level items (OD-1/OD-2/OD-4/OD-5):** all ACCEPTED — graceful
+    degradation to live-only baselines if cache not yet merged (OD-1); bounded-update-rate AND
+    anomaly-gated learning both in scope from Phase 2 day one (OD-2); Phase 3 defined narrowly,
+    feature store = follow-on E-ML-FEATURE-STORE-001 (OD-4); scheduled sampling configured
+    per-detection-rule initially (OD-5).
+  - **sso recommendation-level items (OD-3/OD-4/OD-5):** all ACCEPTED — JIT provisioning IN
+    scope separate from SCIM (OD-3); TOTP for Prism-local accounts + IdP-enforced MFA for SSO
+    (OD-4); 8h max + 30min idle session defaults, Tenant-Admin configurable (OD-5). OD-2
+    (SAML native-Rust vs Dex sidecar) remains IMPLEMENTATION-TIME architect evaluation
+    (genuinely deferred — outcome depends on adversarial review of `samael` at impl time).
+  - **prismql HD-2 (raw MATCH_RECOGNIZE escape hatch):** ACCEPTED — YES expose it, lower
+    priority / later phase within Phase A.
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
