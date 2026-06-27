@@ -2952,52 +2952,52 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   rows (flagged, NOT actioned). Open questions: OQ-C7-1..6 + PIV-C7-1. Proposed epics:
   E-ML-ONDEMAND-001 + E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
 
-- **C8 PrismQL Deliverables PARTIALLY DECIDED + CAPTURED 2026-06-27 (human).** D-C8-1 piped
-  surface (DECIDED) + D-C8-2 entity-resolution AS OF reproducibility (DEFERRED) + D-C8-3 OCSF
-  version-binding (DEFERRED) + leans L-C8-1..5 (CONFIRMED). Capture artifact:
-  `specs/day2-design-decisions/ADR-PROP-prismql-deliverables.md`
+- **C8 PrismQL Deliverables FULLY DECIDED + C8 FOLD COMPLETE 2026-06-27.** D-C8-1 piped
+  surface (DECIDED) + D-C8-2 entity-resolution AS OF reproducibility (RESOLVED via C8 FOLD) +
+  D-C8-3 OCSF version-binding (RESOLVED via C8 FOLD) + leans L-C8-1..5 (CONFIRMED). Capture
+  artifact: `specs/day2-design-decisions/ADR-PROP-prismql-deliverables.md`
   (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
-  `research/prismql-deliverables-depth-2026-06-27.md` (four sonar-deep-research calls at
-  `reasoning_effort=high` + 1 perplexity_reason + 3 Context7 calls for Chumsky/DataFusion API).
-  **D-C8-1 PIPED SURFACE = SHIP IN DAY-2.** KQL/PRQL-style `|`-pipe syntax (`where`/`summarize`
-  /`stats`/`project`/`extend`/`join`/`order`/`limit` plus `FIND`/`entity()` and `SEQUENCE…THEN`
-  as security-domain operators) desugars to the SAME DataFusion logical plan as the SQL surface —
-  NOT a second engine. Proven viable by PRQL + RunReveal pql (both Rust-native, both compile to
-  SQL). MANDATORY: expose "show desugared SQL / EXPLAIN" (DSL-debugging caveat). Honest cost:
-  tooling (LSP server, L-C8-3) carries as much learnability weight as pipe syntax; learnability
-  claims in the literature are design-rationale + anecdote, NOT controlled studies.
-  **D-C8-2 ENTITY-RESOLUTION AS OF REPRODUCIBILITY = DEFERRED (OQ-C8-ASOF)** pending
-  `research/prismql-asof-version-resolution-2026-06-27.md` + human decision. Three options
-  researched: live-registry-snapshot (non-reproducible) vs frozen-registry-version
-  (audit-grade) vs bitemporality (may unify both axes). SETTLED regardless: weak-tier binding
-  = interval-containment AS OF EVENT TIME (default), closed-open `[valid_from, valid_to)`
-  (SQL:2011), composite `(observable, namespace/site)` key; strong-tier = exact; tier policy
-  in registry; `AS OF <expr>` clause exists (default EVENT TIME). LIVE-vs-FROZEN choice deferred.
-  **D-C8-3 OCSF VERSION-BINDING = DEFERRED (OQ-C8-OCSFVER)** pending the SAME research pass.
-  Options: version-agnostic canonical names + catalog reconciliation vs explicit `@ocsf:<ver>`
-  pin vs catalog-version-pinning. Interaction with D-C8-2: forensic re-query may need BOTH
-  as-of-event-time entity resolution AND as-of-version schema binding. SETTLED regardless:
-  canonical OCSF field names as identifiers; `native.<source>.<field>` namespace for raw values;
-  retain-originals pattern; compatibility tiers (stable vs version-sensitive) in catalog.
-  **LEANS CONFIRMED:** FIND keyword (resolves §12.1 "FIND vs PIVOT vs SEARCH"); entity-pivot
-  two-surface design (`FIND` standalone + `entity()` predicate in WHERE) with extended EBNF
-  adding `AS OF` + `tier_hint` + `native.*` field_ref; multi-hop forward-compat target =
-  SQL/PGQ GRAPH_TABLE (NOT day-2; DataFusion not yet implementing it [model-knowledge]);
-  single LSP server reused by Monaco + CLI ariadne + NL→PrismQL validate-repair loop (NL2KQL
-  judge pattern; four catalogs: grammar, OCSF-per-version, native-field, entity registry;
-  unknown-field→nearest-match + missing-time-bound→quick-fix; schema-aware logic in server,
-  not Monaco); NL→PrismQL guardrails = same parser/planner diagnostics + existing mandatory-
-  time-bound NFR + C3 cost-degrade (no new agent-specific cost machinery); recipe format =
-  Sigma-aligned metadata (stable rule_id, semver version, ATT&CK tags, required entities +
-  data_sources) + Git versioning + CI harness (Arrow/Parquet fixtures, match/no-match
-  assertions via DataFusion) + Sigma import docs-guided (day-2), automated translator deferred
-  (E-RULE-XLATE-001); Sigma→PrismQL examples in recipe library NOW (C6 L-C6-3 directive).
-  Open questions: OQ-C8-ASOF (deferred D-C8-2), OQ-C8-OCSFVER (deferred D-C8-3),
-  OQ-C8-NATIVE-RESIDENCY (`native.*` vs §13.6 A7 residency tags), OQ-C8-RECIPE-SCHEMA
-  (metadata schema + CI fixture shape), OQ-C8-GRAPHTABLE-GRAMMAR (day-2 grammar reservation
-  for multi-hop). Downstream SAP-1: desugar-decision / AS OF audit / injected-window events
-  may need BC-2.16.002 catalog rows (flagged, NOT actioned). C8 decision block appended at
-  §12 in-place. Proposed epic: E-PRISMQL-GRAMMAR-001.
+  `research/prismql-deliverables-depth-2026-06-27.md` (four sonar-deep-research + 1
+  perplexity_reason + 3 Context7 calls) + **C8 FOLD research:
+  `research/prismql-asof-version-resolution-2026-06-27.md`** (3 perplexity_research at
+  reasoning_effort=high + 2 perplexity_ask for targeted verification — bitemporality as
+  unifying answer, Fork A entity-AS-OF, Fork B OCSF version-binding, interaction, costs).
+  **D-C8-1 PIPED SURFACE = SHIP IN DAY-2.** KQL/PRQL-style `|`-pipe syntax desugars to the
+  SAME DataFusion logical plan — NOT a second engine. Proven viable by PRQL + RunReveal pql.
+  MANDATORY: expose "show desugared SQL / EXPLAIN."
+  **D-C8-2 ENTITY-RESOLUTION AS OF REPRODUCIBILITY = RESOLVED: BITEMPORALITY (C8 FOLD
+  2026-06-27).** OQ-C8-ASOF CLOSED. Adopt the BITEMPORAL REGISTRY (valid-time
+  interval-containment, settled + transaction-time axis, resolved here). A single `AS OF KNOWN
+  <T>` decision-time knob pins the entity-registry transaction-time. Fresh-by-default (absent
+  `AS OF KNOWN <T>`, queries use the LATEST registry state). Forensic / saved-finding path:
+  stamp findings at §14.5 replay-link with decision-time T → `AS OF KNOWN T` on replay.
+  Prism-novel differentiator: no commercial security tool (Chronicle/Sentinel/Splunk-ES/
+  ServiceNow CMDB) implements true bitemporality for entity resolution. HONEST COST: (a)
+  transaction-time axis on registry = real storage (bounded to registry + catalog, not event
+  stream; magnitude INCONCLUSIVE — must measure); (b) data-snapshot pinning for full
+  `AS OF KNOWN <T>` over C5 cold tier DEFERRED — DataFusion + iceberg-rust lacks native
+  time-travel as of 2026 (OQ-C8-DATASNAPSHOT, new cost-gated open item). PIV-C8-1/2/3 added
+  to capture artifact (storage axiom; fresh-by-default; scope discipline).
+  **D-C8-3 OCSF VERSION-BINDING = RESOLVED: PINNABLE CATALOG + UNIFIED AS OF KNOWN <T>
+  (C8 FOLD 2026-06-27).** OQ-C8-OCSFVER CLOSED. Keep version-agnostic canonical OCSF names
+  as default; make the schema-catalog VERSION an IMMUTABLE, PINNABLE artifact (Confluent
+  schema-id lineage). `AS OF KNOWN <T>` pins BOTH the entity-registry transaction-time (D-C8-2)
+  AND the active catalog-version — one decision-time coordinate governs "the world as prism
+  interpreted it at T." Fresh-by-default (absent `AS OF KNOWN <T>`, latest catalog version
+  active). OCSF compatibility tiers (stable vs version-sensitive) must be derived from real
+  OCSF 1.1→1.3→1.6 diffs (OCSF publishes none — prism-novel work). Catalog-pin ≠ full data
+  reproducibility: for the live-sensor tier (upstream API data not under prism version control),
+  `AS OF KNOWN <T>` pins interpretation only; upstream data may have changed — MUST be disclosed
+  in result metadata. Prism-novel differentiator: unified `AS OF KNOWN <T>` spanning
+  entity-registry + schema-catalog = "what did we know, and what was true, as of T." PIV-C8-4/5/6
+  added (catalog immutability; version-sensitive field diagnostic; honest result-metadata).
+  **LEANS CONFIRMED:** FIND keyword; entity-pivot two-surface design; multi-hop GRAPH_TABLE
+  forward-compat (NOT day-2); single LSP server (Monaco + CLI ariadne + NL→PrismQL loop);
+  NL→PrismQL guardrails reuse existing diagnostics; recipe format Sigma-aligned + CI harness.
+  Open questions: OQ-C8-DATASNAPSHOT (cold-tier data-snapshot pinning, cost-gated, new),
+  OQ-C8-NATIVE-RESIDENCY, OQ-C8-RECIPE-SCHEMA, OQ-C8-GRAPHTABLE-GRAMMAR. Downstream SAP-1:
+  desugar-decision / AS OF KNOWN audit / injected-window events may need BC-2.16.002 catalog
+  rows (flagged, NOT actioned). Proposed epic: E-PRISMQL-GRAMMAR-001.
 
 - **C9 Config Management FULLY DECIDED + CAPTURED 2026-06-27 (human). All three open questions
   (Q1 authority/versioning, Q2 canary mechanics, Q3 schema-versioning/deployment-awareness)

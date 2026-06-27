@@ -5,8 +5,8 @@ do_not_execute: true
 decided: "2026-06-27 (human)"
 candidate_adr_slots:
   - "ADR-PROP-C8-1: PrismQL piped surface — ship in day-2, desugars to DataFusion logical plan"
-  - "ADR-PROP-C8-2: Entity-resolution AS OF reproducibility — DEFERRED pending targeted research (OQ-C8-ASOF)"
-  - "ADR-PROP-C8-3: OCSF version-binding model — DEFERRED pending targeted research (OQ-C8-OCSFVER)"
+  - "ADR-PROP-C8-2: Entity-resolution AS OF reproducibility — RESOLVED 2026-06-27: BITEMPORALITY (valid-time + transaction-time; AS OF KNOWN <T> unified knob; fresh-by-default)"
+  - "ADR-PROP-C8-3: OCSF version-binding model — RESOLVED 2026-06-27: pinnable immutable catalog versions unified under same AS OF KNOWN <T> knob as D-C8-2; data-snapshot pinning deferred (OQ-C8-DATASNAPSHOT)"
   - "ADR-PROP-C8-LEAN-1: Entity-pivot grammar — FIND keyword + entity() predicate + AS OF clause"
   - "ADR-PROP-C8-LEAN-2: Multi-hop pivot — SQL/PGQ GRAPH_TABLE as forward-compat target only (NOT day-2)"
   - "ADR-PROP-C8-LEAN-3: Authoring intelligence — single LSP server reused by Monaco + CLI + NL→PrismQL agent"
@@ -40,17 +40,21 @@ traces_to:
   - epics E-PRISMQL-GRAMMAR-001 (PrismQL grammar / piped surface / LSP)
   - epics E-RULE-XLATE-001 (Sigma translator — deferred; recipe library shipped now)
   - research/prismql-deliverables-depth-2026-06-27.md (primary research basis — all six Q1–Q6 depth questions)
+  - research/prismql-asof-version-resolution-2026-06-27.md (C8 FOLD research — bitemporality / AS OF KNOWN resolution for D-C8-2 + D-C8-3)
   - CLAUDE.md (#[non_exhaustive] discipline; SAP-1 structured event catalog; error taxonomy E-QUERY-NNN)
 ---
 
 # ADR-PROP — PrismQL Deliverables (C8)
 
-> **STATUS: PARTIALLY DECIDED 2026-06-27 (human). Two items (D-C8-2 entity-resolution AS OF
-> reproducibility; D-C8-3 OCSF version-binding model) are DEFERRED pending a targeted research
-> pass (file: `research/prismql-asof-version-resolution-2026-06-27.md`). All other decisions and
-> leans are DECIDED 2026-06-27 (human).** This is a CAPTURE artifact for the side-analysis C8
-> program. `do_not_execute: true`. Real ADR numbers and formal ARCH-INDEX.md rows are deferred to
-> the morph execution (post-demo, post-T14, gated on brief-reframe sign-off §5.1).
+> **STATUS: FULLY DECIDED 2026-06-27 (human). All five decisions (D-C8-1 through D-C8-3 + leans
+> L-C8-1..5) are DECIDED. D-C8-2 (entity-resolution AS OF reproducibility) and D-C8-3 (OCSF
+> version-binding model) were previously DEFERRED; both resolved 2026-06-27 via C8 FOLD using
+> research `research/prismql-asof-version-resolution-2026-06-27.md`. Resolution: BITEMPORALITY
+> (valid-time + transaction-time; single `AS OF KNOWN <T>` knob unifying both axes; fresh-by-
+> default; data-snapshot pinning deferred as OQ-C8-DATASNAPSHOT).** This is a CAPTURE artifact
+> for the side-analysis C8 program. `do_not_execute: true`. Real ADR numbers and formal
+> ARCH-INDEX.md rows are deferred to the morph execution (post-demo, post-T14, gated on
+> brief-reframe sign-off §5.1).
 
 > **Research basis:** `research/prismql-deliverables-depth-2026-06-27.md` — four
 > `perplexity_research` (sonar-deep-research, `reasoning_effort=high`) calls; one
@@ -92,9 +96,11 @@ Six open depth questions drove the research pass:
 5. **Q5:** Authoring intelligence — LSP server, Monaco, ariadne, NL→PrismQL validate-repair.
 6. **Q6 / §14.7:** Portability / recipe format — detection-as-code, Sigma import.
 
-C8 settles Q1/Q3/Q5/Q6 and the non-reproducibility-mechanism parts of Q2/Q4. Q2's
-live-vs-frozen reproducibility choice and Q4's version-agnostic-vs-explicit-pin choice are
-DEFERRED to the targeted research pass flagged as OQ-C8-ASOF and OQ-C8-OCSFVER.
+C8 settles Q1/Q3/Q5/Q6 and ALL of Q2/Q4. Q2's live-vs-frozen reproducibility choice and Q4's
+version-agnostic-vs-explicit-pin choice were DEFERRED to the targeted research pass
+`prismql-asof-version-resolution-2026-06-27.md` (OQ-C8-ASOF / OQ-C8-OCSFVER); both are now
+RESOLVED via C8 FOLD 2026-06-27: BITEMPORALITY, unified `AS OF KNOWN <T>` knob (see D-C8-2 and
+D-C8-3). Remaining open item: OQ-C8-DATASNAPSHOT (cold-tier data-snapshot pinning, deferred).
 
 ---
 
@@ -172,112 +178,214 @@ metric for prism, user research is required — no shortcut exists in the litera
 
 ---
 
-### D-C8-2 — Entity-Resolution AS OF Reproducibility: DEFERRED (OQ-C8-ASOF)
+### D-C8-2 — Entity-Resolution AS OF Reproducibility: RESOLVED 2026-06-27 (BITEMPORALITY)
 
-**DEFERRED 2026-06-27 (human-directed: "targeted research for both options").**
+**RESOLVED 2026-06-27. Previously DEFERRED (OQ-C8-ASOF). Research basis:
+`research/prismql-asof-version-resolution-2026-06-27.md`.**
 
-A focused research pass is in flight at
-`research/prismql-asof-version-resolution-2026-06-27.md`. The deferred question is:
+**DECISION: ADOPT THE BITEMPORAL REGISTRY — valid-time interval-containment (settled) PLUS a
+transaction-time axis — as the entity-resolution reproducibility model.**
 
-**Live-registry snapshot** (fresh, non-reproducible: a re-query after registry edits may return
-different entity bindings) **vs frozen-registry-version** (reproducible/audit-grade: a fixed
-registry snapshot is pinned to the query execution) **vs bitemporality** (valid-time +
-transaction-time, giving BOTH from one model — may unify the live and frozen axes).
+The research pass confirms that the live-vs-frozen fork is a false choice at the storage level:
+to get "frozen-registry-version" reproducibility at all, you must store a transaction-time
+(system-versioned) axis on the registry anyway. Once you pay for that second axis, bitemporality
+(exposing it as a per-query knob) is the near-free generalization that delivers BOTH the
+human's original options from one model. [SQL:2011; Snodgrass; research §2.1]
 
-The research pass is examining whether ONE as-of mechanism unifies both this entity-resolution
-axis and the OCSF version-binding axis (OQ-C8-OCSFVER). A forensic re-query may need BOTH
-as-of-event-time entity resolution AND as-of-version schema binding to be reproducible. The
-deferred choice is whether that reproducibility is explicit (frozen pin) or implicit (live
-snapshot with disclosed non-determinism).
+**The unified reproducibility primitive:**
 
-**Record as OPEN ITEM OQ-C8-ASOF:** "resolution pending research pass + human decision — fold
-on return."
+- **`AS OF <expr>`** (valid-time / event-time axis — SETTLED): binds weak-tier observables
+  as-of the row's event-time. Default = EVENT TIME. This axis was already settled in §17.15-A5.
+- **`AS OF KNOWN <T>`** (transaction-time / decision-time axis — RESOLVED HERE): when set,
+  pins the entity-registry transaction-time to `T`, so "the exact registry state prism knew at
+  decision-time T" governs all entity-resolution in the query. Absent this clause, queries use
+  the LATEST (fresh) registry state — the empirically-dominant default per XTDB telemetry.
+  [XTDB-docs; research §1.2]
 
-**SETTLED parts (hold regardless of the deferred choice):**
+**Fresh-by-default posture:** Queries resolve against the current/latest registry state unless
+`AS OF KNOWN <T>` is explicitly specified. This matches the prior Q2 LEAN (live-snapshot) and
+the XTDB "as-of-now" default, while making the non-reproducibility caveat *resolvable on demand*
+by pinning the transaction-time axis. [research §5]
 
-The following are decided and do NOT change based on the live-vs-frozen outcome:
+**Forensics / saved-findings use case:** When a finding is created (§14.5 replay-link), stamp
+it with the decision-time `T` at creation time. Replaying the finding invokes `AS OF KNOWN T`
+automatically — the analyst sees exactly what triggered the finding, even after later registry
+corrections. This mirrors the C6 backtesting posture (snapshot-id + rule-version pin) and the
+C7 per-update audit-trail decision (human accepted the storage cost of full historization where
+audit-grade replay matters). [research §5; posture-consistent with C6/C7]
 
-1. **Temporal binding model:** weak-tier observables (e.g., DHCP IP→asset mappings) resolve by
-   **interval-containment as-of EVENT-TIME (default)**, NOT query-time. The registry's validity
-   periods use **closed-open `[valid_from, valid_to)` intervals** (SQL:2011 application-time
-   semantics; avoids lease-boundary double-binding; "current" rows use far-future `valid_to =
-   9999-12-31`).
-2. **`AS OF <expr>` clause exists** and defaults to EVENT TIME. Explicitly stated in the grammar
-   sketch (EBNF, §"Recommended grammar" below). Analytic default: the row's event-time is the
-   as-of anchor; override to a literal timestamp for "resolve as the world was at T."
-3. **Composite identity key:** `(observable, namespace/site)` — not a bare IP/username — to
-   handle simultaneous multi-asset mappings (NAT, address-space overlap). Flink's documented
-   primary-key constraint failure mode for multi-asset is the warning reference.
-4. **Strong-tier IDs bind exactly** (no temporal interval needed; binding is exact by definition
-   per §17.15-A5).
-5. **Tier policy lives in the registry** with an optional query-level `USING` override for
-   strong-only resolution (`USING STRONG`; default = registry policy).
+**Prism-novel differentiator:** No surveyed commercial security tool (Chronicle, Sentinel,
+Splunk ES, ServiceNow CMDB) implements true Snodgrass bitemporality for entity resolution.
+All use event-time + ingestion-time only; transaction-time-as-of for enrichment is essentially
+absent. This is a DFIR prior-art gap that prism closes systematically. [research §1.3]
 
-**Caveat on the live-registry default (must be disclosed regardless of final choice):**
+**HONEST COSTS (must not be glossed):**
 
-The live-registry default (current snapshot) means a re-query after registry edits can return
-different entity bindings than the original query. This is BETTER than Flink's drop-late
-behavior for retrospective investigation (late-learned alias mappings ARE reflected on re-query),
-at the cost of non-reproducibility across registry mutations. If reproducibility is chosen
-(frozen-registry-version), this caveat disappears but the mechanism becomes more complex. Either
-way, the EXPLAIN / result metadata MUST disclose the registry snapshot version used.
+- **`AS OF KNOWN <T>` entity-resolution half:** requires adding a transaction-time (system-
+  versioned) second axis to the registry. Cost is bounded to the registry + schema catalog —
+  NOT the high-volume event stream. Storage magnitude is real but unquantified (no surveyed
+  source provides amplification ratios; must be measured on real registry churn).
+  [research §1.4 — INCONCLUSIVE on magnitude]
+- **`AS OF KNOWN <T>` data-snapshot half (C5 cold tier):** pinning the DATA snapshot for full
+  "as-of-T" forensic reproducibility is a SEPARATE, COSTED item. DataFusion + `iceberg-rust`
+  does NOT yet expose native Iceberg time-travel by snapshot-id/timestamp as of 2026.
+  [research §3.3 — verified constraint]. The entity-resolution + OCSF-catalog-version halves
+  of `AS OF KNOWN <T>` are achievable without native Iceberg time-travel; the data-snapshot
+  half requires custom integration or upstream contribution. **Record data-snapshot pinning as
+  a phased/cost-gated sub-item: entity-registry + catalog-version pinning ships in day-2 scope;
+  cold-tier data-snapshot pinning is DEFERRED to a post-day-2 Iceberg time-travel milestone
+  (new open item OQ-C8-DATASNAPSHOT).**
+- **Two-axis cognitive cost for analysts.** Both axes present. Mitigation: the common
+  interactive-hunt case stays single-axis-simple (omit `AS OF KNOWN` → fresh semantics).
+  The transaction-time axis is "ubiquitous but opt-in" [XTDB-docs].
+- **Composite identity key is unchanged.** Simultaneous IP→multi-asset mappings (NAT/overlap)
+  still require `(observable, namespace/site)` regardless of bitemporality.
 
-[research/prismql-deliverables-depth-2026-06-27.md §Q2, §2.3–2.4 LEAN]
+**SETTLED parts (unchanged from pre-fold, still hold):**
+
+1. **Temporal binding model:** weak-tier observables resolve by **interval-containment as-of
+   EVENT-TIME (default)**, closed-open `[valid_from, valid_to)` (SQL:2011). "Current" rows use
+   far-future `valid_to = 9999-12-31`.
+2. **`AS OF <expr>` (valid-time) clause** exists, defaults to EVENT TIME.
+3. **`AS OF KNOWN <T>` (transaction-time) clause** ADDED by this resolution — pins registry
+   txn-time (and, per D-C8-3 below, also the OCSF schema-catalog version) to a single `T`.
+4. **Composite identity key:** `(observable, namespace/site)`.
+5. **Strong-tier IDs bind exactly** (no temporal interval needed; §17.15-A5).
+6. **Tier policy in registry;** optional query-level `USING STRONG` override.
+7. **EXPLAIN / result metadata** MUST disclose: which axes are pinned vs fresh; the registry
+   txn-time snapshot used; the live-federated-tier caveat (upstream API data not under prism
+   version control → reproducibility is interpretation-only for sensor-live tier).
+
+**PIV-C8-1 — Bitemporality storage axiom:** At implementation, verify that the registry table
+carries BOTH a `[valid_from, valid_to)` application-time period AND a `[db_from, db_to)` /
+`system_time_start` system-versioned period. A registry implementation that stores only valid-
+time (SCD2-only) is a **P1 violation** of D-C8-2 as resolved. The absence of the transaction-
+time axis makes `AS OF KNOWN <T>` semantically unimplementable.
+
+**PIV-C8-2 — AS OF KNOWN default (fresh-by-default axiom):** At implementation and in every
+adversary pass on stories touching entity resolution: confirm that queries WITHOUT `AS OF KNOWN
+<T>` resolve against the LATEST transaction-time (fresh), NOT against a pinned snapshot.
+Defaulting to a stale pin silently breaks live-hunt queries and violates the fresh-by-default
+posture.
+
+**PIV-C8-3 — `AS OF KNOWN <T>` scope discipline:** `AS OF KNOWN <T>` pins (a) entity-registry
+txn-time and (b) OCSF schema-catalog version atomically as one decision-time coordinate (per
+D-C8-3 unified model below). It does NOT automatically pin the C5 cold-tier data snapshot
+(that is the deferred OQ-C8-DATASNAPSHOT item). Result metadata MUST distinguish: "entity
+resolution and schema interpretation as of T" (achievable day-2) vs "data as of T" (deferred).
+
+[research/prismql-asof-version-resolution-2026-06-27.md §1, §2, §4, §5]
+[research/prismql-deliverables-depth-2026-06-27.md §Q2, §2.3–2.4 LEAN (generalized)]
 
 ---
 
-### D-C8-3 — OCSF Version-Binding Model: DEFERRED (OQ-C8-OCSFVER)
+### D-C8-3 — OCSF Version-Binding Model: RESOLVED 2026-06-27 (BITEMPORALITY + PINNABLE CATALOG)
 
-**DEFERRED 2026-06-27 (human-directed: "research this one as well").**
+**RESOLVED 2026-06-27. Previously DEFERRED (OQ-C8-OCSFVER). Research basis:
+`research/prismql-asof-version-resolution-2026-06-27.md`. Unified with D-C8-2 under a single
+`AS OF KNOWN <T>` decision-time primitive.**
 
-The same targeted research pass (`research/prismql-asof-version-resolution-2026-06-27.md`) is
-examining:
+**DECISION: Keep version-agnostic canonical OCSF names as the ergonomic default, but make the
+SCHEMA-CATALOG VERSION an IMMUTABLE, PINNABLE artifact (Confluent schema-id lineage), bound by
+the same `AS OF KNOWN <T>` decision-time knob as entity-resolution (D-C8-2).**
 
-**Version-agnostic canonical names + per-source-version schema-catalog reconciliation**
-(ergonomic: analyst writes `event.file.path`; catalog maps it to `file.path` in a v1.1 source
-and `file.full_path` in a v1.3 source) **vs explicit `@ocsf:<ver>` pin** (predictable /
-reproducible: analyst writes `event.file.path@ocsf:1.6`) **vs catalog-version-pinning-for-
-reproducibility** (Iceberg-snapshot-id analog: pin the catalog version alongside the query for
-audit re-runs).
+**The unified model — one decision-time knob, two interpretation layers:**
 
-The research is also examining whether the OCSF version-binding reproduciblity and the entity-
-resolution AS OF reproducibility (D-C8-2) can be unified by ONE as-of mechanism — so that a
-forensic re-query anchors BOTH the entity registry AND the OCSF schema version at the same point.
+Both OQ-C8-ASOF (entity-resolution reproducibility) and OQ-C8-OCSFVER (OCSF version-binding
+reproducibility) are structurally the same problem: a **mutable interpretation layer** between
+raw data and query logic, where an update to that layer changes results for an unchanged query
+over unchanged data. The transaction-time / "as-known-when" axis governs both:
+- Fork A's txn-time axis = "when the registry learned this IP↔asset mapping."
+- Fork B's txn-time axis = "which catalog version was in effect" (catalog-version IS a
+  transaction-time stamp for schema interpretation).
 
-**Record as OPEN ITEM OQ-C8-OCSFVER:** "resolution pending research pass + human decision —
-fold on return."
+Therefore **a single `AS OF KNOWN <T>` clause** pins BOTH the entity-registry transaction-time
+(D-C8-2) AND the schema-catalog version to `T`. A forensic re-query with `AS OF KNOWN T`
+reproduces "the world as prism interpreted it at decision-time T" — entity identity AND schema
+semantics. [research §4]
 
-**SETTLED parts (hold regardless of the deferred choice):**
+**Schema-catalog versioning mechanics (Confluent schema-id lineage):**
 
-1. **Canonical OCSF field names are the query identifiers.** Analysts do not write per-source
-   native field names in the canonical path. The OCSF path (e.g. `event.file.path`) is stable
-   even as the per-source binding changes across versions.
-2. **Native fields reachable via a reserved `native.<source>.<field>` namespace** in the same
-   query. This is the ASIM `EventOriginalResultDetails` analog — normalized fields never lose
-   their raw source value. A `native.*` ref may carry `raw` residency class (interacts with the
-   residency policy artifact — see Open Questions).
-3. **Retain-originals pattern adopted** (ASIM `EventOriginalResultDetails` lineage): a
-   normalized field NEVER silently loses its raw source value. The raw value is reachable via
-   `native.<source>.<field>` in the same query.
-4. **Compatibility tiers in the catalog:** stable-across-versions fields (safe for implicit
-   cross-version mapping) vs version-sensitive fields (flagged; need explicit handling or an
-   `@ocsf:<ver>` pin). The OCSF upstream version history drives the tier classification.
-5. **Value-level mapping** for enum drift (e.g., `network.direction` `ingress/egress` →
-   `inbound/outbound` across versions) via catalog lookup tables. Fields absent in the source's
-   stamped version → null-with-diagnostic or source-excluded (not silent empty).
+- Each published catalog revision receives a **stable, immutable catalog-version ID** (analogous
+  to Confluent schema-id). Once published, a catalog version is append-only; no in-place mutation.
+- Version-agnostic canonical OCSF names remain the default query identifiers (`event.file.path`,
+  etc.) — ergonomic, no per-query annotation required.
+- The optional **`@ocsf:<ver>`** per-field pin is retained for version-sensitive fields where
+  an analyst needs explicit control.
+- When `AS OF KNOWN <T>` is set, the active catalog version is the one in effect at `T` — this
+  binds both per-field mappings AND the compatibility-tier classification.
+- When no `AS OF KNOWN <T>` is set, the LATEST published catalog version is used (fresh default).
 
-**NOTE: version-aware OCSF field binding across mixed-version sources is AHEAD OF PRIOR ART.**
-The ASIM/CIM/UDM/OCSF comparison in the research is explicit: no surveyed tool documents
-per-source-version binding with a compatibility-tier catalog. The mechanism is grounded by
-analogy (ASIM version fields + CIM per-source alias mappings), but the catalog must be validated
-against real OCSF 1.x version diffs before implementation. Do not assume it falls out of an
-existing library.
+**Compatibility tiers (prism-native, derived from OCSF version diffs):**
 
-**INTERACTION WITH D-C8-2:** A forensic re-query may need BOTH as-of-event-time entity
-resolution (D-C8-2 settled parts) AND as-of-OCSF-version schema binding to be fully
-reproducible. The research pass is examining whether one mechanism serves both axes.
+OCSF publishes NO compatibility tiers (confirmed by research: "not fully backward compatible at
+minor versions"). Prism MUST DERIVE these from concrete OCSF 1.1→1.3→1.6 version diffs:
+- **Stable fields:** safe for implicit cross-version mapping (additive-only, name/type/semantics
+  unchanged across all supported OCSF versions). Map transparently; no pin required.
+- **Version-sensitive fields:** renamed, type-changed, or semantically-shifted across versions.
+  Flagged with diagnostic in the LSP server; require explicit `@ocsf:<ver>` pin or emit a
+  compatibility warning. Value-level catalog lookup tables cover enum drift.
+- **Tier derivation is prism-novel work** — no OCSF-supplied shortcut exists. Build from real
+  OCSF 1.x version diffs before implementation. [research §3.4 — INCONCLUSIVE on OCSF tiers]
 
-[research/prismql-deliverables-depth-2026-06-27.md §Q4, §4.3–4.4 LEAN]
+**Catalog-pin ≠ full data reproducibility (honest disclosure, mandatory):**
+
+A schema-catalog-version pin reproduces *interpretation* (how fields are normalized) but does
+NOT reproduce *raw-data drift* unless the underlying data is also versioned/snapshotted. For the
+live federated sensor tier (upstream APIs not under prism version control), reproducibility is
+fundamentally interpretation-only — the data may have changed in the upstream system. This MUST
+be disclosed in EXPLAIN / result metadata. For the C5 cold tier (Iceberg), full reproducibility
+requires data-snapshot pinning (the deferred OQ-C8-DATASNAPSHOT item). [research §3.3]
+
+**Prism-novel differentiator:**
+
+No surveyed tool documents per-source-version OCSF field binding with a pinnable catalog +
+compatibility-tier classification. The unified `AS OF KNOWN <T>` knob spanning entity-registry
++ schema-catalog is also prism-novel as a combined surface (each half is literature-settled
+individually). These together constitute "what did we know, and what was true, as of T" —
+genuine bitemporality applied to DFIR reproducibility. [research §1.3, §4]
+
+**HONEST COSTS:**
+
+- **Catalog versioning machinery:** immutable catalog-version IDs + append-only cadence +
+  LSP schema-catalog lookup against pinned version = non-trivial catalog management.
+- **OCSF tier-derivation is new work.** No OCSF-supplied stable-vs-version-sensitive table.
+  prism must build + maintain it from version diffs (OCSF 1.1→1.3→1.6). Ongoing maintenance
+  cost as OCSF evolves.
+- **Live-federated-tier honesty:** for sensor-API data the interpretation pins but the data
+  does not. Result metadata must surface this distinction clearly to avoid analyst over-trust.
+- **Data-snapshot half (OQ-C8-DATASNAPSHOT):** same as D-C8-2 — deferred, requires Iceberg
+  time-travel work or upstream contribution.
+
+**SETTLED parts (unchanged from pre-fold, still hold):**
+
+1. **Canonical OCSF field names** are the query identifiers.
+2. **`native.<source>.<field>` namespace** for raw source values (retain-originals, ASIM lineage).
+3. **Compatibility tiers** (stable vs version-sensitive) in catalog — OCSF-derived by prism.
+4. **Value-level mapping** for enum drift via catalog lookup tables.
+5. **`@ocsf:<ver>` per-field pin** is retained for version-sensitive fields.
+6. **`AS OF KNOWN <T>` also pins the catalog version** (unified with D-C8-2).
+7. **Fresh-by-default:** absent `AS OF KNOWN <T>`, latest catalog version is active.
+
+**PIV-C8-4 — Catalog immutability invariant:** At implementation, verify that the schema-
+catalog storage model makes published catalog versions append-only / immutable. An implementation
+that mutates an existing catalog version in place breaks `AS OF KNOWN <T>` reproducibility
+for all previously-issued queries pinned to that version. This is a **P1 violation**.
+
+**PIV-C8-5 — Version-sensitive field diagnostic coverage:** At implementation, the LSP server
+MUST flag version-sensitive fields (per the derived OCSF compatibility-tier table) with a
+diagnostic when no `@ocsf:<ver>` pin is present. Silent cross-version mapping of a
+version-sensitive field is a **P1 finding** (may silently produce wrong results across
+mixed-version sources).
+
+**PIV-C8-6 — Honest result-metadata disclosure:** Every query result envelope MUST include:
+(a) whether `AS OF KNOWN <T>` was set or fresh; (b) the catalog-version-id used; (c) for
+the live-sensor tier, the explicit label "interpretation-only reproducibility — upstream data
+not version-controlled." Omitting the live-tier caveat is a **P1 finding** under the
+production-grade principle (analysts must not over-trust "reproducible").
+
+[research/prismql-asof-version-resolution-2026-06-27.md §3, §4, §5]
+[research/prismql-deliverables-depth-2026-06-27.md §Q4, §4.3–4.4 LEAN (extended)]
 
 ---
 
@@ -535,8 +643,9 @@ pySigma backend (per C6 L-C6-3: "Ship Sigma→PrismQL examples in the recipe lib
 
 | # | Question | Status | Dependency |
 |---|---------|--------|------------|
-| **OQ-C8-ASOF** | Entity-resolution AS OF reproducibility: live-registry snapshot (non-reproducible) vs frozen-registry-version (audit-grade) vs bitemporality (unifies both) | **OPEN** — resolution pending research pass `prismql-asof-version-resolution-2026-06-27.md` + human decision. "Fold on return." | D-C8-2 deferred |
-| **OQ-C8-OCSFVER** | OCSF version-binding: version-agnostic canonical names + catalog reconciliation vs explicit `@ocsf:<ver>` pin vs catalog-version-pinning for reproducibility | **OPEN** — resolution pending the SAME research pass (OQ-C8-ASOF and OQ-C8-OCSFVER may unify) + human decision. "Fold on return." | D-C8-3 deferred |
+| **OQ-C8-ASOF** | Entity-resolution AS OF reproducibility: live-registry snapshot vs frozen-registry-version vs bitemporality | **RESOLVED 2026-06-27** — BITEMPORAL registry (valid-time + transaction-time). `AS OF KNOWN <T>` pins registry txn-time. Fresh-by-default. See D-C8-2. PIV-C8-1/2/3 added. | D-C8-2 resolved |
+| **OQ-C8-OCSFVER** | OCSF version-binding: version-agnostic canonical names + catalog reconciliation vs explicit `@ocsf:<ver>` pin vs catalog-version-pinning for reproducibility | **RESOLVED 2026-06-27** — Pinnable immutable catalog versions (Confluent lineage). `AS OF KNOWN <T>` also pins catalog-version (unified with D-C8-2). Fresh-by-default. See D-C8-3. PIV-C8-4/5/6 added. | D-C8-3 resolved |
+| **OQ-C8-DATASNAPSHOT** | Cold-tier data-snapshot pinning for full `AS OF KNOWN <T>` reproducibility: DataFusion + `iceberg-rust` lacks native time-travel as of 2026. Custom integration or upstream contribution required to make the data-snapshot half of `AS OF KNOWN <T>` work for the C5 Iceberg cold tier. | **OPEN** — cost-gated; deferred post-day-2. Entity-registry + catalog-version pinning ships day-2; data-snapshot pinning = future Iceberg time-travel milestone. | New; added by C8 FOLD 2026-06-27 |
 | **OQ-C8-NATIVE-RESIDENCY** | The `native.<source>.<field>` namespace and its interaction with §13.6 multi-schema descriptor + the A7 per-field residency tag model. A `native.*` ref may carry `raw` residency class — interacts with the residency policy artifact (whether a raw-residency native field ref is pushable only if the source is in a permitted residency zone). | Open architect decision at morph | Before implementing the native field namespace |
 | **OQ-C8-RECIPE-SCHEMA** | Exact recipe-format Sigma-metadata schema (field types, required vs optional, validation rules) + CI fixture shape (Parquet fixture format, match/no-match assertion schema) | Open design at morph | Before implementing the recipe library or CI harness |
 | **OQ-C8-GRAPHTABLE-GRAMMAR** | Whether the day-2 `FIND` / `entity()` grammar needs a concrete grammar reservation (placeholder syntax) for the SQL/PGQ GRAPH_TABLE multi-hop forward-compat target (L-C8-2), or whether "do not foreclose" is sufficient without a syntax placeholder | Open architect decision at morph | Before finalizing §12.1 grammar ADR |
@@ -577,7 +686,7 @@ All flagged above; BC-2.16.002 amendment is morph-time work.
 | **Learnability claims are unproven.** | PRQL, pql, KQL all assert ergonomic benefits; none provide controlled studies. The convergent practice is "piped + tooling" — not "piped alone." The LSP server is as load-bearing as the pipe syntax for the approachability thesis. |
 | **Version-aware OCSF binding is ahead of prior art.** | No surveyed tool documents per-source-version OCSF field binding with a compatibility-tier catalog. The design is analogically grounded but must be validated against real OCSF 1.x version diffs before implementation. Cost: building + maintaining a per-version OCSF schema catalog with compatibility tiers and value-mapping tables. |
 | **Multi-hop deferred but grammar must not foreclose it.** | SQL/PGQ GRAPH_TABLE is the only SQL-compatible multi-hop precedent. DataFusion does not implement it today [model-knowledge — not version-verified]. The day-2 grammar reservation is cheap; implementing it is expensive. Do not let the forward-compat reservation become scope-creep. |
-| **Entity-resolution reproducibility choice (OQ-C8-ASOF) is non-trivial.** | The live-vs-frozen fork is a real tradeoff between operational simplicity and forensic auditability. The bitemporality option (valid-time + transaction-time) may unify both but is architecturally heavier. The research pass must return before the EXPLAIN / result-metadata design can be finalized. |
+| **Bitemporal registry adds a second storage axis (resolved D-C8-2/D-C8-3).** | The transaction-time axis is required to make `AS OF KNOWN <T>` work. Storage cost is bounded to the registry + catalog (not the event stream), but magnitude must be measured on real registry churn. Data-snapshot pinning for the C5 cold tier requires additional Iceberg time-travel work (OQ-C8-DATASNAPSHOT, deferred). EXPLAIN / result-metadata design must distinguish interpretation-pinned (day-2) from data-pinned (deferred). |
 | **LSP server is a substantial separate investment.** | Language Server Protocol + Monaco integration + ariadne CLI + four schema catalogs + planner-derived diagnostics is a multi-week engineering deliverable. Do not underestimate it relative to the grammar itself. |
 
 ---
@@ -650,6 +759,6 @@ E-RULE-XLATE-001.
 | **E-PRISMQL-GRAMMAR-001** | Primary proposed epic. Covers: piped surface desugar layer; `FIND` / `entity()` grammar extension with `AS OF` + `tier_hint`; LSP server (four catalogs, diagnostics, quick-fixes); Monaco integration; ariadne CLI rendering; NL→PrismQL validate-repair loop. |
 | **E-RULE-XLATE-001** | Deferred automated Sigma translator. L-C8-5 defines the pySigma-style backend architecture and fidelity-report requirement (inherited from C6 L-C6-3). Not shipped in day-2. |
 | **BC-2.16.002 §Postconditions** | SAP-1 obligations listed in §Downstream SAP-1 Obligations above (morph-time BC work). Key: piped-desugar event, entity-resolution AS OF audit event, possibly LSP-unknown-field-suggestion event. |
-| **ADR-TBD: PrismQL piped surface + LSP server** | This ADR-PROP covers D-C8-1 + L-C8-1..5. The real ADRs (allocated at morph, ADR-NNN+) formalize: the desugar-to-DataFusion contract; the LSP server catalog schema; the entity-resolution AS OF semantics (once OQ-C8-ASOF is resolved); the OCSF version-binding model (once OQ-C8-OCSFVER is resolved). |
+| **ADR-TBD: PrismQL piped surface + LSP server** | This ADR-PROP covers D-C8-1 + L-C8-1..5. The real ADRs (allocated at morph, ADR-NNN+) formalize: the desugar-to-DataFusion contract; the LSP server catalog schema; the bitemporal entity-resolution model + `AS OF KNOWN <T>` grammar (D-C8-2 resolved); the OCSF version-binding + pinnable catalog model (D-C8-3 resolved); PIV-C8-1..6 implementation invariants. |
 | **ADR-TBD: Recipe format + CI harness** | L-C8-5 formalized as a separate ADR covering the metadata schema, semver policy, Parquet fixture format, and Sigma import contract. |
 | **matured-vision §16.4** | C8 decision block appended (2026-06-27). |
