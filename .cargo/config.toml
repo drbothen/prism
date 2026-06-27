@@ -101,6 +101,31 @@ debug = true
 #   only if `cargo build --timings` shows linking >15% of total time.
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+# sccache: opt-in distributed/shared compilation cache (local dev only).
+# -----------------------------------------------------------------------------
+# DO NOT uncomment on CI — CI runners have no sccache daemon and the build will
+# silently fall back to uncached (harmless but pointless).
+#
+# Install: cargo install sccache --locked  (or: brew install sccache)
+# Start daemon: sccache --start-server
+# Verify: sccache --show-stats
+#
+# Measured speedup (research §7d):
+#   Cold first build: no benefit (cache must be populated first).
+#   Warm incremental (same machine, different worktrees): ~25-40% build-time
+#   reduction for the crypto/datafusion dependency tree which changes rarely.
+#   Cross-worktree sharing: sccache shares across all .worktrees/<story>/ because
+#   it caches by input hash, not by $CARGO_TARGET_DIR path.
+#
+# To enable: uncomment the [build] section below, ensure sccache is installed
+# and the daemon is running, then run `cargo build` to verify it is used
+# (sccache --show-stats should show cache hits after the second build).
+#
+# [build]
+# rustc-wrapper = "sccache"
+# -----------------------------------------------------------------------------
+
 # Optional: increase build-time parallelism for the dev profile if the
 # default codegen-units=256 is somehow being clamped by an environment
 # variable elsewhere. Uncomment only after measurement.
