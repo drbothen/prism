@@ -525,6 +525,64 @@ The role noun for a satellite that acts as both executor and upstream relay in t
 > collector subtype declares `pushdown_target = buffer`; minimum DataFusion version = 50.x;
 > `#[non_exhaustive]` on all descriptor structs (CLAUDE.md discipline).
 
+> **DECIDED 2026-06-27 (human) — C4 Dynamic-Schema / Configure-Schema Connectors.**
+> Four architecture decisions confirmed; leans confirmed. Capture artifact:
+> `specs/day2-design-decisions/ADR-PROP-dynamic-schema-connectors.md`
+> (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+> `research/dynamic-schema-connectors-2026-06-27.md`. Hardening pass on
+> boundary-normalization + WASM sandbox mechanics in flight
+> (`research/connector-boundary-sanitization-wasm-2026-06-27.md`).
+>
+> **D-C4-1 Boundary-normalization scope = ALL CONNECTORS including existing OCSF security
+> sensors (CrowdStrike/Cyberint/Claroty/Armis). NO trusted-source exemption.** A mandatory
+> fail-closed connector-boundary normalization/sanitization chokepoint (NFC + single-script
+> allowlist + length-cap + control-char/bidi reject + confusable/skeleton detection +
+> structural data/instruction separation + read-only-default action layer) applies to every
+> source before any schema element or value reaches an agent. Honest cost: adds a
+> normalization chokepoint and latency to the existing prism-sensors hot path — real
+> day-2 morph item; concrete buildable mechanism + hot-path performance cost under
+> hardening research (OQ-C4-1..3).
+>
+> **D-C4-2 Drift on upstream column REMOVAL = AUTO-NARROW + structured drift event.**
+> When an introspection probe detects a pinned column is gone upstream, Prism
+> automatically marks it unavailable and emits `connector.schema.drift.detected`. No
+> operator re-pin required for narrowing (safe: surface only shrinks). Column ADD upstream
+> → surface + ignore (invisible until re-pinned). Column RETYPE upstream → hard drift:
+> mark unavailable + surface + require re-pin. See D-C4-7 (confirmed lean) for full
+> drift classification.
+>
+> **D-C4-3 WASM code-connector escape-hatch COMMITTED in day-2.** Declarative TOML is the
+> default; an audited, sandboxed WASM escape-hatch (stronger posture than Airbyte's
+> no-sandbox `AIRBYTE_ENABLE_UNSAFE_CODE`) covers imperative cases: custom auth signing,
+> stateful/computed pagination, response reshape/flatten, dynamic stream generation,
+> async-job polling, non-REST protocols. Builds on Prism's existing plugin SDK
+> (`crates/prism-spec-engine/plugins/`); day-2 WASM connector capability/sandbox model
+> MUST be reconciled against the existing plugin SDK at morph time (not a parallel
+> mechanism). Sandbox details under OQ-C4-6.
+>
+> **D-C4-4 Hostile/suspicious identifier handling = QUARANTINE + RELABEL to safe
+> placeholder; original preserved (encoded) in audit field so operator sees the attack
+> without the agent ingesting it raw. HARD-REJECT only on hard violations (control chars /
+> bidi overrides / over-length).** Mechanism detail (encoding, placeholder naming scheme,
+> audit field format) under OQ-C4-4 hardening pass.
+>
+> **Confirmed leans:** static-declared TOML is the dogfood default (introspection/inference
+> = opt-in confirm-or-narrow-only probes, NEVER auto-widen); two-hop type mapping
+> source-native → Arrow → Prism ColumnType (map-to-canonical-or-reject; lossy coercions
+> weaken C3 pushdown exactness on that column to inexact; `lossy = true` TOML flag for
+> explicit fallback to Json/Text; timezone-naive silent cast = lossy coercion flagged;
+> do NOT reintroduce retired `prism_spec_engine::types::ColumnType` shadow enum —
+> ADR-024); drift = event to surface, never silent adaptation (Confluent BACKWARD/FORWARD/
+> FULL vocabulary; Fivetran supertype promotion explicitly rejected; Iceberg field-ID
+> evolution for cold tier); config-vs-code boundary test = formulaic REST/SQL/LDAP →
+> TOML; any imperative state / non-REST / custom signing → WASM; DataFusion integration:
+> `schema()->SchemaRef` built from PINNED TOML, boot-time C3↔C4 reconciliation invariant
+> (descriptor.columns ⊆ provider.schema().fields, fail-closed on over-declaration). C4
+> builds on C3 — the schema C4 discovers/declares is the surface C3 annotates with pushdown
+> exactness. Downstream SAP-1 obligations: BC-2.16.002 new catalog rows for
+> `connector.schema.drift.detected`, `connector.schema.identifier.sanitized`,
+> `connector.schema.identifier.rejected`, `connector.schema.coercion.lossy` — morph-time.
+
 ### 3.5 SIEM / Security Lake / Data Lake — federate-or-replace dual stance
 
 **Concept:** SIEMs, security lakes, and data lakes are not only competitors; they are
@@ -1796,6 +1854,16 @@ simultaneously:
 > Until then OT is the canonical example that makes the multi-schema thesis concrete and non-optional.
 > Cross-reference: §17.13 (OT protocol matrix, OCSF-OT verdict, safety constraints).
 
+> **DECIDED 2026-06-27 (human) — C4 Dynamic-Schema / Configure-Schema Connectors (architecture
+> decisions for §13 scope).** The design decisions for the §13 schema-axis model (static-declared
+> TOML as acquisition default; discover-then-pin; two-hop type mapping; drift classification;
+> WASM escape-hatch; boundary-normalization for all connectors; DataFusion integration with boot-time
+> C3↔C4 reconciliation invariant) have been captured. See §3.4 C4 decision block for the full
+> decision summary and `specs/day2-design-decisions/ADR-PROP-dynamic-schema-connectors.md` for the
+> full capture artifact (`do_not_execute: true`). These decisions directly address §13.1–§13.5 (onboarding
+> flow, scope dimensions, GAV/LAV mediation, WASM trust/validation) and feed E-CONNECTOR-DYNAMIC-001.
+> SAP-1 downstream obligations (4 new BC-2.16.002 catalog rows) are flagged for morph time.
+
 ---
 
 ## Section 14 — Detection Engine & Rule Editor (HUMAN-CONFIRMED 2026-06-25)
@@ -2278,6 +2346,35 @@ ephemeral/federated thesis. (The §2.4 honest tradeoff should be updated by PO t
   flagged: BC-2.16.002 new catalog rows for query.pushdown.decision + query.injected_default_window
   + query.override_applied (SAP-1); §12.2 NFR-JOIN-GUARD language amendment; E-CONNECTOR-
   CAPABILITY-DESCRIPTOR-001 proposed epic. §3.4 C3 decision block appended in-place.
+- **C4 Dynamic-Schema / Configure-Schema Connectors DECIDED + CAPTURED 2026-06-27 (human).**
+  Four architecture decisions D-C4-1..4 confirmed; leans L-C4-1..6 confirmed. Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-dynamic-schema-connectors.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/dynamic-schema-connectors-2026-06-27.md`. Hardening pass on boundary-normalization
+  + WASM sandbox in flight: `research/connector-boundary-sanitization-wasm-2026-06-27.md`
+  (OQ-C4-1..6 pending fold-on-return). Decisions cover: boundary-normalization scope = ALL
+  connectors including existing OCSF security sensors, NO trusted-source exemption
+  (D-C4-1 — honest cost: adds normalization chokepoint + latency to existing prism-sensors
+  hot path); drift on upstream column removal = auto-narrow + structured drift event,
+  NO re-pin required for narrowing (D-C4-2); WASM code-connector escape-hatch COMMITTED
+  in day-2, sandboxed (stronger posture than Airbyte no-sandbox), must reconcile with
+  existing plugin SDK at morph (D-C4-3); hostile identifier handling = quarantine + relabel
+  to safe placeholder + original in audit field, hard-reject only on control chars/bidi/
+  over-length (D-C4-4). Confirmed leans: static TOML = schema acquisition default
+  (introspection/inference = confirm-or-narrow-only, NEVER auto-widen); two-hop type
+  mapping source-native → Arrow → Prism ColumnType (map-to-canonical-or-reject; lossy
+  coercions weaken C3 pushdown exactness to inexact; `lossy = true` TOML opt-in for
+  Json/Text fallback; do NOT reintroduce retired shadow enum per ADR-024); drift = event
+  to surface never silent adaptation (Confluent vocabulary; Fivetran supertype promotion
+  rejected; Iceberg field-ID evolution for cold tier); config-vs-code boundary = formulaic
+  REST/SQL/LDAP → TOML, imperative state / non-REST / custom signing → WASM; DataFusion
+  integration = schema() from pinned TOML, boot-time C3↔C4 reconciliation invariant
+  (descriptor.columns ⊆ provider.schema().fields, fail-closed on over-declaration).
+  Downstream SAP-1 obligations: BC-2.16.002 new catalog rows for
+  connector.schema.drift.detected + connector.schema.identifier.sanitized +
+  connector.schema.identifier.rejected + connector.schema.coercion.lossy (morph-time).
+  §3.4 C4 decision block appended in-place. §13 C4 pointer appended in-place.
+  Proposed epic: E-CONNECTOR-DYNAMIC-001 (§13.4).
 
 ### 16.5 Status & boundaries reminder
 
