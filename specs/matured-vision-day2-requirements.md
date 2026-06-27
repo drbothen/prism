@@ -3109,6 +3109,50 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   Ripple effects: E-BUNDLE-DEPLOY-001 (offline bundle tooling epic — not yet registered);
   OQ-DEPLOY-1/2 require targeted morph passes; SS-26 morph ADR must cite PIV-DEPLOY-004.
 
+- **C10 Query.io Competitive Refresh & Positioning Gap-Check DISCUSSION COMPLETE + CAPTURED
+  2026-06-27 (human).** All eight gaps from `research/queryio-competitive-refresh-2026-06-27.md`
+  addressed (no conscious declines); C3 join framing corrected; identity-vs-differentiation split
+  recorded; honest concessions locked (binding per §2.4); positioning headline leading candidate
+  recorded (ratification deferred to B capstone / §5.1 brief-reframe). Capture artifact:
+  `specs/day2-design-decisions/ADR-PROP-competitive-positioning.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph).
+  **D-C10-1 C3 JOIN FRAMING CORRECTION (load-bearing):** The research's §2a/§4.3 mischaracterized
+  Prism as "hard-rejecting unbounded cross-source joins." CORRECTED: C3 (D-C3-1,
+  `ADR-PROP-capability-descriptor-pushdown.md`) is a **cost-based-DEGRADE stack**, not a
+  plan-time rejection. All join shapes permitted; bounded at execution time via per-side row-caps
+  + dynamic filtering + EXPLAIN-visible pushdown + injected time-window. Correct positioning claim:
+  "safe, cost-guarded cross-source joins with plan-visible degradation" — a Prism STRENGTH vs
+  Query's cost-guard-absent "translate-and-pray." 3 pre-implementation residuals (PIV-C3-1..3) in
+  C3 capture artifact — do not let residuals reintroduce the false "hard-reject" framing.
+  **D-C10-2 IDENTITY vs DIFFERENTIATION:** Agent-native is the product IDENTITY (what Prism is)
+  but is now PARITY territory (Query Workers + MCP + A2A GA 2026-03). The DEFENSIBLE WEDGE =
+  OT/edge/air-gap satellite mesh (structural; Query has no answer) + AI-opaque trust layer
+  (AD-017 + SS-26; no Query equivalent). Do NOT claim "first/only agent-native."
+  **D-C10-3 HONEST CONCESSIONS (binding per §2.4):** concede shipping maturity, connector
+  breadth, and SaaS time-to-value to Query ("Query ships; Prism plans"); DO NOT concede
+  OT/air-gap moat, AI-opaque trust, formal PrismQL, or (corrected) cost-guarded cross-source
+  joins.
+  **D-C10-4 ALL EIGHT GAPS ADDRESSED (no declines):** GAP-Q1 (OOTB detection content + rule
+  translation OUT → E-DETECTION-CONTENT-001 + E-RULE-XLATE-001 expansion); GAP-Q2 (auditable
+  S3-agent evidence package + self-QA gate → E-EVIDENCE-PACKAGE-001); GAP-Q3 (A2A protocol →
+  ADD to day-2 transport scope alongside MCP, E-A2A-TRANSPORT-001, cross-ref C1); GAP-Q4
+  (connector-egress / Security Data Pipelines analog → E-EGRESS-PIPELINE-001, DISTINCT from
+  internal RETAIN); GAP-Q5 (Amazon Security Lake subscriber pattern → fold into C5
+  E-LAKE-CONNECTOR-001 scope, D-C5-2 already covers this); GAP-Q6 (alert-destination fan-out +
+  severity routing → expand E-ALERT-ROUTING-001 into C6); GAP-Q7 (graph-investigation views +
+  dashboards → E-GRAPH-INVESTIGATION-001, Cytoscape/ECharts already chosen); GAP-Q8 (onboarding
+  → ADDRESS BOTH HALVES: Configure-Schema wizard E-CONFIGURE-SCHEMA-WIZARD-001 + optional
+  vendor-hosted managed-mapping E-MANAGED-MAPPING-001 for SaaS-model only).
+  **D-C10-5 HEADLINE LEADING CANDIDATE:** "the agent-native federated query platform for the data
+  Query can't reach — OT/edge/air-gap — with credentials the AI never sees." NOT locked; ratified
+  at B capstone / §5.1.
+  Open questions: OQ-C10-1 (product-fact re-verification before any external claim — RBAC status
+  highest decay); OQ-C10-2 (final headline at §5.1); OQ-C10-3 (landscape [INCONCLUSIVE] re-verify
+  before B: Anvilogic/Matano/Vega/Tenzir depth); OQ-C10-4 (C3 PIV-1..3 pre-impl verification);
+  OQ-C10-5 (A2A spec version pin before E-A2A-TRANSPORT-001 morph). Proposed epics: 10 new
+  (table in capture artifact). SAP-1 downstream obligations: 5 new BC-2.16.002 event-catalog rows
+  flagged in capture artifact (morph-time).
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
