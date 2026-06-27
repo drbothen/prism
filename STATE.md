@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.014"
+version: "8.015"
 producer: state-manager
 timestamp: 2026-06-27T18:00:00Z
 inputs: []
@@ -20,7 +20,7 @@ develop_head: "9a09653a"
 # NOTE: 9a09653a is the squash-merge of PR #205 (chore(skills): add /wrap session-durability skill; normal squash-merge; 2026-06-27). origin/develop is now 9a09653a. Prior origin/develop was f05a9f0e (PR #204 S-PERF-GATE-001). chore/wrap-session-durability-skill branch + worktree cleaned up at merge.
 bc_index_version: "7.19"
 vp_index_version: "1.80"
-story_index_version: "v2.497"
+story_index_version: "v2.498"
 arch_index_version: "2.147"
 error_taxonomy_version: "2.01"
 total_stories: 215
@@ -36,7 +36,7 @@ workspace_test_count: 5002
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1387 (2026-06-27). LOCAL adversary Pass 4 NOT CLEAN; BC-2.11.001 v1.14→v1.15 (PO adjudication: EC-11-067 applies to SqlPipe; no exemption); E-QUERY-039 MCP arm category:validation fixed; fix-burst on feature HEAD 40a415aa: SqlPipe Red Gate + underscore regression guard + EnrichUdfNotFound arm. just check 5002 green, non-exhaustive 88. 3-CLEAN streak 0/3; re-gating LOCAL fresh pass on HEAD 40a415aa next. BC-INDEX v7.18→v7.19. STATE v8.013→v8.014."
+current_step: "D-1388 (2026-06-27). LOCAL adversary Pass 5 NOT CLEAN: bookkeeping/coverage only — MED-1 (story BC-2.11.001 v1.14 cites ×5), MED-2 (story BC-2.11.019 v1.2 cites ×2), MED-3 (crates/ test doc-comment stale v1.14 ×2), MED-4 (E-QUERY-039 structured category=validation untested), MED-5 (MCP suggestion brackets not in BC §MCP surface), OBS-1 (AUDIT-004 guard hardcoded). Fix-burst HEAD 45842b47: story+crates/ version-cite sweeps ZERO stale; MED-4 structured-path tests; MED-5 brackets removed + byte-exact tests; OBS-1 derives registered tables from sensor TOMLs + asserts ALL FROM targets resolve. just check 5006 green, non-exhaustive 88. 3-CLEAN streak 0/3; re-gating fresh on HEAD 45842b47. STORY-INDEX v2.497→v2.498. STATE v8.014→v8.015."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1387 LOCAL adversary Pass 4 NOT CLEAN; BC-2.11.001 v1.14→v1.15 PO adjudication; fix-burst HEAD 40a415aa; just check 5002 green; BC-INDEX v7.18→v7.19; STATE v8.013→v8.014)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1388 LOCAL adversary Pass 5 NOT CLEAN; comprehensive BC version-cite sweep MED-1/MED-2 + MED-3/4/5/OBS-1 fixes; fix-burst HEAD 45842b47; just check 5006 green; STORY-INDEX v2.497→v2.498; STATE v8.014→v8.015)
 
 ## Active Objective (North Star)
 
@@ -136,6 +136,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1388 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 5 (fresh, HEAD 40a415aa) = NOT CLEAN: code confirmed correct+well-tested; all findings bookkeeping/coverage — MED-1 (story body stale BC-2.11.001 v1.14 cites ×5), MED-2 (story body stale BC-2.11.019 v1.2 cites ×2, v1.3 'throughout' claim was incomplete), MED-3 (crates/ test doc-comment stale v1.14 ×2), MED-4 (E-QUERY-039 structured category=validation untested), MED-5 (MCP suggestion added brackets not in BC §MCP surface), OBS-1 (AUDIT-004 guard hardcoded/≥1 not all). Comprehensive fix-burst HEAD 45842b47: story+crates/ version-cite sweeps both verified ZERO stale (breaks POL-29 recurrence); MED-4 structured-path tests (category=validation, original_params_valid=false); MED-5 suggestion brackets removed + byte-exact tests; OBS-1 guard now derives registered tables from sensor TOMLs + asserts ALL FROM targets resolve. just check 5006 green, non-exhaustive 88. Convergence trajectory: findings decayed behavioral(P1)→consistency(P2)→corpus(P3)→mode/structured(P4)→bookkeeping(P5). 3-CLEAN streak 0/3; re-gating fresh on HEAD 45842b47. workspace_test_count 5002→5006. BC-2.11.001 v1.15 UNCHANGED. BC-2.11.019 v1.3 UNCHANGED. BC-INDEX v7.19 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. STORY-INDEX v2.497→v2.498. develop_head 9a09653a UNCHANGED. STATE v8.014→v8.015.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1387 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 4 (fresh, HEAD 3cab644e) = NOT CLEAN: HIGH-1 (N2 gate exempted SqlPipe via code comment, contradicting BC-2.11.001 v1.14 EC-11-067 all-3-modes — silent-success path persisted; PO Option-A adjudication: EC-11-067 applies to SqlPipe, BC-2.11.001 v1.14→v1.15) + HIGH-2 (E-QUERY-039 structured MCP response fell to catch-all category:upstream_error instead of BC-2.11.019 category:validation — sibling-sweep miss vs E-QUERY-037/038 arms, masked by code-only test TD-VSDD-059). Fix-burst on feature HEAD 40a415aa: removed is_sqlpipe exemption (dot-notation FROM rejected all modes + SqlPipe Red Gate test + underscore-SqlPipe regression guard); added dedicated EnrichUdfNotFound variant_meta arm (category:validation, BC suggestion text) + 2 structured Red Gate tests. POL-29 sweep clean. just check 5002 green, non-exhaustive 88. 3-CLEAN streak 0/3; re-gating fresh LOCAL pass on HEAD 40a415aa next. workspace_test_count 4996→5002. BC-2.11.001 v1.14→v1.15. BC-INDEX v7.18→v7.19. ARCH-INDEX v2.147 UNCHANGED. STORY-INDEX v2.497 UNCHANGED. develop_head 9a09653a UNCHANGED. STATE v8.013→v8.014.** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1386 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 3 (fresh, HEAD 23ff3c12) = NOT CLEAN: CRIT-001 (prismql://reference REFERENCE_EXAMPLES taught 5 dot-notation FROM examples that N2 now rejects with E-QUERY-037 — sibling-sweep miss masked by parse-only CI gate false-green [process-gap]) + MED-001 (available_infusions emitted unsorted vs error-taxonomy v2.01 'sorted'). Fix-burst on feature HEAD 3cab644e: REFERENCE_EXAMPLES dot-notation FROM → generic sensor_table placeholder (comprehensive crates/ sweep: all other FROM-dot hits are test regression-guards); CI positive-examples gate now asserts plan-time availability (closes false-green [process-gap] IN-SCOPE — no follow-up story needed); available_infusions .sort()+.dedup(). just check 4998 green. 3-CLEAN streak 0/3; re-gating LOCAL fresh pass on HEAD 3cab644e next. workspace_test_count 4996→4998. BC-INDEX v7.18 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. STORY-INDEX v2.497 UNCHANGED. develop_head 9a09653a UNCHANGED. STATE (deferred logging — logged here in D-1387 burst).** | wave-5-e-demo-fidelity | 2026-06-27 |
 | D-1385 | state-manager | 2026-06-27 | **S-DEMO-FIDELITY-REMEDIATION-001 LOCAL adversary Pass 2 (fresh, on HEAD 4613f0b8) = NOT CLEAN: all Pass-1 fixes VERIFIED genuinely closed (load-bearing tests; WHERE-clause defensive claim confirmed accurate), but 2 HIGH + 1 MED + 2 OBS consistency gaps from the mid-cascade v1.2→v1.3 BC bump. Fix-burst on feature HEAD 23ff3c12: HIGH-1 (14 stale BC-2.11.019 v1.2 cites across 6 crates/ files swept→v1.3, POL-29); HIGH-2 (check_enrich_udf_availability doc comment said 'Fires BEFORE table check' — corrected to enrich-LAST, correctness hazard); MED-1 (AUDIT-004 test positive-resolve guard added per AC); OBS-2 (AUDIT-001 multi-tenant disambiguation test added); OBS-1 (BC-2.11.019 stale 83/84 count sentence → 87/88, in-place v1.3). just check green 4996 tests, non-exhaustive 88. 3-CLEAN streak 0/3; re-gating LOCAL fresh pass on HEAD 23ff3c12 next. workspace_test_count 4994→4996. BC-INDEX v7.18 UNCHANGED. ARCH-INDEX v2.147 UNCHANGED. STORY-INDEX v2.497 UNCHANGED. develop_head 9a09653a UNCHANGED. STATE v8.012→v8.013.** | wave-5-e-demo-fidelity | 2026-06-27 |
@@ -232,20 +233,20 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1387 — 2026-06-27; STATE v8.014)
+## Session Resume Checkpoint (D-1388 — 2026-06-27; STATE v8.015)
 
-**STATE v8.014. D-1387 LOCAL adversary Pass 4 NOT CLEAN; BC-2.11.001 v1.14→v1.15 PO adjudication (EC-11-067 applies to SqlPipe; no exemption); fix-burst COMMITTED on feature HEAD 40a415aa. DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. develop_head 9a09653a. non-exhaustive 88. BC-INDEX v7.19. ARCH-INDEX v2.147. STORY-INDEX v2.497. error-taxonomy v2.01. total_stories 215. BC-2.11.019 v1.3. BC-2.11.001 v1.15. Story S-DEMO-FIDELITY-REMEDIATION-001 v1.3. Feature HEAD 40a415aa. 3-CLEAN streak 0/3; re-gating LOCAL fresh pass on HEAD 40a415aa next. PR #205 MERGED. workspace_test_count 5002.**
+**STATE v8.015. D-1388 LOCAL adversary Pass 5 NOT CLEAN; comprehensive fix-burst COMMITTED on feature HEAD 45842b47 (story v1.4 BC version-cite sweep + MED-3/4/5/OBS-1 crates/ fixes). DEMO-READY: YES(conditional). active_contracts 254. draft_contracts 0. develop_head 9a09653a. non-exhaustive 88. BC-INDEX v7.19. ARCH-INDEX v2.147. STORY-INDEX v2.498. error-taxonomy v2.01. total_stories 215. BC-2.11.019 v1.3. BC-2.11.001 v1.15. Story S-DEMO-FIDELITY-REMEDIATION-001 v1.4. Feature HEAD 45842b47. 3-CLEAN streak 0/3; re-gating LOCAL fresh pass on HEAD 45842b47 next. workspace_test_count 5006.**
 
-**NEXT ACTION:** LOCAL adversary fresh pass on feature branch HEAD 40a415aa → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge.
+**NEXT ACTION:** LOCAL adversary fresh pass on feature branch HEAD 45842b47 → 3× CLEAN(strict) → demo evidence → PR → PR-LEVEL 3-CLEAN → merge.
 
 **TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
 **PENDING HUMAN AUTH:** (A) brief reframe sign-off; (B) EC-11 namespace collisions.
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1383 (last authored; D-1384/D-1385/D-1386/D-1387 are factory-only bursts — update SESSION-HANDOFF if needed) for full context. STATE v8.014.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1383 (last authored; D-1384/D-1385/D-1386/D-1387/D-1388 are factory-only bursts — update SESSION-HANDOFF if needed) for full context. STATE v8.015.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `9a09653a`.
-3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at HEAD 40a415aa.
+3. Feature branch worktree for S-DEMO-FIDELITY-REMEDIATION-001 at HEAD 45842b47.
 4. HUMAN DECISIONS PENDING: (A) brief reframe sign-off; (B) EC-11 namespace collisions.
-5. Next: LOCAL adversary fresh pass on 40a415aa → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.
+5. Next: LOCAL adversary fresh pass on 45842b47 → 3-CLEAN(strict) → demo evidence → PR. Autonomy D-989 active.
