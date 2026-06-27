@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "8.007"
+version: "8.008"
 producer: state-manager
-timestamp: 2026-06-27T00:00:00Z
+timestamp: 2026-06-26T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -36,7 +36,7 @@ workspace_test_count: 4949
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1379 (2026-06-27). PR #204 Round-11 recorded: S-PERF-GATE-002 stub file materialized (closes F-P2R11-MED-001 phantom deferral anchor); STORY-INDEX S-PERF-GATE-002 BC count 0→1 (BC-5.39.001) reconciled. Pass1+Pass3 CLEAN(strict); Pass2 F-P2R11-MED-001 → closed. Frozen HEAD b40ac1e1 UNCHANGED. Streak 0/3 → re-gate. STORY-INDEX v2.491→v2.492. STATE v8.006→v8.007."
+current_step: "D-1380 (2026-06-26). SESSION WRAP — RESUME SNAPSHOT D-1380 authored (supersedes D-1356). PR #203 MERGED (7e60df03); STATE compacted 471→232; CLAUDE.md→EXPECTED=87; S-PERF-GATE-001 PR #204 CONVERGED 3/3 strict @b40ac1e1, pending CI-infra-flake re-run + squash-merge; S-PERF-GATE-002 stub materialized. STATE v8.007→v8.008."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
 # ── PARKED WORKTREES ──
@@ -75,7 +75,7 @@ pre_compact_snapshot_at: "2026-06-15"
 
 ## Project Metadata
 
-**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-27 (D-1379 PR #204 Round-11 recorded; S-PERF-GATE-002 stub materialized + BC count reconciled 0→1; closes F-P2R11-MED-001 phantom deferral anchor; STORY-INDEX v2.491→v2.492; STATE v8.006→v8.007)
+**Prism** | Rust | brownfield | per-analyst stdio (MCP) | Started 2026-04-13 | Last Updated 2026-06-26 (D-1380 SESSION WRAP — RESUME SNAPSHOT D-1380 authored; PR #203 MERGED 7e60df03; S-PERF-GATE-001 PR #204 CONVERGED 3/3 strict @b40ac1e1 pending CI re-run + merge; S-PERF-GATE-002 stub materialized; STATE v8.007→v8.008)
 
 ## Active Objective (North Star)
 
@@ -223,24 +223,22 @@ Current cycle `cycles/wave-5-e-demo-fidelity/`: burst-log.md · decisions-archiv
 
 _PR #189 MERGED develop@1b2e9a31 2026-06-16 (T12 DONE). PR #190 MERGED develop@c3ecf6c8 2026-06-16 (T11 DONE). PR #191 S-5.02 MERGED develop@bec894a2 2026-06-17 (Lane A CLOSED). PR #192 S-3.13 MERGED develop@60249ccc 2026-06-16 (Lane B CLOSED; D-1204). BOTH LANES CLOSED. SEE SESSION-HANDOFF §RESUME SNAPSHOT D-1196 (D-1197..D-1204 durability bursts)._
 
-## Session Resume Checkpoint (D-1379 — 2026-06-27; STATE v8.007)
+## Session Resume Checkpoint (D-1380 — 2026-06-26; STATE v8.008)
 
-**STATE v8.007. D-1379 PR #204 Round-11 recorded (Pass1+Pass3 CLEAN(strict); Pass2 F-P2R11-MED-001 phantom S-PERF-GATE-002 deferral anchor → materialized stub file + STORY-INDEX BC count reconciled 0→1 (BC-5.39.001); frozen HEAD b40ac1e1 UNCHANGED; streak 0/3 → re-gate on b40ac1e1 + v1.9). D-1378 PR #204 Round-10: story v1.9 §Changelog ordering fix + b40ac1e1 nextest comment corrected. D-1367 PR #203 SQUASH-MERGED to develop@7e60df03 (CI 43/43 green). active_contracts 254. draft_contracts 0. develop_head 7e60df03. non-exhaustive 87. error_taxonomy v2.00. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.492. total_stories 214.**
+**STATE v8.008. SESSION WRAP D-1380. PR #203 MERGED develop@7e60df03 (CI 43/43; POL-14 8 BCs active; non-exhaustive 87). S-PERF-GATE-001 PR #204 CONVERGED 3-CLEAN(strict) at frozen HEAD b40ac1e1 (round 12) — pending CI-infra-flake re-run (run 28273204091 Perimeter check 1m0s fast-fail; parallel run 28273202978 PASSED 7m39s; diff does not touch prism-query). active_contracts 254. draft_contracts 0. develop_head 7e60df03. non-exhaustive 87. BC-INDEX v7.18. ARCH-INDEX v2.147. STORY-INDEX v2.492. total_stories 214.**
 
-**TRACK A — DEMO-CRITICAL (COMPLETED):** S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 v1.12 MERGED. **NEXT: pre-flight demo re-audit → T13 capstone (runbook `.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording.**
+**NEXT ACTION:** (1) `gh run rerun --failed 28273204091`; (2) `gh pr checks 204` ALL green; (3) squash-merge PR #204 `--admin`; (4) post-merge state-manager burst (S-PERF-GATE-001 merged + develop_head update); (5) devops-engineer remove `.worktrees/S-PERF-GATE-001`; THEN → pre-flight demo re-audit → T13 capstone → T14 recording.
 
-**MAINTENANCE IN PROGRESS:** S-PERF-GATE-001 v1.9 (branch maintenance/perf-gate-001; PR #204 OPEN; Round-11 cascade: Pass1+Pass3 CLEAN(strict); Pass2 F-P2R11-MED-001 phantom S-PERF-GATE-002 file → closed (stub materialized + BC count reconciled); streak 0/3 → fresh 3-pass cascade pending on FROZEN HEAD b40ac1e1 + v1.9 spec; S-PERF-GATE-002 stub now materialized at `S-PERF-GATE-002-adv-p02-shared-dtu-fixtures.md` (draft v1.0); ALL 7 spec-text-drift dimensions + TD-VSDD-091 line-pin dimension CLOSED).
+**S-PERF-GATE-001 (PR #204):** branch `maintenance/perf-gate-001`; FROZEN HEAD `b40ac1e1`; story v1.9; CONVERGED 3/3 strict (round 12; BC-5.39.001 already ACTIVE — no POL-14 needed at merge). Delivered: nextest prepush+ci profiles (retries=1, slow-timeout); serial signal_handlers group; build_http_client_with_custom_timeout(); Justfile prepush profile. Pre-push gate: 30-50min → ~2-4min. S-PERF-GATE-002 stub materialized (draft v1.0; adv_p02 LazyLock deferred — 6 reset-bearing tests block sharing).
 
-**TRACK B — DAY-2 MORPH (POST-T14):** source-of-truth = `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
+**TRACK B — DAY-2 MORPH (POST-T14):** `.factory/specs/matured-vision-day2-requirements.md`. Demo target FROZEN. Brief reframe GATED on human sign-off.
 
-**DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 (LOCAL-ONLY /wrap-skill commit) diverged from origin/develop 7e60df03. Advisory SHA-currency hook FAIL (non-blocking per D-1319+).
-
-**PENDING HUMAN (CLAUDE.md stale):** CLAUDE.md has "ci.yml EXPECTED=83/84" — now EXPECTED=87 (ExampleKind, SqlPipeQuery, UnknownSourceTableDetails added; PR #203). state-manager cannot edit CLAUDE.md. Human must update manually.
+**DEVELOP_HEAD LOOSE-END (HUMAN ACTION REQUIRED):** local develop ba1108d2 diverged from origin/develop 7e60df03. Advisory SHA-currency hook FAIL (non-blocking per D-1319+).
 
 **RESUME PROTOCOL (zero prior context):**
-0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT (latest) for full context. STATE v8.006.
+0. Read SESSION-HANDOFF.md §RESUME SNAPSHOT D-1380 for full context. STATE v8.008.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING).
 2. `git log --oneline -1 origin/develop` → expect `7e60df03`.
-3. S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 worktree MAY be cleaned up (PR merged). `vsdd-factory:worktree-manage cleanup S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001`.
-4. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off; (C) CLAUDE.md EXPECTED count update.
+3. S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 worktree REMOVED (PR merged).
+4. HUMAN DECISIONS PENDING: (A) local develop /wrap reconciliation; (B) brief reframe sign-off; (C) EC-11 namespace collisions.
 5. Next: PR #204 S-PERF-GATE-001 v1.8 — fresh 3-pass cascade on UNCHANGED FROZEN HEAD c210eb1f + v1.8 spec → 3× CLEAN(strict) → merge. Then: pre-flight demo re-audit → T13 capstone → T14 recording. Autonomy D-989 active.

@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.966"
+version: "7.967"
 status: current
-timestamp: 2026-06-25T08:00:00Z
+timestamp: 2026-06-26T00:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
@@ -38,13 +38,60 @@ timestamp: 2026-06-25T08:00:00Z
 >
 > **D-1367 (2026-06-26): PR #203 SQUASH-MERGED — S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 MERGED develop@7e60df03 (CI 43/43; 9-round PR-LEVEL 3-CLEAN(strict) on frozen 356e0573; security CLEAN). POL-14: 8 BCs draft→active. POL-13: story merged. active_contracts 254. draft_contracts 0. develop_head 903c8fcb→7e60df03. non-exhaustive 84→87. BC-INDEX v7.18. STORY-INDEX v2.481. STATE v7.994→v7.995. NEXT: pre-flight demo re-audit → T13 capstone → T14 recording. PENDING HUMAN: CLAUDE.md stale EXPECTED=83/84 → now EXPECTED=87; local develop ba1108d2 still DIVERGED.**
 >
-> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **STATE.md §Session Resume Checkpoint D-1367** (authoritative current-state; PR #203 MERGED). §RESUME SNAPSHOT D-1356 (below) is SUPERSEDED. STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
-> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** STATE.md §Session Resume Checkpoint D-1367 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
-> develop HEAD origin/develop `7e60df03` (PR #203 S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001 merged D-1367). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v7.995. D-1367.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then **§RESUME SNAPSHOT D-1380** (below; authoritative current-state). STATE.md frontmatter (`develop_head`, `current_step`) is authoritative.
+> **SOURCE-OF-TRUTH FOR CURRENT PIPELINE POSITION:** §RESUME SNAPSHOT D-1380 + STATE.md frontmatter. `.factory/objectives/DEMO-SCOPE.md` is the demo SCOPE/NARRATIVE reference — not the live pipeline tracker.
+> develop HEAD origin/develop `7e60df03` (PR #203 merged D-1367; PR #204 S-PERF-GATE-001 CONVERGED 3/3 strict @b40ac1e1, pending CI-infra-flake re-run + squash-merge). LOCAL develop `ba1108d2` (LOCAL-ONLY: /wrap-skill commit — DIVERGED; HUMAN DECISION PENDING reconciliation). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (do not hard-code). STATE v8.008. D-1380.
 
 ---
 
-## §RESUME SNAPSHOT — D-1356 (2026-06-25 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.15; STORY-INDEX v2.477; ARCH-INDEX v2.145; STATE v7.985; FROZEN PR HEAD b65b4d0c; PR-LEVEL cascade in progress on PR #203) [SUPERSEDES D-1337]
+## §RESUME SNAPSHOT — D-1380 (2026-06-26 — SESSION WRAP; develop origin/develop 7e60df03 / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.18; STORY-INDEX v2.492; ARCH-INDEX v2.147; STATE v8.008; PR #204 CONVERGED 3/3 strict @b40ac1e1; pending CI-infra-flake re-run + squash-merge) [SUPERSEDES D-1356]
+
+> **D-1380 burst (2026-06-26).** Session wrap. PR #203 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001) CONVERGED + MERGED to develop (squash 7e60df03; CI 43/43; 9-round PR-LEVEL 3-CLEAN strict). PR #204 (S-PERF-GATE-001 test-gate performance) CONVERGED 3-CLEAN(strict) at frozen HEAD b40ac1e1 — blocked only on a CI infra-flake (Perimeter compile-fail check job fast-failed 1m0s on run 28273204091; the SAME check passed 7m39s on parallel run 28273202978; diff does not touch prism-query). STATE compacted 471→232 lines (e54c001c). All prior D-1101..D-1379 notes SUPERSEDED.
+
+### RESUME IN ONE BREATH
+Two test-speed deliverables this session. PR #203 (S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001) CONVERGED + MERGED to develop (squash 7e60df03). PR #204 (S-PERF-GATE-001 test-gate performance) CONVERGED 3-CLEAN(strict) at frozen HEAD b40ac1e1 but NOT yet merged — blocked ONLY on a CI infra-flake (Perimeter compile-fail check job, 1m0s fast-fail on run 28273204091; the SAME check PASSED 7m39s on parallel run 28273202978; diff doesn't touch prism-query). NEXT: re-run the flaked CI job (no new commit → streak stays 3/3), confirm all-green, squash-merge --admin PR #204, post-merge (story→merged + develop_head), THEN the demo roadmap (pre-flight re-audit → T13 → T14).
+
+### HEADS
+- origin/develop: `7e60df03` (post-#203-merge). LOCAL develop: `ba1108d2` (unpushed /wrap commit, DIVERGED — advisory SHA-currency FAIL, non-blocking, pending-human reconciliation; precedent D-1319+). New branches cut from origin/develop@7e60df03.
+- factory-artifacts: run `git -C .factory log -1 --format='%h %s'` (this wrap commit is HEAD; prior was 9b519253/D-1379).
+- Agents in flight: NONE (round-12 cascade returned 3× CLEAN(strict); all fix-burst agents complete). One passive CI-watcher bash poll may linger — ignorable.
+- Persistent user directive: "No pragmatic convergence. Fix all issues before build."
+
+### WORKSTREAM — S-PERF-GATE-001 (PR #204, test-gate performance maintenance)
+- Branch `maintenance/perf-gate-001`; worktree `.worktrees/S-PERF-GATE-001`; PR #204 OPEN → develop; FROZEN PR HEAD = `b40ac1e1`.
+- Story v1.9; behavioral_contracts [BC-5.39.001] (already ACTIVE — NO POL-14 promotion needed at merge). Follow-up stub S-PERF-GATE-002 (adv_p02 LazyLock shared DTU fixtures; draft v1.0; blocked on internal-reset refactor of the 6 reset-bearing adv_p02 tests).
+- 3-CLEAN streak: **CONVERGED 3/3 (strict)** on the b40ac1e1 + v1.9 + GATE-002-materialized basis (round 12, all 3 passes zero-finding). FROZEN-HEAD RULE: any new commit on maintenance/perf-gate-001 resets streak to 0/3.
+- `just check`: EXIT 0 (~200s) on b40ac1e1 with the new prepush profile. CI on b40ac1e1: 31 pass / 1 FAIL (Perimeter compile-fail check BC-2.11.006 = INFRA FLAKE — 1m0s fast-fail on run 28273204091; passed 7m39s on parallel run 28273202978; diff doesn't touch prism-query) / 11 pending at wrap time.
+- Delivered: nextest [profile.prepush]+[profile.ci] retries=1 + slow-timeout terminate-after=2; serial-subprocess test-group `binary(signal_handlers)` (SIGTERM SIGSEGV flake fix); Justfile check → `--profile prepush` + `RUSTFLAGS=""`; `build_http_client_with_custom_timeout(Duration)` extraction (324s-hang fix; production 30s wrapper unchanged) + in-crate RG-PERF-001 test; AC-010 SIGSEGV/mmap comment; commented sccache stanza. RESULT: pre-push gate 30-50min → ~2-4min (proven: pushes landed at 124s/181s/200s).
+- DEFERRED: AC-006/AC-007 (adv_p02 LazyLock) → S-PERF-GATE-002 (sharing clones breaks ADV-P02-CRIT-001 isolation — 6 of 8 tests call clone.reset() mid-test).
+- **RESUME NEXT-ACTION:** (1) wait for CI run 28273204091 to finish; (2) confirm the Perimeter-check fail is infra (1m0s fast-fail; passed 7m39s on parallel run 28273202978); (3) re-run the flaked job: `gh run rerun --failed 28273204091` (does NOT change HEAD → streak stays 3/3); (4) confirm `gh pr checks 204` ALL green; (5) dispatch `vsdd-factory:pr-manager` to squash-merge `--admin` PR #204 (autonomy precedent PR #202/#203, D-1337); (6) post-merge `vsdd-factory:state-manager`: flip story S-PERF-GATE-001 draft→merged, update develop_head, decision log (BC-5.39.001 already active — no promotion); (7) `vsdd-factory:devops-engineer`: remove `.worktrees/S-PERF-GATE-001` + branch post-merge (use `git worktree remove --force` after `rm -rf .../target`; the worktree's only "dirt" is build artifacts).
+
+### PENDING USER-APPROVED WORK / AUTONOMY
+- Autonomous drive granted this session through S-PERF-GATE-001's remaining VSDD steps + merge (`--admin` authorized for harness-blocked GH approvals). User chose strict-3-CLEAN convergence.
+- After PR #204 merges → DEMO ROADMAP (user-approved): pre-flight demo re-audit (`.factory/research/demo-pre-flight-audit-2026-06-24.md`) → T13 capstone (`.factory/objectives/T13-capstone-demo-runbook.md`) → T14 recording. Day-2 Track B begins ONLY post-T14. (/compact-state already done this session: STATE 471→232 lines, e54c001c.)
+
+### DEMO / RELEASE ROADMAP REMAINING
+PR #204 merge → pre-flight demo re-audit → T13 capstone → T14 recording → (Track B day-2 morph, gated post-T14).
+
+### WORKTREE INVENTORY
+- ACTIVE: `.worktrees/S-PERF-GATE-001` (PR #204, b40ac1e1, CONVERGED, removable post-merge).
+- STALE / leave-alone: `.worktrees/S-3.09` (FROZEN, 43c41389), `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded, fcab8717, dirty).
+- `.worktrees/S-DEMO-PRISMQL-GRAMMAR-REMEDIATION-001` REMOVED post-#203-merge.
+
+### DECISION-LOG DELTA since D-1356 (this session)
+D-1357 (PR #203 round-1 fix-burst: UTF-8 mode_bridge panic 87fcc7e4 + BC-2.11.020 v1.1/ADR-043 v1.2 |tail family + ParseErrorDetails→StructuredErrorFields sweep + story v1.9), D-1358/D-1359 (POL-26 dup-changelog-row fix + ADR-pin POL-29-sweep adjudication), D-1360 (trace-pin adjudication), D-1361 (AC-016/EC-008 ↔ BC-2.10.016 v1.1 + story v1.10), D-1362 (near_text OBS-1 fd1aa1a9 + BC-2.10.015 v1.2 + ADR-046 v1.3 + design-doc v1.2 + story v1.11; INTERVAL magnitude CRIT 70029166), D-1363 (BC-2.10.017 v1.1 + BC-2.11.022 anchor), D-1364 (3rd char-boundary panic is_enrich_missing_column_at e6fe1b57 + STORY-INDEX changelog row + [process-gap] char-boundary sweep class), D-1365 (REFERENCE_EXAMPLES 3-tuple), D-1366 (resources.rs OBS-1 doc-comment 356e0573 + 35-block comment audit), D-1367 (PR #203 CONVERGED 3-CLEAN + MERGED squash 7e60df03 + POL-14 8 BCs draft→active + develop_head→7e60df03 + non-exhaustive→87 + cycle-close lessons), STATE compaction e54c001c (471→232), D-1368 (S-PERF-GATE-001 + S-PERF-GATE-002 registered), D-1369..D-1378 (S-PERF-GATE-001 cascade rounds 1-10: code 3dfedbca/24f846ca/7dbf7fc3/41aa58f1 + story v1.1→v1.9 spec-text reconciliation across commands/dev-setup.md/codeblock-numerics/internal-consistency/narrative-counts/AC-command-outputs/codeblock-verbatim/line-pins dimensions + nextest comment b40ac1e1), D-1379 (S-PERF-GATE-002 stub materialized + index BC reconcile — closed POL-22 phantom-anchor). Also: CLAUDE.md updated (human-mandated) to non-exhaustive EXPECTED=87 + ExampleKind/SqlPipeQuery/UnknownSourceTableDetails. Test-speed diagnosis artifact: `.factory/research/test-suite-performance-diagnosis-2026-06-26.md`.
+
+### PENDING HUMAN DECISIONS
+1. Local develop ba1108d2 vs origin/develop 7e60df03 reconciliation (advisory SHA FAIL; carried D-1319+).
+2. Brief reframe sign-off (day-2 morph).
+3. EC-11 namespace collisions (older maintenance burst).
+
+### D-1380 (this wrap) decision row
+D-1380: session wrap — RESUME SNAPSHOT D-1380 authored (supersedes D-1356). This session: PR #203 CONVERGED+MERGED (7e60df03, POL-14 8 BCs); STATE compacted 471→232; CLAUDE.md→EXPECTED=87; S-PERF-GATE-001 (PR #204) created + driven through 12 strict cascade rounds to CONVERGED 3/3 @b40ac1e1 (pre-push gate 30-50min→~2-4min), pending CI-infra-flake re-run + squash-merge; S-PERF-GATE-002 follow-up stub registered. NEXT = re-run flaked CI job → merge PR #204 → demo roadmap.
+
+---
+
+## §RESUME SNAPSHOT — D-1356 (2026-06-25 — SESSION WRAP; develop origin/develop 903c8fcb / LOCAL ba1108d2 DIVERGED; BC-INDEX v7.15; STORY-INDEX v2.477; ARCH-INDEX v2.145; STATE v7.985; FROZEN PR HEAD b65b4d0c; PR-LEVEL cascade in progress on PR #203) [SUPERSEDED by D-1380]
 
 > **D-1356 burst (2026-06-25).** Session wrap. Comprehensive fold↔detect symmetry fix landed at b65b4d0c (inject_now now provably mirrors detect side across ALL Expr variants + SqlQuery clauses). 4 load-bearing tests; just check EXIT 0 full workspace; non-exhaustive 87. PR-LEVEL 3-CLEAN streak 0/3 on FROZEN PR HEAD b65b4d0c (none taken on this HEAD). All prior D-1101..D-1337 notes SUPERSEDED.
 
