@@ -317,9 +317,9 @@ pub fn render_triage_alerts(client_id: &str) -> Result<GetPromptResult, ErrorDat
         "Triage open alerts for client '{client_id}'.\n\n\
          Step 1: Run check_sensor_health to verify all sensors are reachable.\n\
          Step 2: Query each sensor for open high and critical severity alerts:\n\
-           - crowdstrike: SELECT * FROM crowdstrike_detections WHERE severity IN ('HIGH', 'CRITICAL') AND status = 'open'\n\
-           - claroty: SELECT * FROM claroty_alerts WHERE status = 'open' AND alert_type_name IS NOT NULL\n\
-           - armis: SELECT * FROM armis_alerts WHERE severity IN ('High', 'Critical') AND status = 'Open'\n\
+           - crowdstrike: SELECT * FROM crowdstrike_detections WHERE severity IN ('High', 'Critical') AND status = 'new'\n\
+           - claroty: SELECT * FROM claroty_alerts WHERE status = 'Unresolved' AND alert_type_name IS NOT NULL\n\
+           - armis: SELECT * FROM armis_alerts WHERE severity IN ('HIGH', 'CRITICAL') AND status = 'UNHANDLED'\n\
          Step 3: Group alerts by sensor and present a summary count.\n\
          Step 4: Highlight any alerts requiring immediate attention.{SECURITY_REMINDER}",
     );
@@ -380,8 +380,8 @@ pub fn render_client_overview(client_id: &str) -> Result<GetPromptResult, ErrorD
         "Generate a security posture overview for client '{client_id}'.\n\n\
          Step 1: Run check_sensor_health(client_id: '{client_id}') to get sensor status.\n\
          Step 2: Query alert counts from available sensors:\n\
-           - crowdstrike: SELECT severity, COUNT(*) FROM crowdstrike_detections WHERE status = 'open' GROUP BY severity\n\
-           - claroty: SELECT category, COUNT(*) FROM claroty_alerts WHERE status = 'open' GROUP BY category\n\
+           - crowdstrike: SELECT severity, COUNT(*) FROM crowdstrike_detections WHERE status = 'new' GROUP BY severity\n\
+           - claroty: SELECT category, COUNT(*) FROM claroty_alerts WHERE status = 'Unresolved' GROUP BY category\n\
          Step 3: Read prism://sensors/health for resource pressure metrics.\n\
          Step 4: Summarise: total alerts by severity, sensor health status, and top concerns.{SECURITY_REMINDER}",
     );
@@ -415,7 +415,7 @@ pub fn render_cross_client_status(time_range: Option<&str>) -> Result<GetPromptR
          Step 1: Read prism://config/clients to enumerate all configured clients.\n\
          Step 2: For each client, run check_sensor_health to assess connectivity.\n\
          Step 3: For each client (pass clients=[\"<id>\"] to scope per-client), query critical detection counts:\n\
-           - crowdstrike: SELECT severity, COUNT(*) FROM crowdstrike_detections WHERE severity = 'CRITICAL' AND status = 'open' GROUP BY severity\n\
+           - crowdstrike: SELECT severity, COUNT(*) FROM crowdstrike_detections WHERE severity = 'Critical' AND status = 'new' GROUP BY severity\n\
            (Per-client breakdown: repeat with each client id supplied in the clients parameter.)\n\
          Step 4: Highlight clients with active critical alerts requiring immediate attention.\n\
          Step 5: Produce a cross-client risk matrix summary.{SECURITY_REMINDER}",
