@@ -1,4 +1,4 @@
-//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B MCP mapping — BC-2.11.019 v1.2.
+//! Red Gate test for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B MCP mapping — BC-2.11.019 v1.3.
 //!
 //! Finding N1-B: `map_prism_error(PrismError::EnrichUdfNotFound(...))` must return
 //! `-32602` (INVALID_PARAMS), NOT `-32000` (INTERNAL_ERROR catch-all).
@@ -59,7 +59,7 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_019_n1b_mcp_maps_to_32602 | AC-N1B | BC-2.11.019 v1.2 |
+//! | test_bc_2_11_019_n1b_mcp_maps_to_32602 | AC-N1B | BC-2.11.019 v1.3 |
 
 use prism_core::{
     error::{EnrichUdfNotFoundDetails, PrismError},
@@ -67,7 +67,7 @@ use prism_core::{
 };
 use prism_mcp::error_mapping::{codes, map_prism_error};
 
-/// BC-2.11.019 v1.2 AC-N1B — `map_prism_error` for E-QUERY-039 Red Gate test.
+/// BC-2.11.019 v1.3 AC-N1B — `map_prism_error` for E-QUERY-039 Red Gate test.
 ///
 /// This test asserts that `PrismError::EnrichUdfNotFound` maps to `-32602` INVALID_PARAMS.
 ///

@@ -1435,10 +1435,11 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
     }
 }
 
-/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019 v1.2).
+/// Plan-time enrichment UDF availability gate — E-QUERY-039 (BC-2.11.019 v1.3).
 ///
-/// Fires BEFORE `check_table_availability` (fail-fast: enrichment UDF names are
-/// syntactically present in the query and can be validated without table data).
+/// Fires AFTER `check_table_availability` AND `check_query_column_availability`
+/// (BC-2.11.019 v1.3 §Gate ordering: gate sequence is 001 → 037 → 038 → 039;
+/// enrich gate is last in the chain).
 ///
 /// Parses the query string, collects all enrichment function names used in the query
 /// (both pipe-mode `| enrich udf_name(col)` and SQL-mode `SELECT udf_name(col)`), then
@@ -1460,7 +1461,7 @@ fn collect_unknown_scalar_from_predicate(pred: &crate::ast::Predicate, out: &mut
 /// the pipe stage list. The `infusion` field holds the caller-supplied UDF name.
 ///
 /// # Reference
-/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+/// S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.3; error-taxonomy.md E-QUERY-039.
 fn check_enrich_udf_availability(
     query_str: &str,
     registry: Option<&prism_spec_engine::InfusionRegistry>,

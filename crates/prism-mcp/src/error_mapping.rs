@@ -149,7 +149,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // Maps to INVALID_PARAMS (-32602): caller-resolvable by using a per-field UDF name
         // from `prism_describe` or the PQL reference resource.
         //
-        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+        // Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.3; error-taxonomy.md E-QUERY-039.
         PrismError::EnrichUdfNotFound(..) => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-002: Query type mismatch → -32602 Invalid params (caller-resolvable).

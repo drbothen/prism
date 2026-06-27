@@ -1,4 +1,4 @@
-//! Red Gate tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.2.
+//! Red Gate tests for S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B — BC-2.11.019 v1.3.
 //!
 //! Finding N1-B: E-QUERY-039 (EnrichUdfNotFound) gate does NOT yet exist.
 //! `PrismError::EnrichUdfNotFound` variant and `EnrichUdfNotFoundDetails` struct
@@ -31,8 +31,8 @@
 //!
 //! | Test | AC | BC |
 //! |------|----|----|
-//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.2 |
-//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.2 |
+//! | test_bc_2_11_019_n1b_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.3 |
+//! | test_bc_2_11_019_n1b_sql_path_infusion_id_as_udf_name | AC-N1B | BC-2.11.019 v1.3 |
 
 use std::sync::Arc;
 
@@ -168,7 +168,7 @@ fn make_test_engine_threat_intel() -> QueryEngine {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.019 v1.2 AC-N1B — pipe path Red Gate test.
+/// BC-2.11.019 v1.3 AC-N1B — pipe path Red Gate test.
 ///
 /// A pipe-mode query `FROM cyberint_alerts | enrich threat_intel(iocs_value)` where
 /// `threat_intel` is an infusion_id (NOT a UDF name — the registered UDF names are
@@ -234,7 +234,7 @@ async fn test_bc_2_11_019_n1b_infusion_id_as_udf_name() {
     );
 }
 
-/// BC-2.11.019 v1.2 AC-N1B — SQL path Red Gate test.
+/// BC-2.11.019 v1.3 AC-N1B — SQL path Red Gate test.
 ///
 /// A SQL-mode query using an unregistered enrichment function name `nvd`
 /// (which is an infusion_id, not a per-field UDF name) must return

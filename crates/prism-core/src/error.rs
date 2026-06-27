@@ -24,7 +24,7 @@ use thiserror::Error;
 /// )));
 /// ```
 ///
-/// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+/// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.3; error-taxonomy.md E-QUERY-039.
 ///
 /// # `#[non_exhaustive]` note
 /// Marked `#[non_exhaustive]` per CLAUDE.md convention for public `prism-core` structs.
@@ -950,7 +950,7 @@ pub enum PrismError {
     #[error("{0}")]
     ColumnNotFound(Box<ColumnNotFoundDetails>),
 
-    /// E-QUERY-039: Enrichment UDF not found at plan time (BC-2.11.019 v1.2).
+    /// E-QUERY-039: Enrichment UDF not found at plan time (BC-2.11.019 v1.3).
     ///
     /// Returned by the plan-time enrichment gate in `engine.rs` BEFORE fan-out when a
     /// query's enrichment stage names a UDF that is not registered in the `InfusionRegistry`.
@@ -969,7 +969,7 @@ pub enum PrismError {
     /// Construct via `PrismError::EnrichUdfNotFound(Box::new(EnrichUdfNotFoundDetails::new(...)))`.
     /// Match via `PrismError::EnrichUdfNotFound(ref d)` or `PrismError::EnrichUdfNotFound(..)`.
     ///
-    /// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.2; error-taxonomy.md E-QUERY-039.
+    /// Reference: S-DEMO-FIDELITY-REMEDIATION-001 AC-N1B; BC-2.11.019 v1.3; error-taxonomy.md E-QUERY-039.
     #[error("{0}")]
     EnrichUdfNotFound(Box<EnrichUdfNotFoundDetails>),
 
