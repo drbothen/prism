@@ -1487,11 +1487,6 @@ fn check_enrich_udf_availability(
     let registered_names: std::collections::HashSet<&str> =
         descriptors.iter().map(|d| d.name.as_str()).collect();
 
-    // If no UDFs are registered, skip the gate (no enrichment descriptors loaded).
-    if registered_names.is_empty() {
-        return Ok(());
-    }
-
     // Collect enrichment UDF names from the AST via direct pattern matching.
     // Using direct match (not the Visitor trait) to avoid coupling with the full
     // visitor infrastructure — enrichment nodes are a well-defined subset.

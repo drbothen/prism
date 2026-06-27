@@ -501,3 +501,102 @@ async fn test_med001_available_infusions_sorted_in_e_query_039_error() {
         other => panic!("MED-001: expected PrismError::EnrichUdfNotFound, got: {other:?}"),
     }
 }
+
+/// EC-11-059 — wired-but-empty InfusionRegistry MUST fire E-QUERY-039 with available_infusions=[].
+///
+/// BC-2.11.019 v1.3 §EC-11-059: When the infusion subsystem is wired (`Some(registry)`) but
+/// contains zero loaded specs, any query using `enrich` MUST return E-QUERY-039 with
+/// `available_infusions = []` (empty Vec) and `did_you_mean = None`.
+///
+/// This guards against the MED-1 regression where:
+///   `if registered_names.is_empty() { return Ok(()); }`
+/// silently passed an enrich query through to DataFusion, producing an opaque E-INT-001
+/// instead of the actionable E-QUERY-039 with available_infusions=[].
+///
+/// Distinction from `registry == None` (subsystem not wired, legitimately skip gate):
+///   - `None` registry → skip gate (test/MVP deployment without enrichment subsystem)
+///   - `Some(empty)` registry → wired, zero infusions → MUST fire E-QUERY-039 ([])
+///
+/// Spec canonical test vector "no-infusions" (BC-2.11.019 v1.3 §payload):
+///   available_infusions: [] (always present, empty Vec)
+///   did_you_mean: None (absent — no candidates within Levenshtein 3 of empty set)
+#[tokio::test]
+async fn test_ec_11_059_wired_empty_registry_fires_e_query_039_with_empty_available() {
+    use prism_core::error::PrismError;
+
+    // Construct engine with Some(InfusionRegistry::new()) — wired but ZERO load_spec calls.
+    let table_registry = make_cyberint_table_registry();
+    let empty_infusion_registry = Arc::new(InfusionRegistry::new());
+    // Confirm no specs were loaded (guard against test-fixture drift).
+    assert!(
+        empty_infusion_registry.udf_descriptors().is_empty(),
+        "EC-11-059 fixture: InfusionRegistry must have zero descriptors for this test"
+    );
+
+    let engine = QueryEngine::new_with_cache_config(
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(NoopCs),
+        Arc::new(prism_ocsf::OcsfNormalizer::new()),
+        Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+        QueryEngineConfig::default(),
+        crate::cache::CacheConfig::default(),
+    )
+    .with_table_registry(table_registry)
+    .with_infusion_registry(empty_infusion_registry);
+
+    // cyberint_alerts is registered — table gate passes. Only enrich gate fires.
+    let result = engine
+        .execute(
+            "FROM cyberint_alerts | enrich threat_score(iocs_value)",
+            QueryOptions::default(),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "EC-11-059: wired-but-empty InfusionRegistry + enrich query must return Err. \
+         MED-1 regression: prior code returned Ok (skipped gate when is_empty). \
+         Got Ok — the is_empty skip was not removed."
+    );
+
+    let err = result.unwrap_err();
+
+    // Assert it is specifically EnrichUdfNotFound (not an opaque internal error).
+    match err {
+        PrismError::EnrichUdfNotFound(ref details) => {
+            // available_infusions MUST be empty Vec (not missing — always present per §payload).
+            assert_eq!(
+                details.available_infusions,
+                Vec::<String>::new(),
+                "EC-11-059: available_infusions must be [] (empty Vec) when registry has zero specs. \
+                 Got: {:?}",
+                details.available_infusions
+            );
+
+            // did_you_mean MUST be None — no candidates to compute Levenshtein against.
+            assert_eq!(
+                details.did_you_mean, None,
+                "EC-11-059: did_you_mean must be None when available_infusions is empty. \
+                 Got: {:?}",
+                details.did_you_mean
+            );
+
+            // infusion name in error must match the queried name.
+            assert_eq!(
+                details.infusion, "threat_score",
+                "EC-11-059: infusion field must reflect the queried name 'threat_score'. \
+                 Got: {:?}",
+                details.infusion
+            );
+        }
+        other => {
+            let display = format!("{other}");
+            panic!(
+                "EC-11-059: expected PrismError::EnrichUdfNotFound, got: {other:?}. \
+                 Display: {display}. \
+                 If display contains 'E-INT-001' or 'Internal error', \
+                 the MED-1 is_empty skip was not removed."
+            );
+        }
+    }
+}
