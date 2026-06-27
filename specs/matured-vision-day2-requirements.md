@@ -1550,9 +1550,11 @@ side can execute the join natively (different catalogs / no join-pushdown capabi
 1. **Equality-key requirement** — at least one equality predicate on a join key between the joined
    relations. Cross-source cross-products and non-equi-only cross-source joins are rejected at plan
    time with `E-QUERY-NNN` (cross-source-join-requires-key).
+   **[SUPERSEDED by D-C3-1: cost-based DEGRADE, not hard-reject — see ADR-PROP-capability-descriptor-pushdown.md. All join shapes permitted; absence of equality key triggers the degrade path (cap + flag + cost disclosure), not a plan-time error. D-C3-3 explicitly allows outer/non-equi joins (central-only, no dynamic filter).]**
 2. **Per-side selectivity** — each non-pushed side carries an effective time-bound plus ≥1 filterable
    attribute the planner estimates returns ≤ **N rows** (default **N = 100_000**, configurable per
    deployment). A side that cannot be bounded is rejected.
+   **[SUPERSEDED by D-C3-1: cost-based DEGRADE, not hard-reject — see ADR-PROP-capability-descriptor-pushdown.md. An unbounded side triggers the row-cap + resource-abort degrade stack, not a plan-time rejection. The N row-count survives as the cap trigger, not a rejection threshold.]**
 3. **Materialized-row budget** — total fetched rows across all sides ≤ **M** (default **M = 1_000_000**),
    enforced at *execution* by a monotonic row counter. Exceeding M aborts with `E-QUERY-NNN`
    (cross-source-join-budget-exceeded) and returns partial-result metadata (§3.6).
@@ -1572,6 +1574,7 @@ the guard never permits an *unbounded* cross-source join.
 **Validation.**
 - Planner unit tests: reject missing-key cross-source join; reject unbounded side; accept bounded
   key-join.
+  **[SUPERSEDED by D-C3-1: cost-based DEGRADE, not hard-reject — see ADR-PROP-capability-descriptor-pushdown.md. Validation should assert that missing-key / unbounded-side queries trigger the degrade path (row-cap enforcement + cost-disclosure in response envelope), not a plan-time E-QUERY-NNN error. At morph time, rewrite these test assertions to validate the degrade posture.]**
 - Execution test: abort on budget breach with structured error + partial-result metadata.
 - EXPLAIN test: assert strategy + cardinality annotations present.
 - **Kani candidate:** monotonicity of the materialized-row counter (never under-counts → budget can't
