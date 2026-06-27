@@ -2988,6 +2988,78 @@ E-ML-ONLINE-001 + E-ML-PRIMITIVES-001 (§15.10).
   may need BC-2.16.002 catalog rows (flagged, NOT actioned). C8 decision block appended at
   §12 in-place. Proposed epic: E-PRISMQL-GRAMMAR-001.
 
+- **C9 Config Management FULLY DECIDED + CAPTURED 2026-06-27 (human). All three open questions
+  (Q1 authority/versioning, Q2 canary mechanics, Q3 schema-versioning/deployment-awareness)
+  RESOLVED.** Seven architecture decisions confirmed: Q1-AUTHORITY (DB-authoritative, UI-only
+  authoring in production, no hand-edited TOML runtime path); Q1-VERSION (versioning split by
+  domain — runtime-config = DB-native temporal/system-versioned history with in-transaction
+  exactly-once semantics; detection-content + recipes = real embedded git via git2 0.19.0,
+  opt-in residency-gated remote for detection content only, off/air-gap-safe by default; optional
+  async git projection of runtime-config history = nicety only, not authoritative); FAST-REVERT
+  (ArcSwap hot-swap, append-only/forward-only, seconds, no restart, satellites self-revert +
+  pick up on next dial-home, anchors canary auto-rollback; applies to hot-reloadable config
+  only — NOT restart-class/bootstrap keys); APPROVAL (dropped to DAY-3; canary + fast-revert
+  is the day-2 safety gate); BOOTSTRAP (4-layer for restart-class keys: (1) validate-before-persist
+  cheap-only / port-bindable+store-connects RACY → boot-time backstop; (2) A/B dual-slot
+  active=last-known-good / pending=new / promote only after readiness probe; (3) supervisor
+  watchdog N-failed-boots → revert+reboot / sd-notify 0.5.0 mature / bundled-PID-1 0.x flag
+  for maturity check at morph; (4) satellite autonomous self-recovery TIERED — Tier-1
+  local-validation-fail → revert; Tier-2 dial-home-fail → ESCALATION not revert, locally-healthy
+  satellite does NOT flap on network partition); wrapped by fleet-staged canary (Azure-Device-
+  Update-style); safe-mode console = new attack surface → security-reviewer required before ship;
+  NIST-800-82/IEC-62443 = separate standards pass.
+  **Q2 CANARY (three sub-decisions):** Q2-HEALTH = soft regressions INCLUDED (coverage-banner
+  drop §3.6, availability-cache degradation, query error-rate uptick, empty-result-rate climb,
+  normalization-failure rate) PLUS hard failures at CONSERVATIVE threshold; trip CORRELATED to
+  this-config-push-hitting-this-cohort (upstream outage must not be misread as bad config);
+  reuses C6 shared CUSUM/ADWIN change-detector primitive. Q2-COHORT = config-scope-dependent
+  (tenant for tenant-scoped config; satellite/site for fleet-distributed config). Q2-TIERS =
+  TWO-TIER: HIGH-BLAST classes (connector-defs, pushdown-descriptors, retention-policies,
+  satellite-trust, detection-rule production promotion) ALWAYS canary; LOW-BLAST (feature flags,
+  log-level, TTLs, UI config) apply directly + fast-revert available; classification locked at
+  config-type level, NOT value/magnitude level.
+  **Q3 SCHEMA-VERSIONING (four sub-decisions, RESOLVED 2026-06-27 human-confirmed):**
+  **Q3-MODEL = HYBRID + per-domain split + HUB-AND-SPOKE.** Additive-forward-compat by default
+  (serde `#[serde(default)]` + tolerant deserialization) covers the additive majority with zero
+  migration code. Explicit per-domain `schema_version` + ordered idempotent migration chain for
+  breaking changes only. ONE migration-runner abstraction, N independent per-domain version
+  registries, HUB-AND-SPOKE conversion (one canonical current schema per domain; 2×(N-1) total
+  functions vs quadratic all-pairs — Kubebuilder pattern). Skip-version-RELEASE supported; skip-
+  migration-STEP forbidden. Per-domain: runtime-config → migration chain; detection-content +
+  recipes → git IS version axis + thin content schema_version; RocksDB hot data → per-CF
+  `__schema_meta__` key + on-open chain (CF-per-version REJECTED, rust-rocksdb #608); Iceberg +
+  OCSF cold tier → additive (C5 decision) + Iceberg column-id evolution; OCSF version per
+  partition; NO proprietary version axis for cold tier. KEY CORRECTION: `#[non_exhaustive]` is a
+  COMPILE-TIME cross-crate API guardrail with ZERO effect on serialization compat — NEVER cite it
+  as the mechanism that makes skip-version safe; the serialization-compat story is carried entirely
+  by serde `#[serde(default)]` + the explicit migration chain. **Q3-SKIP = bounded window + LTS
+  required-stops.** Mechanism built now; exact supported window (K minors) + required-stop cadence
+  = OPEN BUSINESS DECISION set at GA. Testing posture non-negotiable: golden fixture per released
+  version per domain + round-trip + forward-migration tests + upgrade-matrix CI across
+  supported-window skip-pairs. **Q3-FORMAT = stay serde 1.0.228 + RocksDB value bytes.** Additive
+  evolution patterns (`#[serde(default)]`, internally-tagged version enums, alias/rename) + value-
+  level version tag. savefile 0.20.4 REJECTED as default (reserve for measured perf need).
+  serde_version 0.5.1 REJECTED (abandoned/nightly-only). **Q3-TIMING = synchronous at boot**
+  (Grafana-style; config volume small; pairs with A/B dual-slot validate-before-cutover + watchdog;
+  RocksDB on-open migration runs synchronously before handle returned, idempotent + atomic per step
+  via `write_batch()`). **DEPLOYMENT-AWARE:** SaaS = walks every release, chain barely exercised,
+  blue-green rollback; MSSP-managed = bundle carries full chain, A/B slot validates, watchdog
+  covers boot-bricking migration; client-managed = HIGHEST skip-version exposure, full chain +
+  supported-window + required-stop + golden-fixture CI + idempotent/atomic/resumable on-open.
+  FULL three-operating-model deployment matrix has its OWN forthcoming ADR-PROP-dual-deployment.md
+  — C9 captures only the migration-posture slice.
+  Capture artifact: `specs/day2-design-decisions/ADR-PROP-config-management.md`
+  (`do_not_execute: true`; real ADR numbers deferred to morph). Research basis:
+  `research/config-schema-versioning-migration-2026-06-27.md` (Q3 PRIMARY),
+  `research/config-management-depth-2026-06-27.md`, `research/config-authority-narrow-git-2026-06-27.md`,
+  `research/git-as-primary-vs-write-behind-2026-06-27.md`, `research/bootstrap-config-recovery-2026-06-27.md`.
+  Downstream SAP-1 obligations (NOT actioned): config-generation-written, config-generation-reverted,
+  config-canary-trip, config-canary-rolled-back, config-migration-completed, config-migration-step-failed,
+  config-satellite-reverted events each need new BC-2.16.002 Canonical Structured Event Catalog rows.
+  Open items: OQ-C9-1 (git2 vs gix), OQ-C9-2 (skip-version window + LTS cadence business decision),
+  OQ-C9-3 (bundled-PID-1 selection), OQ-C9-4 (savefile opt-in measured), OQ-C9-5 (NIST-800-82/IEC-62443
+  standards pass), OQ-C9-6 (safe-mode console security review), OQ-C9-7/8 (calibration).
+
 ### 16.5 Status & boundaries reminder
 
 - This is a **CAPTURE artifact** (`do_not_execute: true`). Nothing here modifies the live brief/PRD/
