@@ -310,6 +310,436 @@ fn test_bc_2_10_016_audit_004_prompt_from_targets_include_registered_table() {
     );
 }
 
+// ── Column-validation extension (MED-1 process-gap closure) ──────────────────
+//
+// BC-2.10.016 v1.2 §Postconditions: "any analyst copying an embedded prompt
+// example query and executing it MUST get a successful result."
+//
+// The FROM-target tests above prove the TABLE exists. These tests prove every
+// COLUMN referenced in each query example (SELECT, WHERE, GROUP BY) also exists
+// in that table's authoritative column set.
+//
+// Column sets are derived from crates/prism-sensors/specs/*.sensor.toml via
+// raw TOML parsing (consistent with the existing table-name helper above).
+// No SpecLoader dependency needed: we read sensor_id + [[tables]] inline.
+
+/// Build a map from `{sensor_id}_{table_name}` → set of column names, by
+/// parsing the sensor TOML specs directly.
+fn build_column_sets_from_specs(
+) -> std::collections::HashMap<String, std::collections::HashSet<String>> {
+    use std::collections::{HashMap, HashSet};
+
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let specs_dir = std::path::Path::new(manifest_dir)
+        .join("..")
+        .join("prism-sensors")
+        .join("specs");
+
+    let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+
+    let read_dir = std::fs::read_dir(&specs_dir).unwrap_or_else(|e| {
+        panic!(
+            "MED-1/column-validator: cannot read sensor specs dir {:?}: {e}",
+            specs_dir
+        )
+    });
+
+    for entry in read_dir {
+        let entry = entry.expect("MED-1: directory entry read failed");
+        let path = entry.path();
+        if !path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|s| s.ends_with(".sensor.toml"))
+            .unwrap_or(false)
+        {
+            continue;
+        }
+
+        let content = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("MED-1: cannot read {path:?}: {e}"));
+
+        let doc: toml::Value = toml::from_str(&content)
+            .unwrap_or_else(|e| panic!("MED-1: cannot parse {path:?} as TOML: {e}"));
+
+        let sensor_id = doc
+            .get("sensor_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("MED-1: {path:?} missing sensor_id"));
+
+        if let Some(tables) = doc.get("tables").and_then(|v| v.as_array()) {
+            for table in tables {
+                let table_name = table
+                    .get("table_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_else(|| panic!("MED-1: table in {path:?} missing table_name"));
+
+                let key = format!("{sensor_id}_{table_name}");
+
+                let mut cols: HashSet<String> = HashSet::new();
+                if let Some(columns) = table.get("columns").and_then(|v| v.as_array()) {
+                    for col in columns {
+                        if let Some(col_name) = col.get("name").and_then(|v| v.as_str()) {
+                            cols.insert(col_name.to_string());
+                        }
+                    }
+                }
+                map.insert(key, cols);
+            }
+        }
+    }
+
+    assert!(
+        !map.is_empty(),
+        "MED-1/column-validator: build_column_sets_from_specs() produced empty map — \
+         no *.sensor.toml files found"
+    );
+
+    map
+}
+
+/// Extract lines from a prompt body that contain a SQL SELECT example.
+///
+/// Matches lines of the form "- <sensor>: SELECT ... FROM ..." (prompt style).
+/// Strips the "- sensor: " label prefix and returns the bare SQL fragment.
+fn extract_example_sql_lines(body: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    for line in body.lines() {
+        let trimmed = line.trim();
+        // Lines like: "  - crowdstrike: SELECT * FROM crowdstrike_detections WHERE ..."
+        // Find ": SELECT" or bare "SELECT " starts.
+        let sql_start = if let Some(p) = trimmed.find(": SELECT") {
+            Some(p + 2) // skip ": "
+        } else if trimmed.to_ascii_uppercase().starts_with("SELECT ") {
+            Some(0)
+        } else {
+            None
+        };
+
+        if let Some(start) = sql_start {
+            let candidate = &trimmed[start..];
+            let upper = candidate.to_ascii_uppercase();
+            if upper.contains("SELECT ") && upper.contains(" FROM ") {
+                result.push(candidate.to_string());
+            }
+        }
+    }
+    result
+}
+
+/// Extract the FROM table name from a SQL fragment.
+///
+/// Returns `{sensor_id}_{table_name}` (underscore form).
+/// Ignores dot-notation targets (those are already caught by the dot-notation tests).
+fn sql_from_table(sql: &str) -> Option<String> {
+    let upper = sql.to_ascii_uppercase();
+    let from_pos = upper.find(" FROM ")?;
+    let after = &sql[from_pos + 6..];
+    let end = after
+        .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+        .unwrap_or(after.len());
+    let table = &after[..end];
+    // Only process underscore-form table names (not dot-notation).
+    if table.contains('_') && !table.contains('.') {
+        Some(table.to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract column references from a SQL fragment.
+///
+/// Handles simple patterns used in prompt examples:
+/// - SELECT col1, col2 (excludes *, COUNT(*), aggregate functions)
+/// - WHERE col = 'val', col IN (...), col IS NOT NULL
+/// - GROUP BY col
+///
+/// Returns only bare identifier column names (alphanumeric + underscore, no leading digit).
+fn sql_column_refs(sql: &str) -> Vec<String> {
+    let mut cols: Vec<String> = Vec::new();
+    let upper = sql.to_ascii_uppercase();
+
+    // ─── SELECT list ────────────────────────────────────────────────────────
+    let from_pos = upper.find(" FROM ").unwrap_or(sql.len());
+    if let Some(sel_pos) = upper.find("SELECT ") {
+        let sel_content = &sql[sel_pos + 7..from_pos];
+        for item in sel_content.split(',') {
+            let item = item.trim();
+            if item == "*" {
+                continue;
+            }
+            if item.contains('(') {
+                continue;
+            } // COUNT(*), aggregate
+            if item.parse::<f64>().is_ok() {
+                continue;
+            }
+            if !item.is_empty()
+                && item.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && item.chars().next().map_or(false, |c| !c.is_ascii_digit())
+            {
+                cols.push(item.to_string());
+            }
+        }
+    }
+
+    // ─── WHERE clause ───────────────────────────────────────────────────────
+    let upper_after_from = if from_pos < upper.len() {
+        &upper[from_pos..]
+    } else {
+        ""
+    };
+    if let Some(where_off) = upper_after_from.find(" WHERE ") {
+        let where_abs = from_pos + where_off + 7;
+        let where_content = &sql[where_abs..];
+        let where_upper = where_content.to_ascii_uppercase();
+        let where_end = [
+            where_upper.find(" GROUP BY "),
+            where_upper.find(" ORDER BY "),
+            where_upper.find(" LIMIT "),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
+        .unwrap_or(where_content.len());
+
+        let where_region = &where_content[..where_end];
+        let predicates = split_predicates(where_region);
+        for pred in predicates {
+            let pred = pred.trim();
+            let pred_upper = pred.to_ascii_uppercase();
+            // Skip if starts with a SQL keyword
+            if matches!(
+                pred_upper.split_ascii_whitespace().next().unwrap_or(""),
+                "AND" | "OR" | "NOT" | "IS" | "IN" | "NULL" | "TRUE" | "FALSE"
+            ) {
+                continue;
+            }
+            // LHS: identifier before first operator character or space
+            let col_end = pred
+                .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                .unwrap_or(pred.len());
+            let col = &pred[..col_end];
+            if !col.is_empty()
+                && col.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && col.chars().next().map_or(false, |c| !c.is_ascii_digit())
+                && !matches!(
+                    col.to_ascii_uppercase().as_str(),
+                    "AND" | "OR" | "NOT" | "IS" | "IN" | "NULL" | "TRUE" | "FALSE"
+                )
+            {
+                cols.push(col.to_string());
+            }
+        }
+    }
+
+    // ─── GROUP BY clause ────────────────────────────────────────────────────
+    if let Some(gb_pos) = upper.find(" GROUP BY ") {
+        let gb_content = &sql[gb_pos + 10..];
+        let gb_upper = gb_content.to_ascii_uppercase();
+        let gb_end = [
+            gb_upper.find(" ORDER BY "),
+            gb_upper.find(" LIMIT "),
+            gb_upper.find(" HAVING "),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
+        .unwrap_or(gb_content.len());
+
+        for item in gb_content[..gb_end].split(',') {
+            let item = item.trim();
+            if item.contains('(') {
+                continue;
+            }
+            if !item.is_empty()
+                && item.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && item.chars().next().map_or(false, |c| !c.is_ascii_digit())
+            {
+                cols.push(item.to_string());
+            }
+        }
+    }
+
+    cols
+}
+
+/// Split a WHERE predicate region into individual conditions (split by AND / OR).
+fn split_predicates(where_region: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let upper = where_region.to_ascii_uppercase();
+    let mut start = 0;
+    let mut pos = 0;
+    while pos < upper.len() {
+        if upper[pos..].starts_with(" AND ") {
+            result.push(where_region[start..pos].to_string());
+            start = pos + 5;
+            pos = start;
+        } else if upper[pos..].starts_with(" OR ") {
+            result.push(where_region[start..pos].to_string());
+            start = pos + 4;
+            pos = start;
+        } else {
+            pos += 1;
+        }
+    }
+    result.push(where_region[start..].to_string());
+    result
+}
+
+/// MED-1 column-validity guard (BC-2.10.016 v1.2 §Postconditions process-gap closure).
+///
+/// Every column referenced in a SELECT, WHERE predicate, or GROUP BY clause of each
+/// render_* prompt example query must exist in the authoritative column set for the
+/// table it queries. Column sets are derived from the sensor TOML specs.
+///
+/// This is the load-bearing test that closes the [process-gap] from the MED-1 adversary
+/// finding: the prior test suite verified FROM targets but not column names.
+#[test]
+fn test_bc_2_10_016_audit_004_column_refs_resolve_to_real_columns() {
+    let column_sets = build_column_sets_from_specs();
+    let client_id = "acme";
+    let hostname = "10.0.0.1";
+
+    let prompts: Vec<(&str, String)> = vec![
+        (
+            "render_triage_alerts",
+            extract_text(
+                &render_triage_alerts(client_id).expect("render_triage_alerts must succeed"),
+            ),
+        ),
+        (
+            "render_investigate_host",
+            extract_text(
+                &render_investigate_host(client_id, hostname)
+                    .expect("render_investigate_host must succeed"),
+            ),
+        ),
+        (
+            "render_client_overview",
+            extract_text(
+                &render_client_overview(client_id).expect("render_client_overview must succeed"),
+            ),
+        ),
+        (
+            "render_cross_client_status",
+            extract_text(
+                &render_cross_client_status(None).expect("render_cross_client_status must succeed"),
+            ),
+        ),
+    ];
+
+    let mut failures: Vec<String> = Vec::new();
+
+    for (prompt_name, body) in &prompts {
+        let sql_lines = extract_example_sql_lines(body);
+
+        for sql in &sql_lines {
+            let Some(table_key) = sql_from_table(sql) else {
+                continue;
+            };
+
+            let Some(valid_cols) = column_sets.get(&table_key) else {
+                // Unknown table — FROM-target tests catch this separately.
+                continue;
+            };
+
+            let col_refs = sql_column_refs(sql);
+            for col in col_refs {
+                if !valid_cols.contains(&col) {
+                    failures.push(format!(
+                        "{prompt_name}: column '{col}' in SQL [{sql}] does NOT exist in \
+                         table '{table_key}'. Valid columns: {valid_cols:?}"
+                    ));
+                }
+            }
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "BC-2.10.016 v1.2 MED-1 column-validity: prompt(s) reference invalid columns:\n\n{}\n\n\
+         Fix: update render_* functions in prompts.rs to use only columns declared in \
+         crates/prism-sensors/specs/*.sensor.toml for the referenced table.",
+        failures.join("\n")
+    );
+}
+
+/// Smoke test: verify the column-set builder loaded columns for all expected tables.
+#[test]
+fn test_bc_2_10_016_audit_004_column_sets_loaded_for_all_sensor_tables() {
+    let column_sets = build_column_sets_from_specs();
+
+    let expected = [
+        (
+            "claroty_alerts",
+            vec![
+                "id",
+                "alert_type_name",
+                "category",
+                "status",
+                "detected_time",
+                "updated_time",
+                "devices_count",
+                "description",
+            ],
+        ),
+        (
+            "claroty_devices",
+            vec![
+                "uid",
+                "asset_id",
+                "device_category",
+                "device_type",
+                "risk_score",
+                "retired",
+            ],
+        ),
+        (
+            "armis_devices",
+            vec![
+                "device_id",
+                "name",
+                "ip_address",
+                "mac_address",
+                "risk_score",
+            ],
+        ),
+        (
+            "armis_alerts",
+            vec!["alert_id", "name", "severity", "status"],
+        ),
+        (
+            "crowdstrike_detections",
+            vec![
+                "detection_id",
+                "status",
+                "severity",
+                "device_id",
+                "tactic",
+                "technique",
+            ],
+        ),
+        (
+            "crowdstrike_devices",
+            vec!["device_id", "hostname", "status"],
+        ),
+    ];
+
+    for (table_key, sample_cols) in &expected {
+        let col_set = column_sets
+            .get(*table_key)
+            .unwrap_or_else(|| panic!("MED-1 smoke: table '{table_key}' missing from column sets"));
+        for col in sample_cols {
+            assert!(
+                col_set.contains(*col),
+                "MED-1 smoke: expected column '{col}' missing from '{table_key}' column set. \
+                 Got: {col_set:?}"
+            );
+        }
+    }
+}
+
 // ── Helper functions ──────────────────────────────────────────────────────────
 
 /// Extract the text content from a `GetPromptResult`.
