@@ -90,7 +90,7 @@ pub struct EnrichUdfNotFoundDetails {
 
 **`available_infusions` rendering:** the `Display` implementation MUST comma-join the `Vec<String>` and wrap it in square brackets, e.g., `[threat_score, nvd_cvss]`. When the Vec is empty the rendered form MUST be `[]`. This bracket convention is consistent with `ColumnNotFoundDetails.available_columns` (E-QUERY-038 sibling). The canonical message format the Display MUST produce byte-for-byte is: `"E-QUERY-039: enrichment infusion '{infusion}' is not registered; available: [{available_infusions}]{did_you_mean}"` where `{available_infusions}` is replaced by the comma-joined Vec content (no additional brackets added — the brackets are part of the format string literal).
 
-The `#[non_exhaustive]` attribute on `EnrichUdfNotFoundDetails` is required per CLAUDE.md `#[non_exhaustive]` discipline (public type in `prism-core`). This adds +1 to the `ci.yml EXPECTED` non-exhaustive gate count (currently 83; increment to 84). External match arms must include a wildcard `_ => {}` arm.
+The `#[non_exhaustive]` attribute on `EnrichUdfNotFoundDetails` is required per CLAUDE.md `#[non_exhaustive]` discipline (public type in `prism-core`). This adds +1 to the `ci.yml EXPECTED` non-exhaustive gate count (currently 87; increment to 88). External match arms must include a wildcard `_ => {}` arm.
 
 `map_prism_error` in `prism-mcp/src/error_mapping.rs` MUST add an explicit `-32602 INVALID_PARAMS` arm for `PrismError::EnrichUdfNotFound` — it MUST NOT fall through to the `#[non_exhaustive]` catch-all `-32000`.
 
