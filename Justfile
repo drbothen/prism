@@ -17,11 +17,14 @@ test:
 # NOTE: PROPTEST_CASES=100 in the recipe overrides any value set in your shell environment
 # for the duration of the cargo nextest invocation.
 # NOTE: cargo-nextest skips doctests by default; the separate --doc step covers them.
+# NOTE: RUSTFLAGS="" is set explicitly on both the nextest and doctest steps so they share
+# the same fingerprint cache. Without alignment, a RUSTFLAGS drift (e.g. a shell export)
+# forces a full recompile for the doctest step (ci.yml lines 127-134 rationale).
 check:
     cargo fmt --check
     cargo clippy --all-features -- -D warnings
-    PROPTEST_CASES=100 cargo nextest run --workspace --all-features --no-fail-fast
-    PROPTEST_CASES=100 cargo test --workspace --all-features --doc
+    RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
+    RUSTFLAGS="" PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
     @scripts/check-non-exhaustive.sh
 

@@ -19,8 +19,17 @@ The pre-push gate (`just check`) runs in ~5-8 min on a typical workstation. It e
 
 - `cargo fmt --check`
 - `cargo clippy --all-features -- -D warnings`
-- `PROPTEST_CASES=100 cargo nextest run --workspace --all-features --no-fail-fast` (+ separate `cargo test --workspace --all-features --doc` for doctests)
+- `RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush` (+ separate `RUSTFLAGS="" PROPTEST_CASES=100 cargo test --workspace --all-features --doc` for doctests)
 - `scripts/check-crate-layout.sh`
+- `scripts/check-non-exhaustive.sh`
+
+`--profile prepush` activates the `[profile.prepush]` nextest profile (`.config/nextest.toml`),
+which sets `fail-fast = false`, adds `retries = 1` to absorb transient subprocess flakes, applies
+a 90 s slow-test threshold with a 180 s hard-kill ceiling, and serializes `signal_handlers` tests
+to prevent concurrent RocksDB mmap pressure. The `--no-fail-fast` flag is NOT passed directly —
+fail-fast behavior is governed by the profile. `RUSTFLAGS=""` is set explicitly on both the
+nextest and doctest steps so they share the same fingerprint cache; a `RUSTFLAGS` drift between
+the two steps would otherwise force a full recompile for the doctest step.
 
 The `PROPTEST_CASES=100` setting overrides any value in your shell environment for the
 duration of the nextest invocation only. CI uses a matrix-controlled value for full
@@ -28,10 +37,16 @@ coverage.
 
 CI runs the full-strength `just check-ci` which includes:
 
-- All of the above with the proptest default (256 cases) plus the additional steps below. Note: CI's `linux-gnu` matrix leg injects `PROPTEST_CASES=1000` for stronger property coverage; local `just check-ci` uses the proptest default.
-- `cargo audit` (RustSec supply-chain advisories)
+- `cargo fmt --check`
+- `cargo clippy --all-features -- -D warnings`
+- `cargo nextest run --workspace --all-features --no-fail-fast` (no profile flag; proptest default 256 cases). Note: CI's `linux-gnu` matrix leg injects `PROPTEST_CASES=1000` for stronger property coverage; local `just check-ci` uses the proptest default.
+- `cargo test --workspace --all-features --doc`
 - `cargo deny check` (license + advisory + duplicate detection)
-- `cargo semver-checks` (API compatibility against `origin/develop`)
+- `cargo audit` (RustSec supply-chain advisories)
+- `cargo semver-checks --workspace --baseline-rev origin/develop` (API compatibility against `origin/develop`)
+- `scripts/check-non-exhaustive.sh` (`#[non_exhaustive]` compile-fail gate)
+- `scripts/check-crate-layout.sh`
+- `shellcheck scripts/demo-setup.sh scripts/demo-run.sh scripts/demo-teardown.sh` (AC-008 shell script hygiene)
 
 ### Standalone targets (run ad-hoc)
 
@@ -70,11 +85,22 @@ cargo install cargo-nextest --locked
 
 ### Why nextest + a separate doctest step?
 
-cargo-nextest does not run doctests by default (upstream limitation). CI and `just check`
-compensate with a separate `cargo test --doc` step that runs only after the nextest pass:
+cargo-nextest does not run doctests by default (upstream limitation). Both `just check` and
+`just check-ci` compensate with a separate `cargo test --doc` step that runs only after the
+nextest pass.
+
+`just check` (local pre-push):
 
 ```bash
-# in just check / just check-ci:
+# profile prepush: fail-fast=false, retries=1, signal_handlers serialized, 90s slow threshold
+RUSTFLAGS="" PROPTEST_CASES=100 cargo nextest run --workspace --all-features --profile prepush
+RUSTFLAGS="" PROPTEST_CASES=100 cargo test --workspace --all-features --doc
+```
+
+`just check-ci` (full CI simulation):
+
+```bash
+# no profile flag: uses nextest default profile; --no-fail-fast passed explicitly
 cargo nextest run --workspace --all-features --no-fail-fast
 cargo test --workspace --all-features --doc
 ```
@@ -131,6 +157,12 @@ It implements the validated recommendations from `.factory/research/build-optimi
 
 `just iter` targets <60s for a single-crate incremental run. **Do not use `just check` during
 the TDD inner loop** — it runs the full 24-crate workspace and is reserved for pre-push.
+
+### sccache (optional compilation cache)
+
+[sccache](https://github.com/mozilla/sccache) caches compiled Rust artifacts by input hash and shares them across all `.worktrees/<story>/` directories. Measured ~25-40% build-time reduction for the warm-incremental case on the crypto/datafusion dependency tree. To enable, install sccache and uncomment the `[build] rustc-wrapper = "sccache"` stanza in `.cargo/config.toml` (the full setup instructions are inline in that file). Do not enable on CI runners — CI has no sccache daemon.
+
+---
 
 ### XProtect exemption (manual opt-in)
 

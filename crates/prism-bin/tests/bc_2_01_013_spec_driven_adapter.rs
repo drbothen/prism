@@ -1546,19 +1546,15 @@ async fn test_BC_2_06_014_boot_step9a_translates_org_slug_to_org_id() {
     );
 }
 
-/// `build_http_client_with_timeout` constructs successfully with 30s timeout.
-///
-/// GREEN-BY-DESIGN: trivial factory function already implemented.
-/// CLAUDE.md §Conventions; TD-S-PLUGIN-PREREQ-B-005; S-DEMO-001 AC-011.
-#[test]
-fn test_BC_2_01_013_build_http_client_with_timeout_succeeds() {
-    let result = build_http_client_with_timeout();
-    assert!(
-        result.is_ok(),
-        "build_http_client_with_timeout must return Ok(Client). Got Err: {:?}",
-        result.err()
-    );
-}
+// NOTE (F-MED-1 / S-PERF-GATE-001 AC-004):
+// `build_http_client_with_custom_timeout` was previously `pub` and tested here via
+// `test_BC_2_01_013_build_http_client_with_timeout_succeeds`. It has been changed to
+// `pub(crate)` (Architecture Compliance Rule 2: no public API surface expansion just
+// for a test). The canonical construction test is now in-crate:
+//   `crates/prism-bin/src/spec_driven_adapter.rs` mod tests:
+//   `test_BC_2_01_013_build_http_client_with_custom_timeout_accepts_duration`
+// Named per RG-PERF-001. Cross-crate callers use `build_http_client_with_timeout()`
+// (the `pub` 30-second wrapper) — exercised by the adv_p02 integration tests below.
 
 // ===========================================================================
 // BC-2.01.013 v1.14 OCSF Conformance Clause tests (adversary pass-2, F-001-R)
