@@ -1485,12 +1485,17 @@ pub fn build_reference_content(
             // Build enrichment list from live registry via udf_descriptors().
             // Collect unique infusion names (multiple UDFs can belong to one infusion).
             let descriptors = registry.udf_descriptors();
-            // Deduplicate by infusion_id to list each infusion once.
-            let mut seen_ids = std::collections::BTreeSet::new();
+            // Deduplicate by per-field UDF name (descriptor.name), NOT by infusion_id.
+            // Each UDF descriptor's `.name` field is the callable per-field name
+            // (e.g., `threat_score`, `cvss_base_score`) — the name an analyst uses in
+            // `| enrich threat_score(col)`. The `infusion_id` (e.g., `threat_intel`, `nvd`)
+            // is the registry key for the infusion, NOT a callable name.
+            // AC-N1 / BC-2.11.022 v1.1 EC-11-022-006.
+            let mut seen_names = std::collections::BTreeSet::new();
             let mut infusion_names: Vec<String> = Vec::new();
             for desc in &descriptors {
-                if seen_ids.insert(desc.infusion_id.clone()) {
-                    infusion_names.push(desc.infusion_id.clone());
+                if seen_names.insert(desc.name.clone()) {
+                    infusion_names.push(desc.name.clone());
                 }
             }
             if infusion_names.is_empty() {
