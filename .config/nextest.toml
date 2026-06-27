@@ -55,8 +55,9 @@ retries = 1
 #   Speedup: ~18x at 256 cases, ~6-7x at 1000 cases
 #
 # terminate-after = 2: 2 × 60 s = 120 s hard kill ceiling. The 75 s proptest
-# worst-case has 45 s of headroom. Uncomment `retries` above if CI runner
-# variance triggers false kills; 1 retry is the safety net.
+# worst-case has 45 s of headroom. `retries = 1` (active) is the safety net
+# for CI runner variance / false kills; a deterministic failure still fails
+# both attempts and is reported.
 slow-timeout = { period = "60s", terminate-after = 2 }
 final-status-level = "slow"
 failure-output = "immediate-final"
